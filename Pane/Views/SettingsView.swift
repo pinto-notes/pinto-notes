@@ -332,7 +332,7 @@ private struct AccountSettings: View {
             }
             // Next to Delete Account, which says to export first.
             Section {
-                ExportNotesButton()
+                ExportNotesButton(sync: sync)
             } footer: {
                 Text(PrivacyCopy.exportFooter)
             }
