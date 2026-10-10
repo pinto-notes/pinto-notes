@@ -254,11 +254,91 @@ jobs:
             -derivedDataPath build/ci-ios -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS | grep -E "error:|\*\* BUILD" || true
           test -d build/ci-ios/Build/Products/Debug-iphonesimulator/Pane.app
 
+  release-mac:
+    name: Mac download compiles (Release)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      XC_FLAGS: CODE_SIGNING_ALLOWED=NO COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-relmac-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-relmac-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-relmac-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
+      - name: PaneDirect, Release, signing off
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build -project Pane.xcodeproj -scheme AmberNotesDirect -configuration Release -destination 'generic/platform=macOS' -derivedDataPath build/ci-relmac \
+            -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS ONLY_ACTIVE_ARCH=YES DEBUG_INFORMATION_FORMAT=dwarf | grep -E "error:|\*\* BUILD" || true
+          ls -d build/ci-relmac/Build/Products/Release/*.app
+
+  release-ios:
+    name: iPhone app compiles (Release)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      XC_FLAGS: CODE_SIGNING_ALLOWED=NO COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-relios-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-relios-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-relios-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
+      - name: The iPhone app, Release, signing off
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build -project Pane.xcodeproj -scheme Pane -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/ci-relios \
+            -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS ONLY_ACTIVE_ARCH=YES DEBUG_INFORMATION_FORMAT=dwarf | grep -E "error:|\*\* BUILD" || true
+          ls -d build/ci-relios/Build/Products/Release-iphoneos/*.app
+
   # The required check. It passes when the three Mac jobs passed, or were skipped because the
   # change touches nothing the app is built or tested from.
   app:
     name: App tests (macOS)
-    needs: [changes, app-unit, app-timing, app-ios]
+    needs: [changes, app-unit, app-timing, app-ios, release-mac, release-ios]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -268,7 +348,7 @@ jobs:
         run: |
           echo "$RESULTS"
           [ "${{ needs.changes.result }}" = success ] || exit 1
-          for r in "${{ needs.app-unit.result }}" "${{ needs.app-timing.result }}" "${{ needs.app-ios.result }}"; do
+          for r in "${{ needs.app-unit.result }}" "${{ needs.app-timing.result }}" "${{ needs.app-ios.result }}" "${{ needs.release-mac.result }}" "${{ needs.release-ios.result }}"; do
             [ "$r" = success ] || [ "$r" = skipped ] || exit 1
           done
 
