@@ -86,12 +86,17 @@ enum ConnectTrust {
 }
 
 enum ConnectSnippets {
+    /// What Claude Code and Codex call the server in their own lists. It was amber-notes (and
+    /// amber_notes) before the app was renamed; a connection added under the old name keeps working.
+    static let serverName = "pinto-notes"
+    static let oldServerName = "amber-notes"
+
     static func claudeCode(url: String, token: String) -> String {
-        "claude mcp add --scope user --transport http amber-notes \(url) --header \"Authorization: Bearer \(token)\""
+        "claude mcp add --scope user --transport http \(serverName) \(url) --header \"Authorization: Bearer \(token)\""
     }
 
     static func codex(url: String, token: String) -> String {
-        "[mcp_servers.amber_notes]\nurl = \"\(url)\"\nhttp_headers = { \"Authorization\" = \"Bearer \(token)\" }"
+        "[mcp_servers.pinto_notes]\nurl = \"\(url)\"\nhttp_headers = { \"Authorization\" = \"Bearer \(token)\" }"
     }
 }
 
@@ -1463,7 +1468,7 @@ struct ConnectAISection: View {
             switch self {
             case .chatgpt: "Plugins → +"
             case .claude: "Directory → Connect to Claude"
-            case .claudeCode: "claude mcp add amber-notes"
+            case .claudeCode: "claude mcp add \(ConnectSnippets.serverName)"
             case .codex: "~/.codex/config.toml"
             case .incredible: "Apps → Amber Notes → Connect"
             }
@@ -1784,13 +1789,18 @@ enum ClaudeCodeInstaller {
     /// A sandboxed app can't start the person's login shell, so the button only exists outside the sandbox.
     static var isAvailable: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil }
 
+    /// Adds the server under its name, in place of an entry this button made before: under this
+    /// name, or under the old one (so nobody ends up with the same notes listed twice).
+    static let script = """
+        command -v claude >/dev/null 2>&1 || { echo "not-found"; exit 127; }
+        claude mcp remove --scope user \(ConnectSnippets.oldServerName) >/dev/null 2>&1
+        claude mcp remove --scope user \(ConnectSnippets.serverName) >/dev/null 2>&1
+        claude mcp add --scope user --transport http \(ConnectSnippets.serverName) "$AMBER_URL" --header "Authorization: Bearer $AMBER_TOKEN"
+        """
+
     static func install(url: String, token: String) async -> (ok: Bool, message: String) {
         await Task.detached {
-            let script = """
-            command -v claude >/dev/null 2>&1 || { echo "not-found"; exit 127; }
-            claude mcp remove --scope user amber-notes >/dev/null 2>&1
-            claude mcp add --scope user --transport http amber-notes "$AMBER_URL" --header "Authorization: Bearer $AMBER_TOKEN"
-            """
+            let script = Self.script
             let p = Process()
             p.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
             p.arguments = ["-l", "-i", "-c", script]
