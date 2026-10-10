@@ -1,17 +1,30 @@
 name: ci
 
-# Runs on every push and pull request, forks included. Needs no secrets.
+# Two shapes, one workflow. Needs no secrets; forks included.
+#
+# A pull request gets the fast lane: what ships is compiled (the Mac download and the iPhone app,
+# Release) and the app's tests are built, and then only the tests the change is likely to break run
+# (scripts/ci/select-tests.py: a smoke set, the touched test files, their near relations, about 90
+# seconds in all). A change that touches nothing of the app skips the Mac work altogether.
+#
+# A push to dev or main (a merge) gets everything: the whole unit suite, the timing tests, the
+# suites that wait on real time. That run also fills the caches the pull requests read. When it
+# fails it opens an issue that names the merge, so a red run is never just a badge.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 permissions:
   contents: read
 
+# A newer push to a pull request replaces the run before it. After a merge nothing is cancelled:
+# one run at a time per branch, and while it runs only the newest merge waits behind it, so the
+# full suite always finishes on something and a burst of merges is tested together (the issue a
+# red run opens lists every merge since the last green one).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # What the change touches, so a job that cannot be affected by it is skipped. A skipped job
@@ -62,25 +75,118 @@ jobs:
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar -xz gitleaks
           ./gitleaks git --no-banner --redact -v -c .gitleaks.toml
 
-  app:
-    name: App tests (macOS)
+  # A pull request's Mac work: three jobs side by side.
+  lane-tests:
+    name: The tests for this change (macOS)
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.app == 'true'
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 20
     env:
-      # The suites that time things (PaneTests/Perf): run apart from the rest.
-      PERF_SKIP: -skip-testing:PaneTests/EditorPerfTests -skip-testing:PaneTests/AppPerfTests -skip-testing:PaneTests/ScanPerfTests -skip-testing:PaneTests/WindowUpdateTests -skip-testing:PaneTests/ListPiecesPerfTests
-      PERF_ONLY: -only-testing:PaneTests/EditorPerfTests -only-testing:PaneTests/AppPerfTests -only-testing:PaneTests/ScanPerfTests -only-testing:PaneTests/WindowUpdateTests -only-testing:PaneTests/ListPiecesPerfTests
+      XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
     steps:
       - uses: actions/checkout@v4
       - name: Select the newest Xcode
+        id: xcode
         run: |
           XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
           [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-unit-${{ steps.xcode.outputs.version }}-
       - name: Generate the project
         run: brew install xcodegen && xcodegen generate
+      - name: Build the app and its tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build-for-testing -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+            -derivedDataPath build/ci -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS \
+            | tee build/ci-build.log | grep -E "error:|\*\* TEST BUILD" || true
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" build/ci-build.log
+      - name: The tests this change is likely to break
+        env:
+          TEST_RUNNER_PANE_PERF_SLACK: "4"
+          TEST_RUNNER_PANE_SNAPSHOTS: "1"
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin "$BASE"
+          git diff --name-only "$BASE" HEAD > changed.txt
+          python3 scripts/ci/select-tests.py changed.txt > only.txt
+          xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+            $(tr '\n' ' ' < only.txt) -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
+            | tee build/ci-test.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
+          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-test.log
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-test-results
+          path: |
+            build/ci-build.log
+            build/ci-test.log
+            build/ci-tests.xcresult
+            ~/Library/Logs/DiagnosticReports/Pane*
+          retention-days: 7
+
+  # After a merge: everything, as three jobs side by side (it was one after the other, 24
+  # minutes): every unit and interaction test, the timing tests in a process and on a runner of
+  # their own, and the iPhone simulator build.
+  app-unit:
+    name: After merge, every unit test (macOS)
+    needs: changes
+    if: github.event_name == 'push'
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      # The suites that time things (PaneTests/Perf) run in the timing job.
+      PERF_SKIP: -skip-testing:PaneTests/EditorPerfTests -skip-testing:PaneTests/AppPerfTests -skip-testing:PaneTests/ScanPerfTests -skip-testing:PaneTests/WindowUpdateTests -skip-testing:PaneTests/ListPiecesPerfTests
+      XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-unit-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build the app and its tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build-for-testing -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+            -derivedDataPath build/ci -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS \
+            | tee build/ci-build.log | grep -E "error:|\*\* TEST BUILD" || true
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" build/ci-build.log
       - name: Unit and interaction tests
         env:
           # Runners are several times slower than a developer's Mac; see PaneTests/Perf/PerfBudget.swift.
@@ -89,28 +195,11 @@ jobs:
           TEST_RUNNER_PANE_SNAPSHOTS: "1"
         run: |
           set -o pipefail
-          mkdir -p build
-          # The timing suites run on their own afterwards (next step), so the snapshot, PDF and
-          # web view suites running beside them in this process can't slow what they measure.
-          xcodebuild test -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
-            -only-testing:PaneTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult \
-            ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO \
-            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
-            | tee build/ci-test.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
-          grep -q "\*\* TEST SUCCEEDED \*\*" build/ci-test.log
-      - name: Timing tests, on their own
-        env:
-          TEST_RUNNER_PANE_PERF_SLACK: "4"
-        run: |
-          set -o pipefail
-          # A process of their own, one test at a time, after the build is warm.
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
-            $PERF_ONLY -parallel-testing-enabled NO -derivedDataPath build/ci -resultBundlePath build/ci-perf.xcresult \
-            ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO \
-            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
-            | tee build/ci-perf.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
+            -only-testing:PaneTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
+            | tee build/ci-test.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
           # test-without-building says TEST EXECUTE SUCCEEDED.
-          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-perf.log
+          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-test.log
       # A failure keeps the whole log and the result bundle: a test host that hangs or crashes
       # records no issue in the filtered output above, only its name under "Failing tests". The
       # crash reports say where it died.
@@ -120,10 +209,9 @@ jobs:
         with:
           name: app-test-results
           path: |
+            build/ci-build.log
             build/ci-test.log
             build/ci-tests.xcresult
-            build/ci-perf.log
-            build/ci-perf.xcresult
             ~/Library/Logs/DiagnosticReports/Pane*
           retention-days: 7
       # Pictures the snapshot tests attach (FileViewerSnapshots and others): kept after every run, so a
@@ -141,12 +229,265 @@ jobs:
           path: build/snapshots
           if-no-files-found: ignore
           retention-days: 7
+
+  app-timing:
+    name: After merge, timing tests (macOS)
+    needs: changes
+    if: github.event_name == 'push'
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      PERF_ONLY: -only-testing:PaneTests/EditorPerfTests -only-testing:PaneTests/AppPerfTests -only-testing:PaneTests/ScanPerfTests -only-testing:PaneTests/WindowUpdateTests -only-testing:PaneTests/ListPiecesPerfTests
+      XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-timing-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-timing-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-timing-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build the app and its tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build-for-testing -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+            -derivedDataPath build/ci -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS \
+            | tee build/ci-build.log | grep -E "error:|\*\* TEST BUILD" || true
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" build/ci-build.log
+      - name: Timing tests, on their own
+        env:
+          # Runners are several times slower than a developer's Mac; see PaneTests/Perf/PerfBudget.swift.
+          TEST_RUNNER_PANE_PERF_SLACK: "4"
+        run: |
+          set -o pipefail
+          # A process and a runner of their own, one test at a time, so nothing else slows what they measure.
+          xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+            $PERF_ONLY -parallel-testing-enabled NO -derivedDataPath build/ci -resultBundlePath build/ci-perf.xcresult $XC_FLAGS \
+            | tee build/ci-perf.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
+          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-perf.log
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-timing-results
+          path: |
+            build/ci-build.log
+            build/ci-perf.log
+            build/ci-perf.xcresult
+            ~/Library/Logs/DiagnosticReports/Pane*
+          retention-days: 7
+
+  app-ios:
+    name: After merge, iPhone simulator build
+    needs: changes
+    if: github.event_name == 'push'
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      XC_FLAGS: CODE_SIGNING_ALLOWED=NO COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-ios-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-ios-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-ios-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
       - name: iOS simulator build
         run: |
           set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
           xcodebuild build -project Pane.xcodeproj -scheme Pane -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/ci-ios CODE_SIGNING_ALLOWED=NO | grep -E "error:|\*\* BUILD" || true
+            -derivedDataPath build/ci-ios -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS | grep -E "error:|\*\* BUILD" || true
           test -d build/ci-ios/Build/Products/Debug-iphonesimulator/Pane.app
+
+  release-mac:
+    name: Mac download compiles (Release)
+    needs: changes
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && needs.changes.outputs.app == 'true')
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      XC_FLAGS: CODE_SIGNING_ALLOWED=NO COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-relmac-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-relmac-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-relmac-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
+      - name: PaneDirect, Release, signing off
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build -project Pane.xcodeproj -scheme AmberNotesDirect -configuration Release -destination 'generic/platform=macOS' -derivedDataPath build/ci-relmac \
+            -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS ONLY_ACTIVE_ARCH=YES DEBUG_INFORMATION_FORMAT=dwarf | grep -E "error:|\*\* BUILD" || true
+          ls -d build/ci-relmac/Build/Products/Release/*.app
+      - name: Keep the packages and compiled output for the pull requests
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+  release-ios:
+    name: iPhone app compiles (Release)
+    needs: changes
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && needs.changes.outputs.app == 'true')
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      XC_FLAGS: CODE_SIGNING_ALLOWED=NO COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the newest Xcode
+        id: xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
+      # The Swift packages and the compiler's own cache of what it has built (by content, so a
+      # file that did not change is not compiled again), kept between runs of this job.
+      - name: Packages and compiled output from earlier runs
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-relios-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            app-relios-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-relios-${{ steps.xcode.outputs.version }}-
+      - name: Generate the project
+        run: brew install xcodegen && xcodegen generate
+      - name: The iPhone app, Release, signing off
+        run: |
+          set -o pipefail
+          mkdir -p build
+          du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
+          xcodebuild build -project Pane.xcodeproj -scheme Pane -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/ci-relios \
+            -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS ONLY_ACTIVE_ARCH=YES DEBUG_INFORMATION_FORMAT=dwarf | grep -E "error:|\*\* BUILD" || true
+          ls -d build/ci-relios/Build/Products/Release-iphoneos/*.app
+      - name: Keep the packages and compiled output for the pull requests
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+  # The required check. It passes when every Mac job that ran passed; the ones that don't belong
+  # to this kind of run (or were skipped because the change touches nothing of the app) are skipped.
+  app:
+    name: App tests (macOS)
+    needs: [changes, lane-tests, release-mac, release-ios, app-unit, app-timing, app-ios]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: The three Mac jobs
+        env:
+          RESULTS: tests for this change ${{ needs.lane-tests.result }}, Mac Release ${{ needs.release-mac.result }}, iPhone Release ${{ needs.release-ios.result }}, every unit test ${{ needs.app-unit.result }}, timing ${{ needs.app-timing.result }}, simulator build ${{ needs.app-ios.result }}, what changed ${{ needs.changes.result }}
+        run: |
+          echo "$RESULTS"
+          [ "${{ needs.changes.result }}" = success ] || exit 1
+          for r in "${{ needs.lane-tests.result }}" "${{ needs.release-mac.result }}" "${{ needs.release-ios.result }}" "${{ needs.app-unit.result }}" "${{ needs.app-timing.result }}" "${{ needs.app-ios.result }}"; do
+            [ "$r" = success ] || [ "$r" = skipped ] || exit 1
+          done
+
+  # A red run after a merge reaches a person: an issue that names the merges it covers.
+  report:
+    name: Say so when dev or main is red
+    needs: [app-unit, app-timing, app-ios, release-mac, release-ios, server, web, secrets]
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+      actions: read
+    steps:
+      - name: Open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          failed=$(gh api "repos/$REPO/actions/runs/$RUN/jobs?per_page=100" -q '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
+          # Every merge this run covers: the commits since the push before it (a burst of merges is tested together).
+          merges=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" -q '.commits[] | select(.commit.message | test("^Merge pull request #")) | "- " + (.commit.message | split("\n")[0]) + " (" + .sha[0:8] + ")"' 2>/dev/null || true)
+          [ -n "$merges" ] || merges="- $(gh api "repos/$REPO/commits/$SHA" -q '.commit.message | split("\n")[0]') (${SHA:0:8})"
+          {
+            echo "The full run after a merge into \`$BRANCH\` failed: **$failed**."
+            echo
+            echo "Run: https://github.com/$REPO/actions/runs/$RUN"
+            echo
+            echo "Merges this run covers (one of them broke it, or it is a flaky test: re-run the failed job once to tell):"
+            echo "$merges"
+            echo
+            echo "Pull requests run a selection of the tests; everything runs here. Until this is green, \`$BRANCH\` is not a candidate for a release."
+          } > body.md
+          gh issue create -R "$REPO" --title "$BRANCH is red after ${SHA:0:8}: $failed" --body-file body.md --assignee "$ACTOR" \
+            || gh issue create -R "$REPO" --title "$BRANCH is red after ${SHA:0:8}: $failed" --body-file body.md
 
   server:
     name: Server (Deno)
@@ -160,7 +501,7 @@ jobs:
         run: for f in supabase/functions/*/index.ts scripts/e2ee-tool.ts scripts/e2ee-wipe-storage.ts; do deno check "$f"; done
       - name: Unit tests
         run: >-
-          deno test --allow-all
+          deno test --allow-all --parallel
           supabase/functions/_shared/e2ee.test.ts supabase/functions/_shared/log.test.ts supabase/functions/_shared/apns.test.ts supabase/functions/_shared/db.test.ts supabase/functions/_shared/client.test.ts supabase/functions/_shared/region.test.ts
           supabase/functions/mcp/notes.test.ts supabase/functions/mcp/needs_database.test.ts supabase/functions/mcp/annotations.test.ts supabase/functions/mcp/card.test.ts supabase/functions/mcp/instructions.test.ts
           supabase/functions/mcp/oauth.pglite.test.ts supabase/functions/mcp/locked.pglite.test.ts supabase/functions/mcp/e2ee.pglite.test.ts

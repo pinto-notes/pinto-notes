@@ -1,0 +1,9 @@
+# The tests every pull request runs, whatever it touches: one for each bug that got out, and the
+# paths everything else stands on. One test per line, as Suite/test(). Add a line when a bug gets
+# out; take one away only when the thing it guards is gone.
+KeyStartupTests/aKeyTheKeychainRefusesToSyncIsKeptOnThisDevice()        # 2026-10-10: the key was lost when the Keychain refused to save it
+E2EESyncTests/aFileInAFolderShowsOnAnotherDevice()                      # 2026-10-10: a file row first seen from the server lost its folder
+SessionStorageTests/signingOutStaysSignedOutWhenTheItemCantBeDeleted()  # 2026-10-10: signed in again after Sign Out when the Keychain item stayed
+OfflineTests/signingOutEndsThisSessionOnTheServerAndNoOther()           # 2026-10-10: Sign Out's scope (this session, no other device)
+NoteExportTests/exportsFilesKeptInFoldersAndFoldersWithNoNotes()        # 2026-10-10: Export Your Notes left out files kept in folders
+SeedOnceTests/nothingIsMadeBeforeTheAccountsNotesHaveComeDown()         # 2026-10-10: the first folder and To-do note were made before the first pull
