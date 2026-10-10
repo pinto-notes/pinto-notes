@@ -742,7 +742,10 @@ private struct ShareLinkChrome: ViewModifier {
                     }
                 case .includeSubNotes:
                     Button("Include Sub-notes") { Task { await store.setIncludesSubNotes(true) } }
+                        // As above: not the default button on iPhone.
+                        #if os(macOS)
                         .keyboardShortcut(.defaultAction)
+                        #endif
                         .accessibilityIdentifier("share.confirm")
                 }
                 Button("Cancel", role: .cancel) {}
