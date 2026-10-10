@@ -4,6 +4,7 @@ Rules for coding agents (and people) changing this repo. The README explains the
 
 - **Apple Notes is the behaviour reference.** Copy what Notes does for editing, lists, checklists, tables, selection and navigation. Follow Apple's Human Interface Guidelines for layout, type, colour, controls and accessibility, in light and dark mode.
 - **Every fix gets a regression test.** Editor and UI behaviour goes in the offscreen harness under `PaneTests/Harness` and `PaneTests/Interaction`; run `scripts/qa-test.sh`. Server changes get Deno tests; end-to-end tests run against the local stack only (`supabase start`, then `scripts/mcp-e2e.sh`).
+- **Before pushing app code, run `scripts/prepush.sh`.** It compiles what ships (the Mac download and the iPhone app, Release) and what CI builds (the app and its tests, Debug), side by side and headless: about 2 minutes after an edit. A push that doesn't compile costs a CI run and everyone waiting behind it.
 - **Never post global input events** (synthetic clicks or keystrokes) on a developer's Mac, and never leave windows or Dock icons behind. Kill only processes you started, by exact PID.
 - **No secrets, ever.** Don't commit or print keys, tokens or passwords. They live in `.env`, `.secrets/`, `Config/Backend.local.xcconfig` and GitHub Secrets.
 - **Never test against production data.** Load, abuse and end-to-end tests run on the local stack.
