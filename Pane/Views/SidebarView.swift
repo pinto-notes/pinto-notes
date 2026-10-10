@@ -488,3 +488,4 @@ private struct FolderTree: View {
         Button("Delete Folder…", systemImage: "trash", role: .destructive) { delete(folder) }
     }
 }
+// measuring: one app file changed (removed before this PR is ready)
