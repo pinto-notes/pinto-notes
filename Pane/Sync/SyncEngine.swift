@@ -51,6 +51,9 @@ final class SyncEngine {
     private var accountIsNew = false
     /// Bumps when a pull changed a note, so an open editor can refresh.
     private(set) var remoteChangeTick = 0 { didSet { lastChange = .now } }
+    /// Bumps when a pull brought a file this device didn't have (or new bytes for one): a picture added on another device can reach this one
+    /// in a later sync than the note text that shows it, and the open note asks for it then.
+    private(set) var filesPulledTick = 0
 
     private let backend: Backend
     private let context: ModelContext
@@ -1258,6 +1261,7 @@ final class SyncEngine {
             let again: [AttachmentDTO] = try await client.from("attachments").select().in("id", values: chunk).execute().value
             fileRows += again
         }
+        var filesApplied = false
         for r in fileRows where !r.unreadable || skipUnreadable(r.id, "A file") {
             let known = context.attachment(r.id)
             let a = known ?? {
@@ -1269,6 +1273,8 @@ final class SyncEngine {
             // first seen just now: a new Attachment starts as "new here" too, and skipping it left
             // every file from another device without its folder, never marked as on the server.
             guard known == nil || halfApplied.contains(r.id) || !a.dirty || a.uploaded else { continue }
+            // New to this device, or new bytes: something an open note may be waiting to show.
+            if known == nil || !a.uploaded || r.content_version != a.contentVersion { filesApplied = true }
             // Renamed elsewhere (another device, the AI): this device's copy follows.
             if a.filename != r.filename { FileStore.rename(a.id, from: a.filename, to: r.filename) }
             // Deleted for good elsewhere, or by the server after 30 days in Recently Deleted: the
@@ -1295,6 +1301,7 @@ final class SyncEngine {
             if let s = r.server_updated_at, s > newest { newest = s }
             changed = true
         }
+        if filesApplied { filesPulledTick += 1 }
 
         var offset = 0
         var pulledNotes: [UUID] = []
