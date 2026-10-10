@@ -586,6 +586,19 @@ private struct MenuBarSection: View {
 /// About › Open source: three quiet links to the code on GitHub, and the terms and privacy
 /// policy under them. Nothing here ever asks.
 struct AboutSection: View {
+    /// "1.2 (2610100857)": what to quote when something goes wrong.
+    static var version: String { version(short: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+                                          build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) }
+
+    static func version(short: String?, build: String?) -> String {
+        switch (short, build) {
+        case let (s?, b?) where s != b: "\(s) (\(b))"
+        case let (s?, _): s
+        case let (nil, b?): b
+        default: "Unknown"
+        }
+    }
+
     static let links: [(title: String, url: URL, id: String)] = [
         ("Star on GitHub", ShareAsk.repository, "settings.github"),
         ("Report an issue", ShareAsk.newIssue, "settings.reportIssue"),
@@ -606,6 +619,8 @@ struct AboutSection: View {
             .padding(.vertical, 2)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("settings.openSource")
+            LabeledContent("Version", value: Self.version)
+                .accessibilityIdentifier("settings.version")
         } header: {
             Text("About")
         } footer: {
@@ -619,7 +634,13 @@ struct AboutSection: View {
                 Text("\u{00B7}").foregroundStyle(.tertiary).accessibilityHidden(true)
             }
             Link(link.title, destination: link.url)
+                #if os(iOS)
+                // The words are footnote-sized; the target is a finger's height.
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+                #else
                 .frame(minHeight: 24)
+                #endif
                 .accessibilityIdentifier(link.id)
         }
     }

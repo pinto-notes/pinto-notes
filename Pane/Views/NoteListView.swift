@@ -426,6 +426,8 @@ struct NoteListView: View {
                 }
                 ToolbarItem(placement: .bottomBar) {
                     Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+                        // Recently Deleted holds no new notes: the note it made went elsewhere.
+                        .disabled(scope == .trash)
                         .accessibilityIdentifier("list.newNote")
                 }
             }
