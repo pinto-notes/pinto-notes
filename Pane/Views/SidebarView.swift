@@ -307,6 +307,8 @@ struct SidebarView: View {
                 #endif
             Button("Cancel", role: .cancel) {}
             Button(renaming == nil ? "Create" : "Save", action: commitName)
+                // Nothing to create or save without a name (it used to close the alert and do nothing).
+                .disabled(nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 // On iPhone the default button of an alert is filled system blue under the app's
                 // amber label, which can't be read: Return on the keyboard saves instead.
                 #if os(macOS)
