@@ -44,9 +44,10 @@ describe("the connect page", () => {
       expect(words("notebot", "notes.example", false)).toEqual({ title: "Connect notebot to Pinto Notes?", gets, who: "It goes to notes.example. notebot is the name it gave." });
     });
 
-    it("shows a name with no caveat only where access goes to that AI's own domain", () => {
-      expect(words("claude", "claude.ai")).toEqual({ title: "Connect Claude to Pinto Notes?", gets, who: null });
-      expect(words("chatgpt", "chatgpt.com")).toEqual({ title: "Connect ChatGPT to Pinto Notes?", gets, who: null });
+    it("heads the card with ChatGPT's or Claude's name on its own domain, and still asks you to have started it", () => {
+      expect(words("claude", "claude.ai")).toEqual({ title: "Connect Claude to Pinto Notes?", gets, who: "It goes to claude.ai. Allow it only if you started this." });
+      expect(words("chatgpt", "chatgpt.com")).toEqual({ title: "Connect ChatGPT to Pinto Notes?", gets, who: "It goes to chatgpt.com. Allow it only if you started this." });
+      expect(words(null, "claude.ai").who).toBe("It goes to claude.ai. Allow it only if you started this.");
     });
 
     it("never heads the card with ChatGPT's, Claude's or Pinto Notes' name for an app elsewhere", () => {

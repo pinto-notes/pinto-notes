@@ -155,11 +155,14 @@ const BRANDS: Record<string, string[]> = {
 };
 const onDomain = (host: string, domains: string[]) => domains.some((d) => host === d || host.endsWith("." + d));
 
-/// What the card says about a request: the question, with the app's name in it; what it gets; and,
-/// only where nothing checks the name, one quiet line saying so. A name that belongs to ChatGPT,
+/// What the card says about a request: the question, with the app's name in it; what it gets; and
+/// one quiet line with what is known. On ChatGPT's or Claude's own domain that line still asks you
+/// to have started it: a sign-in started in someone else's ChatGPT or Claude returns there too
+/// (the 2 October rule in the MCP function's describeRequest), so the name is never vouched for. A name that belongs to ChatGPT,
 /// Claude or Pinto Notes is a headline only when access goes to that AI's own domain; anywhere else
 /// it shows only in the quiet line, as the name the app gave. No name is ever shown with a mark.
 export function requestWords(label: ConnectLabel | null): { title: string; gets: string; who: string | null } {
+  // checked: access goes to ChatGPT's or Claude's domain. That proves where, not whose account.
   const host = label?.redirect_host ?? null;
   const raw = label?.claimed_name?.trim() ?? "";
   const key = raw.toLowerCase().replace(/[\s_]+/g, "-");
@@ -172,7 +175,7 @@ export function requestWords(label: ConnectLabel | null): { title: string; gets:
   const gets = "It can read your notes and change them when you ask.";
   if (!host) return { title, gets, who: null };
   const where = label?.loopback ? "This is an app on this computer." : `It goes to ${host}.`;
-  if (checked && headline) return { title, gets, who: null };
+  if (checked && (headline || !given)) return { title, gets, who: `${where} Allow it only if you started this.` };
   return { title, gets, who: given ? `${where} ${given} is the name it gave.` : where };
 }
 

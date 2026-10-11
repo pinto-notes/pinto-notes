@@ -119,6 +119,7 @@ describe("the parts every connect screen shares", () => {
     const label = { claimed_name: "Claude", redirect_host: "claude.ai", loopback: false };
     const b = renderToStaticMarkup(<ConnectCard request label={label}><p>x</p></ConnectCard>);
     expect(text(b)).toContain("Connect Claude to Pinto Notes? It can read your notes and change them when you ask.");
+    expect(text(b)).toContain("It goes to claude.ai. Allow it only if you started this.");
     expect(text(b)).not.toContain("is the name it gave");
     const local = renderToStaticMarkup(<ConnectCard request label={{ claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true }}><p>x</p></ConnectCard>);
     expect(text(local)).toContain("Connect Codex to Pinto Notes? It can read your notes and change them when you ask. This is an app on this computer. Codex is the name it gave.");
