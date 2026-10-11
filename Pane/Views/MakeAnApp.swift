@@ -14,24 +14,52 @@ enum MakeAnApp {
         return !NotePage.tables(in: lines).isEmpty || lines.filter { ListPrefix(line: $0)?.checkbox != nil }.count >= 3
     }
 
-    /// What to ask for, from what the note holds, as the words after "an app: ". Nothing when the
-    /// note holds neither a table nor a checklist.
-    static func idea(for body: String) -> String? {
+    /// What kind of app the note would make, from what it holds.
+    enum Kind: Equatable { case budget, tracker, cards, checklist, plain }
+
+    static func kind(for body: String) -> Kind {
         let lines = body.components(separatedBy: "\n")
         if let t = NotePage.tables(in: lines).first {
             let names = t.columns.map { $0.name.lowercased() }
-            if names.contains(where: { $0.contains("amount") || $0.contains("cost") || $0.contains("price") || $0 == "kr" }) {
-                return "a budget with the total, spending by category, and a quick way to add an expense"
-            }
-            if names.contains("date") {
-                return "a tracker with today's entry at the top, streaks, and a chart of the last weeks"
-            }
-            return "cards of this table that I can sort, filter and add to"
+            if names.contains(where: { $0.contains("amount") || $0.contains("cost") || $0.contains("price") || $0 == "kr" }) { return .budget }
+            return names.contains("date") ? .tracker : .cards
         }
-        if lines.contains(where: { ListPrefix(line: $0)?.checkbox != nil }) {
-            return "a checklist that shows what's left, groups the items, and lets me add and tick them"
+        return lines.contains(where: { ListPrefix(line: $0)?.checkbox != nil }) ? .checklist : .plain
+    }
+
+    /// What to ask for, as the words after "an app: ". Nothing when the note holds neither a table
+    /// nor a checklist.
+    static func idea(for body: String) -> String? {
+        switch kind(for: body) {
+        case .budget: "a budget with the total, spending by category, and a quick way to add an expense"
+        case .tracker: "a tracker with today's entry at the top, streaks, and a chart of the last weeks"
+        case .cards: "cards of this table that I can sort, filter and add to"
+        case .checklist: "a checklist that shows what's left, groups the items, and lets me add and tick them"
+        case .plain: nil
         }
-        return nil
+    }
+
+    /// The ways to hand the prompt to the AIs connected to this account: a chat that opens with
+    /// the words in its box (ChatGPT, Claude), and, for anything else (Claude Code, Codex, another
+    /// MCP client), the words to paste. Most recently used first.
+    struct Ways: Equatable {
+        var chats: [String] = []
+        var paste: String?
+        var isEmpty: Bool { chats.isEmpty && paste == nil }
+    }
+
+    static func ways(_ connections: [Connection]) -> Ways {
+        var ways = Ways()
+        let live = connections.filter { $0.revoked_at == nil }.sorted { ($0.last_used_at ?? $0.created_at) > ($1.last_used_at ?? $1.created_at) }
+        for c in live {
+            if let ai = c.mark, ["ChatGPT", "Claude"].contains(ai) { if !ways.chats.contains(ai) { ways.chats.append(ai) } } else if ways.paste == nil { ways.paste = c.mark ?? "your AI" }
+        }
+        return ways
+    }
+
+    /// The chat with the prompt typed in (WebConnectPlan.prefilled, the same link Try It uses).
+    static func chat(_ ai: String, prompt: String) -> URL {
+        WebConnectPlan.prefilled(ai == "ChatGPT" ? "https://chatgpt.com/" : "https://claude.ai/new", prompt)
     }
 
     static func prompt(title: String, body: String) -> String {
@@ -84,69 +112,71 @@ struct MakeAppChip: View {
     }
 }
 
-/// Make It an App: what an app is, with a picture of one, and the one next step: the prompt to
-/// give your AI, or connecting one first. A sheet the size of what it says, on the app's own
-/// ground (as "How did you hear about Pinto Notes?" is).
+/// Make It an App: one click hands the prompt to the person's AI, and the sheet then waits for the
+/// app and closes itself when it is here (the note opens as the app). With no AI connected, one
+/// button connects one and the sheet comes back ready. On the app's own ground, as tall as what
+/// it says.
 struct MakeAppSheet: View {
+    let noteID: UUID
     let title: String
     let body_: String
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.dismiss) private var dismiss
-    @State private var connected: Bool?
+    @Environment(\.openURL) private var openURL
+    @State private var ways: MakeAnApp.Ways?
+    /// Handed to this AI (or pasted somewhere): waiting for the app.
+    @State private var waitingFor: String?
+    @State private var showWords = false
     @State private var connecting = false
-    @State private var copied = false
-    @State private var height: CGFloat = 460
+    @State private var height: CGFloat = 320
 
-    /// Words first, or the picture first (compared side by side on 2026-10-11; `-makeAppLayout
-    /// pictureFirst` in development builds shows the other).
-    enum Layout: String { case stacked, pictureFirst }
     #if DEBUG || QA
-    nonisolated(unsafe) static var layout: Layout = Capture.argument("-makeAppLayout").flatMap(Layout.init(rawValue:)) ?? .stacked
-    /// Pictures of each state without an account (`-makeAppState connected | none`).
-    nonisolated(unsafe) static var stateForPictures: Bool? = Capture.argument("-makeAppState").map { $0 == "connected" }
+    /// Pictures of each state without an account: `-makeAppState none | chatgpt | both | code | waiting`.
+    nonisolated(unsafe) static var stateForPictures: String? = Capture.argument("-makeAppState")
+    /// The small sketch of the note as an app, compared with and without (`-makeAppSketch NO`).
+    nonisolated(unsafe) static var sketch = Capture.argument("-makeAppSketch") != "NO"
     #else
-    static let layout: Layout = .stacked
-    static let stateForPictures: Bool? = nil
+    static let stateForPictures: String? = nil
+    static let sketch = true
     #endif
 
     private var prompt: String { MakeAnApp.prompt(title: title, body: body_) }
 
     var body: some View {
-        content
-            .padding(.horizontal, Metrics.padding)
-            .padding(.top, Metrics.top)
-            .padding(.bottom, Metrics.padding)
-            .overlay(alignment: .topTrailing) { close.padding(Metrics.closeInset) }
-            .background(Color(Palette.sheetGround))
-            #if os(macOS)
-            .frame(width: 420)
-            #else
-            .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height = $0 }
-            .presentationDetents([.height(height)])
-            .presentationDragIndicator(.hidden)
-            #endif
-            .tint(Color(PColor.paneAccent))
-            .task { await check() }
-            .sheet(isPresented: $connecting, onDismiss: { Task { await check() } }) {
-                if let backend { SettingsView(backend: backend, sync: sync) }
-            }
-    }
-
-    @ViewBuilder private var content: some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
-            if Self.layout == .pictureFirst { picture.padding(.top, Metrics.closeSize + 10); words; step } else { words; picture; step }
+            words
+            if Self.sketch { MakeAppSketch(title: title, kind: MakeAnApp.kind(for: body_)) }
+            step
         }
-    }
-
-    /// A real app in a note: the habit tracker's first card, as it looks in this appearance.
-    private var picture: some View {
-        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
-        return Image("MakeAppHabits").resizable().scaledToFit()
-            .frame(maxWidth: .infinity).clipShape(shape)
-            .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
-            .accessibilityLabel("A habit tracker app in a note")
+        .padding(.horizontal, Metrics.padding)
+        .padding(.top, Metrics.top)
+        .padding(.bottom, Metrics.padding)
+        .overlay(alignment: .topTrailing) { close.padding(Metrics.closeInset) }
+        .background(Color(Palette.sheetGround))
+        #if os(macOS)
+        .frame(width: 420)
+        #else
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { height = $0 }
+        .presentationDetents([.height(height)])
+        .presentationDragIndicator(.hidden)
+        #endif
+        .tint(Color(PColor.paneAccent))
+        .task { await check() }
+        // The app is here (made by the AI, arrived by sync): done. The note shows it.
+        .onChange(of: NotePageStore.shared[noteID] != nil) { _, here in if here { dismiss() } }
+        // While waiting, ask for changes every few seconds as well as hearing of them.
+        .task(id: waitingFor) {
+            guard waitingFor != nil else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(4))
+                sync?.schedule()
+            }
+        }
+        .sheet(isPresented: $connecting, onDismiss: { Task { await check() } }) {
+            if let backend { SettingsView(backend: backend, sync: sync) }
+        }
     }
 
     private var words: some View {
@@ -156,57 +186,97 @@ struct MakeAppSheet: View {
                 .tracking(-0.3)
                 .foregroundStyle(Color.ink)
                 .accessibilityAddTraits(.isHeader)
-                .padding(.trailing, Self.layout == .pictureFirst ? 0 : Metrics.closeSize + 8)
-            Text("A note can be a small app, like this habit tracker. Your AI builds it from what the note holds, and the note stays yours to undo.")
+                .padding(.trailing, Metrics.closeSize + 8)
+            Text(ways?.isEmpty == true ? "An AI you connect builds it from what this note holds." : "Your AI builds it from what this note holds. You can undo it.")
                 .font(Metrics.line)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    /// The one next step: the prompt to copy when an AI is connected, connecting one when none is.
+    /// The one next step.
     @ViewBuilder private var step: some View {
-        switch connected {
-        case true?:
-            VStack(alignment: .leading, spacing: Metrics.stepGap) {
-                Text(prompt)
-                    .font(Metrics.prompt)
-                    .foregroundStyle(Color.ink)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.amberSoft, in: .rect(cornerRadius: Metrics.radius, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
-                    .accessibilityIdentifier("makeApp.prompt")
-                Button { copy() } label: {
-                    Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
-                .accessibilityIdentifier("makeApp.copy")
-                Text("Paste it into your AI. The app shows up on this note.")
-                    .font(Metrics.hint)
-                    .foregroundStyle(Color.muted)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
-        case false?:
-            VStack(alignment: .leading, spacing: Metrics.stepGap) {
+        if let waitingFor {
+            waiting(for: waitingFor)
+        } else if let ways {
+            if ways.isEmpty {
                 Button { connecting = true } label: { Text("Connect an AI").frame(maxWidth: .infinity) }
                     .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
                     .accessibilityIdentifier("makeApp.connect")
-                Text("It takes about 2 minutes. Then come back here for the words to give it.")
-                    .font(Metrics.hint)
-                    .foregroundStyle(Color.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
+            } else {
+                VStack(alignment: .leading, spacing: Metrics.stepGap) {
+                    ForEach(Array(ways.chats.enumerated()), id: \.element) { i, ai in
+                        if i == 0 {
+                            Button { hand(to: ai) } label: { Text("Make it with \(ai)").frame(maxWidth: .infinity) }
+                                .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                                .accessibilityIdentifier("makeApp.with.\(ai)")
+                        } else {
+                            Button { hand(to: ai) } label: { Text("Make it with \(ai)").frame(maxWidth: .infinity).frame(height: Metrics.button - 8) }
+                                .buttonStyle(.bordered)
+                                .accessibilityIdentifier("makeApp.with.\(ai)")
+                        }
+                    }
+                    if let other = ways.paste {
+                        if ways.chats.isEmpty || showWords {
+                            wordsToPaste(for: other)
+                        } else {
+                            Button("Or copy the words for \(other)") { withAnimation(.smooth(duration: 0.2)) { showWords = true } }
+                                .buttonStyle(.hoverLink)
+                                .font(Metrics.hint)
+                                .foregroundStyle(Color.muted)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .accessibilityIdentifier("makeApp.showWords")
+                        }
+                    }
+                }
             }
-        case nil:
-            // Finding out whether an AI is connected: the button's own height, so nothing jumps.
+        } else {
+            // Finding out which AIs are connected: the button's own height, so nothing jumps.
             ProgressView().controlSize(.small).frame(maxWidth: .infinity).frame(height: Metrics.button)
+        }
+    }
+
+    /// For an AI that has no chat to open (Claude Code, Codex, another MCP client): the words, and Copy.
+    private func wordsToPaste(for ai: String) -> some View {
+        VStack(alignment: .leading, spacing: Metrics.stepGap) {
+            Text(prompt)
+                .font(Metrics.prompt)
+                .foregroundStyle(Color.ink)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.amberSoft, in: .rect(cornerRadius: Metrics.radius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+                .accessibilityIdentifier("makeApp.prompt")
+            Button { copy(); withAnimation(.smooth(duration: 0.25)) { waitingFor = ai } } label: {
+                Label("Copy for \(ai)", systemImage: "doc.on.doc").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+            .accessibilityIdentifier("makeApp.copy")
+        }
+    }
+
+    /// Handed over: one calm line while the AI works. The sheet closes itself when the app is here.
+    private func waiting(for ai: String) -> some View {
+        let chat = ["ChatGPT", "Claude"].contains(ai)
+        return VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text("Waiting for \(ai) to build it…")
+                    .font(Metrics.wait)
+                    .foregroundStyle(Color.ink)
+            }
+            .frame(maxWidth: .infinity).frame(minHeight: Metrics.button)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("makeApp.waiting")
+            Text(chat ? "Send the message in \(ai). If its box is empty, paste: the words are copied." : "Paste the words into \(ai) and send them.")
+                .font(Metrics.hint)
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
         }
     }
 
@@ -233,6 +303,7 @@ struct MakeAppSheet: View {
         static let line = Font.system(size: 13)
         static let prompt = Font.system(size: 13)
         static let hint = Font.system(size: 12)
+        static let wait = Font.system(size: 13, weight: .medium)
         static let padding: CGFloat = 24
         static let top: CGFloat = 24
         static let gap: CGFloat = 16
@@ -247,6 +318,7 @@ struct MakeAppSheet: View {
         static let line = Font.subheadline
         static let prompt = Font.callout
         static let hint = Font.footnote
+        static let wait = Font.body.weight(.medium)
         static let padding: CGFloat = 24
         static let top: CGFloat = 24
         static let gap: CGFloat = 18
@@ -259,13 +331,32 @@ struct MakeAppSheet: View {
         #endif
     }
 
-    /// Whether any AI is connected to this account.
+    /// Which AIs are connected to this account.
     private func check() async {
-        if let known = Self.stateForPictures { connected = known; return }
-        if ProcessInfo.processInfo.arguments.contains("-aiConnected") { connected = true; return }
-        guard let client = backend?.client else { connected = false; return }
+        if let state = Self.stateForPictures {
+            switch state {
+            case "chatgpt": ways = .init(chats: ["ChatGPT"])
+            case "both": ways = .init(chats: ["ChatGPT", "Claude"], paste: "Claude Code")
+            case "code": ways = .init(paste: "Claude Code")
+            case "waiting": ways = .init(chats: ["ChatGPT"]); waitingFor = "ChatGPT"
+            default: ways = .init()
+            }
+            return
+        }
+        if ProcessInfo.processInfo.arguments.contains("-aiConnected") { ways = .init(chats: ["ChatGPT"]); return }
+        guard let client = backend?.client else { ways = .init(); return }
         let rows: [Connection] = (try? await client.from("mcp_tokens").select().execute().value) ?? []
-        connected = rows.contains { $0.revoked_at == nil }
+        ways = MakeAnApp.ways(rows)
+    }
+
+    /// One click: the AI opens with the words in its box, and the sheet waits for the app. The
+    /// words are copied too: neither app documents the link, so pasting is the way if the box
+    /// comes up empty.
+    private func hand(to ai: String) {
+        copy()
+        // Captures and UI tests stay in the app.
+        if !ProcessInfo.processInfo.arguments.contains("-uitest") { openURL(MakeAnApp.chat(ai, prompt: prompt)) }
+        withAnimation(.smooth(duration: 0.25)) { waitingFor = ai }
     }
 
     private func copy() {
@@ -275,7 +366,74 @@ struct MakeAppSheet: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(prompt, forType: .string)
         #endif
-        withAnimation(.smooth) { copied = true }
+    }
+}
+
+/// The note as an app, sketched: its own title over the shapes of the kind of app it would make
+/// (a tracker's ring and week, a budget's total and bars, a checklist's progress and rows, a
+/// table's cards). Shapes only: nobody else's app, and no numbers that aren't the person's.
+struct MakeAppSketch: View {
+    let title: String
+    let kind: MakeAnApp.Kind
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text(title.isEmpty ? "Your note" : title)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                AppMarkView(size: 12)
+            }
+            shapes
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.notePage, in: .rect(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+        .accessibilityElement()
+        .accessibilityLabel("\(title) as an app, sketched")
+    }
+
+    private func bar(_ width: CGFloat, _ color: Color = Color.line, height: CGFloat = 8) -> some View {
+        Capsule().fill(color).frame(width: width, height: height)
+    }
+
+    @ViewBuilder private var shapes: some View {
+        switch kind {
+        case .tracker:
+            HStack(spacing: 14) {
+                Circle().trim(from: 0, to: 0.7).stroke(Color.amberInk, style: .init(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
+                    .background(Circle().stroke(Color.line, lineWidth: 6)).frame(width: 40, height: 40).padding(3)
+                VStack(alignment: .leading, spacing: 8) {
+                    bar(110, Color.ink.opacity(0.55))
+                    HStack(spacing: 5) { ForEach(0..<7, id: \.self) { i in bar(18, i < 5 ? Color.amberInk : Color.line, height: 6) } }
+                }
+            }
+        case .budget:
+            VStack(alignment: .leading, spacing: 8) {
+                bar(90, Color.ink.opacity(0.55), height: 12)
+                ForEach([150.0, 96, 58], id: \.self) { w in HStack(spacing: 8) { bar(44); bar(w, Color.amberInk) } }
+            }
+        case .checklist:
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack(alignment: .leading) { bar(200); bar(120, Color.amberInk) }
+                ForEach(0..<3, id: \.self) { i in
+                    HStack(spacing: 8) {
+                        Circle().strokeBorder(i == 0 ? Color.amberInk : Color.line, lineWidth: 1.5).background(Circle().fill(i == 0 ? Color.amberInk : .clear)).frame(width: 14, height: 14)
+                        bar([120.0, 150, 90][i], Color.ink.opacity(i == 0 ? 0.25 : 0.5))
+                    }
+                }
+            }
+        case .cards, .plain:
+            HStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { i in
+                    VStack(alignment: .leading, spacing: 6) { bar(50, Color.ink.opacity(0.55)); bar(70); bar([40.0, 56, 30][i], Color.amberInk) }
+                        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(Palette.sheetGround), in: .rect(cornerRadius: 8, style: .continuous))
+                }
+            }
+        }
     }
 }
 

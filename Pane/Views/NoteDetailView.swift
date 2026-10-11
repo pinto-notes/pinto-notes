@@ -159,7 +159,7 @@ struct NoteDetailView: View {
             .modifier(HostAskAlert(ask: $hostAsk))
             .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
             .sheet(isPresented: $showNetLog) { NotePageNetLogView(noteID: note.id) }
-            .sheet(isPresented: $showMakeApp) { MakeAppSheet(title: note.title, body_: note.body) }
+            .sheet(isPresented: $showMakeApp) { MakeAppSheet(noteID: note.id, title: note.title, body_: note.body) }
             .sheet(item: firstOpenSheet) { m in
                 if FirstOpen.variant == .ac {
                     FirstOpenRichSheet(moment: m) { startFirstOpen(m) }

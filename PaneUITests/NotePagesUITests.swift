@@ -310,39 +310,48 @@ final class NotePagesUITests: XCTestCase {
         pause(1)
     }
 
-    /// A note that looks like a tracker suggests itself once. Make It an App in More has a symbol
-    /// that reads as apps; its sheet says what an app is and offers the one next step: connecting
-    /// an AI when none is connected, the prompt to copy when one is ($AI_CONNECTED=1).
+    /// Make It an App: the menu item has a symbol that reads as apps. Its sheet has one step. With
+    /// no AI connected ($MAKE_APP_STATE=none) that is connecting one. With ChatGPT connected, one
+    /// tap hands the words over and the sheet waits; when the app arrives (here from `-aiPage`, as
+    /// sync would bring it) the sheet closes itself and the note is the app.
     func testMakeItAnApp() {
-        let connected = ProcessInfo.processInfo.environment["AI_CONNECTED"] == "1"
-        launch(["-open", "Evening tracker", "-makeAppState", connected ? "connected" : "none"]
-            + (ProcessInfo.processInfo.environment["MAKE_APP_LAYOUT"].map { ["-makeAppLayout", $0] } ?? []))
+        let env = ProcessInfo.processInfo.environment
+        let state = env["MAKE_APP_STATE"] ?? "chatgpt"
+        var args = ["-open", "Evening tracker", "-makeAppState", state]
+        if env["MAKE_APP_SKETCH"] == "NO" { args += ["-makeAppSketch", "NO"] }
+        if state == "chatgpt" { args += ["-aiPage", "Evening tracker=\(pages)/habit-tracker.html", "-aiPageBy", "ChatGPT", "-aiAfter", "14"] }
+        launch(args)
         mark("make-start")
         let chip = app.buttons["makeApp.chip"].firstMatch
         XCTAssertTrue(chip.waitForExistence(timeout: 6), "the suggestion shows")
-        pause(1.2)
-        shot("63-make-chip")
         app.buttons["editor.more"].firstMatch.tap()
         let item = app.buttons["editor.makeApp"].firstMatch
         XCTAssertTrue(item.waitForExistence(timeout: 4))
-        pause(0.8)
+        pause(0.6)
         shot("64-make-menu")
         item.tap()
-        XCTAssertTrue(app.staticTexts["Make this note an app"].firstMatch.waitForExistence(timeout: 4))
-        pause(1.2)
-        shot(connected ? "66-make-prompt" : "65-make-connect")
-        if connected {
-            XCTAssertFalse(app.buttons["makeApp.connect"].firstMatch.exists)
-            app.buttons["makeApp.copy"].firstMatch.tap()
-            pause(1.2)
-            XCTAssertTrue(app.buttons["Copied"].firstMatch.exists)
-            shot("67-make-copied")
-        } else {
+        let heading = app.staticTexts["Make this note an app"].firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 4))
+        pause(1.0)
+        shot("65-make-\(state)")
+        switch state {
+        case "none":
             XCTAssertTrue(app.buttons["makeApp.connect"].firstMatch.exists, "with no AI connected, the one step is connecting one")
-            XCTAssertFalse(app.buttons["makeApp.copy"].firstMatch.exists)
+            app.buttons["makeApp.close"].firstMatch.tap()
+            XCTAssertTrue(heading.waitForNonExistence(timeout: 4), "the close button closes the sheet")
+        case "chatgpt":
+            app.buttons["makeApp.with.ChatGPT"].firstMatch.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["makeApp.waiting"].firstMatch.waitForExistence(timeout: 3), "handed over, the sheet waits")
+            pause(0.8)
+            shot("66-make-waiting")
+            // Nothing is pressed from here: the app arriving closes the sheet and shows itself.
+            XCTAssertTrue(heading.waitForNonExistence(timeout: 20), "the sheet closes itself when the app is here")
+            XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 8), "and the note is the app")
+            pause(1.5)
+            shot("67-make-done")
+        default:
+            pause(0.5)
         }
-        app.buttons["makeApp.close"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Make this note an app"].firstMatch.waitForNonExistence(timeout: 4), "the close button closes the sheet")
         mark("make-end")
         pause(1)
     }
