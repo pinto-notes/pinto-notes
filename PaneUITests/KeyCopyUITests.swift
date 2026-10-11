@@ -120,6 +120,47 @@ final class KeyCopyUITests: XCTestCase {
         shot("1-first-device-switch")
     }
 
+    /// On the account's only device, with no recovery key saved: Advanced protection doesn't turn on
+    /// until the recovery key has been shown and saved. Then it's turned off again, for the steps after.
+    func test1b_AdvancedProtectionShowsTheRecoveryKeyFirst() throws {
+        _ = try credentials()
+        app.launchArguments = ["-skipWelcome", "-ownerConfirmed"]
+        app.launch()
+        dismissFirstRunSheets()
+        openSecurity()
+        let strict = app.switches["privacy.strict"].firstMatch
+        for _ in 0..<6 where !(strict.exists && strict.isHittable) { app.swipeUp() }
+        func turn() { if strict.switches.firstMatch.exists { strict.switches.firstMatch.tap() } else { strict.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap() } }
+        turn()
+        let confirm = app.buttons["privacy.confirmStrict"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        // Nothing else could open the notes: it asks for the recovery key to be saved first.
+        let saveFirst = app.buttons["privacy.saveFirst"].firstMatch
+        XCTAssertTrue(saveFirst.waitForExistence(timeout: 15), "asked to save the recovery key first: \(app.debugDescription.prefix(600))")
+        XCTAssertEqual(app.switches["privacy.strict"].firstMatch.value as? String, "0", "not on yet")
+        shot("1b-save-first")
+        saveFirst.tap()
+        let key = app.descendants(matching: .any)["recovery.key"].firstMatch
+        XCTAssertTrue(key.waitForExistence(timeout: 10), "the recovery key is shown")
+        shot("1b-recovery-key")
+        app.buttons["recovery.copy"].firstMatch.tap()
+        Thread.sleep(forTimeInterval: 2)
+        if app.buttons["Done"].firstMatch.exists { app.buttons["Done"].firstMatch.tap() }
+        // Saved: now it turns on, and the copy's row goes.
+        let on = NSPredicate(format: "value == '1'")
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: on, object: app.switches["privacy.strict"].firstMatch)], timeout: 20), .completed, "on once the key was saved")
+        shot("1b-strict-on")
+        // Off again: a copy goes back, said as the person's choice.
+        turn()
+        let off = app.buttons["privacy.confirmStandard"].firstMatch
+        XCTAssertTrue(off.waitForExistence(timeout: 5))
+        off.tap()
+        let isOff = NSPredicate(format: "value == '0'")
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: isOff, object: app.switches["privacy.strict"].firstMatch)], timeout: 20), .completed, "off again")
+        shot("1b-strict-off")
+    }
+
     func test2_TheSecondDeviceOpensBySigningIn() throws {
         let (email, password) = try credentials()
         app.launchArguments = ["-signout", "-skipWelcome"]

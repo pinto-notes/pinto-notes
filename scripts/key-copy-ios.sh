@@ -89,6 +89,7 @@ boot "$A"; boot "$B"
 THIS=$(build "$PWD" "$PWD/build/ddsim-keycopy" "$A" this)
 failed=0
 step "$THIS" "$A" "$NEW" KeyCopyUITests/test1_TheFirstDeviceStoresACopy || failed=1
+step "$THIS" "$A" "$NEW" KeyCopyUITests/test1b_AdvancedProtectionShowsTheRecoveryKeyFirst || failed=1
 step "$THIS" "$B" "$NEW" KeyCopyUITests/test2_TheSecondDeviceOpensBySigningIn || failed=1
 step "$THIS" "$A" "$NEW" KeyCopyUITests/test3_AdvancedProtection || failed=1
 xcrun simctl shutdown "$A"; xcrun simctl shutdown "$B"

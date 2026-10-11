@@ -64,7 +64,7 @@ import Testing
         let (b, keychainB) = await device(clientB, user: user, syncs: false)
         #expect(b.phase == .ready && !b.unverified && b.arrivedHow == .signIn, "no linking, no recovery key: \(b.phase)")
         #expect(KeyGateView.shown(b.phase, .auto, held: b.held) == .welcome, "the notes, not a key screen")
-        #expect(b.keyID == a.keyID && b.recoveryKeyText == a.recoveryKeyText && keychainB.synced[user] == keychainA.synced[user])
+        #expect(b.keyID == a.keyID && b.recoveryKeyText == a.recoveryKeyText && keychainB.local[user] == keychainA.synced[user] && keychainB.synced[user] == nil)
         // What one device seals, the other opens.
         let note = UUID()
         let keyA = try #require(a.dataKey), keyB = try #require(b.dataKey)

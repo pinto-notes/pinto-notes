@@ -82,6 +82,8 @@ enum GateScreen: String, TelemetryWord {
     case welcome, waiting, recovery, unreachable, checking
     /// Waiting out the hold after a password reset (KeyCopy).
     case held
+    /// Before the key is fetched from the server's copy: sign in again, or say yes first (KeyCopy).
+    case beforeFetch = "before_fetch"
     case addDevice = "add_device"
     case noDevice = "no_device"
     case startFresh = "start_fresh"
@@ -99,6 +101,7 @@ extension GateScreen {
         case .unreachable: self = .unreachable
         case .checking: self = .checking
         case .held: self = .held
+        case .before: self = .beforeFetch
         }
     }
 }

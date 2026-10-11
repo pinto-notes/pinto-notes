@@ -26,6 +26,10 @@ import Testing
         var storeFails = false
         /// A password reset in the last 72 hours.
         var pausedUntil: Date?
+        /// The session's sign-in is older than the server allows for a fetch.
+        var wantsSignIn = false
+        /// What devices said they saw when they stored.
+        private(set) var froms: [KeyProtection?] = []
         /// What `fetch` hands out instead of the copy (a server gone wrong).
         var handsOut: StoredKey?
         /// keep_key_on_devices is satisfied: a recovery key was saved or another device holds the key.
@@ -67,12 +71,15 @@ import Testing
             return !off
         }
 
-        func store(_ key: StoredKey, user: UUID, choose: Bool) async throws {
+        func store(_ key: StoredKey, user: UUID, choose: Bool, from: KeyProtection?) async throws {
             if offline || functionDown || storeFails { throw KeyCopyError.offline }
             if off { throw KeyCopyError.off }
             stores.append(choose)
+            froms.append(from)
             guard let row else { throw KeyCopyError.noCopy }
-            if !choose, protection != .standard { throw protection == .strict ? KeyCopyError.strict : KeyCopyError.notChosen }
+            // As the function does: a strict account gets a copy only from a choice that saw it strict.
+            if protection == .strict, !(choose && from == .strict) { throw KeyCopyError.strict }
+            if !choose, protection != .standard { throw KeyCopyError.notChosen }
             guard AccountCrypto.isAccountsKey(key, row, user: user) else { throw KeyCopyError.wrongKey }
             copy = key
             protection = .standard
@@ -82,6 +89,7 @@ import Testing
             fetches += 1
             if offline || functionDown { throw KeyCopyError.offline }
             if off { throw KeyCopyError.off }
+            if wantsSignIn { throw KeyCopyError.reauth }
             if protection == .strict { throw KeyCopyError.strict }
             guard let copy, copy.keyID == row?.key_id else { throw KeyCopyError.noCopy }
             if let pausedUntil { throw KeyCopyError.paused(until: pausedUntil) }
@@ -191,7 +199,8 @@ import Testing
         await attach(second)
         #expect(second.phase == .ready && !second.unverified && second.arrivedHow == .signIn)
         #expect(KeyGateView.shown(second.phase, .auto, held: second.held) == .welcome)
-        #expect(secondKeychain.synced[user] == firstKeychain.synced[user], "kept, so the next launch has it")
+        #expect(secondKeychain.local[user] == firstKeychain.synced[user], "kept, so the next launch has it")
+        #expect(secondKeychain.synced[user] == nil && !second.backedUp, "on this device only: a key the server named never becomes an iCloud Keychain item")
         #expect(second.dataKey.map(E2EE.bytes) == first.dataKey.map(E2EE.bytes))
         #expect(second.recoveryKeyText == first.recoveryKeyText, "the same recovery key on every device")
         #expect(server.fetches == 1 && !second.keyNotSaved)
@@ -262,7 +271,7 @@ import Testing
         try await first.keepCopy()
         #expect(!first.asksProtection && first.serverCopy && first.protection == .standard && server.stores == [true])
         #expect(await second.pollCopy())
-        #expect(second.phase == .ready && second.arrivedHow == .signIn && secondKeychain.synced[user] == k)
+        #expect(second.phase == .ready && second.arrivedHow == .signIn && secondKeychain.local[user] == k)
     }
 
     @Test func askMeLaterStoresNothingAndAsksAgainAtTheNextLaunch() async throws {
@@ -311,17 +320,30 @@ import Testing
         await first.recheck()
         #expect(server.copy == nil && server.stores == [true], "a strict account's device never stores a copy again by itself")
 
-        let (second, _) = device()
+        // (A device has its own settings: what it remembers of the account is its own.)
+        let second = AccountCrypto(store: Keychain(cloud: KeyStartupTests.Cloud()), defaults: UserDefaults(suiteName: "key-copy-\(UUID())")!, sleep: { _ in throw CancellationError() })
         await attach(second)
         #expect(second.phase == .waiting && !second.copiesOffered && server.fetches == 0)
         #expect(KeyGateView.shown(second.phase, .auto, held: second.held) == .addDevice)
         #expect(await second.pollCopy() == false)
 
-        // Turned off again: a copy goes back, and the waiting device opens.
+        // Turned off again: a copy goes back, said as a choice that saw the account strict.
         try await first.keepCopy()
-        #expect(server.copy != nil && first.protection == .standard)
-        #expect(await second.pollCopy())
-        #expect(second.phase == .ready)
+        #expect(server.copy != nil && first.protection == .standard && server.froms.last == .some(.strict))
+        // The waiting device knew the account with Advanced protection on: it fetches nothing by itself, it asks.
+        #expect(await second.pollCopy() == false)
+        #expect(second.phase == .waiting && second.asksBeforeFetch == .wasStrict && server.fetches == 0)
+        #expect(KeyGateView.shown(second.phase, .auto, before: second.asksBeforeFetch != nil) == .before)
+        #expect(await second.pollCopy() == false && server.fetches == 0, "and goes on asking nothing of the server")
+        await second.fetchAfterAsking()
+        #expect(second.phase == .ready && second.arrivedHow == .signIn && server.fetches == 1)
+        // A device that signs in for the first time has nothing to remember, and isn't asked.
+        let (third, _) = device()
+        let fresh = UserDefaults(suiteName: "key-copy-\(UUID())")!
+        let other = AccountCrypto(store: Keychain(cloud: KeyStartupTests.Cloud()), defaults: fresh, sleep: { _ in throw CancellationError() })
+        await attach(other)
+        #expect(other.phase == .ready && other.asksBeforeFetch == nil)
+        _ = third
     }
 
     @Test func aStandardAccountsMissingCopyIsStoredAgainSilently() async throws {
@@ -358,6 +380,11 @@ import Testing
         keychain.synced[user] = stale
         let (second, _) = device(keychain)
         await attach(second)
+        // A key the server names is never taken in silence over one this device holds.
+        #expect(second.phase == .mismatch && second.asksBeforeFetch == .otherKey && server.fetches == 0)
+        #expect(KeyGateView.shown(second.phase, .auto, before: true) == .before && KeyCopyWords.askFetchOtherKey.contains("different key"))
+        #expect(await second.pollCopy() == false && server.fetches == 0)
+        await second.fetchAfterAsking()
         #expect(second.phase == .ready && !second.backedUp)
         #expect(keychain.synced[user] == stale && keychain.local[user] == server.copy)
     }
@@ -370,6 +397,82 @@ import Testing
         let (second, _) = device(keychain)
         await attach(second)
         #expect(second.phase == .ready && second.keyNotSaved)
+    }
+
+    // MARK: What the review found
+
+    @MainActor final class Counter { var n = 0 }
+
+    @Test func aStoreSaysWhichModeTheDeviceSawAndAStaleDeviceNeverUndoesAdvancedProtection() async throws {
+        let (first, keychain) = device()
+        await attach(first)
+        #expect(server.froms == [nil], "a new account: nothing was chosen before")
+        // Another device of the account, which still thinks it standard, while the copy is gone and the account went strict.
+        let (stale, _) = device(keychain)
+        await attach(stale)
+        server.anotherWayBack = true
+        try await first.keepOnDevicesOnly(device: UUID())
+        #expect(server.copy == nil && server.protection == .strict)
+        // Its renewal, and even its person tapping "keep a copy" on what it believes is a standard account, are refused.
+        await #expect(throws: KeyCopyError.strict) { try await stale.keepCopy() }
+        #expect(server.copy == nil && server.protection == .strict && stale.protection == .strict, "and it has heard now")
+        // Asked again, knowing: that is the person turning it off.
+        try await stale.keepCopy()
+        #expect(server.copy != nil && server.froms.last == .some(.strict))
+    }
+
+    @Test func aSessionTooOldToFetchIsToldToSignInAgainAndAsksNothingMore() async throws {
+        let (first, _) = device()
+        await attach(first)
+        server.wantsSignIn = true
+        let (second, _) = device()
+        await attach(second)
+        #expect(second.phase == .waiting && second.needsSignIn && second.dataKey == nil)
+        #expect(KeyGateView.shown(second.phase, .auto, before: second.needsSignIn) == .before)
+        #expect(KeyCopyWords.signInAgainTitle == "Sign in again to open your notes" && GateScreen(.before).rawValue == "before_fetch")
+        let asked = server.fetches
+        #expect(await second.pollCopy() == false && server.fetches == asked, "not asked again until it has signed in again")
+        #expect(SupabaseKeyCopy.refusal(status: 403, body: Data(#"{"hint":"reauth"}"#.utf8)) == .reauth)
+        #expect(KeyCopyWords.error(.reauth).contains("sign in again"))
+        // Signed in again (a new attach): it opens.
+        server.wantsSignIn = false
+        second.signedOut()
+        await attach(second)
+        #expect(second.phase == .ready && !second.needsSignIn)
+    }
+
+    @Test func signOutAndRemoveNotesAsksTheServerAgainAndKeepsTheKeyWhenTheCopyIsGone() async throws {
+        // One device, no recovery key, a copy on the server: removal is offered.
+        let (only, keychain) = device()
+        await attach(only)
+        #expect(only.serverCopy && SignOutRemoval.offer(keyOpen: only.isReady, inICloudKeychain: false, recoverySaved: false, others: [], serverCopy: only.serverCopy) == .offered(keyStays: false))
+        // Advanced protection went on (from another device, or here with the answer lost): this device still believes in the copy.
+        server.protection = .strict
+        server.copy = nil
+        #expect(only.serverCopy, "remembered")
+        let dropped = Counter(), restored = Counter()
+        let removal = SignOutRemoval(
+            defaults: defaults, gate: SignOutRemoval.Gate(),
+            offer: { SignOutRemoval.offer(keyOpen: only.isReady, inICloudKeychain: false, recoverySaved: only.recoveryKeySaved, others: [], serverCopy: only.serverCopy) },
+            push: { true }, hasUnsynced: { false }, withdraw: {}, refreshCopy: { try await only.refreshCopyState() }, stopSync: {}, restore: { restored.n += 1 },
+            dropKey: { _ in dropped.n += 1 }, erase: {}, forget: { _ in }, signOut: {})
+        await #expect(throws: SignOutRemoval.Refusal.needsRecoveryKey) { try await removal.run(account: user) }
+        #expect(dropped.n == 0 && restored.n == 1 && !only.serverCopy && only.protection == .strict, "the key stays: nothing else could open the notes")
+        #expect(keychain.synced[user] != nil)
+        // And when the server can't be asked, nothing is removed either, whatever this device remembers.
+        server.protection = .standard
+        server.copy = keychain.synced[user]
+        try await only.refreshCopyState()
+        #expect(only.serverCopy)
+        server.offline = true
+        await #expect(throws: SignOutRemoval.Refusal.offline) { try await removal.run(account: user) }
+        #expect(dropped.n == 0 && restored.n == 2)
+        // A copy beside no choice (only a write to the database makes that) doesn't count as a way back.
+        server.offline = false
+        server.protection = nil
+        server.copy = keychain.synced[user]
+        try await only.refreshCopyState()
+        #expect(!only.serverCopy)
     }
 
     // MARK: After a password reset

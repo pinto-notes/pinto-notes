@@ -808,6 +808,13 @@ final class AccountCrypto {
     /// An account from before copies, with its key open here: the person is asked once whether
     /// the server may keep a copy. Nothing is stored until they answer.
     private(set) var asksProtection = false
+    /// The server keeps a copy this device may get, and the person is asked first: the account was
+    /// known here with Advanced protection on (`askWhy == .wasStrict`), or this device holds a key
+    /// that isn't the one the server names (`.otherKey`). Nothing is fetched until they say so.
+    private(set) var asksBeforeFetch: FetchAsk?
+    enum FetchAsk: Equatable { case wasStrict, otherKey }
+    /// The server wants a fresh sign-in before it hands the key to this device.
+    private(set) var needsSignIn = false
     /// "Ask me later" was chosen: not asked again while the app runs.
     private var askLater = false
     /// Waiting without the key, and the server keeps copies: once a device that has the key
@@ -933,8 +940,7 @@ final class AccountCrypto {
             let state = try await Self.within(held ? quickCheck : fetchTimeout, sleep: sleep) { try await server.fetch() }
             remote = Self.remote(state)
             serverGeneration = state.generation
-            protection = state.protection
-            serverCopy = state.copy
+            note(state)
         } catch {
             timedOut = error is TimedOut
             remote = .unreachable
@@ -980,15 +986,14 @@ final class AccountCrypto {
             if !startingFresh { defaults.set(true, forKey: Self.recoveryChangedKey(account)) }
             await create(generation: g)
         case .fetch(let mismatch):
-            switch await fetchCopy(mismatch: mismatch) {
-            case .opened, .superseded: break
-            case .offline:
-                phase = .unreachable
-                startRetrying()
-            case .none:
-                // No copy after all (or not yet): the ways there were before.
+            // A key the server names is never taken in silence over one this device holds, or
+            // for an account this device knew with Advanced protection on: the person says so first.
+            if mismatch || defaults.bool(forKey: Self.wasStrictKey(account)) {
+                asksBeforeFetch = mismatch ? .otherKey : .wasStrict
                 phase = mismatch ? .mismatch : .waiting
                 startPolling()
+            } else {
+                await settle(await fetchCopy(mismatch: mismatch), mismatch: mismatch)
             }
         case .wait:
             phase = .waiting
@@ -1005,6 +1010,48 @@ final class AccountCrypto {
     // MARK: The server's copy
 
     enum CopyFetch { case opened, none, offline, superseded }
+
+    private func settle(_ result: CopyFetch, mismatch: Bool) async {
+        switch result {
+        case .opened, .superseded: break
+        case .offline:
+            phase = .unreachable
+            startRetrying()
+        case .none:
+            // No copy after all (or not yet): the ways there were before.
+            phase = mismatch ? .mismatch : .waiting
+            startPolling()
+        }
+    }
+
+    /// The person said yes to `asksBeforeFetch`: the key is fetched now.
+    func fetchAfterAsking() async {
+        guard let account, asksBeforeFetch != nil, phase == .waiting || phase == .mismatch else { return }
+        let mismatch = phase == .mismatch
+        asksBeforeFetch = nil
+        defaults.removeObject(forKey: Self.wasStrictKey(account))
+        stop()
+        await settle(await fetchCopy(mismatch: mismatch), mismatch: mismatch)
+    }
+
+    nonisolated static func wasStrictKey(_ account: UUID) -> String { "e2ee.wasStrict.\(account.uuidString.lowercased())" }
+
+    /// What the server says about the copy, as last seen. Remembered on this device when it is
+    /// "strict", so a later "standard, with a copy" isn't acted on without the person.
+    private func note(_ state: ServerKeyState) {
+        protection = state.protection
+        serverCopy = state.copy && state.protection == .standard
+        if let account, state.protection == .strict { defaults.set(true, forKey: Self.wasStrictKey(account)) }
+    }
+
+    /// Reads the account's key state again and throws when the server can't be reached. For
+    /// what must never run on a remembered answer (Sign Out and Remove Notes).
+    func refreshCopyState() async throws {
+        guard let server else { throw KeyCopyError.offline }
+        let state = try await server.fetch()
+        guard state.key?.key_id == serverKey?.key_id else { protection = state.protection; serverCopy = false; return }
+        note(state)
+    }
 
     /// Whether `k` is the account's key: the server's id and verifier, and its recovery key opens
     /// the account's recovery wrap to the same data key. What another device hands over and what
@@ -1025,9 +1072,9 @@ final class AccountCrypto {
             let k = try await copyServer.fetch(user: account, keyID: serverKey.key_id)
             guard gen == generation else { return .superseded }
             guard Self.isAccountsKey(k, serverKey, user: account) else { return .none }
-            // Next to a Keychain key that isn't the account's, it's kept on this device only, as a
-            // key from Add a device is: the synced item isn't this device's alone to replace.
-            let kept = mismatch ? store.save(k, account: account, slot: .local) : keep(k, account: account)
+            // Kept on this device only, as a key from Add a device is: a key the server named
+            // never becomes an iCloud Keychain item that reaches the person's other devices.
+            let kept = store.save(k, account: account, slot: .local)
             store.remove(account: account, slot: .pending)
             KeyCopyMoment.here = .now
             open(k, verified: true, how: .signIn)
@@ -1041,9 +1088,13 @@ final class AccountCrypto {
                 heldUntil = until
                 return .none
             case .offline: return .offline
+            case .reauth:
+                needsSignIn = true
+                return .none
             case .strict:
                 protection = .strict
                 serverCopy = false
+                defaults.set(true, forKey: Self.wasStrictKey(account))
                 return .none
             default: return .none
             }
@@ -1055,15 +1106,21 @@ final class AccountCrypto {
     /// True when there's nothing left to wait for here.
     @discardableResult func pollCopy(now: Date = .now) async -> Bool {
         guard let account, let server, copyServer != nil, phase == .waiting || phase == .mismatch else { return false }
+        // Nothing is fetched behind a question, or by a session the server wants renewed.
+        guard asksBeforeFetch == nil, !needsSignIn else { return false }
         // Held: nothing to ask before the time the server gave.
         if held, let heldUntil, now < heldUntil { return false }
         let gen = generation
         guard let state = try? await server.fetch(), gen == generation, self.account == account,
               phase == .waiting || phase == .mismatch else { return false }
         guard state.key?.key_id == serverKey?.key_id else { await restart(); return true }
-        protection = state.protection
-        serverCopy = state.copy
-        guard state.copy else { return false }
+        let knewStrict = defaults.bool(forKey: Self.wasStrictKey(account))
+        note(state)
+        guard serverCopy else { return false }
+        if knewStrict || phase == .mismatch {
+            asksBeforeFetch = phase == .mismatch ? .otherKey : .wasStrict
+            return false
+        }
         return await fetchCopy(mismatch: phase == .mismatch) == .opened
     }
 
@@ -1106,7 +1163,7 @@ final class AccountCrypto {
         guard let account, let copyServer else { return .off }
         let gen = generation
         do {
-            try await copyServer.store(k, user: account, choose: choose)
+            try await copyServer.store(k, user: account, choose: choose, from: protection)
             guard gen == generation else { return nil }
             protection = .standard
             serverCopy = true
@@ -1116,7 +1173,7 @@ final class AccountCrypto {
         } catch {
             guard gen == generation else { return nil }
             let e = error as? KeyCopyError ?? .offline
-            if e == .strict { protection = .strict; serverCopy = false }
+            if e == .strict { protection = .strict; serverCopy = false; defaults.set(true, forKey: Self.wasStrictKey(account)) }
             return e
         }
     }
@@ -1126,6 +1183,8 @@ final class AccountCrypto {
         guard phase == .ready, !unverified, let key else { throw KeyCopyError.offline }
         defaults.removeObject(forKey: Self.copiesOffUntilKey)
         if let e = await storeCopy(key, choose: true) { throw e }
+        // Turned off here, by the person: this device has nothing to ask about later.
+        if let account { defaults.removeObject(forKey: Self.wasStrictKey(account)) }
     }
 
     /// The person chose: the key stays on their devices only, and the server deletes its copy.
@@ -1138,6 +1197,7 @@ final class AccountCrypto {
         serverCopy = false
         asksProtection = false
         defaults.removeObject(forKey: Self.copyByDefaultKey(account))
+        defaults.set(true, forKey: Self.wasStrictKey(account))
     }
 
     /// "Ask me later": the question goes away until the app is opened again.
@@ -1151,6 +1211,8 @@ final class AccountCrypto {
         serverCopy = false
         asksProtection = false
         askLater = false
+        asksBeforeFetch = nil
+        needsSignIn = false
         copiesOffered = false
         copiesOn = false
     }
@@ -1294,8 +1356,7 @@ final class AccountCrypto {
         do { state = try await server.fetch() } catch { return }
         guard gen == generation, phase == .ready else { return }
         serverGeneration = state.generation
-        protection = state.protection
-        serverCopy = state.copy
+        note(state)
         if let fetched = state.key, key.matches(fetched, user: account) {
             serverKey = fetched
             // Unlocked with the recovery key while the server couldn't be told: tell it now.
@@ -1513,6 +1574,8 @@ final class AccountCrypto {
         showsKeychainHelp = false
         held = false
         heldUntil = nil
+        asksBeforeFetch = nil
+        needsSignIn = false
         E2EE.sealer = Sealer(key: k.key, user: account)
         needsWelcome = !defaults.bool(forKey: welcomedKey(account))
         recoveryKeyChanged = defaults.bool(forKey: Self.recoveryChangedKey(account))
@@ -1545,6 +1608,8 @@ final class AccountCrypto {
         held = false
         heldUntil = nil
         asksProtection = false
+        asksBeforeFetch = nil
+        needsSignIn = false
         copiesOffered = false
         needsWelcome = false
         recoveryKeyChanged = false

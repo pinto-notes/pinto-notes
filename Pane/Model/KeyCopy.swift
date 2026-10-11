@@ -37,6 +37,8 @@ enum KeyCopyError: Error, Equatable {
     /// Strict can't be turned on for 72 hours after a password reset, until `until`.
     case strictPaused(until: Date?)
     case signIn
+    /// The session's sign-in is too old for this: sign in again.
+    case reauth
     case offline
 }
 
@@ -46,7 +48,9 @@ protocol KeyCopyServer: Sendable {
     func available() async throws -> Bool
     /// Stores a copy of `key`. `choose`: the person chose this (or the account is new, where a
     /// copy is the default); without it the server only renews the copy of a standard account.
-    func store(_ key: StoredKey, user: UUID, choose: Bool) async throws
+    /// `from`: the mode this device last saw. The server turns Advanced protection off only for a
+    /// choice that says it saw it on, so a device that hasn't heard never undoes it.
+    func store(_ key: StoredKey, user: UUID, choose: Bool, from: KeyProtection?) async throws
     /// The account's key from the server's copy, for the key id the server names.
     func fetch(user: UUID, keyID: String) async throws -> StoredKey
     /// Advanced protection: the server deletes its copy. `device` is this device,
@@ -160,6 +164,16 @@ enum KeyCopyWords {
         protection == .standard ? "We couldn\u{2019}t get your key to this \(InstallID.kind) just now. One of these can still open your notes." : AddDeviceCopy.noDeviceMessage
     }
 
+    // Before a key is fetched: the session is too old, or the person is asked first.
+    static let signInAgainTitle = "Sign in again to open your notes"
+    static var signInAgainMessage: String { "This \(InstallID.kind) has been signed in for a while without your notes. To open them here, sign in once more." }
+    static let signInAgain = "Sign In Again"
+    static let askFetchTitle = "Open your notes by signing in?"
+    static var askFetchWasStrict: String { "Advanced protection was on for this account, and it is off now. Signing in can open your notes on this \(InstallID.kind). If you didn\u{2019}t turn it off, don\u{2019}t continue: reset your password and check your devices in Settings \u{203A} Security." }
+    static var askFetchOtherKey: String { "This \(InstallID.kind) holds a different key from the one your account uses now. Signing in can open your notes with the account\u{2019}s key. If you didn\u{2019}t start fresh or change anything, don\u{2019}t continue: reset your password." }
+    static let askFetch = "Open My Notes"
+    static let reauthStrict = "Sign out and sign in again, then turn on Advanced protection within 10 minutes. That check keeps an old session from removing our copy of your key."
+
     /// While an account that hasn't a copy yet waits on a second device.
     static let waitForOther = "Or open Pinto Notes on a device that already has your notes. This one opens by itself after that."
 
@@ -167,6 +181,7 @@ enum KeyCopyWords {
         switch e {
         case .needsRecoveryKey: needsRecoveryKey
         case .strictPaused(let until): strictPaused(until: until)
+        case .reauth: reauthStrict
         case .offline: "Can\u{2019}t reach Pinto Notes. Connect to the internet and try again."
         case .tooMany: "Too many tries. Wait a little and try again."
         case .paused(let until): heldMessage(until: until)

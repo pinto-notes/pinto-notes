@@ -66,6 +66,9 @@ struct SignOutRemoval {
     /// This device's row leaves the list of devices that hold the key, and the list is read again.
     /// Throws when the server can't be reached.
     var withdraw: () async throws -> Void
+    /// Reads from the server again whether it keeps a copy of the key. Throws when it can't be
+    /// reached. What `offer` says after this is as the server is now, never as it was remembered.
+    var refreshCopy: () async throws -> Void = {}
     var stopSync: () async -> Void
     /// Refused after the row left or sync stopped: both are as they were.
     var restore: () async -> Void
@@ -86,6 +89,9 @@ struct SignOutRemoval {
         guard !hasUnsynced() else { throw Refusal.unsynced }
         guard reached else { throw Refusal.offline }
         do { try await withdraw() } catch { throw Refusal.offline }
+        // The server's copy may be why the key can go from here. Whether it's there is asked
+        // now: Advanced protection may have been turned on since this device last looked.
+        do { try await refreshCopy() } catch { await restore(); throw Refusal.offline }
         do { try allowed() } catch { await restore(); throw error }
         await stopSync()
         // Nothing waits between this check and the erase, so nothing typed meanwhile is erased unseen.
@@ -158,6 +164,7 @@ extension SignOutRemoval {
                 return AccountLibrary.hasUnsynced(context) || !pages.unpushed.isEmpty || !pageData.dirty.isEmpty
             },
             withdraw: { try await devices.withdraw(crypto) },
+            refreshCopy: { try await crypto.refreshCopyState() },
             stopSync: { await sync?.stop() },
             restore: {
                 await devices.rejoin(crypto)

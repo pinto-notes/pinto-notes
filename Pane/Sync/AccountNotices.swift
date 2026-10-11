@@ -67,7 +67,7 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
                     "\(Self.when(created_at)). It can open your notes. If you didn\u{2019}t add it: remove it in Settings \u{203A} Security, change your password, and disconnect and reconnect your AIs. Removing signs a real Pinto Notes app out and erases its copy. A device that took your key keeps what it already has: the key can\u{2019}t be changed yet.")
         case .keyFetched:
             return ("A new device opened your notes",
-                    "\(Self.when(created_at)). It signed in to your account. If that wasn\u{2019}t you, reset your password now, from the sign-in screen. To have a new device ask one of yours first, turn on Advanced protection in Settings \u{203A} Security.")
+                    "\(Self.when(created_at)). It signed in to your account. If that wasn\u{2019}t you, reset your password now, from the sign-in screen. That keeps the next device out. A device that already opened your notes keeps what it has: the key can\u{2019}t be changed yet. To have a new device ask one of yours first, turn on Advanced protection in Settings \u{203A} Security.")
         case .unknown:
             return ("", "")
         }

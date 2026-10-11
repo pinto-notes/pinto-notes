@@ -30,13 +30,13 @@ struct SupabaseKeyCopy: KeyCopyServer {
         } catch { throw Self.refusal(error) }
     }
 
-    func store(_ key: StoredKey, user: UUID, choose: Bool) async throws {
+    func store(_ key: StoredKey, user: UUID, choose: Bool, from: KeyProtection?) async throws {
         let h = try await hello()
         guard let pub = Data(base64Encoded: h.pub), let box = try? KeyCopyBox.seal(key, to: pub, direction: .up, user: user) else { throw KeyCopyError.off }
-        struct Body: Encodable { var op = "store"; var ticket: String; var box: String; var choose: Bool; var platform: String }
+        struct Body: Encodable { var op = "store"; var ticket: String; var box: String; var choose: Bool; var from: String?; var platform: String }
         do {
             let _: Stored = try await client.functions.invoke(
-                "key", options: FunctionInvokeOptions(method: .post, body: Body(ticket: h.ticket, box: box, choose: choose, platform: platform)))
+                "key", options: FunctionInvokeOptions(method: .post, body: Body(ticket: h.ticket, box: box, choose: choose, from: from?.rawValue, platform: platform)))
         } catch { throw Self.refusal(error) }
     }
 
@@ -59,6 +59,8 @@ struct SupabaseKeyCopy: KeyCopyServer {
             try await client.rpc("keep_key_on_devices", params: ["p_device": device.uuidString.lowercased()]).execute()
         } catch let e as PostgrestError where e.hint == "needs_recovery_key" {
             throw KeyCopyError.needsRecoveryKey
+        } catch let e as PostgrestError where e.hint == "reauth" {
+            throw KeyCopyError.reauth
         } catch let e as PostgrestError where e.hint == "paused_after_reset" {
             throw KeyCopyError.strictPaused(until: e.detail.flatMap(Backend.pauseDate))
         } catch {
@@ -84,6 +86,7 @@ struct SupabaseKeyCopy: KeyCopyServer {
         case "rate": return .tooMany
         case "wrong_key": return .wrongKey
         case "sign_in": return .signIn
+        case "reauth": return .reauth
         // The copy is there and can't be opened right now: the other ways to the notes are offered.
         case "unreadable": return .noCopy
         case "off": return .off

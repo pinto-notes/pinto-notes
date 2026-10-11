@@ -27,16 +27,19 @@ struct KeyGateView: View {
     /// `link`: adding this device from another one, chosen while the key is held back after a reset.
     enum Screen { case auto, noDevice, keychain, recovery, startFresh, link }
 
-    enum Shown: Equatable { case welcome, addDevice, noDevice, waiting, recovery, startFresh, unreachable, checking, held }
+    enum Shown: Equatable { case welcome, addDevice, noDevice, waiting, recovery, startFresh, unreachable, checking, held, before }
 
     /// The screen for where startup is and what you chose. Without the key here, the code for
     /// another device comes first, and iCloud Keychain keeps being checked behind it: nobody sits
     /// on a spinner, and nobody is asked for a recovery key they may never have saved.
     /// `held`: the server keeps the key but hands it to a new device only once the wait after a
     /// password reset is over; that's said first, and the other ways are a tap away.
-    static func shown(_ phase: AccountCrypto.Phase, _ screen: Screen, held: Bool = false) -> Shown {
+    /// `before`: the key is a step away, and the step is the person's: sign in again (the server
+    /// wants a fresh sign-in), or say yes (the account was strict here, or this device holds another key).
+    static func shown(_ phase: AccountCrypto.Phase, _ screen: Screen, held: Bool = false, before: Bool = false) -> Shown {
         switch (phase, screen) {
         case (.ready, _): .welcome
+        case (.waiting, .auto) where before, (.mismatch, .auto) where before: .before
         case (.waiting, .auto) where held, (.mismatch, .auto) where held: .held
         case (.waiting, .startFresh), (.mismatch, .startFresh): .startFresh
         case (.waiting, .recovery), (.mismatch, .recovery): .recovery
@@ -129,11 +132,12 @@ struct KeyGateView: View {
         }
     }
 
-    private var shown: Shown { Self.shown(crypto.phase, screen, held: crypto.held) }
+    private var shown: Shown { Self.shown(crypto.phase, screen, held: crypto.held, before: crypto.needsSignIn || crypto.asksBeforeFetch != nil) }
 
     @ViewBuilder private var content: some View {
         switch shown {
         case .held: held
+        case .before: before
         case .welcome: welcome
         case .startFresh: startFresh
         case .addDevice: addDevice
@@ -202,12 +206,31 @@ struct KeyGateView: View {
             }
             VStack(spacing: 10) {
                 quietButton(AddDeviceCopy.useRecovery, id: "e2ee.useRecovery") { screen = .recovery }
-                if crypto.held {
+                if crypto.held || crypto.asksBeforeFetch != nil {
                     quietButton("Back", id: "e2ee.back") { screen = .auto }
                 } else {
                     quietButton(AddDeviceCopy.noDeviceLink, id: "e2ee.noDevice") { screen = .noDevice }
                 }
                 signOut
+            }
+        }
+    }
+
+    /// The key is a step away. Either the server wants a fresh sign-in before it hands the key
+    /// over (one button), or the person is asked before a key the server names is taken.
+    private var before: some View {
+        VStack(spacing: 18) {
+            if crypto.needsSignIn {
+                heading(KeyCopyWords.signInAgainTitle, KeyCopyWords.signInAgainMessage)
+                mainButton(KeyCopyWords.signInAgain, id: "e2ee.signInAgain", enabled: true) { Task { await backend.signOut() } }
+            } else {
+                heading(KeyCopyWords.askFetchTitle, crypto.asksBeforeFetch == .otherKey ? KeyCopyWords.askFetchOtherKey : KeyCopyWords.askFetchWasStrict)
+                mainButton(KeyCopyWords.askFetch, id: "e2ee.askFetch", enabled: true) { Task { await crypto.fetchAfterAsking() } }
+                VStack(spacing: 10) {
+                    quietButton(KeyCopyWords.heldAdd, id: "e2ee.heldAdd") { screen = .link }
+                    quietButton(AddDeviceCopy.useRecovery, id: "e2ee.useRecovery") { screen = .recovery }
+                    signOut
+                }
             }
         }
     }
