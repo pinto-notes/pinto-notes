@@ -603,7 +603,7 @@ struct NoteDetailView: View {
         let before = shownPage
         shownPage = now
         if now != nil { NotePageActions.importIfNeeded(note) }
-        guard let now, now != before, now.by != AIGlyph.page, now.by != FirstOpen.templateWriter else { return }
+        guard let now, now.isNewVersion(after: before), now.by != AIGlyph.page, now.by != FirstOpen.templateWriter else { return }
         withAnimation(.smooth(duration: 0.3)) { mode = .page }
         let r = AIEdit.Receipt(noteID: note.id, by: now.by, at: now.at, previous: note.body, lines: 0, kind: before == nil ? .pageMade : .pageChanged)
         undoPage = before

