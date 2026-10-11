@@ -221,18 +221,21 @@ function draft(kind: Kind, c: Context): Draft {
         ],
       };
     case "apps":
-      // Behind APPS_LIVE. Check the words against the shipped feature before turning it on.
+      // Behind APPS_LIVE. Checked against the app on 2026-10-11: your AI makes the app (More,
+      // Make It an App gives the prompt); no template holds an app yet, so it doesn't send people
+      // to the gallery. /help#apps shows once the site's NOTE_APPS_LIVE is on: flip that first.
       return {
         subject: ["Your notes can be apps", "A habit tracker, made in a note"],
         preview: ["A note in Pinto Notes can be a small app now, like a habit tracker or a budget.",
-          "Ask your AI to turn a note into an app, or start from a template."],
+          "Ask ChatGPT or Claude to turn a note into an app."],
         title: "Your notes can be apps",
         art: { file: "hero-apps.jpg", ground: "#0c5c63", alt: "A paper-cut open notebook whose pieces rise and fit together into a little gadget with a ring gauge and buttons" },
         blocks: [
           { p: "Hi, Emil here. A note can hold a small app now. Here are two: a habit tracker you tick off every day, and a budget that adds up as you go." },
           { shot: { file: "app-habits.jpg", w: 300, h: 214, alt: "A habit tracker app in a Pinto Notes note: four of four done today" } },
           { shot: { file: "app-budget.jpg", w: 300, h: 219, alt: "A budget app in a Pinto Notes note: October budget with spending by category" } },
-          { button: { label: "See apps you can start from", href: `${c.site}/templates?category=apps` } },
+          { p: "Your AI makes it. Open a note with a table or a checklist, choose More (•••), then Make It an App, and send the words it gives you to ChatGPT or Claude." },
+          { button: { label: "How to make one", href: `${c.site}/help#apps` } },
         ],
       };
     case "templates":

@@ -85,7 +85,7 @@ link would open a web page first. Move them once nearly everyone has an app that
 | connect | Connect in a few minutes | `/open/connect-ai` | Settings at Connect an AI |
 | try | Ask ChatGPT / Ask Claude | `chatgpt.com/?q=` / `/copy/<id>` | |
 | undo | See your note's history | `/open/history` | version history of the note an AI changed last, or the notes |
-| apps | See apps you can start from | `/templates?category=apps` | |
+| apps | How to make one | `/help#apps` | the Help answer, shown once the site's `NOTE_APPS_LIVE` is on |
 | templates | Use the … template / See all templates | `/open/template/<slug>` / `/templates` | adds the template note |
 | iphone | Get it on the App Store | the App Store listing | |
 | mac | Download for Mac | `/download` | |

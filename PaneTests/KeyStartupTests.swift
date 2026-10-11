@@ -509,16 +509,33 @@ import Testing
         crypto.signedOut()
     }
 
+    /// The screen a signed-in device without the key shows, for someone who has never heard of a
+    /// key: why it's there (the account already has notes, and only your devices open them), then
+    /// what to do on the other device, named.
+    @Test func theLinkScreenSaysWhyAndNamesTheOtherDevice() {
+        #expect(AddDeviceCopy.gateTitle("Mac") == "Link this Mac to open your notes")
+        #expect(AddDeviceCopy.gateTitle("iPhone") == "Link this iPhone to open your notes")
+        #expect(AddDeviceCopy.gateTitle("iPad") == "Link this iPad to open your notes")
+        #expect(AddDeviceCopy.gateWhy == "You already have notes in this account. They are encrypted, and only your own devices can open them.")
+        #expect(AddDeviceCopy.gateSteps("Mac") == ["On your iPhone, iPad or other Mac, open Pinto Notes \u{203A} Settings \u{203A} Security \u{203A} Add a device.",
+                                                   "Scan this code with it. You only do this once."])
+        #expect(AddDeviceCopy.gateSteps("iPhone")[0].hasPrefix("On your iPad, Mac or other iPhone, "))
+        #expect(AddDeviceCopy.gateSteps("iPad")[0].hasPrefix("On your iPhone, Mac or other iPad, "))
+        #expect(AddDeviceCopy.useRecovery == "Use a recovery key instead" && AddDeviceCopy.noDeviceLink == "I don\u{2019}t have another device")
+        // The message another device shows for a wrong code names this screen by its title.
+        #expect(AddDeviceError.notACode.localizedDescription.contains("\u{201C}Link this device to open your notes\u{201D}"))
+    }
+
     /// The key screens say only what's known. A Mac that lost its key may be the account's only
     /// device, with all its notes still on it: Start fresh there keeps them and says so.
     @Test func theKeyScreensSayWhatIsTrue() {
-        #expect(!AddDeviceCopy.gateWhy.contains("another device") && AddDeviceCopy.gateWhy.contains("doesn\u{2019}t have the key"))
+        #expect(!AddDeviceCopy.gateWhy.contains("another device"))
         let empty = KeyCopy.startFreshMessage(notesHere: 0), holding = KeyCopy.startFreshMessage(notesHere: 113)
         #expect(empty.count == 2 && empty[1].contains("your account starts empty"))
         #expect(holding.count == 2 && holding[0] == empty[0])
         #expect(holding[1].contains("are kept and uploaded again under a new key") && !holding[1].contains("starts empty"))
         #expect(holding[1].contains("You lose version history, shared links, AI connections, and files that aren't on this"))
-        for line in empty + holding + [AddDeviceCopy.gateWhy] { #expect(!line.contains("\u{2014}") && !line.contains("\u{2013}")) }
+        for line in empty + holding + [AddDeviceCopy.gateTitle(), AddDeviceCopy.gateWhy, AddDeviceCopy.noDeviceLink] + AddDeviceCopy.gateSteps() { #expect(!line.contains("\u{2014}") && !line.contains("\u{2013}")) }
     }
 
     @Test func startFreshAfterAnotherDeviceAlreadyDid() async throws {

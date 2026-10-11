@@ -177,15 +177,35 @@ struct KeyGateView: View {
     /// the rest are small links under it.
     private var addDevice: some View {
         VStack(spacing: 18) {
-            heading(AddDeviceCopy.gateTitle, crypto.phase == .mismatch ? Copy.mismatch + " " + AddDeviceCopy.gateMessage : AddDeviceCopy.gateWhy + "\n\n" + AddDeviceCopy.gateMessage)
+            VStack(spacing: 12) {
+                heading(AddDeviceCopy.gateTitle(), crypto.phase == .mismatch ? Copy.mismatch : AddDeviceCopy.gateWhy)
+                steps(AddDeviceCopy.gateSteps())
+            }
             NewDeviceCodeView(session: session)
                 .task(id: session.round) { await session.run() }
             VStack(spacing: 10) {
                 quietButton(AddDeviceCopy.useRecovery, id: "e2ee.useRecovery") { screen = .recovery }
-                quietButton(AddDeviceCopy.noDevice, id: "e2ee.noDevice") { screen = .noDevice }
+                quietButton(AddDeviceCopy.noDeviceLink, id: "e2ee.noDevice") { screen = .noDevice }
                 signOut
             }
         }
+    }
+
+    /// Numbered steps under a heading, read from the left like a list.
+    private func steps(_ lines: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { i, line in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(i + 1).").monospacedDigit()
+                    Text(line).fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .font(.subheadline)
+        .foregroundStyle(Color.muted)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("e2ee.steps")
     }
 
     /// Every device is gone: what can still open the notes, said plainly, and starting fresh last.

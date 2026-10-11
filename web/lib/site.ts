@@ -32,6 +32,10 @@ export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
 /// note": an older app opens on those links and does nothing. Flip `live` with that release.
 export const APP_TEMPLATES = { version: "1.1.1", live: true } as const;
 
+// Notes that are apps. Flipping this adds the Help question the onboarding email links to
+// (/help#apps): flip it when the released apps have them, before APPS_LIVE turns the email on.
+export const NOTE_APPS_LIVE = false;
+
 /// Where Pinto Notes runs, in a table cell: true today, and right again the day the iPhone app ships.
 export const DEVICES = APP_STORE_LIVE ? "iPhone and Mac" : "Mac now; iPhone coming soon";
 
