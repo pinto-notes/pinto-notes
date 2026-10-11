@@ -1,5 +1,5 @@
 // deno test --allow-all instructions.test.ts
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { appsServed, instructions, servedPrompts, servedResources } from "./server.ts";
 import { serverCard } from "./card.ts";
 import { PAGE_INSTRUCTIONS } from "./page_guide.ts";
@@ -70,4 +70,19 @@ Deno.test("with AMBER_MCP_TOOLS=pages, the prompts, resources and card come with
     const names = serverCard().tools.map((t) => t.name);
     assert(names.includes("create_app") && names.includes("get_page_guide"));
   });
+});
+
+Deno.test("with AMBER_APP_DEVICE unset, nothing an AI reads offers device features the released apps have off", async () => {
+  const { pageContract, deviceServed } = await import("./page.ts");
+  const { pageGuide, PAGE_API } = await import("./page_guide.ts");
+  const { appGuide } = await import("./app_scaffold.ts");
+  if (deviceServed()) return; // a server set up for apps with the device on
+  const offered = /reminders\.create|calendar\.today|location\.once|camera\.take|contacts\.pick|maps\.(open|snapshot)|ai\.respond|device\.reminders|notify\(/;
+  for (const [name, text] of [["the contract", pageContract()], ["get_note_page's rules", PAGE_API], ["the guide", await pageGuide()], ["a new app's README", appGuide()]] as const) {
+    assertEquals(offered.test(text), false, `${name} offers a device feature`);
+    assert(/not available yet/i.test(text), `${name} should say what is not available yet`);
+    assertStringIncludes(text, "openURL");
+  }
+  // A server whose apps have the device on says so again.
+  assertEquals(offered.test(pageContract("on")), true);
 });
