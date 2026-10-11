@@ -517,7 +517,8 @@ jobs:
           for pr in $(echo "$merges" | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | sort -un); do
             gh pr comment "$pr" -R "$REPO" --body-file body.md || echo "::warning::could not comment on #$pr"
           done
-          echo "::error title=$BRANCH is red after ${SHA:0:8}::$failed. Merges covered: $(echo "$merges" | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ')"
+          prs=$(echo "$merges" | grep -oE 'Merge pull request #[0-9]+' | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ' || true)
+          echo "::error title=$BRANCH is red after ${SHA:0:8}::$failed. Pull requests covered: ${prs:-none (a push that is not a merge)}"
           exit 1
 
   server:
