@@ -1,4 +1,4 @@
-// Whether an email already has an Amber Notes account, for the email-first sign-in screen.
+// Whether an email already has an Pinto Notes account, for the email-first sign-in screen.
 //
 //   POST /functions/v1/account-status   { "email": "..." }
 //   Authorization: Bearer <the app's anon key>          (verify_jwt stays on)
@@ -8,7 +8,7 @@
 //     exists:true,  password:false → a Sign in with Apple account: the app says to use Apple
 //   → 400 bad email · 429 too many checks (the app falls back to a plain password field)
 //
-// Privacy: this tells whoever asks whether an address uses Amber Notes (the trade-off the
+// Privacy: this tells whoever asks whether an address uses Pinto Notes (the trade-off the
 // email-first screen accepts). It never returns anything about the account beyond these two
 // booleans, is rate-limited per IP (10 a minute, 30 an hour) and per address (20 an hour), keys
 // the limiter by salted hashes, and pads every reply to the same minimum time.

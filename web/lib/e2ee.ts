@@ -313,7 +313,7 @@ export async function openHandoff(sealed: string, browserPrivate: CryptoKey, req
 // MARK: Adding a device: the whole key, from a device that has it to one that doesn't
 //
 // A signed-in device without the key shows a QR code and a typed code. A device with the key reads
-// one of them inside Amber Notes and seals the key to the new device (docs/Evidence/
+// one of them inside Pinto Notes and seals the key to the new device (docs/Evidence/
 // add-device-threat-model.md). Both carry a pairing secret the server never sees:
 //
 //   QR text      "amber-notes add-device v1 <22 base64url>"   16 random bytes; not a link, so only

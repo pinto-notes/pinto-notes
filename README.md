@@ -87,6 +87,7 @@ Running on a physical device needs your own Apple team. Change `DEVELOPMENT_TEAM
 
 ```sh
 scripts/qa-test.sh                                   # Mac unit and interaction tests
+scripts/prepush.sh --tests                           # before a push: compiles what ships, runs the suites you touched
 deno test --allow-all supabase/functions/mcp/notes.test.ts
 scripts/mcp-e2e.sh                                   # MCP end-to-end, against the local stack
 scripts/share-e2e.sh                                 # share links end-to-end, against the local stack

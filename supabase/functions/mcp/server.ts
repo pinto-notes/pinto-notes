@@ -1,8 +1,8 @@
-// Amber Notes's MCP server: lets Claude, ChatGPT, Claude Code and Codex read and edit your notes.
+// Pinto Notes's MCP server: lets Claude, ChatGPT, Claude Code and Codex read and edit your notes.
 // index.ts serves it; tests call handleRequest directly.
 //
 // Transport: MCP Streamable HTTP (JSON responses). Auth: an OAuth access token from connecting in
-// the app (ChatGPT, Claude; see oauth.ts), or an Amber Notes access token sent as
+// the app (ChatGPT, Claude; see oauth.ts), or an Pinto Notes access token sent as
 // `Authorization: Bearer pane_…` (Claude Code, Codex). A token in the address is refused: it ends
 // up in logs and histories.
 //

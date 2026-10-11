@@ -1,5 +1,5 @@
 // The release gate's work on the staging project (docs/Technical/release-gate.md). Never production:
-// every command reads the staging ref from .secrets/staging.env and refuses Amber Notes' own.
+// every command reads the staging ref from .secrets/staging.env and refuses Pinto Notes' own.
 //
 //   deno run -A scripts/release-gate/staging.ts ensure <notes>     the bench account with that many notes
 //                                                                  and the gate's three notes; prints its file

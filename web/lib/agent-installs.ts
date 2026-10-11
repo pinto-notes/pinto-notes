@@ -1,6 +1,6 @@
 import { MCP_URL } from "./facts";
 
-/// How to add Amber Notes to each AI tool, for the "Install in your AI tool" section of
+/// How to add Pinto Notes to each AI tool, for the "Install in your AI tool" section of
 /// /blog/mcp-server. Only tools whose install was run and whose sign-in reaches the consent page are
 /// listed (checked 2026-09-30). Codex and VS Code sign in on 127.0.0.1, which reaches the server as
 /// sent only with the proxy fix in middleware.ts (PR 47). Cursor isn't listed: it registers a
@@ -47,7 +47,7 @@ claude plugin install amber-notes`,
     signIn: "The first time VS Code starts the server, it asks you to sign in.",
   },
   {
-    // Amber Notes is one of Incredible's apps from the release that ships it (slug amber_notes).
+    // Pinto Notes is one of Incredible's apps from the release that ships it (slug amber_notes).
     tool: "Incredible",
     steps: ["Open Apps and search for Amber Notes.", "Choose Connect, then Allow in Pinto Notes.", "Back in Incredible, choose Let's go."],
     signIn: `Pinto Notes shows it as an app on this computer that calls itself "incredible". Allow it only if you just chose Connect. On an older version of Incredible, choose Add it here at the bottom of Apps (or Add another MCP server), paste ${MCP_URL}, then Continue and Sign in, and Add server after you allow it.`,

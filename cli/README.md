@@ -1,11 +1,11 @@
-# amber: Amber Notes from the terminal
+# amber: Pinto Notes from the terminal
 
-`amber` reads and edits your Amber Notes from a terminal, on macOS and Linux. It gives you the same
-verbs Amber Notes gives AIs (search, list, read, create, edit, write, move, delete, history,
+`amber` reads and edits your Pinto Notes from a terminal, on macOS and Linux. It gives you the same
+verbs Pinto Notes gives AIs (search, list, read, create, edit, write, move, delete, history,
 restore, pin), so a person and an agent like Claude Code use one tool the same way.
 
-It's a thin client of the Amber Notes MCP server (`https://mcp.ambernotes.app`), the one Claude and
-ChatGPT connect to. It signs in the same way they do: you approve it in Amber Notes.
+It's a thin client of the Pinto Notes MCP server (`https://mcp.ambernotes.app`), the one Claude and
+ChatGPT connect to. It signs in the same way they do: you approve it in Pinto Notes.
 
 ## Install
 
@@ -36,7 +36,7 @@ all of that is the Deno runtime it carries; amber's own code is about 100 KB.
 amber login
 ```
 
-Your browser opens. Approve in Amber Notes on your iPhone or Mac, and you're done. In Settings ›
+Your browser opens. Approve in Pinto Notes on your iPhone or Mac, and you're done. In Settings ›
 Connect an AI the connection shows as **An app on this computer**; Disconnect there turns this
 terminal away, like any other connection. `amber logout` disconnects it from here.
 

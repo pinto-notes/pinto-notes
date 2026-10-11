@@ -7,7 +7,7 @@
 
 import { NPM_REF } from "./page.ts";
 
-/** Bundled with Amber Notes: name, global, the npm file it's built from (libraries.test.ts keeps this in step with page.ts BUNDLED_LIBS and the app's manifest). */
+/** Bundled with Pinto Notes: name, global, the npm file it's built from (libraries.test.ts keeps this in step with page.ts BUNDLED_LIBS and the app's manifest). */
 export const BUNDLED: { name: string; global: string; version: string; npm: string; what: string; signature: RegExp }[] = [
   { name: "chart", global: "Chart", version: "4.4.4", npm: "chart.js@4.4.4/dist/chart.umd.js", what: "charts: line, bar, doughnut, radar", signature: /Chart\.js v\d|chartjs\.org/ },
   { name: "d3", global: "d3", version: "7.9.0", npm: "d3@7.9.0/dist/d3.min.js", what: "data-driven SVG, scales, shapes, geo projections", signature: /d3js\.org/ },

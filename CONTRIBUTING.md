@@ -1,6 +1,6 @@
 # Contributing
 
-Amber Notes is built in the open, and I'd love your help with it. The most useful thing you can bring is an idea of your own: something you want from a notes app your AI can use. Bug reports and fixes are welcome too.
+Pinto Notes is built in the open, and I'd love your help with it. The most useful thing you can bring is an idea of your own: something you want from a notes app your AI can use. Bug reports and fixes are welcome too.
 
 Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). Report security problems privately, as described in [SECURITY.md](SECURITY.md), not in an issue.
 
@@ -112,7 +112,7 @@ A small example, trimmed (a real one has three `asks` and a few `demo` calls):
   "folder": "Home",
   "note": "Plant care\n\nWhat each plant needs and when it last got it.\n\n<!-- pane-table: Date=date; Plant=text; Did=choice Watered|Fed|Repotted -->\n| Date | Plant | Did |\n| --- | --- | --- |\n",
   "prompt": {
-    "default": "Use my Amber Notes note \"Plant care\". When I tell you I watered, fed or repotted a plant, add a row with log_table_row. When I ask what's due, read the table with read_table and tell me which plants haven't been watered in over a week."
+    "default": "Use my Pinto Notes note \"Plant care\". When I tell you I watered, fed or repotted a plant, add a row with log_table_row. When I ask what's due, read the table with read_table and tell me which plants haven't been watered in over a week."
   },
   "asks": ["Watered the fiddle leaf and the monstera.", "What needs water before I leave on Friday?"],
   "demo": [
@@ -136,3 +136,4 @@ Not sure your idea fits? Open a [Template idea](https://github.com/pinto-notes/p
 - **No secrets in the repo.** Keys and credentials live in gitignored files (`.env`, `.secrets/`, `Config/Backend.local.xcconfig`) and in GitHub Secrets. CI scans every push with gitleaks.
 - **Database changes are additive** and go in a new migration with a newer timestamp than every existing one.
 - Keep pull requests small, and say how you tested them. CI must pass and one review is required before merging.
+- **Open the pull request as a draft, into `dev`.** A draft runs the quick checks only. Mark it ready when the work is done: that starts the Mac job, which runs a smoke set and the tests near your change. The whole suite runs on `dev` after the merge.

@@ -4,7 +4,7 @@ import ConnectCard from "../../connect/ConnectCard";
 import styles from "../../connect/connect.module.css";
 import TryApp from "./TryApp";
 
-// The universal link's page (https://ambernotes.app/open/connect?request=<id>). Where Amber Notes
+// The universal link's page (https://ambernotes.app/open/connect?request=<id>). Where Pinto Notes
 // is installed, the link opens it and this never loads. It loads when the link stays in the
 // browser: Chrome on a Mac, or a tap on an pintonotes.com link while on pintonotes.com, which Safari
 // keeps in the tab, or a QR code from /connect scanned on a phone without the app. Then it tries the

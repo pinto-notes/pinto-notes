@@ -37,7 +37,7 @@ export default function Instructions({ title, folder, intro, variants, asks }: {
 
 const Chevron = () => <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>;
 
-/// Tool names in the prompt stand out, so it's clear which Amber Notes tool does what.
+/// Tool names in the prompt stand out, so it's clear which Pinto Notes tool does what.
 function highlight(text: string) {
   return text.split(/(\b[a-z]+(?:_[a-z]+)+\b)/g).map((part, i) => (i % 2 ? <code key={i}>{part}</code> : part));
 }

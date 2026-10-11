@@ -1,5 +1,5 @@
 /// Which platform a visitor is on, so someone on Windows, Android or Linux isn't offered a Mac
-/// download as the page's main button (app/PlatformNote.tsx tells them Amber Notes is for iPhone
+/// download as the page's main button (app/PlatformNote.tsx tells them Pinto Notes is for iPhone
 /// and Mac instead), and someone on an iPhone is told about the iPhone app.
 
 export type Platform = "ios" | "mac" | "windows" | "android" | "linux" | "other";

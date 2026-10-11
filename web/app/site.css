@@ -367,7 +367,7 @@ html[data-filter="out"] .filter-grid { opacity: 0; }
 @media (hover: hover) { .site-footer button.site-footlink:hover { color: var(--ink); } }
 .site-footer button.site-footlink:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
 
-/* "Didn't open?" (app/OpenInApp.tsx): when Use template or Use this note didn't reach Amber Notes,
+/* "Didn't open?" (app/OpenInApp.tsx): when Use template or Use this note didn't reach Pinto Notes,
    a small sheet centred at the bottom of the window, above the cookie bar, with the Mac app and
    another try. It never dims or blocks the page. */
 .open-sheet {
@@ -406,5 +406,5 @@ html[data-filter="out"] .filter-grid { opacity: 0; }
 }
 @media (hover: hover) { .open-sheet-close:hover { background: var(--soft); color: var(--ink); } }
 .open-sheet a:focus-visible, .open-sheet button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-/* The button while the browser hands the link to Amber Notes. */
+/* The button while the browser hands the link to Pinto Notes. */
 [data-opening] { opacity: 0.72; cursor: progress; }
