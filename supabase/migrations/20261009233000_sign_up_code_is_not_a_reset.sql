@@ -44,7 +44,25 @@ begin
 end $$;
 revoke all on function public.pane_note_email_link_sign_in() from public, anon, authenticated;
 
--- Pauses that were recorded at a sign-up before this (staging has some). They can be told for
+-- A new account made with Sign in with Apple or Google had the same pause, on production since
+-- the pause exists: for a sign-up through a provider the auth server inserts the user with an
+-- empty password ('') and, in the same transaction, sets it to null
+-- (RemoveUnconfirmedIdentities: an account not yet confirmed has its password removed when a
+-- provider joins it). pane_note_password_change counted that as a password change. Going from no
+-- password to no password is not one. Every real change still counts: a password set, changed, or
+-- cleared when Google joins an account that had one (pane_google_joins_account).
+create or replace function public.pane_note_password_change() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if coalesce(new.encrypted_password, '') is distinct from coalesce(old.encrypted_password, '') then
+    perform public.pane_mark_recovery(new.id);
+  end if;
+  return new;
+end $$;
+revoke all on function public.pane_note_password_change() from public, anon, authenticated;
+
+-- Pauses that were recorded at a sign-up before this (by code on staging, by Apple or Google on
+-- production; both stamp the address as confirmed in that moment). They can be told for
 -- certain: the pause's moment is the moment the address was confirmed, to within 5 seconds, which
 -- only a sign-up's confirmation gives. A reset's or a sign-in's pause on an existing account is
 -- hours to years after its confirmation, and a password typed after confirming takes longer than

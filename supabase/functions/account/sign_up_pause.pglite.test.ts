@@ -139,6 +139,28 @@ Deno.test("a password or Apple sign-in never pauses, as before", async () => {
   assertEquals(await paused(pg, me), false);
 });
 
+// What Supabase Auth writes for a new account made through a provider: the user with an empty
+// password, then, in the same transaction, the password set to null (RemoveUnconfirmedIdentities),
+// the address confirmed, and later a session by `oauth`. Seen on production: every such account
+// was paused from its first second.
+Deno.test("a new account made with Apple or Google can delete itself at once", async () => {
+  const pg = await schemaDB();
+  const me = crypto.randomUUID();
+  await pg.query(`insert into auth.users (id, email, encrypted_password) values ($1, $2, '')`, [me, `${me}@pane.local`]);
+  await pg.query(`update auth.users set encrypted_password = null where id = $1`, [me]);
+  await pg.query(`update auth.users set email_confirmed_at = now() where id = $1`, [me]);
+  await session(pg, me, "oauth");
+  assertEquals(await paused(pg, me), false, "no password before, none after: not a password change");
+  // Every real change still pauses: a first password, a new one, and a password taken away.
+  await pg.query(`update auth.users set encrypted_password = 'hash' where id = $1`, [me]);
+  assertEquals(await paused(pg, me), true, "a password set on an account that had none");
+  for (const next of ["'other hash'", "''", "'hash'", "null"]) {
+    await pg.query(`delete from public.account_recoveries where user_id = $1`, [me]);
+    await pg.query(`update auth.users set encrypted_password = ${next} where id = $1`, [me]);
+    assertEquals(await paused(pg, me), true, `the password became ${next}`);
+  }
+});
+
 Deno.test("the migration clears pauses recorded at a sign-up, and no others", async () => {
   const pg = await schemaDB();
   const row = (me: string, at: string) => pg.query(`insert into public.account_recoveries (user_id, at) values ($1, ${at})

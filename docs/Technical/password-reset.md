@@ -57,6 +57,12 @@ sign-in link, code or email change sets `email_confirmed_at` again. An account t
 confirmed has never been signed in to, so it has no notes to protect. A password change still
 pauses any account, new or old. Tests: `supabase/functions/account/sign_up_pause.pglite.test.ts`.
 
+A new account made with Sign in with Apple or Google is not a password change either. For such a
+sign-up the auth server writes the user with an empty password and sets it to null in the same
+transaction; the password trigger counts only a change between two different passwords, or
+between a password and none, so that write starts no pause (same migration). On production this
+paused every new Apple and Google account for its first 72 hours until the migration was applied.
+
 ## The flow
 
 1. **Ask.** "Forgot password?" sits under the password on the app's sign-in card (iPhone and Mac,
