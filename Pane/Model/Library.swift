@@ -416,17 +416,25 @@ extension ModelContext {
 
 /// What the list groups by date: notes, and files kept in folders.
 protocol DatedListItem {
+    /// When it was last edited: the list's own order.
     var listDate: Date { get }
     var pinnedInList: Bool { get }
+    /// For the other orders the list can be put in (`ListOrder`).
+    var listCreated: Date { get }
+    var listTitle: String { get }
 }
 
 extension Note: DatedListItem {
     var listDate: Date { updatedAt }
     var pinnedInList: Bool { isPinned && trashedAt == nil }
+    var listCreated: Date { createdAt }
+    var listTitle: String { title }
 }
 
 extension Attachment: DatedListItem {
     var pinnedInList: Bool { false }
+    var listCreated: Date { createdAt }
+    var listTitle: String { filename }
 }
 
 /// Grouping of the note list by recency, like Apple Notes.
@@ -439,6 +447,27 @@ enum DateBucket {
     /// The same, for items already in order, newest first, each with its date: nothing is sorted
     /// or read again (the list hands over its notes in this order already).
     static func sections<Item: DatedListItem>(newestFirst dated: [(Item, Date)], now: Date = .now, calendar: Calendar = .current) -> [(String, [Item])] {
+        sections(dated, oldestFirst: false, now: now, calendar: calendar)
+    }
+
+    /// The list in the order it was chosen to be in (`ListOrder`), for items already in that order.
+    /// By date: the same headings, on the date the list is sorted by, running the way the list
+    /// does. By title, or with grouping off: the pinned notes, then the rest in one run.
+    static func sections<Item: DatedListItem>(ordered items: [Item], by order: ListOrder, now: Date = .now, calendar: Calendar = .current) -> [(String, [Item])] {
+        guard !order.showsDateHeadings else {
+            return sections(items.map { ($0, order.date(of: $0)) }, oldestFirst: order.reversed, now: now, calendar: calendar)
+        }
+        var pinned: [Item] = [], rest: [Item] = []
+        rest.reserveCapacity(items.count)
+        for n in items { if n.pinnedInList { pinned.append(n) } else { rest.append(n) } }
+        if pinned.isEmpty { return rest.isEmpty ? [] : [(unheaded, rest)] }
+        return rest.isEmpty ? [("Pinned", pinned)] : [("Pinned", pinned), ("Notes", rest)]
+    }
+
+    /// The name of a run of the list that has no heading.
+    static let unheaded = ""
+
+    private static func sections<Item: DatedListItem>(_ dated: [(Item, Date)], oldestFirst: Bool, now: Date, calendar: Calendar) -> [(String, [Item])] {
         var pinned: [Item] = []
         var groups: [(key: String, order: Date, notes: [Item])] = []
         var index: [String: Int] = [:]
@@ -470,7 +499,7 @@ enum DateBucket {
         }
         var result: [(String, [Item])] = []
         if !pinned.isEmpty { result.append(("Pinned", pinned)) }
-        result += groups.sorted { $0.order > $1.order }.map { ($0.key, $0.notes) }
+        result += groups.sorted { oldestFirst ? $0.order < $1.order : $0.order > $1.order }.map { ($0.key, $0.notes) }
         return result
     }
 

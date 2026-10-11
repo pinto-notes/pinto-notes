@@ -15,8 +15,12 @@ struct NoteListView: View {
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
     @State private var library = LibraryNotes()
-    /// Newest first, as plain values: nothing here reads a note from the store.
-    private var entries: [NoteEntry] { library.entries(in: context) }
+    /// "Sort By" and "Group By Date", as chosen on this device.
+    @State private var orderStore = ListOrderStore.shared
+    /// The order the list is shown in. What a search finds keeps the list's own order, newest first.
+    private var order: ListOrder { search.trimmingCharacters(in: .whitespaces).isEmpty ? orderStore.order : .standard }
+    /// In the chosen order, as plain values: nothing here reads a note from the store.
+    private var entries: [NoteEntry] { library.entries(in: context, order: orderStore.order) }
     /// Files kept in folders on their own, listed with the notes.
     @Query(filter: #Predicate<Attachment> { $0.folderID != nil && $0.deletedAt == nil }) private var folderFiles: [Attachment]
     @State private var search = ""
@@ -64,7 +68,10 @@ struct NoteListView: View {
         return settled && !whatsNew.held && !connecting && !sharingHowTo
     }
 
-    private func scoped(from all: [NoteEntry]) -> [NoteEntry] {
+    private func scoped(from all: [NoteEntry]) -> [NoteEntry] { Self.scoped(all, to: scope, context: context) }
+
+    /// The notes a scope lists, in the order they came in.
+    static func scoped(_ all: [NoteEntry], to scope: Scope, context: ModelContext) -> [NoteEntry] {
         let nested = Self.nested(in: all, context: context)
         return all.filter { e in
             guard !e.deleted else { return false }
@@ -122,9 +129,9 @@ struct NoteListView: View {
         return base.filter { $0.filename.localizedStandardContains(q) }
     }
 
-    /// What the list shows, in its order: notes and files together, by date.
+    /// What the list shows, in its order: notes and files together.
     private var orderedItems: [ListEntry] {
-        DateBucket.sections(newestFirst: ListEntry.merged(notes: filtered, files: filteredFiles(from: scopedFiles))).flatMap(\.1)
+        DateBucket.sections(ordered: ListEntry.merged(notes: filtered, files: filteredFiles(from: scopedFiles), by: order), by: order).flatMap(\.1)
     }
 
     /// "12 notes, 3 files", or just the notes when the folder has no files.
@@ -135,12 +142,19 @@ struct NoteListView: View {
         return notes == 0 ? f : n + ", " + f
     }
 
-    /// `all` is every note, newest first, shared with `scoped`. A search reads the notes' text.
+    /// `all` is every note, in the list's order, shared with `scoped`. A search reads the notes' text.
     private func filtered(from scoped: [NoteEntry], all: [NoteEntry]) -> [NoteEntry] {
         let q = search.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return scoped }
         let base = scope == .trash ? scoped : all.filter { !$0.deleted && !$0.trashed }
-        return base.filter { $0.note.body.localizedStandardContains(q) }
+        return Self.found(q, in: base, listedBy: orderStore.order)
+    }
+
+    /// The notes whose text holds `query`, newest first whatever order the list is in: only the
+    /// few found are sorted.
+    static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder) -> [NoteEntry] {
+        let found = base.filter { $0.note.body.localizedStandardContains(query) }
+        return order.sortsLike(.standard) ? found : found.sorted { $0.date > $1.date }
     }
 
     private var title: String {
@@ -252,11 +266,11 @@ struct NoteListView: View {
             }
             // Without files the notes go straight in, in the order they're kept in.
             if visibleFiles.isEmpty {
-                ForEach(DateBucket.sections(newestFirst: visible.map { ($0, $0.date) }), id: \.0) { section in
+                ForEach(DateBucket.sections(ordered: visible, by: order), id: \.0) { section in
                     dateSection(section) { noteRow($0.note) }
                 }
             } else {
-                ForEach(DateBucket.sections(newestFirst: ListEntry.merged(notes: visible, files: visibleFiles)), id: \.0) { section in
+                ForEach(DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order), id: \.0) { section in
                     dateSection(section) { item in
                         switch item {
                         case .note(let entry):
@@ -409,8 +423,12 @@ struct NoteListView: View {
         #if os(macOS)
         // The Delete key (and Edit › Delete) on the focused list removes every selected note.
         .onDeleteCommand { if !selection.isEmpty { remove(selection) } }
-        // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
-        .onAppear { RowClickLog.start() }
+        .onAppear {
+            // A press on a row that moves a point or two is still a click (the sidebar's rows too).
+            RowPressSlop.start()
+            // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
+            RowClickLog.start()
+        }
         .onChange(of: selection) { old, new in
             RowClickLog.selection(old, new)
             // Notes that went inside another note aren't rows any more (see `withoutSubNotes`).
@@ -436,6 +454,17 @@ struct NoteListView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add File", systemImage: "doc.badge.plus") { addingFiles = true }
                         .accessibilityIdentifier("list.addFile")
+                }
+            }
+            if !editMode.isEditing {
+                // The list's own menu, as in Notes: how it's sorted and grouped.
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        ListOrderMenu(store: orderStore)
+                    } label: {
+                        Label("More", systemImage: "ellipsis")
+                    }
+                    .accessibilityIdentifier("list.more")
                 }
             }
             if editMode.isEditing {
@@ -489,6 +518,8 @@ struct NoteListView: View {
             ToolbarSpacer(.flexible)
             ToolbarItem {
                 Menu {
+                    ListOrderMenu(store: orderStore)
+                    Divider()
                     Button("New Folder", systemImage: "folder.badge.plus") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
                     Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
                         .disabled(scope == .trash)
@@ -520,17 +551,20 @@ struct NoteListView: View {
         )) {
             ForEach(section.1) { row($0) }
         } header: {
-            // One step lighter than the display type: bold, in the warm ink.
-            #if os(iOS)
-            // The system's prominent header: large and bold, as in Notes.
-            Text(section.0)
-                .foregroundStyle(Color.ink)
-            #else
-            Text(section.0)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(Color.ink)
-                .textCase(nil)
-            #endif
+            // A list sorted by title, or with grouping off, has no heading over its notes.
+            if section.0 != DateBucket.unheaded {
+                // One step lighter than the display type: bold, in the warm ink.
+                #if os(iOS)
+                // The system's prominent header: large and bold, as in Notes.
+                Text(section.0)
+                    .foregroundStyle(Color.ink)
+                #else
+                Text(section.0)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(Color.ink)
+                    .textCase(nil)
+                #endif
+            }
         }
         #if os(iOS)
         .headerProminence(.increased)
@@ -854,10 +888,17 @@ struct NoteEntry: Identifiable, DatedListItem {
     var deleted: Bool
     var folderID: UUID?
     var parentID: UUID?
+    var created: Date
+    /// Read only for a list sorted by title (`titled`): it costs a look at the note's text.
+    var title = ""
 
-    init(_ note: Note) {
+    init(_ note: Note) { self.init(note, titled: false) }
+
+    init(_ note: Note, titled: Bool) {
         self.note = note
         id = note.id
+        created = note.createdAt
+        if titled { title = note.title }
         date = note.updatedAt
         pinned = note.isPinned
         trashed = note.trashedAt != nil
@@ -868,12 +909,14 @@ struct NoteEntry: Identifiable, DatedListItem {
 
     var listDate: Date { date }
     var pinnedInList: Bool { pinned && !trashed }
+    var listCreated: Date { created }
+    var listTitle: String { title }
 
     /// Whether the list shows this note in the same place as `other`: same folder, pin and trash,
     /// and a date on the same day (the sections are days).
     func listsLike(_ other: NoteEntry) -> Bool {
         pinned == other.pinned && trashed == other.trashed && deleted == other.deleted && folderID == other.folderID
-            && parentID == other.parentID && Calendar.current.isDate(date, inSameDayAs: other.date)
+            && parentID == other.parentID && title == other.title && Calendar.current.isDate(date, inSameDayAs: other.date)
     }
 }
 
@@ -899,6 +942,38 @@ enum ListEntry: Identifiable, DatedListItem {
     var pinnedInList: Bool {
         if case .note(let e) = self { return e.pinnedInList }
         return false
+    }
+
+    var listCreated: Date {
+        switch self {
+        case .note(let e): e.created
+        case .file(let f): f.listCreated
+        }
+    }
+
+    var listTitle: String {
+        switch self {
+        case .note(let e): e.title
+        case .file(let f): f.listTitle
+        }
+    }
+
+    /// Notes already in `order`, with files merged in where they fall in it: the notes keep their
+    /// order, and only the few files are sorted.
+    static func merged(notes: [NoteEntry], files: [Attachment], by order: ListOrder) -> [ListEntry] {
+        let sortedFiles = files.sorted { order.before($0, $1) }
+        var out: [ListEntry] = []
+        out.reserveCapacity(notes.count + sortedFiles.count)
+        var f = 0
+        for n in notes {
+            while f < sortedFiles.count, order.before(sortedFiles[f], n) {
+                out.append(.file(sortedFiles[f]))
+                f += 1
+            }
+            out.append(.note(n))
+        }
+        out += sortedFiles[f...].map(ListEntry.file)
+        return out
     }
 
     /// Notes in order, newest first, with files merged in where their dates fall: the notes keep
@@ -948,7 +1023,8 @@ struct ListIdentity: Hashable {
     let library: Int
 }
 
-/// Every note in the library, for the list, newest first.
+/// Every note in the library, for the list, in the list's order (newest edit first unless another
+/// was chosen: `ListOrder`).
 ///
 /// The list used to read each note's date, folder, trash and parent from the store on every
 /// update, sort them all and group them: about 100,000 reads to show one save with 20,000 notes
@@ -973,7 +1049,16 @@ final class LibraryNotes {
     /// While a search is on, a note's text decides whether it is listed: every change counts.
     @ObservationIgnored var publishesEveryChange = false
 
-    func entries(in context: ModelContext) -> [NoteEntry] {
+    /// The order the entries are kept in. Only where a note goes counts here, not the headings.
+    @ObservationIgnored private var order = ListOrder.standard
+
+    func entries(in context: ModelContext, order: ListOrder = .standard) -> [NoteEntry] {
+        if !order.sortsLike(self.order) {
+            // Titles are read only for a list sorted by them: every note is read again once.
+            let reads = (order.key == .title) != (self.order.key == .title)
+            self.order = order
+            if self.context === context { if reads { load() } else { sorted.sort(by: order.before) } }
+        }
         if self.context !== context { start(context) }
         _ = generation
         return sorted
@@ -1004,7 +1089,14 @@ final class LibraryNotes {
         changed = []
         let before = Set(sorted.map(\.id))
         let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
-        sorted = notes.map { watched($0) }.sorted { $0.date > $1.date }
+        var entries = notes.map { watched($0) }
+        if order.key == .title, !sorted.isEmpty {
+            // Titles are slow to compare, and the list was in order a moment ago: put back in that
+            // order first, the sort has only the notes that came or changed to place.
+            let was = Dictionary(sorted.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+            entries.sort { (was[$0.id] ?? .max) < (was[$1.id] ?? .max) }
+        }
+        sorted = entries.sorted(by: precedes)
         // An import, a first sync or another account: hundreds of notes came or went at once.
         var differing = 0
         for e in sorted where !before.contains(e.id) { differing += 1 }
@@ -1019,7 +1111,8 @@ final class LibraryNotes {
     /// The note's entry as it is now; the next change to what it holds marks the note changed.
     private func watched(_ note: Note) -> NoteEntry {
         let id = note.id, epoch = self.epoch
-        return withObservationTracking { NoteEntry(note) } onChange: { [weak self] in
+        let titled = order.key == .title
+        return withObservationTracking { NoteEntry(note, titled: titled) } onChange: { [weak self] in
             // Called as the note is about to change, on the thread changing it (the main one:
             // the library's context lives there). The entry is read again once it has.
             Task { @MainActor in self?.noteChanged(id, epoch: epoch) }
@@ -1033,6 +1126,11 @@ final class LibraryNotes {
         flushScheduled = true
         // Several changes in a row (a save sets the text, the date and the sync mark) are one update.
         Task { @MainActor in self.flush() }
+    }
+
+    /// Whether `a` is listed before `b`. The list's own order is two dates compared, nothing more.
+    private func precedes(_ a: NoteEntry, _ b: NoteEntry) -> Bool {
+        order.sortsLike(.standard) ? a.date > b.date : order.before(a, b)
     }
 
     private func flush() {
@@ -1052,7 +1150,7 @@ final class LibraryNotes {
         // on every save, on or off screen, and laid out twice the cells.
         if ids.count == 1, let id = ids.first, let i = sorted.firstIndex(where: { $0.id == id }), sorted[i].note.modelContext != nil {
             let old = sorted[i], new = watched(old.note)
-            let stays = (i == 0 || sorted[i - 1].date > new.date) && (i == sorted.count - 1 || sorted[i + 1].date <= new.date)
+            let stays = (i == 0 || !precedes(new, sorted[i - 1])) && (i == sorted.count - 1 || !precedes(sorted[i + 1], new))
             if stays {
                 sorted[i] = new
                 if !new.listsLike(old) || publishesEveryChange { generation += 1 }
@@ -1069,14 +1167,14 @@ final class LibraryNotes {
         }
         if moved.count > 64 {
             // A sync or an import changed many at once: one sort beats that many insertions.
-            sorted = (sorted + moved).sorted { $0.date > $1.date }
+            sorted = (sorted + moved).sorted(by: precedes)
         } else {
-            for e in moved.sorted(by: { $0.date > $1.date }) {
-                // Before the first entry that isn't newer.
+            for e in moved.sorted(by: precedes) {
+                // Before the first entry that doesn't come before it.
                 var low = 0, high = sorted.count
                 while low < high {
                     let mid = (low + high) / 2
-                    if sorted[mid].date > e.date { low = mid + 1 } else { high = mid }
+                    if precedes(sorted[mid], e) { low = mid + 1 } else { high = mid }
                 }
                 sorted.insert(e, at: low)
             }

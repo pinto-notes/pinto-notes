@@ -46,6 +46,20 @@ enum ListItem: Identifiable, DatedListItem {
         if case .note(let n) = self { return n.pinnedInList }
         return false
     }
+
+    var listCreated: Date {
+        switch self {
+        case .note(let n): n.listCreated
+        case .file(let f): f.listCreated
+        }
+    }
+
+    var listTitle: String {
+        switch self {
+        case .note(let n): n.listTitle
+        case .file(let f): f.listTitle
+        }
+    }
 }
 
 /// What a drop carries: items from inside the app, and file or folder URLs from outside it.
