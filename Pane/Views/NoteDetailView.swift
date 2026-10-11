@@ -639,25 +639,66 @@ struct NoteDetailView: View {
         }
     }
 
-    /// The app's items in More: Make It an App, or App Info.
+    /// One item of the More menu (`NoteMoreMenu` decides which, and their order).
     @ViewBuilder
-    private var pageMenuItems: some View {
-        if NoteApps.enabled, notePage == nil, !note.isLocked, note.trashedAt == nil {
+    private func moreItem(_ item: NoteMoreMenu.Item) -> some View {
+        switch item {
+        case .pin:
+            Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
+                withAnimation(.snappy) { context.togglePin(note) }
+            }
+        case .lock:
+            Button("Lock Note", systemImage: "lock", action: startLock)
+                .accessibilityIdentifier("editor.lock")
+        case .lockNow:
+            Button("Lock Now", systemImage: "lock") { vault.lockNow() }
+                .accessibilityIdentifier("editor.lockNow")
+        case .removeLock:
+            Button("Remove Lock", systemImage: "lock.open", action: removeLock)
+                .accessibilityIdentifier("editor.removeLock")
+        case .makeApp:
             Button("Make It an App…", systemImage: NoteAppMark.symbol) { showMakeApp = true }
                 .accessibilityIdentifier("editor.makeApp")
-        }
-        if notePage != nil {
+        case .appInfo:
             // Everything about the app in one place: its settings, the internet, Previous App, Remove App.
             Button("App Info…", systemImage: "info.circle") { showAppInfo = true }
                 .accessibilityIdentifier("editor.appInfo")
-        }
-        #if DEBUG || QA
-        if NoteApps.enabled, !note.isLocked, note.trashedAt == nil {
+        case .devImportApp:
             // An app built outside the AI tools (scripts/build-app.ts output, or one HTML file).
             Button("Dev: Import App File…", systemImage: "square.and.arrow.down") { importingApp = true }
                 .accessibilityIdentifier("editor.devImportApp")
+        case .moveTo:
+            #if os(macOS)
+            // One item, whatever the number of folders: the folders are in the picker it opens.
+            Button("Move to…", systemImage: "folder") { movingNote = true }
+                .accessibilityIdentifier("editor.moveTo")
+            #else
+            Menu("Move to", systemImage: "folder") {
+                ForEach(context.allFolders()) { f in
+                    Button(f.name) { context.move(note, to: f) }.disabled(note.folder?.id == f.id)
+                }
+            }
+            #endif
+        case .linkedFrom:
+            Menu("Linked from", systemImage: "link") {
+                ForEach(backlinks, id: \.id) { n in
+                    Button(n.title) { onOpenNote(n.id, false) }
+                }
+            }
+            .accessibilityIdentifier("editor.backlinks")
+        case .share:
+            Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
+        case .history:
+            #if os(iOS)
+            Button("Show Version History", systemImage: "clock.arrow.circlepath") { showHistory = true }
+            #else
+            Button("Show Version History…", systemImage: "clock.arrow.circlepath") { showHistory = true }
+            #endif
+        case .delete:
+            Button("Delete Note", systemImage: "trash", role: .destructive) {
+                withAnimation(.snappy) { context.trash(note) }
+            }
         }
-        #endif
     }
 
     private func restorePreviousPage() {
@@ -1053,63 +1094,11 @@ struct NoteDetailView: View {
 
     private var moreMenu: some View {
         Menu {
-            Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
-                withAnimation(.snappy) { context.togglePin(note) }
-            }
-            #if os(macOS)
-            // One item, whatever the number of folders: the folders are in the picker it opens.
-            Button("Move to…", systemImage: "folder") { movingNote = true }
-                .accessibilityIdentifier("editor.moveTo")
-            #else
-            Menu("Move to", systemImage: "folder") {
-                ForEach(context.allFolders()) { f in
-                    Button(f.name) { context.move(note, to: f) }.disabled(note.folder?.id == f.id)
-                }
-            }
-            #endif
-            if !backlinks.isEmpty {
-                Menu("Linked from", systemImage: "link") {
-                    ForEach(backlinks, id: \.id) { n in
-                        Button(n.title) { onOpenNote(n.id, false) }
-                    }
-                }
-                .accessibilityIdentifier("editor.backlinks")
-            }
-            if !note.isLocked {
-                #if os(iOS)
-                Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
-                Button("Show Version History", systemImage: "clock.arrow.circlepath") { showHistory = true }
-                #else
-                Button("Show Version History…", systemImage: "clock.arrow.circlepath") { showHistory = true }
-                #endif
-            }
-            pageMenuItems
-            #if os(macOS)
-            // What goes into the text but isn't a text style: moved here from the Aa menu.
-            if !hidden {
-                Divider()
-                Button("Add Link", systemImage: "link", action: controller.insertLink)
-                    .accessibilityIdentifier("editor.addLink")
-                Button("New Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }
-                    .disabled(note.isLocked)
-                    .accessibilityIdentifier("editor.newSubNote")
-            }
-            #endif
-            Divider()
-            if note.isLocked {
-                if vault.isUnlocked {
-                    Button("Lock Now", systemImage: "lock") { vault.lockNow() }
-                        .accessibilityIdentifier("editor.lockNow")
-                    Button("Remove Lock", systemImage: "lock.open", action: removeLock)
-                        .accessibilityIdentifier("editor.removeLock")
-                }
-            } else if note.trashedAt == nil {
-                Button("Lock Note", systemImage: "lock", action: startLock)
-                    .accessibilityIdentifier("editor.lock")
-            }
-            Divider()
-            Button("Delete Note", systemImage: "trash", role: .destructive) {
-                withAnimation(.snappy) { context.trash(note) }
+            let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, linkedFrom: !backlinks.isEmpty)
+            ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
+                if index > 0 { Divider() }
+                ForEach(group, id: \.self) { moreItem($0) }
             }
         } label: {
             Label("More", systemImage: "ellipsis")
@@ -1130,6 +1119,49 @@ struct NoteDetailView: View {
         }
         #endif
         .accessibilityIdentifier("editor.more")
+    }
+}
+
+/// What the note's More (…) menu holds, in order: two groups, like the owner drew them on
+/// 2026-10-11. What the note is (pinned, locked, an app) first; then where it goes, what it
+/// was and deleting it.
+enum NoteMoreMenu {
+    static var isPhoneOrPad: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    static var isDevBuild: Bool {
+        #if DEBUG || QA
+        true
+        #else
+        false
+        #endif
+    }
+
+    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, linkedFrom, share, history, delete }
+
+    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, linkedFrom: Bool,
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild) -> [[Item]] {
+        var about: [Item] = [.pin]
+        if locked {
+            if vaultOpen { about += [.lockNow, .removeLock] }
+        } else if !trashed {
+            about.append(.lock)
+        }
+        if appsEnabled, !hasApp, !locked, !trashed { about.append(.makeApp) }
+        if hasApp { about.append(.appInfo) }
+        if dev, appsEnabled, !locked, !trashed { about.append(.devImportApp) }
+        var rest: [Item] = [.moveTo]
+        if linkedFrom { rest.append(.linkedFrom) }
+        // On iPhone and iPad sharing lives in this menu; the Mac has its own toolbar button.
+        if phone, !locked { rest.append(.share) }
+        if !locked { rest.append(.history) }
+        rest.append(.delete)
+        return [about, rest]
     }
 }
 

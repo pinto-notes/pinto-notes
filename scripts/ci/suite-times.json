@@ -158,7 +158,5 @@
 "WikiLinkEditorTests": 1.5,
 "WikiLinksTests": 0.3,
 "WikiTypingQueryTests": 0.0,
-"WindowFrameTests": 0.0,
-"XLSXImporterTests": 0.0,
-"XLSXLiveTests": 0.0
+"WindowFrameTests": 0.0
 }

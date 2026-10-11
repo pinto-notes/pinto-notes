@@ -520,9 +520,6 @@ struct NoteListView: View {
                     ForEach(ImportKind.allCases) { kind in
                         Button(kind.menuTitle, systemImage: kind.symbol) { imports?.from(kind) }
                     }
-                    Button("Import Spreadsheet as Table…", systemImage: "tablecells") { imports?.spreadsheet() }
-                    Divider()
-                    SettingsLink { Label("Settings…", systemImage: "gearshape") }
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
