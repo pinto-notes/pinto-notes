@@ -177,3 +177,5 @@ import ZIPFoundation
         #expect(NoteExport.unique(["a", "X.md"], in: &used) == "a/X 2.md")
     }
 }
+
+// CI lane proof: a harmless line.
