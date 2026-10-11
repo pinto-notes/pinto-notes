@@ -838,8 +838,8 @@ final class AppSession {
         // launch, once it has a note, and never on a launch that has shown an account notice.
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
-        // Never during the first-run flow, nor on the launch that showed it.
-        if !onboarding.active, !onboarding.endedThisLaunch {
+        // Never during the first-run flow, nor in the day after it.
+        if !onboarding.holdsAsks() {
             await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
         }
         await InstallID.report(client)
@@ -1126,7 +1126,7 @@ struct AppGate: View {
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.5))
             guard backend.state != .signedOut, phase == .active, !heardFrom.visible else { return }
-            shareAsk.moment(setupVisible: setup.visible || onboarding.active || onboarding.endedThisLaunch || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
+            shareAsk.moment(setupVisible: setup.visible || onboarding.holdsAsks() || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
         }
     }
 }

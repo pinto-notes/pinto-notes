@@ -133,8 +133,11 @@ private final class FakeSetup: SetupService, @unchecked Sendable {
         await store.refresh()
         #expect(fake.calls == 1, "syncs while typing mustn't flood the server")
         await store.mark("dismissed")
+        await store.refresh()
+        #expect(fake.calls == 1, "a hidden card never asks again by itself")
+        // The first-run flow asks after a connect guide closes, hidden card or not.
         await store.refresh(force: true)
-        #expect(fake.calls == 1, "a hidden card never asks again")
+        #expect(fake.calls == 2)
     }
 
     @Test func anotherAccountStartsOver() async {

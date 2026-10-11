@@ -130,6 +130,28 @@ import Testing
         #expect(!store(defaults).covers(account), "never again on this device")
     }
 
+    @Test func nothingAsksForADayAfterTheFlow() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        let s = store(defaults)
+        #expect(!s.holdsAsks())
+        s.attach(account: account, created: justNow, holdsNothing: true, now: now)
+        #expect(s.holdsAsks(), "while the window waits")
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        #expect(s.holdsAsks(), "during the flow")
+        s.finish(landing: .newNote)
+        #expect(s.holdsAsks(), "right after it")
+        // Later launches, the same day and the day after next.
+        let later = store(defaults)
+        later.attach(account: account, created: justNow, holdsNothing: false, now: now)
+        #expect(later.holdsAsks(now: .now.addingTimeInterval(3600)), "three launches in the first hour still ask nothing")
+        #expect(!later.holdsAsks(now: .now.addingTimeInterval(Onboarding.quietAfter + 60)))
+        // An account that never saw the flow is asked as before.
+        later.attach(account: nil, created: nil, holdsNothing: false, now: now)
+        later.attach(account: UUID(), created: now.addingTimeInterval(-90 * 86_400), holdsNothing: false, now: now)
+        #expect(!later.holdsAsks())
+    }
+
     @Test func anotherAccountOnTheSameDeviceStartsClean() {
         let defaults = TestDefaults()
         let s = store(defaults)

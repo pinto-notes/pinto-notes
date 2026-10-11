@@ -72,6 +72,11 @@ enum Onboarding {
     }
 
     static func savedKey(_ account: UUID) -> String { "onboarding.step.\(account.uuidString.lowercased())" }
+    static func endedKey(_ account: UUID) -> String { "onboarding.ended.\(account.uuidString.lowercased())" }
+
+    /// No ask ("How did you hear…", "Enjoying Pinto Notes?") for this long after the flow ends,
+    /// however many times the app is opened in between.
+    static let quietAfter: TimeInterval = 24 * 60 * 60
 }
 
 @MainActor
@@ -92,6 +97,13 @@ final class OnboardingStore {
     private(set) var landing: Onboarding.Landing?
     /// The flow ended during this launch: no ask or tip follows it.
     private(set) var endedThisLaunch = false
+
+    /// The flow is up, or ended less than a day ago on this device: nothing else asks for attention.
+    func holdsAsks(now: Date = .now) -> Bool {
+        if active || endedThisLaunch { return true }
+        guard let account, let ended = defaults.object(forKey: Onboarding.endedKey(account)) as? Date else { return false }
+        return now.timeIntervalSince(ended) < Onboarding.quietAfter
+    }
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private let defaults: UserDefaults
@@ -204,7 +216,10 @@ final class OnboardingStore {
 
     private func close() {
         if !replay, let account { defaults.removeObject(forKey: Onboarding.savedKey(account)) }
-        if !replay { endedThisLaunch = true }
+        if !replay {
+            endedThisLaunch = true
+            if let account { defaults.set(Date.now, forKey: Onboarding.endedKey(account)) }
+        }
         replay = false
         phase = .off
     }

@@ -330,6 +330,7 @@
 		85B167443F5306A56A6853A5 /* EvernoteImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50F24771D014A8D43AD8481 /* EvernoteImport.swift */; };
 		85CE6CEEC52E3B261A4B199E /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0968B22016B98500451306BA /* Capture.swift */; };
 		85FAAE6CDA8C3444C01768DA /* BestAppsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D471635BF1AC9AF5430C420 /* BestAppsUITests.swift */; };
+		86110F1EAE53F12524BB1AEC /* OnboardingFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F5F913E4976210AB96D8D0 /* OnboardingFlowUITests.swift */; };
 		86C1385AEB3FC6BCC79658D6 /* app-telemetry.md in Resources */ = {isa = PBXBuildFile; fileRef = B187D7429CA1DE585C11C930 /* app-telemetry.md */; };
 		88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED450707209CA52772670C64 /* CollabCrypto.swift */; };
 		88FA5879C30E175F9060645B /* AIEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25098E4C4EF554486AD7952E /* AIEdit.swift */; };
@@ -980,6 +981,7 @@
 		E3290486DF1E77796E513D27 /* OnboardingSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSnapshots.swift; sourceTree = "<group>"; };
 		E37B37176F6CCA31F99951BE /* Pane-ios.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pane-ios.entitlements"; sourceTree = "<group>"; };
 		E37BFAF54A1A956AD495D1DE /* preact-hooks.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "preact-hooks.js"; sourceTree = "<group>"; };
+		E3F5F913E4976210AB96D8D0 /* OnboardingFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowUITests.swift; sourceTree = "<group>"; };
 		E43C8835EE05529FC6C66B17 /* LegalLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalLinks.swift; sourceTree = "<group>"; };
 		E5A1AE108885E3A9E3B3583A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E5FF211616E406434EE7DC37 /* SyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncTests.swift; sourceTree = "<group>"; };
@@ -1712,6 +1714,7 @@
 				4E100DCFAB89B4E7E4265312 /* NoteAppsStagingUITests.swift */,
 				86DCF211584370A9F0BE60AE /* NotePagesUITests.swift */,
 				643D6098FA0EE7C18618080F /* OfflineUITests.swift */,
+				E3F5F913E4976210AB96D8D0 /* OnboardingFlowUITests.swift */,
 				2E585AAB4EEC89DFEE3790F9 /* PasswordResetUITests.swift */,
 				AC3D1FC679B3D44D2E2C46F9 /* ProdSignInTests.swift */,
 				0A3E8C508286ED65BD00189A /* SearchBarUITests.swift */,
@@ -2387,6 +2390,7 @@
 				919B839FBF4F99F570FC10A8 /* NoteAppsStagingUITests.swift in Sources */,
 				D8C6573808152948DAAAEC38 /* NotePagesUITests.swift in Sources */,
 				357BFF89566D534FC69D2494 /* OfflineUITests.swift in Sources */,
+				86110F1EAE53F12524BB1AEC /* OnboardingFlowUITests.swift in Sources */,
 				0A6A136E2747B0D5F1070816 /* PasswordResetUITests.swift in Sources */,
 				37DA42A0A54D63D272E67BF8 /* ProdSignInTests.swift in Sources */,
 				7310D5C40BFE56AD010ECC6E /* SearchBarUITests.swift in Sources */,
