@@ -61,17 +61,24 @@ for pid in $pids; do wait $pid || failed=1; done
 if [[ ${1:-} == --tests ]]; then
   # The suites declared in the test files this branch changed (against origin/dev, and not yet committed).
   base=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
-  only=()
-  for f in $( { git diff --name-only "$base"; git diff --name-only; } | sort -u | grep -E '^PaneTests/.*\.swift$' || true); do
-    [[ -f $f ]] || continue
-    # A suite written inside "extension Outer {" is Outer/Suite to xcodebuild; without the outer name it matches nothing.
-    outer=$(grep -m1 -oE '^extension +[A-Za-z0-9_]+ *\{' "$f" | awk '{print $2 "/"}' || true)
-    for suite in $(grep -oE '^(@[A-Za-z]+(\([^)]*\))? +)*(final +)?(struct|class) +[A-Za-z0-9_]+' "$f" | awk '{print $NF}'); do
-      if [[ -n $outer ]] && ! grep -qE "^extension +$suite\b" "$f"; then only+=("-only-testing:PaneTests/$outer$suite"); else only+=("-only-testing:PaneTests/$suite"); fi
-    done
+  only=(); touched=()
+  # scripts/ci/select-tests.py knows which suites a test file holds and their full names: a suite
+  # written inside "extension Outer {" is Outer/Suite to xcodebuild, and matches nothing without it.
+  python3 scripts/ci/select-tests.py --suites-of $( { git diff --name-only "$base"; git diff --name-only; } | sort -u | grep -E '^PaneTests/.*\.swift$' || true) | while IFS=$'\t' read -r f suites; do
+    for suite in ${=suites}; do only+=("-only-testing:PaneTests/$suite"); done
+    touched+=("$f:${(j:|:)${(@)${=suites}:t}}")
   done
   if (( ${#only} )); then
     compile run "Tests of the touched test files (${#only} suites)" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
+    # A name that matches no test is not an error to xcodebuild, so look: every touched test file
+    # has to have had a suite of its own start.
+    for t in $touched; do
+      if ! grep -qE "Suite (${t#*:}) started" "$DD/run.log"; then
+        print -- "✗ No test of ${t%%:*} ran (asked for: ${${t#*:}//|/, }). Not ready to push."
+        exit 1
+      fi
+    done
+    print -- "  $(grep -oE 'Test run with [0-9]+ tests? in [0-9]+ suites? passed' "$DD/run.log" | tail -1)"
   else
     print -- "→ No test file touched: no tests run."
   fi

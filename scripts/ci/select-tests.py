@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Which tests a pull request runs before it merges: scripts/ci/select-tests.py <file of changed paths>
+(and, for scripts/prepush.sh, the suites of given test files: select-tests.py --suites-of <test file>...)
 
 Prints xcodebuild's -only-testing arguments, one per line, and says on stderr what it chose and why.
 Everything else runs on dev after the merge (the full suite), so this is about being fast and
@@ -19,7 +20,6 @@ import glob, json, os, re, sys
 BUDGET = float(os.environ.get("PANE_LANE_TEST_SECONDS", "90"))
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.dirname(os.path.dirname(here))
-changed = [l.strip() for l in open(sys.argv[1]) if l.strip()]
 
 def lines(name):
     try:
@@ -53,9 +53,23 @@ for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
             m = decl.match(line)
             if m and m.group(1) in suites_in[rel]:
                 inside[m.group(1)] = outer
+            elif "@Test" in line and outer not in suites_in[rel]:
+                suites_in[rel].append(outer)        # the file adds tests to a suite declared elsewhere
         depth += line.count("{") - line.count("}")
+# A type that only holds other suites (NetworkFaults) is not picked as one: that would run them all.
+suites_in = {f: [s for s in ss if s not in inside.values()] for f, ss in suites_in.items()}
 perf = {s for f, ss in suites_in.items() if f.startswith("PaneTests/Perf/") for s in ss}
 all_suites = {s for ss in suites_in.values() for s in ss}
+
+path = lambda suite: f"{inside[suite]}/{suite}" if suite in inside else suite
+if sys.argv[1] == "--suites-of":
+    # For scripts/prepush.sh: the suites of these test files, one line per file that has any, as
+    # <file> <tab> <Suite or Outer/Suite>, ...
+    for f in sys.argv[2:]:
+        if suites_in.get(f):
+            print(f + "\t" + " ".join(path(s) for s in suites_in[f]))
+    sys.exit(0)
+changed = [l.strip() for l in open(sys.argv[1]) if l.strip()]
 
 chosen, why, planned = [], {}, 0.0
 def take(suite, reason, always=False):
@@ -97,7 +111,6 @@ for s in sorted(set(left), key=cost):
     if len(chosen) == before:
         skipped.append(s)
 
-path = lambda suite: f"{inside[suite]}/{suite}" if suite in inside else suite
 for t in smoke:                                     # 1 (single tests: Suite/test())
     suite, test = t.split("/", 1)
     if suite not in all_suites:
