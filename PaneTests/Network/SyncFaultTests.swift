@@ -282,5 +282,23 @@ extension NetworkFaults {
         #expect(all.contains("eggs") || (serverBody(n) ?? "").contains("eggs"), "and so does the AI's edit")
         await finish()
     }
+
+    /// A change that arrives by sync with the note's date as it was and text of the same length
+    /// (another writer that keeps the date, or two edits in the same instant): the row in the
+    /// list and in search shows the new text, as the open note does. The row's title and preview
+    /// were kept by date and length, so it showed the text from before, one change behind.
+    @Test func aSyncedChangeOfTheSameLengthAndDateShowsInTheRow() async throws {
+        let n = try await syncedNote("Arriving note\nArrived at 22:07:15.")
+        #expect(n.preview == "Arrived at 22:07:15.", "the list has shown the row")
+        StubSupabase.edit(n.id, body: "Arriving note\nArrived at 22:08:55.", updatedAt: n.updatedAt)
+        await engine.sync()
+        #expect(n.body == "Arriving note\nArrived at 22:08:55.", "the note has the new text")
+        #expect(n.preview == "Arrived at 22:08:55.", "and so does its row")
+        // From here the note's date is the server's, to its precision: the next one is the same exactly.
+        StubSupabase.edit(n.id, body: "Arrived note!\nArrived at 22:11:25.", updatedAt: n.updatedAt)
+        await engine.sync()
+        #expect(n.title == "Arrived note!" && n.preview == "Arrived at 22:11:25.", "the title follows too")
+        await finish()
+    }
 }
 }

@@ -71,12 +71,43 @@ import ZIPFoundation
         let result = try await NoteExport.make(context, vault: vault, now: Date(timeIntervalSince1970: 1_790_000_000))
         defer { try? FileManager.default.removeItem(at: result.zip.deletingLastPathComponent()) }
         #expect(result.notes == 1 && result.files == 5 && result.missingFiles == 1)
+        // Nothing fetched it, so the export says it's incomplete.
+        #expect(NoteExport.summary(result) == "Exported 1 note and 5 files. 1 file was left out.")
+        let said = try #require(NoteExport.leftOut(result))
+        #expect(said.title == "1 file isn\u{2019}t in the export")
+        #expect(said.message.hasSuffix("couldn\u{2019}t be downloaded. Connect to the internet and export again to include it."))
+        // With a way to fetch it (sync's download), it's fetched first and the export is whole.
+        var asked: [UUID] = []
+        let whole = try await NoteExport.make(context, vault: vault, now: Date(timeIntervalSince1970: 1_790_000_000), fetch: { a in
+            asked.append(a.id)
+            try? Data("only on the server".utf8).write(to: FileStore.url(for: a.id, filename: a.filename))
+            return true
+        })
+        defer { try? FileManager.default.removeItem(at: whole.zip.deletingLastPathComponent()) }
+        #expect(asked == [cloud.id], "only the file that isn't here is fetched")
+        #expect(whole.files == 6)
+        #expect(whole.missingFiles == 0)
+        #expect(NoteExport.leftOut(whole) == nil)
+        #expect(NoteExport.summary(whole) == "Exported 1 note and 6 files.")
+        // A whole export carries no such list.
+        let wholeOut = whole.zip.deletingLastPathComponent().appending(path: "unzipped")
+        try FileManager.default.unzipItem(at: whole.zip, to: wholeOut)
+        let wholeTop = try #require(try FileManager.default.contentsOfDirectory(at: wholeOut, includingPropertiesForKeys: nil).first)
+        #expect(!FileManager.default.fileExists(atPath: wholeTop.appending(path: NoteExport.leftOutFile).path))
+        #expect(NoteExport.leftOutText(["Papers/b.pdf", "Files/a.png"]).contains("- Files/a.png\n- Papers/b.pdf"))
+        try FileManager.default.removeItem(at: FileStore.url(for: cloud.id, filename: cloud.filename))
 
         let out = result.zip.deletingLastPathComponent().appending(path: "unzipped")
         try FileManager.default.unzipItem(at: result.zip, to: out)
         let top = try #require(try FileManager.default.contentsOfDirectory(at: out, includingPropertiesForKeys: nil).first)
         func text(_ path: String) -> String? { try? String(contentsOf: top.appending(path: path), encoding: .utf8) }
         #expect(text("Papers/paper.txt") == "a paper", "a file kept in a folder is in that folder")
+        // The file that couldn't be fetched isn't there, and the export says so itself.
+        #expect(text("Papers/cloud.txt") == nil)
+        let listed = try #require(text(NoteExport.leftOutFile))
+        #expect(listed.contains("- Papers/cloud.txt"))
+        #expect(listed.hasPrefix("This file wasn\u{2019}t on the device"))
+        #expect(!listed.contains("\u{2014}") && !listed.contains("\u{2013}"))
         #expect(text("Papers/paper 2.txt") == "another paper", "two with one name are both there")
         #expect(text("Papers/Taxes/receipt.txt") == "a receipt", "in a sub-folder too")
         #expect(text("Files/picture.txt") == "a picture", "a file only a note embeds stays under Files")
@@ -128,6 +159,25 @@ import ZIPFoundation
         try FileManager.default.unzipItem(at: result.zip, to: out)
         let top = try #require(try FileManager.default.contentsOfDirectory(at: out, includingPropertiesForKeys: nil).first)
         #expect(try String(contentsOf: top.appending(path: "Sharing.md"), encoding: .utf8).contains("just a note"), "without sharing, the name is free for a note")
+    }
+
+    /// The export is named for the day on the person's own calendar, not UTC's.
+    @Test func theExportIsNamedForTheLocalDay() throws {
+        // 23:20 UTC on 10 October: already the 11th in Stockholm (01:20), still the 10th in New York.
+        let late = try #require(ISO8601DateFormatter().date(from: "2026-10-10T23:20:00Z"))
+        let stockholm = try #require(TimeZone(identifier: "Europe/Stockholm")), newYork = try #require(TimeZone(identifier: "America/New_York"))
+        #expect(NoteExport.stamp(late, timeZone: stockholm) == "2026-10-11")
+        #expect(NoteExport.stamp(late, timeZone: newYork) == "2026-10-10")
+        #expect(NoteExport.stamp(late, timeZone: .gmt) == "2026-10-10")
+    }
+
+    /// The alert counts files, one for one with what the export left out.
+    @Test func theAlertCountsTheFilesLeftOut() throws {
+        func made(_ missing: Int) -> NoteExport.Result { .init(zip: URL(fileURLWithPath: "/tmp/x.zip"), notes: 3, files: 4, skippedLocked: 0, missingFiles: missing) }
+        #expect(NoteExport.leftOut(made(0)) == nil)
+        #expect(NoteExport.leftOut(made(1))?.title == "1 file isn\u{2019}t in the export")
+        #expect(NoteExport.leftOut(made(2))?.title == "2 files aren\u{2019}t in the export")
+        #expect(NoteExport.summary(made(2)) == "Exported 3 notes and 4 files. 2 files were left out.")
     }
 
     @Test func namesAreSafeOnEverySystem() {

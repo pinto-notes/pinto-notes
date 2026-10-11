@@ -17,6 +17,7 @@ struct RootView: View {
     @State private var editor = EditorController()
     @State private var justCreated: UUID?
     #if os(iOS)
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// UI tests: `-uitest -launchAlert` raises an alert as the notes first show, like the
     /// account's connection notices after unlocking.
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -76,13 +77,23 @@ struct RootView: View {
                 #if os(macOS)
                 .equatable()
                 #endif
+                #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
+                #else
+                // iPad: room for the title beside the account button.
+                .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
+                #endif
         } content: {
             NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote)
                 #if os(macOS)
                 .equatable()
                 #endif
+                #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 310, max: 420)
+                #else
+                // Large text needs the room more here than in the note beside it.
+                .navigationSplitViewColumnWidth(min: typeSize.isAccessibilitySize ? 340 : 260, ideal: typeSize.isAccessibilitySize ? 380 : 310, max: 420)
+                #endif
                 #if os(iOS)
                 // Each visit to a folder starts at the top with its large title, as in Notes.
                 .id(scope)

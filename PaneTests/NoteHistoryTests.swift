@@ -124,6 +124,11 @@ import Testing
         // A line the current note added since isn't in the version, so nothing there to tint.
         #expect(HistoryDiff.changedLines(in: "A\nB", comparedTo: "A\nNew\nB").isEmpty)
         #expect(HistoryDiff.summary(0) == "Same text as the current note.")
+        // A version the note has only been added to: none of its own lines changed, but it isn't the same.
+        let older = "Paella\n- rice\n- saffron", now = "Paella\n- rice\n- saffron\n\n| A |   |\n| --- | --- |"
+        #expect(HistoryDiff.changedLines(in: older, comparedTo: now).isEmpty)
+        #expect(!HistoryDiff.sameText(older, now) && HistoryDiff.sameText(older, older + "\n\n"))
+        #expect(HistoryDiff.summary(0, same: false) == "The current note has more than this version.")
         #expect(HistoryDiff.summary(1) == "1 line differs from the current note.")
         #expect(HistoryDiff.summary(4) == "4 lines differ from the current note.")
     }

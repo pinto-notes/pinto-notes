@@ -112,12 +112,17 @@ extension ModelContext {
 /// Export Your Notes…: every note as a markdown file in your folders, with its files, in one zip
 /// you save or share. Made here from this device's library; the server can't read your notes.
 struct ExportNotesButton: View {
+    /// Fetches the files that aren't on this device. Handed in, not read from the environment:
+    /// the Mac's Settings window is a scene of its own with no sync engine in its environment,
+    /// so there nothing was fetched and those files were left out of the export.
+    let sync: SyncEngine?
     @Environment(\.modelContext) private var context
-    @Environment(SyncEngine.self) private var sync: SyncEngine?
     @State private var working = false
     @State private var made: NoteExport.Result?
     @State private var saving = false
     @State private var message: String?
+    /// The export was saved without some files: what the alert says.
+    @State private var leftOut: (title: String, message: String)?
 
     var body: some View {
         Button {
@@ -132,24 +137,26 @@ struct ExportNotesButton: View {
         .accessibilityIdentifier("settings.exportNotes")
         .fileMover(isPresented: $saving, file: made?.zip) { result in
             switch result {
-            case .success: message = summary
+            case .success:
+                message = summary
+                leftOut = made.flatMap(NoteExport.leftOut)
             case .failure(let e as CocoaError) where e.code == .userCancelled: message = nil
             case .failure: message = "Couldn't save the export. Try again."
             }
             made = nil
+        }
+        // Said so it can't be missed: an export that isn't whole.
+        .alert(leftOut?.title ?? "", isPresented: Binding(get: { leftOut != nil }, set: { if !$0 { leftOut = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(leftOut?.message ?? "")
         }
         if let message {
             Text(message).font(.callout).foregroundStyle(.secondary)
         }
     }
 
-    private var summary: String? {
-        guard let made else { return nil }
-        var parts = ["Exported \(made.notes) \(made.notes == 1 ? "note" : "notes") and \(made.files) \(made.files == 1 ? "file" : "files")."]
-        if made.skippedLocked > 0 { parts.append("Unlock your locked notes to include them.") }
-        if made.missingFiles > 0 { parts.append("\(made.missingFiles) \(made.missingFiles == 1 ? "file wasn't" : "files weren't") on this device.") }
-        return parts.joined(separator: " ")
-    }
+    private var summary: String? { made.map(NoteExport.summary) }
 
     private func export() async {
         working = true

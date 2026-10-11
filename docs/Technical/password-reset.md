@@ -46,6 +46,23 @@ answers 403 with the same hint and `until` (`supabase/functions/account/pause.ts
 notes. Try again on <date>." Magic links matter here: email sign-in links work for every email
 account today, reset or not, and the pause covers them too.
 
+A sign-up confirmed with the emailed code (`docs/Technical/email-confirmation.md`) is not a reset,
+though Supabase makes that first session with the `otp` method too. The trigger tells it apart by
+what the auth server does just before: it sets `auth.users.email_confirmed_at`, once, the first
+time the address is proven. A session by `otp` starts no pause when the address was confirmed in
+the last 2 minutes and the account has no other session
+(`supabase/migrations/20261009233000_sign_up_code_is_not_a_reset.sql`). Someone in the mailbox of
+an existing account gains nothing: its address was confirmed when it was made, and no reset link,
+sign-in link, code or email change sets `email_confirmed_at` again. An account that was never
+confirmed has never been signed in to, so it has no notes to protect. A password change still
+pauses any account, new or old. Tests: `supabase/functions/account/sign_up_pause.pglite.test.ts`.
+
+A new account made with Sign in with Apple or Google is not a password change either. For such a
+sign-up the auth server writes the user with an empty password and sets it to null in the same
+transaction; the password trigger counts only a change between two different passwords, or
+between a password and none, so that write starts no pause (same migration). On production this
+paused every new Apple and Google account for its first 72 hours until the migration was applied.
+
 ## The flow
 
 1. **Ask.** "Forgot password?" sits under the password on the app's sign-in card (iPhone and Mac,
