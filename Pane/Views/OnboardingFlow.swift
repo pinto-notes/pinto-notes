@@ -7,7 +7,7 @@ import SwiftUI
 struct OnboardingFlow: View {
     /// How the two choice steps are laid out. `rows`: a list of wide rows beside the picture.
     /// `grid`: tiles across the whole window, without the picture.
-    enum Layout: String { case rows, grid }
+    typealias Layout = BigChoices.Layout
 
     /// Captures: fixed values in place of the account's.
     struct Preview {
@@ -36,7 +36,6 @@ struct OnboardingFlow: View {
     @State private var importing: ImportKind?
     @State private var importingAppleNotes = false
     @State private var sharingHowTo = false
-    @State private var guide: ConnectAISection.Guide?
     /// Titles of the AIs that are connected, as the server lists them.
     @State private var connectedTitles: Set<String> = []
     @State private var brought = 0
@@ -75,9 +74,7 @@ struct OnboardingFlow: View {
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportSheet(kind) { ids in notesBrought(ids.count) }
             }
-            .sheet(item: $guide, onDismiss: { Task { await loadConnections() } }) { g in
-                if let client = backend.client { GuideSheet(guide: g, client: client) }
-            }
+            .connectGuides(client: backend.client)
     }
 
     // MARK: The window
@@ -266,7 +263,7 @@ struct OnboardingFlow: View {
         case .welcome: "Your notes, in an app your AI can read and write when you ask it to."
         case .name: "Your name shows on your account and on notes you share."
         case .bring: "Choose where they are now. Nothing changes there."
-        case .connect: "Your AI can then read and write your notes when you ask it to."
+        case .connect: ConnectChoices.why
         case .tryIt: "Ask your AI this. It adds a line to the To-do note in your notes."
         }
     }
@@ -301,7 +298,7 @@ struct OnboardingFlow: View {
         case .welcome: EmptyView()
         case .name: nameField
         case .bring: choices(sources)
-        case .connect: choices(ais)
+        case .connect: connect
         case .tryIt:
             VStack(spacing: 10) {
                 promptBox
@@ -362,27 +359,16 @@ struct OnboardingFlow: View {
 
     // MARK: Choices
 
-    /// One thing to pick on a choice step: a place notes come from, or an AI.
-    struct Choice: Identifiable {
-        enum Mark { case symbol(String), ai(String) }
-        let id: String
-        let title: String
-        let detail: String
-        let mark: Mark
-        var done = false
-        let action: () -> Void
-    }
-
     /// Where notes can come from: Apple Notes first, then the kinds the import sheet knows.
-    private var sources: [Choice] {
-        var list: [Choice] = []
+    private var sources: [BigChoice] {
+        var list: [BigChoice] = []
         #if os(macOS)
-        list.append(Choice(id: "source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .symbol("note.text")) { importingAppleNotes = true })
+        list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .symbol("note.text")) { importingAppleNotes = true })
         #else
-        list.append(Choice(id: "source.appleNotes", title: "Apple Notes", detail: "Share notes from the Notes app", mark: .symbol("note.text")) { sharingHowTo = true })
+        list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Share notes from the Notes app", mark: .symbol("note.text")) { sharingHowTo = true })
         #endif
         for kind in Self.sourceOrder {
-            list.append(Choice(id: "source.\(kind.rawValue)", title: Self.sourceTitle(kind), detail: Self.sourceDetail(kind), mark: .symbol(kind.symbol)) { importing = kind })
+            list.append(BigChoice(id: "onboarding.source.\(kind.rawValue)", title: Self.sourceTitle(kind), detail: Self.sourceDetail(kind), mark: .symbol(kind.symbol)) { importing = kind })
         }
         return list
     }
@@ -411,33 +397,27 @@ struct OnboardingFlow: View {
     /// Every way an AI connects, each leading to its guide.
     static let guides: [ConnectAISection.Guide] = [.chatgpt, .claude, .claudeCode, .codex, .other]
 
-    static func guideDetail(_ guide: ConnectAISection.Guide) -> String {
-        switch guide {
-        case .chatgpt: "Its apps and the web"
-        case .claude: "Its apps and the web"
-        case .claudeCode: "In your terminal"
-        case .codex: "In your terminal"
-        case .other: "Anything that speaks MCP"
-        case .incredible: guide.subtitle
-        }
-    }
-
-    private var ais: [Choice] {
-        let shown = Set(preview?.connected ?? Array(connectedTitles))
-        return Self.guides.map { g in
-            Choice(id: "ai.\(g.rawValue)", title: g.title, detail: shown.contains(g.title) ? "Connected" : Self.guideDetail(g),
-                   mark: .ai(g.title), done: shown.contains(g.title)) { guide = g }
-        }
-    }
-
-    @ViewBuilder private func choices(_ list: [Choice]) -> some View {
-        VStack(alignment: .leading, spacing: Metrics.gap) {
-            switch layout {
-            case .rows:
-                VStack(spacing: Metrics.tileGap) { ForEach(list) { row($0) } }
-            case .grid:
-                LazyVGrid(columns: gridColumns(list.count), spacing: Metrics.tileGap) { ForEach(list) { tile($0) } }
+    /// Connect an AI, the same view Settings shows, without its list of what's connected: here a
+    /// connected AI is marked on its own choice.
+    @ViewBuilder private var connect: some View {
+        if let preview {
+            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, layout: layout, listsConnected: false, preview: Self.connections(preview.connected))
+        } else if let client = backend.client {
+            ConnectChoices(client: client, guides: Self.guides, layout: layout, listsConnected: false) { titles in
+                connectedTitles = titles
+                Task { await setup?.refresh(force: true) }
             }
+        }
+    }
+
+    /// Captures: connections by those names.
+    static func connections(_ titles: [String]) -> [Connection] {
+        titles.map { Connection(id: UUID(), name: $0, kind: "token", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: nil) }
+    }
+
+    private func choices(_ list: [BigChoice]) -> some View {
+        VStack(alignment: .leading, spacing: Metrics.gap) {
+            BigChoices(list: list, layout: layout)
             if step == .bring, broughtCount > 0 {
                 Label(broughtCount == 1 ? "1 note brought in" : "\(broughtCount.formatted()) notes brought in", systemImage: "checkmark.circle.fill")
                     .font(.footnote.weight(.medium))
@@ -445,120 +425,6 @@ struct OnboardingFlow: View {
                     .frame(maxWidth: .infinity, alignment: layout == .grid ? .center : .leading)
                     .accessibilityIdentifier("onboarding.brought")
             }
-        }
-    }
-
-    private func gridColumns(_ count: Int) -> [GridItem] {
-        #if os(macOS)
-        Array(repeating: GridItem(.flexible(), spacing: Metrics.tileGap), count: count)
-        #else
-        Array(repeating: GridItem(.flexible(), spacing: Metrics.tileGap), count: typeSize.isAccessibilitySize ? 1 : 2)
-        #endif
-    }
-
-    /// A wide row: the mark, the name over one line about it, and a chevron (a check once done).
-    private func row(_ choice: Choice) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous)
-        let words = VStack(alignment: .leading, spacing: 2) {
-            Text(choice.title).font(Metrics.choiceTitle).foregroundStyle(Color.ink)
-            Text(choice.detail).font(Metrics.choiceDetail).foregroundStyle(Color.muted)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        return Button(action: choice.action) {
-            Group {
-                if typeSize.isAccessibilitySize {
-                    // The largest text sizes: the mark over the words, which get the row's width.
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            mark(choice.mark, size: Metrics.rowMark)
-                            Spacer(minLength: 8)
-                            trailing(choice)
-                        }
-                        words
-                    }
-                } else {
-                    HStack(spacing: 12) {
-                        mark(choice.mark, size: Metrics.rowMark)
-                        words
-                        Spacer(minLength: 8)
-                        trailing(choice)
-                    }
-                }
-            }
-            .padding(.horizontal, Metrics.tilePadding)
-            .padding(.vertical, Metrics.rowPadding)
-            .frame(maxWidth: .infinity, minHeight: Metrics.rowHeight, alignment: .leading)
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-            .hoverOverlay(shape, Color.primary.opacity(0.05))
-            .contentShape(shape)
-        }
-        .buttonStyle(ChoicePress())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(choice.title). \(choice.detail)")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityIdentifier("onboarding.\(choice.id)")
-    }
-
-    /// A tile: the mark on top, the name and one line under it.
-    private func tile(_ choice: Choice) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous)
-        return Button(action: choice.action) {
-            VStack(spacing: 10) {
-                mark(choice.mark, size: Metrics.tileMark)
-                VStack(spacing: 3) {
-                    Text(choice.title).font(Metrics.choiceTitle).foregroundStyle(Color.ink)
-                    Text(choice.detail).font(Metrics.choiceDetail).foregroundStyle(Color.muted)
-                }
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, Metrics.tileTop)
-            .padding(.bottom, Metrics.tilePadding)
-            // From the top, so the marks line up whether the line under a name is one row or two.
-            // One height for every tile; at the largest text sizes each grows to fit its words.
-            .frame(maxWidth: .infinity, minHeight: Metrics.tileHeight, maxHeight: typeSize.isAccessibilitySize ? nil : Metrics.tileHeight, alignment: .top)
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-            .overlay(alignment: .topTrailing) { if choice.done { check.padding(8) } }
-            .hoverOverlay(shape, Color.primary.opacity(0.05))
-            .contentShape(shape)
-        }
-        .buttonStyle(ChoicePress())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(choice.title). \(choice.detail)")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityIdentifier("onboarding.\(choice.id)")
-    }
-
-    @ViewBuilder private func trailing(_ choice: Choice) -> some View {
-        if choice.done {
-            check
-        } else {
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-        }
-    }
-
-    private var check: some View {
-        Image(systemName: "checkmark.circle.fill")
-            .font(.system(size: Metrics.check, weight: .semibold))
-            .foregroundStyle(.white, Color.green)
-            .accessibilityHidden(true)
-    }
-
-    /// An AI's own mark on its white tile; a source's symbol on a quiet tile of the same size.
-    @ViewBuilder private func mark(_ mark: Choice.Mark, size: CGFloat) -> some View {
-        switch mark {
-        case .ai(let ai):
-            AITile(ai: ai, size: size)
-        case .symbol(let name):
-            Image(systemName: name)
-                .font(.system(size: size * 0.46, weight: .medium))
-                .foregroundStyle(Color.amberInk)
-                .frame(width: size, height: size)
-                .background(.fill.tertiary, in: .rect(cornerRadius: size * 0.3, style: .continuous))
-                .accessibilityHidden(true)
         }
     }
 
@@ -655,65 +521,26 @@ struct OnboardingFlow: View {
         if let known = profile.name, !nameEdited { name = known }
         await profile.bind(backend)
         if let known = profile.name, !nameEdited { name = known }
-        await loadConnections()
-    }
-
-    /// After a guide closes: what is connected now. The step shows it and offers Continue.
-    private func loadConnections() async {
-        guard preview == nil, let client = backend.client else { return }
-        await setup?.refresh(force: true)
-        guard let rows: [Connection] = try? await client.from("mcp_tokens").select().execute().value else { return }
-        connectedTitles = Set(rows.filter { $0.revoked_at == nil }.map(\.title))
     }
 
     enum Metrics {
         #if os(macOS)
         static let title = Font.system(size: 28, weight: .heavy)
         static let prompt = Font.system(size: 15, weight: .medium)
-        static let choiceTitle = Font.system(size: 14, weight: .semibold)
-        static let choiceDetail = Font.system(size: 12)
         static let gap: CGFloat = 20
         static let headingGap: CGFloat = 10
-        static let tileGap: CGFloat = 8
         static let tileRadius: CGFloat = 10
         static let tilePadding: CGFloat = 12
-        static let rowPadding: CGFloat = 8
-        static let rowHeight: CGFloat = 52
-        static let rowMark: CGFloat = 32
-        static let tileHeight: CGFloat = 148
-        static let tileTop: CGFloat = 24
-        static let tileMark: CGFloat = 44
-        static let check: CGFloat = 16
         static let quietHeight: CGFloat = 32
         #else
         static let title = Font.title.weight(.heavy)
         static let prompt = Font.body.weight(.medium)
-        static let choiceTitle = Font.body.weight(.semibold)
-        static let choiceDetail = Font.subheadline
         static let gap: CGFloat = 20
         static let headingGap: CGFloat = 10
-        static let tileGap: CGFloat = 10
         static let tileRadius: CGFloat = 14
         static let tilePadding: CGFloat = 16
-        static let rowPadding: CGFloat = 10
-        static let rowHeight: CGFloat = 64
-        static let rowMark: CGFloat = 40
-        static let tileHeight: CGFloat = 172
-        static let tileTop: CGFloat = 22
-        static let tileMark: CGFloat = 48
-        static let check: CGFloat = 20
         static let quietHeight: CGFloat = 44
         #endif
-    }
-}
-
-/// A big choice dips a little when pressed (the app's `PressScale` is sized for small buttons).
-private struct ChoicePress: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -740,5 +567,5 @@ struct OnboardingWait: View {
         if !Task.isCancelled { store.giveUpWaiting() }
     }
 
-    static let limit: Double = 12
+    static let limit: Double = 20
 }

@@ -1429,19 +1429,11 @@ struct ConnectionTile: View {
     }
 }
 
-/// Settings → Connect an AI: guided setup per app, and everything that's connected.
+/// Settings → AI: Connect an AI, the one design (`ConnectChoices`), as a section of the form.
 struct ConnectAISection: View {
     let client: SupabaseClient
     /// Captures: shows these instead of asking the server.
     var preview: [Connection]? = nil
-    @State private var connections: [Connection] = []
-    /// The first load has answered: until then an empty list means "not known yet", not "none".
-    @State private var loaded = false
-    /// Which guide is open, held by the form around this section (`connectGuides`).
-    @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
-    @State private var removing: Connection?
-    @State private var error: String?
-    @Environment(\.networkReach) private var reach
 
     enum Guide: String, Identifiable, CaseIterable {
         case chatgpt, claude, claudeCode, codex, incredible, other
@@ -1466,152 +1458,35 @@ struct ConnectAISection: View {
             case .other: "Any app that speaks MCP, with the address or an access token"
             }
         }
-        /// Where it's done, in the AI's own words (as on the website).
-        var hint: String {
+        /// What choosing it does, in one plain line. Anything technical is inside the guide.
+        var plain: String {
             switch self {
-            case .chatgpt: "Plugins → +"
-            case .claude: "Directory → Connect to Claude"
-            case .claudeCode: "claude mcp add \(ConnectSnippets.serverName)"
-            case .codex: "~/.codex/config.toml"
-            case .incredible: "Apps → Amber Notes → Connect"
-            case .other: "MCP server address"
+            case .chatgpt: "Opens ChatGPT to add Pinto Notes"
+            case .claude: "Opens Claude and adds Pinto Notes"
+            case .claudeCode:
+                #if os(macOS)
+                ClaudeCodeInstaller.isAvailable ? "Adds Pinto Notes for you, on this Mac" : "Copies a command for your terminal"
+                #else
+                "Copies a command for your terminal"
+                #endif
+            case .codex: "Copies a few lines for its settings file"
+            case .incredible: "Connects from the Incredible app"
+            case .other: "Copies the address any MCP app can use"
             }
         }
     }
-
-    @State private var center = ConnectCenter.shared
 
     var body: some View {
-        if let ask = center.waiting().first {
-            Section { ConnectWaitingRow(ask: ask) }
-        }
-        guides
-        connected
-    }
-
-    /// One joined list of AIs, each with its mark, name and how it connects, and the promises under it.
-    private var guides: some View {
         Section {
-            ForEach(Guide.allCases) { g in
-                Button { route?.guide = g } label: {
-                    HStack(spacing: 12) {
-                        AITile(ai: g.title, size: 32)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(g.title).font(.body.weight(.semibold)).foregroundStyle(.primary)
-                            Text(g.hint).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-                    }
-                    .padding(.vertical, 2)
-                    .contentShape(.rect)
-                    .hoverRow()
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Connect \(g.title)")
-                .accessibilityHint(g.subtitle)
-                .accessibilityIdentifier("connect.guide.\(g.rawValue)")
-                .disabled(reach != .online)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(ConnectChoices.why)
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                ConnectChoices(client: client, preview: preview)
             }
+            .padding(.vertical, 4)
         } header: {
-            Text("Connect an AI")
-        } footer: {
-            VStack(alignment: .leading, spacing: 6) {
-                if reach != .online {
-                    Text(OfflineCopy.needsNetwork("connect an AI")).padding(.bottom, 4)
-                }
-                promise("You approve every AI.")
-                promise("Disconnect anytime.")
-                promise("Every change an AI makes can be undone.")
-            }
-            .padding(.top, 4)
-        }
-    }
-
-    private func promise(_ text: String) -> some View {
-        Label {
-            Text(text).foregroundStyle(.primary)
-        } icon: {
-            Image(systemName: "checkmark").fontWeight(.bold).foregroundStyle(.tint)
-        }
-        .font(.callout.weight(.medium))
-        // The check mark is decoration: VoiceOver read each promise as "Selected", then the words.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(text)
-    }
-
-    private var connected: some View {
-        Section("Connected") {
-            let active = connections.filter { $0.revoked_at == nil }
-            if !loaded {
-                ProgressView().frame(maxWidth: .infinity, alignment: .leading)
-            } else if active.isEmpty && error == nil {
-                Text("Nothing is connected yet.").foregroundStyle(.secondary)
-            }
-            ForEach(active) { c in row(c) }
-            if let error {
-                // Offline isn't a failure: the list is shown again once the server answers.
-                if reach != .online {
-                    Text("Shown when you\u{2019}re online.").foregroundStyle(.secondary)
-                } else {
-                    Text(error).font(.footnote).foregroundStyle(.red)
-                }
-            }
-        }
-        // Loads again when a guide closes (it may have connected something) and when back online.
-        .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
-        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
-            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
-        } message: {
-            Text("It loses access to your notes right away.")
-        }
-    }
-
-    private func row(_ c: Connection) -> some View {
-        HStack(spacing: 10) {
-            // The mark comes from where the approval went, never from the name.
-            ConnectionTile(connection: c, size: 26)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(c.title)
-                Text(detail(c)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
-            }
-            // The name and details read as one; Disconnect stays its own button for VoiceOver.
-            .accessibilityElement(children: .combine)
-            Spacer()
-            Button("Disconnect…") { removing = c }
-                .buttonStyle(.hoverText)
-                .foregroundStyle(.tint)
-                .accessibilityLabel("Disconnect \(c.title)")
-                .accessibilityIdentifier("connect.disconnect")
-        }
-    }
-
-    private func detail(_ c: Connection) -> String {
-        var parts = [c.isOAuth ? "Signed in" : "Access token", c.can_write ? "Read and edit" : "Read only"]
-        // Where access went: the proof of who this is, whatever it calls itself.
-        if c.isOAuth, let host = c.redirect_host, !host.isEmpty, host != c.title { parts.insert(host, at: 0) }
-        parts.append(c.last_used_at.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Not used yet")
-        return parts.joined(separator: " · ")
-    }
-
-    private func load() async {
-        if let preview { connections = preview; loaded = true; return }
-        defer { loaded = true }
-        do {
-            connections = try await client.from("mcp_tokens").select().order("created_at", ascending: false).execute().value
-            error = nil
-        } catch {
-            self.error = "Couldn't load connections. Check your connection."
-        }
-    }
-
-    private func revoke(_ c: Connection) async {
-        do {
-            try await ConnectRevoke.revoke(client, id: c.id)
-            removing = nil
-            await load()
-        } catch {
-            self.error = "Couldn't disconnect \(c.name). Try again."
+            Text(ConnectAISheet.title)
         }
     }
 }

@@ -91,7 +91,7 @@ final class OnboardingFlowUITests: XCTestCase {
         }
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "a4-connect")
-        for id in ["chatgpt", "claude", "claudeCode", "codex", "other"] { XCTAssertTrue(app.buttons["onboarding.ai.\(id)"].exists, id) }
+        for id in ["chatgpt", "claude", "claudeCode", "codex", "other"] { XCTAssertTrue(app.buttons["connect.guide.\(id)"].exists, id) }
         app.buttons["onboarding.skip"].tap()
         // Done: a new empty note with the cursor in it.
         let editor = app.textViews.firstMatch
@@ -135,7 +135,7 @@ final class OnboardingFlowUITests: XCTestCase {
         expectStep("Bring your notes", "d1-resumed-at-bring", timeout: 60)
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "d2-connect")
-        app.buttons["onboarding.ai.other"].tap()
+        app.buttons["connect.guide.other"].tap()
         let create = app.buttons["Create Access Token"]
         XCTAssertTrue(create.waitForExistence(timeout: 20), "the guide for another AI")
         shot("d3-guide-another-ai")

@@ -640,6 +640,8 @@ final class AppSession {
     /// The app is in front (the window says): an ask shows itself only then.
     var foreground = false { didSet { if foreground != oldValue { connectAsks?.setForeground(foreground) } } }
     @ObservationIgnored private var followers: [Task<Void, Never>] = []
+    /// The account whose first pull has been answered (`firstPullAnswered`).
+    @ObservationIgnored private var welcomedAccount: UUID?
     private static let log = Logger(subsystem: "dev.emilwagman.pane", category: "session")
 
     init(backend: Backend, sync: SyncEngine, context: ModelContext) {
@@ -704,6 +706,8 @@ final class AppSession {
     func start() {
         guard followers.isEmpty else { return }
         followers.append(Self.follow({ [backend] in backend.state }) { [weak self] in await self?.stateChanged() })
+        // A first pull that answers late (a slow or failed first sync) still gets its answer heard.
+        followers.append(Self.follow({ [sync] in sync.knowsAccount }) { [weak self] in await self?.firstPullAnswered() })
         // The key opened after the gate (a device linked, a recovery key typed): the library opens.
         followers.append(Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -733,6 +737,7 @@ final class AppSession {
         guard case .signedIn = backend.state, let client = backend.client else {
             setup.attach(account: nil, service: nil)
             onboarding.attach(account: nil, created: nil, holdsNothing: false)
+            welcomedAccount = nil
             shareAsk.attach(account: nil, service: nil)
             heardFrom.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
@@ -753,6 +758,7 @@ final class AppSession {
         // Before the key check and the first sync: an account that may be new waits on the
         // welcome's picture, never on empty notes (the first sync then says, in openLibrary).
         onboarding.attach(account: backend.userID, created: backend.accountCreated, holdsNothing: SyncEngine.holdsNothing(context))
+        Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) at sign-in (made \(Int(-(self.backend.accountCreated ?? .distantPast).timeIntervalSinceNow), privacy: .public) s ago, empty \(SyncEngine.holdsNothing(self.context), privacy: .public))")
         shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client))
         heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
@@ -765,6 +771,25 @@ final class AppSession {
         // Without the key the gate asks for it; the library starts when it's open (below).
         guard AccountCrypto.shared.allowsSync else { return }
         await openLibrary(client)
+    }
+
+    /// The account's first pull has said what it holds: once per sign-in. A first folder only for
+    /// an account that has never held anything: never after a failed sync, and never for an
+    /// account that already has a library (a second device, a reinstall). That account also gets
+    /// the first-run flow. Asked here and nowhere else, at the moment the pull is known:
+    /// `openLibrary` can run twice at sign-in (the state and the key each start it), and the run
+    /// that asked before the pull had finished used to answer "not new" for a new account.
+    func firstPullAnswered() async {
+        guard sync.knowsAccount, let user = backend.userID, welcomedAccount != user else { return }
+        welcomedAccount = user
+        let isNew = sync.claimNewAccount()
+        if isNew {
+            Seed.ensureLibrary(context, demo: false, welcome: false)
+            sync.schedule()
+        }
+        if setup.progress == nil { await setup.refresh(force: true) }
+        onboarding.settle(accountIsNew: isNew, progress: setup.progress)
+        Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) after the first sync (new \(isNew, privacy: .public), setup behind it \(Onboarding.alreadySetUp(self.setup.progress), privacy: .public))")
     }
 
     /// Another device with the key removed this one: its copy of the notes and of the key go,
@@ -815,19 +840,8 @@ final class AppSession {
             Task { await n.start() }
         }
         await sync.start()
-        // A first folder only for an account that has never held anything, which only its first
-        // pull can say: never after a failed sync, and never for an account that already has a
-        // library (a second device, a reinstall). A real account starts with an empty Notes
-        // folder: the setup card is its welcome.
-        let isNew = sync.claimNewAccount()
-        if isNew {
-            Seed.ensureLibrary(context, demo: false, welcome: false)
-            sync.schedule()
-        }
+        await firstPullAnswered()
         await setup.refresh(force: true)
-        // The first-run flow, for an account that has never held anything; a sync that couldn't
-        // say leaves the question for the next launch.
-        if sync.knowsAccount { onboarding.settle(accountIsNew: isNew, progress: setup.progress) } else { onboarding.giveUpWaiting() }
         // The setup guide's To-do note, now that the account's notes are here to say whether it
         // has one already (the note list makes it when the guide gets to that step later).
         if sync.knowsAccount, setup.progress?.needsToDoNote == true, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }

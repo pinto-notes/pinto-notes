@@ -106,6 +106,8 @@ final class OnboardingStore {
     }
 
     @ObservationIgnored private var account: UUID?
+    /// The wait for the first sync ran out during this launch.
+    @ObservationIgnored private var waitedOut = false
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -143,6 +145,7 @@ final class OnboardingStore {
         replay = false
         landing = nil
         endedThisLaunch = false
+        waitedOut = false
         guard let account else { phase = .off; return }
         if let step = saved(account) {
             phase = .showing(step)
@@ -159,6 +162,10 @@ final class OnboardingStore {
         switch phase {
         case .waiting:
             if accountIsNew, !Onboarding.alreadySetUp(progress) { show(.welcome) } else { phase = .off }
+        // The wait ran out before a slow first sync answered: the flow still comes, late.
+        case .off where waitedOut:
+            waitedOut = false
+            if accountIsNew, !Onboarding.alreadySetUp(progress) { show(.welcome) }
         case .showing where !replay:
             if let progress, progress.dismissed || progress.celebrated { close() }
         default:
@@ -166,10 +173,14 @@ final class OnboardingStore {
         }
     }
 
-    /// The first sync could not say (offline, a server error): the notes, and the question stays
-    /// open for the next launch.
+    /// The first sync has not said yet (slow, offline, a server error): the notes open rather
+    /// than keep the window shut. If the sync answers later in this launch the flow still starts
+    /// (`settle`); otherwise the question stays open for the next launch.
     func giveUpWaiting() {
-        if phase == .waiting { phase = .off }
+        if phase == .waiting {
+            phase = .off
+            waitedOut = true
+        }
     }
 
     /// Moves to the next step. False when there is none: the caller ends the flow (`finish`).

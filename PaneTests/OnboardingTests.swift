@@ -66,6 +66,27 @@ import Testing
         #expect(!s.endedThisLaunch, "nothing was shown, so nothing is held back after it")
     }
 
+    /// Found on staging under load: the first sync took longer than the wait, the notes opened
+    /// with the old setup card, and the flow never came.
+    @Test func aSlowFirstSyncStillGetsTheFlow() {
+        let s = store()
+        s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+        s.giveUpWaiting()
+        #expect(s.phase == .off, "the notes, rather than a window that stays shut")
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        #expect(s.phase == .showing(.welcome), "and the flow when the sync has answered")
+    }
+
+    @Test func aSlowFirstSyncOfAnAccountWithNotesStaysInTheNotes() {
+        let s = store()
+        s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+        s.giveUpWaiting()
+        s.settle(accountIsNew: false, progress: SetupProgress())
+        #expect(s.phase == .off)
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        #expect(s.phase == .off, "asked once")
+    }
+
     // MARK: Moving through it
 
     @Test func theStepsInOrderWithAndWithoutAnAI() {
@@ -222,6 +243,29 @@ import Testing
         #expect(OnboardingFlow.sourceOrder.first == .markdown)
         #expect(Set(OnboardingFlow.sourceOrder) == Set(ImportKind.allCases), "every kind the import sheet knows is offered")
         #expect(OnboardingFlow.sourceOrder.count == ImportKind.allCases.count)
+    }
+
+    /// Connect an AI is one design: what a choice says is what happens, in plain words. Commands,
+    /// file paths and menu trails belong in the guide it opens.
+    @Test func connectChoicesSayWhatHappensInPlainWords() {
+        for g in ConnectAISection.Guide.allCases {
+            let words = g.plain
+            #expect(!words.isEmpty)
+            for raw in ["→", "~/", ".toml", "mcp add", "Plugins", "Directory", "Amber"] {
+                #expect(!words.contains(raw), "\(g.title): \(words)")
+            }
+            #expect(!words.hasSuffix("."))
+        }
+        #expect(ConnectAISection.Guide.incredible.plain.contains("Incredible"))
+        #expect(ConnectAISheet.title == "Connect an AI", "not just \u{201C}AI\u{201D}")
+        #expect(ConnectChoices.reassurance == "You approve each AI, and every change can be undone.")
+        #expect(OnboardingFlow.line(.connect) == ConnectChoices.why, "the flow and the sheet give the same reason")
+    }
+
+    @Test func aConnectionSaysWhatItCanDoWithoutJargon() {
+        let c = OnboardingSnapshots.twoConnected
+        #expect(ConnectChoices.detail(c[0]).hasPrefix("chatgpt.com · Can read and edit · Used"))
+        #expect(ConnectChoices.detail(c[1]) == "Can read only · Not used yet")
     }
 
     @Test func everyWayToConnectHasItsGuide() {
