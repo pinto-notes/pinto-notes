@@ -1186,6 +1186,14 @@ final class SyncEngine {
         }
     }
 
+    /// The row is still the one just read: its stamp lies between these two. The server stamps to
+    /// the microsecond and a formatted date carries milliseconds, so an exact match never holds
+    /// (the app's data then never left the device); a millisecond either side does.
+    nonisolated static func stampWindow(_ stamp: Date) -> (after: String, before: String) {
+        let style = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        return (stamp.addingTimeInterval(-0.001).formatted(style), stamp.addingTimeInterval(0.001).formatted(style))
+    }
+
     /// Pushes each app's own data that changed here. The server's copy is read first and merged
     /// with this device's changes (NotePageData.merge), and the write only lands if nothing else
     /// wrote in between; otherwise it merges again on the next run. A backend without the column
@@ -1203,9 +1211,10 @@ final class SyncEngine {
                 guard store.dirty.contains(id), let doc = store.docs[id], let json = String(data: doc, encoding: .utf8),
                       let box = sealer.seal(json, context: E2EE.pageData(id)) else { continue }
                 if let stamp = rows.first?.server_updated_at {
-                    let at = stamp.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+                    let unchanged = Self.stampWindow(stamp)
                     let done: [Row] = try await client.from("note_pages").update(["data_ct": box]).eq("note_id", value: id)
-                        .eq("server_updated_at", value: at).select("data_ct,server_updated_at").execute().value
+                        .gt("server_updated_at", value: unchanged.after).lt("server_updated_at", value: unchanged.before)
+                        .select("data_ct,server_updated_at").execute().value
                     if !done.isEmpty { store.pushed(id, doc) }
                 } else {
                     try await client.from("note_pages").upsert(Upsert(note_id: id, data_ct: box), onConflict: "note_id").execute()

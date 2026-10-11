@@ -12,7 +12,25 @@ export const MAX_PAGE_BYTES = 256 * 1024;
 export const PAGE_REWRITE = `Before changing a note's page, call get_note_page and read_note: keep reading the same tables and column names, keep the ops the page already uses, and keep its layout unless asked to change it. For small changes use edit_note_page instead of sending the whole page again.`;
 
 /** What the page is given and may do. The same words go to the AI in set_note_page's description. */
-export const PAGE_CONTRACT = `The page runs in Pinto Notes in a sandbox with no network: no fetch, no external scripts, styles, fonts or images. Put all CSS and JS inline; images only as data: URIs or inline SVG.
+/** Whether an app may use the device beyond links, the share sheet and the pickers (Reminders,
+ *  Calendar, notifications, the camera, contacts, location, Maps, on-device AI). The released apps
+ *  have that off, so nothing an AI reads here offers it, unless AMBER_APP_DEVICE is "on" (a server
+ *  whose apps have it on). */
+export function deviceServed(set: string | undefined = Deno.env.get("AMBER_APP_DEVICE")): boolean {
+  return set === "on";
+}
+
+const DEVICE_ON = `The device, through the system's own prompts (results go to the page only; write to the note explicitly if wanted): amber.device.reminders.create({ title, due, repeat: "daily" }), calendar.today() -> { events: [{ title, start, end, location, attendees }] },
+  notify({ title, body, at | in }) -> { id }, notify.cancel(id), reminders.complete(id) / reminders.delete(id) (only ones an app made), openURL(url), photos.pick({ limit }) / camera.take() -> { files: [{ $file, thumb }] }, contacts.pick() -> { contact: { name, organization, emails, phones, addresses, birthday?, photo? } }, files.pick(), location.once() -> { lat, lon, place },
+  maps.open({ lat, lon | query, directions }), maps.snapshot({ lat, lon, km | pins: [{ lat, lon, label }], fit, pin, width, height, dark }) -> { dataURL, region, points: [{ x, y }] } (points: where each pin landed, to draw on top). On-device AI: amber.ai.available(), amber.ai.respond(prompt, { instructions }) -> { text }. Every call returns { ok, ... } or { ok: false, error }.
+`;
+const DEVICE_OFF = `The device: amber.device.openURL(url) opens a web, mail or phone link once the person agrees to it (they see the whole address each time); amber.device.share({ name, type, text | base64 }) exports a file through the share sheet (iPhone) or a Save panel (Mac); amber.device.photos.pick({ limit }) -> { files: [{ $file, thumb }] } and amber.device.files.pick() let the person choose photos or files. Every call returns { ok, ... } or { ok: false, error }.
+  Not available yet: Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and on-device AI. Those calls answer { ok: false, error }; don't build an app that depends on them, and say so if the person asks for one.
+`;
+
+/** What an app is told about where it runs (see deviceServed for the device lines). */
+export function pageContract(set?: string): string {
+  return `The page runs in Pinto Notes in a sandbox with no network: no fetch, no external scripts, styles, fonts or images. Put all CSS and JS inline; images only as data: URIs or inline SVG.
 An app note is just the app: it opens straight into the app, and there is no text side. Its data is JSON in the app's own store (encrypted, synced, versioned; every change you make gets "Changed · Undo"). The note's text is only its title and one summary line the app sets.
 In a project, import from "amber":
   useStore(key, initial) / useAppData(key, initial) -> [value, set]   any JSON value
@@ -27,10 +45,7 @@ In a project, import from "amber":
 A one-file app has the same through window.amber: amber.data = { values, collections }; amber.store.get/set(key, value), amber.store.collection(name).list() / add(fields) -> { id } / update(id, patch) / remove(id); amber.batch(fn); amber.setSummary(text); amber.onChange(fn) calls fn(note, data) now and after every change.
   Files: amber.files.save({ name, type, base64 }) -> { file: { $file, ... } }; keep the ref in a record and show it with amber.files.url(ref, { width }) as an <img>/<audio>/<video> src. Up to 4 MB of data; photos and recordings as files.
 Converting an older note only: amber.note.tables/checklists and amber.update(op) (toggle_checklist, set_cell, append_row, delete_row, move_row, set_text, add_checklist_item, add_column, rename_column; an array is one change), or useTable(heading) / useChecklist(heading) in a project. New apps keep their data in the store, not in the note's text.
-The device, through the system's own prompts (results go to the page only; write to the note explicitly if wanted): amber.device.reminders.create({ title, due, repeat: "daily" }), calendar.today() -> { events: [{ title, start, end, location, attendees }] },
-  notify({ title, body, at | in }) -> { id }, notify.cancel(id), reminders.complete(id) / reminders.delete(id) (only ones an app made), openURL(url), photos.pick({ limit }) / camera.take() -> { files: [{ $file, thumb }] }, contacts.pick() -> { contact: { name, organization, emails, phones, addresses, birthday?, photo? } }, files.pick(), location.once() -> { lat, lon, place },
-  maps.open({ lat, lon | query, directions }), maps.snapshot({ lat, lon, km | pins: [{ lat, lon, label }], fit, pin, width, height, dark }) -> { dataURL, region, points: [{ x, y }] } (points: where each pin landed, to draw on top). On-device AI: amber.ai.available(), amber.ai.respond(prompt, { instructions }) -> { text }. Every call returns { ok, ... } or { ok: false, error }.
-Settings: the app draws its own (a settings screen or sheet inside the app, in its own style) and keeps them in amber.data or the store, with defaults in the code. Use settings for names, goals, limits, currencies and categories instead of hardcoding them. There is no native settings form; More › App Info is only for the internet, Previous App and Remove App.
+${deviceServed(set) ? DEVICE_ON : DEVICE_OFF}Settings: the app draws its own (a settings screen or sheet inside the app, in its own style) and keeps them in amber.data or the store, with defaults in the code. Use settings for names, goals, limits, currencies and categories instead of hardcoding them. There is no native settings form; More › App Info is only for the internet, Previous App and Remove App.
 Libraries: Pinto Notes ships chart (Chart.js 4.4.4 → Chart), d3 (7.9.0 → d3), three (0.160.0 → THREE), tone (14.8.49 → Tone), dayjs (1.11.13), marked (12.0.2), purify (DOMPurify 3.1.6, use it on marked output),
   anime (3.2.2), confetti (canvas-confetti 1.9.3), topojson (topojson-client 3.1.0), world (country shapes, TopoJSON → worldAtlas110m).
   For a real application with several screens and state, use Preact without a build step: preact (10.24.3 → preact), preact-hooks (→ preactHooks), htm (3.1.1 → htm), router (Pinto Notes, 1 kB → amberRouter: <Router> with path="/item/:id", <a href="#/add">, route(), back(); kept in memory, the page cannot navigate).
@@ -50,6 +65,8 @@ Look like Pinto Notes: every app starts with two stylesheets, loaded before its 
 Every input, select and textarea is visible as a field in both themes: a solid fill and a 1px border (inputs get background: var(--amber-field); border: 1px solid var(--amber-field-border) by default; don't remove them). Nothing see-through: solid colours only.
 Size text in rem: on iPhone the root follows the reader's text size. In a parent note the app can show as a small widget: <html> then has the class amber-widget; use a compact layout.
 Fit every width: the page fills the note, from 320 px on a small iPhone to 1,800 px in a full-screen Mac window, and re-lays out live as the window resizes. Put content in a container with max-width: var(--amber-content-max) (1100 px), margin: 0 auto and side padding var(--amber-gutter). Use one column under 600 px, and from 900 px use the room (side-by-side sections, more history, bigger numbers) with @media (min-width: 900px) or the classes amber-narrow / amber-medium / amber-wide the app keeps on <html>. Never a fixed width, never a stretched phone layout. `;
+}
+export const PAGE_CONTRACT = pageContract();
 
 /** Libraries Pinto Notes ships (Pane/Resources/AppLibraries/libraries.json): name → the global it defines. */
 export const BUNDLED_LIBS: Record<string, string> = {

@@ -70,7 +70,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>A note that is an app can save photos you take with it.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>A note that is an app can add reminders for you, such as a daily nudge for a habit. It asks each time it wants to.</string>
+	<string>A note that is an app can add reminders for you, such as a daily nudge for a habit.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>dev.emilwagman.pane.connect</string>
