@@ -1,3 +1,4 @@
+import os
 import Supabase
 import SwiftData
 import SwiftUI
@@ -7,6 +8,7 @@ struct PaneApp: App {
     let container: ModelContainer
     @State private var backend: Backend
     @State private var sync: SyncEngine
+    @State private var session: AppSession
     /// Push tokens and the notification delegate at launch (Push.swift).
     #if os(iOS)
     @UIApplicationDelegateAdaptor(PaneAppDelegate.self) private var appDelegate
@@ -77,6 +79,10 @@ struct PaneApp: App {
         }
         let sync = SyncEngine(backend: backend, context: container.mainContext)
         _sync = State(initialValue: sync)
+        let session = AppSession(backend: backend, sync: sync, context: container.mainContext)
+        _session = State(initialValue: session)
+        // Not in the unit-test host or a capture of one screen, which never ran this.
+        if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery") { session.start() }
         // "What's new" after a major update: decided before anything is drawn or seeded, while
         // the library still says whether this is a fresh install.
         if !inMemory {
@@ -166,7 +172,7 @@ struct PaneApp: App {
                     CollabGallery().tint(Color(PColor.paneAccent))
                 }
             } else {
-                AppGate(backend: backend, sync: sync)
+                AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
                     .tint(Color(PColor.paneAccent))
                     .preferredColorScheme(Self.testScheme)
@@ -588,20 +594,228 @@ final class DefaultsFlag {
     }
 }
 
+/// Everything that runs for the signed-in account whether or not a window is open: the key check,
+/// sync, the asks and notices. It used to live in the notes window's view (`.task(id:)` on AppGate),
+/// so an app opened in the background (`open -g`, a login item, a relaunch that isn't brought to the
+/// front), which gets no window until it's activated, checked no key and synced nothing.
+@MainActor
+@Observable
+final class AppSession {
+    @ObservationIgnored let backend: Backend
+    @ObservationIgnored let sync: SyncEngine
+    @ObservationIgnored let context: ModelContext
+    /// The first-run "Get set up" card's state, for the signed-in account.
+    let setup = SetupStore()
+    /// "Enjoying Pinto Notes?", once, after a week of use.
+    let shareAsk = ShareAskStore()
+    /// "How did you hear about Pinto Notes?", once, for a new account.
+    let heardFrom = HeardFromStore()
+    /// Asks to approve an AI connection from a browser, while signed in with the key here.
+    private(set) var connectAsks: ConnectAsks?
+    /// "Connected ChatGPT", "Your notes were deleted…": said once on each device.
+    private(set) var notices: AccountNotices?
+    /// The app is in front (the window says): an ask shows itself only then.
+    var foreground = false { didSet { if foreground != oldValue { connectAsks?.setForeground(foreground) } } }
+    @ObservationIgnored private var followers: [Task<Void, Never>] = []
+    private static let log = Logger(subsystem: "dev.emilwagman.pane", category: "session")
+
+    init(backend: Backend, sync: SyncEngine, context: ModelContext) {
+        self.backend = backend
+        self.sync = sync
+        self.context = context
+    }
+
+    /// Runs `work` now and again each time `value` changes, cancelling the run before it: what a
+    /// view's `.task(id:)` does, with no view.
+    static func follow<T: Equatable>(_ value: @escaping @MainActor () -> T, work: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+        Task { @MainActor in
+            var running: Task<Void, Never>?
+            while !Task.isCancelled {
+                running?.cancel()
+                running = Task { @MainActor in await work() }
+                await changed(value)
+            }
+            running?.cancel()
+        }
+    }
+
+    /// Returns when `value` is no longer what it was (or this task is cancelled).
+    static func changed<T: Equatable>(_ value: @escaping @MainActor () -> T) async {
+        let before = value()
+        while value() == before, !Task.isCancelled {
+            // Woken by the next change to what `value` reads, or by this task being cancelled.
+            let wake = Wake()
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                    wake.wait(c)
+                    withObservationTracking { _ = value() } onChange: { wake.fire() }
+                }
+            } onCancel: { wake.fire() }
+        }
+    }
+
+    /// One continuation, resumed once, by whichever comes first.
+    private final class Wake: @unchecked Sendable {
+        private let lock = NSLock()
+        private var waiting: CheckedContinuation<Void, Never>?
+        private var fired = false
+
+        func wait(_ c: CheckedContinuation<Void, Never>) {
+            lock.lock()
+            if fired { lock.unlock(); c.resume(); return }
+            waiting = c
+            lock.unlock()
+        }
+
+        func fire() {
+            lock.lock()
+            fired = true
+            let c = waiting
+            waiting = nil
+            lock.unlock()
+            c?.resume()
+        }
+    }
+
+    /// Starts following the sign-in state and the key, once.
+    func start() {
+        guard followers.isEmpty else { return }
+        followers.append(Self.follow({ [backend] in backend.state }) { [weak self] in await self?.stateChanged() })
+        // The key opened after the gate (a device linked, a recovery key typed): the library opens.
+        followers.append(Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                let old = AccountCrypto.shared.phase
+                await Self.changed { AccountCrypto.shared.phase }
+                guard let self, AccountCrypto.shared.phase == .ready, old != .ready,
+                      case .signedIn = self.backend.state, let client = self.backend.client else { continue }
+                Task { @MainActor in await self.openLibrary(client) }
+            }
+        })
+    }
+
+    /// Signed in, signed out or sync off: what each needs set up or taken down.
+    private func stateChanged() async {
+        Self.log.notice("session: \(String(describing: self.backend.state).prefix(9), privacy: .public)")
+        // A removal of this device that was cut short (the app was killed midway) is finished
+        // before anything else: the key is already gone, the notes follow.
+        if UserDefaults.standard.string(forKey: DeviceRemoval.pendingFlag) != nil {
+            KeyDevices.shared.attach(account: backend.userID, server: backend.client.map { SupabaseKeyDevices(client: $0) })
+            await removal.resumeIfInterrupted()
+        }
+        guard case .signedIn = backend.state, let client = backend.client else {
+            setup.attach(account: nil, service: nil)
+            shareAsk.attach(account: nil, service: nil)
+            heardFrom.attach(account: nil, service: nil)
+            if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
+            AccountCrypto.shared.signedOut()
+            KeyDevices.shared.attach(account: nil, server: nil)
+            PushRegistration.shared.detach()
+            await sync.stop()
+            await connectAsks?.stop()
+            connectAsks = nil
+            await notices?.stop()
+            notices = nil
+            // A sign-out that was offline removes this device's push token now. Signed in,
+            // registering does it first (PushRegistration.attach).
+            if let client = backend.client { await PushRegistration.shared.retryPendingForget(service: SupabasePushTokens(client: client)) }
+            return
+        }
+        setup.attach(account: backend.userID, service: SupabaseSetup(client: client))
+        shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client))
+        heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
+        NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
+        KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
+        KeyDevices.shared.removedHere = { [weak self] in await self?.removedFromDevices() }
+        await SignedInStartup(
+            refreshLock: { await NoteVault.shared.refresh() },
+            checkKey: { [backend] in await AccountCrypto.shared.attach(account: backend.userID, server: SupabaseAccountKeys(client: client)) }
+        ).run()
+        // Without the key the gate asks for it; the library starts when it's open (below).
+        guard AccountCrypto.shared.allowsSync else { return }
+        await openLibrary(client)
+    }
+
+    /// Another device with the key removed this one: its copy of the notes and of the key go,
+    /// and it signs out. Said once on the sign-in screen.
+    func removedFromDevices() async {
+        guard let account = backend.userID else { return }
+        await removal.run(account: account)
+    }
+
+    /// The steps of this device's removal, in the order `DeviceRemoval` runs them.
+    private var removal: DeviceRemoval {
+        let context = self.context, sync = self.sync, backend = self.backend
+        return DeviceRemoval(
+            push: {
+                // Edits that never reached the server would be erased with the rest: they go up
+                // first. The wait ends with the push, whose requests have their own timeouts; a
+                // push that fails leaves the removal to go ahead.
+                guard AccountLibrary.hasUnsynced(context) else { return }
+                _ = try? await AccountCrypto.within(DeviceRemoval.pushLimit, sleep: { try await Task.sleep(for: $0) }) { @MainActor in
+                    await sync.sync(pulling: false)
+                }
+            },
+            dropKey: { AccountCrypto.shared.forgetLocalKey(of: $0) },
+            erase: {
+                await sync.stop()
+                AccountLibrary.erase(context: context)
+            },
+            forget: { await KeyDevices.shared.removalDone(account: $0) },
+            signOut: { await backend.signOut() })
+    }
+
+    /// The account's key is open here (or it isn't encrypted): sync, then everything that reads the library.
+    func openLibrary(_ client: SupabaseClient) async {
+        // This device lists itself among the ones that hold the key (and obeys its removal).
+        Task { await KeyDevices.shared.refresh(AccountCrypto.shared) }
+        // A browser can ask this device to approve an AI connection once it has the key.
+        if connectAsks == nil, let user = backend.userID {
+            let asks = ConnectAsks(client: client, user: user)
+            connectAsks = asks
+            Task { await asks.start() }
+            asks.setForeground(foreground)
+            // Pushes for asks, while the app isn't running.
+            Task { await PushRegistration.shared.attach(account: user, service: SupabasePushTokens(client: client)) }
+        }
+        if notices == nil, let user = backend.userID {
+            let n = AccountNotices(client: client, user: user)
+            notices = n
+            Task { await n.start() }
+        }
+        await sync.start()
+        // A first folder only for an account that has never held anything, which only its first
+        // pull can say: never after a failed sync, and never for an account that already has a
+        // library (a second device, a reinstall). A real account starts with an empty Notes
+        // folder: the setup card is its welcome.
+        if sync.claimNewAccount() {
+            Seed.ensureLibrary(context, demo: false, welcome: false)
+            sync.schedule()
+        }
+        await setup.refresh(force: true)
+        // The setup guide's To-do note, now that the account's notes are here to say whether it
+        // has one already (the note list makes it when the guide gets to that step later).
+        if sync.knowsAccount, setup.progress?.needsToDoNote == true, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
+        // Tips wait for this: never a tip for something this account has used anywhere.
+        await FeatureUse.refresh()
+        await shareAsk.refresh()
+        // A new account is asked how it heard of us, once the notes are open.
+        await heardFrom.refresh()
+        await InstallID.report(client)
+    }
+
+}
+
 /// Sign-in when sync is on and you're signed out; the library otherwise.
 struct AppGate: View {
     let backend: Backend
     let sync: SyncEngine
-    /// The first-run "Get set up" card's state, for the signed-in account.
-    @State private var setup = SetupStore()
-    /// "Enjoying Amber Notes?", once, after a week of use.
-    @State private var shareAsk = ShareAskStore()
-    /// "How did you hear about Amber Notes?", once, for a new account.
-    @State private var heardFrom = HeardFromStore()
-    /// Asks to approve an AI connection from a browser, while signed in with the key here.
-    @State private var connectAsks: ConnectAsks?
-    /// "Connected ChatGPT", "Your notes were deleted…": said once on each device.
-    @State private var notices: AccountNotices?
+    /// What runs for the account with or without this window (the key check, sync, the asks).
+    let session: AppSession
+    private var setup: SetupStore { session.setup }
+    private var shareAsk: ShareAskStore { session.shareAsk }
+    private var heardFrom: HeardFromStore { session.heardFrom }
+    private var connectAsks: ConnectAsks? { session.connectAsks }
+    private var notices: AccountNotices? { session.notices }
     @State private var noticeProblem: String?
     /// This device was removed from another one, and hasn't said so yet.
     @State private var removedHere = DefaultsFlag(DeviceRemoval.noticeFlag)
@@ -710,49 +924,8 @@ struct AppGate: View {
             if let p = CaptureScreen.setupProgress { setup.apply(p) }
             if CaptureScreen.setupFlow { playSetupFlow() }
         }
-        .task(id: backend.state) {
-            // A removal of this device that was cut short (the app was killed midway) is finished
-            // before anything else: the key is already gone, the notes follow.
-            if UserDefaults.standard.string(forKey: DeviceRemoval.pendingFlag) != nil {
-                KeyDevices.shared.attach(account: backend.userID, server: backend.client.map { SupabaseKeyDevices(client: $0) })
-                await removal.resumeIfInterrupted()
-            }
-            guard case .signedIn = backend.state, let client = backend.client else {
-                setup.attach(account: nil, service: nil)
-                shareAsk.attach(account: nil, service: nil)
-                heardFrom.attach(account: nil, service: nil)
-                if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
-                AccountCrypto.shared.signedOut()
-                KeyDevices.shared.attach(account: nil, server: nil)
-                PushRegistration.shared.detach()
-                await sync.stop()
-                await connectAsks?.stop()
-                connectAsks = nil
-                await notices?.stop()
-                notices = nil
-                // A sign-out that was offline removes this device's push token now. Signed in,
-                // registering does it first (PushRegistration.attach).
-                if let client = backend.client { await PushRegistration.shared.retryPendingForget(service: SupabasePushTokens(client: client)) }
-                return
-            }
-            setup.attach(account: backend.userID, service: SupabaseSetup(client: client))
-            shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client))
-            heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
-            NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
-            KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
-            KeyDevices.shared.removedHere = { await removedFromDevices() }
-            await SignedInStartup(
-                refreshLock: { await NoteVault.shared.refresh() },
-                checkKey: { await AccountCrypto.shared.attach(account: backend.userID, server: SupabaseAccountKeys(client: client)) }
-            ).run()
-            // Without the key the gate asks for it; the library starts when it's open (below).
-            guard AccountCrypto.shared.allowsSync else { return }
-            await openLibrary(client)
-        }
-        .onChange(of: crypto.phase) { old, new in
-            guard new == .ready, old != .ready, case .signedIn = backend.state, let client = backend.client else { return }
-            Task { await openLibrary(client) }
-        }
+        // The key check, sync and the asks run in `session`, window or no window (AppSession).
+        .onAppear { session.foreground = phase == .active }
         // What's new waits while an ask or an alert is up.
         .onChange(of: somethingAsking, initial: true) { _, asking in WhatsNewStore.shared.held = asking }
         // Each sync may have brought an AI's edit or a new connection: the card looks again.
@@ -786,6 +959,7 @@ struct AppGate: View {
         }
         #endif
         .onChange(of: phase) { _, p in
+            session.foreground = p == .active
             sync.setActive(p == .active)
             // Locked notes lock again when the app goes to the background.
             if p == .background { NoteVault.shared.lockNow() }
@@ -841,73 +1015,6 @@ struct AppGate: View {
     /// The share ask, a notice or the recovery key alert is on screen.
     private var somethingAsking: Bool {
         shareAsk.visible || heardFrom.visible || notices?.current != nil || crypto.recoveryKeyChangeNeedsSaying
-    }
-
-    /// Another device with the key removed this one: its copy of the notes and of the key go,
-    /// and it signs out. Said once on the sign-in screen.
-    private func removedFromDevices() async {
-        guard let account = backend.userID else { return }
-        await removal.run(account: account)
-    }
-
-    /// The steps of this device's removal, in the order `DeviceRemoval` runs them.
-    private var removal: DeviceRemoval {
-        DeviceRemoval(
-            push: {
-                // Edits that never reached the server would be erased with the rest: they go up
-                // first. The wait ends with the push, whose requests have their own timeouts; a
-                // push that fails leaves the removal to go ahead.
-                guard AccountLibrary.hasUnsynced(context) else { return }
-                _ = try? await AccountCrypto.within(DeviceRemoval.pushLimit, sleep: { try await Task.sleep(for: $0) }) { @MainActor in
-                    await sync.sync(pulling: false)
-                }
-            },
-            dropKey: { AccountCrypto.shared.forgetLocalKey(of: $0) },
-            erase: {
-                await sync.stop()
-                AccountLibrary.erase(context: context)
-            },
-            forget: { await KeyDevices.shared.removalDone(account: $0) },
-            signOut: { await backend.signOut() })
-    }
-
-    /// The account's key is open here (or it isn't encrypted): sync, then everything that reads the library.
-    private func openLibrary(_ client: SupabaseClient) async {
-        // This device lists itself among the ones that hold the key (and obeys its removal).
-        Task { await KeyDevices.shared.refresh(crypto) }
-        // A browser can ask this device to approve an AI connection once it has the key.
-        if connectAsks == nil, let user = backend.userID {
-            let asks = ConnectAsks(client: client, user: user)
-            connectAsks = asks
-            Task { await asks.start() }
-            asks.setForeground(phase == .active)
-            // Pushes for asks, while the app isn't running.
-            Task { await PushRegistration.shared.attach(account: user, service: SupabasePushTokens(client: client)) }
-        }
-        if notices == nil, let user = backend.userID {
-            let n = AccountNotices(client: client, user: user)
-            notices = n
-            Task { await n.start() }
-        }
-        await sync.start()
-        // A first folder only for an account that has never held anything, which only its first
-        // pull can say: never after a failed sync, and never for an account that already has a
-        // library (a second device, a reinstall). A real account starts with an empty Notes
-        // folder: the setup card is its welcome.
-        if sync.claimNewAccount() {
-            Seed.ensureLibrary(context, demo: false, welcome: false)
-            sync.schedule()
-        }
-        await setup.refresh(force: true)
-        // The setup guide's To-do note, now that the account's notes are here to say whether it
-        // has one already (the note list makes it when the guide gets to that step later).
-        if sync.knowsAccount, setup.progress?.needsToDoNote == true, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
-        // Tips wait for this: never a tip for something this account has used anywhere.
-        await FeatureUse.refresh()
-        await shareAsk.refresh()
-        // A new account is asked how it heard of us, once the notes are open.
-        await heardFrom.refresh()
-        await InstallID.report(client)
     }
 
     /// A quiet moment: once things have settled, the share ask may come (see `ShareAsk`).

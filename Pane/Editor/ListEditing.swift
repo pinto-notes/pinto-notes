@@ -17,6 +17,7 @@ enum ListEditing {
         guard selection.location <= ns.length else { return nil }
         let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
         let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        if let leave = leavingStyle(ns, line: line, lineStart: lineRange.location, selection: selection) { return leave }
         if let quote = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression) {
             let prefixLen = (line[quote] as Substring).utf16.count
             guard selection.location >= lineRange.location + prefixLen else { return nil }
@@ -43,6 +44,43 @@ enum ListEditing {
         }
         let insert = "\n" + list.continuation
         return TextEdit(range: selection, replacement: insert, caret: selection.location + (insert as NSString).length)
+    }
+
+    /// The closing markers Bold, Italic and the rest put after the caret.
+    private static let closers = ["**", "~~", "</u>", "`", "*"]
+
+    /// Return typed just inside a style's closing marker, at the end of the line ("**bold|**"):
+    /// the new line starts after the marker. Left where it was, the marker moved down to the
+    /// next line and both halves showed as literal asterisks. An empty pair ("**|**", Bold
+    /// tapped and nothing typed) is taken away.
+    private static func leavingStyle(_ ns: NSString, line: String, lineStart: Int, selection: NSRange) -> TextEdit? {
+        guard selection.length == 0 else { return nil }
+        let column = selection.location - lineStart
+        let l = line as NSString
+        guard column >= 0, column <= l.length else { return nil }
+        let rest = l.substring(from: column), before = l.substring(to: column)
+        // A marker with a space before it closes nothing ("2 * 3 *").
+        guard let closer = closers.first(where: { rest == $0 }), before.last?.isWhitespace != true else { return nil }
+        let opener = closer == "</u>" ? "<u>" : closer
+        let o = (opener as NSString).length, c = (closer as NSString).length
+        if before.hasSuffix(opener) {
+            let pair = NSRange(location: selection.location - o, length: o + c)
+            let without = ns.replacingCharacters(in: pair, with: "")
+            let at = NSRange(location: pair.location, length: 0)
+            guard let e = returnKey(in: without, selection: at) else {
+                return TextEdit(range: pair, replacement: "\n", caret: pair.location + 1)
+            }
+            // The same edit, said against the text that still has the pair.
+            let grown = NSRange(location: min(e.range.location, pair.location), length: NSMaxRange(pair) - min(e.range.location, pair.location))
+            guard e.range.location <= pair.location, NSMaxRange(e.range) == pair.location else {
+                return TextEdit(range: pair, replacement: "\n", caret: pair.location + 1)
+            }
+            return TextEdit(range: grown, replacement: e.replacement, caret: e.caret)
+        }
+        // An opener earlier on the line that this closer answers: an odd number of them before the caret.
+        guard before.components(separatedBy: opener).count % 2 == 0 else { return nil }
+        let after = NSRange(location: selection.location + c, length: 0)
+        return returnKey(in: ns as String, selection: after) ?? TextEdit(range: after, replacement: "\n", caret: after.location + 1)
     }
 
     /// Backspace right after a list marker removes the marker, keeping the text.

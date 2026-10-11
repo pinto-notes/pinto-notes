@@ -388,7 +388,7 @@ struct NoteDetailView: View {
     }
 
     private var vault: NoteVault { .shared }
-    private struct ImagesAsk: Equatable { var note: UUID; var pulled: Int }
+    private struct ImagesAsk: Equatable { var note: UUID; var pulled: Int; var files: Int }
 
     /// The editor, or for a locked note that isn't open, the lock.
     @ViewBuilder
@@ -402,8 +402,9 @@ struct NoteDetailView: View {
                                followsInitialText: collab == nil, onChange: save)
                     .onAppear { if note.isLocked { vault.touch() } }
                     // The note's images that are on the server and not here are fetched as it opens,
-                    // and again when a sync brings changes (a picture added on another device).
-                    .task(id: ImagesAsk(note: note.id, pulled: sync?.remoteChangeTick ?? 0)) {
+                    // and again when a sync brings changes: a note's text, or file rows on their own
+                    // (a picture added on another device can arrive a sync after the text that shows it).
+                    .task(id: ImagesAsk(note: note.id, pulled: sync?.remoteChangeTick ?? 0, files: sync?.filesPulledTick ?? 0)) {
                         await controller.fetchMissingImages(note: note.id, body: text)
                     }
                     .opacity(showingPage ? 0 : 1)
@@ -775,8 +776,17 @@ struct NoteDetailView: View {
         HStack {
             Button { onOpenNote(parent.id, false) } label: {
                 Label(parent.title, systemImage: "chevron.left")
+                    #if os(macOS)
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
+                    #else
+                    // On iPhone and iPad the link follows the text size and is a full-height target.
+                    .font(.footnote.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                    #endif
             }
             .buttonStyle(.hoverLink)
             .foregroundStyle(.tint)
@@ -784,7 +794,9 @@ struct NoteDetailView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
+        #if os(macOS)
         .padding(.top, 8)
+        #endif
     }
 
     /// Keeps the parent's link text in step with this sub-note's title, for readers and AI tools.

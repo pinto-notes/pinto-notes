@@ -130,7 +130,7 @@ struct WelcomeFlow: View {
                     .foregroundStyle(Color.ink)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("welcome.title")
-                Text("ChatGPT and Claude can read and edit your notes, with your approval. End-to-end encrypted, on iPhone and Mac.")
+                Text("ChatGPT and Claude can read and edit your notes, with your approval. End-to-end encrypted, on iPhone, iPad and Mac.")
                     .font(Self.lineFont)
                     .foregroundStyle(Color.muted)
                     .lineSpacing(2)

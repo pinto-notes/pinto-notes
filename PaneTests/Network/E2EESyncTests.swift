@@ -240,6 +240,51 @@ extension NetworkFaults {
         await a.engine.stop(); await b.engine.stop()
     }
 
+    /// A picture added on another device while its note is open here: when the file's row comes in a
+    /// later sync than the note's text, the note's text doesn't change again, so the open note is
+    /// told by the files themselves and asks for the picture then (issue 426).
+    @Test func aFileRowArrivingAfterTheNotesTextTellsTheOpenNote() async throws {
+        let a = try device()
+        let b = try device()
+        // The note's text reaches B first, already showing a picture B has no row for.
+        let id = UUID()
+        let n = a.context.createNote(in: .all, body: "Trip\n" + FileStore.markdown(id: id, filename: "late.png", image: true))
+        n.dirty = true
+        await a.engine.sync()
+        await b.engine.sync()
+        #expect(b.context.note(n.id)?.body == n.body)
+        #expect(b.context.attachment(id) == nil)
+        let textTick = b.engine.remoteChangeTick, filesTick = b.engine.filesPulledTick
+
+        // Then A's upload finishes: the file's row, and nothing else, in B's next sync.
+        let file = Pane.Attachment(id: id, filename: "late.png", contentType: "public.png", size: 9)
+        let url = FileStore.url(for: id, filename: "late.png")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("png bytes".utf8).write(to: url)
+        defer { removeLocalCopy(file) }
+        a.context.insert(file)
+        await a.engine.sync()
+        #expect(file.uploaded)
+        removeLocalCopy(file)
+        await b.engine.sync()
+        #expect(b.context.attachment(id) != nil)
+        #expect(b.engine.remoteChangeTick == textTick, "the note's text didn't change: nothing used to ask again")
+        #expect(b.engine.filesPulledTick == filesTick + 1, "the file rows say so now")
+        // A sync that brings no file rows doesn't.
+        await b.engine.sync()
+        #expect(b.engine.filesPulledTick == filesTick + 1)
+
+        // What the open note does when told: the picture that wasn't here is fetched.
+        let controller = EditorController()
+        controller.resolveAttachment = { b.context.attachment($0) }
+        controller.isLocal = { _ in false }
+        var fetched: [UUID] = []
+        controller.download = { f in fetched.append(f.id); return true }
+        await controller.fetchMissingImages(note: n.id, body: n.body)
+        #expect(fetched == [id])
+        await a.engine.stop(); await b.engine.stop()
+    }
+
     /// A note opened on a device that doesn't have its pictures: the images its text shows are
     /// fetched without a tap. Only those: not one that's here, not another kind of file, not one
     /// this device hasn't sent, not a very large one, and each once while the note is open.

@@ -14,6 +14,8 @@ final class VersionHistoryModel {
     var selection: Int64?
     private(set) var previewText: String?
     private(set) var changed: [NSRange] = []
+    /// The version reads exactly as the note does now.
+    private(set) var sameAsNow = true
     private(set) var previewFailed: String?
     private(set) var restoring = false
     var restoreError: String?
@@ -60,6 +62,7 @@ final class VersionHistoryModel {
             guard selection == id else { return }
             previewText = text
             changed = entry.version.isCurrent ? [] : HistoryDiff.changedLines(in: text, comparedTo: note.body)
+            sameAsNow = entry.version.isCurrent || HistoryDiff.sameText(text, note.body)
         } catch {
             guard selection == id else { return }
             previewFailed = HistoryError.from(error).localizedDescription
@@ -237,6 +240,7 @@ struct VersionRow: View {
 struct ChangeLegend: View {
     let count: Int
     let isCurrent: Bool
+    var same = true
 
     var body: some View {
         HStack(spacing: 6) {
@@ -248,7 +252,7 @@ struct ChangeLegend: View {
                     .frame(width: 14, height: 10)
                     .accessibilityHidden(true)
             }
-            Text(isCurrent ? "This is the note as it is now." : HistoryDiff.summary(count))
+            Text(isCurrent ? "This is the note as it is now." : HistoryDiff.summary(count, same: same))
         }
         .foregroundStyle(.secondary)
     }
@@ -369,7 +373,7 @@ struct MacVersionHistory: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(entry.version.isCurrent ? "Current version" : VersionHistoryModel.heading(entry.version))
                         .font(.system(size: 13, weight: .semibold))
-                    ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent)
+                    ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent, same: model.sameAsNow)
                         .font(.system(size: 11))
                 }
                 .padding(.horizontal, 20)
@@ -482,7 +486,7 @@ struct PhoneVersionPreview: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-                ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent)
+                ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent, same: model.sameAsNow)
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)

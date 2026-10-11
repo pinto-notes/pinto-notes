@@ -30,16 +30,24 @@ enum BackendConfig {
     /// The MCP function itself. The app calls it here for connection requests.
     static var mcpURL: URL? { url?.appending(path: "functions/v1/mcp") }
 
-    /// The MCP server's address as people see it and paste it (https://mcp.ambernotes.app in
+    /// The MCP server's address as people see it and paste it (https://mcp.pintonotes.com in
     /// release builds, from PANE_MCP_URL). Builds without one show the function's own address.
     static var mcpPublicURL: URL? {
         publicMCPURL(configured: Bundle.main.object(forInfoDictionaryKey: "PaneMCPURL") as? String, function: mcpURL)
     }
 
     static func publicMCPURL(configured: String?, function: URL?) -> URL? {
-        if let s = configured, s.hasPrefix("https://"), let u = URL(string: s) { return u }
+        if let s = configured, s.hasPrefix("https://"), let u = URL(string: s) {
+            // The same server under the app's new name (both addresses reach it, and a token or a
+            // connection made at one works at the other). A build still set to the old address
+            // shows the new one; connections people already added keep calling the old.
+            return u.host?.lowercased() == oldMCPHost ? URL(string: "https://\(newMCPHost)") : u
+        }
         return function
     }
+
+    static let oldMCPHost = "mcp.ambernotes.app"
+    static let newMCPHost = "mcp.pintonotes.com"
 }
 
 /// When the session last really signed in, read from its access token's `amr` claim (the JWT

@@ -210,7 +210,10 @@ struct SidebarView: View {
         #endif
         #if os(macOS)
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
-        .safeAreaInset(edge: .top, spacing: 0) { SidebarHeader() }
+        // A bar, not a plain inset: the folders scrolled under it showed through its words (and
+        // through the account row at the foot, where a folder's name and the email ran together).
+        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader() }
+        .scrollEdgeEffectStyle(.hard, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
@@ -269,7 +272,7 @@ struct SidebarView: View {
             #endif
         }
         #if os(macOS)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn(let email) = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     OfflineLine(sync: sync)
@@ -307,6 +310,8 @@ struct SidebarView: View {
                 #endif
             Button("Cancel", role: .cancel) {}
             Button(renaming == nil ? "Create" : "Save", action: commitName)
+                // Nothing to create or save without a name (it used to close the alert and do nothing).
+                .disabled(nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 // On iPhone the default button of an alert is filled system blue under the app's
                 // amber label, which can't be read: Return on the keyboard saves instead.
                 #if os(macOS)
