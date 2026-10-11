@@ -715,6 +715,39 @@ import AppKit
         }
     }
 
+    // MARK: The device, off in the released app
+
+    @Test func theDeviceIsOffForAppsInTheReleasedApp() {
+        // Release with Pinto Notes' own bundle id: off, whatever a launch argument or default says.
+        for setting in [nil, true, false] as [Bool?] { #expect(!NoteApps.isDeviceEnabled(development: false, beta: false, setting: setting)) }
+        // Pinto Notes Beta, and Debug and QA builds: on; `-noteAppDevice NO` shows them as released.
+        for (development, beta) in [(false, true), (true, false), (true, true)] {
+            #expect(NoteApps.isDeviceEnabled(development: development, beta: beta, setting: nil))
+            #expect(!NoteApps.isDeviceEnabled(development: development, beta: beta, setting: false))
+        }
+    }
+
+    /// Off, an app that reaches for the device is told so by name, in the app, and nothing of the
+    /// system is touched (no permission prompt). A link, the share sheet and the pickers stay.
+    @Test func withTheDeviceOffAnAppIsToldWhatIsNotAvailable() async throws {
+        let container = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
+        let refused = ["reminders.create": "Reminders aren't", "reminders.complete": "Reminders aren't", "reminders.delete": "Reminders aren't",
+                       "calendar.today": "The calendar isn't", "notify": "Notifications aren't", "notify.cancel": "Notifications aren't",
+                       "camera.take": "The camera isn't", "contacts.pick": "Contacts aren't", "location.once": "Location isn't",
+                       "maps.open": "Maps isn't", "maps.snapshot": "Maps isn't", "weather.current": "Weather isn't", "ai.respond": "On-device AI isn't"]
+        for (op, what) in refused {
+            do {
+                _ = try await NotePageDevice.handle(["op": op, "title": "x", "prompt": "x"], context: container.mainContext, device: false)
+                Issue.record("\(op) went ahead with the device off")
+            } catch {
+                #expect((error as? LocalizedError)?.errorDescription == "\(what) available in apps yet.", "\(op): \(error)")
+            }
+        }
+        let ai = try await NotePageDevice.handle(["op": "ai.available"], context: container.mainContext, device: false)
+        #expect(ai["available"] as? Bool == false)
+        for op in ["openURL", "share", "photos.pick", "files.pick"] { #expect(try NotePageDevice.whileOff(op) == nil) }
+    }
+
     // MARK: The switch (NoteApps)
 
     @Test func noteAppsAreOnInEveryBuildUnlessTheSettingSaysNo() {

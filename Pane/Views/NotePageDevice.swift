@@ -30,7 +30,32 @@ enum NotePageDevice {
         init(_ s: String) { errorDescription = s }
     }
 
-    static func handle(_ m: [String: Any], context: ModelContext) async throws -> [String: Any] {
+    /// What an app may always ask for: each is something the person does themselves in a system
+    /// sheet (a link they agree to, the share sheet, a picker), with no permission given to the app.
+    static let always: Set<String> = ["openURL", "share", "photos.pick", "files.pick"]
+
+    /// The answer to a call while the device is off for apps (NoteApps.device), or nil when the
+    /// call goes ahead: `ai.available` says no, anything else is refused by name.
+    static func whileOff(_ op: String) throws -> [String: Any]? {
+        if always.contains(op) { return nil }
+        if op == "ai.available" { return ["available": false, "reason": "on-device AI isn't available in apps yet"] }
+        let what = switch op.split(separator: ".").first.map(String.init) {
+        case "reminders": "Reminders aren't"
+        case "calendar": "The calendar isn't"
+        case "notify": "Notifications aren't"
+        case "camera": "The camera isn't"
+        case "contacts": "Contacts aren't"
+        case "location": "Location isn't"
+        case "maps": "Maps isn't"
+        case "weather": "Weather isn't"
+        case "ai": "On-device AI isn't"
+        default: "That isn't"
+        }
+        throw Unavailable("\(what) available in apps yet.")
+    }
+
+    static func handle(_ m: [String: Any], context: ModelContext, device: Bool = NoteApps.device) async throws -> [String: Any] {
+        if !device, let op = m["op"] as? String, let answer = try whileOff(op) { return answer }
         switch m["op"] as? String {
         case "reminders.create": return try await createReminder(m)
         case "reminders.complete", "reminders.delete": return try await changeReminder(m, delete: m["op"] as? String == "reminders.delete")
