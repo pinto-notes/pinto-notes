@@ -238,9 +238,10 @@ import Testing
 
     static func importer(_ context: ModelContext, store: URL?) -> AppleNotesImporter {
         var importer = AppleNotesImporter(context: context)
+        let weekend = weekendHTML, photo = photoHTML
         importer.body = { id in
-            if id.hasSuffix("p10") { return weekendHTML }
-            if id.hasSuffix("p11") { return photoHTML }
+            if id.hasSuffix("p10") { return weekend }
+            if id.hasSuffix("p11") { return photo }
             throw AppleNotesBridge.Failure.script("Notes got an error.")
         }
         importer.openStore = { store.flatMap { try? AppleNoteStore.open(at: $0).get() } }
