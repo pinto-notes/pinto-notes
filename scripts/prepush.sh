@@ -105,16 +105,28 @@ if [[ ${1:-} == --tests ]]; then
     touched+=("$f:${(j:|:)${(@)${=suites}:t}}")
   done
   if (( ${#only} )); then
-    compile run "Tests of the touched test files (${#only} suites)" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
+    compile run "Tests of the touched test files (${#only} suites)" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
     # A name that matches no test is not an error to xcodebuild, so look: every touched test file
-    # has to have had a suite of its own start.
+    # has to have had a test of a suite of its own run. Read from the result bundle, not from the
+    # log: the test host writes into the same stream and cuts its lines in two.
+    xcrun xcresulttool get test-results tests --path "$DD/run.xcresult" --compact | python3 -c '
+import json, sys
+def walk(node, suites):
+    kids = node.get("children", [])
+    if node.get("nodeType") == "Test Suite" and any(k.get("nodeType") == "Test Case" for k in kids):
+        suites.add(node.get("name", "").replace(".", "/").split("/")[-1])
+    for k in kids: walk(k, suites)
+suites, cases = set(), 0
+doc = json.load(sys.stdin)
+for n in doc.get("testNodes", []): walk(n, suites)
+print("\n".join(sorted(suites)))' > "$DD/ran.txt"
     for t in $touched; do
-      if ! grep -qE "Suite (${t#*:}) started" "$DD/run.log"; then
+      if ! grep -qxE "(${t#*:})" "$DD/ran.txt"; then
         print -- "✗ No test of ${t%%:*} ran (asked for: ${${t#*:}//|/, }). Not ready to push."
         exit 1
       fi
     done
-    print -- "  $(grep -oE 'Test run with [0-9]+ tests? in [0-9]+ suites? passed' "$DD/run.log" | tail -1)"
+    print -- "  $(xcrun xcresulttool get test-results summary --path "$DD/run.xcresult" --compact | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["totalTestCount"], "tests ran,", d["failedTests"], "failed")')"
   else
     print -- "→ No test file touched: no tests run."
   fi
