@@ -513,6 +513,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         textLayoutManager?.delegate = core.layoutDelegate
         delegate = self
         textDropDelegate = self
+        // A text view only looks at drops of what it can paste: notes dragged from the list
+        // (linked where they are dropped) are added to that.
+        pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: (pasteConfiguration?.acceptableTypeIdentifiers ?? []) + [UTType.paneItem.identifier])
         core.onCardsChanged = { [weak self] in self?.setNeedsLayout() }
         backgroundColor = .clear
         alwaysBounceVertical = true
@@ -780,13 +783,41 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         }
     }
 
+    /// Notes dragged from the list (`PaneDragItem`).
+    private func carriesNotes(_ session: UIDropSession) -> Bool {
+        session.hasItemsConforming(toTypeIdentifiers: [UTType.paneItem.identifier])
+    }
+
     func textDroppableView(_ view: UIView & UITextDroppable, proposalForDrop drop: UITextDropRequest) -> UITextDropProposal {
         let p = UITextDropProposal(operation: .copy)
-        if isFileDrop(drop.dropSession) { p.dropAction = .insert }
+        if carriesNotes(drop.dropSession) || isFileDrop(drop.dropSession) { p.dropAction = .insert }
         return p
     }
 
+    /// Notes dropped at a place in the text: a link to each goes in there (see `insertNoteLinks`).
+    @discardableResult
+    func dropNotes(_ ids: [UUID], at position: UITextPosition) -> Bool {
+        guard !ids.isEmpty else { return false }
+        selectedTextRange = textRange(from: position, to: position)
+        return controller?.insertNoteLinks(ids) ?? false
+    }
+
     func textDroppableView(_ view: UIView & UITextDroppable, willPerformDrop drop: UITextDropRequest) {
+        if carriesNotes(drop.dropSession) {
+            let position = drop.dropPosition
+            let providers = drop.dropSession.items.map(\.itemProvider).filter { $0.hasItemConformingToTypeIdentifier(UTType.paneItem.identifier) }
+            Task { @MainActor in
+                var data: [Data] = []
+                for p in providers {
+                    let d: Data? = await withCheckedContinuation { cont in
+                        _ = p.loadDataRepresentation(forTypeIdentifier: UTType.paneItem.identifier) { d, _ in cont.resume(returning: d) }
+                    }
+                    if let d { data.append(d) }
+                }
+                self.dropNotes(EditorController.draggedNotes(data), at: position)
+            }
+            return
+        }
         guard isFileDrop(drop.dropSession) else { return }
         let position = drop.dropPosition
         let providers = drop.dropSession.items.map(\.itemProvider)
@@ -1122,6 +1153,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
 #else
 import AppKit
+import UniformTypeIdentifiers
 
 private struct PlatformEditor: NSViewRepresentable {
     let initialText: String
@@ -1183,7 +1215,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false
         isAutomaticLinkDetectionEnabled = false
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, Self.paneItemType])
         smartInsertDeleteEnabled = false
         usesFindBar = true
         isIncrementalSearchingEnabled = true
@@ -1333,11 +1365,38 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
     }
 
+    // MARK: Dropping notes from the list
+
+    static let paneItemType = NSPasteboard.PasteboardType(UTType.paneItem.identifier)
+
+    private func carriesNotes(_ info: NSDraggingInfo) -> Bool {
+        info.draggingPasteboard.availableType(from: [Self.paneItemType]) != nil
+    }
+
+    private func droppedNotes(_ info: NSDraggingInfo) -> [UUID] {
+        EditorController.draggedNotes((info.draggingPasteboard.pasteboardItems ?? []).compactMap { $0.data(forType: Self.paneItemType) })
+    }
+
+    /// Notes dropped at a place in the text: a link to each goes in there (see `insertNoteLinks`).
+    @discardableResult
+    func dropNotes(_ ids: [UUID], at index: Int) -> Bool {
+        guard !ids.isEmpty else { return false }
+        setSelectedRange(NSRange(location: min(max(index, 0), (string as NSString).length), length: 0))
+        return controller?.insertNoteLinks(ids) ?? false
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        droppedFiles(sender).isEmpty ? super.draggingEntered(sender) : .copy
+        if carriesNotes(sender) { return .link }
+        return droppedFiles(sender).isEmpty ? super.draggingEntered(sender) : .copy
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if carriesNotes(sender) {
+            // Show where the link will land.
+            let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
+            setSelectedRange(NSRange(location: at, length: 0))
+            return .link
+        }
         guard !droppedFiles(sender).isEmpty else { return super.draggingUpdated(sender) }
         // Show where the file will land.
         let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
@@ -1346,6 +1405,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if carriesNotes(sender) {
+            let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
+            window?.makeFirstResponder(self)
+            return dropNotes(droppedNotes(sender), at: at)
+        }
         let urls = droppedFiles(sender)
         guard !urls.isEmpty else { return super.performDragOperation(sender) }
         let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))

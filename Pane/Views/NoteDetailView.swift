@@ -920,6 +920,11 @@ struct NoteDetailView: View {
         controller.resolveAttachment = { id in context.attachment(id) }
         controller.resolveNote = { id in context.note(id).map { ($0.title, $0.preview) } }
         controller.resolveNoteModel = { id in context.note(id) }
+        // A note dragged in from the list is linked by its title. Not this note to itself.
+        controller.noteLinkTitle = { [own = note.id] id in
+            guard id != own, let n = context.note(id), n.deletedAt == nil else { return nil }
+            return n.title
+        }
         controller.openNote = { id in onOpenNote(id, false) }
         controller.openWiki = { target in followWikiLink(target) }
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }

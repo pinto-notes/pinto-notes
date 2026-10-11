@@ -1125,6 +1125,9 @@ private struct ListRow: View, @MainActor Equatable {
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)
             }
+            // Notes dropped on this row become its sub-notes. (After the drag source, as on
+            // the sidebar's folders: inside it, the row was never offered a drop.)
+            .modifier(SubNoteDropTarget(note: note))
             .swipeActions(edge: .leading) {
                 if note.trashedAt == nil {
                     Button(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin", action: togglePin)
