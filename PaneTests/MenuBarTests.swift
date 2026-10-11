@@ -20,9 +20,9 @@ import Testing
     }
 
     #if os(macOS)
-    /// The menu bar shows the app icon's leaf (2026-10-11: it still showed the tilted page of the
-    /// old icon): a template image of 18 pt with a bitmap for each screen density, its ink
-    /// leaning the way the leaf does, tip top right and stem bottom left.
+    /// The menu bar shows the app icon's own leaf (2026-10-11: it still showed the tilted page of
+    /// the old icon): a template image of 18 pt with a bitmap for each screen density, its ink
+    /// leaning the way the leaf does, tip top right and stem bottom left, the note lines cut out.
     @Test func theMenuBarGlyphIsTheLeaf() throws {
         let image = try #require(NSImage(named: "MenuBarIcon"))
         #expect(image.isTemplate, "one ink: the menu bar colours it for light, dark and tinted bars")
@@ -47,6 +47,11 @@ import Testing
         #expect(ink(0..<6, 0..<6) < 0.05)
         #expect(ink(30..<36, 30..<36) < 0.05)
         #expect(ink(6..<12, 30..<36) > 0.1, "the stem")
+        // The icon's note lines are cut out of it: down a column left of the midrib the ink is
+        // broken at least twice between the leaf's top and bottom edges.
+        let column = (0..<36).map { ink(12..<13, $0..<($0 + 1)) > 0.5 }
+        let runs = zip(column, column.dropFirst()).filter { $0 && !$1 }.count
+        #expect(runs >= 3, "ink ends three times or more: at two cut lines at least, and at the bottom edge")
     }
     #endif
 
