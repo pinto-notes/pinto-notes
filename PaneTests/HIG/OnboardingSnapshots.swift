@@ -152,10 +152,11 @@ import UIKit
     #endif
 
     /// The sidebar with the Templates card above the account row, and after it was closed.
-    static func sidebar(closed: Bool, _ c: ModelContainer) -> some View {
+    static func sidebar(closed: Bool, style: TemplatesCard.Style = .strip, _ c: ModelContainer) -> some View {
         let backend = Backend()
         backend.showSignedInForPreview(email: "sara@example.com", account: UUID())
         return NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+            .environment(\.templatesCardStyle, style)
             .environment(backend)
             .environment(SetupStore(progress: SetupProgress(dismissed: true, templatesClosed: closed)))
             .modelContainer(c)
@@ -171,7 +172,8 @@ import UIKit
         ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         let mode = dark ? "dark" : "light"
-        try await AppSnapshotTests.render(Self.sidebar(closed: false, c).frame(width: 250, height: 640), name: "mac-6-templates-card-\(mode)", dark: dark, wait: 1.0)
+        try await AppSnapshotTests.render(Self.sidebar(closed: false, style: .strip, c).frame(width: 250, height: 640), name: "mac-6-templates-card-A-strip-\(mode)", dark: dark, wait: 1.0)
+        try await AppSnapshotTests.render(Self.sidebar(closed: false, style: .cover, c).frame(width: 250, height: 640), name: "mac-6-templates-card-B-cover-\(mode)", dark: dark, wait: 1.0)
         try await AppSnapshotTests.render(Self.sidebar(closed: true, c).frame(width: 250, height: 640), name: "mac-6-templates-card-closed-\(mode)", dark: dark, wait: 1.0)
     }
     #endif
@@ -210,12 +212,14 @@ import UIKit
         ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+        // (At the accessibility text sizes the card stays away: the folders need the room.)
+        for (style, label, type) in [(TemplatesCard.Style.strip, "A-strip-default", DynamicTypeSize.large), (.cover, "B-cover-default", .large),
+                                     (.strip, "A-strip-larger", .xxxLarge), (.cover, "B-cover-larger", .xxxLarge)] {
             for dark in [false, true] {
                 let window = UIWindow(windowScene: scene)
                 window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
-                window.rootViewController = UIHostingController(rootView: Self.sidebar(closed: false, c).dynamicTypeSize(type))
+                window.rootViewController = UIHostingController(rootView: Self.sidebar(closed: false, style: style, c).dynamicTypeSize(type))
                 window.isHidden = false
                 try? await Task.sleep(for: .seconds(1.0))
                 let format = UIGraphicsImageRendererFormat()

@@ -42,6 +42,14 @@ import Testing
         #expect(!TemplatesPromo.shows(account: account, closedHere: false, progress: nil, sidebarHeight: 0, arguments: []), "before the sidebar has a size")
     }
 
+    @Test func theLargestTextSizesLeaveItOut() {
+        #expect(!TemplatesPromo.shows(account: account, closedHere: false, progress: nil, sidebarHeight: 760, largestText: true, arguments: []))
+    }
+
+    @Test func itsPicturesAreInTheApp() {
+        for name in TemplatesCard.covers { #expect(PImage(named: name) != nil, "\(name)") }
+    }
+
     @Test func capturesLeaveItOut() {
         #expect(!TemplatesPromo.shows(account: account, closedHere: false, progress: nil, sidebarHeight: 760, arguments: ["-uitest"]))
     }

@@ -232,6 +232,8 @@ struct SidebarView: View {
     @State private var templatesClosedHere = false
     @State private var sidebarHeight: CGFloat = 0
     @Environment(SetupStore.self) private var setup: SetupStore?
+    @Environment(\.templatesCardStyle) private var templatesStyle
+    @Environment(\.dynamicTypeSize) private var templatesTypeSize
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -451,11 +453,11 @@ struct SidebarView: View {
     private var showsTemplates: Bool {
         guard let backend, case .signedIn = backend.state else { return false }
         return TemplatesPromo.shows(account: backend.userID, closedHere: templatesClosedHere || backend.userID.map { TemplatesPromo.isClosedHere($0) } ?? false,
-                                    progress: setup?.progress, sidebarHeight: sidebarHeight)
+                                    progress: setup?.progress, sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
     }
 
     private var templatesCard: some View {
-        TemplatesCard {
+        TemplatesCard(style: templatesStyle) {
             if let account = backend?.userID { TemplatesPromo.closeHere(account) }
             withAnimation(.easeOut(duration: 0.2)) { templatesClosedHere = true }
             Task { await setup?.mark("templates_closed") }
