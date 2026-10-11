@@ -29,7 +29,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -65,6 +65,18 @@ export const SHOTS = {
 } satisfies Record<string, Shot>;
 
 export const posts: Post[] = [
+  {
+    slug: "journal-with-chatgpt-or-claude",
+    title: "A daily journal with ChatGPT or Claude: prompts to copy",
+    description: "A prompt that makes ChatGPT or Claude ask four journal questions and write the entry in your words, four more for other days, and where to keep them.",
+    excerpt: "The AI asks four short questions and writes down what you say. One prompt for any AI, four more for the days it doesn't fit, and a way to keep every day in one note.",
+    category: "Guides",
+    date: "2026-10-11",
+    updated: "2026-10-11",
+    image: SHOTS.tracker,
+    thumb: thumb("berry", "thumb-tracker-evening", 827, 546, "An Evening tracker note in Pinto Notes: one row a day, with work hours, energy and mood"),
+    draft: false,
+  },
   {
     slug: "weekly-review-with-chatgpt-or-claude",
     title: "A weekly review with ChatGPT or Claude: the prompt and five questions",
