@@ -108,6 +108,9 @@ alter table public.key_devices add constraint key_devices_platform_check
 
 -- As before, plus `protection` ('standard', 'strict' or null: not chosen) and `copy`: whether the
 -- server holds a copy of the account's current key. Builds from before this ignore both.
+-- `protection_paused_until`: until when Advanced protection can't be turned on because the
+-- password was just reset (keep_key_on_devices, below), so the app can say so before anyone
+-- tries. Null when nothing holds it: no reset lately, or no copy to take away.
 create or replace function public.account_key_state() returns jsonb
 language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
@@ -117,7 +120,9 @@ language sql stable security definer set search_path = '' as $$
     'generation', coalesce((select r.generation from public.account_key_resets r where r.user_id = auth.uid()), 0),
     'protection', (select p.mode from public.account_key_protection p where p.user_id = auth.uid()),
     'copy', exists (select 1 from public.account_key_copies c join public.account_keys k on k.user_id = c.user_id and k.key_id = c.key_id
-                    where c.user_id = auth.uid()))
+                    where c.user_id = auth.uid()),
+    'protection_paused_until', (select to_char(public.pane_reset_pause_until(auth.uid()) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+                                where exists (select 1 from public.account_key_copies c where c.user_id = auth.uid())))
 $$;
 revoke all on function public.account_key_state() from public, anon;
 grant execute on function public.account_key_state() to authenticated;

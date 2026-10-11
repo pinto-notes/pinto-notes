@@ -297,11 +297,15 @@ Deno.test("Advanced protection waits 72 hours after a password reset, like Start
   await store(w, a);
   await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
   await pg.query(`update auth.users set encrypted_password = 'new' where id = $1`, [a.id]);
+  // The key state says until when, so the app can say it under the switch before anyone tries.
+  const until = (await state(pg, a.id)).protection_paused_until;
+  assert(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(until) && Math.abs(new Date(until).getTime() - (Date.now() + 72 * 3600_000)) < 60_000, String(until));
   // Whoever reset the password can't take the copy away from a person whose device is gone.
   await assertRejects(() => strictOn(pg, a.id, crypto.randomUUID()), Error, "72 hours after a password reset");
   assertEquals((await copies(pg, a.id)).length, 1);
   assertEquals((await state(pg, a.id)).protection, "standard");
   await pg.query(`update public.account_recoveries set at = now() - interval '73 hours' where user_id = $1`, [a.id]);
+  assertEquals((await state(pg, a.id)).protection_paused_until, null);
   await strictOn(pg, a.id, crypto.randomUUID());
   assertEquals(await copies(pg, a.id), []);
 });
@@ -476,6 +480,7 @@ Deno.test("an account with no copy can always answer keep my key on my devices o
   const a = await account(pg);
   // From before: no copy, no recovery key saved, no other device, an old session, and the password was just reset.
   await pg.query(`update auth.users set encrypted_password = 'new' where id = $1`, [a.id]);
+  assertEquals((await state(pg, a.id)).protection_paused_until, null, "nothing is held for an account with no copy");
   await asUser(pg, a.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()]);
   assertEquals((await state(pg, a.id)).protection, "strict");
   assertEquals(await events(pg, a.id), []);
