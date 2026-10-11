@@ -73,7 +73,8 @@ struct LockedNoteView: View {
             .accessibilityIdentifier("lock.view")
             if !earlier, let name = vault.biometryName {
                 Button("Use \(name)") { Task { await biometrics() } }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.hoverText)
+                    .foregroundStyle(.tint)
                     .accessibilityIdentifier("lock.biometrics")
             }
         }

@@ -9,7 +9,6 @@ struct AccountButton: View {
     let email: String
     let backend: Backend
     @State private var profile = ProfileStore.shared
-    @State private var hovering = false
     @Environment(\.openSettings) private var openSettings
 
     private var name: String { profile.name ?? email }
@@ -30,12 +29,9 @@ struct AccountButton: View {
             }
             .padding(.horizontal, 8)
             .frame(height: 34)
-            .background(hovering ? AnyShapeStyle(.fill.tertiary) : AnyShapeStyle(.clear), in: .rect(cornerRadius: 8))
-            .contentShape(.rect(cornerRadius: 8))
+            .hoverHighlight(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: hovering)
         .help("Account Settings")
         .accessibilityLabel("Account, \(name). Opens Settings")
         .accessibilityIdentifier("sidebar.account")
@@ -62,6 +58,59 @@ struct SidebarHeader: View {
     }
 }
 #endif
+
+/// A sidebar row's name and what trails it (its count). At the accessibility text sizes on iPhone
+/// and iPad the count goes under the name and the icon steps aside, so the name has the row's
+/// width and breaks between words instead of between letters.
+struct SidebarRowText<Trailing: View>: View {
+    let title: String
+    @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        #if os(iOS)
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                trailing
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            beside
+        }
+        #else
+        beside
+        #endif
+    }
+
+    private var beside: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            trailing
+        }
+    }
+}
+
+private struct SidebarRowLabel: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if typeSize.isAccessibilitySize {
+            content.labelStyle(.titleOnly)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
+extension View {
+    func sidebarRowLabel() -> some View { modifier(SidebarRowLabel()) }
+}
 
 enum SidebarStyle {
     #if os(macOS)
@@ -113,18 +162,17 @@ struct SidebarView: View {
     let onNewNote: () -> Void
 
     @Query(filter: #Predicate<Folder> { $0.deletedAt == nil }, sort: \Folder.sortIndex) private var folders: [Folder]
-    /// At most one note: this query is here so the sidebar updates whenever any note changes, as a
-    /// query of every note did. The counts come from the store (`counts`). A query of every note
-    /// fetched and sorted all of them again on every save while you type.
-    @Query(SidebarView.anyNote) private var noteChanges: [Note]
-    /// The same for files kept in folders.
+    /// At most one file: this query is here so the sidebar updates whenever a file kept in a
+    /// folder changes. The counts come from the store (`fileCounts`). What follows every note
+    /// is in the two rows that count notes (`CountedRow`), not here: here it worked out every
+    /// folder row five times for each save while you type (now once).
     @Query(SidebarView.anyFile) private var fileChanges: [Attachment]
     private static var anyFile: FetchDescriptor<Attachment> {
         var d = FetchDescriptor<Attachment>()
         d.fetchLimit = 1
         return d
     }
-    private static var anyNote: FetchDescriptor<Note> {
+    fileprivate static var anyNote: FetchDescriptor<Note> {
         var d = FetchDescriptor<Note>()
         d.fetchLimit = 1
         return d
@@ -139,11 +187,6 @@ struct SidebarView: View {
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
-
-    private var counts: (live: Int, trashed: Int) {
-        _ = noteChanges
-        return Self.counts(in: context)
-    }
 
     /// All Notes and Recently Deleted, counted by the store (unsaved changes included).
     static func counts(in context: ModelContext) -> (live: Int, trashed: Int) {
@@ -176,13 +219,15 @@ struct SidebarView: View {
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
     var body: some View {
-        let counts = self.counts
+        #if DEBUG
+        RenderProbe.count("SidebarView")
+        #endif
         let files = self.files
         return List(selection: $scope) {
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
                 if folders.count > 1 {
-                    row("All Notes", icon: "tray.full", count: counts.live, files: files.live)
+                    CountedRow(title: "All Notes", icon: "tray.full", trash: false, files: files.live)
                         .tag(Scope.all)
                         .accessibilityIdentifier("sidebar.all")
                 }
@@ -190,7 +235,7 @@ struct SidebarView: View {
                     FolderTree(folder: folder, files: files.byFolder, dropTarget: dropTarget, targeted: folderTargeted, rename: startRename, newSub: startNewFolder, delete: deleteFolder)
                 }
                 // Last in the same list, like Notes.
-                row("Recently Deleted", icon: "trash", count: counts.trashed, files: files.trashed)
+                CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed)
                     .tag(Scope.trash)
                     .accessibilityIdentifier("sidebar.trash")
             } header: {
@@ -211,7 +256,10 @@ struct SidebarView: View {
         #endif
         #if os(macOS)
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
-        .safeAreaInset(edge: .top, spacing: 0) { SidebarHeader() }
+        // A bar, not a plain inset: the folders scrolled under it showed through its words (and
+        // through the account row at the foot, where a folder's name and the email ran together).
+        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader() }
+        .scrollEdgeEffectStyle(.hard, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
@@ -270,7 +318,7 @@ struct SidebarView: View {
             #endif
         }
         #if os(macOS)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn(let email) = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     OfflineLine(sync: sync)
@@ -302,27 +350,22 @@ struct SidebarView: View {
         )) {
             TextField("Name", text: $nameDraft)
                 .accessibilityIdentifier("folder.name")
+                #if os(iOS)
+                .submitLabel(.done)
+                .onSubmit(commitName)
+                #endif
             Button("Cancel", role: .cancel) {}
             Button(renaming == nil ? "Create" : "Save", action: commitName)
+                // Nothing to create or save without a name (it used to close the alert and do nothing).
+                .disabled(nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                // On iPhone the default button of an alert is filled system blue under the app's
+                // amber label, which can't be read: Return on the keyboard saves instead.
+                #if os(macOS)
                 .keyboardShortcut(.defaultAction)
+                #endif
         } message: {
             if renaming == nil { Text("Enter a name for this folder.") }
         }
-    }
-
-    private func row(_ title: String, icon: String, count: Int, files: Int = 0) -> some View {
-        Label {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(count + files, format: .number)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-        } icon: {
-            SidebarIcon(name: icon)
-        }
-        .rowAccessibility(title, count: count, files: files)
     }
 
     /// Keeps the selection on something that exists (see `Scope.settled`).
@@ -364,6 +407,50 @@ struct SidebarView: View {
     }
 }
 
+/// "All Notes" or "Recently Deleted" with its count. The row follows every note itself: a query
+/// of at most one note, here so the row updates whenever any note changes, with the count taken
+/// from the store (unsaved changes included). In SidebarView that query worked out every folder
+/// row five times for each save while you type.
+private struct CountedRow: View {
+    @Environment(\.modelContext) private var context
+    @Query(SidebarView.anyNote) private var noteChanges: [Note]
+    let title: String
+    let icon: String
+    /// Recently Deleted's count, not All Notes'.
+    let trash: Bool
+    let files: Int
+
+    var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("CountedRow")
+        #endif
+        let _ = noteChanges
+        let counts = SidebarView.counts(in: context)
+        let count = trash ? counts.trashed : counts.live
+        Label {
+            SidebarRowText(title: title) {
+                Text(count + files, format: .number)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            SidebarIcon(name: icon)
+        }
+        .sidebarRowLabel()
+        .rowAccessibility(title, count: count, files: files)
+        .hoverRow(title, reach: Hover.sidebarReach())
+    }
+}
+
+/// Hiding or showing the sidebar hands the split view's columns over again, and a view that holds
+/// an action can't be compared, so the folders were worked out again on every toggle: this view,
+/// then every folder row. Nothing it is given changes what it shows: the selection reaches it
+/// through its binding, the folders and counts through its queries, and the action is the same
+/// action. So two of them are always equal.
+extension SidebarView: @MainActor Equatable {
+    static func == (a: SidebarView, b: SidebarView) -> Bool { true }
+}
+
 /// A folder row with its sub-folders; accepts dropped notes and folders. Not an equatable view:
 /// skipping its updates kept the sidebar's selection from following some clicks on folder rows.
 private struct FolderTree: View {
@@ -378,34 +465,46 @@ private struct FolderTree: View {
     let rename: (Folder) -> Void
     let newSub: (Folder) -> Void
     let delete: (Folder) -> Void
+    /// How many folders up: the row's content sits that many levels to the right.
+    var depth = 0
     @State private var expanded = true
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("FolderTree")
+        #endif
         if folder.liveChildren.isEmpty {
             label
         } else {
             DisclosureGroup(isExpanded: $expanded) {
                 ForEach(folder.liveChildren) { child in
-                    FolderTree(folder: child, files: files, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete)
+                    FolderTree(folder: child, files: files, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete, depth: depth + 1)
                 }
             } label: { label }
         }
     }
 
     private var label: some View {
-        Label {
-            HStack {
-                Text(folder.name)
-                Spacer()
-                Text(folder.liveNotes.count + (files[folder.id] ?? 0), format: .number)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+        // Under the pointer the count gives way to ••• with the folder's menu.
+        HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth)) { hovering in
+            Label {
+                SidebarRowText(title: folder.name) {
+                    if hovering {
+                        RowMenuButton(help: "Folder options") { menuItems }
+                            .accessibilityHidden(true)
+                    } else {
+                        Text(folder.liveNotes.count + (files[folder.id] ?? 0), format: .number)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } icon: {
+                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder")
+                    .contentTransition(.symbolEffect(.replace))
             }
-        } icon: {
-            SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder")
-                .contentTransition(.symbolEffect(.replace))
+            .sidebarRowLabel()
+            .rowAccessibility(folder.name, count: folder.liveNotes.count, files: files[folder.id] ?? 0)
         }
-        .rowAccessibility(folder.name, count: folder.liveNotes.count, files: files[folder.id] ?? 0)
         .tag(Scope.folder(folder.id))
         .accessibilityIdentifier("folder.\(folder.name)")
         .draggable(PaneDragItem(kind: .folder, id: folder.id)) {
@@ -436,22 +535,25 @@ private struct FolderTree: View {
             }
             return true
         }
-        .contextMenu {
-            Button("New Folder Inside", systemImage: "folder.badge.plus") { newSub(folder) }
-            Button("Rename", systemImage: "pencil") { rename(folder) }
-            if let sync {
-                // Its files fetched to this device as they arrive, so they open offline.
-                let kept = sync.keptChanged >= 0 && sync.keepsDownloaded(folder.id)
-                Toggle(isOn: Binding(get: { kept }, set: { sync.setKeepsDownloaded(folder.id, $0) })) {
-                    Label("Keep Files Downloaded", systemImage: "arrow.down.circle")
-                }
-                .accessibilityIdentifier("folder.keepDownloaded")
+        .contextMenu { menuItems }
+    }
+
+    /// The folder's menu: a right-click, or its ••• under the pointer.
+    @ViewBuilder private var menuItems: some View {
+        Button("New Folder Inside", systemImage: "folder.badge.plus") { newSub(folder) }
+        Button("Rename", systemImage: "pencil") { rename(folder) }
+        if let sync {
+            // Its files fetched to this device as they arrive, so they open offline.
+            let kept = sync.keptChanged >= 0 && sync.keepsDownloaded(folder.id)
+            Toggle(isOn: Binding(get: { kept }, set: { sync.setKeepsDownloaded(folder.id, $0) })) {
+                Label("Keep Files Downloaded", systemImage: "arrow.down.circle")
             }
-            if folder.parent != nil {
-                Button("Move to Top Level", systemImage: "arrow.up.to.line") { context.move(folder, into: nil) }
-            }
-            Divider()
-            Button("Delete Folder…", systemImage: "trash", role: .destructive) { delete(folder) }
+            .accessibilityIdentifier("folder.keepDownloaded")
         }
+        if folder.parent != nil {
+            Button("Move to Top Level", systemImage: "arrow.up.to.line") { context.move(folder, into: nil) }
+        }
+        Divider()
+        Button("Delete Folder…", systemImage: "trash", role: .destructive) { delete(folder) }
     }
 }

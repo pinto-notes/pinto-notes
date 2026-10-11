@@ -65,17 +65,38 @@ struct NoteListView: View {
     }
 
     private func scoped(from all: [NoteEntry]) -> [NoteEntry] {
-        all.filter { e in
+        let nested = Self.nested(in: all, context: context)
+        return all.filter { e in
             guard !e.deleted else { return false }
-            // Sub-notes live inside their parent, not in the list. (Few notes have a
-            // parent, so looking each one up is cheaper than indexing every note.)
-            if e.parentID != nil, context.isNested(e.note) { return false }
+            // Sub-notes live inside their parent, not in the list.
+            if nested.contains(e.id) { return false }
             switch scope {
             case .all: return !e.trashed
             case .trash: return e.trashed
             case .folder(let id): return !e.trashed && e.folderID == id
             }
         }
+    }
+
+    /// The sub-notes still linked from their parent (`ModelContext.isNested`), for the whole
+    /// list at once. Each parent is found among the entries the list already holds: asked of
+    /// the store one sub-note at a time, a library with a few hundred sub-notes spent a fetch
+    /// on each of them whenever the list was worked out, which is every time a note is opened.
+    /// Without sub-notes nothing is looked up at all.
+    static func nested(in all: [NoteEntry], context: ModelContext) -> Set<UUID> {
+        var parents: [UUID: Note]?
+        var out: Set<UUID> = []
+        for e in all {
+            guard let pid = e.parentID else { continue }
+            if parents == nil { parents = Dictionary(all.map { ($0.id, $0.note) }, uniquingKeysWith: { first, _ in first }) }
+            // A parent the list doesn't hold yet (made a moment ago, not saved) is asked of the store.
+            guard let parent = parents?[pid] else {
+                if context.isNested(e.note) { out.insert(e.id) }
+                continue
+            }
+            if parent.deletedAt == nil, parent.body.contains("pane-note:\(e.id.uuidString.lowercased())") { out.insert(e.id) }
+        }
+        return out
     }
 
     private var filtered: [NoteEntry] {
@@ -131,6 +152,9 @@ struct NoteListView: View {
     }
 
     var body: some View {
+        #if DEBUG
+        RenderProbe.count("NoteListView")
+        #endif
         // Worked out once per update and handed down: the list asks many times.
         library.publishesEveryChange = !search.trimmingCharacters(in: .whitespaces).isEmpty
         let all = entries
@@ -138,14 +162,23 @@ struct NoteListView: View {
         let visible = filtered(from: scopedNotes, all: all)
         let files = scopedFiles
         let visibleFiles = filteredFiles(from: files)
-        let folders = context.allFolders().sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        return list(scopedNotes, visible, files, visibleFiles, folders)
+        return list(scopedNotes, visible, files, visibleFiles)
             #if os(iOS)
             .task { await watchListTip() }
             #endif
     }
 
-    private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment], _ folders: [Folder]) -> some View {
+    /// The folders by name, for the menus that move things. Asked for when a menu is, not
+    /// each time the list is worked out: fetching and sorting every folder was part of every
+    /// update of the list (every note opened), for menus nobody had asked for.
+    private var foldersByName: [Folder] {
+        #if DEBUG
+        RenderProbe.count("NoteListView.foldersByName")
+        #endif
+        return context.allFolders().sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
         List(selection: $selection) {
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
             if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
@@ -231,6 +264,7 @@ struct NoteListView: View {
                         case .file(let file):
                             FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, remove: { remove([file.id]) })
                                 .tag(file.id)
+                                .hoverRow(file.filename)
                                 #if os(iOS)
                                 .listRowBackground(Color(Palette.row))
                                 #endif
@@ -253,13 +287,15 @@ struct NoteListView: View {
         }
         // Right-click acts on the whole selection when the row is part of it, like Notes.
         .contextMenu(forSelectionType: UUID.self) { ids in
-            menu(for: ids, folders: folders)
+            menu(for: ids, folders: foldersByName)
         }
         #if os(macOS)
         // Another folder or another library is another list, built new. Kept as one list,
         // SwiftUI worked out the difference row by row and sized every row that came or went:
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
         // stays the same list: a new one took the keys away from the search field.
+        // A new list starts at its top: it shows the open note's row again.
+        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil))
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #endif
         #if os(iOS)
@@ -307,8 +343,12 @@ struct NoteListView: View {
             try? await Task.sleep(for: .seconds(1))
             withAnimation(.snappy(duration: 0.3)) { settled = true }
         }
-        .onChange(of: setup?.progress?.needsToDoNote ?? false) { _, needs in
-            if needs { ensureToDoNote() }
+        // Only once the account's notes have come down: before that the library is empty on a
+        // new device, and a To-do made then went up as one more beside the account's own. (Asked
+        // in the action, not here: the list has no reason to redraw when a pull finishes.
+        // AppGate.openLibrary makes the note when the pull comes after the guide's progress.)
+        .onChange(of: setup?.progress?.needsToDoNote ?? false, initial: true) { _, needs in
+            if needs, sync?.knowsAccount == true { ensureToDoNote() }
         }
         .overlay {
             if fileDropTargeted {
@@ -392,7 +432,7 @@ struct NoteListView: View {
             if editMode.isEditing {
                 ToolbarItem(placement: .bottomBar) {
                     Menu("Move") {
-                        ForEach(folders) { f in
+                        ForEach(foldersByName) { f in
                             Button(f.name) { moveSelection(to: f) }
                         }
                     }
@@ -418,6 +458,8 @@ struct NoteListView: View {
                 }
                 ToolbarItem(placement: .bottomBar) {
                     Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+                        // Recently Deleted holds no new notes: the note it made went elsewhere.
+                        .disabled(scope == .trash)
                         .accessibilityIdentifier("list.newNote")
                 }
             }
@@ -495,6 +537,8 @@ struct NoteListView: View {
                 remove: { remove(note) })
             .equatable()
             .tag(note.id)
+            // Outside the equatable row, so the list sees its background.
+            .hoverRow(note.title)
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
@@ -590,11 +634,7 @@ struct NoteListView: View {
 
     /// Step 3's prompt adds to "To-do": make sure there is one.
     private func ensureToDoNote() {
-        let exists = entries.contains { !$0.deleted && !$0.trashed && $0.note.title.caseInsensitiveCompare("To-do") == .orderedSame }
-        guard !exists else { return }
-        let home = context.allFolders().first { $0.name == "Notes" && $0.parent == nil }
-        _ = context.createNote(in: home.map { .folder($0.id) } ?? .all, body: "To-do\n\n")
-        try? context.save()
+        guard context.makeToDoNoteIfMissing() != nil else { return }
         SyncSignal.changed()
     }
 
@@ -787,6 +827,13 @@ struct NoteListView: View {
     }
 }
 
+/// The list is the same list while it shows the same folder: the selection reaches it through its
+/// binding, and the action is the same action. Hiding or showing the sidebar hands the split
+/// view's columns over again, and without this the list was worked out again on every toggle.
+extension NoteListView: @MainActor Equatable {
+    static func == (a: NoteListView, b: NoteListView) -> Bool { a.scope == b.scope }
+}
+
 /// What the list needs to know about a note to place it: plain values, read from the note once
 /// and again only when the note changes.
 struct NoteEntry: Identifiable, DatedListItem {
@@ -866,6 +913,25 @@ enum ListEntry: Identifiable, DatedListItem {
         return out
     }
 }
+
+#if os(macOS)
+/// A list built new (another folder, then back; a launch that reopens a note) starts scrolled to
+/// its top, with the open note's row far off screen and nothing to show which note that is. When
+/// the list appears it scrolls to that row, if it has one.
+private struct ShowsSelectedRow: ViewModifier {
+    let selected: UUID?
+
+    func body(content: Content) -> some View {
+        ScrollViewReader { proxy in
+            content.onAppear {
+                guard let selected else { return }
+                // A turn later: the rows are there by then.
+                DispatchQueue.main.async { proxy.scrollTo(selected, anchor: .center) }
+            }
+        }
+    }
+}
+#endif
 
 /// What makes the note list a different list (see where it's used).
 struct ListIdentity: Hashable {

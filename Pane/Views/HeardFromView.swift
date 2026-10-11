@@ -11,6 +11,7 @@ struct HeardFromView: View {
     @State private var contentHeight: CGFloat = 0
     @State private var words = ""
     @FocusState private var fieldFocused: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// `typing`: captures can open it with the "Something else" field showing.
@@ -68,7 +69,9 @@ struct HeardFromView: View {
         #if os(macOS)
         .frame(width: 420, height: fittedHeight)
         #else
-        .presentationDetents(typingOther || contentHeight == 0 ? [.large] : [.height(fittedHeight)])
+        // At the accessibility text sizes the answers don't fit a fitted sheet: it takes the screen and scrolls.
+        .presentationDetents(typingOther || contentHeight == 0 || typeSize.isAccessibilitySize ? [.large] : [.height(fittedHeight)])
+        .roomySheet()
         #endif
         .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: typingOther)
         // The amber pill shows for a moment, then the sheet goes.
@@ -105,6 +108,7 @@ struct HeardFromView: View {
                 .frame(minHeight: Metrics.chipHeight)
                 .background(tapped ? Color(AmberProminentButtonStyle.fill) : typing ? Color.amberSoft : Color(Palette.field), in: shape)
                 .overlay(shape.strokeBorder(tapped ? .clear : typing ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: typing ? 1.5 : 1))
+                .hoverOverlay(shape, Color.primary.opacity(0.05))
                 .contentShape(shape)
         }
         .buttonStyle(PressScale())
@@ -120,7 +124,7 @@ struct HeardFromView: View {
         Button { store.skip() } label: {
             Text("Skip").frame(maxWidth: .infinity, minHeight: Metrics.skipHeight).contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hoverText)
         .font(Metrics.skipFont)
         .foregroundStyle(Color.muted)
         .keyboardShortcut(.cancelAction)

@@ -14,6 +14,7 @@ struct NoteDetailView: View {
     @State private var saver = DebouncedSave()
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
+    @State private var movingNote = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
@@ -46,6 +47,8 @@ struct NoteDetailView: View {
     /// Lock Note: setting the password up, asking for it, or confirming.
     @State private var lockSheet: LockSheet?
     @State private var confirmLock = false
+    /// The lock dialog's title, taken from the note as the dialog opens (see `askToLock`).
+    @State private var lockDialogTitle = ""
     @State private var lockProblem: String?
     /// A wiki link was tapped whose note doesn't exist yet: its name, while we offer to make it.
     @State private var missingNote: String?
@@ -119,10 +122,10 @@ struct NoteDetailView: View {
             .sheet(item: $lockSheet) { step in
                 switch step {
                 case .setUp: NotesPasswordSetupSheet { lockNote() }
-                case .password: NotesPasswordPrompt(message: "Enter your notes password to lock this note.") { confirmLock = true }
+                case .password: NotesPasswordPrompt(message: "Enter your notes password to lock this note.") { askToLock() }
                 }
             }
-            .confirmationDialog(lockTitle, isPresented: $confirmLock, titleVisibility: .visible) {
+            .confirmationDialog(lockDialogTitle, isPresented: $confirmLock, titleVisibility: .visible) {
                 Button("Lock Note") { lockNote() }
                     .accessibilityIdentifier("lock.confirm")
             } message: {
@@ -212,7 +215,7 @@ struct NoteDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
                 switch n.object as? String {
                 case "setup": lockSheet = .setUp
-                case "confirm": confirmLock = true
+                case "confirm": askToLock()
                 default: break
                 }
             }
@@ -225,7 +228,7 @@ struct NoteDetailView: View {
                 titleAtOpen = note.body.isEmpty || note.isLocked ? nil : note.title
                 refreshLinks()
                 receipt = nil
-                shownPage = NotePageStore.shared[note.id]
+                shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
                 // A note with an app is the app: what its text held goes into the app's data once.
                 if shownPage != nil { NotePageActions.importIfNeeded(note) }
                 if shownPage != nil { NotePageTiming.open(note.id) }
@@ -239,7 +242,7 @@ struct NoteDetailView: View {
                 PaneTips.noteOpened(note.body)
                 ShareAsk.noteUsed()
                 // "Make this an app", once per note, a moment after it opens (last: it waits).
-                if shownPage == nil, !note.isLocked, !MakeAnApp.chipShown(note.id), MakeAnApp.looksLikeAnApp(note.body) {
+                if NoteApps.enabled, shownPage == nil, !note.isLocked, !MakeAnApp.chipShown(note.id), MakeAnApp.looksLikeAnApp(note.body) {
                     MakeAnApp.markChipShown(note.id)
                     try? await Task.sleep(for: .seconds(1.2))
                     if !Task.isCancelled { withAnimation(.spring(duration: 0.45, bounce: 0.25)) { showChip = true } }
@@ -387,23 +390,31 @@ struct NoteDetailView: View {
     }
 
     private var vault: NoteVault { .shared }
+    private struct ImagesAsk: Equatable { var note: UUID; var pulled: Int; var files: Int }
 
     /// The editor, or for a locked note that isn't open, the lock.
     @ViewBuilder
     private var editor: some View {
-        if let text = vault.text(of: note) {
+        if readable {
             // Both stay alive, so switching is instant and the editor can tint what the page changed.
             ZStack {
                 // A shared note's editor takes merged text from its session (CollabWiring), not from
                 // the note's mirrored body, which can lag a keystroke behind and undo it.
-                MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                               followsInitialText: collab == nil, onChange: save)
+                NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, onChange: save)
                     .onAppear { if note.isLocked { vault.touch() } }
+                    // The note's images that are on the server and not here are fetched as it opens,
+                    // and again when a sync brings changes: a note's text, or file rows on their own
+                    // (a picture added on another device can arrive a sync after the text that shows it).
+                    .task(id: ImagesAsk(note: note.id, pulled: sync?.remoteChangeTick ?? 0, files: sync?.filesPulledTick ?? 0)) {
+                        // The text is read as the fetch starts, not in the note pane's body (see `readable`).
+                        guard let text = vault.text(of: note) else { return }
+                        await controller.fetchMissingImages(note: note.id, body: text)
+                    }
                     .opacity(showingPage ? 0 : 1)
                     .allowsHitTesting(!showingPage)
                     .accessibilityHidden(showingPage)
                 if let page = notePage {
-                    NotePageView(noteID: note.id, html: page.html, text: text, onUpdate: applyPageEdit, onFailure: pageFailed, onData: pageData,
+                    NotePageView(noteID: note.id, html: page.html, text: vault.text(of: note) ?? "", onUpdate: applyPageEdit, onFailure: pageFailed, onData: pageData,
                                  files: { [context] id in NotePageActions.file(id, note: note, context: context) },
                                  onFocus: { focused in
                                      pageFieldFocused = focused
@@ -433,8 +444,14 @@ struct NoteDetailView: View {
         }
     }
 
+    /// Whether the note's text is here to show: always, unless the note is locked and not open.
+    /// Asked without reading the text of a note that isn't locked. This view reads the text
+    /// nowhere while you type (`NoteEditorText` does), so a save doesn't work out the note pane,
+    /// its toolbar and its menus again: the editor writes the note every 0.35 s.
+    private var readable: Bool { note.lockedBody == nil || vault.text(of: note) != nil }
+
     /// A locked note that isn't open: nothing on screen to edit. The page has no caret either.
-    private var hidden: Bool { vault.text(of: note) == nil || showingPage }
+    private var hidden: Bool { !readable || showingPage }
 
     // MARK: Note pages (prototype)
 
@@ -442,7 +459,7 @@ struct NoteDetailView: View {
 
     /// The note's page, unless the note is locked (a locked note never shows one).
     /// The version that runs: the newest that passed its checks and opens here (NotePageStore.live).
-    private var notePage: NotePageStore.Page? { note.isLocked ? nil : NotePageStore.shared.live(note.id) }
+    private var notePage: NotePageStore.Page? { note.isLocked ? nil : NoteApps.page(note.id) }
     private var showingPage: Bool { notePage != nil && mode == .page }
 
     /// A template just added from the website, opening for the first time.
@@ -591,6 +608,7 @@ struct NoteDetailView: View {
 
     /// A page an AI made or changed while the note is open: show it, say who, offer Undo.
     private func pageArrived(_ now: NotePageStore.Page?) {
+        guard NoteApps.enabled else { return }
         let before = shownPage
         shownPage = now
         if now != nil { NotePageActions.importIfNeeded(note) }
@@ -610,7 +628,7 @@ struct NoteDetailView: View {
     /// The app's items in More: Make It an App, or App Info.
     @ViewBuilder
     private var pageMenuItems: some View {
-        if notePage == nil, !note.isLocked, note.trashedAt == nil {
+        if NoteApps.enabled, notePage == nil, !note.isLocked, note.trashedAt == nil {
             Button("Make It an App…", systemImage: NoteAppMark.symbol) { showMakeApp = true }
                 .accessibilityIdentifier("editor.makeApp")
         }
@@ -620,7 +638,7 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("editor.appInfo")
         }
         #if DEBUG || QA
-        if !note.isLocked, note.trashedAt == nil {
+        if NoteApps.enabled, !note.isLocked, note.trashedAt == nil {
             // An app built outside the AI tools (scripts/build-app.ts output, or one HTML file).
             Button("Dev: Import App File…", systemImage: "square.and.arrow.down") { importingApp = true }
                 .accessibilityIdentifier("editor.devImportApp")
@@ -674,12 +692,20 @@ struct NoteDetailView: View {
         note.title.isEmpty ? "Lock this note?" : "Lock \u{201C}\(note.title)\u{201D}?"
     }
 
+    /// Asks before locking. The dialog's title names the note, and the note's title is read from
+    /// its text: it is read here, as the dialog opens, and not in the note pane's body, which
+    /// would then be worked out again with every write of the editor.
+    private func askToLock() {
+        lockDialogTitle = lockTitle
+        confirmLock = true
+    }
+
     /// Lock Note: sets the notes password up the first time, asks for it while notes are locked.
     private func startLock() {
         if let why = NoteVault.blocker(for: note) { lockProblem = why.errorDescription; return }
         Task { @MainActor in
             if !vault.isSetUp { await vault.refresh() }
-            if !vault.isSetUp { lockSheet = .setUp } else if !vault.isUnlocked { lockSheet = .password } else { confirmLock = true }
+            if !vault.isSetUp { lockSheet = .setUp } else if !vault.isUnlocked { lockSheet = .password } else { askToLock() }
         }
     }
 
@@ -702,7 +728,12 @@ struct NoteDetailView: View {
     }
 
     private func chrome(_ content: some View) -> some View {
-        content
+        // Counted here, once per body: a statement in the body itself is more than the
+        // compiler can type-check in time.
+        #if DEBUG
+        RenderProbe.count("NoteDetailView")
+        #endif
+        return content
             .ignoresSafeArea(.container, edges: .bottom)
             .background(Color.notePage.ignoresSafeArea())
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -767,16 +798,27 @@ struct NoteDetailView: View {
         HStack {
             Button { onOpenNote(parent.id, false) } label: {
                 Label(parent.title, systemImage: "chevron.left")
+                    #if os(macOS)
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
+                    #else
+                    // On iPhone and iPad the link follows the text size and is a full-height target.
+                    .font(.footnote.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                    #endif
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hoverLink)
             .foregroundStyle(.tint)
             .accessibilityIdentifier("subnote.parent")
             Spacer()
         }
         .padding(.horizontal, 20)
+        #if os(macOS)
         .padding(.top, 8)
+        #endif
     }
 
     /// Keeps the parent's link text in step with this sub-note's title, for readers and AI tools.
@@ -1009,9 +1051,7 @@ struct NoteDetailView: View {
         }
         ShareLinkMenuSection(store: shareLinks, note: note)
         Section {
-            ShareLink(item: note.body, preview: SharePreview(note.title)) {
-                Label("Send a Copy…", systemImage: "square.and.arrow.up")
-            }
+            SendCopyItem(note: note)
         }
     }
 
@@ -1034,11 +1074,17 @@ struct NoteDetailView: View {
             Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
                 withAnimation(.snappy) { context.togglePin(note) }
             }
+            #if os(macOS)
+            // One item, whatever the number of folders: the folders are in the picker it opens.
+            Button("Move to…", systemImage: "folder") { movingNote = true }
+                .accessibilityIdentifier("editor.moveTo")
+            #else
             Menu("Move to", systemImage: "folder") {
                 ForEach(context.allFolders()) { f in
                     Button(f.name) { context.move(note, to: f) }.disabled(note.folder?.id == f.id)
                 }
             }
+            #endif
             if !backlinks.isEmpty {
                 Menu("Linked from", systemImage: "link") {
                     ForEach(backlinks, id: \.id) { n in
@@ -1079,11 +1125,48 @@ struct NoteDetailView: View {
         .tint(.primary)
         #endif
         #if os(macOS)
+        .popover(isPresented: $movingNote, arrowEdge: .bottom) {
+            MoveToPicker(current: note.folder?.id) { context.move(note, to: $0) }
+        }
+        #endif
+        #if os(macOS)
         .paneTip(VersionHistoryTip(), arrowEdge: .top) { action in
             if action.id == "open" { showHistory = true }
         }
         #endif
         .accessibilityIdentifier("editor.more")
+    }
+}
+
+/// The note's text in the editor, under its date. A view of its own: it is what reads the text
+/// and the date, so a save while you type works out this view, not the whole note pane.
+private struct NoteEditorText: View {
+    let note: Note
+    let controller: EditorController
+    let autofocus: Bool
+    let followsInitialText: Bool
+    let onChange: (String) -> Void
+
+    var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("NoteEditorText")
+        #endif
+        // A locked note that isn't open has no text to give the editor; its pane shows the lock.
+        if let text = NoteVault.shared.text(of: note) {
+            MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
+                           followsInitialText: followsInitialText, onChange: onChange)
+        }
+    }
+}
+
+/// "Send a Copy…" with the note's text. A view of its own for the same reason: it reads the text.
+private struct SendCopyItem: View {
+    let note: Note
+
+    var body: some View {
+        ShareLink(item: note.body, preview: SharePreview(note.title)) {
+            Label("Send a Copy…", systemImage: "square.and.arrow.up")
+        }
     }
 }
 

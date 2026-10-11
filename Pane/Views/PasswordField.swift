@@ -120,7 +120,7 @@ struct PasswordField: View {
                     .frame(width: 28, height: Self.eyeHeight)
                     .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hoverIcon)
             .foregroundStyle(.secondary)
             .accessibilityLabel(reveal.label(kind.noun))
             .accessibilityIdentifier("\(id).reveal")

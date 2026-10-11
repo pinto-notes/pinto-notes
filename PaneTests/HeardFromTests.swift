@@ -22,27 +22,60 @@ import Testing
 
     static func store(_ service: FakeService) -> HeardFromStore {
         let defaults = UserDefaults(suiteName: "heardFrom.\(UUID())")!
+        // The third launch: the first one that may ask.
+        return store(service, defaults: defaults, account: UUID(), launchesBefore: HeardFromStore.firstLaunch - 1)
+    }
+
+    /// A store as the app makes one at launch, after `launchesBefore` earlier runs for this account.
+    static func store(_ service: FakeService, defaults: UserDefaults, account: UUID, launchesBefore: Int) -> HeardFromStore {
+        for _ in 0..<launchesBefore {
+            HeardFromStore(defaults: defaults, arguments: []).attach(account: account, service: service)
+        }
         let s = HeardFromStore(defaults: defaults, arguments: [])
-        s.attach(account: UUID(), service: service)
+        s.attach(account: account, service: service)
         return s
+    }
+
+    @Test func itWaitsForTheThirdLaunchANoteAndAQuietLaunch() async {
+        let defaults = UserDefaults(suiteName: "heardFrom.\(UUID())")!
+        let account = UUID(), service = FakeService()
+        // Right after sign-up, and on the second launch: nothing, even with a note.
+        let first = Self.store(service, defaults: defaults, account: account, launchesBefore: 0)
+        await first.refresh(hasNote: true, noticeThisLaunch: false)
+        #expect(!first.visible)
+        // Setting the session up again in the same run is not another launch.
+        first.attach(account: account, service: service)
+        #expect(first.launches == 1)
+        let second = Self.store(service, defaults: defaults, account: account, launchesBefore: 0)
+        await second.refresh(hasNote: true, noticeThisLaunch: false)
+        #expect(!second.visible)
+        // Third launch: not without a note, not beside an account notice, then yes.
+        let third = Self.store(service, defaults: defaults, account: account, launchesBefore: 0)
+        #expect(third.launches == 3)
+        await third.refresh(hasNote: false, noticeThisLaunch: false)
+        #expect(!third.visible)
+        await third.refresh(hasNote: true, noticeThisLaunch: true)
+        #expect(!third.visible)
+        await third.refresh(hasNote: true, noticeThisLaunch: false)
+        #expect(third.visible)
     }
 
     @Test func itShowsOnlyWhenTheServerSaysToAsk() async {
         let quiet = FakeService()
         quiet.ask = false
         let a = Self.store(quiet)
-        await a.refresh()
+        await a.refresh(hasNote: true, noticeThisLaunch: false)
         #expect(!a.visible)
 
         let b = Self.store(FakeService())
-        await b.refresh()
+        await b.refresh(hasNote: true, noticeThisLaunch: false)
         #expect(b.visible)
     }
 
     @Test func oneTapAnswersAndIsSent() async {
         let service = FakeService()
         let s = Self.store(service)
-        await s.refresh()
+        await s.refresh(hasNote: true, noticeThisLaunch: false)
         s.answer(.tiktok)
         #expect(s.chosen == .tiktok)
         await s.sending?.value
@@ -57,7 +90,7 @@ import Testing
     @Test func skipAndSwipingAwayBothCountAsSkipped() async {
         let one = FakeService(), two = FakeService()
         let a = Self.store(one), b = Self.store(two)
-        await a.refresh(); await b.refresh()
+        await a.refresh(hasNote: true, noticeThisLaunch: false); await b.refresh(hasNote: true, noticeThisLaunch: false)
         a.skip()
         b.closed()
         await a.sending?.value
@@ -91,10 +124,10 @@ import Testing
         s.visible = false
 
         service.reachable = true
-        await s.refresh()
+        await s.refresh(hasNote: true, noticeThisLaunch: false)
         #expect(service.answers.map(\.0) == [.friend])
         #expect(!s.visible, "answered here: not asked again while the server catches up")
-        await s.refresh()
+        await s.refresh(hasNote: true, noticeThisLaunch: false)
         #expect(service.answers.count == 1, "sent once")
     }
 

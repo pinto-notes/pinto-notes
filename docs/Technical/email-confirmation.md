@@ -100,7 +100,7 @@ Nothing below has been done. Each step needs Emil's go.
        deno run -A scripts/auth-emails.ts confirm > /tmp/confirm.json
 
    That is `mailer_autoconfirm: false`, `mailer_otp_length: 6`, `mailer_otp_exp: 3600`,
-   `mailer_subjects_confirmation: "Confirm your email for Amber Notes"` and
+   `mailer_subjects_confirmation: "Confirm your email for Pinto Notes"` and
    `mailer_templates_confirmation_content` (the code template). Nothing else changes. Production
    already sends through Resend SMTP, so no SMTP change.
 5. **Smoke test.** Sign up in the released app with a new `+alias` address, get the code, confirm,
@@ -123,8 +123,9 @@ Nothing below has been done. Each step needs Emil's go.
 
 ## Also in this change: Open your notes on this device
 
-The screen a new device shows when the account already has notes now says why first ("This
-account already has notes on another device. Link this Mac to open them here."), and the code
+The screen a device without the key shows now says why first ("This Mac doesn't have the key to
+this account's notes. Link it to open them here."; it doesn't say "another device", since a Mac
+that lost its key may be the account's only one), and the code
 under the QR code is large (monospaced, title 2, the groups set apart by kerning only, so a
 selection copies exactly the code), with a Copy code button that says Copied
 (`Pane/Views/AddDeviceView.swift`).

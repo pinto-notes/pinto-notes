@@ -162,6 +162,176 @@ extension NetworkFaults {
         await a.engine.stop()
     }
 
+    /// A file put in a folder on one device shows in that folder on another: the row is applied in
+    /// full the first time a device sees it (its folder, that it's on the server), and that device
+    /// never sends it back as its own.
+    @Test func aFileInAFolderShowsOnAnotherDevice() async throws {
+        let a = try device()
+        let folder = a.context.createFolder(named: "Stress folder")
+        let file = try attach("pdf bytes", named: "report.txt", to: a.context)
+        file.folderID = folder.id
+        let inNote = try attach("png bytes", named: "picture.txt", to: a.context)
+        defer { removeLocalCopy(file); removeLocalCopy(inNote) }
+        let n = a.context.createNote(in: .folder(folder.id), body: "Note\n\(inNote.markdown)")
+        n.dirty = true
+        await a.engine.sync()
+        #expect(file.uploaded)
+        #expect(inNote.uploaded)
+        #expect(StubSupabase.rows("attachments").count == 2)
+        // The other device has none of the bytes.
+        removeLocalCopy(file); removeLocalCopy(inNote)
+
+        let b = try device()
+        await b.engine.sync()
+        let theirs = try #require(b.context.attachment(file.id)), theirsInNote = try #require(b.context.attachment(inNote.id))
+        #expect(theirs.folderID == folder.id, "it's in the folder")
+        #expect(theirs.uploaded, "known to be on the server")
+        #expect(!theirs.dirty, "nothing to send")
+        #expect(theirsInNote.uploaded)
+        #expect(!theirsInNote.dirty)
+        #expect(theirsInNote.folderID == nil)
+        // Fetched and opened there, then another sync: the row on the server is as the first device left it.
+        func serverRow() -> [String: Any]? {
+            let id = file.id.uuidString.lowercased()
+            return StubSupabase.rows("attachments").first { row in (row["id"] as? String)?.lowercased() == id }
+        }
+        let folderBefore = serverRow()?["folder_id"] as? String, createdBefore = serverRow()?["created_at"] as? String
+        let fetched = await b.engine.download(theirs)
+        #expect(fetched)
+        await b.engine.sync()
+        let folderAfter = serverRow()?["folder_id"] as? String, createdAfter = serverRow()?["created_at"] as? String
+        #expect(folderBefore != nil)
+        #expect(folderAfter == folderBefore)
+        #expect(createdAfter == createdBefore)
+        removeLocalCopy(file)
+        await a.engine.stop(); await b.engine.stop()
+    }
+
+    /// A device that took a file's row with a build that left it half applied (no folder, marked
+    /// as new here, the cursor already past it): the next sync reads the row again and applies it.
+    @Test func aHalfAppliedFileRowIsRepaired() async throws {
+        let a = try device()
+        let folder = a.context.createFolder(named: "Stress folder")
+        let file = try attach("pdf bytes", named: "report.txt", to: a.context)
+        file.folderID = folder.id
+        defer { removeLocalCopy(file) }
+        await a.engine.sync()
+        removeLocalCopy(file)
+
+        let b = try device()
+        await b.engine.sync()
+        let theirs = try #require(b.context.attachment(file.id))
+        // As the earlier build left it.
+        theirs.folderID = nil; theirs.uploaded = false; theirs.dirty = true
+        await b.engine.sync()
+        #expect(theirs.folderID == folder.id)
+        #expect(theirs.uploaded)
+        #expect(!theirs.dirty)
+        // A file really added on this device and not sent yet is not touched by that.
+        let mine = try attach("new here", named: "mine.txt", to: b.context)
+        defer { removeLocalCopy(mine) }
+        mine.folderID = folder.id
+        #expect(mine.dirty)
+        #expect(!mine.uploaded)
+        await b.engine.sync()
+        #expect(mine.uploaded)
+        #expect(mine.folderID == folder.id)
+        #expect(StubSupabase.rows("attachments").count == 2)
+        await a.engine.stop(); await b.engine.stop()
+    }
+
+    /// A picture added on another device while its note is open here: when the file's row comes in a
+    /// later sync than the note's text, the note's text doesn't change again, so the open note is
+    /// told by the files themselves and asks for the picture then (issue 426).
+    @Test func aFileRowArrivingAfterTheNotesTextTellsTheOpenNote() async throws {
+        let a = try device()
+        let b = try device()
+        // The note's text reaches B first, already showing a picture B has no row for.
+        let id = UUID()
+        let n = a.context.createNote(in: .all, body: "Trip\n" + FileStore.markdown(id: id, filename: "late.png", image: true))
+        n.dirty = true
+        await a.engine.sync()
+        await b.engine.sync()
+        #expect(b.context.note(n.id)?.body == n.body)
+        #expect(b.context.attachment(id) == nil)
+        let textTick = b.engine.remoteChangeTick, filesTick = b.engine.filesPulledTick
+
+        // Then A's upload finishes: the file's row, and nothing else, in B's next sync.
+        let file = Pane.Attachment(id: id, filename: "late.png", contentType: "public.png", size: 9)
+        let url = FileStore.url(for: id, filename: "late.png")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("png bytes".utf8).write(to: url)
+        defer { removeLocalCopy(file) }
+        a.context.insert(file)
+        await a.engine.sync()
+        #expect(file.uploaded)
+        removeLocalCopy(file)
+        await b.engine.sync()
+        #expect(b.context.attachment(id) != nil)
+        #expect(b.engine.remoteChangeTick == textTick, "the note's text didn't change: nothing used to ask again")
+        #expect(b.engine.filesPulledTick == filesTick + 1, "the file rows say so now")
+        // A sync that brings no file rows doesn't.
+        await b.engine.sync()
+        #expect(b.engine.filesPulledTick == filesTick + 1)
+
+        // What the open note does when told: the picture that wasn't here is fetched.
+        let controller = EditorController()
+        controller.resolveAttachment = { b.context.attachment($0) }
+        controller.isLocal = { _ in false }
+        var fetched: [UUID] = []
+        controller.download = { f in fetched.append(f.id); return true }
+        await controller.fetchMissingImages(note: n.id, body: n.body)
+        #expect(fetched == [id])
+        await a.engine.stop(); await b.engine.stop()
+    }
+
+    /// A note opened on a device that doesn't have its pictures: the images its text shows are
+    /// fetched without a tap. Only those: not one that's here, not another kind of file, not one
+    /// this device hasn't sent, not a very large one, and each once while the note is open.
+    @Test func aNotesImagesAreFetchedWhenItOpens() async throws {
+        let a = try device()
+        func file(_ name: String, _ type: String, uploaded: Bool = true, size: Int64 = 100) -> Pane.Attachment {
+            let f = Pane.Attachment(filename: name, contentType: type, size: size)
+            f.uploaded = uploaded
+            f.dirty = !uploaded
+            a.context.insert(f)
+            return f
+        }
+        let here = file("here.png", "public.png"), away = file("away.png", "public.png"), failing = file("failing.png", "public.png")
+        let pdf = file("doc.pdf", "com.adobe.pdf"), unsent = file("new.png", "public.png", uploaded: false)
+        let huge = file("huge.png", "public.png", size: EditorController.autoImageMaxBytes + 1)
+        let elsewhere = file("other-note.png", "public.png")
+        let body = ["Trip", here.markdown, away.markdown, pdf.markdown, unsent.markdown, huge.markdown, away.markdown, failing.markdown].joined(separator: "\n")
+        let shown: [UUID] = [here.id, away.id, unsent.id, huge.id, failing.id]
+        #expect(EditorController.imageIDs(in: body) == shown, "images only, each once, in order")
+
+        let controller = EditorController()
+        controller.resolveAttachment = { a.context.attachment($0) }
+        var local: Set<UUID> = [here.id]
+        controller.isLocal = { local.contains($0.id) }
+        var fetched: [UUID] = []
+        controller.download = { f in
+            fetched.append(f.id)
+            guard f.id != failing.id else { return false }
+            local.insert(f.id)
+            return true
+        }
+        let note = UUID()
+        await controller.fetchMissingImages(note: note, body: body)
+        let firstOpen: [UUID] = [away.id, failing.id]
+        #expect(fetched == firstOpen)
+        #expect(!fetched.contains(elsewhere.id))
+        #expect(controller.imagesArrived == 1, "the one that arrived is drawn")
+        // Still open (a sync came in): nothing is asked for twice, the failed one included.
+        await controller.fetchMissingImages(note: note, body: body)
+        #expect(fetched == firstOpen)
+        // Opened again later: the one that failed gets another try; the one that's here doesn't.
+        await controller.fetchMissingImages(note: UUID(), body: "No pictures")
+        await controller.fetchMissingImages(note: note, body: body)
+        #expect(fetched == firstOpen + [failing.id])
+        await a.engine.stop()
+    }
+
     @Test func aNewAccountKeySendsEverythingUpAgain() async throws {
         let a = try device()
         let n = a.context.createNote(in: .all, body: "Kept on this device")
@@ -176,6 +346,47 @@ extension NetworkFaults {
         #expect(StubSupabase.rows("notes").count == 1, "this device's notes go up again")
         #expect(box.flatMap { fresh.open($0, context: E2EE.body(n.id)) } == "Kept on this device", "sealed with the new key")
         #expect(a.defaults.string(forKey: SyncEngine.keyIDKey(user)) == fresh.keyID)
+        await a.engine.stop()
+    }
+
+    /// Start fresh on this device, which remembers no key id (it never finished a sync with its
+    /// key, or lost the memory): its notes (Recently Deleted too), folders and files still go up
+    /// under the new key.
+    @Test func startingFreshHereSendsEverythingUpEvenWithNoKeyRemembered() async throws {
+        let a = try device()
+        let folder = a.context.createFolder(named: "Trips")
+        let file = try attach("file bytes", named: "plan.txt", to: a.context)
+        defer { removeLocalCopy(file) }
+        let n = a.context.createNote(in: .folder(folder.id), body: "Kept on this device\n\(file.markdown)")
+        let trashed = a.context.createNote(in: .all, body: "In Recently Deleted")
+        n.dirty = true
+        trashed.dirty = true
+        await a.engine.sync()
+        trashed.trashedAt = .now
+        trashed.dirty = true
+        await a.engine.sync()
+        #expect(!n.dirty && n.serverVersion > 0 && !trashed.dirty && !folder.dirty && file.uploaded)
+        // No key id remembered, the server emptied by Start fresh here, a new key.
+        a.defaults.removeObject(forKey: SyncEngine.keyIDKey(user))
+        a.defaults.set(true, forKey: SyncEngine.uploadAgainKey(user))
+        StubSupabase.reset()
+        let fresh = Sealer(key: SymmetricKey(size: .bits256), user: user)
+        await Wire.$testSealer.withValue(fresh) { await a.engine.sync() }
+        #expect(StubSupabase.rows("notes").count == 2, "both notes go up again")
+        let box = StubSupabase.rows("notes").first { ($0["id"] as? String)?.lowercased() == n.id.uuidString.lowercased() }?["body_ct"] as? String
+        #expect(box.flatMap { fresh.open($0, context: E2EE.body(n.id)) } == n.body, "sealed with the new key")
+        // The folder and the file with them: its row, and its bytes in Storage again.
+        #expect(StubSupabase.rows("folders").count == 1 && StubSupabase.rows("attachments").count == 1)
+        let stored = StubSupabase.objects["\(user.uuidString.lowercased())/\(file.id.uuidString.lowercased())"]
+        #expect(stored.map(E2EE.isSealedFile) == true && file.uploaded && !file.dirty && !folder.dirty)
+        #expect(a.context.note(n.id) != nil && a.context.note(trashed.id) != nil && a.context.note(n.id)?.folder?.id == folder.id, "and stay on this device")
+        #expect(FileStore.exists(file), "the file too")
+        #expect(!a.defaults.bool(forKey: SyncEngine.uploadAgainKey(user)), "once")
+        // Without the mark and without a remembered key id, nothing is sent again.
+        a.defaults.removeObject(forKey: SyncEngine.keyIDKey(user))
+        StubSupabase.reset()
+        await Wire.$testSealer.withValue(fresh) { await a.engine.sync() }
+        #expect(StubSupabase.rows("notes").isEmpty)
         await a.engine.stop()
     }
 
@@ -490,6 +701,7 @@ extension NetworkFaults {
         StubSupabase.answer("publish_share") { _ in ["slug": slug, "missing_files": [String]()] }
         await a.engine.sync()
         #expect(a.engine.liveShares[root.id] == true)
+        #expect(a.engine.liveSlugs[root.id] == slug, "with its slug, for the open note")
         try await waitForPublishes(a.engine)
         var before = publishes().count
 

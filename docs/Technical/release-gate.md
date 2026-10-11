@@ -147,9 +147,28 @@ dev eb57bb1dc9 (docs/Evidence/release-gate/2026-10-08-dev-eb57bb1dc9.md), with t
 | Server latency p50, p95 | 1.5 × dev + 100 ms, 2 × dev + 200 ms | 100 ms, 300 ms |
 | Supabase advisor warnings | dev's count | 0 |
 
+Changed since, each in its own commit:
+
+- 2026-10-09, views laid out at 2,000 notes: sidebar hide 5,450 -> 7,000, sidebar show 5,850 -> 7,000,
+  typing and saving 8,000 -> 9,950. Per-row hover tracking in the sidebar and lists (asked for by Emil
+  2026-10-07) adds layout passes on sidebar toggles and typed saves; frame times, hangs and memory
+  unchanged (release-gate quick look 3bacaed1, 2026-10-09: 6,082, 6,087 and 8,644 views laid out;
+  memory 134 MB against 128 to 132 without hover); reviewed by the lead. Set at measured + 15%,
+  tighter than the rule above on purpose: 1.5 × would hide a second change the size of hover. The 1 and 20,000-note lines were not measured with hover
+  and are unchanged. One pointer tracker per list instead of one per row would win these back.
+
 These are ceilings on today's dev, not targets: dev still has hangs of over a second, a first sync
 of minutes, and a folder push the server refuses about 1,500 times a launch (see the report). Tighten a budget in its own commit when the code
 behind it gets better; never loosen one to pass a run.
+
+The same rule holds from 2026-10-09 for the timing constants in the app's tests
+(`AppPerfTests.listBudgets`, `WindowUpdateTests.typingBudgets`). #338 changed them once, a few hours
+after they were first written as guesses: at 20,000 notes a save shown went from 400 to 600 ms and a
+save while typing from 240 to 300 ms, and the first display was tightened (400 to 250 ms at 2,000
+notes, 2,000 to 1,000 ms at 20,000). The new values come from two CI Debug runs (a save shown 608 to
+773 ms, a typing save 297 to 371 ms at 20,000 notes) and leave about three times that at CI's limit,
+which is the constant times 4. The old values passed on CI too, so no run needed the change. Nobody
+has measured these on a developer's Mac yet, where the limit is the constant itself.
 
 ## Limits
 

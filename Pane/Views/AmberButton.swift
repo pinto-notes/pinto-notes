@@ -13,9 +13,11 @@ import SwiftUI
 struct AmberProminentButtonStyle: ButtonStyle {
     /// A full-width row of this height and corner radius (forms), or nil for a capsule.
     var row: (height: CGFloat, cornerRadius: CGFloat)? = nil
+    /// A long title in a narrow place takes a second line instead of being cut.
+    var wraps = false
 
     func makeBody(configuration: Configuration) -> some View {
-        AmberProminentButton(configuration: configuration, row: row)
+        AmberProminentButton(configuration: configuration, row: row, wraps: wraps)
     }
 
     /// The fills and the label's colour, for the contrast test.
@@ -39,6 +41,7 @@ struct AmberProminentButtonStyle: ButtonStyle {
 
 extension ButtonStyle where Self == AmberProminentButtonStyle {
     static var amberProminent: AmberProminentButtonStyle { .init() }
+    static var amberProminentWrapping: AmberProminentButtonStyle { .init(wraps: true) }
     static func amberProminent(height: CGFloat, cornerRadius: CGFloat) -> AmberProminentButtonStyle { .init(row: (height, cornerRadius)) }
 }
 
@@ -60,14 +63,19 @@ extension View {
 private struct AmberProminentButton: View {
     let configuration: ButtonStyleConfiguration
     let row: (height: CGFloat, cornerRadius: CGFloat)?
+    var wraps = false
     @Environment(\.amberBusy) private var busy
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.isFocused) private var isFocused
     @Environment(\.controlSize) private var controlSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hoverPreview) private var preview
+    @State private var hovering = false
 
     var body: some View {
-        let shape: AnyShape = row.map { AnyShape(RoundedRectangle(cornerRadius: $0.cornerRadius, style: .continuous)) } ?? AnyShape(Capsule())
+        // Two or three lines in a capsule lose their corners: a wrapping title gets a rounded rectangle.
+        let shape: AnyShape = row.map { AnyShape(RoundedRectangle(cornerRadius: $0.cornerRadius, style: .continuous)) }
+            ?? (wraps ? AnyShape(RoundedRectangle(cornerRadius: 18, style: .continuous)) : AnyShape(Capsule()))
         // A busy button stays solid: it's working, not unavailable.
         let off = !isEnabled && !busy
         let fill = off ? AmberProminentButtonStyle.disabledFill
@@ -75,7 +83,9 @@ private struct AmberProminentButton: View {
         return configuration.label
             .font(row.map { AmberProminentButtonStyle.rowTitle(height: $0.height) } ?? font)
             .foregroundStyle(Color(off ? AmberProminentButtonStyle.disabledLabel : AmberProminentButtonStyle.label))
-            .lineLimit(1)
+            .lineLimit(wraps ? 3 : 1)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, wraps ? 6 : 0)
             // Busy: the label keeps its place (so nothing moves) and a spinner sits on it.
             .opacity(busy ? 0 : 1)
             .overlay { if busy { AmberSpinner(reduceMotion: reduceMotion) } }
@@ -85,7 +95,11 @@ private struct AmberProminentButton: View {
             .background {
                 shape
                     .fill(Color(fill))
-                    .overlay { if configuration.isPressed { shape.fill(.black.opacity(0.14)) } }
+                    // Under the pointer a touch lighter; pressed, darker.
+                    .overlay {
+                        if configuration.isPressed { shape.fill(.black.opacity(0.14)) }
+                        else if !off && (hovering || preview.contains("*")) { shape.fill(.white.opacity(0.12)) }
+                    }
             }
             .overlay {
                 if isFocused {
@@ -93,6 +107,7 @@ private struct AmberProminentButton: View {
                 }
             }
             .contentShape(shape)
+            .modifier(HoverTracking(hovering: $hovering))
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
             .accessibilityValue(busy ? Text("Working") : Text(""))

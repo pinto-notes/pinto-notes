@@ -27,9 +27,12 @@ import Testing
 
     @Test func leavingGoesBackToDots() {
         var reveal = PasswordReveal()
-        #expect(!reveal.hide(), "nothing to hide")
+        // Outside #expect: its closure can't call a mutating method.
+        let wasShownBefore = reveal.hide()
+        #expect(!wasShownBefore, "nothing to hide")
         reveal.toggle()
-        #expect(reveal.hide())
+        let wasShown = reveal.hide()
+        #expect(wasShown)
         #expect(reveal == PasswordReveal())
     }
 

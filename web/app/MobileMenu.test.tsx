@@ -23,7 +23,7 @@ describe("what the phone menu holds", () => {
 
   it("lists the desktop header's pages in its order, then GitHub with its stars", () => {
     const rows = menu().split('<nav class="site-sheet-rows" aria-label="Site menu">')[1].split("</nav>")[0];
-    expect(hrefs(rows)).toEqual(["/templates", "/blog", "/changelog", "/help", "https://github.com/amber-notes/amber-notes"]);
+    expect(hrefs(rows)).toEqual(["/templates", "/blog", "/changelog", "/help", "https://github.com/pinto-notes/pinto-notes"]);
     expect(text(rows)).toBe("TemplatesBlogChangelogHelpGitHub★ 7");
     expect(rows).toContain('aria-label="GitHub, 7 stars"');
   });
@@ -32,7 +32,7 @@ describe("what the phone menu holds", () => {
     const header = renderToStaticMarkup(<SiteChrome version="1.2" stars={7}>page</SiteChrome>).split('<nav class="site-nav"')[1].split("</nav>")[0];
     const pages = hrefs(header).filter((h) => h.startsWith("/") && h !== "/download" && h !== "/download/mac");
     expect(pages).toEqual(MENU_PAGES.map((p) => p.href));
-    expect(header).toContain("https://github.com/amber-notes/amber-notes");
+    expect(header).toContain("https://github.com/pinto-notes/pinto-notes");
     expect(header).toContain(">For iPhone and Mac</a>");
   });
 
@@ -46,7 +46,7 @@ describe("what the phone menu holds", () => {
 
   it("ends with the Mac download where that's some use, as the home page does", () => {
     expect(text(part(menu(), "pi-apple pi-not-ios"))).toBe(" Download for MaciPhone · coming soon");
-    expect(part(menu(), "pi-apple pi-not-ios")).toContain('href="/download/mac" download="Amber-Notes.dmg"');
+    expect(part(menu(), "pi-apple pi-not-ios")).toContain('href="/download/mac" download="Pinto-Notes.dmg"');
     expect(text(part(menu(true), "pi-apple pi-not-ios"))).toBe(" Get it for iPhone Download for Mac");
   });
 
