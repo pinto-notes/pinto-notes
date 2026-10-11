@@ -961,7 +961,7 @@ struct AppGate: View {
                 // until it ends in the notes.
                 Group {
                     if onboarding.step != nil {
-                        OnboardingFlow(store: onboarding, backend: backend, setup: setup, layout: Self.onboardingLayout,
+                        OnboardingFlow(store: onboarding, backend: backend, setup: setup,
                                        prepareTryIt: prepareTryIt, finish: finishOnboarding)
                     } else {
                         OnboardingWait(store: onboarding)
@@ -1101,16 +1101,11 @@ struct AppGate: View {
         return onboarding.covers(backend.userID)
     }
 
-    /// Design review: `-onboardingLayout grid` shows the two choice steps as tiles.
-    static let onboardingLayout: OnboardingFlow.Layout = {
-        let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "-onboardingLayout"), i + 1 < args.count else { return .rows }
-        return OnboardingFlow.Layout(rawValue: args[i + 1]) ?? .rows
-    }()
-
     /// The Try it step asks an AI to write to the To-do note, so the note exists by then.
-    private func prepareTryIt() {
-        if sync.knowsAccount, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
+    private func prepareTryIt() -> UUID? {
+        guard sync.knowsAccount, let note = context.toDoNoteForOnboarding() else { return nil }
+        SyncSignal.changed()
+        return note.id
     }
 
     /// The flow ends in the notes with the first useful thing ready: the To-do note when an AI

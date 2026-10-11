@@ -240,6 +240,113 @@ final class OnboardingStore {
     }
 }
 
+/// The flow's last step: one click hands the prompt to the AI, the To-do note is on the screen,
+/// and the step ends by itself when the AI's line arrives.
+///
+/// What a link can do, as checked in a browser on 2026-10-11: `chatgpt.com/?q=` sends the prompt
+/// at once (seen signed out); `claude.ai/new?q=` puts it in the box under a caution note and
+/// waits for send (signed in). Whether either company's Mac or iPhone app takes the text from
+/// the link was not tested, so the prompt is always copied as well. Claude Code, Codex and other
+/// MCP apps have no such link: the prompt is shown to paste.
+enum TryIt {
+    enum Way: Equatable, Identifiable {
+        /// A button that opens the AI's site with the prompt in it.
+        case ask(ai: String)
+        /// The prompt to copy and paste.
+        case paste
+
+        var id: String {
+            switch self {
+            case .ask(let ai): ai
+            case .paste: "paste"
+            }
+        }
+    }
+
+    /// The AIs a link can hand the prompt to, in the order they are offered.
+    static let askable = ["ChatGPT", "Claude"]
+
+    /// How the prompt reaches the AI, by what is connected: a button for ChatGPT and for Claude
+    /// when they are, and the prompt to paste when something else is (or nothing is known yet).
+    static func ways(connected: Set<String>) -> [Way] {
+        let asks = askable.filter(connected.contains).map { Way.ask(ai: $0) }
+        let others = connected.subtracting(askable)
+        if asks.isEmpty { return [.paste] }
+        return others.isEmpty ? asks : asks + [.paste]
+    }
+
+    static func page(for ai: String, prompt: String = Onboarding.prompt) -> URL? {
+        switch ai {
+        case "ChatGPT": WebConnectPlan.prefilled("https://chatgpt.com/", prompt)
+        case "Claude": WebConnectPlan.prefilled("https://claude.ai/new", prompt)
+        default: nil
+        }
+    }
+
+    static func askTitle(_ ai: String) -> String { "Ask \(ai)" }
+
+    /// Under Claude's button, before it is pressed: what Claude will show.
+    static let claudeNote = "Claude shows a caution note for prompts that arrive by link. Press send there."
+
+    /// One calm line after the prompt was handed over.
+    static func afterAsking(_ ai: String?) -> String {
+        switch ai {
+        case "ChatGPT": "ChatGPT has the message. Its line appears here when it is done."
+        case "Claude": "Press send in Claude, under its caution note. Its line appears here when it is done."
+        default: "Paste it into your AI and send it. Its line appears here when it is done."
+        }
+    }
+
+    static let waiting = "Waiting for your AI\u{2026}"
+    static let worked = "It worked"
+    static let workedLine = "Your AI just wrote in your notes."
+
+    /// After this long with nothing arriving, the step says what to check.
+    static let lateAfter: TimeInterval = 150
+
+    static let late = "Nothing has arrived yet. Check that your AI answered and that Pinto Notes is switched on in it, or give it the prompt again."
+
+    /// The AI's line is in: the note is no longer what it was when the step began.
+    static func arrived(body: String, since start: String, aiEdits: Int, editsAtStart: Int) -> Bool {
+        if aiEdits > editsAtStart { return true }
+        return normalized(body) != normalized(start)
+    }
+
+    private static func normalized(_ body: String) -> String { body.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// One line of the note as the step draws it.
+    struct Line: Equatable, Identifiable {
+        enum Kind: Equatable { case title, todo(done: Bool), bullet, text }
+        let id: Int
+        let kind: Kind
+        let text: String
+        /// Not in the note when the step began: drawn the way the app tints what an AI added.
+        var fresh = false
+    }
+
+    /// The note's first lines, checklists and bullets read as such; lines that were not there at
+    /// the start are marked fresh.
+    static func lines(of body: String, since start: String = "", limit: Int = 6) -> [Line] {
+        let before = Set(start.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) })
+        var out: [Line] = []
+        for raw in body.split(separator: "\n", omittingEmptySubsequences: true) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty, out.count < limit else { continue }
+            let fresh = !out.isEmpty && !start.isEmpty && !before.contains(line)
+            if out.isEmpty {
+                out.append(Line(id: 0, kind: .title, text: line.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)))
+            } else if let m = line.firstMatch(of: /^[-*]\s+\[( |x|X)\]\s+(.*)$/) {
+                out.append(Line(id: out.count, kind: .todo(done: m.1 != " "), text: String(m.2), fresh: fresh))
+            } else if let m = line.firstMatch(of: /^[-*]\s+(.*)$/) {
+                out.append(Line(id: out.count, kind: .bullet, text: String(m.1), fresh: fresh))
+            } else {
+                out.append(Line(id: out.count, kind: .text, text: line, fresh: fresh))
+            }
+        }
+        return out
+    }
+}
+
 extension Notification.Name {
     /// Help › Show Setup Guide (Settings on iPhone): the first-run flow, from the welcome.
     static let paneReplayOnboarding = Notification.Name("pane.replayOnboarding")

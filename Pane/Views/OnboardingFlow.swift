@@ -5,26 +5,28 @@ import SwiftUI
 /// AI, and, once an AI is connected, the prompt to try. It has the whole window: on the Mac the
 /// welcome's card with its picture, on iPhone and iPad the picture on top, as the sign-in before it.
 struct OnboardingFlow: View {
-    /// How the two choice steps are laid out. `rows`: a list of wide rows beside the picture.
-    /// `grid`: tiles across the whole window, without the picture.
-    typealias Layout = BigChoices.Layout
-
     /// Captures: fixed values in place of the account's.
     struct Preview {
         var name = ""
         /// Titles of the AIs shown as connected.
         var connected: [String] = []
         var brought = 0
+        /// The Try it step: the AI the prompt was handed to, the To-do note's text, and how far along.
+        var asked: String? = nil
+        var note = SetupProgress.toDoBody
+        var arrived = false
+        var late = false
         var copied = false
+        /// iPhone: Apple Notes under the other sources instead of above them.
+        var appleNotesLast = false
     }
 
     let store: OnboardingStore
     let backend: Backend
     var setup: SetupStore?
-    var layout: Layout = .rows
     var preview: Preview?
     /// The Try it step is on screen: the To-do note its prompt writes to has to exist now.
-    var prepareTryIt: () -> Void = {}
+    var prepareTryIt: () -> UUID? = { nil }
     /// The flow is over. `connected`: an AI is connected, so the notes open on the To-do note.
     let finish: (_ connected: Bool) -> Void
 
@@ -40,6 +42,15 @@ struct OnboardingFlow: View {
     @State private var connectedTitles: Set<String> = []
     @State private var brought = 0
     @State private var copied = false
+    // The Try it step: the To-do note, what it held when the step began, and how far along it is.
+    @State private var tryNote: UUID?
+    @State private var tryStart: (body: String, edits: Int)?
+    @State private var tryBody = SetupProgress.toDoBody
+    @State private var asked: String?
+    @State private var arrived = false
+    @State private var late = false
+    @Environment(SyncEngine.self) private var sync: SyncEngine?
+    @Environment(\.openURL) private var openURL
     @State private var forward = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -58,8 +69,9 @@ struct OnboardingFlow: View {
         screen
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: step)
             .task { await loadAccount() }
+            // The Try it step watches the To-do note until the AI's line is in it.
+            .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
             .onChange(of: step, initial: true) { _, now in
-                if now == .tryIt, preview == nil { prepareTryIt() }
                 #if os(macOS)
                 if now == .name { nameFocused = true }
                 #endif
@@ -79,37 +91,21 @@ struct OnboardingFlow: View {
 
     // MARK: The window
 
-    /// The two choice steps drop the picture in the grid layout; every other step keeps it.
-    private var showsArt: Bool { layout == .rows || !(step == .bring || step == .connect) }
-
     @ViewBuilder private var screen: some View {
         #if os(macOS)
-        if showsArt {
-            CardLayout {
-                page(alignment: .leading)
-                    .padding(.horizontal, 52)
-                    .padding(.top, 26)
-                    .padding(.bottom, 36)
-            }
-        } else {
-            page(alignment: .center)
-                .padding(.horizontal, 56)
+        CardLayout {
+            page
+                .padding(.horizontal, 52)
                 .padding(.top, 26)
                 .padding(.bottom, 36)
-                .frame(minWidth: WelcomeFlow.size.width, maxWidth: .infinity, maxHeight: .infinity)
-                .background { Backdrop() }
         }
         #else
         ScrollView {
             VStack(spacing: 0) {
-                if showsArt {
-                    phoneArt(share: artShare)
-                } else {
-                    AppMark(size: 48).padding(.top, 72)
-                }
-                VStack(alignment: showsArt ? .leading : .center, spacing: Metrics.gap) {
+                phoneArt(share: artShare)
+                VStack(alignment: .leading, spacing: Metrics.gap) {
                     progress
-                    heading(alignment: showsArt ? .leading : .center)
+                    heading
                     middle
                 }
                 .padding(.horizontal, 24)
@@ -141,28 +137,27 @@ struct OnboardingFlow: View {
     #if os(macOS)
     /// One step in the Mac's window: Back and the progress on top, the words and the choices in
     /// the middle, the buttons at the foot.
-    private func page(alignment: HorizontalAlignment) -> some View {
-        VStack(alignment: alignment, spacing: 0) {
+    private var page: some View {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 back
                 Spacer(minLength: 0)
                 progress.frame(width: 96)
             }
             .frame(height: 24)
-            VStack(alignment: alignment, spacing: Metrics.gap) {
+            VStack(alignment: .leading, spacing: Metrics.gap) {
                 if step == .welcome { AppMark(size: 56).padding(.bottom, 8) }
-                heading(alignment: alignment)
+                heading
                 middle
             }
-            .padding(.top, step == .welcome ? 72 : (showsArt ? 28 : 0))
-            // Without the picture, the words and the tiles sit in the middle of the window.
-            .frame(maxWidth: .infinity, maxHeight: showsArt ? nil : .infinity, alignment: alignment == .leading ? .topLeading : .center)
+            .padding(.top, step == .welcome ? 72 : 28)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .id(step)
             .transition(stepTransition)
-            if showsArt { Spacer(minLength: 16) }
-            actions.frame(maxWidth: showsArt ? .infinity : 320)
+            Spacer(minLength: 16)
+            actions
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment == .leading ? .topLeading : .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder private var back: some View {
@@ -264,7 +259,7 @@ struct OnboardingFlow: View {
         case .name: "Your name shows on your account and on notes you share."
         case .bring: "Choose where they are now. Nothing changes there."
         case .connect: ConnectChoices.why
-        case .tryIt: "Ask your AI this. It adds a line to the To-do note in your notes."
+        case .tryIt: "Ask your AI to add a line to your To-do note. You\u{2019}ll see it arrive here."
         }
     }
 
@@ -274,8 +269,8 @@ struct OnboardingFlow: View {
     static let skipBring = "Skip, I\u{2019}ll start empty"
     static let skipConnect = "Skip for now"
 
-    private func heading(alignment: HorizontalAlignment) -> some View {
-        VStack(alignment: alignment, spacing: Metrics.headingGap) {
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: Metrics.headingGap) {
             Text(Self.title(step))
                 .font(step == .welcome ? WelcomeFlow.titleFont : Metrics.title)
                 .tracking(step == .welcome ? -0.8 : -0.4)
@@ -287,7 +282,7 @@ struct OnboardingFlow: View {
                 .foregroundStyle(Color.muted)
                 .lineSpacing(2)
         }
-        .multilineTextAlignment(alignment == .center ? .center : .leading)
+        .multilineTextAlignment(.leading)
         .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -299,11 +294,7 @@ struct OnboardingFlow: View {
         case .name: nameField
         case .bring: choices(sources)
         case .connect: connect
-        case .tryIt:
-            VStack(spacing: 10) {
-                promptBox
-                primary(preview?.copied ?? copied ? "Copied" : "Copy prompt", id: "onboarding.copy", action: copy)
-            }
+        case .tryIt: tryIt
         }
     }
 
@@ -343,29 +334,127 @@ struct OnboardingFlow: View {
         }
     }
 
-    private var promptBox: some View {
+    // MARK: Try it
+
+    private var shownAsked: String? { preview?.asked ?? asked }
+    private var shownArrived: Bool { preview?.arrived ?? arrived }
+    private var shownLate: Bool { preview?.late ?? late }
+    private var tryConnected: Set<String> { Set(preview?.connected ?? Array(connectedTitles)) }
+
+    /// The To-do note on the screen, the one click that hands the prompt to the AI, and one line
+    /// that says where things are. The step ends by itself when the AI's line is in the note.
+    private var tryIt: some View {
+        let start = preview != nil ? SetupProgress.toDoBody : (tryStart?.body ?? tryBody)
+        return VStack(alignment: .leading, spacing: 12) {
+            ToDoPreview(lines: TryIt.lines(of: preview?.note ?? tryBody, since: start), waiting: !shownArrived)
+            if shownArrived {
+                HStack(spacing: 10) {
+                    DrawnCheck(animated: preview == nil && !reduceMotion).frame(width: 26, height: 26)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(TryIt.worked).font(BigChoices.Metrics.title).foregroundStyle(Color.ink)
+                        Text(TryIt.workedLine).font(.footnote).foregroundStyle(Color.muted)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("onboarding.worked")
+                .transition(.opacity)
+            } else {
+                ForEach(TryIt.ways(connected: tryConnected)) { way in
+                    switch way {
+                    case .ask(let ai):
+                        VStack(alignment: .leading, spacing: 6) {
+                            askButton(ai)
+                            if ai == "Claude", shownAsked == nil {
+                                Text(TryIt.claudeNote).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    case .paste:
+                        promptToPaste
+                    }
+                }
+                if shownLate {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(TryIt.late).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                        if !TryIt.ways(connected: tryConnected).contains(.paste) { copyLink }
+                    }
+                    .accessibilityIdentifier("onboarding.late")
+                } else if shownAsked != nil || shownCopied {
+                    Text(TryIt.afterAsking(shownAsked)).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("onboarding.asked")
+                }
+            }
+        }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: shownArrived)
+    }
+
+    private var shownCopied: Bool { preview?.copied ?? copied }
+
+    /// "Ask ChatGPT": opens the AI with the prompt in it. The first one offered is the amber
+    /// button; a second one is quieter beside it.
+    @ViewBuilder private func askButton(_ ai: String) -> some View {
+        let first = TryIt.ways(connected: tryConnected).first == .ask(ai: ai)
+        let label = HStack(spacing: 8) {
+            // The AI's own mark on its white tile, so it reads on the amber.
+            AITile(ai: ai, size: Metrics.askMark)
+            Text(TryIt.askTitle(ai))
+        }
+        if first {
+            Button { ask(ai) } label: { label }
+                .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("onboarding.ask.\(ai)")
+        } else {
+            Button { ask(ai) } label: {
+                Text(TryIt.askTitle(ai)).frame(maxWidth: .infinity, minHeight: Metrics.quietHeight).contentShape(.rect)
+            }
+            .buttonStyle(.hoverLink)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.tint)
+            .accessibilityIdentifier("onboarding.ask.\(ai)")
+        }
+    }
+
+    /// For an AI no link can reach (Claude Code, Codex, another MCP app): the one line to paste.
+    private var promptToPaste: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous)
-        return Text(Onboarding.prompt)
-            .font(Metrics.prompt)
-            .foregroundStyle(Color.ink)
-            .textSelection(.enabled)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(Metrics.tilePadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-            .accessibilityIdentifier("onboarding.prompt")
+        return HStack(alignment: .center, spacing: 10) {
+            Text(Onboarding.prompt)
+                .font(Metrics.prompt)
+                .foregroundStyle(Color.ink)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("onboarding.prompt")
+            Spacer(minLength: 4)
+            Button(shownCopied ? "Copied" : "Copy", action: copy)
+                .buttonStyle(.amberProminent)
+                .fixedSize()
+                .accessibilityIdentifier("onboarding.copy")
+        }
+        .padding(.leading, Metrics.tilePadding)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(Palette.field), in: shape)
+        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+    }
+
+    private var copyLink: some View {
+        Button(shownCopied ? "Copied" : "Copy the prompt", action: copy)
+            .buttonStyle(.hoverLink)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tint)
+            .accessibilityIdentifier("onboarding.copy")
     }
 
     // MARK: Choices
 
-    /// Where notes can come from: Apple Notes first, then the kinds the import sheet knows.
+    /// Where notes can come from, as equal choices: on the Mac, Apple Notes first (it reads the
+    /// Notes app directly), then the kinds the import sheet knows. On iPhone and iPad Apple Notes
+    /// is not one of them: see `appleNotesOnMac`.
     private var sources: [BigChoice] {
         var list: [BigChoice] = []
         #if os(macOS)
         list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .symbol("note.text")) { importingAppleNotes = true })
-        #else
-        list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Share notes from the Notes app", mark: .symbol("note.text")) { sharingHowTo = true })
         #endif
         for kind in Self.sourceOrder {
             list.append(BigChoice(id: "onboarding.source.\(kind.rawValue)", title: Self.sourceTitle(kind), detail: Self.sourceDetail(kind), mark: .symbol(kind.symbol)) { importing = kind })
@@ -401,9 +490,9 @@ struct OnboardingFlow: View {
     /// connected AI is marked on its own choice.
     @ViewBuilder private var connect: some View {
         if let preview {
-            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, layout: layout, listsConnected: false, preview: Self.connections(preview.connected))
+            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected))
         } else if let client = backend.client {
-            ConnectChoices(client: client, guides: Self.guides, layout: layout, listsConnected: false) { titles in
+            ConnectChoices(client: client, guides: Self.guides, listsConnected: false) { titles in
                 connectedTitles = titles
                 Task { await setup?.refresh(force: true) }
             }
@@ -417,16 +506,78 @@ struct OnboardingFlow: View {
 
     private func choices(_ list: [BigChoice]) -> some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
-            BigChoices(list: list, layout: layout)
+            #if os(iOS)
+            if preview?.appleNotesLast != true { appleNotesOnMac }
+            #endif
+            BigChoices(list: list)
+            #if os(iOS)
+            if preview?.appleNotesLast == true { appleNotesOnMac }
+            #endif
             if step == .bring, broughtCount > 0 {
                 Label(broughtCount == 1 ? "1 note brought in" : "\(broughtCount.formatted()) notes brought in", systemImage: "checkmark.circle.fill")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.muted)
-                    .frame(maxWidth: .infinity, alignment: layout == .grid ? .center : .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("onboarding.brought")
             }
         }
     }
+
+    #if os(iOS)
+    static let appleNotesTitle = "Apple Notes"
+    static let appleNotesLine = "Easiest on a Mac. Open Pinto Notes on your Mac and import there. Your notes then appear here."
+    static let sendDownload = "Send the Mac download to myself"
+    static let shareOneByOne = "Or share notes one at a time from the Notes app"
+    static let macDownload = URL(string: "https://pintonotes.com/download")!
+
+    /// Apple Notes on iPhone and iPad, said as it is: an iPhone can only take notes one at a time
+    /// through Share, so this is not a choice like the others. It says where it is easy, gives
+    /// the way to get there (the Mac download, sent to yourself), and keeps the slow way small.
+    private var appleNotesOnMac: some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "note.text")
+                    .font(.system(size: BigChoices.Metrics.rowMark * 0.46, weight: .medium))
+                    .foregroundStyle(Color.amberInk)
+                    .frame(width: BigChoices.Metrics.rowMark, height: BigChoices.Metrics.rowMark)
+                    .background(.fill.tertiary, in: .rect(cornerRadius: BigChoices.Metrics.rowMark * 0.3, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Self.appleNotesTitle).font(BigChoices.Metrics.title).foregroundStyle(Color.ink)
+                    Text(Self.appleNotesLine).font(BigChoices.Metrics.detail).foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            ShareLink(item: Self.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
+                Label(Self.sendDownload, systemImage: "square.and.arrow.up")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color.amberSoft, in: .rect(cornerRadius: 10, style: .continuous))
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.amberInk)
+            .accessibilityIdentifier("onboarding.source.appleNotes.sendDownload")
+            Button { sharingHowTo = true } label: {
+                Text(Self.shareOneByOne)
+                    .font(.footnote.weight(.medium))
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .accessibilityIdentifier("onboarding.source.appleNotes.oneByOne")
+        }
+        .padding(BigChoices.Metrics.padding)
+        .background(Color(Palette.field), in: shape)
+        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("onboarding.source.appleNotes")
+    }
+    #endif
 
     // MARK: Buttons
 
@@ -449,8 +600,8 @@ struct OnboardingFlow: View {
                     quiet(Self.skipConnect, id: "onboarding.skip", action: next)
                 }
             case .tryIt:
-                // Copy sits under the prompt it copies; this is the way on.
-                quiet("Open my notes", id: "onboarding.open", action: next)
+                // Nothing to press when it works: the step ends by itself. This is for not now.
+                if !shownArrived { quiet("Skip", id: "onboarding.skip", action: next) }
             }
         }
     }
@@ -498,6 +649,57 @@ struct OnboardingFlow: View {
         if step == .bring { next() }
     }
 
+    /// One click: the AI's site opens with the prompt in it. The prompt is copied as well, for
+    /// an app that opens without it.
+    private func ask(_ ai: String) {
+        guard let page = TryIt.page(for: ai) else { return }
+        ConnectClipboard.set(Onboarding.prompt)
+        openURL(page)
+        withAnimation(.snappy(duration: 0.2)) { asked = ai }
+    }
+
+    /// Until the AI's line is in the To-do note: looks every two seconds, asks for a sync now and
+    /// then (the live channel usually brings it), and after a while says what to check. When the
+    /// line is in, "It worked" shows for a moment and the flow ends in the notes, on that note.
+    private func watchToDo() async {
+        arrived = false
+        late = false
+        asked = nil
+        if connectedTitles.isEmpty, let client = backend.client,
+           let rows: [Connection] = try? await client.from("mcp_tokens").select().execute().value {
+            connectedTitles = Set(rows.filter { $0.revoked_at == nil }.map(\.title))
+        }
+        tryNote = prepareTryIt()
+        guard let id = tryNote, let note = context.note(id) else { return }
+        tryBody = note.body
+        tryStart = (note.body, setup?.progress?.aiEdits ?? 0)
+        let began = Date.now
+        var round = 0
+        while !Task.isCancelled, step == .tryIt {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, step == .tryIt, let note = context.note(id), let start = tryStart else { return }
+            round += 1
+            if round % 3 == 0 {
+                sync?.schedule()
+                await setup?.refresh(force: true)
+            }
+            if note.body != tryBody { withAnimation(reduceMotion ? nil : .smooth(duration: 0.35)) { tryBody = note.body } }
+            if TryIt.arrived(body: note.body, since: start.body, aiEdits: setup?.progress?.aiEdits ?? 0, editsAtStart: start.edits) {
+                // The count can lead the note by a sync: wait for the line itself, a little.
+                if TryIt.lines(of: note.body, since: start.body).contains(where: \.fresh) || round % 3 == 0 {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { arrived = true }
+                    try? await Task.sleep(for: .seconds(Self.workedHold))
+                    if !Task.isCancelled, step == .tryIt { finish(true) }
+                    return
+                }
+            }
+            if !late, Date.now.timeIntervalSince(began) > TryIt.lateAfter { withAnimation { late = true } }
+        }
+    }
+
+    /// How long "It worked" stays before the notes open.
+    static var workedHold: Double = 2.4
+
     private func copy() {
         ConnectClipboard.set(Onboarding.prompt)
         withAnimation(.snappy(duration: 0.15)) { copied = true }
@@ -532,6 +734,7 @@ struct OnboardingFlow: View {
         static let tileRadius: CGFloat = 10
         static let tilePadding: CGFloat = 12
         static let quietHeight: CGFloat = 32
+        static let askMark: CGFloat = 20
         #else
         static let title = Font.title.weight(.heavy)
         static let prompt = Font.body.weight(.medium)
@@ -540,6 +743,90 @@ struct OnboardingFlow: View {
         static let tileRadius: CGFloat = 14
         static let tilePadding: CGFloat = 16
         static let quietHeight: CGFloat = 44
+        static let askMark: CGFloat = 26
+        #endif
+    }
+}
+
+/// The To-do note on the Try it step, small and real: its title, its lines as the app draws
+/// them, and the line an AI just added on the tint the app gives an AI's addition. While nothing
+/// has arrived, a quiet row holds the place where it will.
+struct ToDoPreview: View {
+    let lines: [TryIt.Line]
+    var waiting = true
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        VStack(alignment: .leading, spacing: Metrics.gap) {
+            ForEach(lines) { line in row(line) }
+            if waiting {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(TryIt.waiting).font(Metrics.text).foregroundStyle(Color.muted)
+                }
+                .padding(.vertical, 3)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("onboarding.waiting")
+            }
+        }
+        .padding(Metrics.padding)
+        .frame(maxWidth: .infinity, minHeight: Metrics.minHeight, alignment: .topLeading)
+        .background(Color.notePage, in: shape)
+        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.08), radius: 8, y: 3)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("onboarding.todo")
+    }
+
+    @ViewBuilder private func row(_ line: TryIt.Line) -> some View {
+        switch line.kind {
+        case .title:
+            Text(line.text).font(Metrics.title).foregroundStyle(Color.ink)
+        case .todo(let done):
+            fresh(line, HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(done ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                    .accessibilityHidden(true)
+                Text(line.text).foregroundStyle(Color.ink)
+            })
+        case .bullet:
+            fresh(line, HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\u{2022}").foregroundStyle(Color.muted).accessibilityHidden(true)
+                Text(line.text).foregroundStyle(Color.ink)
+            })
+        case .text:
+            fresh(line, Text(line.text).foregroundStyle(Color.ink))
+        }
+    }
+
+    private func fresh(_ line: TryIt.Line, _ content: some View) -> some View {
+        content
+            .font(Metrics.text)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(line.fresh ? Color.amberSoft : .clear, in: .rect(cornerRadius: 6, style: .continuous))
+            .padding(.horizontal, -6)
+            .transition(.opacity.combined(with: .offset(y: 6)))
+            .accessibilityIdentifier(line.fresh ? "onboarding.todo.fresh" : "onboarding.todo.line")
+    }
+
+    enum Metrics {
+        #if os(macOS)
+        static let title = Font.system(size: 17, weight: .bold)
+        static let text = Font.system(size: 13)
+        static let padding: CGFloat = 14
+        static let gap: CGFloat = 4
+        static let radius: CGFloat = 10
+        static let minHeight: CGFloat = 96
+        #else
+        static let title = Font.title3.weight(.bold)
+        static let text = Font.body
+        static let padding: CGFloat = 16
+        static let gap: CGFloat = 4
+        static let radius: CGFloat = 14
+        static let minHeight: CGFloat = 120
         #endif
     }
 }

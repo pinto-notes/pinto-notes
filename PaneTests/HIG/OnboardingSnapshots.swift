@@ -7,8 +7,7 @@ import UIKit
 #endif
 
 /// Every step of the first-run flow, in the real views, light and dark: the Mac's card window,
-/// and an iPhone at the default and the largest text size. The two choice steps come in both
-/// layouts (`rows` and `grid`). Offscreen: nothing touches the screen. Runs only when
+/// and an iPhone at the default and the largest text size. Offscreen: nothing touches the screen. Runs only when
 /// AMBER_HIG_SHOTS is set. Mac: `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh
 /// PaneTests/OnboardingSnapshots`; iPhone: the same test on a simulator.
 @MainActor @Suite(.serialized) struct OnboardingSnapshots {
@@ -17,28 +16,37 @@ import UIKit
     struct Shot {
         let name: String
         let step: Onboarding.Step
-        var layout: OnboardingFlow.Layout = .rows
         var preview = OnboardingFlow.Preview()
+        /// Only on iPhone: a second idea for the same screen.
+        var phoneOnly = false
     }
+
+    static let withCallMom = "To-do\n\n- [ ] Call mom\n"
 
     static let shots: [Shot] = [
         Shot(name: "1-welcome", step: .welcome),
         Shot(name: "2-name-prefilled", step: .name, preview: .init(name: "Sara Lindqvist")),
         Shot(name: "2-name-empty", step: .name),
-        Shot(name: "3-bring-A-rows", step: .bring),
-        Shot(name: "3-bring-B-grid", step: .bring, layout: .grid),
-        Shot(name: "3-bring-A-after-import", step: .bring, preview: .init(brought: 18)),
-        Shot(name: "4-connect-A-rows", step: .connect),
-        Shot(name: "4-connect-B-grid", step: .connect, layout: .grid),
-        Shot(name: "4-connect-A-connected", step: .connect, preview: .init(connected: ["Claude Code"])),
-        Shot(name: "4-connect-B-connected", step: .connect, layout: .grid, preview: .init(connected: ["Claude Code"])),
-        Shot(name: "5-try-it", step: .tryIt, preview: .init(connected: ["ChatGPT"])),
+        Shot(name: "3-bring", step: .bring),
+        Shot(name: "3-bring-apple-notes-last", step: .bring, preview: .init(appleNotesLast: true), phoneOnly: true),
+        Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 18)),
+        Shot(name: "4-connect", step: .connect),
+        Shot(name: "4-connect-connected", step: .connect, preview: .init(connected: ["Claude Code"])),
+        Shot(name: "5-try-it-chatgpt", step: .tryIt, preview: .init(connected: ["ChatGPT"])),
+        Shot(name: "5-try-it-chatgpt-asked", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT")),
+        Shot(name: "5-try-it-claude", step: .tryIt, preview: .init(connected: ["Claude"])),
+        Shot(name: "5-try-it-claude-asked", step: .tryIt, preview: .init(connected: ["Claude"], asked: "Claude")),
+        Shot(name: "5-try-it-both", step: .tryIt, preview: .init(connected: ["ChatGPT", "Claude"])),
+        Shot(name: "5-try-it-claude-code", step: .tryIt, preview: .init(connected: ["Claude Code"])),
+        Shot(name: "5-try-it-claude-code-copied", step: .tryIt, preview: .init(connected: ["Claude Code"], copied: true)),
+        Shot(name: "5-try-it-it-worked", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", note: withCallMom, arrived: true)),
+        Shot(name: "5-try-it-nothing-yet", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", late: true)),
     ]
 
     static func flow(_ shot: Shot) -> some View {
         let store = OnboardingStore(defaults: TestDefaults())
         store.showForPreview(shot.step)
-        return OnboardingFlow(store: store, backend: Backend(), layout: shot.layout, preview: shot.preview, finish: { _ in })
+        return OnboardingFlow(store: store, backend: Backend(), preview: shot.preview, finish: { _ in })
             .tint(Color(PColor.paneAccent))
             .environment(\.locale, Locale(identifier: "en_US"))
     }
@@ -47,7 +55,7 @@ import UIKit
     @Test(arguments: [false, true])
     func mac(dark: Bool) async throws {
         guard Self.dir != nil else { return }
-        for shot in Self.shots {
+        for shot in Self.shots where !shot.phoneOnly {
             try await WelcomeSnapshots.shoot(Self.flow(shot), name: "mac-\(shot.name)-\(dark ? "dark" : "light")", dark: dark)
         }
         let store = OnboardingStore(defaults: TestDefaults())
@@ -64,13 +72,12 @@ import UIKit
                    last_used_at: nil, revoked_at: nil, redirect_host: nil),
     ]
 
-    static let sheets: [(name: String, layout: BigChoices.Layout, rows: [Connection])] = [
-        ("7-connect-sheet-A-none", .rows, []), ("7-connect-sheet-A-two-connected", .rows, twoConnected),
-        ("7-connect-sheet-B-none", .grid, []), ("7-connect-sheet-B-two-connected", .grid, twoConnected),
+    static let sheets: [(name: String, rows: [Connection])] = [
+        ("7-connect-sheet-none", []), ("7-connect-sheet-two-connected", twoConnected),
     ]
 
-    static func sheet(_ layout: BigChoices.Layout, _ rows: [Connection]) -> some View {
-        ConnectAISheet(client: CaptureScreen.client, preview: rows, layout: layout)
+    static func sheet(_ rows: [Connection]) -> some View {
+        ConnectAISheet(client: CaptureScreen.client, preview: rows)
             .tint(Color(PColor.paneAccent))
             .environment(\.locale, Locale(identifier: "en_US"))
     }
@@ -81,7 +88,7 @@ import UIKit
         guard AppSnapshotTests.dir != nil else { return }
         let mode = dark ? "dark" : "light"
         for s in Self.sheets {
-            try await AppSnapshotTests.render(Self.sheet(s.layout, s.rows), name: "mac-\(s.name)-\(mode)", dark: dark, wait: 0.8)
+            try await AppSnapshotTests.render(Self.sheet(s.rows), name: "mac-\(s.name)-\(mode)", dark: dark, wait: 0.8)
         }
         // Settings › AI: the same view as a section of the form.
         for (name, rows) in [("none", [Connection]()), ("two-connected", Self.twoConnected)] {
@@ -103,7 +110,7 @@ import UIKit
                     let window = UIWindow(windowScene: scene)
                     window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
                     window.overrideUserInterfaceStyle = dark ? .dark : .light
-                    window.rootViewController = UIHostingController(rootView: Self.sheet(s.layout, s.rows).dynamicTypeSize(type))
+                    window.rootViewController = UIHostingController(rootView: Self.sheet(s.rows).dynamicTypeSize(type))
                     window.isHidden = false
                     try? await Task.sleep(for: .seconds(0.9))
                     let format = UIGraphicsImageRendererFormat()

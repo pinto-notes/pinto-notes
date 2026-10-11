@@ -15,34 +15,15 @@ struct BigChoice: Identifiable {
 }
 
 /// Large choices, one design wherever they appear: the first-run flow's two choice steps and
-/// Connect an AI. `rows`: wide rows, the mark, the name over one plain line. `grid`: tiles.
+/// Connect an AI. Wide rows: the mark, the name over one plain line.
 struct BigChoices: View {
-    enum Layout: String { case rows, grid }
-
     let list: [BigChoice]
-    var layout: Layout = .rows
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
-        Group {
-            switch layout {
-            case .rows:
-                VStack(spacing: Metrics.gap) { ForEach(list) { row($0) } }
-            case .grid:
-                LazyVGrid(columns: columns, spacing: Metrics.gap) { ForEach(list) { tile($0) } }
-            }
-        }
-        .opacity(isEnabled ? 1 : 0.5)
-    }
-
-    private var columns: [GridItem] {
-        #if os(macOS)
-        // Up to five in one row; more than that in two even rows.
-        Array(repeating: GridItem(.flexible(), spacing: Metrics.gap), count: list.count <= 5 ? list.count : (list.count + 1) / 2)
-        #else
-        Array(repeating: GridItem(.flexible(), spacing: Metrics.gap), count: typeSize.isAccessibilitySize ? 1 : 2)
-        #endif
+        VStack(spacing: Metrics.gap) { ForEach(list) { row($0) } }
+            .opacity(isEnabled ? 1 : 0.5)
     }
 
     /// A wide row: the mark, the name over one line about it, and a chevron (a check once done).
@@ -80,35 +61,6 @@ struct BigChoices: View {
             .frame(maxWidth: .infinity, minHeight: Metrics.rowHeight, alignment: .leading)
             .background(Color(Palette.field), in: shape)
             .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-            .hoverOverlay(shape, Color.primary.opacity(0.05))
-            .contentShape(shape)
-        }
-        .buttonStyle(BigChoicePress())
-        .modifier(Said(choice: choice))
-    }
-
-    /// A tile: the mark on top, the name and one line under it.
-    private func tile(_ choice: BigChoice) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
-        return Button(action: choice.action) {
-            VStack(spacing: 10) {
-                mark(choice.mark, size: Metrics.tileMark)
-                VStack(spacing: 3) {
-                    Text(choice.title).font(Metrics.title).foregroundStyle(Color.ink)
-                    Text(choice.detail).font(Metrics.detail).foregroundStyle(Color.muted)
-                }
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, Metrics.tileTop)
-            .padding(.bottom, Metrics.padding)
-            // One height for every tile, from the top, so the marks line up whether the line under
-            // a name is one row or two; at the largest text sizes each grows to fit its words.
-            .frame(maxWidth: .infinity, minHeight: Metrics.tileHeight, maxHeight: typeSize.isAccessibilitySize ? nil : Metrics.tileHeight, alignment: .top)
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-            .overlay(alignment: .topTrailing) { if choice.done { check.padding(8) } }
             .hoverOverlay(shape, Color.primary.opacity(0.05))
             .contentShape(shape)
         }
@@ -169,9 +121,6 @@ struct BigChoices: View {
         static let rowPadding: CGFloat = 8
         static let rowHeight: CGFloat = 52
         static let rowMark: CGFloat = 32
-        static let tileHeight: CGFloat = 148
-        static let tileTop: CGFloat = 24
-        static let tileMark: CGFloat = 44
         static let check: CGFloat = 16
         #else
         static let title = Font.body.weight(.semibold)
@@ -182,9 +131,6 @@ struct BigChoices: View {
         static let rowPadding: CGFloat = 10
         static let rowHeight: CGFloat = 64
         static let rowMark: CGFloat = 40
-        static let tileHeight: CGFloat = 172
-        static let tileTop: CGFloat = 22
-        static let tileMark: CGFloat = 48
         static let check: CGFloat = 20
         #endif
     }
@@ -208,7 +154,6 @@ struct ConnectChoices: View {
     let client: SupabaseClient
     /// The ways offered, in order.
     var guides: [ConnectAISection.Guide] = ConnectAISection.Guide.allCases
-    var layout: BigChoices.Layout = .rows
     /// The first-run flow marks a connected AI on its choice and leaves the list out.
     var listsConnected = true
     /// Captures: shows these instead of asking the server.
@@ -234,7 +179,7 @@ struct ConnectChoices: View {
             if let ask = center.waiting().first {
                 ConnectWaitingRow(ask: ask)
             }
-            BigChoices(list: choices, layout: layout)
+            BigChoices(list: choices)
                 .disabled(reach != .online)
             if reach != .online {
                 Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted)
@@ -247,7 +192,7 @@ struct ConnectChoices: View {
                 .font(.footnote)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: layout == .grid ? .center : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("connect.reassurance")
         }
         // Asks again when a guide closes (it may have connected something) and when back online.
@@ -360,7 +305,6 @@ struct ConnectAISheet: View {
     let client: SupabaseClient
     /// Captures: shows these instead of asking the server.
     var preview: [Connection]? = nil
-    var layout: BigChoices.Layout = .rows
     @Environment(\.dismiss) private var dismiss
 
     static let title = "Connect an AI"
@@ -387,10 +331,10 @@ struct ConnectAISheet: View {
                 .foregroundStyle(Color.muted)
                 .padding(.top, 6)
                 .padding(.bottom, 18)
-            ConnectChoices(client: client, layout: layout, preview: preview)
+            ConnectChoices(client: client, preview: preview)
         }
         .padding(28)
-        .frame(width: layout == .grid ? 720 : 480)
+        .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
         .background { Backdrop() }
         .connectGuides(client: client)
@@ -403,7 +347,7 @@ struct ConnectAISheet: View {
                         .font(.body)
                         .foregroundStyle(Color.muted)
                         .fixedSize(horizontal: false, vertical: true)
-                    ConnectChoices(client: client, layout: layout, preview: preview)
+                    ConnectChoices(client: client, preview: preview)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)

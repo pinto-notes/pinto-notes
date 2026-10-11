@@ -225,6 +225,63 @@ import Testing
         #expect(again.id == made.id, "the account's own To-do note, not a second one")
     }
 
+    // MARK: Try it
+
+    @Test func oneClickForChatGPTAndClaudeThePromptToPasteForTheRest() {
+        #expect(TryIt.ways(connected: ["ChatGPT"]) == [.ask(ai: "ChatGPT")])
+        #expect(TryIt.ways(connected: ["Claude"]) == [.ask(ai: "Claude")])
+        #expect(TryIt.ways(connected: ["Claude", "ChatGPT"]) == [.ask(ai: "ChatGPT"), .ask(ai: "Claude")])
+        #expect(TryIt.ways(connected: ["Claude Code"]) == [.paste], "no link reaches a terminal")
+        #expect(TryIt.ways(connected: ["Codex", "Another AI"]) == [.paste])
+        #expect(TryIt.ways(connected: ["ChatGPT", "Claude Code"]) == [.ask(ai: "ChatGPT"), .paste])
+        #expect(TryIt.ways(connected: []) == [.paste], "before what is connected is known, the prompt is still there")
+    }
+
+    @Test func theLinkCarriesThePrompt() throws {
+        let chatgpt = try #require(TryIt.page(for: "ChatGPT"))
+        #expect(chatgpt.host == "chatgpt.com")
+        #expect(URLComponents(url: chatgpt, resolvingAgainstBaseURL: false)?.queryItems == [URLQueryItem(name: "q", value: Onboarding.prompt)])
+        let claude = try #require(TryIt.page(for: "Claude"))
+        #expect(claude.host == "claude.ai" && claude.path == "/new")
+        #expect(URLComponents(url: claude, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == Onboarding.prompt)
+        #expect(TryIt.page(for: "Claude Code") == nil)
+        #expect(TryIt.askTitle("ChatGPT") == "Ask ChatGPT")
+    }
+
+    /// What each AI does with a prompt that arrives by link, said as it is.
+    @Test func afterAskingSaysWhatTheAIDoes() {
+        #expect(TryIt.afterAsking("ChatGPT").hasPrefix("ChatGPT has the message."))
+        #expect(TryIt.afterAsking("Claude").hasPrefix("Press send in Claude, under its caution note."))
+        #expect(TryIt.afterAsking(nil).hasPrefix("Paste it into your AI"))
+        #expect(TryIt.claudeNote.contains("caution note"))
+    }
+
+    @Test func theStepKnowsWhenTheAIsLineIsIn() {
+        let start = SetupProgress.toDoBody
+        #expect(!TryIt.arrived(body: start, since: start, aiEdits: 0, editsAtStart: 0))
+        #expect(!TryIt.arrived(body: "To-do\n", since: start, aiEdits: 0, editsAtStart: 0), "white space is not an edit")
+        #expect(TryIt.arrived(body: "To-do\n\n- [ ] Call mom\n", since: start, aiEdits: 0, editsAtStart: 0))
+        #expect(TryIt.arrived(body: start, since: start, aiEdits: 1, editsAtStart: 0), "the server counted an AI's edit")
+        // A replay on an account whose AI has edited before: only a new edit counts.
+        #expect(!TryIt.arrived(body: "To-do\n\n- [ ] Buy milk", since: "To-do\n\n- [ ] Buy milk", aiEdits: 7, editsAtStart: 7))
+    }
+
+    @Test func theNoteIsDrawnAsItsLinesWithTheNewOneMarked() {
+        let start = "To-do\n\n- [x] Buy milk\n"
+        let lines = TryIt.lines(of: "To-do\n\n- [x] Buy milk\n- [ ] Call mom\n* a bullet\nplain words", since: start)
+        #expect(lines.map(\.kind) == [.title, .todo(done: true), .todo(done: false), .bullet, .text])
+        #expect(lines.map(\.text) == ["To-do", "Buy milk", "Call mom", "a bullet", "plain words"])
+        #expect(lines.map(\.fresh) == [false, false, true, true, true])
+        #expect(TryIt.lines(of: SetupProgress.toDoBody, since: SetupProgress.toDoBody).map(\.text) == ["To-do"])
+        #expect(TryIt.lines(of: "# To-do\n" + (1...20).map { "- item \($0)" }.joined(separator: "\n")).count == 6, "a long note shows its first lines")
+        #expect(TryIt.lines(of: "# To-do").first?.text == "To-do")
+    }
+
+    @Test func aStuckTryItSaysWhatToCheck() {
+        #expect(TryIt.lateAfter >= 120 && TryIt.lateAfter <= 180)
+        #expect(TryIt.late.contains("Check that your AI answered"))
+    }
+
     // MARK: Words
 
     @Test func everyStepSaysWhatItIsInPlainWords() {
@@ -241,6 +298,11 @@ import Testing
 
     @Test func appleNotesComesFirstThenTheImportSheetsKinds() {
         #expect(OnboardingFlow.sourceOrder.first == .markdown)
+        #if os(iOS)
+        // On iPhone Apple Notes is not a choice like the others: it says where it is easy.
+        #expect(OnboardingFlow.appleNotesLine.hasPrefix("Easiest on a Mac."))
+        #expect(OnboardingFlow.macDownload.absoluteString == "https://pintonotes.com/download")
+        #endif
         #expect(Set(OnboardingFlow.sourceOrder) == Set(ImportKind.allCases), "every kind the import sheet knows is offered")
         #expect(OnboardingFlow.sourceOrder.count == ImportKind.allCases.count)
     }
