@@ -60,8 +60,9 @@ export function scanFragment(hash: string | null | undefined): string | null {
 /// name is what the app calls itself, and the host is where access would go.
 export type ConnectLabel = { claimed_name: string | null; redirect_host: string | null; loopback: boolean };
 
-/// The page's heading. Never an app's name: a name is only ever what the app calls itself.
-export const ALLOW_HEADING = "Allow this app to use your notes?";
+/// The sign-in step's heading (ConnectFlowV1). The question with the app's name is the frame's
+/// (requestWords), so this names the step, not the app.
+export const ALLOW_HEADING = "Sign in to allow it";
 
 /// A name from the server, shown only when short and plain.
 function plainName(name: unknown): string | null {
@@ -138,6 +139,42 @@ export type ConnectRequest = {
 /// The access the page starts at: what the app asked for. Someone who just started connecting
 /// expects their AI to work; the number, not a weaker default, guards an app we can't name.
 export const startsWithWrite = (r: Pick<ConnectRequest, "wants_write">) => r.wants_write;
+
+/// The names people know their tools by, from the plain lowercase name a client declares
+/// (claimedName in the MCP function). Words only: no mark, and the name stays a claim.
+const KNOWN_NAMES: Record<string, string> = {
+  codex: "Codex", "codex-cli": "Codex", "codex-mcp-client": "Codex", "claude-code": "Claude Code", claude: "Claude",
+  chatgpt: "ChatGPT", cursor: "Cursor", vscode: "VS Code", "visual studio code": "VS Code", windsurf: "Windsurf",
+  zed: "Zed", "gemini-cli": "Gemini CLI", incredible: "Incredible", raycast: "Raycast",
+};
+
+/// The AIs whose names the MCP function keeps for their own callbacks (claimsATrustedName there).
+const BRANDS: Record<string, string[]> = {
+  claude: ["claude.ai", "claude.com", "anthropic.com"], anthropic: ["claude.ai", "claude.com", "anthropic.com"],
+  chatgpt: ["chatgpt.com", "openai.com"], openai: ["chatgpt.com", "openai.com"], pinto: [], amber: [],
+};
+const onDomain = (host: string, domains: string[]) => domains.some((d) => host === d || host.endsWith("." + d));
+
+/// What the card says about a request: the question, with the app's name in it; what it gets; and,
+/// only where nothing checks the name, one quiet line saying so. A name that belongs to ChatGPT,
+/// Claude or Pinto Notes is a headline only when access goes to that AI's own domain; anywhere else
+/// it shows only in the quiet line, as the name the app gave. No name is ever shown with a mark.
+export function requestWords(label: ConnectLabel | null): { title: string; gets: string; who: string | null } {
+  const host = label?.redirect_host ?? null;
+  const raw = label?.claimed_name?.trim() ?? "";
+  const key = raw.toLowerCase().replace(/[\s_]+/g, "-");
+  // Names that only stand for the address (what the function stores when it refused a name).
+  const given = raw && raw.toLowerCase() !== host && !/^an? app on this computer$/i.test(raw) ? KNOWN_NAMES[key] ?? KNOWN_NAMES[key.replace(/-/g, " ")] ?? raw : null;
+  const brand = given ? Object.keys(BRANDS).find((b) => key.replace(/[^a-z]/g, "").includes(b)) : undefined;
+  const checked = !!host && !label?.loopback && Object.values(BRANDS).flat().some((d) => onDomain(host, [d]));
+  const headline = given && (!brand || (host && !label?.loopback && onDomain(host, BRANDS[brand]))) ? given : null;
+  const title = `Connect ${headline ?? "an app"} to Pinto Notes?`;
+  const gets = "It can read your notes and change them when you ask.";
+  if (!host) return { title, gets, who: null };
+  const where = label?.loopback ? "This is an app on this computer." : `It goes to ${host}.`;
+  if (checked && headline) return { title, gets, who: null };
+  return { title, gets, who: given ? `${where} ${given} is the name it gave.` : where };
+}
 
 /// Who will receive access, in words.
 export const destination = (host: string, loopback: boolean) => (loopback ? "an app on this computer" : host);

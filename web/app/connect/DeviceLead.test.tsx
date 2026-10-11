@@ -106,7 +106,7 @@ describe("the signed-in screen", () => {
 describe("the parts every connect screen shares", () => {
   it("says what the app could do, once, and leaves the host to the frame", () => {
     // The frame names the host; the line says only what the app could do.
-    expect(text(renderToStaticMarkup(<RequestLine to="claude.ai" claimed="Claude" />))).toBe("It can read your notes, and edit them if you say so.");
+    expect(text(renderToStaticMarkup(<RequestLine to="claude.ai" claimed="Claude" />))).toBe("It can read your notes and change them when you ask.");
     expect(renderToStaticMarkup(<RequestLine to={null} />)).toBe("");
   });
 
@@ -118,9 +118,10 @@ describe("the parts every connect screen shares", () => {
   it("shows where access goes beside the form only on a page about one request, and never another app's mark", () => {
     const label = { claimed_name: "Claude", redirect_host: "claude.ai", loopback: false };
     const b = renderToStaticMarkup(<ConnectCard request label={label}><p>x</p></ConnectCard>);
-    expect(text(b)).toContain("Access goes to claude.ai");
-    expect(text(b)).toContain("Nothing is shared until you allow it.");
-    expect(text(b)).toContain("It calls itself “Claude”.");
+    expect(text(b)).toContain("Connect Claude to Pinto Notes? It can read your notes and change them when you ask.");
+    expect(text(b)).not.toContain("is the name it gave");
+    const local = renderToStaticMarkup(<ConnectCard request label={{ claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true }}><p>x</p></ConnectCard>);
+    expect(text(local)).toContain("Connect Codex to Pinto Notes? It can read your notes and change them when you ask. This is an app on this computer. Codex is the name it gave.");
     const a = renderToStaticMarkup(<ConnectCard label={label}><p>x</p></ConnectCard>);
     expect(a).not.toContain("<aside");
     for (const html of [a, b]) expect([...html.matchAll(/<img[^>]*src="([^"]+)"/g)].every((m) => m[1] === "/mark-256.png")).toBe(true);

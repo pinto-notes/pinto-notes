@@ -290,8 +290,7 @@
 }
 .sidePicture { width: min(300px, 100%); height: auto; margin: 8px 0 4px; }
 .sideText { margin: 0; display: grid; gap: 2px; }
-.sideCaption { color: var(--muted); font-size: 15px; font-weight: 600; }
-.sideHost { color: var(--ink); font-size: 34px; line-height: 1.1; font-weight: 750; letter-spacing: -0.025em; overflow-wrap: anywhere; }
+.sideHost { color: var(--ink); font-size: 34px; line-height: 1.12; text-wrap: balance; font-weight: 750; letter-spacing: -0.025em; overflow-wrap: anywhere; }
 .sideNote { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
 .page[data-layout="panel"] .card { align-content: center; padding: 44px 44px 40px; border-radius: 0; background: none; box-shadow: none; }
 .page[data-layout="panel"] .request { display: none; }
@@ -306,7 +305,7 @@
   .page[data-layout="panel"] .side { grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 16px 20px; }
   .page[data-layout="panel"] .sidePicture { display: none; }
   .page[data-layout="panel"] .sideHost { font-size: 22px; }
-  .page[data-layout="panel"] .sideCaption, .page[data-layout="panel"] .sideNote { font-size: 13px; }
+  .page[data-layout="panel"] .sideNote { font-size: 13px; }
   .page[data-layout="panel"] .card { padding: 24px 20px 22px; }
 }
 
@@ -367,7 +366,7 @@
 .page[data-layout="panel"] .request { display: block; }
 .sideClaim { margin: 0; color: var(--muted); font-size: 13px; }
 @media (min-width: 861px) { .page[data-layout="panel"] .request { display: none; } }
-@media (max-width: 860px) { .sideClaim { display: none; } }
+@media (max-width: 860px) { .sideClaim { margin-top: 4px; } }
 
 /* The recovery key screen's one access choice (RecoverScreen). */
 .check { display: flex; align-items: center; gap: 10px; min-height: 24px; color: var(--muted); font-size: 14px; font-weight: 500; text-align: left; cursor: pointer; }

@@ -1,15 +1,17 @@
-import { destination, type ConnectLabel } from "@/lib/connect";
+import { destination, requestWords, type ConnectLabel } from "@/lib/connect";
 import { Shell, TopBar } from "@/lib/ui";
 import styles from "./connect.module.css";
 
 /// The frame every connect page sits in: the quiet top bar with the site's logo and nothing else to
 /// leave by, then whatever the page says. That logo is the only one on the page, and no other
 /// app's mark is here: nothing on these pages vouches for who is asking. With `request` (a page about one
-/// connection request), where access would go sits on a panel beside the form; stacked on a phone.
+/// connection request), the question with the app's name (requestWords) sits on a panel beside the
+/// form; stacked on a phone.
 export default function ConnectCard({ request = false, label = null, children }: {
   request?: boolean; label?: ConnectLabel | null; children: React.ReactNode;
 }) {
   const to = label?.redirect_host ? destination(label.redirect_host, label.loopback) : null;
+  const words = requestWords(label);
   return (
     <Shell>
       <TopBar />
@@ -19,11 +21,9 @@ export default function ConnectCard({ request = false, label = null, children }:
             <aside className={styles.side}>
               <RequestPicture to={to} />
               <div className={styles.sideWords}>
-                <p className={styles.sideText}>
-                  {to ? <><span className={styles.sideCaption}>Access goes to</span> <b className={styles.sideHost}>{to}</b></> : <b className={styles.sideHost}>An app wants to use your notes</b>}
-                </p>
-                <p className={styles.sideNote}>It can read your notes, and edit them if you say so. Nothing is shared until you allow it.</p>
-                {label?.claimed_name && <p className={styles.sideClaim}>It calls itself &ldquo;{label.claimed_name}&rdquo;.</p>}
+                <p className={styles.sideText}><b className={styles.sideHost}>{words.title}</b></p>
+                <p className={styles.sideNote}>{words.gets}</p>
+                {words.who && <p className={styles.sideClaim}>{words.who}</p>}
               </div>
             </aside>
           )}
