@@ -38,6 +38,8 @@ struct OnboardingFlow: View {
     @State private var sharingHowTo = false
     /// Titles of the AIs that are connected, as the server lists them.
     @State private var connectedTitles: Set<String> = []
+    /// What was connected when the connect step first asked; something new after that moves on.
+    @State private var connectSeen: Set<String>?
     @State private var brought = 0
     @State private var copied = false
     // The Try it step: the trial note, what it held when the step began, and how far along it is.
@@ -491,8 +493,18 @@ struct OnboardingFlow: View {
             ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected))
         } else if let client = backend.client {
             ConnectChoices(client: client, guides: Self.guides, listsConnected: false) { titles in
+                // An AI connected while this step was up: a moment to see its check, then on.
+                let first = connectSeen == nil
+                let fresh = !first && !titles.subtracting(connectSeen ?? []).isEmpty
                 connectedTitles = titles
+                if first { connectSeen = titles }
                 Task { await setup?.refresh(force: true) }
+                if fresh, step == .connect {
+                    Task {
+                        try? await Task.sleep(for: .seconds(Self.connectedHold))
+                        if step == .connect { next() }
+                    }
+                }
             }
         }
     }
@@ -691,6 +703,9 @@ struct OnboardingFlow: View {
             if !late, Date.now.timeIntervalSince(began) > TryIt.lateAfter { withAnimation { late = true } }
         }
     }
+
+    /// How long a new connection's check shows before the flow moves on by itself.
+    static var connectedHold: Double = 1.2
 
     /// How long "It worked" stays before the notes open.
     static var workedHold: Double = 2.4

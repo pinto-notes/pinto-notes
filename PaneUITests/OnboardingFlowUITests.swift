@@ -196,11 +196,7 @@ final class OnboardingFlowUITests: XCTestCase {
         // As if a pile of notes had been imported, one of them called To-do.
         let imported = callTool("create_note", ["body": "To-do\n\n- [ ] Buy milk"], at: ai.address, token: ai.token)
         XCTAssertTrue(imported.ok, "the imported note: \(imported.text)")
-        let go = app.buttons["onboarding.continue"]
-        XCTAssertTrue(go.waitForExistence(timeout: 30), "connected: Continue takes Skip's place")
-        pause(0.8)
-        shot("d4-connected")
-        go.tap()
+        // Connected: the step moves on by itself.
         expectStep("Try it", "d5-try-it-waiting")
         XCTAssertTrue(app.staticTexts["onboarding.prompt"].waitForExistence(timeout: 10), "Claude Code has no link: the prompt to paste")
         XCTAssertTrue(app.staticTexts["onboarding.prompt"].label.contains("my note called My first AI note"), "the prompt names the note")
@@ -239,9 +235,6 @@ final class OnboardingFlowUITests: XCTestCase {
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "f4-connect")
         let ai = try connectClaudeCode(picture: nil)
-        let go = app.buttons["onboarding.continue"]
-        XCTAssertTrue(go.waitForExistence(timeout: 30))
-        go.tap()
         expectStep("Try it", "f5-try-it")
         // The note is on the server while the step waits.
         var there = false
