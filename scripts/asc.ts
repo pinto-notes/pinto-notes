@@ -18,7 +18,7 @@ const API = "https://api.appstoreconnect.apple.com/v1";
 // The privacy policy page (the share site writes its address to .secrets/privacy-url.txt).
 const PRIVACY_URL = Deno.env.get("ASC_PRIVACY_URL") ||
   (await Deno.readTextFile(".secrets/privacy-url.txt").then((t) => t.trim()).catch(() => "")) ||
-  "https://ambernotes.app/privacy";
+  "https://pintonotes.com/privacy";
 
 const env: Record<string, string> = {};
 for (const line of (await Deno.readTextFile(".secrets/asc.env")).split("\n")) {
@@ -112,7 +112,7 @@ async function setup(build: string) {
 
   // Beta App Information: description, feedback email, privacy policy.
   const locs = (await get(`/apps/${appId}/betaAppLocalizations`)).data as J[];
-  const locAttrs: J = { description: DESCRIPTION, feedbackEmail: "hello@ambernotes.app" };
+  const locAttrs: J = { description: DESCRIPTION, feedbackEmail: "hello@pintonotes.com" };
   if (PRIVACY_URL) locAttrs.privacyPolicyUrl = PRIVACY_URL;
   const en = locs.find((l) => l.attributes.locale === "en-US");
   if (en) await call("PATCH", `/betaAppLocalizations/${en.id}`, { data: { type: "betaAppLocalizations", id: en.id, attributes: locAttrs } });
@@ -122,7 +122,7 @@ async function setup(build: string) {
   // Beta App Review contact.
   const phone = env.ASC_CONTACT_PHONE ?? "";
   const detail = (await get(`/apps/${appId}/betaAppReviewDetail`)).data;
-  const reviewAttrs: J = { contactFirstName: "Emil", contactLastName: "Wagman", contactEmail: "hello@ambernotes.app", demoAccountRequired: false,
+  const reviewAttrs: J = { contactFirstName: "Emil", contactLastName: "Wagman", contactEmail: "hello@pintonotes.com", demoAccountRequired: false,
     notes: "Sign in with Apple creates an account; no demo account is needed. The Mac app's Apple Notes import asks Notes for the notes you pick and never changes them." };
   if (phone) reviewAttrs.contactPhone = phone;
   await call("PATCH", `/betaAppReviewDetails/${detail.id}`, { data: { type: "betaAppReviewDetails", id: detail.id, attributes: reviewAttrs } });
@@ -212,10 +212,20 @@ function macBlock(text: string, label: string) {
   return m[1];
 }
 
+/** The app name in the file's heading. Anything but Pinto Notes means the file is from before the rename. */
+function macAppName(text: string) {
+  return text.match(/^# App Store metadata: (.+) for Mac$/m)?.[1] ?? "";
+}
+
 async function macStore(build?: string) {
+  // Before anything is asked of App Store Connect: the texts must be the ones for this app's name.
+  const text = await Deno.readTextFile("docs/appstore/metadata-mac.md");
+  const name = macAppName(text);
+  if (name !== "Pinto Notes" || /Amber Notes: Notes & Lists/.test(text)) {
+    throw new Error(`docs/appstore/metadata-mac.md is for "${name || "no app name"}", not Pinto Notes. Nothing was sent. Bring the file up to date first.`);
+  }
   const a = await app();
   const appId = a.id;
-  const text = await Deno.readTextFile("docs/appstore/metadata-mac.md");
   const version = (await Deno.readTextFile("project.yml")).match(/MARKETING_VERSION: "([^"]+)"/)![1];
   const versions = (await get(`/apps/${appId}/appStoreVersions?limit=20`)).data as J[];
 
@@ -234,7 +244,7 @@ async function macStore(build?: string) {
 
   // Its English page.
   const attrs: J = { description: macBlock(text, "Description:"), keywords: macBlock(text, "Keywords"),
-    promotionalText: macBlock(text, "Promotional text"), supportUrl: "https://ambernotes.app/support", marketingUrl: "https://ambernotes.app" };
+    promotionalText: macBlock(text, "Promotional text"), supportUrl: "https://pintonotes.com/support", marketingUrl: "https://pintonotes.com" };
   const locs = (await get(`/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data as J[];
   let loc = locs.find((l) => l.attributes.locale === "en-US");
   if (loc) loc = (await call("PATCH", `/appStoreVersionLocalizations/${loc.id}`, { data: { type: "appStoreVersionLocalizations", id: loc.id, attributes: attrs } })).data;
@@ -272,11 +282,12 @@ async function macStore(build?: string) {
   // the recovery key from the iPhone version's notes (it's never in the repo).
   const ios = versions.filter((x) => x.attributes.platform === "IOS").sort((x, y) => y.attributes.createdDate.localeCompare(x.attributes.createdDate))[0];
   const from = (await get(`/appStoreVersions/${ios.id}/appStoreReviewDetail`)).data.attributes;
-  const key = (from.notes ?? "").match(/RECOVERY KEY: (\S+)/)?.[1];
+  // The key is a line of its own in the iPhone notes (seven groups of four); older notes had it after a label.
+  const key = (from.notes ?? "").match(/^([A-Z0-9]{4}(?:-[A-Z0-9]{4}){6})$/m)?.[1] ?? (from.notes ?? "").match(/RECOVERY KEY: (\S+)/)?.[1];
   if (!key) throw new Error("The iPhone version's review notes have no recovery key to copy");
   const review: J = { contactFirstName: from.contactFirstName, contactLastName: from.contactLastName, contactPhone: from.contactPhone,
     contactEmail: from.contactEmail, demoAccountName: from.demoAccountName, demoAccountPassword: from.demoAccountPassword,
-    demoAccountRequired: from.demoAccountRequired, notes: macBlock(text, "Notes for the reviewer:").replace("RECOVERY KEY: (from the iPhone version)", `RECOVERY KEY: ${key}`) };
+    demoAccountRequired: from.demoAccountRequired, notes: macBlock(text, "Notes for the reviewer:").replace("[RECOVERY KEY]", key) };
   const existing = await get(`/appStoreVersions/${v.id}/appStoreReviewDetail`).catch(() => ({ data: null }));
   if (existing.data) await call("PATCH", `/appStoreReviewDetails/${existing.data.id}`, { data: { type: "appStoreReviewDetails", id: existing.data.id, attributes: review } });
   else await call("POST", "/appStoreReviewDetails", { data: { type: "appStoreReviewDetails", attributes: review,
