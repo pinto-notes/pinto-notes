@@ -142,10 +142,19 @@ enum HistoryDiff {
         return ranges
     }
 
-    /// "3 lines differ from the current note."
-    static func summary(_ count: Int) -> String {
+    /// Whether two texts read the same, blank lines and line-end spaces aside (what changedLines ignores).
+    static func sameText(_ a: String, _ b: String) -> Bool {
+        func lines(_ s: String) -> [String] {
+            s.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
+        return lines(a) == lines(b)
+    }
+
+    /// "3 lines differ from the current note." `count` is the version's own lines that the note
+    /// no longer has; a version the note has only been added to has none, and isn't the same text.
+    static func summary(_ count: Int, same: Bool = true) -> String {
         switch count {
-        case 0: "Same text as the current note."
+        case 0: same ? "Same text as the current note." : "The current note has more than this version."
         case 1: "1 line differs from the current note."
         default: "\(count) lines differ from the current note."
         }

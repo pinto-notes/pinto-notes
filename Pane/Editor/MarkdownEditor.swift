@@ -653,6 +653,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let extra = DateFold.bottomInset(viewHeight: bounds.height, contentHeight: contentSize.height,
                                          top: adjustedContentInset.top, bottom: fixed)
         if abs(contentInset.bottom - extra) > 0.5 { contentInset.bottom = extra }
+        // A note that fits in the view has nowhere to scroll to past the fold. Typing in a new
+        // sub-note left it further up all the same (the text view scrolled to the caret before
+        // the room below was counted again), with its title under the "‹ Parent" link.
+        let folded = DateFold.offset(top: adjustedContentInset.top)
+        if extra > 0, !isTracking, !isDecelerating, contentOffset.y > folded + 0.5 {
+            contentOffset = CGPoint(x: contentOffset.x, y: folded)
+        }
         guard !DateFold.showOnOpen, !pulledDate, !isTracking, !isDecelerating else { return }
         // Until you scroll yourself, the date stays folded: on opening, and when the keyboard
         // comes up and the text view scrolls the caret into view (a new note's caret sits by the date).

@@ -46,6 +46,23 @@ enum NoteExport {
         var isEmpty: Bool { notes.isEmpty && templates.isEmpty }
     }
 
+    /// What the export made, in a sentence or two, for under the button.
+    static func summary(_ made: Result) -> String {
+        var parts = ["Exported \(made.notes) \(made.notes == 1 ? "note" : "notes") and \(made.files) \(made.files == 1 ? "file" : "files")."]
+        if made.skippedLocked > 0 { parts.append("Unlock your locked notes to include them.") }
+        if made.missingFiles > 0 { parts.append("\(made.missingFiles) \(made.missingFiles == 1 ? "file was" : "files were") left out.") }
+        return parts.joined(separator: " ")
+    }
+
+    /// An export saved without some files (not on this device, and they couldn't be fetched):
+    /// what to tell the person, plainly. Nil when every file is in it.
+    static func leftOut(_ made: Result) -> (title: String, message: String)? {
+        guard made.missingFiles > 0 else { return nil }
+        let one = made.missingFiles == 1
+        return ("\(made.missingFiles) \(one ? "file isn\u{2019}t" : "files aren\u{2019}t") in the export",
+                "\(one ? "It isn\u{2019}t" : "They aren\u{2019}t") on this \(InstallID.kind) and couldn\u{2019}t be downloaded. Connect to the internet and export again to include \(one ? "it" : "them").")
+    }
+
     /// Writes the export as a zip in a temporary folder. `fetch` brings a file's bytes to this
     /// device when they're only in the cloud (sync's download).
     static func make(_ context: ModelContext, vault: NoteVault? = nil, now: Date = .now, sharing: Sharing = .init(),

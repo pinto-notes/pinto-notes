@@ -129,16 +129,23 @@ struct GridTable: Equatable {
         return TypedTable(columns: cols, rows: rows.dropFirst().map { $0 + Array(repeating: "", count: max(0, width - $0.count)) })
     }
 
+    /// The cells' font: digits of one width, as the grid draws them. Measuring with the plain
+    /// font came out narrower than the drawn text, and a tight table cut its dates ("2026-10-…").
+    static var cellFont: PFont { PFont.monospacedDigitSystemFont(ofSize: EditorMetrics.body, weight: .regular) }
+
     /// Widths that fit each column's text, stretched to fill `available`. A table a little too
     /// wide gives up spare room around its text first (down to the cell's own insets), so a
     /// four-column log fits an iPhone instead of cutting its last column.
     func columnWidths(available: CGFloat) -> [CGFloat] {
         let width = max(columns, 1)
-        let font = PFont.systemFont(ofSize: EditorMetrics.body)
+        let font = Self.cellFont
         let longest = (0..<width).map { c -> CGFloat in
             ceil(rows.map { c < $0.count ? ($0[c] as NSString).size(withAttributes: [.font: font]).width : 0 }.max() ?? 0)
         }
-        var natural = longest.map { min(max($0 + 24, 64), 280) }
+        // A column is 280 pt at most at the default text size, and more as the text grows, so a
+        // date still fits its column at the largest sizes.
+        let widest = max(280, 280 * EditorMetrics.body / 17)
+        var natural = longest.map { min(max($0 + 24, 64), widest) }
         let total = natural.reduce(0, +)
         if total < available, total > 0 {
             natural = natural.map { $0 * available / total }
@@ -207,7 +214,9 @@ struct GridOverflow: Equatable {
 }
 
 enum GridMetrics {
-    static let row: CGFloat = 32
+    /// 32 pt at the default text size, growing with the reader's text size on iPhone: at the
+    /// largest sizes the rows kept their 32 pt and the text of one row was drawn over the next.
+    static var row: CGFloat { max(32, ceil(EditorMetrics.body * 32 / 17)) }
     static let handle: CGFloat = 16
     static func height(_ t: GridTable) -> CGFloat { handle + CGFloat(t.rows.count) * row + 2 }
 }

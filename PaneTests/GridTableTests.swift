@@ -166,7 +166,7 @@ import Testing
                                       range: NSRange(location: 0, length: 0), index: 0)
 
     @Test func aFourColumnLogFitsAnIPhone() {
-        let font = PFont.systemFont(ofSize: EditorMetrics.body)
+        let font = GridTable.cellFont
         let text = (0..<4).map { c in ceil(Self.runningLog.rows.map { ($0[c] as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0) }
         let roomy = text.map { min(max($0 + 24, 64), 280) }.reduce(0, +)
         let tight = text.map { max($0 + 16, 44) }.reduce(0, +)
@@ -177,6 +177,18 @@ import Testing
         for (c, w) in widths.enumerated() {
             #expect(w >= text[c] + 16 - 0.01, "column \(c) keeps its text whole")
         }
+    }
+
+    /// A tracker too wide for the screen (the demo's Evening tracker) showed its dates as "2026-10-…":
+    /// the column was measured in the plain font and drawn with digits of one width.
+    @Test func aTightColumnFitsItsDatesAsDrawn() {
+        let tracker = GridTable(rows: [["Date", "Work hours", "Energy (1-10)", "Mood (1-10)", "Diet on plan", "Strength", "What helped today?"],
+                                       ["2026-10-04", "6", "7", "8", "Yes", "Yes", "Early night"], ["2026-10-11", "4", "5", "6", "No", "N/A", ""]],
+                                range: NSRange(location: 0, length: 0), index: 0)
+        let drawn = tracker.rows.map { ($0[0] as NSString).size(withAttributes: [.font: GridTable.cellFont]).width }.max() ?? 0
+        let widths = tracker.columnWidths(available: 340)
+        #expect(widths.reduce(0, +) > 340, "still wider than the screen")
+        #expect(widths[0] >= ceil(drawn) + 16 - 0.01, "the date column holds its dates with the cell's insets: \(widths[0]) for \(drawn)")
     }
 
     @Test func aWideTableStillScrolls() {
