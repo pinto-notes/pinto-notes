@@ -6,6 +6,8 @@ struct TextEdit: Equatable {
     var replacement: String
     /// Caret location after the edit.
     var caret: Int
+    /// What stays selected after the edit, where the edit was made to a selection of lines.
+    var selection: NSRange? = nil
 }
 
 /// Editing rules that make lists and checklists feel like Apple Notes.
@@ -183,9 +185,60 @@ enum ListEditing {
         return start
     }
 
-    /// Turns the caret's line into a checklist item, or back into plain text.
+    /// The whole lines a selection touches. A selection that ends at the start of a line (the line
+    /// break before it is the last thing selected) doesn't take that line, like Notes.
+    static func lines(in ns: NSString, touching selection: NSRange) -> NSRange {
+        let location = min(selection.location, ns.length)
+        let length = min(selection.length, ns.length - location)
+        return ns.lineRange(for: NSRange(location: location, length: max(0, length - 1)))
+    }
+
+    /// Rewrites the prefix of every line in `span` that has text, and keeps those lines selected.
+    /// `prefix` is given a line, and returns how much of its start to replace, and with what.
+    private static func restyle(_ ns: NSString, span: NSRange, prefix: (String) -> (length: Int, new: String)) -> TextEdit {
+        var out = "", at = span.location
+        while at < NSMaxRange(span) {
+            var start = 0, end = 0, contentsEnd = 0
+            ns.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: NSRange(location: at, length: 0))
+            let line = ns.substring(with: NSRange(location: start, length: contentsEnd - start))
+            let ending = ns.substring(with: NSRange(location: contentsEnd, length: end - contentsEnd))
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                out += line + ending
+            } else {
+                let p = prefix(line)
+                out += p.new + (line as NSString).substring(from: p.length) + ending
+            }
+            at = max(end, at + 1)
+        }
+        let length = (out as NSString).length
+        let selected = out.hasSuffix("\n") ? length - 1 : length
+        return TextEdit(range: span, replacement: out, caret: span.location + selected, selection: NSRange(location: span.location, length: selected))
+    }
+
+    /// The lines of `span` that have text, when a selection reaches over more than one line
+    /// (nil otherwise: the caret's line is then the one to change).
+    private static func selectedLines(_ ns: NSString, in span: NSRange, selection: NSRange) -> [String]? {
+        guard selection.length > 0 else { return nil }
+        let all = ns.substring(with: span).trimmingCharacters(in: .newlines).components(separatedBy: .newlines)
+        let written = all.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        return all.count > 1 && !written.isEmpty ? written : nil
+    }
+
+    /// Turns the caret's line into a checklist item, or back into plain text. With several lines
+    /// selected, all of them, like Notes: bullets, dashes, numbers and plain lines become
+    /// checklist items; when every one already is, they go back to plain text.
     static func toggleChecklist(in text: String, selection: NSRange) -> TextEdit {
         let ns = text as NSString
+        let span = lines(in: ns, touching: selection)
+        if let all = selectedLines(ns, in: span, selection: selection) {
+            let isChecklist = all.allSatisfy { ListPrefix(line: $0)?.checkbox != nil }
+            return restyle(ns, span: span) { line in
+                guard let list = ListPrefix(line: line) else { return (0, "- [ ] ") }
+                if isChecklist { return (list.length, list.indent) }
+                // An item that is already ticked or unticked stays as it is.
+                return list.checkbox != nil ? (0, "") : (list.length, list.indent + "- [ ] ")
+            }
+        }
         let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
         let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
         if let list = ListPrefix(line: line) {
@@ -253,22 +306,47 @@ enum ListEditing {
 
     enum LineStyle { case bulleted, dashed, numbered, quote }
 
+    /// A line's style, with its indent and how long its prefix is. A checklist item has no line
+    /// style of its own: choosing one turns it into that.
+    private static func lineStyle(of line: String) -> (style: LineStyle?, indent: String, length: Int) {
+        if let q = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression) {
+            return (.quote, "", (line[q] as Substring).utf16.count)
+        }
+        if let list = ListPrefix(line: line) {
+            return (list.ordered ? .numbered : list.checkbox != nil ? nil : list.marker == "-" ? .dashed : .bulleted, list.indent, list.length)
+        }
+        return (nil, "", 0)
+    }
+
     /// Format → Bulleted List / Dashed List / Numbered List / Block Quote, like Notes: the caret's line
     /// takes that style, switching from another list style; choosing the style it
-    /// already has turns it back into body text.
+    /// already has turns it back into body text. With several lines selected, all of them take it
+    /// (a checklist too), numbered in order; when every one already has it, they go back to body text.
     static func toggleLineStyle(in text: String, selection: NSRange, _ style: LineStyle) -> TextEdit {
         let ns = text as NSString
+        let span = lines(in: ns, touching: selection)
+        if let all = selectedLines(ns, in: span, selection: selection) {
+            let has = all.allSatisfy { lineStyle(of: $0).style == style }
+            // Numbers count up within each depth, and start again under a new parent.
+            var counts: [Int: Int] = [:]
+            return restyle(ns, span: span) { line in
+                let now = lineStyle(of: line)
+                if has { return (now.length, now.indent) }
+                switch style {
+                case .bulleted: return (now.length, now.indent + "* ")
+                case .dashed: return (now.length, now.indent + "- ")
+                case .quote: return (now.length, "> ")
+                case .numbered:
+                    let depth = now.indent.replacingOccurrences(of: "\t", with: "  ").count / 2
+                    for deeper in counts.keys where deeper > depth { counts[deeper] = nil }
+                    counts[depth, default: 0] += 1
+                    return (now.length, now.indent + "\(counts[depth]!). ")
+                }
+            }
+        }
         let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
         let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
-        var indent = "", current: LineStyle?, prefixLen = 0
-        if let q = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression) {
-            current = .quote
-            prefixLen = (line[q] as Substring).utf16.count
-        } else if let list = ListPrefix(line: line) {
-            indent = list.indent
-            current = list.ordered ? .numbered : list.checkbox != nil ? nil : list.marker == "-" ? .dashed : .bulleted
-            prefixLen = list.length
-        }
+        let (current, indent, prefixLen) = lineStyle(of: line)
         let new: String
         if current == style {
             new = indent
