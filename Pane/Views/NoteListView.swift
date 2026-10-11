@@ -264,6 +264,8 @@ struct NoteListView: View {
         // SwiftUI worked out the difference row by row and sized every row that came or went:
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
         // stays the same list: a new one took the keys away from the search field.
+        // A new list starts at its top: it shows the open note's row again.
+        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil))
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #endif
         #if os(iOS)
@@ -881,6 +883,25 @@ enum ListEntry: Identifiable, DatedListItem {
         return out
     }
 }
+
+#if os(macOS)
+/// A list built new (another folder, then back; a launch that reopens a note) starts scrolled to
+/// its top, with the open note's row far off screen and nothing to show which note that is. When
+/// the list appears it scrolls to that row, if it has one.
+private struct ShowsSelectedRow: ViewModifier {
+    let selected: UUID?
+
+    func body(content: Content) -> some View {
+        ScrollViewReader { proxy in
+            content.onAppear {
+                guard let selected else { return }
+                // A turn later: the rows are there by then.
+                DispatchQueue.main.async { proxy.scrollTo(selected, anchor: .center) }
+            }
+        }
+    }
+}
+#endif
 
 /// What makes the note list a different list (see where it's used).
 struct ListIdentity: Hashable {
