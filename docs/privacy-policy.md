@@ -92,7 +92,7 @@ Versions of the iPhone and Mac apps after 1.2 report on themselves, so we find o
 - **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that an AI was connected (Claude, ChatGPT or other; never its name or address), and the first time you opened a note an AI had changed;
 - **speed:** how long the app took to open and to sync, and roughly how many notes you have (as a range such as 11 to 100, never the number).
 
-With each: the app's version, whether it's the App Store app or the Mac download, iPhone, iPad or Mac, the system version, and your account's identifier, so we can tell that one account keeps hitting the same problem. Before you sign in, a random identifier is used instead, made new each time the app starts and never stored on your device.
+With each: the app's version, whether it's the App Store app or the Mac download, the kind of device (such as iPhone or Mac), the system version, and your account's identifier, so we can tell that one account keeps hitting the same problem. Before you sign in, a random identifier is used instead, made new each time the app starts and never stored on your device.
 
 They never send your notes, titles, folder or file names, what you search for, anything an AI wrote, your email address, your recovery key or any other key, or your device's name. An event can only hold numbers, yes or no, and words from a fixed list. The full list of events is in the open at [github.com/pinto-notes/pinto-notes](https://github.com/pinto-notes/pinto-notes/blob/main/docs/Technical/app-telemetry.md).
 
