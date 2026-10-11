@@ -203,6 +203,8 @@ extension TableInteractionTests {
         await h.select((h.text as NSString).length)
         h.controller.insertTable()
         #expect(await h.until(5) { h.gridHasFocus })
+        // The grid keeps asking for the keyboard until it knows it has it (a few turns).
+        await h.settle(0.5)
         h.window.makeFirstResponder(h.view)
         #expect(h.view.core.gridFocus == nil)
         h.view.layoutCards(animated: false)
