@@ -408,7 +408,7 @@ import Testing
         for g in ConnectAISection.Guide.allCases {
             let words = g.plain
             #expect(!words.isEmpty)
-            for raw in ["→", "~/", ".toml", "mcp add", "Plugins", "Directory", "Amber"] {
+            for raw in ["→", "~/", ".toml", "mcp add", "Plugins", "Directory", "Amber", "MCP", "address", "token", "header"] {
                 #expect(!words.contains(raw), "\(g.title): \(words)")
             }
             #expect(!words.hasSuffix("."))

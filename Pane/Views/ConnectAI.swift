@@ -1469,9 +1469,9 @@ struct ConnectAISection: View {
                 #else
                 "Copies a command for your terminal"
                 #endif
-            case .codex: "Copies a few lines for its settings file"
+            case .codex: "Copies a command for your terminal"
             case .incredible: "Connects from the Incredible app"
-            case .other: "Copies the address any MCP app can use"
+            case .other: "For other AI apps on your computer"
             }
         }
     }
