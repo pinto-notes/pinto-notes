@@ -3,8 +3,8 @@ import { Shell, TopBar } from "@/lib/ui";
 import styles from "./connect.module.css";
 
 /// The frame every connect page sits in: the quiet top bar with the site's logo and nothing else to
-/// leave by, then Pinto Notes' mark and whatever the page says. No other app's mark: nothing on
-/// these pages vouches for who is asking. With `request` (a page about one
+/// leave by, then whatever the page says. That logo is the only one on the page, and no other
+/// app's mark is here: nothing on these pages vouches for who is asking. With `request` (a page about one
 /// connection request), where access would go sits on a panel beside the form; stacked on a phone.
 export default function ConnectCard({ request = false, label = null, children }: {
   request?: boolean; label?: ConnectLabel | null; children: React.ReactNode;
@@ -17,7 +17,6 @@ export default function ConnectCard({ request = false, label = null, children }:
         <div className={styles.shell}>
           {request && (
             <aside className={styles.side}>
-              <img className={styles.mark} src="/mark-256.png" alt="" width={44} height={44} />
               <RequestPicture to={to} />
               <div className={styles.sideWords}>
                 <p className={styles.sideText}>
@@ -29,9 +28,6 @@ export default function ConnectCard({ request = false, label = null, children }:
             </aside>
           )}
           <div className={styles.card}>
-            <div className={styles.marks} aria-hidden="true">
-              <img className={styles.mark} src="/mark-256.png" alt="" width={56} height={56} />
-            </div>
             {children}
           </div>
         </div>
@@ -43,7 +39,7 @@ export default function ConnectCard({ request = false, label = null, children }:
   );
 }
 
-/// Your notes on one side, where access would go on the other, and a dotted line between them:
+/// A note on one side (a heading, two lines and a short checklist, no logo), where access would go on the other, and a dotted line between them:
 /// not joined yet. Flat cut paper, in the picture colours of DeviceLead.tsx.
 function RequestPicture({ to }: { to: string | null }) {
   return (
@@ -51,11 +47,15 @@ function RequestPicture({ to }: { to: string | null }) {
       <g transform="rotate(-5 62 78)">
         <rect className={styles.pShadow} x="22" y="30" width="84" height="104" rx="12" />
         <rect className={styles.pPaper} x="18" y="24" width="84" height="104" rx="12" />
-        <image href="/mark-256.png" x="28" y="34" width="20" height="20" />
-        <rect className={styles.pBar} x="28" y="64" width="50" height="5" rx="2.5" />
-        <rect className={styles.pBarSoft} x="28" y="76" width="62" height="5" rx="2.5" />
-        <rect className={styles.pBarSoft} x="28" y="88" width="56" height="5" rx="2.5" />
-        <rect className={styles.pBarSoft} x="28" y="100" width="40" height="5" rx="2.5" />
+        <rect className={styles.pBar} x="28" y="40" width="44" height="6" rx="3" />
+        <rect className={styles.pBarSoft} x="28" y="56" width="62" height="5" rx="2.5" />
+        <rect className={styles.pBarSoft} x="28" y="68" width="54" height="5" rx="2.5" />
+        {[0, 1].map((i) => (
+          <g key={i}>
+            <circle className={styles.pCheck} cx="32" cy={90.5 + i * 14} r="4" />
+            <rect className={styles.pBarSoft} x="42" y={88 + i * 14} width={i ? 30 : 42} height="5" rx="2.5" />
+          </g>
+        ))}
       </g>
       {[0, 1, 2, 3, 4].map((i) => <circle key={i} className={styles.pDash} cx={124 + i * 12} cy="78" r="2.6" />)}
       <rect className={styles.pShadow} x="186" y="40" width="104" height="82" rx="13" />
