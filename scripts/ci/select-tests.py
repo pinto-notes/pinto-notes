@@ -56,7 +56,6 @@ def take(suite, reason, always=False):
     chosen.append(suite)
     planned += cost(suite)
 
-smoke_cost = 0.0
 for f in changed:                                   # 2
     for s in suites_in.get(f, []):
         take(s, f"its file changed ({f})", always=True)
