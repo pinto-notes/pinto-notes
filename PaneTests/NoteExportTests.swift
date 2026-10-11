@@ -179,3 +179,7 @@ import ZIPFoundation
 }
 
 // CI lane proof: a harmless line.
+
+extension NoteExportTests {
+    @Test func proofOnlyThisFailsOnPurpose() { #expect(1 == 2, "CI lane proof: red on purpose") }
+}
