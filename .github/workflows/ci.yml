@@ -52,18 +52,21 @@ jobs:
       app: ${{ steps.paths.outputs.app }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - id: paths
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
+          PULL: ${{ github.event.pull_request.number }}
         run: |
-          if [ -z "$BASE" ]; then
+          if [ -z "$PULL" ]; then
             echo "Not a pull request: every job runs."
             echo "app=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # The checkout is the pull request merged into its base: against the base, that is the change.
-          git fetch --quiet --depth=1 origin "$BASE"
-          git diff --name-only "$BASE" HEAD > changed.txt
+          # The checkout is the pull request merged into its base as the base is now: against that
+          # commit's first parent, that is the change. (The base the pull request was opened on is
+          # older, and against it other people's merges would count as this change.)
+          git diff --name-only HEAD^1 HEAD > changed.txt
           echo "$(wc -l < changed.txt | tr -d ' ') files changed"
           app=false
           if grep -qvE '^(web/|docs/|strategy/|brand/|plugins/|cli/|scripts/|[^/]+\.md$|LICENSE$|\.github/)' changed.txt \
@@ -94,6 +97,8 @@ jobs:
       XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Select the newest Xcode
         id: xcode
         run: |
@@ -128,11 +133,10 @@ jobs:
         env:
           TEST_RUNNER_PANE_PERF_SLACK: "4"
           TEST_RUNNER_PANE_SNAPSHOTS: "1"
-          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -o pipefail
-          git fetch --quiet --depth=1 origin "$BASE"
-          git diff --name-only "$BASE" HEAD > changed.txt
+          # Against the first parent of the merged checkout: this pull request's change and no one else's.
+          git diff --name-only HEAD^1 HEAD > changed.txt
           python3 scripts/ci/select-tests.py changed.txt > only.txt
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
             $(tr '\n' ' ' < only.txt) -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
