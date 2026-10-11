@@ -13,7 +13,7 @@ export function fetchedMail(to: string, platform: string, at: Date): Mail {
   const lines = [
     `Someone signed in to Pinto Notes with your account on ${KINDS[platform] ?? "a new device"} and opened your notes there (${when}).`,
     "If that was you, there's nothing to do.",
-    "If it wasn't, reset your password from the sign-in screen now, then reply to this email and we'll help you check your account.",
+    "If it wasn't, reset your password from the sign-in screen now, then reply to this email and we'll help you check your account. A new password keeps the next device out. A device that already opened your notes keeps what it has: the key can't be changed yet.",
     "To have a new device ask one of your own devices first, turn on Advanced protection in Settings › Security.",
   ];
   return {

@@ -16,6 +16,9 @@ export type Deps = {
   userFor(token: string): Promise<string | null>;
   /** The caller's address, hashed (for "too many from one place"). */
   addressHash: string;
+  /** When the session behind an access token was signed in to (not refreshed), in milliseconds,
+   *  or null when the token doesn't say. Read only after `userFor` accepted the token. */
+  signedInAt?: (token: string) => number | null;
   /** Tells the person a device got their key, by email. Best effort; never fails the request. */
   notify?: (uid: string, platform: string) => Promise<void>;
   now?: () => number;
@@ -37,6 +40,37 @@ export function holdHours(env: Env): number {
   return n <= 720 ? n : 0;
 }
 
+/** KEY_COPY_SIGNIN_HOURS: how recent the sign-in behind a session has to be for it to get the key.
+ *  1 hour by default: a new device fetches seconds after signing in, and an old session, a token
+ *  taken from a backup or a refresh token read out of the database gets nothing. A function
+ *  secret, 1 to 720; anything else counts as 1. */
+export function signInHours(env: Env): number {
+  const text = (env.get("KEY_COPY_SIGNIN_HOURS") ?? "").trim();
+  if (!/^[0-9]{1,3}$/.test(text)) return 1;
+  const n = Number(text);
+  return n >= 1 && n <= 720 ? n : 1;
+}
+
+/** The newest sign-in in an access token's `amr` claim, as `pane_signed_in_at()` reads it in SQL:
+ *  a refresh doesn't count. Milliseconds, or null. The token was verified by the auth server first. */
+export function signedInAtOf(token: string): number | null {
+  try {
+    const part = token.split(".")[1] ?? "";
+    const text = atob(part.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - part.length % 4) % 4));
+    const amr = JSON.parse(text)?.amr;
+    if (!Array.isArray(amr)) return null;
+    let newest = 0;
+    for (const a of amr) {
+      if (a?.method !== "token_refresh" && typeof a?.timestamp === "number" && a.timestamp > newest) newest = a.timestamp;
+    }
+    return newest > 0 ? newest * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+const sha256Hex = async (text: string) => hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))));
+
 const PLATFORMS = new Set(["ios", "macos", "android", "windows", "web"]);
 
 const json = (body: unknown, status = 200) =>
@@ -53,7 +87,7 @@ export function switchedOn(env: Env): Secrets | null {
 
 type KeyRow = { key_id: string; verifier: string; recovery_wrap: string };
 
-async function event(sql: Sql, uid: string, what: "stored" | "fetched", platform: string | null) {
+async function event(sql: Sql, uid: string, what: "stored", platform: string | null) {
   await sql`insert into public.key_copy_events (user_id, what, platform) values (${uid}, ${what}, ${platform})`;
   log("key_copy", { status: what });
 }
@@ -115,7 +149,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     }
     const platform = typeof body.platform === "string" && PLATFORMS.has(body.platform) ? body.platform : null;
     if (body.op === "store") return await store(deps, s, uid, body, platform, now);
-    if (body.op === "fetch") return await fetchKey(deps, s, uid, body, platform, now);
+    if (body.op === "fetch") return await fetchKey(deps, s, uid, body, platform, now, (deps.signedInAt ?? signedInAtOf)(token));
     await refused(deps.sql, uid, platform, "bad_request");
     return refuse(400, "bad_request", "Not a request.");
   } catch (e) {
@@ -126,11 +160,16 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
 
 /// A device that holds the key hands the server a copy. `choose`: the person just chose to (or
 /// the account is new, where a copy is the default); without it a copy is only renewed for an
-/// account that is already standard.
+/// account that is already standard. `from`: the mode the device saw when the person chose
+/// ("standard", "strict", or absent for an account that hadn't chosen). An account that is strict
+/// by the time the copy would go in gets one only when the choice was to turn strict off
+/// (`from: "strict"`): a renewal that raced the switch, a device that hadn't heard, or a choice
+/// made before the switch was turned leaves it strict. A ticket stores once.
 async function store(deps: Deps, s: Secrets, uid: string, body: Record<string, unknown>, platform: string | null, now: number): Promise<Response> {
   const { sql } = deps;
   const ticket = typeof body.ticket === "string" ? body.ticket : "", box = typeof body.box === "string" ? body.box : "";
   const choose = body.choose === true;
+  const from = body.from === "strict" || body.from === "standard" ? body.from : null;
   const [row] = await sql<KeyRow[]>`select key_id, verifier, recovery_wrap from public.account_keys where user_id = ${uid}`;
   if (!row) { await refused(sql, uid, platform, "no_key"); return refuse(409, "no_key", "This account has no key yet."); }
   const [{ n }] = await sql<{ n: number }[]>`
@@ -158,18 +197,32 @@ async function store(deps: Deps, s: Secrets, uid: string, body: Record<string, u
     const at = await sealAtRest(k, s, uid);
     // The copy and the mode go in together, and only for the key the account still has: a Start
     // fresh between the read above and here leaves nothing behind.
+    const ticketHash = await sha256Hex(ticket);
     const stored = await sql.begin(async (tx) => {
       const [still] = await tx`select 1 from public.account_keys where user_id = ${uid} and key_id = ${row.key_id} for update`;
-      if (!still) return false;
+      if (!still) return "no_key";
+      // The mode as it is now, under the same lock keep_key_on_devices takes: what was read
+      // before the key was opened may be a moment old, and that moment is the switch being turned.
+      const [now_] = await tx<{ mode: string }[]>`select mode from public.account_key_protection where user_id = ${uid}`;
+      if (now_?.mode === "strict" && !(choose && from === "strict")) return "strict";
+      if (!choose && now_?.mode !== "standard") return "not_chosen";
+      await tx`delete from public.key_copy_tickets where at < now() - interval '15 minutes'`;
+      const used = await tx`insert into public.key_copy_tickets (hash, user_id) values (${ticketHash}, ${uid}) on conflict do nothing returning 1`;
+      if (used.length === 0) return "used";
       await tx`insert into public.account_key_copies as c (user_id, key_id, sealed, secret_version)
         values (${uid}, ${at.keyId}, ${at.sealed}, ${at.version})
         on conflict (user_id) do update set key_id = excluded.key_id, sealed = excluded.sealed,
           secret_version = excluded.secret_version, stored_at = now()`;
       await tx`insert into public.account_key_protection as p (user_id, mode) values (${uid}, 'standard')
         on conflict (user_id) do update set mode = 'standard', chosen_at = now() where p.mode <> 'standard'`;
-      return true;
+      return "stored";
     });
-    if (!stored) { await refused(sql, uid, platform, "no_key"); return refuse(409, "no_key", "This account's key changed. Try again."); }
+    if (stored === "no_key") { await refused(sql, uid, platform, "no_key"); return refuse(409, "no_key", "This account's key changed. Try again."); }
+    if (stored === "strict" || stored === "not_chosen") {
+      await refused(sql, uid, platform, stored);
+      return refuse(409, stored, "This account keeps its key on its devices only.");
+    }
+    if (stored === "used") { await refused(sql, uid, platform, "ticket_used"); return refuse(409, "ticket_used", "Ask again."); }
     await event(sql, uid, "stored", platform);
     return json({ stored: true });
   } finally {
@@ -180,7 +233,7 @@ async function store(deps: Deps, s: Secrets, uid: string, body: Record<string, u
 /// A signed-in device without the key asks for it. The answer is sealed to `pub`, the public half
 /// of a key pair the device made for this request, so a replayed request gets a box only that
 /// device can open.
-async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string, unknown>, platform: string | null, now: number): Promise<Response> {
+async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string, unknown>, platform: string | null, now: number, signedIn: number | null): Promise<Response> {
   const { sql } = deps;
   let pub: Bytes;
   try {
@@ -190,13 +243,12 @@ async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string
     await refused(sql, uid, platform, "bad_request");
     return refuse(400, "bad_request", "Not a request.");
   }
-  const [counts] = await sql<{ hour: number; day: number }[]>`
-    select count(*) filter (where what = 'fetched' and at > now() - interval '1 hour')::int as hour,
-           count(*) filter (where what = 'fetched')::int as day
-    from public.key_copy_events where user_id = ${uid} and at > now() - interval '1 day'`;
-  if (counts.hour >= LIMITS.fetchPerHour || counts.day >= LIMITS.fetchPerDay) {
-    await refused(sql, uid, platform, "rate");
-    return refuse(429, "rate", "Too many tries. Try again in an hour.");
+  // Only a session signed in to lately gets the key (signInHours): a device asks seconds after
+  // signing in, and a session from long ago, however it was come by, is told to sign in again.
+  const window = signInHours(deps.env) * 3600_000;
+  if (signedIn === null || signedIn < now - window) {
+    await refused(sql, uid, platform, "reauth");
+    return refuse(403, "reauth", "Sign in again to open your notes.");
   }
   const [row] = await sql<(KeyRow & { mode: string | null; sealed: string | null; copy_key_id: string | null; generation: number; reset_at: Date | null })[]>`
     select k.key_id, k.verifier, k.recovery_wrap,
@@ -208,6 +260,8 @@ async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string
     where k.user_id = ${uid}`;
   if (!row) { await refused(sql, uid, platform, "no_key"); return refuse(404, "no_key", "This account has no key yet."); }
   if (row.mode === "strict") { await refused(sql, uid, platform, "strict"); return refuse(409, "strict", "This account keeps its key on its devices only."); }
+  // Exactly standard: a copy beside no choice can only be a write to the database, and isn't handed out.
+  if (row.mode !== "standard") { await refused(sql, uid, platform, "not_chosen"); return refuse(409, "not_chosen", "This account keeps its key on its devices only."); }
   if (!row.sealed || row.copy_key_id !== row.key_id) { await refused(sql, uid, platform, "no_copy"); return refuse(404, "no_copy", "No copy of this account's key is kept."); }
   // A hold after a password reset or an emailed sign-in link, when one is set (holdHours; none
   // by default): whoever got into the mailbox doesn't get the notes at once.
@@ -234,14 +288,36 @@ async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string
       await refused(sql, uid, platform, "unreadable");
       return refuse(503, "unreadable", "Not available right now. Try again later.");
     }
-    const sealed = await sealTransport(k, pub, "down", uid);
+    // Counted and written down in one step, one request at a time for the account: of many sent
+    // at once, only as many as the limit get an answer (and an email).
+    const taken = await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtextextended(${"key-copy " + uid}, 0))`;
+      const [counts] = await tx<{ hour: number; day: number }[]>`
+        select count(*) filter (where what = 'fetched' and at > now() - interval '1 hour')::int as hour,
+               count(*) filter (where what = 'fetched')::int as day
+        from public.key_copy_events where user_id = ${uid} and at > now() - interval '1 day'`;
+      if (counts.hour >= LIMITS.fetchPerHour || counts.day >= LIMITS.fetchPerDay) return null;
+      const [e] = await tx<{ id: number }[]>`insert into public.key_copy_events (user_id, what, platform) values (${uid}, 'fetched', ${platform}) returning id`;
+      return e.id;
+    });
+    if (taken === null) {
+      await refused(sql, uid, platform, "rate");
+      return refuse(429, "rate", "Too many tries. Try again in an hour.");
+    }
+    let sealed: string;
+    try {
+      sealed = await sealTransport(k, pub, "down", uid);
+    } catch (e) {
+      await sql`delete from public.key_copy_events where id = ${taken}`;
+      throw e;
+    }
+    log("key_copy", { status: "fetched" });
     if (version !== s.current) {
       const at = await sealAtRest(k, s, uid);
       await sql`update public.account_key_copies set sealed = ${at.sealed}, secret_version = ${at.version}
         where user_id = ${uid} and key_id = ${row.key_id}`;
     }
     await sql`update public.account_key_copies set opened_at = now() where user_id = ${uid}`;
-    await event(sql, uid, "fetched", platform);
     await sql`insert into public.account_notices (user_id, kind, what) values (${uid}, 'key_fetched', 'A new device opened your notes')`;
     if (deps.notify) {
       try { await deps.notify(uid, platform ?? ""); } catch (e) { logError("key notify", e); }

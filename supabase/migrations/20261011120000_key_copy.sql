@@ -48,6 +48,17 @@ create table public.account_key_copies (
 alter table public.account_key_copies enable row level security;
 revoke all on public.account_key_copies from public, anon, authenticated, service_role;
 
+-- A ticket a device stores with is good once (supabase/functions/_shared/keycopy.ts): its hash is
+-- kept here for as long as a ticket lives, so a recorded store sent again is refused. No client
+-- reads or writes it.
+create table public.key_copy_tickets (
+  hash    text primary key check (hash ~ '^[0-9a-f]{64}$'),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  at      timestamptz not null default now()
+);
+alter table public.key_copy_tickets enable row level security;
+revoke all on public.key_copy_tickets from public, anon, authenticated, service_role;
+
 -- The copy goes with the key, however the key goes (Start fresh deletes the account_keys row).
 create or replace function public.pane_key_copy_follows_key() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -119,9 +130,14 @@ grant execute on function public.account_key_state() to authenticated;
 -- and was seen in the last 30 days (the app checks that device's tag; the server can't).
 -- `p_device` is the device asking, which doesn't count as "another".
 --
--- Like Start fresh and Delete Account it waits 72 hours after a password reset: it takes away a
--- way back to the notes, and someone who got into the mailbox must not be able to do that to a
--- person whose only device is gone.
+-- Where there is a copy to take away, this takes away a way back to the notes, so it is held to
+-- what Start fresh is: a sign-in in the last 10 minutes (an old or stolen session can't do it), and
+-- 72 hours after a password reset (someone who got into the mailbox can't do it to a person whose
+-- only device is gone). "A recovery key was saved" and "another device" are what the app says and
+-- the server can't check: they stop an honest app from locking its person out, never an attacker.
+--
+-- An account with no copy (one from before, answering "keep my key on my devices only") loses
+-- nothing by this, so none of those three apply to it: it can always give that answer.
 --
 -- It needs no function and no secret, on purpose: removing the copy must work even when the `key`
 -- function is down. Turning strict off again is a store through the function, which sets the
@@ -132,17 +148,24 @@ declare
   uid uuid := auth.uid();
   k public.account_keys%rowtype;
   paused_until timestamptz;
+  has_copy boolean;
 begin
   if uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
-  paused_until := public.pane_reset_pause_until(uid);
-  if paused_until is not null then
-    raise exception 'Advanced protection can be turned on 72 hours after a password reset, to protect your notes.'
-      using errcode = '42501', hint = 'paused_after_reset',
-            detail = to_char(paused_until at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
-  end if;
   select * into k from public.account_keys where user_id = uid for update;
   if not found then raise exception 'This account has no key yet.' using errcode = '22023', hint = 'no_key'; end if;
-  if k.recovery_saved_at is null and not exists (
+  has_copy := exists (select 1 from public.account_key_copies c where c.user_id = uid);
+  if has_copy then
+    paused_until := public.pane_reset_pause_until(uid);
+    if paused_until is not null then
+      raise exception 'Advanced protection can be turned on 72 hours after a password reset, to protect your notes.'
+        using errcode = '42501', hint = 'paused_after_reset',
+              detail = to_char(paused_until at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+    end if;
+    if coalesce(public.pane_signed_in_at(), '-infinity') < now() - interval '10 minutes' then
+      raise exception 'Sign in again to turn on Advanced protection.' using errcode = '42501', hint = 'reauth';
+    end if;
+  end if;
+  if has_copy and k.recovery_saved_at is null and not exists (
     select 1 from public.key_devices d
     where d.user_id = uid and d.key_id = k.key_id and d.device_id is distinct from p_device
       and d.removed_at is null and d.seen_at > now() - interval '30 days') then

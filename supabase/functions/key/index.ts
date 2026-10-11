@@ -4,12 +4,13 @@
 //
 //   GET  /functions/v1/key     Authorization: Bearer <the user's access token>
 //   → 200 { on: true, pub, ticket }     a public key to seal a copy to, and the ticket to send back
-//   POST /functions/v1/key     { op: "store", ticket, box, choose?, platform? }
+//   POST /functions/v1/key     { op: "store", ticket, box, choose?, from?, platform? }
 //   → 200 { stored: true }
 //   POST /functions/v1/key     { op: "fetch", pub, platform? }
 //   → 200 { sealed, key_id, generation }     the key, sealed to `pub`
 //   → 403 { hint: "paused_after_reset", until } after a password reset, only while KEY_COPY_HOLD_HOURS is set (default 0: no hold)
-//   → 404 { hint: "no_copy" | "no_key" }, 409 { hint: "strict" | "not_chosen" }, 429 { hint: "rate" }
+//   → 403 { hint: "reauth" } when the session's sign-in is older than KEY_COPY_SIGNIN_HOURS (default 1)
+//   → 404 { hint: "no_copy" | "no_key" }, 409 { hint: "strict" | "not_chosen" | "ticket_used" }, 429 { hint: "rate" }
 //   → 503 { hint: "off" } while KEY_COPY isn't "on" or no KEY_COPY_SECRET_<n> is set
 //
 // The copies are sealed under KEY_COPY_SECRET_<n> (base64 of 32 random bytes), which exists only
@@ -32,6 +33,9 @@ const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 /** The user the access token belongs to, checked by the auth server (not just decoded). */
 async function userFor(token: string): Promise<string | null> {
   const r = await fetch(`${API}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: ANON } });
+  // The auth server being down is not "this session is no good": the device tries again
+  // instead of showing its person the linking screen.
+  if (r.status >= 500) { await r.body?.cancel(); throw new Error(`auth ${r.status}`); }
   if (!r.ok) { await r.body?.cancel(); return null; }
   const u = await r.json();
   return typeof u?.id === "string" ? u.id : null;

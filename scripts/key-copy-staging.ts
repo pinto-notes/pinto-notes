@@ -148,7 +148,7 @@ try {
   check("an account from before has no copy and has not chosen", sOld.copy === false && sOld.protection === null);
   const oldB = await signIn(old);
   const before = await fetchKey(oldB);
-  check("its second device gets nothing yet", before.status === 404 && before.body.hint === "no_copy", { status: before.status, hint: before.body.hint });
+  check("its second device gets nothing yet", before.status === 409 && before.body.hint === "not_chosen", { status: before.status, hint: before.body.hint });
   const silent = await store(old, old.token, false);
   check("a device never stores a copy silently for it", silent.status === 409 && silent.body.hint === "not_chosen", { status: silent.status, hint: silent.body.hint });
   check("nothing was stored", (await sql(`select 1 from public.account_key_copies where user_id = '${old.id}'`)).length === 0);
@@ -165,7 +165,7 @@ try {
     { statuses: [none.status, anon.status, junk.status] });
   const other = await account();
   const asOther = await fetchKey(other.token);
-  check("another account's session gets nothing of this account's", asOther.status === 404 && asOther.body.hint === "no_copy");
+  check("another account's session gets nothing of this account's", asOther.status === 409 && asOther.body.hint === "not_chosen");
   // The other account's session, with this account's id everywhere a request can carry one.
   const named = { user_id: a.id, user: a.id, uid: a.id, id: a.id, sub: a.id, account: a.id, account_id: a.id, key_id: a.keyId, claims: { sub: a.id } };
   const naming = { path: `/${a.id}?user_id=${a.id}&uid=${a.id}&sub=${a.id}`, headers: { "x-user-id": a.id, "x-supabase-user": a.id, "x-account": a.id } };
@@ -175,7 +175,7 @@ try {
   const ownPub = toBase64(new Uint8Array(await crypto.subtle.exportKey("raw", ownPair.publicKey)));
   const asNamedWithCopy = await key(other.token, { ...named, op: "fetch", pub: ownPub, platform: "web" }, undefined, naming);
   check("naming this account in the body, the address and the headers changes nothing: the caller gets its own key or nothing",
-    asNamed.status === 404 && asNamed.body.hint === "no_copy" && asNamedWithCopy.status === 200 && asNamedWithCopy.body.key_id === other.keyId
+    asNamed.status === 409 && asNamed.body.hint === "not_chosen" && asNamedWithCopy.status === 200 && asNamedWithCopy.body.key_id === other.keyId
       && !(await opens(asNamedWithCopy.body.sealed, ownPair.privateKey, a)) && await opens(asNamedWithCopy.body.sealed, ownPair.privateKey, other),
     { statuses: [asNamed.status, asNamedWithCopy.status] });
   const wrong = await store(a, a.token, true, other.key);
@@ -220,6 +220,8 @@ try {
   check("a new device of a strict account gets nothing (it shows the linking screen)", refused.status === 409 && refused.body.hint === "strict" && !("sealed" in refused.body));
   const renew = await store(a, a.token, false);
   check("a device can't bring the copy back without the person choosing", renew.status === 409 && renew.body.hint === "strict");
+  const unaware = await store(a, a.token, true);
+  check("nor does a choice made without knowing the account is strict", unaware.status === 409 && unaware.body.hint === "strict" && (await sql(`select 1 from public.account_key_copies where user_id = '${a.id}'`)).length === 0);
 
   // 6. A password reset. By default nothing is held: whoever signs in with the new password gets
   // the notes. (The reset ends the account's sessions; a new device signs in with the new password.)
@@ -255,15 +257,21 @@ try {
   // 7. Too many tries.
   const many = await account();
   await store(many, many.token, true);
-  const statuses: number[] = [];
-  for (let i = 0; i < 7; i++) statuses.push((await fetchKey(many.token)).status);
-  check("the sixth fetch in an hour waits", statuses.slice(0, 5).every((s) => s === 200) && statuses.slice(5).every((s) => s === 429), { statuses });
+  // A recorded store sent again: a ticket stores once.
+  const hello = await key(many.token);
+  const recorded = { op: "store", ticket: hello.body.ticket, box: await sealTransport(many.key, fromBase64(hello.body.pub), "up", many.id), choose: false, platform: "ios" };
+  const first = await key(many.token, recorded), again = await key(many.token, recorded);
+  check("a recorded store sent again is refused", first.status === 200 && again.status === 409 && again.body.hint === "ticket_used", { statuses: [first.status, again.status] });
+  // Fifteen at once, against real Postgres: five answers.
+  const statuses = (await Promise.all(Array.from({ length: 15 }, () => fetchKey(many.token)))).map((r) => r.status).sort();
+  check("of fifteen fetches sent at once, five are answered", statuses.filter((x) => x === 200).length === 5 && statuses.filter((x) => x === 429).length === 10, { statuses });
+  check("and five are written down", (await sql(`select 1 from public.key_copy_events where user_id = '${many.id}' and what = 'fetched'`)).length === 5);
 
   // 8. What a build from before reads is unchanged.
   check("the key state still has what builds since 1.1 read", ["key_id", "verifier", "recovery_wrap", "recovery_saved_at"].every((k) => k in sOld.key) && sOld.generation === 0);
   check("the work is done in the home region", got.region === "eu-central-1", { region: got.region });
   check("the log of what happened", JSON.stringify((await sql(`select what, why from public.key_copy_events where user_id = '${a.id}' order by id`)).map((r) => r.why ? `${r.what}:${r.why}` : r.what))
-    === JSON.stringify(["stored", "fetched", "refused:wrong_key", "fetched", "removed", "refused:strict", "refused:strict"]));
+    === JSON.stringify(["stored", "fetched", "refused:wrong_key", "fetched", "removed", "refused:strict", "refused:strict", "refused:strict"]));
   const everyRow = JSON.stringify(await sql(`select * from public.key_copy_events where user_id in (${made.map((i) => `'${i}'`).join(",")})`));
   const inRows = [a, old, other, many].some((x) => [x.key.dataKey, x.key.recovery].some((b) => everyRow.includes(toBase64(b)) || everyRow.includes(toBase64(b).replace(/=+$/, "")) || everyRow.includes(hex(b))));
   check("no row of the log of what happened holds key bytes", !inRows, { rows: JSON.parse(everyRow).length });
