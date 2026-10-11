@@ -56,6 +56,19 @@ import UniformTypeIdentifiers
         #expect(ProfileName.normalized(String(repeating: "a", count: 80))?.count == 60)
     }
 
+    /// The sidebar's account row and the iPhone's account button show a name, never an address
+    /// (2026-10-11: a Sign in with Apple account showed "f7k6w27t…ppleid.com").
+    @Test func theAccountIsShownByNameNeverByAddress() {
+        #expect(AccountName.shown("Emil Wagman") == "Emil Wagman")
+        #expect(AccountName.shown(nil) == "Your account")
+        #expect(AccountName.shown("  ") == "Your account")
+        #expect(AccountName.shown("f7k6w27tsh@privaterelay.appleid.com") == "Your account")
+        #expect(AccountName.shown("you@example.com") == "Your account")
+        #expect(AccountName.isSet("Emil Wagman"))
+        #expect(!AccountName.isSet(nil))
+        #expect(!AccountName.isSet("f7k6w27tsh@privaterelay.appleid.com"))
+    }
+
     @Test func initialsFromNamesOrEmails() {
         #expect(AvatarView.initials("Emil Wagman") == "EW")
         #expect(AvatarView.initials("emil@example.com") == "E")
