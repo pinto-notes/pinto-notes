@@ -233,12 +233,17 @@ final class Backend {
         #endif
     }
 
+    /// When the signed-in account was made, as the server says: the first-run flow is only for
+    /// an account made in the last day (`Onboarding`).
+    @ObservationIgnored private(set) var accountCreated: Date?
+
     /// Runs just before the app shows an account as signed in, so the device's library can be
     /// handed to that account first (AccountLibrary). Nothing is drawn in between.
     @ObservationIgnored var willSignIn: (UUID) -> Void = { _ in }
 
     private func signedIn(_ session: Session) {
         willSignIn(session.user.id)
+        accountCreated = session.user.createdAt
         userID = session.user.id
         Telemetry.shared.identify(session.user.id)
         state = .signedIn(email: session.user.email ?? "")
@@ -247,6 +252,7 @@ final class Backend {
     /// The session ended (signed out here, or the server refused its refresh).
     private func signedOut() {
         if userID != nil { Telemetry.shared.signedOut() }
+        accountCreated = nil
         userID = nil
         state = .signedOut
     }

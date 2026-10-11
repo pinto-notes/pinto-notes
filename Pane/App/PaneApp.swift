@@ -627,6 +627,8 @@ final class AppSession {
     @ObservationIgnored let context: ModelContext
     /// The first-run "Get set up" card's state, for the signed-in account.
     let setup = SetupStore()
+    /// The first-run flow, for an account that was just made (see `Onboarding`).
+    let onboarding = OnboardingStore()
     /// "Enjoying Pinto Notes?", once, after a week of use.
     let shareAsk = ShareAskStore()
     /// "How did you hear about Pinto Notes?", once, for a new account.
@@ -730,6 +732,7 @@ final class AppSession {
         }
         guard case .signedIn = backend.state, let client = backend.client else {
             setup.attach(account: nil, service: nil)
+            onboarding.attach(account: nil, created: nil, holdsNothing: false)
             shareAsk.attach(account: nil, service: nil)
             heardFrom.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
@@ -747,6 +750,9 @@ final class AppSession {
             return
         }
         setup.attach(account: backend.userID, service: SupabaseSetup(client: client))
+        // Before the key check and the first sync: an account that may be new waits on the
+        // welcome's picture, never on empty notes (the first sync then says, in openLibrary).
+        onboarding.attach(account: backend.userID, created: backend.accountCreated, holdsNothing: SyncEngine.holdsNothing(context))
         shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client))
         heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
@@ -813,11 +819,15 @@ final class AppSession {
         // pull can say: never after a failed sync, and never for an account that already has a
         // library (a second device, a reinstall). A real account starts with an empty Notes
         // folder: the setup card is its welcome.
-        if sync.claimNewAccount() {
+        let isNew = sync.claimNewAccount()
+        if isNew {
             Seed.ensureLibrary(context, demo: false, welcome: false)
             sync.schedule()
         }
         await setup.refresh(force: true)
+        // The first-run flow, for an account that has never held anything; a sync that couldn't
+        // say leaves the question for the next launch.
+        if sync.knowsAccount { onboarding.settle(accountIsNew: isNew, progress: setup.progress) } else { onboarding.giveUpWaiting() }
         // The setup guide's To-do note, now that the account's notes are here to say whether it
         // has one already (the note list makes it when the guide gets to that step later).
         if sync.knowsAccount, setup.progress?.needsToDoNote == true, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
@@ -828,7 +838,10 @@ final class AppSession {
         // launch, once it has a note, and never on a launch that has shown an account notice.
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
-        await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
+        // Never during the first-run flow, nor on the launch that showed it.
+        if !onboarding.active, !onboarding.endedThisLaunch {
+            await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
+        }
         await InstallID.report(client)
     }
 
@@ -841,6 +854,7 @@ struct AppGate: View {
     /// What runs for the account with or without this window (the key check, sync, the asks).
     let session: AppSession
     private var setup: SetupStore { session.setup }
+    private var onboarding: OnboardingStore { session.onboarding }
     private var shareAsk: ShareAskStore { session.shareAsk }
     private var heardFrom: HeardFromStore { session.heardFrom }
     private var connectAsks: ConnectAsks? { session.connectAsks }
@@ -928,12 +942,32 @@ struct AppGate: View {
                 KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context))
                     .transition(.opacity)
                 #endif
+            case .signedIn where onboardingShown:
+                // The first-run flow has the whole window, in the welcome's card on the Mac,
+                // until it ends in the notes.
+                Group {
+                    if onboarding.step != nil {
+                        OnboardingFlow(store: onboarding, backend: backend, setup: setup, layout: Self.onboardingLayout,
+                                       prepareTryIt: prepareTryIt, finish: finishOnboarding)
+                    } else {
+                        OnboardingWait(store: onboarding)
+                    }
+                }
+                #if os(macOS)
+                .cardWindow()
+                #endif
+                .environment(backend)
+                .environment(sync)
+                .environment(\.networkReach, sync.reach)
+                .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
+                .transition(.opacity)
             case .disabled, .signedIn:
                 RootView()
                     .environment(backend)
                     .environment(sync)
                     .environment(\.networkReach, sync.reach)
                     .environment(setup)
+                    .environment(onboarding)
                     .shareAskSheet(shareAsk)
                     .heardFromSheet(heardFrom)
                     .task {
@@ -946,9 +980,10 @@ struct AppGate: View {
             }
         }
         #if os(macOS)
-        .background(WindowShaper(compact: cardShown, cardSize: WelcomeFlow.size))
+        .background(WindowShaper(compact: cardShown || onboardingShown, cardSize: WelcomeFlow.size))
         #endif
         .animation(.easeOut(duration: 0.25), value: backend.state)
+        .animation(.easeOut(duration: 0.25), value: onboardingShown)
         .onAppear {
             if let p = CaptureScreen.setupProgress { setup.apply(p) }
             if CaptureScreen.setupFlow { playSetupFlow() }
@@ -964,12 +999,16 @@ struct AppGate: View {
             Task { await setup.mark("imported"); await PaneTips.imported.donate() }
         }
         // Tips wait until the Get set up card has gone; an import on any device counts.
-        .onChange(of: setup.visible, initial: true) { _, visible in PaneTips.setupVisible = visible }
+        .onChange(of: setup.visible || onboarding.active, initial: true) { _, visible in PaneTips.setupVisible = visible }
         .onChange(of: setup.progress?.imported == true, initial: true) { _, imported in
             if imported { Task { await PaneTips.importedOnce() } }
         }
         .onReceive(NotificationCenter.default.publisher(for: .paneShowSetupGuide)) { _ in
             Task { await setup.reset() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .paneReplayOnboarding)) { _ in
+            guard case .signedIn = backend.state, !keyGateShown else { return }
+            onboarding.startReplay()
         }
         #if os(macOS)
         // The Mac sleeping, its screen locking, the screen saver starting or a switch to another
@@ -1041,6 +1080,41 @@ struct AppGate: View {
         .onAppear { context.drainInbox() }
     }
 
+    /// The first-run flow (or the short wait before it) has the window. After the key gate:
+    /// a new account adds this device first.
+    private var onboardingShown: Bool {
+        guard case .signedIn = backend.state, !keyGateShown else { return false }
+        return onboarding.covers(backend.userID)
+    }
+
+    /// Design review: `-onboardingLayout grid` shows the two choice steps as tiles.
+    static let onboardingLayout: OnboardingFlow.Layout = {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-onboardingLayout"), i + 1 < args.count else { return .rows }
+        return OnboardingFlow.Layout(rawValue: args[i + 1]) ?? .rows
+    }()
+
+    /// The Try it step asks an AI to write to the To-do note, so the note exists by then.
+    private func prepareTryIt() {
+        if sync.knowsAccount, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
+    }
+
+    /// The flow ends in the notes with the first useful thing ready: the To-do note when an AI
+    /// is connected, a new empty note with the cursor in it otherwise. Setup is then over on the
+    /// server, for every device (a replay from the Help menu marks nothing).
+    private func finishOnboarding(connected: Bool) {
+        let replay = onboarding.replay
+        var landing: Onboarding.Landing?
+        if connected, sync.knowsAccount, let note = context.toDoNoteForOnboarding() {
+            landing = .note(note.id)
+            SyncSignal.changed()
+        } else if !replay {
+            landing = .newNote
+        }
+        onboarding.finish(landing: landing)
+        if !replay { Task { await setup.mark("dismissed") } }
+    }
+
     /// The share ask, a notice or the recovery key alert is on screen.
     private var somethingAsking: Bool {
         shareAsk.visible || heardFrom.visible || notices?.current != nil || crypto.recoveryKeyChangeNeedsSaying
@@ -1052,7 +1126,7 @@ struct AppGate: View {
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.5))
             guard backend.state != .signedOut, phase == .active, !heardFrom.visible else { return }
-            shareAsk.moment(setupVisible: setup.visible || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
+            shareAsk.moment(setupVisible: setup.visible || onboarding.active || onboarding.endedThisLaunch || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
         }
     }
 }

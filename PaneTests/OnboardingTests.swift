@@ -1,0 +1,208 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import Pane
+
+/// The first-run flow: who sees it, where it resumes, and how it ends.
+@MainActor @Suite struct OnboardingTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+    private var justNow: Date { now.addingTimeInterval(-30) }
+
+    private func store(_ defaults: UserDefaults = TestDefaults()) -> OnboardingStore { OnboardingStore(defaults: defaults) }
+
+    // MARK: Who sees it
+
+    @Test func aNewAccountWaitsThenIsWelcomed() {
+        let s = store()
+        let account = UUID()
+        s.attach(account: account, created: justNow, holdsNothing: true, now: now)
+        #expect(s.phase == .waiting, "the window holds on the picture until the first sync has said")
+        #expect(s.covers(account))
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        #expect(s.phase == .showing(.welcome))
+    }
+
+    @Test func anAccountWithNotesNeverSeesIt() {
+        let s = store()
+        // Notes already on this device (it was used signed out, or the library came down before).
+        s.attach(account: UUID(), created: justNow, holdsNothing: false, now: now)
+        #expect(s.phase == .off)
+        s.settle(accountIsNew: false, progress: SetupProgress())
+        #expect(s.phase == .off)
+    }
+
+    @Test func aSecondDeviceOnTheSameAccountDoesNotSeeIt() {
+        // Minutes after signing up on the first device: this one is empty too, so it waits, and
+        // the first sync says the account already holds something (its Notes folder at least).
+        let s = store()
+        s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+        #expect(s.phase == .waiting)
+        s.settle(accountIsNew: false, progress: SetupProgress())
+        #expect(s.phase == .off)
+    }
+
+    @Test func anAccountOlderThanADayIsNeverHeldBack() {
+        let s = store()
+        s.attach(account: UUID(), created: now.addingTimeInterval(-Onboarding.newAccountWindow - 1), holdsNothing: true, now: now)
+        #expect(s.phase == .off, "an old account on a new device opens its notes at once")
+    }
+
+    @Test(arguments: [
+        SetupProgress(dismissed: true), SetupProgress(celebrated: true), SetupProgress(imported: true),
+        SetupProgress(connected: true), SetupProgress(aiEdits: 1),
+    ])
+    func setupAlreadyBehindItMeansNoFlow(progress: SetupProgress) {
+        let s = store()
+        s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+        s.settle(accountIsNew: true, progress: progress)
+        #expect(s.phase == .off)
+    }
+
+    @Test func aSyncThatCannotSayOpensTheNotes() {
+        let s = store()
+        s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+        s.giveUpWaiting()
+        #expect(s.phase == .off)
+        #expect(!s.endedThisLaunch, "nothing was shown, so nothing is held back after it")
+    }
+
+    // MARK: Moving through it
+
+    @Test func theStepsInOrderWithAndWithoutAnAI() {
+        var seen: [Onboarding.Step] = []
+        var step: Onboarding.Step? = .welcome
+        while let s = step { seen.append(s); step = Onboarding.next(after: s, connected: false) }
+        #expect(seen == [.welcome, .name, .bring, .connect])
+        #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
+        #expect(Onboarding.next(after: .tryIt, connected: true) == nil)
+        #expect(Onboarding.previous(before: .welcome) == nil)
+        #expect(Onboarding.previous(before: .tryIt) == .connect)
+    }
+
+    @Test func quittingMidwayResumesAtTheSameStep() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        let first = store(defaults)
+        first.attach(account: account, created: justNow, holdsNothing: true, now: now)
+        first.settle(accountIsNew: true, progress: SetupProgress())
+        first.advance(connected: false)
+        first.advance(connected: false)
+        #expect(first.step == .bring)
+
+        // The next launch, a day later, with the first folder now on the device.
+        let second = store(defaults)
+        #expect(second.covers(account), "the gate shows the flow on the first frame, before the session has attached")
+        second.attach(account: account, created: justNow, holdsNothing: false, now: now.addingTimeInterval(2 * 86_400))
+        #expect(second.phase == .showing(.bring))
+        // An import on this device before quitting doesn't end it either.
+        second.settle(accountIsNew: false, progress: SetupProgress(imported: true))
+        #expect(second.phase == .showing(.bring))
+    }
+
+    @Test func finishingElsewhereClosesAResumedFlow() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        let first = store(defaults)
+        first.attach(account: account, created: justNow, holdsNothing: true, now: now)
+        first.settle(accountIsNew: true, progress: SetupProgress())
+        let second = store(defaults)
+        second.attach(account: account, created: justNow, holdsNothing: false, now: now)
+        second.settle(accountIsNew: false, progress: SetupProgress(dismissed: true))
+        #expect(second.phase == .off)
+        #expect(!store(defaults).covers(account), "and it stays closed")
+    }
+
+    @Test func skippingEverythingEndsInANewNote() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        let s = store(defaults)
+        s.attach(account: account, created: justNow, holdsNothing: true, now: now)
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        #expect(s.advance(connected: false))   // welcome
+        #expect(s.advance(connected: false))   // name, left as it was
+        #expect(s.advance(connected: false))   // Skip, I'll start empty
+        #expect(!s.advance(connected: false), "Skip for now: nothing after it without an AI")
+        s.finish(landing: .newNote)
+        #expect(s.phase == .off)
+        #expect(s.endedThisLaunch)
+        #expect(s.takeLanding() == .newNote)
+        #expect(s.takeLanding() == nil, "taken once")
+        #expect(!store(defaults).covers(account), "never again on this device")
+    }
+
+    @Test func anotherAccountOnTheSameDeviceStartsClean() {
+        let defaults = TestDefaults()
+        let s = store(defaults)
+        let a = UUID(), b = UUID()
+        s.attach(account: a, created: justNow, holdsNothing: true, now: now)
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        s.advance(connected: false)
+        s.attach(account: nil, created: nil, holdsNothing: false, now: now)
+        #expect(s.phase == .off)
+        s.attach(account: b, created: now.addingTimeInterval(-90 * 86_400), holdsNothing: false, now: now)
+        #expect(s.phase == .off)
+        #expect(!s.covers(b), "the account that's signed in now has nothing to resume")
+    }
+
+    // MARK: Help › Show Setup Guide
+
+    @Test func replayStartsAtTheWelcomeAndSavesNothing() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        let s = store(defaults)
+        s.attach(account: account, created: now.addingTimeInterval(-90 * 86_400), holdsNothing: false, now: now)
+        s.startReplay()
+        #expect(s.phase == .showing(.welcome))
+        #expect(s.replay)
+        s.advance(connected: true)
+        #expect(defaults.string(forKey: Onboarding.savedKey(account)) == nil, "quitting during a replay doesn't bring it back")
+        s.finish(landing: nil)
+        #expect(!s.endedThisLaunch, "a replay holds no ask back")
+        #expect(!s.replay)
+    }
+
+    @Test func replayDoesNothingWhileTheFlowIsAlreadyUp() {
+        let s = store()
+        s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        s.advance(connected: false)
+        s.startReplay()
+        #expect(s.step == .name)
+        #expect(!s.replay)
+    }
+
+    // MARK: The To-do note
+
+    @Test func theToDoNoteIsMadeOnceAndFoundAgain() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        _ = c.mainContext.createFolder(named: "Notes")
+        let made = try #require(c.mainContext.toDoNoteForOnboarding())
+        #expect(made.title == SetupProgress.toDoTitle)
+        let again = try #require(c.mainContext.toDoNoteForOnboarding())
+        #expect(again.id == made.id, "the account's own To-do note, not a second one")
+    }
+
+    // MARK: Words
+
+    @Test func everyStepSaysWhatItIsInPlainWords() {
+        for step in Onboarding.Step.allCases {
+            let words = [OnboardingFlow.title(step), OnboardingFlow.line(step)]
+            for w in words {
+                #expect(!w.isEmpty)
+                #expect(!w.contains("\u{2014}") && !w.contains("\u{2013}"), "no dashes: \(w)")
+            }
+        }
+        #expect(OnboardingFlow.line(.connect) == "Your AI can then read and write your notes when you ask it to.")
+        #expect(OnboardingFlow.skipBring.lowercased() != AccountCrypto.startFreshPhrase, "not the account's destructive action")
+    }
+
+    @Test func appleNotesComesFirstThenTheImportSheetsKinds() {
+        #expect(OnboardingFlow.sourceOrder.first == .markdown)
+        #expect(Set(OnboardingFlow.sourceOrder) == Set(ImportKind.allCases), "every kind the import sheet knows is offered")
+        #expect(OnboardingFlow.sourceOrder.count == ImportKind.allCases.count)
+    }
+
+    @Test func everyWayToConnectHasItsGuide() {
+        #expect(OnboardingFlow.guides.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Another AI"])
+    }
+}

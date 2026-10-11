@@ -599,7 +599,7 @@ import Testing
     }
 
     @Test func isInTheListAfterTheOthers() {
-        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible"])
+        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible", "Another AI"])
         #expect(AIGlyph.asset("Incredible") == "AIGlyphIncredible")
         #expect(WebConnectPlan.forAI("Incredible") == nil, "Incredible is added in Incredible, not on a website")
     }

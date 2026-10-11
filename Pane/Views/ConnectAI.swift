@@ -1444,7 +1444,7 @@ struct ConnectAISection: View {
     @Environment(\.networkReach) private var reach
 
     enum Guide: String, Identifiable, CaseIterable {
-        case chatgpt, claude, claudeCode, codex, incredible
+        case chatgpt, claude, claudeCode, codex, incredible, other
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -1453,6 +1453,7 @@ struct ConnectAISection: View {
             case .claudeCode: "Claude Code"
             case .codex: "Codex"
             case .incredible: "Incredible"
+            case .other: "Another AI"
             }
         }
         var subtitle: String {
@@ -1462,6 +1463,7 @@ struct ConnectAISection: View {
             case .claudeCode: "Adds Pinto Notes to Claude Code on this Mac"
             case .codex: "Adds Pinto Notes to Codex"
             case .incredible: "Connected once in Incredible on your computer"
+            case .other: "Any app that speaks MCP, with the address or an access token"
             }
         }
         /// Where it's done, in the AI's own words (as on the website).
@@ -1472,6 +1474,7 @@ struct ConnectAISection: View {
             case .claudeCode: "claude mcp add \(ConnectSnippets.serverName)"
             case .codex: "~/.codex/config.toml"
             case .incredible: "Apps → Amber Notes → Connect"
+            case .other: "MCP server address"
             }
         }
     }
@@ -1707,8 +1710,44 @@ struct GuideSheet: View {
                 note: "Add this to ~/.codex/config.toml. It's shown once; keep it private.")
         case .incredible:
             IncredibleGuide(client: client)
+        case .other:
+            otherGuide
         }
     }
+
+    /// Any other app that speaks MCP: the address, and a token for apps that want a header.
+    @ViewBuilder
+    private var otherGuide: some View {
+        Section {
+            Text(Self.otherIntro).foregroundStyle(.secondary)
+            Text(server).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
+            copyButton("Copy Address", server)
+        } footer: {
+            Text("The address holds no password. Access is granted only when you choose Allow in Pinto Notes.")
+        }
+        Section {
+            Toggle("Read only", isOn: $readOnly).disabled(token != nil)
+            if let token {
+                let header = Self.otherHeader(token: token)
+                Text(header).font(.system(.footnote, design: .monospaced)).textSelection(.enabled).lineLimit(4)
+                copyButton("Copy", header)
+            } else {
+                Button("Create Access Token", systemImage: "key") { Task { await makeToken() } }
+                    .disabled(working)
+            }
+            if let result, failed {
+                Label(result, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.callout)
+            }
+        } header: {
+            Text("If the app asks for a token")
+        } footer: {
+            Text("Send it as this request header. It's shown once; keep it private.")
+        }
+    }
+
+    static let otherIntro = "Add Pinto Notes as an MCP server in your AI app with this address. If the app asks you to sign in, choose Allow in Pinto Notes."
+
+    static func otherHeader(token: String) -> String { "Authorization: Bearer \(token)" }
 
     @ViewBuilder
     private func tokenGuide(intro: String, snippet: String?, note: String) -> some View {

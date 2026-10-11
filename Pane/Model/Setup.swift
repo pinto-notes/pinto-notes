@@ -95,7 +95,7 @@ final class SetupStore {
     /// not at all once the card is gone for good.
     func refresh(force: Bool = false) async {
         guard let service else { return }
-        if let p = progress, !p.visible, !showingCelebration { return }
+        if !force, let p = progress, !p.visible, !showingCelebration { return }
         guard force || Date.now.timeIntervalSince(lastRefresh) > 4 else { return }
         lastRefresh = .now
         guard let fresh = try? await service.progress() else { return }
