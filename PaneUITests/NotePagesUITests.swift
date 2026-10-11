@@ -310,7 +310,7 @@ final class NotePagesUITests: XCTestCase {
         pause(1)
     }
 
-    /// Make It an App: the menu item has a symbol that reads as apps. Its sheet has one step. With
+    /// Make It an App is in More and nowhere else, with a symbol that reads as apps. Its sheet has one step. With
     /// no AI connected ($MAKE_APP_STATE=none) that is connecting one. With ChatGPT connected, one
     /// tap hands the words over and the sheet waits; when the app arrives (here from `-aiPage`, as
     /// sync would bring it) the sheet closes itself and the note is the app.
@@ -319,13 +319,15 @@ final class NotePagesUITests: XCTestCase {
         let state = env["MAKE_APP_STATE"] ?? "chatgpt"
         var args = ["-open", "Evening tracker", "-makeAppState", state]
         if env["MAKE_APP_SKETCH"] == "NO" { args += ["-makeAppSketch", "NO"] }
-        if state == "chatgpt" { args += ["-aiPage", "Evening tracker=\(pages)/habit-tracker.html", "-aiPageBy", "ChatGPT", "-aiAfter", "14"] }
+        if state == "chatgpt" { args += ["-aiPage", "Evening tracker=\(pages)/habit-tracker.html", "-aiPageBy", "ChatGPT", "-aiAfter", "24"] }
         // No app comes: after its patience (4 seconds here, about three minutes for people) the sheet says what to check.
         if state == "claude" { args += ["-makeAppPatience", "4"] }
         launch(args)
         mark("make-start")
-        let chip = app.buttons["makeApp.chip"].firstMatch
-        XCTAssertTrue(chip.waitForExistence(timeout: 6), "the suggestion shows")
+        XCTAssertTrue(app.buttons["editor.more"].firstMatch.waitForExistence(timeout: 6))
+        // No pill offers it (one used to slide in 1.2 seconds after the note opened).
+        pause(3)
+        XCTAssertFalse(app.buttons["Make this an app"].firstMatch.exists || app.buttons["makeApp.chip"].firstMatch.exists, "no pill offers to make an app")
         app.buttons["editor.more"].firstMatch.tap()
         let item = app.buttons["editor.makeApp"].firstMatch
         XCTAssertTrue(item.waitForExistence(timeout: 4))
@@ -366,6 +368,21 @@ final class NotePagesUITests: XCTestCase {
             XCTAssertTrue(app.buttons["Copied"].firstMatch.waitForExistence(timeout: 3))
             app.buttons["makeApp.close"].firstMatch.tap()
             XCTAssertTrue(heading.waitForNonExistence(timeout: 4))
+        case "both":
+            // ChatGPT and Claude Code connected: one main button, and the other under "Use another AI".
+            XCTAssertTrue(app.buttons["makeApp.with.ChatGPT"].firstMatch.exists)
+            XCTAssertFalse(app.buttons["makeApp.copy"].firstMatch.exists, "only one AI is offered at a time")
+            app.buttons["makeApp.another"].firstMatch.tap()
+            let other = app.buttons["Claude Code"].firstMatch
+            XCTAssertTrue(other.waitForExistence(timeout: 4), "the other connected AI is listed by name")
+            pause(0.6)
+            shot("69-make-another")
+            other.tap()
+            XCTAssertTrue(app.buttons["makeApp.copy"].firstMatch.waitForExistence(timeout: 4), "Claude Code gets the words and Copy")
+            XCTAssertFalse(app.buttons["makeApp.with.ChatGPT"].firstMatch.exists)
+            pause(0.6)
+            shot("70-make-chosen")
+            app.buttons["makeApp.close"].firstMatch.tap()
         default:
             pause(0.5)
         }

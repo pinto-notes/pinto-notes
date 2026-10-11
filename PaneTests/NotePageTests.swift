@@ -672,10 +672,7 @@ import AppKit
 
     // MARK: App settings and Make It an App
 
-    @Test func makeItAnAppSuggestsFromWhatTheNoteHolds() {
-        #expect(MakeAnApp.looksLikeAnApp(Capture.budgetNote))
-        #expect(MakeAnApp.looksLikeAnApp("List\n- [ ] a\n- [ ] b\n- [x] c"))
-        #expect(!MakeAnApp.looksLikeAnApp("Just thoughts\n\nNothing to track."))
+    @Test func makeItAnAppAsksForWhatTheNoteHolds() {
         #expect(MakeAnApp.idea(for: Capture.budgetNote)?.hasPrefix("a budget with the total") == true)
         #expect(MakeAnApp.idea(for: Capture.habitNote())?.hasPrefix("a tracker with today's entry") == true)
         #expect(MakeAnApp.idea(for: "Just thoughts\n\nNothing to track.") == nil)

@@ -17,28 +17,45 @@ import Testing
         #expect(NSImage(systemSymbolName: NoteAppMark.symbol, accessibilityDescription: nil) != nil, "\(NoteAppMark.symbol) exists on this system")
     }
 
-    private func connection(_ name: String, oauthHost: String? = nil, used: Double, revoked: Bool = false) throws -> Connection {
+    private func connection(_ name: String, oauthHost: String? = nil, connected: Double = 0, used: Double? = nil, revoked: Bool = false) throws -> Connection {
         let at = { (t: Double) in ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: 1_790_000_000 + t)) }
-        var row: [String: Any] = ["id": UUID().uuidString, "name": name, "kind": oauthHost == nil ? "token" : "oauth", "can_write": true, "created_at": at(0), "last_used_at": at(used)]
+        var row: [String: Any] = ["id": UUID().uuidString, "name": name, "kind": oauthHost == nil ? "token" : "oauth", "can_write": true, "created_at": at(connected)]
+        if let used { row["last_used_at"] = at(used) }
         if let oauthHost { row["redirect_host"] = oauthHost }
-        if revoked { row["revoked_at"] = at(used) }
+        if revoked { row["revoked_at"] = at(used ?? connected) }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(Connection.self, from: JSONSerialization.data(withJSONObject: row))
     }
 
-    /// Which way the words go depends on what is connected: a chat that opens with them for ChatGPT
-    /// and Claude, the words to paste for Claude Code, Codex and anything else.
-    @Test func theWaysToHandTheWordsOverFollowWhatIsConnected() throws {
-        #expect(MakeAnApp.ways([]).isEmpty)
-        #expect(try MakeAnApp.ways([connection("Claude Code", used: 5, revoked: true)]).isEmpty, "a disconnected AI is not a way")
-        let chatgpt = try connection("ChatGPT", oauthHost: "chatgpt.com", used: 10), claude = try connection("Claude", oauthHost: "claude.ai", used: 20)
+    /// Which AI the sheet offers first when several are connected, and what "Use another AI" lists.
+    @Test func theAIOfferedFirstIsTheOneUsedLastOrChosenHere() throws {
+        let names = { (cs: [Connection], chosen: String?) in MakeAnApp.choices(cs, chosen: chosen).map(\.name) }
+        #expect(names([], nil).isEmpty)
+        #expect(try names([connection("Claude Code", used: 5, revoked: true)], nil).isEmpty, "a disconnected AI is not offered")
+        let chatgpt = try connection("ChatGPT", oauthHost: "chatgpt.com", connected: 1, used: 10)
+        let claude = try connection("Claude", oauthHost: "claude.ai", connected: 2, used: 20)
+        let code = try connection("Claude Code", connected: 3, used: 30)
         #expect(chatgpt.mark == "ChatGPT" && claude.mark == "Claude", "the test's hosts are the ones the app vouches for")
-        #expect(MakeAnApp.ways([chatgpt]) == .init(chats: ["ChatGPT"]))
-        #expect(MakeAnApp.ways([chatgpt, claude]).chats == ["Claude", "ChatGPT"], "the one used last comes first")
-        #expect(try MakeAnApp.ways([connection("Claude Code", used: 1)]) == .init(paste: "Claude Code"))
-        #expect(try MakeAnApp.ways([connection("My script", used: 1)]) == .init(paste: "your AI"))
-        #expect(try MakeAnApp.ways([chatgpt, connection("Codex", used: 30)]) == .init(chats: ["ChatGPT"], paste: "Codex"))
+        // One connected: it, and nothing to choose between.
+        #expect(names([chatgpt], nil) == ["ChatGPT"])
+        // Several: the one used most recently first, the rest after it in the same order.
+        #expect(names([chatgpt, code], nil) == ["Claude Code", "ChatGPT"])
+        #expect(names([code, chatgpt, claude], nil) == ["Claude Code", "Claude", "ChatGPT"])
+        // One that has been used comes before one that never was, however lately that was connected.
+        let fresh = try connection("Codex", connected: 99)
+        #expect(names([fresh, chatgpt], nil) == ["ChatGPT", "Codex"])
+        // None used yet: the one connected most recently.
+        #expect(try names([connection("Codex", connected: 5), connection("Claude Code", connected: 9)], nil) == ["Claude Code", "Codex"])
+        // The one chosen here last time comes first, while it is still connected.
+        #expect(names([chatgpt, claude, code], "ChatGPT") == ["ChatGPT", "Claude Code", "Claude"])
+        #expect(names([claude, code], "ChatGPT") == ["Claude Code", "Claude"], "a choice that is no longer connected is ignored")
+        // Two connections of the same AI are one choice; a token nobody named is listed by its title.
+        #expect(try names([code, connection("Claude Code", connected: 4, used: 40)], nil) == ["Claude Code"])
+        #expect(try names([connection("My script", connected: 1)], nil) == ["My script"])
+        // How the words reach each: a chat for ChatGPT and Claude, pasting for everything else.
+        #expect(MakeAnApp.AI(name: "ChatGPT").isChat && MakeAnApp.AI(name: "Claude").isChat)
+        #expect(!MakeAnApp.AI(name: "Claude Code").isChat && !MakeAnApp.AI(name: "Codex").isChat && !MakeAnApp.AI(name: "My script").isChat)
         // The chat opens with the whole prompt in its address, as Try It's link does.
         let url = MakeAnApp.chat("ChatGPT", prompt: "make my note \u{201C}A & B\u{201D} an app")
         #expect(url.host == "chatgpt.com" && URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == "make my note \u{201C}A & B\u{201D} an app")
@@ -84,13 +101,13 @@ import Testing
         let dir = env["PANE_SNAPSHOT_DIR"] ?? env["AMBER_HIG_SHOTS"]
         let tracker = ("Evening tracker", Capture.habitNote())
         for sketch in [true, false] {
-            for state in ["none", "chatgpt", "claude", "both", "code", "waiting", "waiting-claude", "late"] {
+            for state in ["none", "chatgpt", "claude", "both", "three", "code", "waiting", "waiting-claude", "late"] {
                 for dark in [false, true] {
                     let host = try await host(state: state, sketch: sketch, dark: dark, note: tracker)
                     let size = host.fittingSize
                     #expect(size.width == 420)
                     // One step under a title and a line: short. Only the words to paste make it taller.
-                    #expect(size.height < (["code": 420, "both": 390, "late": 400, "waiting": 320, "waiting-claude": 320, "claude": 320][state] ?? 280) - (sketch ? 0 : 80), "\(state)\(sketch ? "" : ", no sketch") is \(size.height) pt tall")
+                    #expect(size.height < (["code": 420, "three": 450, "both": 310, "late": 400, "waiting": 320, "waiting-claude": 320, "claude": 320][state] ?? 280) - (sketch ? 0 : 80), "\(state)\(sketch ? "" : ", no sketch") is \(size.height) pt tall")
                     guard let dir else { continue }
                     let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                     host.cacheDisplay(in: host.bounds, to: rep)

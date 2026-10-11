@@ -5,15 +5,11 @@ import UIKit
 import AppKit
 #endif
 
-/// "Make it an app" (prototype; see NotePage): apps are made by the person's own AI, so this hands
-/// their AI a ready prompt for this note, or, with no AI connected yet, leads to connecting one.
+/// "Make It an App…" in a note's More menu (see NotePage): apps are made by the person's own AI, so
+/// this hands their AI a ready prompt for this note, or, with no AI connected yet, leads to
+/// connecting one. The menu is the only way in: a pill at the bottom of a note is for status (an AI
+/// changed this, with Undo), never for an offer. One that said "Make this an app" was removed.
 enum MakeAnApp {
-    /// A note that would make a good app: a table, or a checklist of three items or more.
-    static func looksLikeAnApp(_ body: String) -> Bool {
-        let lines = body.components(separatedBy: "\n")
-        return !NotePage.tables(in: lines).isEmpty || lines.filter { ListPrefix(line: $0)?.checkbox != nil }.count >= 3
-    }
-
     /// What kind of app the note would make, from what it holds.
     enum Kind: Equatable { case budget, tracker, cards, checklist, plain }
 
@@ -39,22 +35,33 @@ enum MakeAnApp {
         }
     }
 
-    /// The ways to hand the prompt to the AIs connected to this account: a chat that opens with
-    /// the words in its box (ChatGPT, Claude), and, for anything else (Claude Code, Codex, another
-    /// MCP client), the words to paste. Most recently used first.
-    struct Ways: Equatable {
-        var chats: [String] = []
-        var paste: String?
-        var isEmpty: Bool { chats.isEmpty && paste == nil }
+    /// One connected AI, and how the words reach it: a chat that opens with them (ChatGPT, Claude),
+    /// or, for anything else (Claude Code, Codex, another MCP client), the words to paste.
+    struct AI: Equatable, Identifiable {
+        var name: String
+        var isChat: Bool { ["ChatGPT", "Claude"].contains(name) }
+        var id: String { name }
     }
 
-    static func ways(_ connections: [Connection]) -> Ways {
-        var ways = Ways()
-        let live = connections.filter { $0.revoked_at == nil }.sorted { ($0.last_used_at ?? $0.created_at) > ($1.last_used_at ?? $1.created_at) }
-        for c in live {
-            if let ai = c.mark, ["ChatGPT", "Claude"].contains(ai) { if !ways.chats.contains(ai) { ways.chats.append(ai) } } else if ways.paste == nil { ways.paste = c.mark ?? "your AI" }
+    /// The device's memory of which AI was chosen here last ("Use another AI").
+    static let chosenKey = "makeAppAI"
+
+    /// The connected AIs, the one to offer first: the one chosen here last time if it is still
+    /// connected, else the one used most recently, else (none used yet) the one connected most
+    /// recently. The rest follow in that same order. Each AI once, by name.
+    static func choices(_ connections: [Connection], chosen: String? = UserDefaults.standard.string(forKey: chosenKey)) -> [AI] {
+        let live = connections.filter { $0.revoked_at == nil }.sorted { a, b in
+            switch (a.last_used_at, b.last_used_at) {
+            case let (x?, y?): x > y
+            case (_?, nil): true
+            case (nil, _?): false
+            case (nil, nil): a.created_at > b.created_at
+            }
         }
-        return ways
+        var names: [String] = []
+        for c in live { let n = c.mark ?? c.title; if !names.contains(n) { names.append(n) } }
+        if let chosen, let i = names.firstIndex(of: chosen) { names.insert(names.remove(at: i), at: 0) }
+        return names.map(AI.init(name:))
     }
 
     /// The chat with the prompt typed in (WebConnectPlan.prefilled, the same link Try It uses).
@@ -64,51 +71,6 @@ enum MakeAnApp {
 
     static func prompt(title: String, body: String) -> String {
         "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app\(idea(for: body).map { ": \($0)" } ?? ""). Call get_page_guide, read the note, start the app with create_app, and keep what the note's table or checklist holds as the app's data."
-    }
-
-    // Notes the suggestion was shown on: once per note, never again.
-    private static let shownKey = "makeAppChipShown"
-    static func chipShown(_ id: UUID) -> Bool { (UserDefaults.standard.stringArray(forKey: shownKey) ?? []).contains(id.uuidString) }
-    static func markChipShown(_ id: UUID) {
-        var all = UserDefaults.standard.stringArray(forKey: shownKey) ?? []
-        guard !all.contains(id.uuidString) else { return }
-        all.append(id.uuidString)
-        UserDefaults.standard.set(Array(all.suffix(500)), forKey: shownKey)
-    }
-}
-
-/// The small suggestion on a note that looks like it could be an app. Shown once per note.
-struct MakeAppChip: View {
-    let open: () -> Void
-    let dismiss: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button(action: open) {
-                Label("Make this an app", systemImage: NoteAppMark.symbol)
-                    .font(.system(size: AIReceipt.text, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
-            }
-            .buttonStyle(.hoverText)
-            .accessibilityIdentifier("makeApp.chip")
-            Divider().frame(height: 14)
-            Button(action: dismiss) {
-                // The glyph alone took no taps on iPhone (they went through to the note): the
-                // target is the chip's whole end, as tall as the chip.
-                Image(systemName: "xmark").font(.system(size: AIReceipt.text - 2, weight: .semibold)).foregroundStyle(Color.amberInk.opacity(0.7))
-                    .frame(width: 30, height: AIReceipt.height)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.hoverIcon(cornerRadius: 9))
-            .accessibilityLabel("Not now")
-            .accessibilityIdentifier("makeApp.chip.dismiss")
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, 4)
-        .frame(height: AIReceipt.height)
-        .background(Color.amberSoft, in: .capsule)
-        .overlay(Capsule().strokeBorder(Color.amberInk.opacity(0.22), lineWidth: 0.5))
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.12), radius: 12, y: 6)
     }
 }
 
@@ -124,13 +86,13 @@ struct MakeAppSheet: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @State private var ways: MakeAnApp.Ways?
+    /// The connected AIs, the one offered first (nil until known).
+    @State private var ais: [MakeAnApp.AI]?
     /// Handed to this AI (or pasted somewhere): waiting for the app.
     @State private var waitingFor: String?
     /// Waited long enough with no app: say what to check, and offer the words again.
     @State private var late = false
     @State private var copied = false
-    @State private var showWords = false
     @State private var connecting = false
     @State private var height: CGFloat = 320
 
@@ -203,7 +165,7 @@ struct MakeAppSheet: View {
                 .foregroundStyle(Color.ink)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.trailing, Metrics.closeSize + 8)
-            Text(ways?.isEmpty == true ? "An AI you connect builds it from what this note holds." : "Your AI builds it from what this note holds. You can undo it.")
+            Text(ais?.isEmpty == true ? "An AI you connect builds it from what this note holds." : "Your AI builds it from what this note holds. You can undo it.")
                 .font(Metrics.line)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -214,46 +176,46 @@ struct MakeAppSheet: View {
     @ViewBuilder private var step: some View {
         if let waitingFor {
             waiting(for: waitingFor)
-        } else if let ways {
-            if ways.isEmpty {
+        } else if let ais {
+            if let ai = ais.first {
+                VStack(alignment: .leading, spacing: Metrics.stepGap) {
+                    if ai.isChat {
+                        Button { hand(to: ai.name) } label: { Text("Make it with \(ai.name)").frame(maxWidth: .infinity) }
+                            .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                            .accessibilityIdentifier("makeApp.with.\(ai.name)")
+                        if ai.name == "Claude" {
+                            Text("Claude shows a caution note for prompts that arrive by link. Press send to continue.")
+                                .font(Metrics.hint)
+                                .foregroundStyle(Color.muted)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity)
+                                .accessibilityIdentifier("makeApp.claudeNote")
+                        }
+                    } else {
+                        wordsToPaste(for: ai.name)
+                    }
+                    // Several connected: the others, by name. The one picked is offered first from now on.
+                    if ais.count > 1 {
+                        Menu {
+                            ForEach(ais.dropFirst()) { other in
+                                Button(other.name) { choose(other) }.accessibilityIdentifier("makeApp.use.\(other.name)")
+                            }
+                        } label: {
+                            Text("Use another AI").font(Metrics.hint).foregroundStyle(Color.muted)
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("makeApp.another")
+                    }
+                }
+            } else {
                 Button { connecting = true } label: { Text("Connect an AI").frame(maxWidth: .infinity) }
                     .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
                     .accessibilityIdentifier("makeApp.connect")
-            } else {
-                VStack(alignment: .leading, spacing: Metrics.stepGap) {
-                    ForEach(Array(ways.chats.enumerated()), id: \.element) { i, ai in
-                        if i == 0 {
-                            Button { hand(to: ai) } label: { Text("Make it with \(ai)").frame(maxWidth: .infinity) }
-                                .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
-                                .accessibilityIdentifier("makeApp.with.\(ai)")
-                        } else {
-                            Button { hand(to: ai) } label: { Text("Make it with \(ai)").frame(maxWidth: .infinity).frame(height: Metrics.button - 8) }
-                                .buttonStyle(.bordered)
-                                .accessibilityIdentifier("makeApp.with.\(ai)")
-                        }
-                    }
-                    if ways.chats.contains("Claude") {
-                        Text("Claude shows a caution note for prompts that arrive by link. Press send to continue.")
-                            .font(Metrics.hint)
-                            .foregroundStyle(Color.muted)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity)
-                            .accessibilityIdentifier("makeApp.claudeNote")
-                    }
-                    if let other = ways.paste {
-                        if ways.chats.isEmpty || showWords {
-                            wordsToPaste(for: other)
-                        } else {
-                            Button("Or copy the words for \(other)") { withAnimation(.smooth(duration: 0.2)) { showWords = true } }
-                                .buttonStyle(.hoverLink)
-                                .font(Metrics.hint)
-                                .foregroundStyle(Color.muted)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .accessibilityIdentifier("makeApp.showWords")
-                        }
-                    }
-                }
             }
         } else {
             // Finding out which AIs are connected: the button's own height, so nothing jumps.
@@ -378,22 +340,32 @@ struct MakeAppSheet: View {
     /// Which AIs are connected to this account.
     private func check() async {
         if let state = Self.stateForPictures {
+            let named = { (names: [String]) in names.map(MakeAnApp.AI.init(name:)) }
             switch state {
-            case "chatgpt": ways = .init(chats: ["ChatGPT"])
-            case "both": ways = .init(chats: ["ChatGPT", "Claude"], paste: "Claude Code")
-            case "code": ways = .init(paste: "Claude Code")
-            case "claude": ways = .init(chats: ["Claude"])
-            case "waiting": ways = .init(chats: ["ChatGPT"]); waitingFor = "ChatGPT"
-            case "waiting-claude": ways = .init(chats: ["Claude"]); waitingFor = "Claude"
-            case "late": ways = .init(chats: ["ChatGPT"]); waitingFor = "ChatGPT"; late = true
-            default: ways = .init()
+            case "chatgpt": ais = named(["ChatGPT"])
+            case "claude": ais = named(["Claude"])
+            case "both": ais = named(["ChatGPT", "Claude Code"])
+            case "three": ais = named(["Claude Code", "ChatGPT", "Claude"])
+            case "code": ais = named(["Claude Code"])
+            case "waiting": ais = named(["ChatGPT"]); waitingFor = "ChatGPT"
+            case "waiting-claude": ais = named(["Claude"]); waitingFor = "Claude"
+            case "late": ais = named(["ChatGPT"]); waitingFor = "ChatGPT"; late = true
+            default: ais = []
             }
             return
         }
-        if ProcessInfo.processInfo.arguments.contains("-aiConnected") { ways = .init(chats: ["ChatGPT"]); return }
-        guard let client = backend?.client else { ways = .init(); return }
+        if ProcessInfo.processInfo.arguments.contains("-aiConnected") { ais = [.init(name: "ChatGPT")]; return }
+        guard let client = backend?.client else { ais = []; return }
         let rows: [Connection] = (try? await client.from("mcp_tokens").select().execute().value) ?? []
-        ways = MakeAnApp.ways(rows)
+        ais = MakeAnApp.choices(rows)
+    }
+
+    /// "Use another AI": that one is offered first, here and the next time, on this device.
+    private func choose(_ ai: MakeAnApp.AI) {
+        UserDefaults.standard.set(ai.name, forKey: MakeAnApp.chosenKey)
+        guard var all = ais, let i = all.firstIndex(of: ai) else { return }
+        all.insert(all.remove(at: i), at: 0)
+        withAnimation(.smooth(duration: 0.2)) { ais = all }
     }
 
     /// One click: the AI opens with the words (see afterHandOver for what each does with them), and
