@@ -232,7 +232,7 @@ private struct HoverIconButton: View {
     }
 }
 
-/// A button that's only words ("Start Fresh", "Use a different email"): underlined under the
+/// A button that's only words ("Skip", "Use a different email"): underlined under the
 /// pointer and dimmed while pressed. A link also shows the pointing hand.
 struct HoverTextButtonStyle: ButtonStyle {
     var link = false

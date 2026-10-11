@@ -37,6 +37,13 @@ import Testing
         #expect(!SetupProgress(aiEdits: 3, dismissed: true).celebrating, "a hidden card never celebrates")
     }
 
+    /// "Start fresh" is the account's destructive action (a new key, the server's notes erased).
+    /// The card's way past importing must not borrow its words.
+    @MainActor @Test func skippingTheImportIsNotCalledStartFresh() {
+        #expect(SetupCard.skipTitle == "Skip")
+        #expect(SetupCard.skipTitle.lowercased() != AccountCrypto.startFreshPhrase)
+    }
+
     @Test func decodesTheServerAnswer() throws {
         let json = #"{"imported":true,"connected":false,"ai_edits":2,"dismissed":false,"celebrated":false}"#
         let p = try JSONDecoder().decode(SetupProgress.self, from: Data(json.utf8))
@@ -157,7 +164,7 @@ private final class FakeSetup: SetupService, @unchecked Sendable {
             ("4-celebrate", SetupProgress(imported: true, connected: true, aiEdits: 1), true),
         ]
         for (name, p, celebrating) in states {
-            let card = SetupCard(progress: p, celebrating: celebrating, onImport: {}, onStartFresh: {}, onConnect: {}, onHide: {})
+            let card = SetupCard(progress: p, celebrating: celebrating, onImport: {}, onSkip: {}, onConnect: {}, onHide: {})
                 .frame(width: 330)
                 .padding(12)
             try await AppSnapshotTests.render(card, name: "setup-\(name)-\(mode)", dark: dark)

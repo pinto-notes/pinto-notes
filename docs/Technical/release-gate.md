@@ -62,6 +62,21 @@ three times and plays the flows. Numbers are the median of the three runs.
 iPhone flows are not measured: a simulator would run on the hub Mac's screen, under its load, and its
 timings are not a phone's. The iPhone app's size is measured.
 
+### Clicks
+
+The probe opens notes the way the app's own controls do, so it never finds a click that the list
+doesn't take. `scripts/row-clicks.sh <app>` does: on the measuring Mac it opens the app with a made-up
+library in memory, clicks each note row for real (pointer events, the pointer travelling 0, 1, 2
+and 3 points between press and lift, as it does under a hand) and reads through Accessibility what
+each click did. It fails when a click opened nothing, or when a note took more than 500 ms from the
+press to being open with the main thread free again (about 250 ms on fleet-air, 2026-10-11).
+
+It exists because of 1.2.4: in a recording of the released app, 9 of 13 clicks on notes did nothing.
+A row that can be dragged took any press during which the pointer moved, even one point, as a drag.
+Every release back to the first draggable row did it; the gate's probe and CI's click tests never
+move the pointer during a click. Not run by `release-gate.sh` yet: run it by hand on the candidate's
+app before a Mac release.
+
 ### The bench accounts' state
 
 Each bench account is put in the same settled state before every run (`staging.ts ensure`), the state

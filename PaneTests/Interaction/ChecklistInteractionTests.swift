@@ -24,6 +24,30 @@ import Testing
         return CGPoint(x: h.view.textContainerOrigin.x + (deco?.markerX ?? 10), y: r.minY + r.height / 2 - 1)
     }
 
+    /// The Checklist button, its menu item and ⇧⌘L all call the controller. With bullets selected
+    /// they become a checklist and stay selected, so the next press turns them back (2026-10-11:
+    /// only the first selected line changed).
+    @Test func selectedBulletsBecomeAChecklist() async {
+        let h = await EditorHarness("TODO\n\n* Finances\n* Pinto notes\n* Write blog post\n")
+        defer { h.close() }
+        let list = (h.text as NSString).range(of: "* Finances\n* Pinto notes\n* Write blog post")
+        await h.select(list.location, list.length)
+        h.controller.checklist()
+        await h.settle()
+        #expect(h.text == "TODO\n\n- [ ] Finances\n- [ ] Pinto notes\n- [ ] Write blog post\n")
+        #expect((h.text as NSString).substring(with: h.selection) == "- [ ] Finances\n- [ ] Pinto notes\n- [ ] Write blog post")
+        await h.snapshot("checklist-from-bullets")
+        // One step back in Undo for the whole selection.
+        h.view.undoManager?.undo()
+        await h.settle()
+        #expect(h.text == "TODO\n\n* Finances\n* Pinto notes\n* Write blog post\n")
+        // And from bullets to dashes the same way.
+        await h.select(list.location, list.length)
+        h.controller.dashedList()
+        await h.settle()
+        #expect(h.text == "TODO\n\n- Finances\n- Pinto notes\n- Write blog post\n")
+    }
+
     @Test func clickingTheCircleTicksThenSinksTheItem() async {
         let h = await EditorHarness(Self.note)
         defer { h.close() }

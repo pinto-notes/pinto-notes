@@ -127,7 +127,7 @@ import Testing
             ("done", SetupProgress(imported: true, connected: true, aiEdits: 1), true),
         ]
         for (name, p, celebrating) in states {
-            let card = SetupCard(progress: p, celebrating: celebrating, onImport: {}, onStartFresh: {}, onConnect: {}, onHide: {})
+            let card = SetupCard(progress: p, celebrating: celebrating, onImport: {}, onSkip: {}, onConnect: {}, onHide: {})
                 .tint(Color(PColor.paneAccent))
                 // The test host never becomes the active app; draw controls as they look in your front window.
                 .environment(\.controlActiveState, .key)
