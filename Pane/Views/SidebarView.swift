@@ -38,7 +38,7 @@ struct AccountButton: View {
             openSettings()
         } label: {
             HStack(spacing: 9) {
-                AvatarView(photo: profile.photo, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
                         .font(.system(size: 13, weight: .semibold))
@@ -350,7 +350,7 @@ struct SidebarView: View {
                     if case .signedIn = backend.state {
                         let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
-                            AvatarView(photo: ProfileStore.shared.photo, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
+                            AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
                         }
                         .accessibilityLabel("Account, \(name). Opens Settings")
                         .accessibilityIdentifier("sidebar.settings")
