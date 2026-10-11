@@ -276,7 +276,8 @@ struct NoteListView: View {
                         case .note(let entry):
                             noteRow(entry.note)
                         case .file(let file):
-                            FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, remove: { remove([file.id]) })
+                            FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
+                                        remove: { remove([file.id]) })
                                 .tag(file.id)
                                 .hoverRow(file.filename)
                                 #if os(iOS)
@@ -565,7 +566,7 @@ struct NoteListView: View {
     private func noteRow(_ note: Note) -> some View {
         // Its own equatable view: when one note changes, the others' rows (and their
         // drag and swipe setup) are left alone instead of rebuilt.
-        ListRow(note: note, query: search, showFolder: scope == .all || !search.isEmpty,
+        ListRow(note: note, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                 dragWith: dragOthers(for: note), selectedCount: selection.count,
                 togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
                 remove: { remove(note) })
@@ -1205,6 +1206,8 @@ private struct ListRow: View, @MainActor Equatable {
     let note: Note
     let query: String
     let showFolder: Bool
+    /// The list is sorted by date created: the row shows that date.
+    let datedByCreation: Bool
     /// The rest of the selection, when this row is part of a multi-selection.
     let dragWith: [UUID]?
     let selectedCount: Int
@@ -1212,12 +1215,12 @@ private struct ListRow: View, @MainActor Equatable {
     let remove: () -> Void
 
     static func == (a: ListRow, b: ListRow) -> Bool {
-        a.note.id == b.note.id && a.query == b.query && a.showFolder == b.showFolder
+        a.note.id == b.note.id && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
             && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
     }
 
     var body: some View {
-        NoteRow(note: note, query: query, showFolder: showFolder)
+        NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation)
             .draggable(PaneDragItem(kind: .note, id: note.id, others: dragWith)) {
                 Label(dragWith != nil ? "\(selectedCount) Notes" : note.title, systemImage: dragWith != nil ? "doc.on.doc" : "note.text")
                     .padding(.horizontal, 12).padding(.vertical, 8)
@@ -1239,6 +1242,12 @@ struct NoteRow: View {
     let note: Note
     var query: String = ""
     var showFolder = false
+    /// The list is sorted by date created: the row shows that date, as Apple Notes does.
+    var datedByCreation = false
+
+    /// The date the row shows: the one the list is sorted by, which is the date edited unless
+    /// the list is sorted by date created.
+    static func shownDate<Item: DatedListItem>(of item: Item, byCreation: Bool) -> Date { byCreation ? item.listCreated : item.listDate }
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -1280,7 +1289,7 @@ struct NoteRow: View {
                             .accessibilityHidden(true)
                             .accessibilityIdentifier("note.shared")
                     }
-                    Text(DateBucket.rowDate(note.updatedAt))
+                    Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.85))
                 }
