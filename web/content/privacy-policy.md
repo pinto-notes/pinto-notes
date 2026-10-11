@@ -1,13 +1,13 @@
 # Privacy Policy
 
-Last updated: 10 October 2026
+Last updated: 11 October 2026
 
 ## The short version
 
 - Pinto Notes was called Amber Notes until October 2026. Same app, same service, and this policy covers both names.
 - Your notes are yours. Your notes, their titles, folder names, file names and files, and earlier versions are encrypted on your iPhone or Mac with a key only your devices hold, before they're uploaded. We store the encrypted copies so they sync, and we can't read them.
 - Some details stay readable to us, such as your email address, dates and sizes, and how your notes are organized. The section on end-to-end encryption lists all of them, and its limits.
-- No ads, no tracking and no third-party analytics in the apps, and we never sell or share your data.
+- No ads and no tracking, and we never sell or share your data. Versions of the apps after 1.2 send error and crash reports and a few usage counts to PostHog in the EU, never your notes or anything you write. One switch in Settings turns it off. Version 1.2 and earlier send none of this.
 - The website counts page views and where visitors came from with Vercel Web Analytics, and which links and buttons are clicked, where on a page people click and how far pages are scrolled with PostHog, in the EU. These are counted across all visitors; no visit is recorded. Neither keeps a profile of you, and neither runs on shared notes or the connect pages. Vercel never uses cookies. PostHog uses none either, unless you choose Accept on the website's cookie banner: then it keeps one cookie for up to a year, so it can recognise your return visits. It also counts Mac downloads as daily totals. None of this touches your notes or your computer.
 - We count how features are used on our own server to improve the app. We never share or sell it.
 - An AI assistant can only read your notes if you connect it and approve it on your iPhone or Mac, or with your recovery key on pintonotes.com. While it works, our server opens the notes it asks for in memory. You can disconnect it at any time.
@@ -83,6 +83,21 @@ We count how features are used on our own server to improve the app. We never sh
 - if you answer it, how you heard about Pinto Notes: the choice you tap, and any words you add under Something else. We only look at it added up across accounts;
 - a random identifier for each installation of the app and its platform (iPhone or Mac), to count how many devices an account uses. It isn't linked to your device's hardware or advertising identifiers.
 
+**Diagnostics and usage from the apps**
+
+Versions of the iPhone and Mac apps after 1.2 report on themselves, so we find out when something is broken instead of waiting for someone to write to us. Version 1.2 and earlier send none of this. They send:
+
+- **errors:** that a step failed and its error code, such as a save to the Keychain that was refused, a sync that keeps failing, or a sign-in that didn't work;
+- **crashes and hangs,** from Apple's own diagnostics: the kind of crash and where in our code it happened, as numbers;
+- **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that an AI was connected (Claude, ChatGPT or other; never its name or address), and the first time you opened a note an AI had changed;
+- **speed:** how long the app took to open and to sync, and roughly how many notes you have (as a range such as 11 to 100, never the number).
+
+With each: the app's version, whether it's the App Store app or the Mac download, iPhone, iPad or Mac, the system version, and your account's identifier, so we can tell that one account keeps hitting the same problem. Before you sign in, a random identifier is used instead, made new each time the app starts and never stored on your device.
+
+They never send your notes, titles, folder or file names, what you search for, anything an AI wrote, your email address, your recovery key or any other key, or your device's name. An event can only hold numbers, yes or no, and words from a fixed list. The full list of events is in the open at [github.com/pinto-notes/pinto-notes](https://github.com/pinto-notes/pinto-notes/blob/main/docs/Technical/app-telemetry.md).
+
+The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no profile of you, works out no location from them, and records no screens. They are on unless you turn them off: **Settings → General → Share diagnostics and usage** turns all of it off, and nothing is kept or sent while it's off. The app says so under the sign-in form. Like every request, a report reaches PostHog from your IP address; PostHog is set not to keep it.
+
 **Emails we send you**
 
 - **Account emails:** the code that confirms your email address, password reset links, and a notice when your password or email address changes.
@@ -99,7 +114,7 @@ We count how features are used on our own server to improve the app. We never sh
 
 **What we don't collect**
 
-- No advertising identifiers, no location, no contacts, and no third-party analytics or crash-reporting tools in the apps.
+- No advertising identifiers, no location and no contacts. The apps link no analytics or crash-reporting SDK: crash reports come from Apple's own diagnostics, and the app sends its reports itself (see Diagnostics and usage from the apps).
 - We never receive your notes' key, your recovery key or your notes password in readable form, except that during an AI connection's requests our server unlocks your notes' key in memory (see AI connections).
 - The Apple Notes import runs on your Mac, and only the notes you choose are uploaded. If you turn on "Also bring over pinned notes", the app reads only which notes are pinned, from a temporary copy of the Notes database on your Mac, and deletes the copy straight after.
 
@@ -113,6 +128,7 @@ We process personal data under the EU General Data Protection Regulation (GDPR) 
 | Sign-in records, rate limits, hashed network addresses, request logs | To keep the service secure and stop abuse | Legitimate interests |
 | Reports about shared pages | To review and remove content that breaks our Terms | Legitimate interests, and legal obligations where they apply |
 | Feature usage counts | To learn whether the app works for people and improve it | Legitimate interests |
+| Diagnostics and usage from the apps | To find and fix errors, and to learn where people get stuck | Legitimate interests. You can turn it off in Settings at any time |
 | Account emails | To confirm your address and keep your account secure | Performance of a contract |
 | Onboarding emails, and the record of which were sent and clicked | To help new users get started, and to not send the same email twice | Legitimate interests; you can stop them at any time |
 | Website page views, clicks and scroll depth, counted without cookies, and daily download totals | To learn how people find the website, which pages help, and how many download the app | Legitimate interests |
@@ -136,6 +152,7 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 - your list of devices;
 - your AI connections;
 - the usage counts described under How the app is used;
+- the diagnostics and usage reports described under What we collect;
 - a note you share, while it's shared.
 
 **Limits.** End-to-end encryption doesn't cover everything, and we'd rather say so:
@@ -172,7 +189,7 @@ Nothing reaches an AI assistant unless you connect one. When you connect ChatGPT
 |---|---|---|---|
 | Supabase (Supabase Pte. Ltd.) | Database, file storage, sign-in and server functions | Frankfurt, Germany (EU). A request to a server function enters Supabase's network at the location nearest its sender and is passed to Frankfurt, where it is handled | Standard Contractual Clauses, in its [data processing agreement](https://supabase.com/legal/dpa) ([sub-processors](https://supabase.com/legal/customer-resources/subprocessor-list)) |
 | Vercel, Inc. | The website, shared note pages, the addresses AI apps connect to (mcp.pintonotes.com, and mcp.ambernotes.app for earlier connections), Mac app downloads, update checks, website page view counts | Pages are built in Frankfurt, Germany (EU) and delivered through Vercel's global network | EU-U.S. Data Privacy Framework ([privacy policy](https://vercel.com/legal/privacy-policy), [sub-processors](https://vercel.com/legal/sub-processors)) |
-| PostHog, Inc. | Website usage only: page views, clicks, where on a page people click, and scroll depth, and, if you accept cookies, recognising return visits. Never on shared notes or the connect pages, and never in the apps | Frankfurt, Germany (EU) | Standard Contractual Clauses, in its [data processing agreement](https://posthog.com/dpa) ([sub-processors](https://posthog.com/subprocessors)) |
+| PostHog, Inc. | Website usage: page views, clicks, where on a page people click, and scroll depth, and, if you accept cookies, recognising return visits. Never on shared notes or the connect pages. From versions of the apps after 1.2: the diagnostics and usage reports, with your account's identifier | Frankfurt, Germany (EU) | Standard Contractual Clauses, in its [data processing agreement](https://posthog.com/dpa) ([sub-processors](https://posthog.com/subprocessors)) |
 | Resend (Plus Five Five, Inc.) | Sends our emails: the account emails and the onboarding emails. It receives your email address and the email's text. It also carries the notice we get when a shared page is reported, with the page's link, the reason and any contact details the reporter added | United States | Standard Contractual Clauses, in its [data processing agreement](https://resend.com/legal/dpa) ([sub-processors](https://resend.com/legal/subprocessors)) |
 | Apple | Sign in with Apple and the App Store, if you use them | Under Apple's own privacy policy | Apple's own terms |
 | Google | Sign in with Google, if you use it | Under Google's own privacy policy | Google's own terms |
@@ -205,6 +222,7 @@ Rate limits on sign-in and connection requests count a one-way hash of the IP ad
 - **Files** you add stay until you delete them or your account.
 - **Your account** is kept until you delete it. **Settings → Delete Account** removes your account, notes, files, profile photo, versions, AI connections, share links, notes password settings, usage counts, the record of emails we sent you, sign-in records and reports about your shared pages straight away.
 - **Usage counts** (AI changes per day, days of use, tips, app installations): 12 months.
+- **Diagnostics and usage from the apps:** at PostHog for as long as its plan keeps events (at least a month), or until you ask us to delete them. Deleting your account stops new reports and drops the ones still waiting on your device; it doesn't remove the ones PostHog already holds, so write to us to have those deleted.
 - **The record of emails we sent you,** of links you clicked in them and of unsubscribing: until you delete your account.
 - **Sign-in records:** 30 days. **Rate-limit hashes:** 2 hours. **Unfinished AI sign-ins and expired access tokens:** a day after they expire.
 - **Reports:** the reporter's hash is blanked after 30 days; a report is deleted 12 months after it was made, once it's been reviewed.
@@ -223,7 +241,7 @@ Under the GDPR you can:
 - **correct** it (most of it you can edit directly in the app);
 - **delete** it, in the app with **Delete Account** or by asking us;
 - **take it with you:** **Settings → Privacy & Security → Export Your Notes** makes a zip on your device with every note as Markdown in its folder, with its files. We can't read your notes, so only your device can export them. Ask us for everything else we keep about you, and we'll send it as JSON;
-- **object** to processing based on legitimate interests, including the feature usage counts, or ask us to **restrict** it.
+- **object** to processing based on legitimate interests, including the feature usage counts and the diagnostics and usage reports (which you can also turn off in Settings), or ask us to **restrict** it.
 
 Write to **hello@pintonotes.com**. We answer within one month. If you think we've handled your data wrongly, you can complain to the Swedish Authority for Privacy Protection (Integritetsskyddsmyndigheten, IMY) at imy.se, or to the data protection authority where you live.
 

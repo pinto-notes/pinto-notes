@@ -16,7 +16,8 @@ in the app reported it, and it went unnoticed for more than a week.
   PostHog SDK, no autocapture, no session replay, no screen recording.
 - **Which builds send:** the released app and Pinto Notes Beta, and only when the build was given
   a project key (`PANE_POSTHOG_KEY` in `Config/Backend.local.xcconfig`; empty in the checked-in
-  `Config/Backend.xcconfig`). Debug and QA builds, unit and UI tests, capture runs, `-local`
+  `Config/Backend.xcconfig`). Releases built by `.github/workflows/release.yml` take it from the
+  repository variable `POSTHOG_KEY`; while that variable is not set, they send nothing. Debug and QA builds, unit and UI tests, capture runs, `-local`
   launches and the Simulator never send (`TelemetryGate`).
 - **The switch:** Settings › General › Share diagnostics and usage, on by default. Off, nothing is
   kept or sent, and what was waiting is dropped.
@@ -113,6 +114,14 @@ other binaries; neither is sent. At most five crashes and five hangs are sent fr
 | `hangs` | With a MetricKit delivery that holds hangs | `count` |
 
 Durations are rounded to 10 ms.
+
+## What has to be true in public before a build sends
+
+The privacy policy (`web/content/privacy-policy.md`, "Diagnostics and usage from the apps"), the
+Privacy & Security page and the README describe this for versions after 1.2. The App Store
+privacy label for the first build that sends is in `docs/app-privacy-answers.md`, and
+`Pane/Resources/PrivacyInfo.xcprivacy` matches it. The label is changed by hand in App Store
+Connect before that build is submitted.
 
 ## Deleting what PostHog holds
 
