@@ -149,6 +149,25 @@ import ZIPFoundation
         #expect(try String(contentsOf: top.appending(path: "Sharing.md"), encoding: .utf8).contains("just a note"), "without sharing, the name is free for a note")
     }
 
+    /// The export is named for the day on the person's own calendar, not UTC's.
+    @Test func theExportIsNamedForTheLocalDay() throws {
+        // 23:20 UTC on 10 October: already the 11th in Stockholm (01:20), still the 10th in New York.
+        let late = try #require(ISO8601DateFormatter().date(from: "2026-10-10T23:20:00Z"))
+        let stockholm = try #require(TimeZone(identifier: "Europe/Stockholm")), newYork = try #require(TimeZone(identifier: "America/New_York"))
+        #expect(NoteExport.stamp(late, timeZone: stockholm) == "2026-10-11")
+        #expect(NoteExport.stamp(late, timeZone: newYork) == "2026-10-10")
+        #expect(NoteExport.stamp(late, timeZone: .gmt) == "2026-10-10")
+    }
+
+    /// The alert counts files, one for one with what the export left out.
+    @Test func theAlertCountsTheFilesLeftOut() throws {
+        func made(_ missing: Int) -> NoteExport.Result { .init(zip: URL(fileURLWithPath: "/tmp/x.zip"), notes: 3, files: 4, skippedLocked: 0, missingFiles: missing) }
+        #expect(NoteExport.leftOut(made(0)) == nil)
+        #expect(NoteExport.leftOut(made(1))?.title == "1 file isn\u{2019}t in the export")
+        #expect(NoteExport.leftOut(made(2))?.title == "2 files aren\u{2019}t in the export")
+        #expect(NoteExport.summary(made(2)) == "Exported 3 notes and 4 files. 2 files were left out.")
+    }
+
     @Test func namesAreSafeOnEverySystem() {
         #expect(NoteExport.safeName("a/b:c") == "a-b-c")
         #expect(NoteExport.safeName("..hidden") == "hidden")

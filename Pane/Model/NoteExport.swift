@@ -46,6 +46,12 @@ enum NoteExport {
         var isEmpty: Bool { notes.isEmpty && templates.isEmpty }
     }
 
+    /// The day in the export's name, as the person's own calendar has it (it was UTC's: an export
+    /// made at 01:20 on the 11th was named for the 10th).
+    static func stamp(_ now: Date, timeZone: TimeZone = .current) -> String {
+        now.formatted(Date.ISO8601FormatStyle(timeZone: timeZone).year().month().day())
+    }
+
     /// What the export made, in a sentence or two, for under the button.
     static func summary(_ made: Result) -> String {
         var parts = ["Exported \(made.notes) \(made.notes == 1 ? "note" : "notes") and \(made.files) \(made.files == 1 ? "file" : "files")."]
@@ -65,10 +71,10 @@ enum NoteExport {
 
     /// Writes the export as a zip in a temporary folder. `fetch` brings a file's bytes to this
     /// device when they're only in the cloud (sync's download).
-    static func make(_ context: ModelContext, vault: NoteVault? = nil, now: Date = .now, sharing: Sharing = .init(),
+    static func make(_ context: ModelContext, vault: NoteVault? = nil, now: Date = .now, timeZone: TimeZone = .current, sharing: Sharing = .init(),
                      fetch: @MainActor (Attachment) async -> Bool = { _ in false }) async throws -> Result {
         let vault = vault ?? NoteVault.shared
-        let stamp = now.formatted(.iso8601.year().month().day())
+        let stamp = Self.stamp(now, timeZone: timeZone)
         let work = FileManager.default.temporaryDirectory.appending(path: "Pinto Notes export \(UUID().uuidString)", directoryHint: .isDirectory)
         let top = work.appending(path: "Pinto Notes \(stamp)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: top, withIntermediateDirectories: true)
