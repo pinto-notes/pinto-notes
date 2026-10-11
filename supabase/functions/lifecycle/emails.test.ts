@@ -137,14 +137,18 @@ Deno.test("Try this first: each prompt as a chat bubble, with Ask ChatGPT and As
   assertEquals((e.html.match(/Ask ChatGPT &rsaquo;/g) ?? []).length, PROMPTS.length);
 });
 
-Deno.test("the apps email leads to the templates gallery's Apps filter", () => {
-  assertStringIncludes(render("apps", ctx).html, 'href="https://pintonotes.com/templates?category=apps"');
+Deno.test("the apps email says how an app is made and leads to the Help answer, not to templates that don't hold apps yet", () => {
+  const html = render("apps", ctx).html;
+  assertStringIncludes(html, 'href="https://pintonotes.com/help#apps"');
+  assertStringIncludes(html, "Make It an App");
+  assertEquals(html.includes("templates"), false);
+  assertEquals(render("apps", ctx).text.includes("template"), false);
 });
 
 Deno.test("every button goes somewhere specific: into the app, a page section, or a store", () => {
   const want: Record<string, string> = {
     stuck: "mailto:emil@pintonotes.com", import: "https://ambernotes.app/open/import", connect: "https://ambernotes.app/open/connect-ai",
-    undo: "https://ambernotes.app/open/history", apps: "https://pintonotes.com/templates?category=apps", templates: "https://pintonotes.com/templates",
+    undo: "https://ambernotes.app/open/history", apps: "https://pintonotes.com/help#apps", templates: "https://pintonotes.com/templates",
     iphone: "https://apps.apple.com/", mac: "https://pintonotes.com/download", share: "https://pintonotes.com/help#share",
   };
   for (const [kind, href] of Object.entries(want)) {

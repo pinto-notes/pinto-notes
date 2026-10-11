@@ -1,5 +1,5 @@
 import { MCP_URL, OLD_MCP_URL_STAYS } from "@/lib/facts";
-import { APP_STORE_LIVE, SUPPORT_EMAIL } from "@/lib/site";
+import { APP_STORE_LIVE, NOTE_APPS_LIVE, SUPPORT_EMAIL } from "@/lib/site";
 /// The Help page's questions. Short answers, accurate to the app as it ships. `more` links the
 /// blog post that covers the question in full.
 export type QA = { id: string; q: string; a: string[]; more?: { href: string; text: string } };
@@ -43,6 +43,11 @@ export const FAQ: QA[] = [
   { id: "offline", q: "Does it work offline?", a: [
     "Yes. Your notes are on your device too, so you can read and write without a connection. Your edits stay on the device and sync when you're back online. If the same note changed somewhere else in the meantime, the newer edit wins and the other is kept as a copy, so nothing is lost.",
   ] },
+  ...(NOTE_APPS_LIVE ? [{ id: "apps", q: "How do I make a note an app?", a: [
+    "Your AI makes it. Connect ChatGPT, Claude, Claude Code or Codex first (Settings → Connect an AI). Then open a note, choose More (•••) → Make It an App…, and send the words it gives you to your AI. Or just ask your AI: \"In Pinto Notes, make my note Habits an app.\"",
+    "The note then opens as the app: a habit tracker you tick, a budget that adds up. Ask your AI to change it whenever you like. More (•••) → App Info… has the version before and Remove App, and the note itself is never deleted.",
+    "An app runs inside Pinto Notes and can't reach the internet unless you allow an address. What it saves is encrypted and synced like your notes.",
+  ] }] : []),
   { id: "share", q: "How do I share a note as a web page, and stop sharing?", a: [
     "Open the note and choose Share → Share Link…, then confirm. The link is copied, and anyone with it can read the note. To stop, choose Share → Stop Sharing, and the page is gone.",
   ] },
