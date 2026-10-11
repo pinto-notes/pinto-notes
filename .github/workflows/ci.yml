@@ -142,6 +142,14 @@ jobs:
             $(tr '\n' ' ' < only.txt) -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
             | tee build/ci-test.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
           grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-test.log
+          # A name that matches no test is not an error to xcodebuild, so count: every single test
+          # that was asked for has to have run.
+          asked=$(grep -c '()$' only.txt || true)
+          ran=$(grep -oE "Test run with [0-9]+ test" build/ci-test.log | grep -oE "[0-9]+" | tail -1)
+          if [ "${ran:-0}" -lt "$asked" ]; then
+            echo "error: $asked single tests were asked for and ${ran:-0} ran; a line in scripts/ci/smoke-tests.txt matches no test"
+            exit 1
+          fi
       - name: Keep the test results
         if: failure()
         uses: actions/upload-artifact@v4
