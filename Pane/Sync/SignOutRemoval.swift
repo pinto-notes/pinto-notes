@@ -7,7 +7,8 @@ import SwiftData
 ///
 ///   1. It's offered only while something else can open the notes (`offer`). The key in iCloud
 ///      Keychain is never deleted, since that would take it from every device; a key that lives on
-///      this device alone goes only when a saved recovery key or another device holds it too.
+///      this device alone goes only when the server keeps a copy of it (signing in again brings it
+///      back), or a saved recovery key or another device holds it too.
 ///   2. What hasn't synced goes up first, and the server has to answer. If anything is still
 ///      waiting, or the server can't be reached, it's refused and nothing here changes.
 ///   3. This device's row leaves the list of devices that hold the key before its key does, and
@@ -34,10 +35,12 @@ struct SignOutRemoval {
         case unsynced, offline, needsRecoveryKey, unavailable
     }
 
-    static func offer(keyOpen: Bool, inICloudKeychain: Bool, recoverySaved: Bool, others: [KeyDevice], now: Date = .now) -> Offer {
+    /// `serverCopy`: the server keeps a copy of the key (KeyCopy), so signing in again brings it back.
+    static func offer(keyOpen: Bool, inICloudKeychain: Bool, recoverySaved: Bool, others: [KeyDevice], serverCopy: Bool = false, now: Date = .now) -> Offer {
         guard keyOpen else { return .unavailable }
         // Nothing of the key is deleted, so nothing can be lost.
         if inICloudKeychain { return .offered(keyStays: true) }
+        if serverCopy { return .offered(keyStays: false) }
         if case .safe = KeyDeviceList.safety(thisBackedUp: false, others: others, recoverySaved: recoverySaved, now: now) { return .offered(keyStays: false) }
         return .needsRecoveryKey
     }
@@ -174,7 +177,7 @@ extension SignOutRemoval {
     }
 
     static func offer(crypto: AccountCrypto, devices: KeyDevices) -> Offer {
-        offer(keyOpen: crypto.isReady, inICloudKeychain: crypto.backedUp, recoverySaved: crypto.recoveryKeySaved, others: devices.others)
+        offer(keyOpen: crypto.isReady, inICloudKeychain: crypto.backedUp, recoverySaved: crypto.recoveryKeySaved, others: devices.others, serverCopy: crypto.serverCopy)
     }
 }
 

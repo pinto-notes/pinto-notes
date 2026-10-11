@@ -15,6 +15,8 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
         case aiConnected = "ai_connected", startedFresh = "started_fresh", wrongNumber = "wrong_number"
         /// Another device got the account's key (Add a device).
         case deviceAdded = "device_added"
+        /// A device got the account's key by signing in, from the copy the server keeps (KeyCopy).
+        case keyFetched = "key_fetched"
         /// A kind from a newer server: not shown.
         case unknown
     }
@@ -63,6 +65,9 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
         case .deviceAdded:
             return ("A device was added to your account",
                     "\(Self.when(created_at)). It can open your notes. If you didn\u{2019}t add it: remove it in Settings \u{203A} Security, change your password, and disconnect and reconnect your AIs. Removing signs a real Pinto Notes app out and erases its copy. A device that took your key keeps what it already has: the key can\u{2019}t be changed yet.")
+        case .keyFetched:
+            return ("A new device opened your notes",
+                    "\(Self.when(created_at)). It signed in to your account. If that wasn\u{2019}t you, reset your password now, from the sign-in screen. To have a new device ask one of yours first, turn on Advanced protection in Settings \u{203A} Security.")
         case .unknown:
             return ("", "")
         }
@@ -113,7 +118,8 @@ struct NoticeLedger {
     /// news: the newest "started fresh" after this device started fresh, an AI connection
     /// approved here a moment before (`approvedHere`), and a device added from here or this one
     /// being added (`addedHere`), are marked seen without showing.
-    func unseen(_ rows: [AccountNotice], now: Date = .now, approvedHere: Date? = nil, addedHere: Date? = nil) -> [AccountNotice] {
+    /// So is this device getting the key by signing in (`fetchedHere`).
+    func unseen(_ rows: [AccountNotice], now: Date = .now, approvedHere: Date? = nil, addedHere: Date? = nil, fetchedHere: Date? = nil) -> [AccountNotice] {
         let seen = seen
         var out: [AccountNotice] = []
         let sorted = rows.sorted { $0.id < $1.id }
@@ -131,6 +137,10 @@ struct NoticeLedger {
             }
             // A device added from this one, or this one being added, a moment before.
             if n.kind == .deviceAdded, let addedHere, abs(n.created_at.timeIntervalSince(addedHere)) < 120 {
+                markSeen(n.id)
+                continue
+            }
+            if n.kind == .keyFetched, let fetchedHere, abs(n.created_at.timeIntervalSince(fetchedHere)) < 120 {
                 markSeen(n.id)
                 continue
             }
@@ -239,7 +249,7 @@ final class AccountNotices {
 
     func take(_ rows: [AccountNotice]) async {
         guard !stopped else { return }
-        let unseen = ledger.unseen(rows.filter { $0.kind != .unknown }, approvedHere: approvedHere(), addedHere: AddDeviceMoment.here)
+        let unseen = ledger.unseen(rows.filter { $0.kind != .unknown }, approvedHere: approvedHere(), addedHere: AddDeviceMoment.here, fetchedHere: KeyCopyMoment.here)
         var fresh: [AccountNotice] = []
         for var n in unseen {
             if n.kind == .aiConnected, let grant = n.grant_id {

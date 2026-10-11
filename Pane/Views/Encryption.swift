@@ -24,16 +24,20 @@ struct KeyGateView: View {
 
     /// What you chose: `auto` is the code another device scans while the key isn't here;
     /// `noDevice` lists the other ways, `keychain` is waiting for iCloud Keychain.
-    enum Screen { case auto, noDevice, keychain, recovery, startFresh }
+    /// `link`: adding this device from another one, chosen while the key is held back after a reset.
+    enum Screen { case auto, noDevice, keychain, recovery, startFresh, link }
 
-    enum Shown: Equatable { case welcome, addDevice, noDevice, waiting, recovery, startFresh, unreachable, checking }
+    enum Shown: Equatable { case welcome, addDevice, noDevice, waiting, recovery, startFresh, unreachable, checking, held }
 
     /// The screen for where startup is and what you chose. Without the key here, the code for
     /// another device comes first, and iCloud Keychain keeps being checked behind it: nobody sits
     /// on a spinner, and nobody is asked for a recovery key they may never have saved.
-    static func shown(_ phase: AccountCrypto.Phase, _ screen: Screen) -> Shown {
+    /// `held`: the server keeps the key but hands it to a new device only once the wait after a
+    /// password reset is over; that's said first, and the other ways are a tap away.
+    static func shown(_ phase: AccountCrypto.Phase, _ screen: Screen, held: Bool = false) -> Shown {
         switch (phase, screen) {
         case (.ready, _): .welcome
+        case (.waiting, .auto) where held, (.mismatch, .auto) where held: .held
         case (.waiting, .startFresh), (.mismatch, .startFresh): .startFresh
         case (.waiting, .recovery), (.mismatch, .recovery): .recovery
         case (.waiting, .noDevice), (.mismatch, .noDevice): .noDevice
@@ -101,7 +105,7 @@ struct KeyGateView: View {
             // One screen fades into the next while the card eases to its new height: the mark
             // stays put and nothing snaps.
             content
-                .id(Self.shown(crypto.phase, screen))
+                .id(shown)
                 .transition(.opacity)
             if let error {
                 Text(error)
@@ -113,20 +117,23 @@ struct KeyGateView: View {
             }
         }
         .animation(.snappy(duration: 0.2), value: error)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: Self.shown(crypto.phase, screen))
+        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: shown)
         .onChange(of: crypto.phase) { _, _ in
             // The key arrived (or the account changed) while you were on another screen.
             if crypto.phase == .ready { screen = .auto }
             error = nil
         }
         // Reports: which screen someone is on between signing in and their notes (Telemetry).
-        .onChange(of: Self.shown(crypto.phase, screen), initial: true) { _, shown in
+        .onChange(of: shown, initial: true) { _, shown in
             Telemetry.shared.record(.gateShown(GateScreen(shown)))
         }
     }
 
+    private var shown: Shown { Self.shown(crypto.phase, screen, held: crypto.held) }
+
     @ViewBuilder private var content: some View {
-        switch Self.shown(crypto.phase, screen) {
+        switch shown {
+        case .held: held
         case .welcome: welcome
         case .startFresh: startFresh
         case .addDevice: addDevice
@@ -168,7 +175,7 @@ struct KeyGateView: View {
 
     private var welcome: some View {
         VStack(spacing: 18) {
-            heading(Copy.welcomeTitle, Copy.welcomeMessage)
+            heading(Copy.welcomeTitle, Copy.welcomeMessage(recoverable: crypto.serverCopy))
             mainButton("Continue", id: "e2ee.continue", enabled: true) { crypto.welcomeShown() }
         }
     }
@@ -178,14 +185,42 @@ struct KeyGateView: View {
     private var addDevice: some View {
         VStack(spacing: 18) {
             VStack(spacing: 12) {
-                heading(AddDeviceCopy.gateTitle(), crypto.phase == .mismatch ? Copy.mismatch : AddDeviceCopy.gateWhy)
+                heading(AddDeviceCopy.gateTitle(), crypto.phase == .mismatch ? Copy.mismatch : KeyCopyWords.gateWhy(crypto.protection))
                 steps(AddDeviceCopy.gateSteps())
             }
             NewDeviceCodeView(session: session)
                 .task(id: session.round) { await session.run() }
+            // The server keeps copies and this account has none yet: a device that has the notes
+            // stores one when it's next opened, and this one then opens by itself.
+            if crypto.copiesOffered, !crypto.held {
+                Text(KeyCopyWords.waitForOther)
+                    .font(.footnote)
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("e2ee.waitForOther")
+            }
             VStack(spacing: 10) {
                 quietButton(AddDeviceCopy.useRecovery, id: "e2ee.useRecovery") { screen = .recovery }
-                quietButton(AddDeviceCopy.noDeviceLink, id: "e2ee.noDevice") { screen = .noDevice }
+                if crypto.held {
+                    quietButton("Back", id: "e2ee.back") { screen = .auto }
+                } else {
+                    quietButton(AddDeviceCopy.noDeviceLink, id: "e2ee.noDevice") { screen = .noDevice }
+                }
+                signOut
+            }
+        }
+    }
+
+    /// The password was just reset: the key comes to this device when the wait is over. A device
+    /// that has the notes, or the recovery key, opens them now.
+    private var held: some View {
+        VStack(spacing: 18) {
+            heading(KeyCopyWords.heldTitle, KeyCopyWords.heldMessage(until: crypto.heldUntil))
+            mainButton(KeyCopyWords.heldAdd, id: "e2ee.heldAdd", enabled: true) { screen = .link }
+            VStack(spacing: 10) {
+                quietButton(AddDeviceCopy.useRecovery, id: "e2ee.useRecovery") { screen = .recovery }
+                quietButton(KeyCopyWords.heldRetry, id: "e2ee.heldRetry") { Task { await crypto.restart() } }
                 signOut
             }
         }
@@ -211,7 +246,7 @@ struct KeyGateView: View {
     /// Every device is gone: what can still open the notes, said plainly, and starting fresh last.
     private var noDevice: some View {
         VStack(spacing: 18) {
-            heading(AddDeviceCopy.noDevice, AddDeviceCopy.noDeviceMessage)
+            heading(AddDeviceCopy.noDevice, KeyCopyWords.noDeviceMessage(crypto.protection))
             VStack(spacing: 10) {
                 if crypto.phase == .waiting, crypto.store.syncs {
                     way(AddDeviceCopy.keychainTitle, AddDeviceCopy.keychainDetail, symbol: "icloud", id: "e2ee.wayKeychain") { screen = .keychain }
@@ -565,7 +600,11 @@ struct KeyGateView: View {
 /// The key screens' words, in one place.
 enum KeyCopy {
     static let welcomeTitle = "Your notes are encrypted."
-    static let welcomeMessage = "Only your devices, and AI connections you approve, can unlock your notes."
+    /// `recoverable`: the server keeps a copy of the key (KeyCopy), so signing in opens the notes.
+    static func welcomeMessage(recoverable: Bool) -> String {
+        recoverable ? "They\u{2019}re encrypted on this \(InstallID.kind) before they sync. Signing in opens them on your other devices."
+            : "Only your devices, and AI connections you approve, can unlock your notes."
+    }
     static let waitingTitle = "Waiting for iCloud Keychain…"
     #if os(macOS)
     static let keychainHelp = "Check that iCloud Keychain is on here and on your other device: System Settings › [your name] › iCloud › Passwords and Keychain."

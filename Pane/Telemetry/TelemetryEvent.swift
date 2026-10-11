@@ -73,11 +73,15 @@ enum KeyReadyHow: String, TelemetryWord {
     case linked
     case icloudKeychain = "icloud_keychain"
     case startFresh = "start_fresh"
+    /// By signing in, from the copy the server keeps.
+    case signIn = "sign_in"
 }
 
 /// The screens between signing in and the notes (KeyGateView.Shown).
 enum GateScreen: String, TelemetryWord {
     case welcome, waiting, recovery, unreachable, checking
+    /// Waiting out the hold after a password reset (KeyCopy).
+    case held
     case addDevice = "add_device"
     case noDevice = "no_device"
     case startFresh = "start_fresh"
@@ -94,6 +98,7 @@ extension GateScreen {
         case .startFresh: self = .startFresh
         case .unreachable: self = .unreachable
         case .checking: self = .checking
+        case .held: self = .held
         }
     }
 }
@@ -144,7 +149,7 @@ enum KeyStoreKind: String, TelemetryWord { case keychain, file, memory }
 
 /// What startup decided about the account's key (KeyStartup.Decision).
 enum KeyStartupOutcome: String, TelemetryWord {
-    case ready, create, reregister, replace, wait, mismatch, unreachable
+    case ready, create, reregister, replace, wait, mismatch, unreachable, fetch
     case readyUnverified = "ready_unverified"
 }
 
