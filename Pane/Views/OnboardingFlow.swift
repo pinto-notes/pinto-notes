@@ -59,7 +59,12 @@ struct OnboardingFlow: View {
         screen
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: step)
             .task { await loadAccount() }
-            .onChange(of: step, initial: true) { _, now in if now == .tryIt, preview == nil { prepareTryIt() } }
+            .onChange(of: step, initial: true) { _, now in
+                if now == .tryIt, preview == nil { prepareTryIt() }
+                #if os(macOS)
+                if now == .name { nameFocused = true }
+                #endif
+            }
             #if os(macOS)
             .sheet(isPresented: $importingAppleNotes) {
                 AppleNotesImportView { ids in notesBrought(ids.count) }
@@ -73,7 +78,6 @@ struct OnboardingFlow: View {
             .sheet(item: $guide, onDismiss: { Task { await loadConnections() } }) { g in
                 if let client = backend.client { GuideSheet(guide: g, client: client) }
             }
-            .accessibilityIdentifier("onboarding.\(step.rawValue)")
     }
 
     // MARK: The window
@@ -181,7 +185,7 @@ struct OnboardingFlow: View {
     #else
     /// Less of the picture as the steps need more room, and at the largest text sizes.
     private var artShare: CGFloat {
-        if typeSize.isAccessibilitySize { return step == .welcome ? 0.3 : 0.12 }
+        if typeSize.isAccessibilitySize { return step == .welcome ? 0.3 : 0.16 }
         switch step {
         case .welcome: return 0.5
         case .name, .tryIt: return 0.24
@@ -311,7 +315,13 @@ struct OnboardingFlow: View {
         return VStack(alignment: .leading, spacing: 8) {
             TextField("Your name", text: Binding(get: { name }, set: { name = $0; nameEdited = true }))
                 .textFieldStyle(.plain)
+                #if os(macOS)
                 .font(.system(size: SignInView.Row.text))
+                #else
+                // The body size, so it grows with the text size setting like the words around it.
+                .font(.body)
+                .padding(.vertical, 10)
+                #endif
                 #if os(iOS)
                 .textContentType(.name)
                 .textInputAutocapitalization(.words)
@@ -449,16 +459,31 @@ struct OnboardingFlow: View {
     /// A wide row: the mark, the name over one line about it, and a chevron (a check once done).
     private func row(_ choice: Choice) -> some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous)
+        let words = VStack(alignment: .leading, spacing: 2) {
+            Text(choice.title).font(Metrics.choiceTitle).foregroundStyle(Color.ink)
+            Text(choice.detail).font(Metrics.choiceDetail).foregroundStyle(Color.muted)
+        }
+        .fixedSize(horizontal: false, vertical: true)
         return Button(action: choice.action) {
-            HStack(spacing: 12) {
-                mark(choice.mark, size: Metrics.rowMark)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(choice.title).font(Metrics.choiceTitle).foregroundStyle(Color.ink)
-                    Text(choice.detail).font(Metrics.choiceDetail).foregroundStyle(Color.muted)
+            Group {
+                if typeSize.isAccessibilitySize {
+                    // The largest text sizes: the mark over the words, which get the row's width.
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            mark(choice.mark, size: Metrics.rowMark)
+                            Spacer(minLength: 8)
+                            trailing(choice)
+                        }
+                        words
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        mark(choice.mark, size: Metrics.rowMark)
+                        words
+                        Spacer(minLength: 8)
+                        trailing(choice)
+                    }
                 }
-                .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                trailing(choice)
             }
             .padding(.horizontal, Metrics.tilePadding)
             .padding(.vertical, Metrics.rowPadding)
@@ -492,7 +517,8 @@ struct OnboardingFlow: View {
             .padding(.top, Metrics.tileTop)
             .padding(.bottom, Metrics.tilePadding)
             // From the top, so the marks line up whether the line under a name is one row or two.
-            .frame(maxWidth: .infinity, minHeight: Metrics.tileHeight, alignment: .top)
+            // One height for every tile; at the largest text sizes each grows to fit its words.
+            .frame(maxWidth: .infinity, minHeight: Metrics.tileHeight, maxHeight: typeSize.isAccessibilitySize ? nil : Metrics.tileHeight, alignment: .top)
             .background(Color(Palette.field), in: shape)
             .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
             .overlay(alignment: .topTrailing) { if choice.done { check.padding(8) } }
@@ -618,6 +644,10 @@ struct OnboardingFlow: View {
     /// The name the account already has (from Apple, Google or Settings) fills the field, unless
     /// you have typed; and which AIs are connected already.
     private func loadAccount() async {
+        #if os(macOS)
+        // The Mac puts the cursor in the field; an iPhone keeps its keyboard down until asked.
+        if step == .name { nameFocused = true }
+        #endif
         if let preview {
             name = preview.name
             return
@@ -668,7 +698,7 @@ struct OnboardingFlow: View {
         static let rowPadding: CGFloat = 10
         static let rowHeight: CGFloat = 64
         static let rowMark: CGFloat = 40
-        static let tileHeight: CGFloat = 148
+        static let tileHeight: CGFloat = 172
         static let tileTop: CGFloat = 22
         static let tileMark: CGFloat = 48
         static let check: CGFloat = 20
