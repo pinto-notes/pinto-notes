@@ -45,6 +45,16 @@ import Testing
         #expect(MakeAnApp.chat("Claude", prompt: "x").absoluteString == "https://claude.ai/new?q=x")
     }
 
+    /// What the sheet says after the click is what each AI really does with a prompt that arrives
+    /// by link (the lead's check in a browser, 2026-10-11): ChatGPT sends it, Claude waits for send
+    /// under a caution note. It never claims one click for Claude.
+    @Test func theWaitingLineSaysWhatEachAIReallyDoes() {
+        #expect(MakeAppSheet.afterHandOver("ChatGPT").hasPrefix("ChatGPT has the message."))
+        #expect(MakeAppSheet.afterHandOver("Claude").contains("Press send in Claude") && MakeAppSheet.afterHandOver("Claude").contains("caution note"))
+        #expect(MakeAppSheet.afterHandOver("Codex").hasPrefix("Paste the words into Codex"))
+        #expect(MakeAppSheet.patience == .seconds(180), "about three minutes before it says what to check")
+    }
+
     @Test func theSketchFollowsWhatTheNoteHolds() {
         #expect(MakeAnApp.kind(for: Capture.budgetNote) == .budget)
         #expect(MakeAnApp.kind(for: Capture.habitNote()) == .tracker)
@@ -74,13 +84,13 @@ import Testing
         let dir = env["PANE_SNAPSHOT_DIR"] ?? env["AMBER_HIG_SHOTS"]
         let tracker = ("Evening tracker", Capture.habitNote())
         for sketch in [true, false] {
-            for state in ["none", "chatgpt", "both", "code", "waiting"] {
+            for state in ["none", "chatgpt", "claude", "both", "code", "waiting", "waiting-claude", "late"] {
                 for dark in [false, true] {
                     let host = try await host(state: state, sketch: sketch, dark: dark, note: tracker)
                     let size = host.fittingSize
                     #expect(size.width == 420)
                     // One step under a title and a line: short. Only the words to paste make it taller.
-                    #expect(size.height < (state == "code" ? 420 : state == "both" ? 350 : state == "waiting" ? 320 : 280) - (sketch ? 0 : 80), "\(state)\(sketch ? "" : ", no sketch") is \(size.height) pt tall")
+                    #expect(size.height < (["code": 420, "both": 390, "late": 400, "waiting": 320, "waiting-claude": 320, "claude": 320][state] ?? 280) - (sketch ? 0 : 80), "\(state)\(sketch ? "" : ", no sketch") is \(size.height) pt tall")
                     guard let dir else { continue }
                     let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                     host.cacheDisplay(in: host.bounds, to: rep)

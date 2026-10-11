@@ -320,6 +320,8 @@ final class NotePagesUITests: XCTestCase {
         var args = ["-open", "Evening tracker", "-makeAppState", state]
         if env["MAKE_APP_SKETCH"] == "NO" { args += ["-makeAppSketch", "NO"] }
         if state == "chatgpt" { args += ["-aiPage", "Evening tracker=\(pages)/habit-tracker.html", "-aiPageBy", "ChatGPT", "-aiAfter", "14"] }
+        // No app comes: after its patience (4 seconds here, about three minutes for people) the sheet says what to check.
+        if state == "claude" { args += ["-makeAppPatience", "4"] }
         launch(args)
         mark("make-start")
         let chip = app.buttons["makeApp.chip"].firstMatch
@@ -349,6 +351,21 @@ final class NotePagesUITests: XCTestCase {
             XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 8), "and the note is the app")
             pause(1.5)
             shot("67-make-done")
+        case "claude":
+            XCTAssertTrue(app.staticTexts["makeApp.claudeNote"].firstMatch.exists, "Claude's caution note is said before the click")
+            app.buttons["makeApp.with.Claude"].firstMatch.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["makeApp.waiting"].firstMatch.waitForExistence(timeout: 3))
+            pause(0.8)
+            shot("66-make-waiting-claude")
+            // No app arrives: the line changes to what to check, with the words to copy again.
+            let again = app.buttons["makeApp.copyAgain"].firstMatch
+            XCTAssertTrue(again.waitForExistence(timeout: 12), "it doesn't wait forever in silence")
+            pause(0.6)
+            shot("68-make-late")
+            again.tap()
+            XCTAssertTrue(app.buttons["Copied"].firstMatch.waitForExistence(timeout: 3))
+            app.buttons["makeApp.close"].firstMatch.tap()
+            XCTAssertTrue(heading.waitForNonExistence(timeout: 4))
         default:
             pause(0.5)
         }

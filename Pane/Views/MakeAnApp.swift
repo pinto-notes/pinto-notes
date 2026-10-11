@@ -127,17 +127,27 @@ struct MakeAppSheet: View {
     @State private var ways: MakeAnApp.Ways?
     /// Handed to this AI (or pasted somewhere): waiting for the app.
     @State private var waitingFor: String?
+    /// Waited long enough with no app: say what to check, and offer the words again.
+    @State private var late = false
+    @State private var copied = false
     @State private var showWords = false
     @State private var connecting = false
     @State private var height: CGFloat = 320
 
+    /// How long the sheet waits for the app before it says what to check (it goes on waiting).
+    static let patience: Duration = .seconds(180)
+
     #if DEBUG || QA
-    /// Pictures of each state without an account: `-makeAppState none | chatgpt | both | code | waiting`.
+    /// Pictures of each state without an account:
+    /// `-makeAppState none | chatgpt | claude | both | code | waiting | waiting-claude | late`.
     nonisolated(unsafe) static var stateForPictures: String? = Capture.argument("-makeAppState")
+    /// `-makeAppPatience 5`: seconds before the waiting line changes, for tests.
+    nonisolated(unsafe) static var patienceForTests: Duration? = Capture.argument("-makeAppPatience").flatMap(Double.init).map { .seconds($0) }
     /// The small sketch of the note as an app, compared with and without (`-makeAppSketch NO`).
     nonisolated(unsafe) static var sketch = Capture.argument("-makeAppSketch") != "NO"
     #else
     static let stateForPictures: String? = nil
+    static let patienceForTests: Duration? = nil
     static let sketch = true
     #endif
 
@@ -173,6 +183,12 @@ struct MakeAppSheet: View {
                 try? await Task.sleep(for: .seconds(4))
                 sync?.schedule()
             }
+        }
+        // No app after about three minutes: what to check, and the words again. Still waiting.
+        .task(id: waitingFor) {
+            guard waitingFor != nil, !late else { return }
+            try? await Task.sleep(for: Self.patienceForTests ?? Self.patience)
+            if !Task.isCancelled { withAnimation(.smooth(duration: 0.25)) { late = true } }
         }
         .sheet(isPresented: $connecting, onDismiss: { Task { await check() } }) {
             if let backend { SettingsView(backend: backend, sync: sync) }
@@ -216,6 +232,15 @@ struct MakeAppSheet: View {
                                 .accessibilityIdentifier("makeApp.with.\(ai)")
                         }
                     }
+                    if ways.chats.contains("Claude") {
+                        Text("Claude shows a caution note for prompts that arrive by link. Press send to continue.")
+                            .font(Metrics.hint)
+                            .foregroundStyle(Color.muted)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityIdentifier("makeApp.claudeNote")
+                    }
                     if let other = ways.paste {
                         if ways.chats.isEmpty || showWords {
                             wordsToPaste(for: other)
@@ -258,25 +283,44 @@ struct MakeAppSheet: View {
         }
     }
 
+    /// What the person does in the AI after the click, as it really is (checked 2026-10-11 on the
+    /// web, signed in to Claude, signed out of ChatGPT): ChatGPT sends a prompt that arrives by
+    /// link at once; Claude puts it in the box under a caution note and waits for send.
+    static func afterHandOver(_ ai: String) -> String {
+        switch ai {
+        case "ChatGPT": "ChatGPT has the message. This closes when the app is here."
+        case "Claude": "Press send in Claude, under its caution note. This closes when the app is here."
+        default: "Paste the words into \(ai) and send them. This closes when the app is here."
+        }
+    }
+
     /// Handed over: one calm line while the AI works. The sheet closes itself when the app is here.
-    private func waiting(for ai: String) -> some View {
-        let chat = ["ChatGPT", "Claude"].contains(ai)
-        return VStack(spacing: 8) {
+    /// After about three minutes without one: what to check, and the words to copy again.
+    @ViewBuilder private func waiting(for ai: String) -> some View {
+        VStack(spacing: 8) {
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small)
-                Text("Waiting for \(ai) to build it…")
+                Text(late ? "Still waiting for \(ai)" : "Waiting for \(ai) to build it…")
                     .font(Metrics.wait)
                     .foregroundStyle(Color.ink)
             }
             .frame(maxWidth: .infinity).frame(minHeight: Metrics.button)
             .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("makeApp.waiting")
-            Text(chat ? "Send the message in \(ai). If its box is empty, paste: the words are copied." : "Paste the words into \(ai) and send them.")
+            .accessibilityIdentifier(late ? "makeApp.late" : "makeApp.waiting")
+            Text(late ? "Nothing has arrived yet. Check that \(ai) got the message and that it is connected to Pinto Notes, or give it the words again." : Self.afterHandOver(ai))
                 .font(Metrics.hint)
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
+            if late {
+                Button { copy(); withAnimation(.smooth(duration: 0.2)) { copied = true } } label: {
+                    Label(copied ? "Copied" : "Copy the Words", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity).frame(height: Metrics.button - 8)
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 4)
+                .accessibilityIdentifier("makeApp.copyAgain")
+            }
         }
     }
 
@@ -338,7 +382,10 @@ struct MakeAppSheet: View {
             case "chatgpt": ways = .init(chats: ["ChatGPT"])
             case "both": ways = .init(chats: ["ChatGPT", "Claude"], paste: "Claude Code")
             case "code": ways = .init(paste: "Claude Code")
+            case "claude": ways = .init(chats: ["Claude"])
             case "waiting": ways = .init(chats: ["ChatGPT"]); waitingFor = "ChatGPT"
+            case "waiting-claude": ways = .init(chats: ["Claude"]); waitingFor = "Claude"
+            case "late": ways = .init(chats: ["ChatGPT"]); waitingFor = "ChatGPT"; late = true
             default: ways = .init()
             }
             return
@@ -349,9 +396,9 @@ struct MakeAppSheet: View {
         ways = MakeAnApp.ways(rows)
     }
 
-    /// One click: the AI opens with the words in its box, and the sheet waits for the app. The
-    /// words are copied too: neither app documents the link, so pasting is the way if the box
-    /// comes up empty.
+    /// One click: the AI opens with the words (see afterHandOver for what each does with them), and
+    /// the sheet waits for the app. The words are copied too: neither app documents the link, and
+    /// their Mac and iPhone apps were not tried, so pasting is the way if nothing arrives there.
     private func hand(to ai: String) {
         copy()
         // Captures and UI tests stay in the app.
