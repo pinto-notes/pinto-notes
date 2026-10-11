@@ -1,6 +1,9 @@
 import Foundation
 import SwiftData
 import Testing
+#if os(macOS)
+import AppKit
+#endif
 @testable import Pane
 
 /// Notes dragged from the list: dropped on another note's row they become its sub-notes;
@@ -215,26 +218,31 @@ import Testing
     #if os(macOS)
     /// The real Mac editor: notes dropped at a place in the text. The dropped note stays where it
     /// is in the library; the note dropped on itself and a deleted one make no link.
-    @Test func droppingNotesInTheEditorInsertsLinksAndMovesNothing() async throws {
+    @Test func droppingNotesInTheEditorInsertsLinksAndMovesNothing() throws {
         let open = ctx.createNote(in: .all, body: "Plans\nSee \n")
         let other = ctx.createNote(in: .all, body: "Packing list\n- socks")
         let gone = ctx.createNote(in: .all, body: "Gone")
         gone.deletedAt = .now
-        let h = await EditorHarness(open.body)
-        h.controller.noteLinkTitle = { [ctx] id in
+        // The text view on its own, in no window: the tests that measure the editor in a window
+        // share the key window with every other test that opens one.
+        let view = PaneTextView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        view.configure(text: open.body, header: "")
+        let controller = EditorController()
+        view.controller = controller
+        controller.target = view
+        controller.noteLinkTitle = { [ctx] id in
             guard id != open.id, let n = ctx.note(id), n.deletedAt == nil else { return nil }
             return n.title
         }
-        let at = (h.text as NSString).range(of: "See ").upperBound
-        #expect(h.view.dropNotes([other.id, open.id, gone.id], at: at))
-        await h.settle()
-        #expect(h.text == "Plans\nSee [[Packing list]]\n")
-        #expect(h.selection == NSRange(location: at + 16, length: 0), "the caret is after the link")
+        let at = (view.string as NSString).range(of: "See ").upperBound
+        #expect(view.dropNotes([other.id, open.id, gone.id], at: at))
+        #expect(view.string == "Plans\nSee [[Packing list]]\n")
+        #expect(view.selectedRange() == NSRange(location: at + 16, length: 0), "the caret is after the link")
         #expect(other.parentID == nil && !ctx.isNested(other), "the note is linked, not moved")
-        #expect(!h.view.dropNotes([open.id], at: 0), "a note dropped into itself: nothing")
-        #expect(h.text == "Plans\nSee [[Packing list]]\n")
+        #expect(!view.dropNotes([open.id], at: 0), "a note dropped into itself: nothing")
+        #expect(view.string == "Plans\nSee [[Packing list]]\n")
         // The link is the kind [[ makes: it opens that note.
-        #expect(WikiLinks.links(in: h.text).map(\.target) == ["Packing list"])
+        #expect(WikiLinks.links(in: view.string).map(\.target) == ["Packing list"])
     }
     #endif
 }
