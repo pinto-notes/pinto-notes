@@ -90,7 +90,7 @@ import UIKit
     /// The setup card's first step: one choice of where your notes are.
     @Test func setupCardChoice() async throws {
         guard let dir = Self.dir else { return }
-        let card = SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onStartFresh: {}, onConnect: {}, onHide: {})
+        let card = SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onSkip: {}, onConnect: {}, onHide: {})
             .tint(Color(PColor.paneAccent)).padding(16).frame(width: 340).background(Color(nsColor: .windowBackgroundColor))
         try await VersionHistorySnapshots.shoot(card, to: dir.appending(path: "mac-setup-bring.png"), size: CGSize(width: 340, height: 200), dark: false)
     }

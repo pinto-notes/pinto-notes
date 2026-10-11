@@ -12,7 +12,8 @@ struct SetupCard: View {
     var onImport: (() -> Void)?
     /// Opens an import from files (Evernote, Markdown…), on the Mac and iPhone.
     var onImportFrom: ((ImportKind) -> Void)?
-    let onStartFresh: () -> Void
+    /// "Skip": no notes to bring. The step counts as done and the card moves on.
+    let onSkip: () -> Void
     let onConnect: () -> Void
     /// iPhone: how to share notes one by one from Notes.
     var onShareHowTo: (() -> Void)?
@@ -28,6 +29,9 @@ struct SetupCard: View {
     @State private var popping = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// The quiet link beside Import Notes. Not "Start Fresh": those words are the account's
+    /// destructive action (new key, the server's notes erased), and this only moves on.
+    static let skipTitle = "Skip"
     static let prompt = "Add \"Call mom\" to my to-do list in Pinto Notes"
 
     /// What the card shows: a step, or the finish after your AI's first edit.
@@ -250,7 +254,7 @@ struct SetupCard: View {
                 .padding(6)
                 .presentationCompactAdaptation(.popover)
             }
-        Button("Start Fresh", action: onStartFresh)
+        Button(Self.skipTitle, action: onSkip)
             .buttonStyle(.hoverLink)
             .foregroundStyle(.secondary)
             // Its own width when that fits; at the largest text sizes it wraps inside the card.
