@@ -26,6 +26,20 @@ enum Hover {
         EdgeInsets(top: 7.5 - rowGap, leading: 15 + CGFloat(depth) * sidebarIndent, bottom: 7.5 - rowGap, trailing: 6)
     }
     static let rowGap: CGFloat = 3
+    /// The sidebar's selected row, like Notes: a quiet neutral fill in the row's own place, a
+    /// little rounder and taller than a hovered row, under an icon and name in the accent.
+    static var selected: AnyShapeStyle {
+        #if DEBUG
+        if tintedSelection { return AnyShapeStyle(.tint.opacity(0.16)) }
+        #endif
+        return AnyShapeStyle(.fill.tertiary)
+    }
+    #if DEBUG
+    /// Captures only: the alternative look, a fill in the accent.
+    nonisolated(unsafe) static var tintedSelection = false
+    #endif
+    static let selectedRadius: CGFloat = 8
+    static let selectedGap: CGFloat = 1
     static let sidebarIndent: CGFloat = 12
     static let rowRadius: CGFloat = 5
     /// A row's ••• button: at least this big to hit.
@@ -42,8 +56,8 @@ extension View {
     /// A list row that takes a light fill under the pointer, in the selection's own place
     /// (`reach`: how far the selection reaches past the row's content). `id` names the row for
     /// captures.
-    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach) -> some View {
-        modifier(HoverRow(id: id, reach: reach))
+    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false) -> some View {
+        modifier(HoverRow(id: id, reach: reach, selected: selected))
     }
 
     /// A plain button or control with a shape of its own: a light fill under the pointer, behind
@@ -83,9 +97,10 @@ struct HoverTracking: ViewModifier {
 private struct HoverRow: ViewModifier {
     let id: String
     let reach: EdgeInsets
+    var selected = false
 
     func body(content: Content) -> some View {
-        HoverRowReader(id: id, reach: reach) { _ in content }
+        HoverRowReader(id: id, reach: reach, selected: selected) { _ in content }
     }
 }
 
@@ -94,6 +109,8 @@ private struct HoverRow: ViewModifier {
 struct HoverRowReader<Content: View>: View {
     var id = ""
     var reach = Hover.listReach
+    /// The sidebar's selected row draws its own fill here (see `QuietSelection`), in place of the hover's.
+    var selected = false
     @ViewBuilder let content: (Bool) -> Content
     @State private var hovering = false
     @Environment(\.hoverPreview) private var preview
@@ -110,7 +127,12 @@ struct HoverRowReader<Content: View>: View {
             .contentShape(.rect)
             .modifier(HoverTracking(hovering: $hovering))
             .background {
-                if on {
+                if selected {
+                    let grow = Hover.rowGap - Hover.selectedGap
+                    RoundedRectangle(cornerRadius: Hover.selectedRadius, style: .continuous)
+                        .fill(Hover.selected)
+                        .padding(EdgeInsets(top: -reach.top - grow, leading: -reach.leading, bottom: -reach.bottom - grow, trailing: -reach.trailing))
+                } else if on {
                     RoundedRectangle(cornerRadius: Hover.rowRadius, style: .continuous)
                         .fill(Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))

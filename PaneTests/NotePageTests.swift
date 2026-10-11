@@ -672,10 +672,7 @@ import AppKit
 
     // MARK: App settings and Make It an App
 
-    @Test func makeItAnAppSuggestsFromWhatTheNoteHolds() {
-        #expect(MakeAnApp.looksLikeAnApp(Capture.budgetNote))
-        #expect(MakeAnApp.looksLikeAnApp("List\n- [ ] a\n- [ ] b\n- [x] c"))
-        #expect(!MakeAnApp.looksLikeAnApp("Just thoughts\n\nNothing to track."))
+    @Test func makeItAnAppAsksForWhatTheNoteHolds() {
         #expect(MakeAnApp.idea(for: Capture.budgetNote).hasPrefix("a budget app"))
         #expect(MakeAnApp.idea(for: Capture.habitNote()).hasPrefix("a tracker app"))
         #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist app"))
