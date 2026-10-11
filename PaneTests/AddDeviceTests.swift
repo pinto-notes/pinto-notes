@@ -987,7 +987,7 @@ final class FakeAddDeviceServer: AddDeviceServer, @unchecked Sendable {
     }
 }
 
-/// The QR code on "Open your notes on this device": every module the same whole number of
+/// The QR code on "Link this device to open your notes": every module the same whole number of
 /// screen pixels, so none is blurred or a pixel wider than its neighbour.
 @MainActor @Suite struct QRCodeCrispTests {
     @Test func everyModuleIsAWholeNumberOfPixels() throws {
