@@ -1531,6 +1531,9 @@ struct ConnectAISection: View {
             Image(systemName: "checkmark").fontWeight(.bold).foregroundStyle(.tint)
         }
         .font(.callout.weight(.medium))
+        // The check mark is decoration: VoiceOver read each promise as "Selected", then the words.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
     }
 
     private var connected: some View {
