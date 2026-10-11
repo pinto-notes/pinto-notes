@@ -121,7 +121,7 @@ struct SettingsView: View {
             SettingsPage {
                 if let client = backend.client {
                     ConnectAISection(client: client, preview: connections)
-                    if NoteApps.enabled { AppPreviewSection(client: client) }
+                    if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
                 }
             }
             .connectGuides(client: backend.client)

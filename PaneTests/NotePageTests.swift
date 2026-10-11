@@ -538,23 +538,6 @@ import AppKit
         #expect(NoteIntents.appending("", to: "Groceries") == "Groceries")
     }
 
-    /// The on-device model on this Mac, when there is one: prints what it says (no assertion on
-    /// the words; it can be unavailable).
-    @Test func onDeviceModelAnswersOrSaysWhyNot() async throws {
-        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let a = try await NotePageDevice.handle(["op": "ai.available"], context: c.mainContext)
-        print("AI-AVAILABLE \(a)")
-        do {
-            let r = try await NotePageDevice.handle(["op": "ai.respond", "prompt": "Meeting: Lunch with Jonas at Time Out Market. Suggest three short questions to ask.",
-                                                     "instructions": "Three numbered questions, one line each."], context: c.mainContext)
-            print("AI-TEXT \(r["text"] ?? "")")
-            #expect((r["text"] as? String)?.isEmpty == false)
-        } catch {
-            print("AI-UNAVAILABLE \(error.localizedDescription)")
-            #expect(a["available"] as? Bool != true || error.localizedDescription.contains("couldn't answer"))
-        }
-    }
-
     @Test func addChecklistItemKeepsChecklistsAsChecklists() throws {
         let body = "Packing\n\n## Clothes\n- [ ] Socks\n- [x] Jacket\n\n## Documents\n- [ ] Passport\n\nNotes"
         #expect(try apply(["op": "add_checklist_item", "text": "Scarf", "under_heading": "clothes"], to: body)
@@ -661,7 +644,7 @@ import AppKit
     }
 
     /// Every demo app loads and draws, with its own note.
-    @Test(arguments: ["habit-tracker", "budget", "budget-v2", "spending-chart", "expense-form", "savings-goal", "habit-reminders", "trip-log", "weather-key", "budget-dashboard", "reading-stack", "packing", "training", "budget-ledger"])
+    @Test(arguments: ["habit-tracker", "budget", "budget-v2", "spending-chart", "expense-form", "savings-goal", "weather-key", "budget-dashboard", "reading-stack", "packing", "training", "budget-ledger"])
     func demoAppsLoad(_ name: String) async throws {
         let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "demo/note-pages")
         let html = try String(contentsOf: dir.appending(path: name + ".html"), encoding: .utf8)
@@ -715,37 +698,42 @@ import AppKit
         }
     }
 
-    // MARK: The device, off in the released app
+    // MARK: What apps can no longer use of the device
 
-    @Test func theDeviceIsOffForAppsInTheReleasedApp() {
-        // Release with Pinto Notes' own bundle id: off, whatever a launch argument or default says.
-        for setting in [nil, true, false] as [Bool?] { #expect(!NoteApps.isDeviceEnabled(development: false, beta: false, setting: setting)) }
-        // Pinto Notes Beta, and Debug and QA builds: on; `-noteAppDevice NO` shows them as released.
-        for (development, beta) in [(false, true), (true, false), (true, true)] {
-            #expect(NoteApps.isDeviceEnabled(development: development, beta: beta, setting: nil))
-            #expect(!NoteApps.isDeviceEnabled(development: development, beta: beta, setting: false))
-        }
-    }
-
-    /// Off, an app that reaches for the device is told so by name, in the app, and nothing of the
-    /// system is touched (no permission prompt). A link, the share sheet and the pickers stay.
-    @Test func withTheDeviceOffAnAppIsToldWhatIsNotAvailable() async throws {
+    /// Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and the
+    /// on-device model were removed from apps. An app written for them gets an answer with a
+    /// reason, in the app, and never an exception; a link, the share sheet and the pickers remain.
+    @Test func anAppThatCallsARemovedDeviceFeatureIsToldItIsNotAvailable() async throws {
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.onData = { _ in Issue.record("a removed feature reached the app"); return [:] }
+        sandbox.load(html: """
+        <p id=p>x</p><script>
+        amber.onChange(() => {});
+        (async () => {
+          const d = amber.device, out = {};
+          const calls = { "reminders.create": () => d.reminders.create({ title: "x" }), "reminders.complete": () => d.reminders.complete("1"), "reminders.delete": () => d.reminders.delete("1"),
+            "calendar.today": () => d.calendar.today(), "notify": () => d.notify({ title: "x" }), "notify.cancel": () => d.notify.cancel("1"), "camera.take": () => d.camera.take(),
+            "contacts.pick": () => d.contacts.pick(), "location.once": () => d.location.once(), "maps.open": () => d.maps.open({ query: "x" }), "maps.snapshot": () => d.maps.snapshot({}),
+            "weather.current": () => d.weather.current(), "ai.respond": () => amber.ai.respond("x"), "ai.available": () => amber.ai.available() };
+          for (const [name, call] of Object.entries(calls)) { const r = await call(); out[name] = r.ok === false ? r.error : "available:" + r.available; }
+          window.__kept = ["openURL", "share"].every((k) => typeof d[k] === "function") && typeof d.photos.pick === "function" && typeof d.files.pick === "function";
+          window.__out = out;
+        })();
+        </script>
+        """, body: "x")
+        try await run(sandbox.webView, until: "window.__out !== undefined")
+        let out = try #require(try await sandbox.webView.evaluateJavaScript("window.__out") as? [String: String])
+        let want = ["reminders.create": "Reminders aren't", "reminders.complete": "Reminders aren't", "reminders.delete": "Reminders aren't", "calendar.today": "The calendar isn't",
+                    "notify": "Notifications aren't", "notify.cancel": "Notifications aren't", "camera.take": "The camera isn't", "contacts.pick": "Contacts aren't",
+                    "location.once": "Location isn't", "maps.open": "Maps isn't", "maps.snapshot": "Maps isn't", "weather.current": "Weather isn't", "ai.respond": "On-device AI isn't"]
+        for (name, what) in want { #expect(out[name] == "\(what) available in apps yet.", "\(name): \(out[name] ?? "nothing")") }
+        #expect(out["ai.available"] == "available:false")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__kept") as? Bool == true)
+        // An app that posts a removed call past the bridge's own functions is refused there too.
         let container = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
-        let refused = ["reminders.create": "Reminders aren't", "reminders.complete": "Reminders aren't", "reminders.delete": "Reminders aren't",
-                       "calendar.today": "The calendar isn't", "notify": "Notifications aren't", "notify.cancel": "Notifications aren't",
-                       "camera.take": "The camera isn't", "contacts.pick": "Contacts aren't", "location.once": "Location isn't",
-                       "maps.open": "Maps isn't", "maps.snapshot": "Maps isn't", "weather.current": "Weather isn't", "ai.respond": "On-device AI isn't"]
-        for (op, what) in refused {
-            do {
-                _ = try await NotePageDevice.handle(["op": op, "title": "x", "prompt": "x"], context: container.mainContext, device: false)
-                Issue.record("\(op) went ahead with the device off")
-            } catch {
-                #expect((error as? LocalizedError)?.errorDescription == "\(what) available in apps yet.", "\(op): \(error)")
-            }
+        for op in ["reminders.create", "calendar.today", "location.once", "camera.take", "contacts.pick", "maps.open", "ai.respond", "notify"] {
+            await #expect(throws: NotePageDevice.Unavailable.self) { _ = try await NotePageDevice.handle(["op": op, "title": "x"], context: container.mainContext) }
         }
-        let ai = try await NotePageDevice.handle(["op": "ai.available"], context: container.mainContext, device: false)
-        #expect(ai["available"] as? Bool == false)
-        for op in ["openURL", "share", "photos.pick", "files.pick"] { #expect(try NotePageDevice.whileOff(op) == nil) }
     }
 
     // MARK: The switch (NoteApps)

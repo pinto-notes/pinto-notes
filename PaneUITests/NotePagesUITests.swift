@@ -217,15 +217,6 @@ final class NotePagesUITests: XCTestCase {
 
     // MARK: Showcase
 
-    /// Taps the system's own permission alert, whichever it is.
-    func allowSystemAlert(_ labels: [String] = ["Allow Full Access", "Allow While Using App", "Allow", "OK"], timeout: Double = 6) {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        for _ in 0..<Int(timeout * 2) {
-            for l in labels where springboard.buttons[l].exists { springboard.buttons[l].tap(); return }
-            pause(0.5)
-        }
-    }
-
     func openNote(_ title: String) {
         let all = app.staticTexts["All Notes"].firstMatch
         if all.waitForExistence(timeout: 4) { all.tap() }
@@ -233,70 +224,6 @@ final class NotePagesUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         pause(2)
-    }
-
-    /// The habit tracker sets a daily reminder through Reminders' own prompt.
-    func testShowcaseHabit() {
-        launch(["-showcase", pages, "-open", "Habit tracker"])
-        pause(2.5)
-        shot("30-habit-app")
-        let bell = app.webViews.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Remind me daily: Read'")).firstMatch
-        XCTAssertTrue(bell.waitForExistence(timeout: 5))
-        bell.tap()
-        allowSystemAlert()
-        pause(2)
-        shot("31-habit-reminder-set")
-        pause(1)
-    }
-
-    /// Meeting prep: today's events from Calendar, a person from Contacts' picker, on-device AI.
-    func testShowcaseMeeting() {
-        launch(["-showcase", pages, "-seedCalendar", "-open", "Meeting prep"])
-        allowSystemAlert(timeout: 3)
-        pause(3)
-        shot("32-meeting-today")
-        let lunch = web("Lunch with Jonas")
-        if lunch.waitForExistence(timeout: 4) { lunch.tap() }
-        pause(1)
-        let add = web("Add a person…")
-        if add.waitForExistence(timeout: 4) { add.tap() }
-        pause(2)
-        let kate = app.staticTexts["Kate Bell"].firstMatch
-        if kate.waitForExistence(timeout: 5) { kate.tap() }
-        pause(2)
-        let ask = web("Suggest questions")
-        if ask.waitForExistence(timeout: 4) { ask.tap() }
-        pause(4)
-        app.webViews.firstMatch.swipeUp(velocity: .slow)
-        pause(1.5)
-        shot("33-meeting-prepared")
-        pause(1)
-    }
-
-    /// The trip log: location (system prompt), the map, the weather through an approved host, photos.
-    func testShowcaseTrip() {
-        launch(["-showcase", pages, "-open", "Lisbon trip log"])
-        pause(2.5)
-        shot("34-trip-empty")
-        web("Where am I?").tap()
-        allowSystemAlert()
-        let allow = app.alerts.buttons["Allow"].firstMatch
-        if allow.waitForExistence(timeout: 8) {
-            shot("35-trip-allow-host")
-            allow.tap()
-        }
-        pause(3)
-        shot("36-trip-here")
-        web("Add photos").tap()
-        pause(3)
-        let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo'")).firstMatch
-        if photo.waitForExistence(timeout: 5) {
-            photo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-            for l in ["Add", "Done"] where app.buttons[l].firstMatch.exists { app.buttons[l].firstMatch.tap(); break }
-        }
-        pause(3)
-        shot("37-trip-photos")
-        pause(1)
     }
 
     /// The weather app needs an API key: the card, adding the key, the app working, the log.

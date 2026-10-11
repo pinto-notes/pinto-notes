@@ -59,18 +59,12 @@
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Pinto Notes reads the Apple Notes you choose to import. It never changes them.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>A note that is an app can show today's events, such as a meeting prep note. Nothing from your calendar leaves this device.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Pinto Notes uses the camera to scan the code on a device you add, and to take photos for a note that is an app.</string>
+	<string>Pinto Notes uses the camera to scan the code on a device you add.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Pinto Notes uses Face ID to open your locked notes, show your recovery key, approve AI connections and add a device.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>A note that is an app can use your location once, such as a trip log noting where you are.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>A note that is an app can save photos you take with it.</string>
-	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>A note that is an app can add reminders for you, such as a daily nudge for a habit.</string>
+	<string>Pinto Notes saves a picture to your photo library when you choose Save Image in the share sheet.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>dev.emilwagman.pane.connect</string>

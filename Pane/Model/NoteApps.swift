@@ -21,33 +21,19 @@ enum NoteApps {
         setting ?? true
     }
 
-    // MARK: The device
+    // MARK: Pictures with the real note
 
-    /// What an app may use of the device beyond a link, the share sheet and the photo and file
-    /// pickers: Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather
-    /// and the on-device model (NotePageDevice). The system gives those permissions to Pinto Notes
-    /// as a whole, not to one note's app, so until each app is asked for itself they are off in the
-    /// released app (Release, Pinto Notes' own bundle id) on iPhone, iPad and Mac. An app that
-    /// calls one is told it isn't available yet.
-    ///
-    /// Development builds (Debug, QA) and Pinto Notes Beta have them on; `-noteAppDevice NO` there
-    /// shows the released state. The setting can't turn them on in the released app.
-    static let deviceKey = "noteAppDevice"
-
-    static let device: Bool = {
+    /// Whether Settings offers "Let AIs preview apps with my notes" (AppPreviewSection): the one
+    /// way a note's real text could reach the service that draws app previews. Not in the released
+    /// app, where the server refuses real data whatever the setting says. Development builds
+    /// (Debug, QA) and Pinto Notes Beta keep it, for a server set up to allow it.
+    static let realPreviews: Bool = {
         #if DEBUG || QA
-        let development = true
+        return true
         #else
-        let development = false
+        return AppIdentity.keychainPrefix.hasSuffix(".beta")
         #endif
-        let defaults = UserDefaults.standard
-        return isDeviceEnabled(development: development, beta: AppIdentity.keychainPrefix.hasSuffix(".beta"),
-                               setting: defaults.object(forKey: deviceKey) == nil ? nil : defaults.bool(forKey: deviceKey))
     }()
-
-    static func isDeviceEnabled(development: Bool, beta: Bool, setting: Bool?) -> Bool {
-        development || beta ? setting ?? true : false
-    }
 
     /// The app a note runs, as NotePageStore.live: none while apps are off.
     @MainActor static func page(_ id: UUID, in store: NotePageStore = .shared, enabled: Bool = NoteApps.enabled) -> NotePageStore.Page? {
