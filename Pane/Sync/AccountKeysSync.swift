@@ -15,9 +15,9 @@ struct SupabaseAccountKeys: AccountKeyServer {
     /// pairs a missing key with a generation from another moment.
     func fetch() async throws -> ServerKeyState {
         // `protection` and `copy` are missing on a server from before copies (KeyCopy).
-        struct State: Decodable { var key: ServerKey?; var generation: Int; var protection: String?; var copy: Bool? }
+        struct State: Decodable { var key: ServerKey?; var generation: Int; var protection: String?; var copy: Bool?; var protection_paused_until: String? }
         let state: State = try await client.rpc("account_key_state").execute().value
-        return ServerKeyState(key: state.key, generation: state.generation, protection: state.protection.flatMap(KeyProtection.init(rawValue:)), copy: state.copy ?? false)
+        return ServerKeyState(key: state.key, generation: state.generation, protection: state.protection.flatMap(KeyProtection.init(rawValue:)), copy: state.copy ?? false, strictPausedUntil: state.protection_paused_until.flatMap(Backend.pauseDate))
     }
 
     /// Refused with hint `stale_generation` when the account started fresh after `generation`.

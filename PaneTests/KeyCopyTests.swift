@@ -28,6 +28,8 @@ import Testing
         var pausedUntil: Date?
         /// The session's sign-in is older than the server allows for a fetch.
         var wantsSignIn = false
+        /// The password was just reset: until when Advanced protection can't be turned on.
+        var strictPausedUntil: Date?
         /// What devices said they saw when they stored.
         private(set) var froms: [KeyProtection?] = []
         /// What `fetch` hands out instead of the copy (a server gone wrong).
@@ -40,7 +42,8 @@ import Testing
 
         func fetch() async throws -> ServerKeyState {
             if offline { throw URLError(.notConnectedToInternet) }
-            return ServerKeyState(key: row, generation: generation, protection: protection, copy: copy != nil && copy?.keyID == row?.key_id)
+            return ServerKeyState(key: row, generation: generation, protection: protection, copy: copy != nil && copy?.keyID == row?.key_id,
+                                  strictPausedUntil: copy != nil ? strictPausedUntil : nil)
         }
 
         func create(_ key: ServerKey, generation: Int) async throws -> (key: ServerKey, created: Bool) {
@@ -473,6 +476,26 @@ import Testing
         server.copy = keychain.synced[user]
         try await only.refreshCopyState()
         #expect(!only.serverCopy)
+    }
+
+    @Test func theKeyStateSaysFromWhenAdvancedProtectionCanBeTurnedOnBeforeAnyoneTries() async throws {
+        let (first, _) = device()
+        await attach(first)
+        #expect(first.strictPausedUntil == nil)
+        let until = Date.now.addingTimeInterval(70 * 3600)
+        server.strictPausedUntil = until
+        await first.recheck()
+        #expect(first.strictPausedUntil == until)
+        #expect(KeyCopyWords.strictPaused(until: until).hasPrefix("You can turn this on from ") && KeyCopyWords.strictPaused(until: until).hasSuffix(", because the password was just reset."))
+        // As the server sends it.
+        let json = Data(#"{"key":null,"generation":0,"protection":"standard","copy":true,"protection_paused_until":"2026-10-14T09:30:00Z"}"#.utf8)
+        struct State: Decodable { var protection_paused_until: String? }
+        #expect(try JSONDecoder().decode(State.self, from: json).protection_paused_until.flatMap(Backend.pauseDate) == Date(timeIntervalSince1970: 1_791_970_200))
+        server.strictPausedUntil = nil
+        await first.recheck()
+        #expect(first.strictPausedUntil == nil)
+        first.signedOut()
+        #expect(first.strictPausedUntil == nil)
     }
 
     // MARK: After a password reset

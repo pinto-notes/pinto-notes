@@ -257,7 +257,8 @@ struct PrivacySecuritySection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-                .disabled(changing || reach != .online)
+                // Off and held by a password reset: it can't be turned on yet, and the footer says from when.
+                .disabled(changing || reach != .online || (!strict && (crypto.strictPausedUntil ?? .distantPast) > .now))
                 .accessibilityIdentifier("privacy.strict")
                 .confirmationDialog(turning == .strict ? KeyCopyWords.turnOnTitle : KeyCopyWords.turnOffTitle,
                                     isPresented: $asksTurn, titleVisibility: .visible) {
@@ -283,12 +284,19 @@ struct PrivacySecuritySection: View {
                     Text(KeyCopyWords.saveFirstMessage)
                 }
         } footer: {
-            Text((strict ? KeyCopyWords.strictFooterOn : KeyCopyWords.strictFooterOff) + (strict ? "" : strictPausedNote.map { "\n\n" + $0 } ?? ""))
+            Text((strict ? KeyCopyWords.strictFooterOn : KeyCopyWords.strictFooterOff) + (strict ? "" : pausedNote.map { "\n\n" + $0 } ?? ""))
                 .accessibilityIdentifier("privacy.strictFooter")
         }
     }
 
     /// `confirmed`: the device's owner was just asked (to show the recovery key), so isn't again.
+    /// Under the switch while a password reset holds it: from when it can be turned on. Known from
+    /// the key state before anyone tries, or from the server's refusal.
+    private var pausedNote: String? {
+        if let until = crypto.strictPausedUntil, until > .now { return KeyCopyWords.strictPaused(until: until) }
+        return strictPausedNote
+    }
+
     private func change(to mode: KeyProtection, confirmed: Bool = false) async {
         problem = nil
         if !confirmed {

@@ -455,6 +455,8 @@ struct ServerKeyState: Equatable, Sendable {
     var protection: KeyProtection?
     /// The server keeps a copy of the account's current key.
     var copy = false
+    /// Until when Advanced protection can't be turned on, because the password was just reset.
+    var strictPausedUntil: Date?
 }
 
 /// The account's key on the server. Every call throws when the server can't be reached.
@@ -808,6 +810,9 @@ final class AccountCrypto {
     /// An account from before copies, with its key open here: the person is asked once whether
     /// the server may keep a copy. Nothing is stored until they answer.
     private(set) var asksProtection = false
+    /// Until when Advanced protection can't be turned on because the password was just reset, as
+    /// the server last said. Nil when nothing holds it.
+    private(set) var strictPausedUntil: Date?
     /// The server keeps a copy this device may get, and the person is asked first: the account was
     /// known here with Advanced protection on (`askWhy == .wasStrict`), or this device holds a key
     /// that isn't the one the server names (`.otherKey`). Nothing is fetched until they say so.
@@ -1041,6 +1046,7 @@ final class AccountCrypto {
     private func note(_ state: ServerKeyState) {
         protection = state.protection
         serverCopy = state.copy && state.protection == .standard
+        strictPausedUntil = state.strictPausedUntil
         if let account, state.protection == .strict { defaults.set(true, forKey: Self.wasStrictKey(account)) }
     }
 
@@ -1213,6 +1219,7 @@ final class AccountCrypto {
         askLater = false
         asksBeforeFetch = nil
         needsSignIn = false
+        strictPausedUntil = nil
         copiesOffered = false
         copiesOn = false
     }
