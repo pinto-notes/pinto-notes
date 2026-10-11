@@ -148,6 +148,7 @@ import UIKit
                 .tint(Color(PColor.paneAccent))
             try await AppSnapshotTests.render(form, name: "mac-7-connect-settings-\(name)-\(mode)", dark: dark, wait: 0.8)
         }
+    }
     #endif
 
     /// The sidebar with the Templates card above the account row, and after it was closed.
@@ -197,6 +198,10 @@ import UIKit
                     window.isHidden = true
                     try #require(image.pngData()).write(to: dir.appending(path: "iphone-\(s.name)-\(label)-\(dark ? "dark" : "light").png"))
                 }
+            }
+        }
+    }
+
     /// The iPhone's folder list (the iPad's sidebar) with the Templates card at its foot.
     @Test func iPhoneTemplatesCard() async throws {
         guard let dir = Self.dir else { return }
