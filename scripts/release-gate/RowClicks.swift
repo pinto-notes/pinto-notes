@@ -2,13 +2,14 @@
 // one did (docs/Technical/release-gate.md, "Clicks"). Run by scripts/row-clicks.sh on the measuring
 // Mac, never on a Mac someone is working at: it moves the pointer and clicks.
 //
-//   RowClicks <pid> [budget ms]
+//   RowClicks <pid> [budget ms] [median budget ms]
 //
 // Each note row in view is pressed and lifted with the pointer travelling 0, 1, 2 and 3 points in
 // between, which is what a hand on a mouse or a trackpad does. Read through Accessibility after
 // each: did the list select that row and does the editor hold another note's text, and how long
 // from the press until the app answered with both (the main thread is free again and the note is
-// there). Exits 1 when a click opened nothing or one took longer than the budget.
+// there). Exits 1 when a click opened nothing, one took longer than the budget, or the median of
+// them all is over the median budget.
 import AppKit
 import ApplicationServices
 
@@ -41,6 +42,7 @@ func post(_ type: CGEventType, _ p: CGPoint) {
 let args = CommandLine.arguments
 guard args.count >= 2, let pid = pid_t(args[1]) else { print("usage: RowClicks <pid> [budget ms]"); exit(2) }
 let budget = args.count > 2 ? Double(args[2]) ?? 500 : 500
+let medianBudget = args.count > 3 ? Double(args[3]) ?? 230 : 230
 let app = AXUIElementCreateApplication(pid)
 AXUIElementSetMessagingTimeout(app, 5)
 guard let window: AXUIElement = attr(app, kAXMainWindowAttribute) ?? (attr(app, kAXWindowsAttribute) as [AXUIElement]?)?.first else {
@@ -98,5 +100,6 @@ for travel in [0.0, 1, 2, 3] {
     }
 }
 let sorted = times.sorted()
-print("\(times.count + missed) clicks: \(missed) opened nothing, \(slow) over \(Int(budget)) ms" + (sorted.isEmpty ? "" : "; press to note median \(Int(sorted[sorted.count / 2])) ms, slowest \(Int(sorted.last!)) ms"))
-exit(missed + slow == 0 ? 0 : 1)
+let median = sorted.isEmpty ? 0 : sorted[sorted.count / 2]
+print("\(times.count + missed) clicks: \(missed) opened nothing, \(slow) over \(Int(budget)) ms" + (sorted.isEmpty ? "" : "; press to note median \(Int(median)) ms\(median > medianBudget ? " OVER \(Int(medianBudget)) ms" : ""), slowest \(Int(sorted.last!)) ms"))
+exit(missed + slow == 0 && median <= medianBudget ? 0 : 1)
