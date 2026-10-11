@@ -349,8 +349,8 @@ final class NoteAppsStagingUITests: XCTestCase {
     </script></body></html>
     """
 
-    /// What an app can reach outside itself in the released app: a link only once the person has
-    /// seen all of it and agreed, each time; and nothing of the device, with a plain answer.
+    /// What an app can reach outside itself: a link only once the person has seen all of it and
+    /// agreed, each time; and nothing of the device, with a plain answer.
     func testG_ALinkIsAskedAboutAndTheDeviceIsNotAvailable() throws {
         _ = try connection()
         let id = try note("Reach test", text: "An app that reaches outside itself.")
