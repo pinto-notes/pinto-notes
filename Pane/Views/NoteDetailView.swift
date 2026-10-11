@@ -406,6 +406,8 @@ struct NoteDetailView: View {
                     // and again when a sync brings changes: a note's text, or file rows on their own
                     // (a picture added on another device can arrive a sync after the text that shows it).
                     .task(id: ImagesAsk(note: note.id, pulled: sync?.remoteChangeTick ?? 0, files: sync?.filesPulledTick ?? 0)) {
+                        // The text is read as the fetch starts, not in the note pane's body (see `readable`).
+                        guard let text = vault.text(of: note) else { return }
                         await controller.fetchMissingImages(note: note.id, body: text)
                     }
                     .opacity(showingPage ? 0 : 1)
