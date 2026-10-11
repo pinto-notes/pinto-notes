@@ -143,10 +143,14 @@ jobs:
             | scripts/ci/show-tests.sh build/ci-test.log
           # A name that matches no test is not an error to xcodebuild, so count: every single test
           # that was asked for has to have run.
+          # The number comes from the result bundle, not from the log: the test host writes into
+          # the same stream and can cut the "Test run with N tests" line in two (#488).
           asked=$(grep -c '()$' only.txt || true)
-          ran=$(grep -oE "Test run with [0-9]+ test" build/ci-test.log | grep -oE "[0-9]+" | tail -1)
-          if [ "${ran:-0}" -lt "$asked" ]; then
-            echo "error: $asked single tests were asked for and ${ran:-0} ran; a line in scripts/ci/smoke-tests.txt matches no test"
+          ran=$(xcrun xcresulttool get test-results summary --path build/ci-tests.xcresult --compact \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["totalTestCount"])')
+          echo "$ran tests ran, $asked single tests were asked for"
+          if [ "$ran" -lt "$asked" ]; then
+            echo "error: $asked single tests were asked for and $ran ran; a line in scripts/ci/smoke-tests.txt matches no test"
             exit 1
           fi
       - name: Keep the test results
