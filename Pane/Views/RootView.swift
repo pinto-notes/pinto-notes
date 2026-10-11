@@ -270,11 +270,21 @@ struct RootView: View {
     @ViewBuilder
     private var detail: some View {
             if let id = selectedNote, let note = context.note(id), note.deletedAt == nil {
+                #if os(macOS)
+                NoteToolbarStage {
+                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+                        if edit { justCreated = target }
+                        selectedNote = target
+                    }
+                        .id(id)
+                }
+                #else
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
                     if edit { justCreated = target }
                     selectedNote = target
                 }
                     .id(id)
+                #endif
             } else if let id = selectedNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
                 // A file kept in the folder: its preview.
                 FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
