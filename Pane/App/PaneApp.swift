@@ -798,8 +798,11 @@ final class AppSession {
         // Tips wait for this: never a tip for something this account has used anywhere.
         await FeatureUse.refresh()
         await shareAsk.refresh()
-        // A new account is asked how it heard of us, once the notes are open.
-        await heardFrom.refresh()
+        // A new account is asked how it heard of us, but not on its first screen: from the third
+        // launch, once it has a note, and never on a launch that has shown an account notice.
+        let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
+        let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
+        await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
         await InstallID.report(client)
     }
 
