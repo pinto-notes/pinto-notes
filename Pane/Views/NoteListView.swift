@@ -485,9 +485,9 @@ struct NoteListView: View {
                         .disabled(scope == .trash)
                         .accessibilityIdentifier("list.addFile")
                     Divider()
-                    Button("Import from Apple Notes…", systemImage: "square.and.arrow.down") { imports?.appleNotes() }
+                    Button { imports?.appleNotes() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                     ForEach(ImportKind.allCases) { kind in
-                        Button(kind.menuTitle, systemImage: kind.symbol) { imports?.from(kind) }
+                        Button { imports?.from(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     }
                     Button("Import Spreadsheet as Table…", systemImage: "tablecells") { imports?.spreadsheet() }
                     Divider()
