@@ -3,14 +3,6 @@ import AppKit
 import SwiftData
 import SwiftUI
 
-/// One note in Apple Notes, as listed for the import picker.
-struct AppleNote: Identifiable, Hashable {
-    let id: String
-    let name: String
-    let folder: String
-    let modified: Date
-}
-
 /// Reads Apple Notes through AppleScript. macOS asks once for permission.
 enum AppleNotesBridge {
     enum Failure: LocalizedError {
@@ -34,6 +26,8 @@ enum AppleNotesBridge {
         return result
     }
 
+    /// Every note outside Recently Deleted. One request per folder and property, so a library of
+    /// thousands lists in seconds.
     static func list() throws -> [AppleNote] {
         let d = try run("""
         tell application "Notes"
@@ -41,9 +35,7 @@ enum AppleNotesBridge {
             repeat with f in folders
                 set fname to name of f
                 if fname is not "Recently Deleted" then
-                    repeat with n in notes of f
-                        set end of out to {id of n, name of n, fname, modification date of n}
-                    end repeat
+                    set end of out to {fname, id of notes of f, name of notes of f, modification date of notes of f, creation date of notes of f, password protected of notes of f}
                 end if
             end repeat
             return out
@@ -52,12 +44,17 @@ enum AppleNotesBridge {
         var notes: [AppleNote] = []
         guard d.numberOfItems > 0 else { return [] }
         for i in 1...d.numberOfItems {
-            guard let item = d.atIndex(i), item.numberOfItems >= 4 else { continue }
-            notes.append(AppleNote(
-                id: item.atIndex(1)?.stringValue ?? "",
-                name: item.atIndex(2)?.stringValue ?? "Untitled",
-                folder: item.atIndex(3)?.stringValue ?? "",
-                modified: item.atIndex(4)?.dateValue ?? .now))
+            guard let item = d.atIndex(i), item.numberOfItems >= 6, let ids = item.atIndex(2), ids.numberOfItems > 0 else { continue }
+            let folder = item.atIndex(1)?.stringValue ?? ""
+            for j in 1...ids.numberOfItems {
+                notes.append(AppleNote(
+                    id: ids.atIndex(j)?.stringValue ?? "",
+                    name: item.atIndex(3)?.atIndex(j)?.stringValue ?? "Untitled",
+                    folder: folder,
+                    modified: item.atIndex(4)?.atIndex(j)?.dateValue ?? .now,
+                    created: item.atIndex(5)?.atIndex(j)?.dateValue,
+                    locked: item.atIndex(6)?.atIndex(j)?.booleanValue ?? false))
+            }
         }
         var seen = Set<String>()
         return notes.filter { seen.insert($0.id).inserted }.sorted { $0.modified > $1.modified }
@@ -367,44 +364,17 @@ struct AppleNotesImportView: View {
         guard !AppleNotesBridge.isDemo else { return }
         let chosen = notes.filter { picked.contains($0.id) }
         progress = (0, chosen.count)
-        // Pins are read once, up front, only when asked for.
-        let pins: Result<Set<Int>, ApplePins.Failure>? = bringPins
-            ? await Task.detached { ApplePins.pinnedKeys() }.value
-            : nil
-        let pinned = (try? pins?.get()) ?? []
-        var made: [UUID] = []
-        for (i, n) in chosen.enumerated() {
-            progress = (i, chosen.count)
-            // Importing the same unchanged note again would only make a copy.
-            if context.hasImported(title: n.name, modified: n.modified) { continue }
-            guard let html = try? await Task.detached(operation: { try AppleNotesBridge.body(of: n.id) }).value else { continue }
-            let md = RichPaste.clean(RichTextToMarkdown.markdown(fromHTML: html))
-            let scope: Scope = keepFolders ? .folder(folder(named: n.folder).id) : .all
-            let note = context.createNote(in: scope, body: md.isEmpty ? n.name : md)
-            note.createdAt = n.modified
-            note.updatedAt = n.modified
-            if let key = ApplePins.primaryKey(fromNoteID: n.id), pinned.contains(key) { note.isPinned = true }
-            made.append(note.id)
+        let summary = await AppleNotesImporter(context: context).run(chosen, keepFolders: keepFolders) { done, total in
+            progress = (done, total)
         }
-        try? context.save()
-        SyncSignal.changed()
-        if !made.isEmpty { NotificationCenter.default.post(name: .paneNotesBrought, object: nil) }
-        onImported(made)
-        if case .failure(let why) = pins {
+        onImported(summary.noteIDs)
+        if bringPins, !summary.readStore {
             // Everything else came over; say so plainly, and why pins didn't.
             progress = nil
-            notice = why == .noAccess
-                ? "Pins couldn't be read without Full Disk Access; everything else imported."
-                : "Pins couldn't be read; everything else imported."
+            notice = "Pins couldn't be read without Full Disk Access; everything else imported."
             return
         }
         dismiss()
-    }
-
-    private func folder(named name: String) -> Folder {
-        let clean = name.isEmpty ? "Notes" : name
-        if let f = context.allFolders().first(where: { $0.name == clean && $0.parent == nil }) { return f }
-        return context.createFolder(named: clean)
     }
 }
 #endif
