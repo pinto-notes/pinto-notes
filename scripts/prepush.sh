@@ -64,7 +64,11 @@ if [[ ${1:-} == --tests ]]; then
   only=()
   for f in $( { git diff --name-only "$base"; git diff --name-only; } | sort -u | grep -E '^PaneTests/.*\.swift$' || true); do
     [[ -f $f ]] || continue
-    for suite in $(grep -oE '^(@[A-Za-z]+(\([^)]*\))? +)*(final +)?(struct|class) +[A-Za-z0-9_]+' "$f" | awk '{print $NF}'); do only+=("-only-testing:PaneTests/$suite"); done
+    # A suite written inside "extension Outer {" is Outer/Suite to xcodebuild; without the outer name it matches nothing.
+    outer=$(grep -m1 -oE '^extension +[A-Za-z0-9_]+ *\{' "$f" | awk '{print $2 "/"}' || true)
+    for suite in $(grep -oE '^(@[A-Za-z]+(\([^)]*\))? +)*(final +)?(struct|class) +[A-Za-z0-9_]+' "$f" | awk '{print $NF}'); do
+      if [[ -n $outer ]] && ! grep -qE "^extension +$suite\b" "$f"; then only+=("-only-testing:PaneTests/$outer$suite"); else only+=("-only-testing:PaneTests/$suite"); fi
+    done
   done
   if (( ${#only} )); then
     compile run "Tests of the touched test files (${#only} suites)" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO

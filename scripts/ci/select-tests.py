@@ -35,13 +35,25 @@ except FileNotFoundError:
 cost = lambda suite: float(times.get(suite, 5))
 
 decl = re.compile(r"^\s*(?:@[\w.]+(?:\([^)]*\))?\s+)*(?:(?:public|private|fileprivate|final|internal|nonisolated)\s+)*(?:struct|class|enum|actor|protocol)\s+(\w+)", re.M)
-suites_in, text_of = {}, {}
+suites_in, text_of, inside = {}, {}, {}
 for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
     rel = os.path.relpath(f, root)
     text = open(f, errors="replace").read()
     text_of[rel] = text
     # A suite: a type the last full run timed, or one named like a suite (a new one has no time yet).
     suites_in[rel] = [n for n in decl.findall(text) if "@Test" in text and (n in times or re.search(r"(Tests?|Snapshots|Shots)$", n))]
+    # A suite written inside "extension Outer { ... }" is Outer/Suite to xcodebuild; without the
+    # outer name the argument matches nothing and the tests are silently not run.
+    outer, depth = None, 0
+    for line in text.splitlines():
+        if depth == 0:
+            m = re.match(r"extension\s+(\w+)", line)
+            outer = m.group(1) if m else None
+        elif depth == 1 and outer:
+            m = decl.match(line)
+            if m and m.group(1) in suites_in[rel]:
+                inside[m.group(1)] = outer
+        depth += line.count("{") - line.count("}")
 perf = {s for f, ss in suites_in.items() if f.startswith("PaneTests/Perf/") for s in ss}
 all_suites = {s for ss in suites_in.values() for s in ss}
 
@@ -85,11 +97,15 @@ for s in sorted(set(left), key=cost):
     if len(chosen) == before:
         skipped.append(s)
 
+path = lambda suite: f"{inside[suite]}/{suite}" if suite in inside else suite
 for t in smoke:                                     # 1 (single tests: Suite/test())
-    if t.split("/")[0] not in why:
-        print(f"-only-testing:PaneTests/{t}")
+    suite, test = t.split("/", 1)
+    if suite not in all_suites:
+        sys.exit(f"error: scripts/ci/smoke-tests.txt names {suite}, and no test file declares it")
+    if suite not in why:
+        print(f"-only-testing:PaneTests/{path(suite)}/{test}")
 for s in chosen:
-    print(f"-only-testing:PaneTests/{s}")
+    print(f"-only-testing:PaneTests/{path(s)}")
 print(f"{len(smoke)} smoke tests; {len(chosen)} suites, about {planned:.0f} s of them planned (limit {BUDGET:.0f} s):", file=sys.stderr)
 for s in chosen:
     print(f"  {s} ({cost(s):.0f} s): {why[s]}", file=sys.stderr)
