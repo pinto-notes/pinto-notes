@@ -253,7 +253,8 @@ struct SetupCard: View {
         Button("Start Fresh", action: onStartFresh)
             .buttonStyle(.hoverLink)
             .foregroundStyle(.secondary)
-            .fixedSize()
+            // Its own width when that fits; at the largest text sizes it wraps inside the card.
+            .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("setup.fresh")
     }
 
@@ -284,10 +285,20 @@ struct SetupCard: View {
 
     /// The app's amber primary button (white on the deeper amber, in light and dark).
     private func primary(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .buttonStyle(.amberProminent)
-            .fixedSize()
-            .accessibilityIdentifier(id)
+        // At its own width when that fits. At the largest text sizes it's wider than the card,
+        // which pushed the card's text out past the left edge: there it takes the card's width
+        // and its title takes a second line (and shrinks a little if it still doesn't fit).
+        ViewThatFits(in: .horizontal) {
+            Button(title, action: action)
+                .buttonStyle(.amberProminent)
+                .fixedSize()
+                .accessibilityIdentifier(id)
+            Button(title, action: action)
+                .buttonStyle(.amberProminentWrapping)
+                .minimumScaleFactor(0.5)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier(id)
+        }
     }
 
     private func copy() {
@@ -396,7 +407,12 @@ struct ConnectAISheet: View {
             Form { ConnectAISection(client: client) }
                 .formStyle(.grouped)
                 .connectGuides(client: client)
-                .navigationTitle("Connect an AI")
+                // "AI", as the same page is titled in Settings: its first section is already
+                // headed "Connect an AI", and the two read as the title twice.
+                .navigationTitle("AI")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
@@ -431,6 +447,7 @@ struct ShareHowToSheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
+        .roomySheet()
     }
 
     private func step(_ n: Int, _ title: String, _ detail: String) -> some View {

@@ -45,11 +45,27 @@ import Testing
         let codex = ConnectSnippets.codex(url: url, token: token)
         #expect(codex.contains("url = \"\(url)\""))
         #expect(codex.contains("Bearer \(token)"))
+        // The server goes by the app's name now; the old name is in neither.
+        #expect(claude.hasPrefix("claude mcp add --scope user --transport http pinto-notes \(url) "))
+        #expect(codex.hasPrefix("[mcp_servers.pinto_notes]\n"))
+        #expect(!claude.contains("amber") && !codex.contains("amber"))
+        #if os(macOS)
+        // Add to Claude Code replaces what it added before, under either name, so the notes aren't listed twice.
+        let script = ClaudeCodeInstaller.script
+        #expect(script.contains("claude mcp remove --scope user amber-notes"))
+        #expect(script.contains("claude mcp remove --scope user pinto-notes"))
+        #expect(script.contains("claude mcp add --scope user --transport http pinto-notes \"$AMBER_URL\""))
+        #endif
     }
 
     @Test func showsTheServersPublicAddressWhenTheBuildHasOne() {
         let function = URL(string: "https://ref.supabase.co/functions/v1/mcp")!
-        #expect(BackendConfig.publicMCPURL(configured: "https://mcp.ambernotes.app", function: function)?.absoluteString == "https://mcp.ambernotes.app")
+        #expect(BackendConfig.publicMCPURL(configured: "https://mcp.pintonotes.com", function: function)?.absoluteString == "https://mcp.pintonotes.com")
+        // A build still set to the old address shows the new one: the same server, renamed.
+        #expect(BackendConfig.publicMCPURL(configured: "https://mcp.ambernotes.app", function: function)?.absoluteString == "https://mcp.pintonotes.com")
+        #expect(BackendConfig.publicMCPURL(configured: "https://MCP.AmberNotes.app/", function: function)?.absoluteString == "https://mcp.pintonotes.com")
+        // Any other address (staging's, a self-hosted one) is shown as it is.
+        #expect(BackendConfig.publicMCPURL(configured: "https://mcp.example.org", function: function)?.absoluteString == "https://mcp.example.org")
         // Unset ($(PANE_MCP_URL) expands to nothing) or not https: the function's own address.
         #expect(BackendConfig.publicMCPURL(configured: "", function: function) == function)
         #expect(BackendConfig.publicMCPURL(configured: nil, function: function) == function)
