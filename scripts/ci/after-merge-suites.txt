@@ -1,0 +1,5 @@
+# Suites that wait on real time by design (a bad network, two devices): they run on dev after the
+# merge, and on a pull request that changes their own file.
+SyncFaultTests
+NetFaultTests
+TwoDeviceLiveSyncTests

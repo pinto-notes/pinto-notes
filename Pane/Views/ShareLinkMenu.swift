@@ -687,6 +687,11 @@ private struct ShareLinkChrome: ViewModifier {
         Button { Task { await store.shareAndCopy() } } label: {
             Label("Shared", systemImage: "link")
                 .font(.caption.weight(.medium))
+                // A small mark over the top of the note, like a bar item: it stops growing where it
+                // would cover the title (at the largest sizes it lay across the first line), and
+                // shows large when pressed and held instead.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .accessibilityShowsLargeContentViewer()
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 9)
                 .frame(minHeight: 24)
@@ -742,7 +747,10 @@ private struct ShareLinkChrome: ViewModifier {
                     }
                 case .includeSubNotes:
                     Button("Include Sub-notes") { Task { await store.setIncludesSubNotes(true) } }
+                        // As above: not the default button on iPhone.
+                        #if os(macOS)
                         .keyboardShortcut(.defaultAction)
+                        #endif
                         .accessibilityIdentifier("share.confirm")
                 }
                 Button("Cancel", role: .cancel) {}
