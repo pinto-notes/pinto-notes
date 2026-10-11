@@ -179,7 +179,7 @@ Deno.test("the welcome: what Pinto Notes is, one step for where the person is, a
   for (const [step, href] of Object.entries(steps)) {
     const e = render("welcome", { ...ctx, step: step as keyof typeof steps });
     assertStringIncludes(e.html, href);
-    for (const s of ["iPhone and Mac", "ChatGPT and Claude", "end-to-end encrypted", "free", "Just reply, I read every email."]) assertStringIncludes(e.text, s);
+    for (const s of ["iPhone and Mac", "ChatGPT and Claude", "encrypted on your devices", "free", "Just reply, I read every email."]) assertStringIncludes(e.text, s);
     // One step only: one button, or one ask with its two places to send it.
     assertEquals((e.html.match(/class="btn"/g) ?? []).length, step === "try" ? 0 : 1, step);
   }

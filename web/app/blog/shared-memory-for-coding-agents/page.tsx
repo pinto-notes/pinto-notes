@@ -17,7 +17,7 @@ const FAQ = [
     "Give each agent its own access token from Settings, Connect an AI, and its edits carry its name: Edited by Claude Code or Edited by Codex in the note list, the changed lines tinted with Undo in the note, and the name on every version in the note's history.",
   ] },
   { q: "Can Pinto Notes read my agents' memory?", a: [
-    "Not at rest: notes are end-to-end encrypted on your devices. While an agent you approved is working, our server opens the notes it asks for in memory to answer it, and forgets the key when the request ends. Locked notes stay out of reach even then.",
+    "We could, if we had to. Notes are encrypted on your devices before they sync, and by default we keep a locked copy of your key so that signing in opens your notes on a new device. With Advanced protection on, we keep no copy and can't open them. In both cases, while an agent you approved is working, our server opens the notes it asks for in memory to answer it, and forgets the key when the request ends. Locked notes stay out of reach even then.",
   ] },
 ];
 
@@ -126,8 +126,9 @@ export default function Page() {
 
       <h2>What the encryption covers</h2>
       <p>
-        Notes are end-to-end encrypted on your {APP_STORE_LIVE ? "iPhone or Mac" : "Mac"}, with a key iCloud Keychain carries between your devices,
-        so Pinto Notes can&apos;t read them at rest. The exception is while an agent works: when an agent you
+        Notes are encrypted on your {APP_STORE_LIVE ? "iPhone or Mac" : "Mac"} before they sync. By default Pinto Notes keeps a locked copy of
+        your key, so signing in opens your notes on a new device, and Pinto Notes could open them if it had to. With Advanced
+        protection on, it keeps no copy and can&apos;t. In both cases, when an agent you
         approved makes a request, our server opens the notes it asks for in memory to answer it, and forgets the key when the request ends.
         Locked notes stay out of reach even then; an agent sees only their titles.{" "}
         <a href="/blog/encrypted-notes-app-for-ai">An encrypted notes app that ChatGPT and Claude can use</a> explains how that works.

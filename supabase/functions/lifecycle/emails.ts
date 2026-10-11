@@ -128,7 +128,7 @@ function draft(kind: Kind, c: Context): Draft {
         title: "Welcome to Pinto Notes",
         art: c.plain ? undefined : { file: "hero-try.jpg", ground: "#2e346d", alt: "Two paper-cut armchairs with a mug each, ready for a chat" },
         blocks: [
-          { p: "Hi, I'm Emil. Pinto Notes is a simple notes app for iPhone and Mac that ChatGPT and Claude can read and edit, with your approval. It's end-to-end encrypted, and free." },
+          { p: "Hi, I'm Emil. Pinto Notes is a simple notes app for iPhone and Mac that ChatGPT and Claude can read and edit, with your approval. It's encrypted on your devices, and free." },
           ...welcomeStepBlocks(c),
           { p: "Questions, or something that doesn't work? Just reply, I read every email." },
         ],
