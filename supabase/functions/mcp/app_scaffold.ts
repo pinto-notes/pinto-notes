@@ -5,7 +5,6 @@
 // stack's own starter (app_stack.gen.ts).
 
 // The starter's files are big: loaded when a project is made, not when the server starts.
-import { deviceServed } from "./page.ts";
 
 /** How an app runs in Pinto Notes: part of every app's README, so any AI working on it reads it. */
 export const appGuide = () => `## How this app runs in Pinto Notes
@@ -15,9 +14,7 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 - Available by name: react, react-dom, radix-ui, lucide-react, recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, amber-router (Router, Route, route(), back()), chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti.
 - Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/amber". localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
 - No network except hosts the person allows: declare them in index.html with <meta name="amber-needs" content='{"hosts": ["api.open-meteo.com"]}'> and call fetch(url) from "@/lib/amber"; API keys live in Pinto Notes › Settings › API Keys (declare { "keys": [{ "name", "hosts", "query" or "header" }] } and pass { key: name }).
-${deviceServed()
-  ? "- The device, through its own prompts: device.reminders, calendar, notify, photos, camera, contacts, location, maps, weather; on-device AI with ai.respond."
-  : "- The device: device.openURL(url) opens a link once the person agrees to it, share(file) exports one, device.photos.pick() and device.files.pick() let the person choose. Reminders, Calendar, notifications, the camera, contacts, location, Maps and on-device AI are not available yet."}`;
+- The device: device.openURL(url) opens a link once the person agrees to it, share(file) exports one, device.photos.pick() and device.files.pick() let the person choose. Reminders, Calendar, notifications, the camera, contacts, location, Maps and on-device AI are not available yet.`;
 
 export async function scaffold(title: string, lang = "en"): Promise<Record<string, string>> {
   const [{ STACK_FILES }, { SHADCN_UI }] = await Promise.all([import("./app_stack.gen.ts"), import("./shadcn-ui.ts")]);

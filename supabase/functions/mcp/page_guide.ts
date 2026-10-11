@@ -3,7 +3,7 @@
 // Claude skill (plugins/amber-notes/skills/note-pages, written from here by
 // scripts/page-evals/build-skill.ts), so none of them drift.
 
-import { deviceServed, MAX_PAGE_BYTES, MAX_PAGE_DATA_BYTES, PAGE_CONTRACT } from "./page.ts";
+import { MAX_PAGE_BYTES, MAX_PAGE_DATA_BYTES, PAGE_CONTRACT } from "./page.ts";
 import { AMBER_BASE_CSS, AMBER_TOKENS } from "./amber-base.ts";
 import { scaffold } from "./app_scaffold.ts";
 
@@ -77,7 +77,7 @@ The app can't reach the internet by itself. For live data, declare the hosts in 
 
 Then call fetch(url, { key: "OpenWeather" }) from "@/lib/amber"; it returns { ok, status, body }. Keys live in Pinto Notes › Settings › API Keys; the app and you never see their values. list_api_keys shows which exist. Walk the person through getting one (the site, the free plan, where the key is) and adding it there. Never ask for a key in the chat; if one is pasted, don't store or repeat it, and suggest they make a new one. Prefer services that need no key (api.open-meteo.com for weather). fetch("/src/data.json") reads the app's own files.
 
-${deviceServed() ? `The device, through the system's own prompts: device.reminders, calendar, notify, photos, camera, contacts, location, maps, weather; on-device AI with ai.respond. Each returns { ok, … }.` : `The device: device.openURL(url) opens a web, mail or phone link once the person agrees to it, share({ name, type, text }) exports a file, and device.photos.pick() and device.files.pick() let the person choose photos or files. Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and on-device AI are not available yet: don't build on them.`}
+The device: device.openURL(url) opens a web, mail or phone link once the person agrees to it, share({ name, type, text }) exports a file, and device.photos.pick() and device.files.pick() let the person choose photos or files. Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and on-device AI are not available yet: don't build on them.
 
 ## Seeing your work
 
