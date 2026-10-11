@@ -151,6 +151,8 @@ final class AccountNotices {
     private(set) var current: AccountNotice?
     /// Everything the alert showing now says: `current` alone, or AI connections, newest first.
     private(set) var group: [AccountNotice] = []
+    /// A notice has been on screen since the app started: other asks stay away for this launch.
+    @ObservationIgnored private(set) var shownThisLaunch = false
     private var queue: [AccountNotice] = []
     @ObservationIgnored private let client: SupabaseClient
     @ObservationIgnored private let ledger: NoticeLedger
@@ -282,6 +284,7 @@ final class AccountNotices {
             group = [next]
         }
         current = group.first
+        shownThisLaunch = true
     }
 }
 
