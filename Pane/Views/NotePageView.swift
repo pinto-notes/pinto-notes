@@ -201,6 +201,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           // Load errors, and whether anything showed, go to the app once the first frame is drawn.
           const errors = [];
           const failed = (e) => errors.push(String((e && e.message) || e));
+          const gone = (what) => () => Promise.resolve({ ok: false, error: what + " available in apps yet." });
           const amber = {
             note: \(json),
             update(op) {
@@ -242,30 +243,27 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               // only for files this note or its app's data refer to. width: a smaller picture.
               url: (ref, o) => "amber-file:///" + ((ref && ref.$file) || ref) + (o && o.width ? "?w=" + Math.round(o.width) : ""),
             },
-            // The device, through the system's own prompts and pickers. Results go to the page only.
+            // The device: a link (asked about first), the share sheet, and pickers for photos and
+            // files. What apps could once also use answers that it isn't available, by name, so an
+            // app written for it gets a reason and not an exception.
             device: {
-              reminders: {
-                create: (r) => ask({ op: "device.reminders.create", ...r }),
-                complete: (id) => ask({ op: "device.reminders.complete", id }),
-                delete: (id) => ask({ op: "device.reminders.delete", id }),
-              },
-              calendar: { today: () => ask({ op: "device.calendar.today" }) },
-              notify: Object.assign((n) => ask({ op: "device.notify", ...n }), { cancel: (id) => ask({ op: "device.notify.cancel", id }) }),
               openURL: (url) => ask({ op: "device.openURL", url }),
               // An export through the share sheet (iPhone) or a Save panel (Mac): { name, type, text | base64 }.
               share: (o) => ask({ op: "device.share", ...(o || {}) }),
               photos: { pick: (o) => ask({ op: "device.photos.pick", ...(o || {}) }) },
-              camera: { take: () => ask({ op: "device.camera.take" }) },
-              contacts: { pick: () => ask({ op: "device.contacts.pick" }) },
               files: { pick: () => ask({ op: "device.files.pick" }) },
-              location: { once: () => ask({ op: "device.location.once" }) },
-              maps: { open: (p) => ask({ op: "device.maps.open", ...p }), snapshot: (p) => ask({ op: "device.maps.snapshot", ...p }) },
-              weather: { current: (p) => ask({ op: "device.weather.current", ...(p || {}) }) },
+              reminders: { create: gone("Reminders aren't"), complete: gone("Reminders aren't"), delete: gone("Reminders aren't") },
+              calendar: { today: gone("The calendar isn't") },
+              notify: Object.assign(gone("Notifications aren't"), { cancel: gone("Notifications aren't") }),
+              camera: { take: gone("The camera isn't") },
+              contacts: { pick: gone("Contacts aren't") },
+              location: { once: gone("Location isn't") },
+              maps: { open: gone("Maps isn't"), snapshot: gone("Maps isn't") },
+              weather: { current: gone("Weather isn't") },
             },
-            // Apple's on-device model: nothing leaves the device.
             ai: {
-              available: () => ask({ op: "device.ai.available" }),
-              respond: (prompt, o) => ask({ op: "device.ai.respond", prompt, ...(o || {}) }),
+              available: () => Promise.resolve({ ok: true, available: false, reason: "on-device AI isn't available in apps yet" }),
+              respond: gone("On-device AI isn't"),
             },
             // Through the app, to hosts the page declared and you allowed, logged; keys added by the app.
             fetch: (url, o) => ask({ op: "fetch", url, ...(o || {}) }),

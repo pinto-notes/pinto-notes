@@ -21,6 +21,20 @@ enum NoteApps {
         setting ?? true
     }
 
+    // MARK: Pictures with the real note
+
+    /// Whether Settings offers "Let AIs preview apps with my notes" (AppPreviewSection): the one
+    /// way a note's real text could reach the service that draws app previews. Not in the released
+    /// app, where the server refuses real data whatever the setting says. Development builds
+    /// (Debug, QA) and Pinto Notes Beta keep it, for a server set up to allow it.
+    static let realPreviews: Bool = {
+        #if DEBUG || QA
+        return true
+        #else
+        return AppIdentity.keychainPrefix.hasSuffix(".beta")
+        #endif
+    }()
+
     /// The app a note runs, as NotePageStore.live: none while apps are off.
     @MainActor static func page(_ id: UUID, in store: NotePageStore = .shared, enabled: Bool = NoteApps.enabled) -> NotePageStore.Page? {
         enabled ? store.live(id) : nil
