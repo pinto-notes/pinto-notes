@@ -144,7 +144,7 @@ export const posts: Post[] = [
     excerpt: "Apple Notes tables are simple on purpose: no column widths, no sums, no formulas. What they do, what they don't, and the workarounds that hold up.",
     category: "Apple Notes",
     date: "2026-10-04",
-    updated: "2026-10-04",
+    updated: "2026-10-11",
     image: SHOTS.notesTableMenu,
     thumb: thumb("lemon", "thumb-notes-format-table-menu", 800, 528, "The Apple Notes Format menu on a Mac, open at Table"),
     draft: false,
