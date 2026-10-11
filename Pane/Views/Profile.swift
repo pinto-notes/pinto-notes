@@ -288,10 +288,11 @@ typealias PImage = NSImage
 extension Image { init(platform image: PImage) { self.init(nsImage: image) } }
 #endif
 
-/// Your photo in a circle, or your initials on amber when there's no photo.
+/// Your photo in a circle, or your initials on amber when there's no photo; a person when there
+/// is no name either (nil), never a letter from an email address.
 struct AvatarView: View {
     var photo: PImage?
-    var name: String
+    var name: String?
     var size: CGFloat
 
     nonisolated static func initials(_ name: String) -> String {
@@ -306,8 +307,14 @@ struct AvatarView: View {
         Group {
             if let photo {
                 Image(platform: photo).resizable().scaledToFill()
+            } else if name == nil {
+                Image(systemName: "person.fill")
+                    .font(.system(size: size * 0.46, weight: .semibold))
+                    .foregroundStyle(.black.opacity(0.78))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(PColor.paneAccent))
             } else {
-                Text(Self.initials(name))
+                Text(Self.initials(name ?? ""))
                     .font(.system(size: size * 0.4, weight: .semibold))
                     .foregroundStyle(.black.opacity(0.78))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

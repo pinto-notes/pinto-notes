@@ -1,35 +1,63 @@
 import SwiftData
 import SwiftUI
 
+/// What to call the signed-in person where the app shows who they are: the name on their profile.
+/// Never an email address: with Sign in with Apple that can be a relay address
+/// ("f7k6w27tsh@privaterelay.appleid.com"), which is nobody's name.
+enum AccountName {
+    static let fallback = "Your account"
+
+    static func shown(_ profileName: String?) -> String {
+        let name = profileName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // A name that is an email address (typed in, or copied there by an older build) isn't shown either.
+        return name.isEmpty || name.contains("@") ? fallback : name
+    }
+
+    /// Whether there is a name to draw initials from; without one the avatar shows a person.
+    static func isSet(_ profileName: String?) -> Bool { shown(profileName) != fallback }
+}
+
 #if os(macOS)
-/// The account at the foot of the sidebar: your photo and name. Clicking it opens Settings at
-/// Account. Signing out lives there, last, behind a confirmation, so
-/// a slip of the mouse here can never sign you out.
+/// The account at the foot of the sidebar, like the Mac App Store's: your photo (or initials) in a
+/// circle and your name. Clicking it opens Settings at Account. Signing out lives there, last,
+/// behind a confirmation, so a slip of the mouse here can never sign you out.
 struct AccountButton: View {
-    let email: String
     let backend: Backend
+    /// Captures: a second line with the email, when it is a real one (the alternative look).
+    var email: String?
     @State private var profile = ProfileStore.shared
     @Environment(\.openSettings) private var openSettings
 
-    private var name: String { profile.name ?? email }
+    static let avatar: CGFloat = 28
+
+    private var name: String { AccountName.shown(profile.name) }
 
     var body: some View {
         Button {
             SettingsRoute.shared.open(.account)
             openSettings()
         } label: {
-            HStack(spacing: 8) {
-                AvatarView(photo: profile.photo, name: name, size: 22)
-                Text(name)
-                    .font(.system(size: 12, weight: profile.name == nil ? .regular : .medium))
-                    .foregroundStyle(profile.name == nil ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+            HStack(spacing: 9) {
+                AvatarView(photo: profile.photo, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if let email {
+                        Text(email)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .frame(height: 34)
-            .hoverHighlight(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(height: 42)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
         .help("Account Settings")
@@ -64,6 +92,8 @@ struct SidebarHeader: View {
 /// width and breaks between words instead of between letters.
 struct SidebarRowText<Trailing: View>: View {
     let title: String
+    /// On the Mac the selected row's name takes the accent (its fill is neutral), like Notes.
+    var selected = false
     @ViewBuilder var trailing: Trailing
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -85,7 +115,11 @@ struct SidebarRowText<Trailing: View>: View {
 
     private var beside: some View {
         HStack {
+            #if os(macOS)
+            Text(title).foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            #else
             Text(title)
+            #endif
             Spacer()
             trailing
         }
@@ -125,6 +159,8 @@ enum SidebarStyle {
 /// window that isn't in front they fade with their names; iOS tints them.
 struct SidebarIcon: View {
     let name: String
+    /// The selected row's icon takes the accent with its name.
+    var selected = false
     #if os(macOS)
     @Environment(\.controlActiveState) private var active
     #endif
@@ -133,7 +169,7 @@ struct SidebarIcon: View {
         Image(systemName: name)
             .font(SidebarStyle.iconFont)
             #if os(macOS)
-            .foregroundStyle(active == .inactive ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+            .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
             #else
             .foregroundStyle(SidebarStyle.icon)
             #endif
@@ -216,6 +252,14 @@ struct SidebarView: View {
         for f in found { if let id = f.folderID { byFolder[id, default: 0] += 1 } }
         return (live, trashed, byFolder)
     }
+    /// Recently Deleted is listed only while it holds something, like Notes.
+    nonisolated static func showsTrash(notes: Int, files: Int) -> Bool { notes + files > 0 }
+
+    /// Where the list goes when Recently Deleted is open and has just emptied (nil: stay).
+    nonisolated static func leavingEmptyTrash(_ scope: Scope?, showsTrash: Bool) -> Scope? {
+        scope == .trash && !showsTrash ? .all : nil
+    }
+
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
     var body: some View {
@@ -227,15 +271,15 @@ struct SidebarView: View {
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
                 if folders.count > 1 {
-                    CountedRow(title: "All Notes", icon: "tray.full", trash: false, files: files.live)
+                    CountedRow(title: "All Notes", icon: "tray.full", trash: false, files: files.live, selection: $scope)
                         .tag(Scope.all)
                         .accessibilityIdentifier("sidebar.all")
                 }
                 ForEach(roots) { folder in
-                    FolderTree(folder: folder, files: files.byFolder, dropTarget: dropTarget, targeted: folderTargeted, rename: startRename, newSub: startNewFolder, delete: deleteFolder)
+                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, dropTarget: dropTarget, targeted: folderTargeted, rename: startRename, newSub: startNewFolder, delete: deleteFolder)
                 }
-                // Last in the same list, like Notes.
-                CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed)
+                // Last in the same list, like Notes, and like Notes only while something is in it.
+                CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed, selection: $scope)
                     .tag(Scope.trash)
                     .accessibilityIdentifier("sidebar.trash")
             } header: {
@@ -255,6 +299,8 @@ struct SidebarView: View {
         .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
         #endif
         #if os(macOS)
+        // Recently Deleted leaves the sidebar when its last note does; the list goes back to the notes.
+        .background { EmptyTrashLeaver(scope: $scope, files: files.trashed) }
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
         // A bar, not a plain inset: the folders scrolled under it showed through its words (and
         // through the account row at the foot, where a folder's name and the email ran together).
@@ -301,10 +347,10 @@ struct SidebarView: View {
             if let backend, backend.client != nil {
                 ToolbarItem(placement: .primaryAction) {
                     // Signed in, your photo is the way into Settings (your account comes first there).
-                    if case .signedIn(let email) = backend.state {
-                        let name = ProfileStore.shared.name ?? backend.displayEmail ?? email
+                    if case .signedIn = backend.state {
+                        let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
-                            AvatarView(photo: ProfileStore.shared.photo, name: name, size: 30)
+                            AvatarView(photo: ProfileStore.shared.photo, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
                         }
                         .accessibilityLabel("Account, \(name). Opens Settings")
                         .accessibilityIdentifier("sidebar.settings")
@@ -319,13 +365,13 @@ struct SidebarView: View {
         }
         #if os(macOS)
         .safeAreaBar(edge: .bottom, spacing: 0) {
-            if let backend, case .signedIn(let email) = backend.state {
+            if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     OfflineLine(sync: sync)
-                    AccountButton(email: backend.displayEmail ?? email, backend: backend)
+                    AccountButton(backend: backend)
                         .padding(.horizontal, 10)
                 }
-                .padding(.bottom, 10)
+                .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)
             }
         }
@@ -419,26 +465,101 @@ private struct CountedRow: View {
     /// Recently Deleted's count, not All Notes'.
     let trash: Bool
     let files: Int
+    /// The sidebar's selection, read here in the row: the sidebar itself isn't worked out again
+    /// when it changes (it is an equatable view), and the row draws its own selection on the Mac.
+    @Binding var selection: Scope?
 
     var body: some View {
         #if DEBUG
         let _ = RenderProbe.count("CountedRow")
         #endif
+        let selected = selection == (trash ? .trash : .all)
         let _ = noteChanges
         let counts = SidebarView.counts(in: context)
         let count = trash ? counts.trashed : counts.live
-        Label {
-            SidebarRowText(title: title) {
-                Text(count + files, format: .number)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+        // Recently Deleted has no row while nothing is in it.
+        if !trash || SidebarView.showsTrash(notes: count, files: files) {
+            Label {
+                SidebarRowText(title: title, selected: selected) {
+                    Text(count + files, format: .number)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                SidebarIcon(name: icon, selected: selected)
             }
-        } icon: {
-            SidebarIcon(name: icon)
+            .sidebarRowLabel()
+            .rowAccessibility(title, count: count, files: files)
+            .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
+            .quietSelection()
         }
-        .sidebarRowLabel()
-        .rowAccessibility(title, count: count, files: files)
-        .hoverRow(title, reach: Hover.sidebarReach())
+    }
+}
+
+#if os(macOS)
+/// Recently Deleted was open and its last note left (recovered, or deleted for good): its row is
+/// gone, so the list shows the notes again. A view of its own with the one-note query, so it
+/// follows every note without the sidebar working out its rows again.
+private struct EmptyTrashLeaver: View {
+    @Environment(\.modelContext) private var context
+    @Query(SidebarView.anyNote) private var noteChanges: [Note]
+    @Binding var scope: Scope?
+    let files: Int
+
+    var body: some View {
+        let _ = noteChanges
+        let shows = SidebarView.showsTrash(notes: SidebarView.counts(in: context).trashed, files: files)
+        Color.clear
+            .onChange(of: shows, initial: true) { _, shows in
+                if let next = SidebarView.leavingEmptyTrash(scope, showsTrash: shows) { scope = next }
+            }
+            .onChange(of: scope) { _, now in
+                if let next = SidebarView.leavingEmptyTrash(now, showsTrash: shows) { scope = next }
+            }
+    }
+}
+
+/// The sidebar's selection drawn the app's way (a neutral fill under a tinted icon and name, see
+/// `HoverRowReader`): this turns off the list's own, a solid bar of the accent colour with white
+/// text. The row is still the list's selection, so the arrow keys, type-to-select and VoiceOver
+/// work as before.
+private struct QuietSelection: NSViewRepresentable {
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) { view.apply() }
+
+    final class Probe: NSView {
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            apply()
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+
+        func apply() {
+            var v = superview
+            while let x = v {
+                if let table = x as? NSTableView {
+                    if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
+                    return
+                }
+                v = x.superview
+            }
+        }
+    }
+}
+#endif
+
+extension View {
+    /// On a sidebar row: the list stops drawing its own selection (the row draws it).
+    func quietSelection() -> some View {
+        #if os(macOS)
+        background { QuietSelection().frame(width: 0, height: 0).accessibilityHidden(true) }
+        #else
+        self
+        #endif
     }
 }
 
@@ -459,6 +580,9 @@ private struct FolderTree: View {
     let folder: Folder
     /// Live files per folder, counted once for the whole tree.
     let files: [UUID: Int]
+    /// What the sidebar has selected, read here in the row (the sidebar isn't worked out again
+    /// when it changes): the row draws its own selection on the Mac.
+    @Binding var selection: Scope?
     /// The folder a drag is over, if any.
     let dropTarget: UUID?
     let targeted: (Bool, UUID) -> Void
@@ -478,7 +602,7 @@ private struct FolderTree: View {
         } else {
             DisclosureGroup(isExpanded: $expanded) {
                 ForEach(folder.liveChildren) { child in
-                    FolderTree(folder: child, files: files, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete, depth: depth + 1)
+                    FolderTree(folder: child, files: files, selection: $selection, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete, depth: depth + 1)
                 }
             } label: { label }
         }
@@ -486,9 +610,10 @@ private struct FolderTree: View {
 
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
-        HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth)) { hovering in
+        let selected = selection == .folder(folder.id)
+        return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
-                SidebarRowText(title: folder.name) {
+                SidebarRowText(title: folder.name, selected: selected) {
                     if hovering {
                         RowMenuButton(help: "Folder options") { menuItems }
                             .accessibilityHidden(true)
@@ -499,12 +624,13 @@ private struct FolderTree: View {
                     }
                 }
             } icon: {
-                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder")
+                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()
             .rowAccessibility(folder.name, count: folder.liveNotes.count, files: files[folder.id] ?? 0)
         }
+        .quietSelection()
         .tag(Scope.folder(folder.id))
         .accessibilityIdentifier("folder.\(folder.name)")
         .draggable(PaneDragItem(kind: .folder, id: folder.id)) {
