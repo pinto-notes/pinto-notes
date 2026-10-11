@@ -165,7 +165,10 @@ extension SignOutRemoval {
                 // The key Face ID uses to open locked notes lives on this device only.
                 vault.forgetDeviceKey()
             },
-            erase: { AccountLibrary.erase(context: context, defaults: defaults, files: files) },
+            erase: {
+                AccountLibrary.erase(context: context, defaults: defaults, files: files)
+                AccountLibrary.scrub(context)
+            },
             forget: { await devices.removalDone(account: $0) },
             signOut: { await backend.signOut() })
     }

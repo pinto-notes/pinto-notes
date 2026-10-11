@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import SwiftData
 
 /// This device's library belongs to one account at a time.
@@ -49,5 +50,20 @@ enum AccountLibrary {
             for key in ["syncCursor.\(owner)", "syncCursor.\(owner.uppercased())"] { defaults.removeObject(forKey: key) }
         }
         defaults.removeObject(forKey: ownerKey)
+    }
+
+    /// After an erase the person asked for (Sign Out and Remove Notes): the erased rows also leave
+    /// the store's file. SQLite only marks their pages free, and the text stays readable in the
+    /// file and its log until something else is written over it.
+    static func scrub(_ context: ModelContext) {
+        guard let config = context.container.configurations.first, !config.isStoredInMemoryOnly else { return }
+        // The store's record of every change goes too.
+        try? context.deleteHistory(HistoryDescriptor<DefaultHistoryTransaction>())
+        try? context.save()
+        var db: OpaquePointer?
+        defer { sqlite3_close(db) }
+        guard sqlite3_open_v2(config.url.path(percentEncoded: false), &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else { return }
+        sqlite3_busy_timeout(db, 2000)
+        for sql in ["PRAGMA wal_checkpoint(TRUNCATE)", "VACUUM", "PRAGMA wal_checkpoint(TRUNCATE)"] { sqlite3_exec(db, sql, nil, nil, nil) }
     }
 }

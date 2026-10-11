@@ -289,6 +289,32 @@ import Testing
         for c in [phone.crypto, added.crypto] { c.signedOut() }
     }
 
+    @Test func theErasedNotesAlsoLeaveTheStoresFile() throws {
+        // On disk, as the app keeps it: deleted rows stay readable in the file until it's rewritten.
+        let dir = FileManager.default.temporaryDirectory.appending(path: "SignOutScrub.\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = dir.appending(path: "Pane.store")
+        let context = ModelContext(try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(url: store)))
+        for i in 0..<40 { _ = context.createNote(in: .all, body: "Zanzibar itinerary \(i)\n" + String(repeating: "spice market ", count: 200)) }
+        try context.save()
+        func onDisk(_ text: String) -> Bool {
+            ["", "-wal"].contains { suffix in
+                (try? Data(contentsOf: URL(fileURLWithPath: store.path(percentEncoded: false) + suffix)))?.range(of: Data(text.utf8)) != nil
+            }
+        }
+        #expect(onDisk("Zanzibar itinerary"))
+        let defaults = TestDefaults()
+        AccountLibrary.erase(context: context, defaults: defaults, files: dir.appending(path: "Files"))
+        #expect(onDisk("Zanzibar itinerary") || onDisk("spice market"), "erasing alone leaves the text in the file")
+        AccountLibrary.scrub(context)
+        #expect(!onDisk("Zanzibar itinerary") && !onDisk("spice market"), "nothing of the notes is left in the store or its log")
+        // The store still works: the next sign-in fills it again.
+        _ = context.createNote(in: .all, body: "After signing in again")
+        try context.save()
+        #expect(try context.fetchCount(FetchDescriptor<Note>()) == 1)
+    }
+
     // MARK: Never the last copy
 
     @Test func twoDevicesThatOnlyHaveEachOtherCantBothLeave() async throws {
