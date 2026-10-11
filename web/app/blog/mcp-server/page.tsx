@@ -52,7 +52,7 @@ export default function Page() {
         that person, with row-level security, so a token can only ever reach its owner&apos;s notes. Calls are rate limited per account.
       </p>
       <p>
-        Notes are end-to-end encrypted, so the server can&apos;t read them at rest. Approving a connection gives it a copy of the
+        Notes are encrypted on the person&apos;s devices before they reach the server. Approving a connection gives it a copy of the
         notes&apos; key, locked with a secret derived from its own token. During each request the server unlocks the key in memory,
         decrypts what the call needs, and drops it when the request ends; disconnecting deletes that copy. Locked notes stay out of
         reach, since their key comes from the notes password. <a href="/blog/encrypted-notes-app-for-ai">An encrypted notes app that
