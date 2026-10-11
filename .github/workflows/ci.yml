@@ -140,8 +140,7 @@ jobs:
           python3 scripts/ci/select-tests.py changed.txt > only.txt
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
             $(tr '\n' ' ' < only.txt) -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
-            | tee build/ci-test.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
-          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-test.log
+            | scripts/ci/show-tests.sh build/ci-test.log
           # A name that matches no test is not an error to xcodebuild, so count: every single test
           # that was asked for has to have run.
           asked=$(grep -c '()$' only.txt || true)
@@ -217,9 +216,8 @@ jobs:
           set -o pipefail
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
             -only-testing:PaneTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
-            | tee build/ci-test.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
+            | scripts/ci/show-tests.sh build/ci-test.log
           # test-without-building says TEST EXECUTE SUCCEEDED.
-          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-test.log
       # A failure keeps the whole log and the result bundle: a test host that hangs or crashes
       # records no issue in the filtered output above, only its name under "Failing tests". The
       # crash reports say where it died.
@@ -300,8 +298,7 @@ jobs:
           # A process and a runner of their own, one test at a time, so nothing else slows what they measure.
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
             $PERF_ONLY -parallel-testing-enabled NO -derivedDataPath build/ci -resultBundlePath build/ci-perf.xcresult $XC_FLAGS \
-            | tee build/ci-perf.log | grep -E "✔ Test run|✘|error:|PERF|\*\* TEST" || true
-          grep -qE "\*\* TEST (EXECUTE )?SUCCEEDED \*\*" build/ci-perf.log
+            | scripts/ci/show-tests.sh build/ci-perf.log
       - name: Keep the test results
         if: failure()
         uses: actions/upload-artifact@v4
@@ -536,7 +533,7 @@ jobs:
           supabase/functions/mcp/canary.pglite.test.ts supabase/functions/mcp/sealed_tools.pglite.test.ts supabase/functions/mcp/device_add.pglite.test.ts
           supabase/functions/mcp/tips.pglite.test.ts supabase/functions/mcp/folder_files.pglite.test.ts supabase/functions/mcp/share_ask.pglite.test.ts supabase/functions/mcp/open_source_ask.pglite.test.ts supabase/functions/mcp/download_counts.pglite.test.ts supabase/functions/mcp/collab.pglite.test.ts
           supabase/functions/share-files/logic.test.ts scripts/e2ee-tool.test.ts
-          supabase/functions/account/account.pglite.test.ts supabase/functions/_shared/hash.test.ts
+          supabase/functions/account/account.pglite.test.ts supabase/functions/account/sign_up_pause.pglite.test.ts supabase/functions/_shared/hash.test.ts
           scripts/auth-emails.test.ts scripts/ops/daily-digest.test.ts supabase/functions/mcp/tool_errors.test.ts supabase/functions/lifecycle/logic.test.ts supabase/functions/lifecycle/emails.test.ts supabase/functions/lifecycle/assets.test.ts supabase/functions/lifecycle/lifecycle.pglite.test.ts
           supabase/functions/mcp/rename.pglite.test.ts
 
