@@ -35,7 +35,13 @@ enum AppleNotesBridge {
             repeat with f in folders
                 set fname to name of f
                 if fname is not "Recently Deleted" then
-                    set end of out to {fname, id of notes of f, name of notes of f, modification date of notes of f, creation date of notes of f, password protected of notes of f}
+                    set parents to {}
+                    set c to container of f
+                    repeat while class of c is folder
+                        set beginning of parents to name of c
+                        set c to container of c
+                    end repeat
+                    set end of out to {fname, id of notes of f, name of notes of f, modification date of notes of f, creation date of notes of f, password protected of notes of f, parents}
                 end if
             end repeat
             return out
@@ -46,6 +52,8 @@ enum AppleNotesBridge {
         for i in 1...d.numberOfItems {
             guard let item = d.atIndex(i), item.numberOfItems >= 6, let ids = item.atIndex(2), ids.numberOfItems > 0 else { continue }
             let folder = item.atIndex(1)?.stringValue ?? ""
+            var parents: [String] = []
+            if let p = item.atIndex(7), p.numberOfItems > 0 { parents = (1...p.numberOfItems).compactMap { p.atIndex($0)?.stringValue } }
             for j in 1...ids.numberOfItems {
                 notes.append(AppleNote(
                     id: ids.atIndex(j)?.stringValue ?? "",
@@ -53,11 +61,11 @@ enum AppleNotesBridge {
                     folder: folder,
                     modified: item.atIndex(4)?.atIndex(j)?.dateValue ?? .now,
                     created: item.atIndex(5)?.atIndex(j)?.dateValue,
-                    locked: item.atIndex(6)?.atIndex(j)?.booleanValue ?? false))
+                    locked: item.atIndex(6)?.atIndex(j)?.booleanValue ?? false,
+                    parents: parents))
             }
         }
-        var seen = Set<String>()
-        return notes.filter { seen.insert($0.id).inserted }.sorted { $0.modified > $1.modified }
+        return AppleNote.unique(notes).sorted { $0.modified > $1.modified }
     }
 
     /// `-uitest -demo`: website and store captures show this library instead of the person's own.

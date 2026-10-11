@@ -230,7 +230,7 @@ import Testing
     static var notes: [AppleNote] {
         [
             AppleNote(id: "x-coredata://3060958B/ICNote/p10", name: "Weekend list", folder: "Notes", modified: day.addingTimeInterval(3600), created: day),
-            AppleNote(id: "x-coredata://3060958B/ICNote/p11", name: "Links and photo", folder: "Travel", modified: day.addingTimeInterval(7200), created: day.addingTimeInterval(60)),
+            AppleNote(id: "x-coredata://3060958B/ICNote/p11", name: "Links and photo", folder: "Porto", modified: day.addingTimeInterval(7200), created: day.addingTimeInterval(60), parents: ["Travel"]),
             AppleNote(id: "x-coredata://3060958B/ICNote/p12", name: "Passport numbers", folder: "Travel", modified: day, created: day, locked: true),
             AppleNote(id: "x-coredata://3060958B/ICNote/p13", name: "Gone", folder: "Notes", modified: day, created: day),
         ]
@@ -271,7 +271,7 @@ import Testing
         #expect(weekend.folder?.name == "Notes")
 
         let photo = try #require(all.first { $0.title == "Links and photo" })
-        #expect(!photo.isPinned && photo.folder?.name == "Travel")
+        #expect(!photo.isPinned && photo.folder?.name == "Porto" && photo.folder?.parent?.name == "Travel", "a folder inside a folder stays inside it")
         let file = try #require(try context.fetch(FetchDescriptor<Pane.Attachment>()).first)
         #expect(file.isImage)
         #expect(photo.body.contains("Photo next\n\(file.markdown)\nAfter photo"), "the picture sits where it was, on a line of its own")
@@ -303,6 +303,14 @@ import Testing
         try context.save()
         let mixed = await Self.importer(context, store: nil).run(Array(Self.notes.prefix(2)), keepFolders: true) { _, _ in }
         #expect(mixed.noteIDs.isEmpty && mixed.alreadyImported == 2)
+    }
+
+    @Test func aNoteListedUnderAFolderAndTheOneInsideItIsKeptOnceInTheDeeperOne() {
+        let outer = AppleNote(id: "a", name: "Tickets", folder: "Travel", modified: Self.day)
+        let inner = AppleNote(id: "a", name: "Tickets", folder: "Porto", modified: Self.day, parents: ["Travel"])
+        let other = AppleNote(id: "b", name: "Other", folder: "Travel", modified: Self.day)
+        #expect(AppleNote.unique([outer, other, inner]) == [inner, other])
+        #expect(AppleNote.unique([inner, outer]) == [inner])
     }
 
     @Test func picturesAreCutOutBeforeTheTextIsRead() {

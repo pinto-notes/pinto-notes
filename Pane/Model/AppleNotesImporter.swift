@@ -12,6 +12,24 @@ struct AppleNote: Identifiable, Hashable, Sendable {
     var created: Date?
     /// Locked in Apple Notes: its text can't be read, so it's left where it is.
     var locked = false
+    /// The folders its folder is inside, from the top.
+    var parents: [String] = []
+
+    /// Each note once. Should Notes list a note under a folder and again under the folder inside
+    /// it, the deeper place is the note's own.
+    static func unique(_ notes: [AppleNote]) -> [AppleNote] {
+        var best: [String: AppleNote] = [:]
+        var order: [String] = []
+        for n in notes {
+            if let had = best[n.id] {
+                if n.parents.count > had.parents.count { best[n.id] = n }
+            } else {
+                best[n.id] = n
+                order.append(n.id)
+            }
+        }
+        return order.compactMap { best[$0] }
+    }
 }
 
 /// What an Apple Notes import did, for the line shown afterwards.
@@ -76,7 +94,9 @@ struct AppleNotesImporter {
                 md = Self.place(line, for: token, in: md)
             }
             if md.isEmpty { md = titleLine }
-            let folder = keepFolders ? writer.folder(source: n.folder.isEmpty ? "Notes" : n.folder, .perSource) : context.defaultFolder()
+            // Folders inside folders come over as they are.
+            let path = n.parents + [n.folder.isEmpty ? "Notes" : n.folder]
+            let folder = keepFolders ? writer.folder(source: path[0], path: Array(path.dropFirst()), .perSource) : context.defaultFolder()
             guard writer.add(markdown: md, created: n.created ?? n.modified, updated: n.modified, in: folder, files: files,
                              pinned: key.map { store?.pinned.contains($0) == true } ?? false) else {
                 summary.unreadable.append(n.name)
