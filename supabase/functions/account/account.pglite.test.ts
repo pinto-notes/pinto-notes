@@ -78,6 +78,10 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.account_notices (user_id, kind, what) values ($1, 'started_fresh', 'x')`, [me]);
   await pg.query(`insert into public.account_key_resets (user_id, generation) values ($1, 1)`, [me]);
   await pg.query(`insert into public.account_recoveries (user_id) values ($1)`, [me]);
+  // The server's copy of the key (functions/key): the kind of account, the sealed copy, what happened to it.
+  await pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, 'standard')`, [me]);
+  await pg.query(`insert into public.account_key_copies (user_id, key_id, sealed, secret_version) values ($1, $2, 'amb2k.1.c2VhbGVkLWNvcHk=', 1)`, [me, a.keyId]);
+  await pg.query(`insert into public.key_copy_events (user_id, what, platform) values ($1, 'stored', 'ios')`, [me]);
   await pg.query(`insert into public.device_tokens (user_id, device_id, platform, token, environment) values ($1, gen_random_uuid(), 'ios', $2, 'sandbox')`, [me, crypto.randomUUID().replaceAll('-', '').repeat(2)]);
   await pg.query(`insert into public.device_adds (id, user_id, device_id, platform, public_key, key_id, scan_hash, scan_tag, scan_name, code_hash, code_tag, code_name, pickup_hash)
     select gen_random_uuid(), $1, gen_random_uuid(), 'macos', $2, k.key_id, $3, repeat('1', 64), 'amb2n.AAAA', $4, repeat('2', 64), 'amb2n.AAAA', repeat('3', 64)
@@ -193,12 +197,14 @@ Deno.test("the export has everything the server can read, no note text or names,
   assertEquals(data.usage.heard_from.detail, "a podcast");
   assertEquals(data.usage.devices.length, 1);
   assertEquals([data.usage.key_devices.length, data.usage.key_devices[0].how, data.usage.key_devices[0].name_ct], [1, "added", undefined], "the devices that hold the key, without their sealed names");
+  assertEquals([data.usage.key_copy.protection, data.usage.key_copy.kept, data.usage.key_copy.events.length, data.usage.key_copy.events[0].what], ["standard", true, 1, "stored"],
+    "whether we keep a copy of the key, and what happened to it; never the copy");
   assertEquals([data.onboarding_emails.sent.length, data.onboarding_emails.sent[0].kind, data.onboarding_emails.unsubscribed.source], [1, "connect", "link"]);
   assertEquals(data.sign_ins[0].ip, "203.0.113.9");
   assert(data.notes.find((n: { id: string }) => n.id === as.locked).locked, "locked notes are marked");
 
   const all = JSON.stringify(files);
-  for (const secret of ["Clients/2026", "plan.pdf", "Old list", "Bank", "amb2."]) assertEquals(all.includes(secret), false, `no ${secret}`);
+  for (const secret of ["Clients/2026", "plan.pdf", "Old list", "Bank", "amb2.", "amb2k."]) assertEquals(all.includes(secret), false, `no ${secret}`);
   assertEquals(all.includes(as.tokenHash), false, "no token hash");
   assertEquals(all.includes("storage_path"), false, "no internal storage paths");
   assertEquals(all.includes("spam"), false, "no reports by other people");
