@@ -161,6 +161,8 @@ final class KeyDevices {
     private let identity: DeviceIdentity
     /// A removal of this device is being carried out: it's done once, whoever noticed it.
     private var obeying = false
+    /// This device took itself off the list and is giving up its key (`withdraw`).
+    private var leaving = false
 
     /// This device was removed from another one that has the key. The app pushes what hasn't
     /// synced if it can, drops the key, erases its copy of the notes and signs out (`DeviceRemoval`).
@@ -175,14 +177,14 @@ final class KeyDevices {
     }
 
     func attach(account: UUID?, server: KeyDeviceServer?) {
-        if account != self.account { others = []; loaded = false }
+        if account != self.account { others = []; loaded = false; leaving = false }
         self.account = account
         self.server = server
     }
 
     /// Reads the list, lists this device (or obeys its removal), and keeps the others for showing.
     func refresh(_ crypto: AccountCrypto) async {
-        guard !refreshing, let server, let account, crypto.account == account, let key = crypto.keyToHandOver else { return }
+        guard !refreshing, !leaving, let server, let account, crypto.account == account, let key = crypto.keyToHandOver else { return }
         // Without knowing which device this is, nothing is listed and nothing is claimed: under a
         // made-up id this device would count its own old row as another device that holds the key.
         guard let device, let epoch = identity.epoch(account) else { return }
@@ -214,6 +216,28 @@ final class KeyDevices {
     func removalDone(account: UUID) async {
         identity.rotateEpoch(account)
         if let device { try? await server?.forget(device: device) }
+    }
+
+    /// This device is about to give up its copy of the key itself (Sign Out and Remove Notes): its
+    /// row leaves the list first, so no other device counts it as a way back to the notes, and the
+    /// list is read again. Until it's done or called off (`rejoin`), nothing lists this device.
+    func withdraw(_ crypto: AccountCrypto) async throws {
+        guard let server, let account, crypto.account == account, let key = crypto.keyToHandOver, let device else { throw KeyError.notReady }
+        leaving = true
+        do {
+            try await server.forget(device: device)
+            others = KeyDeviceList.others(try await server.list(), key: key, user: account, this: device)
+            loaded = true
+        } catch {
+            leaving = false
+            throw KeyError.offline
+        }
+    }
+
+    /// The device stays after all: it lists itself again.
+    func rejoin(_ crypto: AccountCrypto) async {
+        leaving = false
+        await refresh(crypto)
     }
 
     /// Carries out this device's removal once: looking at the list and trying to remove another
