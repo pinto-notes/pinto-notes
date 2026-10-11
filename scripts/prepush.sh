@@ -80,7 +80,18 @@ compile() { # <name> <what> <xcodebuild arguments...>
     print -- "✓ $what: $((SECONDS - t)) s"
   else
     print -- "✗ $what FAILED after $((SECONDS - t)) s"
-    grep -E "error:|\*\* .* FAILED" "$DD/$name.log" | sort -u | head -30
+    # The errors in the code first. One error in a test file makes every @Test and @Suite in the
+    # module report two more ("@const value should be initialized with a compile-time value",
+    # from @__swiftmacro_ files): on 2026-10-11 500 of those hid the two real ones.
+    local real fallout
+    real=$(grep -E "error:" "$DD/$name.log" | grep -v '^@__swiftmacro_' | sort -u || true)
+    fallout=$(grep -cE '^@__swiftmacro_.*error:' "$DD/$name.log" || true)
+    if [[ -n $real ]]; then
+      print -r -- "$real" | head -30
+      (( fallout == 0 )) || print -- "  (and $fallout errors inside test macros, which follow from the ones above)"
+    else
+      grep -E "error:|\*\* .* FAILED" "$DD/$name.log" | sort -u | head -30
+    fi
     return 1
   fi
 }
