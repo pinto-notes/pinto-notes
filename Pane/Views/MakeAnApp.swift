@@ -34,7 +34,7 @@ enum MakeAnApp {
     }
 
     static func prompt(title: String, body: String) -> String {
-        "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app: \(idea(for: body)). Read the note first and keep what its table or checklist holds as the app's data."
+        "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app: \(idea(for: body)). Call get_page_guide, read the note, start the app with create_app, and keep what the note's table or checklist holds as the app's data."
     }
 
     // Notes the suggestion was shown on: once per note, never again.

@@ -594,25 +594,33 @@ import AppKit
     }
 
     /// An app has no network, but a link it opens leaves the app with whatever its address
-    /// carries. So a link is asked about first, like a request: refused, nothing opens.
-    @Test func anAppAsksBeforeItOpensALink() async throws {
-        #expect(NotePageActions.linkAsk("https://example.org/?q=my+note")?.what == "example.org")
-        #expect(NotePageActions.linkAsk("https://example.org/x")?.remember == true)
-        #expect(NotePageActions.linkAsk("mailto:someone@example.org?body=my%20note")?.what == "Mail, to write to someone@example.org")
-        #expect(NotePageActions.linkAsk("mailto:someone@example.org")?.remember == false)
-        #expect(NotePageActions.linkAsk("tel:+4612345")?.what == "Phone, to call +4612345")
-        #expect(NotePageActions.linkAsk("maps://?q=Lisbon") == nil)
+    /// carries. So every link is asked about first, with the whole address; refused, nothing opens.
+    @Test func anAppAsksBeforeItOpensALinkAndShowsAllOfIt() async throws {
         let container = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
         let note = Note(body: "Secret\n\nmy bank PIN")
         container.mainContext.insert(note)
         var asked: [String] = []
-        for link in ["https://leak.example/?d=my+bank+PIN", "mailto:someone@example.org?body=my%20bank%20PIN", "tel:+4612345"] {
-            await #expect(throws: NotePage.OpError.self) {
+        let links = ["https://leak.example/?d=my+bank+PIN", "mailto:someone@example.org?body=my%20bank%20PIN", "tel:+4612345"]
+        // Twice each: allowing a site once is not allowing it again.
+        for link in links + links {
+            await #expect(throws: NotePage.OpError("You didn't open that link.")) {
                 _ = try await NotePageActions.data(["op": "device.openURL", "url": link], note: note, context: container.mainContext, sync: nil,
-                                                   ask: { what in asked.append(what); return false })
+                                                   askLink: { whole in asked.append(whole); return false })
             }
         }
-        #expect(asked == ["leak.example", "Mail, to write to someone@example.org", "Phone, to call +4612345"])
+        #expect(asked == links + links)
+        // Nothing but web, mail and phone links, and no address too long to read: refused unasked.
+        for link in ["maps://?q=Lisbon", "file:///etc/hosts", "pintonotes://x", "javascript:alert(1)", "https://leak.example/?d=" + String(repeating: "a", count: 2000), ""] {
+            await #expect(throws: NotePage.OpError.self) {
+                _ = try await NotePageActions.data(["op": "device.openURL", "url": link], note: note, context: container.mainContext, sync: nil,
+                                                   askLink: { whole in asked.append(whole); return true })
+            }
+        }
+        #expect(asked.count == 6)
+        #expect(NoteDetailView.HostAsk(host: "leak.example", link: links[0]) { _ in }.title == "This app wants to open a link")
+        #expect(NoteDetailView.HostAsk(host: "", link: links[1]) { _ in }.title == "This app wants to start an email")
+        #expect(NoteDetailView.HostAsk(host: "", link: links[2]) { _ in }.title == "This app wants to start a call")
+        #expect(NoteDetailView.HostAsk(host: "api.example.org") { _ in }.title == "This app wants to reach api.example.org")
     }
 
     /// Saving an app's data writes its row again, stamped with the device that saved. That is not

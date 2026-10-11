@@ -909,35 +909,29 @@ enum NotePageActions {
         return FileStore.url(for: a.id, filename: a.filename)
     }
 
-    /// What to ask before an app opens a link: the site (remembered once allowed, like a request to
-    /// it), or the mail or call it would start (asked every time). nil for Maps, and for anything
-    /// that won't open anyway.
-    static func linkAsk(_ link: String?) -> (what: String, remember: Bool)? {
-        guard let link, let url = URL(string: link) else { return nil }
-        switch url.scheme?.lowercased() {
-        case "https", "http": return NotePageNetwork.hostKey(url).map { ($0, true) }
-        case "mailto": return ("Mail, to write to \(String(link.dropFirst("mailto:".count).prefix(while: { $0 != "?" }).prefix(80)))", false)
-        case "tel": return ("Phone, to call \(String(link.dropFirst("tel:".count).prefix(40)))", false)
-        default: return nil
+    /// The link an app asked to open, if it is one that opens: a web address, an email or a phone
+    /// number, and nothing else.
+    static func link(_ asked: String?) throws -> URL {
+        guard let asked, asked.count <= 2000, let url = URL(string: asked), ["https", "http", "mailto", "tel"].contains(url.scheme?.lowercased() ?? "") else {
+            throw NotePage.OpError("Only web, mail and phone links open, up to 2,000 characters.")
         }
+        return url
     }
 
     /// The app's own data and files (amber.store, amber.files). Returns the reply for the page, and
     /// the data before a data change (nil for files), for Undo.
     static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?, html: String = "",
-                     ask: (String) async -> Bool = { _ in false }, needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
+                     ask: (String) async -> Bool = { _ in false }, askLink: (String) async -> Bool = { _ in false },
+                     needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
         let m = message as? [String: Any] ?? [:]
         if let op = m["op"] as? String, op.hasPrefix("device.") {
             var d = m
             d["op"] = String(op.dropFirst("device.".count))
             // A link out of the app is a way out for what the app holds (its address can carry
-            // anything), so it is asked like a request: once per site, each time for mail and calls.
-            if op == "device.openURL", let link = linkAsk(m["url"] as? String) {
-                let log = NotePageNetLog.shared
-                if !(link.remember && log.isApproved(link.what, for: note.id)) {
-                    guard await ask(link.what) else { throw NotePage.OpError("You didn't allow this app to open \(link.what).") }
-                    if link.remember { log.approve(link.what, for: note.id) }
-                }
+            // anything), so every one is shown in full and asked about first.
+            if op == "device.openURL" {
+                let url = try link(m["url"] as? String)
+                guard await askLink(url.absoluteString) else { throw NotePage.OpError("You didn't open that link.") }
             }
             return (try await NotePageDevice.handle(d, context: context), nil)
         }

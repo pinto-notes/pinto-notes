@@ -41,7 +41,20 @@ struct NoteDetailView: View {
 
     struct HostAsk: Identifiable {
         let host: String
+        /// The whole address, when the app asked to open a link (not to send a request).
+        var link: String?
         let answer: (Bool) -> Void
+
+        var title: String {
+            guard let link else { return "This app wants to reach \(host)" }
+            if link.lowercased().hasPrefix("mailto:") { return "This app wants to start an email" }
+            if link.lowercased().hasPrefix("tel:") { return "This app wants to start a call" }
+            return "This app wants to open a link"
+        }
+        var allow: String { link == nil ? "Allow" : "Open" }
+        var message: String {
+            link.map { "\($0)\n\nEverything in this address leaves the app with it." } ?? "Everything it sends there is listed in App Info › Internet."
+        }
         var id: String { host }
     }
     /// Lock Note: setting the password up, asking for it, or confirming.
@@ -143,12 +156,7 @@ struct NoteDetailView: View {
             .overlay(alignment: .bottom) { aiReceipt }
             .overlay(alignment: .bottom) { undoProblem }
             .overlay(alignment: .bottom) { keyCard }
-            .alert("This app wants to reach \(hostAsk?.host ?? "")", isPresented: Binding(get: { hostAsk != nil }, set: { if !$0, let a = hostAsk { a.answer(false); hostAsk = nil } })) {
-                Button("Don't Allow", role: .cancel) { hostAsk?.answer(false); hostAsk = nil }
-                Button("Allow") { hostAsk?.answer(true); hostAsk = nil }
-            } message: {
-                Text("Everything it sends there is listed in App Info › Internet.")
-            }
+            .modifier(HostAskAlert(ask: $hostAsk))
             .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
             .sheet(isPresented: $showNetLog) { NotePageNetLogView(noteID: note.id) }
             .sheet(isPresented: $showMakeApp) { MakeAppSheet(title: note.title, body_: note.body) }
@@ -534,7 +542,7 @@ struct NoteDetailView: View {
     /// receipts are for changes to the note's text.
     private func pageData(_ message: Any) async throws -> [String: Any] {
         let (reply, before) = try await NotePageActions.data(message, note: note, context: context, sync: sync, html: notePage?.html ?? "",
-                                                             ask: askHost, needKey: { need in withAnimation(.smooth) { keyNeeded = need } })
+                                                             ask: askHost, askLink: askLink, needKey: { need in withAnimation(.smooth) { keyNeeded = need } })
         // A change you made gets a receipt; the app saving on its own is quiet (Undo still reaches it
         // through version history).
         if let before, (message as? [String: Any])?["_user"] as? Bool == true { dataChanged(before: before) }
@@ -553,12 +561,17 @@ struct NoteDetailView: View {
         showPageReceipt(r)
     }
 
-    private func askHost(_ host: String) async -> Bool {
+    private func askHost(_ host: String) async -> Bool { await askHost(host, link: nil) }
+
+    /// Asks before an app's link opens, showing all of it.
+    private func askLink(_ link: String) async -> Bool { await askHost(URL(string: link)?.host ?? link, link: link) }
+
+    private func askHost(_ host: String, link: String?) async -> Bool {
         await withCheckedContinuation { c in
             // Answered once, whichever way the alert goes away.
             final class Once { var done = false }
             let once = Once()
-            hostAsk = HostAsk(host: host) { ok in
+            hostAsk = HostAsk(host: host, link: link) { ok in
                 guard !once.done else { return }
                 once.done = true
                 c.resume(returning: ok)
@@ -1197,5 +1210,20 @@ private struct CollabWiring: ViewModifier {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.invite)) { _ in showPeople = true }
+    }
+}
+
+/// "This app wants to reach …" for a request, or the whole address of a link an app asked to open.
+/// Its own modifier: the note's body is at the limit of what the compiler type-checks in one go.
+private struct HostAskAlert: ViewModifier {
+    @Binding var ask: NoteDetailView.HostAsk?
+
+    func body(content: Content) -> some View {
+        content.alert(ask?.title ?? "", isPresented: Binding(get: { ask != nil }, set: { if !$0, let a = ask { a.answer(false); ask = nil } })) {
+            Button("Don't Allow", role: .cancel) { ask?.answer(false); ask = nil }
+            Button(ask?.allow ?? "Allow") { ask?.answer(true); ask = nil }
+        } message: {
+            Text(ask?.message ?? "")
+        }
     }
 }
