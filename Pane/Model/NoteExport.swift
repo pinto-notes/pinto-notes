@@ -69,6 +69,16 @@ enum NoteExport {
                 "\(one ? "It isn\u{2019}t" : "They aren\u{2019}t") on this \(InstallID.kind) and couldn\u{2019}t be downloaded. Connect to the internet and export again to include \(one ? "it" : "them").")
     }
 
+    static let leftOutFile = "Files not in this export.txt"
+
+    /// The list inside an export that is missing files: what, where each belongs, and how to get them.
+    static func leftOutText(_ paths: [String]) -> String {
+        let one = paths.count == 1
+        return "\(one ? "This file wasn\u{2019}t" : "These files weren\u{2019}t") on the device when the export was made and couldn\u{2019}t be downloaded, so \(one ? "it isn\u{2019}t" : "they aren\u{2019}t") in this export. \(one ? "Its folder is" : "Their folders are") here, without \(one ? "it" : "them").\n\n"
+            + paths.sorted().map { "- \($0)" }.joined(separator: "\n")
+            + "\n\nTo include \(one ? "it" : "them"), connect to the internet and export again.\n"
+    }
+
     /// Writes the export as a zip in a temporary folder. `fetch` brings a file's bytes to this
     /// device when they're only in the cloud (sync's download).
     static func make(_ context: ModelContext, vault: NoteVault? = nil, now: Date = .now, timeZone: TimeZone = .current, sharing: Sharing = .init(),
@@ -104,9 +114,18 @@ enum NoteExport {
         // embed goes under Files/.
         var filePaths: [UUID: String] = [:]
         var missing: Set<UUID> = []
+        var leftOutPaths: [String] = []
         @MainActor func place(_ a: Attachment) async throws {
             guard filePaths[a.id] == nil, !missing.contains(a.id) else { return }
-            if !FileStore.exists(a), !(await fetch(a)) { missing.insert(a.id); result.missingFiles += 1; return }
+            if !FileStore.exists(a), !(await fetch(a)) {
+                missing.insert(a.id)
+                result.missingFiles += 1
+                // Where it would have been, for the list of what's not in the export.
+                var home = ["Files"]
+                if let id = a.folderID, let folder = context.folder(id) { home = folderPath(folder) }
+                leftOutPaths.append((home + [safeName(a.filename)]).joined(separator: "/"))
+                return
+            }
             var home = ["Files"]
             if let id = a.folderID, let folder = context.folder(id) { home = folderPath(folder) }
             let path = unique(home + [safeName(a.filename)], in: &used)
@@ -140,6 +159,11 @@ enum NoteExport {
 
         if !sharing.isEmpty {
             try Data(sharingText(sharing, paths: paths, texts: texts, stamp: stamp).utf8).write(to: top.appending(path: "Sharing.md"))
+        }
+        // An export without some files says which, inside the zip: a folder that looks empty there
+        // (its files weren't on this device and couldn't be fetched) is explained where it's found.
+        if !leftOutPaths.isEmpty {
+            try Data(Self.leftOutText(leftOutPaths).utf8).write(to: top.appending(path: Self.leftOutFile))
         }
 
         try FileManager.default.zipItem(at: top, to: result.zip, shouldKeepParent: true)

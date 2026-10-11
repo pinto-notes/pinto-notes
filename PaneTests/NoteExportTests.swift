@@ -89,6 +89,12 @@ import ZIPFoundation
         #expect(whole.missingFiles == 0)
         #expect(NoteExport.leftOut(whole) == nil)
         #expect(NoteExport.summary(whole) == "Exported 1 note and 6 files.")
+        // A whole export carries no such list.
+        let wholeOut = whole.zip.deletingLastPathComponent().appending(path: "unzipped")
+        try FileManager.default.unzipItem(at: whole.zip, to: wholeOut)
+        let wholeTop = try #require(try FileManager.default.contentsOfDirectory(at: wholeOut, includingPropertiesForKeys: nil).first)
+        #expect(!FileManager.default.fileExists(atPath: wholeTop.appending(path: NoteExport.leftOutFile).path))
+        #expect(NoteExport.leftOutText(["Papers/b.pdf", "Files/a.png"]).contains("- Files/a.png\n- Papers/b.pdf"))
         try FileManager.default.removeItem(at: FileStore.url(for: cloud.id, filename: cloud.filename))
 
         let out = result.zip.deletingLastPathComponent().appending(path: "unzipped")
@@ -96,6 +102,12 @@ import ZIPFoundation
         let top = try #require(try FileManager.default.contentsOfDirectory(at: out, includingPropertiesForKeys: nil).first)
         func text(_ path: String) -> String? { try? String(contentsOf: top.appending(path: path), encoding: .utf8) }
         #expect(text("Papers/paper.txt") == "a paper", "a file kept in a folder is in that folder")
+        // The file that couldn't be fetched isn't there, and the export says so itself.
+        #expect(text("Papers/cloud.txt") == nil)
+        let listed = try #require(text(NoteExport.leftOutFile))
+        #expect(listed.contains("- Papers/cloud.txt"))
+        #expect(listed.hasPrefix("This file wasn\u{2019}t on the device"))
+        #expect(!listed.contains("\u{2014}") && !listed.contains("\u{2013}"))
         #expect(text("Papers/paper 2.txt") == "another paper", "two with one name are both there")
         #expect(text("Papers/Taxes/receipt.txt") == "a receipt", "in a sub-folder too")
         #expect(text("Files/picture.txt") == "a picture", "a file only a note embeds stays under Files")
