@@ -1,4 +1,4 @@
-// "How did you hear about Amber Notes?" (20261007152000_heard_from.sql) on the whole schema in PGlite.
+// "How did you hear about Pinto Notes?" (20261007152000_heard_from.sql) on the whole schema in PGlite.
 //   cd supabase/functions/mcp && deno test -A heard_from.pglite.test.ts
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";

@@ -5,7 +5,7 @@ import { APP_LINK_URL, SITE_URL } from "./site";
 import { appURL } from "./app-scheme";
 
 /// The template library. A template is a note structure plus the instructions that let ChatGPT,
-/// Claude or Claude Code fill it in through the Amber Notes MCP tools. Each one is a JSON file in
+/// Claude or Claude Code fill it in through the Pinto Notes MCP tools. Each one is a JSON file in
 /// content/templates; ORDER is the one list the gallery, the sitemap and /llms.txt read.
 
 export const CATEGORIES = ["Habits and health", "Work", "Learning", "Home and life"] as const;
@@ -44,7 +44,7 @@ export type Template = {
   app?: boolean;
   /// The folder the app suggests for it.
   folder: string;
-  /// The note itself, as Amber Notes markdown. Its first line is the title.
+  /// The note itself, as Pinto Notes markdown. Its first line is the title.
   note: string;
   /// What to tell the AI: one prompt, with a different one for a client where it differs.
   prompt: { default: string; chatgpt?: string; claude?: string; claudeCode?: string };
@@ -176,7 +176,7 @@ export const changedCount = (t: Template) => changedLines(t.note, t.example).siz
 /// A plain-text line from a note's body, for previews.
 export const preview = (t: Template) => summary(withoutTitle(t.note), 120);
 
-/// One row of a card's slice of the note, drawn the way Amber Notes draws it. `fresh` marks the line
+/// One row of a card's slice of the note, drawn the way Pinto Notes draws it. `fresh` marks the line
 /// the app would tint as just added by an AI (for a table, the index of that row).
 export type SliceRow =
   | { kind: "heading"; text: string }

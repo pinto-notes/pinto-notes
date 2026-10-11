@@ -34,7 +34,7 @@ let session: { jwt: string; userId: string; dk: Bytes } | undefined;
 
 const sha256Hex = async (s: string) => hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))));
 
-/// A signed-in Amber Notes user, created once for the run (allowlisted first), whose app has made
+/// A signed-in Pinto Notes user, created once for the run (allowlisted first), whose app has made
 /// the account's data key.
 async function user() {
   if (session) return session;
@@ -289,7 +289,7 @@ Deno.test({ name: "PKCE, client and redirect are all checked at the token endpoi
 Deno.test({ name: "authorize refuses bad requests without redirecting to unknown places", ...opts }, async () => {
   const clientId = await register();
   const { challenge } = await pkce();
-  // Every refusal ends on Amber Notes' own consent page, never at the client's address.
+  // Every refusal ends on Pinto Notes' own consent page, never at the client's address.
   const problem = (res: Response) => {
     assertEquals(res.status, 302);
     const to = new URL(res.headers.get("location")!);

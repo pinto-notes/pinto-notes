@@ -104,7 +104,7 @@ describe("the gallery", () => {
     expect(cards).toHaveLength(templates().length);
     for (const [k, t] of templates().entries()) {
       const card = cards[k];
-      // One link to the template's page, one to Amber Notes, and never a link inside a link.
+      // One link to the template's page, one to Pinto Notes, and never a link inside a link.
       expect(card.match(/<a /g), t.slug).toHaveLength((APP_TEMPLATES.live ? 2 : 1) + (t.author ? 1 : 0));
       expect(card).toContain(`href="/templates/${t.slug}">${t.title.replace("&", "&amp;")}</a>`);
       if (APP_TEMPLATES.live) expect(card).toContain(`href="/open/template/${t.slug}" aria-label="Use template: ${t.title}">Use template`);

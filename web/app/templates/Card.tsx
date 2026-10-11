@@ -7,7 +7,7 @@ import s from "./templates.module.css";
 /// One template in the gallery or under "More templates": its cover fills the card, the title sits
 /// once on the cover's calm lower third, and under it a slice of the real note, filled in, with
 /// "Use template". The card is one link to the template's page (its title link, stretched over the
-/// card), except "Use template", its own link that opens Amber Notes from the gallery, and a community template's
+/// card), except "Use template", its own link that opens Pinto Notes from the gallery, and a community template's
 /// "by @handle", a link to its author on GitHub. No link sits inside another.
 export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2" | "h3" }) {
   const H = heading;
@@ -34,7 +34,7 @@ export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2
 
 const ArrowGlyph = () => <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>;
 
-/// A row of the slice the way Amber Notes draws it: Yes/No columns and done items as amber ticks,
+/// A row of the slice the way Pinto Notes draws it: Yes/No columns and done items as amber ticks,
 /// sub-notes as chips, the newest line tinted the way the app tints what an AI just added.
 function Row({ r }: { r: SliceRow }) {
   switch (r.kind) {

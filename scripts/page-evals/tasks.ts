@@ -43,7 +43,7 @@ export type Task = {
   varied?: boolean;
   /** API keys the person has in Settings (names only). */
   apiKeys?: { name: string; hosts: string[]; set: boolean }[];
-  /** Files already in their Amber Notes. */
+  /** Files already in their Pinto Notes. */
   files?: { name: string; type: string; text: string }[];
   checks: (f: Final) => Check[];
   /** Hidden from the model (the try_app experiment): a person's walkthrough, probe by probe, each a

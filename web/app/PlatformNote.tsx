@@ -5,7 +5,7 @@ import { mailLink, sendLink } from "@/lib/platform";
 import { APP_STORE_LIVE, APP_STORE_URL, SITE_URL } from "@/lib/site";
 
 /// What a visitor who can't use "Download for Mac" sees in its place. On Windows, Android or Linux:
-/// that Amber Notes is for iPhone and Mac, and one useful thing to do about it, which is to send
+/// that Pinto Notes is for iPhone and Mac, and one useful thing to do about it, which is to send
 /// themselves the link for a device it runs on. Nothing here says or hints that another platform
 /// is coming, and nothing is counted or stored. On an iPhone or iPad: where the iPhone app stands.
 ///

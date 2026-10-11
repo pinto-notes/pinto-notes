@@ -33,13 +33,20 @@ In the apps (Mac and iPhone, `Pane/Views/SignInView.swift`, state in
 5. Signing in to an account that was never confirmed (`email_not_confirmed`) opens the same
    screen and sends a new code at once.
 
-Errors say what to do: a wrong or expired code ("Check the newest email from Amber Notes, or
+Errors say what to do: a wrong or expired code ("Check the newest email from Pinto Notes, or
 press Resend code"), a resend too soon ("Wait a minute"), an email that couldn't be sent, and
 no connection.
 
 The website has no sign-up (an account's key is made on its first device). Signing in on
 `/connect` with an unconfirmed account says to open the app, sign in there and type the code
 (`web/lib/connect.ts`, `EMAIL_NOT_CONFIRMED`).
+
+## Deleting the account right after
+
+Confirming with the code does not start the 72-hour pause on Delete Account and Start fresh, which
+is for password resets and emailed sign-ins (`docs/Technical/password-reset.md`). Before migration
+`20261009233000_sign_up_code_is_not_a_reset.sql` it did, so a new account could not be deleted for
+three days. That migration must be applied before confirmation is turned on in production.
 
 ## The email
 

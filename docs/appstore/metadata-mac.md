@@ -1,12 +1,15 @@
-# App Store metadata: Amber Notes for Mac
+# App Store metadata: Pinto Notes for Mac
 
-The Mac App Store page of the same app record as the iPhone app (app id 6817253103, platform
-macOS). Name, subtitle, category, privacy policy, age rating, price and App Privacy are shared with
-the iPhone app and set there (see [metadata.md](metadata.md)); this page is what's Mac-only.
+What was submitted for the Mac App Store page for version 1.2 on 10 October 2026: the same app
+record as the iPhone app (app id 6817253103, platform macOS). Name, subtitle, category, privacy
+policy, age rating, price and App Privacy are shared with the iPhone app and set there (see
+[metadata.md](metadata.md)); this page is what's Mac-only.
 
-`deno run -A scripts/asc.ts mac-store` writes everything below into App Store Connect: the macOS
+`deno run -A scripts/asc.ts mac-store` writes the text below into App Store Connect: the macOS
 version (at the `MARKETING_VERSION` in project.yml), its text, the screenshots and the App Review
-details. It never submits. With a build number (`mac-store 2610021200`) it also selects that build.
+details. It never submits. With a build number (`mac-store 2610102258`) it also selects that build.
+It reads the app's name from the heading of this file and stops before sending anything if that
+name is not Pinto Notes.
 Character counts are checked by `python3 scripts/check-metadata.py docs/appstore/metadata-mac.md`.
 
 ## Version page
@@ -14,69 +17,76 @@ Character counts are checked by `python3 scripts/check-metadata.py docs/appstore
 **Promotional text** (can change any time without review):
 
 ```
-Tell ChatGPT "add oat milk to my groceries" and it's in your notes a second later, on your Mac and iPhone. The simple notes app your AI can finally read and update.
+Tell ChatGPT "add oat milk to my groceries" and it's in your notes a second later, on your Mac and iPhone. End-to-end encrypted notes your AI can read and update.
 ```
 
 **Description:**
 
 ```
-The notes app your AI can actually use.
+Pinto Notes is a simple notes app your AI can use.
 
-Amber Notes feels like the notes app you already know: folders, checklists, tables and photos, nothing to learn. The difference: ChatGPT and Claude can read and update your notes when you let them.
+It works like the notes app you already know, with folders, checklists, tables and photos. The difference is that ChatGPT and Claude can read and update your notes when you let them.
 
-TELL YOUR AI, IT'S IN YOUR NOTES
+ASK YOUR AI, IT'S IN YOUR NOTES
 • "Add oat milk to my groceries." It's on your Mac and iPhone a second later.
 • "What did we decide about the Lisbon hotel?" Your AI reads the note and answers.
 • "Turn this meeting into a checklist in Work." Done, on every device.
-• Every line an AI changes is highlighted when it lands, with Undo right there.
+• Every line an AI changes is highlighted, with Undo next to it.
 
-BRING YOUR NOTES WITH YOU
+BRING YOUR NOTES
 • Import every note and folder from Apple Notes in one step. Nothing in Apple Notes changes.
 • Import from Evernote, Google Keep, or Markdown and text files, with folders, checklists and attachments.
-• Start from a template on ambernotes.app: trackers and plans your AI fills in.
+• Start from a template on pintonotes.com.
 
-AS SIMPLE AS YOUR NOTES APP
+A NOTES APP FIRST
 • Checklists that move ticked items to the bottom
-• Headings, bullets, dashes, numbered lists and quotes
+• Headings, bullets, numbered lists and quotes
 • Tables you edit cell by cell
-• Photos, PDFs and files inside a note
+• Photos, PDFs and files in your notes and folders
 • Sub-notes that keep details one click away
+• Keep writing offline. Changes sync when you're back.
 
-ON YOUR MAC AND IPHONE
-Your notes live in the cloud, encrypted end to end on your devices. Changes show on your other devices in about a second, even while you type.
+ENCRYPTED END TO END
+Your notes are encrypted on your Mac and iPhone before they sync. We can't read them. Two things work differently. An AI you connect reads the notes it asks for through our server. A note you share as a web page is readable by anyone with the link.
 
 YOU DECIDE WHO GETS IN
-• You approve every AI connection, read-only or read and edit
-• Disconnect any AI at any time; every AI change keeps the previous version
-• Share a note as a web page, and stop sharing whenever you like
-• No ads, no tracking. Open source.
+• You approve every AI connection on your device, read only or read and edit
+• Disconnect an AI at any time
+• Every change keeps the earlier version, so you can go back
+• Share a note as a web page and stop sharing whenever you like
+• Delete your account and everything in it from Settings
 
-Sign in with Apple or email.
+No ads and no tracking. Open source. 2 GB of storage.
+
+Sign in with Apple, Google or email. Connecting ChatGPT or Claude needs your own account with that service.
+
+Pinto Notes was called Amber Notes until October 2026.
 ```
 
-**Keywords** (the same as the iPhone app; no spaces after commas):
+**Keywords** (no spaces after commas):
 
 ```
-ai,chatgpt,claude,notepad,checklist,todo,list,markdown,memo,journal,sync,planner,writing,notebook
+markdown,checklist,notepad,todo,journal,memo,writing,table,sync,menubar,notebook,planner,outline,mcp
 ```
 
-**Support URL:** https://ambernotes.app/support
+**Support URL:** https://pintonotes.com/support
 
-**Marketing URL:** https://ambernotes.app
+**Marketing URL:** https://pintonotes.com
 
 **Copyright:** 2026 Emil Wagman
 
-**What's New:** none. The first macOS version has no What's New field.
+**Version:** 1.2, build 2610102258. Release: manual.
 
 ## Screenshots
 
-Mac slot, 2880 × 1800, in this order from `.shots/appstore/mac/`:
+Mac slot, five captioned frames at 1440 × 900 (2880 × 1800 when made on a Retina Mac), in this
+order from `.shots/appstore/mac/`:
 
-1. `1-ai-change.png`: ChatGPT's change to Groceries, highlighted, with Undo
-2. `2-connect.png`: Connect an AI, with ChatGPT and Claude connected
-3. `3-template.png`: "Use this template" with the site's habit tracker
-4. `4-import.png`: Import from Apple Notes
-5. `5-notes-dark.png`: a trip plan in dark mode, and the dot on a note an AI edited
+1. `1-ai-change.png`: "The notes app your AI can actually use." Groceries, five lines marked, with Undo
+2. `2-connect.png`: "Works with ChatGPT and Claude". A note with the Connected panel in front
+3. `3-notes.png`: "Checklists, tables and sub-notes". The welcome note
+4. `4-import.png`: "Bring all your Apple Notes". Import from Apple Notes
+5. `5-notes-dark.png`: "Simple notes, on every device". A trip plan in dark mode
 
 They're the real app on the demo library, drawn in off-screen windows (nothing on the display):
 
@@ -88,28 +98,37 @@ python3 scripts/store-art/render-mac.py     # captions and layout → .shots/app
 ## App Review information
 
 Contact, phone and demo account are copied from the iPhone version. `mac-store` puts the
-recovery key from the iPhone version's notes where the line below says so; it isn't kept here.
+recovery key from the iPhone version's notes where the text below says `[RECOVERY KEY]`; it isn't
+kept here. The same screen recording is attached as for the iPhone version.
 
 **Notes for the reviewer:**
 
 ```
-ABOUT THE APP
+Pinto Notes 1.2 for Mac. Same app record, account and service as the iPhone app. It was called Amber Notes before; only the name and icon changed.
 
-1. This is the Mac version of Amber Notes, the same app record and the same account as the iPhone app. It is sandboxed and opens straight to the notes after sign-in.
+SIGN IN
+Enter the demo email, Continue, the password. You then see "Open your notes on this Mac", because the notes are encrypted with a key this Mac does not have yet. Click "Use a recovery key instead" and enter:
+[RECOVERY KEY]
+Please do not use "Start fresh". It erases the demo notes.
 
-2. Purpose and audience: Amber Notes is a simple notes app for iPhone and Mac, made to feel like Apple Notes, for people who already use AI assistants such as ChatGPT or Claude. If the user chooses to connect an assistant, it can search, read and edit their notes; every change is shown with Undo and kept in the note's version history. Without any assistant it is a complete notes app: folders, pinned notes, checklists, tables, attachments and sync between iPhone and Mac.
+MAC ONLY
+File > Import from Apple Notes asks macOS for permission to control Notes, lists the notes and copies the ones the user picks. It never changes or deletes anything in Apple Notes. This is the reason for the Apple Events entitlement, limited to com.apple.Notes.
+"Also bring over pinned notes" is off by default. When turned on it asks for Full Disk Access, to read which notes are pinned.
+The app is sandboxed and does not update itself.
 
-3. Setup and access: sign in with the demo account (enter its email on the first screen, under Sign in with Apple, then its password). Notes are end-to-end encrypted with a key kept in the user's iCloud Keychain. Because this Mac has not seen the demo account before, the app shows "Open your notes on this Mac" once after sign-in. Choose "Use a recovery key instead" under the code and enter the account's recovery key: RECOVERY KEY: (from the iPhone version). The account has notes in the folders Personal, Work and Travel. No AI connection is needed to review the app.
+THE REST
+Sharing, reporting, AI connections and account deletion work as on iPhone. The iPhone version's notes describe each. The attached screen recording was made on an iPhone 17 running iOS 26.6.2 with version 1.2 and shows them: sharing and reporting at 1:49, an AI connection at 3:46, registration at 4:35, account deletion at 5:44.
+Share: the Share button in a note's toolbar, Share Link.
+AI: Settings, AI tab.
+Delete account: Settings, Account tab, Delete Account. Please test it on a new account, not the demo account.
 
-4. Mac only: File > Import from Apple Notes asks macOS for permission to read Notes (the Apple Events entitlement, limited to com.apple.Notes), lists the notes, and copies the ones the user picks. It never changes or deletes anything in Apple Notes. "Also bring over pinned notes" is off by default and asks for Full Disk Access only when the user turns it on.
-
-5. Connecting an AI (optional): an assistant connects through ambernotes.app; the request appears on the user's own iPhone or Mac, and the user approves it by typing the two-digit number the browser shows. Reviewers can approve on the web page with the recovery key above.
-
-6. External services: Supabase (sign-in, encrypted database, file storage and server functions, hosted in Frankfurt, Germany), Sign in with Apple, Apple Push Notification service (only to tell the user's own devices that an AI asked to connect; the notification contains no note content), and Vercel (the ambernotes.app website and the read-only pages for notes a user chooses to share). The app contains no AI service and no analytics, ads or tracking SDKs.
-
-User-generated content: notes are private and encrypted. A user can publish one note as a read-only web page (the Share button > Share Link); the app warns first that the page is public, the user can stop sharing at any time, and every shared page has a "Report this page" link (three reports take a page down automatically, and the developer can remove any page). There is no messaging, commenting or feed between users.
-
-Account deletion: Settings > Account > Delete Account deletes the account and all its notes from the server, after a confirmation.
-
-Export compliance: the app uses only encryption provided by Apple's operating system (CryptoKit), so it qualifies for the exemption.
+External services, AI and encryption: as in the iPhone notes. No purchases, ads, analytics or tracking.
+Contact: hello@pintonotes.com
 ```
+
+## After 1.2
+
+The notes above are what was submitted for 1.2. From the first build after 1.2 the app sends its
+own error reports and a few usage counts to PostHog (EU); Settings > General > Share diagnostics
+and usage turns that off. The next version's notes must say so where these say "No purchases,
+ads, analytics or tracking".

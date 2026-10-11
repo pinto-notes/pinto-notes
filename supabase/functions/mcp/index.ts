@@ -1,4 +1,4 @@
-// Amber Notes's MCP server, served as a Supabase edge function. Everything is in server.ts.
+// Pinto Notes's MCP server, served as a Supabase edge function. Everything is in server.ts.
 
 import { connect, readiness } from "../_shared/db.ts";
 import { atHome } from "../_shared/region.ts";

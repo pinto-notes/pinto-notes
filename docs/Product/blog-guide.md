@@ -27,7 +27,7 @@ give more than they take.
   a table. Pick the one form that suits it and link to it. Write warmly and specifically: real menu names, real
   numbers, first person where Emil built something. Cut filler sentences.
 - **Real visuals only where they show a product.**
-  - Screenshots and loops of Apple Notes or Amber Notes must be real captures.
+  - Screenshots and loops of Apple Notes or Pinto Notes must be real captures.
   - Caption a capture with the OS version it came from. Never let a macOS 26 capture pass for iOS 27.
   - For a feature you can't capture, use numbered steps plus Apple's own wording, linked to Apple's
     support page.
@@ -42,15 +42,15 @@ give more than they take.
     should read as "Apple Notes" at a glance, and a tighter `phone` crop where text would be too
     small at 390 px.
   - Generated art is decoration only (`alt=""`), and never a picture of an app's screen.
-- **The Amber Notes section comes last, and stays honest and modest.**
+- **The Pinto Notes section comes last, and stays honest and modest.**
   - It starts only once the reader has been helped.
-  - It says what Amber Notes does and what it doesn't.
+  - It says what Pinto Notes does and what it doesn't.
   - It ends with the post's one call to action (`PostCta`). No pop-ups and no second ask.
 - **Check the facts.**
   - Apple's documentation for Apple features.
-  - `Pane/` for anything Amber Notes does.
+  - `Pane/` for anything Pinto Notes does.
   - iPhone and Mac only.
-  - Nothing about unreleased Amber Notes features.
+  - Nothing about unreleased Pinto Notes features.
   - The iPhone app is "coming soon" until `APP_STORE_LIVE` is on.
 - **Write plainly.** No em or en dashes, and no AI tells. Sentence case.
 - **Keep pages light.**
@@ -90,7 +90,7 @@ is no dark version to check.
 | `Loop` | `web/lib/Loop.tsx` | A short muted loop of the real app, from `web/public/blog/loops/` |
 | `Capture` | `web/lib/PostParts.tsx` | A real capture of Apple's apps from `web/public/blog/macos27/`, AVIF and WebP, captioned with its OS; `hero` puts one above the intro, `phone` gives narrow screens a tighter crop |
 | `Figure` | `web/lib/blog.tsx` | A real capture in a window or phone frame |
-| `PostCta` | `web/lib/PostCta.tsx` | The one call to action, at the end of the Amber Notes section |
+| `PostCta` | `web/lib/PostCta.tsx` | The one call to action, at the end of the Pinto Notes section |
 
 ## What's measured
 

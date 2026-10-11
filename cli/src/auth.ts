@@ -1,7 +1,7 @@
 // Signing in with the connector's own OAuth, the way Codex and Claude Code connect: discovery
 // (RFC 8414), dynamic client registration (RFC 7591), authorization code with PKCE (RFC 7636) to a
 // loopback redirect (RFC 8252), refresh-token rotation and revocation (RFC 7009). The person
-// approves in Amber Notes on their iPhone or Mac; the server keeps only hashes of the tokens.
+// approves in Pinto Notes on their iPhone or Mac; the server keeps only hashes of the tokens.
 import { type Credentials, deleteCredentials, loadCredentials, saveCredentials, withLock } from "./store.ts";
 
 /** What the server shows as the client's name when it can't vouch for it. */
@@ -62,7 +62,7 @@ const PAGE = (title: string, line: string) => `<!doctype html><meta charset="utf
 
 export type LoginIO = { open(url: string): Promise<boolean>; say(line: string): void; ask(prompt: string): Promise<string | null> };
 
-/** Signs in through the browser and Amber Notes; saves the tokens. */
+/** Signs in through the browser and Pinto Notes; saves the tokens. */
 export async function login(server: string, io: LoginIO, o: { noBrowser?: boolean; readOnly?: boolean } = {}): Promise<Credentials> {
   const meta = await discover(server);
   const clientId = await register(server, meta);

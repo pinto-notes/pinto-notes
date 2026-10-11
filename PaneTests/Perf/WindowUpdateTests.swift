@@ -238,6 +238,23 @@ import Testing
         #expect((RenderProbe.counts["FolderTree"] ?? 0) >= 12, "and every folder row")
         #expect((RenderProbe.counts["NoteListView"] ?? 0) > 0, "and the list")
 
+        // The list has work of its own a moment after it first shows (it marks itself settled a
+        // second in, with an animation; it asks how full the account is). That is not the
+        // toggle's doing, so the count starts once no body has been worked out for a second and
+        // a half. Counting from half a second in, this test failed on dev on 2026-10-11 with
+        // "NoteListView 3" on a run where the window came up quickly.
+        let shown = RenderProbe.counts
+        var last = shown, still = 0
+        for _ in 0..<40 where still < 6 {
+            try? await Task.sleep(for: .milliseconds(250))
+            w.contentView?.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+            if RenderProbe.counts == last { still += 1 } else { still = 0; last = RenderProbe.counts }
+        }
+        #expect(still >= 6, "the window comes to rest before the toggles are counted")
+        let late = last.compactMap { name, n in n > (shown[name] ?? 0) ? "\(name) \(n - (shown[name] ?? 0))" : nil }.sorted()
+        print("PERF sidebar: bodies worked out after the window first settled, before any toggle: \(late.isEmpty ? "none" : late.joined(separator: ", "))")
+
         RenderProbe.counts = [:]
         for hidden in [true, false, true, false] {
             controller.toggleSidebar(nil)
