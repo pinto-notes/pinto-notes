@@ -2,10 +2,11 @@ import Foundation
 import Observation
 import Supabase
 
-/// "How did you hear about Amber Notes?": one optional question, once per new account, right
-/// after sign-up (20261007152000_heard_from.sql). One tap answers, one tap skips, and either way
-/// it's never asked again on any device. It never stands between you and your notes: it comes
-/// up over the library once the notes are open.
+/// "How did you hear about Pinto Notes?": one optional question, once per new account
+/// (20261007152000_heard_from.sql). One tap answers, one tap skips, and either way it's never
+/// asked again on any device. It never stands between a new person and their notes: it waits
+/// for the third launch on this device and a note of their own, and stays away on a launch
+/// that has shown an account notice (`HeardFromStore.refresh`).
 enum HeardFrom {
     enum Source: String, CaseIterable, Sendable {
         case google
@@ -78,6 +79,11 @@ final class HeardFromStore {
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored let forced: Bool
+    /// This launch has been counted for the account attached now.
+    @ObservationIgnored private var counted: UUID?
+
+    /// The question waits for this launch of the app on this device (signing up is the first).
+    static let firstLaunch = 3
 
     init(defaults: UserDefaults = .standard, arguments: [String] = ProcessInfo.processInfo.arguments) {
         self.defaults = defaults
@@ -92,10 +98,21 @@ final class HeardFromStore {
         self.account = account
         self.service = service
         if service == nil { visible = forced && visible }
+        // One launch per run of the app, however often the session is set up again.
+        if let account, service != nil, counted != account {
+            counted = account
+            defaults.set(launches + 1, forKey: launchesKey)
+        }
     }
 
+    private var launchesKey: String { "heardFrom.launches.\(account?.uuidString.lowercased() ?? "device")" }
+    /// How many runs of the app this account has had on this device, this one included.
+    var launches: Int { defaults.integer(forKey: launchesKey) }
+
     /// Sends an answer this device couldn't send yet, then asks the server whether to ask.
-    func refresh() async {
+    /// The question itself waits: not before the third launch, not before the person has a
+    /// note, and not on a launch that has shown an account notice.
+    func refresh(hasNote: Bool, noticeThisLaunch: Bool) async {
         guard let service, !forced else { return }
         if let saved = defaults.dictionary(forKey: answerKey) as? [String: String] {
             guard saved["sent"] == nil, let source = saved["source"].flatMap(HeardFrom.Source.init(rawValue:)) else { return }
@@ -104,6 +121,7 @@ final class HeardFromStore {
             }
             return
         }
+        guard launches >= Self.firstLaunch, hasNote, !noticeThisLaunch else { return }
         if (try? await service.shouldAsk()) == true, !visible {
             chosen = nil
             visible = true
