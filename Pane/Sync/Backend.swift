@@ -367,8 +367,12 @@ final class Backend {
     /// account as the App Store and iPhone apps (Apple's user id is shared across the team).
     func signInWithAppleOnTheWeb() async throws {
         guard let client else { return }
+        // Our own sheet, as for Google: the library's built-in one makes its completion handler on
+        // the main actor, and AuthenticationServices answers on a background queue, which traps.
         let session = try await reporting(.apple) {
-            try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email")
+            try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email") { url in
+                try await WebAuthSession.run(url, callbackScheme: AppIdentity.scheme)
+            }
         }
         report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
     }
