@@ -739,8 +739,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             // Undo steps recorded against the old text would land in the wrong place now.
             undoManager?.removeAllActions()
             let caret = min(edit.caret, textStorage.length)
-            selectedRange = caret >= 0 ? NSRange(location: caret, length: 0)
-                : TextDiff.map(keep, through: TextDiff.Edit(range: edit.range, replacement: edit.replacement))
+            if let kept = edit.selection, NSMaxRange(kept) <= textStorage.length { selectedRange = kept }
+            else {
+                selectedRange = caret >= 0 ? NSRange(location: caret, length: 0)
+                    : TextDiff.map(keep, through: TextDiff.Edit(range: edit.range, replacement: edit.replacement))
+            }
             textDidChange()
             return
         }
@@ -750,7 +753,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.applyingEdit = true
         replace(range, withText: edit.replacement)
         core.applyingEdit = false
-        if edit.caret >= 0 { selectedRange = NSRange(location: min(edit.caret, (text as NSString).length), length: 0) }
+        if let keep = edit.selection, NSMaxRange(keep) <= (text as NSString).length { selectedRange = keep }
+        else if edit.caret >= 0 { selectedRange = NSRange(location: min(edit.caret, (text as NSString).length), length: 0) }
         textDidChange()
     }
 
@@ -1331,7 +1335,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         textStorage?.replaceCharacters(in: edit.range, with: edit.replacement)
         didChangeText()
         core.applyingEdit = false
-        if edit.caret >= 0 { setSelectedRange(NSRange(location: min(edit.caret, (string as NSString).length), length: 0)) }
+        if let keep = edit.selection, NSMaxRange(keep) <= (string as NSString).length { setSelectedRange(keep) }
+        else if edit.caret >= 0 { setSelectedRange(NSRange(location: min(edit.caret, (string as NSString).length), length: 0)) }
     }
 
     func focusEditor() { window?.makeFirstResponder(self) }
