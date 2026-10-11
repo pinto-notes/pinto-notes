@@ -273,8 +273,13 @@ import Testing
         let summary = await Self.importer(context, store: url).run(Self.notes, keepFolders: true) { done, _ in steps.append(done) }
 
         #expect(summary.readStore && summary.noteIDs.count == 2)
-        #expect(summary.locked == 1, "a locked note is left in Apple Notes, and counted")
-        #expect(summary.unreadable == ["Gone"])
+        #expect(summary.asked == 4)
+        #expect(summary.notImported == [
+            .init(name: "Passport numbers", why: "Locked in Apple Notes"),
+            .init(name: "Gone", why: "Apple Notes didn't hand it over: Notes got an error."),
+        ], "what didn't come is named, with why")
+        #expect(summary.line(locale: Locale(identifier: "en_US")) == "Imported 2 of 4 notes")
+        #expect(summary.leftLine(locale: Locale(identifier: "en_US")) == "2 could not be imported:")
         #expect(summary.pictures == 1 && summary.picturesLeftOut == 0)
         #expect(steps == [0, 1, 2, 3])
 
@@ -306,6 +311,56 @@ import Testing
         #expect(weekend.folder?.id == context.defaultFolder().id, "without folders, notes go where new notes go")
     }
 
+    /// What the note list holds after each save, as NoteListView reads it.
+    @MainActor final class ListWatch {
+        let library = LibraryNotes()
+        let context: ModelContext
+        var lists: [[NoteEntry]] = []
+
+        init(_ context: ModelContext) {
+            self.context = context
+            _ = library.entries(in: context)
+        }
+
+        func look() { lists.append(library.entries(in: context)) }
+    }
+
+    /// The flicker of 1.2.4 (2026-10-11): each note was made dated now and saved, so it showed at
+    /// the top of the list under Today, then jumped to its own day when the next one's save
+    /// arrived: 18 notes, 18 jumps behind the sheet. Whatever the list shows during an import is
+    /// where it stays: no note is ever listed under a date that isn't its own, none moves, and
+    /// the list is worked out a few times, not once for every note.
+    @Test func noNoteMovesInTheListWhileNotesComeIn() async throws {
+        let container = try Self.container()
+        let context = container.mainContext
+        let watch = ListWatch(context)
+        let saves = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak watch] _ in
+            MainActor.assumeIsolated { watch?.look() }
+        }
+        defer { NotificationCenter.default.removeObserver(saves) }
+        // Twenty notes in two folders, each a day older than the one before.
+        let notes = (0..<20).map {
+            AppleNote(id: "x-coredata://3060958B/ICNote/p\(100 + $0)", name: "Note \($0)", folder: $0 % 3 == 0 ? "Recipes" : "Notes",
+                      modified: Self.day.addingTimeInterval(-Double($0) * 86_400))
+        }
+        var importer = AppleNotesImporter(context: context)
+        importer.body = { id in "<div><h1>Note \((Int(id.split(separator: "p").last ?? "") ?? 0) - 100)</h1></div><div>Some text</div>" }
+        importer.openStore = { nil }
+        let summary = await importer.run(notes, keepFolders: true) { _, _ in }
+        #expect(summary.noteIDs.count == notes.count)
+
+        let last = try #require(watch.lists.last)
+        #expect(last.count == notes.count)
+        let place = Dictionary(uniqueKeysWithValues: last.enumerated().map { ($1.id, $0) })
+        let date = Dictionary(uniqueKeysWithValues: last.map { ($0.id, $0.date) })
+        for (i, list) in watch.lists.enumerated() {
+            #expect(list.allSatisfy { date[$0.id] == $0.date }, "save \(i): a note is listed under a date that isn't its own")
+            let places = list.compactMap { place[$0.id] }
+            #expect(places == places.sorted(), "save \(i): a note is above one it ends up below")
+        }
+        #expect(watch.lists.count <= 4, "the list was worked out \(watch.lists.count) times for 20 notes")
+    }
+
     @Test func theSameNotesAgainAreNotCopied() async throws {
         let container = try Self.container()
         let context = container.mainContext
@@ -328,6 +383,164 @@ import Testing
         let other = AppleNote(id: "b", name: "Other", folder: "Travel", modified: Self.day)
         #expect(AppleNote.unique([outer, other, inner]) == [inner, other])
         #expect(AppleNote.unique([inner, outer]) == [inner])
+    }
+
+    // MARK: Every note is offered (2026-10-11: 17 of 35 notes never came)
+
+    /// What the listing script returns for a library like the one that lost notes: an iCloud
+    /// account with five folders (one with a slash in its name, one inside another), a second
+    /// account with a folder named like one of iCloud's, a locked note, and a folder that failed.
+    static func library() -> NSAppleEventDescriptor {
+        func list(_ items: [NSAppleEventDescriptor]) -> NSAppleEventDescriptor {
+            let l = NSAppleEventDescriptor.list()
+            for (i, item) in items.enumerated() { l.insert(item, at: i + 1) }
+            return l
+        }
+        func text(_ s: String) -> NSAppleEventDescriptor { NSAppleEventDescriptor(string: s) }
+        var made = 0
+        func folder(_ name: String, _ count: Int, parents: [String] = [], account: String = "iCloud", locked: Set<Int> = []) -> NSAppleEventDescriptor {
+            let ids = (0..<count).map { _ -> Int in made += 1; return made }
+            return list([
+                text(name),
+                list(ids.map { text("x-coredata://LIB/ICNote/p\($0)") }),
+                list(ids.map { text("\(name) note \($0)") }),
+                list(ids.map { NSAppleEventDescriptor(date: day.addingTimeInterval(Double($0) * 60)) }),
+                list(ids.map { NSAppleEventDescriptor(date: day.addingTimeInterval(Double($0))) }),
+                list(ids.indices.map { NSAppleEventDescriptor(boolean: locked.contains($0)) }),
+                list(parents.map(text)),
+                text(account),
+            ])
+        }
+        return list([
+            text("iCloud"),
+            list([
+                folder("Notes", 18),
+                folder("Claude Code / Notes", 5),
+                folder("Brain", 9, locked: [0]),
+                folder("Life", 2),
+                folder("Journal", 1),
+                folder("Deep", 1, parents: ["Brain"]),
+                folder("Empty", 0),
+                folder("Notes", 3, account: "Google"),
+            ]),
+            list([list([text("Scans"), text("Notes got an error: AppleEvent timed out.")])]),
+        ])
+    }
+
+    @Test func everyNoteOfEveryAccountAndFolderIsOfferedAndPicked() {
+        let listing = AppleNotesBridge.listing(from: Self.library())
+        #expect(listing.notes.count == 39, "18 + 5 + 9 + 2 + 1 + 1 in iCloud, 3 in Google")
+        #expect(listing.mainAccount == "iCloud" && listing.accounts == ["iCloud", "Google"])
+        let groups = listing.groups()
+        #expect(groups.map(\.heading) == ["Notes", "Claude Code / Notes", "Brain", "Life", "Journal", "Brain \u{203A} Deep", "Google \u{203A} Notes"], "in Apple Notes' own order")
+        #expect(groups.map(\.notes.count) == [18, 5, 9, 2, 1, 1, 3], "each group's count is its folder's")
+        #expect(Set(groups.flatMap(\.notes).map(\.id)) == Set(listing.notes.map(\.id)) && groups.flatMap(\.notes).count == 39, "every note is in exactly one group")
+        // Nothing is left unpicked for being further down: all of it, but the locked note.
+        let picked = listing.pickedAtFirst(keys: [])
+        #expect(picked.count == 38)
+        #expect(listing.notes.filter { !picked.contains($0.id) }.map(\.name) == ["Brain note 24"] && listing.notes.first { $0.name == "Brain note 24" }?.locked == true)
+        #expect(listing.unreadFolders == [.init(folder: "Scans", why: "Notes got an error: AppleEvent timed out.")], "a folder that failed is said, not dropped")
+    }
+
+    @Test func foldersComeAsTheyAreAcrossAccountsWithASlashInAName() async throws {
+        let container = try Self.container()
+        let context = container.mainContext
+        let listing = AppleNotesBridge.listing(from: Self.library())
+        var importer = AppleNotesImporter(context: context)
+        importer.body = { id in "<div><h1>Note \(id.suffix(4))</h1></div><div>Text.</div>" }
+        importer.openStore = { nil }
+        // Newest first, as the sheet hands them over: folder order must not depend on that.
+        let summary = await importer.run(listing.notes.sorted { $0.modified > $1.modified }, listing: listing, keepFolders: true) { _, _ in }
+        #expect(summary.noteIDs.count == 38 && summary.asked == 39)
+        #expect(summary.notImported == [.init(name: "Brain note 24", why: "Locked in Apple Notes")])
+        #expect(summary.line(locale: Locale(identifier: "en_US")) == "Imported 38 of 39 notes")
+
+        let folders = context.allFolders().filter { $0.deletedAt == nil }
+        let top = folders.filter { $0.parent == nil }.sorted { $0.sortIndex < $1.sortIndex }.map(\.name)
+        #expect(top == ["Notes", "Claude Code / Notes", "Brain", "Life", "Journal", "Google"], "top folders in Apple Notes' order, the other account's under its name")
+        let slash = try #require(folders.first { $0.name == "Claude Code / Notes" })
+        #expect(slash.parent == nil && slash.liveChildren.isEmpty, "a slash in a name doesn't make two folders")
+        #expect(!folders.contains { $0.name == "Claude Code" || $0.name == "Notes" && $0.parent?.name == "Claude Code " })
+        let notes = try context.fetch(FetchDescriptor<Note>())
+        func count(_ path: [String]) -> Int {
+            notes.filter { n in
+                var names: [String] = []
+                var f = n.folder
+                while let g = f { names.insert(g.name, at: 0); f = g.parent }
+                return names == path
+            }.count
+        }
+        #expect(count(["Notes"]) == 18 && count(["Claude Code / Notes"]) == 5 && count(["Brain"]) == 8 && count(["Life"]) == 2 && count(["Journal"]) == 1)
+        #expect(count(["Brain", "Deep"]) == 1 && count(["Google", "Notes"]) == 3, "the two folders named Notes stay two")
+    }
+
+    @Test func importingAgainBringsOnlyWhatIsMissing() async throws {
+        let container = try Self.container()
+        let context = container.mainContext
+        let listing = AppleNotesBridge.listing(from: Self.library())
+        // As 1.2.4 left it: the 18 notes of "Notes", each dated by its last edit.
+        let had = context.createFolder(named: "Notes")
+        for n in listing.notes where n.folder == "Notes" && n.account == "iCloud" {
+            let note = Note(body: "\(n.name)\nText.\n", folder: had)
+            note.createdAt = n.modified
+            note.updatedAt = n.modified
+            context.insert(note)
+        }
+        try context.save()
+        let keys = AppleNotesListing.keysOfNotes(in: context)
+        let picked = listing.pickedAtFirst(keys: keys)
+        #expect(picked.count == 20, "the sheet opens with the 20 that can come and aren't here: 39, less 18 here, less 1 locked")
+        var importer = AppleNotesImporter(context: context)
+        importer.body = { id in "<div><h1>Note</h1></div><div>Text.</div>" }
+        importer.openStore = { nil }
+        // Even with everything asked for, the 18 aren't copied.
+        let summary = await importer.run(listing.notes, listing: listing, keepFolders: true) { _, _ in }
+        #expect(summary.noteIDs.count == 20 && summary.alreadyImported == 18)
+        #expect(summary.line(locale: Locale(identifier: "en_US")) == "Imported 20 of 39 notes \u{00B7} 18 already here")
+        #expect(try context.fetch(FetchDescriptor<Note>()).count == 38)
+        #expect(context.allFolders().filter { $0.name == "Notes" && $0.parent == nil }.count == 1, "the folder that was here is used, not made again")
+    }
+
+    @Test func theSameNoteByBothRoutesIsOneNote() async throws {
+        let container = try Self.container()
+        let context = container.mainContext
+        let url = try Self.store()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        // First from AppleScript alone, then again with Notes' database readable.
+        let first = await Self.importer(context, store: nil).run(Array(Self.notes.prefix(2)), keepFolders: true) { _, _ in }
+        let second = await Self.importer(context, store: url).run(Array(Self.notes.prefix(2)), keepFolders: true) { _, _ in }
+        #expect(first.noteIDs.count == 2 && second.noteIDs.isEmpty && second.alreadyImported == 2)
+        #expect(try context.fetch(FetchDescriptor<Note>()).count == 2)
+        let files = try context.fetch(FetchDescriptor<Pane.Attachment>())
+        for f in files { try? FileManager.default.removeItem(at: FileStore.url(for: f.id, filename: f.filename).deletingLastPathComponent()) }
+    }
+
+    @Test func theLineAfterAnImportSaysWhatCameAndWhatStayed() {
+        let en = Locale(identifier: "en_US")
+        var s = AppleNotesImportSummary()
+        s.noteIDs = (0..<18).map { _ in UUID() }
+        s.asked = 18
+        #expect(s.line(locale: en) == "Imported 18 notes" && s.leftLine(locale: en) == nil)
+        s.noteIDs = (0..<31).map { _ in UUID() }
+        s.asked = 35
+        s.notImported = (0..<4).map { .init(name: "Note \($0)", why: AppleNotesImportSummary.lockedWhy) }
+        #expect(s.line(locale: en) == "Imported 31 of 35 notes" && s.leftLine(locale: en) == "4 could not be imported:")
+        s = AppleNotesImportSummary()
+        s.asked = 1_284
+        s.alreadyImported = 1_284
+        #expect(s.line(locale: en) == "No new notes imported \u{00B7} 1,284 already here")
+        s.picturesLeftOut = 1
+        s.noteIDs = [UUID()]
+        s.asked = 1
+        s.alreadyImported = 0
+        #expect(s.line(locale: en) == "Imported 1 note \u{00B7} 1 picture too big to keep")
+    }
+
+    @Test func theSelectionCountReadsPlainly() {
+        let en = Locale(identifier: "en_US")
+        #expect(AppleNotesImportView.count(35, of: 35, locale: en) == "35 of 35 notes selected")
+        #expect(AppleNotesImportView.count(0, of: 1_284, locale: en) == "1,284 notes, none selected")
+        #expect(AppleNotesImportView.count(1, of: 1, locale: en) == "1 of 1 note selected")
     }
 
     @Test func picturesAreCutOutBeforeTheTextIsRead() {

@@ -94,6 +94,27 @@ import UIKit
             .tint(Color(PColor.paneAccent)).padding(16).frame(width: 340).background(Color(nsColor: .windowBackgroundColor))
         try await VersionHistorySnapshots.shoot(card, to: dir.appending(path: "mac-setup-bring.png"), size: CGSize(width: 340, height: 200), dark: false)
     }
+
+    /// The Apple Notes sheet with a made-up library (as it opens, and where Notes' database
+    /// can't be read), and the line it leaves behind.
+    @Test func appleNotesSheet() async throws {
+        guard let dir = Self.dir else { return }
+        AppleNotesBridge.forceDemo = true
+        DateBucket.locale = Locale(identifier: "en_US")
+        defer { AppleNotesBridge.forceDemo = false; AppleNotesImportView.demoWithoutAccess = false; DateBucket.locale = .autoupdatingCurrent }
+        let c = try Self.container()
+        for dark in [false, true] {
+            for without in [false, true] {
+                AppleNotesImportView.demoWithoutAccess = without
+                let sheet = AppleNotesImportView().modelContainer(c).tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US"))
+                try await VersionHistorySnapshots.shoot(sheet, to: dir.appending(path: "mac-apple-notes-import\(without ? "-no-database" : "")-\(dark ? "dark" : "light").png"),
+                                                        size: CGSize(width: 540, height: AppleNotesImportView.height), dark: dark)
+            }
+            let line = ImportDoneLine(text: "Imported 35 notes").padding(20).background(Color(Palette.page))
+            try await VersionHistorySnapshots.shoot(line, to: dir.appending(path: "mac-import-done-line-\(dark ? "dark" : "light").png"),
+                                                    size: CGSize(width: 260, height: 76), dark: dark)
+        }
+    }
     #endif
 
     #if os(iOS)

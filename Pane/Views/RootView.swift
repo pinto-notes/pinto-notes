@@ -24,6 +24,10 @@ struct RootView: View {
     @State private var launchAlert = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-launchAlert")
     #endif
     @State private var showImport = false
+    #if os(macOS)
+    /// "Imported 18 notes": shown for a few seconds once the Apple Notes sheet has closed.
+    @State private var importLine: String?
+    #endif
     #if os(iOS)
     /// "Import from Apple Notes" from an email, on an iPhone: it's a Mac feature.
     @State private var importOnMac = false
@@ -216,10 +220,24 @@ struct RootView: View {
             } message: { Text(importError ?? "") }
             #if os(macOS)
             .sheet(isPresented: $showImport) {
-                AppleNotesImportView { ids in
+                AppleNotesImportView(onSummary: { importLine = $0.line() }) { ids in
                     if let first = ids.first { scope = .all; selectedNote = first }
                 }
             }
+            // What the import did, said once over the window's foot instead of asked to be dismissed.
+            .overlay(alignment: .bottom) {
+                if let importLine, !showImport {
+                    ImportDoneLine(text: importLine)
+                        .padding(.bottom, 18)
+                        .transition(.opacity.combined(with: .offset(y: 6)))
+                        .task {
+                            try? await Task.sleep(for: .seconds(6))
+                            self.importLine = nil
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: importLine)
+            .animation(.easeOut(duration: 0.25), value: showImport)
             #endif
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportSheet(kind, files: importFiles) { ids in
