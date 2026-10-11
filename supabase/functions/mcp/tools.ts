@@ -343,7 +343,7 @@ export async function runIn(list: Tool[], impl: Record<string, (tx: Tx, a: Args,
   }
 }
 
-/** "Amber Notes is full", with what takes the room, for a write the storage limit refused. */
+/** "Pinto Notes is full", with what takes the room, for a write the storage limit refused. */
 async function storageFull(ctx: ToolContext, claims: string): Promise<ToolError> {
   const mb = (n: number) => n >= 1073741824 ? `${(n / 1073741824).toFixed(2)} GB` : `${Math.round(n / 1048576)} MB`;
   try {

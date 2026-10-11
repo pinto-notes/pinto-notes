@@ -1,4 +1,4 @@
-// App Store Connect automation for Amber Notes' TestFlight.
+// App Store Connect automation for Pinto Notes' TestFlight.
 //
 //   deno run -A scripts/asc.ts status                 app, builds, groups, public link
 //   deno run -A scripts/asc.ts wait <build>           wait until iOS and Mac builds <build> are processed

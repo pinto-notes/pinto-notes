@@ -54,7 +54,7 @@ const config: NextConfig = {
       { source: "/blog/category/:category/page/1", destination: "/blog/category/:category", permanent: true },
       // A link with "&" where its "?" should be (pintonotes.com/&utm_source=…) lands on /&…, a 404.
       { source: "/:junk(&.*)", destination: "/", permanent: true },
-      // "Use template" and "Use this note" open Amber Notes from the template's or note's page
+      // "Use template" and "Use this note" open Pinto Notes from the template's or note's page
       // (lib/open-in-app.ts). Their universal links reach the app directly where it's installed; a
       // browser that visits one goes to that page, which tries the app as it loads.
       { source: "/open/template/:slug", destination: "/templates/:slug?open=1", permanent: true },

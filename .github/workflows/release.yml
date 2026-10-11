@@ -70,6 +70,8 @@ jobs:
           SHARE_URL: ${{ vars.SHARE_URL }}
           MCP_URL: ${{ vars.MCP_URL }}
           AUTH_HOST: ${{ vars.AUTH_HOST }}
+          # The PostHog project key for app telemetry (docs/Technical/app-telemetry.md). Not set: the build sends nothing.
+          POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/asc.p8"
@@ -81,6 +83,7 @@ jobs:
             echo "PANE_SHARE_URL = ${SHARE_URL/:\/\//:/\$()/}"
             echo "PANE_MCP_URL = ${MCP_URL/:\/\//:/\$()/}"
             echo "PANE_AUTH_HOST = $AUTH_HOST"
+            echo "PANE_POSTHOG_KEY = $POSTHOG_KEY"
           } > Config/Backend.local.xcconfig
       - run: brew install xcodegen
       - name: Archive and upload
@@ -113,6 +116,8 @@ jobs:
           SHARE_URL: ${{ vars.SHARE_URL }}
           MCP_URL: ${{ vars.MCP_URL }}
           AUTH_HOST: ${{ vars.AUTH_HOST }}
+          # The PostHog project key for app telemetry (docs/Technical/app-telemetry.md). Not set: the build sends nothing.
+          POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/asc.p8"
@@ -124,6 +129,7 @@ jobs:
             echo "PANE_SHARE_URL = ${SHARE_URL/:\/\//:/\$()/}"
             echo "PANE_MCP_URL = ${MCP_URL/:\/\//:/\$()/}"
             echo "PANE_AUTH_HOST = $AUTH_HOST"
+            echo "PANE_POSTHOG_KEY = $POSTHOG_KEY"
           } > Config/Backend.local.xcconfig
       - name: Sparkle key
         env:

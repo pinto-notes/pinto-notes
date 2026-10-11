@@ -7,7 +7,7 @@ import { FEED_PATH, INCREDIBLE_URL, MAKER_URL, SITE_URL } from "./site";
 import { FAQ } from "../app/help/questions";
 
 /// /llms.txt (llmstxt.org): a plain summary for AI assistants and agents, with links to the pages
-/// that answer questions about Amber Notes. /llms-full.txt adds the help answers and the MCP tools.
+/// that answer questions about Pinto Notes. /llms-full.txt adds the help answers and the MCP tools.
 
 function summary(): string[] {
   return [

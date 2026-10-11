@@ -6,7 +6,7 @@
 
 // The starter's files are big: loaded when a project is made, not when the server starts.
 
-/** How an app runs in Amber Notes: part of every app's README, so any AI working on it reads it. */
+/** How an app runs in Pinto Notes: part of every app's README, so any AI working on it reads it. */
 export const appGuide = () => `## How this app runs in Pinto Notes
 
 - It is the note: opening the note opens the app, on iPhone (320-440 pt wide, safe areas, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Light and dark follow the device.

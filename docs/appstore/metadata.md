@@ -48,7 +48,7 @@ Turn any note into a clean web page with a private link. Stop sharing whenever y
 
 PRIVATE BY DESIGN
 • Sign in with Apple, or with email
-• No ads, no tracking, no analytics
+• No ads, no tracking
 • Delete your account and everything in it from Settings
 
 Amber Notes is made by one person who wanted a simpler notes app. Feedback is always welcome at hello@ambernotes.app.

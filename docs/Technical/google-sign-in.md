@@ -58,7 +58,7 @@ without the verifier, which never leaves the device). The app's own nonce code
 
 **Start fresh.** It needs a sign-in from the last 10 minutes. A Google sign-in adds an `oauth`
 entry to the token's `amr`, which `SignInRecency` counts. Google's chooser can pick any Google
-account, which may be a different Amber Notes account, so the app checks that the account after
+account, which may be a different Pinto Notes account, so the app checks that the account after
 the sign-in is the one that asked. If not, it signs that one out and deletes nothing.
 
 ## Accounts and linking

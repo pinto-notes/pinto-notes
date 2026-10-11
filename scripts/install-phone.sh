@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Builds Amber Notes and installs it on a connected iPhone.
+# Builds Pinto Notes and installs it on a connected iPhone.
 #
 #   scripts/install-phone.sh            # the first connected iPhone
 #

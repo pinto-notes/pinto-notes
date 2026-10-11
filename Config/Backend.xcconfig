@@ -15,4 +15,10 @@ PANE_MCP_URL =
 // abcdefghijklmnopqrst.supabase.co=auth.example.com, and used only by a build whose
 // PANE_SUPABASE_URL is that backend. Empty: the sign-in opens at the backend's own host.
 PANE_AUTH_HOST =
+// Error reports and usage counts (docs/Technical/app-telemetry.md): the PostHog project key
+// (phc_…, the public write-only key the website's pages carry as NEXT_PUBLIC_POSTHOG_KEY) and the
+// EU host. Empty here, so a build sends nothing; release builds get the key from
+// Config/Backend.local.xcconfig. Debug builds and the Simulator never send, key or not.
+PANE_POSTHOG_KEY =
+PANE_POSTHOG_HOST = https:/$()/eu.i.posthog.com
 #include? "Backend.local.xcconfig"

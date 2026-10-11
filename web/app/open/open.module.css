@@ -1,4 +1,4 @@
-/* The pages that open a place in Amber Notes (PlaceCard) when the link stays in the browser: one
+/* The pages that open a place in Pinto Notes (PlaceCard) when the link stays in the browser: one
    card (lib/ui) in the site's cream theme. It tries the app first; the way to get Amber Notes
    appears only if the app didn't open (data-state on .page, set by OpenApp). */
 

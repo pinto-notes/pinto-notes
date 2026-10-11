@@ -4,8 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import d from "./demo.module.css";
 
-// A mini Mac desktop: the real Amber Notes window (frames captured from the app with demo data, one
-// session) and a ChatGPT window beside it. One story in two parts, shown on the bar on the desk: you ask ChatGPT to plan Lisbon and it writes the whole note in Amber Notes (it lands tinted,
+// A mini Mac desktop: the real Pinto Notes window (frames captured from the app with demo data, one
+// session) and a ChatGPT window beside it. One story in two parts, shown on the bar on the desk: you ask ChatGPT to plan Lisbon and it writes the whole note in Pinto Notes (it lands tinted,
 // with the app's receipt); you change your mind and it edits just those two lines. Then it resets
 // and loops. One clock drives it. It pauses only where nobody can see it: off-screen and in a hidden
 // tab. The pointer and keyboard focus never stop it.

@@ -2,7 +2,7 @@ import NoteWindow from "@/app/templates/NoteWindow";
 import { ui } from "./ui";
 import s from "./not-found.module.css";
 
-/// The site's 404, inside its header and footer: the missing page as a note in an Amber Notes
+/// The site's 404, inside its header and footer: the missing page as a note in an Pinto Notes
 /// window, the way the site shows every note, with one way home under it.
 const TITLE = "This page doesn’t exist";
 const TEXT = "The address may be mistyped, or the page has moved.";

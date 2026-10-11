@@ -9,7 +9,7 @@ import { tryApp } from "./open/try-app";
 
 const send = (e: SiteEvent | null) => { if (e) window.dispatchEvent(new CustomEvent(SITE_EVENT, { detail: e })); };
 
-/// "Use template" or "Use this note" (lib/open-in-app.ts): a click opens Amber Notes from this page.
+/// "Use template" or "Use this note" (lib/open-in-app.ts): a click opens Pinto Notes from this page.
 /// If the browser hasn't left for the app after about two seconds, a small sheet at the bottom of
 /// the window offers the Mac app and another try. `href` is the universal link, kept for a copied
 /// link and for a click without JavaScript; `app` is the app's own link, built from a checked slug.
@@ -74,7 +74,7 @@ export default function OpenInApp({ href, app, className, label, auto = false, c
   );
 }
 
-/// The sheet when Amber Notes didn't open: quiet, at the bottom of the window, never in the way of
+/// The sheet when Pinto Notes didn't open: quiet, at the bottom of the window, never in the way of
 /// the page. Escape or Close puts it away and focus goes back to the button.
 function OpenSheet({ onRetry, onClose }: { onRetry: () => void; onClose: () => void }) {
   const id = useId();

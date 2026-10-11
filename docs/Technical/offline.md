@@ -1,6 +1,6 @@
 # Offline
 
-Amber Notes is local-first: notes, folders and files live in SwiftData on the device, edits are
+Pinto Notes is local-first: notes, folders and files live in SwiftData on the device, edits are
 marked dirty and go up when a sync gets through (`Pane/Sync/SyncEngine.swift`). This page records
 what works with no network, how it was checked, and what changed on 2026-10-07 to close the gaps.
 
@@ -44,10 +44,10 @@ what works with no network, how it was checked, and what changed on 2026-10-07 t
 | Long offline: queue size | No queue to overflow: dirty flags in SwiftData are the queue. 200 notes plus folders went up in about 0.2 s, one request each | PERF line in `aLongOfflineSessionAcrossARestartLandsWhole` | Same |
 | App restarted while offline | Edits survive (SwiftData). The merge base for two-sided edits is in memory, so after a restart a two-sided edit becomes a conflicted copy instead of a merge (nothing lost) | `synced` in `SyncEngine` | Same (see below) |
 | Retry loops | Not hot, but steady: realtime-down poll every 8 s (30 s when quiet), a pull every minute, the key check every 10 s, connection asks every 10 s; each failed read retried 3 times by the Supabase client (1 + 2 + 4 s). About 900 failed requests an hour in front | `realtimeDownPollsAndBacksOff`, code | No requests at all with no network (`noPollingWhileTheNetworkIsDownAndSyncAtOnceWhenBack`: 0 in 0.8 s polling every 0.1 s); typing offline sends nothing; on a network that lets nothing through the key check backs off 10, 20, 40, 60 s |
-| Offline indicator | **None.** Only Settings showed "Offline" in orange | `SyncStatusLabel` | A muted line: Mac sidebar above the account; iPhone a small capsule over the folder and note lists. "Offline", "Offline · changes sync later", or "Can't reach Amber Notes" when there's a network but no answer |
+| Offline indicator | **None.** Only Settings showed "Offline" in orange | `SyncStatusLabel` | A muted line: Mac sidebar above the account; iPhone a small capsule over the folder and note lists. "Offline", "Offline · changes sync later", or "Can't reach Pinto Notes" when there's a network but no answer |
 | Alerts or endless spinners | No sync alerts. Connections list showed a red error; storage showed "Counting…" forever; a file showed a spinner until the request failed | code | Plain grey words instead |
 | Connect an AI | Opened the guide, failed inside | `ConnectAISection` | Disabled offline with "You're offline. Connect to the internet to connect an AI." |
-| Share Link | Asked for confirmation, then "Couldn't reach Amber Notes" | `ShareLinkStore` | Says at once: "You're offline. Connect to the internet to share this note." |
+| Share Link | Asked for confirmation, then "Couldn't reach Pinto Notes" | `ShareLinkStore` | Says at once: "You're offline. Connect to the internet to share this note." |
 | Add a device | The sheet said it couldn't reach the server | `AddDeviceSheet` | Button disabled offline; Settings says why |
 | Delete account | Failed after confirming | `DeleteAccountButton` | Disabled offline, with the reason under it |
 | Storage meter | "Counting…" forever when launched offline | `StorageSectionBody` | "Counted when you're online." |

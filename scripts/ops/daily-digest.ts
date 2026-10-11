@@ -1,4 +1,4 @@
-// What broke for Amber Notes users in the last 24 hours, as a short markdown report on this machine.
+// What broke for Pinto Notes users in the last 24 hours, as a short markdown report on this machine.
 //   deno run -A scripts/ops/daily-digest.ts                # ~/content-tools/projects/amber-ops/digest/<date>.md
 //   deno run -A scripts/ops/daily-digest.ts --hours 48 --out /tmp/digest.md
 //
