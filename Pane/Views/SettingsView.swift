@@ -72,6 +72,7 @@ struct SettingsView: View {
                         .navigationBarTitleDisplayMode(.inline)
                 }
         }
+        .roomySheet()
         .environment(\.networkReach, reach)
         .consentHost(client: backend.client, active: isSignedIn)
         // A link, a card or the storage warning opens Settings at its page.
