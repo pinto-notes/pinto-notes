@@ -119,6 +119,10 @@ struct KeyGateView: View {
             if crypto.phase == .ready { screen = .auto }
             error = nil
         }
+        // Reports: which screen someone is on between signing in and their notes (Telemetry).
+        .onChange(of: Self.shown(crypto.phase, screen), initial: true) { _, shown in
+            Telemetry.shared.record(.gateShown(GateScreen(shown)))
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -378,12 +382,10 @@ struct KeyGateView: View {
             }
         } else {
             field {
-                SecureField("Password for \(email)", text: $password)
+                PasswordField("Password for \(email)", text: $password, id: "e2ee.password")
                     .textFieldStyle(.plain)
-                    .textContentType(.password)
                     .onSubmit { if !password.isEmpty { signInWithPassword() } }
             }
-            .accessibilityIdentifier("e2ee.password")
             mainButton("Sign in and start fresh", id: "e2ee.signInStartFresh", enabled: !password.isEmpty, destructive: true) {
                 try await signInAndStartFresh()
             }

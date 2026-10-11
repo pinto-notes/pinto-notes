@@ -17,20 +17,56 @@
 # alone are the check.
 #
 # The three compiles run side by side. The Swift packages are compiled once for every checkout
-# and worktree (a cache by content in ~/Library/Caches/pinto-prepush, trimmed to 6 GB); the app
-# itself is compiled again whenever one of its files changed, in Release as a whole, which is
-# most of the time this takes. No build folder is left behind.
+# and worktree (a cache by content in ~/Library/Caches/pinto-prepush, held to 8 GB by Xcode
+# itself); the app is compiled again whenever one of its files changed, in Release as a whole,
+# which is most of the time this takes. No build folder is left behind.
+#
+# One check at a time on a machine: a second one waits and says for whom. It does not start with
+# less than 20 GB free on the disk.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [[ -n ${DEVELOPER_DIR:-} ]] || export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 CACHE=${PINTO_PREPUSH_CACHE:-$HOME/Library/Caches/pinto-prepush}
+CAP_GB=8
+mkdir -p "$CACHE"
+
+# One at a time: three of these side by side are nine compiles, and they share the cache below.
+LOCK="$CACHE/running"
+waited=0
+until mkdir "$LOCK" 2>/dev/null; do
+  holder=$(cat "$LOCK/pid" 2>/dev/null || true)
+  if [[ -n $holder ]] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$LOCK"; continue; fi   # it died without tidying up
+  if [[ -z $holder ]] && (( waited >= 30 )); then rm -rf "$LOCK"; continue; fi
+  (( waited % 60 )) || print -- "→ Waiting for the local check of pid ${holder:-?} ($(cat "$LOCK/where" 2>/dev/null || print '?')), $waited s so far"
+  sleep 5; waited=$((waited + 5))
+done
+print -- $$ > "$LOCK/pid"; print -- "$PWD" > "$LOCK/where"
 # The same build folder path every time for this checkout: the compiler's cache only hits when
 # the path is the same. It is emptied when the check ends.
 DD="$CACHE/build-$(print -n -- "$PWD" | shasum | cut -c1-12)"
+trap 'rm -rf "$DD" "$LOCK"' EXIT
 rm -rf "$DD"
-trap 'rm -rf "$DD"' EXIT
+
+# The cache is Xcode's (index and data files plus loose large objects), and Xcode holds it to
+# its limit by itself (COMPILATION_CACHE_LIMIT_SIZE below). Never delete single files in it: on
+# 2026-10-11, after files were removed by age, the next build's ValidateCAS step said "recovered
+# from invalid data" and started the cache from nothing. Should it still be far over the limit
+# (a build that was killed, an Xcode that ignores the setting), it is removed whole, here, where
+# no other check is running: a cold cache costs about a minute, a full disk costs the day.
+if [[ -d $CACHE/cas ]] && (( $(du -sk "$CACHE/cas" | cut -f1) > CAP_GB * 3 / 2 * 1024 * 1024 )); then
+  print -- "→ The compile cache is $(du -sh "$CACHE/cas" | cut -f1), over its $CAP_GB GB: starting it again from nothing."
+  rm -rf "$CACHE/cas"
+fi
+# Build folders a killed check left behind (two hours old: a checkout that still has this script
+# without the lock may be building right now).
+find "$CACHE" -maxdepth 1 -type d -name 'build-*' -mmin +120 -exec rm -rf {} + 2>/dev/null || true
+free=$(df -g "$CACHE" | awk 'NR == 2 { print $4 }')
+if (( free < 20 )); then
+  print -- "✗ Not started: $free GB free on this disk, and the check wants 20 (its three build folders and the cache take about 15 while it runs). Free some space and run it again."
+  exit 1
+fi
 mkdir -p "$CACHE/cas" "$CACHE/packages" "$DD"
-common=(-project Pane.xcodeproj -clonedSourcePackagesDirPath "$CACHE/packages" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= COMPILATION_CACHE_ENABLE_CACHING=YES "COMPILATION_CACHE_CAS_PATH=$CACHE/cas")
+common=(-project Pane.xcodeproj -clonedSourcePackagesDirPath "$CACHE/packages" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= COMPILATION_CACHE_ENABLE_CACHING=YES "COMPILATION_CACHE_CAS_PATH=$CACHE/cas" "COMPILATION_CACHE_LIMIT_SIZE=${CAP_GB}G")
 # One architecture and no dSYM: this checks that it compiles, it doesn't make the download.
 release=(-configuration Release ONLY_ACTIVE_ARCH=YES DEBUG_INFORMATION_FORMAT=dwarf)
 start=$SECONDS
@@ -61,20 +97,27 @@ for pid in $pids; do wait $pid || failed=1; done
 if [[ ${1:-} == --tests ]]; then
   # The suites declared in the test files this branch changed (against origin/dev, and not yet committed).
   base=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
-  only=()
-  for f in $( { git diff --name-only "$base"; git diff --name-only; } | sort -u | grep -E '^PaneTests/.*\.swift$' || true); do
-    [[ -f $f ]] || continue
-    for suite in $(grep -oE '^(@[A-Za-z]+(\([^)]*\))? +)*(final +)?(struct|class) +[A-Za-z0-9_]+' "$f" | awk '{print $NF}'); do only+=("-only-testing:PaneTests/$suite"); done
+  only=(); touched=()
+  # scripts/ci/select-tests.py knows which suites a test file holds and their full names: a suite
+  # written inside "extension Outer {" is Outer/Suite to xcodebuild, and matches nothing without it.
+  python3 scripts/ci/select-tests.py --suites-of $( { git diff --name-only "$base"; git diff --name-only; } | sort -u | grep -E '^PaneTests/.*\.swift$' || true) | while IFS=$'\t' read -r f suites; do
+    for suite in ${=suites}; do only+=("-only-testing:PaneTests/$suite"); done
+    touched+=("$f:${(j:|:)${(@)${=suites}:t}}")
   done
   if (( ${#only} )); then
     compile run "Tests of the touched test files (${#only} suites)" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
+    # A name that matches no test is not an error to xcodebuild, so look: every touched test file
+    # has to have had a suite of its own start.
+    for t in $touched; do
+      if ! grep -qE "Suite (${t#*:}) started" "$DD/run.log"; then
+        print -- "✗ No test of ${t%%:*} ran (asked for: ${${t#*:}//|/, }). Not ready to push."
+        exit 1
+      fi
+    done
+    print -- "  $(grep -oE 'Test run with [0-9]+ tests? in [0-9]+ suites? passed' "$DD/run.log" | tail -1)"
   else
     print -- "→ No test file touched: no tests run."
   fi
 fi
 
-# The cache stays under 6 GB: the files not read for longest go first.
-if (( $(du -sk "$CACHE/cas" | cut -f1) > 6 * 1024 * 1024 )); then
-  find "$CACHE/cas" -type f -atime +3 -delete 2>/dev/null || true
-fi
 print -- "✓ Compiles as it ships and as CI builds it: $((SECONDS - start)) s"

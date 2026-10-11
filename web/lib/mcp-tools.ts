@@ -1,4 +1,4 @@
-/// The tools the Amber Notes MCP server offers, as supabase/functions/mcp/tools.ts defines them.
+/// The tools the Pinto Notes MCP server offers, as supabase/functions/mcp/tools.ts defines them.
 /// supabase/functions/mcp/site_tools.test.ts keeps this list in step with what production serves.
 /// "read" tools are all a read-only connection sees.
 export type McpTool = { name: string; title: string; description: string; kind: "read" | "write" | "destructive" };

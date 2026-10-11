@@ -3,7 +3,7 @@ import { Shell, TopBar } from "@/lib/ui";
 import styles from "./connect.module.css";
 
 /// The frame every connect page sits in: the quiet top bar with the site's logo and nothing else to
-/// leave by, then Amber Notes' mark and whatever the page says. No other app's mark: nothing on
+/// leave by, then Pinto Notes' mark and whatever the page says. No other app's mark: nothing on
 /// these pages vouches for who is asking. With `request` (a page about one
 /// connection request), where access would go sits on a panel beside the form; stacked on a phone.
 export default function ConnectCard({ request = false, label = null, children }: {

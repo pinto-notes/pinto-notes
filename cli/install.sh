@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs amber, the Amber Notes command-line tool, for the current user.
+# Installs amber, the Pinto Notes command-line tool, for the current user.
 #
 #   curl -fsSL https://ambernotes.app/install.sh | sh
 #

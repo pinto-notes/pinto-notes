@@ -72,6 +72,7 @@ struct SettingsView: View {
                         .navigationBarTitleDisplayMode(.inline)
                 }
         }
+        .roomySheet()
         .environment(\.networkReach, reach)
         .consentHost(client: backend.client, active: isSignedIn)
         // A link, a card or the storage warning opens Settings at its page.
@@ -281,7 +282,8 @@ private enum SettingsLayout {
     static let width: CGFloat = 520
 }
 
-/// General: the menu bar item (on iPhone, the setup guide), API keys for apps in notes, and about.
+/// General: the menu bar item (on iPhone, the setup guide), API keys for apps in notes, the
+/// diagnostics switch, and about.
 private struct GeneralSettings: View {
     let signedIn: Bool
     let close: () -> Void
@@ -304,6 +306,7 @@ private struct GeneralSettings: View {
         }
         #endif
         if NoteApps.enabled { APIKeysSection() }
+        DiagnosticsSection()
         AboutSection()
     }
 }
@@ -322,7 +325,7 @@ private struct AccountSettings: View {
                 // The status and its action on one row, like iCloud in System Settings.
                 LabeledContent("Sync") {
                     HStack(spacing: 10) {
-                        SyncStatusLabel(status: sync?.status ?? .idle)
+                        SyncStatusLabel(status: sync?.status ?? .idle, reach: sync?.reach ?? .online)
                         Button("Sync Now") { Task { await sync?.sync() } }
                             .controlSize(.small)
                             .accessibilityIdentifier("settings.syncNow")
@@ -547,14 +550,32 @@ private struct AppleIDRow: View {
 }
 
 struct SyncStatusLabel: View {
+    /// An iPad is named too: "your iPhone and Mac" read as if this device were left out.
+    static var syncing: String { InstallID.kind == "iPad" ? "Syncing to your iPad, iPhone and Mac" : "Syncing to your iPhone and Mac" }
+
     let status: SyncEngine.Status
+    /// Whether the server can be reached now. The status only changes when a sync is tried, so
+    /// without this a Mac that went offline after its last sync still said "Syncing … just now".
+    var reach: SyncEngine.Reach = .online
     var body: some View {
         switch status {
+        case _ where Self.away(status, reach: reach) != nil: Text(Self.away(status, reach: reach) ?? "").foregroundStyle(.secondary)
         case .idle: Text("Waiting").foregroundStyle(.secondary)
         case .syncing: HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Syncing…") }
-        case .synced(let d): Text("Syncing to your iPhone and Mac · \(Self.when(d))").foregroundStyle(.secondary)
+        case .synced(let d): Text("\(Self.syncing) · \(Self.when(d))").foregroundStyle(.secondary)
         // No network isn't a problem to fix: said plainly. Refusals and the like stay orange.
         case .offline(let why): Text(why).foregroundStyle(why == SyncEngine.describe(URLError(.notConnectedToInternet)) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
+        }
+    }
+
+    /// What the row says while the server can't be reached and nothing is being tried: that, and
+    /// when it last synced. Nil while online, mid-sync, or when the status already says why.
+    static func away(_ status: SyncEngine.Status, reach: SyncEngine.Reach) -> String? {
+        guard let lead = OfflineCopy.line(reach, waiting: false) else { return nil }
+        switch status {
+        case .idle: return lead
+        case .synced(let d): return "\(lead) \u{00B7} last synced \(d.formatted(date: .omitted, time: .shortened))"
+        case .syncing, .offline: return nil
         }
     }
 

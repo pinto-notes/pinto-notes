@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Archives Amber Notes and uploads it to App Store Connect for TestFlight.
+# Archives Pinto Notes and uploads it to App Store Connect for TestFlight.
 #
 #   scripts/testflight.sh [ios|mac|both]      (default: both)
 #   UPLOAD=0 scripts/testflight.sh ios        (archive + export only, no upload)

@@ -64,7 +64,7 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
   /// What the QR code encodes, and the same for the app on this Mac (null elsewhere).
   const [link, setLink] = useState<string | null>(null);
   const [macLink, setMacLink] = useState<string | null>(null);
-  // Where the account has Amber Notes (from /connect/ask), and so the one device the page names.
+  // Where the account has Pinto Notes (from /connect/ask), and so the one device the page names.
   const [devices, setDevices] = useState<Devices | null>(null);
   const [lead, setLead] = useState<Lead>("any");
   // Kept out of React state: the session and the key pair live in this page's memory only.

@@ -900,6 +900,7 @@ struct ConsentHost: ViewModifier {
                     ConsentSheet(client: client, requestID: pending.id, finish: { center.open($0) },
                                  allowed: { r in
                                      center.approved = (r.verifiedAI, .now)
+                                     Telemetry.shared.record(.aiConnected(AIKind(verified: r.verifiedAI)))
                                      // Connected an AI: the moment to ask to notify (the next
                                      // ask can then reach this device when the app isn't open).
                                      Task { await ConnectNotifier.system.askPermission() }
@@ -1531,6 +1532,9 @@ struct ConnectAISection: View {
             Image(systemName: "checkmark").fontWeight(.bold).foregroundStyle(.tint)
         }
         .font(.callout.weight(.medium))
+        // The check mark is decoration: VoiceOver read each promise as "Selected", then the words.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
     }
 
     private var connected: some View {
@@ -1760,6 +1764,7 @@ struct GuideSheet: View {
         do {
             let t = try await ConnectTokens.create(client, name: guide.title, write: !readOnly) { try AccountCrypto.shared.accessToken() }
             token = t
+            Telemetry.shared.record(.aiConnected(AIKind(verified: guide.title)))
             return t
         } catch {
             result = "Couldn't create a token. Check your connection."

@@ -206,7 +206,7 @@ struct WebConnectGuide: View {
         Group {
             Section {
                 step(0, "Add Pinto Notes in \(plan.ai)", detail: addDetail) { addButton }
-                step(1, Self.allowLine, detail: nil) { EmptyView() }
+                step(1, Self.allowLine, detail: stage < 2 ? Self.notifyLine : nil, detailAhead: true) { EmptyView() }
                 step(2, "Ask \(plan.ai) about your notes", detail: nil) { tryIt }
             } footer: {
                 Text(stage == 2 ? "It works in the \(plan.ai) app on your phone too." : plan.plans)
@@ -216,11 +216,9 @@ struct WebConnectGuide: View {
         .animation(.smooth(duration: 0.3), value: stage)
         .task { await watch.run(client: client) }
         // The approval comes to this device: it looks for it every couple of seconds while the
-        // guide is open, and may notify (asked now, so the push shows if the app goes away).
-        .onAppear {
-            ConnectCenter.shared.expectAsks()
-            if !PaneApp.isUnitTestHost { Task { await ConnectNotifier.system.askPermission() } }
-        }
+        // guide is open. Permission to notify isn't asked for just by opening the guide: that
+        // waits until the link is sent or opened, when a request can arrive (`askToNotify`).
+        .onAppear { ConnectCenter.shared.expectAsks() }
         .onDisappear { ConnectCenter.shared.stopExpectingAsks() }
         #if os(iOS)
         // Handoff: the same guide is waiting on the Mac.
@@ -233,9 +231,17 @@ struct WebConnectGuide: View {
 
     #if os(iOS)
     static var allowLine: String { "Scan the code on your computer with this \(InstallID.kind), then choose Allow" }
+    static var notifyLine: String { "The request to allow it also arrives as a notification on this \(InstallID.kind)." }
     #else
     static let allowLine = "Choose Open Pinto Notes on this Mac, then Allow"
+    static let notifyLine = "The request to allow it also arrives as a notification on this Mac."
     #endif
+
+    /// The link is on its way to the AI: from now a request to allow it can arrive, so this is
+    /// when the system asks whether Pinto Notes may notify.
+    private func askToNotify() {
+        if !PaneApp.isUnitTestHost { Task { await ConnectNotifier.system.askPermission() } }
+    }
 
     /// What adding takes, while it's the step at hand.
     private var addDetail: String? {
@@ -250,14 +256,18 @@ struct WebConnectGuide: View {
     @ViewBuilder
     private var addButton: some View {
         #if os(iOS)
-        ShareLink(item: plan.message(server: server), subject: Text("Connect \(plan.ai) to Pinto Notes")) {
+        // The preview names what is being sent: without it the share sheet's header was a blank icon.
+        ShareLink(item: plan.message(server: server), subject: Text("Connect \(plan.ai) to Pinto Notes"),
+                  preview: SharePreview("Connect \(plan.ai) to Pinto Notes", icon: Image("Mark"))) {
             Label("Send Link to My Computer", systemImage: "paperplane").frame(maxWidth: .infinity)
         }
         .buttonStyle(.amberProminent)
         .controlSize(.large)
+        .simultaneousGesture(TapGesture().onEnded { askToNotify() })
         .accessibilityIdentifier("connect.sendSteps")
         #else
         Button {
+            askToNotify()
             copy()
             openURL(plan.setupPage(server: server))
             started = true
@@ -287,7 +297,8 @@ struct WebConnectGuide: View {
     }
 
     /// One step: a number that becomes a check, the line, and its button while it's the one at hand.
-    private func step(_ i: Int, _ text: String, detail: String?, @ViewBuilder action: () -> some View) -> some View {
+    /// `detailAhead`: the detail shows before this step is the one at hand too.
+    private func step(_ i: Int, _ text: String, detail: String?, detailAhead: Bool = false, @ViewBuilder action: () -> some View) -> some View {
         let done = stage > i, now = stage == i
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -300,7 +311,7 @@ struct WebConnectGuide: View {
                         .fontWeight(now ? .semibold : .regular)
                         .foregroundStyle(now ? .primary : .secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    if now, let detail {
+                    if now || detailAhead, let detail {
                         Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -524,7 +535,8 @@ struct IncredibleGuide: View {
             } icon: {
                 Image(systemName: "laptopcomputer").foregroundStyle(.tint)
             }
-            ShareLink(item: IncredibleConnect.message(server: server), subject: Text("Connect Incredible to Pinto Notes")) {
+            ShareLink(item: IncredibleConnect.message(server: server), subject: Text("Connect Incredible to Pinto Notes"),
+                      preview: SharePreview("Connect Incredible to Pinto Notes", icon: Image("Mark"))) {
                 Label("Send Steps to Yourself", systemImage: "paperplane")
                     .frame(maxWidth: .infinity)
             }

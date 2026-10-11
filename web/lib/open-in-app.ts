@@ -1,7 +1,7 @@
 import { APP_SCHEME } from "./app-scheme";
 import type { SiteEvent } from "./posthog";
 
-// "Use template" and "Use this note" open Amber Notes from the page they're on (app/OpenInApp.tsx).
+// "Use template" and "Use this note" open Pinto Notes from the page they're on (app/OpenInApp.tsx).
 // Their links are still the universal links (https://ambernotes.app/open/template/<slug>,
 // /open/copy/<slug>), so a copied link or a click without JavaScript reaches the app the old way;
 // the browser's own visit to one is sent back to the template's or note's page with ?open, which
@@ -12,7 +12,7 @@ const APP_LINK = new RegExp(`^${APP_SCHEME}:\\/\\/(template|copy)\\/([A-Za-z0-9_
 
 export const validAppLink = (href: string) => APP_LINK.test(href);
 
-/// How long the page waits for the browser to leave for Amber Notes before saying it didn't open.
+/// How long the page waits for the browser to leave for Pinto Notes before saying it didn't open.
 export const OPEN_WAIT_MS = 2000;
 
 /// The query that asks a template's or note's page to try the app as it loads.
@@ -31,7 +31,7 @@ export function withoutOpen(href: string): string {
 export const SITE_EVENT = "amber:site-event";
 
 /// What a template's open attempt sends: the attempt from an old link (a click is counted by its
-/// link, as use_template_clicked), then whether Amber Notes opened. Shared notes send nothing:
+/// link, as use_template_clicked), then whether Pinto Notes opened. Shared notes send nothing:
 /// their pages never load analytics.
 export function openEvent(app: string, step: "link" | "opened" | "not_found", path: string): SiteEvent | null {
   const m = APP_LINK.exec(app);

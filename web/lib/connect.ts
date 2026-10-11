@@ -11,7 +11,7 @@
 //    link https://ambernotes.app/open/connect?request=<id>#s=<scan secret>&k=<key fingerprint>; the
 //    fragment never reaches a server. Your iPhone scans it, checks the page's key against k, and
 //    answers /connect/decide with the scan secret: scanning proves you're there, so no sign-in and
-//    no number. On a Mac, "Open Amber Notes on this Mac" is the same link in the app's own scheme
+//    no number. On a Mac, "Open Pinto Notes on this Mac" is the same link in the app's own scheme
 //    (ambernotes://connect?request=<id>#s=…&k=…). When the universal link stays in a browser,
 //    /open/connect tries that scheme with the fragment kept.
 // 2. "Get a notification instead": you sign in, only so the page knows which account to ask. It
@@ -144,7 +144,7 @@ export const destination = (host: string, loopback: boolean) => (loopback ? "an 
 
 /// A sign-in failure from Supabase Auth, in plain words.
 /// Signing in on the web to an account whose email isn't confirmed yet.
-export const EMAIL_NOT_CONFIRMED = "This email isn't confirmed yet. Open Amber Notes on your iPhone or Mac, sign in, and type the code we email you. Then connect again.";
+export const EMAIL_NOT_CONFIRMED = "This email isn't confirmed yet. Open Pinto Notes on your iPhone or Mac, sign in, and type the code we email you. Then connect again.";
 
 export function signInError(status: number, body: { error_code?: string } | null): string {
   if (status === 429) return "Too many attempts. Wait a few minutes and try again.";
@@ -161,7 +161,7 @@ export function signInError(status: number, body: { error_code?: string } | null
 export const returnURL = (origin: string, id: string, recover = false, qr = false) =>
   `${origin}/connect?request=${id.toLowerCase()}${recover ? "&recover=1" : ""}${qr ? "&qr=1" : ""}`;
 
-/// The first app version that can scan /connect's QR code (and answer "Open Amber Notes on this
+/// The first app version that can scan /connect's QR code (and answer "Open Pinto Notes on this
 /// Mac" from that page). Older apps show "request has expired" for both.
 export const QR_CONNECT_FROM = "1.2";
 

@@ -1,4 +1,4 @@
-# Amber Notes website
+# Pinto Notes website
 
 The whole public site, not just shared notes. What lives where:
 
