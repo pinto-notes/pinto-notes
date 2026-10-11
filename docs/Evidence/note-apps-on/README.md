@@ -24,6 +24,37 @@ access token made in the app (Settings, Connect an AI, Claude Code).
 The whole run was repeated on the build with the link prompt and without the device features,
 steps A to G in order, all passing.
 
+## The Mac app
+
+The same steps on the Mac download's Release build (target PaneDirect, team-signed, on staging),
+on a MacBook Air with macOS 27.0, on 2026-10-11. The Air has no Xcode, so the steps were run from
+inside the app by a probe file added to that one build, as the release gate does: it signs in,
+makes the access token the way Settings does, calls the MCP tools with it, taps in an app with the
+page's own `click()`, and presses Pinto Notes' own buttons through their accessibility action.
+The build had Pinto Notes Beta's bundle id and sandbox, so it could not touch the real app's notes
+on that Mac; with that id Settings still shows the real-data preview toggle, which the released
+app does not.
+
+| Step | Result on the Mac |
+|---|---|
+| Sign in, key, first sync, token made in the app | passed |
+| An AI makes an app; it renders; two taps counted; data on the server | passed (data there at the first look, under 1 s) |
+| Quit and reopen: the count is kept | passed |
+| The AI changes the open app; a receipt's Undo; the version before is back | passed (change on screen after 0.8 to 1.2 s) |
+| The AI changes the data; the open app shows it | passed, `mac-07-ai-changed-the-data.jpg` |
+| `-noteApps NO`: the note is its text, no web view | passed |
+| On again: the app and its data are back | passed |
+| React project: `create_app`, `write_app_file`, `check_app`, `preview_app`, runs in the note | passed, `mac-11-react-project-app.jpg` |
+| Reminders and location asked for by an app | "…aren't available in apps yet.", `mac-12-device-not-available.jpg` |
+| A link: the question with the whole address, Don't Allow, asked again the next time | passed. Open was not pressed (it would leave a browser window on that Mac) |
+
+One thing seen there: while the sheet a new account gets ("How did you hear about Pinto Notes?")
+is up, the link question waits behind it until the sheet is dismissed.
+
+Not covered on the Mac: a person's own clicks (so no "Changed · Undo" after a tap), the unsandboxed
+build with the real bundle id, and pictures of the receipt and the alert (the pictures are of the
+window's content only).
+
 ## What the proof found
 
 Three faults showed up only here, with a real server and a Release build. Each is fixed on this
@@ -42,6 +73,6 @@ branch with a test.
 
 ## Not covered here
 
-- A real iPhone, the Mac app, and two devices at once.
+- A real iPhone, and two devices at once.
 - Network requests and API keys.
 - ChatGPT and Claude through OAuth: the token here is the kind Claude Code and Codex get.
