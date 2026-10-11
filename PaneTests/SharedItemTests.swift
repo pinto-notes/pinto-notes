@@ -92,6 +92,22 @@ import AppKit
         #expect(Inbox.pending().isEmpty)
     }
 
+    /// The Mac has no share extension, so the app there never reaches for the App Group: not its
+    /// folder (the inbox, the folder list it leaves for the share sheet) and not its settings.
+    /// The Mac download has no app group of its own, and macOS asked at the first launch whether
+    /// Pinto Notes may "access data from other apps". On iPhone and iPad the group is the inbox.
+    @Test func theMacNeverReachesForTheAppGroup() {
+        #if os(macOS)
+        #expect(Inbox.groupRoot == nil, "no inbox in a group container")
+        #expect(Inbox.groupDefaults == nil, "no group settings")
+        // So the inbox is only ever a folder a test names (`rootOverride`), and without one
+        // nothing is read or written: `root` is nil.
+        #else
+        // An unsigned test build has no group; a signed app's inbox is inside its group's folder.
+        if let root = Inbox.groupRoot { #expect(root.lastPathComponent == "Inbox") }
+        #endif
+    }
+
     static func tinyPNG() -> Data {
         // A 1×1 PNG.
         Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")!
