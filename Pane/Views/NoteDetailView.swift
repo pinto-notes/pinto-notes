@@ -776,8 +776,17 @@ struct NoteDetailView: View {
         HStack {
             Button { onOpenNote(parent.id, false) } label: {
                 Label(parent.title, systemImage: "chevron.left")
+                    #if os(macOS)
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
+                    #else
+                    // On iPhone and iPad the link follows the text size and is a full-height target.
+                    .font(.footnote.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                    #endif
             }
             .buttonStyle(.hoverLink)
             .foregroundStyle(.tint)
@@ -785,7 +794,9 @@ struct NoteDetailView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
+        #if os(macOS)
         .padding(.top, 8)
+        #endif
     }
 
     /// Keeps the parent's link text in step with this sub-note's title, for readers and AI tools.
