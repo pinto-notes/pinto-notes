@@ -5,7 +5,7 @@ import { servedTools } from "./tools.ts";
 
 Deno.test("the server card lists every tool the server serves, as it serves it", () => {
   const card = serverCard();
-  assertEquals(card.serverInfo.name, "amber-notes");
+  assertEquals(card.serverInfo.name, "pinto-notes");
   assertEquals(card.authentication, { required: true, schemes: ["oauth2"] });
   const tools = servedTools();
   assertEquals(card.tools.map((t) => t.name), tools.map((t) => t.name));
