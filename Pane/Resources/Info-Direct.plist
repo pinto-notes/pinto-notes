@@ -77,6 +77,8 @@
 	</array>
 	<key>PaneAppGroup</key>
 	<string>$(PANE_APP_GROUP)</string>
+	<key>PaneAuthHost</key>
+	<string>$(PANE_AUTH_HOST)</string>
 	<key>PaneBundleID</key>
 	<string>$(PANE_BUNDLE_ID)</string>
 	<key>PaneMCPURL</key>

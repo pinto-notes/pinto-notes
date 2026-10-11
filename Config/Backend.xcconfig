@@ -9,4 +9,10 @@ PANE_SHARE_URL = http:/$()/localhost:5210
 // The MCP server's public address, shown in Connect an AI (https://mcp.ambernotes.app for release
 // builds). Empty: the app shows the Supabase function's own address.
 PANE_MCP_URL =
+// A domain of your own in front of the same Supabase project, for the web sign-in only (Google, and
+// Apple in the Mac download): the system names it when it asks whether the app may sign in there,
+// instead of <ref>.supabase.co. Written "<backend host>=<host to show>", for example
+// abcdefghijklmnopqrst.supabase.co=auth.example.com, and used only by a build whose
+// PANE_SUPABASE_URL is that backend. Empty: the sign-in opens at the backend's own host.
+PANE_AUTH_HOST =
 #include? "Backend.local.xcconfig"

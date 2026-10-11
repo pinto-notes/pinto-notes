@@ -48,6 +48,49 @@ enum BackendConfig {
 
     static let oldMCPHost = "mcp.ambernotes.app"
     static let newMCPHost = "mcp.pintonotes.com"
+
+    /// The host a web sign-in opens at (Google everywhere, Apple in the Mac download). The system
+    /// names it when it asks: "Pinto Notes" Wants to Use "…" to Sign In. From PANE_AUTH_HOST, for
+    /// a project that also answers at a domain of its own; nil, and the sign-in opens at the
+    /// backend's own host, in every build without one.
+    static var signInHost: String? {
+        signInHost(configured: Bundle.main.object(forInfoDictionaryKey: "PaneAuthHost") as? String, backend: url)
+    }
+
+    /// PANE_AUTH_HOST reads "<backend host>=<host to show>". It names its backend so that a build
+    /// pointed at another one (staging, the local stack, a fork's project) never opens its
+    /// sign-in at this project's domain, whatever else the configuration carries over.
+    static func signInHost(configured: String?, backend: URL?) -> String? {
+        guard let configured, let backend, backend.scheme == "https", let backendHost = backend.host()?.lowercased() else { return nil }
+        let parts = configured.lowercased().split(separator: "=", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, parts[0] == backendHost, isHostName(parts[1]) else { return nil }
+        return parts[1]
+    }
+
+    /// A plain DNS name: labels of letters, digits and hyphens, at least two of them.
+    static func isHostName(_ s: String) -> Bool {
+        let labels = s.split(separator: ".", omittingEmptySubsequences: false)
+        return labels.count >= 2 && s.utf8.count <= 253 && labels.allSatisfy { label in
+            !label.isEmpty && label.first != "-" && label.last != "-"
+                && label.unicodeScalars.allSatisfy { $0.isASCII && ($0.properties.isAlphabetic || $0.properties.numericType != nil || $0 == "-") }
+        }
+    }
+
+    /// The address a web sign-in opens: the client's own authorize address with `signInHost` in
+    /// place of the backend's host, and nothing else changed (the path, the PKCE challenge and
+    /// the return address go through as they are). Only the page in the browser sheet moves; the
+    /// client keeps talking to the backend's host, where the one-time code is swapped for a
+    /// session, so the stored session and everything keyed by that host stay where they are.
+    static func signInURL(_ url: URL) -> URL { signInURL(url, backend: self.url, host: signInHost) }
+
+    static func signInURL(_ url: URL, backend: URL?, host: String?) -> URL {
+        guard let host, let backendHost = backend?.host()?.lowercased(), url.scheme == "https", url.port == nil,
+              url.host()?.lowercased() == backendHost,
+              var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        parts.host = host
+        return parts.url ?? url
+    }
 }
 
 /// When the session last really signed in, read from its access token's `amr` claim (the JWT
@@ -287,7 +330,7 @@ final class Backend {
     func signInWithGoogle(hint: String? = nil) async throws -> UUID? {
         guard let client else { return nil }
         let session = try await client.auth.signInWithOAuth(provider: .google, redirectTo: Self.webCallback, queryParams: Self.googleQuery(hint: hint)) { url in
-            try await WebAuthSession.run(url, callbackScheme: AppIdentity.scheme)
+            try await WebAuthSession.run(BackendConfig.signInURL(url), callbackScheme: AppIdentity.scheme)
         }
         return session.user.id
     }
@@ -331,7 +374,9 @@ final class Backend {
     /// account as the App Store and iPhone apps (Apple's user id is shared across the team).
     func signInWithAppleOnTheWeb() async throws {
         guard let client else { return }
-        try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email")
+        try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email") { url in
+            try await WebAuthSession.run(BackendConfig.signInURL(url), callbackScheme: AppIdentity.scheme)
+        }
     }
 
     /// Adds your Apple ID to this account through the web, for the Mac download.

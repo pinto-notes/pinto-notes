@@ -30,7 +30,19 @@ Both the app and the website use Supabase's OAuth flow for Google, with PKCE:
 The app runs the Google page in `ASWebAuthenticationSession` (`Pane/Sync/WebAuthSession.swift`),
 which catches the `ambernotes://` return itself, on iPhone, the Mac App Store build and the Mac
 download alike. It shares Safari's cookies, so someone signed in to Google picks an account
-instead of typing a password; iOS first asks "Amber Notes wants to use supabase.co to sign in".
+instead of typing a password; the system first asks whether the app may use that address's host
+to sign in.
+
+**The host in that prompt.** It is the host of the address the sheet opens, by default
+`<project>.supabase.co`. A project with a domain of its own (a Supabase custom domain, which
+serves the same auth server) sets `PANE_AUTH_HOST` to `<backend host>=<host to show>`
+(`Config/Backend.xcconfig`), and the sheet opens `https://<host to show>/auth/v1/authorize...`
+instead (`BackendConfig.signInURL`). Only that one address moves. The client still talks to the
+backend's host, so the stored session and the PKCE verifier keep their names (both are named
+after the backend's host) and nobody is signed out; the one-time code is swapped at the
+backend's host, which is the same auth server and finds the flow by its code. The setting names
+its backend so a build pointed at staging or the local stack never opens the sign-in at
+production's domain.
 
 **Why not Google's GoogleSignIn SDK.** On iPhone and Mac the SDK also opens Google in
 `ASWebAuthenticationSession`, so the person sees the same thing. It would add a dependency, an

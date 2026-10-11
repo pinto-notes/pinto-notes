@@ -42,7 +42,7 @@ The release jobs run in the GitHub environment **release**. Its secrets:
 | `VERCEL_ORG_ID` | The Vercel team id | `web/.vercel/project.json` after `vercel link` |
 | `VERCEL_PROJECT_ID` | The `amber-notes` project id | Same file |
 
-And one variable: `SHARE_URL` (`https://ambernotes.app`).
+And its variables: `SHARE_URL` (`https://ambernotes.app`), `MCP_URL`, and `AUTH_HOST` when the project has a domain of its own for sign-in. `AUTH_HOST` is `<backend host>=<host to show>` (`PANE_AUTH_HOST` in `Config/Backend.xcconfig`): the web sign-in (Google, and Apple in the Mac download) opens at that host, so the system's prompt names it instead of `<ref>.supabase.co`. A checkout that builds releases by hand needs the same line in its `Config/Backend.local.xcconfig`. Before setting it, the domain must be active for the project and the providers must accept `https://<host>/auth/v1/callback` as a return address.
 
 The API key needs the **Admin** role, so Xcode can create and use the signing certificates in the cloud. No certificate files live in GitHub.
 

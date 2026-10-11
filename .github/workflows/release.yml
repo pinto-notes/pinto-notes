@@ -69,6 +69,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SHARE_URL: ${{ vars.SHARE_URL }}
           MCP_URL: ${{ vars.MCP_URL }}
+          AUTH_HOST: ${{ vars.AUTH_HOST }}
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/asc.p8"
@@ -79,6 +80,7 @@ jobs:
             echo "PANE_SUPABASE_KEY = $SUPABASE_ANON_KEY"
             echo "PANE_SHARE_URL = ${SHARE_URL/:\/\//:/\$()/}"
             echo "PANE_MCP_URL = ${MCP_URL/:\/\//:/\$()/}"
+            echo "PANE_AUTH_HOST = $AUTH_HOST"
           } > Config/Backend.local.xcconfig
       - run: brew install xcodegen
       - name: Archive and upload
@@ -110,6 +112,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SHARE_URL: ${{ vars.SHARE_URL }}
           MCP_URL: ${{ vars.MCP_URL }}
+          AUTH_HOST: ${{ vars.AUTH_HOST }}
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/asc.p8"
@@ -120,6 +123,7 @@ jobs:
             echo "PANE_SUPABASE_KEY = $SUPABASE_ANON_KEY"
             echo "PANE_SHARE_URL = ${SHARE_URL/:\/\//:/\$()/}"
             echo "PANE_MCP_URL = ${MCP_URL/:\/\//:/\$()/}"
+            echo "PANE_AUTH_HOST = $AUTH_HOST"
           } > Config/Backend.local.xcconfig
       - name: Sparkle key
         env:
