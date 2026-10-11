@@ -1,11 +1,11 @@
 <!-- Generated from supabase/functions/mcp/page_guide.ts by scripts/page-evals/build-skill.ts. Don't edit. -->
-# Apps in Amber Notes
+# Apps in Pinto Notes
 
 A note can be an app: a habit tracker, a budget, a workout log, a game. The person opens the note and the app is all they see. This says where an app lives and what it can use. How it looks and works is your call; build it as well as you would anywhere.
 
 ## Where it runs
 
-- Inside a note in Amber Notes, on iPhone (320-440 pt wide, safe areas at the edges, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Both matter: a phone layout and a real wide layout.
+- Inside a note in Pinto Notes, on iPhone (320-440 pt wide, safe areas at the edges, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Both matter: a phone layout and a real wide layout.
 - Light and dark mode follow the device (prefers-color-scheme).
 - In a sandbox with no network (see Network).
 - Nothing around the app shows the note's title, so the app shows it if it wants a title.
@@ -99,7 +99,7 @@ A normal Vite + React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui project. crea
 
 ## Data
 
-The app's data is JSON that Amber Notes keeps for it: encrypted, synced across the person's devices, versioned, with Undo for changes the person makes. Up to 4 MB; photos and recordings as files.
+The app's data is JSON that Pinto Notes keeps for it: encrypted, synced across the person's devices, versioned, with Undo for changes the person makes. Up to 4 MB; photos and recordings as files.
 
 - From "@/lib/amber" (which re-exports "amber"): const [value, setValue] = useStore("key", initial); const workouts = useCollection("workouts") → { items, add(fields) → id, update(id, patch), remove(id) }; const [settings, update] = useSettings({ unit: "kg" }); batch(async () => { … }) for several changes as one Undo; setSummary("3 of 4 habits today") for the line under the note's title in the list.
 - localStorage works and is kept the same way (synced), so code written for the web just works. sessionStorage lasts while the app is open; there's no IndexedDB.
@@ -114,9 +114,9 @@ The app can't reach the internet by itself. For live data, declare the hosts in 
 
 `<meta name="amber-needs" content='{"hosts": ["api.open-meteo.com"], "keys": [{ "name": "OpenWeather", "hosts": ["api.openweathermap.org"], "query": "appid={key}", "help": "Where to get one" }]}'>`
 
-Then call fetch(url, { key: "OpenWeather" }) from "@/lib/amber"; it returns { ok, status, body }. Keys live in Amber Notes › Settings › API Keys; the app and you never see their values. list_api_keys shows which exist. Walk the person through getting one (the site, the free plan, where the key is) and adding it there. Never ask for a key in the chat; if one is pasted, don't store or repeat it, and suggest they make a new one. Prefer services that need no key (api.open-meteo.com for weather). fetch("/src/data.json") reads the app's own files.
+Then call fetch(url, { key: "OpenWeather" }) from "@/lib/amber"; it returns { ok, status, body }. Keys live in Pinto Notes › Settings › API Keys; the app and you never see their values. list_api_keys shows which exist. Walk the person through getting one (the site, the free plan, where the key is) and adding it there. Never ask for a key in the chat; if one is pasted, don't store or repeat it, and suggest they make a new one. Prefer services that need no key (api.open-meteo.com for weather). fetch("/src/data.json") reads the app's own files.
 
-The device, through the system's own prompts: device.reminders, calendar, notify, photos, camera, contacts, location, maps, weather; on-device AI with ai.respond. Each returns { ok, … }.
+The device: device.openURL(url) opens a web, mail or phone link once the person agrees to it, share({ name, type, text }) exports a file, and device.photos.pick() and device.files.pick() let the person choose photos or files. Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and on-device AI are not available yet: don't build on them.
 
 ## Seeing your work
 
