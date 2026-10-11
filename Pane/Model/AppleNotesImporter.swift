@@ -82,6 +82,7 @@ struct AppleNotesImporter {
             let (marked, pictures) = Self.takePictures(from: html)
             var md = RichPaste.clean(RichTextToMarkdown.markdown(
                 fromHTML: marked, keepBlankLines: true, listItems: key.flatMap { store?.listItems(ofNote: $0) } ?? []))
+            if let key, let links = store?.links(ofNote: key) { md = Self.name(links, in: md) }
             var files: [Attachment] = []
             for (token, picture) in pictures {
                 var line = ""
@@ -108,6 +109,29 @@ struct AppleNotesImporter {
         summary.noteIDs = written.noteIDs
         summary.alreadyImported = written.alreadyImported
         return summary
+    }
+
+    // MARK: Links
+
+    /// Gives each named link its address back: the next place its words stand, in order, where
+    /// they aren't a link already. Words set partly in another style are left as they are.
+    nonisolated static func name(_ links: [AppleNoteText.Link], in markdown: String) -> String {
+        var md = markdown
+        var from = md.startIndex
+        for link in links {
+            let words = RichTextToMarkdown.escape(link.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            guard !words.isEmpty, !words.contains("\n") else { continue }
+            var search = from
+            while let r = md.range(of: words, range: search..<md.endIndex) {
+                if r.lowerBound > md.startIndex, md[md.index(before: r.lowerBound)] == "[" { search = r.upperBound; continue }
+                let linked = "[\(words)](\(link.url.replacingOccurrences(of: ")", with: "%29").replacingOccurrences(of: " ", with: "%20")))"
+                let start = md.distance(from: md.startIndex, to: r.lowerBound)
+                md.replaceSubrange(r, with: linked)
+                from = md.index(md.startIndex, offsetBy: start + linked.count)
+                break
+            }
+        }
+        return md
     }
 
     // MARK: Pictures

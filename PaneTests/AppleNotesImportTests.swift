@@ -92,8 +92,13 @@ import Testing
         <div>Photo next</div>
         <div><img style="max-width: 100%; max-height: 100%;" src="data:image/png;base64,\(pixel)"/><br></div>
         <div>After photo</div>
+        <div>the map<br></div>
         """
     }
+
+    /// "Links and photo" as Notes stores it: a typed address, a picture, and "the map" linked
+    /// to https://example.com/named with Edit, Add Link. The HTML above has only its words.
+    static let photoStored = "1F8B0800000000000013E360103AC5C2C120C02075984528D627332FBB5821312F45A12023BF249F2BA3A4A4A0D84A5F3FB52231B72027552F393F57BFA4B2203505ACA63CBF2805A83AAD24B5882B00A45E212FB5A284EBFDFE3D5C8E2041A8212519A90AB989055C52025C609B807681690D46B0082350C4550A44336A3041455C0518C1224C1ACC5011770111B00883060B54C40DAA864183554A8C8B0368E27F20E0079A0E672BC970497109AC2C959C716881FBBABE57333898F6551A0B3171440331B3961487809018078304A397C089ED5A6F6D77B8B6EF0D98537FD8E7EC3C2D630E49211190CCFA180397B71BDCDCA6047E96D9B87852889724CE40D192E090C1AE492B888311BB4C9211978A9191A393918B8BB3AE93ABB385AE89A993A9AEA5A1AB91AEB3ABB19BA98BB1918591859910574169524E66B25E415E7AC6DAAFEBAEB169C971F06037336303541E879D19877AD603E52D39D849F1625E626E6A4AC615B056095C460300E9CCE5414F020000"
 
     static func data(hex: String) -> Data {
         var out = Data(capacity: hex.count / 2)
@@ -194,6 +199,17 @@ import Testing
         #expect(md.contains("* Bullet a") && md.contains("1. Num a\n2. Num b"))
     }
 
+    @Test func readsNamedLinksFromTheStoredNote() {
+        #expect(AppleNoteText.links(inStored: Self.data(hex: Self.photoStored)) == [.init(text: "the map", url: "https://example.com/named")])
+        #expect(AppleNoteText.links(inStored: Self.data(hex: Self.weekendStored)).isEmpty)
+    }
+
+    @Test func namedLinksGetTheirAddressBackWhereTheirWordsStand() {
+        let links = [AppleNoteText.Link(text: "the map", url: "https://example.com/a b"), .init(text: "the map", url: "https://example.com/2"), .init(text: "gone", url: "https://example.com/3")]
+        #expect(AppleNotesImporter.name(links, in: "See the map and the map.\nThen the map.") == "See [the map](https://example.com/a%20b) and [the map](https://example.com/2).\nThen the map.")
+        #expect(AppleNotesImporter.name([links[1]], in: "[the map](https://x.example) the map") == "[the map](https://x.example) [the map](https://example.com/2)")
+    }
+
     @Test func damagedStoredTextReadsAsNothing() {
         #expect(AppleNoteText.listItems(inStored: Data()).isEmpty)
         #expect(AppleNoteText.listItems(inStored: Data([0x1F, 0x8B, 8, 0, 0, 0, 0, 0, 0, 0x13, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).isEmpty)
@@ -220,7 +236,7 @@ import Testing
         create table ZICCLOUDSYNCINGOBJECT (Z_PK INTEGER PRIMARY KEY, Z_ENT INTEGER, ZISPINNED INTEGER, ZTITLE1 TEXT);
         insert into ZICCLOUDSYNCINGOBJECT values (10, 12, 1, 'Weekend list'), (11, 12, 0, 'Links and photo');
         create table ZICNOTEDATA (Z_PK INTEGER PRIMARY KEY, ZNOTE INTEGER, ZDATA BLOB);
-        insert into ZICNOTEDATA values (3, 10, x'\(weekendStored)');
+        insert into ZICNOTEDATA values (3, 10, x'\(weekendStored)'), (4, 11, x'\(photoStored)');
         """
         #expect(sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK)
         return url
@@ -274,7 +290,8 @@ import Testing
         #expect(!photo.isPinned && photo.folder?.name == "Porto" && photo.folder?.parent?.name == "Travel", "a folder inside a folder stays inside it")
         let file = try #require(try context.fetch(FetchDescriptor<Pane.Attachment>()).first)
         #expect(file.isImage)
-        #expect(photo.body.contains("Photo next\n\(file.markdown)\nAfter photo"), "the picture sits where it was, on a line of its own")
+        #expect(photo.body.contains("Photo next\n\(file.markdown)\nAfter photo\n[the map](https://example.com/named)"), "the picture sits where it was, on a line of its own, and the link leads somewhere again")
+        #expect(photo.body.contains("\nhttps://example.com/typed and words after\n"), "a typed address stays as typed")
         #expect(try Data(contentsOf: FileStore.url(for: file.id, filename: file.filename)) == Data(base64Encoded: Self.pixel))
         try? FileManager.default.removeItem(at: FileStore.url(for: file.id, filename: file.filename).deletingLastPathComponent())
     }

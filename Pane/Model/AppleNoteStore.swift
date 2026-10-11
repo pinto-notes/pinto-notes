@@ -73,13 +73,22 @@ final class AppleNoteStore {
     /// The list items of the note with this primary key, in order. Empty when the note has no
     /// lists, is locked, or its text isn't stored the way we expect.
     func listItems(ofNote key: Int) -> [RichTextToMarkdown.ListItem] {
+        stored(ofNote: key).map(AppleNoteText.listItems(inStored:)) ?? []
+    }
+
+    /// The named links of the note with this primary key, in order. AppleScript hands a link
+    /// over as its words alone, without where it leads.
+    func links(ofNote key: Int) -> [AppleNoteText.Link] {
+        stored(ofNote: key).map(AppleNoteText.links(inStored:)) ?? []
+    }
+
+    private func stored(ofNote key: Int) -> Data? {
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, "select ZDATA from ZICNOTEDATA where ZNOTE = ?", -1, &stmt, nil) == SQLITE_OK else { return [] }
+        guard sqlite3_prepare_v2(db, "select ZDATA from ZICNOTEDATA where ZNOTE = ?", -1, &stmt, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(stmt) }
         sqlite3_bind_int64(stmt, 1, Int64(key))
-        guard sqlite3_step(stmt) == SQLITE_ROW, let bytes = sqlite3_column_blob(stmt, 0) else { return [] }
-        let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, 0)))
-        return AppleNoteText.listItems(inStored: data)
+        guard sqlite3_step(stmt) == SQLITE_ROW, let bytes = sqlite3_column_blob(stmt, 0) else { return nil }
+        return Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, 0)))
     }
 
     private static func strings(_ db: OpaquePointer?, _ sql: String) -> [String] {
@@ -93,13 +102,46 @@ final class AppleNoteStore {
 }
 
 /// Reads the text of one Apple note as its database stores it: gzip around a protocol buffer that
-/// holds the plain text and, run by run, each paragraph's style. Only list paragraphs are read.
+/// holds the plain text and, run by run, each paragraph's style and each link's address. Only
+/// list paragraphs and links are read.
 enum AppleNoteText {
-    static func listItems(inStored data: Data) -> [RichTextToMarkdown.ListItem] {
+    /// Words in a note that lead somewhere.
+    struct Link: Equatable {
+        var text: String
+        var url: String
+    }
+
+    private static func note(inStored data: Data) -> (units: [UInt16], runs: [Proto])? {
         guard let raw = gunzip(data),
               let document = Proto(raw).message(2), let note = document.message(3),
-              let text = note.bytes(2).flatMap({ String(data: $0, encoding: .utf8) }) else { return [] }
-        let units = Array(text.utf16)
+              let text = note.bytes(2).flatMap({ String(data: $0, encoding: .utf8) }) else { return nil }
+        return (Array(text.utf16), note.messages(5))
+    }
+
+    /// Links whose words aren't the address itself (a typed address stays as typed), in order.
+    static func links(inStored data: Data) -> [Link] {
+        guard let (units, runs) = note(inStored: data) else { return [] }
+        var links: [Link] = []
+        var at = 0
+        var lastEnd = -1
+        for run in runs {
+            let length = Int(run.varint(1) ?? 0)
+            defer { at += length }
+            guard let url = run.bytes(9).flatMap({ String(data: $0, encoding: .utf8) }), !url.isEmpty, at < units.count else { continue }
+            let text = String(decoding: units[at..<min(at + length, units.count)], as: UTF16.self)
+            // One link set in two styles is two runs: its words are joined again.
+            if lastEnd == at, let last = links.last, last.url == url {
+                links[links.count - 1].text += text
+            } else {
+                links.append(Link(text: text, url: url))
+            }
+            lastEnd = at + length
+        }
+        return links.filter { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) != $0.url && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    static func listItems(inStored data: Data) -> [RichTextToMarkdown.ListItem] {
+        guard let (units, runs) = note(inStored: data) else { return [] }
         var items: [RichTextToMarkdown.ListItem] = []
         var at = 0
         // A paragraph's style is that of the run its first character is in.
@@ -112,7 +154,7 @@ enum AppleNoteText {
             current = nil
             paragraphStart = true
         }
-        for run in note.messages(5) {
+        for run in runs {
             let length = Int(run.varint(1) ?? 0)
             let style = run.message(2)
             for unit in units[min(at, units.count)..<min(at + length, units.count)] {
