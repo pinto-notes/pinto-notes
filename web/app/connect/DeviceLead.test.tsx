@@ -59,10 +59,10 @@ describe("the signed-in screen", () => {
     }
   });
 
-  it("shows the notification in the server's own words, with the app's mark and name", () => {
+  it("shows the notification in the server's own words, with the app's name and no logo", () => {
     const html = screen();
     expect(text(html)).toContain("Pinto Notes now An AI connection request Open Pinto Notes to see it.");
-    expect(html).toContain('src="/mark-256.png"');
+    for (const lead of ["iphone", "mac", "thisMac", "thisIphone"] as const) expect(screen({ lead })).not.toContain("mark-256");
   });
 
   it("puts the number in the heading and the sentence: typed for apps before 1.2, compared from 1.2", () => {
@@ -106,7 +106,7 @@ describe("the signed-in screen", () => {
 describe("the parts every connect screen shares", () => {
   it("says what the app could do, once, and leaves the host to the frame", () => {
     // The frame names the host; the line says only what the app could do.
-    expect(text(renderToStaticMarkup(<RequestLine to="claude.ai" claimed="Claude" />))).toBe("It can read your notes, and edit them if you say so.");
+    expect(text(renderToStaticMarkup(<RequestLine to="claude.ai" claimed="Claude" />))).toBe("It can read your notes and change them when you ask.");
     expect(renderToStaticMarkup(<RequestLine to={null} />)).toBe("");
   });
 
@@ -118,12 +118,30 @@ describe("the parts every connect screen shares", () => {
   it("shows where access goes beside the form only on a page about one request, and never another app's mark", () => {
     const label = { claimed_name: "Claude", redirect_host: "claude.ai", loopback: false };
     const b = renderToStaticMarkup(<ConnectCard request label={label}><p>x</p></ConnectCard>);
-    expect(text(b)).toContain("Access goes to claude.ai");
-    expect(text(b)).toContain("Nothing is shared until you allow it.");
-    expect(text(b)).toContain("It calls itself “Claude”.");
+    expect(text(b)).toContain("Connect Claude to Pinto Notes? It can read your notes and change them when you ask.");
+    expect(text(b)).toContain("It goes to claude.ai. Allow it only if you started this.");
+    expect(text(b)).not.toContain("is the name it gave");
+    const local = renderToStaticMarkup(<ConnectCard request label={{ claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true }}><p>x</p></ConnectCard>);
+    expect(text(local)).toContain("Connect Codex to Pinto Notes? It can read your notes and change them when you ask. This is an app on this computer. Codex is the name it gave.");
     const a = renderToStaticMarkup(<ConnectCard label={label}><p>x</p></ConnectCard>);
     expect(a).not.toContain("<aside");
     for (const html of [a, b]) expect([...html.matchAll(/<img[^>]*src="([^"]+)"/g)].every((m) => m[1] === "/mark-256.png")).toBe(true);
+  });
+
+  it("shows the logo once on every connect page: in the top bar, not on the card or in the picture", () => {
+    const label = { claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true };
+    const device = <DeviceScreen lead="iphone" devices={{ iphone: true, mac: true }} number="42" action="compare" openLink="https://pintonotes.com/open/connect?request=x" onRecover={() => {}} />;
+    const pages = [
+      <ConnectCard><p>x</p></ConnectCard>, <ConnectCard request><p>x</p></ConnectCard>,
+      <ConnectCard request label={label}><p>x</p></ConnectCard>, <ConnectCard request label={label}>{device}</ConnectCard>,
+    ];
+    for (const page of pages) {
+      const html = renderToStaticMarkup(page);
+      // React also writes a preload <link> for the image; count what is drawn.
+      expect(html.match(/<(img|image)\b[^>]*mark-256/g)).toHaveLength(1);
+      expect(html.match(/<(img|image)\b/g)).toHaveLength(1);
+      expect(html.match(/<header[^>]*>[\s\S]*?<\/header>/)?.[0]).toContain("mark-256");
+    }
   });
 
   it("puts the site's logo at the top, linking home, and no other way out of the flow", () => {

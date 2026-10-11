@@ -49,8 +49,12 @@ struct ListOrder: Equatable, Sendable {
         }
     }
 
-    /// The date an item is listed under.
-    func date<Item: DatedListItem>(of item: Item) -> Date { key == .created ? item.listCreated : item.listDate }
+    /// The date an item is listed under, and the one its row shows: the date the list is sorted
+    /// by, as in Apple Notes. Sorted by title, that is the date edited.
+    func date<Item: DatedListItem>(of item: Item) -> Date { showsCreationDates ? item.listCreated : item.listDate }
+
+    /// Rows show when their note was made instead of when it was last edited.
+    var showsCreationDates: Bool { key == .created }
 }
 
 /// The list's order as chosen on this device, for every window's list.
