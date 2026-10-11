@@ -11,6 +11,9 @@ enum AppleSignIn {
     struct Credential: Equatable {
         var idToken: String
         var rawNonce: String
+        /// Your name, which Apple hands over only the first time you authorise the app with this
+        /// Apple ID (and only if you share it). It never appears in the ID token.
+        var name: String? = nil
     }
 
     enum Failure: Error, Equatable {
@@ -44,7 +47,7 @@ enum AppleSignIn {
                   let data = apple.identityToken, let token = String(data: data, encoding: .utf8) else {
                 return .failure(.failed("Apple didn't send a sign-in token. Try again."))
             }
-            return .success(Credential(idToken: token, rawNonce: rawNonce))
+            return .success(Credential(idToken: token, rawNonce: rawNonce, name: SignInName.from(apple.fullName)))
         case .failure(let error):
             return .failure(failure(for: error))
         }
