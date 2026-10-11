@@ -51,7 +51,7 @@ import Testing
         guard AppSnapshotTests.dir != nil else { return }
         let mode = dark ? "dark" : "light"
         func card(_ hover: Set<String>) -> some View {
-            SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onStartFresh: {}, onConnect: {}, onHide: {})
+            SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onSkip: {}, onConnect: {}, onHide: {})
                 .environment(\.hoverPreview, hover)
                 .frame(width: 320)
                 .padding(16)
