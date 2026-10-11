@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-// Opens a note's app the way Amber Notes does (the same CSP, theme, window.amber bridge, no network)
+// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge, no network)
 // in headless WebKit at the widths and color schemes asked for, and measures it: script errors,
 // overflow, contrast, small or faint text, unlabeled controls, an edit from the app, and probes
 // over changed notes. Used by the render service (server.ts, behind check_app and preview_app) and

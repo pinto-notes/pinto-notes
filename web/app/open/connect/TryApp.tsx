@@ -5,7 +5,7 @@ import { scanFragment } from "@/lib/connect";
 import styles from "../../connect/connect.module.css";
 import { appURL } from "@/lib/app-scheme";
 
-/// The "Open Amber Notes" button, and one try of the app's own scheme when the page loads. `href`
+/// The "Open Pinto Notes" button, and one try of the app's own scheme when the page loads. `href`
 /// is built on the server from a checked request id. A scanned QR code also carries the scan secret
 /// and key fingerprint in the fragment (#s=…&k=…), which never reaches the server: it's read here,
 /// and passed on only in that exact shape.

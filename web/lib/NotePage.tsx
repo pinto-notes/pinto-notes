@@ -69,8 +69,8 @@ export function NotePage({ slug, note, files, page, sealed = false, editHref = n
       ))}
     </nav>
   );
-  // Copies the whole note into the visitor's own Amber Notes, opened from this page. A sealed
-  // link (collaboration) offers Edit in Amber Notes instead, or nothing yet.
+  // Copies the whole note into the visitor's own Pinto Notes, opened from this page. A sealed
+  // link (collaboration) offers Edit in Pinto Notes instead, or nothing yet.
   const use = editHref
     ? <a className={s.use} href={editHref}>Edit in Amber Notes</a>
     : !sealed && APP_TEMPLATES.live && <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} auto>Use this note</OpenInApp>;

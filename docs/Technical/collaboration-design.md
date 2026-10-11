@@ -10,8 +10,8 @@ One Share sheet, built around one link per note:
 
 | People with the link | What opening it does | Account | Encrypted end to end |
 |---|---|---|---|
-| **Can view** (the default) | A read-only page in the browser, the note's app included, read only; in Amber Notes if they have it | Not needed | Yes: the key is in the link's fragment |
-| **Can edit** | The same page, plus "Edit in Amber Notes": opening it in the app adds them to the note as an editor, with their avatar in People | Needed to edit (they sign in if they must) | Yes: the fragment also carries the join secret; the server keeps a hash |
+| **Can view** (the default) | A read-only page in the browser, the note's app included, read only; in Pinto Notes if they have it | Not needed | Yes: the key is in the link's fragment |
+| **Can edit** | The same page, plus "Edit in Pinto Notes": opening it in the app adds them to the note as an editor, with their avatar in People | Needed to edit (they sign in if they must) | Yes: the fragment also carries the join secret; the server keeps a hash |
 | **Share as Template…** (its own item in the sheet) | A public page anyone can start their own copy from | Not needed | No, on purpose: public, with no personal data |
 
 The sheet, top to bottom (iPhone and Mac):
@@ -80,7 +80,7 @@ Email invites were the first design and are out of v1: someone who signs in with
 
 Switching the link to **Edit** turns the note into a shared note (its own key, `collab_share`) and publishes the join row (`collab_create_link`). Switching back to **View** deletes the join row (`collab_stop_link`): the link opens the read-only page again, and people already in the note stay until removed.
 
-Opening an Edit link in Amber Notes (the "Edit in Amber Notes" button on the page, or the universal link): the app proves the answer (`collab_open_link`), gets the sealed note key, opens it, seals it to its own identity key and data key, and joins as an editor (`collab_join_link`). It then appears in the owner's People with its avatar. Someone without the app gets the read-only page and the App Store; someone without an account signs in first.
+Opening an Edit link in Pinto Notes (the "Edit in Pinto Notes" button on the page, or the universal link): the app proves the answer (`collab_open_link`), gets the sealed note key, opens it, seals it to its own identity key and data key, and joins as an editor (`collab_join_link`). It then appears in the owner's People with its avatar. Someone without the app gets the read-only page and the App Store; someone without an account signs in first.
 
 A link makes a member of whoever holds it, as "anyone with the link" does everywhere; the sheet says so, People shows who joined, and Remove takes them out.
 
@@ -158,7 +158,7 @@ Where it shows:
 - **Toolbar avatars.** iPhone: in the navigation bar, left of the More button. Mac: next to Share. Solid 28 pt circles: the person's photo when they have one, otherwise white initials on their colour. Each has a 2 pt opaque border, pure white in light mode and the toolbar's own dark colour in dark mode (#191919 on iPhone, #272524 on the Mac, measured on screen), and each avatar's border cuts cleanly over the previous one. They overlap gently (about a fifth of a circle), at most three and then a solid "+2". No badge and no transparency. The stack is flattened into one picture before the toolbar's glass draws it (`drawingGroup`): otherwise the glass blends every circle with what's behind it, and the white cut between two avatars showed a tint of the one underneath (seen zoomed at 3x). Measured after the fix: the border is 6 px of #FFFFFF (or #191919) at 3x and the avatar colours land exactly as defined. Tapping opens Share. With nobody else here the button is a plain "person.2" glyph. VoiceOver reads "In this note: Sara Lind". A single avatar in a list row has no ring.
 - **Carets.** A 2 pt bar in the person's colour, exactly the line's height, and their selection tinted with a solid colour (their colour mixed 20% into the page, drawn behind the text). Their first name sits on a small solid flag above the line only when the line above is empty (or it's the first line), otherwise below it; it shows while they type or just after their caret moves and fades about 2.5 seconds later. Not hit-testable; you type through them.
 - **A badge on the avatar.** A lone photo in the toolbar read like your own profile, so a co-editor's avatar carries a small pencil whenever they're in the note (option B of three rendered; A, pencil only while typing, left a lone avatar bare whenever they paused, and C, a live dot plus the pencil, added a second symbol and was the busiest stack). After Emil's review the pencil is the heavy weight at about 60% of its badge, so it reads at real size. The badge is smaller (the circle is 36% of the avatar), in the person's own colour with a white pencil, never black, and on the lower-right edge of its own circle along the 45° diagonal, its centre on the edge so about half of it sits over the circle. It's drawn on a layer above all the circles, and in a stack the next avatar starts where the badge ends, so a badge never reads as the next person's. The cost is that a stack sits side by side with a small gap instead of overlapping. A white badge with a pencil in their colour was also rendered; it vanishes against a white toolbar in light mode. `PencilStyle` and `BadgeOption` keep the alternatives for comparison (`-pencilStyle white`, `-badgeOption A|C`).
-- **Photos.** Where a photo comes from in v1: Amber Notes accounts sign in with Apple or email, and neither gives a photo (Apple shares a name at most). The profile already supports one: `profiles.avatar_path` in the public `avatars` bucket under a random name, set in Settings › account with "Choose Photo…" (`ProfileStore.setPhoto`, already built), and `collab_members` returns it. For v1 that row stays where it is; the only addition is pointing to it when someone without a photo first shares a note. If Google sign-in is ever added, its picture URL becomes the default photo. The prototype shows Emil's real photo (the one in his emails) on his avatar in People and in Sara's toolbar; Sara has none and shows initials.
+- **Photos.** Where a photo comes from in v1: Pinto Notes accounts sign in with Apple or email, and neither gives a photo (Apple shares a name at most). The profile already supports one: `profiles.avatar_path` in the public `avatars` bucket under a random name, set in Settings › account with "Choose Photo…" (`ProfileStore.setPhoto`, already built), and `collab_members` returns it. For v1 that row stays where it is; the only addition is pointing to it when someone without a photo first shares a note. If Google sign-in is ever added, its picture URL becomes the default photo. The prototype shows Emil's real photo (the one in his emails) on his avatar in People and in Sara's toolbar; Sara has none and shows initials.
 - **Colours.** Six muted, earthy colours that sit beside the amber brand without competing: clay #A85A3C, sage #5E7A5A, dusk blue #4F6B87, plum #7E5878, teal #3F7774, olive #7A6F3A. Picked from the user id, the same on every device; white initials reach at least 4.7:1 on each. Amber is you (with dark brown initials) and AI edits.
 - **People, in Share.** Everyone in the note with role and state (Here now, Editing now, Not here), your own row in amber, Remove on each other row, and their safety code behind the row.
 
@@ -202,7 +202,7 @@ What changes compared with today:
 | | Today (`/n/<slug>`) | Sealed (`/s/<id>#<secret>`) |
 |---|---|---|
 | Server can read the copy | Yes | No |
-| Link previews (iMessage, Slack) | Title and first line | "A shared note · Amber Notes" only. An owner could choose to publish the title openly; not in v1 |
+| Link previews (iMessage, Slack) | Title and first line | "A shared note · Pinto Notes" only. An owner could choose to publish the title openly; not in v1 |
 | Reports and takedowns | We read the copy and act | A report can include the full link (the reporter has it), so we can read that one copy; without it we can only take the link down blind |
 | "Use this note" | Server hands the copy to the app | The page passes the secret to the app in the fragment of `ambernotes://copy-sealed/<id>#<secret>`; the app fetches and opens the copy itself |
 | The note's page | Not shown | Shown, read only, on the user-content domain |
@@ -218,7 +218,7 @@ Links already sent must keep working; a sealed link can't take over an old addre
 
 ### Pages on the web
 
-**No double titles.** When a note has an app, the app shows the note's title itself, so the page doesn't: the header becomes one quiet line under the Amber Notes mark, "Shared by Emil Wagman · Edited 5 October 2026", then the app. A note without an app keeps its title and byline. The same rule holds on the template page. (Apps showing the note's title, and `check_app` checking it, is the note-pages side.)
+**No double titles.** When a note has an app, the app shows the note's title itself, so the page doesn't: the header becomes one quiet line under the Pinto Notes mark, "Shared by Emil Wagman · Edited 5 October 2026", then the app. A note without an app keeps its title and byline. The same rule holds on the template page. (Apps showing the note's title, and `check_app` checking it, is the note-pages side.)
 
 A note's page is someone's HTML and JavaScript. It never runs on ambernotes.app:
 
@@ -249,7 +249,7 @@ Never: other notes, the page's stored data, files, key values, the owner's email
 
 **Why it isn't sealed.** A template is meant to be public, and sealing it would cost link previews for nothing. It's stored readable in `shared_templates` and reachable only by its id.
 
-**The page** (`web/app/t/[id]`) reads as something a person shared, never as part of our Templates gallery: the same quiet page as a shared note (`/n`, `/s`), outside the site's header and navigation, with the Amber Notes mark in its bar. Then "Shared by Emil Wagman", one "Use template" button with one short line beside it, "Adds your own copy to Amber Notes. Download", then the app, live and read only on the user-content domain (or, without an app, the note's title and text), and, when keys are needed, one line such as "Needs a Strava access token, which you add yourself." The footer has "Report this template", which emails hello@ambernotes.app with the template's id and link.
+**The page** (`web/app/t/[id]`) reads as something a person shared, never as part of our Templates gallery: the same quiet page as a shared note (`/n`, `/s`), outside the site's header and navigation, with the Pinto Notes mark in its bar. Then "Shared by Emil Wagman", one "Use template" button with one short line beside it, "Adds your own copy to Pinto Notes. Download", then the app, live and read only on the user-content domain (or, without an app, the note's title and text), and, when keys are needed, one line such as "Needs a Strava access token, which you add yourself." The footer has "Report this template", which emails hello@ambernotes.app with the template's id and link.
 
 It is kept out of sight, checked on the built site:
 
@@ -299,7 +299,7 @@ It deletes the template at once (the page and its Use template link say it isn't
 What is real:
 
 - The Share sheet (iPhone and Mac, light and dark): People with Remove (context menu, swipe) and Verify, one Share Link button, "People with the link: Can edit / Can view / Off", Share as Template. Measured at real size: avatars 28 pt in the toolbar (84 px on a 3x iPhone, 56 px on a 2x Mac), rings 1.5 pt, row avatars 32 pt.
-- The Edit-link round trip: Emil sets the link to Edit; Sara's app opens the link, proves the answer, opens the note key with the link's key, seals it to herself and joins; she appears in Emil's People with her avatar, and they type together. The same link in a browser shows the read-only page with "Edit in Amber Notes".
+- The Edit-link round trip: Emil sets the link to Edit; Sara's app opens the link, proves the answer, opens the note key with the link's key, seals it to herself and joins; she appears in Emil's People with her avatar, and they type together. The same link in a browser shows the read-only page with "Edit in Pinto Notes".
 - The identity keys, the sender proof on every note-key wrap, `self_wrap`, and a new key on Remove (server side tested; owner and member re-keying wired in the app, not recorded). Off is in the recording: the old link then says the note isn't shared anymore.
 - Automerge documents on both phones; every change sealed with the note key, sent, stored, relayed and merged; the first snapshot sealed by the owner.
 - The schema and its rules, under row-level security, in a real Postgres (PGlite) with every existing migration.
@@ -313,11 +313,11 @@ What stands in or is missing:
 - The backend is `scripts/collab-relay.ts`, a local stand-in for PostgREST and Realtime (Docker wasn't usable). The caller is named by a header, not a signed JWT.
 - Accounts are made by the relay; there's no sign-in. The data key is made at launch, not taken from `AccountCrypto`.
 - The typing is scripted inside the app through the text view's own input path (`insertText`, and Return through the editor's delegate so lists continue). No input events are posted and nothing drives the simulators from outside.
-- Sara gets Emil's link through a file the script puts in her app's container, standing in for a link sent in Messages (opening one from another app makes iOS ask "Open in Amber Notes?", which the script can't tap).
+- Sara gets Emil's link through a file the script puts in her app's container, standing in for a link sent in Messages (opening one from another app makes iOS ask "Open in Pinto Notes?", which the script can't tap).
 - Nothing persists: no SwiftData storage of the document, no offline queue, no compaction beyond the first snapshot and the re-key snapshot, no version history for shared notes. A View link opened in the app isn't handled yet (it says the link is view only; the product opens the read-only copy there too).
 - The Mac app compiles with all of it but doesn't draw other people's carets.
 - No AI path: the MCP server doesn't read shared notes yet. `@automerge/automerge` 3.5 was checked to run under Deno; not inside an edge function.
-- Sharing: the user-content "domain" is the relay's second port; the site reads the relay instead of Supabase. The page HTML in the demo is the note-pages branch's habit tracker, copied; this branch doesn't render pages in the app, so the template's copy shows its text there. The `amber-needs` line in it is declared only to show the "What it needs" section. Use template's button would make iOS ask "Open in Amber Notes?"; the script can't tap that, so it brings the app forward and hands it the same id through a file. Files in sealed links, "Use this note" for sealed links, switching old links, the screenshot fallback and template link previews aren't built.
+- Sharing: the user-content "domain" is the relay's second port; the site reads the relay instead of Supabase. The page HTML in the demo is the note-pages branch's habit tracker, copied; this branch doesn't render pages in the app, so the template's copy shows its text there. The `amber-needs` line in it is declared only to show the "What it needs" section. Use template's button would make iOS ask "Open in Pinto Notes?"; the script can't tap that, so it brings the app forward and hands it the same id through a file. Files in sealed links, "Use this note" for sealed links, switching old links, the screenshot fallback and template link previews aren't built.
 
 ## Plan and effort
 

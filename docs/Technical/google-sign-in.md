@@ -30,7 +30,7 @@ Both the app and the website use Supabase's OAuth flow for Google, with PKCE:
 The app runs the Google page in `ASWebAuthenticationSession` (`Pane/Sync/WebAuthSession.swift`),
 which catches the `ambernotes://` return itself, on iPhone, the Mac App Store build and the Mac
 download alike. It shares Safari's cookies, so someone signed in to Google picks an account
-instead of typing a password; iOS first asks "Amber Notes wants to use supabase.co to sign in".
+instead of typing a password; iOS first asks "Pinto Notes wants to use supabase.co to sign in".
 
 **Why not Google's GoogleSignIn SDK.** On iPhone and Mac the SDK also opens Google in
 `ASWebAuthenticationSession`, so the person sees the same thing. It would add a dependency, an
@@ -46,7 +46,7 @@ without the verifier, which never leaves the device). The app's own nonce code
 
 **Start fresh.** It needs a sign-in from the last 10 minutes. A Google sign-in adds an `oauth`
 entry to the token's `amr`, which `SignInRecency` counts. Google's chooser can pick any Google
-account, which may be a different Amber Notes account, so the app checks that the account after
+account, which may be a different Pinto Notes account, so the app checks that the account after
 the sign-in is the one that asked. If not, it signs that one out and deletes nothing.
 
 ## Accounts and linking

@@ -9,7 +9,7 @@ export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes
 // Checked on 4 October 2026 against Apple's pages: Add a table in Notes on Mac (macOS 27 and 26), Create
 // and format notes on iPhone (iOS 27), and Solve math in Notes on Mac. Menu names read from Notes on
 // macOS 26.5: MainMenu.nib (Format, Table, Option-Command-T; Convert to Text; Format, Math Results) and the
-// app's Shortcuts actions (Add Table to Note, which takes comma-separated values). Amber Notes' side
+// app's Shortcuts actions (Add Table to Note, which takes comma-separated values). Pinto Notes' side
 // checked in Pane/Editor/TableGrid.swift, Pane/Editor/TableChart.swift, Pane/Model/XLSXImporter.swift and
 // the read_table and log_table_row tools in supabase/functions/mcp/tools.ts.
 

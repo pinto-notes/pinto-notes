@@ -11,7 +11,7 @@ const PERSON_ID = `${SITE_URL}/#maker`;
 const APP_ID = `${SITE_URL}/#app`;
 const ORG_ID = `${SITE_URL}/#organization`;
 
-/// Where else Amber Notes is, so search engines don't mix it up with other apps of a similar name.
+/// Where else Pinto Notes is, so search engines don't mix it up with other apps of a similar name.
 const SAME_AS = [GITHUB_URL, ...(APP_STORE_LIVE ? [APP_STORE_URL] : [])];
 
 /// The company the maker works at, which also makes the Incredible AI assistant.
@@ -32,7 +32,7 @@ export const maker: Thing = {
   worksFor: { "@id": incredible["@id"] },
 };
 
-/// Amber Notes as the publisher of the site and the app, founded by its maker.
+/// Pinto Notes as the publisher of the site and the app, founded by its maker.
 export const organization: Thing = {
   "@type": "Organization",
   "@id": ORG_ID,
@@ -48,7 +48,7 @@ export const website: Thing = {
   "@type": "WebSite",
   "@id": `${SITE_URL}/#website`,
   name: SITE_NAME,
-  // Google's site-name fallbacks, so results say "Pinto Notes" rather than the domain. Amber Notes
+  // Google's site-name fallbacks, so results say "Pinto Notes" rather than the domain. Pinto Notes
   // and pintonotes.com are the old name and address, kept so searches for them still find the app.
   alternateName: ["Pinto Notes app", "Amber Notes", "ambernotes.app"],
   url: SITE_URL,
@@ -106,7 +106,7 @@ export function faqPage(items: { q: string; a: string[] }[], path: string): Thin
   };
 }
 
-/// A blog post as an Article, written by the maker and published by Amber Notes.
+/// A blog post as an Article, written by the maker and published by Pinto Notes.
 export function article({ title, description, path, date, updated, image }: { title: string; description: string; path: string; date: string; updated: string; image?: string }): Thing {
   return {
     "@type": "Article",

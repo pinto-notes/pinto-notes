@@ -4,7 +4,7 @@ import { EmptyState, Stage, ui } from "@/lib/ui";
 import { redirect } from "next/navigation";
 
 // The universal link behind a shared template's "Use template" (prototype):
-// https://ambernotes.app/open/shared-template/<id> opens Amber Notes, which fetches the template and
+// https://ambernotes.app/open/shared-template/<id> opens Pinto Notes, which fetches the template and
 // adds a fresh copy. A browser that lands here goes back to the template's page (/t/<id>), as
 // /open/template and /open/copy do since the open-card pages went (#212).
 export const dynamic = "force-dynamic";

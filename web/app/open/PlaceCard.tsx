@@ -4,8 +4,8 @@ import OpenApp from "./OpenApp";
 import s from "./open.module.css";
 
 /// Where an onboarding email's button lands when the link stays in the browser (no app here, or
-/// another device). It tries the app at once; if Amber Notes doesn't open within about 1.5 s, the
-/// card says how to do it by hand, with Open in Amber Notes and the downloads.
+/// another device). It tries the app at once; if Pinto Notes doesn't open within about 1.5 s, the
+/// card says how to do it by hand, with Open in Pinto Notes and the downloads.
 export default function PlaceCard({ href, title, lede, steps, links }: {
   /// The app's link for the place, e.g. ambernotes://connect-ai.
   href: string;

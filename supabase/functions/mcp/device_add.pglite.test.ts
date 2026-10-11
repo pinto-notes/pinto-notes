@@ -119,7 +119,7 @@ Deno.test("same account only: another account can't find, answer, pick up or eve
   const pg = await schemaDB();
   const a = await account(pg), other = await account(pg);
   const n = await request(pg, a.me);
-  // Someone else scans the code with their own Amber Notes: nothing is found, with either account's derivation.
+  // Someone else scans the code with their own Pinto Notes: nothing is found, with either account's derivation.
   assertEquals((await approve(pg, other.me, other.stored, n.qr)).found, false);
   assertEquals((await app(pg, other.me, `select * from public.device_add_find($1)`, [n.scan.answer])).length, 0);
   // Knowing the id and the answer isn't enough from another account.
