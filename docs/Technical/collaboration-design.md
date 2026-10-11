@@ -1,5 +1,7 @@
 # Collaboration and sharing: notes edited together, read-only links, and templates
 
+**Not built: the prototype was removed on 2026-10-11; this is the design if it is picked up again.** The app code this page names (`Pane/Collab`, the `-collab` launch arguments, `CollabCryptoTests`, the vendored Automerge, `scripts/collab-demo.sh` and `scripts/share-demo.sh`) is gone from the tree and is in git history before that date. Still in the tree: the database migrations, the server formats and their tests (`supabase/functions/_shared/collab.ts`, `collab-vectors.json`, `supabase/functions/mcp/collab.pglite.test.ts`), the local relay (`scripts/collab-relay.ts`) and the site's `/s` and `/t` prototype pages. Sharing as it ships (a readable link at `/n/<slug>`) is separate and is not described here.
+
 Status: design and prototype (branch `proto/collaboration`, 5 October 2026). Nothing here is live. The prototype runs iPhone simulators against a local stand-in for the backend.
 
 Revised twice the same day after Emil's review. Sharing is one sheet: the people in the note first, one **Share Link** button, and one line, "People with the link: Can edit / Can view / Off". The link itself is never shown. Email invites are out of v1 (people who sign in with Apple often hide their address). Avatars are calm solid circles with no badges and no "is editing" label (you see people editing in the note). Remote carets use stable Automerge cursors. Nothing in the presence UI is see-through.

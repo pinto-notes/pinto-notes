@@ -12,8 +12,9 @@ regexes = [
   # tests' KEY and OLD_KEY): made-up labels, not keys.
   '''^0123456789abcdef$''',
   '''^fedcba9876543210$''',
-  # Swift/CryptoKit type name — "P256.KeyAgreement.PrivateKey" is a type declaration in
-  # CollabCrypto.swift, not a key value. Gitleaks matches the word "Key" in the property name.
+  # Swift/CryptoKit type name: "P256.KeyAgreement.PrivateKey" is a type declaration in the app's
+  # code (AddDevice.swift, E2EE.swift), not a key value. Gitleaks matches the word "Key" in the
+  # property name.
   '''P256\.KeyAgreement\.PrivateKey''',
   # Release gate reports: metric names ("key": "perf.1.keyAskedAgain"), not keys.
   '''^(perf|security|storage|network)\.[A-Za-z0-9 .,:-]+$''',

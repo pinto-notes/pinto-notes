@@ -60,8 +60,6 @@ struct RootView: View {
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
             .noteSourceHandler()
-            // Collaboration (prototype): an invitation to someone else's note.
-            .modifier(CollabInviteAlert())
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
                 Button("OK") {}

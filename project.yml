@@ -15,10 +15,6 @@ packages:
   Markdown:
     url: https://github.com/swiftlang/swift-markdown
     from: 0.6.0
-  # Collaboration prototype: the text CRDT behind shared notes (docs/Technical/collaboration-design.md).
-  Automerge:
-    # 0.7.2 with a public Cursor initializer (Vendor/README.md).
-    path: Vendor/automerge-swift
   # Updates for the Mac download only (target PaneDirect); App Store builds never link it.
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
@@ -255,22 +251,15 @@ targets:
       # host can't read the checkout under ~/Documents without a privacy prompt).
       - path: supabase/functions/_shared/e2ee-vectors.json
         buildPhase: resources
-      - path: supabase/functions/_shared/collab-vectors.json
-        buildPhase: resources
       - path: supabase/migrations/20260929230000_tip_events.sql
         buildPhase: resources
       # The page that lists what the app reports, checked against the code (TelemetryTests).
       - path: docs/Technical/app-telemetry.md
         buildPhase: resources
-      # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
-      # link it (see Pane/Collab/CollabText.swift).
-      - path: Pane/Collab/CollabText.swift
     dependencies:
       - target: Pane
-      - package: Automerge
     settings:
       base:
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE
         GENERATE_INFOPLIST_FILE: YES
         "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
   PaneUITests:

@@ -1,4 +1,0 @@
-module automergeFFI {
-    header "automergeFFI.h"
-    export *
-}

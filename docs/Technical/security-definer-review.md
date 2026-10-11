@@ -56,8 +56,10 @@ These are the signed-in API: each acts on the caller's own rows through `auth.ui
 
 `collab_create_link`, `collab_members`, `collab_open_link` and `collab_stop_link` don't read
 `auth.uid()` themselves, but each checks `public.collab_role(p_note)` (the one-argument form, which
-does) or the link's answer hash before doing anything. The app calls all four. They need
-`authenticated`. They are on dev only; collaboration is a prototype behind `-collab`.
+does) or the link's answer hash before doing anything. They need
+`authenticated`. Nothing in the app calls them since 2026-10-11, when the collaboration prototype
+was removed from it (docs/Technical/collaboration-design.md); only the server's tests and the local
+relay do.
 
 ### Inside storage policies (3): keep
 

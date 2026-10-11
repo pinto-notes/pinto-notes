@@ -103,7 +103,7 @@ struct PaneApp: App {
         let session = AppSession(backend: backend, sync: sync, context: container.mainContext)
         _session = State(initialValue: session)
         // Not in the unit-test host or a capture of one screen, which never ran this.
-        if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery") { session.start() }
+        if !Self.isUnitTestHost, CaptureScreen.requested == nil { session.start() }
         // "What's new" after a major update: decided before anything is drawn or seeded, while
         // the library still says whether this is a fresh install.
         if !inMemory {
@@ -140,13 +140,6 @@ struct PaneApp: App {
         #endif
         // Note pages: compile the sandbox's rules and start a web view now, not when a page opens.
         if NoteApps.enabled, !PaneApp.isUnitTestHost, !ProcessInfo.processInfo.arguments.contains("-noPagePrewarm") { NotePageSandbox.prewarm() }
-        // Collaboration (prototype): `-collab <name>` against the local relay (scripts/collab-demo.sh).
-        if let collab = CollabStore.fromArguments() {
-            collab.context = container.mainContext
-            CollabStore.shared = collab
-            Task { @MainActor in await collab.start() }
-            CollabDemo.run(container.mainContext, store: collab)
-        }
         #if os(macOS)
         Capture.demoSequenceFromArguments(container.mainContext)
         Capture.importSequenceFromArguments()
@@ -179,19 +172,6 @@ struct PaneApp: App {
         WindowGroup(id: Self.mainWindowID) {
             if Self.isUnitTestHost {
                 UnitTestHostView()
-            } else if ProcessInfo.processInfo.arguments.contains("-collabGallery") {
-                // Collaboration prototype: avatars and Share with sample people (CollabGallery).
-                if ProcessInfo.processInfo.arguments.contains("-emailStill") {
-                    EmailStill().tint(Color(PColor.paneAccent))
-                } else if ProcessInfo.processInfo.arguments.contains("-badges") {
-                    BadgeGallery.fromArguments().tint(Color(PColor.paneAccent))
-                } else if ProcessInfo.processInfo.arguments.contains("-template") {
-                    CollabGallery.templateSheet().tint(Color(PColor.paneAccent))
-                } else if ProcessInfo.processInfo.arguments.contains("-share") {
-                    NavigationStack { ShareForm(title: "Team offsite", state: CollabGallery.shareWithPhoto) }.tint(Color(PColor.paneAccent))
-                } else {
-                    CollabGallery().tint(Color(PColor.paneAccent))
-                }
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
