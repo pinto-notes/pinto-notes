@@ -996,7 +996,7 @@ struct NoteDetailView: View {
         // A note with an app is just the app: no writing tools.
         if notePage == nil {
         ToolbarItemGroup {
-            formatMenu.disabled(hidden)
+            FormatButton(controller: controller).disabled(hidden)
             Button("Checklist", systemImage: "checklist", action: controller.checklist)
                 .help("Checklist (⇧⌘L)")
                 .disabled(hidden)
@@ -1017,40 +1017,6 @@ struct NoteDetailView: View {
             moreMenu
         }
         #endif
-    }
-
-    private var formatMenu: some View {
-        Menu {
-            Section {
-                Button("Title") { controller.heading(1) }
-                Button("Heading") { controller.heading(2) }
-                Button("Subheading") { controller.heading(3) }
-                Button("Body") { controller.heading(0) }
-            }
-            Section {
-                Button("Bold", systemImage: "bold", action: controller.bold)
-                Button("Italic", systemImage: "italic", action: controller.italic)
-                Button("Underline", systemImage: "underline", action: controller.underline)
-                Button("Strikethrough", systemImage: "strikethrough", action: controller.strikethrough)
-                Button("Monostyled", systemImage: "chevron.left.forwardslash.chevron.right", action: controller.code)
-            }
-            Section {
-                Button("Bulleted List", systemImage: "list.bullet", action: controller.bulletList)
-                Button("Dashed List", systemImage: "list.dash", action: controller.dashedList)
-                Button("Numbered List", systemImage: "list.number", action: controller.numberedList)
-                Button("Block Quote", systemImage: "text.quote", action: controller.blockQuote)
-            }
-            Section {
-                Button("Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }.disabled(note.isLocked)
-                Button("Link", systemImage: "link", action: controller.insertLink)
-            }
-        } label: {
-            Label("Format", systemImage: "textformat")
-        }
-        #if os(macOS)
-        .tint(.primary)
-        #endif
-        .accessibilityIdentifier("editor.format")
     }
 
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
@@ -1077,6 +1043,8 @@ struct NoteDetailView: View {
         .disabled(note.isLocked)
         #if os(macOS)
         .tint(.primary)
+        // No caret: it is a plain menu button, in one group with More, like Notes.
+        .menuIndicator(.hidden)
         #endif
         .help("Share")
         .paneTip(ShareLinkTip(), arrowEdge: .top)
@@ -1116,6 +1084,17 @@ struct NoteDetailView: View {
                 #endif
             }
             pageMenuItems
+            #if os(macOS)
+            // What goes into the text but isn't a text style: moved here from the Aa menu.
+            if !hidden {
+                Divider()
+                Button("Add Link", systemImage: "link", action: controller.insertLink)
+                    .accessibilityIdentifier("editor.addLink")
+                Button("New Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }
+                    .disabled(note.isLocked)
+                    .accessibilityIdentifier("editor.newSubNote")
+            }
+            #endif
             Divider()
             if note.isLocked {
                 if vault.isUnlocked {
@@ -1137,6 +1116,8 @@ struct NoteDetailView: View {
         }
         #if os(macOS)
         .tint(.primary)
+        .menuIndicator(.hidden)
+        .help("More")
         #endif
         #if os(macOS)
         .popover(isPresented: $movingNote, arrowEdge: .bottom) {
