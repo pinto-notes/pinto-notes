@@ -228,11 +228,10 @@ struct SidebarView: View {
     @State private var dropTarget: UUID?
     @State private var deletingFolder: Folder?
     @State private var showSettings = false
-    /// The Templates card was closed in this window (it's also kept per account, and on the server).
-    @State private var templatesClosedHere = false
+    /// A card at the foot was closed in this window (it's also kept per account, and on the server).
+    @State private var cardsClosedHere: Set<SidebarCard> = []
     @State private var sidebarHeight: CGFloat = 0
     @Environment(SetupStore.self) private var setup: SetupStore?
-    @Environment(\.templatesCardStyle) private var templatesStyle
     @Environment(\.dynamicTypeSize) private var templatesTypeSize
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
@@ -314,8 +313,8 @@ struct SidebarView: View {
         .background(Color(Palette.foldersGround).ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if showsTemplates {
-                    templatesCard
+                if let card = sidebarCard {
+                    cardView(card)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                 }
@@ -396,8 +395,8 @@ struct SidebarView: View {
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
-                    if showsTemplates {
-                        templatesCard
+                    if let card = sidebarCard {
+                        cardView(card)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 2)
                     }
@@ -449,18 +448,26 @@ struct SidebarView: View {
         }
     }
 
-    /// "Templates" above the account, for a signed-in account that hasn't closed it anywhere.
-    private var showsTemplates: Bool {
-        guard let backend, case .signedIn = backend.state else { return false }
-        return TemplatesPromo.shows(account: backend.userID, closedHere: templatesClosedHere || backend.userID.map { TemplatesPromo.isClosedHere($0) } ?? false,
-                                    progress: setup?.progress, sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
+    /// The one card above the account: Connect your AI, then Templates (`SidebarCard.pick`).
+    private var sidebarCard: SidebarCard? {
+        guard let backend, case .signedIn = backend.state, let account = backend.userID else { return nil }
+        return SidebarCard.pick(account: account, progress: setup?.progress,
+                                connectClosedHere: cardsClosedHere.contains(.connect) || SidebarCard.isClosedHere(.connect, account),
+                                templatesClosedHere: cardsClosedHere.contains(.templates) || SidebarCard.isClosedHere(.templates, account),
+                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
     }
 
-    private var templatesCard: some View {
-        TemplatesCard(style: templatesStyle) {
-            if let account = backend?.userID { TemplatesPromo.closeHere(account) }
-            withAnimation(.easeOut(duration: 0.2)) { templatesClosedHere = true }
-            Task { await setup?.mark("templates_closed") }
+    @ViewBuilder private func cardView(_ card: SidebarCard) -> some View {
+        let close = {
+            if let account = backend?.userID { SidebarCard.closeHere(card, account) }
+            withAnimation(.easeOut(duration: 0.2)) { _ = cardsClosedHere.insert(card) }
+            Task { await setup?.mark(card.mark) }
+        }
+        Group {
+            switch card {
+            case .connect: ConnectCard(onConnect: { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }, onClose: close)
+            case .templates: TemplatesCard(onClose: close)
+            }
         }
         .transition(.opacity)
     }

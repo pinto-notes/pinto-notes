@@ -15,20 +15,23 @@ struct SetupProgress: Equatable, Decodable {
     var dismissed = false
     var celebrated = false
     var templatesClosed = false
+    var connectCardClosed = false
 
     enum CodingKeys: String, CodingKey {
         case imported, connected, dismissed, celebrated
         case aiEdits = "ai_edits"
         case templatesClosed = "templates_closed"
+        case connectCardClosed = "connect_card_closed"
     }
 
-    init(imported: Bool = false, connected: Bool = false, aiEdits: Int = 0, dismissed: Bool = false, celebrated: Bool = false, templatesClosed: Bool = false) {
+    init(imported: Bool = false, connected: Bool = false, aiEdits: Int = 0, dismissed: Bool = false, celebrated: Bool = false, templatesClosed: Bool = false, connectCardClosed: Bool = false) {
         self.imported = imported
         self.connected = connected
         self.aiEdits = aiEdits
         self.dismissed = dismissed
         self.celebrated = celebrated
         self.templatesClosed = templatesClosed
+        self.connectCardClosed = connectCardClosed
     }
 
     /// Every key is optional: a server that doesn't know a mark yet simply doesn't send it.
@@ -40,6 +43,7 @@ struct SetupProgress: Equatable, Decodable {
         dismissed = try c.decodeIfPresent(Bool.self, forKey: .dismissed) ?? false
         celebrated = try c.decodeIfPresent(Bool.self, forKey: .celebrated) ?? false
         templatesClosed = try c.decodeIfPresent(Bool.self, forKey: .templatesClosed) ?? false
+        connectCardClosed = try c.decodeIfPresent(Bool.self, forKey: .connectCardClosed) ?? false
     }
 }
 
@@ -99,6 +103,7 @@ final class SetupStore {
         case "imported": progress?.imported = true
         case "dismissed": progress?.dismissed = true
         case "templates_closed": progress?.templatesClosed = true
+        case "connect_card_closed": progress?.connectCardClosed = true
         default: return
         }
         try? await service?.mark(step)

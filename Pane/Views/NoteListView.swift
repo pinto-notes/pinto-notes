@@ -449,6 +449,10 @@ struct NoteListView: View {
                             Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
                                 .accessibilityIdentifier("list.addFile")
                         }
+                        Divider()
+                        // Always here, not only in Settings.
+                        Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
+                            .accessibilityIdentifier("list.connectAI")
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }

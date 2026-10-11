@@ -152,13 +152,14 @@ import UIKit
     #endif
 
     /// The sidebar with the Templates card above the account row, and after it was closed.
-    static func sidebar(closed: Bool, style: TemplatesCard.Style = .strip, _ c: ModelContainer) -> some View {
+    /// The sidebar with the card at its foot: `connected` false shows Connect your AI, true
+    /// shows Templates.
+    static func sidebar(connected: Bool, _ c: ModelContainer) -> some View {
         let backend = Backend()
         backend.showSignedInForPreview(email: "sara@example.com", account: UUID())
         return NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
-            .environment(\.templatesCardStyle, style)
             .environment(backend)
-            .environment(SetupStore(progress: SetupProgress(dismissed: true, templatesClosed: closed)))
+            .environment(SetupStore(progress: SetupProgress(connected: connected, dismissed: true)))
             .modelContainer(c)
             .tint(Color(PColor.paneAccent))
     }
@@ -172,9 +173,14 @@ import UIKit
         ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         let mode = dark ? "dark" : "light"
-        try await AppSnapshotTests.render(Self.sidebar(closed: false, style: .strip, c).frame(width: 250, height: 640), name: "mac-6-templates-card-A-strip-\(mode)", dark: dark, wait: 1.0)
-        try await AppSnapshotTests.render(Self.sidebar(closed: false, style: .cover, c).frame(width: 250, height: 640), name: "mac-6-templates-card-B-cover-\(mode)", dark: dark, wait: 1.0)
-        try await AppSnapshotTests.render(Self.sidebar(closed: true, c).frame(width: 250, height: 640), name: "mac-6-templates-card-closed-\(mode)", dark: dark, wait: 1.0)
+        for (name, connected) in [("6-sidebar-card-connect", false), ("6-sidebar-card-templates", true)] {
+            try await AppSnapshotTests.render(Self.sidebar(connected: connected, c).frame(width: 250, height: 640), name: "mac-\(name)-\(mode)", dark: dark, wait: 1.0)
+        }
+        // Enlarged, to see the pictures.
+        for (name, card) in [("connect", AnyView(ConnectCard(onConnect: {}, onClose: {}))), ("templates", AnyView(TemplatesCard(onClose: {})))] {
+            let big = card.frame(width: 230).padding(10).tint(Color(PColor.paneAccent)).scaleEffect(2.5, anchor: .topLeading).frame(width: 625, height: 300, alignment: .topLeading)
+            try await AppSnapshotTests.render(big, name: "mac-6-sidebar-card-\(name)-enlarged-\(mode)", dark: dark, wait: 0.8)
+        }
     }
     #endif
 
@@ -213,13 +219,13 @@ import UIKit
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         // (At the accessibility text sizes the card stays away: the folders need the room.)
-        for (style, label, type) in [(TemplatesCard.Style.strip, "A-strip-default", DynamicTypeSize.large), (.cover, "B-cover-default", .large),
-                                     (.strip, "A-strip-larger", .xxxLarge), (.cover, "B-cover-larger", .xxxLarge)] {
+        for (connected, label, type) in [(false, "connect-default", DynamicTypeSize.large), (true, "templates-default", .large),
+                                         (false, "connect-larger", .xxxLarge), (true, "templates-larger", .xxxLarge)] {
             for dark in [false, true] {
                 let window = UIWindow(windowScene: scene)
                 window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
-                window.rootViewController = UIHostingController(rootView: Self.sidebar(closed: false, style: style, c).dynamicTypeSize(type))
+                window.rootViewController = UIHostingController(rootView: Self.sidebar(connected: connected, c).dynamicTypeSize(type))
                 window.isHidden = false
                 try? await Task.sleep(for: .seconds(1.0))
                 let format = UIGraphicsImageRendererFormat()
@@ -229,7 +235,7 @@ import UIKit
                 }
                 window.isHidden = true
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                try #require(image.pngData()).write(to: dir.appending(path: "iphone-6-templates-card-\(label)-\(dark ? "dark" : "light").png"))
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-6-sidebar-card-\(label)-\(dark ? "dark" : "light").png"))
             }
         }
     }

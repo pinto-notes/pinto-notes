@@ -3,7 +3,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import { asUser, newUser, schemaDB } from "../mcp/pglite.ts";
 
-type State = { imported: boolean; dismissed: boolean; celebrated: boolean; templates_closed: boolean; connected: boolean; ai_edits: number };
+type State = { imported: boolean; dismissed: boolean; celebrated: boolean; templates_closed: boolean; connect_card_closed: boolean; connected: boolean; ai_edits: number };
 
 Deno.test("closing the Templates card is kept per account, and survives the old reset", async () => {
   const pg = await schemaDB();
@@ -29,5 +29,19 @@ Deno.test("closing the Templates card is kept per account, and survives the old 
   let refused = false;
   try { await asUser(pg, me, `select public.pane_setup_mark('anything')`); } catch { refused = true; }
   assert(refused, "only known marks are accepted");
+  await pg.close();
+});
+
+Deno.test("closing the Connect your AI card is kept per account, apart from the Templates card", async () => {
+  const pg = await schemaDB();
+  const me = await newUser(pg), other = await newUser(pg);
+  const state = async (u: string) => (await asUser<{ s: State }>(pg, u, `select public.pane_setup_state() as s`))[0].s;
+  assertEquals((await state(me)).connect_card_closed, false);
+  await asUser(pg, me, `select public.pane_setup_mark('connect_card_closed')`);
+  const s = await state(me);
+  assert(s.connect_card_closed && !s.templates_closed, "one card closed, the other not");
+  assertEquals((await state(other)).connect_card_closed, false);
+  await asUser(pg, me, `select public.pane_setup_mark('reset')`);
+  assert((await state(me)).connect_card_closed, "an older app's reset leaves it closed");
   await pg.close();
 });
