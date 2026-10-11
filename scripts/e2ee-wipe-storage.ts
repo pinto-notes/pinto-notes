@@ -4,7 +4,7 @@
 //
 //   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… deno run --allow-env --allow-net scripts/e2ee-wipe-storage.ts [--dry-run]
 //
-// It runs only against the Amber Notes project (rodegaeruhyybqilrnpn) or a local stack, and prints
+// It runs only against the Pinto Notes project (rodegaeruhyybqilrnpn) or a local stack, and prints
 // counts only: no object names, no paths.
 
 const PROJECT_REF = "rodegaeruhyybqilrnpn";

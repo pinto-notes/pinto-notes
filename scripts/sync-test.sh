@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Runs the sync UI test on the iPhone simulator against the local Supabase stack.
-# Needs: supabase start, supabase functions serve mcp, and the dev user (scripts/dev-user.sh).
+# Needs: supabase start, supabase functions serve mcp, and the dev user (scripts/dev-user.ts).
 set -e
 cd "$(dirname "$0")/.."
 eval "$(supabase status -o env 2>/dev/null | grep -E '^(API_URL)=')"

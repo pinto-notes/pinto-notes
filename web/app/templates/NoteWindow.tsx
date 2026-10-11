@@ -1,7 +1,7 @@
 import { renderTemplate } from "@/lib/templates";
 import s from "./templates.module.css";
 
-/// A note as Amber Notes shows it on a Mac: the window, the folder in the title bar, the date, the
+/// A note as Pinto Notes shows it on a Mac: the window, the folder in the title bar, the date, the
 /// title, then the note. With `before`, the lines that differ from it are tinted, as the app tints
 /// what an AI just changed.
 export default function NoteWindow({ markdown, folder, date, before, label }: { markdown: string; folder: string; date: string; before?: string; label: string }) {

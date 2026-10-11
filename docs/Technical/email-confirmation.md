@@ -33,7 +33,7 @@ In the apps (Mac and iPhone, `Pane/Views/SignInView.swift`, state in
 5. Signing in to an account that was never confirmed (`email_not_confirmed`) opens the same
    screen and sends a new code at once.
 
-Errors say what to do: a wrong or expired code ("Check the newest email from Amber Notes, or
+Errors say what to do: a wrong or expired code ("Check the newest email from Pinto Notes, or
 press Resend code"), a resend too soon ("Wait a minute"), an email that couldn't be sent, and
 no connection.
 

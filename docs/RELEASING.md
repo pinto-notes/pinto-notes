@@ -22,7 +22,7 @@ What happens:
 | Job | Result |
 |---|---|
 | **iOS** | Archives the app, signs it through App Store Connect, and uploads it. The build appears in App Store Connect within about 15 minutes. **Nothing is submitted for review.** Open the version page, select the build, and press **Add for Review** yourself. |
-| **Mac** | Builds the Developer ID app, notarizes and staples it, makes the DMG, signs it for Sparkle, writes the appcast, and deploys the site. ambernotes.app/download then serves the new DMG, and installed copies offer the update within a day. A GitHub Release is created with the DMG attached. |
+| **Mac** | Builds the Developer ID app, notarizes and staples it, makes the DMG, signs it for Sparkle, writes the appcast, and deploys the site. pintonotes.com/download then serves the new DMG, and installed copies offer the update within a day. A GitHub Release is created with the DMG attached. |
 
 Version numbers: the tag sets the marketing version (`1.0.1`). Build numbers are UTC timestamps, so they always increase.
 
@@ -60,7 +60,7 @@ The same scripts run locally, reading keys from the gitignored `.secrets/`:
 The site reads the public version from `web/content/release.json`, which `scripts/release-mac.sh` (and the release workflow's Mac job) writes. Two things follow it by themselves, with no flag to flip:
 
 - **/changelog** shows no entry newer than that version (`web/lib/changelog.ts`). Add the entry when you cut the release; it appears when the Mac release is public.
-- **/connect** shows the QR code page only from 1.2 (`qrConnectLive` in `web/lib/connect.ts`). Apps before 1.2 can't scan the code or answer "Open Amber Notes on this Mac" from that page, so until then /connect shows the page before it (`ConnectFlowV1`: sign in, a notification, a number to type, or the recovery key). To test the QR page with a TestFlight build, add `&qr=1` to the connect address: `https://ambernotes.app/connect?request=<id>&qr=1`.
+- **/connect** shows the QR code page only from 1.2 (`qrConnectLive` in `web/lib/connect.ts`). Apps before 1.2 can't scan the code or answer "Open Pinto Notes on this Mac" from that page, so until then /connect shows the page before it (`ConnectFlowV1`: sign in, a notification, a number to type, or the recovery key). To test the QR page with a TestFlight build, add `&qr=1` to the connect address: `https://ambernotes.app/connect?request=<id>&qr=1`.
 
 So the Mac release of 1.2 turns the QR page on for everyone, iPhone included. Run it only once iPhone 1.2 is approved and released on the App Store, or people on iPhone 1.1.2 get a code they can't scan (the page's "Get a notification instead" still works for them). If the App Review notes describe the connect page, update them for the QR page at the same time.
 

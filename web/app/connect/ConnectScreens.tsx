@@ -56,7 +56,7 @@ export type SignInProps = {
   onApple: () => void; onGoogle?: () => void; busy: boolean; ready: boolean; failure: string | null;
 };
 
-/// "Get a notification instead": sign in so Amber Notes knows which account's devices to ask.
+/// "Get a notification instead": sign in so Pinto Notes knows which account's devices to ask.
 export function NotifySignInScreen({ to, onSubmit, onScan, ...signIn }: SignInProps & {
   to: string | null; onSubmit: (e: React.FormEvent) => void; onScan: () => void;
 }) {

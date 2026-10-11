@@ -38,7 +38,7 @@ const JOBS: Job[] = [
   { app: "Claude Code", glyph: "claude", kind: "term", ask: "Write today's standup into my notes", note: "Standup notes", did: "6 lines" },
 ];
 
-/// Three different jobs in three apps, each a request and what landed in Amber Notes.
+/// Three different jobs in three apps, each a request and what landed in Pinto Notes.
 export function AiSection() {
   const [ref, seen] = useFirstView<HTMLElement>();
   // Per card: how much of the request is typed, and whether the result is in. At rest: all complete.

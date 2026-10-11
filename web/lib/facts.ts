@@ -1,6 +1,6 @@
 import { APP_STORE_LIVE } from "./site";
 
-/// The plain facts about Amber Notes, written once so the home and help pages, /llms.txt and the
+/// The plain facts about Pinto Notes, written once so the home and help pages, /llms.txt and the
 /// blog posts say the same thing. Each sentence stands on its own, so it can be quoted without context.
 
 /// Where a new AI app connects: the address the site shows and hands out. The site's Vercel project
@@ -16,12 +16,12 @@ export const OLD_MCP_URL = "https://mcp.ambernotes.app";
 /// One sentence for the pages that give the address, so nobody thinks an older connection broke.
 export const OLD_MCP_URL_STAYS = `The older address, ${OLD_MCP_URL}, is the same server and keeps working, so anything you connected before needs no change.`;
 
-/// Amber Notes' listing in Claude's connector directory (published 2 October 2026). Its Connect to
+/// Pinto Notes' listing in Claude's connector directory (published 2 October 2026). Its Connect to
 /// Claude button adds the connector in one step; the custom-connector address is the fallback.
 /// claude.ai doesn't hand /directory links to the iPhone app, so on a phone this opens in the browser.
 export const CLAUDE_DIRECTORY_URL = "https://claude.ai/directory/amber-notes";
 
-/// One sentence that tells Amber Notes apart from the other apps with a similar name.
+/// One sentence that tells Pinto Notes apart from the other apps with a similar name.
 export const WHAT_IT_IS =
   "Pinto Notes is a free, open-source notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit, with your approval.";
 

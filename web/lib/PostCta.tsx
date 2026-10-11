@@ -5,11 +5,11 @@ import { mailLink, sendLink } from "./platform";
 import { APP_STORE_LIVE, APP_STORE_URL, SITE_URL } from "./site";
 import s from "./post-parts.module.css";
 
-/// A post's one call to action, at the end of its "How Amber Notes helps" section. Every link in it
+/// A post's one call to action, at the end of its "How Pinto Notes helps" section. Every link in it
 /// names the post, where in the post it sits and what it does (data-cta…), and lib/posthog.ts sends
 /// that as blog_cta_clicked when it's clicked. A Mac gets the download, which also counts as
 /// download_mac_clicked with the post's path. An iPhone is told where the iPhone app stands, and
-/// anyone else that Amber Notes is for iPhone and Mac; both can send themselves the link. The page
+/// anyone else that Pinto Notes is for iPhone and Mac; both can send themselves the link. The page
 /// says which before first paint (lib/platform.ts), so nothing flashes or moves.
 export function PostCta({ slug, position, title, children, appStoreLive = APP_STORE_LIVE }: {
   slug: string; position: string; title: string; children: React.ReactNode; appStoreLive?: boolean;

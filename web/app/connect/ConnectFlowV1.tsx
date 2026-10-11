@@ -17,7 +17,7 @@ import { DeviceScreen } from "./DeviceLead";
 import styles from "./connect.module.css";
 
 // The connect page as it was before the QR code (ConnectFlow.tsx): sign in, a notification on your
-// devices, a number to type there, "Open Amber Notes" for the app on this computer, or the
+// devices, a number to type there, "Open Pinto Notes" for the app on this computer, or the
 // recovery key. Apps before 1.2 can't scan the code, so /connect shows this until 1.2 is public
 // (lib/connect.ts, qrConnectLive). Delete it, its test and that switch once 1.2 is the oldest app
 // in use. The server keeps this flow either way: it is also the QR page's "Get a notification instead".
@@ -78,7 +78,7 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
   const revealed = useRef(false);
   /// The two digits to type on the device, once the device's nonce is in and Np is revealed.
   const [number, setNumber] = useState<string | null>(null);
-  // Where the account has Amber Notes (from /connect/ask), and so the one device the page names.
+  // Where the account has Pinto Notes (from /connect/ask), and so the one device the page names.
   const [devices, setDevices] = useState<Devices | null>(null);
   const [lead, setLead] = useState<Lead>("any");
   const expiresAt = useRef<number | null>(null);
@@ -86,7 +86,7 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
   const mcp = functionURL(supabaseURL);
   const base = supabaseURL.replace(/\/+$/, "");
 
-  // "Open it" for Amber Notes on this Mac, only on a Mac: known once the page runs.
+  // "Open it" for Pinto Notes on this Mac, only on a Mac: known once the page runs.
   const [onMac, setOnMac] = useState(false);
   useEffect(() => {
     setOnMac(isMacBrowser(navigator.platform, navigator.userAgent, navigator.maxTouchPoints));

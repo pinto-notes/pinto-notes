@@ -1,0 +1,26 @@
+name: ci timing
+
+# Every Monday: how long CI took, job by job and step by step, in this run's summary. It fails
+# when the week's runs took longer than their limit (median, created to done), so a slow creep is
+# seen: 12 minutes for a pull request's run (one Mac job, the tests for the change), 20 for the
+# run after a merge (everything, five Mac jobs side by side). On 11 October 2026 they took 8 and
+# 13. Run it by hand any time (Actions > ci timing > Run workflow).
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  timing:
+    name: CI timing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The last 60 runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/timing.py 60 --limit-pr 12 --limit-merge 20

@@ -9,7 +9,7 @@ import { startPostHog } from "./posthog-client";
 /// Website usage with PostHog (lib/posthog.ts). SiteAnalytics renders this only on public pages,
 /// and only when the build has a key. Named clicks and scroll depth are sent from here; page views,
 /// page leaves and other link and button clicks by PostHog itself. Events the page names itself, such
-/// as whether Use template opened Amber Notes (app/OpenInApp.tsx), arrive as a window event.
+/// as whether Use template opened Pinto Notes (app/OpenInApp.tsx), arrive as a window event.
 export default function PostHogAnalytics({ apiKey, host, path }: { apiKey: string; host: string; path: string }) {
   useEffect(() => {
     let posthog: PostHog | null = null;

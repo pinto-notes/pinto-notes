@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Amber Notes offline in the iPhone simulator (PaneUITests/OfflineUITests), against a local
+# Pinto Notes offline in the iPhone simulator (PaneUITests/OfflineUITests), against a local
 # Supabase stack, never production. Light, then dark. Screenshots go to .shots/<run>/<appearance>.
 #   API_URL=http://127.0.0.1:56421 SERVICE_KEY=<local secret key> scripts/offline-ios.sh [run]
 # The stack needs every migration (`supabase start` from this checkout). Makes the account

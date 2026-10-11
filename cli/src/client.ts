@@ -1,6 +1,6 @@
 // A small MCP client over streamable HTTP, on fetch: initialize, tools/list and tools/call, as
 // JSON-RPC in POST requests, answered as JSON or as a server-sent event stream (both are in the
-// spec; the Amber Notes server answers JSON). The token rides in the Authorization header and never
+// spec; the Pinto Notes server answers JSON). The token rides in the Authorization header and never
 // reaches a log line or an error message.
 export const VERSION = "0.2.0";
 const PROTOCOL = "2025-06-18";
