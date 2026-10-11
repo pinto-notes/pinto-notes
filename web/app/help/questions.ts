@@ -38,7 +38,7 @@ export const FAQ: QA[] = [
     "Yes. Your notes live in the cloud. Sign in with the same account on your Mac and iPhone, and a change on one shows up on the other in about a second, even while you're typing.",
   ] },
   { id: "new-device", q: "I have a new iPhone or Mac. How do I get my notes?", a: [
-    "Sign in, and your notes open. Nothing else is needed, and there is no wait after a password reset. Every device of yours shows \"A new device opened your notes\", and we email you.",
+    "Sign in, and your notes open. Nothing else is needed, and there is no wait after a password reset. If the device has been signed in for more than an hour without your notes, it asks you to sign in once more. Every device of yours shows \"A new device opened your notes\", and we email you.",
     "With Advanced protection on, a new device needs your key first: from iCloud Keychain, from a device that has your notes (Settings → Security → Add a device), or from your recovery key.",
     "If your account is from before signing in could open your notes, the app asks you once which way you want it. Until you answer, a new device is added as with Advanced protection.",
   ] },

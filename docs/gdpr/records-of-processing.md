@@ -50,7 +50,7 @@ Vercel's Hobby terms also restrict Hobby to non-commercial use.
 - TLS everywhere; Supabase encrypts storage at rest (AES-256).
 - Row-level security on every table; a user can only read and write their own rows.
 - Locked notes are end-to-end encrypted on device (AES-256-GCM, PBKDF2).
-- The copy of an account's key (row 14) is sealed with AES-256-GCM under a secret that exists only in the `key` function's environment, never in the database; no API role can read the table. A dump or backup of the database alone opens nothing; we hold both the secret and the database, so we can open a standard account's notes. An account with Advanced protection on has no copy.
+- The copy of an account's key (row 14) is sealed with AES-256-GCM under a secret that is a function secret of the project: every Edge Function has it in its environment, only the `key` function uses it, and it is never in the database; no API role can read the table. A dump or backup alone does not open the sealed copy. A recent one holds refresh tokens, and a session signed in to in the last hour can fetch the key as a device would; we hold both the secret and the database, so we can open a standard account's notes. An account with Advanced protection on has no copy.
 - Passwords (bcrypt, by Supabase Auth), AI tokens and OAuth codes are stored only as SHA-256 hashes.
 - IP addresses are never stored in the clear by our code: rate limits use a daily-keyed HMAC, and
   reports use a monthly-keyed HMAC blanked after 30 days.

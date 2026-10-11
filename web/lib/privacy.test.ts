@@ -98,7 +98,7 @@ describe("privacy copy", () => {
       expect(text).toMatch(/could open (them|your notes) if (we|it) had to/);
       expect(text).toMatch(/Advanced protection/);
     }
-    expect(LIMITS.map((i) => i.text).join(" ")).toMatch(/A copy of the database alone opens nothing/);
+    expect(LIMITS.map((i) => i.text).join(" ")).toMatch(/The sealed copy can't be opened with a copy of the database alone\. A recent copy of the database also holds sign-in sessions/);
     expect(WHO_CAN_SEE.map((i) => i.label + " " + i.text).join(" ")).toMatch(/Anyone who can sign in as you, unless Advanced protection is on/);
   });
 
@@ -108,8 +108,9 @@ describe("privacy copy", () => {
       "Whether your account is standard or has Advanced protection on.",
       "A log of each time our copy was stored, fetched by a device or removed, and each time a request for it was refused: when, and the kind of device. We keep it for 12 months.",
       "We store the copy for one purpose: so that signing in opens your notes on a new device, with no other device and no recovery key.",
-      "No app and no other part of our service can read the table it is kept in.",
-      "A copy or a backup of the database alone opens nothing, because the secret isn't in it.",
+      "The secret is a setting that every part of our server can read, so a fault in any part of our server could expose the copies.",
+      "The sealed copy can't be opened with a copy or a backup of the database alone, because the secret isn't in it.",
+      "a session from a sign-in in the last hour can get your key as a device of yours would.",
       "Turning it on deletes our copy at once.",
       "The app asks such an account once",
       "every device of yours shows the notice \"A new device opened your notes\", and we send an email to your account's address",
@@ -141,7 +142,7 @@ describe("privacy copy", () => {
     const claim = /end[- ]to[- ]end|\b(we|it|Pinto Notes) can't (read|open|see)\b|can't (read|open) (your notes|them)\b/i;
     // True in both kinds of account: someone holding only a copy of the database, and what an AI
     // can do with a locked note.
-    const either = /only a copy of the database|^It can't read, search or change them\.$/;
+    const either = /only an old copy of the database|^It can't read, search or change them\.$/;
     const claims = sentences([...siteText, policy]).filter((t) => claim.test(t));
     expect(claims.length).toBeGreaterThan(8);
     for (const t of claims) if (!either.test(t)) expect(t, t).toMatch(/Advanced protection/);

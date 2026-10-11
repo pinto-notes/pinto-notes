@@ -39,7 +39,7 @@ export default function Page() {
         Who holds the key is your choice. By default we keep a locked copy of it so that signing in opens your notes on a new
         device, with no other device and no recovery key. That means we could open your notes if we had to, for example under a
         court order, and so could someone who gets into your account. The copy is sealed with a secret that isn&apos;t in the
-        database, so a copy of the database alone opens nothing, but we hold both.
+        database, so the sealed copy can&apos;t be opened with the database alone, but we hold both.
       </p>
       <p>
         Turn on Advanced protection, in Settings, Security, and we delete our copy. With Advanced protection on, your notes are
@@ -74,12 +74,12 @@ export default function Page() {
 
       <h2>The limits</h2>
       <ul>
-        <li><strong>Our copy of your key.</strong> Unless Advanced protection is on, we hold a copy of it, sealed with a secret kept outside the database. We hold both, so we could open your notes, and so could someone who took over our hosting account. A copy of the database alone opens nothing.</li>
+        <li><strong>Our copy of your key.</strong> Unless Advanced protection is on, we hold a copy of it, sealed with a secret kept outside the database. We hold both, so we could open your notes, and so could someone who took over our hosting account. The sealed copy can&apos;t be opened with a copy of the database alone. A recent copy of the database also holds sign-in sessions, though, and a session from a sign-in in the last hour can get your key as a device of yours would.</li>
         <li><strong>Signing in.</strong> Unless Advanced protection is on, anyone who can sign in as you can open your notes, also right after resetting your password from your mailbox. The notice on your devices and the email tell you it happened. They don&apos;t stop it.</li>
         <li><strong>AI requests.</strong> While an AI works, our server handles the text it asks for, and our hosts (Vercel and Supabase) carry that text on its way. Neither stores it, but a changed server could copy it. Disconnecting ends this at once.</li>
         <li><strong>The recovery key in the browser.</strong> Approving on pintonotes.com with your recovery key runs our code in your browser. It never stores or sends the key, but a changed page could read it. Approve from your iPhone or Mac when you can.</li>
         <li><strong>No key rotation yet.</strong> Your notes&apos; key stays the same for the life of your account.</li>
-        <li><strong>The database.</strong> Someone with only a copy of it can&apos;t read your notes. Someone running it could roll a note back to an earlier encrypted version, or hide notes from your devices. Where we keep a copy of your key, they could also sign in as you and get it.</li>
+        <li><strong>The database.</strong> Someone with only an old copy of it can&apos;t read your notes. A recent copy holds sign-in sessions, and one from a sign-in in the last hour can get your key where we keep a copy. Someone running it could roll a note back to an earlier encrypted version, or hide notes from your devices. Where we keep a copy of your key, they could also sign in as you and get it.</li>
         <li><strong>Shared notes.</strong> A note you share as a web page is published as a readable copy while it&apos;s shared.</li>
       </ul>
       <p>Some details also stay readable to us, including:</p>
