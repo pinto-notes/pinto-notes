@@ -59,6 +59,59 @@ struct SidebarHeader: View {
 }
 #endif
 
+/// A sidebar row's name and what trails it (its count). At the accessibility text sizes on iPhone
+/// and iPad the count goes under the name and the icon steps aside, so the name has the row's
+/// width and breaks between words instead of between letters.
+struct SidebarRowText<Trailing: View>: View {
+    let title: String
+    @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        #if os(iOS)
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                trailing
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            beside
+        }
+        #else
+        beside
+        #endif
+    }
+
+    private var beside: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            trailing
+        }
+    }
+}
+
+private struct SidebarRowLabel: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if typeSize.isAccessibilitySize {
+            content.labelStyle(.titleOnly)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
+extension View {
+    func sidebarRowLabel() -> some View { modifier(SidebarRowLabel()) }
+}
+
 enum SidebarStyle {
     #if os(macOS)
     static let iconFont = Font.system(size: 17, weight: .regular)
@@ -210,7 +263,10 @@ struct SidebarView: View {
         #endif
         #if os(macOS)
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
-        .safeAreaInset(edge: .top, spacing: 0) { SidebarHeader() }
+        // A bar, not a plain inset: the folders scrolled under it showed through its words (and
+        // through the account row at the foot, where a folder's name and the email ran together).
+        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader() }
+        .scrollEdgeEffectStyle(.hard, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
@@ -269,7 +325,7 @@ struct SidebarView: View {
             #endif
         }
         #if os(macOS)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn(let email) = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     OfflineLine(sync: sync)
@@ -307,6 +363,8 @@ struct SidebarView: View {
                 #endif
             Button("Cancel", role: .cancel) {}
             Button(renaming == nil ? "Create" : "Save", action: commitName)
+                // Nothing to create or save without a name (it used to close the alert and do nothing).
+                .disabled(nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 // On iPhone the default button of an alert is filled system blue under the app's
                 // amber label, which can't be read: Return on the keyboard saves instead.
                 #if os(macOS)
@@ -319,9 +377,7 @@ struct SidebarView: View {
 
     private func row(_ title: String, icon: String, count: Int, files: Int = 0) -> some View {
         Label {
-            HStack {
-                Text(title)
-                Spacer()
+            SidebarRowText(title: title) {
                 Text(count + files, format: .number)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -329,6 +385,7 @@ struct SidebarView: View {
         } icon: {
             SidebarIcon(name: icon)
         }
+        .sidebarRowLabel()
         .rowAccessibility(title, count: count, files: files)
         .hoverRow(title, reach: Hover.sidebarReach())
     }
@@ -372,6 +429,15 @@ struct SidebarView: View {
     }
 }
 
+/// Hiding or showing the sidebar hands the split view's columns over again, and a view that holds
+/// an action can't be compared, so the folders were worked out again on every toggle: this view,
+/// then every folder row. Nothing it is given changes what it shows: the selection reaches it
+/// through its binding, the folders and counts through its queries, and the action is the same
+/// action. So two of them are always equal.
+extension SidebarView: @MainActor Equatable {
+    static func == (a: SidebarView, b: SidebarView) -> Bool { true }
+}
+
 /// A folder row with its sub-folders; accepts dropped notes and folders. Not an equatable view:
 /// skipping its updates kept the sidebar's selection from following some clicks on folder rows.
 private struct FolderTree: View {
@@ -391,6 +457,9 @@ private struct FolderTree: View {
     @State private var expanded = true
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("FolderTree")
+        #endif
         if folder.liveChildren.isEmpty {
             label
         } else {
@@ -406,9 +475,7 @@ private struct FolderTree: View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth)) { hovering in
             Label {
-                HStack {
-                    Text(folder.name)
-                    Spacer()
+                SidebarRowText(title: folder.name) {
                     if hovering {
                         RowMenuButton(help: "Folder options") { menuItems }
                             .accessibilityHidden(true)
@@ -422,6 +489,7 @@ private struct FolderTree: View {
                 SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder")
                     .contentTransition(.symbolEffect(.replace))
             }
+            .sidebarRowLabel()
             .rowAccessibility(folder.name, count: folder.liveNotes.count, files: files[folder.id] ?? 0)
         }
         .tag(Scope.folder(folder.id))

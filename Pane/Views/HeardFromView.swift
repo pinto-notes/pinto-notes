@@ -11,6 +11,7 @@ struct HeardFromView: View {
     @State private var contentHeight: CGFloat = 0
     @State private var words = ""
     @FocusState private var fieldFocused: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// `typing`: captures can open it with the "Something else" field showing.
@@ -68,7 +69,9 @@ struct HeardFromView: View {
         #if os(macOS)
         .frame(width: 420, height: fittedHeight)
         #else
-        .presentationDetents(typingOther || contentHeight == 0 ? [.large] : [.height(fittedHeight)])
+        // At the accessibility text sizes the answers don't fit a fitted sheet: it takes the screen and scrolls.
+        .presentationDetents(typingOther || contentHeight == 0 || typeSize.isAccessibilitySize ? [.large] : [.height(fittedHeight)])
+        .roomySheet()
         #endif
         .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: typingOther)
         // The amber pill shows for a moment, then the sheet goes.

@@ -3,7 +3,8 @@ import SwiftData
 import ZIPFoundation
 
 /// Export your notes: everything in the library as markdown files in your folders, with the files
-/// they hold, in one zip.
+/// they hold and the files kept in folders on their own, in one zip. Every folder is there, also
+/// one with nothing in it.
 ///
 /// It's made on the device, from the local library: the notes are end-to-end encrypted, so the
 /// server can't read them to export them for you. Links between notes and to files point at the
@@ -45,12 +46,45 @@ enum NoteExport {
         var isEmpty: Bool { notes.isEmpty && templates.isEmpty }
     }
 
+    /// The day in the export's name, as the person's own calendar has it (it was UTC's: an export
+    /// made at 01:20 on the 11th was named for the 10th).
+    static func stamp(_ now: Date, timeZone: TimeZone = .current) -> String {
+        now.formatted(Date.ISO8601FormatStyle(timeZone: timeZone).year().month().day())
+    }
+
+    /// What the export made, in a sentence or two, for under the button.
+    static func summary(_ made: Result) -> String {
+        var parts = ["Exported \(made.notes) \(made.notes == 1 ? "note" : "notes") and \(made.files) \(made.files == 1 ? "file" : "files")."]
+        if made.skippedLocked > 0 { parts.append("Unlock your locked notes to include them.") }
+        if made.missingFiles > 0 { parts.append("\(made.missingFiles) \(made.missingFiles == 1 ? "file was" : "files were") left out.") }
+        return parts.joined(separator: " ")
+    }
+
+    /// An export saved without some files (not on this device, and they couldn't be fetched):
+    /// what to tell the person, plainly. Nil when every file is in it.
+    static func leftOut(_ made: Result) -> (title: String, message: String)? {
+        guard made.missingFiles > 0 else { return nil }
+        let one = made.missingFiles == 1
+        return ("\(made.missingFiles) \(one ? "file isn\u{2019}t" : "files aren\u{2019}t") in the export",
+                "\(one ? "It isn\u{2019}t" : "They aren\u{2019}t") on this \(InstallID.kind) and couldn\u{2019}t be downloaded. Connect to the internet and export again to include \(one ? "it" : "them").")
+    }
+
+    static let leftOutFile = "Files not in this export.txt"
+
+    /// The list inside an export that is missing files: what, where each belongs, and how to get them.
+    static func leftOutText(_ paths: [String]) -> String {
+        let one = paths.count == 1
+        return "\(one ? "This file wasn\u{2019}t" : "These files weren\u{2019}t") on the device when the export was made and couldn\u{2019}t be downloaded, so \(one ? "it isn\u{2019}t" : "they aren\u{2019}t") in this export. \(one ? "Its folder is" : "Their folders are") here, without \(one ? "it" : "them").\n\n"
+            + paths.sorted().map { "- \($0)" }.joined(separator: "\n")
+            + "\n\nTo include \(one ? "it" : "them"), connect to the internet and export again.\n"
+    }
+
     /// Writes the export as a zip in a temporary folder. `fetch` brings a file's bytes to this
     /// device when they're only in the cloud (sync's download).
-    static func make(_ context: ModelContext, vault: NoteVault? = nil, now: Date = .now, sharing: Sharing = .init(),
+    static func make(_ context: ModelContext, vault: NoteVault? = nil, now: Date = .now, timeZone: TimeZone = .current, sharing: Sharing = .init(),
                      fetch: @MainActor (Attachment) async -> Bool = { _ in false }) async throws -> Result {
         let vault = vault ?? NoteVault.shared
-        let stamp = now.formatted(.iso8601.year().month().day())
+        let stamp = Self.stamp(now, timeZone: timeZone)
         let work = FileManager.default.temporaryDirectory.appending(path: "Pinto Notes export \(UUID().uuidString)", directoryHint: .isDirectory)
         let top = work.appending(path: "Pinto Notes \(stamp)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: top, withIntermediateDirectories: true)
@@ -71,21 +105,46 @@ enum NoteExport {
             texts[n.id] = text
         }
 
-        // Files the exported notes embed, under Files/.
+        // Every folder, so one that holds only files, or nothing, is in the export too.
+        for f in context.allFolders() {
+            try FileManager.default.createDirectory(at: top.appending(path: folderPath(f).joined(separator: "/")), withIntermediateDirectories: true)
+        }
+
+        // Files: one kept in a folder goes in that folder, beside its notes; one that only notes
+        // embed goes under Files/.
         var filePaths: [UUID: String] = [:]
+        var missing: Set<UUID> = []
+        var leftOutPaths: [String] = []
+        @MainActor func place(_ a: Attachment) async throws {
+            guard filePaths[a.id] == nil, !missing.contains(a.id) else { return }
+            if !FileStore.exists(a), !(await fetch(a)) {
+                missing.insert(a.id)
+                result.missingFiles += 1
+                // Where it would have been, for the list of what's not in the export.
+                var home = ["Files"]
+                if let id = a.folderID, let folder = context.folder(id) { home = folderPath(folder) }
+                leftOutPaths.append((home + [safeName(a.filename)]).joined(separator: "/"))
+                return
+            }
+            var home = ["Files"]
+            if let id = a.folderID, let folder = context.folder(id) { home = folderPath(folder) }
+            let path = unique(home + [safeName(a.filename)], in: &used)
+            let dest = top.appending(path: path)
+            try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: FileStore.url(for: a.id, filename: a.filename), to: dest)
+            filePaths[a.id] = path
+            result.files += 1
+        }
         for n in notes {
             guard let text = texts[n.id] else { continue }
             for m in text.matches(of: /pane-file:([0-9a-fA-F-]{36})/) {
-                guard let id = UUID(uuidString: String(m.1)), filePaths[id] == nil,
-                      let a = context.attachment(id), a.deletedAt == nil else { continue }
-                if !FileStore.exists(a), !(await fetch(a)) { result.missingFiles += 1; continue }
-                let path = unique(["Files", safeName(a.filename)], in: &used)
-                let dest = top.appending(path: path)
-                try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try FileManager.default.copyItem(at: FileStore.url(for: a.id, filename: a.filename), to: dest)
-                filePaths[id] = path
-                result.files += 1
+                guard let id = UUID(uuidString: String(m.1)), let a = context.attachment(id), a.deletedAt == nil else { continue }
+                try await place(a)
             }
+        }
+        // Files kept in a folder on their own, which no note has to mention. Recently Deleted stays out.
+        for a in context.folderFiles().filter({ $0.trashedAt == nil }).sorted(by: { $0.createdAt < $1.createdAt }) {
+            try await place(a)
         }
 
         for n in notes {
@@ -100,6 +159,11 @@ enum NoteExport {
 
         if !sharing.isEmpty {
             try Data(sharingText(sharing, paths: paths, texts: texts, stamp: stamp).utf8).write(to: top.appending(path: "Sharing.md"))
+        }
+        // An export without some files says which, inside the zip: a folder that looks empty there
+        // (its files weren't on this device and couldn't be fetched) is explained where it's found.
+        if !leftOutPaths.isEmpty {
+            try Data(Self.leftOutText(leftOutPaths).utf8).write(to: top.appending(path: Self.leftOutFile))
         }
 
         try FileManager.default.zipItem(at: top, to: result.zip, shouldKeepParent: true)
