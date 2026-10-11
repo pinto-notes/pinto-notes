@@ -204,6 +204,14 @@ In Connect an AI, Claude's steps say "Amber Notes" because Claude's directory st
 Encryption: only Apple's (CryptoKit, CommonCrypto, HTTPS). No algorithms of our own.
 ```
 
+## After 1.2
+
+The texts above are what was submitted for 1.2, which has no analytics or crash reporting. From
+the first build after 1.2 the app sends its own error reports and a few usage counts to PostHog
+(EU); Settings > General > Share diagnostics and usage turns that off. The next version's notes
+for the reviewer must say so where the 1.2 notes say "Analytics, crash reporting, ads, payments:
+none", and the App Privacy answers follow `docs/app-privacy-answers.md`.
+
 ## EU Digital Services Act: trader status (Emil decides)
 
 App Store Connect asks every developer distributing in the EU whether they're a **trader**

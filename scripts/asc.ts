@@ -18,7 +18,7 @@ const API = "https://api.appstoreconnect.apple.com/v1";
 // The privacy policy page (the share site writes its address to .secrets/privacy-url.txt).
 const PRIVACY_URL = Deno.env.get("ASC_PRIVACY_URL") ||
   (await Deno.readTextFile(".secrets/privacy-url.txt").then((t) => t.trim()).catch(() => "")) ||
-  "https://ambernotes.app/privacy";
+  "https://pintonotes.com/privacy";
 
 const env: Record<string, string> = {};
 for (const line of (await Deno.readTextFile(".secrets/asc.env")).split("\n")) {
@@ -112,7 +112,7 @@ async function setup(build: string) {
 
   // Beta App Information: description, feedback email, privacy policy.
   const locs = (await get(`/apps/${appId}/betaAppLocalizations`)).data as J[];
-  const locAttrs: J = { description: DESCRIPTION, feedbackEmail: "hello@ambernotes.app" };
+  const locAttrs: J = { description: DESCRIPTION, feedbackEmail: "hello@pintonotes.com" };
   if (PRIVACY_URL) locAttrs.privacyPolicyUrl = PRIVACY_URL;
   const en = locs.find((l) => l.attributes.locale === "en-US");
   if (en) await call("PATCH", `/betaAppLocalizations/${en.id}`, { data: { type: "betaAppLocalizations", id: en.id, attributes: locAttrs } });
@@ -122,7 +122,7 @@ async function setup(build: string) {
   // Beta App Review contact.
   const phone = env.ASC_CONTACT_PHONE ?? "";
   const detail = (await get(`/apps/${appId}/betaAppReviewDetail`)).data;
-  const reviewAttrs: J = { contactFirstName: "Emil", contactLastName: "Wagman", contactEmail: "hello@ambernotes.app", demoAccountRequired: false,
+  const reviewAttrs: J = { contactFirstName: "Emil", contactLastName: "Wagman", contactEmail: "hello@pintonotes.com", demoAccountRequired: false,
     notes: "Sign in with Apple creates an account; no demo account is needed. The Mac app's Apple Notes import asks Notes for the notes you pick and never changes them." };
   if (phone) reviewAttrs.contactPhone = phone;
   await call("PATCH", `/betaAppReviewDetails/${detail.id}`, { data: { type: "betaAppReviewDetails", id: detail.id, attributes: reviewAttrs } });

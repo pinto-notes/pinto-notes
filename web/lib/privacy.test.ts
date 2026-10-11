@@ -85,8 +85,26 @@ describe("privacy copy", () => {
     expect(page).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all\s+visitors; no visit is recorded\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\.\s+PostHog uses a cookie only if you choose Accept on the cookie banner/);
     // Heatmaps are named, and limited to the marketing pages, in the long form too.
     expect(policy).toMatch(/where on the page each click landed.*no visit is recorded or replayed/);
-    expect(policy).toMatch(/\| PostHog, Inc\. \| Website usage only/);
+    expect(policy).toMatch(/\| PostHog, Inc\. \| Website usage: /);
     expect(policy).toContain("None of this touches your notes or your computer");
+  });
+
+  // docs/Technical/app-telemetry.md: versions after 1.2 report errors and a few usage counts.
+  it("says what the apps report about themselves, where it goes and how to turn it off", () => {
+    for (const text of [policy, page, FACTS.map((f) => f.text).join(" ")]) {
+      expect(text).not.toMatch(/no third-party analytics/i);
+      expect(text).not.toMatch(/no crash-reporting tools/i);
+      expect(text).toMatch(/[Vv]ersions (of the (iPhone and Mac )?apps )?after 1\.2/);
+      expect(text).toMatch(/PostHog in the EU|PostHog, hosted in Frankfurt/);
+      expect(text).toMatch(/never your notes/);
+    }
+    expect(policy).toContain("**Diagnostics and usage from the apps**");
+    expect(policy).toContain("Version 1.2 and earlier send none of this.");
+    expect(policy).toContain("**Settings → General → Share diagnostics and usage** turns all of it off");
+    expect(policy).toContain("| Diagnostics and usage from the apps | To find and fix errors, and to learn where people get stuck | Legitimate interests.");
+    // Delete Account doesn't reach PostHog, and the policy says so.
+    expect(policy).toMatch(/it doesn't remove the ones PostHog already holds/);
+    expect(page).toContain("Share diagnostics and usage");
   });
 
   it("says the website asks before its one cookie, and names everything it stores", () => {

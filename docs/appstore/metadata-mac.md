@@ -125,3 +125,10 @@ Delete account: Settings, Account tab, Delete Account. Please test it on a new a
 External services, AI and encryption: as in the iPhone notes. No purchases, ads, analytics or tracking.
 Contact: hello@pintonotes.com
 ```
+
+## After 1.2
+
+The notes above are what was submitted for 1.2. From the first build after 1.2 the app sends its
+own error reports and a few usage counts to PostHog (EU); Settings > General > Share diagnostics
+and usage turns that off. The next version's notes must say so where these say "No purchases,
+ads, analytics or tracking".
