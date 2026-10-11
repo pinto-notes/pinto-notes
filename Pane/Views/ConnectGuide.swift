@@ -250,7 +250,9 @@ struct WebConnectGuide: View {
     @ViewBuilder
     private var addButton: some View {
         #if os(iOS)
-        ShareLink(item: plan.message(server: server), subject: Text("Connect \(plan.ai) to Pinto Notes")) {
+        // The preview names what is being sent: without it the share sheet's header was a blank icon.
+        ShareLink(item: plan.message(server: server), subject: Text("Connect \(plan.ai) to Pinto Notes"),
+                  preview: SharePreview("Connect \(plan.ai) to Pinto Notes", icon: Image("Mark"))) {
             Label("Send Link to My Computer", systemImage: "paperplane").frame(maxWidth: .infinity)
         }
         .buttonStyle(.amberProminent)
@@ -524,7 +526,8 @@ struct IncredibleGuide: View {
             } icon: {
                 Image(systemName: "laptopcomputer").foregroundStyle(.tint)
             }
-            ShareLink(item: IncredibleConnect.message(server: server), subject: Text("Connect Incredible to Pinto Notes")) {
+            ShareLink(item: IncredibleConnect.message(server: server), subject: Text("Connect Incredible to Pinto Notes"),
+                      preview: SharePreview("Connect Incredible to Pinto Notes", icon: Image("Mark"))) {
                 Label("Send Steps to Yourself", systemImage: "paperplane")
                     .frame(maxWidth: .infinity)
             }

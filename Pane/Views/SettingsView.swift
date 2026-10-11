@@ -547,6 +547,9 @@ private struct AppleIDRow: View {
 }
 
 struct SyncStatusLabel: View {
+    /// An iPad is named too: "your iPhone and Mac" read as if this device were left out.
+    static var syncing: String { InstallID.kind == "iPad" ? "Syncing to your iPad, iPhone and Mac" : "Syncing to your iPhone and Mac" }
+
     let status: SyncEngine.Status
     /// Whether the server can be reached now. The status only changes when a sync is tried, so
     /// without this a Mac that went offline after its last sync still said "Syncing … just now".
@@ -556,7 +559,7 @@ struct SyncStatusLabel: View {
         case _ where Self.away(status, reach: reach) != nil: Text(Self.away(status, reach: reach) ?? "").foregroundStyle(.secondary)
         case .idle: Text("Waiting").foregroundStyle(.secondary)
         case .syncing: HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Syncing…") }
-        case .synced(let d): Text("Syncing to your iPhone and Mac · \(Self.when(d))").foregroundStyle(.secondary)
+        case .synced(let d): Text("\(Self.syncing) · \(Self.when(d))").foregroundStyle(.secondary)
         // No network isn't a problem to fix: said plainly. Refusals and the like stay orange.
         case .offline(let why): Text(why).foregroundStyle(why == SyncEngine.describe(URLError(.notConnectedToInternet)) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
         }

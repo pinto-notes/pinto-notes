@@ -406,7 +406,12 @@ struct ConnectAISheet: View {
             Form { ConnectAISection(client: client) }
                 .formStyle(.grouped)
                 .connectGuides(client: client)
-                .navigationTitle("Connect an AI")
+                // "AI", as the same page is titled in Settings: its first section is already
+                // headed "Connect an AI", and the two read as the title twice.
+                .navigationTitle("AI")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
