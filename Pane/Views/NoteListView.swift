@@ -577,7 +577,7 @@ struct NoteListView: View {
             celebrating: setup.showingCelebration,
             onImport: onImport,
             onImportFrom: { kind in imports?.from(kind) },
-            onStartFresh: { Task { await setup.mark("imported") } },
+            onSkip: { Task { await setup.mark("imported") } },
             onConnect: { connecting = true },
             onShareHowTo: onShareHowTo,
             onHide: { Task { await setup.mark("dismissed") } }
