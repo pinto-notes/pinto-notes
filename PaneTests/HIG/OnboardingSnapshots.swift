@@ -17,18 +17,15 @@ import UIKit
         let name: String
         let step: Onboarding.Step
         var preview = OnboardingFlow.Preview()
-        /// Only on iPhone: a second idea for the same screen.
-        var phoneOnly = false
     }
 
-    static let withCallMom = "To-do\n\n- [ ] Call mom\n"
+    static let withCallMom = TrialNote.body + "- [ ] Call mom\n"
 
     static let shots: [Shot] = [
         Shot(name: "1-welcome", step: .welcome),
         Shot(name: "2-name-prefilled", step: .name, preview: .init(name: "Sara Lindqvist")),
         Shot(name: "2-name-empty", step: .name),
         Shot(name: "3-bring", step: .bring),
-        Shot(name: "3-bring-apple-notes-last", step: .bring, preview: .init(appleNotesLast: true), phoneOnly: true),
         Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 18)),
         Shot(name: "4-connect", step: .connect),
         Shot(name: "4-connect-connected", step: .connect, preview: .init(connected: ["Claude Code"])),
@@ -55,11 +52,66 @@ import UIKit
     @Test(arguments: [false, true])
     func mac(dark: Bool) async throws {
         guard Self.dir != nil else { return }
-        for shot in Self.shots where !shot.phoneOnly {
+        for shot in Self.shots {
             try await WelcomeSnapshots.shoot(Self.flow(shot), name: "mac-\(shot.name)-\(dark ? "dark" : "light")", dark: dark)
         }
         let store = OnboardingStore(defaults: TestDefaults())
         try await WelcomeSnapshots.shoot(OnboardingWait(store: store), name: "mac-0-wait-\(dark ? "dark" : "light")", dark: dark)
+    }
+    #endif
+
+    // MARK: Connecting Claude Code, Codex and another AI
+
+    /// (name, guide, preview): the command with no secret (production's address), the one that
+    /// carries a token (staging's), waiting after Copy, and connected.
+    static let terminalSheets: [(String, ConnectAISection.Guide, TerminalConnectGuide.Preview)] = [
+        ("8-claude-code", .claudeCode, .init()),
+        ("8-claude-code-copied-waiting", .claudeCode, .init(copied: true)),
+        ("8-claude-code-connected", .claudeCode, .init(copied: true, connected: true)),
+        ("8-claude-code-with-token-options", .claudeCode, .init(server: "https://example.supabase.co/functions/v1/mcp", optionsOpen: true)),
+        ("8-codex", .codex, .init()),
+        ("8-another-ai", .other, .init()),
+        ("8-another-ai-options", .other, .init(optionsOpen: true)),
+    ]
+
+    static func terminalSheet(_ guide: ConnectAISection.Guide, _ preview: TerminalConnectGuide.Preview) -> some View {
+        TerminalConnectSheet(guide: guide, client: CaptureScreen.client, preview: preview)
+            .tint(Color(PColor.paneAccent))
+            .environment(\.locale, Locale(identifier: "en_US"))
+    }
+
+    #if os(macOS)
+    @Test(arguments: [false, true])
+    func macTerminalSheets(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        for (name, guide, preview) in Self.terminalSheets {
+            try await AppSnapshotTests.render(Self.terminalSheet(guide, preview), name: "mac-\(name)-\(dark ? "dark" : "light")", dark: dark, wait: 0.8)
+        }
+    }
+    #endif
+
+    #if os(iOS)
+    @Test func iPhoneTerminalSheets() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        for (name, guide, preview) in Self.terminalSheets {
+            for dark in [false, true] {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+                window.overrideUserInterfaceStyle = dark ? .dark : .light
+                window.rootViewController = UIHostingController(rootView: Self.terminalSheet(guide, preview))
+                window.isHidden = false
+                try? await Task.sleep(for: .seconds(0.9))
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 3
+                let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                window.isHidden = true
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-\(name)-\(dark ? "dark" : "light").png"))
+            }
+        }
     }
     #endif
 

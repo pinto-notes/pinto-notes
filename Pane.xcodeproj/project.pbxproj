@@ -340,6 +340,7 @@
 		85CE6CEEC52E3B261A4B199E /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0968B22016B98500451306BA /* Capture.swift */; };
 		85FAAE6CDA8C3444C01768DA /* BestAppsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D471635BF1AC9AF5430C420 /* BestAppsUITests.swift */; };
 		86110F1EAE53F12524BB1AEC /* OnboardingFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F5F913E4976210AB96D8D0 /* OnboardingFlowUITests.swift */; };
+		869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		86C1385AEB3FC6BCC79658D6 /* app-telemetry.md in Resources */ = {isa = PBXBuildFile; fileRef = B187D7429CA1DE585C11C930 /* app-telemetry.md */; };
 		88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED450707209CA52772670C64 /* CollabCrypto.swift */; };
 		88FA5879C30E175F9060645B /* AIEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25098E4C4EF554486AD7952E /* AIEdit.swift */; };
@@ -526,6 +527,7 @@
 		D857EDE45C0F2D11BF50A311 /* AccountLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359BF7373A9A0550A24620EF /* AccountLibrary.swift */; };
 		D8C6573808152948DAAAEC38 /* NotePagesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DCF211584370A9F0BE60AE /* NotePagesUITests.swift */; };
 		D8E460522E8DD23119115323 /* GridTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */; };
+		D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		DA08C4E61E013AC39F713172 /* tracker-sample.xlsx in Resources */ = {isa = PBXBuildFile; fileRef = BB13DA6BCCFA3953F88228D7 /* tracker-sample.xlsx */; };
 		DA72C1EDB78E9365335D08F0 /* ChangeHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */; };
 		DAB07BAF36EE1DB9016C32DE /* DiagnosticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3ED99431A52143032D92B9 /* DiagnosticsSection.swift */; };
@@ -982,6 +984,7 @@
 		D2C3828F02A46D62F6896F82 /* NoteExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteExportTests.swift; sourceTree = "<group>"; };
 		D2FFA510B01DACFC168BE214 /* ConnectAsks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAsks.swift; sourceTree = "<group>"; };
 		D3E39767B1556B484757CE36 /* Files.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Files.swift; sourceTree = "<group>"; };
+		D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectTerminalGuide.swift; sourceTree = "<group>"; };
 		D5DFD991B7F6D9071008215D /* e2ee-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "e2ee-vectors.json"; sourceTree = "<group>"; };
 		D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPlace.swift; sourceTree = "<group>"; };
 		D6DE44F0B3F6589C674C8638 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdentity.swift; sourceTree = "<group>"; };
@@ -1264,6 +1267,7 @@
 				39EF6421870B0C2E8060E578 /* ConnectAI.swift */,
 				A63BCA6A4FFD0CF3D4A3011E /* ConnectChoices.swift */,
 				68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */,
+				D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */,
 				5D94335681A191B7DF159080 /* DeleteAccount.swift */,
 				9E3ED99431A52143032D92B9 /* DiagnosticsSection.swift */,
 				8960C267A4A73E8377D155D6 /* EmailSignInFlow.swift */,
@@ -2268,6 +2272,7 @@
 				B405872E5470EE9546C41019 /* ConnectChoices.swift in Sources */,
 				779FB36891A0E3E0D6EC6260 /* ConnectGuide.swift in Sources */,
 				109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */,
+				D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */,
 				E1A83EADA533E099B72CE9F3 /* DebouncedSave.swift in Sources */,
 				5DF4070A3BE600B9F2D1F641 /* DecoratedLayoutFragment.swift in Sources */,
 				DDDA5C7FC39D722B05F47B58 /* DeleteAccount.swift in Sources */,
@@ -2493,6 +2498,7 @@
 				694F24EB79E3D68D455FE540 /* ConnectChoices.swift in Sources */,
 				ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */,
 				D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */,
+				869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */,
 				CDB3416573535BFCAD1C622E /* DebouncedSave.swift in Sources */,
 				0E5A93367DF00F588EC6C7A3 /* DecoratedLayoutFragment.swift in Sources */,
 				D20513814DBDC876A698E1CD /* DeleteAccount.swift in Sources */,

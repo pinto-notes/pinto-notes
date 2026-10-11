@@ -11,23 +11,21 @@ struct OnboardingFlow: View {
         /// Titles of the AIs shown as connected.
         var connected: [String] = []
         var brought = 0
-        /// The Try it step: the AI the prompt was handed to, the To-do note's text, and how far along.
+        /// The Try it step: the AI the prompt was handed to, the trial note's text, and how far along.
         var asked: String? = nil
-        var note = SetupProgress.toDoBody
+        var note = TrialNote.body
         var arrived = false
         var late = false
         var copied = false
-        /// iPhone: Apple Notes under the other sources instead of above them.
-        var appleNotesLast = false
     }
 
     let store: OnboardingStore
     let backend: Backend
     var setup: SetupStore?
     var preview: Preview?
-    /// The Try it step is on screen: the To-do note its prompt writes to has to exist now.
+    /// The Try it step is on screen: the trial note its prompt writes to has to exist now.
     var prepareTryIt: () -> UUID? = { nil }
-    /// The flow is over. `connected`: an AI is connected, so the notes open on the To-do note.
+    /// The flow is over. `connected`: an AI is connected, so the notes open on the trial note.
     let finish: (_ connected: Bool) -> Void
 
     @State private var name = ""
@@ -42,10 +40,10 @@ struct OnboardingFlow: View {
     @State private var connectedTitles: Set<String> = []
     @State private var brought = 0
     @State private var copied = false
-    // The Try it step: the To-do note, what it held when the step began, and how far along it is.
+    // The Try it step: the trial note, what it held when the step began, and how far along it is.
     @State private var tryNote: UUID?
     @State private var tryStart: (body: String, edits: Int)?
-    @State private var tryBody = SetupProgress.toDoBody
+    @State private var tryBody = TrialNote.body
     @State private var asked: String?
     @State private var arrived = false
     @State private var late = false
@@ -69,7 +67,7 @@ struct OnboardingFlow: View {
         screen
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: step)
             .task { await loadAccount() }
-            // The Try it step watches the To-do note until the AI's line is in it.
+            // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
             .onChange(of: step, initial: true) { _, now in
                 #if os(macOS)
@@ -259,7 +257,7 @@ struct OnboardingFlow: View {
         case .name: "Your name shows on your account and on notes you share."
         case .bring: "Choose where they are now. Nothing changes there."
         case .connect: ConnectChoices.why
-        case .tryIt: "Ask your AI to add a line to your To-do note. You\u{2019}ll see it arrive here."
+        case .tryIt: "Ask your AI to add a to-do to this note. You\u{2019}ll see it arrive here."
         }
     }
 
@@ -341,10 +339,10 @@ struct OnboardingFlow: View {
     private var shownLate: Bool { preview?.late ?? late }
     private var tryConnected: Set<String> { Set(preview?.connected ?? Array(connectedTitles)) }
 
-    /// The To-do note on the screen, the one click that hands the prompt to the AI, and one line
+    /// The trial note on the screen, the one click that hands the prompt to the AI, and one line
     /// that says where things are. The step ends by itself when the AI's line is in the note.
     private var tryIt: some View {
-        let start = preview != nil ? SetupProgress.toDoBody : (tryStart?.body ?? tryBody)
+        let start = preview != nil ? TrialNote.body : (tryStart?.body ?? tryBody)
         return VStack(alignment: .leading, spacing: 12) {
             ToDoPreview(lines: TryIt.lines(of: preview?.note ?? tryBody, since: start), waiting: !shownArrived)
             if shownArrived {
@@ -507,12 +505,9 @@ struct OnboardingFlow: View {
     private func choices(_ list: [BigChoice]) -> some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
             #if os(iOS)
-            if preview?.appleNotesLast != true { appleNotesOnMac }
+            appleNotesOnMac
             #endif
             BigChoices(list: list)
-            #if os(iOS)
-            if preview?.appleNotesLast == true { appleNotesOnMac }
-            #endif
             if step == .bring, broughtCount > 0 {
                 Label(broughtCount == 1 ? "1 note brought in" : "\(broughtCount.formatted()) notes brought in", systemImage: "checkmark.circle.fill")
                     .font(.footnote.weight(.medium))
@@ -658,7 +653,7 @@ struct OnboardingFlow: View {
         withAnimation(.snappy(duration: 0.2)) { asked = ai }
     }
 
-    /// Until the AI's line is in the To-do note: looks every two seconds, asks for a sync now and
+    /// Until the AI's line is in the trial note: looks every two seconds, asks for a sync now and
     /// then (the live channel usually brings it), and after a while says what to check. When the
     /// line is in, "It worked" shows for a moment and the flow ends in the notes, on that note.
     private func watchToDo() async {
@@ -748,7 +743,7 @@ struct OnboardingFlow: View {
     }
 }
 
-/// The To-do note on the Try it step, small and real: its title, its lines as the app draws
+/// The trial note on the Try it step, small and real: its title, its lines as the app draws
 /// them, and the line an AI just added on the tint the app gives an AI's addition. While nothing
 /// has arrived, a quiet row holds the place where it will.
 struct ToDoPreview: View {

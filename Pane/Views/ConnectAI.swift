@@ -1514,7 +1514,12 @@ struct ConnectGuides: ViewModifier {
             .environment(route)
             .sheet(item: Binding(get: { client == nil ? nil : route.guide }, set: { route.guide = $0 }),
                    onDismiss: { route.guideClosed() }) { g in
-                if let client { GuideSheet(guide: g, client: client) }
+                if let client {
+                    switch g {
+                    case .claudeCode, .codex, .other: TerminalConnectSheet(guide: g, client: client)
+                    default: GuideSheet(guide: g, client: client)
+                    }
+                }
             }
     }
 }
@@ -1533,15 +1538,6 @@ struct GuideSheet: View {
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
-    @State private var copied: String?
-    @State private var token: String?
-    @State private var working = false
-    @State private var result: String?
-    @State private var failed = false
-    @State private var readOnly = false
-
-    private var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
-
     var body: some View {
         NavigationStack {
             Form { content }
@@ -1573,132 +1569,13 @@ struct GuideSheet: View {
                 WebConnectGuide(plan: plan, client: client)
                 #endif
             }
-        case .claudeCode:
-            tokenGuide(
-                intro: "Claude Code gets its own access token, sent in a request header. It works in every project. If you connected Claude and use Claude Code with the same account, it already has Pinto Notes.",
-                snippet: token.map { ConnectSnippets.claudeCode(url: server, token: $0) },
-                note: "Or run this in a terminal. It's shown once; keep it private.")
-        case .codex:
-            tokenGuide(
-                intro: "Codex gets its own access token, sent in a request header.",
-                snippet: token.map { ConnectSnippets.codex(url: server, token: $0) },
-                note: "Add this to ~/.codex/config.toml. It's shown once; keep it private.")
         case .incredible:
             IncredibleGuide(client: client)
-        case .other:
-            otherGuide
+        case .claudeCode, .codex, .other:
+            // These three have their own sheet (`TerminalConnectSheet`).
+            EmptyView()
         }
     }
-
-    /// Any other app that speaks MCP: the address, and a token for apps that want a header.
-    @ViewBuilder
-    private var otherGuide: some View {
-        Section {
-            Text(Self.otherIntro).foregroundStyle(.secondary)
-            Text(server).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
-            copyButton("Copy Address", server)
-        } footer: {
-            Text("The address holds no password. Access is granted only when you choose Allow in Pinto Notes.")
-        }
-        Section {
-            Toggle("Read only", isOn: $readOnly).disabled(token != nil)
-            if let token {
-                let header = Self.otherHeader(token: token)
-                Text(header).font(.system(.footnote, design: .monospaced)).textSelection(.enabled).lineLimit(4)
-                copyButton("Copy", header)
-            } else {
-                Button("Create Access Token", systemImage: "key") { Task { await makeToken() } }
-                    .disabled(working)
-            }
-            if let result, failed {
-                Label(result, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.callout)
-            }
-        } header: {
-            Text("If the app asks for a token")
-        } footer: {
-            Text("Send it as this request header. It's shown once; keep it private.")
-        }
-    }
-
-    static let otherIntro = "Add Pinto Notes as an MCP server in your AI app with this address. If the app asks you to sign in, choose Allow in Pinto Notes."
-
-    static func otherHeader(token: String) -> String { "Authorization: Bearer \(token)" }
-
-    @ViewBuilder
-    private func tokenGuide(intro: String, snippet: String?, note: String) -> some View {
-        Section {
-            Text(intro).foregroundStyle(.secondary)
-            Toggle("Read only", isOn: $readOnly).disabled(token != nil)
-        }
-        #if os(macOS)
-        // The TestFlight / App Store build is sandboxed and can't run your shell: it shows the command to copy instead.
-        if guide == .claudeCode, ClaudeCodeInstaller.isAvailable {
-            Section {
-                Button(working ? "Adding…" : "Add to Claude Code", systemImage: "plus.circle") { Task { await addToClaudeCode() } }
-                    .disabled(working)
-                    .accessibilityIdentifier("connect.addClaudeCode")
-                if let result {
-                    Label(result, systemImage: failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                        .foregroundStyle(failed ? .orange : .green)
-                        .font(.callout)
-                }
-            }
-        }
-        #endif
-        Section {
-            if let snippet {
-                Text(snippet).font(.system(.footnote, design: .monospaced)).textSelection(.enabled).lineLimit(8)
-                copyButton("Copy", snippet)
-            } else {
-                Button("Create Access Token", systemImage: "key") { Task { await makeToken() } }
-                    .disabled(working)
-            }
-        } footer: {
-            Text(note)
-        }
-    }
-
-    private func copyButton(_ title: String, _ value: String) -> some View {
-        Button(copied == value ? "Copied" : title, systemImage: copied == value ? "checkmark" : "doc.on.doc") {
-            #if os(iOS)
-            UIPasteboard.general.string = value
-            #else
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(value, forType: .string)
-            #endif
-            withAnimation(.snappy) { copied = value }
-        }
-    }
-
-    @discardableResult
-    private func makeToken() async -> String? {
-        if let token { return token }
-        working = true
-        defer { working = false }
-        do {
-            let t = try await ConnectTokens.create(client, name: guide.title, write: !readOnly) { try AccountCrypto.shared.accessToken() }
-            token = t
-            Telemetry.shared.record(.aiConnected(AIKind(verified: guide.title)))
-            return t
-        } catch {
-            result = "Couldn't create a token. Check your connection."
-            failed = true
-            return nil
-        }
-    }
-
-    #if os(macOS)
-    /// Runs `claude mcp add` for the person, with the token passed through the environment.
-    private func addToClaudeCode() async {
-        working = true
-        result = nil
-        guard let t = await makeToken() else { working = false; return }
-        let outcome = await ClaudeCodeInstaller.install(url: server, token: t)
-        working = false
-        failed = !outcome.ok
-        result = outcome.message
-    }
-    #endif
 }
 
 #if os(macOS)

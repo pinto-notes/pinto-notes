@@ -34,8 +34,8 @@ enum Onboarding {
     /// An account older than this is never shown the flow, whatever it holds.
     static let newAccountWindow: TimeInterval = 24 * 60 * 60
 
-    /// What the last step asks your AI: it adds a line to the To-do note made for it.
-    static let prompt = "Add \"Call mom\" to my to-do list in Pinto Notes"
+    /// What the last step asks your AI: a tick item in the note the flow made for it, by name.
+    static let prompt = TrialNote.prompt
 
     /// Might this be a brand-new account? Known at sign-in, before any sync.
     static func isCandidate(created: Date?, holdsNothing: Bool, now: Date = .now) -> Bool {
@@ -352,13 +352,58 @@ extension Notification.Name {
     static let paneReplayOnboarding = Notification.Name("pane.replayOnboarding")
 }
 
+/// The note the Try it step has an AI write in. It has a title no imported note will have (an
+/// imported "To-do" is somebody's real list), it is made by the flow and remembered by its id on
+/// this device, and it goes again, for good, if the flow ends with nothing written in it.
+enum TrialNote {
+    static let title = "My first AI note"
+    /// As the flow makes it: the title and one item already ticked, so the AI's arrives as a
+    /// tick item under it.
+    static let body = "My first AI note\n\n- [x] Connect my AI\n"
+    static let prompt = "Add \"Call mom\" as a to-do in my note called My first AI note"
+
+    static func key(_ account: UUID) -> String { "onboarding.trialNote.\(account.uuidString.lowercased())" }
+
+    /// Nothing was written in it: its text is still exactly what the flow put there.
+    static func untouched(_ body: String) -> Bool {
+        body.trimmingCharacters(in: .whitespacesAndNewlines) == Self.body.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 extension ModelContext {
-    /// The To-do note the last step's prompt writes to: the account's own if it has one, a new
-    /// one otherwise. Call it only once the account's notes have come down.
+    private func live(_ note: Note) -> Bool { note.deletedAt == nil && note.trashedAt == nil }
+
+    /// The trial note for the Try it step: the one this device's flow made if it is still there,
+    /// else a note of that exact title the account already has (a replay on another device:
+    /// shown and watched, never removed by this device), else a new one, remembered by its id.
+    /// Call it only once the account's notes have come down.
     @MainActor
-    func toDoNoteForOnboarding() -> Note? {
-        if let made = makeToDoNoteIfMissing() { return made }
+    func trialNote(account: UUID, defaults: UserDefaults = .standard) -> Note? {
+        if let id = defaults.string(forKey: TrialNote.key(account)).flatMap(UUID.init(uuidString:)), let mine = note(id), live(mine) { return mine }
         let notes = (try? fetch(FetchDescriptor<Note>())) ?? []
-        return notes.first { $0.deletedAt == nil && $0.trashedAt == nil && $0.title.caseInsensitiveCompare(SetupProgress.toDoTitle) == .orderedSame }
+        if let there = notes.first(where: { live($0) && $0.title == TrialNote.title }) { return there }
+        let home = allFolders().first { $0.name == "Notes" && $0.parent == nil }
+        let made = createNote(in: home.map { .folder($0.id) } ?? .all, body: TrialNote.body)
+        defaults.set(made.id.uuidString, forKey: TrialNote.key(account))
+        return made
+    }
+
+    /// The flow is over. The note this device's flow made stays if anything was written in it
+    /// (returned, so the notes open on it); untouched, it is deleted for good, not to Recently
+    /// Deleted. A note the flow did not make is never removed.
+    @MainActor @discardableResult
+    func settleTrialNote(account: UUID, defaults: UserDefaults = .standard) -> Note? {
+        guard let id = defaults.string(forKey: TrialNote.key(account)).flatMap(UUID.init(uuidString:)) else {
+            // Another device's (a replay here): land on it only if an AI wrote in it.
+            let notes = (try? fetch(FetchDescriptor<Note>())) ?? []
+            return notes.first { live($0) && $0.title == TrialNote.title && !TrialNote.untouched($0.body) }
+        }
+        guard let mine = note(id), live(mine) else { return nil }
+        if TrialNote.untouched(mine.body) {
+            purge(mine)
+            defaults.removeObject(forKey: TrialNote.key(account))
+            return nil
+        }
+        return mine
     }
 }

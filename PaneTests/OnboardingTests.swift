@@ -214,15 +214,58 @@ import Testing
         #expect(!s.replay)
     }
 
-    // MARK: The To-do note
+    // MARK: The trial note
 
-    @Test func theToDoNoteIsMadeOnceAndFoundAgain() throws {
+    private func library() throws -> ModelContainer {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         _ = c.mainContext.createFolder(named: "Notes")
-        let made = try #require(c.mainContext.toDoNoteForOnboarding())
-        #expect(made.title == SetupProgress.toDoTitle)
-        let again = try #require(c.mainContext.toDoNoteForOnboarding())
-        #expect(again.id == made.id, "the account's own To-do note, not a second one")
+        return c
+    }
+
+    @Test func theTrialNoteIsMadeOnceUnderANameNoImportHas() throws {
+        let c = try library(), defaults = TestDefaults(), account = UUID()
+        let made = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
+        #expect(made.title == "My first AI note")
+        #expect(made.body == TrialNote.body)
+        #expect(Onboarding.prompt.contains("my note called My first AI note"), "the prompt names it exactly")
+        let again = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
+        #expect(again.id == made.id, "a replay reuses the one the flow made")
+    }
+
+    @Test func anImportedToDoNoteIsLeftAlone() throws {
+        let c = try library(), defaults = TestDefaults(), account = UUID()
+        let imported = c.mainContext.createNote(in: .all, body: "To-do\n\n- [ ] Buy milk\n")
+        let trial = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
+        #expect(trial.id != imported.id)
+        #expect(imported.body == "To-do\n\n- [ ] Buy milk\n")
+        c.mainContext.settleTrialNote(account: account, defaults: defaults)
+        #expect(imported.deletedAt == nil && imported.trashedAt == nil, "never removed, never moved")
+    }
+
+    @Test func untouchedItIsRemovedForGoodWhenTheFlowEnds() throws {
+        let c = try library(), defaults = TestDefaults(), account = UUID()
+        let trial = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
+        #expect(c.mainContext.settleTrialNote(account: account, defaults: defaults) == nil, "skipped: nowhere to land but a new note")
+        #expect(trial.deletedAt != nil && trial.trashedAt == nil, "deleted for good, not to Recently Deleted")
+        #expect(defaults.string(forKey: TrialNote.key(account)) == nil)
+    }
+
+    @Test func writtenInItStaysAndIsWhereTheNotesOpen() throws {
+        let c = try library(), defaults = TestDefaults(), account = UUID()
+        let trial = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
+        trial.body = TrialNote.body + "- [ ] Call mom\n"
+        let kept = try #require(c.mainContext.settleTrialNote(account: account, defaults: defaults))
+        #expect(kept.id == trial.id && trial.deletedAt == nil)
+    }
+
+    @Test func aTrialNoteThisDeviceDidNotMakeIsNeverRemoved() throws {
+        let c = try library(), account = UUID()
+        // Made by the flow on another device, synced here; a replay on this one.
+        let theirs = c.mainContext.createNote(in: .all, body: TrialNote.body)
+        let here = TestDefaults()
+        #expect(c.mainContext.trialNote(account: account, defaults: here)?.id == theirs.id, "shown and watched, not doubled")
+        #expect(c.mainContext.settleTrialNote(account: account, defaults: here) == nil)
+        #expect(theirs.deletedAt == nil, "this device did not make it")
     }
 
     // MARK: Try it
@@ -257,10 +300,10 @@ import Testing
     }
 
     @Test func theStepKnowsWhenTheAIsLineIsIn() {
-        let start = SetupProgress.toDoBody
+        let start = TrialNote.body
         #expect(!TryIt.arrived(body: start, since: start, aiEdits: 0, editsAtStart: 0))
-        #expect(!TryIt.arrived(body: "To-do\n", since: start, aiEdits: 0, editsAtStart: 0), "white space is not an edit")
-        #expect(TryIt.arrived(body: "To-do\n\n- [ ] Call mom\n", since: start, aiEdits: 0, editsAtStart: 0))
+        #expect(!TryIt.arrived(body: start + "\n\n", since: start, aiEdits: 0, editsAtStart: 0), "white space is not an edit")
+        #expect(TryIt.arrived(body: start + "- [ ] Call mom\n", since: start, aiEdits: 0, editsAtStart: 0))
         #expect(TryIt.arrived(body: start, since: start, aiEdits: 1, editsAtStart: 0), "the server counted an AI's edit")
         // A replay on an account whose AI has edited before: only a new edit counts.
         #expect(!TryIt.arrived(body: "To-do\n\n- [ ] Buy milk", since: "To-do\n\n- [ ] Buy milk", aiEdits: 7, editsAtStart: 7))
@@ -272,7 +315,8 @@ import Testing
         #expect(lines.map(\.kind) == [.title, .todo(done: true), .todo(done: false), .bullet, .text])
         #expect(lines.map(\.text) == ["To-do", "Buy milk", "Call mom", "a bullet", "plain words"])
         #expect(lines.map(\.fresh) == [false, false, true, true, true])
-        #expect(TryIt.lines(of: SetupProgress.toDoBody, since: SetupProgress.toDoBody).map(\.text) == ["To-do"])
+        #expect(TryIt.lines(of: TrialNote.body, since: TrialNote.body).map(\.text) == ["My first AI note", "Connect my AI"])
+        #expect(TryIt.lines(of: TrialNote.body + "- [ ] Call mom", since: TrialNote.body).last == TryIt.Line(id: 2, kind: .todo(done: false), text: "Call mom", fresh: true))
         #expect(TryIt.lines(of: "# To-do\n" + (1...20).map { "- item \($0)" }.joined(separator: "\n")).count == 6, "a long note shows its first lines")
         #expect(TryIt.lines(of: "# To-do").first?.text == "To-do")
     }
@@ -280,6 +324,57 @@ import Testing
     @Test func aStuckTryItSaysWhatToCheck() {
         #expect(TryIt.lateAfter >= 120 && TryIt.lateAfter <= 180)
         #expect(TryIt.late.contains("Check that your AI answered"))
+    }
+
+    // MARK: Connecting from a terminal
+
+    @Test func aRootAddressSignsInThroughTheBrowserAndCarriesNoSecret() {
+        let server = "https://mcp.pintonotes.com"
+        #expect(TerminalConnect.way(server: server) == .signIn)
+        let claude = TerminalConnect.command(.claudeCode, server: server, way: .signIn)
+        #expect(claude == "claude mcp add --scope user --transport http pinto-notes https://mcp.pintonotes.com && claude mcp login pinto-notes")
+        let codex = TerminalConnect.command(.codex, server: server, way: .signIn)
+        #expect(codex == "codex mcp add pinto-notes --url https://mcp.pintonotes.com")
+        for c in [claude, codex] { #expect(!c.contains("Bearer") && !c.contains("pane_")) }
+    }
+
+    /// A function's own address (staging, a local stack): Claude Code asks the host, not the
+    /// function, where to register, and gets a 404. There the command carries a token.
+    @Test func anAddressWithAPathCarriesATokenMadeByCopy() {
+        let server = "https://example.supabase.co/functions/v1/mcp"
+        #expect(TerminalConnect.way(server: server) == .token)
+        #expect(TerminalConnect.way(server: "http://127.0.0.1:54321/functions/v1/mcp") == .token)
+        let before = TerminalConnect.command(.claudeCode, server: server, way: .token)
+        #expect(before.contains("Bearer \(TerminalConnect.hidden)"), "dots until Copy makes the token")
+        #expect(TerminalConnect.command(.claudeCode, server: server, way: .token, token: "pane_abc").contains("Bearer pane_abc"))
+        #expect(TerminalConnect.command(.codex, server: server, way: .token, token: "pane_abc").contains("[mcp_servers.pinto_notes]"))
+    }
+
+    @Test func theStepsUseNoJargon() {
+        for guide in [ConnectAISection.Guide.claudeCode, .codex, .other] {
+            for way in [TerminalConnect.Way.signIn, .token] {
+                let steps = TerminalConnect.steps(guide, way: way)
+                #expect(steps.count == 3)
+                for s in steps + [TerminalConnect.intro(guide)] {
+                    for word in ["access token", "request header", "OAuth", "Bearer"] { #expect(!s.contains(word), "\(s)") }
+                }
+            }
+        }
+        #expect(TerminalConnect.steps(.claudeCode, way: .signIn).first == "Copy this command")
+    }
+
+    @Test func theGuideKnowsWhenItsConnectionIsThere() {
+        let opened = Date.now
+        func row(kind: String, name: String, host: String?, used: Date?, at: Date) -> Connection {
+            Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: at, last_used_at: used, revoked_at: nil, redirect_host: host)
+        }
+        // Signing in: a new sign-in from this computer. An older one, or ChatGPT's, is not it.
+        #expect(!TerminalConnect.isConnected([row(kind: "oauth", name: "x", host: "localhost", used: nil, at: opened.addingTimeInterval(-600))], guide: .claudeCode, way: .signIn, since: opened))
+        #expect(!TerminalConnect.isConnected([row(kind: "oauth", name: "ChatGPT", host: "chatgpt.com", used: nil, at: opened.addingTimeInterval(5))], guide: .claudeCode, way: .signIn, since: opened))
+        #expect(TerminalConnect.isConnected([row(kind: "oauth", name: "x", host: "127.0.0.1", used: nil, at: opened.addingTimeInterval(5))], guide: .claudeCode, way: .signIn, since: opened))
+        // A token: made by Copy, connected at its first call.
+        #expect(!TerminalConnect.isConnected([row(kind: "token", name: "Claude Code", host: nil, used: nil, at: opened.addingTimeInterval(3))], guide: .claudeCode, way: .token, since: opened))
+        #expect(TerminalConnect.isConnected([row(kind: "token", name: "Claude Code", host: nil, used: .now, at: opened.addingTimeInterval(3))], guide: .claudeCode, way: .token, since: opened))
     }
 
     // MARK: Words

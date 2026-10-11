@@ -1101,9 +1101,9 @@ struct AppGate: View {
         return onboarding.covers(backend.userID)
     }
 
-    /// The Try it step asks an AI to write to the To-do note, so the note exists by then.
+    /// The Try it step asks an AI to write in the trial note, so the note exists by then.
     private func prepareTryIt() -> UUID? {
-        guard sync.knowsAccount, let note = context.toDoNoteForOnboarding() else { return nil }
+        guard sync.knowsAccount, let account = backend.userID, let note = context.trialNote(account: account) else { return nil }
         SyncSignal.changed()
         return note.id
     }
@@ -1114,12 +1114,14 @@ struct AppGate: View {
     private func finishOnboarding(connected: Bool) {
         let replay = onboarding.replay
         var landing: Onboarding.Landing?
-        if connected, sync.knowsAccount, let note = context.toDoNoteForOnboarding() {
-            landing = .note(note.id)
-            SyncSignal.changed()
+        // The trial note stays if an AI wrote in it, and is where the notes open; untouched
+        // (skipped, or nothing arrived), it goes for good.
+        if let account = backend.userID, let written = context.settleTrialNote(account: account) {
+            landing = .note(written.id)
         } else if !replay {
             landing = .newNote
         }
+        SyncSignal.changed()
         onboarding.finish(landing: landing)
         if !replay { Task { await setup.mark("dismissed") } }
     }

@@ -169,6 +169,7 @@ struct ConnectChoices: View {
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
     @Environment(\.networkReach) private var reach
 
+    static let another = "Connect another"
     static let reassurance = "You approve each AI, and every change can be undone."
     static let why = "Your AI can then read and write your notes when you ask it to."
 
@@ -179,12 +180,22 @@ struct ConnectChoices: View {
             if let ask = center.waiting().first {
                 ConnectWaitingRow(ask: ask)
             }
+            // With something connected, that comes first, each with its Disconnect; the ways to
+            // connect follow under their own small heading.
+            if listsConnected, !active.isEmpty {
+                connected
+                Text(Self.another)
+                    .font(Metrics.header)
+                    .foregroundStyle(Color.muted)
+                    .padding(.top, 4)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("connect.another")
+            }
             BigChoices(list: choices)
                 .disabled(reach != .online)
             if reach != .online {
                 Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted)
             }
-            if listsConnected, !active.isEmpty { connected }
             if let error, reach == .online {
                 Text(error).font(.footnote).foregroundStyle(.red)
             }
@@ -227,7 +238,6 @@ struct ConnectChoices: View {
                 }
             }
         }
-        .padding(.top, 4)
     }
 
     private func row(_ c: Connection) -> some View {
