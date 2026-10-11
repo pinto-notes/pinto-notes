@@ -12,6 +12,16 @@ const str = (d: string) => ({ type: "string", description: d });
 const noteRef = { id: str("Note id (preferred)."), title: str("Note title, if you don't have the id. Must match one note.") };
 const read = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
 
+/** Whether preview_app and try_app may ever be given a person's real note and app data. The app
+ *  is drawn by a separate render service, so real data would leave this server in readable form.
+ *  Refused unless AMBER_APP_REAL_PREVIEWS is "on" (and then only for a person who turned on their
+ *  own setting, profiles.app_previews_real). Unset in production: nothing real reaches the
+ *  render service. */
+export function realPreviewsServed(set: string | undefined = Deno.env.get("AMBER_APP_REAL_PREVIEWS")): boolean {
+  return set === "on";
+}
+const REAL_OFF = "Real data isn't available for previews: they always use a sample with the same shape (data: \"sample\"), which is enough to see the layout. Ask the person how it looks with their own data.";
+
 export const appTools = [
   {
     name: "check_app", title: "Check a note's app",
@@ -23,14 +33,14 @@ export const appTools = [
   {
     name: "preview_app", title: "See a note's app",
     description: "Screenshots of a note's app as images, at the widths and in the color schemes asked for (default a 390 px iPhone and a 1280 px Mac window, light and dark), with a text description of each for clients that can't show images. " +
-      "Use it after building or changing an app, when you can see images, to judge layout and design; fix what looks wrong. By default the app shows a sample with the note's shape and none of its content; data: \"real\" works only if the person turned on previews with real data in Pinto Notes.",
+      "Use it after building or changing an app, when you can see images, to judge layout and design; fix what looks wrong. The app shows a sample with the note's shape and none of its content." + (realPreviewsServed() ? " data: \"real\" works only if the person turned on previews with real data in Pinto Notes." : ""),
     inputSchema: {
       type: "object",
       properties: {
         ...noteRef,
         widths: { type: "array", items: { type: "integer" }, description: "Widths in px, 320-1800. Default [390, 1280] (iPhone and Mac)." },
         themes: { type: "array", items: { type: "string", enum: ["light", "dark"] }, description: "Default [\"light\", \"dark\"]." },
-        data: { type: "string", enum: ["sample", "real"], description: "Default sample." },
+        ...(realPreviewsServed() ? { data: { type: "string", enum: ["sample", "real"], description: "Default sample." } } : {}),
       },
     },
     annotations: read,
@@ -39,7 +49,7 @@ export const appTools = [
     name: "try_app", title: "Use a note's app",
     description: "Uses the app like a person would, in a browser, and shows you what happened after each step: what's on screen (headings, buttons, fields and their values, text), console errors, what changed in the app's data, and screenshots. " +
       "Steps: { tap: \"Add\" } (a button, link or tab by its text or label, or a CSS selector), { type: \"85\", into: \"Weight\" } (a field by its label or placeholder), { scroll: \"down\" | \"up\" }, { wait: 500 | \"Saved\" }, { press: \"Enter\" }, { resize: \"phone\" | \"desktop\" }, { dark: true | false }. " +
-      "It runs on a throwaway copy: a sample with the shape of the app's data by default (data: \"real\" only if the person allowed it), and nothing is ever written back.",
+      "It runs on a throwaway copy: a sample with the shape of the app's data" + (realPreviewsServed() ? " by default (data: \"real\" only if the person allowed it)" : "") + ", and nothing is ever written back.",
     inputSchema: {
       type: "object",
       properties: {
@@ -47,7 +57,7 @@ export const appTools = [
         steps: { type: "array", items: { type: "object" }, description: "Up to 30 steps, done in order." },
         start: { type: "string", enum: ["phone", "desktop"], description: "Window to start in (default phone, 390 px)." },
         screenshots: { type: "string", enum: ["last", "each", "none"], description: "Default last (and any step that failed)." },
-        data: { type: "string", enum: ["sample", "real"], description: "Default sample." },
+        ...(realPreviewsServed() ? { data: { type: "string", enum: ["sample", "real"], description: "Default sample." } } : {}),
       },
       required: ["steps"],
     },
@@ -123,6 +133,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
     if (!Array.isArray(a.steps) || !a.steps.length) throw new ToolError("steps is a list like [{ tap: \"Add\" }, { type: \"5\", into: \"Km\" }].");
     const real = a.data === "real";
     if (real) {
+      if (!realPreviewsServed()) throw new ToolError(REAL_OFF);
       const [p] = await tx<{ app_previews_real: boolean }[]>`select app_previews_real from public.profiles where user_id = ${c.ctx.userId}`;
       if (!p?.app_previews_real) throw new ToolError("Trying the app with real data is off. It uses a sample with the same shape by default (data: \"sample\"). The person can allow real data in Pinto Notes › Settings › Apps in Notes.");
     }
@@ -162,6 +173,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
     if (!views.length) throw new ToolError("Give widths between 320 and 1800 and themes light or dark.");
     const real = a.data === "real";
     if (real) {
+      if (!realPreviewsServed()) throw new ToolError(REAL_OFF);
       const [p] = await tx<{ app_previews_real: boolean }[]>`select app_previews_real from public.profiles where user_id = ${c.ctx.userId}`;
       if (!p?.app_previews_real) throw new ToolError("Previews with real data are off. They show a sample with the same shape by default (data: \"sample\"). The person can allow real data in Pinto Notes › Settings › Apps in Notes, \"Let AIs preview apps with my notes\".");
     }

@@ -93,6 +93,13 @@ Deno.test("check_app and preview_app render a sample through the render service"
     assertEquals(images.length, 2);
     assert(atob(images[0].data as string).startsWith("\x89PNG"));
     assertStringIncludes(p.content[0].text as string, "Sample note");
+    // Real data is refused outright unless this server is set up to allow it, whatever the person's setting says.
+    await app(pg, a.id, `insert into public.profiles (user_id, app_previews_real) values ($1, true) on conflict (user_id) do update set app_previews_real = true`, [a.id]);
+    assertStringIncludes(await tool(pg, a, "preview_app", { id, data: "real" }, false).catch((e) => String(e)), "Real data isn't available for previews");
+    assertStringIncludes(await tool(pg, a, "try_app", { id, data: "real", steps: [{ tap: "x" }] }, false).catch((e) => String(e)), "Real data isn't available for previews");
+    await app(pg, a.id, `update public.profiles set app_previews_real = false where user_id = $1`, [a.id]);
+    // A server set up to allow it: still only for a person who turned their own setting on.
+    Deno.env.set("AMBER_APP_REAL_PREVIEWS", "on");
     assertStringIncludes(await tool(pg, a, "preview_app", { id, data: "real" }, false).catch((e) => String(e)), "Previews with real data are off");
     await app(pg, a.id, `insert into public.profiles (user_id, app_previews_real) values ($1, true) on conflict (user_id) do update set app_previews_real = true`, [a.id]);
     const real = await tool(pg, a, "preview_app", { id, widths: [390], themes: ["light"], data: "real" }, false);
@@ -100,6 +107,7 @@ Deno.test("check_app and preview_app render a sample through the render service"
   } finally {
     await server.shutdown();
     Deno.env.delete("RENDER_URL");
+    Deno.env.delete("AMBER_APP_REAL_PREVIEWS");
     await closeBrowser();
   }
 });
