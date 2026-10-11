@@ -26,7 +26,7 @@ They don't send `folder_id`, `trashed_at` or `content_version`, and an upsert on
 
 Counted on stored (sealed) sizes: note text and heads, their versions, files and their versions, apps (code, data, drafts, versions). Recently Deleted and earlier versions count until they're deleted for good. Enforced in the database, so no client can skip it: triggers on `notes`, `note_pages` and `attachments` refuse growth at the limit (shrinking, deleting and editing down always work), the Storage upload policy refuses uploads, and the AI server checks `storage_room()` before it uploads. The total is counted again when a minute old or past 90%, and each write's growth is added at once. An account already over the limit keeps everything and can't add. `storage_usage()` gives Settings the numbers by kind.
 
-App: Settings › Storage shows "1.86 GB of 2 GB used", a bar, and Files, Recently Deleted, Earlier versions, Notes, Apps. From 90% the list shows "Amber Notes is almost full" with what to do; at the limit, "Amber Notes is full" naming what takes the room. The AI's refusal says how much is used, by kind, and what to delete. No money amounts anywhere.
+App: Settings › Storage shows "1.86 GB of 2 GB used", a bar, and Files, Recently Deleted, Earlier versions, Notes, Apps. From 90% the list shows "Pinto Notes is almost full" with what to do; at the limit, "Pinto Notes is full" naming what takes the room. The AI's refusal says how much is used, by kind, and what to delete. No money amounts anywhere.
 
 ## Kinds of file
 
@@ -43,7 +43,7 @@ Add File, drops and the share sheet take only these; anything else is refused wi
 | Word (docx), Excel (xlsx), PowerPoint (pptx) | Quick Look | Quick Look | their text (paragraphs, sheets as rows, slides) | write (bytes) |
 | Pages, Numbers, Keynote | Quick Look | Quick Look | says it can't; raw for the bytes | write (bytes) |
 
-The HTML Preview runs no script, loads nothing (a content rule blocks every URL, with a `default-src 'none'` policy on top), allows only its own first load, submits no form, keeps nothing (a non-persistent store), and hands a clicked web link to the browser (`LockedHTML` in `CodeFileView.swift`; `PaneTests/HTMLPreviewTests.swift` checks a hostile page against a listener). A text file edited in the app goes up as a new `content_version`, past the server's, so other devices fetch it again; the version it replaces is kept first in `attachment_versions` (bytes copied to `<path>.v<n>`, the newest 10 kept), as the AI's replacements are, so the edit can be undone from history (`made_by` "Amber Notes").
+The HTML Preview runs no script, loads nothing (a content rule blocks every URL, with a `default-src 'none'` policy on top), allows only its own first load, submits no form, keeps nothing (a non-persistent store), and hands a clicked web link to the browser (`LockedHTML` in `CodeFileView.swift`; `PaneTests/HTMLPreviewTests.swift` checks a hostile page against a listener). A text file edited in the app goes up as a new `content_version`, past the server's, so other devices fetch it again; the version it replaces is kept first in `attachment_versions` (bytes copied to `<path>.v<n>`, the newest 10 kept), as the AI's replacements are, so the edit can be undone from history (`made_by` "Pinto Notes").
 
 Every row but iWork was opened on both platforms (screenshots in `docs/Evidence/folder-files/kinds/`). No real iWork file was at hand (the only sample on the machine is a 2011 stub Quick Look refuses), so iWork rests on Quick Look's documented support.
 
@@ -53,7 +53,7 @@ A file in a folder goes to Recently Deleted like a note, can be recovered for 30
 
 ## Drag and drop
 
-Mac: files from Finder, Mail or Safari onto a folder in the sidebar (it highlights), into a folder's list, or into an open note (attached there); a Finder folder becomes a folder with its files and sub-folders. Files drag out of the list to Finder, and onto sidebar folders to move. iPad: the same drops. iPhone: the share sheet ("Save to Amber Notes", with a folder picker); files shared without text stay files.
+Mac: files from Finder, Mail or Safari onto a folder in the sidebar (it highlights), into a folder's list, or into an open note (attached there); a Finder folder becomes a folder with its files and sub-folders. Files drag out of the list to Finder, and onto sidebar folders to move. iPad: the same drops. iPhone: the share sheet ("Save to Pinto Notes", with a folder picker); files shared without text stay files.
 
 ## What the AI can do
 

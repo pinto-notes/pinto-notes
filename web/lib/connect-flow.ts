@@ -237,7 +237,7 @@ const scanPart = (scan: string, fingerprint: string) => {
 /// they never reach a server log.
 export const scanLink = (id: string, scan: string, fingerprint: string) => universalLink(id) + scanPart(scan, fingerprint);
 
-/// The same, in the app's own scheme: the "Open Amber Notes on this Mac" button (Chrome doesn't open
+/// The same, in the app's own scheme: the "Open Pinto Notes on this Mac" button (Chrome doesn't open
 /// universal links).
 export const scanAppLink = (id: string, scan: string, fingerprint: string) => appLink(id) + scanPart(scan, fingerprint);
 
@@ -259,7 +259,7 @@ export function isMacBrowser(platform: string, ua: string, maxTouchPoints = 0): 
 
 // MARK: Which device to name
 
-/// Where the account has Amber Notes, from /connect/ask: an iPhone that opened it in the last 30
+/// Where the account has Pinto Notes, from /connect/ask: an iPhone that opened it in the last 30
 /// days and gets the push, and a Mac that opened it in the last 30 days. Two yes-or-no answers.
 export type Devices = { iphone: boolean; mac: boolean };
 

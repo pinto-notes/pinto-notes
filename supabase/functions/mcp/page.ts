@@ -51,7 +51,7 @@ Every input, select and textarea is visible as a field in both themes: a solid f
 Size text in rem: on iPhone the root follows the reader's text size. In a parent note the app can show as a small widget: <html> then has the class amber-widget; use a compact layout.
 Fit every width: the page fills the note, from 320 px on a small iPhone to 1,800 px in a full-screen Mac window, and re-lays out live as the window resizes. Put content in a container with max-width: var(--amber-content-max) (1100 px), margin: 0 auto and side padding var(--amber-gutter). Use one column under 600 px, and from 900 px use the room (side-by-side sections, more history, bigger numbers) with @media (min-width: 900px) or the classes amber-narrow / amber-medium / amber-wide the app keeps on <html>. Never a fixed width, never a stretched phone layout. `;
 
-/** Libraries Amber Notes ships (Pane/Resources/AppLibraries/libraries.json): name → the global it defines. */
+/** Libraries Pinto Notes ships (Pane/Resources/AppLibraries/libraries.json): name → the global it defines. */
 export const BUNDLED_LIBS: Record<string, string> = {
   chart: "Chart", d3: "d3", three: "THREE", tone: "Tone", dayjs: "dayjs", marked: "marked", purify: "DOMPurify",
   anime: "anime", confetti: "confetti", topojson: "topojson", world: "worldAtlas110m",

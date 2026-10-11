@@ -139,7 +139,7 @@ function remarkChanged(lines: ReadonlySet<number>) {
   };
 }
 
-/** Rewrites Amber Notes' own links (pane-file:, pane-note:) into things a browser can open. */
+/** Rewrites Pinto Notes' own links (pane-file:, pane-note:) into things a browser can open. */
 function rehypeAmber(opts: RenderOptions) {
   return (tree: Root) => {
     visit(tree, "element", (node: Element, index, parent) => {

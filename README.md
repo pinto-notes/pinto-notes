@@ -50,7 +50,7 @@
 - **Evernote import.** Each exported notebook (.enex) becomes a folder, with checklists, tables, images, PDFs, dates and tags kept. Importing the same export again skips what's already here.
 - **Google Keep import.** From a Google Takeout download: text and checklists, labels as folders or tags, pins, dates and images. Archived notes come only if you ask, into an Archive folder.
 - **Markdown or text import.** A folder or .zip from Obsidian, Notion, Bear, Joplin, Logseq, Simplenote or Standard Notes: subfolders become folders, linked images and files come along, front-matter dates and tags are kept, and [[wiki links]] keep leading to the notes they name.
-- **Private by default.** Sign in with Apple or email. No ads, no analytics or tracking in the app; the website counts visits without cookies. Delete your account from Settings.
+- **Private by default.** Sign in with Apple or email. No ads and no tracking. The app sends error reports and a few usage counts, never your notes, and one switch turns that off ([what it sends](docs/Technical/app-telemetry.md)); the website counts visits without cookies. Delete your account from Settings.
 
 ## How it's built
 
@@ -87,6 +87,7 @@ Running on a physical device needs your own Apple team. Change `DEVELOPMENT_TEAM
 
 ```sh
 scripts/qa-test.sh                                   # Mac unit and interaction tests
+scripts/prepush.sh --tests                           # before a push: compiles what ships, runs the suites you touched
 deno test --allow-all supabase/functions/mcp/notes.test.ts
 scripts/mcp-e2e.sh                                   # MCP end-to-end, against the local stack
 scripts/share-e2e.sh                                 # share links end-to-end, against the local stack

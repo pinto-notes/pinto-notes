@@ -1,6 +1,6 @@
 # Staging
 
-A second Amber Notes for trying what's on `dev` with real devices and real AI connections, without
+A second Pinto Notes for trying what's on `dev` with real devices and real AI connections, without
 touching production: its own Supabase project, its own site, and Amber Notes Beta, an app that sits
 next to the real one on the same Mac and iPhone.
 
@@ -9,12 +9,12 @@ next to the real one on the same Mac and iPhone.
 | Supabase | `rodegaeruhyybqilrnpn` | `amber-staging` (ref in `.secrets/staging.env`), same org and region |
 | Site | ambernotes.app (Vercel project `amber-notes`) | https://amber-notes-staging.vercel.app (Vercel project `amber-notes-staging`), kept out of search |
 | MCP server | https://mcp.ambernotes.app | `https://<staging ref>.supabase.co/functions/v1/mcp`, with the app tools (`AMBER_MCP_TOOLS=pages`) |
-| App | Amber Notes, `dev.emilwagman.pane`, `ambernotes://` | Amber Notes Beta, `dev.emilwagman.pane.beta`, `ambernotes-beta://` |
+| App | Pinto Notes, `dev.emilwagman.pane`, `ambernotes://` | Amber Notes Beta, `dev.emilwagman.pane.beta`, `ambernotes-beta://` |
 
 ## What keeps the beta apart from the real app
 
 - **Its own identity.** `Config/Beta.xcconfig` sets the bundle id, name, URL scheme, App Group,
-  universal-link host and update feed. They're build settings with Amber Notes' values as defaults
+  universal-link host and update feed. They're build settings with Pinto Notes' values as defaults
   (`project.yml`), and Swift reads them through `AppIdentity`. Keychain service names start with the
   bundle id, so the beta never sees the real app's session, data key or note locks.
 - **Its own files on the Mac.** The Mac download isn't sandboxed and keeps `Pane.store` and its files

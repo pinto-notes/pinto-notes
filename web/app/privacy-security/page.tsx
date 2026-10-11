@@ -106,7 +106,9 @@ export default function PrivacySecurity() {
 
           <SectionHeading id="no-tracking">No ads, no tracking in the app</SectionHeading>
           <p>
-            There are no ads, and there never will be. The apps have no tracking, no third-party analytics and no crash-reporting tools.
+            There are no ads, and there never will be. The apps have no tracking and link no analytics or crash-reporting SDK.
+            Versions after 1.2 send error and crash reports and a few usage counts to PostHog in the EU: never your notes, titles or
+            anything you write. Settings, General, Share diagnostics and usage turns it off.
             We never sell or share your data.
           </p>
           <p>

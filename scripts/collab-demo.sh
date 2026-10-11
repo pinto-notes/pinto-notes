@@ -60,7 +60,7 @@ xcrun simctl launch "$B" dev.emilwagman.pane "${ARGS[@]}" -collab sara -collabNa
 sleep 0.4
 xcrun simctl launch "$A" dev.emilwagman.pane "${ARGS[@]}" -collab emil -collabName "Emil Wagman" -collabPhoto "$PWD/web/public/emil-wagman.jpg" -collabScript owner >/dev/null
 # Emil sets the link to Edit; it goes to Sara as a message would (her app gets it through a file:
-# a link from Messages would ask "Open in Amber Notes?", which nothing here can tap).
+# a link from Messages would ask "Open in Pinto Notes?", which nothing here can tap).
 for i in {1..80}; do grep -q "^edit-link " "$DA/Documents/share-demo.txt" 2>/dev/null && break; sleep 0.5; done
 LINK=$(grep "^edit-link " "$DA/Documents/share-demo.txt" | tail -1 | cut -d' ' -f2)
 echo "edit link: $LINK"

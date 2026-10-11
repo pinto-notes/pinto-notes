@@ -48,6 +48,49 @@ enum BackendConfig {
 
     static let oldMCPHost = "mcp.ambernotes.app"
     static let newMCPHost = "mcp.pintonotes.com"
+
+    /// The host a web sign-in opens at (Google everywhere, Apple in the Mac download). The system
+    /// names it when it asks: "Pinto Notes" Wants to Use "…" to Sign In. From PANE_AUTH_HOST, for
+    /// a project that also answers at a domain of its own; nil, and the sign-in opens at the
+    /// backend's own host, in every build without one.
+    static var signInHost: String? {
+        signInHost(configured: Bundle.main.object(forInfoDictionaryKey: "PaneAuthHost") as? String, backend: url)
+    }
+
+    /// PANE_AUTH_HOST reads "<backend host>=<host to show>". It names its backend so that a build
+    /// pointed at another one (staging, the local stack, a fork's project) never opens its
+    /// sign-in at this project's domain, whatever else the configuration carries over.
+    static func signInHost(configured: String?, backend: URL?) -> String? {
+        guard let configured, let backend, backend.scheme == "https", let backendHost = backend.host()?.lowercased() else { return nil }
+        let parts = configured.lowercased().split(separator: "=", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, parts[0] == backendHost, isHostName(parts[1]) else { return nil }
+        return parts[1]
+    }
+
+    /// A plain DNS name: labels of letters, digits and hyphens, at least two of them.
+    static func isHostName(_ s: String) -> Bool {
+        let labels = s.split(separator: ".", omittingEmptySubsequences: false)
+        return labels.count >= 2 && s.utf8.count <= 253 && labels.allSatisfy { label in
+            !label.isEmpty && label.first != "-" && label.last != "-"
+                && label.unicodeScalars.allSatisfy { $0.isASCII && ($0.properties.isAlphabetic || $0.properties.numericType != nil || $0 == "-") }
+        }
+    }
+
+    /// The address a web sign-in opens: the client's own authorize address with `signInHost` in
+    /// place of the backend's host, and nothing else changed (the path, the PKCE challenge and
+    /// the return address go through as they are). Only the page in the browser sheet moves; the
+    /// client keeps talking to the backend's host, where the one-time code is swapped for a
+    /// session, so the stored session and everything keyed by that host stay where they are.
+    static func signInURL(_ url: URL) -> URL { signInURL(url, backend: self.url, host: signInHost) }
+
+    static func signInURL(_ url: URL, backend: URL?, host: String?) -> URL {
+        guard let host, let backendHost = backend?.host()?.lowercased(), url.scheme == "https", url.port == nil,
+              url.host()?.lowercased() == backendHost,
+              var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        parts.host = host
+        return parts.url ?? url
+    }
 }
 
 /// When the session last really signed in, read from its access token's `amr` claim (the JWT
@@ -197,7 +240,39 @@ final class Backend {
     private func signedIn(_ session: Session) {
         willSignIn(session.user.id)
         userID = session.user.id
+        Telemetry.shared.identify(session.user.id)
         state = .signedIn(email: session.user.email ?? "")
+    }
+
+    /// The session ended (signed out here, or the server refused its refresh).
+    private func signedOut() {
+        if userID != nil { Telemetry.shared.signedOut() }
+        userID = nil
+        state = .signedOut
+    }
+
+    // MARK: Reports (Telemetry): which way in, and what kind of failure. Never the email.
+
+    /// An account made in the last few minutes signed up; any other signed in.
+    nonisolated static func signInEvent(_ method: SignInMethod, created: Date, now: Date = .now) -> TelemetryEvent {
+        now.timeIntervalSince(created) < 5 * 60 ? .signedUp(method) : .signedIn(method)
+    }
+
+    /// A sign-in worked: said under the account it signed in to (the auth stream, which also
+    /// names the account, may not have delivered yet).
+    private func report(_ event: TelemetryEvent, for session: Session?) {
+        if let session { Telemetry.shared.identify(session.user.id) }
+        Telemetry.shared.record(event)
+    }
+
+    /// Runs a sign-in and reports a failure; the error goes on to the caller as before.
+    private func reporting<T>(_ method: SignInMethod, _ work: () async throws -> T) async throws -> T {
+        do {
+            return try await work()
+        } catch {
+            if let failure = SignInFailureKind.of(error) { Telemetry.shared.record(.signInFailed(method, failure.kind, status: failure.status)) }
+            throw error
+        }
     }
 
     /// For screenshots and previews only: shows the signed-in screens without a session.
@@ -222,13 +297,11 @@ final class Backend {
                     if Self.keepsSession(afterRefreshError: error) {
                         signedIn(session)
                     } else {
-                        userID = nil
-                        state = .signedOut
+                        signedOut()
                     }
                 }
             } else {
-                userID = nil
-                state = .signedOut
+                signedOut()
             }
         }
     }
@@ -263,7 +336,10 @@ final class Backend {
     /// the server refuses to create new accounts for anyone not invited.
     func signInWithApple(_ credential: AppleSignIn.Credential) async throws {
         guard let client else { return }
-        try await client.auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: credential.idToken, nonce: credential.rawNonce))
+        let session = try await reporting(.apple) {
+            try await client.auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: credential.idToken, nonce: credential.rawNonce))
+        }
+        report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
     }
 
     /// Adds your Apple ID to the account you're signed in to, so Apple signs you in from now on.
@@ -286,9 +362,12 @@ final class Backend {
     @discardableResult
     func signInWithGoogle(hint: String? = nil) async throws -> UUID? {
         guard let client else { return nil }
-        let session = try await client.auth.signInWithOAuth(provider: .google, redirectTo: Self.webCallback, queryParams: Self.googleQuery(hint: hint)) { url in
-            try await WebAuthSession.run(url, callbackScheme: AppIdentity.scheme)
+        let session = try await reporting(.google) {
+            try await client.auth.signInWithOAuth(provider: .google, redirectTo: Self.webCallback, queryParams: Self.googleQuery(hint: hint)) { url in
+                try await WebAuthSession.run(BackendConfig.signInURL(url), callbackScheme: AppIdentity.scheme)
+            }
         }
+        report(Self.signInEvent(.google, created: session.user.createdAt), for: session)
         return session.user.id
     }
 
@@ -331,7 +410,14 @@ final class Backend {
     /// account as the App Store and iPhone apps (Apple's user id is shared across the team).
     func signInWithAppleOnTheWeb() async throws {
         guard let client else { return }
-        try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email")
+        // Our own sheet, as for Google: the library's built-in one makes its completion handler on
+        // the main actor, and AuthenticationServices answers on a background queue, which traps.
+        let session = try await reporting(.apple) {
+            try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email") { url in
+                try await WebAuthSession.run(BackendConfig.signInURL(url), callbackScheme: AppIdentity.scheme)
+            }
+        }
+        report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
     }
 
     /// Adds your Apple ID to this account through the web, for the Mac download.
@@ -361,7 +447,8 @@ final class Backend {
     /// Email and password sign-in, next to Sign in with Apple.
     func signIn(email: String, password: String) async throws {
         guard let client else { return }
-        try await client.auth.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password)
+        let session = try await reporting(.email) { try await client.auth.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password) }
+        report(.signedIn(.email), for: session)
     }
 
     /// Whether an email already has an account, for the email-first sign-in (the `account-status`
@@ -381,7 +468,9 @@ final class Backend {
     /// (docs/Technical/email-confirmation.md). With confirmation off, the session starts at once.
     func signUp(email: String, password: String) async throws -> Bool {
         guard let client else { return false }
-        let response = try await client.auth.signUp(email: email.trimmingCharacters(in: .whitespaces), password: password)
+        let response = try await reporting(.email) { try await client.auth.signUp(email: email.trimmingCharacters(in: .whitespaces), password: password) }
+        // With confirmation on, the account counts as made once its code is typed (confirmSignUp).
+        if let session = response.session { report(.signedUp(.email), for: session) }
         return response.session == nil
     }
 
@@ -389,7 +478,8 @@ final class Backend {
     /// first run follows from the session.
     func confirmSignUp(email: String, code: String) async throws {
         guard let client else { return }
-        try await client.auth.verifyOTP(email: email.trimmingCharacters(in: .whitespaces), token: code, type: .signup)
+        let response = try await reporting(.email) { try await client.auth.verifyOTP(email: email.trimmingCharacters(in: .whitespaces), token: code, type: .signup) }
+        report(.signedUp(.email), for: response.session)
     }
 
     /// A new confirmation code. Supabase sends at most one a minute to an address.

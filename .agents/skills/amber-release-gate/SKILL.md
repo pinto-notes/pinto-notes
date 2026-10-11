@@ -1,9 +1,9 @@
 ---
 name: amber-release-gate
-description: Run the Amber Notes release gate (performance, security, storage and network) on a candidate commit and read its report. Use before any App Store submission, TestFlight build for users, Mac release, or production server deploy, when asked whether a build is fast or safe enough to ship, or to compare a branch's performance with the last release.
+description: Run the Pinto Notes release gate (performance, security, storage and network) on a candidate commit and read its report. Use before any App Store submission, TestFlight build for users, Mac release, or production server deploy, when asked whether a build is fast or safe enough to ship, or to compare a branch's performance with the last release.
 ---
 
-# Amber Notes release gate
+# Pinto Notes release gate
 
 No App Store submission, TestFlight build for users, Mac release or production server deploy goes out
 without a passing gate report for that commit in `docs/Evidence/release-gate/` (a short summary; the

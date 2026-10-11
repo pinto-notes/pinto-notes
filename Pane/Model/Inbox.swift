@@ -24,9 +24,27 @@ enum Inbox {
         var name: String
     }
 
-    static var root: URL? {
-        if let rootOverride { return rootOverride }
-        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?.appending(path: "Inbox", directoryHint: .isDirectory)
+    static var root: URL? { rootOverride ?? groupRoot }
+
+    /// The inbox in the App Group container. Only where there is a share extension to fill it:
+    /// on iPhone and iPad. No Mac build has one, and the Mac download has no app group either
+    /// (it isn't sandboxed), so reaching for the group's folder there made macOS ask, at the
+    /// first launch, whether Pinto Notes may "access data from other apps".
+    static var groupRoot: URL? {
+        #if os(macOS)
+        nil
+        #else
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?.appending(path: "Inbox", directoryHint: .isDirectory)
+        #endif
+    }
+
+    /// The group's settings, shared with the share extension. None on the Mac (see `groupRoot`).
+    static var groupDefaults: UserDefaults? {
+        #if os(macOS)
+        nil
+        #else
+        UserDefaults(suiteName: appGroup)
+        #endif
     }
 
     /// The share extension has written here at least once, on this device: the folder is made on
@@ -82,7 +100,7 @@ enum Inbox {
 
     /// The folder last picked in the share sheet.
     static var lastFolder: UUID? {
-        get { UserDefaults(suiteName: appGroup)?.string(forKey: "shareFolder").flatMap(UUID.init(uuidString:)) }
-        set { UserDefaults(suiteName: appGroup)?.set(newValue?.uuidString, forKey: "shareFolder") }
+        get { groupDefaults?.string(forKey: "shareFolder").flatMap(UUID.init(uuidString:)) }
+        set { groupDefaults?.set(newValue?.uuidString, forKey: "shareFolder") }
     }
 }

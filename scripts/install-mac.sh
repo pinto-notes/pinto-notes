@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Builds Amber Notes for the Mac, team-signed so Sign in with Apple works, from a
+# Builds Pinto Notes for the Mac, team-signed so Sign in with Apple works, from a
 # clean checkout of main, and installs it to /Applications.
 #
 #   scripts/install-mac.sh

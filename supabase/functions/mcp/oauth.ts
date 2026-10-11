@@ -12,7 +12,7 @@
 //
 // Consent: /authorize sends the browser to the site's /connect page (ambernotes.app/connect?request=<id>),
 // which names the address the AI returns to (/connect/label; no AI's mark before sign-in) and
-// opens Amber Notes (ambernotes://connect?request=<id>).
+// opens Pinto Notes (ambernotes://connect?request=<id>).
 // Approval happens only in the app, the one place that has the account's data key: it asks
 // /connect/request who is asking, the person picks read-only or read & edit, and it posts the
 // decision to /connect/decide with their session in an Authorization header.
@@ -615,7 +615,7 @@ async function ask(req: Request, sql: Sql): Promise<Response> {
   return json({ asked: true, expires_at: row.expires_at, ...(devices ? { devices } : {}) });
 }
 
-/// Where the account has Amber Notes, so the page can say "Check your iPhone" or "Open Amber Notes
+/// Where the account has Pinto Notes, so the page can say "Check your iPhone" or "Open Pinto Notes
 /// on this Mac" instead of naming both. Two yes-or-no answers and nothing else, only ever for the
 /// account that just signed in to ask: an iPhone that opened the app in the last 30 days and can
 /// get the push, and a Mac that opened it in the last 30 days. Read from what the apps already
@@ -758,7 +758,7 @@ async function status(req: Request, sql: Sql): Promise<Response> {
   const [r] = await sql<{ decided: boolean; expired: boolean }[]>`
     select decided_at is not null as decided, expires_at < now() as expired from public.oauth_requests where id = ${id}`;
   if (!r || r.expired || a?.expired) return json({ state: "expired" });
-  // Answered in the app on this computer (the Open Amber Notes shortcut): the app went on from there.
+  // Answered in the app on this computer (the Open Pinto Notes shortcut): the app went on from there.
   if (r.decided) return json({ state: "answered_in_app" });
   if (!a) return json({ state: "pending" });
   return json(picksUp ? { state: "asked", device_nonce: a.device_nonce } : { state: "asked" });

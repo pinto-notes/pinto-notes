@@ -1,6 +1,6 @@
-// amber: your Amber Notes from the terminal. The same verbs the connector gives AIs (search, list,
+// amber: your Pinto Notes from the terminal. The same verbs the connector gives AIs (search, list,
 // read, create, edit, write, move, delete, history, restore, pin), as a thin MCP client over the
-// Amber Notes MCP server. See README.md.
+// Pinto Notes MCP server. See README.md.
 import { accessToken, login, logout, revoke } from "./src/auth.ts";
 import { connect, Refused, redact, ToolFailed, VERSION } from "./src/client.ts";
 import { parse } from "./src/args.ts";
