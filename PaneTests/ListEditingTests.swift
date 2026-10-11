@@ -13,6 +13,27 @@ import AppKit
         return (text as NSString).replacingCharacters(in: e.range, with: e.replacement)
     }
 
+    /// Bold with nothing selected, some words, Return: the note showed a literal ** on both lines.
+    @Test func returnLeavesAStyleBeforeItBreaksTheLine() {
+        let t = "next **bold words**"
+        let e = ListEditing.returnKey(in: t, selection: NSRange(location: 17, length: 0))
+        #expect(apply(t, e) == "next **bold words**\n")
+        #expect(e?.caret == 20)
+        for (text, caret) in [("an *italic*", 10), ("a ~~struck~~", 10), ("an <u>under</u>", 11), ("some `code`", 10)] {
+            let e = ListEditing.returnKey(in: text, selection: NSRange(location: caret, length: 0))
+            #expect(apply(text, e) == text + "\n", "\(text)")
+        }
+        // In a list the next item starts after the marker too.
+        let item = "- [ ] buy **rice**"
+        #expect(apply(item, ListEditing.returnKey(in: item, selection: NSRange(location: 16, length: 0))) == "- [ ] buy **rice**\n- [ ] ")
+        // Bold tapped and nothing typed: the empty pair goes.
+        let empty = "next ****"
+        #expect(apply(empty, ListEditing.returnKey(in: empty, selection: NSRange(location: 7, length: 0))) == "next \n")
+        // Not at a closing marker, or with text after it: Return is the plain one.
+        #expect(ListEditing.returnKey(in: "plain **bold** more", selection: NSRange(location: 12, length: 0)) == nil)
+        #expect(ListEditing.returnKey(in: "2 * 3 *", selection: NSRange(location: 6, length: 0)) == nil)
+    }
+
     @Test func returnContinuesBullets() {
         let t = "- one"
         let e = ListEditing.returnKey(in: t, selection: NSRange(location: 5, length: 0))
