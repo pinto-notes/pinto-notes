@@ -154,6 +154,7 @@ struct NoteListView: View {
     var body: some View {
         #if DEBUG
         RenderProbe.count("NoteListView")
+        if HoverProbe.enabled { print("PERF-WHY", terminator: " "); Self._printChanges() }
         #endif
         // Worked out once per update and handed down: the list asks many times.
         library.publishesEveryChange = !search.trimmingCharacters(in: .whitespaces).isEmpty

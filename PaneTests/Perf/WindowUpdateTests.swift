@@ -200,7 +200,7 @@ import Testing
     /// folder row with them), not the note list. The split view hands its columns over again on
     /// every toggle, and both were worked out each time, mid-animation. They still follow what
     /// they show: another folder is another list.
-    @Test(.timeLimit(.minutes(2))) func aSidebarToggleWorksOutNoColumnAgain() async throws {
+    @Test(.timeLimit(.minutes(2)), arguments: 0..<30) func aSidebarToggleWorksOutNoColumnAgain(_ round: Int) async throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext
         let folders = (0..<12).map { ctx.createFolder(named: "Folder \($0)") }
@@ -245,17 +245,18 @@ import Testing
         // "NoteListView 3" on a run where the window came up quickly.
         let shown = RenderProbe.counts
         var last = shown, still = 0
-        for _ in 0..<40 where still < 6 {
+        for _ in 0..<40 where still < 6 && round % 2 == 0 {
             try? await Task.sleep(for: .milliseconds(250))
             w.contentView?.layoutSubtreeIfNeeded()
             w.displayIfNeeded()
             if RenderProbe.counts == last { still += 1 } else { still = 0; last = RenderProbe.counts }
         }
-        #expect(still >= 6, "the window comes to rest before the toggles are counted")
+        if round % 2 == 0 { #expect(still >= 6, "the window comes to rest before the toggles are counted") }
         let late = last.compactMap { name, n in n > (shown[name] ?? 0) ? "\(name) \(n - (shown[name] ?? 0))" : nil }.sorted()
         print("PERF sidebar: bodies worked out after the window first settled, before any toggle: \(late.isEmpty ? "none" : late.joined(separator: ", "))")
 
         RenderProbe.counts = [:]
+        print("PERF toggles begin, round \(round)")
         for hidden in [true, false, true, false] {
             controller.toggleSidebar(nil)
             await settle()

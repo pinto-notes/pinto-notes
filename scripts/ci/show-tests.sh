@@ -9,7 +9,7 @@
 log=$1
 tee "$log" \
   | grep --line-buffered -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:.]+[+-][0-9]{4} [^ ]+\[[0-9]+:[0-9]+\] ' \
-  | grep --line-buffered -E '✔ Test run|✘|error:|PERF|\*\* TEST' || true
+  | grep --line-buffered -E '✔ Test run|✘|error:|PERF|NoteListView: |\*\* TEST' || true
 if grep -q '✘' "$log"; then
   echo
   echo "What failed:"
