@@ -374,6 +374,10 @@ struct NoteListView: View {
                     .allowsHitTesting(false)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NoteDrop.nested)) { n in
+            guard let parent = n.object as? UUID else { return }
+            selection = NoteDrop.selection(afterNestingUnder: parent)
+        }
         .dropDestination(for: URL.self) { urls, _ in
             let made = context.importFiles(urls, into: scope == .trash ? .all : scope)
             if let first = made.first { selection = [first] }
@@ -426,7 +430,12 @@ struct NoteListView: View {
             // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
             RowClickLog.start()
         }
-        .onChange(of: selection) { old, new in RowClickLog.selection(old, new) }
+        .onChange(of: selection) { old, new in
+            RowClickLog.selection(old, new)
+            // Notes that went inside another note aren't rows any more (see `withoutSubNotes`).
+            let rows = NoteDrop.withoutSubNotes(new, in: context)
+            if rows != new { selection = rows }
+        }
         #endif
         .toolbar {
             #if os(iOS)
@@ -1226,6 +1235,9 @@ private struct ListRow: View, @MainActor Equatable {
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)
             }
+            // Notes dropped on this row become its sub-notes. (After the drag source, as on
+            // the sidebar's folders: inside it, the row was never offered a drop.)
+            .modifier(SubNoteDropTarget(note: note))
             .swipeActions(edge: .leading) {
                 if note.trashedAt == nil {
                     Button(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin", action: togglePin)
