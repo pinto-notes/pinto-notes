@@ -161,3 +161,65 @@ extension TableInteractionTests {
     }
 }
 #endif
+
+#if os(macOS)
+extension TableInteractionTests {
+    /// What you type right after making a table goes into its first cell.
+    static func typeIntoFocusedCell(_ h: EditorHarness, _ s: String) {
+        (h.window.firstResponder as? NSTextView)?.insertText(s, replacementRange: NSRange(location: NSNotFound, length: 0))
+    }
+
+    /// The Table button puts the keyboard in the new table's first cell, ready to type, like
+    /// Notes (in 1.2 the caret stayed in the text under the table until you clicked a cell).
+    @Test func aNewTableTakesTheKeyboardInItsFirstCell() async {
+        let h = await EditorHarness("To play\n\n- Hades\n- Factorio\n")
+        defer { h.close() }
+        await h.select((h.text as NSString).length)
+        h.controller.insertTable()
+        #expect(await h.until(5) { h.gridHasFocus }, "the keyboard is in the table")
+        Self.typeIntoFocusedCell(h, "Game")
+        #expect(await h.until(5) { h.text.contains("| Game |   |\n| --- | --- |\n|   |   |") }, "typed into the first header cell: \(h.text.debugDescription)")
+    }
+
+    @Test func aNewTableUnderAnotherTakesTheKeyboardToo() async {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.caret(after: "After the table")
+        h.controller.insertTable()
+        #expect(await h.until(5) { h.gridHasFocus }, "the keyboard is in the new table")
+        Self.typeIntoFocusedCell(h, "Game")
+        #expect(await h.until(5) { h.text.hasSuffix("After the table\n| Game |   |\n| --- | --- |\n|   |   |\n") }, "typed into the new table, not the one above: \(h.text.debugDescription)")
+    }
+}
+#endif
+
+#if os(macOS)
+extension TableInteractionTests {
+    /// Clicking back into the text ends the table's claim on the keyboard: a table laid out
+    /// again later (a sync, a resize) must not pull the caret out of the text.
+    @Test func theTextTakingTheKeyboardBackEndsTheTablesClaim() async {
+        let h = await EditorHarness("To play\n\n- Hades\n")
+        defer { h.close() }
+        await h.select((h.text as NSString).length)
+        h.controller.insertTable()
+        #expect(await h.until(5) { h.gridHasFocus })
+        // The grid keeps asking for the keyboard until it knows it has it (a few turns).
+        await h.settle(0.5)
+        h.window.makeFirstResponder(h.view)
+        #expect(h.view.core.gridFocus == nil)
+        h.view.layoutCards(animated: false)
+        await h.settle(0.3)
+        #expect(!h.gridHasFocus, "the keyboard stays in the text")
+    }
+
+    /// Over a table or card the pointer belongs to that view; over text it is the text view's.
+    @Test func thePointerOverATableIsTheTablesToSet() async {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        let row = h.lineRect(at: tableRange.location)
+        #expect(h.view.card(at: CGPoint(x: 200, y: row.minY + GridMetrics.handle + 10)) == "g0")
+        #expect(h.view.card(at: CGPoint(x: 200, y: h.lineRect(at: 0).midY)) == nil)
+        #expect(h.view.card(at: CGPoint(x: 200, y: h.lineRect(at: (Self.note as NSString).length).midY)) == nil)
+    }
+}
+#endif
