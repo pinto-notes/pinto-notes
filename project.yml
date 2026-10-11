@@ -106,6 +106,7 @@ targets:
         PaneSupabaseKey: $(PANE_SUPABASE_KEY)
         PaneShareURL: $(PANE_SHARE_URL)
         PaneMCPURL: $(PANE_MCP_URL)
+        PaneAuthHost: $(PANE_AUTH_HOST)
         PaneURLScheme: $(PANE_URL_SCHEME)
         PaneBundleID: $(PANE_BUNDLE_ID)
         PaneAppGroup: $(PANE_APP_GROUP)
