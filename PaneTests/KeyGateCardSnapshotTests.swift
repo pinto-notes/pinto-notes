@@ -4,7 +4,7 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// The steps between sign-in and the notes (adding this Mac, "No device left?", the recovery key,
+/// The steps between sign-in and the notes (linking this Mac, "No device left?", the recovery key,
 /// starting fresh) in the welcome's 900-point card, picture on the left: Emil saw the device link
 /// in a tall, narrow window of its own. Each step fits the card's half without spilling, and with
 /// PANE_SNAPSHOT_DIR (or the snapshot run's AMBER_HIG_SHOTS) set each is rendered offscreen, light
