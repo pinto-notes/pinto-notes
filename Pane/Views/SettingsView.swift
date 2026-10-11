@@ -72,6 +72,7 @@ struct SettingsView: View {
                         .navigationBarTitleDisplayMode(.inline)
                 }
         }
+        .roomySheet()
         .environment(\.networkReach, reach)
         .consentHost(client: backend.client, active: isSignedIn)
         // A link, a card or the storage warning opens Settings at its page.
@@ -322,7 +323,7 @@ private struct AccountSettings: View {
                 // The status and its action on one row, like iCloud in System Settings.
                 LabeledContent("Sync") {
                     HStack(spacing: 10) {
-                        SyncStatusLabel(status: sync?.status ?? .idle)
+                        SyncStatusLabel(status: sync?.status ?? .idle, reach: sync?.reach ?? .online)
                         Button("Sync Now") { Task { await sync?.sync() } }
                             .controlSize(.small)
                             .accessibilityIdentifier("settings.syncNow")
@@ -332,7 +333,7 @@ private struct AccountSettings: View {
             }
             // Next to Delete Account, which says to export first.
             Section {
-                ExportNotesButton()
+                ExportNotesButton(sync: sync)
             } footer: {
                 Text(PrivacyCopy.exportFooter)
             }
@@ -547,14 +548,32 @@ private struct AppleIDRow: View {
 }
 
 struct SyncStatusLabel: View {
+    /// An iPad is named too: "your iPhone and Mac" read as if this device were left out.
+    static var syncing: String { InstallID.kind == "iPad" ? "Syncing to your iPad, iPhone and Mac" : "Syncing to your iPhone and Mac" }
+
     let status: SyncEngine.Status
+    /// Whether the server can be reached now. The status only changes when a sync is tried, so
+    /// without this a Mac that went offline after its last sync still said "Syncing … just now".
+    var reach: SyncEngine.Reach = .online
     var body: some View {
         switch status {
+        case _ where Self.away(status, reach: reach) != nil: Text(Self.away(status, reach: reach) ?? "").foregroundStyle(.secondary)
         case .idle: Text("Waiting").foregroundStyle(.secondary)
         case .syncing: HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Syncing…") }
-        case .synced(let d): Text("Syncing to your iPhone and Mac · \(Self.when(d))").foregroundStyle(.secondary)
+        case .synced(let d): Text("\(Self.syncing) · \(Self.when(d))").foregroundStyle(.secondary)
         // No network isn't a problem to fix: said plainly. Refusals and the like stay orange.
         case .offline(let why): Text(why).foregroundStyle(why == SyncEngine.describe(URLError(.notConnectedToInternet)) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
+        }
+    }
+
+    /// What the row says while the server can't be reached and nothing is being tried: that, and
+    /// when it last synced. Nil while online, mid-sync, or when the status already says why.
+    static func away(_ status: SyncEngine.Status, reach: SyncEngine.Reach) -> String? {
+        guard let lead = OfflineCopy.line(reach, waiting: false) else { return nil }
+        switch status {
+        case .idle: return lead
+        case .synced(let d): return "\(lead) \u{00B7} last synced \(d.formatted(date: .omitted, time: .shortened))"
+        case .syncing, .offline: return nil
         }
     }
 
@@ -586,6 +605,19 @@ private struct MenuBarSection: View {
 /// About › Open source: three quiet links to the code on GitHub, and the terms and privacy
 /// policy under them. Nothing here ever asks.
 struct AboutSection: View {
+    /// "1.2 (2610100857)": what to quote when something goes wrong.
+    static var version: String { version(short: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+                                          build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) }
+
+    static func version(short: String?, build: String?) -> String {
+        switch (short, build) {
+        case let (s?, b?) where s != b: "\(s) (\(b))"
+        case let (s?, _): s
+        case let (nil, b?): b
+        default: "Unknown"
+        }
+    }
+
     static let links: [(title: String, url: URL, id: String)] = [
         ("Star on GitHub", ShareAsk.repository, "settings.github"),
         ("Report an issue", ShareAsk.newIssue, "settings.reportIssue"),
@@ -606,6 +638,8 @@ struct AboutSection: View {
             .padding(.vertical, 2)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("settings.openSource")
+            LabeledContent("Version", value: Self.version)
+                .accessibilityIdentifier("settings.version")
         } header: {
             Text("About")
         } footer: {
@@ -619,7 +653,13 @@ struct AboutSection: View {
                 Text("\u{00B7}").foregroundStyle(.tertiary).accessibilityHidden(true)
             }
             Link(link.title, destination: link.url)
+                #if os(iOS)
+                // The words are footnote-sized; the target is a finger's height.
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+                #else
                 .frame(minHeight: 24)
+                #endif
                 .accessibilityIdentifier(link.id)
         }
     }

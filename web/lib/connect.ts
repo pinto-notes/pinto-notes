@@ -144,7 +144,7 @@ export const destination = (host: string, loopback: boolean) => (loopback ? "an 
 
 /// A sign-in failure from Supabase Auth, in plain words.
 /// Signing in on the web to an account whose email isn't confirmed yet.
-export const EMAIL_NOT_CONFIRMED = "This email isn't confirmed yet. Open Amber Notes on your iPhone or Mac, sign in, and type the code we email you. Then connect again.";
+export const EMAIL_NOT_CONFIRMED = "This email isn't confirmed yet. Open Pinto Notes on your iPhone or Mac, sign in, and type the code we email you. Then connect again.";
 
 export function signInError(status: number, body: { error_code?: string } | null): string {
   if (status === 429) return "Too many attempts. Wait a few minutes and try again.";
