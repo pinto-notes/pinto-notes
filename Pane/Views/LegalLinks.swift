@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Amber Notes' terms and privacy policy, on the share site.
 enum Legal {
-    static let terms = URL(string: "https://ambernotes.app/terms")!
-    static let privacy = URL(string: "https://ambernotes.app/privacy")!
+    static let terms = URL(string: "https://pintonotes.com/terms")!
+    static let privacy = URL(string: "https://pintonotes.com/privacy")!
 
     /// "By continuing, you agree to the Terms of Service and Privacy Policy." with both names as links.
     static var consentSentence: AttributedString {
@@ -32,17 +32,32 @@ struct ConsentFooter: View {
 
 /// "Terms of Service · Privacy Policy" for Settings › General, under About.
 struct LegalLinksRow: View {
+    /// How tall each link's target is: a finger's height on iPhone.
+    #if os(iOS)
+    private static let target: CGFloat = 44
+    #else
+    private static let target: CGFloat = 24
+    #endif
+
     var body: some View {
         HStack(spacing: 6) {
             Link("Terms of Service", destination: Legal.terms)
+                .frame(minHeight: Self.target)
+                .contentShape(.rect)
                 .accessibilityIdentifier("settings.terms")
             Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
             Link("Privacy Policy", destination: Legal.privacy)
+                .frame(minHeight: Self.target)
+                .contentShape(.rect)
                 .accessibilityIdentifier("settings.privacy")
         }
         .font(.footnote)
         .tint(Color(PColor.paneAccent))
         .buttonStyle(.hoverLink)
+        #if os(iOS)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        #else
         .frame(maxWidth: .infinity, minHeight: 24)
+        #endif
     }
 }

@@ -356,7 +356,7 @@ import Testing
         // Same trigger as everyone's: seven days, then once.
         s.moment(setupVisible: false, tipShowing: false, now: Self.later)
         #expect(s.visible)
-        #expect(s.choose(.starredGitHub) == URL(string: "https://github.com/amber-notes/amber-notes")!)
+        #expect(s.choose(.starredGitHub) == URL(string: "https://github.com/pinto-notes/pinto-notes")!)
         #expect(s.thanked, "the thank-you shows as for a post")
         #expect(ShareAsk.thanks(for: s.thankedFor) == "Every star helps someone find it.")
         s.closed()
@@ -415,21 +415,21 @@ import Testing
     @Test func theLinksCarryThePost() throws {
         let x = ShareAsk.xURL.absoluteString
         #expect(x.hasPrefix("https://x.com/intent/post?text=I%E2%80%99ve%20been%20using%20Pinto%20Notes%3A%20a%20simple%20notes%20app"))
-        #expect(x.hasSuffix("&url=https%3A%2F%2Fambernotes.app"))
+        #expect(x.hasSuffix("&url=https%3A%2F%2Fpintonotes.com"))
         let text = try #require(URLComponents(url: ShareAsk.xURL, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "text" }?.value)
         #expect(text == ShareAsk.postText)
         #expect(text.hasSuffix("ChatGPT and Claude can actually read and edit. Free."))
-        #expect(ShareAsk.linkedInURL.absoluteString == "https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fambernotes.app")
+        #expect(ShareAsk.linkedInURL.absoluteString == "https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fpintonotes.com")
     }
 
     @Test func theOpenSourceLinksGoToGitHub() {
-        #expect(ShareAsk.url(for: .starredGitHub)?.absoluteString == "https://github.com/amber-notes/amber-notes")
+        #expect(ShareAsk.url(for: .starredGitHub)?.absoluteString == "https://github.com/pinto-notes/pinto-notes")
         #expect(ShareAsk.url(for: .dismissed) == nil)
         #expect(AboutSection.links.map(\.title) == ["Star on GitHub", "Report an issue", "Contribute"])
         #expect(AboutSection.links.map(\.url.absoluteString) == [
-            "https://github.com/amber-notes/amber-notes",
-            "https://github.com/amber-notes/amber-notes/issues/new/choose",
-            "https://github.com/amber-notes/amber-notes/blob/main/CONTRIBUTING.md",
+            "https://github.com/pinto-notes/pinto-notes",
+            "https://github.com/pinto-notes/pinto-notes/issues/new/choose",
+            "https://github.com/pinto-notes/pinto-notes/blob/main/CONTRIBUTING.md",
         ])
     }
 }

@@ -167,7 +167,10 @@ private struct HoverHighlight<S: InsettableShape>: ViewModifier {
             .contentShape(shape)
             .modifier(HoverTracking(hovering: $hovering))
         #else
-        content
+        // No pointer highlight here, but the whole shape still takes the tap: without it only the
+        // drawn parts of a label do, and the empty middle of a wide row (a file card in a note on
+        // an iPad) took none.
+        content.contentShape(shape)
         #endif
     }
 }
@@ -304,5 +307,25 @@ enum RenderProbe {
         guard HoverProbe.enabled else { return }
         counts[name, default: 0] += 1
     }
+}
+#endif
+
+#if os(iOS)
+/// On iPad a sheet is a fixed card in the middle of the screen. At the accessibility text sizes
+/// that card holds three rows: there the sheet takes the page instead.
+private struct RoomySheet: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        if typeSize.isAccessibilitySize {
+            content.presentationSizing(.page)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func roomySheet() -> some View { modifier(RoomySheet()) }
 }
 #endif

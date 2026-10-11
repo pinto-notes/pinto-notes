@@ -164,9 +164,9 @@ enum NoteSourceError: Error, Equatable, Sendable {
 
     var message: String {
         switch self {
-        case .badLink(.template): "Open the template again from ambernotes.app/templates."
+        case .badLink(.template): "Open the template again from pintonotes.com/templates."
         case .badLink(.copy): "Ask for the link again, or open the shared page and choose Use this note."
-        case .notFound(.template): "It may have been renamed. Find it again at ambernotes.app/templates."
+        case .notFound(.template): "It may have been renamed. Find it again at pintonotes.com/templates."
         case .notFound(.copy): "The person who shared it stopped sharing, or the link has changed."
         case .offline: "Connect to the internet, then try again."
         case .unavailable: "Something went wrong on the way. Try again in a moment."
@@ -239,6 +239,8 @@ struct WebNoteSource: NoteSourceFetching {
     var anonKey: String? = BackendConfig.key
     var session: URLSession = .shared
     var timeout: TimeInterval = 15
+    /// Whether a template's app comes with it (NoteApps): without, the template is its note.
+    var apps = NoteApps.enabled
 
     func draft(for link: NoteSourceLink) async throws -> NoteDraft {
         guard link.isValid else { throw NoteSourceError.badLink(link.kind) }
@@ -262,7 +264,7 @@ struct WebNoteSource: NoteSourceFetching {
               !t.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw NoteSourceError.unavailable }
         var draft = NoteDraft(template: t, link: link)
         // An app template brings the app (a project, checked like any other) and its picture.
-        if let path = t.app, path.hasPrefix("/"), let url = URL(string: path, relativeTo: site) {
+        if apps, let path = t.app, path.hasPrefix("/"), let url = URL(string: path, relativeTo: site) {
             let (project, r) = try await session.data(for: URLRequest(url: url, timeoutInterval: timeout))
             guard (r as? HTTPURLResponse)?.statusCode == 200, let text = String(data: project, encoding: .utf8),
                   NotePageProject.parse(text) != nil else { throw NoteSourceError.unavailable }

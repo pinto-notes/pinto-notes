@@ -41,8 +41,19 @@ final class SyncEngine {
     var reach: Reach { path.isUp ? lastReach : .offline }
     /// True once a sync has completed since launch.
     private(set) var hasSynced = false
+    /// The signed-in account's library has come down: a pull finished since this sign-in. Until
+    /// then an empty library says nothing about the account, and nothing may be made for it (a
+    /// first folder, the setup guide's To-do note): on a second device, or after a reinstall,
+    /// each of those went up as a duplicate.
+    private(set) var knowsAccount = false
+    /// That first pull started from nothing and brought nothing: an account that has never held
+    /// anything. Asked once (`claimNewAccount`).
+    private var accountIsNew = false
     /// Bumps when a pull changed a note, so an open editor can refresh.
     private(set) var remoteChangeTick = 0 { didSet { lastChange = .now } }
+    /// Bumps when a pull brought a file this device didn't have (or new bytes for one): a picture added on another device can reach this one
+    /// in a later sync than the note text that shows it, and the open note asks for it then.
+    private(set) var filesPulledTick = 0
 
     private let backend: Backend
     private let context: ModelContext
@@ -188,7 +199,18 @@ final class SyncEngine {
             await pushPages(client, sealer: sealer)
             await pushPageData(client, sealer: sealer)
             await pushAPIKeyNames(client, sealer: sealer)
-            if pulling { try await pull(client); hasSynced = true }
+            if pulling {
+                // An empty library that remembers where sync was (the library was removed and the
+                // settings weren't): everything comes down again, not just what changed since.
+                if cursor != .distantPast, Self.holdsNothing(context) { defaults.removeObject(forKey: cursorKey) }
+                let fromTheStart = cursor == .distantPast
+                try await pull(client)
+                hasSynced = true
+                if !knowsAccount {
+                    accountIsNew = fromTheStart && Self.holdsNothing(context)
+                    knowsAccount = true
+                }
+            }
             // Only when it changes: views read it, and every write would redraw them.
             if lastReach != .online { lastReach = .online }
             if pulling { downloadKeptFiles() }
@@ -355,6 +377,8 @@ final class SyncEngine {
     // MARK: A new key for the account
 
     nonisolated static func keyIDKey(_ user: UUID) -> String { "e2ee.keyID.\(user.uuidString.lowercased())" }
+    /// Set when this device starts fresh (AccountCrypto.startFresh), until its notes are marked to go up again.
+    nonisolated static func uploadAgainKey(_ user: UUID) -> String { "e2ee.uploadAgain.\(user.uuidString.lowercased())" }
 
     /// The account's key changed since this device last synced: someone chose Start fresh, and the
     /// server's notes went with the old key. What this device still has goes up again, sealed with
@@ -363,7 +387,11 @@ final class SyncEngine {
         guard let uid = backend.userID else { return }
         let known = defaults.string(forKey: Self.keyIDKey(uid))
         defaults.set(keyID, forKey: Self.keyIDKey(uid))
-        guard let known, known != keyID else { return }
+        // Start fresh was done on this device: the server is empty whatever key id this device
+        // remembers (or doesn't: one that never finished a sync with its key remembers none).
+        let startedFreshHere = defaults.bool(forKey: Self.uploadAgainKey(uid))
+        defaults.removeObject(forKey: Self.uploadAgainKey(uid))
+        guard startedFreshHere || (known != nil && known != keyID) else { return }
         DebouncedSave.flushAll()
         let n = Self.markAllForUpload(context)
         defaults.removeObject(forKey: cursorKey)
@@ -510,9 +538,25 @@ final class SyncEngine {
         }
     }
 
+    /// True once, for an account whose first pull showed it has never held anything: the moment
+    /// to give it its first folder. Never for an account that already has a library somewhere.
+    func claimNewAccount() -> Bool {
+        defer { accountIsNew = false }
+        return accountIsNew
+    }
+
+    /// No folder, note or file at all, not even a deleted one.
+    static func holdsNothing(_ context: ModelContext) -> Bool {
+        func none<T: PersistentModel>(_: T.Type) -> Bool { ((try? context.fetchCount(FetchDescriptor<T>())) ?? 1) == 0 }
+        return none(Folder.self) && none(Note.self) && none(Attachment.self)
+    }
+
     func stop() async {
         // Signed out: nothing already scheduled may still go up.
         started = false
+        // The next sign-in may be another account: what's known about this one goes.
+        knowsAccount = false
+        accountIsNew = false
         realtimeUp = false
         fallback?.cancel()
         fallback = nil
@@ -630,6 +674,9 @@ final class SyncEngine {
     /// published to every page it's on. A share row that
     /// doesn't verify isn't here: it's never published to, and the note doesn't show as shared.
     private(set) var liveShares: [UUID: Bool] = [:]
+    /// The slugs of those links, so an open note can show its link (Copy Link, Stop Sharing)
+    /// from what every sync already checked, without a lookup of its own.
+    private(set) var liveSlugs: [UUID: String] = [:]
     private var publishQueue: Set<UUID> = []
     private var publishTask: Task<Void, Never>?
     /// Publishes scheduled and not finished (tests wait for them: `publishesSettled`). One replaced
@@ -651,6 +698,8 @@ final class SyncEngine {
         }
         let next = Dictionary(verified.map { ($0.note_id, $0.include_subnotes) }, uniquingKeysWith: { a, _ in a })
         if next != liveShares { liveShares = next }
+        let slugs = Dictionary(verified.map { ($0.note_id, $0.slug) }, uniquingKeysWith: { a, _ in a })
+        if slugs != liveSlugs { liveSlugs = slugs }
     }
 
     /// Waits until the page publishing scheduled so far has run (a newer one replaces an older one).
@@ -663,8 +712,9 @@ final class SyncEngine {
     }
 
     /// Sharing changed on this device (Share Link, sub-notes, Stop Sharing).
-    func shareChanged(_ note: UUID, includesSubNotes: Bool?) {
+    func shareChanged(_ note: UUID, includesSubNotes: Bool?, slug: String? = nil) {
         liveShares[note] = includesSubNotes
+        liveSlugs[note] = includesSubNotes == nil ? nil : slug ?? liveSlugs[note]
     }
 
     /// The shared notes whose pages show this one: itself, and each shared note whose link
@@ -1200,6 +1250,18 @@ final class SyncEngine {
             fileRows += page
             if page.count < 1000 { break }
         }
+        // Files an earlier build took from the server and left half applied (see the guard below):
+        // marked as new here, yet with no bytes on this device, which a file added here always has.
+        // Their rows are read again by id (the cursor is long past them) and applied in full.
+        let halfApplied = Set(((try? context.fetch(FetchDescriptor<Attachment>(predicate: #Predicate { $0.dirty && !$0.uploaded }))) ?? [])
+            .filter { $0.deletedAt == nil && !FileStore.exists($0) }.map(\.id))
+        let missing = Array(halfApplied.subtracting(fileRows.map(\.id)))
+        for i in stride(from: 0, to: missing.count, by: 200) {
+            let chunk = missing[i ..< min(i + 200, missing.count)].map { $0.uuidString.lowercased() }
+            let again: [AttachmentDTO] = try await client.from("attachments").select().in("id", values: chunk).execute().value
+            fileRows += again
+        }
+        var filesApplied = false
         for r in fileRows where !r.unreadable || skipUnreadable(r.id, "A file") {
             let known = context.attachment(r.id)
             let a = known ?? {
@@ -1207,7 +1269,12 @@ final class SyncEngine {
                 context.insert(a)
                 return a
             }()
-            guard !a.dirty || a.uploaded else { continue }
+            // A file added or changed here and not sent yet keeps what this device says. Not a row
+            // first seen just now: a new Attachment starts as "new here" too, and skipping it left
+            // every file from another device without its folder, never marked as on the server.
+            guard known == nil || halfApplied.contains(r.id) || !a.dirty || a.uploaded else { continue }
+            // New to this device, or new bytes: something an open note may be waiting to show.
+            if known == nil || !a.uploaded || r.content_version != a.contentVersion { filesApplied = true }
             // Renamed elsewhere (another device, the AI): this device's copy follows.
             if a.filename != r.filename { FileStore.rename(a.id, from: a.filename, to: r.filename) }
             // Deleted for good elsewhere, or by the server after 30 days in Recently Deleted: the
@@ -1234,6 +1301,7 @@ final class SyncEngine {
             if let s = r.server_updated_at, s > newest { newest = s }
             changed = true
         }
+        if filesApplied { filesPulledTick += 1 }
 
         var offset = 0
         var pulledNotes: [UUID] = []

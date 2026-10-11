@@ -76,7 +76,7 @@ describe("the connect page", () => {
   it("says why sign-in failed in plain words", () => {
     expect(signInError(400, { error_code: "invalid_credentials" })).toBe("The email or password isn't right.");
     expect(signInError(400, { error_code: "email_not_confirmed" })).toBe(EMAIL_NOT_CONFIRMED);
-    expect(EMAIL_NOT_CONFIRMED).toMatch(/Amber Notes on your iPhone or Mac/);
+    expect(EMAIL_NOT_CONFIRMED).toMatch(/Pinto Notes on your iPhone or Mac/);
     expect(EMAIL_NOT_CONFIRMED).not.toMatch(/[\u2013\u2014]/);
     expect(signInError(429, null)).toMatch(/Too many attempts/);
     expect(signInError(500, null)).toMatch(/Check your connection/);
@@ -107,7 +107,8 @@ describe("the connect page", () => {
 
   it("explains an /authorize problem without echoing anything from the address", () => {
     expect(problemText("unknown_app")).toMatch(/doesn't know this app/);
-    expect(problemText("unknown_app")).toMatch(/In Claude.*In ChatGPT.*https:\/\/mcp\.ambernotes\.app/);
+    expect(problemText("unknown_app")).toMatch(/In Claude.*In ChatGPT.*add it again at https:\/\/mcp\.pintonotes\.com\./);
+    expect(problemText("wrong_server")).toMatch(/https:\/\/mcp\.pintonotes\.com\. The older https:\/\/mcp\.ambernotes\.app works too\./);
     expect(problemText("<script>alert(1)</script>")).toMatch(/Start connecting again/);
     expect(problemText(undefined)).toMatch(/Start connecting again/);
   });

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { readUnsubscribeLink } from "@/lib/unsubscribe";
 import { ButtonRow, EmptyState, Foot, Shell, Sign, Stage, TopBar, ui } from "@/lib/ui";
 
@@ -15,6 +16,8 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
   const raw = await searchParams;
   const one = (k: string) => (typeof raw[k] === "string" ? raw[k] as string : undefined);
   const link = readUnsubscribeLink(one("u"), one("t"));
+  // A test send (scripts/lifecycle-test-send.ts) carries u=test&t=test: there is no account behind it.
+  const test = one("u") === "test" && one("t") === "test";
   const done = one("done") === "1";
   const failed = one("failed") === "1";
   return (
@@ -26,9 +29,13 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
             actions={<ButtonRow><Link className={ui.secondary} href="/">Go to the home page</Link></ButtonRow>}>
             <span role="status">Your notes and your account stay as they are. Emails about your account, like a password reset, still arrive.</span>
           </EmptyState>
+        ) : test ? (
+          <EmptyState title="This is a test email" sign={<Sign kind="gone" />}>
+            So there is nothing to stop. In a real email this link stops the emails with one button.
+          </EmptyState>
         ) : !link ? (
           <EmptyState title="This link isn't complete" sign={<Sign kind="gone" />}>
-            Open the link from the email again, or write to hello@ambernotes.app and I&apos;ll stop the emails for you.
+            Open the link from the email again, or write to {SUPPORT_EMAIL} and I&apos;ll stop the emails for you.
           </EmptyState>
         ) : (
           <EmptyState title="Stop these emails?"
@@ -38,7 +45,7 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
               </form>
             }>
             {failed
-              ? <span role="status">That didn&apos;t go through. Try again in a moment, or write to hello@ambernotes.app.</span>
+              ? <span role="status">That didn&apos;t go through. Try again in a moment, or write to {SUPPORT_EMAIL}.</span>
               : "No more tips and check-ins from Emil about getting started with Pinto Notes. Emails about your account, like a password reset, still arrive."}
           </EmptyState>
         )}

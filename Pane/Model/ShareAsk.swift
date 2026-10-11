@@ -29,15 +29,15 @@ enum ShareAsk {
     /// No ask this soon after a keystroke.
     static let typingQuiet: TimeInterval = 10
 
-    static let site = "https://ambernotes.app"
+    static let site = "https://pintonotes.com"
     static let postText = "I\u{2019}ve been using Pinto Notes: a simple notes app for iPhone and Mac that ChatGPT and Claude can actually read and edit. Free."
 
     enum Choice: String, Sendable { case sharedX = "shared_x", sharedLinkedIn = "shared_linkedin", starredGitHub = "starred_github", dismissed }
 
     /// Amber Notes on GitHub: the repository, a new issue, and how to contribute.
-    static let repository = URL(string: "https://github.com/amber-notes/amber-notes")!
-    static let newIssue = URL(string: "https://github.com/amber-notes/amber-notes/issues/new/choose")!
-    static let contributing = URL(string: "https://github.com/amber-notes/amber-notes/blob/main/CONTRIBUTING.md")!
+    static let repository = URL(string: "https://github.com/pinto-notes/pinto-notes")!
+    static let newIssue = URL(string: "https://github.com/pinto-notes/pinto-notes/issues/new/choose")!
+    static let contributing = URL(string: "https://github.com/pinto-notes/pinto-notes/blob/main/CONTRIBUTING.md")!
 
     /// What the ask says, and its sharing buttons in order (Not now always follows). Developers
     /// (accounts that ever connected a tool on their computer or with a token: Claude Code,
