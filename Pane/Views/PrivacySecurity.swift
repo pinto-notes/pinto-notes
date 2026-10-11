@@ -109,6 +109,8 @@ struct PrivacySecuritySection: View {
     /// recovery key first (`asksToSaveFirst`), and it turns on when that's done (`strictWhenSaved`).
     @State private var asksToSaveFirst = false
     @State private var strictWhenSaved = false
+    /// The server refused Advanced protection because the password was just reset: from when it can be turned on.
+    @State private var strictPausedNote: String?
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.networkReach) private var reach
 
@@ -281,7 +283,8 @@ struct PrivacySecuritySection: View {
                     Text(KeyCopyWords.saveFirstMessage)
                 }
         } footer: {
-            Text(strict ? KeyCopyWords.strictFooterOn : KeyCopyWords.strictFooterOff)
+            Text((strict ? KeyCopyWords.strictFooterOn : KeyCopyWords.strictFooterOff) + (strict ? "" : strictPausedNote.map { "\n\n" + $0 } ?? ""))
+                .accessibilityIdentifier("privacy.strictFooter")
         }
     }
 
@@ -302,6 +305,9 @@ struct PrivacySecuritySection: View {
             }
         } catch KeyCopyError.needsRecoveryKey {
             asksToSaveFirst = true
+        } catch KeyCopyError.strictPaused(let until) {
+            // Said under the switch, where it stays, and not as a passing error.
+            strictPausedNote = KeyCopyWords.strictPaused(until: until)
         } catch {
             problem = (error as? KeyCopyError).map(KeyCopyWords.error) ?? error.localizedDescription
         }

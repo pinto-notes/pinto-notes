@@ -495,7 +495,8 @@ import Testing
         #expect(W.askMessage.contains("court order") && W.askMessage.contains("someone who gets into your account"))
         // After a password reset the switch waits, and says until when.
         let until = Date(timeIntervalSince1970: 1_791_970_200)
-        #expect(W.error(.strictPaused(until: until)).contains("Advanced protection can be turned on on ") && W.error(.strictPaused(until: nil)).contains("in 3 days"))
+        #expect(W.error(.strictPaused(until: until)).hasPrefix("You can turn this on from ") && W.error(.strictPaused(until: until)).hasSuffix(", because the password was just reset."))
+        #expect(W.error(.strictPaused(until: nil)) == "You can turn this on in 3 days, because the password was just reset.")
         #expect(W.error(.needsRecoveryKey) == W.needsRecoveryKey)
         // Nothing a person reads has a dash that isn't a hyphen.
         let all = [W.strictTitle, W.strictSubtitle, W.strictFooterOff, W.strictFooterOn, W.turnOnTitle, W.turnOnMessage, W.turnOn, W.turnOffTitle, W.turnOffMessage, W.turnOff,

@@ -44,7 +44,8 @@ cleanup() {
   for s in $sims; do xcrun simctl shutdown "$s" 2>/dev/null || true; xcrun simctl delete "$s" 2>/dev/null || true; done
   for id in $ids; do curl -sf -X DELETE "$API_URL/auth/v1/admin/users/$id" "${admin[@]}" >/dev/null || true; done
 }
-trap cleanup EXIT
+# Also when it is stopped or killed: a stalled run once left its simulators booted for five hours.
+trap cleanup EXIT INT TERM HUP
 for email in $NEW $OLD; do
   ids+=("$(curl -sf -X POST "$API_URL/auth/v1/admin/users" "${admin[@]}" -d "{\"email\":\"$email\",\"password\":\"$PASSWORD\",\"email_confirm\":true}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')")
 done

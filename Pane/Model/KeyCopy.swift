@@ -124,8 +124,8 @@ enum KeyCopyWords {
     static let saveFirstMessage = "With Advanced protection on, your recovery key is the only way back to your notes if you lose your devices. We can\u{2019}t help you then. Save it now, and Advanced protection turns on when it\u{2019}s saved."
     static let saveFirst = "Show and Save Recovery Key"
     static func strictPaused(until: Date?) -> String {
-        let when = until.map { "on \($0.formatted(date: .long, time: .shortened))" } ?? "in 3 days"
-        return "Your password was just reset, so Advanced protection can be turned on \(when). That wait protects your notes from someone who got into your email."
+        let when = until.map { "from \($0.formatted(date: .long, time: .shortened))" } ?? "in 3 days"
+        return "You can turn this on \(when), because the password was just reset."
     }
     static let copyTitle = "Pinto Notes"
     static let copyDetail = "Keeps a locked copy of your key, so signing in opens your notes on a new device"

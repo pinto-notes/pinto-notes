@@ -39,7 +39,7 @@ cleanup() {
   for id in $ids; do curl -sf -X DELETE "$API_URL/auth/v1/admin/users/$id" "${admin[@]}" >/dev/null || true; done
   curl -sf -X DELETE "$API_URL/rest/v1/signup_allowlist?email=like.*key-copy-*-$run@*" "${admin[@]}" >/dev/null || true
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM HUP
 export TEST_RUNNER_PANE_KEYCOPY_API="$API_URL" TEST_RUNNER_PANE_KEYCOPY_ANON="$ANON_KEY" TEST_RUNNER_PANE_KEYCOPY_PASSWORD="$password"
 export TEST_RUNNER_PANE_KEYCOPY_EMAIL="$(at new)" TEST_RUNNER_PANE_KEYCOPY_OLD_EMAIL="$(at old)"
 scripts/qa-test.sh PaneTests/KeyCopyLiveTests
