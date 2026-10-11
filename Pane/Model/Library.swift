@@ -82,6 +82,16 @@ extension ModelContext {
         return n
     }
 
+    /// True when a note with this title, dated to this second, is here and not deleted: an
+    /// import brought it before. (The Apple Notes import asks ImportWriter, which counts them.)
+    func hasImported(title: String, modified: Date) -> Bool {
+        let stamp = modified.timeIntervalSinceReferenceDate.rounded()
+        return ((try? fetch(FetchDescriptor<Note>())) ?? []).contains {
+            $0.trashedAt == nil && $0.deletedAt == nil && $0.title == title
+                && $0.createdAt.timeIntervalSinceReferenceDate.rounded() == stamp
+        }
+    }
+
     @discardableResult
     func createFolder(named name: String, parent: Folder? = nil) -> Folder {
         let siblings = allFolders().filter { $0.parent?.id == parent?.id }
