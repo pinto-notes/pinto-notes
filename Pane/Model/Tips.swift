@@ -14,7 +14,7 @@ import TipKit
 /// - at most one tip every 3 days: TipKit's displayFrequency is daily (it has no 3-day setting),
 ///   and `turn` holds the one tip whose 3 days these are (see `TipSpacing`);
 /// - only once you've used the app on 3 different days (the `activeDay` event, donated once a day);
-/// - never while the Get set up card shows (`setupVisible`), or the share ask (`shareAskVisible`);
+/// - never while the first-run flow shows (`setupVisible`), or the share ask (`shareAskVisible`);
 /// - never while you type: `calm` is set when a note or the list opens, or after a tap, and
 ///   cleared by the first keystroke, so a tip only appears at a quiet moment;
 /// - never for a feature you've ever used, on any device, before or after this version
@@ -28,7 +28,7 @@ enum PaneTips {
 
     /// Nothing is being typed: a note or the list just opened, or you tapped something.
     @Parameter static var calm: Bool = false
-    /// The Get set up card is on screen.
+    /// The first-run flow is on screen.
     @Parameter static var setupVisible: Bool = false
     /// The open note is long enough to be worth sending, or it's a checklist.
     @Parameter static var noteIsLong: Bool = false

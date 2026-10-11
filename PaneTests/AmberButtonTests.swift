@@ -39,7 +39,7 @@ import Testing
         print("CONTRAST amber button \(appearance.rawValue): \(String(format: "%.2f", ratio)):1; old dark-mode fill \(String(format: "%.2f", Self.contrast(darkAmber, label))):1")
     }
 
-    /// Every amber primary button uses the one style: the setup card's, the share ask's, the
+    /// Every amber primary button uses the one style: the first-run flow's, the share ask's, the
     /// sheets'. The system's prominent style (and dark ink on its dark-mode amber) is the bug.
     @Test func everyPrimaryButtonUsesTheAmberStyle() throws {
         let views = try TestFiles.url("Views")
@@ -51,7 +51,7 @@ import Testing
             if src.contains(".borderedProminent") { prominent.append(f.lastPathComponent) }
         }
         #expect(prominent.isEmpty, "use .amberProminent in \(prominent)")
-        for name in ["SetupCard.swift", "ShareAskView.swift", "ImportSheet.swift", "AppleNotesImport.swift", "NoteSourceSheet.swift", "SignInView.swift", "Encryption.swift"] {
+        for name in ["OnboardingFlow.swift", "ShareAskView.swift", "ImportSheet.swift", "AppleNotesImport.swift", "NoteSourceSheet.swift", "SignInView.swift", "Encryption.swift"] {
             let src = try String(contentsOf: views.appendingPathComponent(name), encoding: .utf8)
             #expect(src.contains(".amberProminent"), "\(name)")
             // No hand-built amber buttons: no dark ink on amber.

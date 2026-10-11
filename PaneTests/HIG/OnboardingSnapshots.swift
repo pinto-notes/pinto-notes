@@ -148,6 +148,30 @@ import UIKit
                 .tint(Color(PColor.paneAccent))
             try await AppSnapshotTests.render(form, name: "mac-7-connect-settings-\(name)-\(mode)", dark: dark, wait: 0.8)
         }
+    #endif
+
+    /// The sidebar with the Templates card above the account row, and after it was closed.
+    static func sidebar(closed: Bool, _ c: ModelContainer) -> some View {
+        let backend = Backend()
+        backend.showSignedInForPreview(email: "sara@example.com", account: UUID())
+        return NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+            .environment(backend)
+            .environment(SetupStore(progress: SetupProgress(dismissed: true, templatesClosed: closed)))
+            .modelContainer(c)
+            .tint(Color(PColor.paneAccent))
+    }
+
+    #if os(macOS)
+    /// On its own: in the window the sidebar's glass doesn't draw offscreen.
+    @Test(arguments: [false, true])
+    func templatesCard(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let c = try AppSnapshotTests.container()
+        ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let mode = dark ? "dark" : "light"
+        try await AppSnapshotTests.render(Self.sidebar(closed: false, c).frame(width: 250, height: 640), name: "mac-6-templates-card-\(mode)", dark: dark, wait: 1.0)
+        try await AppSnapshotTests.render(Self.sidebar(closed: true, c).frame(width: 250, height: 640), name: "mac-6-templates-card-closed-\(mode)", dark: dark, wait: 1.0)
     }
     #endif
 
@@ -173,6 +197,30 @@ import UIKit
                     window.isHidden = true
                     try #require(image.pngData()).write(to: dir.appending(path: "iphone-\(s.name)-\(label)-\(dark ? "dark" : "light").png"))
                 }
+    /// The iPhone's folder list (the iPad's sidebar) with the Templates card at its foot.
+    @Test func iPhoneTemplatesCard() async throws {
+        guard let dir = Self.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: true)
+        ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+            for dark in [false, true] {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+                window.overrideUserInterfaceStyle = dark ? .dark : .light
+                window.rootViewController = UIHostingController(rootView: Self.sidebar(closed: false, c).dynamicTypeSize(type))
+                window.isHidden = false
+                try? await Task.sleep(for: .seconds(1.0))
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 3
+                let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                window.isHidden = true
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-6-templates-card-\(label)-\(dark ? "dark" : "light").png"))
             }
         }
     }

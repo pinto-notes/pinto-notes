@@ -14,7 +14,7 @@ import TipKit
 /// - once per account: the first answer, on any device, is kept on the server
 ///   (`pane_share_ask`) and no device asks again. Until the server has answered, it doesn't ask;
 /// - only at a quiet moment: the app coming back to the front, or a note closing, and never in
-///   the first minute after launch, within seconds of a keystroke, while the Get set up card or
+///   the first minute after launch, within seconds of a keystroke, while the first-run flow or
 ///   a tip shows. While it's up, tips wait (`PaneTips.shareAskVisible`);
 /// - any answer ends it: Share on X, Share on LinkedIn, Not now, or swiping it away. Nothing is
 ///   gated on it and nothing is given for it, and it never asks for a rating.
