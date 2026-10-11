@@ -52,8 +52,9 @@ revoke all on public.account_key_copies from public, anon, authenticated, servic
 -- kept here for as long as a ticket lives, so a recorded store sent again is refused. No client
 -- reads or writes it.
 create table public.key_copy_tickets (
-  hash text primary key check (hash ~ '^[0-9a-f]{64}$'),
-  at   timestamptz not null default now()
+  hash    text primary key check (hash ~ '^[0-9a-f]{64}$'),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  at      timestamptz not null default now()
 );
 alter table public.key_copy_tickets enable row level security;
 revoke all on public.key_copy_tickets from public, anon, authenticated, service_role;

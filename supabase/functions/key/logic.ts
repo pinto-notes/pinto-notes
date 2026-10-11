@@ -207,7 +207,7 @@ async function store(deps: Deps, s: Secrets, uid: string, body: Record<string, u
       if (now_?.mode === "strict" && !(choose && from === "strict")) return "strict";
       if (!choose && now_?.mode !== "standard") return "not_chosen";
       await tx`delete from public.key_copy_tickets where at < now() - interval '15 minutes'`;
-      const used = await tx`insert into public.key_copy_tickets (hash) values (${ticketHash}) on conflict do nothing returning 1`;
+      const used = await tx`insert into public.key_copy_tickets (hash, user_id) values (${ticketHash}, ${uid}) on conflict do nothing returning 1`;
       if (used.length === 0) return "used";
       await tx`insert into public.account_key_copies as c (user_id, key_id, sealed, secret_version)
         values (${uid}, ${at.keyId}, ${at.sealed}, ${at.version})
