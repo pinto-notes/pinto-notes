@@ -676,9 +676,19 @@ import AppKit
         #expect(MakeAnApp.looksLikeAnApp(Capture.budgetNote))
         #expect(MakeAnApp.looksLikeAnApp("List\n- [ ] a\n- [ ] b\n- [x] c"))
         #expect(!MakeAnApp.looksLikeAnApp("Just thoughts\n\nNothing to track."))
-        #expect(MakeAnApp.idea(for: Capture.budgetNote).hasPrefix("a budget app"))
-        #expect(MakeAnApp.idea(for: Capture.habitNote()).hasPrefix("a tracker app"))
-        #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist app"))
+        #expect(MakeAnApp.idea(for: Capture.budgetNote)?.hasPrefix("a budget with the total") == true)
+        #expect(MakeAnApp.idea(for: Capture.habitNote())?.hasPrefix("a tracker with today's entry") == true)
+        #expect(MakeAnApp.idea(for: "Just thoughts\n\nNothing to track.") == nil)
+        // One sentence: "an app", one colon, then what it is, never "app" again or a second colon.
+        let notes = [("Budget", Capture.budgetNote), ("Habits", Capture.habitNote()), ("Packing", "Packing\n- [ ] a\n- [ ] b\n- [ ] c"),
+                     ("People", "People\n\n| Name | Role |\n|---|---|\n| Sara | Sales |"), ("Thoughts", "Thoughts\n\nNothing to track.")]
+        for (title, body) in notes {
+            let first = MakeAnApp.prompt(title: title, body: body).components(separatedBy: ". ")[0]
+            #expect(first.hasPrefix("In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app"), "\(first)")
+            #expect(first.components(separatedBy: ":").count <= 2 && first.components(separatedBy: " app").count == 2, "\(first)")
+        }
+        #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist that shows what's left"))
+        #expect(MakeAnApp.prompt(title: "Thoughts", body: "Thoughts\n\nNothing to track.").hasPrefix("In Pinto Notes, make my note \u{201C}Thoughts\u{201D} an app. Call get_page_guide"))
     }
 
     // MARK: Pushing an app's data

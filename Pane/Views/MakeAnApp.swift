@@ -14,27 +14,28 @@ enum MakeAnApp {
         return !NotePage.tables(in: lines).isEmpty || lines.filter { ListPrefix(line: $0)?.checkbox != nil }.count >= 3
     }
 
-    /// What to ask for, from what the note holds.
-    static func idea(for body: String) -> String {
+    /// What to ask for, from what the note holds, as the words after "an app: ". Nothing when the
+    /// note holds neither a table nor a checklist.
+    static func idea(for body: String) -> String? {
         let lines = body.components(separatedBy: "\n")
         if let t = NotePage.tables(in: lines).first {
             let names = t.columns.map { $0.name.lowercased() }
             if names.contains(where: { $0.contains("amount") || $0.contains("cost") || $0.contains("price") || $0 == "kr" }) {
-                return "a budget app with the total, spending by category, and a quick way to add an expense"
+                return "a budget with the total, spending by category, and a quick way to add an expense"
             }
             if names.contains("date") {
-                return "a tracker app: today's entry at the top, streaks, and a chart of the last weeks"
+                return "a tracker with today's entry at the top, streaks, and a chart of the last weeks"
             }
-            return "an app that shows this table as cards I can sort, filter and add to"
+            return "cards of this table that I can sort, filter and add to"
         }
         if lines.contains(where: { ListPrefix(line: $0)?.checkbox != nil }) {
-            return "a checklist app that shows what's left, groups the items, and lets me add and tick them"
+            return "a checklist that shows what's left, groups the items, and lets me add and tick them"
         }
-        return "an app for this note"
+        return nil
     }
 
     static func prompt(title: String, body: String) -> String {
-        "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app: \(idea(for: body)). Call get_page_guide, read the note, start the app with create_app, and keep what the note's table or checklist holds as the app's data."
+        "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app\(idea(for: body).map { ": \($0)" } ?? ""). Call get_page_guide, read the note, start the app with create_app, and keep what the note's table or checklist holds as the app's data."
     }
 
     // Notes the suggestion was shown on: once per note, never again.
@@ -184,7 +185,7 @@ struct MakeAppSheet: View {
                 }
                 .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
                 .accessibilityIdentifier("makeApp.copy")
-                Text("Paste it into ChatGPT or Claude. The app shows up on this note.")
+                Text("Paste it into your AI. The app shows up on this note.")
                     .font(Metrics.hint)
                     .foregroundStyle(Color.muted)
                     .multilineTextAlignment(.center)
@@ -196,7 +197,7 @@ struct MakeAppSheet: View {
                 Button { connecting = true } label: { Text("Connect an AI").frame(maxWidth: .infinity) }
                     .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
                     .accessibilityIdentifier("makeApp.connect")
-                Text("ChatGPT or Claude, in about 2 minutes. Then come back here for the words to give it.")
+                Text("It takes about 2 minutes. Then come back here for the words to give it.")
                     .font(Metrics.hint)
                     .foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
