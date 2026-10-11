@@ -1391,7 +1391,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        if carriesNotes(sender) { return .link }
+        // Copy, as the list's rows offer it: a link asked for here was a drop refused.
+        if carriesNotes(sender) { return .copy }
         return droppedFiles(sender).isEmpty ? super.draggingEntered(sender) : .copy
     }
 
@@ -1400,7 +1401,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             // Show where the link will land.
             let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
             setSelectedRange(NSRange(location: at, length: 0))
-            return .link
+            return .copy
         }
         guard !droppedFiles(sender).isEmpty else { return super.draggingUpdated(sender) }
         // Show where the file will land.
@@ -1409,11 +1410,19 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         return .copy
     }
 
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // A text view only prepares for what it can paste; notes from the list are taken below.
+        carriesNotes(sender) || super.prepareForDragOperation(sender)
+    }
+
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         if carriesNotes(sender) {
             let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
             window?.makeFirstResponder(self)
-            return dropNotes(droppedNotes(sender), at: at)
+            let ids = droppedNotes(sender)
+            let done = dropNotes(ids, at: at)
+            NoteDrop.log.notice("text drop: \(ids.count) notes read, \(done ? "linked" : "nothing linked", privacy: .public)")
+            return done
         }
         let urls = droppedFiles(sender)
         guard !urls.isEmpty else { return super.performDragOperation(sender) }

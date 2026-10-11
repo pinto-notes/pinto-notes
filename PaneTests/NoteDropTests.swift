@@ -141,6 +141,58 @@ import Testing
         #expect(ctx.isNested(child))
     }
 
+    @Test func afterADropTheListSelectsTheParent() {
+        let parent = UUID()
+        #expect(NoteDrop.selection(afterNestingUnder: parent) == [parent])
+    }
+
+    @Test func aSelectionOfSeveralNeverHoldsASubNote() throws {
+        let parent = ctx.createNote(in: .all, body: "Parent")
+        let child = ctx.createNote(in: .all, body: "Child")
+        let other = ctx.createNote(in: .all, body: "Other")
+        #expect(drop([child], on: parent))
+        #expect(NoteDrop.withoutSubNotes([child.id, other.id], in: ctx) == [other.id], "the note that went inside leaves the selection")
+        #expect(NoteDrop.withoutSubNotes([child.id], in: ctx) == [child.id], "alone it is a sub-note open in the editor")
+        #expect(NoteDrop.withoutSubNotes([parent.id, other.id], in: ctx) == [parent.id, other.id])
+    }
+
+    // MARK: Move Out of Note
+
+    @Test func aSubNoteMovedOutIsANoteOfItsOwnAgainAndUndoPutsItBack() throws {
+        let work = ctx.createFolder(named: "Work")
+        let parent = ctx.createNote(in: .folder(work.id), body: "Trip\nintro")
+        let child = ctx.createSubNote(of: parent, body: "Packing list\n- socks")
+        parent.body += "\n[Packing list](\(link(child)))\nafter\n"
+        #expect(ctx.isNested(child) && listed([parent, child]) == ["Trip"])
+        parent.dirty = false; child.dirty = false
+
+        undo.beginUndoGrouping()
+        #expect(NoteDrop.moveOut(child.id, in: ctx, undo: undo))
+        undo.endUndoGrouping()
+        #expect(child.parentID == nil && !ctx.isNested(child))
+        #expect(parent.body == "Trip\nintro\nafter\n", "its line left the parent, nothing else")
+        #expect(child.body == "Packing list\n- socks" && child.folder?.id == work.id, "its text is as it was, in the same folder")
+        #expect(listed([parent, child]) == ["Trip", "Packing list"], "it is in the list again")
+        #expect(parent.dirty && child.dirty, "both go up with the next sync")
+        #expect(undo.undoActionName == "Move Out of Note")
+
+        undo.undo()
+        #expect(child.parentID == parent.id && ctx.isNested(child), "Undo puts it back inside")
+        undo.redo()
+        #expect(child.parentID == nil && !ctx.isNested(child))
+    }
+
+    @Test func onlyASubNoteCanBeMovedOut() throws {
+        let plain = ctx.createNote(in: .all, body: "Plain")
+        // Names a parent that no longer links it: it is in the list already.
+        let parent = ctx.createNote(in: .all, body: "Parent")
+        let loose = ctx.createSubNote(of: parent, body: "Loose")
+        #expect(!NoteDrop.moveOut(plain.id, in: ctx, undo: undo))
+        #expect(!NoteDrop.moveOut(loose.id, in: ctx, undo: undo))
+        #expect(!NoteDrop.moveOut(UUID(), in: ctx, undo: undo))
+        #expect(!undo.canUndo && loose.parentID == parent.id)
+    }
+
     // MARK: Dropped into a note's text
 
     @Test func notesDroppedIntoTextAreLinkedThere() {

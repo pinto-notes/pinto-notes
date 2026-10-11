@@ -359,6 +359,10 @@ struct NoteListView: View {
                     .allowsHitTesting(false)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NoteDrop.nested)) { n in
+            guard let parent = n.object as? UUID else { return }
+            selection = NoteDrop.selection(afterNestingUnder: parent)
+        }
         .dropDestination(for: URL.self) { urls, _ in
             let made = context.importFiles(urls, into: scope == .trash ? .all : scope)
             if let first = made.first { selection = [first] }
@@ -407,7 +411,12 @@ struct NoteListView: View {
         .onDeleteCommand { if !selection.isEmpty { remove(selection) } }
         // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
         .onAppear { RowClickLog.start() }
-        .onChange(of: selection) { old, new in RowClickLog.selection(old, new) }
+        .onChange(of: selection) { old, new in
+            RowClickLog.selection(old, new)
+            // Notes that went inside another note aren't rows any more (see `withoutSubNotes`).
+            let rows = NoteDrop.withoutSubNotes(new, in: context)
+            if rows != new { selection = rows }
+        }
         #endif
         .toolbar {
             #if os(iOS)

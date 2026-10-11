@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var importing = false
@@ -1104,6 +1105,13 @@ struct NoteDetailView: View {
                 }
             }
             #endif
+            // A sub-note: out of the note it is in, a note of its own in the list again.
+            if note.parentID != nil, context.isNested(note) {
+                Button("Move Out of Note", systemImage: "arrow.up.left.square") {
+                    withAnimation(.snappy) { _ = NoteDrop.moveOut(note.id, in: context, undo: undoManager) }
+                }
+                .accessibilityIdentifier("editor.moveOut")
+            }
             if !backlinks.isEmpty {
                 Menu("Linked from", systemImage: "link") {
                     ForEach(backlinks, id: \.id) { n in
