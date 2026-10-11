@@ -310,33 +310,39 @@ final class NotePagesUITests: XCTestCase {
         pause(1)
     }
 
-    /// A note that looks like a tracker suggests itself once; with no AI connected, the sheet leads
-    /// to connecting one, then the prompt.
+    /// A note that looks like a tracker suggests itself once. Make It an App in More has a symbol
+    /// that reads as apps; its sheet says what an app is and offers the one next step: connecting
+    /// an AI when none is connected, the prompt to copy when one is ($AI_CONNECTED=1).
     func testMakeItAnApp() {
-        launch(["-open", "Evening tracker"] + (ProcessInfo.processInfo.environment["AI_CONNECTED"] == "1" ? ["-aiConnected"] : []))
+        let connected = ProcessInfo.processInfo.environment["AI_CONNECTED"] == "1"
+        launch(["-open", "Evening tracker", "-makeAppState", connected ? "connected" : "none"]
+            + (ProcessInfo.processInfo.environment["MAKE_APP_LAYOUT"].map { ["-makeAppLayout", $0] } ?? []))
         mark("make-start")
         let chip = app.buttons["makeApp.chip"].firstMatch
         XCTAssertTrue(chip.waitForExistence(timeout: 6), "the suggestion shows")
         pause(1.2)
         shot("63-make-chip")
-        chip.tap()
-        pause(1.5)
-        shot("64-make-sheet")
-        let connect = app.buttons["makeApp.connect"].firstMatch
-        if connect.exists {
-            connect.tap()
-            pause(2)
-            shot("65-make-connect")
-            // Settings opens on the account (sign-in first, without one); back to the prompt.
-            app.swipeDown(velocity: .fast)
+        app.buttons["editor.more"].firstMatch.tap()
+        let item = app.buttons["editor.makeApp"].firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 4))
+        pause(0.8)
+        shot("64-make-menu")
+        item.tap()
+        XCTAssertTrue(app.staticTexts["Make this note an app"].firstMatch.waitForExistence(timeout: 4))
+        pause(1.2)
+        shot(connected ? "66-make-prompt" : "65-make-connect")
+        if connected {
+            XCTAssertFalse(app.buttons["makeApp.connect"].firstMatch.exists)
+            app.buttons["makeApp.copy"].firstMatch.tap()
             pause(1.2)
-            app.buttons["makeApp.showPrompt"].firstMatch.tap()
-            pause(1.2)
+            XCTAssertTrue(app.buttons["Copied"].firstMatch.exists)
+            shot("67-make-copied")
+        } else {
+            XCTAssertTrue(app.buttons["makeApp.connect"].firstMatch.exists, "with no AI connected, the one step is connecting one")
+            XCTAssertFalse(app.buttons["makeApp.copy"].firstMatch.exists)
         }
-        shot("66-make-prompt")
-        app.buttons["makeApp.copy"].firstMatch.tap()
-        pause(1.5)
-        shot("67-make-copied")
+        app.buttons["makeApp.close"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Make this note an app"].firstMatch.waitForNonExistence(timeout: 4), "the close button closes the sheet")
         mark("make-end")
         pause(1)
     }

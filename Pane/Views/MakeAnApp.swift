@@ -83,86 +83,184 @@ struct MakeAppChip: View {
     }
 }
 
-/// Make It an App: the prompt for your AI, or connecting one first.
+/// Make It an App: what an app is, with a picture of one, and the one next step: the prompt to
+/// give your AI, or connecting one first. A sheet the size of what it says, on the app's own
+/// ground (as "How did you hear about Pinto Notes?" is).
 struct MakeAppSheet: View {
     let title: String
     let body_: String
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
     @State private var connected: Bool?
-    @State private var showPromptAnyway = false
     @State private var connecting = false
     @State private var copied = false
+    @State private var height: CGFloat = 460
+
+    /// Words first, or the picture first (compared side by side on 2026-10-11; `-makeAppLayout
+    /// pictureFirst` in development builds shows the other).
+    enum Layout: String { case stacked, pictureFirst }
+    #if DEBUG || QA
+    nonisolated(unsafe) static var layout: Layout = Capture.argument("-makeAppLayout").flatMap(Layout.init(rawValue:)) ?? .stacked
+    /// Pictures of each state without an account (`-makeAppState connected | none`).
+    nonisolated(unsafe) static var stateForPictures: Bool? = Capture.argument("-makeAppState").map { $0 == "connected" }
+    #else
+    static let layout: Layout = .stacked
+    static let stateForPictures: Bool? = nil
+    #endif
 
     private var prompt: String { MakeAnApp.prompt(title: title, body: body_) }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if connected == true || showPromptAnyway { ask } else if connected == false { connect } else { ProgressView().frame(maxWidth: .infinity) }
-                }
-                .padding(20)
-            }
-            .navigationTitle("Make It an App")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+        content
+            .padding(.horizontal, Metrics.padding)
+            .padding(.top, Metrics.top)
+            .padding(.bottom, Metrics.padding)
+            .overlay(alignment: .topTrailing) { close.padding(Metrics.closeInset) }
+            .background(Color(Palette.sheetGround))
+            #if os(macOS)
+            .frame(width: 420)
+            #else
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height = $0 }
+            .presentationDetents([.height(height)])
+            .presentationDragIndicator(.hidden)
             #endif
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .tint(Color(PColor.paneAccent))
             .task { await check() }
             .sheet(isPresented: $connecting, onDismiss: { Task { await check() } }) {
                 if let backend { SettingsView(backend: backend, sync: sync) }
             }
+    }
+
+    @ViewBuilder private var content: some View {
+        VStack(alignment: .leading, spacing: Metrics.gap) {
+            if Self.layout == .pictureFirst { picture.padding(.top, Metrics.closeSize + 10); words; step } else { words; picture; step }
         }
+    }
+
+    /// A real app in a note: the habit tracker's first card, as it looks in this appearance.
+    private var picture: some View {
+        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        return Image("MakeAppHabits").resizable().scaledToFit()
+            .frame(maxWidth: .infinity).clipShape(shape)
+            .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+            .accessibilityLabel("A habit tracker app in a note")
+    }
+
+    private var words: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Make this note an app")
+                .font(Metrics.title)
+                .tracking(-0.3)
+                .foregroundStyle(Color.ink)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.trailing, Self.layout == .pictureFirst ? 0 : Metrics.closeSize + 8)
+            Text("A note can be a small app, like this habit tracker. Your AI builds it from what the note holds, and the note stays yours to undo.")
+                .font(Metrics.line)
+                .foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The one next step: the prompt to copy when an AI is connected, connecting one when none is.
+    @ViewBuilder private var step: some View {
+        switch connected {
+        case true?:
+            VStack(alignment: .leading, spacing: Metrics.stepGap) {
+                Text(prompt)
+                    .font(Metrics.prompt)
+                    .foregroundStyle(Color.ink)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.amberSoft, in: .rect(cornerRadius: Metrics.radius, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+                    .accessibilityIdentifier("makeApp.prompt")
+                Button { copy() } label: {
+                    Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                .accessibilityIdentifier("makeApp.copy")
+                Text("Paste it into ChatGPT or Claude. The app shows up on this note.")
+                    .font(Metrics.hint)
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+        case false?:
+            VStack(alignment: .leading, spacing: Metrics.stepGap) {
+                Button { connecting = true } label: { Text("Connect an AI").frame(maxWidth: .infinity) }
+                    .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                    .accessibilityIdentifier("makeApp.connect")
+                Text("ChatGPT or Claude, in about 2 minutes. Then come back here for the words to give it.")
+                    .font(Metrics.hint)
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+            }
+        case nil:
+            // Finding out whether an AI is connected: the button's own height, so nothing jumps.
+            ProgressView().controlSize(.small).frame(maxWidth: .infinity).frame(height: Metrics.button)
+        }
+    }
+
+    private var close: some View {
+        Button { dismiss() } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: Metrics.closeGlyph, weight: .semibold))
+                .foregroundStyle(Color.muted)
+                .frame(width: Metrics.closeSize, height: Metrics.closeSize)
+                .background(Color(Palette.sheetGround).opacity(0.9), in: .circle)
+                .overlay(Circle().strokeBorder(Color.line, lineWidth: 1))
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.cancelAction)
+        .accessibilityLabel("Close")
+        .accessibilityIdentifier("makeApp.close")
+    }
+
+    /// Mac: the system's sheet sizes. iPhone: the list's own type sizes.
+    private enum Metrics {
         #if os(macOS)
-        .frame(minWidth: 460, minHeight: 420)
+        static let title = Font.system(size: 20, weight: .bold)
+        static let line = Font.system(size: 13)
+        static let prompt = Font.system(size: 13)
+        static let hint = Font.system(size: 12)
+        static let padding: CGFloat = 24
+        static let top: CGFloat = 24
+        static let gap: CGFloat = 16
+        static let stepGap: CGFloat = 10
+        static let radius: CGFloat = 10
+        static let button: CGFloat = 34
+        static let closeSize: CGFloat = 22
+        static let closeGlyph: CGFloat = 9
+        static let closeInset: CGFloat = 22
+        #else
+        static let title = Font.title2.weight(.bold)
+        static let line = Font.subheadline
+        static let prompt = Font.callout
+        static let hint = Font.footnote
+        static let padding: CGFloat = 24
+        static let top: CGFloat = 24
+        static let gap: CGFloat = 18
+        static let stepGap: CGFloat = 12
+        static let radius: CGFloat = 14
+        static let button: CGFloat = 50
+        static let closeSize: CGFloat = 30
+        static let closeGlyph: CGFloat = 12
+        static let closeInset: CGFloat = 20
         #endif
-    }
-
-    private var ask: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Ask your AI").font(.title2.weight(.bold))
-            Text("Your AI writes the app and it shows up on this note. The note stays as it is; the app is a second side you can switch to.")
-                .foregroundStyle(.secondary)
-            Text(prompt)
-                .font(.callout)
-                .textSelection(.enabled)
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.paneChip, in: .rect(cornerRadius: 14, style: .continuous))
-                .accessibilityIdentifier("makeApp.prompt")
-            Button { copy() } label: {
-                Label(copied ? "Copied" : "Copy Prompt", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.amberProminent(height: 44, cornerRadius: 12))
-            .accessibilityIdentifier("makeApp.copy")
-            HStack(spacing: 10) {
-                Button("Open ChatGPT") { copy(); open("https://chatgpt.com/?q=") }.frame(maxWidth: .infinity)
-                Button("Open Claude") { copy(); open("https://claude.ai/new?q=") }.frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private var connect: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: NoteAppMark.symbol).font(.system(size: 34, weight: .semibold)).foregroundStyle(Color.amberInk)
-            Text("Apps are made by your AI").font(.title2.weight(.bold))
-            Text("Connect ChatGPT or Claude to Pinto Notes, then ask it to make this note an app: a tracker with streaks, a budget with totals, whatever the note needs. Connecting takes about 2 minutes.")
-                .foregroundStyle(.secondary)
-            Button { connecting = true } label: { Text("Connect an AI").frame(maxWidth: .infinity) }
-                .buttonStyle(.amberProminent(height: 44, cornerRadius: 12))
-                .accessibilityIdentifier("makeApp.connect")
-            Button("Show the Prompt") { withAnimation(.smooth) { showPromptAnyway = true } }
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("makeApp.showPrompt")
-        }
     }
 
     /// Whether any AI is connected to this account.
     private func check() async {
+        if let known = Self.stateForPictures { connected = known; return }
         if ProcessInfo.processInfo.arguments.contains("-aiConnected") { connected = true; return }
         guard let client = backend?.client else { connected = false; return }
         let rows: [Connection] = (try? await client.from("mcp_tokens").select().execute().value) ?? []
@@ -177,12 +275,6 @@ struct MakeAppSheet: View {
         NSPasteboard.general.setString(prompt, forType: .string)
         #endif
         withAnimation(.smooth) { copied = true }
-    }
-
-    private func open(_ base: String) {
-        guard let q = prompt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.subtracting(.init(charactersIn: "&=?+"))),
-              let url = URL(string: base + q) else { return }
-        openURL(url)
     }
 }
 
