@@ -365,6 +365,7 @@ struct SignOutButton: View {
     var devices: KeyDevices = .shared
     var route: SettingsRoute = .shared
     @Environment(\.modelContext) private var context
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var asking = false
     @State private var removing = false
     @State private var refusal: SignOutRemoval.Refusal?
@@ -387,7 +388,9 @@ struct SignOutButton: View {
             Button(SignOutCopy.signOut, role: .destructive) { Task { await backend.signOut() } }
                 .accessibilityIdentifier("settings.confirmSignOut")
             if offer != .unavailable {
-                Button(SignOutCopy.remove(), role: .destructive) { Task { await remove() } }
+                // At the largest text sizes the full title runs past the dialog's edge on iPhone; the
+                // message above it names the device.
+                Button(typeSize.isAccessibilitySize ? SignOutCopy.removeShort : SignOutCopy.remove(), role: .destructive) { Task { await remove() } }
                     .disabled(offer == .needsRecoveryKey)
                     .accessibilityIdentifier("settings.signOutAndRemove")
             }

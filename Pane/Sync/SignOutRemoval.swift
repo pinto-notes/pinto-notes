@@ -183,6 +183,7 @@ enum SignOutCopy {
     static let title = "Sign out of Pinto Notes?"
     static let signOut = "Sign Out"
     static func remove(_ kind: String = InstallID.kind) -> String { "Sign Out and Remove Notes from This \(kind)" }
+    static let removeShort = "Sign Out and Remove Notes"
     static func removing(_ kind: String = InstallID.kind) -> String { "Removing notes from this \(kind)\u{2026}" }
     static let saveRecoveryKey = "Save a Recovery Key\u{2026}"
 

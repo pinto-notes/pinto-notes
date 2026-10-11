@@ -42,6 +42,8 @@ import Testing
         #expect(SignOutCopy.remove("Mac") == "Sign Out and Remove Notes from This Mac")
         #expect(SignOutCopy.remove("iPhone") == "Sign Out and Remove Notes from This iPhone")
         #expect(SignOutCopy.remove("iPad") == "Sign Out and Remove Notes from This iPad")
+        // At the largest text sizes, where the full title runs past the dialog's edge on iPhone.
+        #expect(SignOutCopy.removeShort == "Sign Out and Remove Notes")
         #expect(SignOutCopy.message(.offered(keyStays: true), kind: "iPhone")
                 == "Your notes stay in your account and come back when you sign in again. They also stay on this iPhone unless you remove them. Your key stays in iCloud Keychain either way.")
         #expect(SignOutCopy.message(.offered(keyStays: false), kind: "Mac")
