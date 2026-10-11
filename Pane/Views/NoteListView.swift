@@ -1076,7 +1076,14 @@ final class LibraryNotes {
         changed = []
         let before = Set(sorted.map(\.id))
         let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
-        sorted = notes.map { watched($0) }.sorted(by: precedes)
+        var entries = notes.map { watched($0) }
+        if order.key == .title, !sorted.isEmpty {
+            // Titles are slow to compare, and the list was in order a moment ago: put back in that
+            // order first, the sort has only the notes that came or changed to place.
+            let was = Dictionary(sorted.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+            entries.sort { (was[$0.id] ?? .max) < (was[$1.id] ?? .max) }
+        }
+        sorted = entries.sorted(by: precedes)
         // An import, a first sync or another account: hundreds of notes came or went at once.
         var differing = 0
         for e in sorted where !before.contains(e.id) { differing += 1 }
