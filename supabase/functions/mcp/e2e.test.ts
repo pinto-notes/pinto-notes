@@ -37,7 +37,7 @@ Deno.test({ name: "refuses the token in the address: it belongs in the Authoriza
 Deno.test({ name: "initialize and list tools", ignore: !enabled }, async () => {
   const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "1" } });
   assertEquals(init.body.result.protocolVersion, "2025-06-18");
-  assertEquals(init.body.result.serverInfo.name, "amber-notes");
+  assertEquals(init.body.result.serverInfo.name, "pinto-notes");
   const { body } = await rpc("tools/list");
   const names = body.result.tools.map((t: { name: string }) => t.name);
   for (const n of ["search_notes", "read_note", "create_note", "edit_note", "append_to_note", "set_checklist_item", "note_history", "search", "fetch"]) {

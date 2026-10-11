@@ -4,7 +4,7 @@
 
 import { servedTools } from "./tools.ts";
 
-export const SERVER_INFO = { name: "amber-notes", title: "Pinto Notes", version: "1.0.0" };
+export const SERVER_INFO = { name: "pinto-notes", title: "Pinto Notes", version: "1.0.0" };
 // Joined at runtime: the Supabase CLI mistakes a literal "/….json" path for a static file to bundle.
 export const SERVER_CARD_PATH = ["", ".well-known", "mcp", "server-card.json"].join("/");
 
