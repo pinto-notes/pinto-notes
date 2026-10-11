@@ -280,6 +280,23 @@ import AppKit
         return try #require(result)
     }
 
+    /// A sandbox is made ahead of time with a blank document loading in it. Taken the moment it
+    /// was made (a new version arriving while the app is still opening its note at launch), it
+    /// must still load the app: the note stayed blank.
+    @Test func anAppOpensInASandboxTakenWhileItsBlankDocumentIsStillLoading() async throws {
+        for round in 0..<4 {
+            _ = try await NotePageSandbox.make() // a spare starts behind this one
+            for _ in 0..<(round * 3) { await Task.yield() }
+            let sandbox = try await NotePageSandbox.make()
+            var result: Bool?
+            sandbox.onReady = { result = true }
+            sandbox.onFailure = { _ in result = false }
+            sandbox.load(html: "<main id=m></main><script>amber.onChange((n) => { m.textContent = n.title })</script>", body: Self.habits)
+            for _ in 0..<100 where result == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(result == true, "round \(round): the app should draw, not be refused as a navigation (\(sandbox.blocked))")
+        }
+    }
+
     @Test func aPageThatThrowsOrDrawsNothingIsReportedAsFailed() async throws {
         let good = try await outcome("<main id=m></main><script>amber.onChange((n) => { m.textContent = n.title })</script>")
         #expect(good.ready)
@@ -521,23 +538,6 @@ import AppKit
         #expect(NoteIntents.appending("", to: "Groceries") == "Groceries")
     }
 
-    /// The on-device model on this Mac, when there is one: prints what it says (no assertion on
-    /// the words; it can be unavailable).
-    @Test func onDeviceModelAnswersOrSaysWhyNot() async throws {
-        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let a = try await NotePageDevice.handle(["op": "ai.available"], context: c.mainContext)
-        print("AI-AVAILABLE \(a)")
-        do {
-            let r = try await NotePageDevice.handle(["op": "ai.respond", "prompt": "Meeting: Lunch with Jonas at Time Out Market. Suggest three short questions to ask.",
-                                                     "instructions": "Three numbered questions, one line each."], context: c.mainContext)
-            print("AI-TEXT \(r["text"] ?? "")")
-            #expect((r["text"] as? String)?.isEmpty == false)
-        } catch {
-            print("AI-UNAVAILABLE \(error.localizedDescription)")
-            #expect(a["available"] as? Bool != true || error.localizedDescription.contains("couldn't answer"))
-        }
-    }
-
     @Test func addChecklistItemKeepsChecklistsAsChecklists() throws {
         let body = "Packing\n\n## Clothes\n- [ ] Socks\n- [x] Jacket\n\n## Documents\n- [ ] Passport\n\nNotes"
         #expect(try apply(["op": "add_checklist_item", "text": "Scarf", "under_heading": "clothes"], to: body)
@@ -576,6 +576,53 @@ import AppKit
         #expect(store.unpushed[id] != nil && store.previous(id)?.html == "<p>c</p>")
     }
 
+    /// An app has no network, but a link it opens leaves the app with whatever its address
+    /// carries. So every link is asked about first, with the whole address; refused, nothing opens.
+    @Test func anAppAsksBeforeItOpensALinkAndShowsAllOfIt() async throws {
+        let container = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
+        let note = Note(body: "Secret\n\nmy bank PIN")
+        container.mainContext.insert(note)
+        var asked: [String] = []
+        let links = ["https://leak.example/?d=my+bank+PIN", "mailto:someone@example.org?body=my%20bank%20PIN", "tel:+4612345"]
+        // Twice each: allowing a site once is not allowing it again.
+        for link in links + links {
+            await #expect(throws: NotePage.OpError("You didn't open that link.")) {
+                _ = try await NotePageActions.data(["op": "device.openURL", "url": link], note: note, context: container.mainContext, sync: nil,
+                                                   askLink: { whole in asked.append(whole); return false })
+            }
+        }
+        #expect(asked == links + links)
+        // Nothing but web, mail and phone links, and no address too long to read: refused unasked.
+        for link in ["maps://?q=Lisbon", "file:///etc/hosts", "pintonotes://x", "javascript:alert(1)", "https://leak.example/?d=" + String(repeating: "a", count: 2000), ""] {
+            await #expect(throws: NotePage.OpError.self) {
+                _ = try await NotePageActions.data(["op": "device.openURL", "url": link], note: note, context: container.mainContext, sync: nil,
+                                                   askLink: { whole in asked.append(whole); return true })
+            }
+        }
+        #expect(asked.count == 6)
+        #expect(NoteDetailView.HostAsk(host: "leak.example", link: links[0]) { _ in }.title == "This app wants to open a link")
+        #expect(NoteDetailView.HostAsk(host: "", link: links[1]) { _ in }.title == "This app wants to start an email")
+        #expect(NoteDetailView.HostAsk(host: "", link: links[2]) { _ in }.title == "This app wants to start a call")
+        #expect(NoteDetailView.HostAsk(host: "api.example.org") { _ in }.title == "This app wants to reach api.example.org")
+    }
+
+    /// Saving an app's data writes its row again, stamped with the device that saved. That is not
+    /// a new version of the app: no receipt, nothing added to its versions, and the AI that made it
+    /// is still who made it.
+    @Test func aRowWrittenAgainForItsDataIsTheSameApp() {
+        let store = NotePageStore(file: nil)
+        let id = UUID(), made = Date(timeIntervalSince1970: 1_760_000_000)
+        store.arrived(id, html: "<p>a</p>", by: "Claude", at: made)
+        let first = NotePageStore.Page(html: "<p>a</p>", by: "Claude", at: made)
+        store.arrived(id, html: "<p>a</p>", by: "iPhone", at: made.addingTimeInterval(60))
+        #expect(store[id] == first && store.history[id] == nil)
+        #expect(!first.isNewVersion(after: store[id]))
+        // A change to its code is one, whoever wrote it.
+        store.arrived(id, html: "<p>b</p>", by: "ChatGPT", at: made.addingTimeInterval(120))
+        #expect(store[id]?.by == "ChatGPT" && store.history[id] == [first])
+        #expect(store[id]?.isNewVersion(after: first) == true)
+    }
+
     // MARK: A new version while you use it
 
     @Test func whatYouTypedComesAlongToTheNewVersion() async throws {
@@ -597,7 +644,7 @@ import AppKit
     }
 
     /// Every demo app loads and draws, with its own note.
-    @Test(arguments: ["habit-tracker", "budget", "budget-v2", "spending-chart", "expense-form", "savings-goal", "habit-reminders", "trip-log", "weather-key", "budget-dashboard", "reading-stack", "packing", "training", "budget-ledger"])
+    @Test(arguments: ["habit-tracker", "budget", "budget-v2", "spending-chart", "expense-form", "savings-goal", "weather-key", "budget-dashboard", "reading-stack", "packing", "training", "budget-ledger"])
     func demoAppsLoad(_ name: String) async throws {
         let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "demo/note-pages")
         let html = try String(contentsOf: dir.appending(path: name + ".html"), encoding: .utf8)
@@ -634,19 +681,69 @@ import AppKit
         #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist app"))
     }
 
-    // MARK: Not released (NoteApps)
+    // MARK: Pushing an app's data
 
-    @Test func noteAppsAreOffInTheReleasedApp() {
-        // Release with Pinto Notes' own bundle id: off, whatever a launch argument or default says.
-        #expect(!NoteApps.isEnabled(development: false, beta: false, setting: nil))
-        #expect(!NoteApps.isEnabled(development: false, beta: false, setting: true))
-        #expect(!NoteApps.isEnabled(development: false, beta: false, setting: false))
-        // Pinto Notes Beta, and Debug and QA builds: on; `-noteApps NO` shows them as released.
-        for (development, beta) in [(false, true), (true, false), (true, true)] {
-            #expect(NoteApps.isEnabled(development: development, beta: beta, setting: nil))
-            #expect(NoteApps.isEnabled(development: development, beta: beta, setting: true))
-            #expect(!NoteApps.isEnabled(development: development, beta: beta, setting: false))
+    /// The server stamps a row to the microsecond. The push writes only if the row is still the one
+    /// it read, and has to find it by a stamp it can only send in milliseconds.
+    @Test func theDataPushFindsARowStampedToTheMicrosecond() throws {
+        let style = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        for micros in [259_987, 0, 999_999, 500, 123_000] {
+            let stamp = Date(timeIntervalSince1970: 1_791_708_890 + Double(micros) / 1_000_000)
+            let w = SyncEngine.stampWindow(stamp)
+            let after = try Date(w.after, strategy: style), before = try Date(w.before, strategy: style)
+            #expect(after < stamp && stamp < before, "the row's own stamp is inside (\(micros) µs)")
+            // Narrow: a write a few milliseconds later is another row state, and is not matched.
+            #expect(before.timeIntervalSince(after) < 0.0035)
+            #expect(!(after < stamp.addingTimeInterval(0.004) && stamp.addingTimeInterval(0.004) < before))
         }
+    }
+
+    // MARK: What apps can no longer use of the device
+
+    /// Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and the
+    /// on-device model were removed from apps. An app written for them gets an answer with a
+    /// reason, in the app, and never an exception; a link, the share sheet and the pickers remain.
+    @Test func anAppThatCallsARemovedDeviceFeatureIsToldItIsNotAvailable() async throws {
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.onData = { _ in Issue.record("a removed feature reached the app"); return [:] }
+        sandbox.load(html: """
+        <p id=p>x</p><script>
+        amber.onChange(() => {});
+        (async () => {
+          const d = amber.device, out = {};
+          const calls = { "reminders.create": () => d.reminders.create({ title: "x" }), "reminders.complete": () => d.reminders.complete("1"), "reminders.delete": () => d.reminders.delete("1"),
+            "calendar.today": () => d.calendar.today(), "notify": () => d.notify({ title: "x" }), "notify.cancel": () => d.notify.cancel("1"), "camera.take": () => d.camera.take(),
+            "contacts.pick": () => d.contacts.pick(), "location.once": () => d.location.once(), "maps.open": () => d.maps.open({ query: "x" }), "maps.snapshot": () => d.maps.snapshot({}),
+            "weather.current": () => d.weather.current(), "ai.respond": () => amber.ai.respond("x"), "ai.available": () => amber.ai.available() };
+          for (const [name, call] of Object.entries(calls)) { const r = await call(); out[name] = r.ok === false ? r.error : "available:" + r.available; }
+          window.__kept = ["openURL", "share"].every((k) => typeof d[k] === "function") && typeof d.photos.pick === "function" && typeof d.files.pick === "function";
+          window.__out = out;
+        })();
+        </script>
+        """, body: "x")
+        try await run(sandbox.webView, until: "window.__out !== undefined")
+        let out = try #require(try await sandbox.webView.evaluateJavaScript("window.__out") as? [String: String])
+        let want = ["reminders.create": "Reminders aren't", "reminders.complete": "Reminders aren't", "reminders.delete": "Reminders aren't", "calendar.today": "The calendar isn't",
+                    "notify": "Notifications aren't", "notify.cancel": "Notifications aren't", "camera.take": "The camera isn't", "contacts.pick": "Contacts aren't",
+                    "location.once": "Location isn't", "maps.open": "Maps isn't", "maps.snapshot": "Maps isn't", "weather.current": "Weather isn't", "ai.respond": "On-device AI isn't"]
+        for (name, what) in want { #expect(out[name] == "\(what) available in apps yet.", "\(name): \(out[name] ?? "nothing")") }
+        #expect(out["ai.available"] == "available:false")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__kept") as? Bool == true)
+        // An app that posts a removed call past the bridge's own functions is refused there too.
+        let container = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
+        for op in ["reminders.create", "calendar.today", "location.once", "camera.take", "contacts.pick", "maps.open", "ai.respond", "notify"] {
+            await #expect(throws: NotePageDevice.Unavailable.self) { _ = try await NotePageDevice.handle(["op": op, "title": "x"], context: container.mainContext) }
+        }
+    }
+
+    // MARK: The switch (NoteApps)
+
+    @Test func noteAppsAreOnInEveryBuildUnlessTheSettingSaysNo() {
+        // The released app too: on with no setting, and with it set to yes.
+        #expect(NoteApps.isEnabled(setting: nil))
+        #expect(NoteApps.isEnabled(setting: true))
+        // `-noteApps NO` (or the default written by hand) still turns them off.
+        #expect(!NoteApps.isEnabled(setting: false))
     }
 
     @Test func withNoteAppsOffANoteWithAnAppIsJustANoteAndKeepsItsApp() {

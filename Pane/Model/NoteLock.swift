@@ -460,6 +460,13 @@ final class NoteVault {
         idleWatch = nil
     }
 
+    /// The notes leave this device (Sign Out and Remove Notes): so does the key Face ID or Touch ID
+    /// opens them with. The password still opens them, wherever the notes are.
+    func forgetDeviceKey() {
+        lockNow()
+        keyStore.remove()
+    }
+
     /// Something happened in a locked note: the relock clock starts again.
     func touch() { lastActivity = .now }
 

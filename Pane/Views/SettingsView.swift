@@ -121,7 +121,7 @@ struct SettingsView: View {
             SettingsPage {
                 if let client = backend.client {
                     ConnectAISection(client: client, preview: connections)
-                    if NoteApps.enabled { AppPreviewSection(client: client) }
+                    if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
                 }
             }
             .connectGuides(client: backend.client)
@@ -316,7 +316,6 @@ private struct GeneralSettings: View {
 private struct AccountSettings: View {
     let backend: Backend
     let sync: SyncEngine?
-    @State private var confirmSignOut = false
 
     var body: some View {
         if case .signedIn(let email) = backend.state {
@@ -340,14 +339,7 @@ private struct AccountSettings: View {
                 Text(PrivacyCopy.exportFooter)
             }
             Section {
-                Button(role: .destructive) { confirmSignOut = true } label: { Text("Sign Out…").foregroundStyle(.red) }
-                    .accessibilityIdentifier("settings.signOut")
-                    // Settings closes once you're signed out.
-                    .confirmationDialog("Sign out of Pinto Notes?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-                        Button("Sign Out", role: .destructive) { Task { await backend.signOut() } }
-                    } message: {
-                        Text("Your notes stay in your account and come back when you sign in again.")
-                    }
+                SignOutButton(backend: backend, sync: sync)
                 DeleteAccountButton(backend: backend)
             }
         } else if backend.state == .disabled {
@@ -362,6 +354,81 @@ private struct AccountSettings: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+/// Sign Out…: signing out alone, which keeps the notes on this device for next time, or signing
+/// out and removing them from it (`SignOutRemoval`). The second is only offered while something
+/// else can open the notes, and is refused while anything here hasn't synced.
+struct SignOutButton: View {
+    let backend: Backend
+    let sync: SyncEngine?
+    var crypto: AccountCrypto = .shared
+    var devices: KeyDevices = .shared
+    var route: SettingsRoute = .shared
+    @Environment(\.modelContext) private var context
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var asking = false
+    @State private var removing = false
+    @State private var refusal: SignOutRemoval.Refusal?
+
+    var body: some View {
+        let offer = SignOutRemoval.offer(crypto: crypto, devices: devices)
+        Button(role: .destructive) {
+            refusal = nil
+            asking = true
+        } label: {
+            HStack(spacing: 8) {
+                Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(.red)
+                if removing { ProgressView().controlSize(.small) }
+            }
+        }
+        .disabled(removing)
+        .accessibilityIdentifier("settings.signOut")
+        // Settings closes once you're signed out.
+        .confirmationDialog(SignOutCopy.title, isPresented: $asking, titleVisibility: .visible) {
+            Button(SignOutCopy.signOut, role: .destructive) { Task { await backend.signOut() } }
+                .accessibilityIdentifier("settings.confirmSignOut")
+            if offer != .unavailable {
+                // At the largest text sizes the full title runs past the dialog's edge on iPhone; the
+                // message above it names the device.
+                Button(typeSize.isAccessibilitySize ? SignOutCopy.removeShort : SignOutCopy.remove(), role: .destructive) { Task { await remove() } }
+                    .disabled(offer == .needsRecoveryKey)
+                    .accessibilityIdentifier("settings.signOutAndRemove")
+            }
+            if offer == .needsRecoveryKey {
+                Button(SignOutCopy.saveRecoveryKey) { showSecurity() }
+                    .accessibilityIdentifier("settings.signOutRecoveryKey")
+            }
+        } message: {
+            Text(SignOutCopy.message(offer))
+        }
+        if let refusal {
+            Label(SignOutCopy.refusal(refusal), systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.callout)
+                .accessibilityIdentifier("settings.signOutRefused")
+        }
+    }
+
+    private func remove() async {
+        guard let account = backend.userID else { return }
+        removing = true
+        defer { removing = false }
+        do {
+            try await SignOutRemoval.live(backend: backend, sync: sync, context: context).run(account: account)
+        } catch {
+            refusal = error as? SignOutRemoval.Refusal ?? .offline
+        }
+    }
+
+    /// Security, where the recovery key is saved.
+    private func showSecurity() {
+        #if os(macOS)
+        route.tab = .security
+        #else
+        route.target = .security
+        #endif
     }
 }
 

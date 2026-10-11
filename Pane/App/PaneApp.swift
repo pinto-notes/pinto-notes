@@ -98,6 +98,8 @@ struct PaneApp: App {
         }
         let sync = SyncEngine(backend: backend, context: container.mainContext)
         _sync = State(initialValue: sync)
+        // A Sign Out and Remove Notes that a quit cut short: the notes go before they can be shown.
+        if !inMemory { SignOutRemoval.live(backend: backend, sync: sync, context: context).eraseIfInterrupted() }
         let session = AppSession(backend: backend, sync: sync, context: container.mainContext)
         _session = State(initialValue: session)
         // Not in the unit-test host or a capture of one screen, which never ran this.
@@ -720,6 +722,11 @@ final class AppSession {
         if UserDefaults.standard.string(forKey: DeviceRemoval.pendingFlag) != nil {
             KeyDevices.shared.attach(account: backend.userID, server: backend.client.map { SupabaseKeyDevices(client: $0) })
             await removal.resumeIfInterrupted()
+        }
+        // So is a Sign Out and Remove Notes: its library went before anything was drawn (PaneApp.init).
+        if UserDefaults.standard.string(forKey: SignOutRemoval.pendingFlag) != nil {
+            KeyDevices.shared.attach(account: backend.userID, server: backend.client.map { SupabaseKeyDevices(client: $0) })
+            await SignOutRemoval.live(backend: backend, sync: sync, context: context).resumeIfInterrupted()
         }
         guard case .signedIn = backend.state, let client = backend.client else {
             setup.attach(account: nil, service: nil)

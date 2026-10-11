@@ -46,7 +46,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         Task { @MainActor in
             guard spare == nil, let rules = try? await prepare() else { return }
             let s = NotePageSandbox(rules: rules)
-            s.loading = true
+            s.expected.append("about:blank")
             s.webView.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
             spare = s
         }
@@ -132,7 +132,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         libraries.allowed = Set(NotePageLibraries.declared(in: html).compactMap { if case .npm(let r) = $0 { r } else { nil } })
         ucc.addUserScript(WKUserScript(source: Self.bootstrap(data: NotePage.data(of: body), store: data, restore: restore, widget: isWidget),
                                        injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
-        loading = true
+        expected.append(NotePageProject.base.absoluteString)
         webView.loadHTMLString(Self.sandboxed(html), baseURL: NotePageProject.base)
     }
 
@@ -201,6 +201,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           // Load errors, and whether anything showed, go to the app once the first frame is drawn.
           const errors = [];
           const failed = (e) => errors.push(String((e && e.message) || e));
+          const gone = (what) => () => Promise.resolve({ ok: false, error: what + " available in apps yet." });
           const amber = {
             note: \(json),
             update(op) {
@@ -242,30 +243,27 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               // only for files this note or its app's data refer to. width: a smaller picture.
               url: (ref, o) => "amber-file:///" + ((ref && ref.$file) || ref) + (o && o.width ? "?w=" + Math.round(o.width) : ""),
             },
-            // The device, through the system's own prompts and pickers. Results go to the page only.
+            // The device: a link (asked about first), the share sheet, and pickers for photos and
+            // files. What apps could once also use answers that it isn't available, by name, so an
+            // app written for it gets a reason and not an exception.
             device: {
-              reminders: {
-                create: (r) => ask({ op: "device.reminders.create", ...r }),
-                complete: (id) => ask({ op: "device.reminders.complete", id }),
-                delete: (id) => ask({ op: "device.reminders.delete", id }),
-              },
-              calendar: { today: () => ask({ op: "device.calendar.today" }) },
-              notify: Object.assign((n) => ask({ op: "device.notify", ...n }), { cancel: (id) => ask({ op: "device.notify.cancel", id }) }),
               openURL: (url) => ask({ op: "device.openURL", url }),
               // An export through the share sheet (iPhone) or a Save panel (Mac): { name, type, text | base64 }.
               share: (o) => ask({ op: "device.share", ...(o || {}) }),
               photos: { pick: (o) => ask({ op: "device.photos.pick", ...(o || {}) }) },
-              camera: { take: () => ask({ op: "device.camera.take" }) },
-              contacts: { pick: () => ask({ op: "device.contacts.pick" }) },
               files: { pick: () => ask({ op: "device.files.pick" }) },
-              location: { once: () => ask({ op: "device.location.once" }) },
-              maps: { open: (p) => ask({ op: "device.maps.open", ...p }), snapshot: (p) => ask({ op: "device.maps.snapshot", ...p }) },
-              weather: { current: (p) => ask({ op: "device.weather.current", ...(p || {}) }) },
+              reminders: { create: gone("Reminders aren't"), complete: gone("Reminders aren't"), delete: gone("Reminders aren't") },
+              calendar: { today: gone("The calendar isn't") },
+              notify: Object.assign(gone("Notifications aren't"), { cancel: gone("Notifications aren't") }),
+              camera: { take: gone("The camera isn't") },
+              contacts: { pick: gone("Contacts aren't") },
+              location: { once: gone("Location isn't") },
+              maps: { open: gone("Maps isn't"), snapshot: gone("Maps isn't") },
+              weather: { current: gone("Weather isn't") },
             },
-            // Apple's on-device model: nothing leaves the device.
             ai: {
-              available: () => ask({ op: "device.ai.available" }),
-              respond: (prompt, o) => ask({ op: "device.ai.respond", prompt, ...(o || {}) }),
+              available: () => Promise.resolve({ ok: true, available: false, reason: "on-device AI isn't available in apps yet" }),
+              respond: gone("On-device AI isn't"),
             },
             // Through the app, to hosts the page declared and you allowed, logged; keys added by the app.
             fetch: (url, o) => ask({ op: "fetch", url, ...(o || {}) }),
@@ -486,13 +484,18 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
     // MARK: Nowhere to go
 
-    fileprivate var loading = false
+    /// The documents this sandbox was asked to show and hasn't been asked about yet, oldest first:
+    /// the blank one a spare starts with, then the app. One flag wasn't enough: a spare taken while
+    /// its blank document was still loading spent the flag on that, and the app's own document was
+    /// then refused as a navigation, so the note stayed blank.
+    fileprivate var expected: [String] = []
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
-        // Only the page itself, as it's first shown. Links, forms, reloads and redirects stay put.
+        // Only the documents the app itself loaded here. Links, forms, reloads and redirects stay put.
         let url = action.request.url?.absoluteString ?? ""
-        if loading, url == NotePageProject.base.absoluteString || url == "about:blank", action.targetFrame?.isMainFrame == true {
-            loading = false
+        if action.targetFrame?.isMainFrame == true, let i = expected.firstIndex(of: url) {
+            // The app's document is the last one a sandbox shows: nothing is expected after it.
+            if url == NotePageProject.base.absoluteString { expected.removeAll() } else { expected.remove(at: i) }
             return .allow
         }
         blocked.append("navigation \(url)")
@@ -904,14 +907,30 @@ enum NotePageActions {
         return FileStore.url(for: a.id, filename: a.filename)
     }
 
+    /// The link an app asked to open, if it is one that opens: a web address, an email or a phone
+    /// number, and nothing else.
+    static func link(_ asked: String?) throws -> URL {
+        guard let asked, asked.count <= 2000, let url = URL(string: asked), ["https", "http", "mailto", "tel"].contains(url.scheme?.lowercased() ?? "") else {
+            throw NotePage.OpError("Only web, mail and phone links open, up to 2,000 characters.")
+        }
+        return url
+    }
+
     /// The app's own data and files (amber.store, amber.files). Returns the reply for the page, and
     /// the data before a data change (nil for files), for Undo.
     static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?, html: String = "",
-                     ask: (String) async -> Bool = { _ in false }, needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
+                     ask: (String) async -> Bool = { _ in false }, askLink: (String) async -> Bool = { _ in false },
+                     needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
         let m = message as? [String: Any] ?? [:]
         if let op = m["op"] as? String, op.hasPrefix("device.") {
             var d = m
             d["op"] = String(op.dropFirst("device.".count))
+            // A link out of the app is a way out for what the app holds (its address can carry
+            // anything), so every one is shown in full and asked about first.
+            if op == "device.openURL" {
+                let url = try link(m["url"] as? String)
+                guard await askLink(url.absoluteString) else { throw NotePage.OpError("You didn't open that link.") }
+            }
             return (try await NotePageDevice.handle(d, context: context), nil)
         }
         switch m["op"] as? String {

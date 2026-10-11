@@ -9,15 +9,26 @@ import UIKit
 
 /// Add a device, in words: the new device's screen, and the sheet on the device that has the key.
 enum AddDeviceCopy {
-    static var gateTitle: String { "Open your notes on this \(InstallID.kind)" }
-    static let gateMessage = "On a device where Pinto Notes already works, go to Settings \u{203A} Security \u{203A} Add a device and scan this code."
-    /// Why the screen is there, before what to do. Only what's known: the key isn't on this device.
-    /// (Not "on another device": a Mac that lost its key may be the account's only one.)
-    static var gateWhy: String { "This \(InstallID.kind) doesn\u{2019}t have the key to this account\u{2019}s notes. Link it to open them here." }
+    static func gateTitle(_ kind: String = InstallID.kind) -> String { "Link this \(kind) to open your notes" }
+    /// Why the screen is there, before what to do, for someone who has never heard of a key. Only
+    /// what's known: the account has notes, and this device can't open them yet. (Not "on another
+    /// device": a Mac that lost its key may be the account's only one.)
+    static let gateWhy = "You already have notes in this account. They are encrypted, and only your own devices can open them."
+    /// What to do, on the device that already opens the notes: named, so it's clear which one.
+    static func gateSteps(_ kind: String = InstallID.kind) -> [String] {
+        ["On your \(otherDevices(kind)), open Pinto Notes \u{203A} Settings \u{203A} Security \u{203A} Add a device.", "Scan this code with it. You only do this once."]
+    }
+    /// The devices that could hold the notes already, this kind last: "iPhone, iPad or other Mac".
+    static func otherDevices(_ kind: String) -> String {
+        let others = ["iPhone", "iPad", "Mac"].filter { $0 != kind }
+        return "\(others.joined(separator: ", ")) or other \(kind)"
+    }
     static let codeLead = "Can\u{2019}t scan? Type this code there:"
     static let copyCode = "Copy code"
     static let copiedCode = "Copied"
     static let useRecovery = "Use a recovery key instead"
+    /// The link on the code's screen, and the title of the screen it opens.
+    static let noDeviceLink = "I don\u{2019}t have another device"
     static let noDevice = "No device left?"
     static let expired = "This code expired."
     static let newCode = "Show a new code"

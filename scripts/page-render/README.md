@@ -22,7 +22,7 @@ It also returns the result of trying the app's first control, and probes over ch
 
 ## What it sees
 
-By default the MCP server sends the app's HTML with a sample note and sample data (`app_sample.ts`). The sample keeps the same tables, columns, checklists and data keys, but every word and number is replaced. `preview_app` with `data: "real"` sends the real note and data only when the person has turned on `profiles.app_previews_real`; the switch for it in the app's settings is still to be built.
+By default the MCP server sends the app's HTML with a sample note and sample data (`app_sample.ts`). The sample keeps the same tables, columns, checklists and data keys, but every word and number is replaced. `preview_app` and `try_app` with `data: "real"` send the real note and data only on a server with `AMBER_APP_REAL_PREVIEWS=on`, and then only when the person has turned on `profiles.app_previews_real`. Production has it unset: nothing real is ever sent, and the released apps do not show the setting.
 
 That trust level matches the MCP server, which already opens notes in memory for an AI's request. The service stores nothing and logs only timings and sizes. Each request gets fresh browser contexts, and the page's own requests are refused. Run it with outbound network blocked and reachable only from the MCP server.
 

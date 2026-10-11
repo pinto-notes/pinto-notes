@@ -360,6 +360,9 @@ final class NotePageStore {
         var html: String
         var by: String
         var at: Date
+
+        /// Another app than `before`: its code differs. The same code written again is not.
+        func isNewVersion(after before: Page?) -> Bool { html != before?.html }
     }
 
     static let keep = 10
@@ -492,7 +495,16 @@ final class NotePageStore {
         }
         guard let box = r.page_ct else { self[r.note_id] = nil; return }
         guard let html = Wire.sealer?.open(box, context: E2EE.page(r.note_id)) else { return }
-        self[r.note_id] = Page(html: html, by: r.client ?? "AI", at: r.updated_at)
+        arrived(r.note_id, html: html, by: r.client ?? "AI", at: r.updated_at)
+    }
+
+    /// The app in a row from the server. The row is written again each time the app's data is
+    /// saved, stamped with the device that saved it: the same app then, so who made it and when
+    /// stay (your own tap in an app showed "iPhone updated it · Undo").
+    func arrived(_ id: UUID, html: String, by: String, at: Date) {
+        let page = Page(html: html, by: by, at: at)
+        guard page.isNewVersion(after: pages[id]) else { return }
+        self[id] = page
     }
 
     func forgetAll() {

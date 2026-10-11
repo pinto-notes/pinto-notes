@@ -1,7 +1,6 @@
 #if os(macOS)
 import AppKit
 #endif
-import EventKit
 import QuartzCore
 import SwiftData
 import SwiftUI
@@ -457,7 +456,7 @@ extension Capture {
             habits.isPinned = true
             try? context.save()
         }
-        // `-showcase <dir>`: the habit tracker with reminders, meeting prep, a trip log and a weather app.
+        // `-showcase <dir>`: the weather app, which needs an API key.
         if let dir = argument("-showcase") {
             showcase(context, pages: URL(fileURLWithPath: dir))
         }
@@ -624,8 +623,7 @@ final class FrameProbe: NSObject {
 #endif
 
 extension Capture {
-    /// Four notes that are apps, for the showcase recordings, and today's meetings in Calendar
-    /// (`-seedCalendar`; demo events made by the app, for the simulator, which has none).
+    /// A note that is an app with an API key, for the showcase recording.
     @MainActor static func showcase(_ context: ModelContext, pages: URL) {
         func app(_ body: String, _ file: String, pinned: Bool = false) {
             let n = context.createNote(in: .all, body: body)
@@ -634,30 +632,8 @@ extension Capture {
                 NotePageStore.shared[n.id] = .init(html: html, by: "Claude", at: .now.addingTimeInterval(-3600))
             }
         }
-        app(habitNote(), "habit-reminders.html", pinned: true)
-        app("Meeting prep\n\nToday's meetings, from Calendar. Prep notes stay in the app until I save them.\n\n## Today\n", "meeting-prep.html")
-        app("Lisbon trip log\n\nFour days in May. Places, photos and the weather are kept in the app.", "trip-log.html")
         app("Weather\n\nLisbon\n", "weather-key.html")
         try? context.save()
-        if ProcessInfo.processInfo.arguments.contains("-seedCalendar") {
-            Task { @MainActor in
-                let store = EKEventStore()
-                guard (try? await store.requestFullAccessToEvents()) == true, let cal = store.defaultCalendarForNewEvents else { return }
-                let day = Calendar.current.startOfDay(for: .now)
-                let existing = store.events(matching: store.predicateForEvents(withStart: day, end: day.addingTimeInterval(86400), calendars: nil))
-                guard existing.isEmpty else { return }
-                for (title, h, m, len, place) in [("Design review: new onboarding", 9, 30, 45, "Room 4"), ("1:1 with Sara", 11, 0, 30, "Video call"),
-                                                  ("Lunch with Jonas", 12, 30, 60, "Time Out Market"), ("Q4 planning", 15, 0, 60, "Room 2")] {
-                    let e = EKEvent(eventStore: store)
-                    e.title = title
-                    e.location = place
-                    e.startDate = Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: day)!
-                    e.endDate = e.startDate.addingTimeInterval(Double(len) * 60)
-                    e.calendar = cal
-                    try? store.save(e, span: .thisEvent)
-                }
-            }
-        }
     }
 }
 
