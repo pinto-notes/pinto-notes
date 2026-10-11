@@ -36,8 +36,6 @@ struct NoteDetailView: View {
     @State private var showNetLog = false
     @State private var showMakeApp = false
     @State private var showAppInfo = false
-    /// "Make this an app", once per note, on notes that look like one.
-    @State private var showChip = false
 
     struct HostAsk: Identifiable {
         let host: String
@@ -192,17 +190,6 @@ struct NoteDetailView: View {
                                      })
                 }
             }
-            .overlay(alignment: .bottom) {
-                if showChip, notePage == nil, receipt == nil {
-                    MakeAppChip(open: { showChip = false; showMakeApp = true }, dismiss: { withAnimation(.smooth) { showChip = false } })
-                        #if os(macOS)
-                        .padding(.bottom, 20)
-                        #else
-                        .padding(.bottom, 64)
-                        #endif
-                        .transition(AIReceipt.transition(reduceMotion: reduceMotion))
-                }
-            }
             .onChange(of: note.aiEditedAt) { _, _ in showAIEdit() }
             .onChange(of: NotePageStore.shared[note.id]) { _, _ in pageArrived(NotePageStore.shared.live(note.id)) }
             // An AI's new version failed its checks on the server and waits there as a draft: the
@@ -232,30 +219,7 @@ struct NoteDetailView: View {
                 withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
                 controller.clearTint()
             }
-            .task(id: note.id) {
-                titleAtOpen = note.body.isEmpty || note.isLocked ? nil : note.title
-                refreshLinks()
-                receipt = nil
-                shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
-                // A note with an app is the app: what its text held goes into the app's data once.
-                if shownPage != nil { NotePageActions.importIfNeeded(note) }
-                if shownPage != nil { NotePageTiming.open(note.id) }
-                showChip = false
-                pageTint = nil
-                mode = Self.startMode
-                showAIEdit()
-                #if os(macOS)
-                PaneTips.menuBarShown = MenuBarSettings.allowed && UserDefaults.standard.object(forKey: MenuBarSettings.key) as? Bool ?? true
-                #endif
-                PaneTips.noteOpened(note.body)
-                ShareAsk.noteUsed()
-                // "Make this an app", once per note, a moment after it opens (last: it waits).
-                if NoteApps.enabled, shownPage == nil, !note.isLocked, !MakeAnApp.chipShown(note.id), MakeAnApp.looksLikeAnApp(note.body) {
-                    MakeAnApp.markChipShown(note.id)
-                    try? await Task.sleep(for: .seconds(1.2))
-                    if !Task.isCancelled { withAnimation(.spring(duration: 0.45, bounce: 0.25)) { showChip = true } }
-                }
-            }
+            .task(id: note.id) { await noteOpened() }
             .onChange(of: showHistory) { _, open in if open { FeatureUse.mark(.versionHistory) } }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, store: store) } }
@@ -618,6 +582,26 @@ struct NoteDetailView: View {
             try? await Task.sleep(for: .seconds(0.15 * ChangeTint.slowMotion))
             controller.tintChanges(from: before)
         }
+    }
+
+    /// The note on screen changed: what its view starts from. (Its own function: the view's body is
+    /// at the limit of what the compiler type-checks in one go.)
+    private func noteOpened() async {
+        titleAtOpen = note.body.isEmpty || note.isLocked ? nil : note.title
+        refreshLinks()
+        receipt = nil
+        shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
+        // A note with an app is the app: what its text held goes into the app's data once.
+        if shownPage != nil { NotePageActions.importIfNeeded(note) }
+        if shownPage != nil { NotePageTiming.open(note.id) }
+        pageTint = nil
+        mode = Self.startMode
+        showAIEdit()
+        #if os(macOS)
+        PaneTips.menuBarShown = MenuBarSettings.allowed && UserDefaults.standard.object(forKey: MenuBarSettings.key) as? Bool ?? true
+        #endif
+        PaneTips.noteOpened(note.body)
+        ShareAsk.noteUsed()
     }
 
     /// A page an AI made or changed while the note is open: show it, say who, offer Undo.
