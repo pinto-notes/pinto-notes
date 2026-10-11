@@ -1,3 +1,6 @@
+#if os(macOS)
+import AppKit
+#endif
 import Foundation
 import SwiftData
 import Testing
@@ -15,6 +18,37 @@ import Testing
         n.updatedAt = Date.now.addingTimeInterval(-minutesAgo * 60)
         return n
     }
+
+    #if os(macOS)
+    /// The menu bar shows the app icon's leaf (2026-10-11: it still showed the tilted page of the
+    /// old icon): a template image of 18 pt with a bitmap for each screen density, its ink
+    /// leaning the way the leaf does, tip top right and stem bottom left.
+    @Test func theMenuBarGlyphIsTheLeaf() throws {
+        let image = try #require(NSImage(named: "MenuBarIcon"))
+        #expect(image.isTemplate, "one ink: the menu bar colours it for light, dark and tinted bars")
+        #expect(image.size == CGSize(width: 18, height: 18))
+        #expect(Set(image.representations.map(\.pixelsWide)) == [18, 36])
+        // Drawn at 2x into a bitmap of our own, to look at where its ink is.
+        let big = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 36, pixelsHigh: 36, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                                isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: big)
+        image.draw(in: CGRect(x: 0, y: 0, width: 36, height: 36))
+        NSGraphicsContext.restoreGraphicsState()
+        func ink(_ xs: Range<Int>, _ ys: Range<Int>) -> Double {
+            var sum = 0.0
+            for y in ys { for x in xs { sum += Double(big.colorAt(x: x, y: y)?.alphaComponent ?? 0) } }
+            return sum / Double(xs.count * ys.count)
+        }
+        // Rows count from the top. The leaf fills the top right and leaves the top left corner and
+        // the bottom right corner empty; the old page filled all four alike.
+        #expect(ink(0..<36, 0..<36) > 0.25 && ink(0..<36, 0..<36) < 0.5)
+        #expect(ink(24..<32, 4..<10) > 0.6, "the leaf's tip side")
+        #expect(ink(0..<6, 0..<6) < 0.05)
+        #expect(ink(30..<36, 30..<36) < 0.05)
+        #expect(ink(6..<12, 30..<36) > 0.1, "the stem")
+    }
+    #endif
 
     @Test func pinnedFirstThenTheLatestSixWithoutDeletedOrSubNotes() throws {
         let ctx = try library()
