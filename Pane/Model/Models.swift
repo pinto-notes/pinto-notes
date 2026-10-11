@@ -95,19 +95,20 @@ enum SyncSignal {
 
 /// Plain-text helpers shared by the list, search and the AI tools.
 enum NoteText {
-    private struct Summary { var stamp: Date; var length: Int; var title: String; var preview: String }
+    private struct Summary { var body: String; var title: String; var preview: String }
     nonisolated(unsafe) private static var summaries: [UUID: Summary] = [:]
 
-    /// A note's title and preview, worked out again only when the note changes:
-    /// the list shows them for every note on every update.
+    /// A note's title and preview, worked out again only when the note's text changes:
+    /// the list shows them for every note on every update. Kept by the text itself. Kept by the
+    /// note's date and the text's length, a change that arrived by sync with the same date and
+    /// the same length left the row showing the text from before.
     static func summary(of note: Note) -> (title: String, preview: String) {
         let body = note.body
-        let length = body.utf16.count
-        if let s = summaries[note.id], s.stamp == note.updatedAt, s.length == length { return (s.title, s.preview) }
+        if let s = summaries[note.id], s.body == body { return (s.title, s.preview) }
         let head = head(of: body)
         let title = head.title
         let preview = head.preview ?? "No additional text"
-        summaries[note.id] = Summary(stamp: note.updatedAt, length: length, title: title, preview: preview)
+        summaries[note.id] = Summary(body: body, title: title, preview: preview)
         return (title, preview)
     }
 
