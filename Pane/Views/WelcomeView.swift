@@ -39,6 +39,8 @@ struct WelcomeFlow: View {
 
     #if os(macOS)
     static let size = CGSize(width: 900, height: 600)
+    #else
+    static let readableWidth: CGFloat = 560
     #endif
 
     var body: some View {
@@ -64,13 +66,21 @@ struct WelcomeFlow: View {
                     VStack(spacing: 0) {
                         // Large text gets the room: the picture gives some up.
                         phoneArt(share: typeSize.isAccessibilitySize ? 0.3 : 0.5)
+                        // On iPad the words and the way in keep a readable width in the middle.
                         words
                             .padding(.horizontal, 24)
                             .padding(.top, 24)
+                            .frame(maxWidth: Self.readableWidth)
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .scrollBounceBehavior(.basedOnSize)
-                .safeAreaInset(edge: .bottom) { welcomeActions.padding(.horizontal, 24).padding(.bottom, 8).background { Backdrop() } }
+                .safeAreaInset(edge: .bottom) {
+                    welcomeActions.padding(.horizontal, 24).padding(.bottom, 8)
+                        .frame(maxWidth: Self.readableWidth)
+                        .frame(maxWidth: .infinity)
+                        .background { Backdrop() }
+                }
             } else {
                 ScrollView {
                     VStack(spacing: 0) {

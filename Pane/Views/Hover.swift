@@ -309,3 +309,23 @@ enum RenderProbe {
     }
 }
 #endif
+
+#if os(iOS)
+/// On iPad a sheet is a fixed card in the middle of the screen. At the accessibility text sizes
+/// that card holds three rows: there the sheet takes the page instead.
+private struct RoomySheet: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        if typeSize.isAccessibilitySize {
+            content.presentationSizing(.page)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func roomySheet() -> some View { modifier(RoomySheet()) }
+}
+#endif
