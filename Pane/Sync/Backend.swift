@@ -261,7 +261,7 @@ final class Backend {
 
     /// An account made in the last few minutes signed up; any other signed in.
     nonisolated static func signInEvent(_ method: SignInMethod, created: Date, now: Date = .now) -> TelemetryEvent {
-        now.timeIntervalSince(created) < 5 * 60 ? .signedUp(method) : .signedIn(method)
+        SignInName.isSignUp(created: created, now: now) ? .signedUp(method) : .signedIn(method)
     }
 
     /// A sign-in worked: said under the account it signed in to (the auth stream, which also
@@ -346,6 +346,15 @@ final class Backend {
             try await client.auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: credential.idToken, nonce: credential.rawNonce))
         }
         report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
+        suggestName(credential.name ?? SignInName.from(metadata: session.user.userMetadata), for: session.user)
+    }
+
+    /// A new account takes the name Apple or Google handed over at sign-up as its profile name
+    /// (`ProfileStore.bind` writes it once it knows the profile has none). An account that
+    /// already existed is left alone: its name is whatever it set, or cleared, in Settings.
+    private func suggestName(_ name: String?, for user: User, now: Date = .now) {
+        guard SignInName.isSignUp(created: user.createdAt, now: now), let name else { return }
+        ProfileStore.suggest(name, for: user.id)
     }
 
     /// Adds your Apple ID to the account you're signed in to, so Apple signs you in from now on.
@@ -374,6 +383,7 @@ final class Backend {
             }
         }
         report(Self.signInEvent(.google, created: session.user.createdAt), for: session)
+        suggestName(SignInName.from(metadata: session.user.userMetadata), for: session.user)
         return session.user.id
     }
 
@@ -424,6 +434,9 @@ final class Backend {
             }
         }
         report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
+        // Apple's web sign-in sends the name to the server, not to the app: it is here only if
+        // the server kept it.
+        suggestName(SignInName.from(metadata: session.user.userMetadata), for: session.user)
     }
 
     /// Adds your Apple ID to this account through the web, for the Mac download.
