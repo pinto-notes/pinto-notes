@@ -480,11 +480,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
-      pull-requests: read
+      pull-requests: write
       actions: read
     steps:
-      - name: Open an issue
+      # No issue is opened (internal findings are not tracked in GitHub issues): the run says it
+      # on its own page and on every pull request it covers, and then fails.
+      - name: Say it on the pull requests this run covers
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -492,7 +493,6 @@ jobs:
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
           BRANCH: ${{ github.ref_name }}
-          ACTOR: ${{ github.actor }}
         run: |
           failed=$(gh api "repos/$REPO/actions/runs/$RUN/jobs?per_page=100" -q '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | .name] | join(", ")')
           # Every merge this run covers: the commits since the last green run on this branch (a burst
@@ -501,7 +501,7 @@ jobs:
           merges=$(gh api "repos/$REPO/compare/${green:-$BEFORE}...$SHA" -q '.commits[] | select(.commit.message | test("^Merge pull request #")) | "- " + (.commit.message | split("\n")[0]) + " (" + .sha[0:8] + ")"' 2>/dev/null || true)
           [ -n "$merges" ] || merges="- $(gh api "repos/$REPO/commits/$SHA" -q '.commit.message | split("\n")[0]') (${SHA:0:8})"
           {
-            echo "The full run after a merge into \`$BRANCH\` failed: **$failed**."
+            echo "The full run after a merge into \`$BRANCH\` failed at ${SHA:0:8}: **$failed**."
             echo
             echo "Run: https://github.com/$REPO/actions/runs/$RUN"
             echo
@@ -510,8 +510,13 @@ jobs:
             echo
             echo "Pull requests run a selection of the tests; everything runs here. Until this is green, \`$BRANCH\` is not a candidate for a release."
           } > body.md
-          gh issue create -R "$REPO" --title "$BRANCH is red after ${SHA:0:8}: $failed" --body-file body.md --assignee "$ACTOR" \
-            || gh issue create -R "$REPO" --title "$BRANCH is red after ${SHA:0:8}: $failed" --body-file body.md
+          cat body.md >> "$GITHUB_STEP_SUMMARY"
+          for pr in $(echo "$merges" | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | sort -un); do
+            gh pr comment "$pr" -R "$REPO" --body-file body.md || echo "::warning::could not comment on #$pr"
+          done
+          prs=$(echo "$merges" | grep -oE 'Merge pull request #[0-9]+' | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ' || true)
+          echo "::error title=$BRANCH is red after ${SHA:0:8}::$failed. Pull requests covered: ${prs:-none (a push that is not a merge)}"
+          exit 1
 
   server:
     name: Server (Deno)
