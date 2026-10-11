@@ -223,3 +223,49 @@ extension TableInteractionTests {
     }
 }
 #endif
+
+#if os(macOS)
+extension TableInteractionTests {
+    /// A tracker as a template or an AI makes one: a hidden line gives its columns types.
+    static let tracker = """
+    Evening tracker
+
+    <!-- pane-table: Date=date; Hours=number; Mood=choice Good|Ok|Bad; Diet on plan=choice Yes|No -->
+    | Date | Hours | Mood | Diet on plan |
+    | --- | --- | --- | --- |
+    | 2026-10-10 | 7.5 | Good | Yes |
+    | 2026-10-11 | 6 |  | No |
+
+    After
+    """
+
+    /// Tab, waiting for the keyboard to land in the next cell.
+    private func tab(_ h: EditorHarness) async -> Bool {
+        let from = h.focusedGridField
+        await h.press(EditorHarness.tab)
+        return await h.until { h.focusedGridField.map { $0 !== from } ?? false }
+    }
+
+    /// Tables are plain for people: a column with a list of answers is a cell you type in, like
+    /// any other (it was a menu you could not type into), and the hidden type line stays as it
+    /// was for the AI tools and note apps that read it. A Yes/No column keeps its tick.
+    @Test func aTypedTableIsTypedIntoLikeAPlainOne() async {
+        let h = await EditorHarness(Self.tracker, dark: true)
+        defer { h.close() }
+        await h.snapshot("table-plain-tracker")
+        await h.caret(after: "Evening tracker")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until { h.gridHasFocus })
+        // Across the header, then Date and Hours of the first row, to its Mood cell.
+        for step in 1...6 { #expect(await tab(h), "tab \(step)") }
+        Self.typeIntoFocusedCell(h, " day")
+        #expect(await h.until(5) { h.text.contains("| 2026-10-10 | 7.5 | Good day | Yes |") }, "typed into the Mood cell: \(h.text.debugDescription)")
+        // The tick is not a text cell: Tab goes past it to the next row.
+        #expect(await tab(h))
+        Self.typeIntoFocusedCell(h, "!")
+        #expect(await h.until(5) { h.text.contains("| 2026-10-11! | 6 |") }, "Tab skipped the tick: \(h.text.debugDescription)")
+        #expect(h.text.contains("<!-- pane-table: Date=date; Hours=number; Mood=choice Good|Ok|Bad; Diet on plan=choice Yes|No -->"), "the type line is untouched")
+    }
+}
+#endif
