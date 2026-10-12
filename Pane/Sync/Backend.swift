@@ -136,6 +136,9 @@ final class Backend {
     private(set) var apple: AppleIdentity?
     /// Whether a Google account signs in to this account (docs/Technical/google-sign-in.md).
     private(set) var google = false
+    /// The picture the account's Google sign-in came with, if any (`SignInPhoto`). Shown for you
+    /// on this device while your profile has no photo of its own; never uploaded or shared.
+    private(set) var signInPicture: URL?
     let client: SupabaseClient?
 
     struct AppleIdentity: Equatable {
@@ -197,6 +200,7 @@ final class Backend {
         guard let data = try? store.retrieve(key: key), let session = try? JSONDecoder().decode(Session.self, from: data) else { return nil }
         apple = Self.appleIdentity(of: session.user)
         google = Self.hasGoogle(session.user)
+        signInPicture = SignInPhoto.url(from: session.user.userMetadata)
         signedIn(session)
         return session.user.id
     }
@@ -283,6 +287,7 @@ final class Backend {
         for await (_, session) in client.auth.authStateChanges {
             apple = session.flatMap { Self.appleIdentity(of: $0.user) }
             google = session.map { Self.hasGoogle($0.user) } ?? false
+            signInPicture = session.flatMap { SignInPhoto.url(from: $0.user.userMetadata) }
             if let session, !session.isExpired {
                 signedIn(session)
             } else if let session, session.isExpired {

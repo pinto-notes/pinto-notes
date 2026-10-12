@@ -30,8 +30,6 @@ final class EditorCore {
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
-    /// A just-inserted table whose first cell should take the keyboard.
-    var pendingGridFocus: Int?
     /// Looks up a file so images can be sized (set by the text view).
     var resolveAttachment: (UUID) -> Attachment? = { _ in nil }
     /// Called after a restyle, so the view can place live views.
@@ -53,7 +51,7 @@ final class EditorCore {
 
     /// What a live view shows: when it's the same as last time, the view needn't be given again.
     enum CardContent: Equatable {
-        case grid(GridTable, focusFirst: Bool, request: GridFocusRequest?, selected: Bool)
+        case grid(GridTable, request: GridFocusRequest?, selected: Bool)
         /// `resolved`: its file is here (one can arrive by sync after the line that shows it).
         case embed(LineEmbed, controller: ObjectIdentifier?, resolved: Bool)
     }
@@ -81,18 +79,15 @@ final class EditorCore {
             guard var f = frame(at: g.range.location, height: GridMetrics.height(g)) else { continue }
             f.origin.x -= GridMetrics.handle
             f.size.width += GridMetrics.handle
-            let focusFirst = pendingGridFocus == g.index
-            if focusFirst { pendingGridFocus = nil }
             let request = gridFocus?.grid == g.index ? gridFocus : nil
             let isSelected = armedGrid == g.index
-            let view = TableGridView(table: g, initialFocus: focusFirst ? GridCell(row: 0, column: 0) : nil,
-                                     focusRequest: request, selected: isSelected, exit: { [weak target] below in target?.leaveGrid(g.index, below: below) }) { edited in
+            let view = TableGridView(table: g, focusRequest: request, selected: isSelected, exit: { [weak target] below in target?.leaveGrid(g.index, below: below) }) { edited in
                 // Find the table again in the current text: earlier edits may have moved it.
                 let now = GridTable.find(in: target.currentText)
                 guard edited.index < now.count else { return }
                 target.apply(TextEdit(range: now[edited.index].range, replacement: edited.markdown, caret: -1))
             }
-            out.append(("g\(g.index)", f, AnyView(view), .grid(g, focusFirst: focusFirst, request: request, selected: isSelected)))
+            out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
         for e in embeds {
             // Cards and images share one column width, so their edges line up.
@@ -389,7 +384,10 @@ final class EditorCore {
         return ListEditing.caretOutsideMarker(in: text, selection: selection, previous: lastSelection).map { .move($0) }
     }
 
-    /// A grid cell the keyboard should move into (set when arrowing into a table).
+    /// A grid cell the keyboard should move into: set when arrowing into a table, and for the
+    /// first cell of a table just made. It stays until the keyboard leaves that table, so the
+    /// grid gets it however many times its view is laid out before it shows (a one-shot flag
+    /// was used up by the first of two layout passes, and the new table never got the keyboard).
     var gridFocus: GridFocusRequest?
 
     /// Delete next to a table or embed, like Notes: an embed goes at once; a table
@@ -513,6 +511,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         textLayoutManager?.delegate = core.layoutDelegate
         delegate = self
         textDropDelegate = self
+        // A text view only looks at drops of what it can paste: notes dragged from the list
+        // (linked where they are dropped) are added to that.
+        pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: (pasteConfiguration?.acceptableTypeIdentifiers ?? []) + [UTType.paneItem.identifier])
         core.onCardsChanged = { [weak self] in self?.setNeedsLayout() }
         backgroundColor = .clear
         alwaysBounceVertical = true
@@ -713,7 +714,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func insertGrid() {
         let (edit, index) = core.newGridEdit(text: text, selection: selectedRange)
-        core.pendingGridFocus = index
+        core.gridFocus = GridFocusRequest(grid: index, cell: GridCell(row: 0, column: 0))
         apply(edit)
         resignFirstResponder()
     }
@@ -784,13 +785,41 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         }
     }
 
+    /// Notes dragged from the list (`PaneDragItem`).
+    private func carriesNotes(_ session: UIDropSession) -> Bool {
+        session.hasItemsConforming(toTypeIdentifiers: [UTType.paneItem.identifier])
+    }
+
     func textDroppableView(_ view: UIView & UITextDroppable, proposalForDrop drop: UITextDropRequest) -> UITextDropProposal {
         let p = UITextDropProposal(operation: .copy)
-        if isFileDrop(drop.dropSession) { p.dropAction = .insert }
+        if carriesNotes(drop.dropSession) || isFileDrop(drop.dropSession) { p.dropAction = .insert }
         return p
     }
 
+    /// Notes dropped at a place in the text: a link to each goes in there (see `insertNoteLinks`).
+    @discardableResult
+    func dropNotes(_ ids: [UUID], at position: UITextPosition) -> Bool {
+        guard !ids.isEmpty else { return false }
+        selectedTextRange = textRange(from: position, to: position)
+        return controller?.insertNoteLinks(ids) ?? false
+    }
+
     func textDroppableView(_ view: UIView & UITextDroppable, willPerformDrop drop: UITextDropRequest) {
+        if carriesNotes(drop.dropSession) {
+            let position = drop.dropPosition
+            let providers = drop.dropSession.items.map(\.itemProvider).filter { $0.hasItemConformingToTypeIdentifier(UTType.paneItem.identifier) }
+            Task { @MainActor in
+                var data: [Data] = []
+                for p in providers {
+                    let d: Data? = await withCheckedContinuation { cont in
+                        _ = p.loadDataRepresentation(forTypeIdentifier: UTType.paneItem.identifier) { d, _ in cont.resume(returning: d) }
+                    }
+                    if let d { data.append(d) }
+                }
+                self.dropNotes(EditorController.draggedNotes(data), at: position)
+            }
+            return
+        }
         guard isFileDrop(drop.dropSession) else { return }
         let position = drop.dropPosition
         let providers = drop.dropSession.items.map(\.itemProvider)
@@ -962,6 +991,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func textViewDidBeginEditing(_ textView: UITextView) {
         controller?.isEditing = true
+        // The keyboard is back in the text: no table is waiting for it any more.
+        core.gridFocus = nil
         core.restyle(textStorage, selection: selectedRange, force: true)
     }
 
@@ -1126,6 +1157,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
 #else
 import AppKit
+import UniformTypeIdentifiers
 
 private struct PlatformEditor: NSViewRepresentable {
     let initialText: String
@@ -1187,7 +1219,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false
         isAutomaticLinkDetectionEnabled = false
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, Self.paneItemType])
         smartInsertDeleteEnabled = false
         usesFindBar = true
         isIncrementalSearchingEnabled = true
@@ -1285,8 +1317,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func insertGrid() {
         let (edit, index) = core.newGridEdit(text: string, selection: selectedRange())
-        core.pendingGridFocus = index
+        core.gridFocus = GridFocusRequest(grid: index, cell: GridCell(row: 0, column: 0))
         apply(edit)
+        layoutCards()
     }
 
 
@@ -1338,11 +1371,39 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
     }
 
+    // MARK: Dropping notes from the list
+
+    static let paneItemType = NSPasteboard.PasteboardType(UTType.paneItem.identifier)
+
+    private func carriesNotes(_ info: NSDraggingInfo) -> Bool {
+        info.draggingPasteboard.availableType(from: [Self.paneItemType]) != nil
+    }
+
+    private func droppedNotes(_ info: NSDraggingInfo) -> [UUID] {
+        EditorController.draggedNotes((info.draggingPasteboard.pasteboardItems ?? []).compactMap { $0.data(forType: Self.paneItemType) })
+    }
+
+    /// Notes dropped at a place in the text: a link to each goes in there (see `insertNoteLinks`).
+    @discardableResult
+    func dropNotes(_ ids: [UUID], at index: Int) -> Bool {
+        guard !ids.isEmpty else { return false }
+        setSelectedRange(NSRange(location: min(max(index, 0), (string as NSString).length), length: 0))
+        return controller?.insertNoteLinks(ids) ?? false
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        droppedFiles(sender).isEmpty ? super.draggingEntered(sender) : .copy
+        // Copy, as the list's rows offer it: a link asked for here was a drop refused.
+        if carriesNotes(sender) { return .copy }
+        return droppedFiles(sender).isEmpty ? super.draggingEntered(sender) : .copy
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if carriesNotes(sender) {
+            // Show where the link will land.
+            let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
+            setSelectedRange(NSRange(location: at, length: 0))
+            return .copy
+        }
         guard !droppedFiles(sender).isEmpty else { return super.draggingUpdated(sender) }
         // Show where the file will land.
         let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
@@ -1350,7 +1411,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         return .copy
     }
 
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // A text view only prepares for what it can paste; notes from the list are taken below.
+        carriesNotes(sender) || super.prepareForDragOperation(sender)
+    }
+
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if carriesNotes(sender) {
+            let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
+            window?.makeFirstResponder(self)
+            let ids = droppedNotes(sender)
+            let done = dropNotes(ids, at: at)
+            NoteDrop.log.notice("text drop: \(ids.count) notes read, \(done ? "linked" : "nothing linked", privacy: .public)")
+            return done
+        }
         let urls = droppedFiles(sender)
         guard !urls.isEmpty else { return super.performDragOperation(sender) }
         let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
@@ -1563,6 +1637,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let ok = super.becomeFirstResponder()
         if ok, let storage = textStorage {
             controller?.isEditing = true
+            // The keyboard is back in the text: no table is waiting for it any more.
+            core.gridFocus = nil
             core.restyle(storage, selection: selectedRange(), force: true)
         }
         return ok
@@ -1623,9 +1699,22 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     // MARK: Checkbox clicks
 
+    /// The table or card under a point of this view, if one is. Over one, the pointer is its
+    /// to set: the text view also setting the I-beam on every move made the pointer flip
+    /// between arrow and I-beam all the way across a table.
+    func card(at p: CGPoint) -> String? {
+        cardHosts.first { $0.value.frame.contains(p) }?.key
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        if card(at: convert(event.locationInWindow, from: nil)) != nil { return }
+        super.cursorUpdate(with: event)
+    }
+
     /// Over a checkbox the pointer is an arrow, not the text I-beam, like Notes.
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if card(at: p) != nil { return }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
         if core.checkboxLine(at: point, layout: textLayoutManager) != nil {
             NSCursor.arrow.set()

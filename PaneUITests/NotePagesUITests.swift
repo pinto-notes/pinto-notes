@@ -310,16 +310,21 @@ final class NotePagesUITests: XCTestCase {
         pause(1)
     }
 
-    /// A note that looks like a tracker suggests itself once; with no AI connected, the sheet leads
-    /// to connecting one, then the prompt.
+    /// Make It an App is in More and nowhere else: a note that looks like a tracker shows no pill
+    /// offering it (the pill at the bottom of a note is for status, such as an AI's change with
+    /// Undo). With no AI connected, the sheet leads to connecting one, then the prompt.
     func testMakeItAnApp() {
         launch(["-open", "Evening tracker"] + (ProcessInfo.processInfo.environment["AI_CONNECTED"] == "1" ? ["-aiConnected"] : []))
         mark("make-start")
-        let chip = app.buttons["makeApp.chip"].firstMatch
-        XCTAssertTrue(chip.waitForExistence(timeout: 6), "the suggestion shows")
-        pause(1.2)
-        shot("63-make-chip")
-        chip.tap()
+        XCTAssertTrue(app.buttons["editor.more"].firstMatch.waitForExistence(timeout: 6))
+        // The offer used to slide in 1.2 seconds after the note opened.
+        pause(3)
+        XCTAssertFalse(app.buttons["Make this an app"].firstMatch.exists || app.buttons["makeApp.chip"].firstMatch.exists, "no pill offers to make an app")
+        shot("63-make-no-chip")
+        app.buttons["editor.more"].firstMatch.tap()
+        let item = app.buttons["editor.makeApp"].firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 4), "Make It an App is in More")
+        item.tap()
         pause(1.5)
         shot("64-make-sheet")
         let connect = app.buttons["makeApp.connect"].firstMatch
