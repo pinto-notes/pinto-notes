@@ -10,8 +10,9 @@ export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes
 // and format notes on iPhone (iOS 27), and Solve math in Notes on Mac. Menu names read from Notes on
 // macOS 26.5: MainMenu.nib (Format, Table, Option-Command-T; Convert to Text; Format, Math Results) and the
 // app's Shortcuts actions (Add Table to Note, which takes comma-separated values). Pinto Notes' side
-// checked in Pane/Editor/TableGrid.swift, Pane/Editor/TableChart.swift, Pane/Model/XLSXImporter.swift and
-// the read_table and log_table_row tools in supabase/functions/mcp/tools.ts.
+// checked in Pane/Editor/TableGrid.swift, Pane/Model/XLSXImporter.swift and the read_table and
+// log_table_row tools in supabase/functions/mcp/tools.ts. Updated 12 October 2026: tables are plain to
+// edit, with no column types to set; a Yes/No column from a template keeps its tick.
 
 const FAQ = [
   { q: "Can you change the column width of a table in Apple Notes?", a: [
@@ -102,17 +103,16 @@ export default function Page() {
 
       <h2>When you want a table that does more</h2>
       <p>
-        Pinto Notes, the notes app for iPhone and Mac that I make, keeps tables just as plain to edit, but lets you give a column a type.
-        On a Mac it&apos;s Format, Table (Option-Command-T), or the Table button. The handle above a column sets it to Text, Number, Date
-        or Yes/No, and a Yes/No column becomes a tap instead of typing. With a date column, Show Trend draws a number column as a line over
-        time, with its average. It doesn&apos;t do sums or formulas either, and you can&apos;t set column widths, which fit the text. A table too
-        wide for the window scrolls sideways instead of squeezing every column.
+        Pinto Notes, the notes app for iPhone and Mac that I make, keeps tables just as plain to edit. On a Mac it&apos;s Format, Table
+        (Option-Command-T), or the Table button, and the caret lands in the first cell. Every cell is text you type in. A tracker made
+        from a template keeps a tick you click for its yes-or-no columns. It doesn&apos;t do sums or formulas either, and you can&apos;t set
+        column widths, which fit the text. A table too wide for the window scrolls sideways instead of squeezing every column.
       </p>
       <Figure shot={SHOTS.tracker} />
       <p>
         Two things Apple Notes can&apos;t do. File, Import Spreadsheet as Table on the Mac turns the first sheet of an Excel file into a
-        table in a new note, with dropdowns as choices and each formula&apos;s last value. And ChatGPT or Claude can work with the table:
-        they read its rows and column types, add a row for today, and answer questions such as &ldquo;what did I spend on food this
+        table in a new note, with each formula&apos;s last value. And ChatGPT or Claude can work with the table:
+        they read its rows, add a row for today, and answer questions such as &ldquo;what did I spend on food this
         month?&rdquo; by doing the sum themselves. The table stays markdown underneath, so any editor can open it.
       </p>
       {APP_STORE_LIVE ? (
