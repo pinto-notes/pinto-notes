@@ -12,7 +12,7 @@ export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes
 // and format notes on iPhone (iOS 27), and Solve math in Notes on Mac. Menu names read from Notes on
 // macOS 26.5: MainMenu.nib (Format, Table, Option-Command-T; Convert to Text; Format, Math Results) and the
 // app's Shortcuts actions (Add Table to Note, which takes comma-separated values). Pinto Notes' side
-// checked in Pane/Editor/TableGrid.swift, Pane/Editor/TableChart.swift, Pane/Model/XLSXImporter.swift and
+// checked in Pane/Editor/TableGrid.swift, Pane/Editor/TableChart.swift and
 // the read_table and log_table_row tools in supabase/functions/mcp/tools.ts.
 // Rewritten answer first on 11 October: same facts, no new claims about Apple Notes.
 // Tested the same day in Notes on macOS 27.0 in a throwaway VM with no Apple Account (deleted afterwards):
@@ -189,8 +189,7 @@ export default function Page() {
       </p>
       <Figure shot={SHOTS.tracker} caption="An Evening tracker in Pinto Notes on a Mac: number columns, and Yes/No columns you tick." />
       <p>
-        Two things Apple Notes can&apos;t do. File, Import Spreadsheet as Table on the Mac turns the first sheet of an Excel file into a
-        table in a new note, with dropdowns as choices and each formula&apos;s last value. And ChatGPT or Claude can work with the table:
+        What Apple Notes can&apos;t do: ChatGPT or Claude can work with the table:
         they read its rows and column types, add a row for today, and answer questions such as &ldquo;what did I spend on food this
         month?&rdquo; by doing the sum themselves. The table stays markdown underneath, so any editor can open it.
       </p>

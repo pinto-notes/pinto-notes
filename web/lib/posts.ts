@@ -360,7 +360,7 @@ export const posts: Post[] = [
     excerpt: "Bring every note over in one go on your Mac, folders and pins included. Nothing in Apple Notes changes, so you can take your time.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-09-30",
+    updated: "2026-10-12",
     image: SHOTS.importSheet,
     thumb: thumb("soft", "thumb-import", 750, 523, "Notes picked for import from Apple Notes into Pinto Notes"),
     draft: false,

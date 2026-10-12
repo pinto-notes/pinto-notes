@@ -4,12 +4,17 @@ import { APP_STORE_LIVE } from "@/lib/site";
 export const dynamic = "force-static";
 export const metadata = postMetadata("move-from-apple-notes");
 
+// Updated on 12 October 2026 for Mac 1.2.6, against Pane/Views/AppleNotesImport.swift and
+// Pane/Model/AppleNotesImporter.swift on main: every note of every folder is listed and picked, folders are always
+// kept, pictures come along as files, checklists and pins need Full Disk Access (never asked for), locked notes are
+// listed as Locked in Apple Notes, Recently Deleted isn't read, and notes already here are skipped.
+
 const FAQ = [
   { q: "Does importing change or delete anything in Apple Notes?", a: [
     "No. The import only reads Apple Notes. Your notes there stay exactly as they were, so you can keep using both.",
   ] },
   { q: "Can I import again later without getting duplicates?", a: [
-    "Yes. Notes you already imported are marked Already imported in the list, and a note that hasn't changed since is skipped.",
+    "Yes. Notes that are already in Pinto Notes, by title and date, are marked Already imported and skipped, so importing again brings only what's missing.",
   ] },
   { q: "Can I export Apple Notes as markdown instead?", a: [
     "On macOS 26, Apple Notes can export a note as markdown from the File menu, one note at a time. Pinto Notes imports everything you pick in one go, and keeps your notes as markdown from then on.",
@@ -20,7 +25,7 @@ export default function Page() {
   return (
     <PostPage
       slug="move-from-apple-notes"
-      intro={<>I built Pinto Notes to feel like Apple Notes, so moving should be easy too. On your Mac, you bring every note over in one go, folders and pins included. Nothing in Apple Notes changes, so you can take your time.</>}
+      intro={<>I built Pinto Notes to feel like Apple Notes, so moving should be easy too. On your Mac, you bring every note over in one go, folders included. Nothing in Apple Notes changes, so you can take your time.</>}
       faq={FAQ}
     >
       <h2>Before you start</h2>
@@ -33,22 +38,22 @@ export default function Page() {
       <ol>
         <li>In Pinto Notes, choose File, then Import from Apple Notes.</li>
         <li>The first time, macOS asks whether Pinto Notes may control Notes. Choose Allow. That&apos;s how it reads your notes. If you chose Don&apos;t Allow by mistake, turn it on in System Settings, Privacy &amp; Security, Automation.</li>
-        <li>Pick everything, or just the notes you want. You can search the list. Notes with the same title as one you already have are marked Already imported.</li>
-        <li>Keep Apple Notes folders is on, so your folders come along. Turn it off to put everything in one list.</li>
-        <li>To keep your pinned notes pinned, turn on Also bring over pinned notes. It asks for Full Disk Access, because Apple Notes keeps pins where only apps with that permission can read them. Everything else imports without it.</li>
-        <li>Choose Import. You can watch it count through your notes.</li>
+        <li>Every note in every folder is listed and picked, with a total that matches Apple Notes. Import everything, or untick what you don&apos;t want. You can search the list.</li>
+        <li>Choose Import. You can watch it count through your notes. If a note didn&apos;t come, the sheet stays open and names it, with the reason.</li>
       </ol>
 
       <h2>What comes along</h2>
       <ul>
-        <li>Your notes, in their folders, with their dates.</li>
-        <li>Text formatting, links, lists, checklists and tables.</li>
-        <li>Pins, if you turned that option on.</li>
+        <li>Your notes, in their folders, with folders inside folders kept, and the day each note was written and last changed.</li>
+        <li>Text formatting, lists, tables and empty lines as you wrote them.</li>
+        <li>Pictures, as files in the note, where they were.</li>
+        <li>Checklists with their ticks, and pins, when Pinto Notes has Full Disk Access. It never asks for it; without it, checklists arrive as bullet lists. The sheet&apos;s How to keep them explains where to turn it on.</li>
       </ul>
       <p>
-        Images and attachments stay in Apple Notes, and so do locked notes, which the import can&apos;t read (unlock them first; if
-        you&apos;ve lost the password, see <a href="/blog/forgot-apple-notes-password">forgot your Apple Notes password</a>). Your notes in Apple Notes
-        stay exactly as they were.
+        Other attachments, such as PDFs, stay in Apple Notes. So do locked notes, which the import can&apos;t read: they&apos;re listed as
+        Locked in Apple Notes (unlock them first; if you&apos;ve lost the password, see <a href="/blog/forgot-apple-notes-password">forgot your
+        Apple Notes password</a>). Recently Deleted isn&apos;t read. Your notes in Apple Notes stay exactly as they were, and importing again
+        later brings only what isn&apos;t here yet.
       </p>
 
       <h2>On your iPhone</h2>

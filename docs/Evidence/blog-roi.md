@@ -19,6 +19,20 @@ the daily growth loop; the dated reading of each day is in [growth-log.md](growt
 - Our own checks are in these numbers (most of them from macOS). Numbers this small move a lot from
   one person.
 
+## 2 to 12 October 2026 (to about 09:50 UTC on 12 October)
+
+No post or template page had a visit since the 11 October reading. The table is the same as the one below. The
+only blog address viewed was /Blog/Comparisons, a made-up path from a crawler.
+
+- Neither of the 11 October posts (apple-notes-tables rewritten, journal-with-chatgpt-or-claude) has had a visit yet.
+- Search Console, last 7 days of Google's data (3 to 9 October, ambernotes.app), impressions and clicks per post:
+  forgot-apple-notes-password 295 and 1, apple-notes-not-syncing 261 and 2, apple-notes-tables 242 and 0,
+  move-apple-notes-to-icloud 174 and 0, apple-notes-ios-27 91 and 2, recover-deleted-apple-notes 81 and 0,
+  apple-notes-api 75 and 4, best-notes-app-for-ai-agents 18 and 2. pintonotes.com: 6 impressions in all; the one query Google
+  shows is "notes not syncing between iphone and mac".
+- apple-notes-tables went from 163 to 242 impressions in a week. It was rewritten on 11 October, so that rise was
+  before the rewrite went live.
+
 ## 2 to 11 October 2026 (to about 08:45 UTC on 11 October)
 
 Both hosts together. Every visit since 8 October 15:54 UTC is on pintonotes.com.
