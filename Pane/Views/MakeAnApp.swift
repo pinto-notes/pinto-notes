@@ -64,6 +64,24 @@ enum MakeAnApp {
         return names.map(AI.init(name:))
     }
 
+    /// New App's words: the AI makes the note and its app.
+    static func newAppPrompt(_ idea: String) -> String {
+        let what = idea.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return "In Pinto Notes, make me a new note that is an app: \(what). Call get_page_guide, make the note with create_note (a short title), then start its app with create_app and build it."
+    }
+
+    /// Examples to start New App from: the app-shaped templates on the site.
+    static let examples: [(name: String, idea: String)] = [
+        ("Habit tracker", "a habit tracker with today's habits to tick, streaks, and a week at a glance"),
+        ("Trip plan", "a trip plan with the dates, a day-by-day plan, a packing list and a countdown"),
+        ("Workout log", "a workout log where I add sets and reps, with my last session and progress over the weeks"),
+    ]
+
+    /// The template gallery: the site this build shares to (staging for the beta), else pintonotes.com.
+    static var templatesPage: URL {
+        (ShareLinkConfig.baseURL ?? URL(string: "https://pintonotes.com")!).appending(path: "templates")
+    }
+
     /// The chat with the prompt typed in (WebConnectPlan.prefilled, the same link Try It uses).
     static func chat(_ ai: String, prompt: String) -> URL {
         WebConnectPlan.prefilled(ai == "ChatGPT" ? "https://chatgpt.com/" : "https://claude.ai/new", prompt)
@@ -79,9 +97,16 @@ enum MakeAnApp {
 /// button connects one and the sheet comes back ready. On the app's own ground, as tall as what
 /// it says.
 struct MakeAppSheet: View {
-    let noteID: UUID
+    /// The note to make an app of; nil for New App, where the AI makes the note too.
+    let noteID: UUID?
     let title: String
     let body_: String
+    /// New App: what the person asked for.
+    @State private var idea = ""
+    /// New App: the notes that already had an app when the words were handed over, so the new
+    /// one is told apart.
+    @State private var appsBefore: Set<UUID> = []
+    @FocusState private var ideaFocused: Bool
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.dismiss) private var dismiss
@@ -113,13 +138,27 @@ struct MakeAppSheet: View {
     static let sketch = true
     #endif
 
-    private var prompt: String { MakeAnApp.prompt(title: title, body: body_) }
+    /// Make It an App for a note.
+    init(noteID: UUID, title: String, body_: String) { self.noteID = noteID; self.title = title; self.body_ = body_ }
+    /// New App: one question, and the AI makes the note and its app. Nothing is made here until
+    /// the app arrives, so closing the sheet or waiting in vain leaves no empty note behind.
+    init(newApp: Void) { noteID = nil; title = ""; body_ = "" }
+
+    private var isNew: Bool { noteID == nil }
+    private var prompt: String { isNew ? MakeAnApp.newAppPrompt(idea) : MakeAnApp.prompt(title: title, body: body_) }
+    /// New App needs an answer before anything can be handed over.
+    private var ready: Bool { !isNew || !idea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
             words
-            if Self.sketch { MakeAppSketch(title: title, kind: MakeAnApp.kind(for: body_)) }
+            if isNew {
+                if waitingFor == nil { question }
+            } else if Self.sketch {
+                MakeAppSketch(title: title, kind: MakeAnApp.kind(for: body_))
+            }
             step
+            if isNew, waitingFor == nil { templatesLink }
         }
         .padding(.horizontal, Metrics.padding)
         .padding(.top, Metrics.top)
@@ -137,7 +176,9 @@ struct MakeAppSheet: View {
         .tint(Color(PColor.paneAccent))
         .task { await check() }
         // The app is here (made by the AI, arrived by sync): done. The note shows it.
-        .onChange(of: NotePageStore.shared[noteID] != nil) { _, here in if here { dismiss() } }
+        .onChange(of: noteID.map { NotePageStore.shared[$0] != nil } ?? false) { _, here in if here { dismiss() } }
+        // New App: a note that had no app before has one now. Open it.
+        .onChange(of: NotePageStore.shared.pages.count) { _, _ in arrivedNew() }
         // While waiting, ask for changes every few seconds as well as hearing of them.
         .task(id: waitingFor) {
             guard waitingFor != nil else { return }
@@ -159,13 +200,15 @@ struct MakeAppSheet: View {
 
     private var words: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Make this note an app")
+            Text(isNew ? "New App" : "Make this note an app")
                 .font(Metrics.title)
                 .tracking(-0.3)
                 .foregroundStyle(Color.ink)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.trailing, Metrics.closeSize + 8)
-            Text(ais?.isEmpty == true ? "An AI you connect builds it from what this note holds." : "Your AI builds it from what this note holds. You can undo it.")
+            Text(isNew
+                 ? (ais?.isEmpty == true ? "An AI you connect builds it, as a new note. Connect your AI first." : "Your AI builds it, as a new note.")
+                 : (ais?.isEmpty == true ? "An AI you connect builds it from what this note holds." : "Your AI builds it from what this note holds. You can undo it."))
                 .font(Metrics.line)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -182,6 +225,7 @@ struct MakeAppSheet: View {
                     if ai.isChat {
                         Button { hand(to: ai.name) } label: { Text("Make it with \(ai.name)").frame(maxWidth: .infinity) }
                             .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                            .disabled(!ready)
                             .accessibilityIdentifier("makeApp.with.\(ai.name)")
                         if ai.name == "Claude" {
                             Text("Claude shows a caution note for prompts that arrive by link. Press send to continue.")
@@ -213,7 +257,7 @@ struct MakeAppSheet: View {
                     }
                 }
             } else {
-                Button { connecting = true } label: { Text("Connect an AI").frame(maxWidth: .infinity) }
+                Button { connecting = true } label: { Text(isNew ? "Connect Your AI" : "Connect an AI").frame(maxWidth: .infinity) }
                     .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
                     .accessibilityIdentifier("makeApp.connect")
             }
@@ -237,10 +281,11 @@ struct MakeAppSheet: View {
                 .background(Color.amberSoft, in: .rect(cornerRadius: Metrics.radius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
                 .accessibilityIdentifier("makeApp.prompt")
-            Button { copy(); withAnimation(.smooth(duration: 0.25)) { waitingFor = ai } } label: {
+            Button { appsBefore = Set(NotePageStore.shared.pages.keys); copy(); withAnimation(.smooth(duration: 0.25)) { waitingFor = ai } } label: {
                 Label("Copy for \(ai)", systemImage: "doc.on.doc").frame(maxWidth: .infinity)
             }
             .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+            .disabled(!ready)
             .accessibilityIdentifier("makeApp.copy")
         }
     }
@@ -286,6 +331,53 @@ struct MakeAppSheet: View {
         }
     }
 
+    /// New App: "What should it do?", and examples to start from (the app templates on the site).
+    private var question: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("What should it do?", text: $idea, axis: .vertical)
+                .lineLimit(2...4)
+                .font(Metrics.prompt)
+                .textFieldStyle(.plain)
+                .focused($ideaFocused)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color(Palette.field), in: .rect(cornerRadius: Metrics.radius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous).strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+                .accessibilityIdentifier("newApp.idea")
+            HStack(spacing: 6) {
+                ForEach(MakeAnApp.examples, id: \.name) { e in
+                    Button { idea = e.idea } label: {
+                        Text(e.name).font(Metrics.hint).foregroundStyle(Color.ink)
+                            .padding(.horizontal, 10).frame(height: Metrics.chip)
+                            .background(Color.amberSoft, in: .capsule)
+                            .overlay(Capsule().strokeBorder(Color.line, lineWidth: 1))
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("newApp.example.\(e.name)")
+                }
+            }
+        }
+        .onAppear { ideaFocused = true }
+    }
+
+    /// New App: the templates, in the gallery on the site (each opens in the app).
+    private var templatesLink: some View {
+        Button("Or start from a template") { openURL(MakeAnApp.templatesPage) }
+            .buttonStyle(.hoverLink)
+            .font(Metrics.hint)
+            .foregroundStyle(Color.muted)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .accessibilityIdentifier("newApp.templates")
+    }
+
+    /// New App: the first note to get an app since the words were handed over is the one.
+    private func arrivedNew() {
+        guard isNew, waitingFor != nil, let id = NotePageStore.shared.pages.keys.first(where: { !appsBefore.contains($0) }) else { return }
+        NoteOpener.shared.open(id)
+        dismiss()
+    }
+
     private var close: some View {
         Button { dismiss() } label: {
             Image(systemName: "xmark")
@@ -319,6 +411,7 @@ struct MakeAppSheet: View {
         static let closeSize: CGFloat = 22
         static let closeGlyph: CGFloat = 9
         static let closeInset: CGFloat = 22
+        static let chip: CGFloat = 24
         #else
         static let title = Font.title2.weight(.bold)
         static let line = Font.subheadline
@@ -334,6 +427,7 @@ struct MakeAppSheet: View {
         static let closeSize: CGFloat = 30
         static let closeGlyph: CGFloat = 12
         static let closeInset: CGFloat = 20
+        static let chip: CGFloat = 34
         #endif
     }
 
@@ -372,6 +466,8 @@ struct MakeAppSheet: View {
     /// the sheet waits for the app. The words are copied too: neither app documents the link, and
     /// their Mac and iPhone apps were not tried, so pasting is the way if nothing arrives there.
     private func hand(to ai: String) {
+        appsBefore = Set(NotePageStore.shared.pages.keys)
+        ideaFocused = false
         copy()
         // Captures and UI tests stay in the app.
         if !ProcessInfo.processInfo.arguments.contains("-uitest") { openURL(MakeAnApp.chat(ai, prompt: prompt)) }
