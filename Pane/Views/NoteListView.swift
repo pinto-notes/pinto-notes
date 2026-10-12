@@ -178,7 +178,13 @@ struct NoteListView: View {
     }
 
     private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
-        List(selection: $selection) {
+        #if os(macOS)
+        // The list's own changes are told apart from code's in the click log (RowClickLog).
+        let listSelection = Binding(get: { selection }, set: { new in RowClickLog.listSet(selection, new); selection = new })
+        #else
+        let listSelection = $selection
+        #endif
+        return List(selection: listSelection) {
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
             if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
                 #if os(iOS)
@@ -377,7 +383,7 @@ struct NoteListView: View {
         .onAppear {
             // A press on a row that moves a point or two is still a click (the sidebar's rows too).
             RowPressSlop.start()
-            // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
+            // What each click did, in the system log (RowClickLog).
             RowClickLog.start()
         }
         .onChange(of: selection) { old, new in
