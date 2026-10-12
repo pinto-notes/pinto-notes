@@ -300,7 +300,7 @@ export const posts: Post[] = [
     excerpt: "Ask ChatGPT to add to a list or tidy a note, and the change lands in your notes. The steps for ChatGPT and Claude, and how you stay in control.",
     category: "Guides",
     date: "2026-09-30",
-    updated: "2026-10-02",
+    updated: "2026-10-12",
     image: SHOTS.connectChatGPT,
     thumb: thumb("paper", "thumb-connect-chatgpt", 704, 572, "The steps to connect ChatGPT in Pinto Notes"),
     draft: false,
