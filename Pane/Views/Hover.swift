@@ -19,6 +19,9 @@ enum Hover {
     /// Where a Mac list draws its selection around a row's content (a List can't take a row
     /// background of its own there), and its corners. Measured from the selection in captures.
     static let listReach = EdgeInsets(top: 3, leading: 6, bottom: 3, trailing: 6)
+    /// A note row's pill: the row's whole height (the list keeps 4 pt above and below a row's
+    /// content), 10 pt in from the column's edges, as Apple Notes draws it (2026-10-12, 237 pt column).
+    static let noteRowReach = EdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
     /// The sidebar's pill, as Apple Notes draws it (measured side by side, 2026-10-12): 6 pt to the
     /// left of the icon, 8.5 pt past the count, 30.5 pt tall in a 32 pt row so neighbouring pills keep
     /// a hairline apart.
