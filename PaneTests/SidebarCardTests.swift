@@ -62,7 +62,9 @@ import Testing
     }
 
     @Test func theWordsArePlain() {
-        #expect(ConnectCardWords.line == "ChatGPT, Claude and others can read and write your notes when you ask.")
+        #expect(ConnectCardWords.line == "So your AI can use your notes.")
+        // One short line each at the Mac's default sidebar width (about 32 characters there).
+        #expect(ConnectCardWords.line.count <= 32 && TemplatesPromo.line.count <= 32)
         for w in [TemplatesPromo.title, TemplatesPromo.line, TemplatesPromo.button, ConnectCardWords.title, ConnectCardWords.line, ConnectCardWords.button] {
             #expect(!w.contains("\u{2014}") && !w.contains("\u{2013}") && !w.contains("!") && !w.contains("MCP"))
         }
