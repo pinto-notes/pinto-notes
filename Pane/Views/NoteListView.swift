@@ -513,10 +513,13 @@ struct NoteListView: View {
                 Text(section.0)
                     .foregroundStyle(Color.ink)
                 #else
+                // One weight lighter than before, with a little air above and below, like Notes.
                 Text(section.0)
-                    .font(.title3.weight(.bold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Color.ink)
                     .textCase(nil)
+                    .padding(.top, 6)
+                    .padding(.bottom, 3)
                 #endif
             }
         }
@@ -1097,11 +1100,13 @@ final class LibraryNotes {
 /// Row type and spacing, matched to Apple Notes on each platform.
 enum RowMetrics {
     #if os(macOS)
+    // Against Apple Notes on macOS 26 (owner, 2026-10-12: "a bit less overwhelming"): the second
+    // line a size smaller than the title, a little more room around each row.
     static let title = Font.system(size: 13, weight: .bold)
-    static let detail = Font.system(size: 13)
-    static let spacing: CGFloat = 3
-    static let vertical: CGFloat = 5
-    static let leading: CGFloat = 12
+    static let detail = Font.system(size: 12)
+    static let spacing: CGFloat = 2
+    static let vertical: CGFloat = 8
+    static let leading: CGFloat = 14
     static let dotOffset: CGFloat = -12
     /// The app mark's size: about the title's cap height.
     static let markSize: CGFloat = 13
