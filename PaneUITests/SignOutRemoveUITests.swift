@@ -34,7 +34,7 @@ final class SignOutRemoveUITests: XCTestCase {
     }
 
     private func dismissFirstRunSheets() {
-        for id in ["e2ee.continue", "heardFrom.skip", "shareAsk.notNow", "whatsNew.dismiss"] {
+        for id in ["e2ee.continue", "heardFrom.skip", "shareAsk.notNow"] {
             let b = app.buttons[id]
             if b.waitForExistence(timeout: 1.5) { b.tap() }
         }

@@ -599,7 +599,7 @@ import Testing
     }
 
     @Test func isInTheListAfterTheOthers() {
-        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible"])
+        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible", "Another AI"])
         #expect(AIGlyph.asset("Incredible") == "AIGlyphIncredible")
         #expect(WebConnectPlan.forAI("Incredible") == nil, "Incredible is added in Incredible, not on a website")
     }
@@ -631,7 +631,7 @@ import Testing
         let server = "https://mcp.ambernotes.app"
         let text = IncredibleConnect.message(server: server)
         #expect(text.hasSuffix("\n\(server)"))
-        #expect(text.contains("search for Amber Notes") && text.contains("Let's go"), "the built-in app comes first")
+        #expect(text.contains("search for Pinto Notes") && text.contains("Let's go"), "the built-in app comes first")
         #expect(text.contains("Add another MCP server") && text.contains("Add server"), "older versions add the address")
         #expect(!text.contains("pane_"), "Incredible signs in; it never needs a token")
     }

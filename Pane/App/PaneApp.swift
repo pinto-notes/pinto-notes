@@ -104,12 +104,6 @@ struct PaneApp: App {
         _session = State(initialValue: session)
         // Not in the unit-test host or a capture of one screen, which never ran this.
         if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery") { session.start() }
-        // "What's new" after a major update: decided before anything is drawn or seeded, while
-        // the library still says whether this is a fresh install.
-        if !inMemory {
-            WhatsNewStore.shared.launch(running: WhatsNew.runningVersion, releases: WhatsNew.bundled,
-                                        existingUser: WhatsNew.existingUser(defaults: .standard, context: context))
-        }
         // With sync on, the library is seeded after the first pull so devices don't duplicate it.
         if backend.client == nil { Seed.ensureLibrary(container.mainContext, demo: args.contains("-demo")) }
         #if DEBUG || QA
@@ -625,8 +619,10 @@ final class AppSession {
     @ObservationIgnored let backend: Backend
     @ObservationIgnored let sync: SyncEngine
     @ObservationIgnored let context: ModelContext
-    /// The first-run "Get set up" card's state, for the signed-in account.
+    /// What the server knows about the account's setup (`SetupProgress`).
     let setup = SetupStore()
+    /// The first-run flow, for an account that was just made (see `Onboarding`).
+    let onboarding = OnboardingStore()
     /// "Enjoying Pinto Notes?", once, after a week of use.
     let shareAsk = ShareAskStore()
     /// "How did you hear about Pinto Notes?", once, for a new account.
@@ -638,6 +634,8 @@ final class AppSession {
     /// The app is in front (the window says): an ask shows itself only then.
     var foreground = false { didSet { if foreground != oldValue { connectAsks?.setForeground(foreground) } } }
     @ObservationIgnored private var followers: [Task<Void, Never>] = []
+    /// The account whose first pull has been answered (`firstPullAnswered`).
+    @ObservationIgnored private var welcomedAccount: UUID?
     private static let log = Logger(subsystem: "dev.emilwagman.pane", category: "session")
 
     init(backend: Backend, sync: SyncEngine, context: ModelContext) {
@@ -702,6 +700,8 @@ final class AppSession {
     func start() {
         guard followers.isEmpty else { return }
         followers.append(Self.follow({ [backend] in backend.state }) { [weak self] in await self?.stateChanged() })
+        // A first pull that answers late (a slow or failed first sync) still gets its answer heard.
+        followers.append(Self.follow({ [sync] in sync.knowsAccount }) { [weak self] in await self?.firstPullAnswered() })
         // The key opened after the gate (a device linked, a recovery key typed): the library opens.
         followers.append(Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -730,6 +730,8 @@ final class AppSession {
         }
         guard case .signedIn = backend.state, let client = backend.client else {
             setup.attach(account: nil, service: nil)
+            onboarding.attach(account: nil, created: nil, holdsNothing: false)
+            welcomedAccount = nil
             shareAsk.attach(account: nil, service: nil)
             heardFrom.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
@@ -747,7 +749,11 @@ final class AppSession {
             return
         }
         setup.attach(account: backend.userID, service: SupabaseSetup(client: client))
-        shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client))
+        // Before the key check and the first sync: an account that may be new waits on the
+        // welcome's picture, never on empty notes (the first sync then says, in openLibrary).
+        onboarding.attach(account: backend.userID, created: backend.accountCreated, holdsNothing: SyncEngine.holdsNothing(context))
+        Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) at sign-in (made \(Int(-(self.backend.accountCreated ?? .distantPast).timeIntervalSinceNow), privacy: .public) s ago, empty \(SyncEngine.holdsNothing(self.context), privacy: .public))")
+        shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client), created: backend.accountCreated)
         heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
         KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
@@ -761,6 +767,25 @@ final class AppSession {
         // Without the key the gate asks for it; the library starts when it's open (below).
         guard AccountCrypto.shared.allowsSync else { return }
         await openLibrary(client)
+    }
+
+    /// The account's first pull has said what it holds: once per sign-in. A first folder only for
+    /// an account that has never held anything: never after a failed sync, and never for an
+    /// account that already has a library (a second device, a reinstall). That account also gets
+    /// the first-run flow. Asked here and nowhere else, at the moment the pull is known:
+    /// `openLibrary` can run twice at sign-in (the state and the key each start it), and the run
+    /// that asked before the pull had finished used to answer "not new" for a new account.
+    func firstPullAnswered() async {
+        guard sync.knowsAccount, let user = backend.userID, welcomedAccount != user else { return }
+        welcomedAccount = user
+        let isNew = sync.claimNewAccount()
+        if isNew {
+            Seed.ensureLibrary(context, demo: false, welcome: false)
+            sync.schedule()
+        }
+        if setup.progress == nil { await setup.refresh(force: true) }
+        onboarding.settle(accountIsNew: isNew, progress: setup.progress)
+        Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) after the first sync (new \(isNew, privacy: .public), setup behind it \(Onboarding.alreadySetUp(self.setup.progress), privacy: .public))")
     }
 
     /// Another device with the key removed this one: its copy of the notes and of the key go,
@@ -811,18 +836,8 @@ final class AppSession {
             Task { await n.start() }
         }
         await sync.start()
-        // A first folder only for an account that has never held anything, which only its first
-        // pull can say: never after a failed sync, and never for an account that already has a
-        // library (a second device, a reinstall). A real account starts with an empty Notes
-        // folder: the setup card is its welcome.
-        if sync.claimNewAccount() {
-            Seed.ensureLibrary(context, demo: false, welcome: false)
-            sync.schedule()
-        }
+        await firstPullAnswered()
         await setup.refresh(force: true)
-        // The setup guide's To-do note, now that the account's notes are here to say whether it
-        // has one already (the note list makes it when the guide gets to that step later).
-        if sync.knowsAccount, setup.progress?.needsToDoNote == true, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
         // Tips wait for this: never a tip for something this account has used anywhere.
         await FeatureUse.refresh()
         await shareAsk.refresh()
@@ -830,7 +845,13 @@ final class AppSession {
         // launch, once it has a note, and never on a launch that has shown an account notice.
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
-        await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
+        // Never during the first-run flow, nor in the day after it.
+        if !onboarding.holdsAsks() {
+            await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
+        }
+        // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
+        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
+                          || notices?.current != nil || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
         await InstallID.report(client)
     }
 
@@ -843,6 +864,7 @@ struct AppGate: View {
     /// What runs for the account with or without this window (the key check, sync, the asks).
     let session: AppSession
     private var setup: SetupStore { session.setup }
+    private var onboarding: OnboardingStore { session.onboarding }
     private var shareAsk: ShareAskStore { session.shareAsk }
     private var heardFrom: HeardFromStore { session.heardFrom }
     private var connectAsks: ConnectAsks? { session.connectAsks }
@@ -872,20 +894,6 @@ struct AppGate: View {
             Button("OK", role: .cancel) { removedHere.value = false }
         } message: {
             Text(PrivacyCopy.removedMessage)
-        }
-    }
-
-    /// Captures: `-captureSetupFlow` walks the setup card from step 1 to "You're all set", a few
-    /// seconds a step, as if each thing had just happened.
-    private func playSetupFlow() {
-        Task { @MainActor in
-            var p = SetupProgress()
-            setup.apply(p)
-            for change in [{ (q: inout SetupProgress) in q.imported = true }, { $0.connected = true }, { $0.aiEdits = 1 }] {
-                try? await Task.sleep(for: .seconds(2.6))
-                change(&p)
-                setup.apply(p)
-            }
         }
     }
 
@@ -930,12 +938,32 @@ struct AppGate: View {
                 KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context))
                     .transition(.opacity)
                 #endif
+            case .signedIn where onboardingShown:
+                // The first-run flow has the whole window, in the welcome's card on the Mac,
+                // until it ends in the notes.
+                Group {
+                    if onboarding.step != nil {
+                        OnboardingFlow(store: onboarding, backend: backend, setup: setup,
+                                       prepareTryIt: prepareTryIt, finish: finishOnboarding)
+                    } else {
+                        OnboardingWait(store: onboarding)
+                    }
+                }
+                #if os(macOS)
+                .cardWindow()
+                #endif
+                .environment(backend)
+                .environment(sync)
+                .environment(\.networkReach, sync.reach)
+                .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
+                .transition(.opacity)
             case .disabled, .signedIn:
                 RootView()
                     .environment(backend)
                     .environment(sync)
                     .environment(\.networkReach, sync.reach)
                     .environment(setup)
+                    .environment(onboarding)
                     .shareAskSheet(shareAsk)
                     .heardFromSheet(heardFrom)
                     .task {
@@ -948,30 +976,25 @@ struct AppGate: View {
             }
         }
         #if os(macOS)
-        .background(WindowShaper(compact: cardShown, cardSize: WelcomeFlow.size))
+        .background(WindowShaper(compact: cardShown || onboardingShown, cardSize: WelcomeFlow.size))
         #endif
         .animation(.easeOut(duration: 0.25), value: backend.state)
-        .onAppear {
-            if let p = CaptureScreen.setupProgress { setup.apply(p) }
-            if CaptureScreen.setupFlow { playSetupFlow() }
-        }
+        .animation(.easeOut(duration: 0.25), value: onboardingShown)
         // The key check, sync and the asks run in `session`, window or no window (AppSession).
         .onAppear { session.foreground = phase == .active }
         // What's new waits while an ask or an alert is up.
-        .onChange(of: somethingAsking, initial: true) { _, asking in WhatsNewStore.shared.held = asking }
-        // Each sync may have brought an AI's edit or a new connection: the card looks again.
-        .onChange(of: sync.status) { _, _ in Task { await setup.refresh() } }
 
         .onReceive(NotificationCenter.default.publisher(for: .paneNotesBrought)) { _ in
             Task { await setup.mark("imported"); await PaneTips.imported.donate() }
         }
-        // Tips wait until the Get set up card has gone; an import on any device counts.
-        .onChange(of: setup.visible, initial: true) { _, visible in PaneTips.setupVisible = visible }
+        // Tips wait until the first-run flow has gone; an import on any device counts.
+        .onChange(of: onboarding.active, initial: true) { _, visible in PaneTips.setupVisible = visible }
         .onChange(of: setup.progress?.imported == true, initial: true) { _, imported in
             if imported { Task { await PaneTips.importedOnce() } }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .paneShowSetupGuide)) { _ in
-            Task { await setup.reset() }
+        .onReceive(NotificationCenter.default.publisher(for: .paneReplayOnboarding)) { _ in
+            guard case .signedIn = backend.state, !keyGateShown else { return }
+            onboarding.startReplay()
         }
         #if os(macOS)
         // The Mac sleeping, its screen locking, the screen saver starting or a switch to another
@@ -997,8 +1020,6 @@ struct AppGate: View {
             if p == .active {
                 Task { await PaneTips.appOpened() }
                 Task { await setup.refresh() }
-                if shareAsk.decided != true { Task { await shareAsk.refresh() } }
-                askToShareSoon()
                 Task { await NoteVault.shared.refresh() }
                 // A browser's ask that came while the app was away (pushed or not) is picked up here.
                 if let connectAsks { Task { await connectAsks.refresh() } }
@@ -1032,7 +1053,6 @@ struct AppGate: View {
             DebouncedSave.flushAll()
         }
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: .paneNoteClosed)) { _ in askToShareSoon() }
         // Back online: the key check and AI connection asks look now (sync does so itself).
         .onChange(of: NetworkPath.shared.isUp) { _, up in
             guard up, case .signedIn = backend.state else { return }
@@ -1043,19 +1063,36 @@ struct AppGate: View {
         .onAppear { context.drainInbox() }
     }
 
-    /// The share ask, a notice or the recovery key alert is on screen.
-    private var somethingAsking: Bool {
-        shareAsk.visible || heardFrom.visible || notices?.current != nil || crypto.recoveryKeyChangeNeedsSaying
+    /// The first-run flow (or the short wait before it) has the window. After the key gate:
+    /// a new account adds this device first.
+    private var onboardingShown: Bool {
+        guard case .signedIn = backend.state, !keyGateShown else { return false }
+        return onboarding.covers(backend.userID)
     }
 
-    /// A quiet moment: once things have settled, the share ask may come (see `ShareAsk`).
-    private func askToShareSoon() {
-        guard backend.state != .signedOut else { return }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
-            guard backend.state != .signedOut, phase == .active, !heardFrom.visible else { return }
-            shareAsk.moment(setupVisible: setup.visible || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
+    /// The Try it step asks an AI to write in the trial note, so the note exists by then.
+    private func prepareTryIt() -> UUID? {
+        guard sync.knowsAccount, let account = backend.userID, let note = context.trialNote(account: account) else { return nil }
+        SyncSignal.changed()
+        return note.id
+    }
+
+    /// The flow ends in the notes with the first useful thing ready: the To-do note when an AI
+    /// is connected, a new empty note with the cursor in it otherwise. Setup is then over on the
+    /// server, for every device (a replay from the Help menu marks nothing).
+    private func finishOnboarding(connected: Bool) {
+        let replay = onboarding.replay
+        var landing: Onboarding.Landing?
+        // The trial note stays if an AI wrote in it, and is where the notes open; untouched
+        // (skipped, or nothing arrived), it goes for good.
+        if let account = backend.userID, let written = context.settleTrialNote(account: account) {
+            landing = .note(written.id)
+        } else if !replay {
+            landing = .newNote
         }
+        SyncSignal.changed()
+        onboarding.finish(landing: landing)
+        if !replay { Task { await setup.mark("dismissed") } }
     }
 }
 
@@ -1127,7 +1164,7 @@ private struct WindowCloser: NSViewRepresentable {
 }
 #endif
 
-/// Captures only (`-uitest`): one screen on its own, or the setup card at a given step, so the
+/// Captures only (`-uitest`): one screen on its own, so the
 /// iPhone simulator can show them without anyone tapping through.
 ///   `-captureScreen connect`, `connect-chatgpt`, `connect-claude`, `connected-chatgpt`, `connect-incredible`, `settings`, `template`, `template-added`, `copy`, `signin`, `welcome`, `welcome-signin`, `welcome-signin-focused`, `welcome-signin-new`, `welcome-signin-existing`, `welcome-confirm` (Check your email), `welcome-confirm-wait` (a code just sent: Resend code counts down), `welcome-confirm-typed` (three digits in), `welcome-confirm-wrong` (after a wrong code), `new-device`, `add-device` (the sheet as this device opens it), `add-device-type`, `add-device-confirm`, `add-device-done`, `key-kept`, `key-kept-unconfirmed`, `key-kept-only`, `key-checking` or `device-added-notice`; `-captureSetup 1…4` (4: the moment after your AI's first edit).
 struct CaptureScreen: View {
@@ -1136,16 +1173,6 @@ struct CaptureScreen: View {
 
     static var requested: String? {
         ProcessInfo.processInfo.arguments.contains("-uitest") ? Capture.argument("-captureScreen") : nil
-    }
-
-    static var setupFlow: Bool {
-        ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-captureSetupFlow")
-    }
-
-    static var setupProgress: SetupProgress? {
-        guard ProcessInfo.processInfo.arguments.contains("-uitest"), let n = Capture.argument("-captureSetup").flatMap(Int.init) else { return nil }
-        // 4: your AI's first edit just landed ("That was your AI.").
-        return SetupProgress(imported: n > 1, connected: n > 2, aiEdits: n > 3 ? 1 : 0)
     }
 
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "capture")
