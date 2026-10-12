@@ -17,6 +17,8 @@ struct NoteDetailView: View {
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
     @State private var movingNote = false
+    @State private var pickingPhotos = false
+    @State private var linkingNote = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
@@ -841,9 +843,7 @@ struct NoteDetailView: View {
                 Button("Table", systemImage: "tablecells", action: controller.insertTable)
                     .help("Table (⌥⌘T)")
                     .disabled(hidden || trashed)
-                Button("Attach", systemImage: "paperclip") { importing = true }
-                    .help("Attach File (⇧⌘A)")
-                    .disabled(note.isLocked || showingPage || trashed)
+                attachMenu.disabled(trashed)
             }),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
             sharing: AnyView(Group {
@@ -1045,7 +1045,7 @@ struct NoteDetailView: View {
             Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed)
         }
         ToolbarItem(placement: .bottomBar) {
-            Button("Attach", systemImage: "paperclip") { importing = true }.disabled(note.isLocked || showingPage || trashed)
+            attachMenu.disabled(trashed)
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
@@ -1066,6 +1066,45 @@ struct NoteDetailView: View {
     }
     #endif
 
+    /// The paperclip: what can be put into a note. A photo or video, a file; then a new sub-note,
+    /// a link to another note (the `[[Title]]` link typing `[[` makes) and a web link.
+    private var attachMenu: some View {
+        Menu {
+            Button("Choose Photo or Video…", systemImage: "photo.on.rectangle") { pickingPhotos = true }
+                .accessibilityIdentifier("attach.photo")
+            Button("Attach File…", systemImage: "doc") { importing = true }
+                .accessibilityIdentifier("attach.file")
+            Divider()
+            Group {
+                Button("New Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }
+                    .accessibilityIdentifier("attach.subNote")
+                Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
+                    .accessibilityIdentifier("attach.noteLink")
+                Button("Add Link", systemImage: "link", action: controller.insertLink)
+                    .accessibilityIdentifier("attach.link")
+            }
+            .disabled(hidden)
+        } label: {
+            Label("Attach", systemImage: "paperclip")
+        }
+        .disabled(note.isLocked || showingPage)
+        #if os(macOS)
+        .tint(.primary)
+        .menuIndicator(.hidden)
+        .help("Attach")
+        .popover(isPresented: $linkingNote, arrowEdge: .bottom) { noteLinkPicker }
+        #else
+        .sheet(isPresented: $linkingNote) { noteLinkPicker.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).presentationDetents([.medium]) }
+        #endif
+        .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
+        .accessibilityIdentifier("editor.attach")
+    }
+
+    private var noteLinkPicker: some View {
+        NoteLinkPicker(titles: { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context, limit: NoteLinkPicker.limit) },
+                       pick: { controller.insertWikiLink($0) })
+    }
+
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
     private var shareItems: some View {
@@ -1082,21 +1121,16 @@ struct NoteDetailView: View {
         }
     }
 
+    #if os(macOS)
+    /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        Menu { shareItems } label: {
-            Label("Share", systemImage: "square.and.arrow.up")
-        }
-        // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
-        .disabled(note.isLocked || trashed)
-        #if os(macOS)
-        .tint(.primary)
-        // No caret: it is a plain menu button, in one group with More, like Notes.
-        .menuIndicator(.hidden)
-        #endif
-        .help("Share")
-        .paneTip(ShareLinkTip(), arrowEdge: .top)
-        .accessibilityIdentifier("editor.share")
+        ShareButton(note: note, store: shareLinks, people: CollabStore.shared?.isReady == true ? { showPeople = true } : nil)
+            // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
+            .disabled(note.isLocked || trashed)
+            .paneTip(ShareLinkTip(), arrowEdge: .top)
+            .accessibilityIdentifier("editor.share")
     }
+    #endif
 
     private var moreMenu: some View {
         Menu {
