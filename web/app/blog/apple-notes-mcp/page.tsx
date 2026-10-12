@@ -212,7 +212,7 @@ export default function Page() {
       <Figure shot={SHOTS.connectList} caption="Connect an AI in Pinto Notes on a Mac: ChatGPT, Claude, Claude Code and Codex." />
       <p>
         You bring your Apple Notes over once, on your Mac, with their folders, checklists and tables; <a href="/blog/move-from-apple-notes">how
-        to move from Apple Notes</a> walks through it. Locked notes and attachments stay in Apple Notes, and Apple Notes isn&apos;t changed.
+        to move from Apple Notes</a> walks through it. Locked notes and attachments other than pictures stay in Apple Notes, and Apple Notes isn&apos;t changed.
         The catch is that you then write in Pinto Notes instead.{" "}
         {APP_STORE_LIVE
           ? "The Mac app is a free download and the iPhone app is on the App Store."

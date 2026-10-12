@@ -517,7 +517,8 @@ struct NoteListView: View {
                     ToolbarSpacer(.fixed, placement: .bottomBar)
                 }
                 ToolbarItem(placement: .bottomBar) {
-                    Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+                    ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                        .newAppTip()
                         // Recently Deleted holds no new notes: the note it made went elsewhere.
                         .disabled(scope == .trash)
                         .accessibilityIdentifier("list.newNote")
@@ -609,7 +610,7 @@ struct NoteListView: View {
             .tag(note.id)
             // Outside the equatable row, so the list sees its background. On the Mac the row draws
             // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .hoverRow(note.title, selected: Self.quiet(selection, note.id))
+            .hoverRow(note.title, selected: Self.quiet(selection, note.id)) { over in NotePreload.pointer(over, on: note) }
             .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))

@@ -51,7 +51,7 @@ struct RootView: View {
         #if DEBUG
         RenderProbe.count("RootView")
         #endif
-        return imports(lifecycle(split))
+        return imports(lifecycle(split)).newAppSheet()
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNote)
@@ -292,7 +292,7 @@ struct RootView: View {
                 #if os(macOS)
                 .toolbar {
                     ToolbarItem {
-                        Button(action: newNote) {
+                        ComposeButton(newNote: newNote) {
                             Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
                         }
                             .accessibilityIdentifier("list.newNote")
@@ -500,6 +500,8 @@ struct PaneCommands: Commands {
             Button("New Folder") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(newNote == nil)
+            Button("New App…") { NewApp.shared.open() }
+                .disabled(newNote == nil || !NoteApps.enabled)
         }
         // Where Pages keeps Browse All Versions: File, after saving.
         CommandGroup(after: .saveItem) {

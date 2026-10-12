@@ -507,6 +507,17 @@ extension Capture {
                 if let (n, html) = split(arg) { NotePageStore.shared[n.id] = .init(html: html, by: by, at: .now) }
             }
         }
+        // `-aiNewApp "Title=/path/page.html"`: an AI makes a new note with that title and its app,
+        // arriving after -aiAfter seconds as sync would bring them (New App's stand-in AI).
+        if let arg = argument("-aiNewApp"), let eq = arg.firstIndex(of: "=") {
+            let delay = argument("-aiAfter").flatMap(Double.init) ?? 2.5
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard let html = try? String(contentsOfFile: String(arg[arg.index(after: eq)...]), encoding: .utf8) else { return }
+                let n = context.createNote(in: .all, body: String(arg[..<eq]) + "\n")
+                try? context.save()
+                NotePageStore.shared[n.id] = .init(html: html, by: by, at: .now)
+            }
+        }
         // `-aiDataRemove "Title=log:3"`: an AI removes the last 3 records of that collection
         // through MCP while the app is open. Arrives as the server's copy would after a pull (what
         // was here counts as synced first, as it would be after a push).

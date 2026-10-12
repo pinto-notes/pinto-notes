@@ -1,0 +1,13 @@
+{
+  "about": "The server's copy of an account's key, on the way between a device and the server (supabase/functions/_shared/keycopy.ts). 'up' is what a device seals to the server's ticket key, 'down' what the server seals to the device's key. Both sealed here with a fixed ephemeral key and nonce.",
+  "user_id": "7c0f1d2e-3a4b-4c5d-8e6f-0a1b2c3d4e5f",
+  "data": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+  "recovery": "MDEyMzQ1Njc4OTo7PD0+Pw==",
+  "id": "ae216c2ef5247a37",
+  "nonce": "oKGio6Slpqeoqaqr",
+  "receiver_private": "QXyZcLcMdeE+bd6yWeP+ekEpAq02Lun8zke9B0gTuOg=",
+  "receiver_public": "BK9UVJFFOUIVTsSUpYNV3UxnHJDcdDxhBku4sbTTreT3DLEyPUco0UiCeYKZb+qWErEcuYT/3HcRWxnYsMFGx8M=",
+  "sender_ephemeral_private": "mv4ekNAtMnOAUgdYkMSMSEL9u2KWSfl9fk1ANRmDQkk=",
+  "up": "amb2t.BJgbbmR7v1utkIThichjwbNcLtkSsO6Io4byJvSWMnivOrGvp16poywexhsGTfDyqW3oBISg1Wal8OYiNL6cUV+goaKjpKWmp6ipqquvDH/D7ZFcoVSR5F6TTK1t3ecsc5HAhJtSynRQh39Tr4Rey7sbplmsbR3jVkhA8KFaopFEQepw36ne3FX5vSze",
+  "down": "amb2t.BJgbbmR7v1utkIThichjwbNcLtkSsO6Io4byJvSWMnivOrGvp16poywexhsGTfDyqW3oBISg1Wal8OYiNL6cUV+goaKjpKWmp6ipqqvOnJkq54nh9VtWJP0o9RqFRv2AA1ZpL10eEV2VQlS+xh5JFPP1VQEYtA3tWRhScC4GunoAQ8ueFqX91toYukrk"
+}

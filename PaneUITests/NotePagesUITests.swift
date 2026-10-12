@@ -390,6 +390,73 @@ final class NotePagesUITests: XCTestCase {
         pause(1)
     }
 
+    /// New App: a tap on compose still makes a note at once; holding it offers New Note and New
+    /// App. New App asks one question; closing it leaves nothing behind; handed to ChatGPT, the app
+    /// arrives as a new note (here from `-aiNewApp`, as sync would bring it), and the sheet closes
+    /// itself and opens it. $MAKE_APP_STATE=none shows the sheet with no AI connected.
+    func testNewApp() {
+        let state = ProcessInfo.processInfo.environment["MAKE_APP_STATE"] ?? "chatgpt"
+        // The stand-in AI's app is read from $NEW_APP_PAGE (a file outside ~/Documents, which a
+        // simulator app may be stopped from reading while macOS asks), else from the demo folder.
+        let page = ProcessInfo.processInfo.environment["NEW_APP_PAGE"] ?? "\(pages)/habit-tracker.html"
+        launch(["-makeAppState", state, "-aiNewApp", "Water=\(page)", "-aiPageBy", "ChatGPT", "-aiAfter", "30"])
+        // Into All Notes, where the list shows how many notes there are.
+        let all = app.staticTexts["All Notes"].firstMatch
+        if all.waitForExistence(timeout: 6) { all.tap() }
+        let compose0 = app.buttons["list.newNote"].firstMatch
+        XCTAssertTrue(compose0.waitForExistence(timeout: 8))
+        pause(1)
+        // How many notes the list shows: closing New App must not add one.
+        let rows = { self.app.cells.count }
+        let notesBefore = rows()
+        let compose = app.buttons["list.newNote"].firstMatch
+        XCTAssertTrue(compose.waitForExistence(timeout: 4))
+        compose.press(forDuration: 1.0)
+        let newApp = app.buttons["compose.newApp"].firstMatch
+        XCTAssertTrue(newApp.waitForExistence(timeout: 4), "holding compose offers New App")
+        XCTAssertTrue(app.buttons["New Note"].firstMatch.exists)
+        pause(0.6)
+        shot("80-new-app-menu")
+        newApp.tap()
+        let heading = app.staticTexts["New App"].firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 4))
+        pause(0.8)
+        shot("81-new-app-\(state)")
+        if state == "none" {
+            XCTAssertTrue(app.buttons["makeApp.connect"].firstMatch.exists)
+            XCTAssertTrue(app.buttons["newApp.templates"].firstMatch.exists, "templates still work without an AI")
+            app.buttons["makeApp.close"].firstMatch.tap()
+            XCTAssertTrue(heading.waitForNonExistence(timeout: 4))
+            XCTAssertEqual(rows(), notesBefore, "closing New App leaves no note behind")
+            return
+        }
+        let make = app.buttons["makeApp.with.ChatGPT"].firstMatch
+        XCTAssertFalse(make.isEnabled, "nothing to hand over before the question is answered")
+        app.buttons["newApp.example.Habit tracker"].firstMatch.tap()
+        XCTAssertTrue(make.isEnabled)
+        pause(0.6)
+        shot("82-new-app-filled")
+        // Closing at this point leaves nothing behind either.
+        app.buttons["makeApp.close"].firstMatch.tap()
+        XCTAssertTrue(heading.waitForNonExistence(timeout: 4))
+        XCTAssertEqual(rows(), notesBefore, "closing New App leaves no note behind")
+        compose.press(forDuration: 1.0)
+        XCTAssertTrue(newApp.waitForExistence(timeout: 4))
+        newApp.tap()
+        XCTAssertTrue(heading.waitForExistence(timeout: 4))
+        app.buttons["newApp.example.Habit tracker"].firstMatch.tap()
+        make.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["makeApp.waiting"].firstMatch.waitForExistence(timeout: 3), "handed over, the sheet waits")
+        pause(0.8)
+        shot("83-new-app-waiting")
+        // Nothing pressed from here: the new note with its app arrives, the sheet closes and opens it.
+        XCTAssertTrue(heading.waitForNonExistence(timeout: 40), "the sheet closes itself when the app is here")
+        XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 8), "and the new note opens as its app")
+        pause(1.5)
+        shot("84-new-app-done")
+        // A plain tap on compose is still a new note at once.
+    }
+
     /// More › App Info: only what Amber Notes alone does for an app (internet, Previous, Remove).
     func testAppInfo() {
         launch(["-open", "October budget", "-seedPage", "October budget=\(pages)/budget.html"])
