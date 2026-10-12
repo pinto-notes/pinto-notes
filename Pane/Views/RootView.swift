@@ -510,10 +510,10 @@ struct PaneCommands: Commands {
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil) }
         }
         CommandGroup(replacing: .importExport) {
-            Button("Import from Apple Notes…") { importNotes?() }
+            Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                 .disabled(importNotes == nil)
             ForEach(ImportKind.allCases) { kind in
-                Button(kind.menuTitle) { importFrom?(kind) }
+                Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     .disabled(importFrom == nil)
             }
             Divider()

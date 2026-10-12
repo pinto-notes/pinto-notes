@@ -11,7 +11,7 @@ const LIBS_BY_PACKAGE = "chart.js, d3, three, tone, dayjs, marked, dompurify, an
 
 /** The few lines every client sees in the server's instructions. Clients differ in what else they
  *  read (resources, prompts, skills), so this and the tool descriptions carry the essentials. */
-export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app. Call it "the note's app" with the person, never "page" (some tools still say page).
+export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app (some tools call a one-file app a page).
 - Before making or changing an app, call get_page_guide once. It says where an app lives; how it looks and works is up to you.
 - An app is a normal Vite + React + TypeScript + Tailwind + shadcn/ui project. create_app starts one; list_app_files, read_app_file, write_app_file and edit_app_file work on it like any codebase. Every save compiles it and tells you what broke.
 - Its data is JSON the app keeps (useStore, useCollection, useSettings from "@/lib/amber", or localStorage: all synced and encrypted). You read and change it with get_page_data, query_app_data and update_page_data.
