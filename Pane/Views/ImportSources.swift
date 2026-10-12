@@ -149,3 +149,26 @@ struct ImportSourceList: View {
         #endif
     }
 }
+
+#if os(macOS)
+/// The Import choice as a sheet of its own (the list's More menu can't hold a popover).
+struct ImportChoiceSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var choose: (ImportOrigin) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ImportSourceList(choose: choose)
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+            }
+            .padding([.horizontal, .bottom], 14)
+        }
+        .frame(width: 300)
+        .foregroundStyle(Color.ink)
+        .background(Color(Palette.sheetGround))
+        .presentationBackground(Color(Palette.sheetGround))
+    }
+}
+#endif
