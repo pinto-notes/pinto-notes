@@ -334,9 +334,7 @@ import Testing
     /// The app and the AI's server take the same kinds (folder_files.ts SUPPORTED), and the
     /// "can't add" message names them.
     @Test func acceptedKindsMatchTheServerAndTheMessage() throws {
-        let ts = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "supabase/functions/mcp/folder_files.ts")
-        guard let source = try? String(contentsOf: ts, encoding: .utf8) else { return }
+        let source = try TestFiles.text("folder_files.ts")
         let found = try #require(source.range(of: #"SUPPORTED = new Set\(\[[^\]]*\]"#, options: .regularExpression))
         let list = String(source[found])
         let server = Set(list.matches(of: /"([a-z0-9]+)"/).map { String($0.1) })
