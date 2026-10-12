@@ -1003,7 +1003,7 @@ struct NoteDetailView: View {
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
-            Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
         }
         if showingPage, let receipt {
             ToolbarItem(placement: .principal) {
@@ -1020,11 +1020,12 @@ struct NoteDetailView: View {
         #else
         // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
         ToolbarItem {
-            Button(action: onNewNote) {
+            ComposeButton(newNote: onNewNote) {
                 // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
                 Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
             }
-                .help("New Note (⌘N)")
+                .help("New Note (⌘N). Click and hold for New App.")
+                .newAppTip()
                 // The menu bar's quick capture is the other way to start a note.
                 .paneTip(MenuBarTip(), arrowEdge: .top)
                 .accessibilityIdentifier("list.newNote")

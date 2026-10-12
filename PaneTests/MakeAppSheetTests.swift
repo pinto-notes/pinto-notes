@@ -72,6 +72,17 @@ import Testing
         #expect(MakeAppSheet.patience == .seconds(180), "about three minutes before it says what to check")
     }
 
+    /// New App asks the AI to make the note too, so nothing is made here before the app arrives.
+    @Test func newAppAsksTheAIToMakeTheNoteAndItsApp() {
+        let p = MakeAnApp.newAppPrompt("  a water tracker.  ")
+        #expect(p.hasPrefix("In Pinto Notes, make me a new note that is an app: a water tracker. Call get_page_guide, make the note with create_note"))
+        #expect(p.contains("create_app") && !p.contains(".."))
+        #expect(MakeAnApp.examples.map(\.name) == ["Habit tracker", "Trip plan", "Workout log"])
+        #expect(MakeAnApp.templatesPage.path() == "/templates")
+        // The tip is a feature of its own, so its "shown" mark travels with the account.
+        #expect(Feature(rawValue: "newApp") != nil && Feature.newApp.tip.id == "newApp")
+    }
+
     @Test func theSketchFollowsWhatTheNoteHolds() {
         #expect(MakeAnApp.kind(for: Capture.budgetNote) == .budget)
         #expect(MakeAnApp.kind(for: Capture.habitNote()) == .tracker)
@@ -118,6 +129,23 @@ import Testing
         }
         // The sketch for each kind of note, with that note's own title.
         guard let dir else { return }
+        // New App, with and without an AI connected, light and dark.
+        for state in ["chatgpt", "none", "both"] {
+            for dark in [false, true] {
+                MakeAppSheet.stateForPictures = state
+                let host = NSHostingView(rootView: MakeAppSheet(newApp: ()).environment(\.controlActiveState, .key).fixedSize())
+                host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                host.frame = CGRect(origin: .zero, size: host.fittingSize)
+                host.layoutSubtreeIfNeeded()
+                try await Task.sleep(for: .milliseconds(400))
+                host.frame = CGRect(origin: .zero, size: host.fittingSize)
+                host.layoutSubtreeIfNeeded()
+                #expect(host.fittingSize.width == 420 && host.fittingSize.height < 360, "new app \(state) is \(host.fittingSize.height) pt tall")
+                let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try #require(rep.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: dir).appending(path: "new-app-mac-\(state)-\(dark ? "dark" : "light").png"))
+            }
+        }
         for (name, note) in [("budget", ("October budget", Capture.budgetNote)), ("checklist", ("Packing", "Packing\n- [ ] a\n- [ ] b\n- [ ] c")), ("cards", ("People", "People\n\n| Name | Role |\n|---|---|\n| Sara | Sales |"))] {
             let host = try await host(state: "chatgpt", sketch: true, dark: false, note: note)
             let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
