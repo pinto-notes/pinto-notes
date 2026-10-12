@@ -841,13 +841,17 @@ final class AppSession {
         // Tips wait for this: never a tip for something this account has used anywhere.
         await FeatureUse.refresh()
         await shareAsk.refresh()
-        // A new account is asked how it heard of us, but not on its first screen: from the third
-        // launch, once it has a note, and never on a launch that has shown an account notice.
+        // A new account is asked how it heard of us, but not on its first day: from its second day
+        // of use, once it has a note, never on the first launch after an update, and never on a
+        // launch with another prompt.
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
         // Never during the first-run flow, nor in the day after it.
         if !onboarding.holdsAsks() {
-            await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
+            let days = max(shareAsk.server?.days ?? 0, ShareAsk.localDays().count)
+            await heardFrom.refresh(daysOfUse: days, hasNote: hasNote,
+                                    otherPrompt: (notices?.shownThisLaunch ?? false) || notices?.current != nil
+                                        || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
         }
         // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
         shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
