@@ -1312,8 +1312,10 @@ private struct NoteRowHover<Items: View>: ViewModifier {
         HoverRowReader(id: id, selected: selected, pointer: pointer) { hovering in
             content
                 #if os(macOS)
-                .overlay(alignment: .trailing) {
+                // Always the top right corner, on the title's line, whatever the row holds.
+                .overlay(alignment: .topTrailing) {
                     HoverSwap(on: hovering, help: "Note options") { EmptyView() } items: { items() }
+                        .padding(.top, RowMetrics.vertical)
                 }
                 #endif
         }

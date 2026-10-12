@@ -9,7 +9,7 @@ import SwiftUI
 /// (`HoverTests` checks this). On iPhone these do nothing.
 enum Hover {
     /// In and out quickly, so the fill follows the pointer without trailing it.
-    static let animation = Animation.easeOut(duration: 0.12)
+    static let animation = Animation.easeOut(duration: 0.08)
     /// A hovered row: a light fill, well under the selection's.
     static let row = AnyShapeStyle(.fill.quaternary)
     /// A hovered icon button or plain button with its own shape.
@@ -148,32 +148,26 @@ struct HoverRowReader<Content: View>: View {
 }
 
 /// What a row shows at its right edge: `resting` (a folder's count, or nothing), and under the
-/// pointer its ••• menu in the same place. The two never show at once: on the way in the count
-/// fades out first and fast, then the ••• grows in; on the way out the reverse (owner, 2026-10-12:
-/// for a few frames "18" sat inside the circle). Each is driven by `on` alone, so quick passes
-/// over many rows can't leave one half-way.
+/// pointer its ••• menu in the same place. The swap is instant, in the frame the hover begins,
+/// as Finder's and Notes' sidebars do (owner, 2026-10-12: any fade between the two read as a
+/// blink and a slow pop). Only the row's pill fades, briefly (`Hover.animation`).
 struct HoverSwap<Resting: View, Items: View>: View {
     let on: Bool
     let help: String
     @ViewBuilder let resting: Resting
     @ViewBuilder let items: () -> Items
 
-    /// Out fast, in a moment later and a little longer, so one is nearly gone before the other shows.
-    static var out: Animation { .easeOut(duration: 0.07) }
-    static var into: Animation { .easeOut(duration: 0.12).delay(0.05) }
-
     var body: some View {
         ZStack(alignment: .trailing) {
             resting
                 .opacity(on ? 0 : 1)
-                .animation(on ? Self.out : Self.into, value: on)
             if on {
                 RowMenuButton(help: help, items: items)
                     .accessibilityHidden(true)
-                    .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(Self.into),
-                                            removal: .opacity.animation(Self.out)))
             }
         }
+        // No animation for the swap, whatever the hover change came with.
+        .transaction { $0.animation = nil }
     }
 }
 
