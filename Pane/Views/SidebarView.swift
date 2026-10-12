@@ -689,14 +689,11 @@ private struct FolderTree: View {
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 SidebarRowText(title: folder.name, selected: selected) {
-                    if hovering {
-                        RowMenuButton(help: "Folder options") { menuItems }
-                            .accessibilityHidden(true)
-                    } else {
+                    HoverSwap(on: hovering, help: "Folder options") {
                         Text(folder.liveNotes.count + (files[folder.id] ?? 0), format: .number)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
-                    }
+                    } items: { menuItems }
                 }
             } icon: {
                 SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
