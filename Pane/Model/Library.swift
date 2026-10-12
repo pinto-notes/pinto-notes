@@ -82,9 +82,8 @@ extension ModelContext {
         return n
     }
 
-    @discardableResult
-    /// True when an Apple note was imported before and hasn't changed since:
-    /// a live note with its title, dated to its last edit (imports keep that date).
+    /// True when a note with this title, dated to this second, is here and not deleted: an
+    /// import brought it before. (The Apple Notes import asks ImportWriter, which counts them.)
     func hasImported(title: String, modified: Date) -> Bool {
         let stamp = modified.timeIntervalSinceReferenceDate.rounded()
         return ((try? fetch(FetchDescriptor<Note>())) ?? []).contains {
@@ -93,6 +92,7 @@ extension ModelContext {
         }
     }
 
+    @discardableResult
     func createFolder(named name: String, parent: Folder? = nil) -> Folder {
         let siblings = allFolders().filter { $0.parent?.id == parent?.id }
         let f = Folder(name: name, parent: parent, sortIndex: (siblings.map(\.sortIndex).max() ?? 0) + 1)

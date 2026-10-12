@@ -9,25 +9,48 @@ import AppKit
 /// Handles headings (by relative size), bold, italic, strikethrough, code,
 /// links, nested bulleted and numbered lists, checklists and, on the Mac, tables.
 enum RichTextToMarkdown {
+    /// What a list item is, when a source knows better than its HTML does. Apple Notes writes a
+    /// checklist as a plain `<ul>`, and a numbered list straight after a dashed one as more dashes.
+    struct ListItem: Equatable {
+        enum Kind: Equatable { case bullet, dash, number, check(done: Bool) }
+        var text: String
+        var kind: Kind
+        var indent = 0
+    }
+
+    /// `keepBlankLines`: empty lines come over as written (an Apple Notes import) instead of being
+    /// folded into one (a paste from a web page). `listItems`: the note's list items in order, from
+    /// a source that knows their kind; an item is used only where its text matches the HTML's.
     @MainActor
-    static func markdown(fromHTML html: String) -> String {
-        guard let data = markDashLists(OfflineHTML.strip(html)).data(using: .utf8),
+    static func markdown(fromHTML html: String, keepBlankLines: Bool = false, listItems: [ListItem] = []) -> String {
+        guard let data = OfflineHTML.strip(markDashLists(html)).data(using: .utf8),
               let attributed = try? NSAttributedString(
                 data: data,
                 options: [.documentType: NSAttributedString.DocumentType.html, .characterEncoding: String.Encoding.utf8.rawValue],
                 documentAttributes: nil)
         else { return html }
-        return markdown(from: attributed)
+        return markdown(from: attributed, keepBlankLines: keepBlankLines, listItems: listItems)
     }
 
-    /// Notes marks its Dashed List as `<ul class="Apple-dash-list">`, a class WebKit drops.
-    /// A square marker survives the trip (Notes never makes square lists) and becomes `-`.
+    /// What two sources agree on about an item's text: everything but its spaces and line breaks.
+    private static func comparable(_ s: String) -> String {
+        String(String.UnicodeScalarView(s.unicodeScalars.filter { !CharacterSet.whitespacesAndNewlines.contains($0) && !CharacterSet.controlCharacters.contains($0) && $0 != "\u{FFFC}" }))
+    }
+
+    /// Apple Notes' HTML, made readable for the HTML importer.
+    ///
+    /// Notes marks its Dashed List as `<ul class="Apple-dash-list">`, a class WebKit drops. A square
+    /// marker survives the trip and becomes `-`; every other `<ul>` is pinned to a disc, since a
+    /// plain one nested three deep would turn square by itself. Notes also wraps each table in an
+    /// `<object>`, which the offline rule would remove whole, table and all.
     static func markDashLists(_ html: String) -> String {
-        html.replacingOccurrences(of: #"<ul([^>]*class="[^"]*Apple-dash-list[^"]*"[^>]*)>"#,
-                                  with: #"<ul$1 style="list-style-type: square">"#, options: [.regularExpression, .caseInsensitive])
+        var s = html.replacingOccurrences(of: #"<object>\s*(<table[\s\S]*?</table>)\s*</object>"#, with: "$1", options: [.regularExpression, .caseInsensitive])
+        s = s.replacingOccurrences(of: "<ul>", with: #"<ul style="list-style-type: disc">"#, options: [.caseInsensitive])
+        return s.replacingOccurrences(of: #"<ul([^>]*class="[^"]*Apple-dash-list[^"]*"[^>]*)>"#,
+                                      with: #"<ul$1 style="list-style-type: square">"#, options: [.regularExpression, .caseInsensitive])
     }
 
-    static func markdown(from text: NSAttributedString) -> String {
+    static func markdown(from text: NSAttributedString, keepBlankLines: Bool = false, listItems: [ListItem] = []) -> String {
         let ns = text.string as NSString
         // Markdown typed into Apple Notes' Monospaced style is already the source.
         if monospacedShare(text) >= 0.8 {
@@ -35,7 +58,7 @@ enum RichTextToMarkdown {
             for l in text.string.components(separatedBy: .newlines) {
                 let line = l.replacingOccurrences(of: "\u{00A0}", with: " ")
                 if line.trimmingCharacters(in: .whitespaces).isEmpty {
-                    if !(out.last?.isEmpty ?? true) { out.append("") }
+                    if keepBlankLines ? !out.isEmpty : !(out.last?.isEmpty ?? true) { out.append("") }
                 } else { out.append(line) }
             }
             while out.last?.isEmpty == true { out.removeLast() }
@@ -56,6 +79,24 @@ enum RichTextToMarkdown {
         var index = 0
         var orderedCounters: [Int: Int] = [:]
         var inList = false
+        // A blank line the converter added itself (after a list, around a table). A written one
+        // that follows takes its place instead of doubling it.
+        var addedBlank: Int?
+        func separate() {
+            guard !lines.isEmpty, lines.last != "" else { return }
+            lines.append("")
+            addedBlank = lines.count - 1
+        }
+        let hints = listItems.map { (comparable($0.text), $0) }
+        var nextHint = 0
+        /// The known kind of the list item with this text: the next one in order, or the first
+        /// later one that matches (the two sources can disagree about empty items).
+        func hint(for item: String) -> ListItem? {
+            let key = comparable(item)
+            guard !key.isEmpty, let at = hints[nextHint...].firstIndex(where: { $0.0 == key }) else { return nil }
+            nextHint = at + 1
+            return hints[at].1
+        }
 
         while index < ns.length {
             let para = ns.paragraphRange(for: NSRange(location: index, length: 0))
@@ -66,9 +107,11 @@ enum RichTextToMarkdown {
             #if os(macOS)
             if let block = style?.textBlocks.first as? NSTextTableBlock {
                 let (tableLines, end) = table(starting: para, block: block, in: text)
-                if !lines.isEmpty, lines.last != "" { lines.append("") }
+                flushCode(into: &lines)
+                separate()
                 lines += tableLines
                 lines.append("")
+                addedBlank = lines.count - 1
                 index = end
                 continue
             }
@@ -77,8 +120,10 @@ enum RichTextToMarkdown {
             if content.length == 0 {
                 inList = false
                 if !code.isEmpty { code.append(""); continue }
-                if lines.last != "" { lines.append("") }
                 orderedCounters.removeAll()
+                if keepBlankLines {
+                    if addedBlank == lines.count - 1 { addedBlank = nil } else if !lines.isEmpty { lines.append("") }
+                } else if lines.last != "" { lines.append("") }
                 continue
             }
 
@@ -91,7 +136,9 @@ enum RichTextToMarkdown {
             let lists = style?.textLists ?? []
 
             if let list = lists.last {
-                let depth = lists.count - 1
+                // The item's own text, without the marker, is what a hint is matched on.
+                let known = hint(for: (raw as NSString).substring(from: renderedMarkerLength(raw)))
+                let depth = known?.indent ?? lists.count - 1
                 let indent = String(repeating: "  ", count: depth)
                 // Cut the marker the HTML importer rendered ("\t•\t", "1.\t") before
                 // formatting, so a bold item doesn't wrap its bullet in the bold.
@@ -100,23 +147,35 @@ enum RichTextToMarkdown {
                 let item = String(ns.substring(with: body).drop { $0 == " " || $0 == "\t" })
                 let inline = softBreaks(inlineMarkdown(text, range: body), continuation: indent + "  ")
                 let format = list.markerFormat.rawValue.lowercased()
-                if format.contains("decimal") || format.contains("roman") || format.contains("alpha") {
-                    let n = (orderedCounters[depth] ?? list.startingItemNumber - 1) + 1
-                    orderedCounters[depth] = n
-                    lines.append("\(indent)\(n). \(inline)")
+                let kind: ListItem.Kind
+                if let known {
+                    kind = known.kind
+                } else if format.contains("decimal") || format.contains("roman") || format.contains("alpha") {
+                    kind = .number
                 } else if let checked = checklistState(item, list: list) {
-                    lines.append("\(indent)- [\(checked ? "x" : " ")] \(stripCheckGlyph(inline))")
+                    kind = .check(done: checked)
                 } else {
                     // Notes' Dashed List is a hyphen list; its Bulleted List uses discs.
-                    let dashed = format.contains("hyphen") || format.contains("dash") || format.contains("square")
-                    lines.append("\(indent)\(dashed ? "-" : "*") \(inline)")
+                    kind = format.contains("hyphen") || format.contains("dash") || format.contains("square") ? .dash : .bullet
+                }
+                // Deeper numbering starts again under each item; a list of another kind ends this one.
+                for d in Array(orderedCounters.keys) where d > depth || (d == depth && kind != .number) { orderedCounters[d] = nil }
+                switch kind {
+                case .number:
+                    let n = (orderedCounters[depth] ?? (known == nil ? list.startingItemNumber - 1 : 0)) + 1
+                    orderedCounters[depth] = n
+                    lines.append("\(indent)\(n). \(inline)")
+                case .check(let done):
+                    lines.append("\(indent)- [\(done ? "x" : " ")] \(stripCheckGlyph(inline))")
+                case .dash: lines.append("\(indent)- \(inline)")
+                case .bullet: lines.append("\(indent)* \(inline)")
                 }
                 inList = true
                 continue
             }
             orderedCounters.removeAll()
             // A line straight after a list would join its last item in markdown.
-            if inList, lines.last != "" { lines.append("") }
+            if inList { separate() }
             inList = false
             let inline = softBreaks(inlineMarkdown(text, range: content), continuation: "")
 
@@ -136,9 +195,9 @@ enum RichTextToMarkdown {
         }
 
         flushCode(into: &lines)
-        // Collapse runs of blank lines and trim.
+        // Collapse runs of blank lines (unless they're kept as written) and trim.
         var out: [String] = []
-        for l in lines where !(l.isEmpty && (out.last?.isEmpty ?? true)) { out.append(l) }
+        for l in lines where keepBlankLines ? !(l.isEmpty && out.isEmpty) : !(l.isEmpty && (out.last?.isEmpty ?? true)) { out.append(l) }
         while out.last?.isEmpty == true { out.removeLast() }
         return out.joined(separator: "\n")
     }
