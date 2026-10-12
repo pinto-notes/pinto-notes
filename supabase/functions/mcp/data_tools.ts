@@ -8,12 +8,12 @@
 
 import { addChecklistItems, addRows, aggregate, atPath, closeStored, dataShape, openStored, recordsAt, changeStore, DataError, fileRefs, newFiles, placeFiles, queryRecords, recordsFromCsv, deleteRows, hasTable, newTable, parseDelimited, editColumns, pastedRows, updateChecklistItems, updateRows, type ChecklistChange, type ColumnChange, type RowInput } from "./data_ops.ts";
 import { findTables, mimeOf, typeSpec } from "./notes.ts";
-import { pageGuide } from "./page_guide.ts";
+import { PAGE_API, pageGuide } from "./page_guide.ts";
 import { noteForPage } from "./page_input.ts";
 import { appHandlers, appTools } from "./app_tools.ts";
 import { parseStored } from "./app_project.ts";
 import { fileHandlers, fileTools } from "./app_files.ts";
-import { pageDataProblems, type PageData } from "./page.ts";
+import { PAGE_REWRITE, pageDataProblems, type PageData } from "./page.ts";
 import { bodyOf, findNote, save, ToolError, type Call, type Tx } from "./tools.ts";
 
 type Args = Record<string, unknown>;
@@ -178,8 +178,8 @@ export const dataTools = [
   },
   {
     name: "get_page_guide", title: "Where a note's app lives",
-    description: "Where a note's app lives and what it can use: iPhone and Mac, the project (Vite + React + TypeScript + Tailwind + shadcn/ui) and how it's compiled, its JSON data and the tools for it, network and API keys, and how to see your work. Call once before making or changing an app.",
-    inputSchema: { type: "object", properties: {} },
+    description: "Where a note's app lives and what it can use: iPhone and Mac, the project (Vite + React + TypeScript + Tailwind + shadcn/ui) and how it's compiled, its JSON data and the tools for it, network and API keys, and how to see your work. Call once before making or changing an app. With one_file: true, the rules and API for an app that is one HTML document (set_note_page, edit_note_page) instead.",
+    inputSchema: { type: "object", properties: { one_file: { type: "boolean", description: "The guide for a one-file app (set_note_page) instead of a project." } } },
     annotations: read,
   },
   ...appTools,
@@ -415,6 +415,8 @@ export const dataHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       if (!t) throw new ToolError(`No template "${a.template}". Templates: ${PAGE_TEMPLATES.map((x) => x.name).join(", ")}.`);
       return { template: t.name, description: t.description, expects: t.expects, html: t.html };
     }
+    // A one-file app (set_note_page): its document's rules and API, as get_note_page returns them.
+    if (a.one_file === true) return { guide: `${PAGE_REWRITE}\n${PAGE_API}` };
     // The evals' control arm (no try_app or run_app_tests): the guide doesn't mention them.
     const guide = await pageGuide();
     return { guide: Deno.env.get("AMBER_GUIDE_WITHOUT_TRY") ? guide.split("\n").filter((l) => !/try_app|run_app_tests/.test(l)).join("\n") : guide };
