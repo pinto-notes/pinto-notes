@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #endif
@@ -50,11 +51,14 @@ enum ImportOrigin: Identifiable, Hashable {
 extension ImportOrigin {
     /// The icon in a menu, which takes an image and nothing else: the app's own at menu size when
     /// it's on this Mac, a symbol otherwise.
-    var menuImage: Image {
+    @MainActor var menuImage: Image {
         #if os(macOS)
-        if let icon = bundleIdentifier.flatMap(ImportSourceIcon.installedIcon), let small = icon.copy() as? NSImage {
-            small.size = NSSize(width: 16, height: 16)
-            return Image(nsImage: small)
+        // The same icon as the list's, at menu size: real where it can be, the drawn tile otherwise.
+        let renderer = ImageRenderer(content: ImportSourceIcon(origin: self, size: 16))
+        renderer.scale = 2
+        if let image = renderer.nsImage {
+            image.size = NSSize(width: 16, height: 16)
+            return Image(nsImage: image)
         }
         #endif
         return Image(systemName: symbol)
@@ -62,8 +66,11 @@ extension ImportOrigin {
 }
 
 /// A source's icon. On the Mac it is the app's own icon when that app is on this Mac, drawn by the
-/// system from the installed copy (Apple Notes always is). Otherwise, and on iPhone, it is a tile in
-/// this app's colours with a plain symbol: no other app's artwork ships inside Pinto Notes.
+/// system from the installed copy (Apple Notes always is), and Finder's document icon for Markdown
+/// files. Otherwise, and on iPhone, it is a tile drawn on an app icon's grid with a plain symbol.
+/// Evernote's terms allow its icon to show compatibility but publish no file; Bear publishes no
+/// terms; Google requires a request for any product icon (checked 2026-10-12). So no other
+/// company's artwork ships inside Pinto Notes until one of them grants it.
 struct ImportSourceIcon: View {
     let origin: ImportOrigin
     var size: CGFloat = 24
@@ -73,11 +80,16 @@ struct ImportSourceIcon: View {
     nonisolated(unsafe) static var installedIcon: (String) -> NSImage? = { id in
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: id).map { NSWorkspace.shared.icon(forFile: $0.path) }
     }
+
+    /// The icon for files of this kind, as Finder draws it (captures and tests set their own).
+    nonisolated(unsafe) static var documentIcon: () -> NSImage? = {
+        NSWorkspace.shared.icon(for: UTType(filenameExtension: "md") ?? .plainText)
+    }
     #endif
 
     var body: some View {
         #if os(macOS)
-        if let icon = origin.bundleIdentifier.flatMap(Self.installedIcon) {
+        if let icon = origin.bundleIdentifier.flatMap(Self.installedIcon) ?? (origin == .files(.markdown) ? Self.documentIcon() : nil) {
             Image(nsImage: icon)
                 .resizable()
                 .interpolation(.high)
@@ -91,15 +103,24 @@ struct ImportSourceIcon: View {
         #endif
     }
 
+    /// Drawn on the grid of a real app icon (Apple's 824 of 1024, the same corner, the same light
+    /// face and soft shadow), so a row without its app's own icon reads as one of the set. It is
+    /// a plain symbol, not anyone's mark: no other company's artwork is copied or imitated.
     private var tile: some View {
-        // Inset like a Mac app icon, so tiles and real icons sit on one grid.
-        let side = size * 0.84
-        return RoundedRectangle(cornerRadius: side * 0.23, style: .continuous)
-            .fill(Color.amberSoft)
-            .overlay(RoundedRectangle(cornerRadius: side * 0.23, style: .continuous).strokeBorder(Color.line, lineWidth: 0.5))
-            .overlay(Image(systemName: origin.symbol).font(.system(size: side * 0.5, weight: .semibold)).foregroundStyle(Color.amberInk))
+        let side = size * 0.805
+        let shape = RoundedRectangle(cornerRadius: side * 0.2237, style: .continuous)
+        return shape
+            .fill(LinearGradient(colors: [Color(white: 1), Color(white: 0.9)], startPoint: .top, endPoint: .bottom))
+            .overlay(shape.strokeBorder(Color.black.opacity(0.08), lineWidth: max(0.5, size / 64)))
+            .overlay(
+                Image(systemName: origin.symbol)
+                    .font(.system(size: side * 0.5, weight: .medium))
+                    .foregroundStyle(LinearGradient(colors: [Color(white: 0.42), Color(white: 0.26)], startPoint: .top, endPoint: .bottom))
+            )
             .frame(width: side, height: side)
+            .shadow(color: .black.opacity(0.2), radius: size * 0.018, y: size * 0.012)
             .frame(width: size, height: size)
+            .environment(\.colorScheme, .light)
             .accessibilityHidden(true)
     }
 }
