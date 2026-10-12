@@ -279,7 +279,8 @@ struct NoteListView: View {
                             FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                                         remove: { remove([file.id]) })
                                 .tag(file.id)
-                                .hoverRow(file.filename)
+                                .hoverRow(file.filename, selected: Self.quiet(selection, file.id))
+                                .quietSelection()
                                 #if os(iOS)
                                 .listRowBackground(Color(Palette.row))
                                 #endif
@@ -439,6 +440,8 @@ struct NoteListView: View {
         #endif
         .toolbar {
             #if os(iOS)
+            // Select only when there is something to select.
+            if editMode.isEditing || !(scopedNotes.isEmpty && scopedFiles.isEmpty) {
             ToolbarItem(placement: .primaryAction) {
                 Button(editMode.isEditing ? "Done" : "Select") {
                     withAnimation(.snappy(duration: 0.25)) {
@@ -447,21 +450,21 @@ struct NoteListView: View {
                     }
                 }
                 .fontWeight(editMode.isEditing ? .semibold : .regular)
-                .disabled(scopedNotes.isEmpty && scopedFiles.isEmpty && !editMode.isEditing)
                 .accessibilityIdentifier("list.select")
             }
-            if !editMode.isEditing && scope != .trash {
-                // Files kept in the folder on their own: PDFs to read, photos, spreadsheets.
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add File", systemImage: "doc.badge.plus") { addingFiles = true }
-                        .accessibilityIdentifier("list.addFile")
-                }
             }
             if !editMode.isEditing {
-                // The list's own menu, as in Notes: how it's sorted and grouped.
+                // The list's own menu, as in Notes: how it's sorted and grouped, and adding files
+                // (it was an icon of a page with a plus beside Select, which read as New Note).
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         ListOrderMenu(store: orderStore)
+                        if scope != .trash {
+                            Divider()
+                            // Files kept in the folder on their own: PDFs to read, photos, spreadsheets.
+                            Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
+                                .accessibilityIdentifier("list.addFile")
+                        }
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }
@@ -530,9 +533,6 @@ struct NoteListView: View {
                     ForEach(ImportKind.allCases) { kind in
                         Button(kind.menuTitle, systemImage: kind.symbol) { imports?.from(kind) }
                     }
-                    Button("Import Spreadsheet as Table…", systemImage: "tablecells") { imports?.spreadsheet() }
-                    Divider()
-                    SettingsLink { Label("Settings…", systemImage: "gearshape") }
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
@@ -572,6 +572,15 @@ struct NoteListView: View {
         #endif
     }
 
+    /// Whether a row draws the quiet selection (the Mac only; iOS keeps the system's).
+    static func quiet(_ selection: Set<UUID>, _ id: UUID) -> Bool {
+        #if os(macOS)
+        selection.contains(id)
+        #else
+        false
+        #endif
+    }
+
     private func noteRow(_ note: Note) -> some View {
         // Its own equatable view: when one note changes, the others' rows (and their
         // drag and swipe setup) are left alone instead of rebuilt.
@@ -581,8 +590,10 @@ struct NoteListView: View {
                 remove: { remove(note) })
             .equatable()
             .tag(note.id)
-            // Outside the equatable row, so the list sees its background.
-            .hoverRow(note.title)
+            // Outside the equatable row, so the list sees its background. On the Mac the row draws
+            // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
+            .hoverRow(note.title, selected: Self.quiet(selection, note.id))
+            .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
@@ -689,11 +700,9 @@ struct NoteListView: View {
         } else if scope == .trash {
             ContentUnavailableView("No Deleted Notes", systemImage: "trash", description: Text("Notes and files you delete stay here for 30 days."))
         } else {
+            // The leaf and "No Notes", like Notes: the compose button is the one way to start a note.
             ContentUnavailableView {
                 Label { Text("No Notes") } icon: { AppMark(size: 56) }
-            } actions: {
-                Button("New Note", action: onNewNote)
-                    .buttonStyle(.glass)
             }
         }
     }
