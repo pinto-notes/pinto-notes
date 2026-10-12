@@ -133,50 +133,36 @@ struct SidebarCardShell<Art: View>: View {
     private var words: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.85)
-            Text(line).font(Metrics.line).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+            // At most three lines, never fixed to its full height: asked for its smallest size
+            // at a narrow width, a fixed line grew one word per line, and the window took that
+            // as its own smallest height (1.2.9: the window couldn't be made shorter than the screen).
+            Text(line).font(Metrics.line).foregroundStyle(Color.muted).lineLimit(3)
         }
     }
 
+    /// The whole card is one button: a click anywhere opens what its link line says. The close
+    /// button in the corner is its own button, on top, so a click there only closes.
     var body: some View {
-        VStack(alignment: .leading, spacing: Metrics.gap) {
-            if stacked {
-                // The pictures in a row on top, small, out of the close button's way.
-                ZStack { art(Metrics.stackedThumb) }
-                    .frame(width: Metrics.stackedThumb * 2.1, height: Metrics.stackedThumb * 1.15)
-                    .padding(.bottom, 2)
-                    .accessibilityHidden(true)
-                words.padding(.trailing, Metrics.padding)
-            } else {
-                HStack(alignment: .center, spacing: 8) {
-                    words
-                    Spacer(minLength: 0)
-                    ZStack { art(Metrics.thumb) }
-                        .frame(width: Metrics.thumb * 2.1, height: Metrics.thumb * 1.2)
-                        .padding(.trailing, Metrics.closeSize - 2)
-                        .accessibilityHidden(true)
-                }
-            }
-            Button(action: action) {
-                HStack(spacing: 3) {
-                    Text(button)
-                    Image(systemName: opensWeb ? "arrow.up.right" : "chevron.right").font(Metrics.arrow)
-                }
-                .frame(minHeight: Metrics.buttonHeight)
-                .contentShape(.rect)
-            }
-            .buttonStyle(.hoverLink)
-            .font(Metrics.button)
-            .foregroundStyle(Color.amberInk)
-            .accessibilityHint(opensWeb ? "Opens pintonotes.com in your browser" : "")
-            .accessibilityIdentifier("\(id).open")
+        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        Button(action: action) {
+            content
+                .padding(.leading, Metrics.padding)
+                .padding(.top, Metrics.padding)
+                .padding(.bottom, Metrics.padding - 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.fill.quaternary, in: shape)
+                .hoverOverlay(shape, Color.primary.opacity(0.05))
+                .contentShape(shape)
         }
-        .padding(.leading, Metrics.padding)
-        .padding(.top, Metrics.padding)
-        .padding(.bottom, Metrics.padding - 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(SidebarCardPress())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .background(.fill.quaternary, in: .rect(cornerRadius: Metrics.radius, style: .continuous))
-        .clipShape(.rect(cornerRadius: Metrics.radius, style: .continuous))
+        .clipShape(shape)
+        // One button for VoiceOver: the words, then what it does.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title). \(line)")
+        .accessibilityHint(opensWeb ? "\(button). Opens pintonotes.com in your browser" : button)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("\(id).open")
         .overlay(alignment: .topTrailing) {
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -196,6 +182,44 @@ struct SidebarCardShell<Art: View>: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(id)
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: Metrics.gap) {
+            if stacked {
+                // The pictures in a row on top, small, out of the close button's way.
+                ZStack { art(Metrics.stackedThumb) }
+                    .frame(width: Metrics.stackedThumb * 2.1, height: Metrics.stackedThumb * 1.15)
+                    .padding(.bottom, 2)
+                words.padding(.trailing, Metrics.padding)
+            } else {
+                HStack(alignment: .center, spacing: 8) {
+                    words
+                    Spacer(minLength: 0)
+                    ZStack { art(Metrics.thumb) }
+                        .frame(width: Metrics.thumb * 2.1, height: Metrics.thumb * 1.2)
+                        .padding(.trailing, Metrics.closeSize - 2)
+                }
+            }
+            // What a click on the card does, said as a link line; the card is the button.
+            HStack(spacing: 3) {
+                Text(button)
+                Image(systemName: opensWeb ? "arrow.up.right" : "chevron.right").font(Metrics.arrow)
+            }
+            .font(Metrics.button)
+            .foregroundStyle(Color.amberInk)
+            .frame(minHeight: Metrics.buttonHeight)
+        }
+    }
+}
+
+/// A card pressed: it dims a little and settles a touch smaller, the way the app's large choices do.
+struct SidebarCardPress: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 
