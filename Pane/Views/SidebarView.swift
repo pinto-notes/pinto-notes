@@ -354,7 +354,7 @@ struct SidebarView: View {
             }
             ToolbarSpacer(.flexible, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
-                Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
             }
             if let backend, backend.client != nil {
                 ToolbarItem(placement: .primaryAction) {

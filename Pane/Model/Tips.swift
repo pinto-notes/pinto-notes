@@ -45,6 +45,8 @@ enum PaneTips {
     @Parameter static var menuBarShown: Bool = true
     /// "Enjoying Amber Notes?" is on screen (`ShareAskStore`): no tip beside it.
     @Parameter static var shareAskVisible: Bool = false
+    /// Notes that are apps are on (NoteApps.enabled): New App's tip shows only then.
+    @Parameter static var appsOn: Bool = false
 
     /// Once per calendar day the app is used.
     static let activeDay = Tips.Event(id: "activeDay")
@@ -71,7 +73,7 @@ enum PaneTips {
     static let minimumDays = 3
     static let menuBarDays = 5
 
-    static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip()]
+    static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip(), NewAppTip()]
 
     // MARK: Setup
 
@@ -90,6 +92,7 @@ enum PaneTips {
             FeatureUse.applyLocal()
             await appOpened()
         }
+        appsOn = NoteApps.enabled
     }
 
     /// Daily, with `TipSpacing` making it every 3 days; captures show them at once.
@@ -251,6 +254,11 @@ private var commonRules: [Tips.Rule] {
         #Rule(PaneTips.$calm) { $0 == true },
         #Rule(PaneTips.$featureUseKnown) { $0 == true },
     ]
+}
+
+/// New App's tip (ComposeButton.swift): the common rules and its turn; only while apps are on.
+func tipRules(_ feature: Feature) -> [Tips.Rule] {
+    commonRules + [#Rule(PaneTips.$appsOn) { $0 == true }, #Rule(PaneTips.$turn) { $0 == "" || $0 == "newApp" }]
 }
 
 /// 1. After an AI edit lands on the open note, or a big deletion. Opens Show Version History.
@@ -424,10 +432,11 @@ struct CompactTip<T: Tip>: View {
 
 /// The features the tips are about. The raw value is the tip's id.
 enum Feature: String, CaseIterable, Sendable {
-    case versionHistory, shareLink, menuBar, shareExtension
+    case versionHistory, shareLink, menuBar, shareExtension, newApp
 
     var tip: any Tip {
         switch self {
+        case .newApp: NewAppTip()
         case .versionHistory: VersionHistoryTip()
         case .shareLink: ShareLinkTip()
         case .menuBar: MenuBarTip()
@@ -451,6 +460,15 @@ enum FeatureUse {
 
     static var local: Set<Feature> {
         Set((defaults.stringArray(forKey: key) ?? []).compactMap(Feature.init)).union(deviceEvidence())
+    }
+
+    /// Its tip has been shown here: it is not shown on your other devices either. (Unlike `mark`,
+    /// the tip on screen now stays until it is dismissed.)
+    static func remember(_ feature: Feature) {
+        let before = defaults.stringArray(forKey: key) ?? []
+        if !before.contains(feature.rawValue) { defaults.set(before + [feature.rawValue], forKey: key) }
+        guard let client else { return }
+        Task { _ = try? await client.rpc("pane_feature_used", params: ["feature": feature.rawValue]).execute() }
     }
 
     /// You used `feature`: its tip goes for good, here and on your other devices.

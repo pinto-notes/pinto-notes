@@ -29,7 +29,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -57,7 +57,7 @@ export const SHOTS = {
   welcome: { src: "/blog/amber-notes-markdown-welcome-note.webp", alt: "The Welcome to Pinto Notes note on a Mac: markdown that styles itself as you type, a checklist, bullets, inline code and a table.", width: 1250, height: 950, window: false, title: "Welcome to Pinto Notes" },
   historyBurst: { src: "/blog/amber-notes-version-history-restore.webp", alt: "Version history for a Groceries note on a Mac: versions by you on iPhone and Mac, ChatGPT and Claude Code, with the lines that differ tinted and a Restore This Version button.", width: 1800, height: 1200, window: false, title: "Groceries" },
   iphoneList: { src: "/blog/amber-notes-iphone-notes-edited-by-ai.webp", alt: "Pinto Notes on iPhone: the note list, with Groceries marked Edited by ChatGPT, Standup notes Edited by Claude Code and Lisbon Edited by Claude.", width: 1206, height: 2622, window: false, phone: true },
-  tracker: { src: "/blog/amber-notes-evening-tracker-table.webp", alt: "An Evening tracker note in Pinto Notes on a Mac: a table with a row per day and typed columns for work hours, energy, mood and yes-or-no habits.", width: 1250, height: 900, window: false, title: "Evening tracker" },
+  tracker: { src: "/blog/amber-notes-evening-tracker-table.webp", alt: "An Evening tracker note in Pinto Notes on a Mac: a table with a row per day and columns for work hours, energy, mood and yes-or-no habits.", width: 1250, height: 900, window: false, title: "Evening tracker" },
   lisbon: { src: "/blog/amber-notes-lisbon-trip-note.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac: a plan checklist, a list of places, a linked Hotel booking sub-note, and a table of where to eat.", width: 1250, height: 1420, window: false, title: "Lisbon" },
   iphoneFiles: { src: "/blog/amber-notes-iphone-files-in-a-note.webp", alt: "Pinto Notes on iPhone in dark mode: a Trip documents note holding a PDF, a CSV file, a photo and a link.", width: 1206, height: 2622, window: false, phone: true },
   iphoneGroceries: { src: "/blog/amber-notes-iphone-chatgpt-edited-checklist.webp", alt: "A Groceries checklist in Pinto Notes on iPhone. The five items ChatGPT just added are tinted, and a bar says ChatGPT changed 5 lines, with Undo.", width: 1206, height: 2622, window: false, phone: true },
@@ -65,6 +65,18 @@ export const SHOTS = {
 } satisfies Record<string, Shot>;
 
 export const posts: Post[] = [
+  {
+    slug: "journal-with-chatgpt-or-claude",
+    title: "A daily journal with ChatGPT or Claude: prompts to copy",
+    description: "A prompt that makes ChatGPT or Claude ask four journal questions and write the entry in your words, four more for other days, and where to keep them.",
+    excerpt: "The AI asks four short questions and writes down what you say. One prompt for any AI, four more for the days it doesn't fit, and a way to keep every day in one note.",
+    category: "Guides",
+    date: "2026-10-11",
+    updated: "2026-10-11",
+    image: SHOTS.tracker,
+    thumb: thumb("berry", "thumb-tracker-evening", 827, 546, "An Evening tracker note in Pinto Notes: one row a day, with work hours, energy and mood"),
+    draft: false,
+  },
   {
     slug: "weekly-review-with-chatgpt-or-claude",
     title: "A weekly review with ChatGPT or Claude: the prompt and five questions",
@@ -144,7 +156,7 @@ export const posts: Post[] = [
     excerpt: "Apple Notes tables are simple on purpose: no column widths, no sums, no formulas. What they do, what they don't, and the workarounds that hold up.",
     category: "Apple Notes",
     date: "2026-10-04",
-    updated: "2026-10-04",
+    updated: "2026-10-12",
     image: SHOTS.notesTableMenu,
     thumb: thumb("lemon", "thumb-notes-format-table-menu", 800, 528, "The Apple Notes Format menu on a Mac, open at Table"),
     draft: false,
@@ -288,7 +300,7 @@ export const posts: Post[] = [
     excerpt: "Ask ChatGPT to add to a list or tidy a note, and the change lands in your notes. The steps for ChatGPT and Claude, and how you stay in control.",
     category: "Guides",
     date: "2026-09-30",
-    updated: "2026-10-02",
+    updated: "2026-10-12",
     image: SHOTS.connectChatGPT,
     thumb: thumb("paper", "thumb-connect-chatgpt", 704, 572, "The steps to connect ChatGPT in Pinto Notes"),
     draft: false,
@@ -348,7 +360,7 @@ export const posts: Post[] = [
     excerpt: "Bring every note over in one go on your Mac, folders and pins included. Nothing in Apple Notes changes, so you can take your time.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-09-30",
+    updated: "2026-10-12",
     image: SHOTS.importSheet,
     thumb: thumb("soft", "thumb-import", 750, 523, "Notes picked for import from Apple Notes into Pinto Notes"),
     draft: false,

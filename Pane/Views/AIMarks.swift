@@ -143,8 +143,10 @@ enum NoteAppMark {
     static let style: Style = .soft
     #endif
 
-    /// The symbol where a symbol is needed (Show App, menus): the capsule's needs one too.
-    static var symbol: String { style == .sparkles ? "sparkles" : "app.fill" }
+    /// The symbol where a symbol is needed (Make It an App in More, the chip). It was "app.fill",
+    /// which is a plain filled square: in a menu it read as a missing icon. A grid of four is the
+    /// sign for apps people know, and is drawn in outline like the menu's other symbols.
+    static var symbol: String { style == .sparkles ? "sparkles" : "square.grid.2x2" }
 
     @MainActor static func has(_ note: Note, in store: NotePageStore = .shared, enabled: Bool = NoteApps.enabled) -> Bool {
         enabled && !note.isLocked && store[note.id] != nil

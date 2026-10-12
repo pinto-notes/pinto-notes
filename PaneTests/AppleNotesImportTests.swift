@@ -2,6 +2,7 @@
 import Foundation
 import SQLite3
 import SwiftData
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -541,6 +542,56 @@ import Testing
         #expect(AppleNotesImportView.count(35, of: 35, locale: en) == "35 of 35 notes selected")
         #expect(AppleNotesImportView.count(0, of: 1_284, locale: en) == "1,284 notes, none selected")
         #expect(AppleNotesImportView.count(1, of: 1, locale: en) == "1 of 1 note selected")
+    }
+
+    @Test func everySourceIsListedByNameWithObsidianAndBearAsMarkdown() {
+        #expect(ImportOrigin.all.map(\.name) == ["Apple Notes", "Obsidian", "Bear", "Evernote", "Google Keep", "Markdown or text files"])
+        #expect(ImportKind.obsidian.isMarkdown && ImportKind.bear.isMarkdown && ImportKind.markdown.isMarkdown)
+        #expect(!ImportKind.evernote.isMarkdown && !ImportKind.keep.isMarkdown)
+        #expect(ImportKind.obsidian.contentTypes == ImportKind.markdown.contentTypes)
+        // An icon comes from the app on this Mac or not at all: nothing of another app's ships here.
+        #expect(ImportOrigin.appleNotes.bundleIdentifier == "com.apple.Notes")
+        #expect(ImportOrigin.files(.keep).bundleIdentifier == nil && ImportOrigin.files(.markdown).bundleIdentifier == nil)
+    }
+
+    // MARK: Asking Apple Notes only after a press that names it (2026-10-12)
+
+    /// Draws a view in an offscreen window and lets its tasks run.
+    static func draw(_ view: some View) async {
+        let host = NSHostingView(rootView: view)
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 560, height: 640), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .seconds(0.8))
+        window.close()
+    }
+
+    @Test func nothingAsksAppleNotesBeforeAPressThatNamesIt() async throws {
+        let c = try Self.container()
+        AppleNotesBridge.calls = 0
+        // Made here: the stand-in answers on the bridge's own thread.
+        nonisolated(unsafe) let library = Self.library()
+        AppleNotesBridge.standIn = { _ in library }
+        defer { AppleNotesBridge.standIn = nil }
+        // Every place that offers the import, drawn as it is before anything is pressed.
+        await Self.draw(ImportSourceList { _ in })
+        await Self.draw(ImportChoiceSheet { _ in }.modelContainer(c))
+        await Self.draw(SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onSkip: {}, onConnect: {}, onHide: {}))
+        #expect(AppleNotesBridge.calls == 0, "Apple Notes is only asked once its sheet is open")
+        // The press on Apple Notes opens its sheet, and that is where Notes is asked: once.
+        await Self.draw(AppleNotesImportView().modelContainer(c))
+        #expect(AppleNotesBridge.calls == 1)
+    }
+
+    @Test func theOneButtonSaysWhatItWillDo() {
+        let en = Locale(identifier: "en_US")
+        #expect(AppleNotesImportView.importTitle(picked: 35, new: 35, all: 35, locale: en) == "Import All 35 Notes")
+        #expect(AppleNotesImportView.importTitle(picked: 17, new: 17, all: 35, locale: en) == "Import 17 New Notes", "a second run brings only what is missing")
+        #expect(AppleNotesImportView.importTitle(picked: 3, new: 17, all: 35, locale: en) == "Import 3 Notes")
+        #expect(AppleNotesImportView.importTitle(picked: 0, new: 0, all: 35, locale: en) == "Import")
+        #expect(AppleNotesImportView.folderLine(coming: 18, of: 18, locale: en) == "18 notes")
+        #expect(AppleNotesImportView.folderLine(coming: 8, of: 9, locale: en) == "8 of 9 notes")
     }
 
     @Test func picturesAreCutOutBeforeTheTextIsRead() {

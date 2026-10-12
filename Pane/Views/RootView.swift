@@ -52,7 +52,7 @@ struct RootView: View {
         #if DEBUG
         RenderProbe.count("RootView")
         #endif
-        return imports(lifecycle(split))
+        return imports(lifecycle(split)).newAppSheet()
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNote)
@@ -287,11 +287,21 @@ struct RootView: View {
     @ViewBuilder
     private var detail: some View {
             if let id = selectedNote, let note = context.note(id), note.deletedAt == nil {
+                #if os(macOS)
+                NoteToolbarStage {
+                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+                        if edit { justCreated = target }
+                        selectedNote = target
+                    }
+                        .id(id)
+                }
+                #else
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
                     if edit { justCreated = target }
                     selectedNote = target
                 }
                     .id(id)
+                #endif
             } else if let id = selectedNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
                 // A file kept in the folder: its preview.
                 FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
@@ -308,7 +318,7 @@ struct RootView: View {
                 #if os(macOS)
                 .toolbar {
                     ToolbarItem {
-                        Button(action: newNote) {
+                        ComposeButton(newNote: newNote) {
                             Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
                         }
                             .accessibilityIdentifier("list.newNote")
@@ -516,6 +526,8 @@ struct PaneCommands: Commands {
             Button("New Folder") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(newNote == nil)
+            Button("New App…") { NewApp.shared.open() }
+                .disabled(newNote == nil || !NoteApps.enabled)
         }
         // Where Pages keeps Browse All Versions: File, after saving.
         CommandGroup(after: .saveItem) {
@@ -526,10 +538,10 @@ struct PaneCommands: Commands {
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
         }
         CommandGroup(replacing: .importExport) {
-            Button("Import from Apple Notes…") { importNotes?() }
+            Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                 .disabled(importNotes == nil)
             ForEach(ImportKind.allCases) { kind in
-                Button(kind.menuTitle) { importFrom?(kind) }
+                Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     .disabled(importFrom == nil)
             }
             Divider()

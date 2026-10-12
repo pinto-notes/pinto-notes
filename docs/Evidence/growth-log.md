@@ -5,6 +5,156 @@ assistants. Newest first. Research behind it: [seo-aeo-research-2026-09-30.md](s
 
 `docs/` had no README naming a folder for evidence, so this and the research live in `docs/Evidence/`.
 
+## 12 October 2026: Mac 1.2.6 day, "Connect ChatGPT to your notes" answer first, "Move Apple Notes to Obsidian, Notion or Google Keep", import facts brought up to 1.2.6
+
+### Measured
+
+- **PostHog (EU project 291184), page views and visitors per day, read at about 09:50 UTC.** 11 October, the whole
+  day: 42 views, 31 visitors (10 October: 138 and 71). 12 October so far: 13 views, 10 visitors. All on pintonotes.com.
+- **Who that was (since 11 October 08:45 UTC).** Direct visits only, apart from one Google landing on the home page
+  (Mac) and one Bing landing on /templates (Windows). Ten views by ten Linux visitors with no country, one page each,
+  including /humans.txt and made-up paths: a crawler, not counted.
+- **Clicks that matter:** `download_mac_clicked` 2, by one Mac visitor at 06:23 UTC on 12 October (home page, then
+  /download). The app project's `signed_up` fired at 06:37 UTC on version 1.2.5, 14 minutes later. The site is
+  cookieless, so the two can't be joined; it is the first time a download click and a new account sit this close.
+  One more `signed_up` on 11 October at 15:55 UTC, with no download click before it. `use_template_clicked`,
+  `blog_helper_used`, `blog_cta_clicked` and `blog_copy_clicked`: 0.
+- **Dead swipes on iPhone again:** two visitors on /download and one on /templates (three swipes within eight
+  seconds), plus the visitor in Turkey on /download. Four iPhone visitors in two days now, on the pages an iPhone
+  visitor can't act on yet.
+- **Per post:** [blog-roi.md](blog-roi.md). No post visit since yesterday's reading.
+- **Google Search Console, read in Chrome. Google's data now runs to 9 October, the first full day after the move.**
+  - ambernotes.app, last 7 days (3 to 9 October): 14 clicks, 1,640 impressions, 0.9% click rate, position 10, 166
+    queries. Per day: 3 October 1 and 140, 4 October 5 and 151, 5 October 2 and 204, 6 October 1 and 313, 7 October
+    2 and 338, 8 October 1 and 276, 9 October 2 and 217.
+  - Top pages, same 7 days: forgot-apple-notes-password 295 (1 click), apple-notes-not-syncing 261 (2),
+    apple-notes-tables 242 (0), move-apple-notes-to-icloud 174 (0), apple-notes-ios-27 91 (2),
+    recover-deleted-apple-notes 81 (0), apple-notes-api 75 (4), the home page 42 (2), best-notes-app-for-ai-agents
+    18 (2), templates/mood-energy-log 1 (1).
+  - Top queries: "apple notes api" 18 (1 click), "forgot notes password" 18 (1), "ambernotes" 10, "amber notes" 8
+    (1), "apple notes table sum" 8, "notes not syncing between iphone and mac" 7.
+- **Old host against new host.** pintonotes.com: 0 clicks and 6 impressions over 8 and 9 October (the one query Google
+  shows is "notes not syncing between iphone and mac"), position 5.7. ambernotes.app had 217 impressions on 9 October. So on the
+  first full day after the move Google still showed the old addresses almost everywhere.
+- **Indexed pages.** pintonotes.com: 9 indexed, 3 not (2 "Page with redirect", 1 "Crawled, currently not indexed").
+  ambernotes.app: 66 indexed, 27 not ("Excluded by noindex" 13, "Page with redirect" 4, "Alternate page with proper
+  canonical tag" 3, "Crawled, currently not indexed" 4, "Discovered, currently not indexed" 2, a 401 1).
+
+Reading: search held steady through the move (217 impressions on 9 October against a 7-day average of 234), all of
+it still on the old host. The new host has its first nine pages in the index. Site traffic is back to the level
+before the release.
+
+### Picked
+
+- **Upgrade: `/blog/connect-chatgpt-to-your-notes`.** Of the posts still without a short answer, it had the most
+  impressions (81 in the week to 8 October, no clicks). It's the post for people who already want this, and
+  it had no call to action.
+- **New: `/blog/move-apple-notes-to-obsidian-notion-keep`,** a helpful Apple Notes how-to that covers keyword map
+  rows 3, 15 and 16 ("apple notes export to obsidian", "apple notes to notion", "apple notes to google keep").
+- **Fix: the import facts after Mac 1.2.6,** and the removed spreadsheet import on the tables post.
+
+### Changed
+
+- **`/blog/connect-chatgpt-to-your-notes`** (PR 527): short answer first; a table of which assistant connects where
+  and on which plan; the ChatGPT steps as numbered steps with menu paths; five first things to ask as a block to copy;
+  the call to action at the end. Same facts, and the same address, title and description.
+- **New post `/blog/move-apple-notes-to-obsidian-notion-keep`** (PR 526): Obsidian's Importer plugin, Notion through
+  the Markdown export and a ZIP, and Google Keep, which can't import, so copy and paste. Also a checklist for before
+  you start and a table of what comes across. It reuses the macOS 27 File, Export To capture.
+- **Import facts for 1.2.6** (this PR): move-from-apple-notes now says every note of every folder is picked,
+  folders are always kept, pictures come along, checklists and pins need Full Disk Access, and locked notes are
+  listed. Matching lines changed in export-apple-notes-to-markdown, claude-cowork-apple-notes, apple-notes-mcp,
+  /help and /open/import. apple-notes-tables no longer offers File, Import Spreadsheet as Table, which 1.2.6
+  removed. PR 524 made the same fix against dev's older copy of the page; it can be closed.
+- **Still stale:** the Import from Apple Notes capture (`amber-notes-import-from-apple-notes.webp`, the share image of
+  move-from-apple-notes) shows the Keep Apple Notes folders and Also bring over pinned notes boxes, which are gone.
+  A new capture of the 1.2.6 sheet should replace it.
+
+### To measure next
+
+- Search Console: 10 October and later on both hosts, and whether pintonotes.com's indexed count passes 9.
+- PostHog: whether another download click is followed by a sign-up within the hour, and the dead swipes on /download
+  and /templates on iPhone.
+
+## 11 October 2026: a quiet day after the release, "Tables in Apple Notes" answer first with macOS 27 captures, "A daily journal with ChatGPT or Claude"
+
+### Measured
+
+- **PostHog (EU project 291184), page views and visitors per day, read at about 08:45 UTC.** 10 October, the whole
+  day: 138 views, 71 visitors (9 October: 114 and 61). 11 October so far: 16 views, 11 visitors. All on
+  pintonotes.com.
+- **Who that was (since 10 October 09:00 UTC, 84 views).** The home page had 45 views and /download 16. 28 views by
+  20 visitors were opened directly from Windows with no country, one page each: the link-scanner pattern again,
+  not counted as demand. No landing from github.com, claude.ai or google.com in the period (the day before:
+  14, 5 and 2 visitors). The release-day visitors did not come back on day two.
+- **Clicks that matter, since yesterday's reading:** `download_mac_clicked` 0, `use_template_clicked` 0,
+  `blog_helper_used` 0. `outbound_github_clicked` 3, by two visitors, one of them on a Mac in Malmö and most
+  likely ours. Three visitors accepted cookies, one rejected. `blog_cta_clicked` and `blog_copy_clicked` still
+  haven't fired.
+- **One thing to look at:** an iPhone visitor in Turkey logged one dead swipe on the home page and three on
+  /templates within 25 seconds, then left.
+- **Per post:** [blog-roi.md](blog-roi.md). Five post visits since yesterday's reading, none from search.
+- **Google Search Console, read in Chrome. Google's data now runs to 8 October, the day of the move.**
+  - ambernotes.app, last 7 days (2 to 8 October): 14 clicks, 1,520 impressions, 0.9% click rate, position 10,
+    158 queries (112 a day earlier). New days: 7 October 2 clicks and 338 impressions, 8 October 1 click and
+    276 impressions. The site moved at 15:54 UTC on 8 October, so that day is part old host, part redirect.
+  - Top pages by impressions, same 7 days: forgot-apple-notes-password 301 (2 clicks), apple-notes-not-syncing
+    215 (1), move-apple-notes-to-icloud 168 (0), apple-notes-tables 163 (0), apple-notes-ios-27 100 (2),
+    connect-chatgpt-to-your-notes 81 (0), recover-deleted-apple-notes 76 (0), apple-notes-api 73 (4),
+    obsidian-mcp 60 (0), export-apple-notes-to-markdown 53 (0), the home page 42 (2).
+  - Top queries: "forgot notes password" 23 (1 click), "apple notes api" 16 (1), "ambernotes" 9, "amber notes"
+    8 (1), "i forgot my notes password" 8, "apple notes table sum" 7, "notion vs apple notes" 6.
+  - A template page got its first click from search: /templates/mood-energy-log, 1 click from 1 impression.
+- **Old host against new host.** pintonotes.com's Performance report has left "Processing data" and shows one
+  day, 8 October: 0 clicks, 0 impressions. ambernotes.app had 276 impressions that day. Neither property has
+  9 October or later yet, so the first day that can show the hand-over is still to come.
+- **Indexed pages.** ambernotes.app: 62 indexed, 22 not, "Page with redirect" still 3. pintonotes.com: Page
+  indexing still says "Processing data, please check again in a day or so", so no count.
+
+Reading: search demand kept growing up to the move (338 impressions on 7 October is the best day so far),
+and Google has not yet published a day after it. Site traffic on day two of Mac 1.2 is back to direct visits and
+scanners.
+
+### Picked
+
+- **Upgrade: `/blog/apple-notes-tables`.** 163 impressions and no clicks in Google's last full week, the most of
+  any post that was still a wall of text, and "apple notes table sum" is a query of its own.
+- **New: `/blog/journal-with-chatgpt-or-claude`,** for people who already want this ("chatgpt daily journal
+  prompts" is query 48 in the plan). The Mood and energy log template got the first search click of any
+  template this week, and this post is the way in to it and to the Daily journal template.
+
+### Changed
+
+- **`/blog/apple-notes-tables`** (branch `site/tables-answer-first`): the short answer first; a table of what
+  tables can and can't do, with what to do instead; adding a table and working with rows and columns as a menu
+  path and numbered steps; a total to copy and keep under a table; the call to action at the end. The address,
+  title and description are unchanged, as the move plan asks.
+- **Tested in Notes on macOS 27.0, in a throwaway VM on the fleet Air** (cirruslabs' vanilla golden-gate image,
+  no Apple Account, On My Mac, one demo note; VM and image deleted afterwards). Format, Table
+  (Option-Command-T), Convert to Text and Format, Math Results with Insert Results, Suggest Results and Off are
+  all in the menu. The column handle's menu has Add Column Before, Add Column After and Delete Column, and
+  nothing for width. A sum typed in a table cell gets no result; the same sum with names, under the table, gets
+  one. The post now says the last two as tested, and has two captures from that VM (the column menu, and the
+  cell sum next to the working total).
+- **New post `/blog/journal-with-chatgpt-or-claude`** (branch `site/journal-with-ai`), in Guides: one prompt
+  that works in any AI (four questions one at a time, then four short lines in your own words), what an entry
+  looks like, four more prompts for other days, a plain section on privacy, a table of where the journal can
+  live, and how the Daily journal template keeps every day in one note. Checked on main: `append_to_note` with
+  `under_heading` and `at_start`, `read_note`, `read_table`, `log_table_row`, that a locked note's body is
+  never returned, the "changed N lines, Undo" bar and version history. New berry ground.
+- **No new capture of Pinto Notes.** The Air has no Xcode, and this Mac is not used for app windows. The new
+  post's cover and figure are the Evening tracker capture, captioned as that. A real capture of a Daily
+  journal note should replace both.
+- **Open site PRs:** none. The one open PR that touches `web/` is 194, a draft prototype for an unreleased
+  feature, and it was left alone.
+
+### To measure next
+
+- Search Console: 9 October on both hosts, the first full day after the move, and the pintonotes.com indexed
+  count.
+- PostHog: `blog_copy_clicked` on the journal prompts and on the table total, and whether the dead swipes on
+  /templates repeat on other iPhones.
+
 ## 10 October 2026: Mac 1.2 day, "Move Apple Notes to iCloud" answer first, "A weekly review with ChatGPT or Claude"
 
 ### Measured

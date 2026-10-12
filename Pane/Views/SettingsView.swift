@@ -164,8 +164,9 @@ struct SettingsView: View {
             }
             Section {
                 ForEach(tabs.filter { $0 == .ai || $0 == .security }) { row($0) }
-                if tabs.contains(.security), isSignedIn, crypto.isReady {
+                if tabs.contains(.security), isSignedIn, crypto.isReady, !crypto.serverCopy {
                     // A new device's screen says Settings › Security › Add a device; here it's one tap.
+                    // With a copy of the key kept by Pinto Notes there's nothing to add: a new device signs in.
                     Button { addingDevice = true } label: {
                         Label(AddDeviceCopy.sheetTitle, systemImage: "plus.circle")
                     }

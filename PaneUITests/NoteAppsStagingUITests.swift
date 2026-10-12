@@ -381,4 +381,53 @@ final class NoteAppsStagingUITests: XCTestCase {
         ask.buttons["Open"].tap()
         XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.mobilesafari").wait(for: .runningForeground, timeout: 15), "agreed to, the link opens in the browser")
     }
+
+    /// New App against the real server: hold compose, New App, an example, hand it over (this
+    /// account's AI is the access token from step A, so it is the words to copy). Then, acting as
+    /// that AI, make a new note and give it an app over MCP: the sheet closes itself and the new
+    /// note opens as its app. Closing New App first leaves no note behind.
+    func testH_NewAppMadeByTheAIOpensItself() throws {
+        _ = try connection()
+        launch()
+        let all = app.staticTexts["All Notes"].firstMatch
+        if all.waitForExistence(timeout: 10) { all.tap() }
+        dismissHeardFrom()
+        let compose = app.buttons["list.newNote"].firstMatch
+        XCTAssertTrue(compose.waitForExistence(timeout: 15))
+        let before = (try mcp("list_notes", [:])["notes"] as? [Any])?.count ?? -1
+        compose.press(forDuration: 1.0)
+        XCTAssertTrue(app.buttons["compose.newApp"].firstMatch.waitForExistence(timeout: 5), "holding compose offers New App")
+        shot("14-new-app-menu")
+        app.buttons["compose.newApp"].firstMatch.tap()
+        let heading = app.staticTexts["New App"].firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        // Closed without handing anything over: no note on the server either.
+        app.buttons["makeApp.close"].firstMatch.tap()
+        XCTAssertTrue(heading.waitForNonExistence(timeout: 4))
+        pause(3)
+        XCTAssertEqual((try mcp("list_notes", [:])["notes"] as? [Any])?.count ?? -2, before, "closing New App made no note")
+        compose.press(forDuration: 1.0)
+        app.buttons["compose.newApp"].firstMatch.tap()
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        app.buttons["newApp.example.Habit tracker"].firstMatch.tap()
+        shot("15-new-app-question")
+        let copy = app.buttons["makeApp.copy"].firstMatch
+        XCTAssertTrue(copy.waitForExistence(timeout: 8), "the token's AI gets the words to copy")
+        copy.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["makeApp.waiting"].firstMatch.waitForExistence(timeout: 4))
+        shot("16-new-app-waiting")
+        // The AI, as the words ask: a new note, then its app.
+        let made = try mcp("create_note", ["body": "Habits by AI\n\nMade from New App."])
+        let id = try XCTUnwrap((made["created"] as? [String: Any])?["id"] as? String)
+        try mcp("set_note_page", ["id": id, "html": Self.v1.replacingOccurrences(of: "Water tracker", with: "Habits by AI")])
+        XCTAssertTrue(heading.waitForNonExistence(timeout: 45), "the sheet closes itself when the new app arrives")
+        XCTAssertTrue(web("Add a glass").waitForExistence(timeout: 20), "and the new note opens as its app")
+        pause(1)
+        shot("17-new-app-opened")
+    }
+
+    func dismissHeardFrom() {
+        pause(1.5)
+        if app.buttons["heardFrom.skip"].firstMatch.exists { app.buttons["heardFrom.skip"].firstMatch.tap(); pause(1) }
+    }
 }

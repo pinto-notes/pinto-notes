@@ -365,7 +365,7 @@ struct FileDetailView: View {
         #if os(macOS)
         // Where a note's toolbar has it: compose first.
         ToolbarItem {
-            Button(action: onNewNote) {
+            ComposeButton(newNote: onNewNote) {
                 Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
             }
         }
