@@ -4,9 +4,11 @@ import Supabase
 
 /// "How did you hear about Pinto Notes?": one optional question, once per new account
 /// (20261007152000_heard_from.sql). One tap answers, one tap skips, and either way it's never
-/// asked again on any device. It never stands between a new person and their notes: it waits
-/// for the third launch on this device and a note of their own, and stays away on a launch
-/// that has shown an account notice (`HeardFromStore.refresh`).
+/// asked again on any device. It never stands between a new person and their notes: it waits for
+/// a second day of use (notes opened on 2 different days) and a note of their own, never comes
+/// on the first launch after an update, and stays away on a launch with any other prompt
+/// (`HeardFromStore.refresh`). Until 2026-10-12 it waited for the third launch instead, and an
+/// update is a launch: a new account was asked right after an update or two.
 enum HeardFrom {
     enum Source: String, CaseIterable, Sendable {
         case google
@@ -79,15 +81,20 @@ final class HeardFromStore {
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored let forced: Bool
-    /// This launch has been counted for the account attached now.
-    @ObservationIgnored private var counted: UUID?
+    /// This run is the first after the app was updated on this device.
+    @ObservationIgnored let updatedThisLaunch: Bool
 
-    /// The question waits for this launch of the app on this device (signing up is the first).
-    static let firstLaunch = 3
+    /// Different days with notes opened before it may ask.
+    static let daysOfUse = 2
+    static let versionKey = "heardFrom.appVersion"
 
-    init(defaults: UserDefaults = .standard, arguments: [String] = ProcessInfo.processInfo.arguments) {
+    init(defaults: UserDefaults = .standard, arguments: [String] = ProcessInfo.processInfo.arguments,
+         version: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") {
         self.defaults = defaults
         forced = arguments.contains("-forceHeardFrom")
+        let before = defaults.string(forKey: Self.versionKey)
+        updatedThisLaunch = before != nil && before != version
+        defaults.set(version, forKey: Self.versionKey)
     }
 
     /// An answer given on this device: kept until the server has it, so an answer given offline
@@ -98,21 +105,13 @@ final class HeardFromStore {
         self.account = account
         self.service = service
         if service == nil { visible = forced && visible }
-        // One launch per run of the app, however often the session is set up again.
-        if let account, service != nil, counted != account {
-            counted = account
-            defaults.set(launches + 1, forKey: launchesKey)
-        }
     }
 
-    private var launchesKey: String { "heardFrom.launches.\(account?.uuidString.lowercased() ?? "device")" }
-    /// How many runs of the app this account has had on this device, this one included.
-    var launches: Int { defaults.integer(forKey: launchesKey) }
-
     /// Sends an answer this device couldn't send yet, then asks the server whether to ask.
-    /// The question itself waits: not before the third launch, not before the person has a
-    /// note, and not on a launch that has shown an account notice.
-    func refresh(hasNote: Bool, noticeThisLaunch: Bool) async {
+    /// The question itself waits: for notes opened on 2 different days (`daysOfUse`, the
+    /// account's), for a note of their own, never on the first launch after an update, and
+    /// never on a launch with another prompt (`otherPrompt`).
+    func refresh(daysOfUse: Int, hasNote: Bool, otherPrompt: Bool) async {
         guard let service, !forced else { return }
         if let saved = defaults.dictionary(forKey: answerKey) as? [String: String] {
             guard saved["sent"] == nil, let source = saved["source"].flatMap(HeardFrom.Source.init(rawValue:)) else { return }
@@ -121,7 +120,7 @@ final class HeardFromStore {
             }
             return
         }
-        guard launches >= Self.firstLaunch, hasNote, !noticeThisLaunch else { return }
+        guard daysOfUse >= Self.daysOfUse, hasNote, !otherPrompt, !updatedThisLaunch else { return }
         if (try? await service.shouldAsk()) == true, !visible {
             chosen = nil
             visible = true

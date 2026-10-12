@@ -587,7 +587,10 @@ import Testing
 
     @Test func theOneButtonSaysWhatItWillDo() {
         let en = Locale(identifier: "en_US")
-        #expect(AppleNotesImportView.importTitle(picked: 35, new: 35, all: 35, locale: en) == "Import All 35 Notes")
+        #expect(AppleNotesImportView.importTitle(picked: 35, new: 35, all: 35, locale: en) == "Import 35 Notes")
+        #expect(AppleNotesImportView.subtitle(notes: 35, folders: 5, locale: en) == "35 notes in 5 folders. Apple Notes stays as it is.")
+        #expect(AppleNotesImportView.subtitle(notes: 1, folders: 1, locale: en) == "1 note. Apple Notes stays as it is.")
+        #expect(AppleNotesImportView.subtitle(notes: nil, folders: 0, locale: en) == "Apple Notes stays as it is.", "before the notes are read")
         #expect(AppleNotesImportView.importTitle(picked: 17, new: 17, all: 35, locale: en) == "Import 17 New Notes", "a second run brings only what is missing")
         #expect(AppleNotesImportView.importTitle(picked: 3, new: 17, all: 35, locale: en) == "Import 3 Notes")
         #expect(AppleNotesImportView.importTitle(picked: 0, new: 0, all: 35, locale: en) == "Import")

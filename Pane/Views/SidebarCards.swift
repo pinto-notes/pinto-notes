@@ -46,14 +46,14 @@ enum SidebarCard: Equatable {
 
 enum ConnectCardWords {
     static let title = "Connect your AI"
-    static let line = "ChatGPT, Claude and others can read and write your notes when you ask."
+    static let line = "So your AI can use your notes."
     static let button = "Connect an AI"
     static let marks = ["ChatGPT", "Claude", "Another AI"]
 }
 
 enum TemplatesPromo {
     static let title = "Templates"
-    static let line = "Trackers, plans and lists your AI can keep"
+    static let line = "Lists and trackers for your AI"
     static let button = "Browse templates"
 
     /// The website's templates, tagged so the site can count visits from here.
@@ -124,18 +124,37 @@ struct SidebarCardShell<Art: View>: View {
 
     typealias Metrics = SidebarCardMetrics
 
+    /// The card's width: below `Metrics.sideBySide` the pictures go above the words, so a narrow
+    /// sidebar (the Mac's default, about as wide as Notes' own) never squeezes the words into a
+    /// tall column.
+    @State private var width: CGFloat = 0
+    private var stacked: Bool { width < Metrics.sideBySide }
+
+    private var words: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.85)
+            Text(line).font(Metrics.line).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
-            HStack(alignment: .center, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(Metrics.title).foregroundStyle(Color.ink)
-                    Text(line).font(Metrics.line).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-                ZStack { art(Metrics.thumb) }
-                    .frame(width: Metrics.thumb * 2.1, height: Metrics.thumb * 1.2)
-                    .padding(.trailing, Metrics.closeSize - 2)
+            if stacked {
+                // The pictures in a row on top, small, out of the close button's way.
+                ZStack { art(Metrics.stackedThumb) }
+                    .frame(width: Metrics.stackedThumb * 2.1, height: Metrics.stackedThumb * 1.15)
+                    .padding(.bottom, 2)
                     .accessibilityHidden(true)
+                words.padding(.trailing, Metrics.padding)
+            } else {
+                HStack(alignment: .center, spacing: 8) {
+                    words
+                    Spacer(minLength: 0)
+                    ZStack { art(Metrics.thumb) }
+                        .frame(width: Metrics.thumb * 2.1, height: Metrics.thumb * 1.2)
+                        .padding(.trailing, Metrics.closeSize - 2)
+                        .accessibilityHidden(true)
+                }
             }
             Button(action: action) {
                 HStack(spacing: 3) {
@@ -155,6 +174,7 @@ struct SidebarCardShell<Art: View>: View {
         .padding(.top, Metrics.padding)
         .padding(.bottom, Metrics.padding - 4)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .background(.fill.quaternary, in: .rect(cornerRadius: Metrics.radius, style: .continuous))
         .clipShape(.rect(cornerRadius: Metrics.radius, style: .continuous))
         .overlay(alignment: .topTrailing) {
@@ -193,6 +213,9 @@ enum SidebarCardMetrics {
     static let closeGlyph: CGFloat = 8
     static let closeInset: CGFloat = 4
     static let thumb: CGFloat = 36
+    static let stackedThumb: CGFloat = 28
+    /// Wide enough for the pictures beside the words.
+    static let sideBySide: CGFloat = 300
     #else
     static let title = Font.subheadline.weight(.semibold)
     static let line = Font.footnote
@@ -206,5 +229,7 @@ enum SidebarCardMetrics {
     static let closeGlyph: CGFloat = 11
     static let closeInset: CGFloat = 0
     static let thumb: CGFloat = 54
+    static let stackedThumb: CGFloat = 40
+    static let sideBySide: CGFloat = 320
     #endif
 }

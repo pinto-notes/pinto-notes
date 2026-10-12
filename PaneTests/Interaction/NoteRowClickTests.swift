@@ -34,7 +34,7 @@ import Testing
         w.displayIfNeeded()
         try? await Task.sleep(for: .seconds(1))
         let table = try #require(FileRowClickTests.table(in: w.contentView), "the List is a table")
-        func noteRows() -> [Int] { (0 ..< table.numberOfRows).filter { table.rect(ofRow: $0).height > 30 } }
+        func noteRows() -> [Int] { (0 ..< table.numberOfRows).filter { !table.isHeadingRow($0) } }
         try #require(noteRows().count == 6, "six note rows (rows: \(table.numberOfRows))")
 
         // As loaded: newest first, so row i is note i.

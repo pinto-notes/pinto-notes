@@ -119,12 +119,21 @@ struct NoteListView: View {
         DateBucket.sections(ordered: ListEntry.merged(notes: filtered, files: filteredFiles(from: scopedFiles), by: order), by: order).flatMap(\.1)
     }
 
-    /// "12 notes, 3 files", or just the notes when the folder has no files.
+    /// "12 notes, 3 files", or just the notes when the folder has no files. In Recently Deleted
+    /// the same line says how long things stay: "9 notes · Deleted after 30 days".
     private func countText(notes: Int, files: Int, capitalized: Bool) -> String {
+        Self.countText(notes: notes, files: files, capitalized: capitalized, trash: scope == .trash)
+    }
+
+    static func countText(notes: Int, files: Int, capitalized: Bool, trash: Bool) -> String {
         let n = notes == 1 ? "1 \(capitalized ? "Note" : "note")" : "\(notes) \(capitalized ? "Notes" : "notes")"
-        guard files > 0 else { return n }
-        let f = files == 1 ? "1 \(capitalized ? "File" : "file")" : "\(files) \(capitalized ? "Files" : "files")"
-        return notes == 0 ? f : n + ", " + f
+        var line = n
+        if files > 0 {
+            let f = files == 1 ? "1 \(capitalized ? "File" : "file")" : "\(files) \(capitalized ? "Files" : "files")"
+            line = notes == 0 ? f : n + ", " + f
+        }
+        guard trash, notes + files > 0 else { return line }
+        return line + " \u{00B7} Deleted after 30 days"
     }
 
     /// `all` is every note, in the list's order, shared with `scoped`. A search reads the notes' text.
@@ -215,13 +224,6 @@ struct NoteListView: View {
                 listTip
             }
             #endif
-            if scope == .trash && !(scopedNotes.isEmpty && scopedFiles.isEmpty) && search.isEmpty {
-                Text(scopedFiles.isEmpty ? "Notes are deleted forever after 30 days." : "Notes and files are deleted forever after 30 days.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .listRowSeparator(.hidden)
-                    .selectionDisabled()
-            }
             // Without files the notes go straight in, in the order they're kept in.
             if visibleFiles.isEmpty {
                 ForEach(DateBucket.sections(ordered: visible, by: order), id: \.0) { section in
@@ -522,10 +524,13 @@ struct NoteListView: View {
                 Text(section.0)
                     .foregroundStyle(Color.ink)
                 #else
+                // One weight lighter than before, with a little air above and below, like Notes.
                 Text(section.0)
-                    .font(.title3.weight(.bold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Color.ink)
                     .textCase(nil)
+                    .padding(.top, 6)
+                    .padding(.bottom, 3)
                 #endif
             }
         }
@@ -556,10 +561,17 @@ struct NoteListView: View {
                 togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
                 remove: { remove(note) })
             .equatable()
+            #if os(macOS)
+            // Under the pointer the row's ••• appears at its right, with the same menu as a
+            // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
+            .padding(.trailing, Hover.menuTarget + 2)
+            #endif
             .tag(note.id)
             // Outside the equatable row, so the list sees its background. On the Mac the row draws
             // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .hoverRow(note.title, selected: Self.quiet(selection, note.id)) { over in NotePreload.pointer(over, on: note) }
+            .modifier(NoteRowHover(id: note.title, selected: Self.quiet(selection, note.id), pointer: { over in NotePreload.pointer(over, on: note) }) {
+                menu(for: note, folders: foldersByName)
+            })
             .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
@@ -1111,11 +1123,13 @@ final class LibraryNotes {
 /// Row type and spacing, matched to Apple Notes on each platform.
 enum RowMetrics {
     #if os(macOS)
+    // Against Apple Notes on macOS 26 (owner, 2026-10-12: "a bit less overwhelming"): the second
+    // line a size smaller than the title, a little more room around each row.
     static let title = Font.system(size: 13, weight: .bold)
-    static let detail = Font.system(size: 13)
-    static let spacing: CGFloat = 3
-    static let vertical: CGFloat = 5
-    static let leading: CGFloat = 12
+    static let detail = Font.system(size: 12)
+    static let spacing: CGFloat = 2
+    static let vertical: CGFloat = 8
+    static let leading: CGFloat = 14
     static let dotOffset: CGFloat = -12
     /// The app mark's size: about the title's cap height.
     static let markSize: CGFloat = 13
@@ -1284,5 +1298,24 @@ struct NoteRow: View {
             if !clean.isEmpty, clean != note.title { return clean }
         }
         return note.preview
+    }
+}
+
+/// The note row's hover: the light fill, and on the Mac its ••• at the right edge.
+private struct NoteRowHover<Items: View>: ViewModifier {
+    let id: String
+    let selected: Bool
+    let pointer: (Bool) -> Void
+    @ViewBuilder let items: () -> Items
+
+    func body(content: Content) -> some View {
+        HoverRowReader(id: id, selected: selected, pointer: pointer) { hovering in
+            content
+                #if os(macOS)
+                .overlay(alignment: .trailing) {
+                    HoverSwap(on: hovering, help: "Note options") { EmptyView() } items: { items() }
+                }
+                #endif
+        }
     }
 }
