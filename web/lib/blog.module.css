@@ -54,6 +54,7 @@
 .ground[data-ground="plum"] { background: linear-gradient(160deg, #f3e6ef, #dcc0d6); }
 .ground[data-ground="teal"] { background: linear-gradient(160deg, #e1f1ec, #b3d8cc); }
 .ground[data-ground="berry"] { background: linear-gradient(160deg, #f6e3ea, #e3b7c7); }
+.ground[data-ground="rust"] { background: linear-gradient(160deg, #f5dccf, #dc9a78); }
 .ground[data-ground="denim"] { background: linear-gradient(160deg, #e6e9f7, #bcc6e8); }
 .ground[data-ground="dunes"] { background: #f9c98a url(/blog/desk.svg) center / cover no-repeat; }
 
@@ -110,6 +111,7 @@
 .thumb[data-ground="teal"] { background: #d9ece6; }
 .thumb[data-ground="berry"] { background: #f1dae3; }
 .thumb[data-ground="denim"] { background: #dfe4f5; }
+.thumb[data-ground="rust"] { background: #f3d9cb; }
 
 /* An iPhone screen on its own, with the screen's corners. */
 .phone { width: min(100%, var(--w, 100%)); margin: 0 auto; }
