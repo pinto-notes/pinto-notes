@@ -27,7 +27,7 @@ enum RowClickLog {
     /// Starts watching mouse-down and mouse-up in the list's window, once.
     @MainActor static func start() {
         guard enabled, monitor == nil else { return }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .pressure, .rightMouseDown, .otherMouseDown]) { event in
             MainActor.assumeIsolated { note(event) }
             return event
         }
@@ -35,6 +35,10 @@ enum RowClickLog {
     }
 
     @MainActor private static func note(_ event: NSEvent) {
+        // Every event of a press, also where it lands outside a list (diagnosis, 2026-10-12).
+        let kind = event.type == .pressure ? "pressure \(event.pressure) stage \(event.stage)" : "type \(event.type.rawValue) subtype \(event.subtype.rawValue) clicks \(event.type == .pressure ? 0 : event.clickCount)"
+        log.notice("event \(kind, privacy: .public) at \(Int(event.locationInWindow.x), privacy: .public),\(Int(event.locationInWindow.y), privacy: .public) window \(event.window?.windowNumber ?? -1, privacy: .public) key \(event.window?.isKeyWindow ?? false, privacy: .public)")
+        guard event.type != .pressure else { return }
         guard let window = event.window, let content = window.contentView else { return }
         let hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
         guard let table = enclosingTable(hit) else { return }
@@ -64,6 +68,12 @@ enum RowClickLog {
     static func selection(_ old: Set<UUID>, _ new: Set<UUID>) {
         guard enabled else { return }
         log.notice("selection \(short(old), privacy: .public) -> \(short(new), privacy: .public)")
+    }
+
+    /// The press slop kept a move from a row (RowPressSlop).
+    static func slopKept(_ dx: CGFloat, _ dy: CGFloat) {
+        guard enabled else { return }
+        log.notice("slop kept a move of \(Int(dx), privacy: .public),\(Int(dy), privacy: .public)")
     }
 
     /// A file row's drag began (the List asked it for its item).

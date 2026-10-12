@@ -37,7 +37,7 @@ enum RowPressSlop {
             origin = onRow ? point : nil
         case .leftMouseDragged:
             guard let from = origin else { return true }
-            if hypot(point.x - from.x, point.y - from.y) < distance { return false }
+            if hypot(point.x - from.x, point.y - from.y) < distance { RowClickLog.slopKept(point.x - from.x, point.y - from.y); return false }
             origin = nil
         case .leftMouseUp:
             origin = nil
