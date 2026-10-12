@@ -377,33 +377,6 @@ struct SetupCardSurface: ViewModifier {
     }
 }
 
-/// Connect an AI, on its own (from the setup card).
-struct ConnectAISheet: View {
-    let client: SupabaseClient
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form { ConnectAISection(client: client) }
-                .formStyle(.grouped)
-                .connectGuides(client: client)
-                // "AI", as the same page is titled in Settings: its first section is already
-                // headed "Connect an AI", and the two read as the title twice.
-                .navigationTitle("AI")
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                }
-        }
-        .consentHost(client: client)
-        #if os(macOS)
-        .frame(width: 520, height: 560)
-        #endif
-    }
-}
-
 #if os(iOS)
 /// iPhone: how to send a note from Apple Notes into Amber Notes.
 struct ShareHowToSheet: View {

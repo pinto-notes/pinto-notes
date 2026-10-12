@@ -297,12 +297,12 @@ private struct GeneralSettings: View {
             // On the Mac this is Help › Show Setup Guide.
             Section {
                 Button("Show Setup Guide") {
-                    NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil)
+                    NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
                     close()
                 }
                 .accessibilityIdentifier("settings.setupGuide")
             } footer: {
-                Text("Shows the Get set up steps at the top of your notes again.")
+                Text("Shows the first steps again: your name, bringing your notes and connecting your AI.")
             }
         }
         #endif

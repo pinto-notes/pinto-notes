@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// Three columns, like Apple Notes: folders, notes, the note.
 struct RootView: View {
     @Environment(\.modelContext) private var context
+    @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
     #if os(iOS)
     /// On iPhone a folder is pushed once the first layout is done (see `lifecycle`).
     @State private var scope: Scope?
@@ -157,6 +158,8 @@ struct RootView: View {
                 #endif
             }
             .onChange(of: selectedNote) { old, new in noteChanged(from: old, to: new) }
+            // The first-run flow just ended: the notes open on what it left ready.
+            .task(id: onboarding?.landing) { openLanding() }
             // A note opened from the menu bar.
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
@@ -193,6 +196,19 @@ struct RootView: View {
             reveal(id)
         default:
             break
+        }
+    }
+
+    /// After the first-run flow: a new empty note with the cursor in it, or the To-do note the
+    /// last step's prompt writes to. A beat after the window's own restoring, which it replaces.
+    private func openLanding() {
+        guard let onboarding, onboarding.landing != nil else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            switch onboarding.takeLanding() {
+            case .newNote: newNote()
+            case .note(let id): reveal(id)
+            case nil: break
+            }
         }
     }
 
@@ -519,7 +535,7 @@ struct PaneCommands: Commands {
                 .disabled(showHistory == nil)
         }
         CommandGroup(after: .help) {
-            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil) }
+            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
         }
         CommandGroup(replacing: .importExport) {
             Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
