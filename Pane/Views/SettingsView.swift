@@ -442,7 +442,7 @@ private struct AccountRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AvatarView(photo: profile.photo, name: profile.name ?? email, size: 56)
+            AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 56)
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name ?? "Your Name")
                     .font(.title3.weight(.semibold))
@@ -475,7 +475,7 @@ private struct ProfileSection: View {
     var body: some View {
         Section {
             HStack(spacing: 16) {
-                AvatarView(photo: profile.photo, name: profile.name ?? email, size: 64)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 64)
                     #if os(macOS)
                     .dropDestination(for: URL.self) { urls, _ in
                         guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }

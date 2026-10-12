@@ -66,6 +66,8 @@ import Testing
         let ctx = c.mainContext
         let folders = (0..<4).map { ctx.createFolder(named: "Folder \($0)") }
         for f in folders { _ = ctx.createNote(in: .folder(f.id), body: "In \(f.name)\n\ntext") }
+        // One deleted note: Recently Deleted has a row only while it holds something.
+        ctx.trash(ctx.createNote(in: .folder(folders[0].id), body: "Deleted"))
         try ctx.save()
         UserDefaults.standard.removeObject(forKey: "lastScope")
         // Borderless, far off every screen and never shown: nothing appears on anyone's display.

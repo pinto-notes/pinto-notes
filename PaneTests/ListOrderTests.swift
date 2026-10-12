@@ -119,6 +119,35 @@ import Testing
         #expect(Set(defaults.dictionaryRepresentation().keys) == [ListOrderStore.keyKey, ListOrderStore.reversedKey, ListOrderStore.groupKey])
     }
 
+    /// A row shows the date its list is sorted by, as in Apple Notes: when the note was made for a
+    /// list sorted by date created, and when it was last edited for the other two.
+    @Test func aRowShowsTheDateItsListIsSortedBy() {
+        let n = note("Lisbon", created: 400, edited: 3)
+        let file = Attachment(filename: "Ticket.pdf", contentType: "com.adobe.pdf", size: 1)
+        file.createdAt = daysAgo(90)
+        file.modifiedAt = daysAgo(5)
+        for reversed in [false, true] {
+            for grouped in [false, true] {
+                let created = ListOrder(key: .created, reversed: reversed, groupsByDate: grouped)
+                #expect(created.showsCreationDates)
+                #expect(NoteRow.shownDate(of: n, byCreation: created.showsCreationDates) == n.createdAt)
+                #expect(NoteRow.shownDate(of: file, byCreation: created.showsCreationDates) == file.createdAt)
+                for key in [ListOrder.Key.edited, .title] {
+                    let order = ListOrder(key: key, reversed: reversed, groupsByDate: grouped)
+                    #expect(!order.showsCreationDates, "\(key)")
+                    #expect(NoteRow.shownDate(of: n, byCreation: order.showsCreationDates) == n.updatedAt, "\(key)")
+                    #expect(NoteRow.shownDate(of: file, byCreation: order.showsCreationDates) == file.modifiedAt, "\(key)")
+                }
+            }
+        }
+        // What the row says: a note made over a year ago and edited this week.
+        let made = DateBucket.rowDate(NoteRow.shownDate(of: n, byCreation: true), now: now, calendar: calendar)
+        let edited = DateBucket.rowDate(NoteRow.shownDate(of: n, byCreation: false), now: now, calendar: calendar)
+        #expect(made != edited && made == DateBucket.rowDate(n.createdAt, now: now, calendar: calendar))
+        // The row's date and its heading are the same date.
+        #expect(ListOrder(key: .created).date(of: n) == n.createdAt && ListOrder(key: .title).date(of: n) == n.updatedAt)
+    }
+
     @Test func theMenuNamesTheDirectionsForWhatIsSorted() {
         #expect(ListOrder.Key.allCases.map(\.title) == ["Date Edited", "Date Created", "Title"])
         #expect(ListOrder(key: .edited).directions == ("Newest First", "Oldest First") && ListOrder(key: .created).directions == ("Newest First", "Oldest First"))

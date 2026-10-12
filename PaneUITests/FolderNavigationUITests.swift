@@ -49,8 +49,7 @@ final class FolderNavigationUITests: XCTestCase {
             back()
             open("folder.Travel", title: "Travel")
             back()
-            open("sidebar.trash", title: "Recently Deleted")
-            back()
+            // Recently Deleted has no row while it's empty; NavigationStressUITests opens it after a delete.
         }
     }
 
