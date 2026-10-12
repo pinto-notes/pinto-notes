@@ -48,7 +48,6 @@ struct RootView: View {
     #if os(macOS)
     /// The note whose own view is built in the pane. A newly chosen note is shown as NoteOpening
     /// for one turn first, so the pane answers the click before the heavy build starts.
-    @State private var builtNote: UUID?
     #endif
 
     /// The single open note, when exactly one is selected.
@@ -170,15 +169,8 @@ struct RootView: View {
                 if new == nil, !selection.isEmpty { selection = [] }
                 #endif
             }
-            #if os(macOS)
-            // The note open at launch is built at once.
-            .onAppear { builtNote = selectedNote }
-            #endif
             .onChange(of: selectedNote) { old, new in
                 noteChanged(from: old, to: new)
-                #if os(macOS)
-                stageOpen(new)
-                #endif
             }
             // The first-run flow just ended: the notes open on what it left ready.
             .task(id: onboarding?.landing) { openLanding() }
@@ -307,37 +299,26 @@ struct RootView: View {
     }
 
     #if os(macOS)
-    /// Builds the chosen note's view a turn after the selection changed, so the window first draws
-    /// the selected row and NoteOpening. A note reopened, or opened by launch, is built at once.
-    /// Tests: off builds the note's view in the same turn, as before.
+    /// Tests: off builds the note's view in the same pass as the selection, as before.
     nonisolated(unsafe) static var stagesOpen = true
-
-    private func stageOpen(_ id: UUID?) {
-        guard let id, builtNote != id else { return }
-        guard Self.stagesOpen else { builtNote = id; return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-            if selectedNote == id { builtNote = id }
-        }
-    }
     #endif
 
     @ViewBuilder
     private var detail: some View {
             if let id = selectedNote, let note = context.note(id), note.deletedAt == nil {
                 #if os(macOS)
-                if builtNote != id && justCreated != id && Self.stagesOpen {
-                    // The click is answered at once: the new title and soft lines, while the note's
-                    // own view is built on the next turn (`stageOpen`).
-                    NoteOpening(title: note.isLocked ? "Locked note" : note.title, date: DateBucket.header(note.updatedAt))
-                        .id(id)
-                } else {
+                // The toolbar stays (NoteToolbarStage); inside it the click is answered at once with
+                // the new title and soft lines, and the note's own view comes a turn later (StagedPane).
                 NoteToolbarStage {
-                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
-                        if edit { justCreated = target }
-                        selectedNote = target
+                    StagedPane(id: id, immediate: justCreated == id || !Self.stagesOpen) {
+                        NoteOpening(title: note.isLocked ? "Locked note" : note.title, date: DateBucket.header(note.updatedAt))
+                    } pane: {
+                        NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+                            if edit { justCreated = target }
+                            selectedNote = target
+                        }
                     }
-                        .id(id)
-                }
+                    .id(id)
                 }
                 #else
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
@@ -643,5 +624,33 @@ enum Presentation {
             .flatMap(\.windows)
             .contains { $0.rootViewController?.presentedViewController != nil }
     }
+}
+#endif
+
+#if os(macOS)
+/// One note's pane, built a turn after it was chosen: first `opening` (cheap), then `pane`. Only
+/// this view changes for that second step, so the window around it (the toolbar, the list, the
+/// sidebar) isn't worked out again. A note reopened at launch is shown at once.
+private struct StagedPane<Opening: View, Pane: View>: View {
+    let id: UUID
+    let immediate: Bool
+    @ViewBuilder let opening: Opening
+    @ViewBuilder let pane: Pane
+    @State private var ready = false
+
+    var body: some View {
+        if ready || immediate || !StagedPaneLaunch.shownOnce {
+            pane.onAppear { StagedPaneLaunch.shownOnce = true }
+        } else {
+            opening.task(id: id) {
+                await Task.yield()
+                ready = true
+            }
+        }
+    }
+}
+/// The first note pane of a launch is built at once, as it was.
+@MainActor private enum StagedPaneLaunch {
+    static var shownOnce = false
 }
 #endif

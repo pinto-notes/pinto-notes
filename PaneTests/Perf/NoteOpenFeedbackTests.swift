@@ -33,6 +33,19 @@ import Testing
         host.displayIfNeeded()
         let ms = Double((ContinuousClock.now - start).components.attoseconds) / 1e15 + Double((ContinuousClock.now - start).components.seconds) * 1000
         let opening = NoteOpening.drawn > drawnBefore
+        // Then until the note's text is in its editor: the whole open, both steps.
+        func editorText(_ v: NSView) -> String? {
+            if let t = v as? PaneTextView { return t.string }
+            for c in v.subviews { if let s = editorText(c) { return s } }
+            return nil
+        }
+        while !(editorText(host)?.hasPrefix("Long note") ?? false), ContinuousClock.now - start < .seconds(3) {
+            await Task.yield()
+            host.layoutSubtreeIfNeeded()
+            host.displayIfNeeded()
+        }
+        let whole = ContinuousClock.now - start
+        print("PERF note open whole \(staged ? "staged" : "unstaged") \(whole.components.seconds * 1000 + whole.components.attoseconds / 1_000_000_000_000_000) ms")
         try? await Task.sleep(for: .seconds(1))
         let settled = NoteOpening.drawn
         try? await Task.sleep(for: .milliseconds(300))
