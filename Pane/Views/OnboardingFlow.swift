@@ -78,7 +78,7 @@ struct OnboardingFlow: View {
             }
             #if os(macOS)
             .sheet(isPresented: $importingAppleNotes) {
-                AppleNotesImportView { ids in notesBrought(ids.count) }
+                AppleNotesImportView(onImported: { ids in notesBrought(ids.count) })
             }
             #else
             .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
