@@ -104,12 +104,6 @@ struct PaneApp: App {
         _session = State(initialValue: session)
         // Not in the unit-test host or a capture of one screen, which never ran this.
         if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery") { session.start() }
-        // "What's new" after a major update: decided before anything is drawn or seeded, while
-        // the library still says whether this is a fresh install.
-        if !inMemory {
-            WhatsNewStore.shared.launch(running: WhatsNew.runningVersion, releases: WhatsNew.bundled,
-                                        existingUser: WhatsNew.existingUser(defaults: .standard, context: context))
-        }
         // With sync on, the library is seeded after the first pull so devices don't duplicate it.
         if backend.client == nil { Seed.ensureLibrary(container.mainContext, demo: args.contains("-demo")) }
         #if DEBUG || QA
@@ -1007,7 +1001,6 @@ struct AppGate: View {
         // The key check, sync and the asks run in `session`, window or no window (AppSession).
         .onAppear { session.foreground = phase == .active }
         // What's new waits while an ask or an alert is up.
-        .onChange(of: somethingAsking, initial: true) { _, asking in WhatsNewStore.shared.held = asking }
         // Each sync may have brought an AI's edit or a new connection: the card looks again.
         .onChange(of: sync.status) { _, _ in Task { await setup.refresh() } }
 
@@ -1128,18 +1121,13 @@ struct AppGate: View {
         if !replay { Task { await setup.mark("dismissed") } }
     }
 
-    /// The share ask, a notice or the recovery key alert is on screen.
-    private var somethingAsking: Bool {
-        shareAsk.visible || heardFrom.visible || notices?.current != nil || crypto.recoveryKeyChangeNeedsSaying
-    }
-
     /// A quiet moment: once things have settled, the share ask may come (see `ShareAsk`).
     private func askToShareSoon() {
         guard backend.state != .signedOut else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.5))
             guard backend.state != .signedOut, phase == .active, !heardFrom.visible else { return }
-            shareAsk.moment(setupVisible: setup.visible || onboarding.holdsAsks() || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
+            shareAsk.moment(setupVisible: setup.visible || onboarding.holdsAsks(), tipShowing: PaneTips.all.contains { $0.shouldDisplay })
         }
     }
 }

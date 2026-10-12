@@ -47,9 +47,6 @@ struct NoteListView: View {
     @State private var connectCenter = ConnectCenter.shared
     /// How full the account is: a warning near 2 GB and at it.
     @State private var storage = StorageStore.shared
-    /// "What's new" after a major update (WhatsNew.swift), and whether the list has settled.
-    @State private var whatsNew = WhatsNewStore.shared
-    @State private var settled = false
     #if os(iOS)
     @State private var showSettings = false
     #else
@@ -60,17 +57,6 @@ struct NoteListView: View {
 
     /// "Get set up" sits on top of the list for a new account, never in Recently Deleted or a search.
     private var showsSetup: Bool { (setup?.visible ?? false) && scope != .trash && search.isEmpty }
-
-    /// "What's new" takes the setup card's place, never shares the screen with it: it waits until
-    /// the setup card has gone, the list has settled and nothing else (a sheet, an ask) is up.
-    private var showsWhatsNew: Bool {
-        guard whatsNew.card != nil, !showsSetup, scope != .trash, search.isEmpty else { return false }
-        if whatsNew.presented { return true }
-        #if os(iOS)
-        if showSettings { return false }
-        #endif
-        return settled && !whatsNew.held && !connecting && !sharingHowTo
-    }
 
     private func scoped(from all: [NoteEntry]) -> [NoteEntry] { Self.scoped(all, to: scope, context: context) }
 
@@ -240,24 +226,8 @@ struct NoteListView: View {
                     .selectionDisabled()
                 #endif
             }
-            if showsWhatsNew, let release = whatsNew.card {
-                #if os(iOS)
-                Section {
-                    whatsNewCard(release)
-                        .padding(.vertical, 4)
-                        .selectionDisabled()
-                }
-                .listRowBackground(Color(Palette.row))
-                #else
-                whatsNewCard(release)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .selectionDisabled()
-                #endif
-            }
             #if os(iOS)
-            if listTipDue && !showsSetup && !showsWhatsNew && scope != .trash && search.isEmpty {
+            if listTipDue && !showsSetup && scope != .trash && search.isEmpty {
                 listTip
             }
             #endif
@@ -357,11 +327,6 @@ struct NoteListView: View {
                 await storage.refresh(backend?.client)
                 try? await Task.sleep(for: .seconds(300))
             }
-        }
-        .task {
-            // A moment after the list first shows, so the card never lands mid-transition.
-            try? await Task.sleep(for: .seconds(1))
-            withAnimation(.snappy(duration: 0.3)) { settled = true }
         }
         // Only once the account's notes have come down: before that the library is empty on a
         // new device, and a To-do made then went up as one more beside the account's own. (Asked
@@ -685,24 +650,6 @@ struct NoteListView: View {
         #else
         openSettings()
         #endif
-    }
-
-    private func whatsNewCard(_ release: WhatsNew.Release) -> some View {
-        WhatsNewCard(release: release, secondary: whatsNew.secondary, onDismiss: dismissWhatsNew) {
-            SettingsRoute.shared.open(.ai)
-            #if os(iOS)
-            showSettings = true
-            #else
-            openSettings()
-            #endif
-            dismissWhatsNew()
-        }
-        .onAppear { whatsNew.shown(progress: setup?.progress) }
-    }
-
-    /// Exits are quieter than the entrance: a short fade as the row goes.
-    private func dismissWhatsNew() {
-        withAnimation(.easeOut(duration: 0.18)) { whatsNew.dismiss() }
     }
 
     /// Step 3's prompt adds to "To-do": make sure there is one.
