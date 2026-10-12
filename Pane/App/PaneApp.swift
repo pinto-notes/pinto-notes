@@ -754,7 +754,9 @@ final class AppSession {
         KeyDevices.shared.removedHere = { [weak self] in await self?.removedFromDevices() }
         await SignedInStartup(
             refreshLock: { await NoteVault.shared.refresh() },
-            checkKey: { [backend] in await AccountCrypto.shared.attach(account: backend.userID, server: SupabaseAccountKeys(client: client)) }
+            checkKey: { [backend] in
+                await AccountCrypto.shared.attach(account: backend.userID, server: SupabaseAccountKeys(client: client), copies: SupabaseKeyCopy(client: client))
+            }
         ).run()
         // Without the key the gate asks for it; the library starts when it's open (below).
         guard AccountCrypto.shared.allowsSync else { return }
@@ -1250,6 +1252,10 @@ private struct NoticeAlerts: ViewModifier {
                 Button("OK", role: .cancel) { crypto.keyNotSavedShown() }
             } message: {
                 Text(PrivacyCopy.notSavedMessage)
+            }
+            // An account from before the server kept copies of keys is asked once, before any is made.
+            .sheet(isPresented: Binding(get: { crypto.asksProtection && crypto.isReady && !crypto.needsWelcome }, set: { _ in })) {
+                KeyProtectionAsk(crypto: crypto)
             }
             .alert("Couldn't disconnect", isPresented: Binding(get: { problem != nil && notice == nil }, set: { if !$0 { problem = nil } })) {
                 Button("OK", role: .cancel) { problem = nil }

@@ -1,3 +1,4 @@
+import ImageIO
 import LinkPresentation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -170,6 +171,16 @@ private struct ImageEmbed: View {
 
 private enum PlatformImage {
     static func load(_ url: URL) -> Image? {
+        if let i = EmbedImages.cached(url) {
+            #if os(iOS)
+            return Image(uiImage: UIImage(cgImage: i))
+            #else
+            return Image(nsImage: NSImage(cgImage: i, size: .zero))
+            #endif
+        }
+        // Not decoded yet: the file as it is, which the system decodes as it draws (no slower
+        // than before), and a decode at the shown size for the next time.
+        EmbedImages.keep(url)
         #if os(iOS)
         guard let i = UIImage(contentsOfFile: url.path) else { return nil }
         return Image(uiImage: i)
@@ -177,6 +188,53 @@ private enum PlatformImage {
         guard let i = NSImage(contentsOf: url) else { return nil }
         return Image(nsImage: i)
         #endif
+    }
+}
+
+/// The pictures in notes, decoded at the size a note shows them and kept.
+///
+/// A picture was read from disk and decoded whole each time its view was worked out, on the main
+/// thread: a camera photo is 4032 x 3024, and a note with three of them took 75 ms longer to open
+/// than one without (2026-10-12). Here each is decoded once, off the main thread and no larger than
+/// a note draws it: after it was first shown, or before its note opens (NotePreload, when the
+/// pointer rests on the note's row).
+enum EmbedImages {
+    /// The longest side, in pixels: an image is at most 520 x 560 points, at 2x.
+    static let maxPixels = 1200
+    nonisolated(unsafe) private static let cache: NSCache<NSString, CGImage> = {
+        let c = NSCache<NSString, CGImage>()
+        c.totalCostLimit = 96 << 20
+        return c
+    }()
+
+    nonisolated static func cached(_ url: URL) -> CGImage? { cache.object(forKey: url.path as NSString) }
+
+    /// Decodes one picture off the main thread, for the next time it is shown.
+    static func keep(_ url: URL) {
+        Task { await warm([url]) }
+    }
+
+    /// Decodes the pictures that aren't kept yet, off the main thread. Files not on this device
+    /// are skipped: nothing is fetched.
+    static func warm(_ urls: [URL]) async {
+        let todo = urls.filter { cached($0) == nil && FileManager.default.fileExists(atPath: $0.path) }
+        guard !todo.isEmpty else { return }
+        await Task.detached(priority: .userInitiated) {
+            for url in todo where !Task.isCancelled { _ = decode(url) }
+        }.value
+    }
+
+    nonisolated private static func decode(_ url: URL) -> CGImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixels,
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) else { return nil }
+        cache.setObject(image, forKey: url.path as NSString, cost: image.bytesPerRow * image.height)
+        return image
     }
 }
 
