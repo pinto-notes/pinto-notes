@@ -184,6 +184,25 @@ import UIKit
     }
     #endif
 
+    #if os(macOS)
+    /// The cards at the sidebar's default width (230), at Notes' own (208), and wide (320), in
+    /// the real sidebar.
+    @Test(arguments: [false, true])
+    func sidebarCardWidths(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let c = try AppSnapshotTests.container()
+        ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let mode = dark ? "dark" : "light"
+        for width in [230, 208, 320] {
+            for (name, connected) in [("connect", false), ("templates", true)] {
+                try await AppSnapshotTests.render(Self.sidebar(connected: connected, c).frame(width: CGFloat(width), height: 640),
+                                                  name: "mac-9-sidebar-\(name)-\(width)-\(mode)", dark: dark, wait: 1.0)
+            }
+        }
+    }
+    #endif
+
     #if os(iOS)
     @Test func iPhoneConnectSheet() async throws {
         guard let dir = Self.dir else { return }
