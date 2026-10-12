@@ -328,7 +328,7 @@ struct GeneralPage: View {
 struct HelpPage: View {
     var body: some View {
         Section {
-            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil) }
+            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
                 .accessibilityIdentifier("settings.setupGuide")
         }
         Section {
