@@ -23,6 +23,8 @@ final class SettingsRoute {
     var tab: SettingsTab { didSet { if tab != oldValue { defaults.set(tab.rawValue, forKey: Self.key) } } }
     /// iPhone: the page to open once Settings is showing; cleared when it has.
     var target: SettingsTab?
+    /// Counts `open` calls, so the Mac's Settings goes to the page even when it is the remembered one.
+    private(set) var opened = 0
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -32,6 +34,7 @@ final class SettingsRoute {
     /// Settings at `tab`: the Mac's window switches to it, iPhone opens its page.
     func open(_ tab: SettingsTab) {
         self.tab = tab
+        opened += 1
         #if os(iOS)
         target = tab
         #endif

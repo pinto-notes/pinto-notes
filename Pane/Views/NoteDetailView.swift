@@ -9,6 +9,7 @@ struct NoteDetailView: View {
     @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var confirmingPurge = false
     @State private var importing = false
     /// Dev: an app built outside (scripts/build-app.ts), from a file, into this note.
     @State private var importingApp = false
@@ -16,6 +17,8 @@ struct NoteDetailView: View {
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
     @State private var movingNote = false
+    @State private var pickingPhotos = false
+    @State private var linkingNote = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
@@ -444,6 +447,8 @@ struct NoteDetailView: View {
 
     /// A locked note that isn't open: nothing on screen to edit. The page has no caret either.
     private var hidden: Bool { !readable || showingPage }
+    /// In Recently Deleted: read, recover or delete, nothing else (like Notes).
+    private var trashed: Bool { note.trashedAt != nil }
 
     // MARK: Note pages (prototype)
 
@@ -703,9 +708,17 @@ struct NoteDetailView: View {
             #else
             Button("Show Version History…", systemImage: "clock.arrow.circlepath") { showHistory = true }
             #endif
+        case .recover:
+            Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
+                .accessibilityIdentifier("editor.recover")
         case .delete:
-            Button("Delete Note", systemImage: "trash", role: .destructive) {
-                withAnimation(.snappy) { context.trash(note) }
+            if trashed {
+                Button("Delete Now…", systemImage: "trash", role: .destructive) { confirmingPurge = true }
+                    .accessibilityIdentifier("editor.deleteNow")
+            } else {
+                Button("Delete Note", systemImage: "trash", role: .destructive) {
+                    withAnimation(.snappy) { context.trash(note) }
+                }
             }
         }
     }
@@ -806,6 +819,12 @@ struct NoteDetailView: View {
                     if note.trashedAt != nil { trashBanner }
                 }
             }
+            .onChange(of: note.trashedAt, initial: true) { _, at in controller.readOnly = at != nil }
+            .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
+                Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
+            } message: {
+                Text("It's deleted for good, on all your devices. This can't be undone.")
+            }
             .navigationTitle("")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -835,16 +854,14 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("list.newNote")),
             // A note with an app is just the app: no writing tools.
             writing: notePage != nil ? nil : AnyView(Group {
-                FormatButton(controller: controller).disabled(hidden)
+                FormatButton(controller: controller).disabled(hidden || trashed)
                 Button("Checklist", systemImage: "checklist", action: controller.checklist)
                     .help("Checklist (⇧⌘L)")
-                    .disabled(hidden)
+                    .disabled(hidden || trashed)
                 Button("Table", systemImage: "tablecells", action: controller.insertTable)
                     .help("Table (⌥⌘T)")
-                    .disabled(hidden)
-                Button("Attach", systemImage: "paperclip") { importing = true }
-                    .help("Attach File (⇧⌘A)")
-                    .disabled(note.isLocked || showingPage)
+                    .disabled(hidden || trashed)
+                attachMenu.disabled(trashed)
             }),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
             sharing: AnyView(Group {
@@ -856,6 +873,8 @@ struct NoteDetailView: View {
 
     /// Every keystroke lands here; the model is written once typing pauses.
     private func save(_ text: String) {
+        // Recently Deleted is read-only: nothing typed or ticked there is kept.
+        guard !trashed else { return }
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
             collab.local(text, selection: controller.target?.currentSelection)
@@ -1036,31 +1055,20 @@ struct NoteDetailView: View {
     }
 
     private var trashBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "trash").foregroundStyle(.secondary)
-            Text("This note is in Recently Deleted.")
-                .font(.callout)
-            Spacer()
-            Button("Recover") { withAnimation(.snappy) { context.restore(note) } }
-                .buttonStyle(.glassProminent)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 18))
-        .padding(12)
+        TrashBanner { withAnimation(.snappy) { context.restore(note) } }
     }
 
     #if os(iOS)
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .bottomBar) {
-            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden)
+            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden || trashed)
         }
         ToolbarItem(placement: .bottomBar) {
-            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden)
+            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed)
         }
         ToolbarItem(placement: .bottomBar) {
-            Button("Attach", systemImage: "paperclip") { importing = true }.disabled(note.isLocked || showingPage)
+            attachMenu.disabled(trashed)
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
@@ -1081,6 +1089,45 @@ struct NoteDetailView: View {
     }
     #endif
 
+    /// The paperclip: what can be put into a note. A photo or video, a file; then a new sub-note,
+    /// a link to another note (the `[[Title]]` link typing `[[` makes) and a web link.
+    private var attachMenu: some View {
+        Menu {
+            Button("Choose Photo or Video…", systemImage: "photo.on.rectangle") { pickingPhotos = true }
+                .accessibilityIdentifier("attach.photo")
+            Button("Attach File…", systemImage: "doc") { importing = true }
+                .accessibilityIdentifier("attach.file")
+            Divider()
+            Group {
+                Button("New Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }
+                    .accessibilityIdentifier("attach.subNote")
+                Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
+                    .accessibilityIdentifier("attach.noteLink")
+                Button("Add Link", systemImage: "link", action: controller.insertLink)
+                    .accessibilityIdentifier("attach.link")
+            }
+            .disabled(hidden)
+        } label: {
+            Label("Attach", systemImage: "paperclip")
+        }
+        .disabled(note.isLocked || showingPage)
+        #if os(macOS)
+        .tint(.primary)
+        .menuIndicator(.hidden)
+        .help("Attach")
+        .popover(isPresented: $linkingNote, arrowEdge: .bottom) { noteLinkPicker }
+        #else
+        .sheet(isPresented: $linkingNote) { noteLinkPicker.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).presentationDetents([.medium]) }
+        #endif
+        .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
+        .accessibilityIdentifier("editor.attach")
+    }
+
+    private var noteLinkPicker: some View {
+        NoteLinkPicker(titles: { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context, limit: NoteLinkPicker.limit) },
+                       pick: { controller.insertWikiLink($0) })
+    }
+
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
     private var shareItems: some View {
@@ -1097,21 +1144,16 @@ struct NoteDetailView: View {
         }
     }
 
+    #if os(macOS)
+    /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        Menu { shareItems } label: {
-            Label("Share", systemImage: "square.and.arrow.up")
-        }
-        // A locked note can't be shared, and its text isn't here to send.
-        .disabled(note.isLocked)
-        #if os(macOS)
-        .tint(.primary)
-        // No caret: it is a plain menu button, in one group with More, like Notes.
-        .menuIndicator(.hidden)
-        #endif
-        .help("Share")
-        .paneTip(ShareLinkTip(), arrowEdge: .top)
-        .accessibilityIdentifier("editor.share")
+        ShareButton(note: note, store: shareLinks, people: CollabStore.shared?.isReady == true ? { showPeople = true } : nil)
+            // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
+            .disabled(note.isLocked || trashed)
+            .paneTip(ShareLinkTip(), arrowEdge: .top)
+            .accessibilityIdentifier("editor.share")
     }
+    #endif
 
     private var moreMenu: some View {
         Menu {
@@ -1164,10 +1206,12 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, moveOut, linkedFrom, share, history, delete }
+    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, moveOut, linkedFrom, share, history, recover, delete }
 
     static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, linkedFrom: Bool, nested: Bool = false,
                        phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild) -> [[Item]] {
+        // A note in Recently Deleted can only come back or go for good, like Notes.
+        if trashed { return [[.recover, .delete]] }
         var about: [Item] = [.pin]
         if locked {
             if vaultOpen { about += [.lockNow, .removeLock] }
@@ -1358,3 +1402,31 @@ struct NoteToolbarStage<Pane: View>: View {
     }
 }
 #endif
+
+/// A quiet notice on the app's warm tint, clearly apart from the page, with the app's own primary
+/// button (2026-10-12: glass over the page blended in, and its yellow Recover glared).
+struct TrashBanner: View {
+    var recover: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        HStack(spacing: 12) {
+            Image(systemName: "trash").foregroundStyle(Color.muted)
+            Text("This note is in Recently Deleted.")
+                .font(.callout)
+                .foregroundStyle(Color.ink)
+            Spacer(minLength: 8)
+            Button("Recover", action: recover)
+                .buttonStyle(.amberProminent)
+                .fixedSize()
+                .accessibilityIdentifier("editor.bannerRecover")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.amberSoft, in: shape)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .padding(12)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("editor.trashBanner")
+    }
+}

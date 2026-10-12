@@ -153,6 +153,36 @@ struct HoverRowReader<Content: View>: View {
     }
 }
 
+/// What a row shows at its right edge: `resting` (a folder's count, or nothing), and under the
+/// pointer its ••• menu in the same place. The two never show at once: on the way in the count
+/// fades out first and fast, then the ••• grows in; on the way out the reverse (owner, 2026-10-12:
+/// for a few frames "18" sat inside the circle). Each is driven by `on` alone, so quick passes
+/// over many rows can't leave one half-way.
+struct HoverSwap<Resting: View, Items: View>: View {
+    let on: Bool
+    let help: String
+    @ViewBuilder let resting: Resting
+    @ViewBuilder let items: () -> Items
+
+    /// Out fast, in a moment later and a little longer, so one is nearly gone before the other shows.
+    static var out: Animation { .easeOut(duration: 0.07) }
+    static var into: Animation { .easeOut(duration: 0.12).delay(0.05) }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            resting
+                .opacity(on ? 0 : 1)
+                .animation(on ? Self.out : Self.into, value: on)
+            if on {
+                RowMenuButton(help: help, items: items)
+                    .accessibilityHidden(true)
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(Self.into),
+                                            removal: .opacity.animation(Self.out)))
+            }
+        }
+    }
+}
+
 /// A row's own menu under the pointer (••• in place of a folder's count): the same menu as a
 /// right-click, a 24 pt target that takes the accent while the pointer is on it. It never
 /// changes the row's height.
