@@ -3,7 +3,7 @@ import Testing
 @testable import Pane
 
 /// Signed out, the app opens on the welcome; sign-in is one step in.
-@Suite struct WelcomeTests {
+@Suite(.serialized) struct WelcomeTests {
     @Test func aSignedOutLaunchStartsOnTheWelcome() {
         #expect(WelcomeFlow.Stage.first(arguments: []) == .welcome)
         #expect(WelcomeFlow.Stage.first(arguments: ["-synctest", "-signout"]) == .welcome)
@@ -11,6 +11,13 @@ import Testing
 
     @Test func testsCanGoStraightToSignIn() {
         #expect(WelcomeFlow.Stage.first(arguments: ["-signout", "-skipWelcome"]) == .signIn(returning: true))
+    }
+
+    /// "Sign in" on a deleted account's screen lands on sign-in, not on the welcome; once.
+    @Test func aSignInButtonLandsOnSignIn() {
+        WelcomeFlow.Stage.signInNext = true
+        #expect(WelcomeFlow.Stage.first(arguments: []) == .signIn(returning: true))
+        #expect(WelcomeFlow.Stage.first(arguments: []) == .welcome, "the next signed-out launch is the welcome again")
     }
 }
 

@@ -23,10 +23,18 @@ struct WelcomeFlow: View {
         case signIn(returning: Bool)
 
         /// Where a signed-out launch starts: the welcome, unless a test asks for sign-in
-        /// straight away (`-skipWelcome`).
+        /// straight away (`-skipWelcome`) or the way here was a button that said Sign in (`signInNext`).
         static func first(arguments: [String] = ProcessInfo.processInfo.arguments) -> Stage {
-            arguments.contains("-skipWelcome") ? .signIn(returning: true) : .welcome
+            if signInNext {
+                signInNext = false
+                return .signIn(returning: true)
+            }
+            return arguments.contains("-skipWelcome") ? .signIn(returning: true) : .welcome
         }
+
+        /// The next signed-out screen is sign-in, once: set by "Sign in" on a deleted account's
+        /// screen (KeyGateView), which would otherwise land on the welcome.
+        nonisolated(unsafe) static var signInNext = false
     }
 
     init(backend: Backend, stage: Stage = .first(), focusEmail: Bool = false, flow: EmailSignInFlow = EmailSignInFlow(), error: String? = nil) {

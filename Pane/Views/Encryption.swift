@@ -580,6 +580,7 @@ struct KeyGateView: View {
         VStack(spacing: 18) {
             heading("This account no longer exists", Copy.accountGone)
             mainButton("Sign in", id: "e2ee.accountGoneSignIn", enabled: true) {
+                WelcomeFlow.Stage.signInNext = true
                 guard let account = backend.userID else { await backend.signOut(); return }
                 await SignOutRemoval.live(backend: backend, sync: sync, context: context).runAfterAccountGone(account: account)
             }
