@@ -33,6 +33,10 @@ async function api(method: string, path: string, body?: unknown) {
 }
 /** SQL on staging through the Management API, as someone holding the whole database would run it. */
 const sql = (query: string, write = false): Promise<Record<string, any>[]> => api("POST", `/v1/projects/${REF}/database/query`, { query, read_only: !write });
+// No real email from a test: the key function must be set to write its notice to the log
+// (KEY_NOTICE_SEND=log) before anything here fetches a key.
+const set = (await api("GET", `/v1/projects/${REF}/secrets`) as { name: string }[]).map((x) => x.name);
+if (!set.includes("KEY_NOTICE_SEND")) { console.error("KEY_NOTICE_SEND is not set on staging: no real email may go out. Set it to log first."); Deno.exit(2); }
 const list = await api("GET", `/v1/projects/${REF}/api-keys?reveal=true`) as { name: string; api_key: string }[];
 const ANON = list.find((k) => k.name === "anon")!.api_key, SERVICE = list.find((k) => k.name === "service_role")!.api_key;
 
@@ -270,10 +274,12 @@ try {
   // 8. What a build from before reads is unchanged.
   check("the key state still has what builds since 1.1 read", ["key_id", "verifier", "recovery_wrap", "recovery_saved_at"].every((k) => k in sOld.key) && sOld.generation === 0);
   check("the work is done in the home region", got.region === "eu-central-1", { region: got.region });
-  check("the log of what happened", JSON.stringify((await sql(`select what, why from public.key_copy_events where user_id = '${a.id}' order by id`)).map((r) => r.why ? `${r.what}:${r.why}` : r.what))
+  check("the log of what happened", JSON.stringify((await sql(`select what, why from public.key_copy_events where user_id = '${a.id}' and what <> 'mailed' order by id`)).map((r) => r.why ? `${r.what}:${r.why}` : r.what))
     === JSON.stringify(["stored", "fetched", "refused:wrong_key", "fetched", "removed", "refused:strict", "refused:strict", "refused:strict"]));
   const everyRow = JSON.stringify(await sql(`select * from public.key_copy_events where user_id in (${made.map((i) => `'${i}'`).join(",")})`));
   const inRows = [a, old, other, many].some((x) => [x.key.dataKey, x.key.recovery].some((b) => everyRow.includes(toBase64(b)) || everyRow.includes(toBase64(b).replace(/=+$/, "")) || everyRow.includes(hex(b))));
+  const mails = await sql(`select why, count(*)::int n from public.key_copy_events where what = 'mailed' and user_id in (${made.map((i) => `'${i}'`).join(",")}) group by why`);
+  check("every notice email was rendered and logged, none sent", mails.length === 1 && mails[0].why === "logged" && mails[0].n > 0, { mails });
   check("no row of the log of what happened holds key bytes", !inRows, { rows: JSON.parse(everyRow).length });
 } finally {
   for (const id of made) { try { await admin("DELETE", `/users/${id}`); } catch { console.error("could not delete a test account"); } }

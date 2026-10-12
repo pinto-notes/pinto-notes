@@ -23,7 +23,7 @@ import { dailyHash, hashSecret } from "../_shared/hash.ts";
 import { log } from "../_shared/log.ts";
 import { atHome } from "../_shared/region.ts";
 import { handle } from "./logic.ts";
-import { fetchedMail, send } from "./notice.ts";
+import { deliver, fetchedMail } from "./notice.ts";
 
 const sql = connect(Deno.env, 1);
 const ready = readiness(sql);
@@ -42,11 +42,9 @@ async function userFor(token: string): Promise<string | null> {
 }
 
 async function notify(uid: string, platform: string) {
-  const key = (Deno.env.get("RESEND_LIFECYCLE_KEY") ?? "").trim();
-  if (!key) { log("key_notice", { status: "off" }); return; }
   const [row] = await sql<{ email: string | null }[]>`select email from auth.users where id = ${uid}`;
-  if (!row?.email) return;
-  log("key_notice", { status: (await send(key, fetchedMail(row.email, platform, new Date()))) ? "sent" : "failed" });
+  if (!row?.email) return "off" as const;
+  return await deliver(Deno.env, fetchedMail(row.email, platform, new Date()));
 }
 
 Deno.serve(atHome("key", async (req) => {

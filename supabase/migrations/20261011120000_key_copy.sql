@@ -76,8 +76,10 @@ create trigger account_keys_copy_follows after delete on public.account_keys
 create table public.key_copy_events (
   id       bigint generated always as identity primary key,
   user_id  uuid not null references auth.users (id) on delete cascade,
-  what     text not null check (what in ('stored', 'fetched', 'removed', 'refused')),
-  -- For refused: why (strict, not_chosen, paused, rate, no_copy, no_key, wrong_key, unreadable, bad_request).
+  what     text not null check (what in ('stored', 'fetched', 'removed', 'refused', 'mailed')),
+  -- For refused: why (strict, not_chosen, paused, rate, no_copy, no_key, wrong_key, unreadable, bad_request,
+  -- reauth, ticket_used). For mailed, the email that says a device got the key: sent, logged (rendered
+  -- and written to the log, not sent: KEY_NOTICE_SEND=log), failed or off.
   why      text check (char_length(why) <= 32),
   platform text check (char_length(platform) <= 16),
   at       timestamptz not null default now()

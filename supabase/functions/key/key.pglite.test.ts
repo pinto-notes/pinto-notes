@@ -528,6 +528,19 @@ Deno.test("only a session signed in to in the last hour gets the key", async () 
   for (const bad of [token([{ method: "token_refresh", timestamp: 9000 }]), token("no"), token(undefined), "not a token", "", "token:" + a.id]) assertEquals(signedInAtOf(bad), null);
 });
 
+Deno.test("what became of the email is written down with the fetch", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  await store(w, a);
+  for (const outcome of ["logged", "sent", "off"]) {
+    w.deps.notify = () => Promise.resolve(outcome);
+    assertEquals((await fetchKey(w, a.id)).status, 200);
+  }
+  w.deps.notify = () => Promise.reject(new Error("resend down"));
+  assertEquals((await fetchKey(w, a.id)).status, 200, "an email that couldn't go never fails the fetch");
+  assertEquals((await events(pg, a.id)).filter((e) => e.startsWith("mailed")), ["mailed:logged", "mailed:sent", "mailed:off", "mailed:failed"]);
+});
+
 Deno.test("too many tries wait: per account by the hour and the day, and per address by the minute", async () => {
   const pg = await schemaDB();
   const w = world(pg), a = await account(pg);

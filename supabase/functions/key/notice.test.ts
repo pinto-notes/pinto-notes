@@ -1,7 +1,7 @@
 // The email that says a new device opened the notes: what it says, and that it is sent.
 //   deno test -A supabase/functions/key/notice.test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { fetchedMail, send } from "./notice.ts";
+import { deliver, fetchedMail, send } from "./notice.ts";
 
 Deno.test("the email says which kind of device, when, and what to do if it wasn't you", () => {
   const m = fetchedMail("ada@example.com", "macos", new Date("2026-10-11T14:05:09Z"));
@@ -32,4 +32,31 @@ Deno.test("it is sent through Resend with the lifecycle key, and a refusal is sa
   assertEquals([body.to, body.subject, body.from, body.reply_to], [["ada@example.com"], m.subject, m.from, m.reply_to]);
   assert(body.text.includes("an iPhone or iPad") && body.html.includes("<p>"));
   assertEquals(await send("re_test", m, stub(422)), false);
+});
+
+Deno.test("with KEY_NOTICE_SEND=log the email is rendered and logged, and Resend is never called", async () => {
+  let called = 0;
+  const never = (() => { called++; return Promise.resolve(new Response("{}")); }) as typeof fetch;
+  const m = fetchedMail("ada@example.com", "macos", new Date("2026-10-11T14:05:09Z"));
+  const lines: string[] = [];
+  const real = console.log;
+  console.log = (...a: unknown[]) => { lines.push(a.map(String).join(" ")); };
+  try {
+    for (const v of ["log", "LOG", " log "]) {
+      const env = { get: (n: string) => n === "KEY_NOTICE_SEND" ? v : n === "RESEND_LIFECYCLE_KEY" ? "re_test" : undefined };
+      assertEquals(await deliver(env, m, never), "logged");
+    }
+    // Unset, or anything else: sent as before; and with no Resend key, off.
+    const sends = { get: (n: string) => n === "RESEND_LIFECYCLE_KEY" ? "re_test" : n === "KEY_NOTICE_SEND" ? "send" : undefined };
+    assertEquals(await deliver(sends, m, never), "sent");
+    assertEquals(await deliver({ get: () => undefined }, m, never), "off");
+  } finally {
+    console.log = real;
+  }
+  assertEquals(called, 1, "only the one that was asked to send called Resend");
+  const logged = lines.map((l) => JSON.parse(l)).filter((l) => l.status === "logged");
+  assertEquals(logged.length, 3);
+  assertEquals(logged[0].tool, "A new device opened your notes");
+  assert(logged[0].count > 100 && /^[0-9a-f]{12}$/.test(logged[0].code));
+  assert(!lines.join("\n").includes("ada@example.com"), "never the address");
 });
