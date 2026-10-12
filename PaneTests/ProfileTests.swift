@@ -69,6 +69,37 @@ import UniformTypeIdentifiers
         #expect(!AccountName.isSet("f7k6w27tsh@privaterelay.appleid.com"))
     }
 
+    /// The account row shows the picture a Google sign-in came with, while the profile has none
+    /// (owner, 2026-10-11: "we get that from google at least"). Only Google's own address counts.
+    @Test func theSignInPictureIsGooglesOwnAddressOrNothing() {
+        let google = "https://lh3.googleusercontent.com/a/ACg8ocK=s96-c"
+        #expect(SignInPhoto.url(from: ["avatar_url": .string(google)])?.absoluteString == google)
+        #expect(SignInPhoto.url(from: ["picture": .string(google)])?.absoluteString == google)
+        #expect(SignInPhoto.url(from: ["full_name": .string("Sara Lind")]) == nil, "Apple and email accounts have none")
+        #expect(SignInPhoto.url(from: ["avatar_url": .string("http://lh3.googleusercontent.com/a/x")]) == nil, "not without https")
+        #expect(SignInPhoto.url(from: ["avatar_url": .string("https://example.com/me.jpg")]) == nil)
+        #expect(SignInPhoto.url(from: ["avatar_url": .string("https://googleusercontent.com.evil.example/a")]) == nil)
+    }
+
+    @Test func theSignInPictureIsFetchedOnceAndForgottenWhenItIsGone() throws {
+        let url = try #require(URL(string: "https://lh3.googleusercontent.com/a/one"))
+        #expect(SignInPhoto.step(url: url, cached: nil, haveCopy: false) == .fetch(url))
+        #expect(SignInPhoto.step(url: url, cached: url.absoluteString, haveCopy: true) == .keep)
+        #expect(SignInPhoto.step(url: url, cached: "https://lh3.googleusercontent.com/a/old", haveCopy: true) == .fetch(url), "a new picture")
+        #expect(SignInPhoto.step(url: url, cached: url.absoluteString, haveCopy: false) == .fetch(url), "the copy was lost")
+        #expect(SignInPhoto.step(url: nil, cached: url.absoluteString, haveCopy: true) == .forget)
+        #expect(SignInPhoto.step(url: nil, cached: nil, haveCopy: false) == .keep)
+    }
+
+    /// A photo you chose always wins; the sign-in picture never becomes the profile's photo.
+    @Test @MainActor func yourOwnPhotoComesBeforeTheSignInPicture() {
+        let store = ProfileStore(defaults: UserDefaults(suiteName: "profile-shown-\(UUID())")!, folder: FileManager.default.temporaryDirectory.appending(path: "profile-shown-\(UUID())"))
+        #expect(store.shownPhoto == nil)
+        let own = PImage()
+        store.showForPreview(name: "Sara Lind", photo: own)
+        #expect(store.shownPhoto === own)
+    }
+
     @Test func initialsFromNamesOrEmails() {
         #expect(AvatarView.initials("Emil Wagman") == "EW")
         #expect(AvatarView.initials("emil@example.com") == "E")

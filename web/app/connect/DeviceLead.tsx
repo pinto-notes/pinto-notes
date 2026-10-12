@@ -100,8 +100,9 @@ const PUSH_TITLE = "An AI connection request";
 const PUSH_BODY = "Open Pinto Notes to see it.";
 
 /// The top of the device, running off the soft field's edge. On an iPhone: the notification in
-/// its real words, with the app's mark and name, so you know what to look for and which app it is.
-/// On a Mac: the app's icon and name on the screen. Flat cut paper in the page's own colours.
+/// its real words, with the app's name, so you know what to look for and which app it is.
+/// On a Mac: the app's name on the screen. Where the icon would be is a plain amber tile: the
+/// page's one logo is the top bar's. Flat cut paper in the page's own colours.
 export function DeviceArt({ mac = false }: { mac?: boolean }) {
   return (
     <div className={`${styles.art} ${styles.artB}`} aria-hidden="true">
@@ -109,7 +110,7 @@ export function DeviceArt({ mac = false }: { mac?: boolean }) {
         <div className={styles.macTop}>
           <span className={styles.macCamera} />
           <div className={styles.macApp}>
-            <img className={styles.pushMark} src="/mark-256.png" alt="" width={52} height={52} />
+            <span className={`${styles.pushMark} ${styles.pushMarkMac}`} />
             <span>Pinto Notes</span>
           </div>
         </div>
@@ -117,7 +118,7 @@ export function DeviceArt({ mac = false }: { mac?: boolean }) {
         <div className={styles.phoneTop}>
           <span className={styles.island} />
           <div className={styles.push}>
-            <img className={styles.pushMark} src="/mark-256.png" alt="" width={34} height={34} />
+            <span className={styles.pushMark} />
             <div className={styles.pushText}>
               <span className={styles.pushApp}>Pinto Notes<span>now</span></span>
               <span className={styles.pushTitle}>{PUSH_TITLE}</span>

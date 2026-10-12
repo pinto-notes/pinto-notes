@@ -71,6 +71,24 @@ import Testing
         #expect(first != second, "the drawn selection moved with the selection")
     }
 
+    /// The note list with a note selected: a neutral fill, like the folder's, not an amber bar;
+    /// and a folder with nothing in it: the leaf and "No Notes", no button.
+    @Test(arguments: [false, true])
+    func noteList(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let mode = dark ? "dark" : "light"
+        let c = try AppSnapshotTests.container()
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>()).filter { $0.trashedAt == nil && $0.deletedAt == nil }
+        let picked = try #require(notes.first)
+        func list(_ scope: Scope, _ selected: Set<UUID>) -> some View {
+            NavigationStack { NoteListView(scope: scope, selection: .constant(selected), onNewNote: {}) }
+                .frame(width: 300, height: 460).modelContainer(c).tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key)
+        }
+        try await AppSnapshotTests.render(list(.all, [picked.id]), name: "mac-look-list-selected-\(mode)", dark: dark, wait: 1.0)
+        let empty = c.mainContext.createFolder(named: "Empty")
+        try await AppSnapshotTests.render(list(.folder(empty.id), []), name: "mac-look-list-empty-\(mode)", dark: dark, wait: 1.0)
+    }
+
     /// The account row: a name with a photo, a name alone (initials), and no name yet, which is
     /// "Your account" with a person, never an address. The alternative adds the email under the name.
     @Test(arguments: [false, true])

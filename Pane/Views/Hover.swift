@@ -44,6 +44,8 @@ enum Hover {
     static let rowRadius: CGFloat = 5
     /// A row's ••• button: at least this big to hit.
     static let menuTarget: CGFloat = 24
+    /// The width of its ••• circle (ellipsis.circle at 14 pt).
+    static let menuGlyph: CGFloat = 17
 }
 
 extension EnvironmentValues {
@@ -169,8 +171,10 @@ struct RowMenuButton<Items: View>: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .modifier(HoverTracking(hovering: $hovering))
-        // The row keeps the height of its text; the target reaches past it.
+        // The row keeps the height of its text; the target reaches past it. To the right as well:
+        // the circle's edge sits where a count's last digit does.
         .padding(.vertical, -(Hover.menuTarget - 16) / 2)
+        .padding(.trailing, -(Hover.menuTarget - Hover.menuGlyph) / 2)
         .help(help)
         .accessibilityLabel(help)
     }

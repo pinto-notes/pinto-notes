@@ -101,6 +101,41 @@ final class EditorController {
         insertLines(files.map(\.markdown))
     }
 
+    /// The title a link to this note is written with; nil for a note that can't be linked from
+    /// here (this note itself, a deleted one).
+    @ObservationIgnored var noteLinkTitle: (UUID) -> String? = { _ in nil }
+
+    /// Notes dropped into the text: a link to each where the caret is, the kind `[[` makes
+    /// (`[[Title]]`). Nothing is moved. Returns whether anything was inserted.
+    @discardableResult
+    func insertNoteLinks(_ ids: [UUID]) -> Bool {
+        let titles = ids.compactMap { noteLinkTitle($0) }
+        guard !titles.isEmpty, target != nil else { return false }
+        perform { text, sel in Self.noteLinksEdit(titles: titles, in: text, selection: sel) }
+        return true
+    }
+
+    /// The edit that puts links to `titles` at the selection: side by side, with a space before
+    /// when they would otherwise run into the word they were dropped after.
+    nonisolated static func noteLinksEdit(titles: [String], in text: String, selection: NSRange) -> TextEdit? {
+        let links = titles.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.map { WikiLinks.markdown(target: $0) }
+        guard !links.isEmpty else { return nil }
+        let ns = text as NSString
+        let at = min(selection.location, ns.length)
+        let range = NSRange(location: at, length: min(selection.length, ns.length - at))
+        var lead = ""
+        if at > 0, let before = ns.substring(with: NSRange(location: at - 1, length: 1)).unicodeScalars.first, !CharacterSet.whitespacesAndNewlines.contains(before) { lead = " " }
+        let replacement = lead + links.joined(separator: " ")
+        return TextEdit(range: range, replacement: replacement, caret: at + (replacement as NSString).length)
+    }
+
+    /// The notes a drag from inside the app carries (`PaneDragItem`), from the data on its pasteboard.
+    nonisolated static func draggedNotes(_ data: [Data]) -> [UUID] {
+        var seen: Set<UUID> = []
+        return data.compactMap { try? JSONDecoder().decode(PaneDragItem.self, from: $0) }
+            .filter { $0.kind == .note }.flatMap(\.ids).filter { seen.insert($0).inserted }
+    }
+
     /// Inserts whole lines (embeds, links) at the caret, each on its own line.
     func insertLines(_ lines: [String]) {
         guard !lines.isEmpty else { return }
