@@ -274,6 +274,39 @@ final class OnboardingFlowUITests: XCTestCase {
         app.buttons["sidebar.settings"].tap()
     }
 
+    /// After the flow, with no AI connected: the card at the foot of the folder list is Connect
+    /// your AI; it opens Connect an AI; closed, Templates takes its place and it stays closed.
+    func testG_TheSidebarCard() throws {
+        launch()
+        if app.textFields["signin.email"].waitForExistence(timeout: 8) { try signIn() }
+        expectNotes("g0-notes")
+        for _ in 0..<3 where !app.buttons["sidebar.settings"].exists {
+            let back = app.navigationBars.buttons.firstMatch
+            if back.exists { back.tap(); pause(0.6) }
+        }
+        let card = app.descendants(matching: .any)["sidebar.connect"].firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 20), "Connect your AI, while nothing is connected")
+        XCTAssertFalse(app.descendants(matching: .any)["sidebar.templates"].firstMatch.exists, "never both")
+        shot("g1-connect-card")
+        app.buttons["sidebar.connect.open"].tap()
+        XCTAssertTrue(app.buttons["connect.guide.chatgpt"].waitForExistence(timeout: 10), "it opens Connect an AI")
+        shot("g2-connect-sheet")
+        app.buttons["Done"].tap()
+        pause(1)
+        app.buttons["sidebar.connect.close"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["sidebar.templates"].firstMatch.waitForExistence(timeout: 10), "closed: Templates takes its place")
+        shot("g3-templates-card")
+        app.terminate()
+        launch()
+        expectNotes("g4-relaunch")
+        for _ in 0..<3 where !app.buttons["sidebar.settings"].exists {
+            let back = app.navigationBars.buttons.firstMatch
+            if back.exists { back.tap(); pause(0.6) }
+        }
+        XCTAssertTrue(app.descendants(matching: .any)["sidebar.templates"].firstMatch.waitForExistence(timeout: 20))
+        XCTAssertFalse(app.descendants(matching: .any)["sidebar.connect"].firstMatch.exists, "stays closed")
+    }
+
     /// Settings › Show Setup Guide plays the flow again, and leaving it changes nothing.
     func testE_ReplayFromSettings() throws {
         launch()

@@ -151,6 +151,39 @@ import UIKit
     }
     #endif
 
+    /// The sidebar with the Templates card above the account row, and after it was closed.
+    /// The sidebar with the card at its foot: `connected` false shows Connect your AI, true
+    /// shows Templates.
+    static func sidebar(connected: Bool, _ c: ModelContainer) -> some View {
+        let backend = Backend()
+        backend.showSignedInForPreview(email: "sara@example.com", account: UUID())
+        return NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+            .environment(backend)
+            .environment(SetupStore(progress: SetupProgress(connected: connected, dismissed: true)))
+            .modelContainer(c)
+            .tint(Color(PColor.paneAccent))
+    }
+
+    #if os(macOS)
+    /// On its own: in the window the sidebar's glass doesn't draw offscreen.
+    @Test(arguments: [false, true])
+    func templatesCard(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let c = try AppSnapshotTests.container()
+        ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let mode = dark ? "dark" : "light"
+        for (name, connected) in [("6-sidebar-card-connect", false), ("6-sidebar-card-templates", true)] {
+            try await AppSnapshotTests.render(Self.sidebar(connected: connected, c).frame(width: 250, height: 640), name: "mac-\(name)-\(mode)", dark: dark, wait: 1.0)
+        }
+        // Enlarged, to see the pictures.
+        for (name, card) in [("connect", AnyView(ConnectCard(onConnect: {}, onClose: {}))), ("templates", AnyView(TemplatesCard(onClose: {})))] {
+            let big = card.frame(width: 230).padding(10).tint(Color(PColor.paneAccent)).scaleEffect(2.5, anchor: .topLeading).frame(width: 625, height: 300, alignment: .topLeading)
+            try await AppSnapshotTests.render(big, name: "mac-6-sidebar-card-\(name)-enlarged-\(mode)", dark: dark, wait: 0.8)
+        }
+    }
+    #endif
+
     #if os(iOS)
     @Test func iPhoneConnectSheet() async throws {
         guard let dir = Self.dir else { return }
@@ -173,6 +206,36 @@ import UIKit
                     window.isHidden = true
                     try #require(image.pngData()).write(to: dir.appending(path: "iphone-\(s.name)-\(label)-\(dark ? "dark" : "light").png"))
                 }
+            }
+        }
+    }
+
+    /// The iPhone's folder list (the iPad's sidebar) with the Templates card at its foot.
+    @Test func iPhoneTemplatesCard() async throws {
+        guard let dir = Self.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: true)
+        ProfileStore.shared.showForPreview(name: "Sara Lindqvist", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        // (At the accessibility text sizes the card stays away: the folders need the room.)
+        for (connected, label, type) in [(false, "connect-default", DynamicTypeSize.large), (true, "templates-default", .large),
+                                         (false, "connect-larger", .xxxLarge), (true, "templates-larger", .xxxLarge)] {
+            for dark in [false, true] {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+                window.overrideUserInterfaceStyle = dark ? .dark : .light
+                window.rootViewController = UIHostingController(rootView: Self.sidebar(connected: connected, c).dynamicTypeSize(type))
+                window.isHidden = false
+                try? await Task.sleep(for: .seconds(1.0))
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 3
+                let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                window.isHidden = true
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-6-sidebar-card-\(label)-\(dark ? "dark" : "light").png"))
             }
         }
     }

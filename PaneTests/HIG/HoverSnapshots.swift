@@ -46,19 +46,5 @@ import Testing
         try await AppSnapshotTests.render(sidebar(["Travel", "Q4 planning"]), name: "mac-hover-sidebar-hover-\(mode)", dark: dark)
     }
 
-    @Test(arguments: [false, true])
-    func setupCard(dark: Bool) async throws {
-        guard AppSnapshotTests.dir != nil else { return }
-        let mode = dark ? "dark" : "light"
-        func card(_ hover: Set<String>) -> some View {
-            SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onSkip: {}, onConnect: {}, onHide: {})
-                .environment(\.hoverPreview, hover)
-                .frame(width: 320)
-                .padding(16)
-                .tint(Color(PColor.paneAccent))
-        }
-        try await AppSnapshotTests.render(card([]), name: "mac-hover-setup-rest-\(mode)", dark: dark)
-        try await AppSnapshotTests.render(card(["*"]), name: "mac-hover-setup-hover-\(mode)", dark: dark)
-    }
 }
 #endif

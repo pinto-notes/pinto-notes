@@ -286,7 +286,10 @@ final class Backend {
     }
 
     /// For screenshots and previews only: shows the signed-in screens without a session.
-    func showSignedInForPreview(email: String) { state = .signedIn(email: email) }
+    func showSignedInForPreview(email: String, account: UUID? = nil) {
+        if let account { userID = account }
+        state = .signedIn(email: email)
+    }
 
     private func watchAuth() async {
         guard let client else { return }

@@ -350,6 +350,8 @@ enum TryIt {
 extension Notification.Name {
     /// Help › Show Setup Guide (Settings on iPhone): the first-run flow, from the welcome.
     static let paneReplayOnboarding = Notification.Name("pane.replayOnboarding")
+    /// Connect an AI: the File menu, the list's menu on iPhone and iPad, the sidebar's card.
+    static let paneConnectAI = Notification.Name("pane.connectAI")
 }
 
 /// The note the Try it step has an AI write in. It has a title no imported note will have (an
