@@ -619,7 +619,7 @@ final class AppSession {
     @ObservationIgnored let backend: Backend
     @ObservationIgnored let sync: SyncEngine
     @ObservationIgnored let context: ModelContext
-    /// The first-run "Get set up" card's state, for the signed-in account.
+    /// What the server knows about the account's setup (`SetupProgress`).
     let setup = SetupStore()
     /// The first-run flow, for an account that was just made (see `Onboarding`).
     let onboarding = OnboardingStore()
@@ -838,9 +838,6 @@ final class AppSession {
         await sync.start()
         await firstPullAnswered()
         await setup.refresh(force: true)
-        // The setup guide's To-do note, now that the account's notes are here to say whether it
-        // has one already (the note list makes it when the guide gets to that step later).
-        if sync.knowsAccount, setup.progress?.needsToDoNote == true, context.makeToDoNoteIfMissing() != nil { SyncSignal.changed() }
         // Tips wait for this: never a tip for something this account has used anywhere.
         await FeatureUse.refresh()
         await shareAsk.refresh()
@@ -897,20 +894,6 @@ struct AppGate: View {
             Button("OK", role: .cancel) { removedHere.value = false }
         } message: {
             Text(PrivacyCopy.removedMessage)
-        }
-    }
-
-    /// Captures: `-captureSetupFlow` walks the setup card from step 1 to "You're all set", a few
-    /// seconds a step, as if each thing had just happened.
-    private func playSetupFlow() {
-        Task { @MainActor in
-            var p = SetupProgress()
-            setup.apply(p)
-            for change in [{ (q: inout SetupProgress) in q.imported = true }, { $0.connected = true }, { $0.aiEdits = 1 }] {
-                try? await Task.sleep(for: .seconds(2.6))
-                change(&p)
-                setup.apply(p)
-            }
         }
     }
 
@@ -997,26 +980,17 @@ struct AppGate: View {
         #endif
         .animation(.easeOut(duration: 0.25), value: backend.state)
         .animation(.easeOut(duration: 0.25), value: onboardingShown)
-        .onAppear {
-            if let p = CaptureScreen.setupProgress { setup.apply(p) }
-            if CaptureScreen.setupFlow { playSetupFlow() }
-        }
         // The key check, sync and the asks run in `session`, window or no window (AppSession).
         .onAppear { session.foreground = phase == .active }
         // What's new waits while an ask or an alert is up.
-        // Each sync may have brought an AI's edit or a new connection: the card looks again.
-        .onChange(of: sync.status) { _, _ in Task { await setup.refresh() } }
 
         .onReceive(NotificationCenter.default.publisher(for: .paneNotesBrought)) { _ in
             Task { await setup.mark("imported"); await PaneTips.imported.donate() }
         }
-        // Tips wait until the Get set up card has gone; an import on any device counts.
-        .onChange(of: setup.visible || onboarding.active, initial: true) { _, visible in PaneTips.setupVisible = visible }
+        // Tips wait until the first-run flow has gone; an import on any device counts.
+        .onChange(of: onboarding.active, initial: true) { _, visible in PaneTips.setupVisible = visible }
         .onChange(of: setup.progress?.imported == true, initial: true) { _, imported in
             if imported { Task { await PaneTips.importedOnce() } }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .paneShowSetupGuide)) { _ in
-            Task { await setup.reset() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .paneReplayOnboarding)) { _ in
             guard case .signedIn = backend.state, !keyGateShown else { return }
@@ -1120,7 +1094,6 @@ struct AppGate: View {
         onboarding.finish(landing: landing)
         if !replay { Task { await setup.mark("dismissed") } }
     }
-
 }
 
 @MainActor
@@ -1191,7 +1164,7 @@ private struct WindowCloser: NSViewRepresentable {
 }
 #endif
 
-/// Captures only (`-uitest`): one screen on its own, or the setup card at a given step, so the
+/// Captures only (`-uitest`): one screen on its own, so the
 /// iPhone simulator can show them without anyone tapping through.
 ///   `-captureScreen connect`, `connect-chatgpt`, `connect-claude`, `connected-chatgpt`, `connect-incredible`, `settings`, `template`, `template-added`, `copy`, `signin`, `welcome`, `welcome-signin`, `welcome-signin-focused`, `welcome-signin-new`, `welcome-signin-existing`, `welcome-confirm` (Check your email), `welcome-confirm-wait` (a code just sent: Resend code counts down), `welcome-confirm-typed` (three digits in), `welcome-confirm-wrong` (after a wrong code), `new-device`, `add-device` (the sheet as this device opens it), `add-device-type`, `add-device-confirm`, `add-device-done`, `key-kept`, `key-kept-unconfirmed`, `key-kept-only`, `key-checking` or `device-added-notice`; `-captureSetup 1…4` (4: the moment after your AI's first edit).
 struct CaptureScreen: View {
@@ -1200,16 +1173,6 @@ struct CaptureScreen: View {
 
     static var requested: String? {
         ProcessInfo.processInfo.arguments.contains("-uitest") ? Capture.argument("-captureScreen") : nil
-    }
-
-    static var setupFlow: Bool {
-        ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-captureSetupFlow")
-    }
-
-    static var setupProgress: SetupProgress? {
-        guard ProcessInfo.processInfo.arguments.contains("-uitest"), let n = Capture.argument("-captureSetup").flatMap(Int.init) else { return nil }
-        // 4: your AI's first edit just landed ("That was your AI.").
-        return SetupProgress(imported: n > 1, connected: n > 2, aiEdits: n > 3 ? 1 : 0)
     }
 
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "capture")

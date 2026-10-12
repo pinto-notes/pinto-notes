@@ -40,6 +40,10 @@ struct RootView: View {
     @AppStorage("lastScope") private var lastScopeData: Data = Data()
     /// Files that weren't added (a kind the app can't show, or over 100 MB), said once.
     @State private var refusal: FileRefusal?
+    /// Connect an AI, from the File menu, the list's menu or the card at the foot of the sidebar.
+    @State private var connectingAI = false
+    @Environment(SetupStore.self) private var setupStore: SetupStore?
+    @Environment(Backend.self) private var backendForConnect: Backend?
     @AppStorage("lastNote") private var lastNote: String = ""
 
     /// The single open note, when exactly one is selected.
@@ -62,6 +66,10 @@ struct RootView: View {
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
             .noteSourceHandler()
+            .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
+            .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
+                if let client = backendForConnect?.client { ConnectAISheet(client: client) }
+            }
             // Collaboration (prototype): an invitation to someone else's note.
             .modifier(CollabInviteAlert())
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
@@ -540,6 +548,9 @@ struct PaneCommands: Commands {
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
         }
         CommandGroup(replacing: .importExport) {
+            // Not inside Settings: a home anyone finds, beside Import.
+            Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
+            Divider()
             Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                 .disabled(importNotes == nil)
             ForEach(ImportKind.allCases) { kind in

@@ -3,51 +3,20 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// The first-run "Get set up" card: which step is next, when it celebrates, when it goes.
+/// What the server knows about an account's setup, and how the app reads and marks it.
 @Suite struct SetupProgressTests {
-    @Test func freshAccountStartsAtBringYourNotes() {
-        let p = SetupProgress()
-        #expect(p.current == .bring)
-        #expect(p.visible)
-        #expect(!p.celebrating)
-        #expect(!p.needsToDoNote)
-    }
-
-    @Test func stepsTickInOrderOfWhatReallyHappened() {
-        var p = SetupProgress(imported: true)
-        #expect(p.current == .connect)
-        p.connected = true
-        #expect(p.current == .tryIt)
-        #expect(p.needsToDoNote, "step 3's prompt needs a To-do note")
-        p.aiEdits = 1
-        #expect(p.current == nil)
-        #expect(p.celebrating)
-        #expect(!p.needsToDoNote)
-    }
-
-    @Test func connectingBeforeImportingStillShowsStepOneFirst() {
-        let p = SetupProgress(imported: false, connected: true)
-        #expect(p.current == .bring)
-        #expect(p.isDone(.connect))
-    }
-
-    @Test func hidingOrCelebratingEndsTheCardForGood() {
-        #expect(!SetupProgress(dismissed: true).visible)
-        #expect(!SetupProgress(aiEdits: 3, celebrated: true).visible)
-        #expect(!SetupProgress(aiEdits: 3, dismissed: true).celebrating, "a hidden card never celebrates")
-    }
-
-    /// "Start fresh" is the account's destructive action (a new key, the server's notes erased).
-    /// The card's way past importing must not borrow its words.
-    @MainActor @Test func skippingTheImportIsNotCalledStartFresh() {
-        #expect(SetupCard.skipTitle == "Skip")
-        #expect(SetupCard.skipTitle.lowercased() != AccountCrypto.startFreshPhrase)
-    }
-
     @Test func decodesTheServerAnswer() throws {
-        let json = #"{"imported":true,"connected":false,"ai_edits":2,"dismissed":false,"celebrated":false}"#
+        let json = #"{"imported":true,"connected":false,"ai_edits":2,"dismissed":false,"celebrated":false,"templates_closed":true}"#
         let p = try JSONDecoder().decode(SetupProgress.self, from: Data(json.utf8))
-        #expect(p == SetupProgress(imported: true, connected: false, aiEdits: 2))
+        #expect(p == SetupProgress(imported: true, connected: false, aiEdits: 2, templatesClosed: true))
+    }
+
+    /// A server from before the Templates card doesn't send its mark: everything else still reads.
+    @Test func aServerWithoutTheNewestMarkStillDecodes() throws {
+        let json = #"{"imported":true,"connected":true,"ai_edits":0,"dismissed":true,"celebrated":false}"#
+        let p = try JSONDecoder().decode(SetupProgress.self, from: Data(json.utf8))
+        #expect(p == SetupProgress(imported: true, connected: true, dismissed: true))
+        #expect(!p.templatesClosed)
     }
 }
 
@@ -56,60 +25,21 @@ private final class FakeSetup: SetupService, @unchecked Sendable {
     var answer = SetupProgress()
     var marked: [String] = []
     var calls = 0
+    /// A server that doesn't know a step refuses it.
+    var refuses: Set<String> = []
+    struct Refused: Error {}
     func progress() async throws -> SetupProgress { calls += 1; return answer }
-    func mark(_ step: String) async throws { marked.append(step) }
+    func mark(_ step: String) async throws {
+        if refuses.contains(step) { throw Refused() }
+        marked.append(step)
+    }
 }
 
 @MainActor @Suite struct SetupStoreTests {
-    @Test func noAccountNoCard() async {
+    @Test func noAccountNothingKnown() async {
         let store = SetupStore()
         await store.refresh(force: true)
-        #expect(!store.visible)
-    }
-
-    @Test func firstAIEditCelebratesThenMarksIt() async throws {
-        let fake = FakeSetup()
-        let store = SetupStore()
-        store.attach(account: UUID(), service: fake)
-        fake.answer = SetupProgress(imported: true, connected: true)
-        await store.refresh(force: true)
-        #expect(store.visible && !store.showingCelebration)
-        fake.answer.aiEdits = 1
-        await store.refresh(force: true)
-        #expect(store.showingCelebration, "You're all set")
-        #expect(store.visible)
-    }
-
-    @Test func theLastStepCelebratesThenTheCardGoesForGood() async throws {
-        SetupStore.celebration = 0.2
-        defer { SetupStore.celebration = 3.3 }
-        let fake = FakeSetup()
-        let store = SetupStore()
-        store.attach(account: UUID(), service: fake)
-        fake.answer = SetupProgress(imported: true, connected: true, aiEdits: 1)
-        await store.refresh(force: true)
-        #expect(store.showingCelebration, "You're all set")
-        try await Task.sleep(for: .seconds(0.6))
-        #expect(!store.showingCelebration)
-        #expect(!store.visible)
-        #expect(fake.marked == ["celebrated"])
-    }
-
-    @Test func showSetupGuideGoesBackToStepOneHereAndOnTheServer() async {
-        let fake = FakeSetup()
-        let store = SetupStore()
-        store.attach(account: UUID(), service: fake)
-        fake.answer = SetupProgress(imported: true, connected: true, aiEdits: 4, celebrated: true)
-        await store.refresh(force: true)
-        #expect(!store.visible)
-        await store.reset()
-        #expect(store.visible)
-        #expect(store.progress?.current == .bring)
-        #expect(!store.showingCelebration, "it celebrates only once every step is done again")
-        #expect(fake.marked == ["reset"])
-        // Bringing notes finishes it: connecting and the AI edit are already facts.
-        await store.mark("imported")
-        #expect(store.showingCelebration)
+        #expect(store.progress == nil)
     }
 
     @Test func markingUpdatesAtOnceAndTellsTheServer() async {
@@ -120,61 +50,61 @@ private final class FakeSetup: SetupService, @unchecked Sendable {
         await store.mark("imported")
         #expect(store.progress?.imported == true)
         await store.mark("dismissed")
-        #expect(!store.visible)
-        #expect(fake.marked == ["imported", "dismissed"])
+        #expect(store.progress?.dismissed == true)
+        await store.mark("templates_closed")
+        #expect(store.progress?.templatesClosed == true)
+        #expect(fake.marked == ["imported", "dismissed", "templates_closed"])
     }
 
-    @Test func refreshesAreThrottledAndStopWhenTheCardIsGone() async {
+    /// Before the server learns the Templates mark, closing the card still holds here.
+    @Test func aStepTheServerRefusesStillHoldsOnThisDevice() async {
+        let fake = FakeSetup()
+        fake.refuses = ["templates_closed"]
+        let store = SetupStore()
+        store.attach(account: UUID(), service: fake)
+        await store.refresh(force: true)
+        await store.mark("templates_closed")
+        #expect(store.progress?.templatesClosed == true)
+        #expect(fake.marked.isEmpty)
+    }
+
+    @Test func anUnknownStepIsNotSent() async {
+        let fake = FakeSetup()
+        let store = SetupStore()
+        store.attach(account: UUID(), service: fake)
+        await store.refresh(force: true)
+        await store.mark("reset")
+        #expect(fake.marked.isEmpty, "the old setup card's reset is gone")
+    }
+
+    @Test func refreshesAreThrottledUnlessForced() async {
         let fake = FakeSetup()
         let store = SetupStore()
         store.attach(account: UUID(), service: fake)
         await store.refresh(force: true)
         await store.refresh()
         await store.refresh()
-        #expect(fake.calls == 1, "syncs while typing mustn't flood the server")
-        await store.mark("dismissed")
-        await store.refresh()
-        #expect(fake.calls == 1, "a hidden card never asks again by itself")
-        // The first-run flow asks after a connect guide closes, hidden card or not.
+        #expect(fake.calls == 1, "coming back to the app again and again mustn't flood the server")
+        // The first-run flow asks after a connect guide closes, whatever was asked a second ago.
+        fake.answer.connected = true
         await store.refresh(force: true)
         #expect(fake.calls == 2)
+        #expect(store.progress?.connected == true)
     }
 
     @Test func anotherAccountStartsOver() async {
         let fake = FakeSetup()
-        fake.answer = SetupProgress(imported: true, dismissed: true)
+        fake.answer = SetupProgress(imported: true, dismissed: true, templatesClosed: true)
         let store = SetupStore()
         store.attach(account: UUID(), service: fake)
         await store.refresh(force: true)
-        #expect(!store.visible)
+        #expect(store.progress?.templatesClosed == true)
         store.attach(account: UUID(), service: FakeSetup())
         #expect(store.progress == nil)
         await store.refresh(force: true)
-        #expect(store.visible)
+        #expect(store.progress == SetupProgress())
     }
 }
-
-#if os(macOS)
-/// The card in each state, light and dark: `AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/SetupCardSnapshots`.
-@MainActor @Suite(.serialized) struct SetupCardSnapshots {
-    @Test(arguments: [false, true])
-    func states(dark: Bool) async throws {
-        let mode = dark ? "dark" : "light"
-        let states: [(String, SetupProgress, Bool)] = [
-            ("1-bring", SetupProgress(), false),
-            ("2-connect", SetupProgress(imported: true), false),
-            ("3-try", SetupProgress(imported: true, connected: true), false),
-            ("4-celebrate", SetupProgress(imported: true, connected: true, aiEdits: 1), true),
-        ]
-        for (name, p, celebrating) in states {
-            let card = SetupCard(progress: p, celebrating: celebrating, onImport: {}, onSkip: {}, onConnect: {}, onHide: {})
-                .frame(width: 330)
-                .padding(12)
-            try await AppSnapshotTests.render(card, name: "setup-\(name)-\(mode)", dark: dark)
-        }
-    }
-}
-#endif
 
 /// Where the notes live, said in the app.
 @Suite struct SyncWordingTests {

@@ -4,48 +4,50 @@ import SwiftUI
 import Observation
 import Supabase
 
-/// The first-run "Get set up" card: bring your notes, connect your AI, try it.
-///
-/// Each step is a fact the server knows, so the card reads the same on every device:
-/// an import finished (marked by the app), an AI connection exists (mcp_tokens), and an AI
-/// has edited a note (counted on the server). The card goes for good once you hide it or
-/// once your first AI edit has been celebrated.
+/// What the server knows about an account's setup, the same on every device: an import finished
+/// (marked by the app), an AI connection exists (mcp_tokens), an AI has edited a note (counted on
+/// the server), the first-run flow ended (`dismissed`; `celebrated` is how the setup card of
+/// earlier versions ended), and the Templates card in the sidebar was closed.
 struct SetupProgress: Equatable, Decodable {
     var imported = false
     var connected = false
     var aiEdits = 0
     var dismissed = false
     var celebrated = false
+    var templatesClosed = false
+    var connectCardClosed = false
 
     enum CodingKeys: String, CodingKey {
         case imported, connected, dismissed, celebrated
         case aiEdits = "ai_edits"
+        case templatesClosed = "templates_closed"
+        case connectCardClosed = "connect_card_closed"
     }
 
-    enum Step: Int, CaseIterable { case bring = 1, connect, tryIt }
-
-    func isDone(_ step: Step) -> Bool {
-        switch step {
-        case .bring: imported
-        case .connect: connected
-        case .tryIt: aiEdits > 0
-        }
+    init(imported: Bool = false, connected: Bool = false, aiEdits: Int = 0, dismissed: Bool = false, celebrated: Bool = false, templatesClosed: Bool = false, connectCardClosed: Bool = false) {
+        self.imported = imported
+        self.connected = connected
+        self.aiEdits = aiEdits
+        self.dismissed = dismissed
+        self.celebrated = celebrated
+        self.templatesClosed = templatesClosed
+        self.connectCardClosed = connectCardClosed
     }
 
-    /// The first step not done yet; nil when all three are.
-    var current: Step? { Step.allCases.first { !isDone($0) } }
-
-    /// Every step is done and it hasn't been celebrated yet: "You're all set", once.
-    var celebrating: Bool { current == nil && !celebrated && !dismissed }
-
-    /// Shown until hidden, or until the celebration has been seen.
-    var visible: Bool { !dismissed && !celebrated }
-
-    /// "To-do" should exist while step 3 is the one to do, so the prompt works.
-    var needsToDoNote: Bool { visible && connected && aiEdits == 0 }
+    /// Every key is optional: a server that doesn't know a mark yet simply doesn't send it.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        imported = try c.decodeIfPresent(Bool.self, forKey: .imported) ?? false
+        connected = try c.decodeIfPresent(Bool.self, forKey: .connected) ?? false
+        aiEdits = try c.decodeIfPresent(Int.self, forKey: .aiEdits) ?? 0
+        dismissed = try c.decodeIfPresent(Bool.self, forKey: .dismissed) ?? false
+        celebrated = try c.decodeIfPresent(Bool.self, forKey: .celebrated) ?? false
+        templatesClosed = try c.decodeIfPresent(Bool.self, forKey: .templatesClosed) ?? false
+        connectCardClosed = try c.decodeIfPresent(Bool.self, forKey: .connectCardClosed) ?? false
+    }
 }
 
-/// Where the card's facts come from (the server; tests swap it).
+/// Where those facts come from (the server; tests swap it).
 protocol SetupService: Sendable {
     func progress() async throws -> SetupProgress
     func mark(_ step: String) async throws
@@ -65,19 +67,13 @@ struct SupabaseSetup: SetupService {
 @Observable
 final class SetupStore {
     private(set) var progress: SetupProgress?
-    /// Shown for a moment after the first AI edit lands.
-    private(set) var showingCelebration = false
     @ObservationIgnored private var service: SetupService?
     @ObservationIgnored private var account: UUID?
-    @ObservationIgnored private var celebrationTask: Task<Void, Never>?
 
     init(service: SetupService? = nil, progress: SetupProgress? = nil) {
         self.service = service
         self.progress = progress
     }
-
-    /// The card is only for signed-in accounts, and only once the server has answered.
-    var visible: Bool { (progress?.visible ?? false) || showingCelebration }
 
     /// A new account (or none) resets everything.
     func attach(account: UUID?, service: SetupService?) {
@@ -85,77 +81,38 @@ final class SetupStore {
         self.account = account
         self.service = service
         progress = nil
-        showingCelebration = false
-        celebrationTask?.cancel()
     }
 
     @ObservationIgnored private var lastRefresh: Date = .distantPast
 
-    /// Asks the server again: at most every few seconds (syncs happen often while typing), and
-    /// not at all once the card is gone for good.
+    /// Asks the server again, at most every few seconds unless forced.
     func refresh(force: Bool = false) async {
         guard let service else { return }
-        if !force, let p = progress, !p.visible, !showingCelebration { return }
         guard force || Date.now.timeIntervalSince(lastRefresh) > 4 else { return }
         lastRefresh = .now
         guard let fresh = try? await service.progress() else { return }
-        apply(fresh)
-    }
-
-    func apply(_ fresh: SetupProgress) {
         progress = fresh
-        if fresh.celebrating && !showingCelebration { celebrate() }
     }
 
+    func apply(_ fresh: SetupProgress) { progress = fresh }
+
+    /// Marks a step here at once and on the server. A server that doesn't know the step yet
+    /// refuses it, and nothing else changes.
     func mark(_ step: String) async {
         switch step {
         case "imported": progress?.imported = true
         case "dismissed": progress?.dismissed = true
-        case "celebrated": progress?.celebrated = true
+        case "templates_closed": progress?.templatesClosed = true
+        case "connect_card_closed": progress?.connectCardClosed = true
         default: return
         }
-        if let p = progress, p.celebrating, !showingCelebration { celebrate() }
         try? await service?.mark(step)
     }
-
-    /// Help › Show Setup Guide: back to step 1, here and on the server. Whether an AI is connected
-    /// and has edited a note are facts, so those steps tick themselves as you go.
-    func reset() async {
-        celebrationTask?.cancel()
-        showingCelebration = false
-        guard var p = progress else { return }
-        p.imported = false
-        p.dismissed = false
-        p.celebrated = false
-        withAnimation(.smooth(duration: 0.35)) { progress = p }
-        try? await service?.mark("reset")
-    }
-
-    /// "You're all set" draws itself, holds a moment, then the card folds away for good and the
-    /// list moves up.
-    private func celebrate() {
-        showingCelebration = true
-        celebrationTask?.cancel()
-        celebrationTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.celebration))
-            guard !Task.isCancelled, let self else { return }
-            withAnimation(.smooth(duration: 0.45)) {
-                self.progress?.celebrated = true
-                self.showingCelebration = false
-            }
-            await self.mark("celebrated")
-        }
-    }
-
-    /// The check draws in about 0.8 s, then holds about 2.5 s.
-    nonisolated(unsafe) static var celebration: Double = 3.3
 }
 
 extension Notification.Name {
     /// Notes arrived from outside: an Apple Notes import, or items shared into the app.
     static let paneNotesBrought = Notification.Name("pane.notesBrought")
-    /// Help › Show Setup Guide (Settings on iPhone): the setup card back at step 1.
-    static let paneShowSetupGuide = Notification.Name("pane.showSetupGuide")
 }
 
 /// A random id for this install, used only to count how many devices an account uses.
@@ -185,7 +142,7 @@ enum InstallID {
 }
 
 extension ModelContext {
-    /// The setup guide's "To-do" note, made only when the account has none anywhere: in any folder,
+    /// The "To-do" note the first-run flow's prompt writes to, made only when the account has none anywhere: in any folder,
     /// not just the one on screen. Call it only once the account's notes have come down
     /// (`SyncEngine.knowsAccount`). Nil when there is one already.
     @MainActor @discardableResult
