@@ -25,12 +25,14 @@ struct RootView: View {
     @State private var launchAlert = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-launchAlert")
     #endif
     @State private var showImport = false
+    #if os(macOS)
+    /// "Imported 18 notes": shown for a few seconds once the Apple Notes sheet has closed.
+    @State private var importLine: String?
+    #endif
     #if os(iOS)
     /// "Import from Apple Notes" from an email, on an iPhone: it's a Mac feature.
     @State private var importOnMac = false
     #endif
-    @State private var importingSheet = false
-    @State private var importError: String?
     /// The import sheet showing (Evernote, Markdown…).
     @State private var importing: ImportKind?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
@@ -56,7 +58,6 @@ struct RootView: View {
             .focusedSceneValue(\.newNoteAction, newNote)
             .focusedSceneValue(\.editorController, editor)
             .focusedSceneValue(\.importAction, { showImport = true })
-            .focusedSceneValue(\.importSheetAction, { importingSheet = true })
             .focusedSceneValue(\.importFromAction, { kind in importFiles = []; importing = kind })
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
@@ -109,7 +110,7 @@ struct RootView: View {
                 #endif
         }
         .environment(editor)
-        .environment(\.importActions, ImportActions(appleNotes: { showImport = true }, spreadsheet: { importingSheet = true },
+        .environment(\.importActions, ImportActions(appleNotes: { showImport = true },
                                                      from: { kind in importFiles = []; importing = kind }))
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
@@ -226,16 +227,26 @@ struct RootView: View {
 
     private func imports(_ content: some View) -> some View {
         content
-            .fileImporter(isPresented: $importingSheet, allowedContentTypes: [.spreadsheet, UTType(filenameExtension: "xlsx") ?? .data], onCompletion: importSpreadsheet)
-            .alert("Couldn't import", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
-                Button("OK") {}
-            } message: { Text(importError ?? "") }
             #if os(macOS)
             .sheet(isPresented: $showImport) {
-                AppleNotesImportView { ids in
+                AppleNotesImportView(onSummary: { importLine = $0.line() }) { ids in
                     if let first = ids.first { scope = .all; selectedNote = first }
                 }
             }
+            // What the import did, said once over the window's foot instead of asked to be dismissed.
+            .overlay(alignment: .bottom) {
+                if let importLine, !showImport {
+                    ImportDoneLine(text: importLine)
+                        .padding(.bottom, 18)
+                        .transition(.opacity.combined(with: .offset(y: 6)))
+                        .task {
+                            try? await Task.sleep(for: .seconds(6))
+                            self.importLine = nil
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: importLine)
+            .animation(.easeOut(duration: 0.25), value: showImport)
             #endif
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportSheet(kind, files: importFiles) { ids in
@@ -257,16 +268,6 @@ struct RootView: View {
         guard !EvernoteInbox.files.isEmpty, importing == nil else { return }
         importFiles = EvernoteInbox.files
         importing = .evernote
-    }
-
-    private func importSpreadsheet(_ result: Result<URL, Error>) {
-        guard case .success(let url) = result else { return }
-        do {
-            let note = try context.importSpreadsheet(url, into: scope == .trash ? .all : (scope ?? .all))
-            selectedNote = note.id
-        } catch {
-            importError = error.localizedDescription
-        }
     }
 
     private var deleteAction: (() -> Void)? {
@@ -435,7 +436,6 @@ struct EmptyDetailView: View {
 /// note does on every save while you type), and each change rebuilt the folders and the list again.
 struct ImportActions {
     var appleNotes: () -> Void
-    var spreadsheet: () -> Void
     var from: (ImportKind) -> Void
 }
 
@@ -450,10 +450,6 @@ private struct NewNoteActionKey: FocusedValueKey {
 }
 
 private struct DeleteNoteActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct ImportSheetActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
@@ -482,10 +478,6 @@ extension FocusedValues {
         get { self[DeleteNoteActionKey.self] }
         set { self[DeleteNoteActionKey.self] = newValue }
     }
-    var importSheetAction: (() -> Void)? {
-        get { self[ImportSheetActionKey.self] }
-        set { self[ImportSheetActionKey.self] = newValue }
-    }
     var importAction: (() -> Void)? {
         get { self[ImportActionKey.self] }
         set { self[ImportActionKey.self] = newValue }
@@ -512,7 +504,6 @@ struct PaneCommands: Commands {
     @FocusedValue(\.deleteNoteAction) private var deleteNote
     @FocusedValue(\.editorController) private var editor
     @FocusedValue(\.importAction) private var importNotes
-    @FocusedValue(\.importSheetAction) private var importSheet
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
 
@@ -541,8 +532,6 @@ struct PaneCommands: Commands {
                 Button(kind.menuTitle) { importFrom?(kind) }
                     .disabled(importFrom == nil)
             }
-            Button("Import Spreadsheet as Table…") { importSheet?() }
-                .disabled(importSheet == nil)
             Divider()
             Button("Attach File…") { editor?.attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])

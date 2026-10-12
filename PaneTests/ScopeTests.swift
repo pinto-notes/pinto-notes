@@ -66,6 +66,12 @@ import Testing
         #expect(SidebarView.counts(in: ctx) == (live: 18, trashed: 0))
     }
 
+    @Test func aFolderInsideAnotherIsCalledASubfolder() {
+        #expect(SidebarView.nameAlertTitle(renaming: false, inside: true) == "New Subfolder")
+        #expect(SidebarView.nameAlertTitle(renaming: false, inside: false) == "New Folder")
+        #expect(SidebarView.nameAlertTitle(renaming: true, inside: false) == "Rename Folder")
+    }
+
     @Test func aFolderThatIsGoneFallsBack() {
         #expect(Scope.settled(.folder(b), liveFolders: [a, UUID()]) == .all)
         #expect(Scope.settled(.folder(b), liveFolders: [a]) == .folder(a))

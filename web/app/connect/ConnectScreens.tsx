@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { APPLE_ON_WEB, GOOGLE_ON_WEB } from "@/lib/connect";
+import { APPLE_ON_WEB, GOOGLE_ON_WEB, requestWords } from "@/lib/connect";
 import { afterCheck, emailLooksValid, parseEmailStatus, type Devices, type EmailStatus, type EmailStep, type Lead } from "@/lib/connect-flow";
 import { PasswordInput } from "@/lib/PasswordInput";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
@@ -17,12 +17,12 @@ export const NO_PASSWORD = "This email signs in with Apple or Google. Use one of
 /// While Sign in with Apple is off on the web (APPLE_ON_WEB), what Apple accounts do instead.
 export const APPLE_INSTEAD = "Signed up with Apple? Scan the code with your iPhone instead.";
 
-/// What the app could do, in one line under the heading. Where access goes is the page's frame's
-/// to say (ConnectCard: the band on a phone, the panel beside the form on a wide screen), so it
-/// isn't repeated here. `to` and `claimed` stay for the callers; nothing here verifies the name.
+/// What the app could do, in one line under the heading, on a phone (the wide panel says it
+/// itself). Who is asking is the frame's to say (ConnectCard, requestWords), so it isn't repeated
+/// here. `to` and `claimed` stay for the callers; nothing here verifies the name.
 export function RequestLine({ to, claimed = null }: { to: string | null; claimed?: string | null }) {
   if (!to && !claimed) return null;
-  return <p className={styles.request}>It can read your notes, and edit them if you say so.</p>;
+  return <p className={styles.request}>{requestWords(null).gets}</p>;
 }
 const AccessLine = RequestLine;
 

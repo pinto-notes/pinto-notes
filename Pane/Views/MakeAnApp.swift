@@ -5,15 +5,11 @@ import UIKit
 import AppKit
 #endif
 
-/// "Make it an app" (prototype; see NotePage): apps are made by the person's own AI, so this hands
-/// their AI a ready prompt for this note, or, with no AI connected yet, leads to connecting one.
+/// "Make It an App…" in a note's More menu (see NotePage): apps are made by the person's own AI, so
+/// this hands their AI a ready prompt for this note, or, with no AI connected yet, leads to
+/// connecting one. The menu is the only way in: a pill at the bottom of a note is for status (an AI
+/// changed this, with Undo), never for an offer. One that said "Make this an app" was removed.
 enum MakeAnApp {
-    /// A note that would make a good app: a table, or a checklist of three items or more.
-    static func looksLikeAnApp(_ body: String) -> Bool {
-        let lines = body.components(separatedBy: "\n")
-        return !NotePage.tables(in: lines).isEmpty || lines.filter { ListPrefix(line: $0)?.checkbox != nil }.count >= 3
-    }
-
     /// What to ask for, from what the note holds.
     static func idea(for body: String) -> String {
         let lines = body.components(separatedBy: "\n")
@@ -35,51 +31,6 @@ enum MakeAnApp {
 
     static func prompt(title: String, body: String) -> String {
         "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app: \(idea(for: body)). Call get_page_guide, read the note, start the app with create_app, and keep what the note's table or checklist holds as the app's data."
-    }
-
-    // Notes the suggestion was shown on: once per note, never again.
-    private static let shownKey = "makeAppChipShown"
-    static func chipShown(_ id: UUID) -> Bool { (UserDefaults.standard.stringArray(forKey: shownKey) ?? []).contains(id.uuidString) }
-    static func markChipShown(_ id: UUID) {
-        var all = UserDefaults.standard.stringArray(forKey: shownKey) ?? []
-        guard !all.contains(id.uuidString) else { return }
-        all.append(id.uuidString)
-        UserDefaults.standard.set(Array(all.suffix(500)), forKey: shownKey)
-    }
-}
-
-/// The small suggestion on a note that looks like it could be an app. Shown once per note.
-struct MakeAppChip: View {
-    let open: () -> Void
-    let dismiss: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button(action: open) {
-                Label("Make this an app", systemImage: NoteAppMark.symbol)
-                    .font(.system(size: AIReceipt.text, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
-            }
-            .buttonStyle(.hoverText)
-            .accessibilityIdentifier("makeApp.chip")
-            Divider().frame(height: 14)
-            Button(action: dismiss) {
-                // The glyph alone took no taps on iPhone (they went through to the note): the
-                // target is the chip's whole end, as tall as the chip.
-                Image(systemName: "xmark").font(.system(size: AIReceipt.text - 2, weight: .semibold)).foregroundStyle(Color.amberInk.opacity(0.7))
-                    .frame(width: 30, height: AIReceipt.height)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.hoverIcon(cornerRadius: 9))
-            .accessibilityLabel("Not now")
-            .accessibilityIdentifier("makeApp.chip.dismiss")
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, 4)
-        .frame(height: AIReceipt.height)
-        .background(Color.amberSoft, in: .capsule)
-        .overlay(Capsule().strokeBorder(Color.amberInk.opacity(0.22), lineWidth: 0.5))
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.12), radius: 12, y: 6)
     }
 }
 
