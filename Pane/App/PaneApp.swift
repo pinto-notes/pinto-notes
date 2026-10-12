@@ -89,6 +89,8 @@ struct PaneApp: App {
         if !PaneApp.isUnitTestHost {
             NetworkPath.shared.start()
             AccountCrypto.shared.networkUp = { NetworkPath.shared.isUp }
+            // A key check the server doesn't answer: an outage, or a deleted account (Backend.accountExists).
+            AccountCrypto.shared.accountExists = { await backend.accountExists() }
             #if DEBUG || QA
             DebugOffline.realtime = { up in
                 guard let realtime = backend.client?.realtimeV2 else { return }

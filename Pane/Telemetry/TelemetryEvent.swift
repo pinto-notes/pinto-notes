@@ -80,6 +80,8 @@ enum KeyReadyHow: String, TelemetryWord {
 /// The screens between signing in and the notes (KeyGateView.Shown).
 enum GateScreen: String, TelemetryWord {
     case welcome, waiting, recovery, unreachable, checking
+    /// The account was deleted on the server.
+    case accountGone
     /// Waiting out the hold after a password reset (KeyCopy).
     case held
     /// Before the key is fetched from the server's copy: sign in again, or say yes first (KeyCopy).
@@ -99,6 +101,7 @@ extension GateScreen {
         case .recovery: self = .recovery
         case .startFresh: self = .startFresh
         case .unreachable: self = .unreachable
+        case .accountGone: self = .accountGone
         case .checking: self = .checking
         case .held: self = .held
         case .before: self = .beforeFetch
