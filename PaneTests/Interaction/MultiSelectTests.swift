@@ -64,11 +64,9 @@ import Testing
         #expect(h.box.ids == Set(h.live.map(\.id)))
     }
 
-    /// Rows holding notes: section headers are the taller group rows.
+    /// Rows holding notes: section headings are group rows.
     static func noteRows(_ table: NSTableView) -> [Int] {
-        let heights = (0..<table.numberOfRows).map { table.rect(ofRow: $0).height }
-        let header = heights.max() ?? 0
-        return (0..<table.numberOfRows).filter { heights[$0] < header }
+        (0..<table.numberOfRows).filter { !table.isHeadingRow($0) }
     }
 
     @Test func extendingTheSelectionKeepsEarlierRows() async throws {
@@ -145,4 +143,11 @@ import Testing
     }
 }
 
+extension NSTableView {
+    /// Whether `row` is a section heading (a group row) rather than a note or file.
+    func isHeadingRow(_ row: Int) -> Bool {
+        if let view = rowView(atRow: row, makeIfNecessary: true) { return view.isGroupRowStyle }
+        return delegate?.tableView?(self, isGroupRow: row) ?? false
+    }
+}
 #endif

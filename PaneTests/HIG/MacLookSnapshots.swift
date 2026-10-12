@@ -85,6 +85,9 @@ import Testing
                 .frame(width: 300, height: 460).modelContainer(c).tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key)
         }
         try await AppSnapshotTests.render(list(.all, [picked.id]), name: "mac-look-list-selected-\(mode)", dark: dark, wait: 1.0)
+        // Item 66: a note under the pointer shows its ••• at the right, beside the selected one.
+        let other = try #require(notes.first { $0.id != picked.id && !$0.isPinned })
+        try await AppSnapshotTests.render(list(.all, [picked.id]).environment(\.hoverPreview, [other.title]), name: "mac-look-list-hover-\(mode)", dark: dark, wait: 1.0)
         let empty = c.mainContext.createFolder(named: "Empty")
         try await AppSnapshotTests.render(list(.folder(empty.id), []), name: "mac-look-list-empty-\(mode)", dark: dark, wait: 1.0)
     }
