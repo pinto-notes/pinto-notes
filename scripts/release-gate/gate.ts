@@ -109,6 +109,8 @@ const sizesJSON = RESCORE?.raw.sizes ?? JSON.parse(await Deno.readTextFile(`${OU
 
 type ProbeResult = Record<string, unknown> & { steps?: Record<string, number | string>[]; hangs?: { ms: number; step: string }[] };
 const perf: Record<number, { setup?: ProbeResult; runs: ProbeResult[] }> = RESCORE?.raw.perf ?? {};
+/// Real clicks on note rows (scripts/row-clicks.sh): what its last line said, and whether it ran.
+let clicks: { missed: number; slow: number; total: number; medianMs: number; slowestMs: number; output: string } | null = RESCORE?.raw.clicks ?? null;
 let machine = RESCORE?.machine ?? "";
 
 async function probe(mode: "setup" | "measure", size: number): Promise<ProbeResult> {
@@ -216,6 +218,7 @@ const PERF_FILE = `${OUT}/perf-${sizes.join("-")}x${runs}.json`;
 const reused = args["reuse-perf"] ? await Deno.readTextFile(PERF_FILE).then((t) => JSON.parse(t), () => null) : null;
 if (reused) {
   Object.assign(perf, reused.perf);
+  clicks = reused.clicks ?? null;
   machine = reused.machine;
   metrics.push(...reused.checks);
   log(`→ Reusing the measured runs in ${PERF_FILE}`);
@@ -241,11 +244,19 @@ if (reused) {
       perf[size].runs.push(res);
     }
   }
+  // Clicks the way a hand makes them, on a made-up library in memory: no account (docs/Technical/release-gate.md, "Clicks").
+  log(`→ Clicks on note rows`);
+  const c = await run("zsh", ["scripts/row-clicks.sh", `${OUT}/Amber Notes Beta.app`, "--host", HOST], { cwd: ROOT, allowFail: true });
+  const out = c.stdout.trim();
+  const last = out.split("\n").at(-1) ?? "";
+  const m = last.match(/^(\d+) clicks: (\d+) opened nothing, (\d+) over \d+ ms(?:; press to note median (\d+) ms[^,]*, slowest (\d+) ms)?/);
+  clicks = m ? { total: +m[1], missed: +m[2], slow: +m[3], medianMs: m[4] ? +m[4] : NaN, slowestMs: m[5] ? +m[5] : NaN, output: out }
+    : { total: 0, missed: NaN, slow: NaN, medianMs: NaN, slowestMs: NaN, output: out || c.stderr.trim() };
   const reportsAfter = (await ssh("ls ~/Library/Logs/DiagnosticReports 2>/dev/null", { allowFail: true })).stdout.split("\n");
   const fresh = reportsAfter.filter((r) => r && !reportsBefore.includes(r) && /Amber Notes Beta/i.test(r));
   check("perf", "perf.crashReports", "Crash, hang or spin reports from the app", fresh.length === 0, fresh.length ? fresh.join(", ") : "none");
   await ssh(`rm -rf release-gate/${short}`, { allowFail: true });
-  await Deno.writeTextFile(PERF_FILE, JSON.stringify({ perf, machine, checks: metrics.filter((m) => m.key === "perf.crashReports") }));
+  await Deno.writeTextFile(PERF_FILE, JSON.stringify({ perf, clicks, machine, checks: metrics.filter((m) => m.key === "perf.crashReports") }));
 }
 
 const num = (x: unknown) => typeof x === "number" ? x : NaN;
@@ -297,6 +308,12 @@ if (only.has("perf")) {
       add("perf", `perf.${size}.hangs.${part}.longestMs`, `${size} notes: longest hang ${part === "launch" ? "during launch" : "in the flows and idle"}`, median(per.map((h) => h.reduce((a, x) => Math.max(a, x.ms), 0))), "ms");
     }
     if (perf[size]?.setup && !perf[size].setup!.error) add("perf", `perf.${size}.firstSyncMs`, `${size} notes: first sync after sign-in`, num(perf[size].setup!.firstSyncMs), "ms");
+  }
+  if (clicks) {
+    check("perf", "perf.clicks.opened", "Clicks on note rows that open the note (pointer travel 0 to 3 points)", clicks.total > 0 && clicks.missed === 0,
+      clicks.total ? `${clicks.total - clicks.missed} of ${clicks.total}` : "didn't run", clicks.total ? undefined : clicks.output.split("\n").slice(-3).join(" "));
+    add("perf", "perf.clicks.medianMs", "Click on a note row to the note open, median", clicks.medianMs, "ms");
+    add("perf", "perf.clicks.slowestMs", "Click on a note row to the note open, slowest", clicks.slowestMs, "ms");
   }
   add("perf", "perf.iphone", "iPhone flows", "not measured", "", "No signed iPhone build runs here: a simulator on the hub Mac would share its screen and its load, and its timings aren't a phone's. Size is measured (storage).");
 }
@@ -550,6 +567,6 @@ const stagingRef = (await Deno.readTextFile(`${(await git("rev-parse", "--path-f
 const clean = (t: string) => t.replaceAll(stagingRef || "\u0000", "<staging>").replace(/[\w.+-]+@ambernotes\.app/g, "<bench account>").replace(/\/Users\/[^/"\s]+/g, "~");
 await Deno.writeTextFile(`${base}.md`, clean(summary));
 await Deno.writeTextFile(`${full}.md`, md);
-await Deno.writeTextFile(`${full}.json`, JSON.stringify({ ref: candidate, label, sha, verdict, finishedAt: new Date().toISOString(), host: HOST, machine, sizes, runs, baseline: baseline ? { ref: baseline.ref, sha: baseline.sha } : null, metrics, raw: { perf, sizes: sizesJSON } }, null, 1));
+await Deno.writeTextFile(`${full}.json`, JSON.stringify({ ref: candidate, label, sha, verdict, finishedAt: new Date().toISOString(), host: HOST, machine, sizes, runs, baseline: baseline ? { ref: baseline.ref, sha: baseline.sha } : null, metrics, raw: { perf, clicks, sizes: sizesJSON } }, null, 1));
 console.log(`${verdict}: ${base}.md (full report: ${full}.md)`);
 if (verdict !== "PASS") Deno.exit(1);

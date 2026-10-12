@@ -702,5 +702,13 @@
  "network.20000.mcp edit.p95": {
   "max": 2050,
   "floor": 300
+ },
+ "perf.clicks.medianMs": {
+  "max": 230,
+  "floor": 34
+ },
+ "perf.clicks.slowestMs": {
+  "max": 500,
+  "floor": 50
  }
 }

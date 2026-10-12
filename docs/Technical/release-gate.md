@@ -77,8 +77,9 @@ window's toolbar again.
 It exists because of 1.2.4: in a recording of the released app, 9 of 13 clicks on notes did nothing.
 A row that can be dragged took any press during which the pointer moved, even one point, as a drag.
 Every release back to the first draggable row did it; the gate's probe and CI's click tests never
-move the pointer during a click. Not run by `release-gate.sh` yet: run it by hand on the candidate's
-app before a Mac release.
+move the pointer during a click. `release-gate.sh` runs it once on the candidate's app, after the
+measured launches (lines `perf.clicks.*`): any click that opens nothing fails the gate, and the
+median and slowest are held to budgets like every other line.
 
 ### The bench accounts' state
 
