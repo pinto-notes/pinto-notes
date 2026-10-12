@@ -86,7 +86,7 @@ final class OnboardingFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["onboarding.noName"].exists, "an empty name is allowed, and nudged")
         app.buttons["onboarding.continue"].tap()
         expectStep("Bring your notes", "a3-bring")
-        for id in ["onboarding.source.markdown", "onboarding.source.evernote", "onboarding.source.keep"] {
+        for id in ["onboarding.source.obsidian", "onboarding.source.markdown", "onboarding.source.evernote", "onboarding.source.keep"] {
             XCTAssertTrue(app.buttons[id].exists, id)
         }
         // Apple Notes on iPhone is not a choice like those: it says where it is easy.

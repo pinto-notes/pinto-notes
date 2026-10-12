@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One thing to pick from a short list of large choices: a place notes come from, or an AI.
 struct BigChoice: Identifiable {
-    enum Mark { case symbol(String), ai(String) }
+    enum Mark { case symbol(String), ai(String), origin(ImportOrigin) }
     let id: String
     let title: String
     let detail: String
@@ -101,6 +101,9 @@ struct BigChoices: View {
         switch mark {
         case .ai(let ai):
             AITile(ai: ai, size: size)
+        case .origin(let origin):
+            // The app's own icon when it is installed (from NSWorkspace: nothing is asked of it).
+            ImportSourceIcon(origin: origin, size: size)
         case .symbol(let name):
             Image(systemName: name)
                 .font(.system(size: size * 0.46, weight: .medium))

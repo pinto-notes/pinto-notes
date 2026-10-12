@@ -392,7 +392,7 @@ import Testing
     }
 
     @Test func appleNotesComesFirstThenTheImportSheetsKinds() {
-        #expect(OnboardingFlow.sourceOrder.first == .markdown)
+        #expect(OnboardingFlow.sourceOrder == ImportKind.allCases, "the import sheet's own order")
         #if os(iOS)
         // On iPhone Apple Notes is not a choice like the others: it says where it is easy.
         #expect(OnboardingFlow.appleNotesLine.hasPrefix("Easiest on a Mac."))

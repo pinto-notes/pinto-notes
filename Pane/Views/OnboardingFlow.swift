@@ -454,23 +454,18 @@ struct OnboardingFlow: View {
     private var sources: [BigChoice] {
         var list: [BigChoice] = []
         #if os(macOS)
-        list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .symbol("note.text")) { importingAppleNotes = true })
+        list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .origin(.appleNotes)) { importingAppleNotes = true })
         #endif
         for kind in Self.sourceOrder {
-            list.append(BigChoice(id: "onboarding.source.\(kind.rawValue)", title: Self.sourceTitle(kind), detail: Self.sourceDetail(kind), mark: .symbol(kind.symbol)) { importing = kind })
+            list.append(BigChoice(id: "onboarding.source.\(kind.rawValue)", title: Self.sourceTitle(kind), detail: Self.sourceDetail(kind), mark: .origin(.files(kind))) { importing = kind })
         }
         return list
     }
 
-    /// The import sheet's kinds, the folder of Markdown first; a kind added there later follows.
-    static var sourceOrder: [ImportKind] {
-        let first: [ImportKind] = [.markdown, .evernote, .keep]
-        return first + ImportKind.allCases.filter { !first.contains($0) }
-    }
+    /// The import sheet's kinds, in its own order (Obsidian, Bear, Evernote, Keep, Markdown).
+    static var sourceOrder: [ImportKind] { ImportKind.allCases }
 
-    static func sourceTitle(_ kind: ImportKind) -> String {
-        kind == .markdown ? "Obsidian or Markdown" : kind.sourceName
-    }
+    static func sourceTitle(_ kind: ImportKind) -> String { kind.sourceName }
 
     static func sourceDetail(_ kind: ImportKind) -> String {
         // A kind the import sheet gains later says it in the sheet's own words.
@@ -478,6 +473,8 @@ struct OnboardingFlow: View {
     }
 
     private static let sourceDetails: [ImportKind: String] = [
+        .obsidian: "Your vault folder, links and all",
+        .bear: "Notes you exported from Bear",
         .markdown: "A folder or .zip of Markdown or text files",
         .evernote: "Notebooks you exported as .enex files",
         .keep: "Your Google Takeout download",

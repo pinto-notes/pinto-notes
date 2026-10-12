@@ -578,6 +578,8 @@ import Testing
         await Self.draw(ImportSourceList { _ in })
         await Self.draw(ImportChoiceSheet { _ in }.modelContainer(c))
         await Self.draw(SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onSkip: {}, onConnect: {}, onHide: {}))
+        // The first-run flow's Bring your notes step, with its Apple Notes row.
+        await Self.draw(OnboardingSnapshots.flow(OnboardingSnapshots.Shot(name: "x", step: .bring)))
         #expect(AppleNotesBridge.calls == 0, "Apple Notes is only asked once its sheet is open")
         // The press on Apple Notes opens its sheet, and that is where Notes is asked: once.
         await Self.draw(AppleNotesImportView().modelContainer(c))
