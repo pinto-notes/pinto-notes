@@ -146,10 +146,22 @@ private struct SidebarRowLabel: ViewModifier {
             content
         }
         #else
-        content
+        // Like Notes: 6 pt from the icon to the name (the system's sidebar leaves about 8).
+        content.labelStyle(SidebarLabelStyle())
         #endif
     }
 }
+
+#if os(macOS)
+private struct SidebarLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.icon.frame(minWidth: 19)
+            configuration.title
+        }
+    }
+}
+#endif
 
 extension View {
     func sidebarRowLabel() -> some View { modifier(SidebarRowLabel()) }

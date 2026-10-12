@@ -18,16 +18,16 @@ enum Hover {
     static let pressed = AnyShapeStyle(.fill.secondary)
     /// Where a Mac list draws its selection around a row's content (a List can't take a row
     /// background of its own there), and its corners. Measured from the selection in captures.
-    static let listReach = EdgeInsets(top: 2, leading: 6, bottom: 2, trailing: 6)
-    /// The sidebar's selection reaches further, to the left past the icon, and a level of
-    /// sub-folders moves the content right by `sidebarIndent`. Top and bottom stop `rowGap`
-    /// short of the row's edges, so a hovered row and the selected one read as separate pills.
+    static let listReach = EdgeInsets(top: 3, leading: 6, bottom: 3, trailing: 6)
+    /// The sidebar's pill, as Apple Notes draws it (measured side by side, 2026-10-12): 6 pt to the
+    /// left of the icon, 8.5 pt past the count, 30.5 pt tall in a 32 pt row so neighbouring pills keep
+    /// a hairline apart.
+    /// A level of sub-folders moves the content right by `sidebarIndent`.
     static func sidebarReach(depth: Int = 0) -> EdgeInsets {
-        EdgeInsets(top: 7.5 - rowGap, leading: 15 + CGFloat(depth) * sidebarIndent, bottom: 7.5 - rowGap, trailing: 6)
+        EdgeInsets(top: 6.5, leading: 6 + CGFloat(depth) * sidebarIndent, bottom: 6.5, trailing: 1.5)
     }
-    static let rowGap: CGFloat = 3
-    /// The sidebar's selected row, like Notes: a quiet neutral fill in the row's own place, a
-    /// little rounder and taller than a hovered row, under an icon and name in the accent.
+    /// A selected row, like Notes: a quiet neutral fill under an icon and name in the accent. A
+    /// hovered row is the same pill, fainter (`row`).
     static var selected: AnyShapeStyle {
         #if DEBUG
         if tintedSelection { return AnyShapeStyle(.tint.opacity(0.16)) }
@@ -38,10 +38,9 @@ enum Hover {
     /// Captures only: the alternative look, a fill in the accent.
     nonisolated(unsafe) static var tintedSelection = false
     #endif
-    static let selectedRadius: CGFloat = 8
-    static let selectedGap: CGFloat = 1
+    /// One pill for hover and selection: the same place, the same corners.
+    static let pillRadius: CGFloat = 8
     static let sidebarIndent: CGFloat = 12
-    static let rowRadius: CGFloat = 5
     /// A row's ••• button: at least this big to hit.
     static let menuTarget: CGFloat = 24
     /// The width of its ••• circle (ellipsis.circle at 14 pt).
@@ -133,14 +132,9 @@ struct HoverRowReader<Content: View>: View {
             .contentShape(.rect)
             .modifier(HoverTracking(hovering: $hovering, pointer: pointer))
             .background {
-                if selected {
-                    let grow = Hover.rowGap - Hover.selectedGap
-                    RoundedRectangle(cornerRadius: Hover.selectedRadius, style: .continuous)
-                        .fill(Hover.selected)
-                        .padding(EdgeInsets(top: -reach.top - grow, leading: -reach.leading, bottom: -reach.bottom - grow, trailing: -reach.trailing))
-                } else if on {
-                    RoundedRectangle(cornerRadius: Hover.rowRadius, style: .continuous)
-                        .fill(Hover.row)
+                if selected || on {
+                    RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
+                        .fill(selected ? Hover.selected : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
