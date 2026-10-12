@@ -20,7 +20,7 @@ export type Deps = {
    *  or null when the token doesn't say. Read only after `userFor` accepted the token. */
   signedInAt?: (token: string) => number | null;
   /** Tells the person a device got their key, by email. Best effort; never fails the request. */
-  notify?: (uid: string, platform: string) => Promise<void>;
+  notify?: (uid: string, platform: string) => Promise<string | void>;
   now?: () => number;
 };
 
@@ -320,7 +320,13 @@ async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string
     await sql`update public.account_key_copies set opened_at = now() where user_id = ${uid}`;
     await sql`insert into public.account_notices (user_id, kind, what) values (${uid}, 'key_fetched', 'A new device opened your notes')`;
     if (deps.notify) {
-      try { await deps.notify(uid, platform ?? ""); } catch (e) { logError("key notify", e); }
+      // What became of the email is written down too ("mailed": sent, logged, failed, off), so a
+      // test can check it was rendered and not sent, and support can see a person was told.
+      let outcome: string | void = "failed";
+      try { outcome = await deps.notify(uid, platform ?? ""); } catch (e) { logError("key notify", e); }
+      if (typeof outcome === "string") {
+        await sql`insert into public.key_copy_events (user_id, what, why, platform) values (${uid}, 'mailed', ${outcome}, ${platform})`;
+      }
     }
     return json({ sealed, key_id: row.key_id, generation: row.generation });
   } finally {
