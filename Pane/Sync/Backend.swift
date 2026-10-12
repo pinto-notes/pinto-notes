@@ -330,6 +330,27 @@ final class Backend {
         return false
     }
 
+    /// The auth server says this session's user doesn't exist: the account was deleted. Only
+    /// that answer counts; a refused or expired session, an outage or a server error doesn't.
+    nonisolated static func accountGone(_ error: Error) -> Bool {
+        guard let auth = error as? AuthError else { return false }
+        if auth.errorCode == .userNotFound { return true }
+        // Older auth servers say it in words only: "User from sub claim in JWT does not exist".
+        return auth.message.lowercased().contains("sub claim in jwt does not exist")
+    }
+
+    /// Asks the auth server for this session's user: false when it answers that the user is gone,
+    /// true when it answers with the user, nil when it can't say (offline, signed out, a failure).
+    func accountExists() async -> Bool? {
+        guard let client, case .signedIn = state else { return nil }
+        do {
+            _ = try await client.auth.user()
+            return true
+        } catch {
+            return Self.accountGone(error) ? false : nil
+        }
+    }
+
     /// The email to show for you: Apple's, unless Apple hides it behind a relay address.
     var displayEmail: String? {
         guard case .signedIn(let account) = state else { return nil }
