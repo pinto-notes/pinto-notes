@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Real clicks on the note list of a built app, on the measuring Mac (docs/Technical/release-gate.md, "Clicks"):
 #
-#   scripts/row-clicks.sh <app> [--host fleet-air] [--budget 500] [--median 230]
+#   scripts/row-clicks.sh <app> [--host fleet-air] [--budget 500] [--median 210]
 #
 # Copies the app and scripts/release-gate/RowClicks.swift to the Mac, opens the app there with a
 # made-up library kept in memory (`-uitest -demo`: no account, nothing of the Mac's own notes is
@@ -14,8 +14,8 @@
 # again for this run with `codesign --force --deep -s -`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-app=${1:?usage: scripts/row-clicks.sh <app> [--host fleet-air] [--budget 500] [--median 230]}; shift
-host=fleet-air budget=500 median=230
+app=${1:?usage: scripts/row-clicks.sh <app> [--host fleet-air] [--budget 500] [--median 210]}; shift
+host=fleet-air budget=500 median=210
 while (( $# )); do
   case $1 in
     --host) host=$2; shift 2 ;;

@@ -70,7 +70,7 @@ library in memory, clicks each note row for real (pointer events, the pointer tr
 and 3 points between press and lift, as it does under a hand) and reads through Accessibility what
 each click did. It fails when a click opened nothing, when a note took more than 500 ms from the
 press to being open with the main thread free again, or when the median of all the clicks is over
-230 ms. The press itself is 80 ms of that. On fleet-air, 2026-10-11: median 302 ms on 1.2.4's code,
+210 ms (the fastest measured, 181 ms, plus 15%). The press itself is 80 ms of that. On fleet-air, 2026-10-11: median 302 ms on 1.2.4's code,
 255 ms once opening a note stopped making sharing pickers, 181 ms once it stopped making the
 window's toolbar again.
 

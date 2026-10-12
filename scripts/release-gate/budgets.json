@@ -704,7 +704,7 @@
   "floor": 300
  },
  "perf.clicks.medianMs": {
-  "max": 230,
+  "max": 210,
   "floor": 34
  },
  "perf.clicks.slowestMs": {

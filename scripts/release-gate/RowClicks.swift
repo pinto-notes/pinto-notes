@@ -42,7 +42,7 @@ func post(_ type: CGEventType, _ p: CGPoint) {
 let args = CommandLine.arguments
 guard args.count >= 2, let pid = pid_t(args[1]) else { print("usage: RowClicks <pid> [budget ms]"); exit(2) }
 let budget = args.count > 2 ? Double(args[2]) ?? 500 : 500
-let medianBudget = args.count > 3 ? Double(args[3]) ?? 230 : 230
+let medianBudget = args.count > 3 ? Double(args[3]) ?? 210 : 210
 let app = AXUIElementCreateApplication(pid)
 AXUIElementSetMessagingTimeout(app, 5)
 guard let window: AXUIElement = attr(app, kAXMainWindowAttribute) ?? (attr(app, kAXWindowsAttribute) as [AXUIElement]?)?.first else {
