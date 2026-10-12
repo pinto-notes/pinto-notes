@@ -266,10 +266,7 @@ import Testing
         print("PERF sidebar toggled 4 times: bodies worked out again \(RenderProbe.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         #expect(RenderProbe.counts["SidebarView"] == nil, "a toggle doesn't work the folders out again")
         #expect(RenderProbe.counts["FolderTree"] == nil, "nor any folder row")
-        // The note list: none locally. On CI's runner it was worked out 3 times in 4 toggles once
-        // the note's toolbar was kept around the note pane (NoteToolbarStage, 2026-10-12), never
-        // here. At most once a toggle, which still catches a list rebuilt over and over.
-        #expect((RenderProbe.counts["NoteListView"] ?? 0) <= 4, "nor the note list, beyond once a toggle")
+        #expect(RenderProbe.counts["NoteListView"] == nil, "nor the note list")
 
         // What each shows still reaches it: a click on a folder is another list.
         let table = try #require(split.arrangedSubviews.first.flatMap { find(NSTableView.self, in: $0) })
@@ -396,13 +393,9 @@ import Testing
         print("PERF 3 saves of the open note: bodies worked out again \(RenderProbe.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         #expect((RenderProbe.counts["NoteEditorText"] ?? 0) > 0, "the editor's view follows the note")
         // The pane no longer follows the note's text. It is still given again when the window above
-        // it is worked out (in this window that happens once per save); reading the text itself, it
-        // ran on every write as well. Inside NoteToolbarStage, which keeps the note's toolbar from
-        // being made again for every note opened, the save's change notice also reaches the pane on
-        // a pass of its own: twice per write. Measured 2026-10-12, that second pass costs nothing a
-        // person feels: a key, the save after typing and an AI's write cost the same with and
-        // without the stage (keys 54.8 against 54.6 ms on fleet-air, Release, real key events).
-        #expect((RenderProbe.counts["NoteDetailView"] ?? 0) <= 2 * (RenderProbe.counts["RootView"] ?? 0), "the note pane is worked out at most twice for each time the window is")
+        // it is worked out (in this window that happens once per save), so it runs no more often
+        // than the window does; reading the text itself, it ran on every write as well.
+        #expect((RenderProbe.counts["NoteDetailView"] ?? 0) <= (RenderProbe.counts["RootView"] ?? 0), "the note pane is worked out only when the window is")
 
         // Text that arrives from elsewhere still shows in the editor.
         note.body = "Changed elsewhere\n\nby sync"
