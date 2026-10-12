@@ -82,9 +82,8 @@ extension ModelContext {
         return n
     }
 
-    @discardableResult
-    /// True when an Apple note was imported before and hasn't changed since:
-    /// a live note with its title, dated to its last edit (imports keep that date).
+    /// True when a note with this title, dated to this second, is here and not deleted: an
+    /// import brought it before. (The Apple Notes import asks ImportWriter, which counts them.)
     func hasImported(title: String, modified: Date) -> Bool {
         let stamp = modified.timeIntervalSinceReferenceDate.rounded()
         return ((try? fetch(FetchDescriptor<Note>())) ?? []).contains {
@@ -93,6 +92,7 @@ extension ModelContext {
         }
     }
 
+    @discardableResult
     func createFolder(named name: String, parent: Folder? = nil) -> Folder {
         let siblings = allFolders().filter { $0.parent?.id == parent?.id }
         let f = Folder(name: name, parent: parent, sortIndex: (siblings.map(\.sortIndex).max() ?? 0) + 1)
@@ -128,6 +128,115 @@ extension ModelContext {
         insert(n)
         saveOrReport()
         return n
+    }
+
+    /// What `nest` changed, so it can be put back (Undo).
+    struct Nesting {
+        struct Moved { var note: UUID; var parent: UUID?; var folder: UUID?; var pinned: Bool; var unlinkedFrom: UUID?; var unlinkedLine: String? }
+        var parent: UUID
+        var moved: [Moved]
+        var notes: [UUID] { moved.map(\.note) }
+    }
+
+    /// Why a note can't become a sub-note of another.
+    enum NestRefusal: Equatable { case itself, insideItself, locked, gone }
+
+    /// Whether `note` may become a sub-note of `parent`: never of itself, never of a note that
+    /// is inside it (a sub-note, or a sub-note's sub-note), never of a locked note (its sub-notes
+    /// would stay readable), and neither may be deleted.
+    func nestRefusal(_ note: Note, under parent: Note) -> NestRefusal? {
+        if note.id == parent.id { return .itself }
+        if parent.isLocked { return .locked }
+        if parent.deletedAt != nil || parent.trashedAt != nil || note.deletedAt != nil || note.trashedAt != nil { return .gone }
+        var cursor = parent.parentID, hops = 0
+        while let id = cursor, hops < 64 {
+            if id == note.id { return .insideItself }
+            cursor = self.note(id)?.parentID
+            hops += 1
+        }
+        return nil
+    }
+
+    /// The line that keeps a sub-note in its parent: `[Title](pane-note:<id>)`.
+    static func subNoteLine(for note: Note) -> String {
+        let title = note.title.replacingOccurrences(of: "[", with: "(").replacingOccurrences(of: "]", with: ")")
+        return "[\(title.isEmpty ? "New Note" : title)](pane-note:\(note.id.uuidString.lowercased()))"
+    }
+
+    /// `body` without the line that links the sub-note `id` (nil when no line of its own does).
+    static func removingSubNoteLine(_ id: UUID, from body: String) -> (body: String, line: String)? {
+        let mark = "(pane-note:\(id.uuidString.lowercased()))"
+        var lines = body.components(separatedBy: "\n")
+        guard let i = lines.firstIndex(where: { l in
+            let t = l.trimmingCharacters(in: .whitespaces)
+            return t.hasPrefix("[") && t.hasSuffix(mark)
+        }) else { return nil }
+        let line = lines.remove(at: i)
+        return (lines.joined(separator: "\n"), line)
+    }
+
+    /// Makes `notes` sub-notes of `parent`: each keeps its text, history and files, moves to the
+    /// parent's folder, and is linked on a line of its own at the end of the parent's text (that
+    /// line is what keeps a sub-note inside its parent). Notes that can't go there (`nestRefusal`)
+    /// are left alone. One save for the parent and all of them. Returns what changed, for Undo;
+    /// nil when nothing did.
+    @discardableResult
+    func nest(_ notes: [Note], under parent: Note) -> Nesting? {
+        // Typing that isn't in a note yet goes in first: the parent's text is added to.
+        DebouncedSave.flushAll()
+        var moved: [Nesting.Moved] = []
+        var lines: [String] = []
+        var seen: Set<UUID> = []
+        for n in notes where seen.insert(n.id).inserted && nestRefusal(n, under: parent) == nil {
+            // Already this note's sub-note, linked: nothing to do.
+            if n.parentID == parent.id, isNested(n) { continue }
+            var m = Nesting.Moved(note: n.id, parent: n.parentID, folder: n.folder?.id, pinned: n.isPinned)
+            // A sub-note of another note leaves it: its line there goes.
+            if let old = n.parentID, old != parent.id, let from = self.note(old), !from.isLocked,
+               let cut = Self.removingSubNoteLine(n.id, from: from.body) {
+                from.body = cut.body
+                from.touch()
+                m.unlinkedFrom = old
+                m.unlinkedLine = cut.line
+            }
+            n.parentID = parent.id
+            if n.folder?.id != parent.folder?.id { n.folder = parent.folder }
+            n.isPinned = false
+            n.touch()
+            if !parent.body.contains("pane-note:\(n.id.uuidString.lowercased())") { lines.append(Self.subNoteLine(for: n)) }
+            moved.append(m)
+        }
+        guard !moved.isEmpty else { return nil }
+        if !lines.isEmpty {
+            let body = parent.body
+            parent.body = body + (body.isEmpty || body.hasSuffix("\n") ? "" : "\n") + lines.joined(separator: "\n") + "\n"
+        }
+        parent.touch()
+        saveOrReport()
+        return Nesting(parent: parent.id, moved: moved)
+    }
+
+    /// Puts back what `nest` changed: each note is a note of its own again (or the sub-note it
+    /// was), in the folder it was in, and its line leaves the parent's text. What was typed in
+    /// the parent since stays.
+    func unnest(_ change: Nesting) {
+        DebouncedSave.flushAll()
+        let parent = note(change.parent)
+        for m in change.moved {
+            guard let n = note(m.note), n.deletedAt == nil else { continue }
+            if let parent, !parent.isLocked, let cut = Self.removingSubNoteLine(n.id, from: parent.body) { parent.body = cut.body }
+            n.parentID = m.parent
+            if let f = m.folder.flatMap({ folder($0) }), f.deletedAt == nil { n.folder = f }
+            n.isPinned = m.pinned
+            n.touch()
+            if let old = m.unlinkedFrom, let line = m.unlinkedLine, let from = note(old), !from.isLocked, from.deletedAt == nil,
+               !from.body.contains("pane-note:\(n.id.uuidString.lowercased())") {
+                from.body += (from.body.isEmpty || from.body.hasSuffix("\n") ? "" : "\n") + line + "\n"
+                from.touch()
+            }
+        }
+        parent?.touch()
+        saveOrReport()
     }
 
     /// Sub-notes made before the parent was recorded (older builds, imports) get it from the link
@@ -284,13 +393,6 @@ extension ModelContext {
         return made
     }
 
-    /// Turns a spreadsheet's first sheet into a note with a typed table.
-    func importSpreadsheet(_ url: URL, into scope: Scope) throws -> Note {
-        let (title, table) = try XLSXImporter.table(from: url)
-        let note = createNote(in: scope, body: "\(title)\n\n\(table.markdown)\n")
-        return note
-    }
-
     func attachment(_ id: UUID) -> Attachment? {
         try? fetch(FetchDescriptor<Attachment>(predicate: #Predicate { $0.id == id })).first
     }
@@ -307,17 +409,25 @@ extension ModelContext {
 
 /// What the list groups by date: notes, and files kept in folders.
 protocol DatedListItem {
+    /// When it was last edited: the list's own order.
     var listDate: Date { get }
     var pinnedInList: Bool { get }
+    /// For the other orders the list can be put in (`ListOrder`).
+    var listCreated: Date { get }
+    var listTitle: String { get }
 }
 
 extension Note: DatedListItem {
     var listDate: Date { updatedAt }
     var pinnedInList: Bool { isPinned && trashedAt == nil }
+    var listCreated: Date { createdAt }
+    var listTitle: String { title }
 }
 
 extension Attachment: DatedListItem {
     var pinnedInList: Bool { false }
+    var listCreated: Date { createdAt }
+    var listTitle: String { filename }
 }
 
 /// Grouping of the note list by recency, like Apple Notes.
@@ -330,6 +440,27 @@ enum DateBucket {
     /// The same, for items already in order, newest first, each with its date: nothing is sorted
     /// or read again (the list hands over its notes in this order already).
     static func sections<Item: DatedListItem>(newestFirst dated: [(Item, Date)], now: Date = .now, calendar: Calendar = .current) -> [(String, [Item])] {
+        sections(dated, oldestFirst: false, now: now, calendar: calendar)
+    }
+
+    /// The list in the order it was chosen to be in (`ListOrder`), for items already in that order.
+    /// By date: the same headings, on the date the list is sorted by, running the way the list
+    /// does. By title, or with grouping off: the pinned notes, then the rest in one run.
+    static func sections<Item: DatedListItem>(ordered items: [Item], by order: ListOrder, now: Date = .now, calendar: Calendar = .current) -> [(String, [Item])] {
+        guard !order.showsDateHeadings else {
+            return sections(items.map { ($0, order.date(of: $0)) }, oldestFirst: order.reversed, now: now, calendar: calendar)
+        }
+        var pinned: [Item] = [], rest: [Item] = []
+        rest.reserveCapacity(items.count)
+        for n in items { if n.pinnedInList { pinned.append(n) } else { rest.append(n) } }
+        if pinned.isEmpty { return rest.isEmpty ? [] : [(unheaded, rest)] }
+        return rest.isEmpty ? [("Pinned", pinned)] : [("Pinned", pinned), ("Notes", rest)]
+    }
+
+    /// The name of a run of the list that has no heading.
+    static let unheaded = ""
+
+    private static func sections<Item: DatedListItem>(_ dated: [(Item, Date)], oldestFirst: Bool, now: Date, calendar: Calendar) -> [(String, [Item])] {
         var pinned: [Item] = []
         var groups: [(key: String, order: Date, notes: [Item])] = []
         var index: [String: Int] = [:]
@@ -361,7 +492,7 @@ enum DateBucket {
         }
         var result: [(String, [Item])] = []
         if !pinned.isEmpty { result.append(("Pinned", pinned)) }
-        result += groups.sorted { $0.order > $1.order }.map { ($0.key, $0.notes) }
+        result += groups.sorted { oldestFirst ? $0.order < $1.order : $0.order > $1.order }.map { ($0.key, $0.notes) }
         return result
     }
 

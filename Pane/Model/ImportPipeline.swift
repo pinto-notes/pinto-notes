@@ -167,7 +167,8 @@ final class ImportWriter {
         }
         var key = "\(parent.id)"
         for name in path where !name.isEmpty {
-            key += "/" + name
+            // Not "/": a folder may have one in its name ("Claude Code / Notes") and is still one folder.
+            key += "\u{1F}" + name
             if let f = folders[key] { parent = f; continue }
             let under = parent
             let f = under.liveChildren.first { $0.name == name } ?? context.createFolder(named: name, parent: under)

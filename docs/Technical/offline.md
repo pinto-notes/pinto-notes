@@ -84,8 +84,10 @@ every migration, light and dark. Both tests passed in both appearances:
   connection asks are looked at, at once.
 - `SyncEngine.reach` (online, offline, unreachable) drives `OfflineLine` and the
   `networkReach` environment value that network-only controls read.
-- Keep Files Downloaded (a folder's menu): its files are fetched after each sync. Per device
-  (`files.keepDownloaded` in UserDefaults).
+- Keep Files Downloaded: a folder's files are fetched after each sync. Per device
+  (`files.keepDownloaded` in UserDefaults). Its item in the folder's menu was removed on 2026-10-11
+  (files download when opened and stay cached); a folder that had it on keeps it, and
+  `SyncEngine.setKeepsDownloaded` is still there.
 
 ## What's left
 

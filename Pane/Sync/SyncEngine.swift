@@ -1006,7 +1006,8 @@ final class SyncEngine {
     // MARK: Files kept downloaded
 
     /// Folders whose files are fetched to this device as they arrive, so they open on a plane
-    /// (a folder's ⋯ menu: Keep Files Downloaded). Only on this device.
+    /// (Keep Files Downloaded). Only on this device. The folder menu's item for it was removed on
+    /// 2026-10-11: files download when opened and stay cached, and a folder that had this on keeps it.
     nonisolated static let keptFoldersKey = "files.keepDownloaded"
 
     func keepsDownloaded(_ folder: UUID) -> Bool { keptFolders.contains(folder) }

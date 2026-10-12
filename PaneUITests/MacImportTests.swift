@@ -11,16 +11,20 @@ final class MacImportTests: XCTestCase {
         app.activate()
         app.menuBars.menuBarItems["File"].click()
         app.menuItems["Import from Apple Notes…"].click()
-        let filter = app.textFields["Filter"].firstMatch
-        XCTAssertTrue(filter.waitForExistence(timeout: 15))
-        filter.click()
-        filter.typeText(target)
-        let box = app.checkBoxes.matching(NSPredicate(format: "label BEGINSWITH %@", target)).firstMatch
-        XCTAssertTrue(box.waitForExistence(timeout: 10))
-        box.click()
-        app.buttons["Import 1 note"].click()
-        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 20))
-        app.buttons["Done"].click()
+        let search = app.textFields["Search"].firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 15))
+        // Everything is picked when the sheet opens: clear that, then pick the one note.
+        search.click()
+        search.typeText(target)
+        let all = app.buttons["import.selectAll"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 10))
+        if all.label == "Deselect All" { all.click() }
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", target)).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.click()
+        app.buttons["import.start"].click()
+        // The sheet closes by itself and the window says what came over.
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "import.doneLine").firstMatch.waitForExistence(timeout: 30))
         let title = target.hasPrefix("# ") ? String(target.dropFirst(2)) : target
         app.descendants(matching: .any).matching(identifier: "note.\(title)").firstMatch.click()
         Thread.sleep(forTimeInterval: 1.5)

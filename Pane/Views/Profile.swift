@@ -17,6 +17,10 @@ final class ProfileStore {
 
     private(set) var name: String?
     private(set) var photo: PImage?
+    /// The picture your Google sign-in came with, kept on this device only (`SignInPhoto`).
+    private(set) var signInPhoto: PImage?
+    /// What to show for you: the photo you chose, else the one from your sign-in, else nothing (initials).
+    var shownPhoto: PImage? { photo ?? signInPhoto }
     private(set) var working = false
     private(set) var problem: String?
 
@@ -53,9 +57,11 @@ final class ProfileStore {
             self.client = client
             name = defaults.string(forKey: key("name"))
             photo = (try? Data(contentsOf: file("photo.jpg"))).flatMap(PImage.init(data:))
+            signInPhoto = defaults.string(forKey: key("signInPhoto")) == nil ? nil : (try? Data(contentsOf: file("signin.jpg"))).flatMap(PImage.init(data:))
         }
         self.client = client
         await flush()
+        await loadSignInPhoto(backend.signInPicture, for: id)
         guard await refresh() else { return }
         // A new account's name from Apple or Google, once the server has said the profile has
         // none. Either way the suggestion is used up: clearing your name later keeps it cleared.
@@ -90,6 +96,7 @@ final class ProfileStore {
         previewing = true
         self.name = name
         self.photo = photo
+        signInPhoto = nil
     }
 
     /// Signed out: nothing of the last account stays on screen.
@@ -98,7 +105,29 @@ final class ProfileStore {
         client = nil
         name = nil
         photo = nil
+        signInPhoto = nil
         problem = nil
+    }
+
+    /// Fetches the sign-in picture once and keeps it in this account's folder; fetched again only
+    /// when its address changes. With no picture (or another way of signing in) the copy goes.
+    private func loadSignInPhoto(_ url: URL?, for id: UUID) async {
+        let cached = defaults.string(forKey: key("signInPhoto"))
+        switch SignInPhoto.step(url: url, cached: cached, haveCopy: signInPhoto != nil) {
+        case .keep: return
+        case .forget:
+            try? FileManager.default.removeItem(at: file("signin.jpg"))
+            store("signInPhoto", nil)
+            signInPhoto = nil
+        case .fetch(let url):
+            guard let (data, response) = try? await AppNetwork.session.data(from: url), user == id,
+                  (response as? HTTPURLResponse)?.statusCode == 200, data.count <= SignInPhoto.maxBytes,
+                  let jpeg = try? ProfileImage.prepare(data), let image = PImage(data: jpeg) else { return }
+            try? ensureFolder()
+            guard (try? jpeg.write(to: file("signin.jpg"), options: .atomic)) != nil else { return }
+            store("signInPhoto", url.absoluteString)
+            signInPhoto = image
+        }
     }
 
     // MARK: Editing
@@ -287,6 +316,31 @@ enum SignInName {
     }
 }
 
+/// The picture a Google sign-in comes with (the account's `avatar_url` or `picture`). It is shown
+/// to you, on this device, while your profile has no photo of its own. It is not copied to the
+/// profile: a profile photo is public on the notes you share, and that stays your choice.
+enum SignInPhoto {
+    static let maxBytes = 2_000_000
+
+    /// Google's own picture address, and only that: https on a googleusercontent.com host.
+    static func url(from metadata: [String: AnyJSON]) -> URL? {
+        for key in ["avatar_url", "picture"] {
+            guard let value = metadata[key]?.stringValue, let url = URL(string: value), url.scheme == "https", let host = url.host()?.lowercased() else { continue }
+            if host == "googleusercontent.com" || host.hasSuffix(".googleusercontent.com") { return url }
+        }
+        return nil
+    }
+
+    enum Step: Equatable { case keep, forget, fetch(URL) }
+
+    /// What to do with the copy on this device: keep it while the address is the one it came
+    /// from, fetch when there is a new address or no copy, forget it when there is no picture.
+    static func step(url: URL?, cached: String?, haveCopy: Bool) -> Step {
+        guard let url else { return cached == nil && !haveCopy ? .keep : .forget }
+        return cached == url.absoluteString && haveCopy ? .keep : .fetch(url)
+    }
+}
+
 /// What a display name may be: trimmed, no control characters, at most 60 characters.
 enum ProfileName {
     static let maxLength = 60
@@ -341,10 +395,11 @@ typealias PImage = NSImage
 extension Image { init(platform image: PImage) { self.init(nsImage: image) } }
 #endif
 
-/// Your photo in a circle, or your initials on amber when there's no photo.
+/// Your photo in a circle, or your initials on amber when there's no photo; a person when there
+/// is no name either (nil), never a letter from an email address.
 struct AvatarView: View {
     var photo: PImage?
-    var name: String
+    var name: String?
     var size: CGFloat
 
     nonisolated static func initials(_ name: String) -> String {
@@ -359,8 +414,14 @@ struct AvatarView: View {
         Group {
             if let photo {
                 Image(platform: photo).resizable().scaledToFill()
+            } else if name == nil {
+                Image(systemName: "person.fill")
+                    .font(.system(size: size * 0.46, weight: .semibold))
+                    .foregroundStyle(.black.opacity(0.78))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(PColor.paneAccent))
             } else {
-                Text(Self.initials(name))
+                Text(Self.initials(name ?? ""))
                     .font(.system(size: size * 0.4, weight: .semibold))
                     .foregroundStyle(.black.opacity(0.78))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
