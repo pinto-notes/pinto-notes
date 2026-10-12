@@ -412,8 +412,10 @@ struct SidebarView: View {
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     if let card = sidebarCard {
+                        // Its words start on the rows' icons' line, like the title and the account.
                         cardView(card)
-                            .padding(.horizontal, 10)
+                            .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)
+                            .padding(.trailing, 10)
                             .padding(.bottom, 2)
                     }
                     OfflineLine(sync: sync)
