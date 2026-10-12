@@ -780,7 +780,7 @@ async function savePage(tx: Tx, c: Call, n: Note, html: string) {
     returning (xmax = 0) as created`;
   const warnings = pageWarnings(html, await bodyOf(c.v, n));
   return { id: n.id, title: n.title, page: created ? "created" : "replaced", bytes: new TextEncoder().encode(html).length,
-    note: "The person sees it on the note's App side (call it the note's app, not a page). The note's text is unchanged." + (created ? "" : " The previous version is kept (get_note_page lists it).") + " Next: run check_app and fix what it finds.",
+    note: "The note now opens as this app. The note's text is unchanged." + (created ? "" : " The previous version is kept (get_note_page lists it).") + " Next: run check_app and fix what it finds.",
     ...(warnings.length ? { warnings, fix_warnings: "Saved. Fix these with edit_note_page, then run check_app, before you reply." } : {}) };
 }
 
