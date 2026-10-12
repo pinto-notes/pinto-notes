@@ -200,6 +200,11 @@ import UIKit
                                                   name: "mac-9-sidebar-\(name)-\(width)-\(mode)", dark: dark, wait: 1.0)
             }
         }
+        // Under the pointer: the whole card answers, the close button too.
+        for (name, connected) in [("connect", false), ("templates", true)] {
+            try await AppSnapshotTests.render(Self.sidebar(connected: connected, c).environment(\.hoverPreview, ["*"]).frame(width: 230, height: 640),
+                                              name: "mac-9-sidebar-\(name)-230-hover-\(mode)", dark: dark, wait: 1.0)
+        }
     }
     #endif
 
