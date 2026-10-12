@@ -752,7 +752,14 @@ struct AboutSection: View {
         } header: {
             Text("About")
         } footer: {
-            LegalLinksRow()
+            VStack(alignment: .leading, spacing: 6) {
+                LegalLinksRow()
+                // The import list shows these apps' own icons to name where notes come from.
+                Text("Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
