@@ -271,11 +271,21 @@ struct RootView: View {
     @ViewBuilder
     private var detail: some View {
             if let id = selectedNote, let note = context.note(id), note.deletedAt == nil {
+                #if os(macOS)
+                NoteToolbarStage {
+                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+                        if edit { justCreated = target }
+                        selectedNote = target
+                    }
+                        .id(id)
+                }
+                #else
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
                     if edit { justCreated = target }
                     selectedNote = target
                 }
                     .id(id)
+                #endif
             } else if let id = selectedNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
                 // A file kept in the folder: its preview.
                 FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
@@ -512,10 +522,10 @@ struct PaneCommands: Commands {
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil) }
         }
         CommandGroup(replacing: .importExport) {
-            Button("Import from Apple Notes…") { importNotes?() }
+            Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                 .disabled(importNotes == nil)
             ForEach(ImportKind.allCases) { kind in
-                Button(kind.menuTitle) { importFrom?(kind) }
+                Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     .disabled(importFrom == nil)
             }
             Divider()

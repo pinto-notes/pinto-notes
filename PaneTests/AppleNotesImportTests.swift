@@ -543,6 +543,16 @@ import Testing
         #expect(AppleNotesImportView.count(1, of: 1, locale: en) == "1 of 1 note selected")
     }
 
+    @Test func everySourceIsListedByNameWithObsidianAndBearAsMarkdown() {
+        #expect(ImportOrigin.all.map(\.name) == ["Apple Notes", "Obsidian", "Bear", "Evernote", "Google Keep", "Markdown or text files"])
+        #expect(ImportKind.obsidian.isMarkdown && ImportKind.bear.isMarkdown && ImportKind.markdown.isMarkdown)
+        #expect(!ImportKind.evernote.isMarkdown && !ImportKind.keep.isMarkdown)
+        #expect(ImportKind.obsidian.contentTypes == ImportKind.markdown.contentTypes)
+        // An icon comes from the app on this Mac or not at all: nothing of another app's ships here.
+        #expect(ImportOrigin.appleNotes.bundleIdentifier == "com.apple.Notes")
+        #expect(ImportOrigin.files(.keep).bundleIdentifier == nil && ImportOrigin.files(.markdown).bundleIdentifier == nil)
+    }
+
     @Test func picturesAreCutOutBeforeTheTextIsRead() {
         let (html, pictures) = AppleNotesImporter.takePictures(from: Self.photoHTML)
         #expect(pictures.count == 1 && pictures[0].picture.type == .png)

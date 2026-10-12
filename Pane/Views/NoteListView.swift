@@ -26,6 +26,10 @@ struct NoteListView: View {
     @State private var search = ""
     /// "Add File": the picker, and a file being renamed.
     @State private var addingFiles = false
+    #if os(macOS)
+    /// The Import choice, from the list's More menu.
+    @State private var choosingImport = false
+    #endif
     @State private var renamingFile: Attachment?
     /// Export… (Mac) or Save to Files (iPhone) from a file's menu.
     @State private var exportingFile: Attachment?
@@ -401,6 +405,20 @@ struct NoteListView: View {
         #if os(macOS)
         .navigationSubtitle("")
         #endif
+        #if os(macOS)
+        .sheet(isPresented: $choosingImport) {
+            ImportChoiceSheet { origin in
+                choosingImport = false
+                // The source's own sheet opens once this one has gone.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    switch origin {
+                    case .appleNotes: imports?.appleNotes()
+                    case .files(let kind): imports?.from(kind)
+                    }
+                }
+            }
+        }
+        #endif
         .fileImporter(isPresented: $addingFiles, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
             let made = context.addFiles(urls, to: context.folderForFiles(scope))
@@ -530,10 +548,9 @@ struct NoteListView: View {
                         .disabled(scope == .trash)
                         .accessibilityIdentifier("list.addFile")
                     Divider()
-                    Button("Import from Apple Notes…", systemImage: "square.and.arrow.down") { imports?.appleNotes() }
-                    ForEach(ImportKind.allCases) { kind in
-                        Button(kind.menuTitle, systemImage: kind.symbol) { imports?.from(kind) }
-                    }
+                    // One item: the sources, with their icons, are in the choice it opens.
+                    Button("Import…", systemImage: "square.and.arrow.down") { choosingImport = true }
+                        .accessibilityIdentifier("list.import")
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
@@ -593,7 +610,7 @@ struct NoteListView: View {
             .tag(note.id)
             // Outside the equatable row, so the list sees its background. On the Mac the row draws
             // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .hoverRow(note.title, selected: Self.quiet(selection, note.id))
+            .hoverRow(note.title, selected: Self.quiet(selection, note.id)) { over in NotePreload.pointer(over, on: note) }
             .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))

@@ -795,8 +795,46 @@ struct NoteDetailView: View {
             .toolbar(controller.isEditing || showingPage ? .hidden : .automatic, for: .bottomBar)
             .animation(.snappy(duration: 0.2), value: controller.isEditing)
             #endif
+            #if os(macOS)
+            // Handed up to the toolbar that stays as the notes change (NoteToolbarStage).
+            .preference(key: NoteToolbarKey.self, value: toolbarParts)
+            #else
             .toolbar { toolbar }
+            #endif
     }
+
+    #if os(macOS)
+    private var toolbarParts: NoteToolbarParts {
+        NoteToolbarParts(
+            newNote: AnyView(ComposeButton(newNote: onNewNote) {
+                // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
+                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+            }
+                .help("New Note (⌘N). Click and hold for New App.")
+                .newAppTip()
+                // The menu bar's quick capture is the other way to start a note.
+                .paneTip(MenuBarTip(), arrowEdge: .top)
+                .accessibilityIdentifier("list.newNote")),
+            // A note with an app is just the app: no writing tools.
+            writing: notePage != nil ? nil : AnyView(Group {
+                FormatButton(controller: controller).disabled(hidden)
+                Button("Checklist", systemImage: "checklist", action: controller.checklist)
+                    .help("Checklist (⇧⌘L)")
+                    .disabled(hidden)
+                Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                    .help("Table (⌥⌘T)")
+                    .disabled(hidden)
+                Button("Attach", systemImage: "paperclip") { importing = true }
+                    .help("Attach File (⇧⌘A)")
+                    .disabled(note.isLocked || showingPage)
+            }),
+            people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            sharing: AnyView(Group {
+                shareMenu
+                moreMenu
+            }))
+    }
+    #endif
 
     /// Every keystroke lands here; the model is written once typing pauses.
     private func save(_ text: String) {
@@ -989,9 +1027,9 @@ struct NoteDetailView: View {
         .padding(12)
     }
 
+    #if os(iOS)
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        #if os(iOS)
         ToolbarItem(placement: .bottomBar) {
             Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden)
         }
@@ -1017,45 +1055,8 @@ struct NoteDetailView: View {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
         ToolbarItem(placement: .primaryAction) { moreMenu }
-        #else
-        // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
-        ToolbarItem {
-            ComposeButton(newNote: onNewNote) {
-                // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
-            }
-                .help("New Note (⌘N). Click and hold for New App.")
-                .newAppTip()
-                // The menu bar's quick capture is the other way to start a note.
-                .paneTip(MenuBarTip(), arrowEdge: .top)
-                .accessibilityIdentifier("list.newNote")
-        }
-        ToolbarSpacer(.flexible)
-        // A note with an app is just the app: no writing tools.
-        if notePage == nil {
-        ToolbarItemGroup {
-            FormatButton(controller: controller).disabled(hidden)
-            Button("Checklist", systemImage: "checklist", action: controller.checklist)
-                .help("Checklist (⇧⌘L)")
-                .disabled(hidden)
-            Button("Table", systemImage: "tablecells", action: controller.insertTable)
-                .help("Table (⌥⌘T)")
-                .disabled(hidden)
-            Button("Attach", systemImage: "paperclip") { importing = true }
-                .help("Attach File (⇧⌘A)")
-                .disabled(note.isLocked || showingPage)
-        }
-        }
-        ToolbarSpacer(.fixed)
-        if let collab {
-            ToolbarItem { PresenceStack(session: collab) { showPeople = true } }
-        }
-        ToolbarItemGroup {
-            shareMenu
-            moreMenu
-        }
-        #endif
     }
+    #endif
 
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
@@ -1262,3 +1263,75 @@ private struct HostAskAlert: ViewModifier {
         }
     }
 }
+
+#if os(macOS)
+/// The open note's toolbar items, handed from the note pane to the toolbar that shows them.
+///
+/// The note pane is a new view for every note (`.id` in RootView: nothing of one note's state
+/// reaches the next). A toolbar declared on the pane was a new toolbar for every note: each
+/// item taken out of the window's toolbar and put back, and the Format, Share and More menus
+/// built from nothing, pictures and all. That was about four fifths of the time between a click
+/// on a note and the note (2026-10-11: 280 ms of main thread a note in a Debug build, 55 ms
+/// without it). So the pane only makes its items, where their state is, and hands them up.
+/// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
+/// in a toolbar that stays: the items are brought up to date in place, like any other view.
+struct NoteToolbarParts: Equatable, @unchecked Sendable {
+    var newNote: AnyView
+    /// Format, Checklist, Table, Attach; none for a note that is an app.
+    var writing: AnyView?
+    /// Who else is in a shared note.
+    var people: AnyView?
+    /// Share and More.
+    var sharing: AnyView
+    /// Views can't be compared: each time the pane works its items out, they count as new.
+    let made = NoteToolbarParts.next()
+
+    static func == (a: NoteToolbarParts, b: NoteToolbarParts) -> Bool { a.made == b.made }
+
+    nonisolated(unsafe) private static var count = 0
+    private static func next() -> Int {
+        count += 1
+        return count
+    }
+}
+
+struct NoteToolbarKey: PreferenceKey {
+    static var defaultValue: NoteToolbarParts? { nil }
+    static func reduce(value: inout NoteToolbarParts?, nextValue: () -> NoteToolbarParts?) {
+        value = nextValue() ?? value
+    }
+}
+
+/// Where the note pane stands in the detail column, with the toolbar for its items. The pane
+/// inside it comes and goes with each note; this view and its toolbar don't. (The toolbar has to
+/// be on a view around the pane: put on the pane itself, also from outside its `.id`, the
+/// column makes it again with every note.)
+struct NoteToolbarStage<Pane: View>: View {
+    @ViewBuilder let pane: Pane
+    @State private var parts: NoteToolbarParts?
+
+    var body: some View {
+        let parts = $parts
+        ZStack {
+            // A turn after the pane made them. A pane that has just gone leaves the items as they
+            // are: the next pane's are on their way, and without a note this view goes too.
+            pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
+        }
+            .toolbar {
+                if let shown = self.parts {
+                    // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
+                    ToolbarItem { shown.newNote }
+                    ToolbarSpacer(.flexible)
+                    if let writing = shown.writing {
+                        ToolbarItemGroup { writing }
+                    }
+                    ToolbarSpacer(.fixed)
+                    if let people = shown.people {
+                        ToolbarItem { people }
+                    }
+                    ToolbarItemGroup { shown.sharing }
+                }
+            }
+    }
+}
+#endif
