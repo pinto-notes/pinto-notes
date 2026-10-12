@@ -1047,8 +1047,6 @@ export const handlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unkn
 
   async restore_revision(tx, a, c) {
     const n = await findNote(tx, c, a, true);
-    // Recently Deleted is read-only, in the apps and here.
-    if (n.trashed_at) throw new ToolError(`"${n.title}" is in Recently Deleted. Restore it with restore_note first.`);
     const rows = await tx<{ body_ct: string | null; head_ct: string | null; locked_body: string | null }[]>`
       select body_ct, head_ct, locked_body from public.note_revisions where id = ${wholeNumber(a.revision_id, "revision_id")} and note_id = ${n.id}`;
     if (!rows.length) throw new ToolError("No such revision for this note. Use note_history.");

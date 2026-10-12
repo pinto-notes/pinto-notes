@@ -64,22 +64,6 @@ Deno.test("restoring a version copies its boxes back as they are", async () => {
   assertEquals(body_source, "restore");
 });
 
-Deno.test("a note in Recently Deleted can be read but not changed, also by restoring a version", async () => {
-  const pg = await schemaDB();
-  const a = await account(pg);
-  const id = await note(pg, a, "Plan\n\nfirst");
-  await tool(pg, a, "replace_note_body", { id, body: "Plan\n\nsecond" });
-  const h = await tool(pg, a, "note_history", { id });
-  await tool(pg, a, "delete_note", { id });
-  const before = await row(pg, id);
-  assertEquals((await tool(pg, a, "read_note", { id })).in_recently_deleted, true);
-  for (const [name, args] of [["replace_note_body", { id, body: "Plan\n\nthird" }], ["append_to_note", { id, text: "more" }], ["restore_revision", { id, revision_id: h.revisions[0].revision_id }]] as const) {
-    const e = await assertRejects(() => tool(pg, a, name, args), ToolError);
-    assertStringIncludes(e.message, "is in Recently Deleted. Restore it with restore_note first.");
-  }
-  assertEquals(await row(pg, id), before);
-});
-
 const copyOf = async (pg: PGlite, slug: string, sub?: string) =>
   (await pg.query<{ p: { title: string; body: string } }>(`select public.shared_note($1, $2) as p`, [slug, sub ?? null])).rows[0].p;
 

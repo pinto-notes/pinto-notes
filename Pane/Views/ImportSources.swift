@@ -36,15 +36,6 @@ enum ImportOrigin: Identifiable, Hashable {
         }
     }
 
-    /// The app's own icon, shipped for when the app isn't installed (sources: docs/Technical/import-source-icons.md).
-    var bundledIcon: String? {
-        switch self {
-        case .files(.evernote): "ImportIconEvernote"
-        case .files(.bear): "ImportIconBear"
-        default: nil
-        }
-    }
-
     /// The Mac app whose icon stands for this source, when there is one.
     var bundleIdentifier: String? {
         switch self {
@@ -104,22 +95,12 @@ struct ImportSourceIcon: View {
                 .interpolation(.high)
                 .frame(width: size, height: size)
                 .accessibilityHidden(true)
-        } else if let bundled = origin.bundledIcon {
-            image(bundled)
         } else {
             tile
         }
         #else
-        if let bundled = origin.bundledIcon { image(bundled) } else { tile }
+        tile
         #endif
-    }
-
-    private func image(_ name: String) -> some View {
-        Image(name)
-            .resizable()
-            .interpolation(.high)
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
     }
 
     /// Drawn on the grid of a real app icon (Apple's 824 of 1024, the same corner, the same light

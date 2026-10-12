@@ -10,8 +10,6 @@ final class EditorController {
     /// Set by the platform text view while it is on screen.
     @ObservationIgnored weak var target: (any EditorTarget)?
     var isEditing = false
-    /// A note in Recently Deleted: shown, not changed (like Notes). Recover it to edit.
-    var readOnly = false
     /// Room kept free under the note's last line for something laid over the bottom (iPhone
     /// tips), so the text can always scroll clear of it.
     var bottomReserve: CGFloat = 0
@@ -158,7 +156,7 @@ final class EditorController {
     }
 
     func perform(_ make: (String, NSRange) -> TextEdit?) {
-        guard let t = target, !readOnly else { return }
+        guard let t = target else { return }
         if let edit = make(t.currentText, t.currentSelection) { t.apply(edit) }
     }
 
@@ -182,7 +180,7 @@ final class EditorController {
     /// With lines selected that have tabs or pipes between words, turns them into a table;
     /// otherwise inserts an empty 2×2 table and puts the keyboard in its first cell.
     func insertTable() {
-        guard let t = target, !readOnly else { return }
+        guard let t = target else { return }
         if let edit = TableText.edit(in: t.currentText, selection: t.currentSelection) {
             t.apply(edit)
         } else {

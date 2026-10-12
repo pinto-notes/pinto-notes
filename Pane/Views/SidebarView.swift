@@ -438,10 +438,9 @@ struct SidebarView: View {
                 deletingFolder = nil
             }
         } message: {
-            Text(deletingFolder.map { f in
-                let c = Self.contents(of: f, files: { context.files(in: $0).count })
-                return Self.deleteMessage(subfolders: c.subfolders, notes: c.notes, files: c.files)
-            } ?? "")
+            Text(deletingFolder.map { context.files(in: $0.id).isEmpty } ?? true
+                 ? "Its notes move to Recently Deleted, where you can recover them for 30 days."
+                 : "Its notes and files move to Recently Deleted, where you can recover them for 30 days.")
         }
         .alert(Self.nameAlertTitle(renaming: renaming != nil, inside: (newFolderParent ?? nil) != nil), isPresented: Binding(
             get: { renaming != nil || newFolderParent != nil },
@@ -517,36 +516,6 @@ struct SidebarView: View {
             let f = context.createFolder(named: name, parent: parent)
             scope = .folder(f.id)
         }
-    }
-
-    /// What a folder holds, sub-folders included: what deleting it moves to Recently Deleted.
-    static func contents(of folder: Folder, files: (UUID) -> Int) -> (subfolders: Int, notes: Int, files: Int) {
-        var result = (subfolders: 0, notes: folder.liveNotes.count, files: files(folder.id))
-        var seen: Set<UUID> = [folder.id]
-        var queue = folder.liveChildren
-        while let f = queue.popLast() {
-            guard seen.insert(f.id).inserted else { continue }
-            result.subfolders += 1
-            result.notes += f.liveNotes.count
-            result.files += files(f.id)
-            queue += f.liveChildren
-        }
-        return result
-    }
-
-    /// What happens, said plainly: the folder itself is gone for good; what was in it waits in
-    /// Recently Deleted (2026-10-12: the old line read as if the folder could be recovered).
-    static func deleteMessage(subfolders: Int, notes: Int, files: Int) -> String {
-        func count(_ n: Int, _ one: String, _ many: String) -> String { n == 1 ? "1 \(one)" : "\(n) \(many)" }
-        let gone = subfolders == 0 ? "The folder goes away." : "The folder and its \(count(subfolders, "subfolder", "subfolders")) go away."
-        var held: [String] = []
-        if notes > 0 { held.append(count(notes, "note", "notes")) }
-        if files > 0 { held.append(count(files, "file", "files")) }
-        guard !held.isEmpty else { return gone }
-        let them = notes + files == 1 ? "it" : "them"
-        let moves = notes + files == 1 ? "moves" : "move"
-        let whose = subfolders == 0 ? "Its" : "Their"
-        return "\(gone) \(whose) \(held.joined(separator: " and ")) \(moves) to Recently Deleted, where you can recover \(them) for 30 days."
     }
 
     /// Asks first when the folder holds notes, like Notes: they move to Recently Deleted.
@@ -720,11 +689,14 @@ private struct FolderTree: View {
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 SidebarRowText(title: folder.name, selected: selected) {
-                    HoverSwap(on: hovering, help: "Folder options") {
+                    if hovering {
+                        RowMenuButton(help: "Folder options") { menuItems }
+                            .accessibilityHidden(true)
+                    } else {
                         Text(folder.liveNotes.count + (files[folder.id] ?? 0), format: .number)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
-                    } items: { menuItems }
+                    }
                 }
             } icon: {
                 SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
