@@ -254,6 +254,8 @@ targets:
         buildPhase: resources
       - path: supabase/functions/_shared/collab-vectors.json
         buildPhase: resources
+      - path: supabase/functions/_shared/keycopy-vectors.json
+        buildPhase: resources
       - path: supabase/migrations/20260929230000_tip_events.sql
         buildPhase: resources
       # The page that lists what the app reports, checked against the code (TelemetryTests).

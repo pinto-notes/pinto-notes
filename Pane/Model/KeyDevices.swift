@@ -73,6 +73,7 @@ struct KeyDevice: Identifiable, Equatable, Sendable {
         case .made: "Made your key on \(Self.day(addedAt))"
         case .keychain: "Got your key from iCloud Keychain on \(Self.day(addedAt))"
         case .recovery: "Opened with the recovery key on \(Self.day(addedAt))"
+        case .signIn: "Signed in on \(Self.day(addedAt))"
         case .unknown: "Has had your key since \(Self.day(addedAt))"
         }
         let seen = isRecent(now: now)
@@ -133,8 +134,9 @@ enum KeyDeviceList {
     /// Safe only on evidence: another device that holds the key and was seen lately, or a saved
     /// recovery key. A key merely stored as an iCloud Keychain item proves nothing (iCloud
     /// Keychain may be off), so it's "can't confirm", never "safe".
-    static func safety(thisBackedUp: Bool, others: [KeyDevice], recoverySaved: Bool, now: Date = .now) -> KeySafety {
-        let ways = others.filter { !$0.removing && $0.isRecent(now: now) }.count + (recoverySaved ? 1 : 0)
+    /// `serverCopy`: the server keeps a copy of the key, so signing in is a way back by itself.
+    static func safety(thisBackedUp: Bool, others: [KeyDevice], recoverySaved: Bool, serverCopy: Bool = false, now: Date = .now) -> KeySafety {
+        let ways = others.filter { !$0.removing && $0.isRecent(now: now) }.count + (recoverySaved ? 1 : 0) + (serverCopy ? 1 : 0)
         if ways > 0 { return .safe(ways: ways) }
         return thisBackedUp ? .unconfirmed : .onlyThisDevice
     }
@@ -267,7 +269,7 @@ final class KeyDevices {
     }
 
     func safety(_ crypto: AccountCrypto, now: Date = .now) -> KeySafety {
-        KeyDeviceList.safety(thisBackedUp: crypto.backedUp, others: others, recoverySaved: crypto.recoveryKeySaved, now: now)
+        KeyDeviceList.safety(thisBackedUp: crypto.backedUp, others: others, recoverySaved: crypto.recoveryKeySaved, serverCopy: crypto.serverCopy, now: now)
     }
 
     /// Tests and captures: the list as given.
