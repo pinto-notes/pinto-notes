@@ -1114,8 +1114,6 @@ enum RowMetrics {
     static let spacing: CGFloat = 2
     static let vertical: CGFloat = 8
     static let leading: CGFloat = 14
-    /// Taller than any section heading's row, shorter than any note's or file's (tests tell them apart by it).
-    static let headingRowLimit: CGFloat = 42
     static let dotOffset: CGFloat = -12
     /// The app mark's size: about the title's cap height.
     static let markSize: CGFloat = 13
@@ -1129,7 +1127,6 @@ enum RowMetrics {
     static let spacing: CGFloat = 3
     static let vertical: CGFloat = 1
     static let leading: CGFloat = 0
-    static let headingRowLimit: CGFloat = 42
     static let dotOffset: CGFloat = -12
     #endif
 }

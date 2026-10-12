@@ -98,7 +98,7 @@ import Testing
         try? await Task.sleep(for: .seconds(1))
         let table = try #require(Self.table(in: w.contentView), "the List is a table")
         // Today: the newer file first, then the older one (and the section's header row).
-        let rows = (0 ..< table.numberOfRows).filter { table.rect(ofRow: $0).height > RowMetrics.headingRowLimit }
+        let rows = (0 ..< table.numberOfRows).filter { !table.isHeadingRow($0) }
         try #require(rows.count >= 3, "two file rows and a note row (rows: \(table.numberOfRows))")
         let (first, second, noteRow) = (rows[0], rows[1], rows[2])
         // The harness first: a note row selects on a click, or the clicks aren't arriving at all.
@@ -160,7 +160,7 @@ import Testing
             let x = t.convert(t.bounds, to: nil).minX
             return x > 150 && x < 700
         }, "the note list's table among \(all.count) tables")
-        let rows = (0 ..< list.numberOfRows).filter { list.rect(ofRow: $0).height > RowMetrics.headingRowLimit }
+        let rows = (0 ..< list.numberOfRows).filter { !list.isHeadingRow($0) }
         try #require(rows.count >= 3, "two files and a note (rows: \(list.numberOfRows))")
         let picks = [(rows[0], book.id, "Think_Python.pdf"), (rows[1], sample.id, "sample.pdf"), (rows[2], note.id, "the note")]
         var log: [String] = []
