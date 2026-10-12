@@ -239,7 +239,7 @@ struct NoteListView: View {
                             FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                                         remove: { remove([file.id]) })
                                 .tag(file.id)
-                                .hoverRow(file.filename, selected: Self.quiet(selection, file.id))
+                                .hoverRow(file.filename, reach: Hover.noteRowReach, selected: Self.quiet(selection, file.id))
                                 .quietSelection()
                                 #if os(iOS)
                                 .listRowBackground(Color(Palette.row))
@@ -524,13 +524,13 @@ struct NoteListView: View {
                 Text(section.0)
                     .foregroundStyle(Color.ink)
                 #else
-                // One weight lighter than before, with a little air above and below, like Notes.
+                // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
                 Text(section.0)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Color.ink)
                     .textCase(nil)
-                    .padding(.top, 6)
-                    .padding(.bottom, 3)
+                    .padding(.top, NoteListView.headingTop)
+                    .padding(.bottom, NoteListView.headingBottom)
                 #endif
             }
         }
@@ -538,6 +538,11 @@ struct NoteListView: View {
         .headerProminence(.increased)
         #endif
     }
+
+    /// Room above and below a date heading's text: a 40 pt row with its letters where Apple
+    /// Notes' are (13.5 pt down, 17 in from the column's edge, matched by their pixels).
+    static let headingTop: CGFloat = 6.5
+    static let headingBottom: CGFloat = 6.5
 
     /// The folder's name in the list's toolbar: the gap after it (the space between the toolbar's
     /// groups) and the most room it takes before it ends in "…".
@@ -569,7 +574,8 @@ struct NoteListView: View {
             .tag(note.id)
             // Outside the equatable row, so the list sees its background. On the Mac the row draws
             // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .modifier(NoteRowHover(id: note.title, selected: Self.quiet(selection, note.id), pointer: { over in NotePreload.pointer(over, on: note) }) {
+            .modifier(NoteRowHover(id: note.title, selected: Self.quiet(selection, note.id), top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && note.folder != nil),
+                                   pointer: { over in NotePreload.pointer(over, on: note) }) {
                 menu(for: note, folders: foldersByName)
             })
             .quietSelection()
@@ -1124,12 +1130,20 @@ final class LibraryNotes {
 enum RowMetrics {
     #if os(macOS)
     // Against Apple Notes on macOS 26 (owner, 2026-10-12: "a bit less overwhelming"): the second
-    // line a size smaller than the title, a little more room around each row.
+    // line a size smaller than the title. The rows are Apple's, read through Accessibility in a
+    // 237 pt column: 68 pt with a folder line (its lines centred 16, 34.5 and 52.5 pt down) and
+    // 56 without (the title's line where Apple's is, 20 pt down); the text 34 pt in from the
+    // row's edge. Apple's date line sits 2 pt closer to the title in a row without a folder line;
+    // here it keeps the folder rows' gap (owner: "the note title and subtitle needs a bit of
+    // spacing"). The list adds 4 pt above and below a row and 16 at its left
+    // (NoteListGeometryTests).
     static let title = Font.system(size: 13, weight: .bold)
     static let detail = Font.system(size: 12)
-    static let spacing: CGFloat = 2
-    static let vertical: CGFloat = 8
-    static let leading: CGFloat = 14
+    static let spacing: CGFloat = 3
+    static let leading: CGFloat = 18
+    /// Room above and below a row's lines: less when it has a third line, its folder.
+    static func top(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
+    static func bottom(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
     static let dotOffset: CGFloat = -12
     /// The app mark's size: about the title's cap height.
     static let markSize: CGFloat = 13
@@ -1141,8 +1155,9 @@ enum RowMetrics {
     static let title = Font.headline
     static let detail = Font.subheadline
     static let spacing: CGFloat = 3
-    static let vertical: CGFloat = 1
     static let leading: CGFloat = 0
+    static func top(folderLine: Bool) -> CGFloat { 1 }
+    static func bottom(folderLine: Bool) -> CGFloat { 1 }
     static let dotOffset: CGFloat = -12
     #endif
 }
@@ -1201,6 +1216,9 @@ struct NoteRow: View {
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
+
+    /// Whether the row has its third line, the note's folder.
+    private var folderLine: Bool { showFolder && note.folder != nil }
 
     var body: some View {
         let title = note.title
@@ -1263,7 +1281,7 @@ struct NoteRow: View {
                 }
             }
             .font(RowMetrics.detail)
-            if showFolder, let f = note.folder {
+            if folderLine, let f = note.folder {
                 HStack(spacing: 5) {
                     Image(systemName: "folder")
                     Text(f.name)
@@ -1272,7 +1290,8 @@ struct NoteRow: View {
                 .foregroundStyle(Color.muted)
             }
         }
-        .padding(.vertical, RowMetrics.vertical)
+        .padding(.top, RowMetrics.top(folderLine: folderLine))
+        .padding(.bottom, RowMetrics.bottom(folderLine: folderLine))
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
         .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared ? "Shared" : nil, note.isLocked ? "Locked" : nil, ai.map { "Edited by \($0)" }].compactMap { $0 }.joined(separator: ", "))
@@ -1305,15 +1324,20 @@ struct NoteRow: View {
 private struct NoteRowHover<Items: View>: ViewModifier {
     let id: String
     let selected: Bool
+    /// The room above the title's line, where the ••• lines up.
+    let top: CGFloat
     let pointer: (Bool) -> Void
     @ViewBuilder let items: () -> Items
 
     func body(content: Content) -> some View {
-        HoverRowReader(id: id, selected: selected, pointer: pointer) { hovering in
+        // The pill fills the row from edge to edge, as Apple Notes' does.
+        HoverRowReader(id: id, reach: Hover.noteRowReach, selected: selected, pointer: pointer) { hovering in
             content
                 #if os(macOS)
-                .overlay(alignment: .trailing) {
+                // Always the top right corner, on the title's line, whatever the row holds.
+                .overlay(alignment: .topTrailing) {
                     HoverSwap(on: hovering, help: "Note options") { EmptyView() } items: { items() }
+                        .padding(.top, top)
                 }
                 #endif
         }

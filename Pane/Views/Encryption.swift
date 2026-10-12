@@ -19,6 +19,8 @@ struct KeyGateView: View {
     @State private var password = ""
     @FocusState private var focused: Bool
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.modelContext) private var context
+    @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -27,7 +29,7 @@ struct KeyGateView: View {
     /// `link`: adding this device from another one, chosen while the key is held back after a reset.
     enum Screen { case auto, noDevice, keychain, recovery, startFresh, link }
 
-    enum Shown: Equatable { case welcome, addDevice, noDevice, waiting, recovery, startFresh, unreachable, checking, held, before }
+    enum Shown: Equatable { case welcome, addDevice, noDevice, waiting, recovery, startFresh, unreachable, accountGone, checking, held, before }
 
     /// The screen for where startup is and what you chose. Without the key here, the code for
     /// another device comes first, and iCloud Keychain keeps being checked behind it: nobody sits
@@ -47,6 +49,7 @@ struct KeyGateView: View {
         case (.waiting, .keychain): .waiting
         case (.waiting, _), (.mismatch, _): .addDevice
         case (.unreachable, _): .unreachable
+        case (.accountGone, _): .accountGone
         default: .checking
         }
     }
@@ -145,6 +148,7 @@ struct KeyGateView: View {
         case .recovery: recoveryEntry
         case .waiting: waiting
         case .unreachable: unreachable
+        case .accountGone: accountGone
         case .checking: checking
         }
     }
@@ -570,6 +574,19 @@ struct KeyGateView: View {
         }
     }
 
+    /// The account was deleted. One way on: sign in (with this account gone, another one or a new
+    /// one), with this device's copy of the deleted account's notes removed first.
+    private var accountGone: some View {
+        VStack(spacing: 18) {
+            heading("This account no longer exists", Copy.accountGone)
+            mainButton("Sign in", id: "e2ee.accountGoneSignIn", enabled: true) {
+                WelcomeFlow.Stage.signInNext = true
+                guard let account = backend.userID else { await backend.signOut(); return }
+                await SignOutRemoval.live(backend: backend, sync: sync, context: context).runAfterAccountGone(account: account)
+            }
+        }
+    }
+
     private var signOut: some View {
         quietButton("Sign out", id: "e2ee.signOut", muted: true) { Task { await backend.signOut() } }
     }
@@ -638,6 +655,7 @@ enum KeyCopy {
     static let recoveryHint = "If another device still opens your notes, it shows the key in Settings › Security."
     static let mismatch = "The key on this device isn't your account's current key."
     static let unreachable = "Connect to the internet. This device checks your key with Pinto Notes before opening your notes."
+    static let accountGone = "It was deleted. Its notes are removed from this \(InstallID.kind) when you sign in again."
     private static let startFreshWhy = "Without a device that has your key, or a recovery key you saved, the notes stored with Pinto Notes can't be opened by anyone, including us. AI connections you approved can still open them until they're disconnected."
     /// What Start fresh does, by whether this device holds notes: they stay and go up again under
     /// the new key (`notesHere`, KeyGateView.countNotes); with none here, the account starts empty.

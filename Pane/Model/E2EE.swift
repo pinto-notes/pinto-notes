@@ -769,6 +769,8 @@ final class AccountCrypto {
         case mismatch
         /// Offline with no key here: retrying.
         case unreachable
+        /// The account was deleted: the auth server says its user doesn't exist. Nothing retries.
+        case accountGone
         case ready
     }
 
@@ -862,6 +864,10 @@ final class AccountCrypto {
     /// Whether there's a network at all (NetworkPath): the retries wait while there isn't, and
     /// `networkReturned` runs them at once when it's back.
     var networkUp: @MainActor () -> Bool = { true }
+    /// Whether the account still exists, asked when the server doesn't answer the key check:
+    /// false when the auth server says its user is gone (deleted), nil when it couldn't say
+    /// either (offline, a server error). Set by the app (`Backend.accountExists`).
+    var accountExists: @MainActor () async -> Bool? = { nil }
 
     init(store: AccountKeyStore, defaults: UserDefaults = .standard, pollInterval: Duration = .seconds(2),
          helpAfter: Duration = .seconds(20), retryInterval: Duration = .seconds(10), fetchTimeout: Duration = .seconds(12),
@@ -1007,8 +1013,7 @@ final class AccountCrypto {
             phase = .mismatch
             startPolling()
         case .unreachable:
-            phase = .unreachable
-            startRetrying()
+            await becomeUnreachable()
         }
     }
 
@@ -1020,8 +1025,7 @@ final class AccountCrypto {
         switch result {
         case .opened, .superseded: break
         case .offline:
-            phase = .unreachable
-            startRetrying()
+            await becomeUnreachable()
         case .none:
             // No copy after all (or not yet): the ways there were before.
             phase = mismatch ? .mismatch : .waiting
@@ -1293,8 +1297,7 @@ final class AccountCrypto {
             await staleRestart()
         } catch {
             guard gen == generation else { return }
-            phase = .unreachable
-            startRetrying()
+            await becomeUnreachable()
         }
     }
 
@@ -1306,8 +1309,7 @@ final class AccountCrypto {
         staleRestarts += 1
         guard staleRestarts <= 2 else {
             staleRestarts = 0
-            phase = .unreachable
-            startRetrying()
+            await becomeUnreachable()
             return
         }
         await restart()
@@ -1333,8 +1335,7 @@ final class AccountCrypto {
             await staleRestart()
         } catch {
             guard gen == generation else { return }
-            phase = .unreachable
-            startRetrying()
+            await becomeUnreachable()
         }
     }
 
@@ -1360,7 +1361,11 @@ final class AccountCrypto {
         guard let account, let server, phase == .ready, let key else { return }
         let gen = generation
         let state: ServerKeyState
-        do { state = try await server.fetch() } catch { return }
+        do { state = try await server.fetch() } catch {
+            // The notes are open with this device's key; only a deleted account changes that.
+            if await accountExists() == false, gen == generation { stop(); phase = .accountGone }
+            return
+        }
         guard gen == generation, phase == .ready else { return }
         serverGeneration = state.generation
         note(state)
@@ -1678,6 +1683,22 @@ final class AccountCrypto {
         case .ready where unverified: await recheck()
         default: break
         }
+    }
+
+    /// The key check couldn't be done. Can't reach Pinto Notes, retried, unless the account
+    /// itself is gone: a deleted account answers like an outage to everything but the auth
+    /// server's own check, and "connect to the internet" was the wrong thing to say (2026-10-12).
+    private func becomeUnreachable() async {
+        let gen = generation
+        let exists = await accountExists()
+        guard gen == generation else { return }
+        if exists == false {
+            stop()
+            phase = .accountGone
+            return
+        }
+        phase = .unreachable
+        startRetrying()
     }
 
     /// Offline: startup again every little while, or (ready with a key the server hasn't
