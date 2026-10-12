@@ -259,6 +259,21 @@ targets:
       # The page that lists what the app reports, checked against the code (TelemetryTests).
       - path: docs/Technical/app-telemetry.md
         buildPhase: resources
+      # More of the checkout the tests read, for the same reason (TestFiles.swift): the demo note
+      # apps (NotePageTests), the AI server's stylesheet and file kinds, and the app's own views
+      # (AmberButtonTests reads which button style each uses).
+      - path: demo/note-pages
+        type: folder
+        buildPhase: resources
+      - path: Pane/Resources/AppLibraries/amber-base.css
+        buildPhase: resources
+      - path: supabase/functions/mcp/amber-base.ts
+        buildPhase: resources
+      - path: supabase/functions/mcp/folder_files.ts
+        buildPhase: resources
+      - path: Pane/Views
+        type: folder
+        buildPhase: resources
       # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
       # link it (see Pane/Collab/CollabText.swift).
       - path: Pane/Collab/CollabText.swift
