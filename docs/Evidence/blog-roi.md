@@ -19,6 +19,61 @@ the daily growth loop; the dated reading of each day is in [growth-log.md](growt
 - Our own checks are in these numbers (most of them from macOS). Numbers this small move a lot from
   one person.
 
+## 2 to 12 October 2026 (to about 09:50 UTC on 12 October)
+
+No post or template page had a visit since the 11 October reading. The table is the same as the one below. The
+only blog address viewed was /Blog/Comparisons, a made-up path from a crawler.
+
+- Neither of the 11 October posts (apple-notes-tables rewritten, journal-with-chatgpt-or-claude) has had a visit yet.
+- Search Console, last 7 days of Google's data (3 to 9 October, ambernotes.app), impressions and clicks per post:
+  forgot-apple-notes-password 295 and 1, apple-notes-not-syncing 261 and 2, apple-notes-tables 242 and 0,
+  move-apple-notes-to-icloud 174 and 0, apple-notes-ios-27 91 and 2, recover-deleted-apple-notes 81 and 0,
+  apple-notes-api 75 and 4, best-notes-app-for-ai-agents 18 and 2. pintonotes.com: 6 impressions in all; the one query Google
+  shows is "notes not syncing between iphone and mac".
+- apple-notes-tables went from 163 to 242 impressions in a week. It was rewritten on 11 October, so that rise was
+  before the rewrite went live.
+
+## 2 to 11 October 2026 (to about 08:45 UTC on 11 October)
+
+Both hosts together. Every visit since 8 October 15:54 UTC is on pintonotes.com.
+
+| Post | Visits | Google landings | Avg. depth | Read 75% | Actions | Downloads |
+|---|---|---|---|---|---|---|
+| /blog/apple-notes-ios-27 | 10 | 5 | 71% | 3 | 0 | 0 |
+| /blog/apple-notes-api | 9 | 3 | 78% | 6 | 0 | 0 |
+| /blog/notes-apps-with-mcp | 4 | 0 | 50% | 1 | 0 | 0 |
+| /blog/forgot-apple-notes-password | 4 | 2 | 50% | 1 | 1 | 0 |
+| /blog/apple-notes-not-syncing | 3 | 0 | 83% | 2 | 1 | 0 |
+| /blog/connect-chatgpt-to-your-notes | 3 | 0 | 38% | 0 | 0 | 0 |
+| /blog/best-notes-app-for-ai-agents | 2 | 1 | 50% | 1 | 0 | 0 |
+| /blog/apple-notes-templates | 2 | 0 | 62% | 1 | 0 | 0 |
+| /blog/move-apple-notes-to-icloud | 1 | 0 | 75% | 1 | 0 | 0 |
+| /blog/apple-notes-tags-smart-folders | 1 | 0 | 75% | 1 | 1 | 0 |
+| /blog/export-apple-notes-to-markdown | 1 | 0 | 25% | 0 | 0 | 0 |
+| /blog/claude-and-apple-notes | 1 | 0 | 25% | 0 | 0 | 0 |
+| /blog/notes-in-claude-code-and-codex | 1 | 0 | | 0 | 0 | 0 |
+| /blog/apple-notes-mcp | 1 | 0 | | 0 | 0 | 0 |
+| /blog/obsidian-mcp-servers-compared | 1 | 0 | | 0 | 0 | 0 |
+| Every other post | 0 | 0 | | | | |
+
+- New since 10 October: five post visits (apple-notes-api 2, apple-notes-templates 2, notes-apps-with-mcp 1), all
+  opened directly on a Mac, none from search. Both apple-notes-api visits read to 75%, and one went on to
+  apple-notes-templates from a link on the page and read that to 75% as well.
+- The notes-apps-with-mcp visit is two views seven seconds apart at 09:07 UTC on 10 October, most likely our own
+  check.
+- Neither of the two posts from 10 October (weekly-review-with-chatgpt-or-claude, and the rewritten
+  move-apple-notes-to-icloud) has had a visit yet.
+- Still no post visit followed by Download for Mac the same day. `blog_cta_clicked` and `blog_copy_clicked`
+  haven't fired.
+- Search Console, last 7 days of Google's data (2 to 8 October, ambernotes.app), impressions and clicks per post:
+  forgot-apple-notes-password 301 and 2, apple-notes-not-syncing 215 and 1, move-apple-notes-to-icloud 168 and
+  0, apple-notes-tables 163 and 0, apple-notes-ios-27 100 and 2, connect-chatgpt-to-your-notes 81 and 0,
+  recover-deleted-apple-notes 76 and 0, apple-notes-api 73 and 4, obsidian-mcp 60 and 0,
+  export-apple-notes-to-markdown 53 and 0, back-up-apple-notes 23 and 0, notes-apps-that-work-with-chatgpt 20
+  and 0, claude-and-apple-notes 20 and 0, notes-apps-with-mcp 19 and 0, apple-notes-tags-smart-folders 18 and
+  0, claude-cowork-apple-notes 16 and 0, best-notes-app-for-ai-agents 14 and 1. pintonotes.com has no
+  impressions yet.
+
 ## 2 to 10 October 2026 (to 09:00 UTC on 10 October)
 
 Both hosts together. Every visit since 8 October 15:54 UTC is on pintonotes.com.
