@@ -4,7 +4,7 @@
 #
 #   scripts/staging.sh create          make the Supabase project "amber-staging" (paid compute, ask first)
 #   scripts/staging.sh db              push every migration in this checkout
-#   scripts/staging.sh functions       deploy mcp, account, account-status and share-files
+#   scripts/staging.sh functions       deploy mcp, account, account-status, share-files and key
 #   scripts/staging.sh secrets         set the functions' secrets
 #   scripts/staging.sh auth            copy production's auth settings, pointed at staging
 #   scripts/staging.sh app-config      write Config/Backend.staging.local.xcconfig for the beta builds
@@ -38,7 +38,7 @@ WEB_PROJECT=amber-notes-staging
 SITE=https://amber-notes-staging.vercel.app
 SCHEME=ambernotes-beta
 BETA_BUNDLE=dev.emilwagman.pane.beta
-FUNCTIONS=(mcp account account-status share-files)
+FUNCTIONS=(mcp account account-status share-files key)
 
 mkdir -p "$SECRETS"
 [[ -f $ENVF ]] && source "$ENVF"
@@ -97,6 +97,9 @@ cmd_secrets() {
   local f; f=$(mktemp); trap "rm -f '$f'" EXIT
   [[ -n ${STAGING_PROXY_SECRET:-} ]] || { STAGING_PROXY_SECRET=$(openssl rand -hex 32); save "STAGING_PROXY_SECRET=$STAGING_PROXY_SECRET"; }
   [[ -n ${STAGING_STATUS_SALT:-} ]] || { STAGING_STATUS_SALT=$(openssl rand -hex 32); save "STAGING_STATUS_SALT=$STAGING_STATUS_SALT"; }
+  # The secret the copies of account keys are sealed under (supabase/functions/key). Made once and
+  # kept: with a new one, every copy already stored on staging would stop opening.
+  [[ -n ${STAGING_KEY_COPY_SECRET:-} ]] || { STAGING_KEY_COPY_SECRET=$(openssl rand -base64 32); save "STAGING_KEY_COPY_SECRET='$STAGING_KEY_COPY_SECRET'"; }
   # The app renderer (scripts/page-render) on Railway, which production doesn't use yet.
   local render_secret; render_secret=$(cd scripts/page-render/deploy && railway variables --service amber-render --kv 2>/dev/null | sed -n 's/^RENDER_SECRET=//p')
   local render_url; render_url=https://amber-render-production.up.railway.app
@@ -109,6 +112,8 @@ FUNCTION_REGION=$REGION
 DB_POOLER_HOST=$(pooler)
 MCP_PROXY_SECRET=$STAGING_PROXY_SECRET
 ACCOUNT_STATUS_SALT=$STAGING_STATUS_SALT
+KEY_COPY=on
+KEY_COPY_SECRET_1=$STAGING_KEY_COPY_SECRET
 EOF
   [[ -n $render_secret ]] && printf 'RENDER_URL=%s\nRENDER_SECRET=%s\n' "$render_url" "$render_secret" >> "$f")
   supabase secrets set --project-ref "$REF" --env-file "$f" >/dev/null

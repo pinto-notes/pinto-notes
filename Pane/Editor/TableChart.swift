@@ -3,6 +3,8 @@ import SwiftUI
 
 /// How a tracker column changes over time: a line for numbers and scores,
 /// a count per answer for choices ("how often was I on plan?").
+/// Parked: tables are plain for people since 2026-10-11 and "Show Trend" left the column
+/// menu with the type picker, so nothing opens this sheet now.
 struct TableChartSheet: View {
     let table: TypedTable
     @State private var column: Int

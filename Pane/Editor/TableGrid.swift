@@ -167,20 +167,6 @@ extension TypedTable.ColumnType {
         if case .choice(let o) = self { return o.first?.lowercased() == "yes" }
         return false
     }
-
-    var isNumeric: Bool {
-        switch self {
-        case .number, .scale: true
-        default: false
-        }
-    }
-
-    var chartable: Bool {
-        switch self {
-        case .number, .scale, .choice: true
-        default: false
-        }
-    }
 }
 
 /// Which edges of a scrolled table have more columns past them.
@@ -227,33 +213,6 @@ struct GridCell: Hashable {
     var column: Int
 }
 
-/// The column types you can pick from the column menu.
-private enum ColumnKind: Hashable {
-    case text, number, date, yesNo, other
-
-    init(_ t: TypedTable.ColumnType) {
-        switch t {
-        case .text: self = .text
-        case .number, .scale: self = .number
-        case .date: self = .date
-        case .choice: self = t.isYesNo ? .yesNo : .other
-        }
-    }
-
-    var type: TypedTable.ColumnType {
-        switch self {
-        case .text, .other: .text
-        case .number: .number
-        case .date: .date
-        case .yesNo: .choice(["Yes", "No"])
-        }
-    }
-}
-
-private struct TrendColumn: Identifiable {
-    let id: Int
-}
-
 struct TableGridView: View {
     let table: GridTable
     /// Writes the edited table back into the note.
@@ -270,7 +229,6 @@ struct TableGridView: View {
     /// Edges with more columns past them (see GridOverflow).
     @State private var overflow = GridOverflow()
     @Environment(\.colorSchemeContrast) private var contrast
-    @State private var trend: TrendColumn?
     @FocusState private var focus: GridCell?
     /// Set when the keyboard (not a click) moves between cells: the caret goes to
     /// the end of the cell's text instead of selecting all of it.
@@ -362,7 +320,6 @@ struct TableGridView: View {
             place(3)
             #endif
         }
-        .sheet(item: $trend) { TableChartSheet(table: draft.typed, column: $0.id) }
     }
 
     private func content(widths: [CGFloat]) -> some View {
@@ -469,20 +426,20 @@ struct TableGridView: View {
 
     @ViewBuilder
     private func cell(_ r: Int, _ c: Int, cols: Int, width: CGFloat) -> some View {
+        // A table is plain to look at and to type in, like one in Notes, whatever types its
+        // hidden `pane-table` line gives the columns: that line is data for AI tools and
+        // note apps. One exception: a Yes/No column keeps its tick, so a tracker you already
+        // have is still ticked with a click.
         let type = r == 0 ? .text : draft.type(c)
-        let trailing = draft.type(c).isNumeric
         if type.isYesNo, case .choice(let options) = type {
             yesNoCell(r, c, options: options)
-        } else if case .choice(let options) = type {
-            choiceCell(r, c, options: options)
         } else if editing == GridCell(row: r, column: c) {
             TextField("", text: cellBinding(r, c))
                 .textFieldStyle(.plain)
                 .font(.system(size: EditorMetrics.body))
                 .monospacedDigit()
-                .multilineTextAlignment(trailing ? .trailing : .leading)
                 .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: trailing ? .trailing : .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .focused($focus, equals: GridCell(row: r, column: c))
                 .onSubmit { move(from: GridCell(row: r, column: c), cols: cols) }
                 // Focus once the field really exists (it's created for this edit).
@@ -503,14 +460,14 @@ struct TableGridView: View {
                 .lineLimit(1)
                 .accessibilityAddTraits(.isButton)
                 .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: trailing ? .trailing : .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .contentShape(.rect)
                 #if os(macOS)
                 // A click here puts a caret in the text, so the pointer says so, like Notes.
                 .pointerStyle(.horizontalText)
                 #endif
                 .onTapGesture { p in
-                    begin(GridCell(row: r, column: c), at: Self.caretIndex(in: value, x: p.x, width: width, trailing: trailing))
+                    begin(GridCell(row: r, column: c), at: Self.caretIndex(in: value, x: p.x, width: width, trailing: false))
                 }
         }
     }
@@ -567,26 +524,6 @@ struct TableGridView: View {
         .accessibilityLabel(current.isEmpty ? "Empty" : current)
     }
 
-    /// Any other list of answers: plain text that opens a menu.
-    private func choiceCell(_ r: Int, _ c: Int, options: [String]) -> some View {
-        let value = cellBinding(r, c)
-        return Menu {
-            ForEach(options, id: \.self) { o in Button(o) { value.wrappedValue = o } }
-            Divider()
-            Button("Clear") { value.wrappedValue = "" }
-        } label: {
-            Text(value.wrappedValue)
-                .font(.system(size: EditorMetrics.body))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .contentShape(.rect)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-    }
-
     /// Moves the keyboard to a cell, caret after its text, like Notes.
     private func go(_ cell: GridCell) {
         begin(cell, at: nil)
@@ -635,11 +572,9 @@ struct TableGridView: View {
             })
     }
 
-    /// Cells you type into; checkboxes and menus are skipped by Tab and Return.
+    /// Cells you type into; a tick is skipped by Tab and Return.
     private func isText(_ r: Int, _ c: Int) -> Bool {
-        if r == 0 { return true }
-        if case .choice = draft.type(c) { return false }
-        return true
+        r == 0 || !draft.type(c).isYesNo
     }
 
     /// Tab walks the text cells; past the last cell it adds a row.
@@ -692,36 +627,10 @@ struct TableGridView: View {
 
     @ViewBuilder
     private func columnMenu(_ c: Int) -> some View {
-        Picker("Type", selection: kindBinding(c)) {
-            Text("Text").tag(ColumnKind.text)
-            Text("Number").tag(ColumnKind.number)
-            Text("Date").tag(ColumnKind.date)
-            Text("Yes/No").tag(ColumnKind.yesNo)
-        }
-        .pickerStyle(.menu)
-        if draft.type(c).chartable {
-            Button("Show Trend") { trend = TrendColumn(id: c) }
-        }
-        Divider()
         Button("Add Column Before") { edit { $0.insertColumn(at: c) } }
         Button("Add Column After") { edit { $0.insertColumn(at: c + 1) } }
         Divider()
         Button("Delete Column", role: .destructive) { edit { $0.removeColumn(at: c) } }
-    }
-
-    /// Changing the kind keeps a more specific type (a 1–10 scale stays a scale).
-    private func kindBinding(_ c: Int) -> Binding<ColumnKind> {
-        Binding(
-            get: { ColumnKind(draft.type(c)) },
-            set: { kind in
-                guard kind != ColumnKind(draft.type(c)) else { return }
-                edit { t in
-                    var types = t.types ?? []
-                    while types.count < t.columns { types.append(.text) }
-                    types[c] = kind.type
-                    t.types = types
-                }
-            })
     }
 
     private func edit(_ change: (inout GridTable) -> Void) {

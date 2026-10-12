@@ -104,12 +104,13 @@ import TipKit
         #expect(PaneTips.turn == "menuBar", "a tip shown takes the turn")
     }
 
-    @Test func theTipsAreFourWithDistinctIdsTheServerKnows() {
+    @Test func theTipsAreFiveWithDistinctIdsTheServerKnows() {
         let ids = PaneTips.all.map(\.id)
-        #expect(Set(ids) == ["versionHistory", "shareLink", "menuBar", "shareExtension"])
+        #expect(Set(ids) == ["versionHistory", "shareLink", "menuBar", "shareExtension", "newApp"])
         #expect(Set(Feature.allCases.map(\.rawValue)) == Set(ids))
-        // supabase/migrations/20260929230000_tip_events.sql, copied into the test bundle (project.yml).
-        let sql = try! String(contentsOf: Bundle(for: TipsSQLToken.self).url(forResource: "20260929230000_tip_events", withExtension: "sql")!, encoding: .utf8)
+        // The migrations that list the names the server takes, copied into the test bundle (project.yml).
+        let sql = ["20260929230000_tip_events", "20261012120000_feature_use_new_app"]
+            .map { try! String(contentsOf: Bundle(for: TipsSQLToken.self).url(forResource: $0, withExtension: "sql")!, encoding: .utf8) }.joined()
         for id in ids { #expect(sql.contains("'\(id)'"), "the server accepts \(id)") }
         #expect(!sql.contains("checklistTidy") && !sql.contains("tableFromText"), "the removed tips are gone from the server too")
     }

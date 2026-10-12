@@ -12,7 +12,15 @@ enum AppleNotesBridge {
         }
     }
 
+    /// Every Apple Event to Notes goes through `run`, and macOS asks for permission on the first.
+    /// The rule (2026-10-12): it may only happen after a press on something that names Apple
+    /// Notes. Tests count calls here, and can answer in Notes' place.
+    nonisolated(unsafe) static var calls = 0
+    nonisolated(unsafe) static var standIn: ((String) throws -> NSAppleEventDescriptor)?
+
     private static func run(_ source: String) throws -> NSAppleEventDescriptor {
+        calls += 1
+        if let standIn { return try standIn(source) }
         var error: NSDictionary?
         guard let script = NSAppleScript(source: source) else { throw Failure.script("Couldn't prepare the script.") }
         let result = script.executeAndReturnError(&error)
@@ -181,6 +189,9 @@ struct AppleNotesImportView: View {
     /// Set when some notes couldn't be read: the sheet stays to say which.
     @State private var unread: AppleNotesImportSummary?
     @FocusState private var searchFocused: Bool
+    /// The notes one by one. The sheet opens on folders and their counts: picking is the
+    /// exception, so it's one quiet press away instead of the first thing seen.
+    @State private var choosingNotes = false
 
     private var shown: [AppleNote] {
         query.isEmpty ? notes : notes.filter { n in n.name.localizedStandardContains(query) || listing.destination(of: n).contains { $0.localizedStandardContains(query) } }
@@ -220,8 +231,7 @@ struct AppleNotesImportView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Applications/Notes.app"))
-                    .resizable().interpolation(.high).frame(width: 40, height: 40).accessibilityHidden(true)
+                ImportSourceIcon(origin: .appleNotes, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Import from Apple Notes").font(.system(size: 17, weight: .bold))
                     Text("Copies the notes you pick. Nothing in Apple Notes changes.")
@@ -255,7 +265,16 @@ struct AppleNotesImportView: View {
         if let unread {
             unreadList(unread)
         } else if loading {
-            ProgressView("Reading Apple Notes…").controlSize(.small)
+            VStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text("Reading Apple Notes…").font(.callout)
+                // Said before macOS's own question, which only names the two apps.
+                Text("If macOS asks whether Pinto Notes may use Notes, choose Allow. Nothing in Apple Notes changes.")
+                    .font(.footnote).foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .accessibilityIdentifier("import.permissionLine")
+            }
         } else if let failure {
             ContentUnavailableView {
                 Label("Can't read Apple Notes", systemImage: "exclamationmark.triangle")
@@ -268,7 +287,7 @@ struct AppleNotesImportView: View {
             ContentUnavailableView.search(text: query)
         } else {
             VStack(spacing: 0) {
-                selectionBar
+                // A folder Apple Notes won't list is said, whichever view is showing.
                 ForEach(Array(listing.unreadFolders.enumerated()), id: \.offset) { _, folder in
                     Label("Apple Notes wouldn't list the folder \u{201C}\(folder.folder)\u{201D}. Its notes aren't shown.", systemImage: "exclamationmark.triangle.fill")
                         .symbolRenderingMode(.multicolor)
@@ -277,6 +296,10 @@ struct AppleNotesImportView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 6)
                 }
+                if !choosingNotes && query.isEmpty {
+                    summary
+                } else {
+                selectionBar
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         ForEach(groups, id: \.0) { folder, items in
@@ -291,8 +314,53 @@ struct AppleNotesImportView: View {
                     .padding(.bottom, 8)
                 }
                 .disabled(progress != nil)
+                }
             }
         }
+    }
+
+    /// What will come, folder by folder, and the quiet way to pick notes one by one.
+    private var summary: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(Self.count(picked.count, of: notes.count, locale: locale))
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.muted).monospacedDigit()
+                Spacer()
+                Button("Choose Notes…") { choosingNotes = true }
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.tint)
+                    .disabled(progress != nil)
+                    .accessibilityIdentifier("import.chooseNotes")
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(groups, id: \.0) { folder, items in
+                        let coming = items.filter { picked.contains($0.id) }.count
+                        HStack(spacing: 10) {
+                            Image(systemName: "folder").foregroundStyle(Color.muted).frame(width: 20)
+                            Text(folder).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text(Self.folderLine(coming: coming, of: items.count, locale: locale))
+                                .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 7)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    /// "18 notes", "2 of 9 notes" (the rest are here already or locked).
+    static func folderLine(coming: Int, of total: Int, locale: Locale) -> String {
+        func n(_ c: Int) -> String { c.formatted(.number.locale(locale)) }
+        if coming == total { return total == 1 ? "1 note" : "\(n(total)) notes" }
+        return "\(n(coming)) of \(n(total)) \(total == 1 ? "note" : "notes")"
     }
 
     /// How many are picked, and the one control that picks or clears them all.
@@ -314,6 +382,19 @@ struct AppleNotesImportView: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
+    }
+
+    /// Notes that can come and aren't here yet: what the sheet picks when it opens.
+    private var newCount: Int { notes.filter { !$0.locked && !AppleNotesListing.isHere($0, keys: existing) }.count }
+
+    /// The one button: "Import All 35 Notes" when every note is picked, "Import 17 New Notes"
+    /// when everything new is, otherwise the count.
+    static func importTitle(picked: Int, new: Int, all: Int, locale: Locale) -> String {
+        func n(_ c: Int) -> String { c.formatted(.number.locale(locale)) }
+        if picked == 0 { return "Import" }
+        if picked == all { return picked == 1 ? "Import 1 Note" : "Import All \(n(picked)) Notes" }
+        if picked == new && new < all { return "Import \(n(picked)) New \(picked == 1 ? "Note" : "Notes")" }
+        return "Import \(n(picked)) \(picked == 1 ? "Note" : "Notes")"
     }
 
     /// "18 of 18 notes selected", "No notes selected".
@@ -397,7 +478,7 @@ struct AppleNotesImportView: View {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .fixedSize()
-                Button(picked.isEmpty ? "Import" : "Import \(picked.count.formatted(.number.locale(locale))) \(picked.count == 1 ? "Note" : "Notes")") {
+                Button(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)) {
                     Task { await runImport() }
                 }
                 .buttonStyle(.amberProminent)
@@ -427,7 +508,7 @@ struct AppleNotesImportView: View {
                         Text("Checklists and pinned notes come over exactly when Pinto Notes has Full Disk Access. Without it, checklists arrive as bullet lists.")
                         Button("Open Settings") { NSWorkspace.shared.open(ApplePins.settingsURL) }
                             .accessibilityIdentifier("import.fullDiskAccess")
-                        Text("Or export from Notes as Markdown and import that folder:")
+                        Text("Or, instead of this import, export from Notes as Markdown and import that folder. Not both: notes brought in both ways come twice.")
                             .padding(.top, 4)
                         Text("1. In Apple Notes, select the notes and choose File, Export as, Markdown.\n2. Here, choose File, Import Markdown or Text, and pick that folder.")
                             .foregroundStyle(Color.muted)

@@ -2,6 +2,10 @@ import CryptoKit
 import Foundation
 import SwiftData
 import Testing
+#if os(macOS)
+import AppKit
+import SwiftUI
+#endif
 @testable import Pane
 
 /// An AI's edit arriving: which lines count as changed, what "seen" means, Undo, and the
@@ -256,6 +260,24 @@ import Testing
         let headingAfter = h.lineRect(at: (h.text as NSString).range(of: "## Where to eat").location)
         #expect(after > headingAfter.maxY - 1, "still below its heading after the edit (\(after) vs \(headingAfter.maxY))")
         #expect(abs(after - before) < 1)
+    }
+
+    /// The grid is placed over its own lines however much of the note above it has been laid
+    /// out. Placed when the window hadn't laid out the lines above it yet (a busy Mac, a test
+    /// runner), it went where the text system guessed those lines would end: 80 points too high,
+    /// over the heading, and it stayed there until something laid the grids out again.
+    @Test func theGridIsPlacedOverItsLinesBeforeTheTextAboveIsLaidOut() throws {
+        let view = PaneTextView(frame: NSRect(x: 0, y: 0, width: 720, height: 900))
+        view.configure(text: Capture.lisbonNote, header: "")
+        // Nothing has been drawn or laid out: the grids are placed straight away.
+        view.layoutCards(animated: false)
+        let grid = try #require(view.subviews.filter { $0 is NSHostingView<AnyView> }.map(\.frame.minY).min())
+        let tlm = try #require(view.textLayoutManager), tcm = try #require(tlm.textContentManager)
+        tlm.ensureLayout(for: tcm.documentRange)
+        let at = (view.string as NSString).range(of: "## Where to eat").location
+        let loc = try #require(tcm.location(tcm.documentRange.location, offsetBy: at))
+        let heading = try #require(tlm.textLayoutFragment(for: loc)).layoutFragmentFrame.maxY + view.textContainerOrigin.y
+        #expect(grid > heading - 1, "the grid starts below its heading (\(grid) vs \(heading))")
     }
 
     @Test func tintingTheTableKeepsTheGridInPlace() async throws {
