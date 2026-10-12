@@ -71,6 +71,9 @@ struct AccountButton: View {
 #if os(macOS)
 /// The app's name and mark at the top of the sidebar.
 struct SidebarHeader: View {
+    /// Where the mark starts: the rows' icons' left edge (`SidebarStyle.edge`).
+    var leading = SidebarStyle.edge(nested: false)
+
     var body: some View {
         HStack(spacing: 8) {
             AppMark(size: 21)
@@ -78,7 +81,7 @@ struct SidebarHeader: View {
             Text("Pinto Notes").font(.display(15)).tracking(Palette.tracking(15)).foregroundStyle(Color.ink)
             Spacer(minLength: 0)
         }
-        .padding(.leading, 18)
+        .padding(.leading, leading)
         .padding(.top, 2)
         .padding(.bottom, 14)
         .accessibilityElement(children: .combine)
@@ -155,6 +158,13 @@ extension View {
 enum SidebarStyle {
     #if os(macOS)
     static let iconFont = Font.system(size: 17, weight: .regular)
+    /// The rows' icons' left edge from the sidebar's own: where the title's mark, the Folders
+    /// heading and the account's photo start too, so they all share one line (owner, 2026-10-12:
+    /// three edges a few points apart). Measured from the list as AppKit lays it out: the icon of
+    /// a row sits 21 pt in, 7.5 pt further once any folder has sub-folders (the outline keeps a
+    /// column for the arrows), and the section heading's text sits 15 pt in.
+    static func edge(nested: Bool) -> CGFloat { nested ? 28.5 : 21 }
+    static let headingInset: CGFloat = 15
     static let trailingColumn: CGFloat = 16
     static let trailingInset: CGFloat = 7
     #else
@@ -273,6 +283,9 @@ struct SidebarView: View {
         scope == .trash && !showsTrash ? .all : nil
     }
 
+    /// Whether any folder has sub-folders: the list then keeps a column for their arrows.
+    private var nested: Bool { folders.contains { !$0.liveChildren.isEmpty } }
+
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
     var body: some View {
@@ -297,6 +310,9 @@ struct SidebarView: View {
                     .accessibilityIdentifier("sidebar.trash")
             } header: {
                 Text("Folders")
+                    #if os(macOS)
+                    .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+                    #endif
             }
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
@@ -317,7 +333,7 @@ struct SidebarView: View {
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
         // A bar, not a plain inset: the folders scrolled under it showed through its words (and
         // through the account row at the foot, where a folder's name and the email ran together).
-        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader() }
+        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
         .scrollEdgeEffectStyle(.hard, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
@@ -380,8 +396,10 @@ struct SidebarView: View {
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     OfflineLine(sync: sync)
+                    // The photo starts on the rows' icons' line (the button pads 8 inside its highlight).
                     AccountButton(backend: backend)
-                        .padding(.horizontal, 10)
+                        .padding(.leading, SidebarStyle.edge(nested: nested) - 8)
+                        .padding(.trailing, 10)
                 }
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)
