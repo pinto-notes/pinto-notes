@@ -4,7 +4,7 @@ import Observation
 import QuartzCore
 
 /// A press on a note row selects it at once, as in Apple Notes: its fill is on screen the frame
-/// after the press, and the note opens when the button comes up.
+/// after the press, and the note opens a pass later, before the button comes up.
 ///
 /// The list itself selects when the button comes up (its click recognizer), and the fill came with
 /// the note: in 30 fps films of the window on the Air (2026-10-12) nothing changed for 170 to 190 ms
@@ -40,13 +40,13 @@ enum PressSelect {
         // The list's pass now, with the note pane held: the fill, and nothing else, goes out.
         window.displayIfNeeded()
         CATransaction.flush()
+        DetailHold.shared.releaseAfterCommit()
     }
 
     /// The button came up: the note opens.
     static func lifted() {
         guard pressed != nil else { return }
         pressed = nil
-        DetailHold.shared.releaseAfterCommit()
     }
 
     /// The press became a drag: the selection goes back to what it was, and the pane never changed.
