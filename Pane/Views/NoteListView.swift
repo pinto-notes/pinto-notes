@@ -609,7 +609,7 @@ struct NoteListView: View {
             .tag(note.id)
             // Outside the equatable row, so the list sees its background. On the Mac the row draws
             // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .hoverRow(note.title, selected: Self.quiet(selection, note.id))
+            .hoverRow(note.title, selected: Self.quiet(selection, note.id)) { over in NotePreload.pointer(over, on: note) }
             .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
