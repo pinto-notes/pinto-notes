@@ -29,7 +29,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -65,6 +65,18 @@ export const SHOTS = {
 } satisfies Record<string, Shot>;
 
 export const posts: Post[] = [
+  {
+    slug: "move-apple-notes-to-obsidian-notion-keep",
+    title: "How to move Apple Notes to Obsidian, Notion or Google Keep",
+    description: "Move your Apple Notes to Obsidian with its importer, to Notion through a Markdown export, or to Google Keep by hand, and what each one keeps.",
+    excerpt: "Obsidian imports Apple Notes directly, Notion needs a Markdown detour, and Google Keep can't import at all. The steps for each.",
+    category: "Apple Notes",
+    date: "2026-10-12",
+    updated: "2026-10-12",
+    image: SHOTS.notesExportMenu,
+    thumb: thumb("rust", "thumb-notes-export-to", 800, 528, "The Apple Notes File menu on macOS 27, open at Export To, with Markdown"),
+    draft: false,
+  },
   {
     slug: "journal-with-chatgpt-or-claude",
     title: "A daily journal with ChatGPT or Claude: prompts to copy",
