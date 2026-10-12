@@ -261,7 +261,6 @@ targets:
       - path: supabase/migrations/20261012120000_feature_use_new_app.sql
         buildPhase: resources
       # The page that lists what the app reports, checked against the code (TelemetryTests).
-      # The page that lists what the app reports, checked against the code (TelemetryTests).
       - path: docs/Technical/app-telemetry.md
         buildPhase: resources
       # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
