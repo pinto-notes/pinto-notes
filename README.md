@@ -40,7 +40,7 @@
 - **Apple Notes layout and behaviour.** Folders, a note list grouped by date, pinning, search, multi-select, Recently Deleted. When in doubt, it does what Notes does.
 - **Markdown underneath, formatted on screen.** Headings, bold, italic, underline, strikethrough, code, quotes, links. The markdown syntax stays out of sight.
 - **Lists like Notes.** Checklists (ticked items slide to the bottom), bulleted (`*`), dashed (`-`) and numbered lists. Return continues a list, Tab nests it.
-- **Tables** you edit cell by cell, including typed columns (number, date, yes/no).
+- **Tables** you edit cell by cell.
 - **Sub-notes.** Link a note inside another, like a folder inside a page.
 - **Files and images** inside a note: paste, drag in, or attach. PDFs open in Quick Look.
 - **Live sync.** Typing on one device shows up on the others in about half a second. Edits made on two devices at once are never silently lost.
