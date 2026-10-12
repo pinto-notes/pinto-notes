@@ -276,9 +276,11 @@ struct NoteListView: View {
                         case .note(let entry):
                             noteRow(entry.note)
                         case .file(let file):
-                            FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, remove: { remove([file.id]) })
+                            FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
+                                        remove: { remove([file.id]) })
                                 .tag(file.id)
-                                .hoverRow(file.filename)
+                                .hoverRow(file.filename, selected: Self.quiet(selection, file.id))
+                                .quietSelection()
                                 #if os(iOS)
                                 .listRowBackground(Color(Palette.row))
                                 #endif
@@ -373,6 +375,10 @@ struct NoteListView: View {
                     .allowsHitTesting(false)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NoteDrop.nested)) { n in
+            guard let parent = n.object as? UUID else { return }
+            selection = NoteDrop.selection(afterNestingUnder: parent)
+        }
         .dropDestination(for: URL.self) { urls, _ in
             let made = context.importFiles(urls, into: scope == .trash ? .all : scope)
             if let first = made.first { selection = [first] }
@@ -425,10 +431,17 @@ struct NoteListView: View {
             // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
             RowClickLog.start()
         }
-        .onChange(of: selection) { old, new in RowClickLog.selection(old, new) }
+        .onChange(of: selection) { old, new in
+            RowClickLog.selection(old, new)
+            // Notes that went inside another note aren't rows any more (see `withoutSubNotes`).
+            let rows = NoteDrop.withoutSubNotes(new, in: context)
+            if rows != new { selection = rows }
+        }
         #endif
         .toolbar {
             #if os(iOS)
+            // Select only when there is something to select.
+            if editMode.isEditing || !(scopedNotes.isEmpty && scopedFiles.isEmpty) {
             ToolbarItem(placement: .primaryAction) {
                 Button(editMode.isEditing ? "Done" : "Select") {
                     withAnimation(.snappy(duration: 0.25)) {
@@ -437,21 +450,21 @@ struct NoteListView: View {
                     }
                 }
                 .fontWeight(editMode.isEditing ? .semibold : .regular)
-                .disabled(scopedNotes.isEmpty && scopedFiles.isEmpty && !editMode.isEditing)
                 .accessibilityIdentifier("list.select")
             }
-            if !editMode.isEditing && scope != .trash {
-                // Files kept in the folder on their own: PDFs to read, photos, spreadsheets.
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add File", systemImage: "doc.badge.plus") { addingFiles = true }
-                        .accessibilityIdentifier("list.addFile")
-                }
             }
             if !editMode.isEditing {
-                // The list's own menu, as in Notes: how it's sorted and grouped.
+                // The list's own menu, as in Notes: how it's sorted and grouped, and adding files
+                // (it was an icon of a page with a plus beside Select, which read as New Note).
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         ListOrderMenu(store: orderStore)
+                        if scope != .trash {
+                            Divider()
+                            // Files kept in the folder on their own: PDFs to read, photos, spreadsheets.
+                            Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
+                                .accessibilityIdentifier("list.addFile")
+                        }
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }
@@ -520,9 +533,6 @@ struct NoteListView: View {
                     ForEach(ImportKind.allCases) { kind in
                         Button(kind.menuTitle, systemImage: kind.symbol) { imports?.from(kind) }
                     }
-                    Button("Import Spreadsheet as Table…", systemImage: "tablecells") { imports?.spreadsheet() }
-                    Divider()
-                    SettingsLink { Label("Settings…", systemImage: "gearshape") }
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
@@ -562,17 +572,28 @@ struct NoteListView: View {
         #endif
     }
 
+    /// Whether a row draws the quiet selection (the Mac only; iOS keeps the system's).
+    static func quiet(_ selection: Set<UUID>, _ id: UUID) -> Bool {
+        #if os(macOS)
+        selection.contains(id)
+        #else
+        false
+        #endif
+    }
+
     private func noteRow(_ note: Note) -> some View {
         // Its own equatable view: when one note changes, the others' rows (and their
         // drag and swipe setup) are left alone instead of rebuilt.
-        ListRow(note: note, query: search, showFolder: scope == .all || !search.isEmpty,
+        ListRow(note: note, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                 dragWith: dragOthers(for: note), selectedCount: selection.count,
                 togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
                 remove: { remove(note) })
             .equatable()
             .tag(note.id)
-            // Outside the equatable row, so the list sees its background.
-            .hoverRow(note.title)
+            // Outside the equatable row, so the list sees its background. On the Mac the row draws
+            // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
+            .hoverRow(note.title, selected: Self.quiet(selection, note.id))
+            .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
@@ -679,11 +700,9 @@ struct NoteListView: View {
         } else if scope == .trash {
             ContentUnavailableView("No Deleted Notes", systemImage: "trash", description: Text("Notes and files you delete stay here for 30 days."))
         } else {
+            // The leaf and "No Notes", like Notes: the compose button is the one way to start a note.
             ContentUnavailableView {
                 Label { Text("No Notes") } icon: { AppMark(size: 56) }
-            } actions: {
-                Button("New Note", action: onNewNote)
-                    .buttonStyle(.glass)
             }
         }
     }
@@ -1205,6 +1224,8 @@ private struct ListRow: View, @MainActor Equatable {
     let note: Note
     let query: String
     let showFolder: Bool
+    /// The list is sorted by date created: the row shows that date.
+    let datedByCreation: Bool
     /// The rest of the selection, when this row is part of a multi-selection.
     let dragWith: [UUID]?
     let selectedCount: Int
@@ -1212,17 +1233,20 @@ private struct ListRow: View, @MainActor Equatable {
     let remove: () -> Void
 
     static func == (a: ListRow, b: ListRow) -> Bool {
-        a.note.id == b.note.id && a.query == b.query && a.showFolder == b.showFolder
+        a.note.id == b.note.id && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
             && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
     }
 
     var body: some View {
-        NoteRow(note: note, query: query, showFolder: showFolder)
+        NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation)
             .draggable(PaneDragItem(kind: .note, id: note.id, others: dragWith)) {
                 Label(dragWith != nil ? "\(selectedCount) Notes" : note.title, systemImage: dragWith != nil ? "doc.on.doc" : "note.text")
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)
             }
+            // Notes dropped on this row become its sub-notes. (After the drag source, as on
+            // the sidebar's folders: inside it, the row was never offered a drop.)
+            .modifier(SubNoteDropTarget(note: note))
             .swipeActions(edge: .leading) {
                 if note.trashedAt == nil {
                     Button(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin", action: togglePin)
@@ -1239,6 +1263,12 @@ struct NoteRow: View {
     let note: Note
     var query: String = ""
     var showFolder = false
+    /// The list is sorted by date created: the row shows that date, as Apple Notes does.
+    var datedByCreation = false
+
+    /// The date the row shows: the one the list is sorted by, which is the date edited unless
+    /// the list is sorted by date created.
+    static func shownDate<Item: DatedListItem>(of item: Item, byCreation: Bool) -> Date { byCreation ? item.listCreated : item.listDate }
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -1280,7 +1310,7 @@ struct NoteRow: View {
                             .accessibilityHidden(true)
                             .accessibilityIdentifier("note.shared")
                     }
-                    Text(DateBucket.rowDate(note.updatedAt))
+                    Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.85))
                 }

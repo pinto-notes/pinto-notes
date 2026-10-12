@@ -38,7 +38,7 @@ struct AccountButton: View {
             openSettings()
         } label: {
             HStack(spacing: 9) {
-                AvatarView(photo: profile.photo, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
                         .font(.system(size: 13, weight: .semibold))
@@ -121,7 +121,13 @@ struct SidebarRowText<Trailing: View>: View {
             Text(title)
             #endif
             Spacer()
+            #if os(macOS)
+            // One column for every row's count and its ••• under the pointer, their right edges on
+            // one line, and as far in from the selection's edge as the icon is on the left.
+            trailing.frame(minWidth: SidebarStyle.trailingColumn, alignment: .trailing).padding(.trailing, SidebarStyle.trailingInset)
+            #else
             trailing
+            #endif
         }
     }
 }
@@ -149,6 +155,8 @@ extension View {
 enum SidebarStyle {
     #if os(macOS)
     static let iconFont = Font.system(size: 17, weight: .regular)
+    static let trailingColumn: CGFloat = 16
+    static let trailingInset: CGFloat = 7
     #else
     static let icon = TintShapeStyle.tint
     static let iconFont = Font.body
@@ -252,6 +260,11 @@ struct SidebarView: View {
         for f in found { if let id = f.folderID { byFolder[id, default: 0] += 1 } }
         return (live, trashed, byFolder)
     }
+    /// The title of the alert that asks for a folder's name.
+    nonisolated static func nameAlertTitle(renaming: Bool, inside: Bool) -> String {
+        renaming ? "Rename Folder" : inside ? "New Subfolder" : "New Folder"
+    }
+
     /// Recently Deleted is listed only while it holds something, like Notes.
     nonisolated static func showsTrash(notes: Int, files: Int) -> Bool { notes + files > 0 }
 
@@ -331,7 +344,6 @@ struct SidebarView: View {
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
-                    Button("Import Spreadsheet as Table", systemImage: "tablecells.badge.ellipsis") { imports?.spreadsheet() }
                     ForEach(ImportKind.allCases) { kind in
                         Button(kind.title, systemImage: kind.symbol) { imports?.from(kind) }
                     }
@@ -350,7 +362,7 @@ struct SidebarView: View {
                     if case .signedIn = backend.state {
                         let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
-                            AvatarView(photo: ProfileStore.shared.photo, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
+                            AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
                         }
                         .accessibilityLabel("Account, \(name). Opens Settings")
                         .accessibilityIdentifier("sidebar.settings")
@@ -390,7 +402,7 @@ struct SidebarView: View {
                  ? "Its notes move to Recently Deleted, where you can recover them for 30 days."
                  : "Its notes and files move to Recently Deleted, where you can recover them for 30 days.")
         }
-        .alert(renaming == nil ? "New Folder" : "Rename Folder", isPresented: Binding(
+        .alert(Self.nameAlertTitle(renaming: renaming != nil, inside: (newFolderParent ?? nil) != nil), isPresented: Binding(
             get: { renaming != nil || newFolderParent != nil },
             set: { if !$0 { renaming = nil; newFolderParent = nil } }
         )) {
@@ -576,7 +588,6 @@ extension SidebarView: @MainActor Equatable {
 /// skipping its updates kept the sidebar's selection from following some clicks on folder rows.
 private struct FolderTree: View {
     @Environment(\.modelContext) private var context
-    @Environment(SyncEngine.self) private var sync: SyncEngine?
     let folder: Folder
     /// Live files per folder, counted once for the whole tree.
     let files: [UUID: Int]
@@ -666,16 +677,8 @@ private struct FolderTree: View {
 
     /// The folder's menu: a right-click, or its ••• under the pointer.
     @ViewBuilder private var menuItems: some View {
-        Button("New Folder Inside", systemImage: "folder.badge.plus") { newSub(folder) }
+        Button("New Subfolder", systemImage: "folder.badge.plus") { newSub(folder) }
         Button("Rename", systemImage: "pencil") { rename(folder) }
-        if let sync {
-            // Its files fetched to this device as they arrive, so they open offline.
-            let kept = sync.keptChanged >= 0 && sync.keepsDownloaded(folder.id)
-            Toggle(isOn: Binding(get: { kept }, set: { sync.setKeepsDownloaded(folder.id, $0) })) {
-                Label("Keep Files Downloaded", systemImage: "arrow.down.circle")
-            }
-            .accessibilityIdentifier("folder.keepDownloaded")
-        }
         if folder.parent != nil {
             Button("Move to Top Level", systemImage: "arrow.up.to.line") { context.move(folder, into: nil) }
         }
