@@ -60,8 +60,18 @@ final class EditorCore {
     func overlays(layout: NSTextLayoutManager?, origin: CGPoint, target: EditorTarget, storage: NSTextStorage, controller: EditorController?, selection: @escaping () -> NSRange?) -> [(key: String, frame: CGRect, view: AnyView, content: CardContent)] {
         guard let tlm = layout, let tcm = tlm.textContentManager, let container = tlm.textContainer else { return [] }
         let width = container.size.width - container.lineFragmentPadding * 2
+        // How far the note is laid out for this pass: each card lays out only what lies between
+        // the one before it and itself.
+        var laidOut = tcm.documentRange.location
         func frame(at offset: Int, height: CGFloat, maxWidth: CGFloat = .infinity) -> CGRect? {
             guard let loc = tcm.location(tcm.documentRange.location, offsetBy: offset) else { return nil }
+            // The lines above too: laid out on their own, they keep the text system's guess at
+            // their height, and the card went where that guess put it (80 points high, over its
+            // heading, when the window hadn't laid the note out yet).
+            if loc.compare(laidOut) == .orderedDescending, let above = NSTextRange(location: laidOut, end: loc) {
+                tlm.ensureLayout(for: above)
+                laidOut = loc
+            }
             tlm.ensureLayout(for: NSTextRange(location: loc))
             guard let frag = tlm.textLayoutFragment(for: loc), let line = frag.textLineFragments.first else { return nil }
             let y = frag.layoutFragmentFrame.minY + line.typographicBounds.minY + origin.y
