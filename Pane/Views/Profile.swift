@@ -17,6 +17,10 @@ final class ProfileStore {
 
     private(set) var name: String?
     private(set) var photo: PImage?
+    /// The picture your Google sign-in came with, kept on this device only (`SignInPhoto`).
+    private(set) var signInPhoto: PImage?
+    /// What to show for you: the photo you chose, else the one from your sign-in, else nothing (initials).
+    var shownPhoto: PImage? { photo ?? signInPhoto }
     private(set) var working = false
     private(set) var problem: String?
 
@@ -53,17 +57,46 @@ final class ProfileStore {
             self.client = client
             name = defaults.string(forKey: key("name"))
             photo = (try? Data(contentsOf: file("photo.jpg"))).flatMap(PImage.init(data:))
+            signInPhoto = defaults.string(forKey: key("signInPhoto")) == nil ? nil : (try? Data(contentsOf: file("signin.jpg"))).flatMap(PImage.init(data:))
         }
         self.client = client
         await flush()
-        await refresh()
+        await loadSignInPhoto(backend.signInPicture, for: id)
+        guard await refresh() else { return }
+        // A new account's name from Apple or Google, once the server has said the profile has
+        // none. Either way the suggestion is used up: clearing your name later keeps it cleared.
+        let suggested = Self.takeSuggestion(for: id, defaults: defaults)
+        if let seed = Self.seed(current: name, suggested: suggested) { await setName(seed) }
     }
+
+    // MARK: The name from sign-in
+
+    /// Keeps the name a sign-up came with until the profile is known (`bind`). On this device
+    /// only, per account, and removed with the rest when another account signs in.
+    nonisolated static func suggest(_ name: String, for account: UUID, defaults: UserDefaults = .standard) {
+        guard let clean = ProfileName.normalized(name) else { return }
+        defaults.set(clean, forKey: suggestionKey(account))
+    }
+
+    nonisolated static func takeSuggestion(for account: UUID, defaults: UserDefaults = .standard) -> String? {
+        defer { defaults.removeObject(forKey: suggestionKey(account)) }
+        return defaults.string(forKey: suggestionKey(account))
+    }
+
+    /// The name to write: the suggested one, only for a profile that has no name.
+    nonisolated static func seed(current: String?, suggested: String?) -> String? {
+        guard current == nil, let suggested else { return nil }
+        return ProfileName.normalized(suggested)
+    }
+
+    nonisolated static func suggestionKey(_ account: UUID) -> String { "profile.suggestedName.\(account.uuidString.lowercased())" }
 
     /// For screenshots and previews only.
     func showForPreview(name: String?, photo: PImage?) {
         previewing = true
         self.name = name
         self.photo = photo
+        signInPhoto = nil
     }
 
     /// Signed out: nothing of the last account stays on screen.
@@ -72,7 +105,29 @@ final class ProfileStore {
         client = nil
         name = nil
         photo = nil
+        signInPhoto = nil
         problem = nil
+    }
+
+    /// Fetches the sign-in picture once and keeps it in this account's folder; fetched again only
+    /// when its address changes. With no picture (or another way of signing in) the copy goes.
+    private func loadSignInPhoto(_ url: URL?, for id: UUID) async {
+        let cached = defaults.string(forKey: key("signInPhoto"))
+        switch SignInPhoto.step(url: url, cached: cached, haveCopy: signInPhoto != nil) {
+        case .keep: return
+        case .forget:
+            try? FileManager.default.removeItem(at: file("signin.jpg"))
+            store("signInPhoto", nil)
+            signInPhoto = nil
+        case .fetch(let url):
+            guard let (data, response) = try? await AppNetwork.session.data(from: url), user == id,
+                  (response as? HTTPURLResponse)?.statusCode == 200, data.count <= SignInPhoto.maxBytes,
+                  let jpeg = try? ProfileImage.prepare(data), let image = PImage(data: jpeg) else { return }
+            try? ensureFolder()
+            guard (try? jpeg.write(to: file("signin.jpg"), options: .atomic)) != nil else { return }
+            store("signInPhoto", url.absoluteString)
+            signInPhoto = image
+        }
     }
 
     // MARK: Editing
@@ -130,11 +185,13 @@ final class ProfileStore {
         var avatar_path: String?
     }
 
-    private func refresh() async {
-        guard let client, let user, pending.isEmpty else { return }
+    /// True when the server answered: what's on screen is the account's profile as it is now.
+    @discardableResult
+    private func refresh() async -> Bool {
+        guard let client, let user, pending.isEmpty else { return false }
         do {
             let rows: [Row] = try await client.from("profiles").select("display_name, avatar_path").eq("user_id", value: user).execute().value
-            guard self.user == user else { return }
+            guard self.user == user else { return false }
             let row = rows.first
             name = row?.display_name
             store("name", row?.display_name)
@@ -142,7 +199,7 @@ final class ProfileStore {
             if row?.avatar_path != current {
                 if let path = row?.avatar_path, let url = Self.avatarURL(path) {
                     let (data, response) = try await AppNetwork.session.data(from: url)
-                    guard (response as? HTTPURLResponse)?.statusCode == 200, let image = PImage(data: data), self.user == user else { return }
+                    guard (response as? HTTPURLResponse)?.statusCode == 200, let image = PImage(data: data), self.user == user else { return true }
                     try ensureFolder()
                     try data.write(to: file("photo.jpg"), options: .atomic)
                     photo = image
@@ -152,8 +209,10 @@ final class ProfileStore {
                 }
                 store("avatar", row?.avatar_path)
             }
+            return true
         } catch {
             // Offline: the cached profile stays on screen.
+            return false
         }
     }
 
@@ -234,6 +293,54 @@ final class ProfileStore {
     }
 }
 
+/// The name a sign-in hands over, for a new account's profile. Apple gives it to the app once, at
+/// the first authorisation; Google's is in the account's metadata, as the server stores it.
+enum SignInName {
+    /// "Sara Lindqvist" from Apple's name parts, in the order the person's locale writes names.
+    static func from(_ components: PersonNameComponents?) -> String? {
+        guard let components else { return nil }
+        return ProfileName.normalized(PersonNameComponentsFormatter.localizedString(from: components, style: .default))
+    }
+
+    /// The provider's name in the account's metadata: `full_name`, else `name`. Never an email.
+    static func from(metadata: [String: AnyJSON]) -> String? {
+        for key in ["full_name", "name"] {
+            if let value = metadata[key]?.stringValue, !value.contains("@"), let clean = ProfileName.normalized(value) { return clean }
+        }
+        return nil
+    }
+
+    /// An account made in the last few minutes signed up; any other signed in.
+    static func isSignUp(created: Date, now: Date = .now) -> Bool {
+        now.timeIntervalSince(created) < 5 * 60
+    }
+}
+
+/// The picture a Google sign-in comes with (the account's `avatar_url` or `picture`). It is shown
+/// to you, on this device, while your profile has no photo of its own. It is not copied to the
+/// profile: a profile photo is public on the notes you share, and that stays your choice.
+enum SignInPhoto {
+    static let maxBytes = 2_000_000
+
+    /// Google's own picture address, and only that: https on a googleusercontent.com host.
+    static func url(from metadata: [String: AnyJSON]) -> URL? {
+        for key in ["avatar_url", "picture"] {
+            guard let value = metadata[key]?.stringValue, let url = URL(string: value), url.scheme == "https", let host = url.host()?.lowercased() else { continue }
+            if host == "googleusercontent.com" || host.hasSuffix(".googleusercontent.com") { return url }
+        }
+        return nil
+    }
+
+    enum Step: Equatable { case keep, forget, fetch(URL) }
+
+    /// What to do with the copy on this device: keep it while the address is the one it came
+    /// from, fetch when there is a new address or no copy, forget it when there is no picture.
+    static func step(url: URL?, cached: String?, haveCopy: Bool) -> Step {
+        guard let url else { return cached == nil && !haveCopy ? .keep : .forget }
+        return cached == url.absoluteString && haveCopy ? .keep : .fetch(url)
+    }
+}
+
 /// What a display name may be: trimmed, no control characters, at most 60 characters.
 enum ProfileName {
     static let maxLength = 60
@@ -288,10 +395,11 @@ typealias PImage = NSImage
 extension Image { init(platform image: PImage) { self.init(nsImage: image) } }
 #endif
 
-/// Your photo in a circle, or your initials on amber when there's no photo.
+/// Your photo in a circle, or your initials on amber when there's no photo; a person when there
+/// is no name either (nil), never a letter from an email address.
 struct AvatarView: View {
     var photo: PImage?
-    var name: String
+    var name: String?
     var size: CGFloat
 
     nonisolated static func initials(_ name: String) -> String {
@@ -306,8 +414,14 @@ struct AvatarView: View {
         Group {
             if let photo {
                 Image(platform: photo).resizable().scaledToFill()
+            } else if name == nil {
+                Image(systemName: "person.fill")
+                    .font(.system(size: size * 0.46, weight: .semibold))
+                    .foregroundStyle(.black.opacity(0.78))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(PColor.paneAccent))
             } else {
-                Text(Self.initials(name))
+                Text(Self.initials(name ?? ""))
                     .font(.system(size: size * 0.4, weight: .semibold))
                     .foregroundStyle(.black.opacity(0.78))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

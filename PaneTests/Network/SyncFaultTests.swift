@@ -300,5 +300,74 @@ extension NetworkFaults {
         #expect(n.title == "Arrived note!" && n.preview == "Arrived at 22:11:25.", "the title follows too")
         await finish()
     }
+
+    // MARK: A note dropped on another note
+
+    private func serverRow(_ n: Note) -> [String: Any] { StubSupabase.note(n.id) ?? [:] }
+    private func serverParent(_ n: Note) -> String? { (serverRow(n)["parent_id"] as? String)?.lowercased() }
+
+    /// A note made a sub-note by a drop: its parent's new line and its own new parent go up in
+    /// the same sync, and another device that pulls shows it inside the parent, not in the list.
+    @Test func aNoteMadeASubNoteGoesUpWithItsParentsLine() async throws {
+        let parent = try await syncedNote("Trip")
+        let child = try await syncedNote("Packing list\n- socks")
+        #expect(NoteDrop.nest([child.id], under: parent.id, in: context, undo: nil))
+        await engine.sync()
+        let mark = "pane-note:\(child.id.uuidString.lowercased())"
+        #expect(serverBody(parent)?.contains(mark) == true, "the parent's line is on the server")
+        #expect(serverParent(child) == parent.id.uuidString.lowercased(), "and so is the sub-note's parent")
+        #expect(serverBody(child) == "Packing list\n- socks", "its text is as it was")
+        #expect(!parent.dirty && !child.dirty)
+
+        // Another device, same account.
+        UserDefaults.standard.removeObject(forKey: "syncCursor.none")
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let other = ModelContext(c)
+        let otherEngine = SyncEngine(backend: Backend(testClient: StubSupabase.client(), email: "qa@example.com"), context: other)
+        await otherEngine.sync()
+        let theirs = try #require(other.note(child.id))
+        #expect(theirs.parentID == parent.id && other.isNested(theirs), "there it is inside the parent too")
+        await otherEngine.stop()
+        await finish()
+    }
+
+    /// The connection drops in the middle of that sync, after the first of the two notes went
+    /// up. Whichever half the server has, the note is never hidden (a sub-note leaves the list
+    /// only when its parent's text links it and it names that parent), and the next sync
+    /// finishes the other half.
+    @Test(arguments: [true, false]) func aDropCutShortMidSyncFinishesOnTheNext(serverTookIt: Bool) async throws {
+        let parent = try await syncedNote("Trip")
+        let child = try await syncedNote("Packing list")
+        let mark = "pane-note:\(child.id.uuidString.lowercased())"
+        #expect(NoteDrop.nest([child.id], under: parent.id, in: context, undo: nil))
+        StubSupabase.loseAnswer("PATCH", "/notes", skip: 1, applied: serverTookIt)
+        await engine.sync()
+        // The parent goes up first (parents before their sub-notes); the second write dropped.
+        #expect(serverBody(parent)?.contains(mark) == true, "the parent's line is up")
+        #expect(context.isNested(child), "here it stays where it was dropped")
+        await engine.sync()
+        await waitUntil { !parent.dirty && !child.dirty }
+        // A write that never reached the server isn't in its log: two that arrived, or three.
+        #expect(StubSupabase.requests.filter { $0.hasPrefix("PATCH /rest/v1/notes") }.count >= (serverTookIt ? 3 : 2), "the dropped write was sent again")
+        #expect(serverBody(parent)?.contains(mark) == true && serverParent(child) == parent.id.uuidString.lowercased(), "both halves are up")
+        #expect(context.isNested(child) && child.parentID == parent.id)
+        await finish()
+    }
+
+    /// Undo after the drop was synced: the line leaves the parent and the note is a note of its
+    /// own again, on the server too.
+    @Test func undoingASyncedDropGoesUpToo() async throws {
+        let parent = try await syncedNote("Trip")
+        let child = try await syncedNote("Packing list")
+        let undo = UndoManager()
+        #expect(NoteDrop.nest([child.id], under: parent.id, in: context, undo: undo))
+        await engine.sync()
+        #expect(serverParent(child) != nil)
+        undo.undo()
+        await engine.sync()
+        #expect(serverBody(parent) == "Trip\n", "the line is gone from the parent")
+        #expect(serverParent(child) == nil, "and the note has no parent")
+        await finish()
+    }
 }
 }

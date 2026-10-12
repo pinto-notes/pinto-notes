@@ -9,7 +9,7 @@
 import type { PendingQuery, Row, Sql, TransactionSql } from "npm:postgres@3.4.5";
 import { toBase64, type Head, type Vault } from "../_shared/e2ee.ts";
 import { errorKind, log } from "../_shared/log.ts";
-import { MAX_PAGE_BYTES, PAGE_REWRITE, pageDataView, pageProblems } from "./page.ts";
+import { MAX_PAGE_BYTES, pageDataView, pageProblems } from "./page.ts";
 import { PAGE_API } from "./page_guide.ts";
 import { pageWarnings } from "./page_lint.ts";
 import { dataHandlers, dataTools, pageExtras } from "./data_tools.ts";
@@ -235,16 +235,17 @@ export const tools: Tool[] = ([
   // Note pages (prototype): a view over a note's data, see page.ts.
   {
     name: "set_note_page", title: "Make a page for a note",
-    description: "The note's app (what people see on its App side; call it \"the note's app\" with them, never \"page\"). Gives a note a page: a custom view of its data (a habit grid with streaks, a budget with totals, a reading log), shown in Pinto Notes with a Page / Text switch. " +
-      "The note's markdown stays the data and the source of truth: this tool never changes it. Keep the note's table or checklist as it is (fix it first with the data tools if needed) and make the page read and change it. " +
-      "Replaces the note's current page, if any; an empty html removes it. The last 10 pages are kept, and the page's data (amber.data) stays, so nothing is lost. " +
-      "Call get_page_guide first. Pages with external addresses or network calls are refused; the result lists warnings to fix (dark mode, labels, overflow, copied data).\n" + PAGE_REWRITE + "\n" + PAGE_API,
-    inputSchema: { type: "object", properties: { ...noteRef, html: str("The whole page: one HTML document with inline CSS and JS. Empty string removes the page.") }, required: ["html"] },
+    description: "Gives a note an app made of one HTML document with inline CSS and JS, or replaces the one it has; an empty html removes it. " +
+      "The note's text is not changed, the app's own data is kept, and the last 10 versions are kept. " +
+      "The app runs in a sandbox with no network: a document with external addresses or network calls is refused, and the result lists warnings to fix. At most 256 KB. " +
+      "For an app of several files use create_app; for a small change to an existing app use edit_note_page. " +
+      "The document's API (window.amber), design tokens and rules: get_page_guide with one_file: true, or get_note_page, which also returns the current document.",
+    inputSchema: { type: "object", properties: { ...noteRef, html: str("The whole document: one HTML file with inline CSS and JS that reads and writes its data through window.amber (get_page_guide with one_file: true). Empty string removes the app.") }, required: ["html"] },
     annotations: { ...write, destructiveHint: true, idempotentHint: true },
   },
   {
     name: "edit_note_page", title: "Edit a note's page",
-    description: "The note's app (what people see on its App side; call it \"the note's app\" with them, never \"page\"). Precise edits to a note's current page, like edit_note for notes: each old_text must match the page's HTML exactly once (copy it from get_note_page) and is replaced by new_text. " +
+    description: "Precise edits to the HTML document of a note's one-file app (its page), like edit_note for notes: each old_text must match the page's HTML exactly once (copy it from get_note_page) and is replaced by new_text. " +
       "Edits apply in order; if one doesn't match, or the result breaks the page rules, nothing changes. The page before the edit is kept (the last 10 are). The note's markdown is never changed.",
     inputSchema: {
       type: "object",
@@ -258,7 +259,7 @@ export const tools: Tool[] = ([
   },
   {
     name: "get_note_page", title: "Read a note's page",
-    description: "The note's app (what people see on its App side; call it \"the note's app\" with them, never \"page\"). Returns a note's page (its HTML), the rules a page follows, page_input (what the page is handed: amber.note with the first rows of each table, and amber.data), and the earlier pages kept (the last 10, newest first). Read it before changing a page. Pass version_id to read an earlier page; to bring it back, send its html to set_note_page. A note without a page returns has_page: false.",
+    description: "Returns the HTML document of a note's one-file app (its page), the rules a page follows, page_input (what the page is handed: amber.note with the first rows of each table, and amber.data), and the earlier pages kept (the last 10, newest first). Read it before changing a page. Pass version_id to read an earlier page; to bring it back, send its html to set_note_page. A note without a page returns has_page: false.",
     inputSchema: { type: "object", properties: { ...noteRef, version_id: int("An earlier page, from versions.") } },
     annotations: read,
   },
@@ -779,7 +780,7 @@ async function savePage(tx: Tx, c: Call, n: Note, html: string) {
     returning (xmax = 0) as created`;
   const warnings = pageWarnings(html, await bodyOf(c.v, n));
   return { id: n.id, title: n.title, page: created ? "created" : "replaced", bytes: new TextEncoder().encode(html).length,
-    note: "The person sees it on the note's App side (call it the note's app, not a page). The note's text is unchanged." + (created ? "" : " The previous version is kept (get_note_page lists it).") + " Next: run check_app and fix what it finds.",
+    note: "The note now opens as this app. The note's text is unchanged." + (created ? "" : " The previous version is kept (get_note_page lists it).") + " Next: run check_app and fix what it finds.",
     ...(warnings.length ? { warnings, fix_warnings: "Saved. Fix these with edit_note_page, then run check_app, before you reply." } : {}) };
 }
 

@@ -46,6 +46,20 @@ enum ListItem: Identifiable, DatedListItem {
         if case .note(let n) = self { return n.pinnedInList }
         return false
     }
+
+    var listCreated: Date {
+        switch self {
+        case .note(let n): n.listCreated
+        case .file(let f): f.listCreated
+        }
+    }
+
+    var listTitle: String {
+        switch self {
+        case .note(let n): n.listTitle
+        case .file(let f): f.listTitle
+        }
+    }
 }
 
 /// What a drop carries: items from inside the app, and file or folder URLs from outside it.
@@ -79,11 +93,12 @@ struct FileListRow: View {
     let file: Attachment
     var query = ""
     var showFolder = false
+    var datedByCreation = false
     let remove: () -> Void
     @Environment(SyncEngine.self) private var sync: SyncEngine?
 
     var body: some View {
-        FileRow(file: file, showFolder: showFolder)
+        FileRow(file: file, showFolder: showFolder, datedByCreation: datedByCreation)
             // Out to Finder, Mail or the Desktop (the file itself), or onto a sidebar folder.
             #if os(macOS)
             // The List's own drag hook: the table starts the drag past the drag threshold and keeps
@@ -113,6 +128,8 @@ struct FileListRow: View {
 struct FileRow: View {
     let file: Attachment
     var showFolder = false
+    /// The list is sorted by date created: the row shows when the file was added.
+    var datedByCreation = false
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -127,7 +144,7 @@ struct FileRow: View {
                     .lineLimit(large ? 3 : 1)
                     .truncationMode(.middle)
                 detail {
-                    Text(DateBucket.rowDate(file.listDate))
+                    Text(DateBucket.rowDate(NoteRow.shownDate(of: file, byCreation: datedByCreation)))
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.85))
                     Text(file.listDetail)
@@ -166,7 +183,7 @@ struct FileRow: View {
 @MainActor
 enum FileCopy {
     static func notDownloaded(_ name: String) -> String {
-        "\u{201C}\(name)\u{201D} isn\u{2019}t on this \(Backend.device) yet. It downloads when you\u{2019}re back online. To have a folder\u{2019}s files with you offline, choose Keep Files Downloaded on the folder."
+        "\u{201C}\(name)\u{201D} isn\u{2019}t on this \(Backend.device) yet. It downloads when you\u{2019}re back online."
     }
 }
 
