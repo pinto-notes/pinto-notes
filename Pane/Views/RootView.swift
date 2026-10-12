@@ -543,6 +543,8 @@ struct PaneCommands: Commands {
                 .disabled(showHistory == nil)
         }
         CommandGroup(after: .help) {
+            // The website's changes page: release notes are never shown in the app by themselves.
+            Button("\(WhatsNew.title)\u{2026}") { NSWorkspace.shared.open(WhatsNew.changelogURL) }
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
         }
         CommandGroup(replacing: .importExport) {

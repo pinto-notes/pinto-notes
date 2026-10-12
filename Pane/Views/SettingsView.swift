@@ -710,6 +710,11 @@ struct AboutSection: View {
             .accessibilityIdentifier("settings.openSource")
             LabeledContent("Version", value: Self.version)
                 .accessibilityIdentifier("settings.version")
+            // What changed in each version, on the website: the app shows no release notes by itself.
+            Link(destination: WhatsNew.changelogURL) {
+                Label(WhatsNew.title, systemImage: "sparkles")
+            }
+            .accessibilityIdentifier("settings.whatsNew")
         } header: {
             Text("About")
         } footer: {

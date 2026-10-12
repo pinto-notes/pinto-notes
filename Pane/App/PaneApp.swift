@@ -104,12 +104,6 @@ struct PaneApp: App {
         _session = State(initialValue: session)
         // Not in the unit-test host or a capture of one screen, which never ran this.
         if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery") { session.start() }
-        // "What's new" after a major update: decided before anything is drawn or seeded, while
-        // the library still says whether this is a fresh install.
-        if !inMemory {
-            WhatsNewStore.shared.launch(running: WhatsNew.runningVersion, releases: WhatsNew.bundled,
-                                        existingUser: WhatsNew.existingUser(defaults: .standard, context: context))
-        }
         // With sync on, the library is seeded after the first pull so devices don't duplicate it.
         if backend.client == nil { Seed.ensureLibrary(container.mainContext, demo: args.contains("-demo")) }
         #if DEBUG || QA
@@ -759,7 +753,7 @@ final class AppSession {
         // welcome's picture, never on empty notes (the first sync then says, in openLibrary).
         onboarding.attach(account: backend.userID, created: backend.accountCreated, holdsNothing: SyncEngine.holdsNothing(context))
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) at sign-in (made \(Int(-(self.backend.accountCreated ?? .distantPast).timeIntervalSinceNow), privacy: .public) s ago, empty \(SyncEngine.holdsNothing(self.context), privacy: .public))")
-        shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client))
+        shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client), created: backend.accountCreated)
         heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
         KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
@@ -855,6 +849,9 @@ final class AppSession {
         if !onboarding.holdsAsks() {
             await heardFrom.refresh(hasNote: hasNote, noticeThisLaunch: notices?.shownThisLaunch ?? false)
         }
+        // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
+        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
+                          || notices?.current != nil || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
         await InstallID.report(client)
     }
 
@@ -986,7 +983,6 @@ struct AppGate: View {
         // The key check, sync and the asks run in `session`, window or no window (AppSession).
         .onAppear { session.foreground = phase == .active }
         // What's new waits while an ask or an alert is up.
-        .onChange(of: somethingAsking, initial: true) { _, asking in WhatsNewStore.shared.held = asking }
 
         .onReceive(NotificationCenter.default.publisher(for: .paneNotesBrought)) { _ in
             Task { await setup.mark("imported"); await PaneTips.imported.donate() }
@@ -1024,8 +1020,6 @@ struct AppGate: View {
             if p == .active {
                 Task { await PaneTips.appOpened() }
                 Task { await setup.refresh() }
-                if shareAsk.decided != true { Task { await shareAsk.refresh() } }
-                askToShareSoon()
                 Task { await NoteVault.shared.refresh() }
                 // A browser's ask that came while the app was away (pushed or not) is picked up here.
                 if let connectAsks { Task { await connectAsks.refresh() } }
@@ -1059,7 +1053,6 @@ struct AppGate: View {
             DebouncedSave.flushAll()
         }
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: .paneNoteClosed)) { _ in askToShareSoon() }
         // Back online: the key check and AI connection asks look now (sync does so itself).
         .onChange(of: NetworkPath.shared.isUp) { _, up in
             guard up, case .signedIn = backend.state else { return }
@@ -1100,21 +1093,6 @@ struct AppGate: View {
         SyncSignal.changed()
         onboarding.finish(landing: landing)
         if !replay { Task { await setup.mark("dismissed") } }
-    }
-
-    /// The share ask, a notice or the recovery key alert is on screen.
-    private var somethingAsking: Bool {
-        shareAsk.visible || heardFrom.visible || notices?.current != nil || crypto.recoveryKeyChangeNeedsSaying
-    }
-
-    /// A quiet moment: once things have settled, the share ask may come (see `ShareAsk`).
-    private func askToShareSoon() {
-        guard backend.state != .signedOut else { return }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
-            guard backend.state != .signedOut, phase == .active, !heardFrom.visible else { return }
-            shareAsk.moment(setupVisible: onboarding.holdsAsks() || WhatsNewStore.shared.card != nil, tipShowing: PaneTips.all.contains { $0.shouldDisplay })
-        }
     }
 }
 
