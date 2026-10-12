@@ -45,10 +45,10 @@ struct NoteListView: View {
     @State private var connectCenter = ConnectCenter.shared
     /// How full the account is: a warning near 2 GB and at it.
     @State private var storage = StorageStore.shared
-    #if os(iOS)
     @State private var showSettings = false
-    #else
-    @Environment(\.openSettings) private var openSettings
+    #if os(macOS)
+    /// Settings shows on the notes window in front (SettingsRoute.presenting).
+    @Environment(\.appearsActive) private var appearsActive
     #endif
     /// The Share tip at the top of the list is due (iPhone).
     @State private var listTipDue = false
@@ -286,10 +286,13 @@ struct NoteListView: View {
         .overlay {
             if visible.isEmpty && visibleFiles.isEmpty { emptyState }
         }
-        #if os(iOS)
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
         }
+        #if os(macOS)
+        // Settings is a sheet on this window, like WhatsApp's, when this is the window in front.
+        .onChange(of: SettingsRoute.shared.presenting, initial: true) { takeSettings() }
+        .onChange(of: appearsActive) { takeSettings() }
         #endif
         .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openConnectAI(place) }
         // Captures: `-uitest -openSettings` shows Settings over the list.
@@ -299,7 +302,7 @@ struct NoteListView: View {
             #if os(iOS)
             showSettings = true
             #else
-            openSettings()
+            SettingsRoute.shared.show()
             #endif
         }
         .task {
@@ -605,18 +608,22 @@ struct NoteListView: View {
         SettingsRoute.shared.open(.ai)
         #if os(iOS)
         showSettings = true
-        #else
-        openSettings()
         #endif
     }
+
+    #if os(macOS)
+    private func takeSettings() {
+        guard SettingsRoute.shared.presenting, appearsActive || NSApp.keyWindow == nil else { return }
+        SettingsRoute.shared.presenting = false
+        showSettings = true
+    }
+    #endif
 
     /// The storage warning opens Settings at Storage: what takes the room.
     private func openStorage() {
         SettingsRoute.shared.open(.storage)
         #if os(iOS)
         showSettings = true
-        #else
-        openSettings()
         #endif
     }
 

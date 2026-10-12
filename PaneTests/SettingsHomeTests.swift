@@ -66,9 +66,9 @@ import Testing
                                      ("general", .general, false), ("security", .security, false), ("help", .help, false)] as [(String, SettingsPlace?, Bool)] {
             view.start = start
             view.tiles = tiles
-            let host = NSHostingView(rootView: view.tint(Color(PColor.paneAccent)).frame(width: SettingsHome.width, height: 640))
+            let host = NSHostingView(rootView: view.tint(Color(PColor.paneAccent)).frame(width: SettingsHome.width, height: SettingsHome.height))
             host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-            let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: SettingsHome.width, height: 640), styleMask: [.borderless], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: SettingsHome.width, height: SettingsHome.height), styleMask: [.borderless], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.appearance = host.appearance
             window.contentView = host
@@ -79,6 +79,41 @@ import Testing
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-settings2-\(name)-\(mode).png"))
             window.close()
+        }
+    }
+
+    /// Settings as the real sheet on the notes window, home and Profile, light and dark, for
+    /// putting beside WhatsApp's. The shell photographs each window by number (screencapture -l):
+    /// for each shot the test writes `ready-<name>` ("<sheet number> <window number> <sheet rect>")
+    /// and waits for `shot-<name>`. On-screen shots only: AMBER_DEMO_FRAMES (CI, the test Mac).
+    @Test func realSheet() async throws {
+        guard let dir = AppSnapshotTests.onScreenDir("AMBER_DEMO_FRAMES") else { return }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        for dark in [false, true] {
+            let c = try AppSnapshotTests.container()
+            let view = try await AppSnapshotTests.settingsFixture()
+            let host = AIEditSnapshots.root(c).sheet(isPresented: .constant(true)) {
+                view.modelContainer(c).tint(Color(PColor.paneAccent))
+            }
+            let w = AIEditSnapshots.window(host, size: CGSize(width: 1180, height: 760), dark: dark)
+            defer { w.orderOut(nil); w.close() }
+            var sheet: NSWindow?
+            for _ in 0..<60 where sheet == nil { sheet = w.attachedSheet; if sheet == nil { try? await Task.sleep(for: .milliseconds(100)) } }
+            let s = try #require(sheet)
+            try? await Task.sleep(for: .seconds(2))
+            func shoot(_ name: String) async throws {
+                let f = s.frame, p = w.frame
+                let line = "\(s.windowNumber) \(w.windowNumber) \(f.minX - p.minX) \(p.maxY - f.maxY) \(f.width) \(f.height)"
+                try line.write(to: dir.appending(path: "ready-\(name)"), atomically: true, encoding: .utf8)
+                let done = dir.appending(path: "shot-\(name)")
+                for _ in 0..<400 where !FileManager.default.fileExists(atPath: done.path) { try? await Task.sleep(for: .milliseconds(50)) }
+            }
+            let look = dark ? "dark" : "light"
+            try await shoot("settings-home-\(look)")
+            view.route.open(.account)
+            try? await Task.sleep(for: .seconds(1.2))
+            try await shoot("settings-profile-\(look)")
         }
     }
 }

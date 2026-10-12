@@ -660,9 +660,7 @@ private struct ShareLinkChrome: ViewModifier {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var profile = ProfileStore.shared
-    #if os(macOS)
-    @Environment(\.openSettings) private var openSettings
-    #else
+    #if os(iOS)
     @State private var showProfile = false
     #endif
 
@@ -672,9 +670,7 @@ private struct ShareLinkChrome: ViewModifier {
 
     private func editProfile() {
         SettingsRoute.shared.open(.account)
-        #if os(macOS)
-        openSettings()
-        #else
+        #if os(iOS)
         showProfile = true
         #endif
     }

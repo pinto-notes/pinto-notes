@@ -224,11 +224,7 @@ struct PaneApp: App {
         #endif
 
         #if os(macOS)
-        Settings {
-            SettingsView(backend: backend, sync: sync)
-                // Change Password seals the library's locked notes again.
-                .modelContainer(container)
-        }
+        // Settings is a sheet on the notes window (NoteListView), not a window of its own.
 
         // Connect ChatGPT or Claude: the steps float over the browser while you follow them.
         Window("Connect", id: ConnectPanel.windowID) {

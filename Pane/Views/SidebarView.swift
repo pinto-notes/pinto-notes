@@ -26,7 +26,6 @@ struct AccountButton: View {
     /// Captures: a second line with the email, when it is a real one (the alternative look).
     var email: String?
     @State private var profile = ProfileStore.shared
-    @Environment(\.openSettings) private var openSettings
 
     static let avatar: CGFloat = 28
 
@@ -35,7 +34,6 @@ struct AccountButton: View {
     var body: some View {
         Button {
             SettingsRoute.shared.open(.account)
-            openSettings()
         } label: {
             HStack(spacing: 9) {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)

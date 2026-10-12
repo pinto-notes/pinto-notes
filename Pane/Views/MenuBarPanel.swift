@@ -229,7 +229,8 @@ struct MenuBarPanel: View {
                 .foregroundStyle(.tint)
                 .accessibilityIdentifier("menubar.open")
             Spacer()
-            SettingsLink { Image(systemName: "gearshape").frame(width: 24, height: 24) }
+            // Settings is a sheet on the notes window: bring it forward, then show it there.
+            Button { showWindow(); SettingsRoute.shared.show() } label: { Image(systemName: "gearshape").frame(width: 24, height: 24) }
                 .help("Settings…")
                 .accessibilityLabel("Settings")
             Button { NSApp.terminate(nil) } label: { Image(systemName: "power").frame(width: 24, height: 24) }
