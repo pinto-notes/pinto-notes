@@ -38,7 +38,7 @@ struct AccountButton: View {
             openSettings()
         } label: {
             HStack(spacing: 9) {
-                AvatarView(photo: profile.photo, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
                         .font(.system(size: 13, weight: .semibold))
@@ -228,6 +228,11 @@ struct SidebarView: View {
     @State private var dropTarget: UUID?
     @State private var deletingFolder: Folder?
     @State private var showSettings = false
+    /// A card at the foot was closed in this window (it's also kept per account, and on the server).
+    @State private var cardsClosedHere: Set<SidebarCard> = []
+    @State private var sidebarHeight: CGFloat = 0
+    @Environment(SetupStore.self) private var setup: SetupStore?
+    @Environment(\.dynamicTypeSize) private var templatesTypeSize
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -306,7 +311,18 @@ struct SidebarView: View {
         #if os(iOS)
         .scrollContentBackground(.hidden)
         .background(Color(Palette.foldersGround).ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) { OfflineLine(sync: sync).animation(.easeOut(duration: 0.25), value: sync?.reach) }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if let card = sidebarCard {
+                    cardView(card)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
+                OfflineLine(sync: sync)
+            }
+            .animation(.easeOut(duration: 0.25), value: sync?.reach)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         #else
         // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
         .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
@@ -354,7 +370,7 @@ struct SidebarView: View {
             }
             ToolbarSpacer(.flexible, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
-                Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
             }
             if let backend, backend.client != nil {
                 ToolbarItem(placement: .primaryAction) {
@@ -362,7 +378,7 @@ struct SidebarView: View {
                     if case .signedIn = backend.state {
                         let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
-                            AvatarView(photo: ProfileStore.shared.photo, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
+                            AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
                         }
                         .accessibilityLabel("Account, \(name). Opens Settings")
                         .accessibilityIdentifier("sidebar.settings")
@@ -379,6 +395,11 @@ struct SidebarView: View {
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
+                    if let card = sidebarCard {
+                        cardView(card)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 2)
+                    }
                     OfflineLine(sync: sync)
                     AccountButton(backend: backend)
                         .padding(.horizontal, 10)
@@ -387,6 +408,7 @@ struct SidebarView: View {
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onReceive(NotificationCenter.default.publisher(for: .paneNewFolder)) { _ in startNewFolder(nil) }
         #endif
         .sheet(isPresented: $showSettings) {
@@ -424,6 +446,30 @@ struct SidebarView: View {
         } message: {
             if renaming == nil { Text("Enter a name for this folder.") }
         }
+    }
+
+    /// The one card above the account: Connect your AI, then Templates (`SidebarCard.pick`).
+    private var sidebarCard: SidebarCard? {
+        guard let backend, case .signedIn = backend.state, let account = backend.userID else { return nil }
+        return SidebarCard.pick(account: account, progress: setup?.progress,
+                                connectClosedHere: cardsClosedHere.contains(.connect) || SidebarCard.isClosedHere(.connect, account),
+                                templatesClosedHere: cardsClosedHere.contains(.templates) || SidebarCard.isClosedHere(.templates, account),
+                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
+    }
+
+    @ViewBuilder private func cardView(_ card: SidebarCard) -> some View {
+        let close = {
+            if let account = backend?.userID { SidebarCard.closeHere(card, account) }
+            withAnimation(.easeOut(duration: 0.2)) { _ = cardsClosedHere.insert(card) }
+            Task { await setup?.mark(card.mark) }
+        }
+        Group {
+            switch card {
+            case .connect: ConnectCard(onConnect: { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }, onClose: close)
+            case .templates: TemplatesCard(onClose: close)
+            }
+        }
+        .transition(.opacity)
     }
 
     /// Keeps the selection on something that exists (see `Scope.settled`).

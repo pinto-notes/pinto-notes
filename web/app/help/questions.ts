@@ -9,7 +9,7 @@ export const FAQ: QA[] = [
     "Pinto Notes is a free, open-source notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit, with your approval. It works like Apple Notes, imports your Apple Notes on the Mac, and syncs between iPhone and Mac.",
   ], more: { href: "/blog/pinto-notes-vs-apple-notes", text: "Pinto Notes vs Apple Notes" } },
   { id: "import", q: "How do I import my Apple Notes?", a: [
-    "On your Mac, choose File → Import from Apple Notes. Import everything, or pick the notes you want. Folders, checklists and tables come along, and nothing in Apple Notes is changed.",
+    "On your Mac, choose File → Import from Apple Notes. Import everything, or pick the notes you want. Folders, tables and pictures come along, checklists and pins too when Pinto Notes has Full Disk Access, and nothing in Apple Notes is changed.",
     "On iPhone, share a note from Apple Notes to Pinto Notes. Or import on your Mac, and everything shows up on your iPhone a second later.",
   ], more: { href: "/blog/move-from-apple-notes", text: "How to move from Apple Notes, step by step" } },
   { id: "connect", q: "How do I connect ChatGPT, Claude, Claude Code, Codex or Incredible?", a: [

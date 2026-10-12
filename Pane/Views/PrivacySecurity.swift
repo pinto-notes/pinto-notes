@@ -12,11 +12,19 @@ import PDFKit
 enum PrivacyCopy {
     static let title = "Security"
     static let summary = "Encrypted on your devices. We can't read your notes. When you connect an AI, our server unlocks your notes for that AI's requests."
+    /// With a copy of the key kept by Pinto Notes (KeyCopy): what's true then.
+    static let summaryWithCopy = "Encrypted on your devices before they sync. Signing in opens your notes on a new device, because Pinto Notes keeps a locked copy of your key. When you connect an AI, our server unlocks your notes for that AI's requests."
+    static func summary(serverCopy: Bool) -> String { serverCopy ? summaryWithCopy : summary }
     static let recoveryFooter = "A recovery key opens your notes on a new device when none of your other devices is at hand. If every device is gone and you saved no recovery key, your notes are lost. We can\u{2019}t open them either."
+    static let recoveryFooterWithCopy = "A recovery key opens your notes without signing in. You don\u{2019}t need one while Pinto Notes keeps a copy of your key."
+    static func recoveryFooter(serverCopy: Bool) -> String { serverCopy ? recoveryFooterWithCopy : recoveryFooter }
     static let pageTitle = "Pinto Notes recovery key"
     static let pageGuidance = "Keep this somewhere safe. With it, you can open your notes on a new device if you don't have your other devices."
     static let keyHeader = "Where your key is kept"
     static let keyFooter = "Without one of these, nobody can open your notes, including us. A connected AI can read them while it\u{2019}s connected."
+    static let keyFooterWithCopy = "Any of these opens your notes. A connected AI can read them while it\u{2019}s connected."
+    static func keyFooter(serverCopy: Bool) -> String { serverCopy ? keyFooterWithCopy : keyFooter }
+    static let removeNote = " It can sign in again: to keep someone out, change your password."
     static var thisDevice: String { "This \(InstallID.kind)" }
     static var keptInKeychain: String { "Keeps your key in its Keychain, where iCloud Keychain can pick it up" }
     static var keptHere: String { "Keeps your key on this \(InstallID.kind) only" }
@@ -91,16 +99,29 @@ struct PrivacySecuritySection: View {
     @State private var adding = false
     @State private var removing: KeyDevice?
     @State private var showsHowToCheck = false
+    /// Which way the switch is being turned, while its question is up.
+    @State private var turning: KeyProtection = .strict
+    /// The question is up. Kept apart from `turning`, so the dialog's words and its button don't
+    /// change under it while it goes away.
+    @State private var asksTurn = false
+    @State private var changing = false
+    /// Advanced protection was refused because nothing else could open the notes: save the
+    /// recovery key first (`asksToSaveFirst`), and it turns on when that's done (`strictWhenSaved`).
+    @State private var asksToSaveFirst = false
+    @State private var strictWhenSaved = false
+    /// The server refused Advanced protection because the password was just reset: from when it can be turned on.
+    @State private var strictPausedNote: String?
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.networkReach) private var reach
 
     var body: some View {
         Section {
-            Text(PrivacyCopy.summary)
+            Text(PrivacyCopy.summary(serverCopy: crypto.serverCopy))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("privacy.summary")
         }
         keySection
+        if crypto.protection != nil || crypto.copiesOn { protectionSection }
         Section {
             LabeledContent("Recovery key") {
                 Text(recoveryStatus)
@@ -135,7 +156,7 @@ struct PrivacySecuritySection: View {
             }
         } footer: {
             // "Optional" only while something else is known to open the notes.
-            Text((recoveryStatus == "Optional" ? "Optional. " : "") + PrivacyCopy.recoveryFooter)
+            Text((recoveryStatus == "Optional" ? "Optional. " : "") + PrivacyCopy.recoveryFooter(serverCopy: crypto.serverCopy))
         }
         .task {
             await crypto.recheck()
@@ -163,6 +184,11 @@ struct PrivacySecuritySection: View {
             .accessibilityIdentifier("privacy.saveRecovery")
             .sheet(item: Binding(get: { saving.map(RecoveryKeyItem.init) }, set: { saving = $0?.key })) { item in
                 SaveRecoveryKeySheet(key: item.key) { await markSaved() }
+                    .onDisappear {
+                        guard strictWhenSaved else { return }
+                        strictWhenSaved = false
+                        if crypto.recoveryKeySaved { Task { await change(to: .strict, confirmed: true) } }
+                    }
             }
     }
 
@@ -171,6 +197,9 @@ struct PrivacySecuritySection: View {
     private var keySection: some View {
         Section {
             safety
+            if crypto.serverCopy {
+                keyRow(KeyCopyWords.copyTitle, KeyCopyWords.copyDetail, symbol: "person.badge.key", id: "privacy.serverCopy")
+            }
             keyRow(PrivacyCopy.thisDevice, crypto.backedUp ? PrivacyCopy.keptInKeychain : PrivacyCopy.keptHere,
                    symbol: InstallID.platform == "macos" ? "laptopcomputer" : "iphone", id: "privacy.thisDevice")
             if crypto.backedUp || devices.others.contains(where: { $0.backedUp && !$0.removing && $0.isRecent() }) {
@@ -188,23 +217,107 @@ struct PrivacySecuritySection: View {
                                 Button("Remove", role: .destructive) { Task { await remove(d) } }
                                     .accessibilityIdentifier("privacy.confirmRemove")
                             } message: {
-                                Text(PrivacyCopy.removeMessage)
+                                Text(PrivacyCopy.removeMessage + (crypto.serverCopy ? PrivacyCopy.removeNote : ""))
                             }
                     }
                 }
             }
-            // The sheet hangs on its button: on a Section it isn't presented.
-            Button(PrivacyCopy.addDevice) { adding = true }
-                .accessibilityIdentifier("privacy.addDevice")
-                .disabled(reach != .online)
-                .sheet(isPresented: $adding) {
-                    AddDeviceSheet(crypto: crypto, server: addDeviceServer)
-                        .onDisappear { Task { await devices.refresh(crypto) } }
-                }
+            // With a copy kept by Pinto Notes there's nothing to add: a new device signs in.
+            if !crypto.serverCopy {
+                // The sheet hangs on its button: on a Section it isn't presented.
+                Button(PrivacyCopy.addDevice) { adding = true }
+                    .accessibilityIdentifier("privacy.addDevice")
+                    .disabled(reach != .online)
+                    .sheet(isPresented: $adding) {
+                        AddDeviceSheet(crypto: crypto, server: addDeviceServer)
+                            .onDisappear { Task { await devices.refresh(crypto) } }
+                    }
+            }
         } header: {
             Text(PrivacyCopy.keyHeader)
         } footer: {
-            Text(PrivacyCopy.keyFooter)
+            Text(PrivacyCopy.keyFooter(serverCopy: crypto.serverCopy))
+        }
+    }
+
+    // MARK: Advanced protection
+
+    /// On: only the person's devices hold the key, as before Pinto Notes kept copies. Off: Pinto
+    /// Notes keeps a copy, and signing in opens the notes on a new device. An account that hasn't
+    /// chosen has no copy, so its switch is on. Either way is asked once more before it's done.
+    private var protectionSection: some View {
+        let strict = crypto.protection != .standard
+        return Section {
+            Toggle(isOn: Binding(get: { strict }, set: { turning = $0 ? .strict : .standard; asksTurn = true })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(KeyCopyWords.strictTitle)
+                    Text(KeyCopyWords.strictSubtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+                // Off and held by a password reset: it can't be turned on yet, and the footer says from when.
+                .disabled(changing || reach != .online || (!strict && (crypto.strictPausedUntil ?? .distantPast) > .now))
+                .accessibilityIdentifier("privacy.strict")
+                .confirmationDialog(turning == .strict ? KeyCopyWords.turnOnTitle : KeyCopyWords.turnOffTitle,
+                                    isPresented: $asksTurn, titleVisibility: .visible) {
+                    if turning == .strict {
+                        Button(KeyCopyWords.turnOn, role: .destructive) { Task { await change(to: .strict) } }
+                            .accessibilityIdentifier("privacy.confirmStrict")
+                    } else {
+                        Button(KeyCopyWords.turnOff) { Task { await change(to: .standard) } }
+                            .accessibilityIdentifier("privacy.confirmStandard")
+                    }
+                } message: {
+                    Text(turning == .strict ? KeyCopyWords.turnOnMessage : KeyCopyWords.turnOffMessage)
+                }
+                // Nothing else could open the notes yet: the recovery key is shown and saved
+                // first, and the switch turns on when it has been.
+                .alert(KeyCopyWords.saveFirstTitle, isPresented: $asksToSaveFirst) {
+                    Button(KeyCopyWords.saveFirst) {
+                        Task { await reveal(reason: PrivacyCopy.saveReason) { strictWhenSaved = true; saving = $0 } }
+                    }
+                    .accessibilityIdentifier("privacy.saveFirst")
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text(KeyCopyWords.saveFirstMessage)
+                }
+        } footer: {
+            Text((strict ? KeyCopyWords.strictFooterOn : KeyCopyWords.strictFooterOff) + (strict ? "" : pausedNote.map { "\n\n" + $0 } ?? ""))
+                .accessibilityIdentifier("privacy.strictFooter")
+        }
+    }
+
+    /// `confirmed`: the device's owner was just asked (to show the recovery key), so isn't again.
+    /// Under the switch while a password reset holds it: from when it can be turned on. Known from
+    /// the key state before anyone tries, or from the server's refusal.
+    private var pausedNote: String? {
+        if let until = crypto.strictPausedUntil, until > .now { return KeyCopyWords.strictPaused(until: until) }
+        return strictPausedNote
+    }
+
+    private func change(to mode: KeyProtection, confirmed: Bool = false) async {
+        problem = nil
+        if !confirmed {
+            guard await DeviceOwner.authenticate(reason: mode == .strict ? "turn on Advanced protection" : "turn off Advanced protection") else { return }
+        }
+        changing = true
+        defer { changing = false }
+        do {
+            switch mode {
+            case .standard: try await crypto.keepCopy()
+            case .strict:
+                guard let device = devices.device else { throw KeyCopyError.offline }
+                try await crypto.keepOnDevicesOnly(device: device)
+            }
+        } catch KeyCopyError.needsRecoveryKey {
+            asksToSaveFirst = true
+        } catch KeyCopyError.strictPaused(let until) {
+            // Said under the switch, where it stays, and not as a passing error.
+            strictPausedNote = KeyCopyWords.strictPaused(until: until)
+        } catch {
+            problem = (error as? KeyCopyError).map(KeyCopyWords.error) ?? error.localizedDescription
         }
     }
 
@@ -213,10 +326,11 @@ struct PrivacySecuritySection: View {
     /// this device alone gets the warning.
     @ViewBuilder private var safety: some View {
         // Before the list has loaded, nothing is claimed either way.
-        if devices.loaded || crypto.recoveryKeySaved {
+        if devices.loaded || crypto.recoveryKeySaved || crypto.serverCopy {
             switch devices.safety(crypto) {
             case .safe(let n):
-                keyRow(PrivacyCopy.safeTitle, PrivacyCopy.safeDetail(n), symbol: "checkmark.circle.fill", tint: .green, id: "privacy.safe")
+                keyRow(PrivacyCopy.safeTitle, crypto.serverCopy ? KeyCopyWords.safeBySignIn : PrivacyCopy.safeDetail(n),
+                       symbol: "checkmark.circle.fill", tint: .green, id: "privacy.safe")
             case .unconfirmed:
                 keyRow(PrivacyCopy.unconfirmedTitle, PrivacyCopy.unconfirmedDetail, symbol: "questionmark.circle", id: "privacy.unconfirmed")
                 // Where to look, for those who want to: out of the way until asked for.
@@ -307,6 +421,9 @@ enum DeviceOwner {
         // UI tests run on a simulator with no passcode and no account (its key store is in memory):
         // nothing is asked there. Release builds always ask.
         if ProcessInfo.processInfo.arguments.contains("-uitest") { return true }
+        // UI tests that need a real account and the Keychain (no -uitest) on a simulator, which
+        // has no passcode to type.
+        if ProcessInfo.processInfo.arguments.contains("-ownerConfirmed") { return true }
         #endif
         let context = LAContext()
         var error: NSError?
@@ -323,7 +440,7 @@ enum DeviceOwner {
     /// nothing happened.
     @MainActor static func confirm(reason: String) async -> Outcome {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uitest") { return .confirmed }
+        if ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.arguments.contains("-ownerConfirmed") { return .confirmed }
         #endif
         let context = LAContext()
         var error: NSError?

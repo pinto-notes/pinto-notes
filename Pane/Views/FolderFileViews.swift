@@ -93,11 +93,12 @@ struct FileListRow: View {
     let file: Attachment
     var query = ""
     var showFolder = false
+    var datedByCreation = false
     let remove: () -> Void
     @Environment(SyncEngine.self) private var sync: SyncEngine?
 
     var body: some View {
-        FileRow(file: file, showFolder: showFolder)
+        FileRow(file: file, showFolder: showFolder, datedByCreation: datedByCreation)
             // Out to Finder, Mail or the Desktop (the file itself), or onto a sidebar folder.
             #if os(macOS)
             // The List's own drag hook: the table starts the drag past the drag threshold and keeps
@@ -127,6 +128,8 @@ struct FileListRow: View {
 struct FileRow: View {
     let file: Attachment
     var showFolder = false
+    /// The list is sorted by date created: the row shows when the file was added.
+    var datedByCreation = false
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -141,7 +144,7 @@ struct FileRow: View {
                     .lineLimit(large ? 3 : 1)
                     .truncationMode(.middle)
                 detail {
-                    Text(DateBucket.rowDate(file.listDate))
+                    Text(DateBucket.rowDate(NoteRow.shownDate(of: file, byCreation: datedByCreation)))
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.85))
                     Text(file.listDetail)
@@ -362,7 +365,7 @@ struct FileDetailView: View {
         #if os(macOS)
         // Where a note's toolbar has it: compose first.
         ToolbarItem {
-            Button(action: onNewNote) {
+            ComposeButton(newNote: onNewNote) {
                 Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
             }
         }

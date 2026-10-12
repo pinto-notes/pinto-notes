@@ -136,6 +136,9 @@ final class Backend {
     private(set) var apple: AppleIdentity?
     /// Whether a Google account signs in to this account (docs/Technical/google-sign-in.md).
     private(set) var google = false
+    /// The picture the account's Google sign-in came with, if any (`SignInPhoto`). Shown for you
+    /// on this device while your profile has no photo of its own; never uploaded or shared.
+    private(set) var signInPicture: URL?
     let client: SupabaseClient?
 
     struct AppleIdentity: Equatable {
@@ -197,6 +200,7 @@ final class Backend {
         guard let data = try? store.retrieve(key: key), let session = try? JSONDecoder().decode(Session.self, from: data) else { return nil }
         apple = Self.appleIdentity(of: session.user)
         google = Self.hasGoogle(session.user)
+        signInPicture = SignInPhoto.url(from: session.user.userMetadata)
         signedIn(session)
         return session.user.id
     }
@@ -233,12 +237,17 @@ final class Backend {
         #endif
     }
 
+    /// When the signed-in account was made, as the server says: the first-run flow is only for
+    /// an account made in the last day (`Onboarding`).
+    @ObservationIgnored private(set) var accountCreated: Date?
+
     /// Runs just before the app shows an account as signed in, so the device's library can be
     /// handed to that account first (AccountLibrary). Nothing is drawn in between.
     @ObservationIgnored var willSignIn: (UUID) -> Void = { _ in }
 
     private func signedIn(_ session: Session) {
         willSignIn(session.user.id)
+        accountCreated = session.user.createdAt
         userID = session.user.id
         Telemetry.shared.identify(session.user.id)
         state = .signedIn(email: session.user.email ?? "")
@@ -247,6 +256,7 @@ final class Backend {
     /// The session ended (signed out here, or the server refused its refresh).
     private func signedOut() {
         if userID != nil { Telemetry.shared.signedOut() }
+        accountCreated = nil
         userID = nil
         state = .signedOut
     }
@@ -276,13 +286,17 @@ final class Backend {
     }
 
     /// For screenshots and previews only: shows the signed-in screens without a session.
-    func showSignedInForPreview(email: String) { state = .signedIn(email: email) }
+    func showSignedInForPreview(email: String, account: UUID? = nil) {
+        if let account { userID = account }
+        state = .signedIn(email: email)
+    }
 
     private func watchAuth() async {
         guard let client else { return }
         for await (_, session) in client.auth.authStateChanges {
             apple = session.flatMap { Self.appleIdentity(of: $0.user) }
             google = session.map { Self.hasGoogle($0.user) } ?? false
+            signInPicture = session.flatMap { SignInPhoto.url(from: $0.user.userMetadata) }
             if let session, !session.isExpired {
                 signedIn(session)
             } else if let session, session.isExpired {

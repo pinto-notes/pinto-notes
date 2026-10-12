@@ -14,7 +14,7 @@ import TipKit
 /// - at most one tip every 3 days: TipKit's displayFrequency is daily (it has no 3-day setting),
 ///   and `turn` holds the one tip whose 3 days these are (see `TipSpacing`);
 /// - only once you've used the app on 3 different days (the `activeDay` event, donated once a day);
-/// - never while the Get set up card shows (`setupVisible`), or the share ask (`shareAskVisible`);
+/// - never while the first-run flow shows (`setupVisible`), or the share ask (`shareAskVisible`);
 /// - never while you type: `calm` is set when a note or the list opens, or after a tap, and
 ///   cleared by the first keystroke, so a tip only appears at a quiet moment;
 /// - never for a feature you've ever used, on any device, before or after this version
@@ -28,7 +28,7 @@ enum PaneTips {
 
     /// Nothing is being typed: a note or the list just opened, or you tapped something.
     @Parameter static var calm: Bool = false
-    /// The Get set up card is on screen.
+    /// The first-run flow is on screen.
     @Parameter static var setupVisible: Bool = false
     /// The open note is long enough to be worth sending, or it's a checklist.
     @Parameter static var noteIsLong: Bool = false
@@ -45,6 +45,8 @@ enum PaneTips {
     @Parameter static var menuBarShown: Bool = true
     /// "Enjoying Amber Notes?" is on screen (`ShareAskStore`): no tip beside it.
     @Parameter static var shareAskVisible: Bool = false
+    /// Notes that are apps are on (NoteApps.enabled): New App's tip shows only then.
+    @Parameter static var appsOn: Bool = false
 
     /// Once per calendar day the app is used.
     static let activeDay = Tips.Event(id: "activeDay")
@@ -71,7 +73,7 @@ enum PaneTips {
     static let minimumDays = 3
     static let menuBarDays = 5
 
-    static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip()]
+    static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip(), NewAppTip()]
 
     // MARK: Setup
 
@@ -90,6 +92,7 @@ enum PaneTips {
             FeatureUse.applyLocal()
             await appOpened()
         }
+        appsOn = NoteApps.enabled
     }
 
     /// Daily, with `TipSpacing` making it every 3 days; captures show them at once.
@@ -251,6 +254,11 @@ private var commonRules: [Tips.Rule] {
         #Rule(PaneTips.$calm) { $0 == true },
         #Rule(PaneTips.$featureUseKnown) { $0 == true },
     ]
+}
+
+/// New App's tip (ComposeButton.swift): the common rules and its turn; only while apps are on.
+func tipRules(_ feature: Feature) -> [Tips.Rule] {
+    commonRules + [#Rule(PaneTips.$appsOn) { $0 == true }, #Rule(PaneTips.$turn) { $0 == "" || $0 == "newApp" }]
 }
 
 /// 1. After an AI edit lands on the open note, or a big deletion. Opens Show Version History.
@@ -424,10 +432,11 @@ struct CompactTip<T: Tip>: View {
 
 /// The features the tips are about. The raw value is the tip's id.
 enum Feature: String, CaseIterable, Sendable {
-    case versionHistory, shareLink, menuBar, shareExtension
+    case versionHistory, shareLink, menuBar, shareExtension, newApp
 
     var tip: any Tip {
         switch self {
+        case .newApp: NewAppTip()
         case .versionHistory: VersionHistoryTip()
         case .shareLink: ShareLinkTip()
         case .menuBar: MenuBarTip()
@@ -451,6 +460,15 @@ enum FeatureUse {
 
     static var local: Set<Feature> {
         Set((defaults.stringArray(forKey: key) ?? []).compactMap(Feature.init)).union(deviceEvidence())
+    }
+
+    /// Its tip has been shown here: it is not shown on your other devices either. (Unlike `mark`,
+    /// the tip on screen now stays until it is dismissed.)
+    static func remember(_ feature: Feature) {
+        let before = defaults.stringArray(forKey: key) ?? []
+        if !before.contains(feature.rawValue) { defaults.set(before + [feature.rawValue], forKey: key) }
+        guard let client else { return }
+        Task { _ = try? await client.rpc("pane_feature_used", params: ["feature": feature.rawValue]).execute() }
     }
 
     /// You used `feature`: its tip goes for good, here and on your other devices.

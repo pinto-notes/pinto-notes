@@ -308,8 +308,7 @@ import AppKit
         let blank = try await outcome("<main></main><script>amber.onChange(() => {})</script>")
         #expect(!blank.ready)
         #expect(blank.errors == ["The page drew nothing."])
-        let broken = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "demo/note-pages/habit-tracker-broken.html"), encoding: .utf8)
+        let broken = try String(contentsOf: TestFiles.notePages.appending(path: "habit-tracker-broken.html"), encoding: .utf8)
         #expect(try await !outcome(broken).ready)
     }
 
@@ -646,7 +645,7 @@ import AppKit
     /// Every demo app loads and draws, with its own note.
     @Test(arguments: ["habit-tracker", "budget", "budget-v2", "spending-chart", "expense-form", "savings-goal", "weather-key", "budget-dashboard", "reading-stack", "packing", "training", "budget-ledger"])
     func demoAppsLoad(_ name: String) async throws {
-        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "demo/note-pages")
+        let dir = try TestFiles.notePages
         let html = try String(contentsOf: dir.appending(path: name + ".html"), encoding: .utf8)
         let body = name.contains("budget") ? Capture.budgetNote : name.contains("habit") ? Capture.habitNote() : "Note\n\n| Date | Item | Category | Amount |\n| --- | --- | --- | --- |\n| 2026-10-01 | Rent | Home | 9200 |\n"
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
@@ -659,7 +658,7 @@ import AppKit
     }
 
     @Test func theNewBudgetLoadsWithWhatWasTyped() async throws {
-        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "demo/note-pages")
+        let dir = try TestFiles.notePages
         let html = try String(contentsOf: dir.appending(path: "budget-v2.html"), encoding: .utf8)
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
         var result: (Bool, [String])?
@@ -672,13 +671,20 @@ import AppKit
 
     // MARK: App settings and Make It an App
 
-    @Test func makeItAnAppSuggestsFromWhatTheNoteHolds() {
-        #expect(MakeAnApp.looksLikeAnApp(Capture.budgetNote))
-        #expect(MakeAnApp.looksLikeAnApp("List\n- [ ] a\n- [ ] b\n- [x] c"))
-        #expect(!MakeAnApp.looksLikeAnApp("Just thoughts\n\nNothing to track."))
-        #expect(MakeAnApp.idea(for: Capture.budgetNote).hasPrefix("a budget app"))
-        #expect(MakeAnApp.idea(for: Capture.habitNote()).hasPrefix("a tracker app"))
-        #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist app"))
+    @Test func makeItAnAppAsksForWhatTheNoteHolds() {
+        #expect(MakeAnApp.idea(for: Capture.budgetNote)?.hasPrefix("a budget with the total") == true)
+        #expect(MakeAnApp.idea(for: Capture.habitNote())?.hasPrefix("a tracker with today's entry") == true)
+        #expect(MakeAnApp.idea(for: "Just thoughts\n\nNothing to track.") == nil)
+        // One sentence: "an app", one colon, then what it is, never "app" again or a second colon.
+        let notes = [("Budget", Capture.budgetNote), ("Habits", Capture.habitNote()), ("Packing", "Packing\n- [ ] a\n- [ ] b\n- [ ] c"),
+                     ("People", "People\n\n| Name | Role |\n|---|---|\n| Sara | Sales |"), ("Thoughts", "Thoughts\n\nNothing to track.")]
+        for (title, body) in notes {
+            let first = MakeAnApp.prompt(title: title, body: body).components(separatedBy: ". ")[0]
+            #expect(first.hasPrefix("In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app"), "\(first)")
+            #expect(first.components(separatedBy: ":").count <= 2 && first.components(separatedBy: " app").count == 2, "\(first)")
+        }
+        #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist that shows what's left"))
+        #expect(MakeAnApp.prompt(title: "Thoughts", body: "Thoughts\n\nNothing to track.").hasPrefix("In Pinto Notes, make my note \u{201C}Thoughts\u{201D} an app. Call get_page_guide"))
     }
 
     // MARK: Pushing an app's data
@@ -1030,9 +1036,8 @@ import AppKit
 
     /// The AI sees the real stylesheet: page.ts carries the same text as the file the app ships.
     @Test func theAIGetsTheSameBaseStylesheet() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        let shipped = try String(contentsOf: root.appending(path: "Pane/Resources/AppLibraries/amber-base.css"), encoding: .utf8)
-        let ts = try String(contentsOf: root.appending(path: "supabase/functions/mcp/amber-base.ts"), encoding: .utf8)
+        let shipped = try TestFiles.text("amber-base.css")
+        let ts = try TestFiles.text("amber-base.ts")
         #expect(NotePageTheme.base == shipped)
         #expect(ts.contains(shipped))
     }
@@ -1054,7 +1059,7 @@ import AppKit
     /// A project of files: index.html, JSX modules (compiled by the tooling), CSS, amber-ui and the
     /// import map, served from amber-app: with nothing else reachable.
     @Test func aProjectOfFilesRunsWithTheKit() async throws {
-        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "demo/note-pages")
+        let dir = try TestFiles.notePages
         let stored = try String(contentsOf: dir.appending(path: "training-app.json"), encoding: .utf8)
         let project = try #require(NotePageProject.parse(stored))
         #expect(project.files.keys.contains("/src/App.jsx") && project.compiled["/src/App.jsx"] != nil)
@@ -1168,7 +1173,7 @@ import AppKit
     /// The React stack: a TSX + Tailwind + shadcn/ui + lucide + recharts project runs on
     /// preact/compat, with createRoot, @/ imports, files without extensions and an imported stylesheet.
     @Test func aReactShadcnProjectRuns() async throws {
-        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "demo/note-pages")
+        let dir = try TestFiles.notePages
         let stored = try String(contentsOf: dir.appending(path: "training-react.json"), encoding: .utf8)
         let note = try String(contentsOf: dir.appending(path: "training.md"), encoding: .utf8)
         #expect(NotePageLibraries.stack?.map["react"] != nil && NotePageLibraries.stack?.map["react-dom"] == NotePageLibraries.stack?.map["react"])

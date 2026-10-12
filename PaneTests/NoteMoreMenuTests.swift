@@ -25,6 +25,7 @@ import Testing
         #expect(groups(locked: true) == [[.pin], [.moveTo, .delete]])
         // In Recently Deleted there is nothing to lock or make.
         #expect(groups(trashed: true) == [[.pin], [.moveTo, .history, .delete]])
+        #expect(NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, linkedFrom: false, nested: true, phone: false, dev: false)[1] == [.moveTo, .moveOut, .history, .delete])
         #expect(groups(dev: true).first == [.pin, .lock, .makeApp, .devImportApp])
     }
 }

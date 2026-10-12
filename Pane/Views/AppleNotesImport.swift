@@ -3,14 +3,6 @@ import AppKit
 import SwiftData
 import SwiftUI
 
-/// One note in Apple Notes, as listed for the import picker.
-struct AppleNote: Identifiable, Hashable {
-    let id: String
-    let name: String
-    let folder: String
-    let modified: Date
-}
-
 /// Reads Apple Notes through AppleScript. macOS asks once for permission.
 enum AppleNotesBridge {
     enum Failure: LocalizedError {
@@ -20,7 +12,15 @@ enum AppleNotesBridge {
         }
     }
 
+    /// Every Apple Event to Notes goes through `run`, and macOS asks for permission on the first.
+    /// The rule (2026-10-12): it may only happen after a press on something that names Apple
+    /// Notes. Tests count calls here, and can answer in Notes' place.
+    nonisolated(unsafe) static var calls = 0
+    nonisolated(unsafe) static var standIn: ((String) throws -> NSAppleEventDescriptor)?
+
     private static func run(_ source: String) throws -> NSAppleEventDescriptor {
+        calls += 1
+        if let standIn { return try standIn(source) }
         var error: NSDictionary?
         guard let script = NSAppleScript(source: source) else { throw Failure.script("Couldn't prepare the script.") }
         let result = script.executeAndReturnError(&error)
@@ -34,33 +34,76 @@ enum AppleNotesBridge {
         return result
     }
 
-    static func list() throws -> [AppleNote] {
-        let d = try run("""
+    /// Every note of every account and folder, outside Recently Deleted. One request per folder
+    /// and property, so a library of thousands lists in seconds. A folder Apple Notes won't read
+    /// is reported, not skipped.
+    static func list() throws -> AppleNotesListing {
+        listing(from: try run("""
         tell application "Notes"
             set out to {}
+            set failed to {}
+            set mainAccount to ""
+            try
+                set mainAccount to name of default account
+            end try
             repeat with f in folders
-                set fname to name of f
-                if fname is not "Recently Deleted" then
-                    repeat with n in notes of f
-                        set end of out to {id of n, name of n, fname, modification date of n}
+                set fname to "A folder"
+                try
+                    set fname to name of f
+                    set parents to {}
+                    set c to container of f
+                    repeat while class of c is folder
+                        set beginning of parents to name of c
+                        set c to container of c
                     end repeat
-                end if
+                    set aname to name of c
+                    if fname is not "Recently Deleted" and parents does not contain "Recently Deleted" then
+                        set end of out to {fname, id of notes of f, name of notes of f, modification date of notes of f, creation date of notes of f, password protected of notes of f, parents, aname}
+                    end if
+                on error errMsg
+                    set end of failed to {fname, errMsg}
+                end try
             end repeat
-            return out
+            return {mainAccount, out, failed}
         end tell
-        """)
+        """))
+    }
+
+    /// Reads what the script above returns: {main account, {folder, ids, names, edited, made,
+    /// locked, parent folders, account} for each folder, {folder, error} for each that failed}.
+    static func listing(from d: NSAppleEventDescriptor) -> AppleNotesListing {
+        var listing = AppleNotesListing()
+        listing.mainAccount = d.atIndex(1)?.stringValue ?? ""
         var notes: [AppleNote] = []
-        guard d.numberOfItems > 0 else { return [] }
-        for i in 1...d.numberOfItems {
-            guard let item = d.atIndex(i), item.numberOfItems >= 4 else { continue }
-            notes.append(AppleNote(
-                id: item.atIndex(1)?.stringValue ?? "",
-                name: item.atIndex(2)?.stringValue ?? "Untitled",
-                folder: item.atIndex(3)?.stringValue ?? "",
-                modified: item.atIndex(4)?.dateValue ?? .now))
+        if let folders = d.atIndex(2), folders.numberOfItems > 0 {
+            for i in 1...folders.numberOfItems {
+                guard let item = folders.atIndex(i), item.numberOfItems >= 6, let ids = item.atIndex(2), ids.numberOfItems > 0 else { continue }
+                let folder = item.atIndex(1)?.stringValue ?? ""
+                var parents: [String] = []
+                if let p = item.atIndex(7), p.numberOfItems > 0 { parents = (1...p.numberOfItems).compactMap { p.atIndex($0)?.stringValue } }
+                let account = item.atIndex(8)?.stringValue ?? ""
+                for j in 1...ids.numberOfItems {
+                    notes.append(AppleNote(
+                        id: ids.atIndex(j)?.stringValue ?? "",
+                        name: item.atIndex(3)?.atIndex(j)?.stringValue ?? "Untitled",
+                        folder: folder,
+                        modified: item.atIndex(4)?.atIndex(j)?.dateValue ?? .now,
+                        created: item.atIndex(5)?.atIndex(j)?.dateValue,
+                        locked: item.atIndex(6)?.atIndex(j)?.booleanValue ?? false,
+                        parents: parents,
+                        account: account,
+                        folderOrder: i))
+                }
+            }
         }
-        var seen = Set<String>()
-        return notes.filter { seen.insert($0.id).inserted }.sorted { $0.modified > $1.modified }
+        if let failed = d.atIndex(3), failed.numberOfItems > 0 {
+            for i in 1...failed.numberOfItems {
+                guard let item = failed.atIndex(i) else { continue }
+                listing.unreadFolders.append(.init(folder: item.atIndex(1)?.stringValue ?? "A folder", why: item.atIndex(2)?.stringValue ?? ""))
+            }
+        }
+        listing.notes = AppleNote.unique(notes)
+        return listing
     }
 
     /// `-uitest -demo`: website and store captures show this library instead of the person's own.
@@ -72,7 +115,7 @@ enum AppleNotesBridge {
     nonisolated(unsafe) static var forceDemo = false
     nonisolated(unsafe) static var forceLarge = false
 
-    /// `-importLarge`: the 1,284-note library the website and App Store show, all picked, pins on.
+    /// `-importLarge`: the 1,284-note library the website and App Store show, all picked.
     static var largeDemo: Bool { isDemo && (forceLarge || ProcessInfo.processInfo.arguments.contains("-importLarge")) }
 
     static var demoNotes: [AppleNote] {
@@ -114,80 +157,69 @@ enum AppleNotesBridge {
 }
 
 /// Pick Apple Notes to copy in. Nothing in Apple Notes is changed.
+///
+/// One step: every note that isn't here yet is picked when the sheet opens, and the amber button
+/// brings them in. When it's done the sheet closes by itself and the window says what came over;
+/// it stays open only to name notes that couldn't be read.
 struct AppleNotesImportView: View {
     /// The sheet's height (captures can ask for a shorter one).
     nonisolated(unsafe) static var height: CGFloat = 640
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    /// Called once the import is done, with what it did (for the line the window shows).
+    var onSummary: (AppleNotesImportSummary) -> Void = { _ in }
     /// Called with the new notes' ids once the import is done.
     var onImported: ([UUID]) -> Void = { _ in }
 
     @Environment(\.locale) private var locale
-    @State private var notes: [AppleNote] = []
+    @State private var listing = AppleNotesListing()
+    private var notes: [AppleNote] { listing.notes }
     @State private var picked: Set<String> = []
     @State private var query = ""
-    @State private var keepFolders = true
     @State private var loading = true
     @State private var failure: String?
     @State private var progress: (done: Int, total: Int)?
-    @State private var existingTitles: Set<String> = []
-    /// Opt-in: also bring over which notes are pinned (needs Full Disk Access).
-    @State private var bringPins = false
-    @State private var pinAccess = false
-    /// Said after the import when pins couldn't be read; the sheet waits for Done.
-    @State private var notice: String?
+    /// The notes already here, by title and date.
+    @State private var existing: Set<String> = []
+    /// Notes' own database can be read (Full Disk Access is on): checklists and pins come over too.
+    @State private var storeAccess = true
+    @State private var explainingChecklists = false
+    /// Captures: the sheet as it is on a Mac where Notes' database can't be read.
+    nonisolated(unsafe) static var demoWithoutAccess = false
+    /// Set when some notes couldn't be read: the sheet stays to say which.
+    @State private var unread: AppleNotesImportSummary?
     @FocusState private var searchFocused: Bool
+    /// The notes one by one. The sheet opens on folders and their counts: picking is the
+    /// exception, so it's one quiet press away instead of the first thing seen.
+    @State private var choosingNotes = false
 
     private var shown: [AppleNote] {
-        query.isEmpty ? notes : notes.filter { $0.name.localizedStandardContains(query) || $0.folder.localizedStandardContains(query) }
+        query.isEmpty ? notes : notes.filter { n in n.name.localizedStandardContains(query) || listing.destination(of: n).contains { $0.localizedStandardContains(query) } }
     }
 
-    private var groups: [(String, [AppleNote])] {
-        var order: [String] = []
-        var map: [String: [AppleNote]] = [:]
-        for n in shown {
-            if map[n.folder] == nil { order.append(n.folder) }
-            map[n.folder, default: []].append(n)
-        }
-        return order.map { ($0, map[$0]!) }
-    }
+    /// Shown notes by account and folder, in Apple Notes' own order.
+    private var groups: [(String, [AppleNote])] { listing.groups(shown).map { ($0.heading, $0.notes) } }
+
+    /// Shown notes that can be picked: a locked note's text can't be read.
+    private var pickable: [AppleNote] { shown.filter { !$0.locked } }
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Import from Apple Notes").font(.system(size: 17, weight: .bold))
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search Notes", text: $query)
-                        .textFieldStyle(.plain)
-                        .focusEffectDisabled()
-                        .focused($searchFocused)
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 30)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 8))
-                // The field draws its own focus ring, so keyboard users always see where they are.
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.accentColor.opacity(searchFocused ? 0.8 : 0), lineWidth: 2.5).padding(-1.5))
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 12)
-
+            header
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            Divider()
-            if let notice {
-                noticeBar(notice)
-            } else {
-                footer
-            }
+            Rectangle().fill(Color.line).frame(height: 1)
+            footer
         }
         .frame(width: 540, height: Self.height)
+        .foregroundStyle(Color.ink)
+        // The app's own warm ground, not the system's grey sheet.
+        .background(Color(Palette.sheetGround))
+        .presentationBackground(Color(Palette.sheetGround))
         .task { await load() }
         // Coming back from System Settings: look again.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            if !AppleNotesBridge.isDemo { pinAccess = ApplePins.hasAccess() }
+            if !AppleNotesBridge.isDemo, ApplePins.isAvailable { storeAccess = ApplePins.hasAccess() }
         }
         // Captures: the import half done, without reading anything.
         .onReceive(NotificationCenter.default.publisher(for: Capture.importHalfway)) { _ in
@@ -196,82 +228,229 @@ struct AppleNotesImportView: View {
         }
     }
 
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                ImportSourceIcon(origin: .appleNotes, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Import from Apple Notes").font(.system(size: 17, weight: .bold))
+                    Text("Copies the notes you pick. Nothing in Apple Notes changes.")
+                        .font(.callout).foregroundStyle(Color.muted)
+                }
+            }
+            if unread == nil, failure == nil, !loading {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Color.muted)
+                    TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(Color(Palette.placeholder)))
+                        .textFieldStyle(.plain)
+                        .focusEffectDisabled()
+                        .focused($searchFocused)
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Color(Palette.field), in: .rect(cornerRadius: 8))
+                // The field draws its own border, and a ring in the app's amber while it has the keyboard.
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(searchFocused ? Color.accentColor.opacity(0.7) : Color(Palette.fieldHairline), lineWidth: searchFocused ? 1.5 : 1))
+                .disabled(progress != nil)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
     @ViewBuilder
     private var content: some View {
-        if loading {
-            ProgressView("Reading Apple Notes…").controlSize(.small)
+        if let unread {
+            unreadList(unread)
+        } else if loading {
+            VStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text("Reading Apple Notes…").font(.callout)
+                // Said before macOS's own question, which only names the two apps.
+                Text("If macOS asks whether Pinto Notes may use Notes, choose Allow. Nothing in Apple Notes changes.")
+                    .font(.footnote).foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .accessibilityIdentifier("import.permissionLine")
+            }
         } else if let failure {
             ContentUnavailableView {
                 Label("Can't read Apple Notes", systemImage: "exclamationmark.triangle")
             } description: { Text(failure) } actions: {
                 Button("Try Again") { Task { await load() } }
             }
+        } else if notes.isEmpty {
+            ContentUnavailableView("No notes in Apple Notes", systemImage: "note.text", description: Text("There's nothing to import yet."))
         } else if shown.isEmpty {
             ContentUnavailableView.search(text: query)
         } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    ForEach(groups, id: \.0) { folder, items in
-                        Section {
-                            ForEach(items) { note in row(note) }
-                        } header: {
-                            HStack {
-                                Text(folder.isEmpty ? "Notes" : folder).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                                Text(items.count.formatted(.number.locale(locale))).font(.system(size: 12)).foregroundStyle(.tertiary).monospacedDigit()
-                                Spacer()
-                                Button(items.allSatisfy { picked.contains($0.id) } ? "Deselect All" : "Select All") {
-                                    let ids = items.map(\.id)
-                                    if items.allSatisfy({ picked.contains($0.id) }) { picked.subtract(ids) } else { picked.formUnion(ids) }
-                                }
-                                .buttonStyle(.hoverLink)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tint)
+            VStack(spacing: 0) {
+                // A folder Apple Notes won't list is said, whichever view is showing.
+                ForEach(Array(listing.unreadFolders.enumerated()), id: \.offset) { _, folder in
+                    Label("Apple Notes wouldn't list the folder \u{201C}\(folder.folder)\u{201D}. Its notes aren't shown.", systemImage: "exclamationmark.triangle.fill")
+                        .symbolRenderingMode(.multicolor)
+                        .font(.footnote)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 6)
+                }
+                if !choosingNotes && query.isEmpty {
+                    summary
+                } else {
+                selectionBar
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        ForEach(groups, id: \.0) { folder, items in
+                            Section {
+                                ForEach(items) { note in row(note) }
+                            } header: {
+                                // One folder needs no heading.
+                                if groups.count > 1 { folderHeader(folder, count: items.count) }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 6)
-                            .background(.background)
                         }
+                    }
+                    .padding(.bottom, 8)
+                }
+                .disabled(progress != nil)
+                }
+            }
+        }
+    }
+
+    /// What will come, folder by folder, and the quiet way to pick notes one by one.
+    private var summary: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(Self.count(picked.count, of: notes.count, locale: locale))
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.muted).monospacedDigit()
+                Spacer()
+                Button("Choose Notes…") { choosingNotes = true }
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.tint)
+                    .disabled(progress != nil)
+                    .accessibilityIdentifier("import.chooseNotes")
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(groups, id: \.0) { folder, items in
+                        let coming = items.filter { picked.contains($0.id) }.count
+                        HStack(spacing: 10) {
+                            Image(systemName: "folder").foregroundStyle(Color.muted).frame(width: 20)
+                            Text(folder).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text(Self.folderLine(coming: coming, of: items.count, locale: locale))
+                                .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 7)
+                        .accessibilityElement(children: .combine)
                     }
                 }
                 .padding(.bottom, 8)
             }
-            .disabled(progress != nil)
         }
+    }
+
+    /// "18 notes", "2 of 9 notes" (the rest are here already or locked).
+    static func folderLine(coming: Int, of total: Int, locale: Locale) -> String {
+        func n(_ c: Int) -> String { c.formatted(.number.locale(locale)) }
+        if coming == total { return total == 1 ? "1 note" : "\(n(total)) notes" }
+        return "\(n(coming)) of \(n(total)) \(total == 1 ? "note" : "notes")"
+    }
+
+    /// How many are picked, and the one control that picks or clears them all.
+    private var selectionBar: some View {
+        let all = !pickable.isEmpty && pickable.allSatisfy { picked.contains($0.id) }
+        return HStack {
+            Text(Self.count(picked.count, of: notes.count, locale: locale))
+                .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.muted).monospacedDigit()
+            Spacer()
+            Button(all ? "Deselect All" : "Select All") {
+                let ids = pickable.map(\.id)
+                if all { picked.subtract(ids) } else { picked.formUnion(ids) }
+            }
+            .buttonStyle(.hoverLink)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.tint)
+            .disabled(pickable.isEmpty || progress != nil)
+            .accessibilityIdentifier("import.selectAll")
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+    }
+
+    /// Notes that can come and aren't here yet: what the sheet picks when it opens.
+    private var newCount: Int { notes.filter { !$0.locked && !AppleNotesListing.isHere($0, keys: existing) }.count }
+
+    /// The one button: "Import All 35 Notes" when every note is picked, "Import 17 New Notes"
+    /// when everything new is, otherwise the count.
+    static func importTitle(picked: Int, new: Int, all: Int, locale: Locale) -> String {
+        func n(_ c: Int) -> String { c.formatted(.number.locale(locale)) }
+        if picked == 0 { return "Import" }
+        if picked == all { return picked == 1 ? "Import 1 Note" : "Import All \(n(picked)) Notes" }
+        if picked == new && new < all { return "Import \(n(picked)) New \(picked == 1 ? "Note" : "Notes")" }
+        return "Import \(n(picked)) \(picked == 1 ? "Note" : "Notes")"
+    }
+
+    /// "18 of 18 notes selected", "No notes selected".
+    static func count(_ picked: Int, of total: Int, locale: Locale) -> String {
+        let t = total.formatted(.number.locale(locale))
+        if picked == 0 { return total == 1 ? "1 note, not selected" : "\(t) notes, none selected" }
+        return "\(picked.formatted(.number.locale(locale))) of \(t) \(total == 1 ? "note" : "notes") selected"
+    }
+
+    private func folderHeader(_ folder: String, count: Int) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "folder").font(.system(size: 11)).foregroundStyle(Color.muted)
+            Text(folder).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted).lineLimit(1)
+            Text(count.formatted(.number.locale(locale))).font(.system(size: 12)).foregroundStyle(Color.muted.opacity(0.7)).monospacedDigit()
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 6)
+        .background(Color(Palette.sheetGround))
     }
 
     private func row(_ note: AppleNote) -> some View {
         let on = picked.contains(note.id)
-        let already = existingTitles.contains(note.name.lowercased())
+        let already = AppleNotesListing.isHere(note, keys: existing)
         return Button {
             if on { picked.remove(note.id) } else { picked.insert(note.id) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 17))
-                    .foregroundStyle(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                Image(systemName: note.locked ? "lock.fill" : on ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: note.locked ? 13 : 17))
+                    .frame(width: 20)
+                    .foregroundStyle(on ? AnyShapeStyle(.tint) : AnyShapeStyle(Color.muted.opacity(0.6)))
                     .contentTransition(.symbolEffect(.replace))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(note.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                    Text(DateBucket.rowDate(note.modified)).font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit()
+                    Text(DateBucket.rowDate(note.modified)).font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
                 }
+                .opacity(note.locked ? 0.55 : 1)
                 Spacer(minLength: 8)
-                if already {
-                    Text("Already imported")
+                if note.locked || already {
+                    Text(note.locked ? "Locked in Apple Notes" : "Already imported")
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.muted)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(.fill.tertiary, in: .capsule)
+                        .background(Color.line.opacity(0.6), in: .capsule)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 7)
             .hoverHighlight(Rectangle())
-            .background(on ? Color.accentColor.opacity(0.10) : .clear)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(already ? "\(note.name), already imported" : note.name)
+        .disabled(note.locked)
+        .accessibilityLabel(note.locked ? "\(note.name), locked in Apple Notes, can't be imported" : already ? "\(note.name), already imported" : note.name)
         .accessibilityValue(DateBucket.rowDate(note.modified))
         .accessibilityAddTraits(on ? .isSelected : [])
         .animation(.easeOut(duration: 0.12), value: on)
@@ -279,83 +458,127 @@ struct AppleNotesImportView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            if let progress {
+            if unread != nil {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.amberProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("import.done")
+            } else if let progress {
                 ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
                     .frame(width: 120)
                 // One line, however large the numbers.
                 Text("Importing \(min(progress.done + 1, progress.total).formatted(.number.locale(locale))) of \(progress.total.formatted(.number.locale(locale)))…")
-                    .font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                    .font(.callout).foregroundStyle(Color.muted).monospacedDigit()
                     .lineLimit(1).fixedSize()
+                Spacer()
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Keep Apple Notes folders", isOn: $keepFolders)
-                        .toggleStyle(.checkbox)
-                    if ApplePins.isAvailable {
-                        Toggle("Also bring over pinned notes (asks for Full Disk Access)", isOn: $bringPins)
-                            .toggleStyle(.checkbox)
-                            .accessibilityIdentifier("import.pins")
-                        if bringPins && !pinAccess {
-                            HStack(spacing: 8) {
-                                Text("Pins live where only apps with Full Disk Access can read them.")
-                                    .foregroundStyle(.secondary)
-                                Button("Open Settings") { NSWorkspace.shared.open(ApplePins.settingsURL) }
-                                    .buttonStyle(.link)
-                            }
-                            .font(.footnote)
-                            .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-                .font(.callout)
-                .onChange(of: bringPins) { _, on in if on, !AppleNotesBridge.isDemo { pinAccess = ApplePins.hasAccess() } }
-            }
-            Spacer()
-            Button("Cancel") { dismiss() }
-                .keyboardShortcut(.cancelAction)
-            // While it runs, the progress says it all; the button would only be squeezed.
-            if progress == nil {
-                Button(picked.isEmpty ? "Import" : "Import \(picked.count.formatted(.number.locale(locale))) \(picked.count == 1 ? "Note" : "Notes")") {
+                if !storeAccess { checklistNote }
+                Spacer(minLength: 0)
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .fixedSize()
+                Button(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)) {
                     Task { await runImport() }
                 }
                 .buttonStyle(.amberProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(picked.isEmpty)
                 .fixedSize()
+                .accessibilityIdentifier("import.start")
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
     }
 
-    private func noticeBar(_ text: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "pin.slash").foregroundStyle(.secondary)
-            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
-            Spacer()
-            Button("Done") { dismiss() }
-                .buttonStyle(.amberProminent)
-                .keyboardShortcut(.defaultAction)
+    /// What AppleScript can't tell us, said once and never asked for: a checklist is only a
+    /// checklist, and a pin a pin, in Notes' database and in its own export. The line is there
+    /// only when the database can't be read.
+    private var checklistNote: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("Without Full Disk Access, checklists arrive as bullet lists.")
+            Button("How to keep them") { explainingChecklists = true }
+                .buttonStyle(.hoverLink)
+                .foregroundStyle(.tint)
+                .accessibilityIdentifier("import.checklists")
+                .popover(isPresented: $explainingChecklists, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Keeping checklists and pins").font(.headline)
+                        Text("Checklists and pinned notes come over exactly when Pinto Notes has Full Disk Access. Without it, checklists arrive as bullet lists.")
+                        Button("Open Settings") { NSWorkspace.shared.open(ApplePins.settingsURL) }
+                            .accessibilityIdentifier("import.fullDiskAccess")
+                        Text("Or, instead of this import, export from Notes as Markdown and import that folder. Not both: notes brought in both ways come twice.")
+                            .padding(.top, 4)
+                        Text("1. In Apple Notes, select the notes and choose File, Export as, Markdown.\n2. Here, choose File, Import Markdown or Text, and pick that folder.")
+                            .foregroundStyle(Color.muted)
+                    }
+                    .font(.callout)
+                    .foregroundStyle(Color.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 330, alignment: .leading)
+                    .padding(16)
+                }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .font(.footnote)
+        .foregroundStyle(Color.muted)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// After an import that left something behind: what came, and each note that didn't, with why.
+    private func unreadList(_ summary: AppleNotesImportSummary) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(summary.line(locale: locale), systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .accessibilityIdentifier("import.result")
+                if let left = summary.leftLine(locale: locale) {
+                    Label(left, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .symbolRenderingMode(.multicolor)
+                        .padding(.top, 6)
+                    ForEach(Array(summary.notImported.enumerated()), id: \.offset) { _, note in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(note.name).font(.system(size: 13)).lineLimit(1)
+                            Text(note.why).font(.footnote).foregroundStyle(Color.muted).lineLimit(2)
+                        }
+                        .padding(.leading, 26)
+                    }
+                }
+                ForEach(Array(listing.unreadFolders.enumerated()), id: \.offset) { _, folder in
+                    Label("The folder \u{201C}\(folder.folder)\u{201D} couldn't be read, so its notes aren't listed. \(folder.why)", systemImage: "folder.badge.questionmark")
+                        .font(.system(size: 13))
+                        .padding(.top, 6)
+                }
+                Text("Import again any time: notes that are already here are skipped.")
+                    .font(.footnote).foregroundStyle(Color.muted).padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+        }
     }
 
     private func load() async {
         loading = true
         failure = nil
-        let titles = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil }.map { $0.title.lowercased() }
-        existingTitles = Set(titles)
+        existing = AppleNotesListing.keysOfNotes(in: context)
         if AppleNotesBridge.isDemo {
             // Captures never read the real Apple Notes: a made-up library, most of it picked.
-            notes = AppleNotesBridge.demoNotes
+            listing = AppleNotesListing(notes: AppleNotesBridge.demoNotes)
             picked = Set(notes.filter { $0.folder != "Archive" }.map(\.id))
-            existingTitles = []
-            if AppleNotesBridge.largeDemo { bringPins = true; pinAccess = true }
+            existing = []
+            storeAccess = !Self.demoWithoutAccess
             loading = false
             return
         }
+        storeAccess = !ApplePins.isAvailable || ApplePins.hasAccess()
         do {
-            notes = try await Task.detached { try AppleNotesBridge.list() }.value
+            listing = try await Task.detached { try AppleNotesBridge.list() }.value
+            // Everything that isn't here yet, in every folder, ready to go: importing all of it
+            // is the usual wish, and nothing is left out for being further down the list.
+            picked = listing.pickedAtFirst(keys: existing)
         } catch {
             failure = error.localizedDescription
         }
@@ -365,46 +588,39 @@ struct AppleNotesImportView: View {
     private func runImport() async {
         // The made-up library of captures is never read from Apple Notes.
         guard !AppleNotesBridge.isDemo else { return }
-        let chosen = notes.filter { picked.contains($0.id) }
+        // The picked notes, and the locked ones nobody could pick: they're named afterwards.
+        let chosen = notes.filter { picked.contains($0.id) || $0.locked }
         progress = (0, chosen.count)
-        // Pins are read once, up front, only when asked for.
-        let pins: Result<Set<Int>, ApplePins.Failure>? = bringPins
-            ? await Task.detached { ApplePins.pinnedKeys() }.value
-            : nil
-        let pinned = (try? pins?.get()) ?? []
-        var made: [UUID] = []
-        for (i, n) in chosen.enumerated() {
-            progress = (i, chosen.count)
-            // Importing the same unchanged note again would only make a copy.
-            if context.hasImported(title: n.name, modified: n.modified) { continue }
-            guard let html = try? await Task.detached(operation: { try AppleNotesBridge.body(of: n.id) }).value else { continue }
-            let md = RichPaste.clean(RichTextToMarkdown.markdown(fromHTML: html))
-            let scope: Scope = keepFolders ? .folder(folder(named: n.folder).id) : .all
-            let note = context.createNote(in: scope, body: md.isEmpty ? n.name : md)
-            note.createdAt = n.modified
-            note.updatedAt = n.modified
-            if let key = ApplePins.primaryKey(fromNoteID: n.id), pinned.contains(key) { note.isPinned = true }
-            made.append(note.id)
+        let summary = await AppleNotesImporter(context: context).run(chosen, listing: listing, keepFolders: true) { done, total in
+            progress = (done, total)
         }
-        try? context.save()
-        SyncSignal.changed()
-        if !made.isEmpty { NotificationCenter.default.post(name: .paneNotesBrought, object: nil) }
-        onImported(made)
-        if case .failure(let why) = pins {
-            // Everything else came over; say so plainly, and why pins didn't.
-            progress = nil
-            notice = why == .noAccess
-                ? "Pins couldn't be read without Full Disk Access; everything else imported."
-                : "Pins couldn't be read; everything else imported."
-            return
-        }
-        dismiss()
+        onSummary(summary)
+        onImported(summary.noteIDs)
+        progress = nil
+        // Nothing to explain: back to the notes, where a line says what came over.
+        if summary.notImported.isEmpty && listing.unreadFolders.isEmpty { dismiss() } else { unread = summary }
     }
+}
 
-    private func folder(named name: String) -> Folder {
-        let clean = name.isEmpty ? "Notes" : name
-        if let f = context.allFolders().first(where: { $0.name == clean && $0.parent == nil }) { return f }
-        return context.createFolder(named: clean)
+/// The quiet line an import leaves behind: a capsule over the foot of the window, gone by itself.
+struct ImportDoneLine: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "checkmark.circle.fill")
+            .symbolRenderingMode(.hierarchical)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(Color.ink)
+            .lineLimit(1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            // Solid, so note text behind never shows through.
+            .background(Color.notePage, in: .capsule)
+            .overlay(Capsule().strokeBorder(Color.line, lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.updatesFrequently)
+            .accessibilityIdentifier("import.doneLine")
     }
 }
 #endif

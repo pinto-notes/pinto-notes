@@ -427,7 +427,7 @@ enum IncredibleConnect {
 
     /// Amber Notes as one of Incredible's apps (Incredible's built-in, found by search).
     static let steps = [
-        "Open Apps and search for Amber Notes.",
+        "Open Apps and search for Pinto Notes (older versions of Incredible list it as Amber Notes).",
         "Choose Connect. Your browser opens Pinto Notes.",
         allowStep,
         "Back in Incredible, choose Let's go.",
