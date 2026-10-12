@@ -73,7 +73,7 @@ enum PaneTips {
     static let minimumDays = 3
     static let menuBarDays = 5
 
-    static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip()]
+    static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip(), NewAppTip()]
 
     // MARK: Setup
 
