@@ -77,4 +77,11 @@ import Testing
         let with = #"{"connected":false,"connect_card_closed":true}"#
         #expect(try JSONDecoder().decode(SetupProgress.self, from: Data(with.utf8)).connectCardClosed)
     }
+
+    @Test func theCloseButtonIsEasyToHit() {
+        #expect(SidebarCardMetrics.closeSize >= 24, "at least a 24-point target")
+        #if os(macOS)
+        #expect(SidebarCardMetrics.closeGlyph >= 10, "about a third larger than the 8 it was")
+        #endif
+    }
 }
