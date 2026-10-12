@@ -102,7 +102,7 @@ export default function Page() {
       <p>
         Every change Claude makes shows up tinted in the note, with an Undo, and the version before is kept, so a bad edit is one tap to put
         back. Checklists stay checklists. The catch is that your notes have to move: Pinto Notes imports them from Apple Notes on your Mac,
-        with their folders, checklists and tables, but images, attachments and locked notes stay behind.{" "}
+        with their folders, tables and pictures, but other attachments and locked notes stay behind.{" "}
         <a href="/blog/move-from-apple-notes">How to move from Apple Notes</a> walks through it, and Apple Notes stays untouched, so you can
         try it and go back. To give Cowork something to fill in from day one, the <a href="/templates">note templates</a> have a prompt for
         each.
