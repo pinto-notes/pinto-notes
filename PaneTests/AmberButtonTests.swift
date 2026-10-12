@@ -42,7 +42,7 @@ import Testing
     /// Every amber primary button uses the one style: the setup card's, the share ask's, the
     /// sheets'. The system's prominent style (and dark ink on its dark-mode amber) is the bug.
     @Test func everyPrimaryButtonUsesTheAmberStyle() throws {
-        let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Pane/Views")
+        let views = try TestFiles.url("Views")
         let files = try FileManager.default.contentsOfDirectory(at: views, includingPropertiesForKeys: nil).filter { $0.pathExtension == "swift" }
         #expect(files.count > 10)
         var prominent: [String] = []
