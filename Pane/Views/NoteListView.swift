@@ -542,10 +542,17 @@ struct NoteListView: View {
                 togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
                 remove: { remove(note) })
             .equatable()
+            #if os(macOS)
+            // Under the pointer the row's ••• appears at its right, with the same menu as a
+            // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
+            .padding(.trailing, Hover.menuTarget + 2)
+            #endif
             .tag(note.id)
             // Outside the equatable row, so the list sees its background. On the Mac the row draws
             // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .hoverRow(note.title, selected: Self.quiet(selection, note.id)) { over in NotePreload.pointer(over, on: note) }
+            .modifier(NoteRowHover(id: note.title, selected: Self.quiet(selection, note.id), pointer: { over in NotePreload.pointer(over, on: note) }) {
+                menu(for: note, folders: foldersByName)
+            })
             .quietSelection()
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
@@ -1270,5 +1277,24 @@ struct NoteRow: View {
             if !clean.isEmpty, clean != note.title { return clean }
         }
         return note.preview
+    }
+}
+
+/// The note row's hover: the light fill, and on the Mac its ••• at the right edge.
+private struct NoteRowHover<Items: View>: ViewModifier {
+    let id: String
+    let selected: Bool
+    let pointer: (Bool) -> Void
+    @ViewBuilder let items: () -> Items
+
+    func body(content: Content) -> some View {
+        HoverRowReader(id: id, selected: selected, pointer: pointer) { hovering in
+            content
+                #if os(macOS)
+                .overlay(alignment: .trailing) {
+                    HoverSwap(on: hovering, help: "Note options") { EmptyView() } items: { items() }
+                }
+                #endif
+        }
     }
 }
