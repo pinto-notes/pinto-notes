@@ -45,7 +45,7 @@ export default function Page() {
   return (
     <PostPage
       slug="connect-chatgpt-to-your-notes"
-      intro={<>I wanted to ask ChatGPT to add to a list or tidy a note, and have the change land in my notes instead of in a chat I&apos;d have to copy from. Here&apos;s how to set that up in a few minutes, and how you stay in control.</>}
+      intro={<>I wanted ChatGPT&apos;s changes to land in my notes, not in a chat I&apos;d have to copy from. Here&apos;s the setup, and how you stay in control.</>}
       answer={
         <Answer jump={[
           { href: "#which", label: "Which AI, and what you need" },
@@ -55,10 +55,9 @@ export default function Page() {
           { href: "#control", label: "You stay in control" },
         ]}>
           <p>
-            ChatGPT can only change notes in an app that has an MCP server, and Apple Notes doesn&apos;t have one. Pinto Notes, the
-            notes app for iPhone and Mac that I make, does. With ChatGPT Plus or higher, on the web: turn on Developer mode, add Pinto
-            Notes in Plugins with Create MCP App and the address Pinto Notes copies for you, then type the two-digit number on your
-            iPhone or Mac and choose Allow. Claude is quicker: connect from its directory listing and choose Allow.
+            ChatGPT can&apos;t edit Apple Notes. It can edit Pinto Notes, the notes app for iPhone and Mac that I make. With ChatGPT
+            Plus or higher, on the web: turn on Developer mode, add Pinto Notes in Plugins with Create MCP App, then type the
+            two-digit number on your iPhone or Mac and choose Allow. For Claude, connect from its directory listing.
           </p>
         </Answer>
       }
@@ -95,7 +94,7 @@ export default function Page() {
       <Steps>
         <li>
           <strong>Open Connect an AI in Pinto Notes</strong>
-          <Path steps={["Pinto Notes", "Settings", "Connect an AI"]} keys="⌘," /> If your notes are in Apple Notes, <a href="/blog/move-from-apple-notes">import them first</a>.
+          <Path steps={["Pinto Notes", "Settings", "Connect an AI"]} /> If your notes are in Apple Notes, <a href="/blog/move-from-apple-notes">import them first</a>.
         </li>
         <li>
           <strong>Choose ChatGPT, then Copy Address and Open ChatGPT</strong>
