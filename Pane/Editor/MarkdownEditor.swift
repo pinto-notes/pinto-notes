@@ -493,8 +493,6 @@ private struct PlatformEditor: UIViewRepresentable {
         if controller.target !== view { controller.target = view }
         view.setWiki(controller.wiki)
         view.setImages(controller.imagesArrived)
-        // Recently Deleted: no keyboard, no caret.
-        if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
         // Read here so a change to it lays the text out again.
         _ = controller.bottomReserve
         view.showRemoteCarets(controller.remoteCarets)
@@ -1097,7 +1095,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     @objc private func handleTap(_ g: UITapGestureRecognizer) {
-        guard isEditable, let line = checkboxLine(for: g.location(in: self)),
+        guard let line = checkboxLine(for: g.location(in: self)),
               let edit = ListEditing.toggleCheckbox(in: text, lineStart: line) else { return }
         // A tick is a tap on a control: the caret, the scroll position and the keyboard stay as they were.
         let keep = selectedRange
@@ -1209,8 +1207,6 @@ private struct PlatformEditor: NSViewRepresentable {
         if controller.target !== view { controller.target = view }
         view.setWiki(controller.wiki)
         view.setImages(controller.imagesArrived)
-        // Recently Deleted: shown, selectable to copy, never changed.
-        if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
     }
 }
 

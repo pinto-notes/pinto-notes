@@ -28,94 +28,102 @@ extension ListEditing {
 }
 
 #if os(macOS)
-/// The toolbar's Aa: what a line of text can be, and nothing else, laid out like Notes' own.
-/// A thin row of plain glyphs for bold, italic, underline and strikethrough; a hairline; the
-/// paragraph styles, each written in its own face and size; the three lists with their marker
-/// before the name; a hairline; the block quote. The style of the caret's line is ticked.
+
+/// The toolbar's Aa: what a line of text can be, and nothing else, like Notes. The paragraph
+/// styles first, each written the way it looks in the note, then the three lists, then the block
+/// quote, and bold, italic, underline and strikethrough as one compact row.
 struct FormatPopover: View {
     let controller: EditorController
     /// The style of the line the caret is on, ticked.
     let current: ListEditing.ParagraphStyle?
+    /// The alternative look: the row of four first, and every style in the same plain type.
+    var formatsFirst = false
     let close: () -> Void
 
-    static let width: CGFloat = 192
-    /// Where every name starts: the tick sits to its left.
-    static let inset: CGFloat = 40
+    static let width: CGFloat = 212
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            formats
-            rule
-            row("Title", .title, font: .system(size: 20, weight: .heavy), height: 32) { controller.heading(1) }
-            row("Heading", .heading, font: .system(size: 16.5, weight: .bold), height: 29) { controller.heading(2) }
-            row("Subheading", .subheading, font: .system(size: 14, weight: .bold)) { controller.heading(3) }
+            if formatsFirst {
+                formats
+                rule
+            }
+            row("Title", .title, font: face(EditorMetrics.title, .bold)) { controller.heading(1) }
+            row("Heading", .heading, font: face(EditorMetrics.body * 1.25, .bold)) { controller.heading(2) }
+            row("Subheading", .subheading, font: face(EditorMetrics.body * 1.1, .semibold)) { controller.heading(3) }
             row("Body", .body, font: .system(size: 13)) { controller.heading(0) }
-            row("Monostyled", nil, font: .system(size: 13, design: .monospaced), action: controller.code)
-            row("• Bulleted List", .bulleted, title: "Bulleted List", action: controller.bulletList)
-            row("– Dashed List", .dashed, title: "Dashed List", action: controller.dashedList)
-            row("1. Numbered List", .numbered, title: "Numbered List", action: controller.numberedList)
+            row("Monostyled", nil, font: formatsFirst ? .system(size: 13) : .system(size: 12.5, design: .monospaced), action: controller.code)
             rule
-            row("Block Quote", .quote, bar: true, action: controller.blockQuote)
+            row("Bulleted List", .bulleted, marker: "•", action: controller.bulletList)
+            row("Dashed List", .dashed, marker: "–", action: controller.dashedList)
+            row("Numbered List", .numbered, marker: "1.", action: controller.numberedList)
+            rule
+            row("Block Quote", .quote, marker: "▎", action: controller.blockQuote)
+            if !formatsFirst {
+                rule
+                formats
+            }
         }
-        .padding(.vertical, 6)
+        .padding(6)
         .frame(width: Self.width)
         .accessibilityIdentifier("format.popover")
     }
 
+    private func face(_ size: CGFloat, _ weight: Font.Weight) -> Font {
+        formatsFirst ? .system(size: 13) : .system(size: size, weight: weight)
+    }
+
     private var rule: some View {
-        Divider().padding(.horizontal, 10).padding(.vertical, 5)
+        Divider().padding(.horizontal, 8).padding(.vertical, 5)
     }
 
     /// One choice: it applies to the caret's line (or the selected lines) and the popover closes.
-    private func row(_ shown: String, _ style: ListEditing.ParagraphStyle?, title: String? = nil, font: Font = .system(size: 13), height: CGFloat = 27, bar: Bool = false,
-                     action: @escaping () -> Void) -> some View {
+    private func row(_ title: String, _ style: ListEditing.ParagraphStyle?, font: Font = .system(size: 13), marker: String? = nil, action: @escaping () -> Void) -> some View {
         Button {
             action()
             close()
         } label: {
             HStack(spacing: 0) {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .opacity(style != nil && style == current ? 1 : 0)
-                    .frame(width: Self.inset - 10, alignment: .center)
-                if bar {
-                    RoundedRectangle(cornerRadius: 1).fill(.secondary).frame(width: 2.5, height: 15).padding(.trailing, 5)
+                    .frame(width: 18, alignment: .leading)
+                if let marker {
+                    Text(marker).font(.system(size: 13)).foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
                 }
-                Text(shown).font(font)
+                Text(title).font(font)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 5)
-            .frame(height: height)
+            .padding(.horizontal, 8)
+            .frame(minHeight: 26)
             .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .padding(.horizontal, 5)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(title ?? shown)
+        .accessibilityLabel(title)
         .accessibilityAddTraits(style != nil && style == current ? .isSelected : [])
     }
 
-    /// Bold, italic, underline and strikethrough: plain glyphs on one line, no boxes. They act on
-    /// the selection and the popover stays, so two can be set one after the other. The row leaves
-    /// its right end free: a highlighter and a colour belong there, after a short rule, when
-    /// coloured text exists.
+    /// Bold, italic, underline and strikethrough: four equal buttons on one line. They act on the
+    /// selection and the popover stays, so two can be set one after the other.
     private var formats: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             format("Bold", "bold", "⌘B", action: controller.bold)
             format("Italic", "italic", "⌘I", action: controller.italic)
             format("Underline", "underline", "⌘U", action: controller.underline)
             format("Strikethrough", "strikethrough", "⇧⌘X", action: controller.strikethrough)
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 1)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 
     private func format(_ title: String, _ symbol: String, _ keys: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .medium))
-                .frame(width: 30, height: 26)
-                .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .font(.system(size: 13, weight: .medium))
+                .frame(maxWidth: .infinity)
+                .frame(height: 28)
+                .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
         .help("\(title) (\(keys))")
