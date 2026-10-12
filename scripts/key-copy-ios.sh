@@ -24,6 +24,8 @@ MAIN="$(cd "$(git rev-parse --git-common-dir)/.." && pwd)"
 source "$MAIN/.secrets/staging.env"
 REF=${STAGING_REF:?no staging project}
 [[ $REF != "$PROD_REF" ]] || { echo "That's the production project. Refusing." >&2; exit 1; }
+# No real email from a test: the key function must write its notice to the log instead.
+supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q KEY_NOTICE_SEND || { echo "KEY_NOTICE_SEND is not set on staging: no real email may go out. Set it to log first." >&2; exit 1; }
 [[ -f Config/Backend.staging.local.xcconfig ]] || { echo "No Config/Backend.staging.local.xcconfig: run scripts/staging.sh app-config first." >&2; exit 1; }
 grep -q "$REF" Config/Backend.staging.local.xcconfig || { echo "Config/Backend.staging.local.xcconfig isn't the staging project's." >&2; exit 1; }
 if pgrep -xq Simulator; then echo "The Simulator app is open: its windows would show these simulators. Quit it and run this again." >&2; exit 1; fi

@@ -16,6 +16,8 @@ if [[ ${1:-} == staging ]]; then
   REF=${STAGING_REF:?no staging project}
   [[ $REF != "$PROD_REF" ]] || { echo "That's the production project. Refusing." >&2; exit 1; }
   API_URL="https://$REF.supabase.co"
+  # No real email from a test: the key function must write its notice to the log instead.
+  supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q KEY_NOTICE_SEND || { echo "KEY_NOTICE_SEND is not set on staging: no real email may go out. Set it to log first." >&2; exit 1; }
   keys=$(supabase projects api-keys --project-ref "$REF" -o json 2>/dev/null)
   key() { print -r -- "$keys" | python3 -c "import sys,json;k=json.JSONDecoder().raw_decode(sys.stdin.read())[0];print(next(x['api_key'] for x in k if x.get('name')==sys.argv[1]))" "$1"; }
   ANON_KEY=$(key anon); SERVICE_ROLE_KEY=$(key service_role)
@@ -43,3 +45,8 @@ trap cleanup EXIT INT TERM HUP
 export TEST_RUNNER_PANE_KEYCOPY_API="$API_URL" TEST_RUNNER_PANE_KEYCOPY_ANON="$ANON_KEY" TEST_RUNNER_PANE_KEYCOPY_PASSWORD="$password"
 export TEST_RUNNER_PANE_KEYCOPY_EMAIL="$(at new)" TEST_RUNNER_PANE_KEYCOPY_OLD_EMAIL="$(at old)"
 scripts/qa-test.sh PaneTests/KeyCopyLiveTests
+# Every notice email a fetch made was rendered and logged, and none was sent.
+mails=$(curl -sf "$API_URL/rest/v1/key_copy_events?select=why&what=eq.mailed&user_id=in.($(IFS=,; print -r -- "${ids[*]}"))" "${admin[@]}")
+print -r -- "notice emails: $mails"
+python3 -c 'import json,sys; m=json.loads(sys.argv[1]); sys.exit(0 if m and all(r["why"] in ("logged", "off") for r in m) else 1)' "$mails" \
+  || { echo "✗ a notice email was not logged (or none was made)"; exit 1; }
