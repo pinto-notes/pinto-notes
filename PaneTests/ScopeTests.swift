@@ -20,6 +20,58 @@ import Testing
         #expect(Scope.settled(.trash, liveFolders: [a]) == .trash)
     }
 
+    /// Recently Deleted is in the sidebar only while something is in it, like Notes (2026-10-11:
+    /// it was listed with 0 for an account that had never deleted anything).
+    @Test func recentlyDeletedIsListedOnlyWhileItHoldsSomething() {
+        #expect(!SidebarView.showsTrash(notes: 0, files: 0))
+        #expect(SidebarView.showsTrash(notes: 1, files: 0))
+        #expect(SidebarView.showsTrash(notes: 0, files: 2), "a deleted file counts")
+        // Open when its last note leaves: the list goes back to the notes. Otherwise nothing moves.
+        #expect(SidebarView.leavingEmptyTrash(.trash, showsTrash: false) == .all)
+        #expect(SidebarView.leavingEmptyTrash(.trash, showsTrash: true) == nil)
+        #expect(SidebarView.leavingEmptyTrash(.folder(a), showsTrash: false) == nil)
+        #expect(SidebarView.leavingEmptyTrash(nil, showsTrash: false) == nil)
+    }
+
+    /// What the sidebar counts after an import, a delete of everything and a second import (the
+    /// "Notes 18, Recently Deleted 18" of 2026-10-11): bringing notes in puts nothing in Recently
+    /// Deleted, and its count is the notes that were deleted, no more.
+    @Test func importedNotesAreNotCountedAsDeleted() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let folder = ctx.createFolder(named: "Notes")
+        let day = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        func bringIn() -> [Note] {
+            (0..<18).compactMap { i -> Note? in
+                // As the Apple Notes import does: skip a note that is already here, unchanged.
+                if ctx.hasImported(title: "Note \(i)", modified: day) { return nil }
+                let n = ctx.createNote(in: .folder(folder.id), body: "Note \(i)\n\nText")
+                n.createdAt = day
+                n.updatedAt = day
+                return n
+            }
+        }
+        let first = bringIn()
+        try ctx.save()
+        #expect(SidebarView.counts(in: ctx) == (live: 18, trashed: 0))
+        #expect(!SidebarView.showsTrash(notes: SidebarView.counts(in: ctx).trashed, files: 0))
+        #expect(bringIn().isEmpty, "the same notes again bring nothing in")
+        ctx.remove(first)
+        #expect(SidebarView.counts(in: ctx) == (live: 0, trashed: 18))
+        // Deleted notes are gone as far as an import knows: it brings them in again.
+        #expect(bringIn().count == 18)
+        #expect(SidebarView.counts(in: ctx) == (live: 18, trashed: 18))
+        // Emptying Recently Deleted takes its row away.
+        ctx.remove(first)
+        #expect(SidebarView.counts(in: ctx) == (live: 18, trashed: 0))
+    }
+
+    @Test func aFolderInsideAnotherIsCalledASubfolder() {
+        #expect(SidebarView.nameAlertTitle(renaming: false, inside: true) == "New Subfolder")
+        #expect(SidebarView.nameAlertTitle(renaming: false, inside: false) == "New Folder")
+        #expect(SidebarView.nameAlertTitle(renaming: true, inside: false) == "Rename Folder")
+    }
+
     @Test func aFolderThatIsGoneFallsBack() {
         #expect(Scope.settled(.folder(b), liveFolders: [a, UUID()]) == .all)
         #expect(Scope.settled(.folder(b), liveFolders: [a]) == .folder(a))

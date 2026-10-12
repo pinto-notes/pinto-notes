@@ -136,6 +136,9 @@ final class Backend {
     private(set) var apple: AppleIdentity?
     /// Whether a Google account signs in to this account (docs/Technical/google-sign-in.md).
     private(set) var google = false
+    /// The picture the account's Google sign-in came with, if any (`SignInPhoto`). Shown for you
+    /// on this device while your profile has no photo of its own; never uploaded or shared.
+    private(set) var signInPicture: URL?
     let client: SupabaseClient?
 
     struct AppleIdentity: Equatable {
@@ -197,6 +200,7 @@ final class Backend {
         guard let data = try? store.retrieve(key: key), let session = try? JSONDecoder().decode(Session.self, from: data) else { return nil }
         apple = Self.appleIdentity(of: session.user)
         google = Self.hasGoogle(session.user)
+        signInPicture = SignInPhoto.url(from: session.user.userMetadata)
         signedIn(session)
         return session.user.id
     }
@@ -255,7 +259,7 @@ final class Backend {
 
     /// An account made in the last few minutes signed up; any other signed in.
     nonisolated static func signInEvent(_ method: SignInMethod, created: Date, now: Date = .now) -> TelemetryEvent {
-        now.timeIntervalSince(created) < 5 * 60 ? .signedUp(method) : .signedIn(method)
+        SignInName.isSignUp(created: created, now: now) ? .signedUp(method) : .signedIn(method)
     }
 
     /// A sign-in worked: said under the account it signed in to (the auth stream, which also
@@ -283,6 +287,7 @@ final class Backend {
         for await (_, session) in client.auth.authStateChanges {
             apple = session.flatMap { Self.appleIdentity(of: $0.user) }
             google = session.map { Self.hasGoogle($0.user) } ?? false
+            signInPicture = session.flatMap { SignInPhoto.url(from: $0.user.userMetadata) }
             if let session, !session.isExpired {
                 signedIn(session)
             } else if let session, session.isExpired {
@@ -340,6 +345,15 @@ final class Backend {
             try await client.auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: credential.idToken, nonce: credential.rawNonce))
         }
         report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
+        suggestName(credential.name ?? SignInName.from(metadata: session.user.userMetadata), for: session.user)
+    }
+
+    /// A new account takes the name Apple or Google handed over at sign-up as its profile name
+    /// (`ProfileStore.bind` writes it once it knows the profile has none). An account that
+    /// already existed is left alone: its name is whatever it set, or cleared, in Settings.
+    private func suggestName(_ name: String?, for user: User, now: Date = .now) {
+        guard SignInName.isSignUp(created: user.createdAt, now: now), let name else { return }
+        ProfileStore.suggest(name, for: user.id)
     }
 
     /// Adds your Apple ID to the account you're signed in to, so Apple signs you in from now on.
@@ -368,6 +382,7 @@ final class Backend {
             }
         }
         report(Self.signInEvent(.google, created: session.user.createdAt), for: session)
+        suggestName(SignInName.from(metadata: session.user.userMetadata), for: session.user)
         return session.user.id
     }
 
@@ -418,6 +433,9 @@ final class Backend {
             }
         }
         report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
+        // Apple's web sign-in sends the name to the server, not to the app: it is here only if
+        // the server kept it.
+        suggestName(SignInName.from(metadata: session.user.userMetadata), for: session.user)
     }
 
     /// Adds your Apple ID to this account through the web, for the Mac download.

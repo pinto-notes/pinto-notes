@@ -258,9 +258,8 @@ struct TableGridView: View {
     let table: GridTable
     /// Writes the edited table back into the note.
     let commit: (GridTable) -> Void
-    /// Which cell to focus when the table appears (a just-inserted table).
-    var initialFocus: GridCell?
-    /// Set when the caret arrows into the table from the text.
+    /// Set when the keyboard should come into the table: the caret arrowing in from the
+    /// text, or a table just made (its first cell).
     var focusRequest: GridFocusRequest?
     /// The whole table is selected in the text (Delete next to it selects it first).
     var selected = false
@@ -289,11 +288,10 @@ struct TableGridView: View {
     /// pressed then would repeat the last move or be dropped.
     private var current: GridCell? { wanted ?? focus }
 
-    init(table: GridTable, initialFocus: GridCell?, focusRequest: GridFocusRequest? = nil, selected: Bool = false, exit: @escaping (Bool) -> Void = { _ in }, commit: @escaping (GridTable) -> Void) {
+    init(table: GridTable, focusRequest: GridFocusRequest? = nil, selected: Bool = false, exit: @escaping (Bool) -> Void = { _ in }, commit: @escaping (GridTable) -> Void) {
         self.selected = selected
         self.table = table
         self.commit = commit
-        self.initialFocus = initialFocus
         self.focusRequest = focusRequest
         self.exit = exit
         _draft = State(initialValue: table)
@@ -325,7 +323,7 @@ struct TableGridView: View {
             draft.rows = rows
         }
         .onAppear {
-            if let cell = initialFocus ?? focusRequest?.cell { DispatchQueue.main.async { go(cell) } }
+            if let cell = focusRequest?.cell { DispatchQueue.main.async { go(cell) } }
         }
         .onChange(of: focusRequest) { _, r in if let r { DispatchQueue.main.async { go(r.cell) } } }
         .onChange(of: focus) { _, new in
@@ -507,6 +505,10 @@ struct TableGridView: View {
                 .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: trailing ? .trailing : .leading)
                 .contentShape(.rect)
+                #if os(macOS)
+                // A click here puts a caret in the text, so the pointer says so, like Notes.
+                .pointerStyle(.horizontalText)
+                #endif
                 .onTapGesture { p in
                     begin(GridCell(row: r, column: c), at: Self.caretIndex(in: value, x: p.x, width: width, trailing: trailing))
                 }
