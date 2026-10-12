@@ -587,6 +587,8 @@ struct AppleNotesImportView: View {
         failure = nil
         existing = AppleNotesListing.keysOfNotes(in: context)
         if AppleNotesBridge.isDemo {
+            // `-importDelay 1.5`: captures of the sheet while Apple Notes is being read.
+            if let wait = Capture.argument("-importDelay").flatMap(Double.init) { try? await Task.sleep(for: .seconds(wait)) }
             // Captures never read the real Apple Notes: a made-up library, most of it picked.
             listing = AppleNotesListing(notes: AppleNotesBridge.demoNotes)
             picked = Set(notes.filter { $0.folder != "Archive" }.map(\.id))
