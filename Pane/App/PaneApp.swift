@@ -146,6 +146,7 @@ struct PaneApp: App {
         Capture.importSequenceFromArguments()
         #if os(macOS)
         Capture.windowShotFromArguments(container)
+        Capture.sheetFilmFromArguments()
         #endif
         #endif
     }

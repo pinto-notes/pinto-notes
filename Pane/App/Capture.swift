@@ -690,6 +690,35 @@ extension Capture {
     }
 }
 
+/// A film of the window's sheet as it opens, at 30 frames a second, from inside the app (no
+/// screen recording, no input): `-uitest -demo -importSheet -importDelay 1.5 -captureSheetFilm <dir>`
+/// writes `<dir>/frames.csv` (time, sheet height) and `<dir>/NNN.png` (the sheet as drawn), then quits.
+extension Capture {
+    @MainActor static func sheetFilmFromArguments() {
+        guard ProcessInfo.processInfo.arguments.contains("-uitest"), let path = argument("-captureSheetFilm") else { return }
+        let dir = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        Task { @MainActor in
+            var rows = ["t,height"]
+            let start = Date.now
+            for frame in 0..<150 {
+                let t = Date.now.timeIntervalSince(start)
+                if let sheet = NSApp.windows.lazy.compactMap(\.attachedSheet).first, let view = sheet.contentView,
+                   let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: rep)
+                    try? rep.representation(using: .png, properties: [:])?.write(to: dir.appending(path: String(format: "%03d.png", frame)))
+                    rows.append(String(format: "%.3f,%.0f", t, sheet.frame.height))
+                } else {
+                    rows.append(String(format: "%.3f,0", t))
+                }
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+            try? rows.joined(separator: "\n").write(to: dir.appending(path: "frames.csv"), atomically: true, encoding: .utf8)
+            NSApp.terminate(nil)
+        }
+    }
+}
+
 /// The window's split view (sidebar, list, detail), to set the columns' widths.
 enum AIEditSplit {
     @MainActor static func find(in view: NSView?) -> NSSplitView? {
