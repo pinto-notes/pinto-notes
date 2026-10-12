@@ -133,7 +133,10 @@ struct SidebarCardShell<Art: View>: View {
     private var words: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.85)
-            Text(line).font(Metrics.line).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+            // At most three lines, never fixed to its full height: asked for its smallest size
+            // at a narrow width, a fixed line grew one word per line, and the window took that
+            // as its own smallest height (1.2.9: the window couldn't be made shorter than the screen).
+            Text(line).font(Metrics.line).foregroundStyle(Color.muted).lineLimit(3)
         }
     }
 
