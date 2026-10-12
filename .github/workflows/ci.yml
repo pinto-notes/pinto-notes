@@ -545,6 +545,7 @@ jobs:
           supabase/functions/account/account.pglite.test.ts supabase/functions/account/sign_up_pause.pglite.test.ts supabase/functions/_shared/hash.test.ts
           scripts/auth-emails.test.ts scripts/ops/daily-digest.test.ts supabase/functions/mcp/tool_errors.test.ts supabase/functions/lifecycle/logic.test.ts supabase/functions/lifecycle/emails.test.ts supabase/functions/lifecycle/assets.test.ts supabase/functions/lifecycle/lifecycle.pglite.test.ts
           supabase/functions/mcp/rename.pglite.test.ts
+          supabase/functions/_shared/keycopy.test.ts supabase/functions/key/key.pglite.test.ts supabase/functions/key/notice.test.ts
 
   web:
     name: Share site

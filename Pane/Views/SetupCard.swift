@@ -227,11 +227,8 @@ struct SetupCard: View {
         .font(Metrics.button)
     }
 
-    /// Where notes can come from, for the step's line: "Apple Notes, Evernote or Markdown files".
-    static var sources: String {
-        let names = ["Apple Notes"] + ImportKind.allCases.map(\.sourceName)
-        return names.dropLast().joined(separator: ", ") + " or " + names.last!
-    }
+    /// Where notes can come from, for the step's line. The choice itself lists every source.
+    static let sources = "Apple Notes, Obsidian, Evernote and more"
 
     /// One choice: where your notes are. Apple Notes is read directly on the Mac and shared from
     /// Notes on iPhone; the rest come from files you exported.
@@ -239,19 +236,13 @@ struct SetupCard: View {
     private var bringButtons: some View {
         primary("Import Notes…", id: "setup.import") { choosingSource = true }
             .popover(isPresented: $choosingSource, arrowEdge: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let onImport {
-                        choice("From Apple Notes…", symbol: "note.text") { onImport() }
-                    } else if let onShareHowTo {
-                        choice("From Apple Notes…", symbol: "note.text") { onShareHowTo() }
-                    }
-                    if let onImportFrom {
-                        ForEach(ImportKind.allCases) { kind in
-                            choice(kind.choiceTitle, symbol: kind.symbol) { onImportFrom(kind) }
-                        }
+                ImportSourceList(origins: origins) { origin in
+                    choosingSource = false
+                    switch origin {
+                    case .appleNotes: (onImport ?? onShareHowTo)?()
+                    case .files(let kind): onImportFrom?(kind)
                     }
                 }
-                .padding(6)
                 .presentationCompactAdaptation(.popover)
             }
         Button(Self.skipTitle, action: onSkip)
@@ -262,29 +253,14 @@ struct SetupCard: View {
             .accessibilityIdentifier("setup.fresh")
     }
 
-    /// One place notes can come from, in the Import Notes choice.
-    private func choice(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
-        Button {
-            choosingSource = false
-            action()
-        } label: {
-            #if os(iOS)
-            // The card's button font is semibold and small: the choices read as a menu, in the
-            // body font, with rows a finger can hit and the icons in one column.
-            Label { Text(title) } icon: { Image(systemName: symbol).frame(width: 24) }
-                .font(.body)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .padding(.horizontal, 12)
-                .contentShape(.rect)
-            #else
-            Label(title, systemImage: symbol)
-                .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-                .padding(.horizontal, 8)
-                .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            #endif
+    /// The sources this card can open: Apple Notes only where it's read or explained.
+    private var origins: [ImportOrigin] {
+        ImportOrigin.all.filter {
+            switch $0 {
+            case .appleNotes: onImport != nil || onShareHowTo != nil
+            case .files: onImportFrom != nil
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("setup.import.\(symbol)")
     }
 
     /// The app's amber primary button (white on the deeper amber, in light and dark).

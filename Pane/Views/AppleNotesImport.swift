@@ -220,8 +220,7 @@ struct AppleNotesImportView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Applications/Notes.app"))
-                    .resizable().interpolation(.high).frame(width: 40, height: 40).accessibilityHidden(true)
+                ImportSourceIcon(origin: .appleNotes, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Import from Apple Notes").font(.system(size: 17, weight: .bold))
                     Text("Copies the notes you pick. Nothing in Apple Notes changes.")
