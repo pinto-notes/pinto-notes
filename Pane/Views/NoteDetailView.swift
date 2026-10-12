@@ -375,6 +375,24 @@ struct NoteDetailView: View {
                 // A shared note's editor takes merged text from its session (CollabWiring), not from
                 // the note's mirrored body, which can lag a keystroke behind and undo it.
                 NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, onChange: save)
+                    #if os(macOS)
+                    // Like Notes: the text runs under the see-through toolbar, which fades it at the
+                    // edge (AppKit insets the text by the toolbar's height). Not under a banner.
+                    .ignoresSafeArea(.container, edges: parentNote == nil && note.trashedAt == nil ? .top : [])
+                    // The soft edge: text passing under the toolbar fades into the page's ground, so
+                    // the buttons stay readable over it.
+                    .overlay(alignment: .top) {
+                        if parentNote == nil && note.trashedAt == nil {
+                            LinearGradient(stops: [.init(color: Color.notePage, location: 0), .init(color: Color.notePage.opacity(0.85), location: 0.55),
+                                                   .init(color: Color.notePage.opacity(0), location: 1)],
+                                           startPoint: .top, endPoint: .bottom)
+                                .frame(height: NoteDetailView.toolbarFade)
+                                .ignoresSafeArea(.container, edges: .top)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    #endif
                     .onAppear { if note.isLocked { vault.touch() } }
                     // The note's images that are on the server and not here are fetched as it opens,
                     // and again when a sync brings changes: a note's text, or file rows on their own
@@ -871,6 +889,11 @@ struct NoteDetailView: View {
         note.touch()
         if note.title != oldTitle { relabelLinkInParent() }
     }
+
+    #if os(macOS)
+    /// How far down the toolbar's soft edge reaches from the window's top.
+    static let toolbarFade: CGFloat = 64
+    #endif
 
     private var parentNote: Note? {
         guard let pid = note.parentID, let p = context.note(pid), p.deletedAt == nil else { return nil }

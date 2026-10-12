@@ -89,6 +89,39 @@ import Testing
         try await AppSnapshotTests.render(list(.folder(empty.id), []), name: "mac-look-list-empty-\(mode)", dark: dark, wait: 1.0)
     }
 
+    /// The sidebar's left edge (item 65): the title, the Folders heading, every row's icon and the
+    /// account row start on one line. With and without sub-folders (the outline makes room for
+    /// its arrows), and at the large sidebar size; light and dark.
+    @Test(arguments: [false, true])
+    func sidebarEdge(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let mode = dark ? "dark" : "light"
+        let backend = Backend()
+        backend.showSignedInForPreview(email: "sara@example.com")
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let nested = try AppSnapshotTests.container()
+        let flat = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let notes = flat.mainContext.createFolder(named: "Notes")
+        _ = flat.mainContext.createNote(in: .folder(notes.id), body: "Groceries\n\nMilk")
+        let gone = flat.mainContext.createNote(in: .folder(notes.id), body: "Old")
+        flat.mainContext.trash(gone)
+        func sidebar(_ c: ModelContainer, _ scope: Scope, size: SidebarRowSize = .medium) -> some View {
+            NavigationStack { SidebarView(scope: .constant(scope), onNewNote: {}) }
+                .frame(width: 260, height: 420)
+                .modelContainer(c)
+                .environment(backend)
+                .environment(\.sidebarRowSize, size)
+                .tint(Color(PColor.paneAccent))
+                .environment(\.controlActiveState, .key)
+        }
+        let ideas = try #require(nested.mainContext.allFolders().first { $0.name == "Ideas" })
+        try await AppSnapshotTests.render(sidebar(nested, .folder(ideas.id)), name: "mac-edge-nested-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(flat, .folder(notes.id)), name: "mac-edge-flat-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(nested, .folder(ideas.id), size: .large), name: "mac-edge-nested-large-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(flat, .folder(notes.id), size: .large), name: "mac-edge-flat-large-\(mode)", dark: dark)
+    }
+
     /// The account row: a name with a photo, a name alone (initials), and no name yet, which is
     /// "Your account" with a person, never an address. The alternative adds the email under the name.
     @Test(arguments: [false, true])

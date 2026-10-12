@@ -176,7 +176,7 @@ final class NoteAppsStagingUITests: XCTestCase {
         let guide = app.descendants(matching: .any)["connect.guide.claudeCode"].firstMatch
         XCTAssertTrue(guide.waitForExistence(timeout: 8))
         guide.tap()
-        let make = app.buttons["Create Access Token"].firstMatch
+        let make = app.buttons["connect.terminal.copy"].firstMatch
         XCTAssertTrue(make.waitForExistence(timeout: 8))
         tokenShowing = true
         make.tap()

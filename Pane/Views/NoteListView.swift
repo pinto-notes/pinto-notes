@@ -42,14 +42,9 @@ struct NoteListView: View {
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
-    @State private var connecting = false
-    @State private var sharingHowTo = false
     @State private var connectCenter = ConnectCenter.shared
     /// How full the account is: a warning near 2 GB and at it.
     @State private var storage = StorageStore.shared
-    /// "What's new" after a major update (WhatsNew.swift), and whether the list has settled.
-    @State private var whatsNew = WhatsNewStore.shared
-    @State private var settled = false
     #if os(iOS)
     @State private var showSettings = false
     #else
@@ -57,20 +52,6 @@ struct NoteListView: View {
     #endif
     /// The Share tip at the top of the list is due (iPhone).
     @State private var listTipDue = false
-
-    /// "Get set up" sits on top of the list for a new account, never in Recently Deleted or a search.
-    private var showsSetup: Bool { (setup?.visible ?? false) && scope != .trash && search.isEmpty }
-
-    /// "What's new" takes the setup card's place, never shares the screen with it: it waits until
-    /// the setup card has gone, the list has settled and nothing else (a sheet, an ask) is up.
-    private var showsWhatsNew: Bool {
-        guard whatsNew.card != nil, !showsSetup, scope != .trash, search.isEmpty else { return false }
-        if whatsNew.presented { return true }
-        #if os(iOS)
-        if showSettings { return false }
-        #endif
-        return settled && !whatsNew.held && !connecting && !sharingHowTo
-    }
 
     private func scoped(from all: [NoteEntry]) -> [NoteEntry] { Self.scoped(all, to: scope, context: context) }
 
@@ -197,7 +178,13 @@ struct NoteListView: View {
     }
 
     private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
-        List(selection: $selection) {
+        #if os(macOS)
+        // The list's own changes are told apart from code's in the click log (RowClickLog).
+        let listSelection = Binding(get: { selection }, set: { new in RowClickLog.listSet(selection, new); selection = new })
+        #else
+        let listSelection = $selection
+        #endif
+        return List(selection: listSelection) {
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
             if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
                 #if os(iOS)
@@ -223,41 +210,8 @@ struct NoteListView: View {
                     .selectionDisabled()
                 #endif
             }
-            if showsSetup, let setup, let progress = setup.progress {
-                #if os(iOS)
-                // Its own grouped section, so it has the list's insets, radius and ground.
-                Section {
-                    setupCard(setup, progress)
-                        .padding(.vertical, 4)
-                        .selectionDisabled()
-                }
-                .listRowBackground(Color(Palette.row))
-                #else
-                setupCard(setup, progress)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .selectionDisabled()
-                #endif
-            }
-            if showsWhatsNew, let release = whatsNew.card {
-                #if os(iOS)
-                Section {
-                    whatsNewCard(release)
-                        .padding(.vertical, 4)
-                        .selectionDisabled()
-                }
-                .listRowBackground(Color(Palette.row))
-                #else
-                whatsNewCard(release)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .selectionDisabled()
-                #endif
-            }
             #if os(iOS)
-            if listTipDue && !showsSetup && !showsWhatsNew && scope != .trash && search.isEmpty {
+            if listTipDue && scope != .trash && search.isEmpty {
                 listTip
             }
             #endif
@@ -328,14 +282,9 @@ struct NoteListView: View {
         .scrollContentBackground(.hidden)
         .background(Color(Palette.listGround).ignoresSafeArea())
         .overlay {
-            // The setup card is the empty state for a new account.
-            if visible.isEmpty && visibleFiles.isEmpty && !showsSetup { emptyState }
-        }
-        .sheet(isPresented: $connecting, onDismiss: { Task { await setup?.refresh(force: true) } }) {
-            if let client = backend?.client { ConnectAISheet(client: client) }
+            if visible.isEmpty && visibleFiles.isEmpty { emptyState }
         }
         #if os(iOS)
-        .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
         }
@@ -357,18 +306,6 @@ struct NoteListView: View {
                 await storage.refresh(backend?.client)
                 try? await Task.sleep(for: .seconds(300))
             }
-        }
-        .task {
-            // A moment after the list first shows, so the card never lands mid-transition.
-            try? await Task.sleep(for: .seconds(1))
-            withAnimation(.snappy(duration: 0.3)) { settled = true }
-        }
-        // Only once the account's notes have come down: before that the library is empty on a
-        // new device, and a To-do made then went up as one more beside the account's own. (Asked
-        // in the action, not here: the list has no reason to redraw when a pull finishes.
-        // AppGate.openLibrary makes the note when the pull comes after the guide's progress.)
-        .onChange(of: setup?.progress?.needsToDoNote ?? false, initial: true) { _, needs in
-            if needs, sync?.knowsAccount == true { ensureToDoNote() }
         }
         .overlay {
             if fileDropTargeted {
@@ -446,7 +383,7 @@ struct NoteListView: View {
         .onAppear {
             // A press on a row that moves a point or two is still a click (the sidebar's rows too).
             RowPressSlop.start()
-            // Dev: what each click did, for the file rows that sometimes don't select (Beta builds only).
+            // What each click did, in the system log (RowClickLog).
             RowClickLog.start()
         }
         .onChange(of: selection) { old, new in
@@ -483,6 +420,10 @@ struct NoteListView: View {
                             Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
                                 .accessibilityIdentifier("list.addFile")
                         }
+                        Divider()
+                        // Always here, not only in Settings.
+                        Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
+                            .accessibilityIdentifier("list.connectAI")
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }
@@ -534,8 +475,11 @@ struct NoteListView: View {
                         .foregroundStyle(Color.muted)
                         .monospacedDigit()
                 }
-                .padding(.horizontal, 6)
-                .fixedSize()
+                // As far from the ••• as the toolbar's groups are from each other; a long name
+                // ends in "…" before it gets near the button.
+                .padding(.leading, 6)
+                .padding(.trailing, NoteListView.titleGap)
+                .frame(maxWidth: NoteListView.titleWidth, alignment: .leading)
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarSpacer(.flexible)
@@ -590,6 +534,11 @@ struct NoteListView: View {
         #endif
     }
 
+    /// The folder's name in the list's toolbar: the gap after it (the space between the toolbar's
+    /// groups) and the most room it takes before it ends in "…".
+    static let titleGap: CGFloat = 16
+    static let titleWidth: CGFloat = 190
+
     /// Whether a row draws the quiet selection (the Mac only; iOS keeps the system's).
     static func quiet(_ selection: Set<UUID>, _ id: UUID) -> Bool {
         #if os(macOS)
@@ -620,7 +569,7 @@ struct NoteListView: View {
     #if os(iOS)
     /// "Did you know" for what isn't a button here, as a row at the top of the list.
     private var listTip: some View {
-        // One grouped card, like the Get set up card: the tip is the row, on the row's own surface.
+        // One grouped card, like What's new: the tip is the row, on the row's own surface.
         Section { CompactTip(tip: ShareExtensionTip(), card: false).selectionDisabled() }
             .listRowBackground(Color(Palette.row))
     }
@@ -636,34 +585,6 @@ struct NoteListView: View {
         }
     }
     #endif
-
-    private func setupCard(_ setup: SetupStore, _ progress: SetupProgress) -> some View {
-        #if os(macOS)
-        let onImport: (() -> Void)? = { imports?.appleNotes() }
-        let onShareHowTo: (() -> Void)? = nil
-        #else
-        let onImport: (() -> Void)? = nil
-        let onShareHowTo: (() -> Void)? = { sharingHowTo = true }
-        #endif
-        return SetupCard(
-            progress: progress,
-            celebrating: setup.showingCelebration,
-            onImport: onImport,
-            onImportFrom: { kind in imports?.from(kind) },
-            onSkip: { Task { await setup.mark("imported") } },
-            onConnect: { connecting = true },
-            onShareHowTo: onShareHowTo,
-            onHide: { Task { await setup.mark("dismissed") } }
-        )
-        .task(id: progress.current) {
-            // While a step waits on something that happens elsewhere (an AI connecting, an AI
-            // editing), look again every few seconds. Syncs and returning to the app also refresh.
-            while !Task.isCancelled, progress.current == .connect || progress.current == .tryIt {
-                try? await Task.sleep(for: .seconds(8))
-                await setup.refresh()
-            }
-        }
-    }
 
     /// ambernotes.app/open/connect-ai from an email: Settings, at AI (Connect an AI).
     private func openConnectAI(_ place: AppPlace?) {
@@ -685,30 +606,6 @@ struct NoteListView: View {
         #else
         openSettings()
         #endif
-    }
-
-    private func whatsNewCard(_ release: WhatsNew.Release) -> some View {
-        WhatsNewCard(release: release, secondary: whatsNew.secondary, onDismiss: dismissWhatsNew) {
-            SettingsRoute.shared.open(.ai)
-            #if os(iOS)
-            showSettings = true
-            #else
-            openSettings()
-            #endif
-            dismissWhatsNew()
-        }
-        .onAppear { whatsNew.shown(progress: setup?.progress) }
-    }
-
-    /// Exits are quieter than the entrance: a short fade as the row goes.
-    private func dismissWhatsNew() {
-        withAnimation(.easeOut(duration: 0.18)) { whatsNew.dismiss() }
-    }
-
-    /// Step 3's prompt adds to "To-do": make sure there is one.
-    private func ensureToDoNote() {
-        guard context.makeToDoNoteIfMissing() != nil else { return }
-        SyncSignal.changed()
     }
 
     @ViewBuilder
