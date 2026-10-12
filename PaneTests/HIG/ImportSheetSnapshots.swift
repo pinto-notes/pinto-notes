@@ -19,6 +19,8 @@ import UIKit
         switch kind {
         case .evernote: evernote
         case .keep: [ImportSource(url: URL(fileURLWithPath: "/demo/takeout-20260930T101500Z-001.zip"), name: "Google Keep", notes: 842, bytes: 61_400_000)]
+        case .obsidian: [ImportSource(url: URL(fileURLWithPath: "/demo/Second brain"), name: "Second brain", notes: 1_126, bytes: 88_300_000)]
+        case .bear: [ImportSource(url: URL(fileURLWithPath: "/demo/Bear export"), name: "Bear export", notes: 412, bytes: 36_900_000)]
         case .markdown: [
             ImportSource(url: URL(fileURLWithPath: "/demo/Second brain"), name: "Second brain", notes: 1_126, bytes: 88_300_000),
             ImportSource(url: URL(fileURLWithPath: "/demo/Notion export.zip"), name: "Notion export", notes: 363, bytes: 24_100_000),
@@ -46,7 +48,7 @@ import UIKit
     static func states(_ kind: ImportKind) -> [(name: String, phase: ImportSheet.Phase, sources: [ImportSource])] {
         let s = sources(kind)
         var done = summary
-        if kind == .markdown { done.encrypted = 0; done.notNotes = 41 }
+        if kind.isMarkdown { done.encrypted = 0; done.notNotes = 41 }
         if kind == .keep {
             done.encrypted = 0
             done.filesMissing = 0
@@ -93,6 +95,34 @@ import UIKit
         let card = SetupCard(progress: SetupProgress(), celebrating: false, onImport: {}, onImportFrom: { _ in }, onSkip: {}, onConnect: {}, onHide: {})
             .tint(Color(PColor.paneAccent)).padding(16).frame(width: 340).background(Color(nsColor: .windowBackgroundColor))
         try await VersionHistorySnapshots.shoot(card, to: dir.appending(path: "mac-setup-bring.png"), size: CGSize(width: 340, height: 200), dark: false)
+    }
+
+    /// The Import Notes choice as its popover shows it, with the apps' own icons (the ones on this
+    /// Mac) and with none installed, and the grid it was weighed against.
+    @Test func sourceChoice() async throws {
+        guard let dir = Self.dir else { return }
+        let real = ImportSourceIcon.installedIcon
+        defer { ImportSourceIcon.installedIcon = real }
+        for (name, icons) in [("installed", real), ("tiles", { id in id == "com.apple.Notes" ? real(id) : nil })] {
+            ImportSourceIcon.installedIcon = icons
+            for dark in [false, true] {
+                let list = ImportSourceList { _ in }.tint(Color(PColor.paneAccent)).background(Color(nsColor: .windowBackgroundColor))
+                try await VersionHistorySnapshots.shoot(list, to: dir.appending(path: "mac-import-choice-rows-\(name)-\(dark ? "dark" : "light").png"),
+                                                        size: CGSize(width: 250, height: 250), dark: dark)
+                let grid = LazyVGrid(columns: Array(repeating: GridItem(.fixed(96)), count: 3), spacing: 12) {
+                    ForEach(ImportOrigin.all) { origin in
+                        VStack(spacing: 6) {
+                            ImportSourceIcon(origin: origin, size: 44)
+                            Text(origin.name).font(.caption).multilineTextAlignment(.center).lineLimit(2)
+                        }
+                        .frame(width: 96, height: 84)
+                    }
+                }
+                .padding(12).background(Color(nsColor: .windowBackgroundColor))
+                try await VersionHistorySnapshots.shoot(grid, to: dir.appending(path: "mac-import-choice-grid-\(name)-\(dark ? "dark" : "light").png"),
+                                                        size: CGSize(width: 336, height: 204), dark: dark)
+            }
+        }
     }
 
     /// The Apple Notes sheet with a made-up library (as it opens, and where Notes' database
