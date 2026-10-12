@@ -105,10 +105,18 @@ struct SettingsHome: View {
     @State private var profile = ProfileStore.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    /// As tall as `height`, or less on a short notes window, so the sheet never runs past it.
+    @State private var fit = SettingsHome.fitted(NSApp.keyWindow ?? NSApp.mainWindow)
 
     /// A little narrower than a window's Settings, and taller, like WhatsApp's (owner, 2026-10-12).
     static let width: CGFloat = 460
     static let height: CGFloat = 660
+
+    /// The sheet's height on `window`: `height`, less on a window that is not tall enough.
+    static func fitted(_ window: NSWindow?) -> CGFloat {
+        guard let window else { return height }
+        return min(height, max(360, window.frame.height - 60))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -155,7 +163,7 @@ struct SettingsHome: View {
                 }
             }
         }
-        .frame(width: Self.width, height: Self.height)
+        .frame(width: Self.width, height: fit)
         .background(Color(nsColor: .windowBackgroundColor))
         // Room under the last row, like WhatsApp's.
         .contentMargins(.bottom, 28, for: .scrollContent)

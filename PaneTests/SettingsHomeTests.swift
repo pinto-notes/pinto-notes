@@ -47,6 +47,16 @@ import Testing
         #expect(SignInShown.label(email: "sara@example.com", apple: false, google: false) == "sara@example.com")
     }
 
+    @Test func theSheetIsNeverTallerThanItsWindow() {
+        func window(_ height: CGFloat) -> NSWindow {
+            NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1180, height: height), styleMask: [.borderless], backing: .buffered, defer: true)
+        }
+        #expect(SettingsHome.fitted(nil) == SettingsHome.height)
+        #expect(SettingsHome.fitted(window(760)) == SettingsHome.height)
+        #expect(SettingsHome.fitted(window(560)) == 500)
+        #expect(SettingsHome.fitted(window(300)) == 360, "never so short the page can't be used")
+    }
+
     @Test func aLinkOpensItsPageEvenWhenItWasTheLastOne() {
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-route-\(UUID())")!)
         route.open(.security)
