@@ -40,6 +40,11 @@ struct SettingsView: View {
     /// Captures: shows these instead of asking the server.
     var connections: [Connection]? = nil
     var route: SettingsRoute = .shared
+    #if os(macOS)
+    /// Captures: the page to open on, and the alternative look.
+    var start: SettingsPlace? = nil
+    var tiles = false
+    #endif
     @Environment(\.dismiss) private var dismiss
     #if os(iOS)
     @State private var path: [SettingsTab] = []
@@ -49,12 +54,8 @@ struct SettingsView: View {
 
     var body: some View {
         #if os(macOS)
-        // A Mac Settings window: a tab per page, and the window takes each page's height.
-        TabView(selection: Binding(get: { shown(route.tab) }, set: { route.tab = $0 })) {
-            ForEach(tabs) { tab in
-                Tab(tab.title, systemImage: tab.symbol, value: tab) { page(tab) }
-            }
-        }
+        // Like WhatsApp's: you first, a few groups of rows, each opening its page (SettingsHome).
+        SettingsHome(backend: backend, sync: sync, available: places, page: { AnyView(place($0)) }, route: route, start: start, tiles: tiles)
         .environment(\.networkReach, reach)
         .onChange(of: isSignedIn) { was, now in if was && !now { dismiss() } }
         #else
@@ -106,6 +107,32 @@ struct SettingsView: View {
             }
         }
     }
+
+    #if os(macOS)
+    /// The pages there is something on: those of `tabs`, and Profile, Help and the keys for apps.
+    var places: Set<SettingsPlace> {
+        var out = Set(tabs.map(SettingsPlace.init))
+        // `.account` maps to Profile (where the account row lands); Account is its own page too.
+        if isSignedIn { out.insert(.account) } else { out.remove(.profile) }
+        out.insert(.help)
+        if NoteApps.enabled { out.insert(.appKeys) }
+        return out
+    }
+
+    @ViewBuilder
+    func place(_ place: SettingsPlace) -> some View {
+        switch place {
+        case .profile: SettingsPage { ProfilePage(backend: backend, sync: sync) }
+        case .ai: page(.ai)
+        case .security: page(.security)
+        case .storage: page(.storage)
+        case .account: page(.account)
+        case .general: SettingsPage { GeneralPage() }
+        case .help: SettingsPage { HelpPage() }
+        case .appKeys: SettingsPage { APIKeysSection() }
+        }
+    }
+    #endif
 
     /// The remembered tab, or General when that page isn't there now.
     private func shown(_ tab: SettingsTab) -> SettingsTab { tabs.contains(tab) ? tab : .general }
@@ -320,7 +347,12 @@ private struct AccountSettings: View {
 
     var body: some View {
         if case .signedIn(let email) = backend.state {
+            #if os(iOS)
             ProfileSection(backend: backend, email: backend.displayEmail ?? email)
+            #else
+            // On the Mac you, your name and Sign Out are on the Profile page.
+            let _ = email
+            #endif
             Section {
                 // The status and its action on one row, like iCloud in System Settings.
                 LabeledContent("Sync") {
@@ -340,7 +372,9 @@ private struct AccountSettings: View {
                 Text(PrivacyCopy.exportFooter)
             }
             Section {
+                #if os(iOS)
                 SignOutButton(backend: backend, sync: sync)
+                #endif
                 DeleteAccountButton(backend: backend)
             }
         } else if backend.state == .disabled {
@@ -426,7 +460,7 @@ struct SignOutButton: View {
     /// Security, where the recovery key is saved.
     private func showSecurity() {
         #if os(macOS)
-        route.tab = .security
+        route.open(.security)
         #else
         route.target = .security
         #endif
