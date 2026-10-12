@@ -116,7 +116,7 @@ struct FirstOpenContent: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .entrance(shown, 0, reduceMotion)
             if moment.isApp {
-                row(1, "lock.fill", "This app lives in your notes. It works offline, syncs to your iPhone and Mac, and is encrypted like your notes.")
+                row(1, "lock.fill", "This app lives in your notes. It works offline, syncs to your iPhone and Mac, and only you can read it.")
                 aiRow(2)
                 row(3, "arrow.uturn.backward", "Every change has Undo, and it always keeps the last working version.")
             } else {
