@@ -239,11 +239,17 @@ extension TableInteractionTests {
     After
     """
 
-    /// Tab, waiting for the keyboard to land in the next cell.
+    /// Tab, waiting for the keyboard to land in the next cell with its caret after the text.
+    /// A cell's field selects all of its text as it takes the keyboard, and the grid moves the
+    /// caret to the end a turn or two later; a key typed in between replaced the whole cell
+    /// (on a slow CI runner "2026-10-11" became "!").
     private func tab(_ h: EditorHarness) async -> Bool {
         let from = h.focusedGridField
         await h.press(EditorHarness.tab)
-        return await h.until { h.focusedGridField.map { $0 !== from } ?? false }
+        return await h.until {
+            guard h.focusedGridField.map({ $0 !== from }) ?? false, let editor = h.window.firstResponder as? NSTextView else { return false }
+            return editor.selectedRange() == NSRange(location: (editor.string as NSString).length, length: 0)
+        }
     }
 
     /// Tables are plain for people: a column with a list of answers is a cell you type in, like
@@ -264,7 +270,7 @@ extension TableInteractionTests {
         // The tick is not a text cell: Tab goes past it to the next row.
         #expect(await tab(h))
         Self.typeIntoFocusedCell(h, "!")
-        #expect(await h.until(5) { h.text.contains("| 2026-10-11! | 6 |") }, "Tab skipped the tick: \(h.text.debugDescription)")
+        #expect(await h.until(5) { h.text.contains("| 2026-10-11! | 6 |") }, "Tab skipped the tick; cell \(String(describing: (h.window.firstResponder as? NSTextView)?.string)): \(h.text.debugDescription)")
         #expect(h.text.contains("<!-- pane-table: Date=date; Hours=number; Mood=choice Good|Ok|Bad; Diet on plan=choice Yes|No -->"), "the type line is untouched")
     }
 }
