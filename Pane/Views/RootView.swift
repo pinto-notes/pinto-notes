@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// Three columns, like Apple Notes: folders, notes, the note.
 struct RootView: View {
     @Environment(\.modelContext) private var context
+    @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
     #if os(iOS)
     /// On iPhone a folder is pushed once the first layout is done (see `lifecycle`).
     @State private var scope: Scope?
@@ -24,12 +25,14 @@ struct RootView: View {
     @State private var launchAlert = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-launchAlert")
     #endif
     @State private var showImport = false
+    #if os(macOS)
+    /// "Imported 18 notes": shown for a few seconds once the Apple Notes sheet has closed.
+    @State private var importLine: String?
+    #endif
     #if os(iOS)
     /// "Import from Apple Notes" from an email, on an iPhone: it's a Mac feature.
     @State private var importOnMac = false
     #endif
-    @State private var importingSheet = false
-    @State private var importError: String?
     /// The import sheet showing (Evernote, Markdown…).
     @State private var importing: ImportKind?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
@@ -37,6 +40,10 @@ struct RootView: View {
     @AppStorage("lastScope") private var lastScopeData: Data = Data()
     /// Files that weren't added (a kind the app can't show, or over 100 MB), said once.
     @State private var refusal: FileRefusal?
+    /// Connect an AI, from the File menu, the list's menu or the card at the foot of the sidebar.
+    @State private var connectingAI = false
+    @Environment(SetupStore.self) private var setupStore: SetupStore?
+    @Environment(Backend.self) private var backendForConnect: Backend?
     @AppStorage("lastNote") private var lastNote: String = ""
 
     /// The single open note, when exactly one is selected.
@@ -49,17 +56,20 @@ struct RootView: View {
         #if DEBUG
         RenderProbe.count("RootView")
         #endif
-        return imports(lifecycle(split))
+        return imports(lifecycle(split)).newAppSheet()
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNote)
             .focusedSceneValue(\.editorController, editor)
             .focusedSceneValue(\.importAction, { showImport = true })
-            .focusedSceneValue(\.importSheetAction, { importingSheet = true })
             .focusedSceneValue(\.importFromAction, { kind in importFiles = []; importing = kind })
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
             .noteSourceHandler()
+            .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
+            .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
+                if let client = backendForConnect?.client { ConnectAISheet(client: client) }
+            }
             // Collaboration (prototype): an invitation to someone else's note.
             .modifier(CollabInviteAlert())
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
@@ -108,7 +118,7 @@ struct RootView: View {
                 #endif
         }
         .environment(editor)
-        .environment(\.importActions, ImportActions(appleNotes: { showImport = true }, spreadsheet: { importingSheet = true },
+        .environment(\.importActions, ImportActions(appleNotes: { showImport = true },
                                                      from: { kind in importFiles = []; importing = kind }))
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
@@ -156,6 +166,8 @@ struct RootView: View {
                 #endif
             }
             .onChange(of: selectedNote) { old, new in noteChanged(from: old, to: new) }
+            // The first-run flow just ended: the notes open on what it left ready.
+            .task(id: onboarding?.landing) { openLanding() }
             // A note opened from the menu bar.
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
@@ -195,6 +207,19 @@ struct RootView: View {
         }
     }
 
+    /// After the first-run flow: a new empty note with the cursor in it, or the To-do note the
+    /// last step's prompt writes to. A beat after the window's own restoring, which it replaces.
+    private func openLanding() {
+        guard let onboarding, onboarding.landing != nil else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            switch onboarding.takeLanding() {
+            case .newNote: newNote()
+            case .note(let id): reveal(id)
+            case nil: break
+            }
+        }
+    }
+
     private func rememberScope(_ new: Scope?) {
         if let new, let data = try? JSONEncoder().encode(new) { lastScopeData = data }
     }
@@ -210,16 +235,26 @@ struct RootView: View {
 
     private func imports(_ content: some View) -> some View {
         content
-            .fileImporter(isPresented: $importingSheet, allowedContentTypes: [.spreadsheet, UTType(filenameExtension: "xlsx") ?? .data], onCompletion: importSpreadsheet)
-            .alert("Couldn't import", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
-                Button("OK") {}
-            } message: { Text(importError ?? "") }
             #if os(macOS)
             .sheet(isPresented: $showImport) {
-                AppleNotesImportView { ids in
+                AppleNotesImportView(onSummary: { importLine = $0.line() }) { ids in
                     if let first = ids.first { scope = .all; selectedNote = first }
                 }
             }
+            // What the import did, said once over the window's foot instead of asked to be dismissed.
+            .overlay(alignment: .bottom) {
+                if let importLine, !showImport {
+                    ImportDoneLine(text: importLine)
+                        .padding(.bottom, 18)
+                        .transition(.opacity.combined(with: .offset(y: 6)))
+                        .task {
+                            try? await Task.sleep(for: .seconds(6))
+                            self.importLine = nil
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: importLine)
+            .animation(.easeOut(duration: 0.25), value: showImport)
             #endif
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportSheet(kind, files: importFiles) { ids in
@@ -243,16 +278,6 @@ struct RootView: View {
         importing = .evernote
     }
 
-    private func importSpreadsheet(_ result: Result<URL, Error>) {
-        guard case .success(let url) = result else { return }
-        do {
-            let note = try context.importSpreadsheet(url, into: scope == .trash ? .all : (scope ?? .all))
-            selectedNote = note.id
-        } catch {
-            importError = error.localizedDescription
-        }
-    }
-
     private var deleteAction: (() -> Void)? {
         guard !selection.isEmpty else { return nil }
         return { deleteSelected() }
@@ -270,11 +295,21 @@ struct RootView: View {
     @ViewBuilder
     private var detail: some View {
             if let id = selectedNote, let note = context.note(id), note.deletedAt == nil {
+                #if os(macOS)
+                NoteToolbarStage {
+                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+                        if edit { justCreated = target }
+                        selectedNote = target
+                    }
+                        .id(id)
+                }
+                #else
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
                     if edit { justCreated = target }
                     selectedNote = target
                 }
                     .id(id)
+                #endif
             } else if let id = selectedNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
                 // A file kept in the folder: its preview.
                 FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
@@ -291,7 +326,7 @@ struct RootView: View {
                 #if os(macOS)
                 .toolbar {
                     ToolbarItem {
-                        Button(action: newNote) {
+                        ComposeButton(newNote: newNote) {
                             Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
                         }
                             .accessibilityIdentifier("list.newNote")
@@ -419,7 +454,6 @@ struct EmptyDetailView: View {
 /// note does on every save while you type), and each change rebuilt the folders and the list again.
 struct ImportActions {
     var appleNotes: () -> Void
-    var spreadsheet: () -> Void
     var from: (ImportKind) -> Void
 }
 
@@ -434,10 +468,6 @@ private struct NewNoteActionKey: FocusedValueKey {
 }
 
 private struct DeleteNoteActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct ImportSheetActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
@@ -466,10 +496,6 @@ extension FocusedValues {
         get { self[DeleteNoteActionKey.self] }
         set { self[DeleteNoteActionKey.self] = newValue }
     }
-    var importSheetAction: (() -> Void)? {
-        get { self[ImportSheetActionKey.self] }
-        set { self[ImportSheetActionKey.self] = newValue }
-    }
     var importAction: (() -> Void)? {
         get { self[ImportActionKey.self] }
         set { self[ImportActionKey.self] = newValue }
@@ -496,7 +522,6 @@ struct PaneCommands: Commands {
     @FocusedValue(\.deleteNoteAction) private var deleteNote
     @FocusedValue(\.editorController) private var editor
     @FocusedValue(\.importAction) private var importNotes
-    @FocusedValue(\.importSheetAction) private var importSheet
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
 
@@ -509,6 +534,8 @@ struct PaneCommands: Commands {
             Button("New Folder") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(newNote == nil)
+            Button("New App…") { NewApp.shared.open() }
+                .disabled(newNote == nil || !NoteApps.enabled)
         }
         // Where Pages keeps Browse All Versions: File, after saving.
         CommandGroup(after: .saveItem) {
@@ -516,17 +543,18 @@ struct PaneCommands: Commands {
                 .disabled(showHistory == nil)
         }
         CommandGroup(after: .help) {
-            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil) }
+            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
         }
         CommandGroup(replacing: .importExport) {
-            Button("Import from Apple Notes…") { importNotes?() }
+            // Not inside Settings: a home anyone finds, beside Import.
+            Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
+            Divider()
+            Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                 .disabled(importNotes == nil)
             ForEach(ImportKind.allCases) { kind in
-                Button(kind.menuTitle) { importFrom?(kind) }
+                Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     .disabled(importFrom == nil)
             }
-            Button("Import Spreadsheet as Table…") { importSheet?() }
-                .disabled(importSheet == nil)
             Divider()
             Button("Attach File…") { editor?.attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])

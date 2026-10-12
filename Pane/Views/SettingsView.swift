@@ -191,8 +191,9 @@ struct SettingsView: View {
             }
             Section {
                 ForEach(tabs.filter { $0 == .ai || $0 == .security }) { row($0) }
-                if tabs.contains(.security), isSignedIn, crypto.isReady {
+                if tabs.contains(.security), isSignedIn, crypto.isReady, !crypto.serverCopy {
                     // A new device's screen says Settings › Security › Add a device; here it's one tap.
+                    // With a copy of the key kept by Pinto Notes there's nothing to add: a new device signs in.
                     Button { addingDevice = true } label: {
                         Label(AddDeviceCopy.sheetTitle, systemImage: "plus.circle")
                     }
@@ -323,12 +324,12 @@ private struct GeneralSettings: View {
             // On the Mac this is Help › Show Setup Guide.
             Section {
                 Button("Show Setup Guide") {
-                    NotificationCenter.default.post(name: .paneShowSetupGuide, object: nil)
+                    NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
                     close()
                 }
                 .accessibilityIdentifier("settings.setupGuide")
             } footer: {
-                Text("Shows the Get set up steps at the top of your notes again.")
+                Text("Shows the first steps again: your name, bringing your notes and connecting your AI.")
             }
         }
         #endif

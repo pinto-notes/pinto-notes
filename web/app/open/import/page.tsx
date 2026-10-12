@@ -16,7 +16,7 @@ export default function Page() {
       steps={[
         <>Open Pinto Notes on your Mac.</>,
         <>Choose <b>File</b>, then <b>Import from Apple Notes</b>.</>,
-        <>Bring all of them, or pick some. Keep Apple Notes folders stays ticked.</>,
+        <>Every note in every folder is picked. Import them all, or untick some.</>,
         <>On your iPhone they show up a second later.</>,
       ]}
       links={[{ href: "/blog/move-from-apple-notes", label: "Moving from Apple Notes, step by step" }]}

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// "New in 1.1" at the top of the note list after a major update: the release's title, a few
-/// short lines, and two buttons. It wears the setup card's surface, type and spacing, and sits
+/// short lines, and two buttons. It wears the list card's surface, type and spacing, and sits
 /// where that card does, never alongside it.
 struct WhatsNewCard: View {
     let release: WhatsNew.Release
@@ -15,7 +15,7 @@ struct WhatsNewCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
 
-    private typealias Metrics = SetupCard.Metrics
+    private typealias Metrics = ListCardMetrics
 
     var body: some View {
         // Still with Reduce Motion (or in a snapshot): it's simply there.
@@ -50,7 +50,7 @@ struct WhatsNewCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Metrics.padding)
-        .modifier(SetupCardSurface())
+        .modifier(ListCardSurface())
         // In: rises a little and fades up. Out (the list removing the row): a plain fade.
         .opacity(settled ? 1 : 0)
         .offset(y: settled ? 0 : 10)

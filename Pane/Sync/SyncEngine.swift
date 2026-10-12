@@ -43,7 +43,7 @@ final class SyncEngine {
     private(set) var hasSynced = false
     /// The signed-in account's library has come down: a pull finished since this sign-in. Until
     /// then an empty library says nothing about the account, and nothing may be made for it (a
-    /// first folder, the setup guide's To-do note): on a second device, or after a reinstall,
+    /// first folder, the first-run flow's To-do note): on a second device, or after a reinstall,
     /// each of those went up as a duplicate.
     private(set) var knowsAccount = false
     /// That first pull started from nothing and brought nothing: an account that has never held
@@ -1006,7 +1006,8 @@ final class SyncEngine {
     // MARK: Files kept downloaded
 
     /// Folders whose files are fetched to this device as they arrive, so they open on a plane
-    /// (a folder's ⋯ menu: Keep Files Downloaded). Only on this device.
+    /// (Keep Files Downloaded). Only on this device. The folder menu's item for it was removed on
+    /// 2026-10-11: files download when opened and stay cached, and a folder that had this on keeps it.
     nonisolated static let keptFoldersKey = "files.keepDownloaded"
 
     func keepsDownloaded(_ folder: UUID) -> Bool { keptFolders.contains(folder) }

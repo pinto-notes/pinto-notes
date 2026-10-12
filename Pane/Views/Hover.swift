@@ -44,6 +44,8 @@ enum Hover {
     static let rowRadius: CGFloat = 5
     /// A row's ••• button: at least this big to hit.
     static let menuTarget: CGFloat = 24
+    /// The width of its ••• circle (ellipsis.circle at 14 pt).
+    static let menuGlyph: CGFloat = 17
 }
 
 extension EnvironmentValues {
@@ -55,9 +57,9 @@ extension EnvironmentValues {
 extension View {
     /// A list row that takes a light fill under the pointer, in the selection's own place
     /// (`reach`: how far the selection reaches past the row's content). `id` names the row for
-    /// captures.
-    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false) -> some View {
-        modifier(HoverRow(id: id, reach: reach, selected: selected))
+    /// captures. `pointer` hears the pointer come onto the row and leave it.
+    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false, pointer: ((Bool) -> Void)? = nil) -> some View {
+        modifier(HoverRow(id: id, reach: reach, selected: selected, pointer: pointer))
     }
 
     /// A plain button or control with a shape of its own: a light fill under the pointer, behind
@@ -82,6 +84,7 @@ extension Color {
 /// The pointer's state for one view, and nothing outside it.
 struct HoverTracking: ViewModifier {
     @Binding var hovering: Bool
+    var pointer: ((Bool) -> Void)?
 
     func body(content: Content) -> some View {
         content
@@ -89,6 +92,7 @@ struct HoverTracking: ViewModifier {
             .onHover { over in
                 guard over != hovering else { return }
                 withAnimation(Hover.animation) { hovering = over }
+                pointer?(over)
             }
             #endif
     }
@@ -98,9 +102,10 @@ private struct HoverRow: ViewModifier {
     let id: String
     let reach: EdgeInsets
     var selected = false
+    var pointer: ((Bool) -> Void)?
 
     func body(content: Content) -> some View {
-        HoverRowReader(id: id, reach: reach, selected: selected) { _ in content }
+        HoverRowReader(id: id, reach: reach, selected: selected, pointer: pointer) { _ in content }
     }
 }
 
@@ -111,6 +116,7 @@ struct HoverRowReader<Content: View>: View {
     var reach = Hover.listReach
     /// The sidebar's selected row draws its own fill here (see `QuietSelection`), in place of the hover's.
     var selected = false
+    var pointer: ((Bool) -> Void)?
     @ViewBuilder let content: (Bool) -> Content
     @State private var hovering = false
     @Environment(\.hoverPreview) private var preview
@@ -125,7 +131,7 @@ struct HoverRowReader<Content: View>: View {
         content(on)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
-            .modifier(HoverTracking(hovering: $hovering))
+            .modifier(HoverTracking(hovering: $hovering, pointer: pointer))
             .background {
                 if selected {
                     let grow = Hover.rowGap - Hover.selectedGap
@@ -169,8 +175,10 @@ struct RowMenuButton<Items: View>: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .modifier(HoverTracking(hovering: $hovering))
-        // The row keeps the height of its text; the target reaches past it.
+        // The row keeps the height of its text; the target reaches past it. To the right as well:
+        // the circle's edge sits where a count's last digit does.
         .padding(.vertical, -(Hover.menuTarget - 16) / 2)
+        .padding(.trailing, -(Hover.menuTarget - Hover.menuGlyph) / 2)
         .help(help)
         .accessibilityLabel(help)
     }

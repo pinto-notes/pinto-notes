@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var importing = false
@@ -157,7 +158,7 @@ struct NoteDetailView: View {
             .modifier(HostAskAlert(ask: $hostAsk))
             .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
             .sheet(isPresented: $showNetLog) { NotePageNetLogView(noteID: note.id) }
-            .sheet(isPresented: $showMakeApp) { MakeAppSheet(title: note.title, body_: note.body) }
+            .sheet(isPresented: $showMakeApp) { MakeAppSheet(noteID: note.id, title: note.title, body_: note.body) }
             .sheet(item: firstOpenSheet) { m in
                 if FirstOpen.variant == .ac {
                     FirstOpenRichSheet(moment: m) { startFirstOpen(m) }
@@ -623,25 +624,72 @@ struct NoteDetailView: View {
         }
     }
 
-    /// The app's items in More: Make It an App, or App Info.
+    /// One item of the More menu (`NoteMoreMenu` decides which, and their order).
     @ViewBuilder
-    private var pageMenuItems: some View {
-        if NoteApps.enabled, notePage == nil, !note.isLocked, note.trashedAt == nil {
+    private func moreItem(_ item: NoteMoreMenu.Item) -> some View {
+        switch item {
+        case .pin:
+            Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
+                withAnimation(.snappy) { context.togglePin(note) }
+            }
+        case .lock:
+            Button("Lock Note", systemImage: "lock", action: startLock)
+                .accessibilityIdentifier("editor.lock")
+        case .lockNow:
+            Button("Lock Now", systemImage: "lock") { vault.lockNow() }
+                .accessibilityIdentifier("editor.lockNow")
+        case .removeLock:
+            Button("Remove Lock", systemImage: "lock.open", action: removeLock)
+                .accessibilityIdentifier("editor.removeLock")
+        case .makeApp:
             Button("Make It an App…", systemImage: NoteAppMark.symbol) { showMakeApp = true }
                 .accessibilityIdentifier("editor.makeApp")
-        }
-        if notePage != nil {
+        case .appInfo:
             // Everything about the app in one place: its settings, the internet, Previous App, Remove App.
             Button("App Info…", systemImage: "info.circle") { showAppInfo = true }
                 .accessibilityIdentifier("editor.appInfo")
-        }
-        #if DEBUG || QA
-        if NoteApps.enabled, !note.isLocked, note.trashedAt == nil {
+        case .devImportApp:
             // An app built outside the AI tools (scripts/build-app.ts output, or one HTML file).
             Button("Dev: Import App File…", systemImage: "square.and.arrow.down") { importingApp = true }
                 .accessibilityIdentifier("editor.devImportApp")
+        case .moveTo:
+            #if os(macOS)
+            // One item, whatever the number of folders: the folders are in the picker it opens.
+            Button("Move to…", systemImage: "folder") { movingNote = true }
+                .accessibilityIdentifier("editor.moveTo")
+            #else
+            Menu("Move to", systemImage: "folder") {
+                ForEach(context.allFolders()) { f in
+                    Button(f.name) { context.move(note, to: f) }.disabled(note.folder?.id == f.id)
+                }
+            }
+            #endif
+        case .moveOut:
+            // A sub-note: out of the note it is in, a note of its own in the list again.
+            Button("Move Out of Note", systemImage: "arrow.up.left.square") {
+                withAnimation(.snappy) { _ = NoteDrop.moveOut(note.id, in: context, undo: undoManager) }
+            }
+            .accessibilityIdentifier("editor.moveOut")
+        case .linkedFrom:
+            Menu("Linked from", systemImage: "link") {
+                ForEach(backlinks, id: \.id) { n in
+                    Button(n.title) { onOpenNote(n.id, false) }
+                }
+            }
+            .accessibilityIdentifier("editor.backlinks")
+        case .share:
+            Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
+        case .history:
+            #if os(iOS)
+            Button("Show Version History", systemImage: "clock.arrow.circlepath") { showHistory = true }
+            #else
+            Button("Show Version History…", systemImage: "clock.arrow.circlepath") { showHistory = true }
+            #endif
+        case .delete:
+            Button("Delete Note", systemImage: "trash", role: .destructive) {
+                withAnimation(.snappy) { context.trash(note) }
+            }
         }
-        #endif
     }
 
     private func restorePreviousPage() {
@@ -747,8 +795,46 @@ struct NoteDetailView: View {
             .toolbar(controller.isEditing || showingPage ? .hidden : .automatic, for: .bottomBar)
             .animation(.snappy(duration: 0.2), value: controller.isEditing)
             #endif
+            #if os(macOS)
+            // Handed up to the toolbar that stays as the notes change (NoteToolbarStage).
+            .preference(key: NoteToolbarKey.self, value: toolbarParts)
+            #else
             .toolbar { toolbar }
+            #endif
     }
+
+    #if os(macOS)
+    private var toolbarParts: NoteToolbarParts {
+        NoteToolbarParts(
+            newNote: AnyView(ComposeButton(newNote: onNewNote) {
+                // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
+                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+            }
+                .help("New Note (⌘N). Click and hold for New App.")
+                .newAppTip()
+                // The menu bar's quick capture is the other way to start a note.
+                .paneTip(MenuBarTip(), arrowEdge: .top)
+                .accessibilityIdentifier("list.newNote")),
+            // A note with an app is just the app: no writing tools.
+            writing: notePage != nil ? nil : AnyView(Group {
+                FormatButton(controller: controller).disabled(hidden)
+                Button("Checklist", systemImage: "checklist", action: controller.checklist)
+                    .help("Checklist (⇧⌘L)")
+                    .disabled(hidden)
+                Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                    .help("Table (⌥⌘T)")
+                    .disabled(hidden)
+                Button("Attach", systemImage: "paperclip") { importing = true }
+                    .help("Attach File (⇧⌘A)")
+                    .disabled(note.isLocked || showingPage)
+            }),
+            people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            sharing: AnyView(Group {
+                shareMenu
+                moreMenu
+            }))
+    }
+    #endif
 
     /// Every keystroke lands here; the model is written once typing pauses.
     private func save(_ text: String) {
@@ -904,6 +990,11 @@ struct NoteDetailView: View {
         controller.resolveAttachment = { id in context.attachment(id) }
         controller.resolveNote = { id in context.note(id).map { ($0.title, $0.preview) } }
         controller.resolveNoteModel = { id in context.note(id) }
+        // A note dragged in from the list is linked by its title. Not this note to itself.
+        controller.noteLinkTitle = { [own = note.id] id in
+            guard id != own, let n = context.note(id), n.deletedAt == nil else { return nil }
+            return n.title
+        }
         controller.openNote = { id in onOpenNote(id, false) }
         controller.openWiki = { target in followWikiLink(target) }
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
@@ -936,9 +1027,9 @@ struct NoteDetailView: View {
         .padding(12)
     }
 
+    #if os(iOS)
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        #if os(iOS)
         ToolbarItem(placement: .bottomBar) {
             Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden)
         }
@@ -950,7 +1041,7 @@ struct NoteDetailView: View {
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
-            Button("New Note", systemImage: "square.and.pencil", action: onNewNote)
+            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
         }
         if showingPage, let receipt {
             ToolbarItem(placement: .principal) {
@@ -964,44 +1055,8 @@ struct NoteDetailView: View {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
         ToolbarItem(placement: .primaryAction) { moreMenu }
-        #else
-        // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
-        ToolbarItem {
-            Button(action: onNewNote) {
-                // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
-            }
-                .help("New Note (⌘N)")
-                // The menu bar's quick capture is the other way to start a note.
-                .paneTip(MenuBarTip(), arrowEdge: .top)
-                .accessibilityIdentifier("list.newNote")
-        }
-        ToolbarSpacer(.flexible)
-        // A note with an app is just the app: no writing tools.
-        if notePage == nil {
-        ToolbarItemGroup {
-            FormatButton(controller: controller).disabled(hidden)
-            Button("Checklist", systemImage: "checklist", action: controller.checklist)
-                .help("Checklist (⇧⌘L)")
-                .disabled(hidden)
-            Button("Table", systemImage: "tablecells", action: controller.insertTable)
-                .help("Table (⌥⌘T)")
-                .disabled(hidden)
-            Button("Attach", systemImage: "paperclip") { importing = true }
-                .help("Attach File (⇧⌘A)")
-                .disabled(note.isLocked || showingPage)
-        }
-        }
-        ToolbarSpacer(.fixed)
-        if let collab {
-            ToolbarItem { PresenceStack(session: collab) { showPeople = true } }
-        }
-        ToolbarItemGroup {
-            shareMenu
-            moreMenu
-        }
-        #endif
     }
+    #endif
 
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
@@ -1037,63 +1092,12 @@ struct NoteDetailView: View {
 
     private var moreMenu: some View {
         Menu {
-            Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
-                withAnimation(.snappy) { context.togglePin(note) }
-            }
-            #if os(macOS)
-            // One item, whatever the number of folders: the folders are in the picker it opens.
-            Button("Move to…", systemImage: "folder") { movingNote = true }
-                .accessibilityIdentifier("editor.moveTo")
-            #else
-            Menu("Move to", systemImage: "folder") {
-                ForEach(context.allFolders()) { f in
-                    Button(f.name) { context.move(note, to: f) }.disabled(note.folder?.id == f.id)
-                }
-            }
-            #endif
-            if !backlinks.isEmpty {
-                Menu("Linked from", systemImage: "link") {
-                    ForEach(backlinks, id: \.id) { n in
-                        Button(n.title) { onOpenNote(n.id, false) }
-                    }
-                }
-                .accessibilityIdentifier("editor.backlinks")
-            }
-            if !note.isLocked {
-                #if os(iOS)
-                Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
-                Button("Show Version History", systemImage: "clock.arrow.circlepath") { showHistory = true }
-                #else
-                Button("Show Version History…", systemImage: "clock.arrow.circlepath") { showHistory = true }
-                #endif
-            }
-            pageMenuItems
-            #if os(macOS)
-            // What goes into the text but isn't a text style: moved here from the Aa menu.
-            if !hidden {
-                Divider()
-                Button("Add Link", systemImage: "link", action: controller.insertLink)
-                    .accessibilityIdentifier("editor.addLink")
-                Button("New Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }
-                    .disabled(note.isLocked)
-                    .accessibilityIdentifier("editor.newSubNote")
-            }
-            #endif
-            Divider()
-            if note.isLocked {
-                if vault.isUnlocked {
-                    Button("Lock Now", systemImage: "lock") { vault.lockNow() }
-                        .accessibilityIdentifier("editor.lockNow")
-                    Button("Remove Lock", systemImage: "lock.open", action: removeLock)
-                        .accessibilityIdentifier("editor.removeLock")
-                }
-            } else if note.trashedAt == nil {
-                Button("Lock Note", systemImage: "lock", action: startLock)
-                    .accessibilityIdentifier("editor.lock")
-            }
-            Divider()
-            Button("Delete Note", systemImage: "trash", role: .destructive) {
-                withAnimation(.snappy) { context.trash(note) }
+            let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, linkedFrom: !backlinks.isEmpty,
+                                             nested: note.parentID != nil && context.isNested(note))
+            ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
+                if index > 0 { Divider() }
+                ForEach(group, id: \.self) { moreItem($0) }
             }
         } label: {
             Label("More", systemImage: "ellipsis")
@@ -1114,6 +1118,50 @@ struct NoteDetailView: View {
         }
         #endif
         .accessibilityIdentifier("editor.more")
+    }
+}
+
+/// What the note's More (…) menu holds, in order: two groups, like the owner drew them on
+/// 2026-10-11. What the note is (pinned, locked, an app) first; then where it goes, what it
+/// was and deleting it.
+enum NoteMoreMenu {
+    static var isPhoneOrPad: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    static var isDevBuild: Bool {
+        #if DEBUG || QA
+        true
+        #else
+        false
+        #endif
+    }
+
+    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, moveOut, linkedFrom, share, history, delete }
+
+    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, linkedFrom: Bool, nested: Bool = false,
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild) -> [[Item]] {
+        var about: [Item] = [.pin]
+        if locked {
+            if vaultOpen { about += [.lockNow, .removeLock] }
+        } else if !trashed {
+            about.append(.lock)
+        }
+        if appsEnabled, !hasApp, !locked, !trashed { about.append(.makeApp) }
+        if hasApp { about.append(.appInfo) }
+        if dev, appsEnabled, !locked, !trashed { about.append(.devImportApp) }
+        var rest: [Item] = [.moveTo]
+        if nested { rest.append(.moveOut) }
+        if linkedFrom { rest.append(.linkedFrom) }
+        // On iPhone and iPad sharing lives in this menu; the Mac has its own toolbar button.
+        if phone, !locked { rest.append(.share) }
+        if !locked { rest.append(.history) }
+        rest.append(.delete)
+        return [about, rest]
     }
 }
 
@@ -1215,3 +1263,75 @@ private struct HostAskAlert: ViewModifier {
         }
     }
 }
+
+#if os(macOS)
+/// The open note's toolbar items, handed from the note pane to the toolbar that shows them.
+///
+/// The note pane is a new view for every note (`.id` in RootView: nothing of one note's state
+/// reaches the next). A toolbar declared on the pane was a new toolbar for every note: each
+/// item taken out of the window's toolbar and put back, and the Format, Share and More menus
+/// built from nothing, pictures and all. That was about four fifths of the time between a click
+/// on a note and the note (2026-10-11: 280 ms of main thread a note in a Debug build, 55 ms
+/// without it). So the pane only makes its items, where their state is, and hands them up.
+/// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
+/// in a toolbar that stays: the items are brought up to date in place, like any other view.
+struct NoteToolbarParts: Equatable, @unchecked Sendable {
+    var newNote: AnyView
+    /// Format, Checklist, Table, Attach; none for a note that is an app.
+    var writing: AnyView?
+    /// Who else is in a shared note.
+    var people: AnyView?
+    /// Share and More.
+    var sharing: AnyView
+    /// Views can't be compared: each time the pane works its items out, they count as new.
+    let made = NoteToolbarParts.next()
+
+    static func == (a: NoteToolbarParts, b: NoteToolbarParts) -> Bool { a.made == b.made }
+
+    nonisolated(unsafe) private static var count = 0
+    private static func next() -> Int {
+        count += 1
+        return count
+    }
+}
+
+struct NoteToolbarKey: PreferenceKey {
+    static var defaultValue: NoteToolbarParts? { nil }
+    static func reduce(value: inout NoteToolbarParts?, nextValue: () -> NoteToolbarParts?) {
+        value = nextValue() ?? value
+    }
+}
+
+/// Where the note pane stands in the detail column, with the toolbar for its items. The pane
+/// inside it comes and goes with each note; this view and its toolbar don't. (The toolbar has to
+/// be on a view around the pane: put on the pane itself, also from outside its `.id`, the
+/// column makes it again with every note.)
+struct NoteToolbarStage<Pane: View>: View {
+    @ViewBuilder let pane: Pane
+    @State private var parts: NoteToolbarParts?
+
+    var body: some View {
+        let parts = $parts
+        ZStack {
+            // A turn after the pane made them. A pane that has just gone leaves the items as they
+            // are: the next pane's are on their way, and without a note this view goes too.
+            pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
+        }
+            .toolbar {
+                if let shown = self.parts {
+                    // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
+                    ToolbarItem { shown.newNote }
+                    ToolbarSpacer(.flexible)
+                    if let writing = shown.writing {
+                        ToolbarItemGroup { writing }
+                    }
+                    ToolbarSpacer(.fixed)
+                    if let people = shown.people {
+                        ToolbarItem { people }
+                    }
+                    ToolbarItemGroup { shown.sharing }
+                }
+            }
+    }
+}
+#endif

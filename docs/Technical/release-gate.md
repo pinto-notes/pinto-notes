@@ -68,14 +68,18 @@ The probe opens notes the way the app's own controls do, so it never finds a cli
 doesn't take. `scripts/row-clicks.sh <app>` does: on the measuring Mac it opens the app with a made-up
 library in memory, clicks each note row for real (pointer events, the pointer travelling 0, 1, 2
 and 3 points between press and lift, as it does under a hand) and reads through Accessibility what
-each click did. It fails when a click opened nothing, or when a note took more than 500 ms from the
-press to being open with the main thread free again (about 250 ms on fleet-air, 2026-10-11).
+each click did. It fails when a click opened nothing, when a note took more than 500 ms from the
+press to being open with the main thread free again, or when the median of all the clicks is over
+210 ms (the fastest measured, 181 ms, plus 15%). The press itself is 80 ms of that. On fleet-air, 2026-10-11: median 302 ms on 1.2.4's code,
+255 ms once opening a note stopped making sharing pickers, 181 ms once it stopped making the
+window's toolbar again.
 
 It exists because of 1.2.4: in a recording of the released app, 9 of 13 clicks on notes did nothing.
 A row that can be dragged took any press during which the pointer moved, even one point, as a drag.
 Every release back to the first draggable row did it; the gate's probe and CI's click tests never
-move the pointer during a click. Not run by `release-gate.sh` yet: run it by hand on the candidate's
-app before a Mac release.
+move the pointer during a click. `release-gate.sh` runs it once on the candidate's app, after the
+measured launches (lines `perf.clicks.*`): any click that opens nothing fails the gate, and the
+median and slowest are held to budgets like every other line.
 
 ### The bench accounts' state
 

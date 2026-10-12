@@ -205,17 +205,17 @@ struct WelcomeFlow: View {
     }
 
     #if os(macOS)
-    private static let titleFont = Font.system(size: 34, weight: .heavy)
-    private static let lineFont = Font.system(size: 15)
+    static let titleFont = Font.system(size: 34, weight: .heavy)
+    static let lineFont = Font.system(size: 15)
     #else
-    private static let titleFont = Font.largeTitle.weight(.heavy)
-    private static let lineFont = Font.body
+    static let titleFont = Font.largeTitle.weight(.heavy)
+    static let lineFont = Font.body
     #endif
 
     // MARK: The picture
 
     /// Decorative: the words say everything, so VoiceOver skips it.
-    fileprivate static var picture: some View {
+    static var picture: some View {
         Image("Welcome")
             .resizable()
             .interpolation(.high)
@@ -228,7 +228,7 @@ struct WelcomeFlow: View {
     #if os(macOS)
     /// Edge to edge, the window buttons on it. It fills its panel and crops from the centre,
     /// where the leaf on the paper is.
-    fileprivate static var art: some View {
+    static var art: some View {
         Color.clear
             .frame(minWidth: size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
             .overlay { picture }

@@ -7,7 +7,8 @@ import SwiftData
 ///
 ///   1. It's offered only while something else can open the notes (`offer`). The key in iCloud
 ///      Keychain is never deleted, since that would take it from every device; a key that lives on
-///      this device alone goes only when a saved recovery key or another device holds it too.
+///      this device alone goes only when the server keeps a copy of it (signing in again brings it
+///      back), or a saved recovery key or another device holds it too.
 ///   2. What hasn't synced goes up first, and the server has to answer. If anything is still
 ///      waiting, or the server can't be reached, it's refused and nothing here changes.
 ///   3. This device's row leaves the list of devices that hold the key before its key does, and
@@ -34,10 +35,12 @@ struct SignOutRemoval {
         case unsynced, offline, needsRecoveryKey, unavailable
     }
 
-    static func offer(keyOpen: Bool, inICloudKeychain: Bool, recoverySaved: Bool, others: [KeyDevice], now: Date = .now) -> Offer {
+    /// `serverCopy`: the server keeps a copy of the key (KeyCopy), so signing in again brings it back.
+    static func offer(keyOpen: Bool, inICloudKeychain: Bool, recoverySaved: Bool, others: [KeyDevice], serverCopy: Bool = false, now: Date = .now) -> Offer {
         guard keyOpen else { return .unavailable }
         // Nothing of the key is deleted, so nothing can be lost.
         if inICloudKeychain { return .offered(keyStays: true) }
+        if serverCopy { return .offered(keyStays: false) }
         if case .safe = KeyDeviceList.safety(thisBackedUp: false, others: others, recoverySaved: recoverySaved, now: now) { return .offered(keyStays: false) }
         return .needsRecoveryKey
     }
@@ -63,6 +66,9 @@ struct SignOutRemoval {
     /// This device's row leaves the list of devices that hold the key, and the list is read again.
     /// Throws when the server can't be reached.
     var withdraw: () async throws -> Void
+    /// Reads from the server again whether it keeps a copy of the key. Throws when it can't be
+    /// reached. What `offer` says after this is as the server is now, never as it was remembered.
+    var refreshCopy: () async throws -> Void = {}
     var stopSync: () async -> Void
     /// Refused after the row left or sync stopped: both are as they were.
     var restore: () async -> Void
@@ -83,6 +89,9 @@ struct SignOutRemoval {
         guard !hasUnsynced() else { throw Refusal.unsynced }
         guard reached else { throw Refusal.offline }
         do { try await withdraw() } catch { throw Refusal.offline }
+        // The server's copy may be why the key can go from here. Whether it's there is asked
+        // now: Advanced protection may have been turned on since this device last looked.
+        do { try await refreshCopy() } catch { await restore(); throw Refusal.offline }
         do { try allowed() } catch { await restore(); throw error }
         await stopSync()
         // Nothing waits between this check and the erase, so nothing typed meanwhile is erased unseen.
@@ -155,6 +164,7 @@ extension SignOutRemoval {
                 return AccountLibrary.hasUnsynced(context) || !pages.unpushed.isEmpty || !pageData.dirty.isEmpty
             },
             withdraw: { try await devices.withdraw(crypto) },
+            refreshCopy: { try await crypto.refreshCopyState() },
             stopSync: { await sync?.stop() },
             restore: {
                 await devices.rejoin(crypto)
@@ -174,7 +184,7 @@ extension SignOutRemoval {
     }
 
     static func offer(crypto: AccountCrypto, devices: KeyDevices) -> Offer {
-        offer(keyOpen: crypto.isReady, inICloudKeychain: crypto.backedUp, recoverySaved: crypto.recoveryKeySaved, others: devices.others)
+        offer(keyOpen: crypto.isReady, inICloudKeychain: crypto.backedUp, recoverySaved: crypto.recoveryKeySaved, others: devices.others, serverCopy: crypto.serverCopy)
     }
 }
 

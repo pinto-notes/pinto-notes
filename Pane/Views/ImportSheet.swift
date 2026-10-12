@@ -4,12 +4,19 @@ import UniformTypeIdentifiers
 
 /// Where notes come from, and how its sheet talks about it.
 enum ImportKind: String, Identifiable, CaseIterable, Sendable {
-    case evernote, keep, markdown
+    // In the order the choices are listed. Obsidian and Bear are the Markdown import under their
+    // own names, so someone looking for theirs finds it.
+    case obsidian, bear, evernote, keep, markdown
+
+    /// Obsidian and Bear export Markdown: the same importer reads all three.
+    var isMarkdown: Bool { self == .obsidian || self == .bear || self == .markdown }
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .obsidian: "Import from Obsidian"
+        case .bear: "Import from Bear"
         case .evernote: "Import from Evernote"
         case .markdown: "Import Markdown or Text"
         case .keep: "Import from Google Keep"
@@ -19,6 +26,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
     /// The iPhone's title, which has room for about 20 characters between its buttons.
     var shortTitle: String {
         switch self {
+        case .obsidian: "Import from Obsidian"
+        case .bear: "Import from Bear"
         case .evernote: "Import from Evernote"
         case .markdown: "Import Markdown"
         case .keep: "Import from Keep"
@@ -28,24 +37,19 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
     /// The source, as the setup card names it.
     var sourceName: String {
         switch self {
+        case .obsidian: "Obsidian"
+        case .bear: "Bear"
         case .evernote: "Evernote"
         case .markdown: "Markdown files"
         case .keep: "Google Keep"
         }
     }
 
-    /// The setup card's choice.
-    var choiceTitle: String {
-        switch self {
-        case .evernote: "From Evernote…"
-        case .markdown: "From Markdown or Text Files…"
-        case .keep: "From Google Keep…"
-        }
-    }
-
     /// The menu item that opens the sheet.
     var menuTitle: String {
         switch self {
+        case .obsidian: "Import from Obsidian…"
+        case .bear: "Import from Bear…"
         case .evernote: "Import from Evernote…"
         case .markdown: "Import Markdown or Text…"
         case .keep: "Import from Google Keep…"
@@ -54,6 +58,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var subtitle: String {
         switch self {
+        case .obsidian: "Your vault becomes a folder, subfolders included. Links between notes still work. Nothing in Obsidian changes."
+        case .bear: "Your export becomes a folder. Tags stay where they are. Nothing in Bear changes."
         case .evernote: "Each notebook you exported becomes a folder. Nothing in Evernote changes."
         case .markdown: "Each folder or .zip becomes a folder, subfolders included. Your files aren't changed."
         case .keep: "From your Google Takeout download. Nothing in Keep changes."
@@ -62,6 +68,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var emptyTitle: String {
         switch self {
+        case .obsidian: "Choose your vault"
+        case .bear: "Choose your Bear export"
         case .evernote: "Choose your Evernote exports"
         case .markdown: "Choose a folder or .zip of notes"
         case .keep: "Choose your Google Takeout"
@@ -70,6 +78,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var emptyText: String {
         switch self {
+        case .obsidian: "A vault is a folder of Markdown files: choose that folder, or a .zip of it. Pictures and files your notes link to come too."
+        case .bear: "In Bear, select your notes and choose File, Export Notes, as Markdown or TextBundle, into a folder. Then choose that folder."
         case .evernote: "In Evernote, export each notebook as an ENEX file (.enex). You can pick several at once."
         case .markdown: "Markdown (.md) and text (.txt) files from Obsidian, Notion, Bear, Joplin, Logseq, Simplenote, Standard Notes or anywhere else. Pictures and files they link to come too."
         case .keep: "At takeout.google.com, export Keep. Then choose the .zip, or the Takeout or Keep folder inside it."
@@ -78,6 +88,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var chooseTitle: String {
         switch self {
+        case .obsidian: "Choose the Vault Folder…"
+        case .bear: "Choose the Export Folder…"
         case .evernote: "Choose Files…"
         case .markdown: "Choose a Folder or .zip…"
         case .keep: "Choose the Takeout…"
@@ -86,6 +98,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var addMoreTitle: String {
         switch self {
+        case .obsidian, .bear: "Add More…"
         case .evernote: "Add More Files…"
         case .markdown: "Add More…"
         case .keep: "Add More…"
@@ -95,6 +108,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
     /// What one source is called, in the list's header and its count.
     var sourceNoun: (one: String, many: String) {
         switch self {
+        case .obsidian: ("vault", "vaults")
+        case .bear: ("folder", "folders")
         case .evernote: ("notebook", "notebooks")
         case .markdown: ("folder", "folders")
         case .keep: ("Takeout", "Takeouts")
@@ -103,6 +118,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var perSourceTitle: String {
         switch self {
+        case .obsidian: "A folder for each vault"
+        case .bear: "A folder for each folder or .zip"
         case .evernote: "A folder for each notebook"
         case .markdown: "A folder for each folder or .zip"
         case .keep: "A folder named Google Keep"
@@ -111,6 +128,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var symbol: String {
         switch self {
+        case .obsidian: "point.3.connected.trianglepath.dotted"
+        case .bear: "pawprint"
         case .evernote: "book.closed"
         case .markdown: "folder"
         case .keep: "lightbulb"
@@ -119,6 +138,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     var contentTypes: [UTType] {
         switch self {
+        case .obsidian, .bear: [.folder, .zip]
         case .evernote: [.enex, .xml]
         case .markdown: [.folder, .zip]
         case .keep: [.folder, .zip]
@@ -127,6 +147,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
 
     nonisolated func inspect(_ url: URL) -> ImportSource {
         switch self {
+        case .obsidian, .bear: MarkdownImporter.inspect(url)
         case .evernote: EvernoteImporter.inspect(url)
         case .markdown: MarkdownImporter.inspect(url)
         case .keep: KeepImporter.inspect(url)
@@ -137,6 +158,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
     func run(_ sources: [ImportSource], into destination: ImportDestination, options: ImportOptions = ImportOptions(), context: ModelContext,
              progress: (Int, Int) -> Void, shouldStop: () -> Bool) async -> ImportSummary {
         switch self {
+        case .obsidian, .bear: await MarkdownImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
         case .evernote: await EvernoteImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
         case .markdown: await MarkdownImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
         case .keep: await KeepImporter(context: context, options: options).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
@@ -225,6 +247,9 @@ struct ImportSheet: View {
             footer
         }
         .frame(width: 540, height: Self.height)
+        // The app's own warm ground, as the Apple Notes sheet: not the system's grey.
+        .background(Color(Palette.sheetGround))
+        .presentationBackground(Color(Palette.sheetGround))
         .dropDestination(for: URL.self) { urls, _ in
             guard !isImporting else { return false }
             add(urls)

@@ -183,7 +183,7 @@ struct FileRow: View {
 @MainActor
 enum FileCopy {
     static func notDownloaded(_ name: String) -> String {
-        "\u{201C}\(name)\u{201D} isn\u{2019}t on this \(Backend.device) yet. It downloads when you\u{2019}re back online. To have a folder\u{2019}s files with you offline, choose Keep Files Downloaded on the folder."
+        "\u{201C}\(name)\u{201D} isn\u{2019}t on this \(Backend.device) yet. It downloads when you\u{2019}re back online."
     }
 }
 
@@ -365,7 +365,7 @@ struct FileDetailView: View {
         #if os(macOS)
         // Where a note's toolbar has it: compose first.
         ToolbarItem {
-            Button(action: onNewNote) {
+            ComposeButton(newNote: onNewNote) {
                 Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
             }
         }
