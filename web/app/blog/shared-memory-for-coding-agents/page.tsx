@@ -140,7 +140,8 @@ export default function Page() {
         The memory isn&apos;t tied to Claude Code and Codex. Anything that speaks MCP can use the same note at <code>{MCP_URL}</code>, including
         Gemini CLI (<a href="/blog/connect-notes-to-gemini">one command</a>) and Claude or ChatGPT in the browser (
         <a href="/blog/connect-chatgpt-to-your-notes">connect them here</a>). For what an agent needs from a notes app in general, see{" "}
-        <a href="/blog/best-notes-app-for-ai-agents">the best notes app for AI agents</a>.
+        <a href="/blog/best-notes-app-for-ai-agents">the best notes app for AI agents</a>, and{" "}
+        <a href="/for/claude-code">Pinto Notes for Claude Code and Codex</a> has the short version.
       </p>
     </PostPage>
   );

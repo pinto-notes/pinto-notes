@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { changelog } from "@/lib/changelog";
+import { LANDINGS_CHECKED, landingPath, landings } from "@/lib/landings";
 import { postShots } from "@/lib/post-images";
 import { categories, categoryPath, newestFirst, pageCount, pageOf, pagePath, published } from "@/lib/posts";
 import { SITE_URL } from "@/lib/site";
@@ -31,6 +32,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // The gallery shows every template's cover; the alt text describing each is on the page.
     { ...page("/templates", 0.8, templates().map((t) => t.updated).sort().at(-1)), images: templates().map((t) => `${SITE_URL}${coverPath(t.slug)}`) },
     ...templates().map((t) => page(`/templates/${t.slug}`, 0.7, t.updated)),
+    // The landing pages, one for each AI app or notes app someone searches for.
+    ...landings.map((x) => page(landingPath(x), 0.8, LANDINGS_CHECKED)),
     page("/changelog", 0.5, released),
     page("/privacy-security", 0.5),
     // What the app used to be called, for searches of the old name.

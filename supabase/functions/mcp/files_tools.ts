@@ -71,7 +71,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "fetch", title: "Read",
-    description: "Reads a note, an app file, an app's data.json or a file, with line numbers (cat -n). Long text is read in parts: offset is the first line, limit how many (default 2000). A folder reads as its listing. Files: text files (TXT, CSV, JSON, code) as text you can edit; PDFs, Word, Excel and PowerPoint as their text; pictures as images. raw: true returns the file itself (base64, up to 10 MB) to change with your own tools and write back. Read something before you edit or write it.",
+    description: "Reads a note, an app file, an app's data.json or a file, with line numbers (cat -n). Long text is read in parts: offset is the first line, limit how many (default 2000). A folder reads as its listing. Files: text files (TXT, CSV, JSON, code) as text you can edit; PDFs, Word, Excel and PowerPoint as their text; pictures as images. raw: true returns the file itself (base64, up to 10 MB).",
     inputSchema: { type: "object", properties: { id: str(PATH), offset: int("First line (1-based)."), limit: int("How many lines."), raw: { type: "boolean", description: "A file's own bytes, as a resource (base64). Up to 10 MB." } }, required: ["id"] },
     annotations: read,
   },
@@ -92,7 +92,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "edit", title: "Edit",
-    description: "Replaces old_string with new_string in a note, an app file, an app's data.json or a text file (TXT, CSV, JSON, code), like a coding agent's Edit. Read it first with fetch; copy old_string exactly, without the line numbers. It must match once unless replace_all; an empty new_string deletes it. Answers with checks: what the change broke in a note (a table, a checklist line, a tracker value), or the app's compile, render and test results. Each edit is one change the person can undo.",
+    description: "Replaces old_string with new_string in a note, an app file, an app's data.json or a text file (TXT, CSV, JSON, code), like a coding agent's Edit. old_string is the exact text, without line numbers, and the item must have been read in this session. It must match once unless replace_all; an empty new_string deletes it. Answers with checks: what the change broke in a note (a table, a checklist line, a tracker value), or the app's compile, render and test results. Each edit is one change the person can undo.",
     inputSchema: {
       type: "object",
       properties: {
@@ -107,7 +107,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces it (read it first). Prefer edit for changes; the old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with the same checks as edit. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
