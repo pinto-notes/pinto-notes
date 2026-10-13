@@ -879,6 +879,27 @@ struct NoteEntry: Identifiable, DatedListItem {
 
     init(_ note: Note) { self.init(note, titled: false) }
 
+    /// The same values, read without Observation hearing of it: nothing that reads this entry
+    /// depends on the note (see LibraryNotes).
+    init(untracked note: Note, titled: Bool) {
+        self.note = note
+        id = note.getValue(forKey: \.id)
+        created = note.getValue(forKey: \.createdAt)
+        if titled { title = NoteText.head(of: note.getValue(forKey: \.body)).title }
+        date = note.getValue(forKey: \.updatedAt)
+        pinned = note.getValue(forKey: \.isPinned)
+        trashed = note.getValue(forKey: \.trashedAt) != nil
+        deleted = note.getValue(forKey: \.deletedAt) != nil
+        folderID = note.getValue(forKey: \.folder).map { $0.getValue(forKey: \.id) }
+        parentID = note.getValue(forKey: \.parentID)
+    }
+
+    /// Every value the same as `other`'s.
+    func same(as other: NoteEntry) -> Bool {
+        id == other.id && date == other.date && pinned == other.pinned && trashed == other.trashed && deleted == other.deleted
+            && folderID == other.folderID && parentID == other.parentID && created == other.created && title == other.title
+    }
+
     init(_ note: Note, titled: Bool) {
         self.note = note
         id = note.id
@@ -1090,8 +1111,13 @@ struct ListIdentity: Hashable {
 /// update, sort them all and group them: about 100,000 reads to show one save with 20,000 notes
 /// (close to a second). Here each note is read once into a `NoteEntry` and kept in order. Each
 /// note is watched on its own: when one changes, only its entry is read again and moved. Notes a
-/// save adds or deletes are fetched again (a save says so). So showing a change costs what
-/// changed, plus a pass over plain values.
+/// save adds or deletes for good are taken in or dropped one by one (a save says which). So
+/// showing a change costs what changed, plus a pass over plain values.
+///
+/// The first read doesn't watch: the notes are read without telling Observation (the list's view
+/// would otherwise depend on every note, and watching 20,000 notes inside its body took seconds,
+/// each note's watch merged into the body's), and are watched a slice at a time once the list is
+/// up. A note that changed before its watch began is caught as its watch begins.
 @MainActor @Observable
 final class LibraryNotes {
     /// Goes up with each change to the entries; reading it is what updates the list.
@@ -1132,24 +1158,45 @@ final class LibraryNotes {
         load()
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak self] n in
-            let keys = [ModelContext.NotificationKey.insertedIdentifiers, .deletedIdentifiers].map(\.rawValue)
-            let changed = keys.contains { !((n.userInfo?[$0] as? [PersistentIdentifier]) ?? []).isEmpty }
-            guard changed else { return }
-            MainActor.assumeIsolated {
-                self?.load()
-                self?.generation += 1
-            }
+            func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
+            let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers)
+            guard !inserted.isEmpty || !deleted.isEmpty else { return }
+            MainActor.assumeIsolated { self?.take(inserted: inserted, deleted: deleted) }
         }
     }
 
-    /// Every note, read once, sorted, and watched.
+    /// What a save added and deleted for good. Many at once (an import, a first sync, another
+    /// account) read every note again; a few are taken in or dropped where they are.
+    private func take(inserted: [PersistentIdentifier], deleted: [PersistentIdentifier]) {
+        guard let context else { return }
+        guard inserted.count + deleted.count <= Self.wholesaleChange else {
+            load()
+            generation += 1
+            return
+        }
+        if !deleted.isEmpty {
+            let gone = Set(deleted)
+            sorted.removeAll { gone.contains($0.note.persistentModelID) }
+        }
+        let have = Set(sorted.map(\.id))
+        var came: [NoteEntry] = []
+        for id in inserted {
+            guard let n = context.model(for: id) as? Note, n.modelContext != nil, !have.contains(n.id) else { continue }
+            came.append(watched(n))
+        }
+        place(came)
+        generation += 1
+    }
+
+    /// Every note, read once and sorted; watched from the next turn on.
     private func load() {
         guard let context else { return }
         epoch += 1
         changed = []
         let before = Set(sorted.map(\.id))
         let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
-        var entries = notes.map { watched($0) }
+        let titled = order.key == .title
+        var entries = notes.map { NoteEntry(untracked: $0, titled: titled) }
         if order.key == .title, !sorted.isEmpty {
             // Titles are slow to compare, and the list was in order a moment ago: put back in that
             // order first, the sort has only the notes that came or changed to place.
@@ -1162,6 +1209,27 @@ final class LibraryNotes {
         for e in sorted where !before.contains(e.id) { differing += 1 }
         differing += before.count - (sorted.count - differing)
         if differing > Self.wholesaleChange { wholesale += 1 }
+        watch(sorted, epoch: epoch)
+    }
+
+    /// Notes watched per turn: about 10 ms at a time, so the window keeps drawing.
+    static let watchSlice = 1000
+
+    /// Watches each of `entries`, a slice per turn. A note that changed since it was read is
+    /// read again then, as any change is.
+    private func watch(_ entries: [NoteEntry], epoch: Int) {
+        Task { @MainActor [weak self] in
+            var start = 0
+            while start < entries.count {
+                guard let self, self.epoch == epoch else { return }
+                for e in entries[start ..< min(start + Self.watchSlice, entries.count)] where e.note.modelContext != nil {
+                    if !self.watched(e.note).same(as: e) { self.noteChanged(e.id, epoch: epoch) }
+                }
+                start += Self.watchSlice
+                // A turn of the run loop between slices: the window draws and takes events.
+                if start < entries.count { try? await Task.sleep(for: .milliseconds(1)) }
+            }
+        }
     }
 
     /// Goes up when so many notes came or went in one save that the list is shown as a new list.
@@ -1225,11 +1293,17 @@ final class LibraryNotes {
             if e.note.modelContext != nil { moved.append(watched(e.note)) }
             return true
         }
-        if moved.count > 64 {
+        place(moved)
+        generation += 1
+    }
+
+    /// Puts `entries` where they go in the order.
+    private func place(_ entries: [NoteEntry]) {
+        if entries.count > 64 {
             // A sync or an import changed many at once: one sort beats that many insertions.
-            sorted = (sorted + moved).sorted(by: precedes)
+            sorted = (sorted + entries).sorted(by: precedes)
         } else {
-            for e in moved.sorted(by: precedes) {
+            for e in entries.sorted(by: precedes) {
                 // Before the first entry that doesn't come before it.
                 var low = 0, high = sorted.count
                 while low < high {
@@ -1239,7 +1313,6 @@ final class LibraryNotes {
                 sorted.insert(e, at: low)
             }
         }
-        generation += 1
     }
 }
 
