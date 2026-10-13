@@ -9,9 +9,10 @@ export const metadata = postMetadata("flashcards-with-chatgpt-or-claude", { titl
 // (help.openai.com/en/articles/20001533): cards in the chat from a topic or uploaded notes, flip, mark known or
 // review again, shuffle, changes by asking, saved to your library, check cards against your notes. The Study notes
 // and flashcards template on main (Mac 1.2.26): content/templates/study-flashcards.json (prompt, asks) and
-// study-flashcards.app (README.md, docs/README.md: five Leitner boxes with gaps of 1, 2, 4, 8 and 16 days; Study
-// and Cards tabs; add, edit, delete with Undo; topic pills; no typed answers, multiple choice or images). The
-// iPhone app isn't on the App Store yet.
+// study-flashcards.app (README.md, docs/README.md: Again, Hard, Good and Easy with growing intervals per card, five
+// boxes that follow the interval; a streak and 12-week calendar; quick add and Paste many; Study and Cards tabs; add,
+// edit, delete with Undo; topic pills; no typed answers, multiple choice or images). Re-checked on growth/apps-bar for
+// the upgraded app. The iPhone app isn't on the App Store yet.
 
 const PROMPT = `Make flashcards from the notes below.
 
@@ -37,8 +38,8 @@ const FAQ = [
   { q: "Can I put ChatGPT flashcards into Anki?", a: [
     "Ask for the cards as two columns separated by a tab, one card per line, and save that as a text file. Anki's import reads that format. Check the first few cards after the import.",
   ] },
-  { q: "What is the Leitner system?", a: [
-    "Cards sit in numbered boxes. A card you know moves up a box and comes back less often; a card you miss goes back to box 1 and comes back soon. In the Pinto Notes template, box 1 comes back after a day and box 5 after sixteen.",
+  { q: "How does the Pinto Notes template decide when a card comes back?", a: [
+    "Each card has an interval. Good multiplies it, Easy jumps further, Hard grows it a little, and Again starts it over at a day. It's the idea behind Anki's scheduling, with fewer settings. The buttons show the next interval before you tap, like \"Good 8d\".",
   ] },
 ];
 
@@ -47,7 +48,7 @@ export default function Page() {
     <PostPage
       slug="flashcards-with-chatgpt-or-claude"
       intro={<>Turning a chapter into flashcards used to take an evening. ChatGPT or Claude does it in a minute, which moves the hard part to two other places: whether the cards are any good, and whether the ones you get wrong come back.</>}
-      caption="The flashcards template's app in Pinto Notes on a Mac: the cards due today, and how many sit in each box."
+      caption="The flashcards template's app in Pinto Notes on a Mac: the cards due today, the streak, and what's coming up this week."
       answer={
         <Answer jump={[
           { href: "#prompt", label: "The prompt" },
@@ -117,9 +118,9 @@ export default function Page() {
       </Steps>
       <p>
         Then study in the app. The first screen says how many cards are due today and has one button, Study now. You see the
-        question, tap Show answer, then Didn&apos;t know or Knew it. A card you knew moves up a box: box 1 comes back after a day,
-        box 2 after two, then four, eight and sixteen days. A card you missed goes back to box 1. The lowest box comes first, so the
-        cards you struggle with come back before the ones you know.
+        question, tap Show answer, then Again, Hard, Good or Easy. Each button shows when the card comes back: a new card you know
+        is back tomorrow, then in a few days, then weeks. Again brings a card back at the end of the session and again tomorrow.
+        The cards you know least come first. On a Mac, Space shows the answer and 1 to 4 grade it, so a session goes fast.
       </p>
       <p>
         You can also say &ldquo;quiz me on biology, ten cards&rdquo; in the chat. The AI asks one card at a time without showing the
@@ -129,9 +130,11 @@ export default function Page() {
 
       <h2 id="yourself">What you can still do yourself</h2>
       <p>
-        The Cards tab lists every card by topic with its box. Tap a card to fix a wrong answer, add your own cards, or delete one;
-        a delete shows Undo at the top of the screen. Topic pills on the Study tab narrow a session to one subject, which helps the
-        week before one exam. The Boxes chart shows where your cards sit, so you can see progress without a streak to protect.
+        The Cards tab opens on an add form: type the question, the answer, press Return, and the next card is ready with the same
+        topic. Paste many takes lines like &ldquo;question - answer&rdquo; and makes a card of each. Every card is listed by topic
+        with when it&apos;s due; tap one to fix a wrong answer, or delete it, and Undo appears at the top of the screen. Topic pills
+        on the Study tab narrow a session to one subject, which helps the week before one exam. The Study tab also keeps a streak,
+        with a calendar of the last 12 weeks, and shows how many cards fall due each day this week.
       </p>
       <p>
         Your AI can change the app itself too. It&apos;s a small React project in the note: ask for a &ldquo;reverse the cards&rdquo;
@@ -142,9 +145,9 @@ export default function Page() {
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>
       <p>
-        You grade yourself: there are no typed answers and no multiple choice, and cards hold text only, no pictures. The boxes use
-        fixed gaps, simpler than Anki&apos;s scheduling. There are no reminders, because apps in Pinto Notes can&apos;t send
-        notifications yet.
+        You grade yourself: there are no typed answers and no multiple choice, and cards hold text only, no pictures. The scheduling
+        is simpler than Anki&apos;s, with no settings, no daily limit on new cards and no import of Anki decks. There are no
+        reminders, because apps in Pinto Notes can&apos;t send notifications yet.
       </p>
       <p>
         The iPhone app isn&apos;t on the App Store yet, so the flashcard app opens on a Mac with macOS 26 or later. On your phone you

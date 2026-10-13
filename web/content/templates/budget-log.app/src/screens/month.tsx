@@ -81,8 +81,9 @@ export default function Month() {
         <div>
           <Section title="Last six months" footer={hasPrev ? undefined : "Bars fill in as the months go by. The line is your monthly budget."}>
             <div className="px-4 pb-3 pt-4">
+              {!hasPrev && <div className="h-3" />}
               {hasPrev && (
-                <p className="mb-3 text-[0.9375rem] tabular-nums" data-testid="pace">
+                <p className="mb-6 text-[0.9375rem] tabular-nums" data-testid="pace">
                   <span className="font-semibold">{diff <= 0 ? `${fmt(-diff)} less` : `${fmt(diff)} more`}</span>
                   <span className="text-muted-foreground"> than {monthName(prev, false)}{current ? ` by the ${ordinal(todayNum)}` : ""}</span>
                 </p>

@@ -8,7 +8,8 @@ export const metadata = postMetadata("budget-tracker-with-chatgpt-or-claude", { 
 // Checked on 13 October 2026 against the Budget and expenses template on main (Mac 1.2.26):
 // content/templates/budget-log.json (prompt, asks) and budget-log.app (README.md, docs/README.md: Month,
 // Expenses and Budget screens; add, edit, delete expenses with Undo; add, rename, remove categories; budget
-// per category; currency; no income, recurring expenses, per-month budgets or export; no bank connection).
+// per category; currency; monthly bills added on their day; roll-over; a six-month chart; no income,
+// per-month budgets or export; no bank connection). Re-checked on growth/apps-bar for the upgraded app.
 // The sums are computed by the app (src/lib/budget.ts), not by the AI. The iPhone app isn't on the App Store
 // yet. What ChatGPT and Claude build in a chat is described as what you can check yourself.
 
@@ -123,11 +124,19 @@ export default function Page() {
       <h2 id="yourself">What you can still do yourself</h2>
       <p>
         Month is the first screen: what&apos;s left as a number and a bar, about how much a day that leaves, and each category against
-        its budget. Add expense starts on the amount. On Expenses, every expense of the month is listed by day; tap one to change
-        it, or delete it, and Undo appears at the top of the screen. Earlier months are one tap back.
+        its budget. Next to it, a bar for each of the last six months and a line like &ldquo;600 kr less than September by the
+        13th&rdquo;, which is the comparison that matters halfway through a month. Add expense starts on the amount. On Expenses,
+        every expense of the month is listed by day; tap one to change it, or delete it, and Undo appears at the top of the
+        screen. Earlier months are one tap back.
       </p>
       <p>
-        Budget is where you add, rename and remove categories, change each monthly amount, and set the currency. A removed category
+        Rent and subscriptions go in once. Turn on Every month when you add one, or add it under Every month on the Budget tab,
+        and the app adds its expense on that day each month. Until then it&apos;s listed as due, and the per-day figure counts it.
+        Roll over what&apos;s left is a single switch: what you didn&apos;t spend in a category carries into next month, and what you
+        overspent comes off it.
+      </p>
+      <p>
+        Budget is also where you add, rename and remove categories, change each monthly amount, and set the currency. A removed category
         keeps its expenses, so last month&apos;s total doesn&apos;t change under you. If the template&apos;s layout isn&apos;t right,
         ask your AI to change the app itself: it&apos;s a small React project in the note, and Pinto Notes runs its tests on every save
         and only shows a version that passes.
@@ -136,7 +145,7 @@ export default function Page() {
       <h2 id="limits">What it doesn&apos;t do yet</h2>
       <p>
         It connects to no bank and imports nothing. Every expense is one you or your AI added. If you want your card spending pulled in automatically, use your bank&apos;s app or a budgeting app
-        for that. There&apos;s no income, no recurring expenses and no budget that changes from month to month,
+        for that. There&apos;s no income, no savings goal per category and no budget that changes from month to month,
         and there&apos;s no CSV export yet. Over budget is shown in red, but nothing alerts you.
       </p>
       <p>
