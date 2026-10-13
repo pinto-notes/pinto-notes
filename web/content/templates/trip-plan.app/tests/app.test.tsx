@@ -27,7 +27,7 @@ beforeEach(async () => {
 describe("Trip", () => {
   it("counts down to the trip and shows what's left to do", async () => {
     render(<App />)
-    expect(await screen.findByTestId("countdown")).toHaveTextContent(/^9\s*days to go/)
+    await waitFor(() => expect(screen.getByTestId("countdown")).toHaveTextContent(/^9\s*days to go/))
     expect(screen.getByText(/^0 of 1 paid · next to pay: Hotel$/)).toBeInTheDocument()
     expect(screen.getByText("0 of 2 packed")).toBeInTheDocument()
     expect(screen.getByText("Lunch at Time Out Market")).toBeInTheDocument()
@@ -36,7 +36,7 @@ describe("Trip", () => {
   it("shows which day it is during the trip", async () => {
     await amber.store.set("trip", trip(-1, 3))
     render(<App />)
-    expect(await screen.findByTestId("countdown")).toHaveTextContent("Day 2 of 5")
+    await waitFor(() => expect(screen.getByTestId("countdown")).toHaveTextContent("Day 2 of 5"))
   })
 })
 
@@ -48,7 +48,7 @@ describe("Trip details", () => {
     await pick("Last day", day(6))
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
     await waitFor(() => expect(values().trip).toEqual({ name: "Lisbon", place: "Portugal", start: day(3), end: day(6) }))
-    expect(await screen.findByTestId("countdown")).toHaveTextContent(/^3\s*days to go/)
+    await waitFor(() => expect(screen.getByTestId("countdown")).toHaveTextContent(/^3\s*days to go/))
   })
 
   it("starts a trip from nothing", async () => {
@@ -71,7 +71,7 @@ describe("Packing", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Passport" }))
     await waitFor(() => expect(values().packing[0]).toEqual({ id: "p1", text: "Passport", packed: true }))
     expect(await screen.findByText("1 of 2 packed")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Passport" })).toHaveAttribute("aria-pressed", "true")
+    await waitFor(() => expect(screen.getByRole("button", { name: "Passport" })).toHaveAttribute("aria-pressed", "true"))
     await userEvent.click(screen.getByRole("button", { name: "Passport" }))
     await waitFor(() => expect(values().packing[0].packed).toBe(false))
   })
@@ -112,7 +112,7 @@ describe("Bookings", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Edit Hotel" }))
     // A booking from before bookings had a day keeps what it said, as written.
     const when = await screen.findByLabelText("When (as written)")
-    expect(when).toHaveValue("4 nights")
+    await waitFor(() => expect(when).toHaveValue("4 nights"))
     await userEvent.clear(when)
     await userEvent.type(when, "5 nights")
     await userEvent.click(screen.getByRole("radio", { name: "Stay" }))
@@ -150,7 +150,7 @@ describe("Bookings", () => {
     await userEvent.type(await screen.findByLabelText("What"), "Dinner at Ramiro")
     await userEvent.click(screen.getByRole("radio", { name: "Food" }))
     // The day starts on the trip's first day.
-    expect(screen.getByLabelText("Day")).toHaveValue(day(9))
+    await waitFor(() => expect(screen.getByLabelText("Day")).toHaveValue(day(9)))
     await pick("Day", day(10))
     await pick("Time", "20:00")
     await userEvent.click(screen.getByRole("button", { name: "Add booking" }))
@@ -168,7 +168,7 @@ describe("Days", () => {
     await go("Days")
     await userEvent.click(await screen.findByRole("button", { name: "Add day" }))
     const date = await screen.findByLabelText("Date")
-    expect(date).toHaveValue(day(10))
+    await waitFor(() => expect(date).toHaveValue(day(10)))
     await userEvent.type(screen.getByLabelText("Title (optional)"), "Sintra")
     await userEvent.type(screen.getByLabelText("Plan, one line each (start with a time to order it)"), "Train 09:10")
     await userEvent.click(screen.getByRole("button", { name: "Save day" }))
@@ -226,7 +226,7 @@ describe("Timeline", () => {
     await go("Days")
     expect(await screen.findByText(/^Day 5 · /)).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: `Edit ${label(day(11))}` }))
-    expect(await screen.findByLabelText("Date")).toHaveValue(day(11))
+    await waitFor(() => expect(screen.getByLabelText("Date")).toHaveValue(day(11)))
     expect(screen.queryByRole("button", { name: "Delete day" })).toBeNull()
     await userEvent.type(screen.getByLabelText(/^Plan, one line each/), "Belém")
     await userEvent.click(screen.getByRole("button", { name: "Save" }))

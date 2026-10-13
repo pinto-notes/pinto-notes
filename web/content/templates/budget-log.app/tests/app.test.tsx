@@ -26,7 +26,7 @@ beforeEach(async () => {
 describe("Month", () => {
   it("adds an expense from the quick add sheet, and what's left goes down", async () => {
     render(<App />)
-    expect(await screen.findByTestId("left")).toHaveTextContent("1,500 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,500 kr"))
     await userEvent.click(screen.getByRole("button", { name: "Add expense" }))
     await userEvent.type(await screen.findByLabelText("Amount (kr)"), "120")
     await userEvent.type(screen.getByLabelText("What"), "Lunch")
@@ -34,7 +34,7 @@ describe("Month", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add" }))
     await waitFor(() => expect(saved()).toEqual([{ date: today, what: "Lunch", category: "Eating out", amount: 120 }]))
     expect(await screen.findByText("Lunch")).toBeInTheDocument()
-    expect(screen.getByTestId("left")).toHaveTextContent("1,380 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,380 kr"))
     expect(screen.getByText("380 kr left")).toBeInTheDocument()
   })
 
@@ -42,14 +42,14 @@ describe("Month", () => {
     render(<App />)
     await userEvent.click(await screen.findByRole("button", { name: "Add expense" }))
     await userEvent.type(await screen.findByLabelText("What"), "Coffee")
-    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add" })).toBeDisabled())
   })
 
   it("shows a category that's over its budget", async () => {
     await amber.store.set("expenses", [{ id: "a", date: today, what: "Birthday dinner", category: "Eating out", amount: 620 }])
     render(<App />)
     expect(await screen.findByText("120 kr over")).toBeInTheDocument()
-    expect(screen.getByTestId("left")).toHaveTextContent("880 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("880 kr"))
   })
 
   it("goes back a month and shows that month's spending", async () => {
@@ -59,7 +59,7 @@ describe("Month", () => {
     expect(await screen.findByText(/^Nothing spent in/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Previous month" }))
     expect(await screen.findByText("Concert tickets")).toBeInTheDocument()
-    expect(screen.getByTestId("left")).toHaveTextContent("1,200 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,200 kr"))
   })
 })
 
@@ -86,7 +86,7 @@ describe("Expenses", () => {
     await go("Expenses")
     await userEvent.click(await screen.findByRole("button", { name: "Edit Shop" }))
     const amount = await screen.findByLabelText("Amount (kr)")
-    expect(amount).toHaveValue("412")
+    await waitFor(() => expect(amount).toHaveValue("412"))
     await userEvent.clear(amount)
     await userEvent.type(amount, "98")
     await userEvent.clear(screen.getByLabelText("What"))
@@ -104,7 +104,7 @@ describe("Expenses", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Delete expense" }))
     await waitFor(() => expect(values().expenses).toEqual([]))
     expect(await screen.findByText("Deleted Shop")).toBeInTheDocument()
-    expect(screen.getByTestId("left")).toHaveTextContent("1,500 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,500 kr"))
   })
 })
 
@@ -180,7 +180,7 @@ describe("Monthly bills", () => {
     await userEvent.type(await screen.findByLabelText("Amount (kr)"), "129")
     await userEvent.type(screen.getByLabelText("What"), "Streaming")
     await userEvent.click(screen.getByRole("switch", { name: "Every month" }))
-    expect(screen.getByRole("switch", { name: "Every month" })).toHaveAttribute("aria-checked", "true")
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Every month" })).toHaveAttribute("aria-checked", "true"))
     await userEvent.click(screen.getByRole("button", { name: "Add" }))
     await waitFor(() => expect(bills()).toHaveLength(1))
     const bill = bills()[0]
@@ -194,17 +194,17 @@ describe("Monthly bills", () => {
     const { unmount } = render(<App />)
     await waitFor(() => expect(saved()).toEqual([{ date: `${m}-01`, what: "Rent", category: "Groceries", amount: 300, rec: "rent" }]))
     await waitFor(() => expect(bills()[0].last).toBe(m))
-    expect(await screen.findByTestId("left")).toHaveTextContent("1,200 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,200 kr"))
     unmount()
     render(<App />)
-    expect(await screen.findByTestId("left")).toHaveTextContent("1,200 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,200 kr"))
     expect(saved()).toHaveLength(1)
   })
 
   it("doesn't add a bill again after its expense is deleted", async () => {
     await amber.store.set("recurring", [{ id: "rent", what: "Rent", category: "Groceries", amount: 300, day: 1, last: m }])
     render(<App />)
-    expect(await screen.findByTestId("left")).toHaveTextContent("1,500 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,500 kr"))
     expect(saved()).toEqual([])
   })
 
@@ -216,7 +216,7 @@ describe("Monthly bills", () => {
     expect(await screen.findByText("400 kr still to come this month.")).toBeInTheDocument()
     expect(screen.getByText(/ · Due \d+ /)).toBeInTheDocument()
     expect(saved()).toEqual([])
-    expect(screen.getByTestId("month-line")).toHaveTextContent("after bills")
+    await waitFor(() => expect(screen.getByTestId("month-line")).toHaveTextContent("after bills"))
   })
 
   it("adds, changes and stops a bill on the Budget tab, with Undo", async () => {
@@ -275,7 +275,7 @@ describe("Roll-over", () => {
     ])
     render(<App />)
     // Groceries: 1,000 + 800 left over. Eating out: 500 - 200 over.
-    expect(await screen.findByTestId("left")).toHaveTextContent("2,100 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("2,100 kr"))
     expect(screen.getByText("0 kr of 1,800 kr (+800 kr from last month)")).toBeInTheDocument()
     expect(screen.getByText("0 kr of 300 kr (−200 kr from last month)")).toBeInTheDocument()
   })
@@ -285,7 +285,7 @@ describe("Roll-over", () => {
     await amber.store.set("rollover", thisMonth())
     await amber.store.set("expenses", [{ id: "a", date: `${last}-10`, what: "Shop", category: "Groceries", amount: 200 }])
     render(<App />)
-    expect(await screen.findByTestId("left")).toHaveTextContent("1,500 kr")
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,500 kr"))
   })
 })
 
@@ -297,7 +297,7 @@ describe("Trend", () => {
       { id: "b", date: today, what: "Lunch", category: "Eating out", amount: 100 },
     ])
     render(<App />)
-    expect(await screen.findByTestId("pace")).toHaveTextContent(`400 kr less than ${monthName(last, false)}`)
+    await waitFor(() => expect(screen.getByTestId("pace")).toHaveTextContent(`400 kr less than ${monthName(last, false)}`))
     await userEvent.click(screen.getByRole("button", { name: `Show ${monthName(last)}` }))
     expect(await screen.findByRole("heading", { name: monthName(last) })).toBeInTheDocument()
     expect(await screen.findByText("Big shop")).toBeInTheDocument()

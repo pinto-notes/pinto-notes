@@ -91,7 +91,7 @@ export default function Month() {
               <div className="relative flex h-32 items-end gap-2" role="img" aria-label={`Spent per month: ${series.map((x) => `${monthName(x.m, false)} ${fmt(x.spent)}`).join(", ")}`}>
                 {mo.budget > 0 && (
                   <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-muted-foreground/60" style={{ bottom: `${(mo.budget / top) * 100}%` }}>
-                    <span className="absolute -top-[1.15rem] right-0 bg-card pl-1 text-[0.6875rem] font-medium text-muted-foreground">Budget</span>
+                    <span className="absolute -top-[1.15rem] right-0 bg-card pl-1 text-[0.75rem] font-medium text-muted-foreground">Budget</span>
                   </div>
                 )}
                 {series.map((x) => (
