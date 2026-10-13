@@ -304,7 +304,18 @@ private struct SheetParentReader: NSViewRepresentable {
             super.viewDidMoveToWindow()
             if let watch { NotificationCenter.default.removeObserver(watch) }
             watch = nil
-            guard let parent = window?.sheetParent else { return }
+            guard window != nil else { return }
+            // The sheet's window is in place before it is attached to its parent: wait for that.
+            Task { @MainActor [weak self] in
+                for _ in 0..<40 {
+                    guard let self, let sheet = self.window else { return }
+                    if let parent = sheet.sheetParent { self.follow(parent); return }
+                    try? await Task.sleep(for: .milliseconds(50))
+                }
+            }
+        }
+
+        private func follow(_ parent: NSWindow) {
             changed(parent)
             watch = NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: parent, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.changed(parent) }
