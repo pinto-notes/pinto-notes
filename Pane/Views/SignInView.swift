@@ -11,6 +11,8 @@ struct SignInView: View {
     var focusEmail = false
     @State private var flow: EmailSignInFlow
     @State private var working = false
+    /// Which way in is working: its own button spins, never another one.
+    @State private var pressed: Way?
     @State private var error: String?
     /// The cursor is in the password field (PasswordField keeps its own two fields in step).
     @State private var passwordFocused = false
@@ -25,6 +27,8 @@ struct SignInView: View {
 
     enum Field { case email, code }
 
+    enum Way { case apple, google }
+
     /// The words above the form: the card's own (icon, title and promise, centred), or a title
     /// and a line from the welcome flow, which sets the form beside its picture.
     enum Heading: Equatable {
@@ -33,12 +37,15 @@ struct SignInView: View {
     }
 
     /// `error`: captures only, the screen as it looks after a failed try.
-    init(backend: Backend, flow: EmailSignInFlow = EmailSignInFlow(), heading: Heading = .card, focusEmail: Bool = false, error: String? = nil) {
+    /// `pressed`: captures only, a way in that is under way.
+    init(backend: Backend, flow: EmailSignInFlow = EmailSignInFlow(), heading: Heading = .card, focusEmail: Bool = false, error: String? = nil, pressed: Way? = nil) {
         self.backend = backend
         self.heading = heading
         self.focusEmail = focusEmail
         _flow = State(initialValue: flow)
         _error = State(initialValue: error)
+        _pressed = State(initialValue: pressed)
+        _working = State(initialValue: pressed != nil)
     }
 
     /// Email sign-in sits under Sign in with Apple.
@@ -115,9 +122,11 @@ struct SignInView: View {
                         .foregroundStyle(Color.ink)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("signin.title")
-                    Text(line)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.muted)
+                    if !line.isEmpty {
+                        Text(line)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.muted)
+                    }
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,19 +137,20 @@ struct SignInView: View {
                 // so the main button keeps its place and the whole form fits above the keyboard.
                 if flow.showsApple {
                     VStack(spacing: 12) {
-                        AppleAuthButton(label: .signIn, height: Row.height, cornerRadius: Row.radius, title: "Sign in with Apple", web: webSignIn) { result in
+                        AppleAuthButton(label: .signIn, height: Row.height, cornerRadius: Row.radius, title: "Sign in with Apple", web: webSignIn,
+                                        busy: working && pressed == .apple) { result in
                             switch result {
                             case .success(let credential): signIn(credential)
                             case .failure(let failure): error = AppleSignIn.message(for: failure)
                             }
                         }
                         .disabled(working)
-                        .opacity(working ? 0.6 : 1)
+                        .opacity(working && pressed != .apple ? 0.6 : 1)
                         .accessibilityIdentifier("signin.apple")
 
                         // Directly under Apple, which stays first (App Review guideline 4.8).
                         if Self.offersGoogle {
-                            GoogleAuthButton(height: Row.height, cornerRadius: Row.radius, action: signInWithGoogle)
+                            GoogleAuthButton(height: Row.height, cornerRadius: Row.radius, busy: working && pressed == .google, action: signInWithGoogle)
                                 .disabled(working)
                                 .accessibilityIdentifier("signin.google")
                         }
@@ -189,15 +199,35 @@ struct SignInView: View {
         if flow.step == .confirm { return .beside(title: Self.confirmTitle, line: Self.confirmLine) }
         guard case .beside = heading else { return heading }
         switch flow.step {
-        case .signIn(fallback: false), .apple, .forgot, .forgotSent: return .beside(title: Self.existingTitle, line: flow.email)
+        // The address is in the row under it already, so the line never repeats it.
+        case .signIn(fallback: false): return .beside(title: Self.existingTitle, line: Self.existingLine)
+        case .apple, .forgot, .forgotSent: return .beside(title: Self.existingTitle, line: "")
         case .create: return .beside(title: Self.newTitle, line: Self.newLine)
         default: return heading
         }
     }
 
+    static let passwordRuleText = "At least \(EmailSignInFlow.minimumPassword) characters"
+
+    /// Under a new password, all the time: the rule, ticked once the password meets it, so a grey
+    /// Create account always says why.
+    private var passwordRule: some View {
+        let met = flow.password.count >= EmailSignInFlow.minimumPassword
+        return Label(Self.passwordRuleText, systemImage: met ? "checkmark.circle.fill" : "circle")
+            .font(.footnote)
+            .foregroundStyle(met ? AnyShapeStyle(.tint) : AnyShapeStyle(Color.muted))
+            .contentTransition(.symbolEffect(.replace))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .animation(.snappy(duration: 0.15), value: met)
+            .accessibilityLabel(Self.passwordRuleText)
+            .accessibilityValue(met ? "Met" : "Not met yet")
+            .accessibilityIdentifier("signin.passwordRule")
+    }
+
     static let startTitle = "Sign in or sign up"
     static let startLine = "Enter your email to continue."
     static let existingTitle = "Welcome back"
+    static let existingLine = "Enter your password to sign in."
     static let newTitle = "Create your account"
     static let newLine = "Choose a password for this email."
 
@@ -276,13 +306,14 @@ struct SignInView: View {
 
             if flow.showsPassword {
                 field(focused: passwordFocused) {
-                    let prompt = flow.step == .create ? "Create a password (12+ characters)" : "Password"
+                    let prompt = flow.step == .create ? "Create a password" : "Password"
                     PasswordField(prompt, text: $flow.password, prompt: Text(prompt).foregroundStyle(Color(Palette.placeholder)),
                                   kind: flow.step == .create ? .new : .current, id: "signin.password", focused: $passwordFocused)
                         .submitLabel(.go)
                         .onSubmit(primary)
                 }
                 .transition(.opacity)
+                if flow.step == .create { passwordRule.transition(.opacity) }
             }
 
             if flow.step == .confirm {
@@ -419,7 +450,8 @@ struct SignInView: View {
     }
 
     private func mainButton(_ title: String) -> some View {
-        let busy = working || flow.step == .checking || flow.step == .forgot(sending: true)
+        // Only for its own work: Apple and Google spin on their own buttons.
+        let busy = (working && pressed == nil) || flow.step == .checking || flow.step == .forgot(sending: true)
         let enabled = flow.buttonEnabled && !working
         return Button(title, action: primary)
         .buttonStyle(.amberProminent(height: Row.height, cornerRadius: Row.radius))
@@ -460,12 +492,14 @@ struct SignInView: View {
         #if DIRECT
         return {
             working = true
+            pressed = .apple
             error = nil
             Task {
                 do { try await backend.signInWithAppleOnTheWeb() } catch where !Backend.isCanceled(error) {
                     self.error = Backend.appleMessage(for: error, linking: false)
                 } catch {}
                 working = false
+                pressed = nil
             }
         }
         #else
@@ -479,21 +513,25 @@ struct SignInView: View {
 
     private func signInWithGoogle() {
         working = true
+        pressed = .google
         error = nil
         Task {
             do { try await backend.signInWithGoogle() } catch where !Backend.isCanceled(error) {
                 self.error = Backend.googleMessage(for: error)
             } catch {}
             working = false
+            pressed = nil
         }
     }
 
     private func signIn(_ credential: AppleSignIn.Credential) {
         working = true
+        pressed = .apple
         error = nil
         Task {
             do { try await backend.signInWithApple(credential) } catch { self.error = Backend.appleMessage(for: error, linking: false) }
             working = false
+            pressed = nil
         }
     }
 

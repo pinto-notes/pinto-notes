@@ -25,6 +25,10 @@ final class ProfileStore {
     private(set) var problem: String?
 
     @ObservationIgnored private var user: UUID?
+    /// A name set before the account was known here (the first run resumed at its name step after
+    /// a relaunch): kept until `bind`, then written to that account. Without this it was stored
+    /// under no account and removed by the next bind (newcomer audit #5).
+    @ObservationIgnored private var unboundName: String??
     /// Screenshots and previews: a fixed profile, never touched by bind().
     @ObservationIgnored private var previewing = false
     @ObservationIgnored private var client: SupabaseClient?
@@ -60,6 +64,10 @@ final class ProfileStore {
             signInPhoto = defaults.string(forKey: key("signInPhoto")) == nil ? nil : (try? Data(contentsOf: file("signin.jpg"))).flatMap(PImage.init(data:))
         }
         self.client = client
+        if let waiting = unboundName {
+            unboundName = nil
+            await setName(waiting ?? "")
+        }
         await flush()
         await loadSignInPhoto(backend.signInPicture, for: id)
         guard await refresh() else { return }
@@ -124,6 +132,7 @@ final class ProfileStore {
     /// Signed out: nothing of the last account stays on screen.
     func reset() {
         user = nil
+        unboundName = nil
         client = nil
         name = nil
         photo = nil
@@ -156,6 +165,10 @@ final class ProfileStore {
 
     func setName(_ raw: String) async {
         let clean = ProfileName.normalized(raw)
+        guard user != nil else {
+            if !previewing { name = clean; unboundName = .some(clean) }
+            return
+        }
         guard clean != name else { return }
         name = clean
         store("name", clean)

@@ -23,6 +23,10 @@ import Testing
             try await Self.shoot(WelcomeFlow(backend: backend, stage: stage), name: "mac-\(name)-\(mode)", dark: dark)
         }
         try await Self.shoot(WelcomeFlow(backend: backend, stage: .signIn(returning: false), focusEmail: true), name: "mac-signin-focused-\(mode)", dark: dark)
+        // Newcomer audit 8, 23, 24: the password rule, the spinner on the button pressed, the email said once.
+        for (name, flow, pressed) in OnboardingSnapshots.signInStates {
+            try await Self.shoot(WelcomeFlow(backend: backend, stage: .signIn(returning: false), flow: flow, pressed: pressed), name: "mac-\(name)-\(mode)", dark: dark)
+        }
     }
 }
 #endif

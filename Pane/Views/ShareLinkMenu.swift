@@ -578,7 +578,15 @@ final class ShareLinkStore {
     /// "Done" and errors show briefly, then go.
     private func settleFeedback() {
         feedbackTask?.cancel()
-        let delay: Duration = { if case .failed = state.feedback { return .seconds(4) } else { return .seconds(1.8) } }()
+        // A made or copied link stays said long enough to be read: at 1.8 s it was gone before
+        // anyone looked down from the popover that just closed.
+        let delay: Duration = {
+            switch state.feedback {
+            case .failed: .seconds(4)
+            case .done: .seconds(3.5)
+            default: .seconds(1.8)
+            }
+        }()
         feedbackTask = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
@@ -730,7 +738,7 @@ private struct ShareLinkChrome: ViewModifier {
             .alert(alertTitle, isPresented: Binding(get: { store.confirming != nil }, set: { if !$0 { store.confirming = nil } }), presenting: store.confirming) { step in
                 switch step {
                 case .createLink:
-                    Button("Create Public Link") { Task { await store.confirmedShare() } }
+                    Button("Create Link") { Task { await store.confirmedShare() } }
                         // Not the default button on iPhone: iOS fills it system blue under the
                         // app's amber label, which can't be read.
                         #if os(macOS)
@@ -753,8 +761,9 @@ private struct ShareLinkChrome: ViewModifier {
             } message: { step in
                 switch step {
                 case .createLink:
-                    Text("Sharing puts a readable copy of this note and its files on \(ShareLinkConfig.siteName(store.baseURL)), outside your encryption, until you stop sharing. Anyone with the link can read it without signing in, and it may be passed on. The page shows your name and photo, and your email unless Apple hides it. Your edits show there as they sync."
-                         + (profileIncomplete ? "\n\nAdd your name and photo so people know the page is from you." : ""))
+                    // Short (newcomer audit, 2026-10-12: ten lines, then nothing): who can read it,
+                    // that it leaves the encryption, and that it shows who shared it.
+                    Text("Anyone with the link can read it and its files, outside your encryption, until you stop sharing. The page shows your name and email.")
                 case .includeSubNotes:
                     Text("Readable copies of the sub-notes in this note go on \(ShareLinkConfig.siteName(store.baseURL)) too, for anyone with the link, until you stop sharing. Locked sub-notes are never included.")
                 }

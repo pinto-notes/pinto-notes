@@ -172,7 +172,7 @@ Paid content: none. The app is free.
 A notes app for iPhone and Mac with checklists, tables, files and folders, synced and end-to-end encrypted. It is for people who use ChatGPT or Claude and want it to read and update their notes. With no AI connected it is a complete notes app.
 
 3. HOW TO TEST
-Sign in: tap "I already have an account", enter the demo email, Continue, the password.
+Sign in: tap "Get started", enter the demo email, Continue, the password.
 Next you see "Open your notes on this iPhone". The notes are encrypted and your device has no key yet. Tap "Use a recovery key instead" and enter:
 [RECOVERY KEY]
 Please do not use "No device left?" and "Start fresh". It erases the demo notes.

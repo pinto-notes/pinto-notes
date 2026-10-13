@@ -9,6 +9,8 @@ struct GoogleAuthButton: View {
     var title = "Sign in with Google"
     var height: CGFloat = 44
     var cornerRadius: CGFloat = 8
+    /// Pressed and under way: a spinner in the logo's place, and the button stays solid.
+    var busy = false
     let action: () -> Void
     @Environment(\.colorScheme) private var scheme
     @Environment(\.isEnabled) private var isEnabled
@@ -33,12 +35,18 @@ struct GoogleAuthButton: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         Button(action: action) {
             HStack(spacing: Self.logoGap) {
-                Image("GoogleG")
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(1, contentMode: .fit)
-                    .frame(width: Self.logoSize(height: height), height: Self.logoSize(height: height))
-                    .accessibilityHidden(true)
+                Group {
+                    if busy {
+                        ProgressView().controlSize(.small).tint(Color(Palette.rgb(colors.label)))
+                    } else {
+                        Image("GoogleG")
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(1, contentMode: .fit)
+                    }
+                }
+                .frame(width: Self.logoSize(height: height), height: Self.logoSize(height: height))
+                .accessibilityHidden(true)
                 Text(title)
                     .font(AmberProminentButtonStyle.rowTitle(height: height))
                     .foregroundStyle(Color(Palette.rgb(colors.label)))
@@ -53,8 +61,9 @@ struct GoogleAuthButton: View {
             .contentShape(shape)
         }
         .buttonStyle(PressScale())
-        .opacity(isEnabled ? 1 : 0.6)
+        .opacity(isEnabled || busy ? 1 : 0.6)
         .accessibilityLabel(title)
+        .accessibilityValue(busy ? "Signing in" : "")
     }
 
     /// Between the logo and the words: Google's 12 pt on iPhone, 10 on the Mac's smaller row.

@@ -85,6 +85,8 @@ struct AppleAuthButton: View {
     /// The Mac download (DIRECT) can't carry the Sign in with Apple entitlement, so its button
     /// runs Apple's web sign-in instead; the call site passes that flow here.
     var web: (@MainActor () -> Void)? = nil
+    /// Pressed and under way (the Mac's own button): a spinner in the logo's place.
+    var busy = false
     let completion: (Result<AppleSignIn.Credential, AppleSignIn.Failure>) -> Void
     @Environment(\.colorScheme) private var scheme
     @State private var nonce = AppleSignIn.makeNonce()
@@ -94,7 +96,7 @@ struct AppleAuthButton: View {
         // AppKit's Apple button keeps a small fixed height whatever frame it gets, so the Mac
         // draws its own at full height, per Apple's button guidelines: the logo, the standard
         // title, black on light and white on dark, never another colour.
-        MacAppleButton(title: title, height: height, cornerRadius: cornerRadius ?? height * 0.22, scheme: scheme) {
+        MacAppleButton(title: title, height: height, cornerRadius: cornerRadius ?? height * 0.22, scheme: scheme, busy: busy) {
             #if DIRECT
             if let web { web(); return }
             #endif
@@ -125,6 +127,7 @@ private struct MacAppleButton: View {
     let height: CGFloat
     let cornerRadius: CGFloat
     let scheme: ColorScheme
+    var busy = false
     let action: () -> Void
 
     var body: some View {
@@ -132,7 +135,12 @@ private struct MacAppleButton: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 // Title size matches the form's other rows (14 pt at the Mac's 36 pt row).
-                Image(systemName: "applelogo").font(.system(size: height * 0.39, weight: .medium))
+                if busy {
+                    ProgressView().controlSize(.small).tint(dark ? Color.black : Color.white)
+                        .frame(width: height * 0.39, height: height * 0.39)
+                } else {
+                    Image(systemName: "applelogo").font(.system(size: height * 0.39, weight: .medium))
+                }
                 Text(title).font(.system(size: height * 0.39, weight: .semibold))
             }
             .foregroundStyle(dark ? Color.black : Color.white)
