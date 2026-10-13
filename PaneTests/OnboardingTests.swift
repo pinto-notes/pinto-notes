@@ -346,6 +346,11 @@ import Testing
         #expect(TryIt.afterAsking("ChatGPT").hasPrefix("ChatGPT has the message."))
         #expect(TryIt.afterAsking("Claude").hasPrefix("Press send in Claude, under its caution note."))
         #expect(TryIt.afterAsking(nil).hasPrefix("Paste it into your AI"))
+        // Codex added on the step before: Try it pastes into Codex, by name.
+        let codex: Set<String> = ["Codex on Emil\u{2019}s MacBook Pro"]
+        #expect(TryIt.ways(connected: codex) == [.paste])
+        #expect(TryIt.afterAsking(nil, pasteInto: TryIt.pasteTarget(connected: codex)).hasPrefix("Paste it into Codex and send it."))
+        #expect(TryIt.pasteTarget(connected: ["Claude Code"]) == "Claude Code" && TryIt.pasteTarget(connected: ["ChatGPT"]) == nil)
         #expect(TryIt.claudeNote.contains("caution note"))
     }
 

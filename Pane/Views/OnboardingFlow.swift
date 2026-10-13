@@ -404,7 +404,7 @@ struct OnboardingFlow: View {
                     }
                     .accessibilityIdentifier("onboarding.late")
                 } else if shownAsked != nil || shownCopied {
-                    Text(TryIt.afterAsking(shownAsked)).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    Text(TryIt.afterAsking(shownAsked, pasteInto: TryIt.pasteTarget(connected: tryConnected))).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("onboarding.asked")
                 }
             }
@@ -572,9 +572,11 @@ struct OnboardingFlow: View {
     /// step's one button is Continue, and every other AI can still be connected first.
     @ViewBuilder private var connect: some View {
         if let preview {
-            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected))
+            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected),
+                           asksToFinish: false)
         } else if let client = backend.client {
-            ConnectChoices(client: client, guides: Self.guides, listsConnected: false) { titles in
+            // Try it comes next, so an added Claude Code or Codex row doesn't ask for a try itself.
+            ConnectChoices(client: client, guides: Self.guides, listsConnected: false, asksToFinish: false) { titles in
                 connectedTitles = titles
                 Task { await setup?.refresh(force: true) }
             }

@@ -244,6 +244,12 @@ final class ConnectRun {
     @ObservationIgnored private var expecting = false
     /// Told when the connection exists, so the list loads again.
     @ObservationIgnored var connected: (Guide) -> Void = { _ in }
+    /// Told when Claude Code or Codex was added (before its first call), so the view around it
+    /// knows: first run's Continue shows then.
+    @ObservationIgnored var added: (Guide) -> Void = { _ in }
+    /// The row asks the person to try the AI to finish (Settings, Make an App). First run has a
+    /// step for that (Try it), so there the row just says it was added.
+    @ObservationIgnored var asksToFinish = true
     #if os(macOS)
     /// Claude Code's and Codex's commands, and the address; tests give their own.
     @ObservationIgnored var shell = ConnectShell.Steps.live
@@ -432,7 +438,8 @@ final class ConnectRun {
             guard self.guide == pressed else { return }
             switch result {
             case .added(let details):
-                self.waitForToken(client, ai, phase: .added(ConnectCopy.added(ai), details: details))
+                self.waitForToken(client, ai, phase: .added(ConnectCopy.added(ai, askToFinish: self.asksToFinish), details: details))
+                if let g = self.guide { self.added(g) }
                 return
             case .notFound:
                 self.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
@@ -780,7 +787,9 @@ enum ConnectCopy {
     static let allowInBrowser = "In your browser: choose Open Pinto Notes, then Allow."
     /// What Settings lists a token as: "Codex on Emil's MacBook Pro".
     static func tokenName(_ g: Guide, device: String = AddDeviceNames.thisDevice) -> String { "\(g.title) on \(device)" }
-    static func added(_ g: Guide) -> String { "Added to \(g.title). Ask it about your notes to finish." }
+    static func added(_ g: Guide, askToFinish: Bool = true) -> String {
+        askToFinish ? "Added to \(g.title). Ask it about your notes to finish." : "Added to \(g.title)."
+    }
     static let sampleQuestion = "What did I write in my notes this week?"
     static let showDetails = "Show details"
     static let hideDetails = "Hide details"
@@ -818,6 +827,10 @@ struct ConnectChoices: View {
     var previewPhase: (Guide, ConnectRun.Phase)? = nil
     /// Captures: Show details open.
     var previewShowsDetails = false
+    /// Where nothing comes after it to try the AI (Settings, Make an App): an added AI's row asks
+    /// the person to ask it something, with a question to copy. First run passes false: its Try it
+    /// step comes next.
+    var asksToFinish = true
     /// A short sheet (Make an App): no headings and no Having trouble? (Settings has both).
     var compact = false
     /// Tells the view around it what is connected, each time it has been asked again.
@@ -890,6 +903,8 @@ struct ConnectChoices: View {
             if let (g, phase) = previewPhase { run.show(g, phase) }
             if previewShowsDetails { showsDetails = true }
             run.connected = { _ in Task { await load() } }
+            run.added = { _ in Task { await load() } }
+            run.asksToFinish = asksToFinish
         }
         .onDisappear { run.stop() }
         // Asks again when a sheet over it closes and when back online.
@@ -984,28 +999,33 @@ struct ConnectChoices: View {
         }
     }
 
-    /// Added to Claude Code or Codex, waiting for its first call: a question to ask it (copied
-    /// with one press), and what its own command lists for it, behind Show details.
+    /// A question to ask the AI that was just added, copied with one press.
+    private var sampleQuestion: some View {
+        HStack(spacing: 8) {
+            Text("\u{201C}\(ConnectCopy.sampleQuestion)\u{201D}")
+                .font(Metrics.quiet)
+                .foregroundStyle(Color.ink)
+                .textSelection(.enabled)
+            Spacer(minLength: 8)
+            Button(copied ? "Copied" : "Copy") {
+                ConnectClipboard.set(ConnectCopy.sampleQuestion)
+                copied = true
+                Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
+            }
+            .buttonStyle(.hoverLink).font(Metrics.quiet).foregroundStyle(Color.amberInk)
+            .accessibilityIdentifier("connect.sample.copy")
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(Color(Palette.field), in: .rect(cornerRadius: 8, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+    }
+
+    /// Added to Claude Code or Codex, waiting for its first call: a question to ask it where
+    /// nothing comes after (`asksToFinish`), and what its own command lists for it, behind Show details.
     @ViewBuilder private var addedNote: some View {
         if case .added(_, let details) = run.phase {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Text("\u{201C}\(ConnectCopy.sampleQuestion)\u{201D}")
-                        .font(Metrics.quiet)
-                        .foregroundStyle(Color.ink)
-                        .textSelection(.enabled)
-                    Spacer(minLength: 8)
-                    Button(copied ? "Copied" : "Copy") {
-                        ConnectClipboard.set(ConnectCopy.sampleQuestion)
-                        copied = true
-                        Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
-                    }
-                    .buttonStyle(.hoverLink).font(Metrics.quiet).foregroundStyle(Color.amberInk)
-                    .accessibilityIdentifier("connect.sample.copy")
-                }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Color(Palette.field), in: .rect(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+                if asksToFinish { sampleQuestion }
                 Button(showsDetails ? ConnectCopy.hideDetails : ConnectCopy.showDetails) { showsDetails.toggle() }
                     .buttonStyle(.hoverLink).font(Metrics.quiet).foregroundStyle(Color.muted)
                     .accessibilityIdentifier("connect.details")

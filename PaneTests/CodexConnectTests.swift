@@ -239,6 +239,23 @@ private extension Process {
         center.ownSignIn = nil
     }
 
+    /// In first run (Try it comes next) the row only says it was added, and tells the view around
+    /// it at once, so Continue shows before Codex's first call. Elsewhere it asks for a try.
+    @Test func inFirstRunTheRowSaysAddedAndContinueCanShow() async throws {
+        for asks in [false, true] {
+            let shell = Shell()
+            let (run, client) = run(shell, addToken: .added(details: "pinto-notes"))
+            run.asksToFinish = asks
+            var told: [ConnectAISection.Guide] = []
+            run.added = { told.append($0) }
+            run.start(.codex, client: client, open: { _ in })
+            try await settle { if case .added = run.phase { true } else { false } }
+            #expect(run.phase == .added(asks ? "Added to Codex. Ask it about your notes to finish." : "Added to Codex.", details: "pinto-notes"))
+            #expect(told == [.codex], "the view around it hears at once, before the first call")
+            run.stop()
+        }
+    }
+
     /// Claude straight to Claude Code: the same token route, as Claude Code.
     @Test func claudeCodeIsAddedWithATokenToo() async throws {
         let shell = Shell()

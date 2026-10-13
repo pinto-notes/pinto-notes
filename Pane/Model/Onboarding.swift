@@ -352,12 +352,19 @@ enum TryIt {
     static let claudeNote = "Claude shows a caution note for prompts that arrive by link. Press send there."
 
     /// One calm line after the prompt was handed over.
-    static func afterAsking(_ ai: String?) -> String {
+    static func afterAsking(_ ai: String?, pasteInto: String? = nil) -> String {
         switch ai {
         case "ChatGPT": "ChatGPT has the message. Its line appears here when it is done."
         case "Claude": "Press send in Claude, under its caution note. Its line appears here when it is done."
-        default: "Paste it into your AI and send it. Its line appears here when it is done."
+        default: "Paste it into \(pasteInto ?? "your AI") and send it. Its line appears here when it is done."
         }
+    }
+
+    /// The AI the prompt is pasted into, by name: Codex or Claude Code added on the step before
+    /// ("Codex on Emil's MacBook Pro" is Codex). Nil when none of them is connected.
+    static func pasteTarget(connected: Set<String>) -> String? {
+        for ai in ["Codex", "Claude Code"] where connected.contains(where: { $0 == ai || $0.hasPrefix("\(ai) on ") }) { return ai }
+        return nil
     }
 
     static let waiting = "Waiting for your AI\u{2026}"

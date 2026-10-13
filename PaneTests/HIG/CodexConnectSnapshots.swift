@@ -34,9 +34,10 @@ import Testing
         ConsentSheet(client: client, requestID: r.id, initial: .asking(r), finish: { _ in }, scan: ConnectJourneySnapshots.scan)
     }
 
-    static func row(phase: ConnectRun.Phase? = nil, connected: Bool = false, details: Bool = false) -> some View {
+    static func row(phase: ConnectRun.Phase? = nil, connected: Bool = false, details: Bool = false, firstRun: Bool = false) -> some View {
         ConnectChoices(client: client, guides: [.codex, .claudeCode], listsConnected: false, preview: connected ? [used] : [],
-                       previewFound: [.codex, .claudeCode], previewPhase: phase.map { (.codex, $0) }, previewShowsDetails: details, compact: true)
+                       previewFound: [.codex, .claudeCode], previewPhase: phase.map { (.codex, $0) }, previewShowsDetails: details,
+                       asksToFinish: !firstRun, compact: true)
             .padding(20)
             .frame(width: 480)
             .environment(ConnectGuideRoute())
@@ -53,6 +54,9 @@ import Testing
             ("3-added", AnyView(Self.row(phase: .added(ConnectCopy.added(.codex), details: Self.listed)))),
             ("4-added-details", AnyView(Self.row(phase: .added(ConnectCopy.added(.codex), details: Self.listed), details: true))),
             ("5-connected", AnyView(Self.row(connected: true))),
+            ("6-first-run-added", AnyView(Self.row(phase: .added(ConnectCopy.added(.codex, askToFinish: false), details: Self.listed), firstRun: true))),
+            ("7-first-run-added-details", AnyView(Self.row(phase: .added(ConnectCopy.added(.codex, askToFinish: false), details: Self.listed),
+                                                         details: true, firstRun: true))),
         ]
         for (name, view) in rows {
             try await AppSnapshotTests.render(view, name: "token-row-\(name)-\(mode)", dark: dark, wait: 1)
