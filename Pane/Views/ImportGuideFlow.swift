@@ -1,6 +1,9 @@
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 /// The import a source opens: its guide where it has one, the plain import sheet otherwise.
 /// Every place that starts an import (first run, the File menu, the import list, the iPhone's
@@ -22,15 +25,27 @@ struct ImportFlow: View {
 extension ImportGuide {
     /// The guide a source opens, once it has shipped (nil: the plain import sheet).
     static func live(_ kind: ImportKind) -> ImportGuide? {
-        switch kind {
         #if os(iOS)
+        switch kind {
         case .keep: keepPhone
-        #else
-        case .keep: keep
-        #endif
-        default: nil
+        case .obsidian: obsidianPhone(picture: picture("guide-obsidian-files"))
+        case .markdown: markdown
+        // Evernote and Bear can't export on a phone: their iPhone pages are still to come.
+        case .evernote, .bear: nil
         }
+        #else
+        switch kind {
+        case .keep: keep
+        case .evernote: evernote
+        case .bear: bear(picture: picture("guide-bear-export"))
+        case .obsidian: obsidian(picture: picture("guide-obsidian-reveal"))
+        case .markdown: markdown
+        }
+        #endif
     }
+
+    /// A real screenshot shipped with the app (Resources/ImportGuides).
+    static func picture(_ name: String) -> URL? { Bundle.main.url(forResource: name, withExtension: "png") }
 }
 
 /// Runs a guide's pages: Back and Next, the links each step opens, the file picked or dropped,
@@ -58,6 +73,8 @@ struct ImportGuideFlow: View {
     @State private var targeted = false
     @State private var stopRequested = false
     @State private var summary: ImportSummary?
+    /// What was imported, for the success page.
+    @State private var imported: [ImportSource] = []
 
     private var importable: [ImportSource] { sources.filter { $0.problem == nil && $0.notes > 0 } }
     private var noteCount: Int { importable.reduce(0) { $0 + $1.notes } }
@@ -74,7 +91,8 @@ struct ImportGuideFlow: View {
             .fileImporter(isPresented: $picking, allowedContentTypes: kind.contentTypes, allowsMultipleSelection: kind == .evernote) { result in
                 if case .success(let urls) = result { add(urls, replacing: true) }
             }
-            .fileDialogDefaultDirectory(FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first)
+            // Where the file is likely to be: a vault in Documents, an export in Downloads.
+            .fileDialogDefaultDirectory(FileManager.default.urls(for: kind == .obsidian ? .documentDirectory : .downloadsDirectory, in: .userDomainMask).first)
             .task {
                 guard !files.isEmpty else { return }
                 go(.drop)
@@ -112,11 +130,17 @@ struct ImportGuideFlow: View {
         return (name, noteCount == 1 ? "1 note" : "\(notes) notes", noteCount == 1 ? "Import 1 Note" : "Import \(notes) Notes")
     }
 
-    /// Said instead of the guide's line when the import added nothing.
+    /// The success page's line: the folder the import made, by its name, or why nothing came.
     private var broughtLine: String? {
-        guard let summary, summary.notes == 0 else { return nil }
-        return summary.alreadyImported > 0 ? "These notes came in an earlier import, so nothing was added twice."
-            : "There were no notes in it to bring in."
+        guard let summary else { return nil }
+        if summary.notes == 0 {
+            return summary.alreadyImported > 0 ? "These notes came in an earlier import, so nothing was added twice."
+                : "There were no notes in it to bring in."
+        }
+        guard guide.success.line.contains("{folder}") else { return nil }
+        let made = Set(imported.map(\.name))
+        if made.count == 1, let name = made.first { return guide.success.line.replacingOccurrences(of: "{folder}", with: name) }
+        return "Each one is a folder of its own, subfolders and pictures included."
     }
 
     // MARK: Presses
@@ -184,7 +208,14 @@ struct ImportGuideFlow: View {
 
     private func open(_ i: Int) {
         opened.insert(i)
-        if let link = guide.steps[i].link { openURL(link) }
+        let step = guide.steps[i]
+        #if os(macOS)
+        if let id = step.app, let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+            NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())
+            return
+        }
+        #endif
+        if let link = step.link { openURL(link) }
     }
 
     // MARK: The import
@@ -204,6 +235,7 @@ struct ImportGuideFlow: View {
     private func runImport() async {
         let chosen = importable
         guard !chosen.isEmpty else { return }
+        imported = chosen
         stopRequested = false
         go(.importing(done: 0, total: noteCount))
         let result = await kind.run(chosen, into: .perSource, context: context,

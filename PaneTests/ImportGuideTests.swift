@@ -4,11 +4,12 @@ import Testing
 
 /// The guided imports: which sources open a guide, and what the last page says.
 @MainActor struct ImportGuideTests {
-    @Test func keepOpensItsGuideAndNoOtherSheet() {
-        #expect(ImportGuide.live(.keep)?.id == "keep")
-        for kind in [ImportKind.evernote, .bear, .obsidian, .markdown] {
-            #expect(ImportGuide.live(kind) == nil, "\(kind) still opens the plain sheet")
-        }
+    @Test func everySourceOpensItsGuide() {
+        #if os(macOS)
+        for kind in ImportKind.allCases { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
+        #else
+        for kind in [ImportKind.keep, .obsidian, .markdown] { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
+        #endif
     }
 
     @Test func takeoutOpensWithOnlyKeepTicked() {
@@ -30,5 +31,11 @@ import Testing
         [note, loose].forEach { c.mainContext.insert($0) }
         #expect(c.mainContext.importScope(of: note.id) == .folder(top.id), "the import's own folder, not its label's")
         #expect(c.mainContext.importScope(of: loose.id) == .all)
+    }
+
+    @Test func theRealPicturesShipWithTheApp() {
+        for name in ["guide-bear-export", "guide-obsidian-reveal", "guide-obsidian-files"] {
+            #expect(ImportGuide.picture(name) != nil, "\(name).png is in the app")
+        }
     }
 }

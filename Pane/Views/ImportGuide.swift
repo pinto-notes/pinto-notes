@@ -18,7 +18,10 @@ struct ImportGuide: Identifiable {
     var skipTitle: String
     var steps: [Step]
     var drop: Drop
+    /// What came. "{folder}" in the line is the folder the import made.
     var success: (count: Int, line: String)
+    /// The folder the design's pictures name in the success line.
+    var exampleFolder = ""
     var wrongFile: (title: String, line: String)
 
     struct Step {
@@ -29,6 +32,8 @@ struct ImportGuide: Identifiable {
         var action: String?
         /// Where that button goes.
         var link: URL?
+        /// The Mac app that button opens when it's installed (the link otherwise).
+        var app: String?
     }
 
     struct Drop {
@@ -91,7 +96,8 @@ extension ImportGuide {
         steps: [
             Step(title: "Export a notebook",
                  text: "Click Notebooks. By a notebook, click the three dots, then Export Notebook. The website can't do this; the app can.",
-                 art: .drawn(.evernoteExport), action: "Open Evernote"),
+                 art: .drawn(.evernoteExport), action: "Open Evernote",
+                 link: URL(string: "https://evernote.com/download"), app: "com.evernote.Evernote"),
             Step(title: "Save it as an ENEX file",
                  text: "Choose ENEX and click Export. Do this once for each notebook.",
                  art: .drawn(.evernoteFormat), action: nil),
@@ -112,7 +118,7 @@ extension ImportGuide {
             steps: [
                 Step(title: "Select all your notes in Bear",
                      text: "Click Notes at the top of Bear's sidebar, then press Command-A.",
-                     art: .drawn(.bearSelect), action: "Open Bear"),
+                     art: .drawn(.bearSelect), action: "Open Bear", link: URL(string: "https://bear.app"), app: "net.shinyfrog.bear"),
                 Step(title: "Save them as Markdown",
                      text: "Choose File, then Export Notes. Pick Markdown, tick Export attachments, and save into a new folder.",
                      art: picture.map { .picture($0, rings: [(CGRect(x: 0.485, y: 0.04, width: 0.5, height: 0.27), "Pick Markdown"),
@@ -122,7 +128,7 @@ extension ImportGuide {
             drop: Drop(title: "Drop the folder here",
                        line: "The folder you just saved. Pictures inside it come too.",
                        choose: "Choose Folder…", found: nil, fileSymbol: "folder"),
-            success: (412, "They're in a folder named Bear. Tags stay in the text, as you wrote them."),
+            success: (412, "They're in a folder named {folder}. Tags stay in the text, as you wrote them."), exampleFolder: "Bear",
             wrongFile: ("There are no Bear notes in this folder",
                         "Choose the folder you exported into. If it's empty, export again and pick Markdown."))
     }
@@ -137,14 +143,14 @@ extension ImportGuide {
                 Step(title: "Find your vault",
                      text: "Your vault is the folder your notes live in. In Obsidian, right-click any note and choose Reveal in Finder.",
                      art: picture.map { .picture($0, rings: [(CGRect(x: 0.235, y: 0.4, width: 0.7, height: 0.17), nil)]) } ?? .drawn(.obsidianReveal),
-                     action: "Open Obsidian"),
+                     action: "Open Obsidian", link: URL(string: "https://obsidian.md/download"), app: "md.obsidian"),
             ],
             drop: Drop(title: "Drop your vault here",
                        line: "The whole folder. Subfolders, pictures and links between notes come too.",
                        choose: "Choose Folder…",
                        found: ("Second brain", "Your vault in Documents, 1,126 notes", "Import Second brain"),
                        fileSymbol: "folder"),
-            success: (1_126, "Your vault is a folder named Second brain. Links between notes still work."),
+            success: (1_126, "Your vault is a folder named {folder}. Links between notes still work."), exampleFolder: "Second brain",
             wrongFile: ("There are no notes in this folder",
                         "Choose the vault folder itself: the one with your notes and a hidden .obsidian folder inside."))
     }
@@ -158,7 +164,7 @@ extension ImportGuide {
         drop: Drop(title: "Drop a folder or .zip here",
                    line: "Files that end in .md or .txt. Each folder becomes a folder here.",
                    choose: "Choose Folder or .zip…", found: nil, fileSymbol: "doc.text"),
-        success: (363, "They're in a folder named Notion export, subfolders and pictures included."),
+        success: (363, "They're in a folder named {folder}, subfolders and pictures included."), exampleFolder: "Notion export",
         wrongFile: ("No notes in this one",
                     "Choose a folder or .zip with .md or .txt files in it."))
 
@@ -182,7 +188,7 @@ extension ImportGuide {
         g.introLine = "Your notes are already files, so there's nothing to export. Obsidian stays as it is."
         g.steps = [Step(title: "Find your vault in Files",
                         text: "Open Files, then iCloud Drive, then Obsidian. Each folder in there is a vault.",
-                        art: picture.map { .picture($0) } ?? .none, action: "Open Files")]
+                        art: picture.map { .picture($0) } ?? .none, action: "Open Files", link: URL(string: "shareddocuments://"))]
         g.drop = Drop(title: "Choose your vault",
                       line: "The whole folder. Subfolders, pictures and links between notes come too.",
                       choose: "Choose Folder", found: nil, fileSymbol: "folder")
@@ -515,7 +521,7 @@ struct ImportGuideSheet: View {
                 .tracking(Palette.tracking(26))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 10)
-            Text(broughtLine ?? guide.success.line)
+            Text(broughtLine ?? guide.success.line.replacingOccurrences(of: "{folder}", with: guide.exampleFolder))
                 .font(Self.compact ? .body : .system(size: 15))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
