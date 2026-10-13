@@ -108,7 +108,7 @@ import Testing
                 view.modelContainer(c).tint(Color(PColor.paneAccent))
             }
             // Small enough for the CI Mac's 1024 x 768 screen, which would cut a bigger window short.
-            let w = AIEditSnapshots.window(host, size: CGSize(width: 1000, height: 720), dark: dark)
+            let w = AIEditSnapshots.window(host, size: CGSize(width: 1000, height: 640), dark: dark)
             defer { w.orderOut(nil); w.close() }
             var sheet: NSWindow?
             for _ in 0..<60 where sheet == nil { sheet = w.attachedSheet; if sheet == nil { try? await Task.sleep(for: .milliseconds(100)) } }
