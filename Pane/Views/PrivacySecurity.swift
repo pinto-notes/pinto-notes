@@ -260,6 +260,10 @@ struct PrivacySecuritySection: View {
                 // Off and held by a password reset: it can't be turned on yet, and the footer says from when.
                 .disabled(changing || reach != .online || (!strict && (crypto.strictPausedUntil ?? .distantPast) > .now))
                 .accessibilityIdentifier("privacy.strict")
+                #if os(macOS)
+                // Settings' switches are in the brand's brown, as on General.
+                .tint(Color(Palette.switchOn))
+                #endif
                 .confirmationDialog(turning == .strict ? KeyCopyWords.turnOnTitle : KeyCopyWords.turnOffTitle,
                                     isPresented: $asksTurn, titleVisibility: .visible) {
                     if turning == .strict {

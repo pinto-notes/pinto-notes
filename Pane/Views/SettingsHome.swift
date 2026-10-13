@@ -403,12 +403,14 @@ struct GeneralPage: View {
     var body: some View {
         Section {
             Toggle("Show in menu bar", isOn: $menuBar)
+                .tint(Color(Palette.switchOn))
                 .accessibilityIdentifier("settings.menuBar")
         } footer: {
             Text("Capture or find a note from the menu bar.")
         }
         Section {
             Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
+                .tint(Color(Palette.switchOn))
                 .accessibilityIdentifier("settings.diagnostics")
         } footer: {
             Text("Error reports and a few counts. Never your notes.")
