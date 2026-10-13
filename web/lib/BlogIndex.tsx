@@ -105,7 +105,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
           </nav>
           <ul className={`${s.grid} ${FILTER_GRID}`}>
             {posts.map((p) => (
-              <li key={p.slug}><PostCard post={p} /></li>
+              <li key={p.slug} data-key={p.slug}><PostCard post={p} /></li>
             ))}
           </ul>
         </div>
