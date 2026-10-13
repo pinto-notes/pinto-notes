@@ -1,6 +1,6 @@
 // The release gate (docs/Technical/release-gate.md): scripts/release-gate.sh runs this.
 //
-//   deno run -A scripts/release-gate/gate.ts <candidate ref> [--baseline <ref>] [--sizes 1,2000,20000]
+//   deno run -A scripts/release-gate/gate.ts <candidate ref> [--baseline <ref>] [--sizes 1,2000,10000,20000]
 //       [--runs 3] [--only perf,security,storage,network] [--rebuild] [--host fleet-air] [--reuse-perf] [--rescore <report.json>]
 //
 // Builds the candidate (scripts/release-gate/build.sh), measures it on a real Mac over ssh with the
@@ -12,7 +12,7 @@
 import { parseArgs } from "jsr:@std/cli@1/parse-args";
 
 const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
-const args = parseArgs(Deno.args, { string: ["baseline", "sizes", "runs", "only", "host", "rescore", "label"], boolean: ["rebuild", "no-baseline", "reuse-perf"], default: { sizes: "1,2000,20000", runs: "3", host: "fleet-air" } });
+const args = parseArgs(Deno.args, { string: ["baseline", "sizes", "runs", "only", "host", "rescore", "label"], boolean: ["rebuild", "no-baseline", "reuse-perf"], default: { sizes: "1,2000,10000,20000", runs: "3", host: "fleet-air" } });
 // `--rescore <report.json>`: the same numbers against the current budgets and baseline, nothing measured again.
 const RESCORE = args.rescore ? JSON.parse(await Deno.readTextFile(args.rescore)) : null;
 const candidate = String(args._[0] ?? RESCORE?.ref ?? "");
