@@ -4,6 +4,8 @@
 export function themeFor(path: string): "cream" | "leaf" | null {
   if (/^\/(n|s|t|report)(\/|$)/.test(path)) return null;
   if (/^\/(changelog|support|help|privacy-security|privacy|terms)(\/|$)/.test(path)) return "leaf";
+  // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in dark.
+  if (/^\/lab(\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
   return "cream";
 }
 
@@ -19,4 +21,4 @@ export function ownTopBar(path: string, copyIds: readonly string[] = []): boolea
 
 /// Runs in <head> before first paint, so a page never flashes the wrong theme. The consent page's
 /// CSP allows it by its hash (middleware.ts), so change it only here.
-export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(changelog|support|help|privacy-security|privacy|terms)(\\/|$)/.test(p)?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
+export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(changelog|support|help|privacy-security|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
