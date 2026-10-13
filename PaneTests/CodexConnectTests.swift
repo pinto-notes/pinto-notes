@@ -160,7 +160,7 @@ import Testing
         center.ownSignIn = nil
         let shell = Shell()
         let run = ConnectRun()
-        run.address = "https://mcp.pintonotes.com/mcp"
+        run.address = "https://mcp.pintonotes.com"  // no path: signs in through the browser
         run.browserNotice = .milliseconds(50)
         let printed = ConnectOwnSignIn.authorization(in: Self.codexPrinted)
         run.shell = .init(isAvailable: { true }, exists: { _ in true },
@@ -191,7 +191,7 @@ import Testing
         center.ownSignIn = nil
         let shell = Shell()
         let run = ConnectRun()
-        run.address = "https://mcp.pintonotes.com/mcp"
+        run.address = "https://mcp.pintonotes.com"  // no path: signs in through the browser
         run.browserNotice = .zero
         run.claudeCodeOnly = { true }
         let printed = ConnectOwnSignIn.authorization(in: Self.claudeCodePrinted)
