@@ -34,7 +34,7 @@ export const APP_TEMPLATES = { version: "1.1.1", live: true } as const;
 
 // Notes that are apps. Flipping this adds the Help question the onboarding email links to
 // (/help#apps): flip it when the released apps have them, before APPS_LIVE turns the email on.
-export const NOTE_APPS_LIVE = false;
+export const NOTE_APPS_LIVE = true;
 
 /// Where Pinto Notes runs, in a table cell: true today, and right again the day the iPhone app ships.
 export const DEVICES = APP_STORE_LIVE ? "iPhone and Mac" : "Mac now; iPhone coming soon";
