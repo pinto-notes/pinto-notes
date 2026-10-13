@@ -71,11 +71,7 @@ const config: NextConfig = {
     return {
       // /templates/<slug>.json is the template's data (app/api/templates/[slug]), checked before the
       // template's page so the page's [slug] never sees the ".json".
-      beforeFiles: [
-        { source: "/templates/:slug.json", destination: "/api/templates/:slug" },
-        // The home page directions under study (app/home-v): /?v=a, /?v=b and /?v=c.
-        { source: "/", has: [{ type: "query", key: "v", value: "(?<v>a|b|c)" }], destination: "/home-v/:v" },
-      ],
+      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }],
       afterFiles: [],
       // The DMG's names from before the rename (lib/downloads.ts), once no file has them.
       fallback: OLD_DMG_NAMES,

@@ -33,8 +33,8 @@ export const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="
 
 /// One thing an AI does with your notes: its name and one line (under the card), the app it's asked
 /// in, the request, and what it did in Pinto Notes. `call` is the tool line a terminal shows.
-export type Job = { title: string; line: string; app: string; glyph: "openai" | "claude"; kind: "phone" | "desk" | "term"; ask: string; note: string; did: string; call?: string };
-export const JOBS: Job[] = [
+type Job = { title: string; line: string; app: string; glyph: "openai" | "claude"; kind: "phone" | "desk" | "term"; ask: string; note: string; did: string; call?: string };
+const JOBS: Job[] = [
   { title: "Turns a messy note into next steps", line: "It writes the steps as a checklist at the top of the note and leaves the rest alone.",
     app: "ChatGPT", glyph: "openai", kind: "phone", ask: "Turn my kitchen reno note into next steps", note: "Kitchen reno", did: "7 steps added as a checklist" },
   { title: "Checks in on the plan when you ask", line: "It reads the plan, counts what you ticked, and moves what's left to next week.",
@@ -43,9 +43,10 @@ export const JOBS: Job[] = [
     app: "Claude Code", glyph: "claude", kind: "term", ask: "What did I say I'd do before the release?", note: "Standup notes", did: "3 open items", call: "amber-notes · search" },
 ];
 
-/// Per card: how much of the request is typed, and whether the result is in. At rest: all complete;
-/// the first time the cards are seen they type and answer, one after another.
-export function useJobTyping(seen: boolean) {
+/// Three things an AI does with your notes, in three apps: each a request and what it did in Pinto Notes.
+export function AiSection() {
+  const [ref, seen] = useFirstView<HTMLElement>();
+  // Per card: how much of the request is typed, and whether the result is in. At rest: all complete.
   const [typed, setTyped] = useState(JOBS.map((j) => j.ask.length));
   const [done, setDone] = useState(JOBS.map(() => true));
   useEffect(() => {
@@ -59,67 +60,46 @@ export function useJobTyping(seen: boolean) {
     });
     return () => ts.forEach(clearTimeout);
   }, [seen]);
-  return [typed, done] as const;
-}
 
-/// One request in its app, and what it did in Pinto Notes.
-export function JobFigure({ j, typed, done, className = "" }: { j: Job; typed: number; done: boolean; className?: string }) {
-  const text = j.ask.slice(0, typed);
-  const typing = typed < j.ask.length;
-  return (
-    <figure className={`${a.job} ${a[j.kind]} ${className}`} aria-label={`${j.app}: ${j.ask}. Result: ${j.note}, ${j.did}.`}>
-      <figcaption className={a.jobBar} aria-hidden="true">
-        {j.kind !== "phone" && <span className={a.lights}><i /><i /><i /></span>}
-        <span className={a.jobApp}><AIGlyph name={j.glyph} size={13} />{j.app}</span>
-      </figcaption>
-      <div className={a.jobBody} aria-hidden="true">
-        {j.kind === "term" ? (
-          <>
-            <p className={a.prompt}><span className={a.promptMark}>›</span>{text}{typing && <i className={a.caret} />}</p>
-            <p className={a.call} data-on={done || undefined}><span>⏺</span> {j.call}</p>
-            <p className={a.termResult} data-on={done || undefined}><Tick /> {j.note} · {j.did}</p>
-          </>
-        ) : (
-          <>
-            <p className={a.bubble} data-on={typed > 0 || undefined}>{text}{typing && <i className={a.caretDark} />}</p>
-            <p className={a.chip} data-on={done || undefined}><Tick /> <b>{j.note}</b> · {j.did}</p>
-          </>
-        )}
-      </div>
-    </figure>
-  );
-}
-
-export const AI_TITLE = "Every AI you use works from the same notes";
-export const AI_LEDE = "Connect ChatGPT, Claude, Claude Code, Codex or Incredible, and each one reads the notes you already keep. Ask ChatGPT on your phone in the morning and Claude at your desk in the afternoon, and both see the same plan.";
-export function AiAlso() {
-  return <p className={a.also}>Also Codex, <a href="https://incredible.one" rel="noopener">Incredible</a>, and any app that supports MCP. <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Available in Claude&apos;s connector directory</a> · <a href="/blog/connect-chatgpt-to-your-notes">How to connect</a> · <a href="/templates">Start from a template</a></p>;
-}
-
-/// Three things an AI does with your notes, in three apps: each a request and what it did in Pinto Notes.
-/// `art` (the home page studies) sits beside the heading; `headClass` lays the two out.
-export function AiSection({ art, headClass }: { art?: React.ReactNode; headClass?: string } = {}) {
-  const [ref, seen] = useFirstView<HTMLElement>();
-  const [typed, done] = useJobTyping(seen);
-  const head = (
-    <div className={a.head}>
-      <h2 id="ai" className={a.h2}>{AI_TITLE}</h2>
-      <p className={a.lede}>{AI_LEDE}</p>
-    </div>
-  );
   return (
     <section ref={ref} className={a.section} aria-labelledby="ai">
-      {art ? <div className={headClass}>{head}{art}</div> : head}
+      <div className={a.head}>
+        <h2 id="ai" className={a.h2}>Every AI you use works from the same notes</h2>
+        <p className={a.lede}>Connect ChatGPT, Claude, Claude Code, Codex or Incredible, and each one reads the notes you already keep. Ask ChatGPT on your phone in the morning and Claude at your desk in the afternoon, and both see the same plan.</p>
+      </div>
       <div className={a.jobs}>
-        {JOBS.map((j, k) => (
-          <div key={j.app} className={a.cap}>
-            <JobFigure j={j} typed={typed[k]} done={done[k]} />
+        {JOBS.map((j, k) => {
+          const text = j.ask.slice(0, typed[k]);
+          const typing = typed[k] < j.ask.length;
+          return (
+            <div key={j.app} className={a.cap}>
+            <figure className={`${a.job} ${a[j.kind]}`} aria-label={`${j.app}: ${j.ask}. Result: ${j.note}, ${j.did}.`}>
+              <figcaption className={a.jobBar} aria-hidden="true">
+                {j.kind !== "phone" && <span className={a.lights}><i /><i /><i /></span>}
+                <span className={a.jobApp}><AIGlyph name={j.glyph} size={13} />{j.app}</span>
+              </figcaption>
+              <div className={a.jobBody} aria-hidden="true">
+                {j.kind === "term" ? (
+                  <>
+                    <p className={a.prompt}><span className={a.promptMark}>›</span>{text}{typing && <i className={a.caret} />}</p>
+                    <p className={a.call} data-on={done[k] || undefined}><span>⏺</span> {j.call}</p>
+                    <p className={a.termResult} data-on={done[k] || undefined}><Tick /> {j.note} · {j.did}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className={a.bubble} data-on={typed[k] > 0 || undefined}>{text}{typing && <i className={a.caretDark} />}</p>
+                    <p className={a.chip} data-on={done[k] || undefined}><Tick /> <b>{j.note}</b> · {j.did}</p>
+                  </>
+                )}
+              </div>
+            </figure>
             <h3 className={a.capTitle}>{j.title}</h3>
             <p className={a.capLine}>{j.line}</p>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
-      <AiAlso />
+      <p className={a.also}>Also Codex, <a href="https://incredible.one" rel="noopener">Incredible</a>, and any app that supports MCP. <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Available in Claude&apos;s connector directory</a> · <a href="/blog/connect-chatgpt-to-your-notes">How to connect</a> · <a href="/templates">Start from a template</a></p>
     </section>
   );
 }

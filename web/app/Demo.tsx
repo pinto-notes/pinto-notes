@@ -21,15 +21,11 @@ type Shot = "before" | "listed" | "written" | "writtenPlain" | "edited" | "edite
 const FILE: Record<Shot, string> = {
   before: "lisbon-0-before", listed: "lisbon-1-listed", written: "lisbon-1-tint", writtenPlain: "lisbon-1-faded", edited: "lisbon-2-tint", editedPlain: "lisbon-2-faded",
 };
-// The soft tint: the same captures with the app's tint at about a third of its strength (each a blend of
-// the tint frame over its faded one), so a change reads as "the AI just touched this", not a block.
-const SOFT: Record<Shot, string> = { ...FILE, written: "lisbon-1-soft", edited: "lisbon-2-soft" };
-type Files = Record<Shot, string>;
 const SHOTS = Object.keys(FILE) as Shot[];
-const src = (k: Shot, f: Files = FILE) => `${FRAMES.dir}${f[k]}.webp`;
+const src = (k: Shot) => `${FRAMES.dir}${FILE[k]}.webp`;
 // Each frame also comes 1180 and 800 wide (cwebp -q 84 -resize), so a phone doesn't download the 2x
 // capture. The window is 1180/1280 of the demo, which is up to 1400 wide (wider than the page column).
-const srcSet = (k: Shot, f: Files = FILE) => `${FRAMES.dir}${f[k]}-800.webp 800w, ${FRAMES.dir}${f[k]}-1180.webp 1180w, ${src(k, f)} 2360w`;
+const srcSet = (k: Shot) => `${FRAMES.dir}${FILE[k]}-800.webp 800w, ${FRAMES.dir}${FILE[k]}-1180.webp 1180w, ${src(k)} 2360w`;
 const SIZES = "(min-width: 1440px) 1290px, 92vw";
 const ALT: Record<Shot, string> = {
   before: "Pinto Notes on a Mac",
@@ -88,9 +84,7 @@ function at(t: number): View {
 }
 
 
-/// `soft` uses the softer tint frames; `wallpaper` puts a picture on the desk instead of the drawn dunes.
-export default function Demo({ soft = false, wallpaper }: { soft?: boolean; wallpaper?: string } = {}) {
-  const files = soft ? SOFT : FILE;
+export default function Demo() {
   const [view, setView] = useState<View>(at(0));
   const [still, setStill] = useState(false);
   const clock = useRef({ t: 0, last: 0, started: false });
@@ -118,10 +112,10 @@ export default function Demo({ soft = false, wallpaper }: { soft?: boolean; wall
       setStill(true); setView({ ...at(BEATS[1].faded + 500), pill: -1 }); return;
     }
     const ready = { done: false };
-    Promise.all([...SHOTS.map((k) => src(k, files)), ...ASKS.map((a) => FRAMES.dir + a.pill)].map((u) => {
+    Promise.all([...SHOTS.map(src), ...ASKS.map((a) => FRAMES.dir + a.pill)].map((u) => {
       // The same candidate the page's <img> picks, so nothing downloads twice.
-      const i = new Image(); const k = SHOTS.find((s) => src(s, files) === u);
-      if (k) { i.sizes = SIZES; i.srcset = srcSet(k, files); }
+      const i = new Image(); const k = SHOTS.find((s) => src(s) === u);
+      if (k) { i.sizes = SIZES; i.srcset = srcSet(k); }
       i.src = u; return i.decode().catch(() => undefined);
     }))
       .then(() => { ready.done = true; });
@@ -187,11 +181,11 @@ export default function Demo({ soft = false, wallpaper }: { soft?: boolean; wall
     <div className={d.wrap}>
       <div ref={outer} className={d.fit}>
         <div className={d.desk}>
-          {wallpaper ? <img className={d.wall} src={wallpaper} alt="" aria-hidden="true" width={800} height={800} style={{ objectFit: "cover" }} /> : <Wallpaper />}
+          <Wallpaper />
           <div className={d.app} data-dim={(view.chat && !view.edit && (typing || view.thinking || view.sent > view.answered)) || undefined} data-edit={view.edit || undefined}
             data-instant={base === "listed" || undefined}>
             {SHOTS.map((k) => (
-              <img key={k} src={src(k, files)} srcSet={srcSet(k, files)} sizes={SIZES} width={1180} height={FRAMES.h} alt={k === base ? ALT[k] : ""}
+              <img key={k} src={src(k)} srcSet={srcSet(k)} sizes={SIZES} width={1180} height={FRAMES.h} alt={k === base ? ALT[k] : ""}
                 aria-hidden={k !== base} className={d.shot} data-on={k === base || undefined} data-under={(k === under && k !== base) || undefined}
                 loading="eager" fetchPriority={k === "before" ? "high" : "low"} decoding="async" draggable={false} />
             ))}

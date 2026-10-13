@@ -125,16 +125,16 @@ export function PhoneList({ groups }: { groups: { day: string; notes: { title: s
 }
 
 /// A note in a Mac window: traffic lights, the folder, the date, the title, the note.
-export function MacNote({ title, folder, date, lines, gutter, receipt, className = "", label }: {
-  title: string; folder: string; date: string; lines: Line[]; gutter?: boolean; receipt?: { who: Who; text: string }; className?: string; label: string;
+export function MacNote({ title, folder, date, lines, gutter, receipt, className = "", label, size = "m" }: {
+  title: string; folder: string; date: string; lines: Line[]; gutter?: boolean; receipt?: { who: Who; text: string }; className?: string; label: string; size?: "m" | "l";
 }) {
   return (
-    <figure className={`${k.mac} ${className}`} aria-label={label} data-gutter={gutter || undefined}>
+    <figure className={`${k.mac} ${className}`} aria-label={label} data-gutter={gutter || undefined} data-size={size}>
       <div className={k.macBar} aria-hidden="true"><span className={k.lights}><i /><i /><i /></span><span className={k.macFolder}><FolderIcon />{folder}</span></div>
       <div className={k.macPaper}>
         <p className={k.macDate}>{date}</p>
         <h3 className={k.macTitle}>{title}</h3>
-        <NoteBody lines={lines} gutter={gutter} />
+        <NoteBody lines={lines} gutter={gutter} size={size} />
         {receipt && <div className={k.macReceipt}><Receipt {...receipt} /></div>}
       </div>
     </figure>

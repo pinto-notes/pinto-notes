@@ -8,7 +8,7 @@ import { themeFor, themeScript } from "@/lib/theme";
 import { metadata } from "./layout";
 
 // The home page studies (/lab/*) are for the team: kept out of search, the sitemap and the site's links.
-const STUDIES = ["/lab/home-a", "/lab/home-b", "/lab/home-c"];
+const STUDIES = ["/lab/home-a", "/lab/home-b", "/lab/home-c", "/lab/home-d"];
 const APP = fileURLToPath(new URL("..", import.meta.url));
 
 function sources(dir: string): string[] {
@@ -58,5 +58,16 @@ describe("the /lab design studies", () => {
     expect(run(true)).toBe("leaf");
     expect(themeFor("/lab/home-a")).toBe("cream"); // no matchMedia on the server: cream
     expect(themeFor("/labrador")).toBe("cream");
+  });
+
+  it("keep the home page study cream, as the home page is, in light and dark", () => {
+    const run = (dark: boolean) => {
+      const document = { documentElement: { dataset: {} as Record<string, string> } };
+      new Function("location", "document", "matchMedia", themeScript)({ pathname: "/lab/home-d" }, document, () => ({ matches: dark }));
+      return document.documentElement.dataset.theme;
+    };
+    expect(run(false)).toBe("cream");
+    expect(run(true)).toBe("cream");
+    expect(themeFor("/lab/home-d")).toBe("cream");
   });
 });
