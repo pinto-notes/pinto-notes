@@ -293,8 +293,16 @@ extension ModelContext {
     /// True when a sub-note is still linked from its parent, so it lives there, not in the list.
     func isNested(_ note: Note) -> Bool {
         guard let pid = note.parentID, let parent = self.note(pid), parent.deletedAt == nil else { return false }
-        return parent.body.contains("pane-note:\(note.id.uuidString.lowercased())")
+        return Self.links(parent, to: note)
     }
+
+    static func links(_ parent: Note, to child: Note) -> Bool {
+        parent.body.contains("pane-note:\(child.id.uuidString.lowercased())")
+    }
+
+    /// Every sub-note that lives inside its parent (`isNested`), worked out once and kept until a
+    /// note it was worked out from changes (see SubNoteIndex).
+    func nestedSubNotes() -> [Note] { SubNoteIndex.nested(in: self) }
 
     func trash(_ note: Note) {
         // Marked before its sub-notes, so a loop of sub-notes (A under B under A) ends.
@@ -547,5 +555,79 @@ enum DateBucket {
     /// Editor header: "27 September 2026 at 16:02".
     static func header(_ d: Date) -> String {
         d.formatted(.dateTime.day().month(.wide).year().hour().minute().locale(locale))
+    }
+}
+
+/// The sub-notes that live inside their parent, for the sidebar's counts and the list. Asked one
+/// sub-note at a time (`isNested`, a fetch for each parent), a library with 1,000 sub-notes spent
+/// most of every save on it: the sidebar's two counted rows and the empty-trash check each asked
+/// for all of them whenever a note changed (release gate, 2026-10-13: half the main thread's time
+/// at 20,000 notes). Here two fetches find them all, and the answer is kept until one of the notes
+/// it was read from changes (Observation: a parent's text, deletion, a sub-note's parent) or a
+/// save adds, deletes or re-parents a note.
+@MainActor
+enum SubNoteIndex {
+    private static var cached: [Note]?
+    private static var cachedIDs: [UUID] = []
+    private static weak var cachedContext: ModelContext?
+    private static var observer: NSObjectProtocol?
+    /// Goes up when the answer is dropped, so a change heard from an older answer is ignored.
+    private static var generation = 0
+
+    static func nested(in context: ModelContext) -> [Note] {
+        if let cached, cachedContext === context { return cached }
+        watchSaves(of: context)
+        generation += 1
+        let built = generation
+        // Dropped as the change happens, so whatever asks next (in the same turn, too) gets the new answer.
+        let nested = withObservationTracking { build(context) } onChange: {
+            MainActor.assumeIsolated { if generation == built { invalidate() } }
+        }
+        cached = nested
+        cachedIDs = nested.map(\.id)
+        cachedContext = context
+        return nested
+    }
+
+    /// The ids of `nested(in:)`.
+    static func nestedIDs(in context: ModelContext) -> [UUID] {
+        _ = nested(in: context)
+        return cachedIDs
+    }
+
+    static func invalidate() {
+        cached = nil
+        cachedIDs = []
+        generation += 1
+    }
+
+    private static func build(_ context: ModelContext) -> [Note] {
+        let subs = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.parentID != nil && $0.deletedAt == nil }))) ?? []
+        guard !subs.isEmpty else { return [] }
+        let parentIDs = Array(Set(subs.compactMap(\.parentID)))
+        let parents = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { parentIDs.contains($0.id) }))) ?? []
+        let byID = Dictionary(parents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return subs.filter { sub in
+            guard let pid = sub.parentID, let parent = byID[pid], parent.deletedAt == nil else { return false }
+            return ModelContext.links(parent, to: sub)
+        }
+    }
+
+    /// A save that adds or deletes notes, or changes one that has a parent, can make a sub-note
+    /// nobody was watching: the answer is worked out again.
+    private static func watchSaves(of context: ModelContext) {
+        guard cachedContext !== context || observer == nil else { return }
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { n in
+            func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
+            let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers), updated = ids(.updatedIdentifiers)
+            nonisolated(unsafe) let saved = n
+            MainActor.assumeIsolated {
+                guard let context = saved.object as? ModelContext, context === cachedContext, cached != nil else { return }
+                if !inserted.isEmpty || !deleted.isEmpty || updated.contains(where: { (context.model(for: $0) as? Note)?.parentID != nil }) {
+                    invalidate()
+                }
+            }
+        }
     }
 }

@@ -270,13 +270,18 @@ struct SidebarView: View {
     /// while its list said "1 note" (newcomer audit, 2026-10-12). Only notes with a parent are
     /// fetched: a library without sub-notes pays for one empty fetch.
     static func nestedSubNotes(in context: ModelContext) -> [Note] {
-        let subs = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.parentID != nil && $0.deletedAt == nil }))) ?? []
-        return subs.filter { context.isNested($0) }
+        context.nestedSubNotes()
     }
 
-    /// A folder's notes as its list counts them: without the sub-notes inside a parent.
+    /// A folder's notes as its list counts them: without the sub-notes inside a parent. Counted by
+    /// the store, not by reading the folder's notes.
     static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        folder.liveNotes.count { !($0.parentID != nil && context.isNested($0)) }
+        let id = folder.id
+        let live = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.folder?.id == id && $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
+        let nested = SubNoteIndex.nestedIDs(in: context)
+        guard live > 0, !nested.isEmpty else { return live }
+        let inside = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { nested.contains($0.id) && $0.folder?.id == id && $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
+        return live - inside
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
@@ -314,7 +319,9 @@ struct SidebarView: View {
     }
 
     /// Whether any folder has sub-folders: the list then keeps a column for their arrows.
-    private var nested: Bool { folders.contains { !$0.liveChildren.isEmpty } }
+    /// The folders' parents are read, not every folder's children (800 folders: 800 lists read
+    /// for each update of the sidebar).
+    private var nested: Bool { folders.contains { $0.parent.map { $0.deletedAt == nil } ?? false } }
 
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
