@@ -288,7 +288,7 @@ struct NoteListView: View {
         .scrollContentBackground(.hidden)
         .background(Color(Palette.listGround).ignoresSafeArea())
         .overlay {
-            if visible.isEmpty && visibleFiles.isEmpty { emptyState }
+            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading { emptyState }
         }
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
@@ -851,7 +851,7 @@ extension NoteListView: @MainActor Equatable {
 
 /// What the list needs to know about a note to place it: plain values, read from the note once
 /// and again only when the note changes.
-struct NoteEntry: Identifiable, DatedListItem {
+struct NoteEntry: Identifiable, DatedListItem, Sendable {
     /// The note in the store. Its model is looked up when a row is shown (`note(in:)`): the list
     /// doesn't keep every note of the library in memory, and a context that holds fewer notes saves
     /// faster (SwiftData tells each note it holds of every save).
@@ -1147,7 +1147,9 @@ final class LibraryNotes {
         // The notes read here stay readable for as long as this list is around, also after
         // its window has closed with changes still waiting.
         container = context.container
-        load()
+        // A large library is read off the main thread: the window comes up at once, and the list
+        // fills in when it's read (at 20,000 notes, most of a second on the main thread before).
+        if ((try? context.fetchCount(FetchDescriptor<Note>())) ?? 0) > Self.readHere { loadElsewhere() } else { load() }
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak self] n in
             func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
@@ -1162,6 +1164,12 @@ final class LibraryNotes {
     /// are read again and placed.
     private func take(inserted: [PersistentIdentifier], deleted: [PersistentIdentifier], updated: [PersistentIdentifier]) {
         guard let context else { return }
+        if isLoading {
+            // Taken in once the library is read (it may have been read before this save).
+            savedWhileLoading.inserted.formUnion(inserted + updated)
+            savedWhileLoading.deleted.formUnion(deleted)
+            return
+        }
         guard inserted.count + deleted.count <= Self.wholesaleChange else {
             load()
             publish()
@@ -1196,6 +1204,47 @@ final class LibraryNotes {
     /// Notes a save changed, read again before they're placed.
     @ObservationIgnored private var changed: Set<UUID> = []
 
+    /// Libraries up to this many notes are read on the main thread, at once.
+    static let readHere = 3_000
+    /// The library is being read off the main thread: the list shows nothing yet, and no empty state.
+    private(set) var isLoading = false
+    @ObservationIgnored private var savedWhileLoading: (inserted: Set<PersistentIdentifier>, deleted: Set<PersistentIdentifier>) = ([], [])
+
+    /// Every note, read on a context of its own, then sorted and shown as a new list.
+    private func loadElsewhere() {
+        guard let container else { return }
+        isLoading = true
+        savedWhileLoading = ([], [])
+        let titled = order.key == .title
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let read = ModelContext(container)
+            let entries = ((try? read.fetch(FetchDescriptor<Note>())) ?? []).map { NoteEntry(untracked: $0, titled: titled) }
+            await MainActor.run { self?.install(entries, titled: titled) }
+        }
+    }
+
+    private func install(_ entries: [NoteEntry], titled: Bool) {
+        guard isLoading, let context else { return }
+        isLoading = false
+        sorted = entries.sorted(by: precedes)
+        if titled != (order.key == .title) { load() }
+        // Saves while it was read: their notes are read again here, from the context that saved them.
+        let saved = savedWhileLoading
+        savedWhileLoading = ([], [])
+        if !saved.deleted.isEmpty { sorted.removeAll { saved.deleted.contains($0.pid) } }
+        let have = Dictionary(sorted.map { ($0.pid, $0.id) }, uniquingKeysWith: { first, _ in first })
+        var came: [NoteEntry] = []
+        for pid in saved.inserted {
+            guard let n = context.model(for: pid) as? Note, n.modelContext != nil else { continue }
+            if let id = have[pid] { changed.insert(id) } else { came.append(NoteEntry(untracked: n, titled: order.key == .title)) }
+        }
+        place(came)
+        if !changed.isEmpty { flush(alreadyChanged: true) }
+        // Shown as a new list: it scrolls to the open note's row as a list built new does.
+        wholesale += 1
+        publish()
+    }
+
     /// Every note, read once and sorted.
     private func load() {
         guard let context else { return }
@@ -1228,8 +1277,10 @@ final class LibraryNotes {
     /// Each folder's notes as its list shows them: live, and not a sub-note inside its parent.
     /// Counted from the entries in one pass whenever they change; each folder's row hears only of
     /// its own count, so the sidebar's 800 folder rows aren't worked out again for every change.
-    func listedCount(inFolder id: UUID, context: ModelContext) -> Int {
+    func listedCount(inFolder id: UUID, context: ModelContext) -> Int? {
         if self.context !== context { start(context) }
+        // While a large library is read the folders show no count yet.
+        if isLoading { return nil }
         // Asked while views are worked out: only boxes nobody reads yet are filled in here.
         if !counted { countFolders() }
         let box = folderCounts[id] ?? { let b = FolderCount(); folderCounts[id] = b; return b }()
@@ -1241,6 +1292,8 @@ final class LibraryNotes {
     /// by reading every note's row from disk, three times for every change.
     func libraryCounts(context: ModelContext) -> (live: Int, trashed: Int) {
         if self.context !== context { start(context) }
+        // While a large library is read, the store counts (once or twice, at launch).
+        if isLoading { return SidebarView.counts(in: context) }
         if !counted { countFolders() }
         return (totals.live, totals.trashed)
     }

@@ -60,14 +60,21 @@ import Testing
         print("PERF large library (\(Self.count) notes on disk): \(what) \(String(format: "%.0f", ms)) ms")
     }
 
-    @Test(.timeLimit(.minutes(4))) func theListReadsTheLibrary() throws {
+    /// The list's first read: on the main thread it costs next to nothing (a large library is read
+    /// on a context of its own), and the notes are all there once it's in.
+    @Test(.timeLimit(.minutes(4))) func theListReadsTheLibrary() async throws {
         let c = try open()
         let clock = ContinuousClock()
         let notes = LibraryNotes()
+        let start = clock.now
         var entries: [NoteEntry] = []
-        let t = clock.measure { entries = notes.entries(in: c.mainContext) }
-        perf("the list's entries", ms(t))
+        let main = clock.measure { entries = notes.entries(in: c.mainContext) }
+        perf("the list's first read, on the main thread", ms(main))
+        while notes.isLoading, clock.now - start < .seconds(60) { try await Task.sleep(for: .milliseconds(5)) }
+        perf("the list's first read, until the notes are in", ms(clock.now - start))
+        entries = notes.entries(in: c.mainContext)
         #expect(entries.count == Self.count)
+        #expect(main < .milliseconds(100), "the main thread doesn't read the library")
     }
 
     @Test(.timeLimit(.minutes(4))) func theSidebarCounts() throws {

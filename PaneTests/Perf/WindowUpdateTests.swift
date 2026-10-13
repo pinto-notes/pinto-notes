@@ -702,6 +702,17 @@ import Testing
             w.displayIfNeeded()
             try? await Task.sleep(for: .milliseconds(200))
         }
+        // A large library is read off the main thread: timed once its rows are in.
+        let started = ContinuousClock.now
+        func rows() -> Int {
+            func tables(_ v: NSView) -> [NSTableView] { (v as? NSTableView).map { [$0] } ?? v.subviews.flatMap(tables) }
+            return tables(w.contentView!).map(\.numberOfRows).max() ?? 0
+        }
+        while rows() < 100, ContinuousClock.now - started < .seconds(60) {
+            try? await Task.sleep(for: .milliseconds(20))
+            w.contentView?.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+        }
         var times: [Double] = []
         for i in 0..<9 {
             let t = ContinuousClock.now

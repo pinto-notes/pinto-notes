@@ -194,9 +194,18 @@ extension AppPerfTests {
             try c.mainContext.save()
         }
         let clock = ContinuousClock()
+        let started = clock.now
         let (w, host) = window(NoteListView(scope: .all, selection: .constant([]), onNewNote: {}).modelContainer(c))
         defer { w.close() }
-        let first = ms(clock.measure { host.layoutSubtreeIfNeeded(); w.displayIfNeeded() })
+        host.layoutSubtreeIfNeeded()
+        w.displayIfNeeded()
+        // A large library is read off the main thread: the first display is when its rows are in.
+        while (FileRowClickTests.table(in: host)?.numberOfRows ?? 0) < 100, clock.now - started < .seconds(60) {
+            try? await Task.sleep(for: .milliseconds(5))
+            host.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+        }
+        let first = ms(clock.now - started)
         try? await Task.sleep(for: .milliseconds(300))
         var saves: [Double] = []
         for i in 0..<9 {
@@ -339,6 +348,13 @@ extension AppPerfTests {
         defer { w.close() }
         host.layoutSubtreeIfNeeded()
         w.displayIfNeeded()
+        // The library is read off the main thread: the folder's 25 rows are in once it is.
+        let started = clock.now
+        while (FileRowClickTests.table(in: host)?.numberOfRows ?? 0) < 25, clock.now - started < .seconds(60) {
+            try? await Task.sleep(for: .milliseconds(5))
+            host.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+        }
         try? await Task.sleep(for: .milliseconds(300))
         // Rows tell the hover probe they were made: the open note's row is made once it is on screen.
         HoverProbe.enabled = true

@@ -767,14 +767,16 @@ private struct FolderTree: View {
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         let selected = selection == .folder(folder.id)
-        let listed = library?.listedCount(inFolder: folder.id, context: context) ?? SidebarView.listedNotes(in: folder, context: context)
+        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? SidebarView.listedNotes(in: folder, context: context)
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 SidebarRowText(title: folder.name, selected: selected) {
                     HoverSwap(on: hovering, help: "Folder options") {
-                        Text(listed + (files[folder.id] ?? 0), format: .number)
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                        if let listed {
+                            Text(listed + (files[folder.id] ?? 0), format: .number)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
                     } items: { menuItems }
                 }
             } icon: {
@@ -782,7 +784,7 @@ private struct FolderTree: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()
-            .rowAccessibility(folder.name, count: listed, files: files[folder.id] ?? 0)
+            .rowAccessibility(folder.name, count: listed ?? 0, files: files[folder.id] ?? 0)
         }
         .quietSelection()
         .tag(Scope.folder(folder.id))
