@@ -77,7 +77,8 @@ export default function Page() {
       <h2>Try it without giving anything up</h2>
       <p>
         The import only reads Apple Notes, so you can bring everything over and keep using both. <a href="/blog/move-from-apple-notes">Here&apos;s how to move</a>,
-        or <a href="/download">download Pinto Notes for Mac</a>.
+        or <a href="/download">download Pinto Notes for Mac</a>. <a href="/alternatives/apple-notes">Pinto Notes as an Apple Notes alternative</a>{" "}
+        shows three things your AI can do once your notes are there.
       </p>
     </PostPage>
   );
