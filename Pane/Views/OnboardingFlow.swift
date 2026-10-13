@@ -54,6 +54,10 @@ struct OnboardingFlow: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.openURL) private var openURL
     @State private var forward = true
+    #if os(iOS)
+    /// Where the status bar ends, for the steps without the picture.
+    @State private var phoneTop: CGFloat = 0
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
@@ -69,7 +73,7 @@ struct OnboardingFlow: View {
 
     var body: some View {
         screen
-            .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: step)
+            .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.45 * Self.stepPace), value: step)
             .task { await loadAccount() }
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
@@ -98,13 +102,16 @@ struct OnboardingFlow: View {
                 ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
             }
             .connectGuides(client: backend.client)
+            .blurDemoCue { cue in
+                if cue == "next" { next() } else if cue == "back" { goBack() }
+            }
     }
 
     // MARK: The window
 
     @ViewBuilder private var screen: some View {
         #if os(macOS)
-        CardLayout {
+        CardLayout(picture: OnboardingArt.name(OnboardingArt.moment(step))) {
             page
                 .padding(.horizontal, 52)
                 .padding(.top, 26)
@@ -113,18 +120,26 @@ struct OnboardingFlow: View {
         #else
         ScrollView {
             VStack(spacing: 0) {
-                phoneArt
-                VStack(alignment: .leading, spacing: Metrics.gap) {
-                    progress
-                    heading
-                    middle
+                if Self.showsArt(step, first: store.first) {
+                    phoneArt
+                } else {
+                    // Under the status bar and the Back button.
+                    Color.clear.frame(height: phoneTop + Self.backRoom)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 24)
-                .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
-                .id(step)
-                .transition(stepTransition)
+                // The step going out and the one coming in share one place while they cross.
+                ZStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: Metrics.gap) {
+                        progress
+                        heading
+                        middle
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, Self.showsArt(step, first: store.first) ? 20 : 8)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
+                    .id(step)
+                    .transition(stepTransition)
+                }
             }
             .frame(maxWidth: .infinity)
         }
@@ -140,7 +155,12 @@ struct OnboardingFlow: View {
                 .background { Backdrop() }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .overlay(alignment: .topLeading) { phoneBack }
+        .overlay(alignment: .topLeading) {
+            // The overlay keeps the safe area: its top is where the status bar ends.
+            phoneBack
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { phoneTop = $0 }
+        }
         .background { Backdrop() }
         #endif
     }
@@ -156,14 +176,17 @@ struct OnboardingFlow: View {
                 progress.frame(width: 96)
             }
             .frame(height: 24)
-            VStack(alignment: .leading, spacing: Metrics.gap) {
-                heading
-                middle
+            // The step going out and the one coming in share one place while they cross.
+            ZStack(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: Metrics.gap) {
+                    heading
+                    middle
+                }
+                .padding(.top, 28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .id(step)
+                .transition(stepTransition)
             }
-            .padding(.top, 28)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .id(step)
-            .transition(stepTransition)
             Spacer(minLength: 16)
             actions
         }
@@ -174,12 +197,10 @@ struct OnboardingFlow: View {
         if Onboarding.previous(before: step, first: store.first) != nil {
             Button(action: goBack) {
                 Label("Back", systemImage: "chevron.left")
-                    .frame(minHeight: 24)
-                    .contentShape(.rect)
             }
-            .buttonStyle(.hoverText)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
+            .buttonStyle(.quiet)
+            // The word lines up with the heading under it; the hover fill reaches past it.
+            .padding(.leading, -QuietButtonStyle.inset)
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("onboarding.back")
         }
@@ -188,6 +209,10 @@ struct OnboardingFlow: View {
     /// The picture's part of the screen: one size for every step, so it never jumps between
     /// them. Less of it at the largest text sizes, where the words need the room.
     static func artShare(accessibilitySize: Bool) -> CGFloat { accessibilitySize ? 0.12 : 0.2 }
+
+    /// The Back button's band at the top of a step without the picture: its 4 pt inset, its 44 pt
+    /// and a little air.
+    static let backRoom: CGFloat = 56
 
     private var phoneArt: some View {
         Color.clear
@@ -216,9 +241,48 @@ struct OnboardingFlow: View {
     }
     #endif
 
-    private var stepTransition: AnyTransition {
-        if reduceMotion { return .opacity }
-        return .asymmetric(insertion: .opacity.combined(with: .offset(x: forward ? 24 : -24)), removal: .opacity)
+    /// Only the flow's first step has the picture; the steps after it give its room to the words
+    /// (Emil, 13 October 2026), starting under the Back button.
+    static func showsArt(_ step: Onboarding.Step, first: Onboarding.Step) -> Bool { step == first }
+
+    /// The step going out fades and blurs in the first part of the move; the one coming in shows
+    /// only after, rising into focus as the website's content does (blur, a little lower and
+    /// smaller, then sharp). Two steps are never readable at once. One value drives both, so the
+    /// whole step moves as one. With Reduce Motion, a plain fade.
+    private var stepTransition: AnyTransition { stepTransition(moves: !reduceMotion) }
+
+    private func stepTransition(moves: Bool, lift: CGFloat = 12) -> AnyTransition {
+        .asymmetric(insertion: .modifier(active: StepMove(shown: 0, incoming: true, moves: moves, lift: lift), identity: StepMove(shown: 1, incoming: true, moves: moves, lift: lift)),
+                    removal: .modifier(active: StepMove(shown: 0, incoming: false, moves: moves, lift: 0), identity: StepMove(shown: 1, incoming: false, moves: moves, lift: 0)))
+    }
+
+    /// Tests: slows the step transition down, to see it frame by frame.
+    static var stepPace: Double = 1
+
+    /// A step coming in or going out: `shown` runs from 0 (off) to 1 (on screen) with the
+    /// transition's animation. The step going out is gone by `split`; the one coming in starts there.
+    nonisolated struct StepMove: ViewModifier, Animatable {
+        var shown: Double
+        let incoming: Bool
+        /// Blur and rise (off with Reduce Motion: only the fade).
+        let moves: Bool
+        let lift: CGFloat
+        static let split = 0.3
+
+        var animatableData: Double {
+            get { shown }
+            set { shown = newValue }
+        }
+
+        func body(content: Content) -> some View {
+            let t = incoming ? max(0, (shown - Self.split) / (1 - Self.split)) : max(0, (shown - (1 - Self.split)) / Self.split)
+            let away = moves ? 1 - t : 0
+            content
+                .blur(radius: away * (incoming ? BlurMotion.Rise.page.blur : 4))
+                .scaleEffect(incoming ? 1 - away * (1 - BlurMotion.Rise.page.scale) : 1)
+                .offset(y: incoming ? lift * away : 0)
+                .opacity(t)
+        }
     }
 
     // MARK: Progress
@@ -353,7 +417,7 @@ struct OnboardingFlow: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("onboarding.worked")
-                .transition(.opacity)
+                .transition(reduceMotion ? .opacity : BlurMotion.arrival)
             } else {
                 ForEach(TryIt.ways(connected: tryConnected)) { way in
                     switch way {
@@ -375,7 +439,7 @@ struct OnboardingFlow: View {
                     }
                     .accessibilityIdentifier("onboarding.late")
                 } else if shownAsked != nil || shownCopied {
-                    Text(TryIt.afterAsking(shownAsked)).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    Text(TryIt.afterAsking(shownAsked, pasteInto: TryIt.pasteTarget(connected: tryConnected))).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("onboarding.asked")
                 }
             }
@@ -396,17 +460,13 @@ struct OnboardingFlow: View {
         }
         if first {
             Button { ask(ai) } label: { label }
-                .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+                .buttonStyle(.amberProminent(.form, wide: true))
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("onboarding.ask.\(ai)")
         } else {
-            Button { ask(ai) } label: {
-                Text(TryIt.askTitle(ai)).frame(maxWidth: .infinity, minHeight: Metrics.quietHeight).contentShape(.rect)
-            }
-            .buttonStyle(.hoverLink)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
-            .accessibilityIdentifier("onboarding.ask.\(ai)")
+            Button { ask(ai) } label: { Text(TryIt.askTitle(ai)) }
+                .buttonStyle(.secondary(.form, wide: true))
+                .accessibilityIdentifier("onboarding.ask.\(ai)")
         }
     }
 
@@ -422,7 +482,7 @@ struct OnboardingFlow: View {
                 .accessibilityIdentifier("onboarding.prompt")
             Spacer(minLength: 4)
             Button(shownCopied ? "Copied" : "Copy", action: copy)
-                .buttonStyle(.amberProminent)
+                .buttonStyle(.secondary)
                 .fixedSize()
                 .accessibilityIdentifier("onboarding.copy")
         }
@@ -460,7 +520,7 @@ struct OnboardingFlow: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
+                    .transition(reduceMotion ? .opacity : BlurMotion.arrival)
                     .accessibilityIdentifier("onboarding.brought")
             }
         }
@@ -488,9 +548,8 @@ struct OnboardingFlow: View {
                     sourceRow(kind)
                 }
             }
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
             .clipShape(shape)
+            .choiceCard(shape)
         }
     }
 
@@ -543,9 +602,11 @@ struct OnboardingFlow: View {
     /// step's one button is Continue, and every other AI can still be connected first.
     @ViewBuilder private var connect: some View {
         if let preview {
-            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected))
+            ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected),
+                           asksToFinish: false)
         } else if let client = backend.client {
-            ConnectChoices(client: client, guides: Self.guides, listsConnected: false) { titles in
+            // Try it comes next, so an added Claude Code or Codex row doesn't ask for a try itself.
+            ConnectChoices(client: client, guides: Self.guides, listsConnected: false, asksToFinish: false) { titles in
                 connectedTitles = titles
                 Task { await setup?.refresh(force: true) }
             }
@@ -567,45 +628,42 @@ struct OnboardingFlow: View {
     /// The step's main button and, on the two steps you may skip, the quiet way past.
     @ViewBuilder private var actions: some View {
         VStack(spacing: 6) {
-            switch step {
-            case .name:
-                primary("Continue", id: "onboarding.continue", action: { next() })
-            case .bring:
-                if broughtCount > 0 {
-                    primary("Continue", id: "onboarding.continue", action: { next() })
-                } else {
-                    quiet(Self.skipBring, id: "onboarding.skip", action: skip)
-                }
-            case .connect:
-                if connected {
-                    primary("Continue", id: "onboarding.continue", action: { next() })
-                } else {
-                    quiet(Self.skipConnect, id: "onboarding.skip", action: skip)
-                }
-            case .tryIt:
-                // Nothing to press when it works: the step ends by itself. This is for not now.
-                if !shownArrived { quiet("Skip", id: "onboarding.skip", action: skip) }
+            switch action {
+            case .proceed: primary("Continue", id: "onboarding.continue", action: { next() })
+            case .skip(let title): quiet(title, id: "onboarding.skip", action: skip)
+            case .none: EmptyView()
             }
+        }
+        // The same button stays put from step to step; a different one takes over the way the
+        // step does, never on top of the one before.
+        .id(action)
+        .transition(stepTransition(moves: !reduceMotion, lift: 0))
+    }
+
+    private enum Action: Hashable { case proceed, skip(String), none }
+
+    private var action: Action {
+        switch step {
+        case .name: .proceed
+        case .bring: broughtCount > 0 ? .proceed : .skip(Self.skipBring)
+        case .connect: connected ? .proceed : .skip(Self.skipConnect)
+        // Nothing to press when it works: the step ends by itself. This is for not now.
+        case .tryIt: shownArrived ? .none : .skip("Skip")
         }
     }
 
     private func primary(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier(id)
     }
 
     private func quiet(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .frame(maxWidth: .infinity, minHeight: Metrics.quietHeight)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.hoverLink)
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.tint)
-        .accessibilityIdentifier(id)
+        Button(title, action: action)
+            .buttonStyle(.quiet)
+            .frame(maxWidth: .infinity, minHeight: Metrics.quietHeight)
+            .accessibilityIdentifier(id)
     }
 
     // MARK: What the buttons do
@@ -914,7 +972,7 @@ struct AppleNotesOnMacSheet: View {
             ShareLink(item: OnboardingFlow.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
                 Text(Self.send)
             }
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .padding(.top, 8)
             .accessibilityIdentifier("onboarding.appleNotes.send")
             Button(Self.oneByOne) { sharingHowTo = true }

@@ -244,6 +244,8 @@ struct NoteListView: View {
                                 .quietSelection()
                                 #if os(iOS)
                                 .listRowBackground(Color(Palette.row))
+                                #else
+                                .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
                                 #endif
                         }
                     }
@@ -532,9 +534,10 @@ struct NoteListView: View {
                     .foregroundStyle(Color.ink)
                 #else
                 // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
+                // C and D: small, semibold and muted, a label over the rows rather than a title.
                 Text(section.0)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.ink)
+                    .font(DesignLook.calmList ? .system(size: 12, weight: .semibold) : .title3.weight(.semibold))
+                    .foregroundStyle(DesignLook.calmList ? Color.muted : Color.ink)
                     .textCase(nil)
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
@@ -543,6 +546,9 @@ struct NoteListView: View {
         }
         #if os(iOS)
         .headerProminence(.increased)
+        #else
+        // C and D: no rule under a heading; spacing does the work.
+        .listSectionSeparator(DesignLook.calmList ? .hidden : .automatic)
         #endif
     }
 
@@ -573,7 +579,7 @@ struct NoteListView: View {
         let id = entry.id
         return NoteListItem(entry: entry, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                             dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
-                            top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil),
+                            top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil) + RowMetrics.calmAir,
                             togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
                             remove: { note in remove(note) }) { note in
             menu(for: note, folders: foldersByName)
@@ -581,6 +587,10 @@ struct NoteListView: View {
         .equatable()
         // On the row as the list holds it, where the list's selection finds it.
         .tag(id)
+        #if os(macOS)
+        // C and D: no hairlines between rows.
+        .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
+        #endif
     }
 
     #if os(iOS)
@@ -1415,6 +1425,10 @@ enum RowMetrics {
     // (NoteListGeometryTests).
     static let title = Font.system(size: 13, weight: .bold)
     static let detail = Font.system(size: 12)
+    /// C and D: the folder line, a size under the detail.
+    static let folder = Font.system(size: 11)
+    /// C and D: room the hairlines used to give, as air above and below each row.
+    static var calmAir: CGFloat { DesignLook.calmList ? 3 : 0 }
     static let spacing: CGFloat = 3
     static let leading: CGFloat = 18
     /// Room above and below a row's lines: less when it has a third line, its folder.
@@ -1428,6 +1442,8 @@ enum RowMetrics {
     #else
     static let markSize: CGFloat = 16
     static let thumbnail: CGFloat = 42
+    static let folder = Font.footnote
+    static let calmAir: CGFloat = 0
     static let title = Font.headline
     static let detail = Font.subheadline
     static let spacing: CGFloat = 3
@@ -1552,13 +1568,15 @@ struct NoteRow: View {
         let shared = sync?.liveShares[note.id] != nil && !note.isLocked && note.trashedAt == nil
         // At the accessibility text sizes the row stacks and wraps instead of truncating.
         let large = typeSize.isAccessibilitySize
-        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 8))
+        let calm = DesignLook.calmList && !large
+        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: calm ? 5 : 8))
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
         let app = NoteAppMark.has(note)
         return VStack(alignment: .leading, spacing: RowMetrics.spacing) {
             HStack(spacing: 5) {
                 Text(title)
                     .font(RowMetrics.title)
+                    .tracking(DesignLook.isCandidate ? -0.15 : 0)
                     .foregroundStyle(Color.ink)
                     .lineLimit(large ? 3 : 1)
                 if app {
@@ -1587,6 +1605,8 @@ struct NoteRow: View {
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.85))
                 }
+                // C and D: "date · preview", one quiet line under the title.
+                if calm { Text("·").foregroundStyle(Color.muted).accessibilityHidden(true) }
                 if note.isLocked {
                     // Like Notes: the title and a lock, nothing of the text.
                     Label("Locked", systemImage: "lock.fill")
@@ -1608,16 +1628,20 @@ struct NoteRow: View {
             }
             .font(RowMetrics.detail)
             if folderLine, let f = note.folder {
-                HStack(spacing: 5) {
+                HStack(spacing: DesignLook.calmList ? 4 : 5) {
+                    // The candidates draw it lighter and smaller than the name (DESIGN.md, Icons).
                     Image(systemName: "folder")
+                        .imageScale(DesignLook.isCandidate ? .small : .medium)
+                        .opacity(DesignLook.isCandidate ? 0.75 : 1)
                     Text(f.name)
                 }
-                .font(RowMetrics.detail)
+                // C and D: a size smaller again, a quiet tag under the row.
+                .font(DesignLook.calmList ? RowMetrics.folder : RowMetrics.detail)
                 .foregroundStyle(Color.muted)
             }
         }
-        .padding(.top, RowMetrics.top(folderLine: folderLine))
-        .padding(.bottom, RowMetrics.bottom(folderLine: folderLine))
+        .padding(.top, RowMetrics.top(folderLine: folderLine) + RowMetrics.calmAir)
+        .padding(.bottom, RowMetrics.bottom(folderLine: folderLine) + RowMetrics.calmAir)
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
         .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared ? "Shared" : nil, note.isLocked ? "Locked" : nil, ai.map { "Edited by \($0)" }].compactMap { $0 }.joined(separator: ", "))
@@ -1658,7 +1682,7 @@ private struct NoteRowHover<Items: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         // The pill fills the row from edge to edge, as Apple Notes' does.
-        HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, pointer: pointer) { hovering in
+        HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, card: DesignLook.calmList, pointer: pointer) { hovering in
             content
                 #if os(macOS)
                 // Always the top right corner, on the title's line, whatever the row holds.

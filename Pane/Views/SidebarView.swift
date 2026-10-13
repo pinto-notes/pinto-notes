@@ -168,6 +168,9 @@ extension View {
 enum SidebarStyle {
     #if os(macOS)
     static let iconFont = Font.system(size: 17, weight: .regular)
+    /// The candidates' icon (DesignLook, DESIGN.md Icons): medium, and smaller and lighter than the
+    /// name beside it, so the names lead.
+    static let candidateIconFont = Font.system(size: 14, weight: .medium)
     /// The rows' icons' left edge from the sidebar's own: where the title's mark, the Folders
     /// heading and the account's photo start too, so they all share one line (owner, 2026-10-12:
     /// three edges a few points apart). Measured from the list as AppKit lays it out: the icon of
@@ -195,10 +198,13 @@ struct SidebarIcon: View {
 
     var body: some View {
         Image(systemName: name)
-            .font(SidebarStyle.iconFont)
             #if os(macOS)
-            .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+            .font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
+            .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)
+                : DesignLook.isCandidate ? AnyShapeStyle(Color.muted) : AnyShapeStyle(.primary))
+            .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
             #else
+            .font(SidebarStyle.iconFont)
             .foregroundStyle(SidebarStyle.icon)
             #endif
     }
@@ -390,7 +396,10 @@ struct SidebarView: View {
         // A bar, not a plain inset: the folders scrolled under it showed through its words (and
         // through the account row at the foot, where a folder's name and the email ran together).
         // Soft edges, as Apple Notes: the list fades under the bars, with no line drawn across.
-        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
+        // C and D: no brand mark in the chrome (DESIGN.md, Icons); the rows start under the window's buttons.
+        .safeAreaBar(edge: .top, spacing: 0) {
+            if DesignLook.calmList { Color.clear.frame(height: 4) } else { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
+        }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)

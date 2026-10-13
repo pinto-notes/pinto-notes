@@ -627,16 +627,18 @@ import Testing
         run.claudeCodeOnly = { true }
         run.shell = .init(isAvailable: { true }, exists: { _ in true },
                           add: { ai, _, _ in calls.added.append(ai); return .added },
-                          signIn: { calls.signedIn.append($0) })
+                          signIn: { ai, _ in calls.signedIn.append(ai); return .opened(nil) },
+                          addToken: { ai, _, _ in calls.added.append(ai); return .added(details: "pinto-notes") })
+        run.makeToken = { _, _ in "pane_test" }
         let client = SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test")
         run.start(.claude, client: client, open: { _ in Issue.record("nothing opens: Claude Code is added directly") })
         defer { run.stop() }
         #expect(run.phase == .waiting(ConnectCopy.adding(.claudeCode)))
-        for _ in 0..<100 where run.phase != .waiting(ConnectCopy.allowInBrowser) {
+        for _ in 0..<100 where run.phase == .waiting(ConnectCopy.adding(.claudeCode)) {
             try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(run.phase == .waiting(ConnectCopy.allowInBrowser))
-        #expect(calls.added == [.claudeCode] && calls.signedIn == [.claudeCode])
+        #expect(run.phase == .added(ConnectCopy.added(.claudeCode), details: "pinto-notes"))
+        #expect(calls.added == [.claudeCode] && calls.signedIn.isEmpty, "added with a token: no sign-in")
         #expect(run.guide == .claude && run.direct, "the Claude row carries it, and turns Connected")
     }
 

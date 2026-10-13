@@ -1,7 +1,7 @@
 import type { CaptureResult } from "posthog-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CONSENT_KEY } from "./consent";
-import { clickEvent, clickEvents, ctaEvent, heatmapsAllowed, newScrollMarks, POSTHOG_DEFAULT_HOST, posthogAllowed, posthogOptions, posthogSettings, REPLAY_REMOTE_CONFIG, replayAllowed, sanitizeEvent, scrolledPercent, visitorOptedOut } from "./posthog";
+import { automatedBrowser, clickEvent, clickEvents, ctaEvent, heatmapsAllowed, INTERNAL_KEY, internalBrowser, internalFromQuery, rememberInternal, newScrollMarks, POSTHOG_DEFAULT_HOST, posthogAllowed, posthogOptions, posthogSettings, REPLAY_REMOTE_CONFIG, replayAllowed, sanitizeEvent, scrolledPercent, visitorOptedOut } from "./posthog";
 
 const here = new URL("https://pintonotes.com/blog/claude-and-apple-notes");
 const link = (href: string, attrs: Record<string, string> = {}) => ({ tagName: "A", getAttribute: (n: string) => (n === "href" ? href : attrs[n] ?? null) });
@@ -234,5 +234,84 @@ describe("session replay", () => {
     storage("1");
     expect(sanitizeEvent(snapshot())?.event).toBe("$snapshot");
     expect(sanitizeEvent(event({ $current_url: "https://pintonotes.com/connect", $pathname: "/connect" }, { event: "$snapshot" }))).toBeNull();
+  });
+});
+
+describe("internal traffic", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const store = (initial: Record<string, string> = {}) => {
+    const data = new Map(Object.entries(initial));
+    return { data, getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
+  };
+  const person = { userAgent: "Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15", webdriver: false };
+
+  it("reads ?internal=1 and ?internal=0, and nothing else", () => {
+    expect(internalFromQuery("?internal=1")).toBe(true);
+    expect(internalFromQuery("?a=b&internal=0")).toBe(false);
+    expect(internalFromQuery("?internal=yes")).toBeNull();
+    expect(internalFromQuery("")).toBeNull();
+    expect(internalFromQuery(undefined)).toBeNull();
+  });
+
+  it("remembers the mark from ?internal=1 and clears it with ?internal=0", () => {
+    const s = store();
+    rememberInternal("?internal=1", s);
+    expect(s.data.get(INTERNAL_KEY)).toBe("1");
+    rememberInternal("?other=1", s);
+    expect(s.data.get(INTERNAL_KEY)).toBe("1");
+    rememberInternal("?internal=0", s);
+    expect(s.data.has(INTERNAL_KEY)).toBe(false);
+  });
+
+  it("stores nothing for a page without the query, and survives blocked storage", () => {
+    const s = store();
+    rememberInternal("", s);
+    expect(s.data.size).toBe(0);
+    const blocked = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
+    expect(() => rememberInternal("?internal=1", blocked)).not.toThrow();
+    expect(internalBrowser("", blocked, person)).toBe(false);
+  });
+
+  it("tags a marked browser, and the page that marks it, but not an ordinary visitor", () => {
+    expect(internalBrowser("", store(), person)).toBe(false);
+    expect(internalBrowser("", store({ [INTERNAL_KEY]: "1" }), person)).toBe(true);
+    expect(internalBrowser("?internal=1", store(), person)).toBe(true);
+    expect(internalBrowser("?internal=0", store({ [INTERNAL_KEY]: "1" }), person)).toBe(false);
+  });
+
+  it("always tags automation: WebDriver or headless Chrome", () => {
+    expect(automatedBrowser({ webdriver: true })).toBe(true);
+    expect(automatedBrowser({ userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 HeadlessChrome/140.0.0.0 Safari/537.36" })).toBe(true);
+    expect(automatedBrowser(person)).toBe(false);
+    expect(automatedBrowser(undefined)).toBe(false);
+    expect(internalBrowser("?internal=0", store(), { webdriver: true })).toBe(true);
+  });
+
+  const at = (search: string, nav: object, saved: Record<string, string> = {}) => {
+    vi.stubGlobal("window", { location: { pathname: "/blog/x", search } });
+    vi.stubGlobal("navigator", nav);
+    vi.stubGlobal("localStorage", store(saved));
+  };
+
+  it("adds internal: true to every event from an internal browser, and never drops one", () => {
+    at("", person, { [INTERNAL_KEY]: "1" });
+    for (const name of ["$pageview", "scroll_depth", "download_mac_clicked"]) {
+      const out = sanitizeEvent(event({ $current_url: "https://pintonotes.com/blog/x" }, { event: name }));
+      expect(out?.properties.internal, name).toBe(true);
+    }
+    at("", { webdriver: true });
+    expect(sanitizeEvent(event({ $current_url: "https://pintonotes.com/blog/x" }))?.properties.internal).toBe(true);
+  });
+
+  it("leaves an ordinary visitor's events untagged", () => {
+    at("", person);
+    const out = sanitizeEvent(event({ $current_url: "https://pintonotes.com/blog/x" }));
+    expect(out).not.toBeNull();
+    expect(out?.properties).not.toHaveProperty("internal");
+  });
+
+  it("still drops private pages for an internal browser", () => {
+    at("?internal=1", person);
+    expect(sanitizeEvent(event({ $current_url: "https://pintonotes.com/n/abc" }))).toBeNull();
   });
 });

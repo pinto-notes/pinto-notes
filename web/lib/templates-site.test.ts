@@ -15,6 +15,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { COVERS, coverPath } from "./template-covers";
 import { instructions, templates } from "./templates";
+import { useLabel } from "./templates";
 import Card from "../app/templates/Card";
 import { templateWork } from "./structured-data";
 
@@ -89,8 +90,9 @@ describe("the gallery", () => {
   it("shows each category chip with its templates' colours, and no trial switches", () => {
     const html = gallery();
     const chips = html.slice(html.indexOf('aria-label="Category"'), html.indexOf("templates</p>"));
-    // Three dots per category chip, in its templates' cover colours; none on "All".
-    expect(chips.match(/<i style="background:#[0-9a-f]{6}"/g)).toHaveLength(12);
+    // Three dots per category chip, in its templates' cover colours (up to three on Apps); none on "All".
+    const apps = templates().filter((t) => t.app).length;
+    expect(chips.match(/<i style="background:#[0-9a-f]{6}"/g)).toHaveLength(12 + Math.min(3, apps));
     expect(html).not.toContain("data-top");
   });
 
@@ -107,7 +109,8 @@ describe("the gallery", () => {
       // One link to the template's page, one to Pinto Notes, and never a link inside a link.
       expect(card.match(/<a /g), t.slug).toHaveLength((APP_TEMPLATES.live ? 2 : 1) + (t.author ? 1 : 0));
       expect(card).toContain(`href="/templates/${t.slug}">${t.title.replace("&", "&amp;")}</a>`);
-      if (APP_TEMPLATES.live) expect(card).toContain(`href="/open/template/${t.slug}" aria-label="Use template: ${t.title}">Use template`);
+      // Its name starts with the words it shows (an app template's verb on a Mac: UseLabel.test.tsx).
+      if (APP_TEMPLATES.live) expect(card).toContain(`href="/open/template/${t.slug}" aria-label="${useLabel(t, "desktop")}: ${t.title}">`);
     }
   });
 
@@ -175,7 +178,8 @@ describe("once the app opens template links (APP_TEMPLATES)", () => {
     const use = html.indexOf('href="/open/template/habit-tracker"'), copy = html.indexOf(">Copy the prompt<");
     expect(use).toBeGreaterThan(0);
     expect(copy).toBeGreaterThan(use);
-    expect(html).toContain("Use template</a>");
+    expect(html).toContain("Start tracking</span>"); // the Mac's words; the iPhone's are beside them
+    expect(html).toContain("Use template</span></a>");
   });
 
   it("keeps template pages in search", async () => {

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import PostHogAnalytics from "./PostHogAnalytics";
 import ConsentBanner from "./ConsentBanner";
 import { analyticsAllowed, analyticsEvent } from "@/lib/analytics";
-import { posthogAllowed, posthogSettings } from "@/lib/posthog";
+import { posthogAllowed, posthogSettings, rememberInternal } from "@/lib/posthog";
 import { replayOnPage } from "./posthog-client";
 
 /// Page views and referring sites, with Vercel Web Analytics: no cookies, nothing stored on the
@@ -23,6 +23,14 @@ export default function SiteAnalytics() {
   // Moving within the site doesn't reload PostHog, so a replay stops on the way into a private
   // page (the connect pages, password reset, a shared note) and starts again on the way out.
   useEffect(() => replayOnPage(path), [path]);
+  // ?internal=1 marks this browser as ours and ?internal=0 clears it (lib/posthog.ts), on the pages
+  // PostHog runs on.
+  useEffect(() => {
+    if (!posthogAllowed(path)) return;
+    let storage: Storage | undefined;
+    try { storage = window.localStorage; } catch { return; }
+    rememberInternal(window.location.search, storage);
+  }, [path]);
   return (
     <>
       {analyticsAllowed(path) && <Analytics beforeSend={analyticsEvent} />}

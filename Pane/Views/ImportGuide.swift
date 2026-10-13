@@ -282,8 +282,27 @@ struct ImportGuideSheet: View {
     var pages: some View {
         VStack(spacing: 0) {
             topBar
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Each page rises into focus as the one before fades (BlurMotion).
+            ZStack {
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(pageKey)
+                    .transition(reduceMotion ? .opacity : BlurMotion.page)
+            }
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: pageKey)
+        }
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Which page this is, apart from its state (a hovered drop area or a count going up is the
+    /// same page).
+    private var pageKey: Int {
+        switch page {
+        case .intro: -1
+        case .step(let i): i
+        case .drop, .importing: 1000
+        case .success: 1001
         }
     }
 
@@ -305,13 +324,10 @@ struct ImportGuideSheet: View {
                 Color.clear.frame(width: 1, height: 1)
             } else {
                 Button { act(.back) } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
-                        Text("Back")
-                    }
+                    Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.hoverText)
-                .foregroundStyle(Color.muted)
+                .buttonStyle(.quiet)
+                .padding(.leading, -QuietButtonStyle.inset)
             }
             Spacer()
             if pageIndex <= pageCount - 1, !guide.steps.isEmpty {
@@ -590,7 +606,7 @@ struct ImportGuideSheet: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.amberProminent(height: Self.compact ? 50 : 40, cornerRadius: Self.compact ? 14 : 10))
+        .buttonStyle(.amberProminent(Self.compact ? .big : .regular, wide: true))
         .keyboardShortcut(.defaultAction)
         .frame(maxWidth: Self.compact ? .infinity : 320)
     }
@@ -1129,7 +1145,7 @@ struct ImportNoticePage: View {
                         Button { act(.primary) } label: { primaryLabel }
                     }
                 }
-                .buttonStyle(.amberProminent(height: compact ? 50 : 40, cornerRadius: compact ? 14 : 10))
+                .buttonStyle(.amberProminent(compact ? .big : .regular, wide: true))
                 .frame(maxWidth: compact ? .infinity : 320)
                 Button(quiet ?? " ") { act(.quiet) }
                     .buttonStyle(.hoverLink)

@@ -331,7 +331,7 @@ struct FileDetailView: View {
                 Text("It's on its way from the device that added it. Check your connection and try again.")
             } actions: {
                 Button("Try Again") { Task { await load() } }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.secondary(.regular))
             }
         }
     }
@@ -355,7 +355,7 @@ struct FileDetailView: View {
                 .font(.callout)
             Spacer()
             Button("Recover") { withAnimation(.snappy) { context.restore(file) } }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.amberProminent)
                 .accessibilityIdentifier("file.recover")
         }
         .padding(.horizontal, 14)

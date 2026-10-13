@@ -200,7 +200,7 @@ struct SettingsHome: View {
                             .frame(width: 30, height: 30)
                             .contentShape(Circle())
                     }
-                    .buttonStyle(.hoverIcon(cornerRadius: 15))
+                    .buttonStyle(.quietIcon)
                     .keyboardShortcut("[", modifiers: .command)
                     .help("Back")
                     .accessibilityLabel("Back")

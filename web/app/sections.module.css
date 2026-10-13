@@ -9,6 +9,11 @@
 /* ── Works with the AI you already use: three small, complete scenes ── */
 .jobs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
 @media (max-width: 860px) { .jobs { grid-template-columns: 1fr; } }
+/* Each card with what it does underneath: a short title and one line. */
+.cap { display: grid; grid-template-rows: auto auto 1fr; gap: 10px; align-content: start; }
+.cap .job { margin-bottom: 8px; }
+.capTitle { margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+.capLine { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.45; text-wrap: pretty; }
 .job { margin: 0; display: grid; grid-template-rows: auto 1fr; border-radius: 20px; overflow: hidden; background: #fff; color: #1d1d1f; box-shadow: 0 0 0 1px var(--line), 0 20px 40px -30px rgba(60, 30, 5, 0.5); }
 .phone { border-radius: 30px; }
 .term { background: #22160b; color: #fbeedd; }
@@ -81,6 +86,11 @@
 .alsoTicks li { display: inline-flex; align-items: center; gap: 8px; }
 .alsoTicks svg { color: var(--amber); }
 
+/* ── A note can also be an app: the words beside one phone card ── */
+.appsRow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+@media (max-width: 860px) { .appsRow { grid-template-columns: 1fr; } }
+.appsCard { max-width: 380px; width: 100%; justify-self: center; }
+
 /* ── Private by design: one dark card, one claim, a brass lock over a wall of ciphertext ── */
 .vault {
   position: relative; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: center; gap: 40px;
@@ -130,7 +140,14 @@
 .bandCtas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
 .bandPrimary, .bandSecondary { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-weight: 700; font-size: 16px; text-decoration: none; }
 .bandPrimary { background: #fbeedd; color: #2a1d10; }
-.bandSecondary { color: #fbeedd; box-shadow: inset 0 0 0 1.5px rgba(251, 238, 221, 0.3); }
-.bandPrimary:focus-visible { outline: 2px solid #f5a53a; outline-offset: 3px; }
-@media (prefers-reduced-motion: no-preference) { .bandPrimary { transition: transform 0.12s ease-out; } .bandPrimary:active { transform: scale(0.97); } }
+.bandSecondary { color: #fbeedd; background: rgba(251, 238, 221, 0.12); }
+.bandPrimary:focus-visible, .bandSecondary:focus-visible { outline: 2px solid #f5a53a; outline-offset: 3px; }
+@media (hover: hover) {
+  .bandPrimary:hover { background: color-mix(in srgb, #fbeedd 86%, #f5a53a); }
+  .bandSecondary:hover { background: rgba(251, 238, 221, 0.2); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bandPrimary, .bandSecondary { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
+  .bandPrimary:active, .bandSecondary:active { transform: scale(0.97); }
+}
 .bandFine { margin: 0; color: #b89c7c; font-size: 14px; }

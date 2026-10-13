@@ -122,11 +122,9 @@ struct HeardFromView: View {
 
     private var skip: some View {
         Button { store.skip() } label: {
-            Text("Skip").frame(maxWidth: .infinity, minHeight: Metrics.skipHeight).contentShape(.rect)
+            Text("Skip")
         }
-        .buttonStyle(.hoverText)
-        .font(Metrics.skipFont)
-        .foregroundStyle(Color.muted)
+        .buttonStyle(.quiet)
         .keyboardShortcut(.cancelAction)
         .disabled(store.chosen != nil)
         .accessibilityIdentifier("heardFrom.skip")
@@ -152,7 +150,7 @@ struct HeardFromView: View {
                 .overlay(shape.strokeBorder(fieldFocused ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: fieldFocused ? 2 : 1))
                 .accessibilityIdentifier("heardFrom.otherText")
             Button("Done", action: sendOther)
-                .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+                .buttonStyle(.amberProminent(.form, wide: true))
                 .keyboardShortcut(.defaultAction)
                 .disabled(store.chosen != nil)
                 .accessibilityIdentifier("heardFrom.otherDone")
@@ -171,7 +169,6 @@ struct HeardFromView: View {
         static let title = Font.system(size: 20, weight: .bold)
         static let line = Font.system(size: 13)
         static let row = Font.system(size: 13)
-        static let skipFont = Font.system(size: 13, weight: .medium)
         static let padding: CGFloat = 28
         static let top: CGFloat = 24
         static let bottom: CGFloat = 16
@@ -179,7 +176,7 @@ struct HeardFromView: View {
         static let rowGap: CGFloat = 6
         static let rowHeight: CGFloat = 32
         static let radius: CGFloat = 8
-        static let skipHeight: CGFloat = 28
+        static let skipHeight = ButtonSize.compact.height
         static let chipHeight: CGFloat = 30
         static let chipPadding: CGFloat = 12
         static let chipGap: CGFloat = 6
@@ -187,7 +184,6 @@ struct HeardFromView: View {
         static let title = Font.title2.weight(.bold)
         static let line = Font.subheadline
         static let row = Font.body
-        static let skipFont = Font.body.weight(.medium)
         static let padding: CGFloat = 24
         static let top: CGFloat = 28
         static let bottom: CGFloat = 8
@@ -195,7 +191,7 @@ struct HeardFromView: View {
         static let rowGap: CGFloat = 8
         static let rowHeight: CGFloat = 48
         static let radius: CGFloat = 12
-        static let skipHeight: CGFloat = 44
+        static let skipHeight = ButtonSize.compact.height
         static let chipHeight: CGFloat = 44
         static let chipPadding: CGFloat = 16
         static let chipGap: CGFloat = 8

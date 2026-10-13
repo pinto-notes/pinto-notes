@@ -443,6 +443,9 @@ async function authorize(req: Request, sql: Sql, base: string): Promise<Response
   if (q.response_type !== "code") return problem("unsupported");
   if (!q.code_challenge || q.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(q.code_challenge)) return problem("pkce");
   if (q.resource && !isThisServer(q.resource, req)) return problem("wrong_server");
+  // The return address with state and iss is what a device seals for a browser elsewhere and
+  // what connect_asks keeps: refused here, before anyone is asked, when it can't fit there.
+  if (clientRedirect(redirect, q.state ?? null, base).toString().length > MAX_REDIRECT) return problem("too_long");
 
   const [row] = await sql<{ id: string }[]>`
     insert into public.oauth_requests (client_id, redirect_uri, state, code_challenge, scope, resource)
@@ -506,7 +509,8 @@ async function claim(sql: Sql, r: RequestRow, user: string): Promise<boolean> {
 }
 
 const EXPIRED = "This request has expired. Start connecting again from the other app.";
-const NOT_YOURS = "Another Pinto Notes account is answering this request. Start connecting again from the other app.";
+/// Opened in Pinto Notes signed in to another account, which hasn't answered or let go of it yet.
+const notYours = (r: RequestRow) => `This request was opened in Pinto Notes with another account. Start connecting again from ${displayName(r.client_name, r.redirect_uri)}.`;
 
 /// What the app and the web page show on the consent screen.
 async function describeRequest(req: Request, sql: Sql): Promise<Response> {
@@ -516,7 +520,7 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
   if (await limited(sql, req, "request")) return json({ error: "Too many attempts. Wait a few minutes and try again." }, 429);
   const r = await pending(sql, new URL(req.url).searchParams.get("id") ?? "");
   if (!r) return json({ error: EXPIRED }, 404);
-  if (!(await claim(sql, r, user))) return json({ error: NOT_YOURS }, 403);
+  if (!(await claim(sql, r, user))) return json({ error: notYours(r) }, 403);
   const host = new URL(r.redirect_uri).hostname;
   const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
   // Asked from a browser elsewhere: when, and in what (the page says, e.g. "Chrome on a Mac").
@@ -593,7 +597,7 @@ async function ask(req: Request, sql: Sql): Promise<Response> {
   if (n >= ASKS_PER_10_MINUTES) return json({ error: "Too many requests to connect. Wait a few minutes and try again." }, 429);
   const r = await pending(sql, String(body.id ?? ""));
   if (!r) return json({ error: EXPIRED }, 404);
-  if (!(await claim(sql, r, user))) return json({ error: NOT_YOURS }, 403);
+  if (!(await claim(sql, r, user))) return json({ error: notYours(r) }, 403);
   // A reloaded page makes a new key and a new commit: the unanswered ask takes them, and both
   // nonces start over, so a device's nonce always comes after the commit it's matched against.
   const [row] = await sql<{ expires_at: Date }[]>`
@@ -708,7 +712,7 @@ async function deviceNonce(req: Request, sql: Sql): Promise<Response> {
   const body = await req.json().catch(() => ({})) as { id?: unknown; nonce?: unknown };
   const id = typeof body.id === "string" && UUID.test(body.id) ? body.id : "";
   const nonce = typeof body.nonce === "string" ? body.nonce : "";
-  if (!NONCE.test(nonce)) return json({ error: "Update Pinto Notes to connect an AI." }, 400);
+  if (!NONCE.test(nonce)) return json({ error: "This device's half of the number was missing or damaged. Start connecting again in your browser." }, 400);
   if (!id) return json({ error: EXPIRED }, 404);
   const [set] = await sql<{ device_nonce: string }[]>`
     update public.connect_asks a set device_nonce = ${nonce}
@@ -849,6 +853,16 @@ async function label(req: Request, sql: Sql): Promise<Response> {
   });
 }
 
+/// The longest return address (with state and iss) a sign-in may have: /authorize refuses longer
+/// ones, and connect_asks.redirect holds at most this.
+export const MAX_REDIRECT = 4000;
+/// The longest sealed code a device may hand a browser, from MAX_REDIRECT: the payload
+/// {"code":"amb_code_<64 hex>","redirect":…} (96 characters and the address), sealed (65 + 12 + 16
+/// bytes more), in base64 after "amb2h." is 5594 for the longest address; 8000 leaves room.
+/// connect_asks.answer's check matches it. It was 600 until 13 October 2026, which turned away the
+/// OpenAI platform's states (421 and 485 characters that day) with "Update Pinto Notes".
+export const MAX_HANDOFF = 8000;
+
 const CHANGED = "This request changed. Start connecting again from the other app.";
 const SCAN_CHANGED = "This code changed on your computer. Scan it again.";
 
@@ -869,20 +883,26 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   const body = await req.json().catch(() => ({})) as { id?: string; allow?: boolean; write?: boolean; redirect_uri?: unknown; code_hash?: unknown; code_wrap?: unknown; handoff?: unknown; wrong_number?: unknown; scan?: unknown };
   const r = await pending(sql, String(body.id ?? ""));
   if (!r) return json({ error: EXPIRED }, 404);
-  if (!(await claim(sql, r, user))) return json({ error: NOT_YOURS }, 403);
-  if (body.redirect_uri !== r.redirect_uri) return json({ error: CHANGED }, 409);
+  if (!(await claim(sql, r, user))) return json({ error: notYours(r) }, 403);
+  // An answer that fails lets go of the request, so another account (or the recovery key on the
+  // page) can still answer it: on 13 October 2026 a failed answer from the app left it held.
+  const refuse = async (error: string, status: number) => {
+    await unclaim(sql, r.id, user);
+    return json({ error }, status);
+  };
+  if (body.redirect_uri !== r.redirect_uri) return await refuse(CHANGED, 409);
 
   const allow = body.allow === true;
   const codeHash = typeof body.code_hash === "string" ? body.code_hash : "";
   const codeWrap = typeof body.code_wrap === "string" ? body.code_wrap : "";
   if (allow) {
     const [key] = await sql<{ key_id: string }[]>`select key_id from public.account_keys where user_id = ${user}`;
-    if (!key) return json({ error: "Set up Pinto Notes on this device first." }, 409);
+    if (!key) return await refuse("Set up Pinto Notes on this device first.", 409);
     if (!/^[0-9a-f]{64}$/.test(codeHash) || codeWrap.length > 300 || !/^amb2\.[0-9a-f]{16}\.[A-Za-z0-9+/]+={0,2}$/.test(codeWrap)) {
-      return json({ error: "Update Pinto Notes to connect an AI." }, 400);
+      return await refuse("The code this device made was missing or damaged. Try connecting again.", 400);
     }
     if (codeWrap.split(".")[1] !== key.key_id) {
-      return json({ error: "This device has an old key for your notes. Open Pinto Notes again to get the current one." }, 409);
+      return await refuse("This device has an old key for your notes. Open Pinto Notes again to get the current one.", 409);
     }
   }
   // Asked from a browser: a device's code goes to that page, sealed to its key, and the device
@@ -894,12 +914,17 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   let scanned = false;
   if (typeof body.scan === "string") {
     const ok = asked?.scan_hash && /^[A-Za-z0-9_-]{22}$/.test(body.scan) && timingSafeEqual(await sha256Hex(body.scan), asked.scan_hash);
-    if (!ok) return json({ error: SCAN_CHANGED }, 409);
+    if (!ok) return await refuse(SCAN_CHANGED, 409);
     scanned = true;
   }
   const fromPage = req.headers.get("origin") === new URL(connectPage()).origin;
   const handoff = typeof body.handoff === "string" && !fromPage ? body.handoff : "";
-  if (asked && allow && !fromPage && (!HANDOFF.test(handoff) || handoff.length > 600)) return json({ error: "Update Pinto Notes to connect an AI." }, 400);
+  if (asked && allow && !fromPage && handoff.length > MAX_HANDOFF) {
+    return await refuse(`${displayName(r.client_name, r.redirect_uri)}'s return address is too long to pass to your browser. Use your recovery key on the page instead.`, 400);
+  }
+  if (asked && allow && !fromPage && !HANDOFF.test(handoff)) {
+    return await refuse("The answer for your browser was missing or damaged. Start connecting again in your browser.", 400);
+  }
 
   // The issuer the client started with: the address its /authorize went through. Built as
   // clientRedirect documents, the same way the device builds what it seals.
@@ -948,7 +973,7 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
     return true;
   });
   if (answered === "reveal") return json({ error: "Finish on the page in your browser first." }, 409);
-  if (answered === "rescan") return json({ error: SCAN_CHANGED }, 409);
+  if (answered === "rescan") return await refuse(SCAN_CHANGED, 409);
   if (!answered) return json({ error: EXPIRED }, 404);
   if (!allow) {
     u.searchParams.set("error", "access_denied");
@@ -973,8 +998,12 @@ async function release(req: Request, sql: Sql): Promise<Response> {
   const body = await req.json().catch(() => ({})) as { id?: string };
   const id = String(body.id ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: EXPIRED }, 404);
-  await sql`update public.oauth_requests set claimed_by = null where id = ${id} and claimed_by = ${user} and decided_at is null`;
+  await unclaim(sql, id, user);
   return json({ released: true });
+}
+
+async function unclaim(sql: Sql, id: string, user: string) {
+  await sql`update public.oauth_requests set claimed_by = null where id = ${id} and claimed_by = ${user} and decided_at is null`;
 }
 
 // MARK: Tokens

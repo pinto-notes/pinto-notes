@@ -85,6 +85,58 @@ enum ConnectTrust {
     }
 }
 
+/// A sign-in this app started itself: Codex or Claude Code, run from Connect an AI, printed the
+/// address it opened in the browser. Its `state` is a secret only that command, this app and the
+/// browser it opened on this Mac have, and its return address is the port that command listens
+/// on. A request that carries both is that sign-in, whatever it calls itself; the name a request
+/// gives itself is never enough. Anything else keeps the caution.
+struct ConnectOwnSignIn: Equatable {
+    let ai: String
+    let state: String
+    let redirectURI: String
+    let at: Date
+    /// The command gives up after this long (ConnectShell stops it), and so does this.
+    static let lasts: TimeInterval = 600
+
+    /// From the address the command printed: needs a `state` and a return address back to this
+    /// computer.
+    init?(ai: String, authorization: URL, at: Date = .now) {
+        let items = URLComponents(url: authorization, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        guard let state = items.first(where: { $0.name == "state" })?.value, state.count >= 16,
+              let redirect = items.first(where: { $0.name == "redirect_uri" })?.value, let url = URL(string: redirect),
+              url.scheme?.lowercased() == "http", Connection.isLoopback(url.host ?? "") else { return nil }
+        self.ai = ai
+        self.state = state
+        redirectURI = redirect
+        self.at = at
+    }
+
+    /// The address a sign-in prints for the browser (Codex before it opens it, Claude Code under
+    /// "If the browser didn't open, visit:"): the first web address with a `state` and a return
+    /// address.
+    nonisolated static func authorization(in text: String) -> URL? {
+        for word in text.split(whereSeparator: \.isWhitespace) where word.hasPrefix("https://") || word.hasPrefix("http://") {
+            guard let url = URL(string: String(word)),
+                  let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+                  items.contains(where: { $0.name == "state" }), items.contains(where: { $0.name == "redirect_uri" }) else { continue }
+            return url
+        }
+        return nil
+    }
+
+    func recognizes(_ r: ConnectRequest, now: Date = .now) -> Bool {
+        r.loopback && r.state == state && r.redirect_uri == redirectURI && now.timeIntervalSince(at) < Self.lasts
+    }
+
+    /// The request as the sheet shows it: named after the AI when it's this sign-in.
+    static func mark(_ r: ConnectRequest, by own: ConnectOwnSignIn?, now: Date = .now) -> ConnectRequest {
+        guard let own, own.recognizes(r, now: now) else { return r }
+        var r = r
+        r.startedHere = own.ai
+        return r
+    }
+}
+
 enum ConnectSnippets {
     /// What Claude Code and Codex call the server in their own lists. It was amber-notes (and
     /// amber_notes) before the app was renamed; a connection added under the old name keeps working.
@@ -140,6 +192,14 @@ struct ConnectRequest: Decodable, Identifiable, Equatable {
     /// scanned the code checks against the code (`ConnectScan`).
     var scan: Bool? = nil
     var browser_key: String? = nil
+    /// The AI whose sign-in this app started itself (`ConnectOwnSignIn`), when this is that
+    /// sign-in. Set here, never read from the server.
+    var startedHere: String? = nil
+
+    private enum CodingKeys: String, CodingKey {
+        case id, client_name, redirect_host, redirect_uri, claimed_name, loopback, wants_write, asked, started_at, started_from,
+             state, iss, scan, browser_key
+    }
 
     var isAsked: Bool { asked == true }
 
@@ -160,8 +220,9 @@ struct ConnectRequest: Decodable, Identifiable, Equatable {
 
     /// The AI access goes to, when the return address is its own. For a request asked from a
     /// browser too: what ties that request to the person is the code they scanned on their own
-    /// screen (or the number it shows), and the address decides who gets access.
-    var verifiedAI: String? { ConnectTrust.verifiedAI(redirectURI: redirect_uri) }
+    /// screen (or the number it shows), and the address decides who gets access. Or the AI whose
+    /// sign-in this app started (`startedHere`).
+    var verifiedAI: String? { ConnectTrust.verifiedAI(redirectURI: redirect_uri) ?? startedHere }
     /// Who's asking, as the sheet names it: the verified AI, or else where access goes.
     var who: String { verifiedAI ?? ConnectTrust.destination(host: redirect_host, loopback: loopback) }
     /// The name an unverified app gave itself, shown only as a secondary claim, and only as the
@@ -448,6 +509,9 @@ enum ConnectAPI {
         return String(decoding: bytes, as: UTF8.self)
     }
 
+    /// The server described the request without its return address, so there's nowhere to send an answer.
+    static let noReturnAddress = "Pinto Notes didn't get this AI's return address. Start connecting again from the AI."
+
     /// Allow or deny. `redirect_uri` goes back exactly as /connect/request gave it. Allowing sends
     /// a code made here (`code`): only its hash and the account's key wrapped under it reach the
     /// server. A request asked from a browser (`browserKey`, the page's public key) also gets the
@@ -460,7 +524,7 @@ enum ConnectAPI {
     static func decide(id: UUID, redirectURI: String?, allow: Bool, write: Bool,
                        code: (code: String, hash: String, wrap: String)?, browserKey: Data? = nil, handoffRedirect: String? = nil,
                        wrongNumber: Bool = false, scan: String? = nil, send: Send) async throws -> Answer {
-        guard let redirectURI else { throw Failure(message: "Update Pinto Notes to connect an AI.") }
+        guard let redirectURI else { throw Failure(message: Self.noReturnAddress) }
         guard !allow || code != nil else { throw Failure(message: "Open Pinto Notes and finish setting up encryption first.") }
         var body: [String: Any] = ["id": id.uuidString.lowercased(), "allow": allow, "write": write, "redirect_uri": redirectURI]
         if !allow, wrongNumber { body["wrong_number"] = true }
@@ -527,6 +591,12 @@ enum ConnectAPI {
                                           handoffRedirect: r.handoffRedirect, wrongNumber: wrongNumber, send: send))
     }
 
+    /// Lets go of a request this account opened and didn't answer, so another account (or the
+    /// recovery key on the page) can answer it.
+    static func release(id: UUID, send: Send) async throws {
+        _ = try await send("/connect/release", "POST", ["id": id.uuidString.lowercased()])
+    }
+
     /// This device's nonce for an asked request (16 random bytes, lowercase hex), written once
     /// before the page reveals its own.
     static func writeNonce(id: UUID, nonce: Data, send: Send) async throws {
@@ -559,6 +629,14 @@ enum ConnectTokens {
         struct Params: Encodable { var token_name: String; var write_access: Bool; var token_hash: String; var dk_wrap: String }
         try await client.rpc("create_mcp_token", params: Params(token_name: name, write_access: write, token_hash: made.hash, dk_wrap: made.wrap)).execute()
         return made.token
+    }
+
+    /// Revokes the tokens by this name made since then that were never used.
+    static func dropUnused(_ client: SupabaseClient, name: String, since: Date) async {
+        let rows: [Connection] = (try? await client.from("mcp_tokens").select().eq("name", value: name)
+            .gte("created_at", value: since.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            .is("last_used_at", value: nil).is("revoked_at", value: nil).execute().value) ?? []
+        for c in rows where !c.isOAuth { try? await ConnectRevoke.revoke(client, id: c.id) }
     }
 }
 
@@ -599,6 +677,11 @@ final class ConnectCenter: NSObject {
     private var offered: Set<UUID> = []
     /// Answered on this device: the update saying so doesn't cut the sheet's "Allowed" short.
     private var answeredHere: Set<UUID> = []
+    /// Answered here and closed: a link or ask for one of these (the page's button pressed again, a
+    /// second link for the same request) never opens a second sheet.
+    private var finished: Set<UUID> = []
+    /// The sign-in Connect an AI started on this Mac, while it runs (`ConnectRun`).
+    var ownSignIn: ConnectOwnSignIn?
     /// When each ask became known here, counted, so a look at the server that started before it
     /// can't close it (see `gone(from:lookedAt:)`).
     private var learned = 0
@@ -674,7 +757,7 @@ final class ConnectCenter: NSObject {
             learnedAt[ask.id] = learned
         }
         asks[ask.id] = ask
-        guard !offered.contains(ask.id) else { return false }
+        guard !offered.contains(ask.id), !finished.contains(ask.id) else { return false }
         offered.insert(ask.id)
         if pending == ask.id { return false }
         if pending == nil { show(ask.id) } else { queue.append(ask.id) }
@@ -711,7 +794,7 @@ final class ConnectCenter: NSObject {
 
     /// The notification for an ask was tapped, or "Approval waiting": it's next, or showing already.
     func showAsk(_ id: UUID) {
-        guard pending != id else { return }
+        guard pending != id, !finished.contains(id) else { return }
         if pending == nil { show(id); return }
         queue.removeAll { $0 == id }
         queue.insert(id, at: 0)
@@ -723,7 +806,10 @@ final class ConnectCenter: NSObject {
     /// The sheet closed, answered or not: the next ask shows. One answered here is done; one that
     /// wasn't stays waiting (`waiting`).
     func sheetClosed() {
-        if let id = pending, answeredHere.remove(id) != nil { asks[id] = nil }
+        if let id = pending, answeredHere.remove(id) != nil {
+            asks[id] = nil
+            finished.insert(id)
+        }
         pending = nil
         expiry?.cancel()
         showNextSoon()
@@ -738,6 +824,8 @@ final class ConnectCenter: NSObject {
         scans = [:]
         offered = []
         answeredHere = []
+        finished = []
+        ownSignIn = nil
         learnedAt = [:]
         expiry?.cancel()
     }
@@ -800,7 +888,7 @@ final class ConnectCenter: NSObject {
         if let from { browsers[id] = from } else { browsers[id] = nil }
         activate()
         #endif
-        guard pending != id else { return }
+        guard pending != id, !finished.contains(id) else { return }
         guard pending == nil else {
             // Queued asks keep their place behind the person's own link.
             if !queue.contains(id) { queue.insert(id, at: 0) }
@@ -962,6 +1050,26 @@ extension View {
 
 // MARK: Consent
 
+/// An app the consent sheet can't name: a plain symbol on the same white tile as `AITile`, so a
+/// known AI and an unknown app look like one set.
+struct ClientTile: View {
+    let symbol: String
+    var size: CGFloat = 30
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.46, weight: .regular))
+            .foregroundStyle(Color(white: 0.45))
+            .frame(width: size, height: size)
+            .background(Color.white, in: shape)
+            .overlay(shape.strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5))
+            .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.10), radius: 3, y: 1.5)
+            .environment(\.colorScheme, .light)
+            .accessibilityHidden(true)
+    }
+}
+
 struct ConsentSheet: View {
     let client: SupabaseClient
     let requestID: UUID
@@ -976,7 +1084,6 @@ struct ConsentSheet: View {
     enum Phase: Equatable { case loading, asking(ConnectRequest), working, done(String), handedOff(String), failed(String) }
     @State private var phase: Phase
     @State private var write = true
-    @State private var showOptions = false
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Asked from a browser that the person signed in on (a notification): what the number was
     /// made from (the page's key and commit as first read, and the revealed nonce), and the
@@ -989,6 +1096,13 @@ struct ConsentSheet: View {
     /// Allow waits a moment after what the sheet shows changes, so a tap meant for what was there
     /// before doesn't land on what's there now.
     @State private var armed = false
+    /// The server took this sheet's answer. A sheet that closes without one lets go of the request
+    /// (`release`): on 13 October 2026 a failed answer left it held, and the recovery key on the
+    /// page, signed in to another account, was turned away.
+    @State private var serverAnswered = false
+    var release: (SupabaseClient, UUID) async -> Void = { client, id in
+        try? await ConnectAPI.release(id: id, send: ConnectAPI.sender(client))
+    }
     static let armDelay: Duration = .seconds(1)
     /// The sheet's height follows what it shows (iPhone), up to the full screen.
     @State private var contentHeight: CGFloat = 0
@@ -1008,7 +1122,7 @@ struct ConsentSheet: View {
 
     init(client: SupabaseClient, requestID: UUID, initial: Phase = .loading, finish: @escaping (URL) -> Void,
          allowed: @escaping (ConnectRequest) -> Void = { _ in }, answering: @escaping (UUID) -> Void = { _ in },
-         scan: ConnectScan? = nil, previewMatch: Match? = nil, previewOptions: Bool = false) {
+         scan: ConnectScan? = nil, previewMatch: Match? = nil) {
         self.client = client
         self.requestID = requestID
         self.finish = finish
@@ -1017,7 +1131,6 @@ struct ConsentSheet: View {
         self.scan = scan ?? ConnectCenter.shared.scans[requestID]
         _phase = State(initialValue: initial)
         _match = State(initialValue: previewMatch)
-        _showOptions = State(initialValue: previewOptions)
     }
 
     private struct Shown: Equatable { var phase: Phase; var match: Match? }
@@ -1025,8 +1138,11 @@ struct ConsentSheet: View {
     var body: some View {
         sized
             #if os(macOS)
-            .frame(width: 420)
+            .frame(width: 440)
             #endif
+            .foregroundStyle(Color.ink)
+            .background(Color(Palette.sheetGround))
+            .tint(Color(Palette.amber))
             .task {
                 if phase == .loading { await load() }
                 else if case .asking(let r) = phase { await opened(r) }
@@ -1037,6 +1153,14 @@ struct ConsentSheet: View {
                 if !Task.isCancelled { armed = true }
             }
             .animation(.smooth(duration: 0.25), value: phase)
+            .blurDemoCue { cue in
+                if cue == "working" { phase = .working } else if cue == "done" { phase = .done("ChatGPT") }
+            }
+            .onDisappear {
+                guard !serverAnswered else { return }
+                let (release, client, id) = (release, client, requestID)
+                Task { await release(client, id) }
+            }
     }
 
     /// iPhone: as tall as what it shows, scrolling when that's more than the screen (the
@@ -1054,13 +1178,38 @@ struct ConsentSheet: View {
         .scrollBounceBehavior(.basedOnSize)
         .presentationDetents(contentHeight > 0 ? [.height(contentHeight + 24)] : [.medium])
         .presentationDragIndicator(.visible)
+        .presentationBackground(Color(Palette.sheetGround))
         #else
-        content.padding(28)
+        content
+            .padding(.horizontal, 36)
+            .padding(.top, 32)
+            .padding(.bottom, 20)
         #endif
     }
 
-    @ViewBuilder
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Each of the sheet's states rises into focus as the one before fades (BlurMotion).
     private var content: some View {
+        ZStack {
+            states
+                .id(phaseKey)
+                .transition(reduceMotion ? .opacity : BlurMotion.page)
+        }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: phaseKey)
+    }
+
+    private var phaseKey: Int {
+        switch phase {
+        case .loading, .working: 0
+        case .asking: 1
+        case .done, .handedOff: 2
+        case .failed: 3
+        }
+    }
+
+    @ViewBuilder
+    private var states: some View {
         switch phase {
         case .loading, .working:
             ProgressView().controlSize(.large).frame(maxWidth: .infinity).frame(height: 160)
@@ -1101,73 +1250,113 @@ struct ConsentSheet: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// The AI's mark when the return address is its own, a link, our icon.
-    private func marks(_ r: ConnectRequest) -> some View {
+    #if os(iOS)
+    static let compact = true
+    #else
+    static let compact = false
+    #endif
+
+    /// One icon: the AI's mark when the return address is its own, else a plain tile.
+    private func icon(_ r: ConnectRequest) -> some View {
         let ai = r.verifiedAI
-        return HStack(spacing: 14) {
+        let size: CGFloat = Self.compact ? 72 : 64
+        return Group {
             if let ai {
-                AITile(ai: ai, size: 56)
+                AITile(ai: ai, size: size)
             } else {
                 // An app we can't vouch for: a plain glyph, never a borrowed mark.
-                Image(systemName: r.loopback ? "desktopcomputer" : "globe")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 56, height: 56)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: 56 * 0.3, style: .continuous))
+                ClientTile(symbol: r.loopback ? "desktopcomputer" : "globe", size: size)
             }
-            Image(systemName: "link")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.tertiary)
-            AppMark(size: 56)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(ai.map { "\($0) and Pinto Notes" } ?? "An app and Pinto Notes")
+        .accessibilityLabel(ai ?? "An app")
         .accessibilityIdentifier(ai == nil ? "connect.header.unknown" : "connect.header.\(ai!)")
     }
 
+    #if os(macOS)
+    static let allowHint = "Confirms with Touch ID or your password"
+    #else
+    static let allowHint = "Confirms with Face ID or your passcode"
+    #endif
+
     /// The title: who gets access, by the address it goes to.
     nonisolated static func title(_ r: ConnectRequest) -> String { "Allow \(r.who) to use your notes?" }
+
+    /// What an app calls itself, as a name reads: "glama" is Glama, "claude code" Claude Code.
+    /// A name with capitals of its own ("ChatGPT", "iA Writer") stays as it is.
+    nonisolated static func displayName(_ name: String) -> String {
+        guard name == name.lowercased() else { return name }
+        return name.split(separator: " ", omittingEmptySubsequences: false)
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
+    }
+
+    /// The line under the title. A recognized AI: where access goes. Any other app: a calm
+    /// caution, with the name it gives itself shown only as a claim (anyone can call themselves
+    /// Claude), and never the name the person is told to check against.
+    nonisolated static func detail(_ r: ConnectRequest) -> String {
+        if let ai = r.startedHere { return "You started connecting \(ai) on this Mac. Locked notes stay private." }
+        guard r.verifiedAI == nil else { return "Access goes to \(r.redirect_host). Locked notes stay private." }
+        let claim = r.claimedName.map { " It calls itself \(displayName($0))." } ?? ""
+        return "Pinto Notes doesn\u{2019}t recognize this app.\(claim) Only allow it if you just started connecting it yourself."
+    }
+
+    /// What the chosen access lets the app do.
+    nonisolated static func accessLine(write: Bool) -> String {
+        write ? "It can read, create and change notes. Every change keeps the previous version."
+            : "It can read notes, but not change them."
+    }
 
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
 
     private func asking(_ r: ConnectRequest) -> some View {
         VStack(spacing: 0) {
-            marks(r)
+            icon(r).padding(.bottom, 18)
             Text(Self.title(r))
-                .font(.title2.weight(.semibold))
+                .font(.display(Self.compact ? 26 : 22))
+                .tracking(Palette.tracking(Self.compact ? 26 : 22))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 18)
+                .padding(.bottom, 8)
+                .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("connect.title")
-            if r.verifiedAI == nil {
-                Label("Pinto Notes doesn't recognize this app. Only allow it if you just started connecting it.",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 10)
-                    .accessibilityIdentifier("connect.unknown")
+            Text(Self.detail(r))
+                .font(Self.compact ? .body : .system(size: 14))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier(r.verifiedAI == nil ? "connect.unknown" : "connect.destination")
+            if let line = r.requestedLine() {
+                Text(line)
+                    .font(Self.compact ? .footnote : .system(size: 12))
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 6)
+                    .accessibilityIdentifier("connect.requested")
             }
-            if byNumber(r) { number.padding(.top, 20) }
-            VStack(spacing: 4) {
-                Button { Task { await decide(r, allow: true) } } label: {
-                    Text("Allow").frame(maxWidth: .infinity)
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
-                .disabled(!armed || (byNumber(r) && match == nil))
-                .accessibilityIdentifier("connect.allow")
-                Button("Don\u{2019}t Allow") { Task { await decide(r, allow: false) } }
-                    .keyboardShortcut(.cancelAction)
-                    .frame(minHeight: 44)
-                    .accessibilityIdentifier("connect.deny")
+            if byNumber(r) { number.padding(.top, 18) }
+            access(r).padding(.top, 20)
+            Button { Task { await decide(r, allow: true) } } label: {
+                Text("Allow").frame(maxWidth: .infinity)
             }
-            .padding(.top, 24)
-            options(r)
+            .buttonStyle(.amberProminent(Self.compact ? .big : .regular, wide: true))
+            .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: Self.compact ? .infinity : 320)
+            .disabled(!armed || (byNumber(r) && match == nil))
+            .padding(.top, 22)
+            .accessibilityHint(Self.allowHint)
+            .accessibilityIdentifier("connect.allow")
+            Button("Don\u{2019}t Allow") { Task { await decide(r, allow: false) } }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: Self.compact ? 15 : 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+                .keyboardShortcut(.cancelAction)
+                .frame(minHeight: Self.compact ? 44 : 34)
+                .padding(.top, 6)
+                .accessibilityIdentifier("connect.deny")
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// Asked by notification: the two digits the page shows, to compare.
@@ -1178,6 +1367,7 @@ struct ConsentSheet: View {
                 Text(match.number)
                     .font(.system(size: 52, weight: .semibold, design: .rounded))
                     .monospacedDigit()
+                    .foregroundStyle(Color.ink)
                     .accessibilityLabel("Number \(match.number.map(String.init).joined(separator: " "))")
                     .accessibilityIdentifier("connect.number")
                 Text("Allow only if your computer shows the same number.")
@@ -1186,21 +1376,21 @@ struct ConsentSheet: View {
                 Text("Waiting for your computer\u{2026}")
             }
         }
-        .font(.callout)
-        .foregroundStyle(.secondary)
+        .font(Self.compact ? .callout : .system(size: 13))
+        .foregroundStyle(Color.muted)
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Access and where it goes, out of the way: most people keep what the app asked for.
-    private func options(_ r: ConnectRequest) -> some View {
+    /// Read and edit or read only, in plain sight: what the app asked for is chosen. An app that
+    /// asked only to read gets no choice, just the line that says so.
+    private func access(_ r: ConnectRequest) -> some View {
         let canEdit = Binding(get: { write && r.wants_write }, set: { write = $0 })
-        return DisclosureGroup(isExpanded: $showOptions) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Segments don't grow with the largest text sizes; a menu does.
+        return VStack(spacing: 8) {
+            if r.wants_write {
                 Group {
                     if typeSize.isAccessibilitySize {
-                        // Segments and menus don't fit the largest text sizes: a choice per line does.
+                        // Segments don't fit the largest text sizes: a choice per line does.
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach([true, false], id: \.self) { edit in
                                 Button { canEdit.wrappedValue = edit } label: {
@@ -1209,7 +1399,7 @@ struct ConsentSheet: View {
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 .buttonStyle(.plain)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(Color.ink)
                                 .accessibilityAddTraits(canEdit.wrappedValue == edit ? .isSelected : [])
                             }
                         }
@@ -1220,35 +1410,25 @@ struct ConsentSheet: View {
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
+                        .frame(maxWidth: Self.compact ? .infinity : 260)
                     }
                 }
-                .disabled(!r.wants_write)
+                .accessibilityLabel("Access")
                 .accessibilityIdentifier("connect.access")
-                Text(canEdit.wrappedValue ? "It can read, create and change notes. Every change keeps the previous version." :
-                        "It can read notes, but not change them.")
-                Text("Access goes to \(Text(r.redirect_host).bold()). Locked notes stay private.")
-                    .accessibilityIdentifier("connect.destination")
-                if let line = r.requestedLine() {
-                    Text(line).accessibilityIdentifier("connect.requested")
-                }
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 8)
-        } label: {
-            Text(canEdit.wrappedValue ? "Options: read and edit" : "Options: read only")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Text(Self.accessLine(write: canEdit.wrappedValue))
+                .font(Self.compact ? .footnote : .system(size: 12))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("connect.access.line")
         }
-        .tint(.secondary)
-        .padding(.top, 6)
-        .accessibilityIdentifier("connect.options")
     }
 
     private func load() async {
         do {
-            let r = try await ConnectAPI.request(client, id: requestID)
+            // Codex or Claude Code signing in from Connect an AI here: shown as that AI.
+            let r = ConnectOwnSignIn.mark(try await ConnectAPI.request(client, id: requestID), by: ConnectCenter.shared.ownSignIn)
             // Someone who just started connecting expects their AI to work.
             write = r.startsWithWrite
             phase = .asking(r)
@@ -1337,6 +1517,7 @@ struct ConsentSheet: View {
                                                        match: r.isAsked ? match : nil, scanned: scanned,
                                                        read: { try await askMatch(client, r.id) },
                                                        code: { try AccountCrypto.shared.connectionCode() }, send: ConnectAPI.sender(client))
+            serverAnswered = true
             guard case .answered(let answer) = answered else {
                 match = nil
                 phase = .failed(ConnectMatchCopy.changedWhileAnswering)

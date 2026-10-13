@@ -1,0 +1,15 @@
+{
+  "name": "pinto-notes",
+  "displayName": "Pinto Notes",
+  "version": "1.0.0",
+  "description": "Search, read and edit your notes in Pinto Notes from Grok Build, through the hosted Pinto Notes MCP server at mcp.pintonotes.com. Folders, checklists, tables and trackers. Every change shows in the app with Undo. Sign in with your Pinto Notes account on first connect.",
+  "author": {
+    "name": "Emil Wagman",
+    "url": "https://pintonotes.com"
+  },
+  "homepage": "https://pintonotes.com/blog/mcp-server",
+  "repository": "https://github.com/pinto-notes/pinto-notes",
+  "license": "MIT",
+  "keywords": ["pinto notes", "pinto-notes", "pintonotes", "amber notes"],
+  "logo": "assets/logo.png"
+}

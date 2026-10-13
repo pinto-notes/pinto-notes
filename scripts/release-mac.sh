@@ -65,8 +65,16 @@ notarize() { xcrun notarytool submit "$1" --key "$KEY" --key-id "$ASC_KEY_ID" --
 
 if [[ $IN_PLACE != 1 ]]; then
   echo "→ Clean checkout of main"
-  [[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" main
-  git -C "$CLEAN" checkout -q --detach main
+  # GitHub's main, never the local branch: on 2026-10-13 a local main nobody had pulled made three
+  # releases (1.2.20 to 1.2.22) of the morning's code, and each one deployed the site from it too.
+  git -C "$MAIN" fetch -q origin main
+  [[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" origin/main
+  # The clean checkout can be a clone of its own, with its own origin/main: fetch there too.
+  git -C "$CLEAN" fetch -q origin main
+  git -C "$CLEAN" checkout -q --detach origin/main
+  want=$(git -C "$MAIN" rev-parse origin/main); got=$(git -C "$CLEAN" rev-parse HEAD)
+  # 1.2.20-1.2.22 and 1.2.24 shipped an older commit than GitHub's main: never again.
+  [[ $want == "$got" ]] || { echo "✗ The clean checkout is at ${got:0:8}, GitHub's main is ${want:0:8}. Not releasing." >&2; exit 1; }
   cp "$MAIN/Config/Backend.local.xcconfig" "$CLEAN/Config/"
 fi
 COMMIT=$(git -C "$CLEAN" rev-parse --short HEAD)
@@ -184,5 +192,13 @@ if [[ ${SKIP_DEPLOY:-0} != 1 ]]; then
   (cd "$CLEAN" && scripts/deploy-web.sh)
 fi
 [[ ${SKIP_TAG:-0} == 1 ]] || git -C "$MAIN" tag -f "mac-v$VERSION" "$COMMIT"
+# The tag on GitHub and a GitHub release with the DMG, so people watching the repository hear
+# about it. A failure here doesn't undo the release: the site and the update feed are already live.
+if [[ ${SKIP_TAG:-0} != 1 ]]; then
+  git -C "$MAIN" push -q origin "mac-v$VERSION" || echo "! The tag mac-v$VERSION didn't reach GitHub; push it by hand." >&2
+  RELNOTES=$( { [[ -n $NOTES ]] && print -r -- "$NOTES" | awk 'NF {print "- " $0}'; print; print "All changes: https://pintonotes.com/changelog"; } )
+  gh release create "mac-v$VERSION" "$DIST/$FILE" --repo pinto-notes/pinto-notes --title "Pinto Notes $VERSION" --notes "$RELNOTES" --latest >/dev/null \
+    || echo "! No GitHub release for $VERSION; make it by hand (gh release create)." >&2
+fi
 
 echo "✓ Pinto Notes $VERSION ($BUILD) is live: https://pintonotes.com/download"

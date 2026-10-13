@@ -39,13 +39,12 @@ import UIKit
         return ConnectMatch.Match(snapshot: ConnectMatch.Snapshot(row)!, row: row, number: "42")
     }()
 
-    static func sheet(_ phase: ConsentSheet.Phase, match: ConnectMatch.Match? = nil, options: Bool = false) -> ConsentSheet {
-        ConsentSheet(client: client, requestID: UUID(), initial: phase, finish: { _ in }, scan: scan, previewMatch: match, previewOptions: options)
+    static func sheet(_ phase: ConsentSheet.Phase, match: ConnectMatch.Match? = nil) -> ConsentSheet {
+        ConsentSheet(client: client, requestID: UUID(), initial: phase, finish: { _ in }, scan: scan, previewMatch: match)
     }
 
     static let sheets: [(String, ConsentSheet)] = [
         ("3-allow-scanned", sheet(.asking(scanned))),
-        ("4-allow-options", sheet(.asking(scanned), options: true)),
         ("5-allow-notification", sheet(.asking(notified), match: match)),
         ("6-allow-unknown-app", sheet(.asking(unknown))),
         ("7-connected", sheet(.handedOff("claude.ai"))),

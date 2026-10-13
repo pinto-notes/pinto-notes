@@ -414,7 +414,7 @@ struct NoteDetailView: View {
                     // The soft edge: text passing under the toolbar fades into the page's ground, so
                     // the buttons stay readable over it.
                     .overlay(alignment: .top) {
-                        if parentNote == nil && note.trashedAt == nil {
+                        if parentNote == nil && note.trashedAt == nil && !Self.captureWithoutToolbar {
                             LinearGradient(stops: [.init(color: Color.notePage, location: 0), .init(color: Color.notePage.opacity(0.85), location: 0.55),
                                                    .init(color: Color.notePage.opacity(0), location: 1)],
                                            startPoint: .top, endPoint: .bottom)
@@ -940,6 +940,9 @@ struct NoteDetailView: View {
 
     #if os(macOS)
     /// How far down the toolbar's soft edge reaches from the window's top.
+    /// Captures only: an offscreen window has no toolbar, so the fade under it would lie over the
+    /// title instead. Off in the app.
+    nonisolated(unsafe) static var captureWithoutToolbar = false
     static let toolbarFade: CGFloat = 64
     #endif
 

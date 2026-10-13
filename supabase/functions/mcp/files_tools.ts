@@ -13,9 +13,10 @@ import { scaffold } from "./app_scaffold.ts";
 import { fileList, projectOf, saveProject, withFile, withFiles } from "./app_files.ts";
 import { pageDataOf, storePageData } from "./data_tools.ts";
 import { dataShape } from "./data_ops.ts";
+import { fetchTemplateApp, type TemplateApp } from "./template_apps.ts";
 import { appHandlers, realPreviewsServed } from "./app_tools.ts";
 import { FILE_APP_INSTRUCTIONS } from "./page_guide.ts";
-import type { PageData } from "./page.ts";
+import { pageDataProblems, type PageData } from "./page.ts";
 import {
   bodyOf, Content, descendants, findFolder, handlers as classic, iso, LOCKED, MAX_READ_CHARS,
   type Note, type NoteRow, quote, refuseLocked, runIn, save, Scan, type Tool, type ToolContext, ToolError, type Tx, type Call, UUID,
@@ -71,19 +72,20 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "fetch", title: "Read",
-    description: "Reads a note, an app file, an app's data.json or a file, with line numbers (cat -n). Long text is read in parts: offset is the first line, limit how many (default 2000). A folder reads as its listing. Files: text files (TXT, CSV, JSON, code) as text you can edit; PDFs, Word, Excel and PowerPoint as their text; pictures as images. raw: true returns the file itself (base64, up to 10 MB) to change with your own tools and write back. Read something before you edit or write it.",
+    description: "Reads a note, an app file, an app's data.json or a file, with line numbers (cat -n). Long text is read in parts: offset is the first line, limit how many (default 2000). A folder reads as its listing. Files: text files (TXT, CSV, JSON, code) as text you can edit; PDFs, Word, Excel and PowerPoint as their text; pictures as images. raw: true returns the file itself (base64, up to 10 MB).",
     inputSchema: { type: "object", properties: { id: str(PATH), offset: int("First line (1-based)."), limit: int("How many lines."), raw: { type: "boolean", description: "A file's own bytes, as a resource (base64). Up to 10 MB." } }, required: ["id"] },
     annotations: read,
   },
   {
     name: "create", title: "Create",
-    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
         type: { type: "string", enum: ["note", "folder", "app"], description: "Default note." },
         path: str("Where: \"Work/Acme.md\", \"Work/Clients/\", or the app's note."),
         content: str("A note's markdown."),
+        template: str("An app: start from this template's app, data and note (its name, as in pintonotes.com/templates/habit-tracker)."),
         pinned: { type: "boolean" },
       },
       required: ["path"],
@@ -92,7 +94,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "edit", title: "Edit",
-    description: "Replaces old_string with new_string in a note, an app file, an app's data.json or a text file (TXT, CSV, JSON, code), like a coding agent's Edit. Read it first with fetch; copy old_string exactly, without the line numbers. It must match once unless replace_all; an empty new_string deletes it. Answers with checks: what the change broke in a note (a table, a checklist line, a tracker value), or the app's compile, render and test results. Each edit is one change the person can undo.",
+    description: "Replaces old_string with new_string in a note, an app file, an app's data.json or a text file (TXT, CSV, JSON, code), like a coding agent's Edit. old_string is the exact text, without line numbers, and the item must have been read in this session. It must match once unless replace_all; an empty new_string deletes it. Answers with checks: what the change broke in a note (a table, a checklist line, a tracker value), or the app's compile, render and test results. Each edit is one change the person can undo.",
     inputSchema: {
       type: "object",
       properties: {
@@ -107,12 +109,12 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces it (read it first). Prefer edit for changes; the old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with the same checks as edit. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
         path: str(PATH), content: str("The whole text (data.json: JSON)."), content_base64: str("A file's bytes, base64 (up to 10 MB)."), mime_type: str("With content_base64, like \"application/pdf\"."),
-        file: { type: "object", description: "A file from the chat (ChatGPT hands these over), instead of content_base64.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } } },
+        file: { type: "object", description: "A file from the chat (ChatGPT hands these over), instead of content_base64.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } }, required: ["download_url", "file_id"] },
       },
       required: ["path"],
     },
@@ -460,6 +462,25 @@ async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData
   return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it." };
 }
 
+/** create { type: "app", template }: the template's note, then its app through the same gate as any
+ *  save (compiled here, its tests and the smoke check run) and its data (docs/Technical/templates.md). */
+async function appFromTemplate(tx: Tx, c: Call, path: string, slug: string, a: Args) {
+  let t: TemplateApp;
+  try { t = await fetchTemplateApp(slug); } catch (e) { throw new ToolError((e as Error).message); }
+  const at = path.replace(/\.app\/?$/i, "").replace(/\.md$/i, "") + ".md";
+  const made = await newNote(tx, c, at, t.note);
+  const n = (await pathsOf(tx, c)).noteAt(made.path)!;
+  const problems = pageDataProblems(t.data);
+  if (problems.length) throw new ToolError(`The template's data didn't read:\n- ${problems.join("\n- ")}`);
+  await storePageData(tx, c, n.id, t.data);
+  const proj = await withFiles({ amberApp: 1, files: {}, compiled: {} }, t.files);
+  const result = await saveProject(tx, c, await full(tx, c, n.id), proj, `the ${slug} template's app`, a) as Record<string, unknown>;
+  const base = (await pathsOf(tx, c, true)).pathOf(n.id)!.replace(/\.md$/, ".app");
+  for (const [f, text] of Object.entries(proj.files)) await markRead(tx, c, fileItem(n.id, f), await hash(c, text));
+  const { app: _, ...rest } = result;
+  return { ...rest, created: made.path, app: `${base}/`, next: `Read ${base}/README.md and ${base}/data.json before changing the app or its data.` };
+}
+
 /** Where a new note goes: a folder (made if needed), or under a note when the place is that note's folder. */
 async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folder: string | null; parent?: Note }> {
   if (!dir) return { folder: null };
@@ -800,6 +821,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const f = await findFolder(tx, c.v, path.replace(/\/+$/, ""), true);
       return { created: (await pathsOf(tx, c, true)).folderPathOf(f.id) };
     }
+    if (type === "app" && a.template !== undefined) return await appFromTemplate(tx, c, path, String(a.template), a);
     if (type === "app") {
       let n: Note;
       try {

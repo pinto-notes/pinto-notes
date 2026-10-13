@@ -878,7 +878,9 @@ struct AppGate: View {
 
     var body: some View {
         Group {
-            if let screen = CaptureScreen.requested {
+            if let spot = BlurDemo.spot {
+                BlurDemoStage(spot: spot, backend: backend)
+            } else if let screen = CaptureScreen.requested {
                 CaptureScreen(name: screen, backend: backend)
             } else {
                 gate

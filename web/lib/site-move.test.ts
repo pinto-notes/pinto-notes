@@ -23,6 +23,10 @@ describe("the move to pintonotes.com", () => {
     }
   });
 
+  it("keeps the icon Claude's directory listing reads on the old address (it doesn't follow redirects)", () => {
+    expect(movedTo("ambernotes.app", new URL("https://ambernotes.app/mark.png"))).toBeNull();
+    expect(movedTo("ambernotes.app", new URL("https://ambernotes.app/mark-big.png"))).not.toBeNull();
+  });
   it("keeps the IndexNow key on the old address, so its pages can be pinged too", () => {
     expect(moved("https://ambernotes.app/48cf0530fa40cbcfe5fa2c2a969c692f.txt")).toBeNull();
     expect(moved("https://ambernotes.app/notes.txt")).toBe("https://pintonotes.com/notes.txt");

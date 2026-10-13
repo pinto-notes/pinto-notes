@@ -91,7 +91,10 @@ final class ConnectAsks {
         self.user = user
         self.center = center
         self.notifier = notifier
-        self.describe = describe ?? { id in try? await ConnectAPI.request(client, id: id).who }
+        self.describe = describe ?? { id in
+            guard let r = try? await ConnectAPI.request(client, id: id) else { return nil }
+            return ConnectOwnSignIn.mark(r, by: center.ownSignIn).who
+        }
         self.now = now
         self.fetchOpen = fetchOpen ?? { at in
             try await client.from("connect_asks").select(ConnectAsk.columns)

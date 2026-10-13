@@ -224,7 +224,8 @@ export default function Page() {
       </Keep>
       <p>
         Or start from a <a href="/templates">template</a>: a note with the prompt that tells ChatGPT or Claude how to fill it in, like
-        the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.
+        the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.{" "}
+        <a href="/for/chatgpt">Pinto Notes for ChatGPT</a> has three more ideas, from a running plan to a note that becomes a tracker.
       </p>
       <PostCta slug="connect-chatgpt-to-your-notes" position="how-amber-helps" title="Get Pinto Notes on your Mac">
         <p>Free, with the MCP server built in. Connect ChatGPT or Claude from Settings, and every change they make can be undone.</p>

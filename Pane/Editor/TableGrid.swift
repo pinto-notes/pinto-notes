@@ -355,19 +355,23 @@ struct TableGridView: View {
                         cell(r, c, cols: cols, width: widths[c])
                             .frame(width: widths[c], height: GridMetrics.row)
                             .overlay(alignment: .trailing) {
-                                if c < cols - 1 { Rectangle().fill(border).frame(width: 1) }
+                                // D (reading page): rows only, no columns of lines.
+                                if c < cols - 1 && !DesignLook.readingPage { Rectangle().fill(border).frame(width: 1) }
                             }
                             .accessibilityIdentifier("grid.\(r).\(c)")
                             // VoiceOver: which column you're in, then where in the table.
                             .accessibilityLabel(cellLabel(r, c))
                     }
                 }
+                // D: the header row on a soft fill.
+                .background { if r == 0 && DesignLook.readingPage { Color.soft } }
                 .overlay(alignment: .bottom) {
-                    if r < draft.rows.count - 1 { Rectangle().fill(border).frame(height: 1) }
+                    if r < draft.rows.count - 1 { Rectangle().fill(border.opacity(DesignLook.readingPage ? 0.6 : 1)).frame(height: 1) }
                 }
             }
         }
-        .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(border, lineWidth: 1))
+        .modifier(ReadingCorners())
+        .overlay(RoundedRectangle(cornerRadius: DesignLook.readingPage ? Radius.sm : 2, style: .continuous).strokeBorder(border.opacity(DesignLook.readingPage ? 0.6 : 1), lineWidth: 1))
         // Selected as a whole (about to be deleted): tinted like selected text.
         .overlay {
             if selected {
@@ -559,7 +563,11 @@ struct TableGridView: View {
     }
 
     /// Grid lines get firmer with Increase Contrast.
-    private var border: Color { Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45) }
+    /// The cells' edges: grey, or in the candidates (DesignLook) the warm muted ink, so the grid
+    /// sits in the page's warmth instead of on it.
+    private var border: Color {
+        DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
+    }
 
     private func cellBinding(_ r: Int, _ c: Int) -> Binding<String> {
         Binding(
@@ -644,4 +652,16 @@ struct TableGridView: View {
     #if QA
     FileHandle.standardError.write(("TRACE " + s() + "\n").data(using: .utf8)!)
     #endif
+}
+
+/// D (the reading page): the table's outer corners rounded (sm), its header fill clipped to them.
+/// Nothing is clipped in the other looks.
+private struct ReadingCorners: ViewModifier {
+    func body(content: Content) -> some View {
+        if DesignLook.readingPage {
+            content.clipShape(RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
+        } else {
+            content
+        }
+    }
 }

@@ -1,0 +1,50 @@
+/* Study C: two phones, one line of amber. The headline and its line share a row; under them the
+   scene runs the width of the window: the band, and two phones standing on it. */
+.hero { display: grid; gap: 64px; padding-top: 72px; }
+@media (max-width: 700px) { .hero { gap: 36px; padding-top: 32px; } }
+.heroHead { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 48px; align-items: end; }
+.h1 { max-width: 13ch; }
+.heroSide { display: grid; gap: 24px; padding-bottom: 6px; }
+@media (max-width: 1000px) { .heroHead { grid-template-columns: 1fr; gap: 22px; } }
+
+/* The band sits exactly behind the five tinted lines of the note (measured on the phone's screen)
+   and runs the full width of the window, in the tint's own colour made solid and a step stronger. */
+.scene { --pw: 330px; --band-top: 204px; --band-h: 139px; position: relative; display: grid; gap: 20px; padding: 8px 0 24px; }
+.band { position: absolute; left: calc(50% - 50vw); width: 100vw; top: var(--band-top); height: var(--band-h); background: #f8d6a6; }
+:global(html[data-theme="leaf"]) .band { background: #5a3d1b; }
+.scene .chatCard { display: none; }
+.phones { position: relative; display: flex; justify-content: center; gap: 72px; }
+.phones > figure { --pw: inherit; }
+.chatScreen { min-height: 0; display: grid; }
+.chatScreen > figure { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
+.chatScreen > figure > div:nth-child(2) { justify-content: flex-start; padding-top: 40px; gap: 26px; }
+@media (max-width: 760px) {
+  .scene { --pw: 300px; --band-top: 202px; --band-h: 139px; }
+  .chatPhone { display: none; }
+  /* The note first, so its tinted lines are in the first screen; ChatGPT's window lies over the
+     bottom of the phone, where the list goes on. */
+  .scene { gap: 0; }
+  .scene .chatCard { display: grid; order: 2; width: calc(100% - 24px); max-width: 360px; margin-top: -150px; justify-self: center; position: relative; z-index: 1; font-size: 14.5px; }
+  .chatCard > div:last-child { display: none; } /* no input field: the conversation is the point */
+}
+
+/* Which AIs: four tiles, a glyph and where it runs. */
+.tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
+.tiles li { display: grid; gap: 6px; align-content: start; padding: 26px 22px 24px; border-radius: 22px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+.tiles svg { margin-bottom: 18px; color: var(--ink); }
+.tiles li[data-claude] svg { color: #d97757; }
+.tiles b { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; }
+.tiles span { color: var(--muted); font-weight: 600; font-size: 15px; }
+@media (max-width: 560px) { .tiles li { padding: 18px 16px; } .tiles b { font-size: 19px; } .tiles svg { width: 28px; height: 28px; margin-bottom: 10px; } }
+
+.plan { align-items: center; }
+.term { width: 100%; max-width: 560px; justify-self: center; }
+
+.apps { display: grid; gap: 40px; }
+.appsCard { width: 100%; max-width: 640px; margin: 0 auto; display: grid; gap: 12px; padding: 22px; border-radius: 26px; background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 30px 60px -40px rgba(var(--shade), 0.5); box-sizing: border-box; }
+.appsAsk { margin: 0 4px; display: inline-flex; align-items: center; gap: 9px; color: var(--muted); font-weight: 600; font-size: 15px; }
+.appsTitle { margin: 6px 4px 2px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+@media (max-width: 560px) { .appsCard { padding: 14px; } }
+
+.mac { width: 100%; height: auto; border-radius: 16px; box-shadow: 0 0 0 0.5px rgba(var(--shade), 0.25), 0 40px 80px -40px rgba(var(--shade), 0.55); }

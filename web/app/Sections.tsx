@@ -11,10 +11,10 @@ import DownloadLink from "./DownloadLink";
 import PlatformNote from "./PlatformNote";
 import a from "./sections.module.css";
 
-const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+export const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /// True once, the first time the element is mostly on screen.
-function useFirstView<T extends HTMLElement>(threshold = 0.5) {
+export function useFirstView<T extends HTMLElement>(threshold = 0.5) {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -27,18 +27,23 @@ function useFirstView<T extends HTMLElement>(threshold = 0.5) {
   return [ref, seen] as const;
 }
 
-const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>;
+export const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>;
 
-/* ───────────── Works with the AI you already use ───────────── */
+/* ───────────── Every AI you use works from the same notes ───────────── */
 
-type Job = { app: string; glyph: "openai" | "claude"; kind: "phone" | "desk" | "term"; ask: string; note: string; did: string };
+/// One thing an AI does with your notes: its name and one line (under the card), the app it's asked
+/// in, the request, and what it did in Pinto Notes. `call` is the tool line a terminal shows.
+type Job = { title: string; line: string; app: string; glyph: "openai" | "claude"; kind: "phone" | "desk" | "term"; ask: string; note: string; did: string; call?: string };
 const JOBS: Job[] = [
-  { app: "ChatGPT", glyph: "openai", kind: "phone", ask: "Add oat milk to groceries", note: "Groceries", did: "1 line added" },
-  { app: "Claude", glyph: "claude", kind: "desk", ask: "Turn my Lisbon notes into a packing list", note: "New note", did: "Packing list" },
-  { app: "Claude Code", glyph: "claude", kind: "term", ask: "Write today's standup into my notes", note: "Standup notes", did: "6 lines" },
+  { title: "Turns a messy note into next steps", line: "It writes the steps as a checklist at the top of the note and leaves the rest alone.",
+    app: "ChatGPT", glyph: "openai", kind: "phone", ask: "Turn my kitchen reno note into next steps", note: "Kitchen reno", did: "7 steps added as a checklist" },
+  { title: "Checks in on the plan when you ask", line: "It reads the plan, counts what you ticked, and moves what's left to next week.",
+    app: "Claude", glyph: "claude", kind: "desk", ask: "How did my running plan go this week? Move what I missed.", note: "Running plan", did: "3 of 4 done, 1 moved" },
+  { title: "Remembers what you said you'd do", line: "It can search all your notes, so a promise you wrote down in March still comes up.",
+    app: "Claude Code", glyph: "claude", kind: "term", ask: "What did I say I'd do before the release?", note: "Standup notes", did: "3 open items", call: "amber-notes · search" },
 ];
 
-/// Three different jobs in three apps, each a request and what landed in Pinto Notes.
+/// Three things an AI does with your notes, in three apps: each a request and what it did in Pinto Notes.
 export function AiSection() {
   const [ref, seen] = useFirstView<HTMLElement>();
   // Per card: how much of the request is typed, and whether the result is in. At rest: all complete.
@@ -59,15 +64,16 @@ export function AiSection() {
   return (
     <section ref={ref} className={a.section} aria-labelledby="ai">
       <div className={a.head}>
-        <h2 id="ai" className={a.h2}>Works with the AI you already use</h2>
-        <p className={a.lede}>Ask in the app you already use. The change lands in your notes, on every device.</p>
+        <h2 id="ai" className={a.h2}>Every AI you use works from the same notes</h2>
+        <p className={a.lede}>Connect ChatGPT, Claude, Claude Code, Codex or Incredible, and each one reads the notes you already keep. Ask ChatGPT on your phone in the morning and Claude at your desk in the afternoon, and both see the same plan.</p>
       </div>
       <div className={a.jobs}>
         {JOBS.map((j, k) => {
           const text = j.ask.slice(0, typed[k]);
           const typing = typed[k] < j.ask.length;
           return (
-            <figure key={j.app} className={`${a.job} ${a[j.kind]}`} aria-label={`${j.app}: ${j.ask}. Result: ${j.note}, ${j.did}.`}>
+            <div key={j.app} className={a.cap}>
+            <figure className={`${a.job} ${a[j.kind]}`} aria-label={`${j.app}: ${j.ask}. Result: ${j.note}, ${j.did}.`}>
               <figcaption className={a.jobBar} aria-hidden="true">
                 {j.kind !== "phone" && <span className={a.lights}><i /><i /><i /></span>}
                 <span className={a.jobApp}><AIGlyph name={j.glyph} size={13} />{j.app}</span>
@@ -76,7 +82,7 @@ export function AiSection() {
                 {j.kind === "term" ? (
                   <>
                     <p className={a.prompt}><span className={a.promptMark}>›</span>{text}{typing && <i className={a.caret} />}</p>
-                    <p className={a.call} data-on={done[k] || undefined}><span>⏺</span> amber-notes · update_note</p>
+                    <p className={a.call} data-on={done[k] || undefined}><span>⏺</span> {j.call}</p>
                     <p className={a.termResult} data-on={done[k] || undefined}><Tick /> {j.note} · {j.did}</p>
                   </>
                 ) : (
@@ -87,6 +93,9 @@ export function AiSection() {
                 )}
               </div>
             </figure>
+            <h3 className={a.capTitle}>{j.title}</h3>
+            <p className={a.capLine}>{j.line}</p>
+            </div>
           );
         })}
       </div>
@@ -95,11 +104,11 @@ export function AiSection() {
   );
 }
 
-/* ───────────── Bring all your Apple Notes over in one go ───────────── */
+/* ───────────── Feels like Apple Notes, and brings yours over in one go ───────────── */
 
-const FOLDERS = [{ name: "Notes", n: 612 }, { name: "Recipes", n: 188 }, { name: "Work", n: 241 }, { name: "Travel", n: 97 }, { name: "Home", n: 146 }];
-const TOTAL = FOLDERS.reduce((s, f) => s + f.n, 0); // 1,284
-const PINNED = 12;
+export const FOLDERS = [{ name: "Notes", n: 612 }, { name: "Recipes", n: 188 }, { name: "Work", n: 241 }, { name: "Travel", n: 97 }, { name: "Home", n: 146 }];
+export const TOTAL = FOLDERS.reduce((s, f) => s + f.n, 0); // 1,284
+export const PINNED = 12;
 
 /// The import, run once: a thin amber bar fills while folders count up; then the total.
 export function ImportSection() {
@@ -124,13 +133,12 @@ export function ImportSection() {
   return (
     <section ref={ref} className={a.section} aria-labelledby="import">
       <div className={a.head}>
-        <h2 id="import" className={a.h2}>Bring all your Apple Notes over in one go</h2>
-        <p className={a.lede}>If you know Apple Notes, you already know Pinto Notes.</p>
+        <h2 id="import" className={a.h2}>It feels like Apple Notes, especially on iPhone</h2>
+        <p className={a.lede}>Apple Notes is still the best notes app on a phone, so Pinto Notes works the way it does. The same note list, the same checklists, and a new note is one tap away when you have a thought in the queue for coffee.</p>
         <p className={a.lede}>
-          Pick everything, or just the notes you want. Folders, checklists and tables come along, pins too if you allow Full Disk Access, and your Apple Notes stay untouched.
-          Import on your Mac. Everything's on your iPhone a second later.
+          Bring all your Apple Notes over in one go on your Mac. Folders, checklists and tables come along, pins too if you allow Full Disk Access, and your Apple Notes stay as they are.
+          Your notes sync between iPhone and Mac in about a second. The iPhone app is coming to the App Store soon.
         </p>
-        <p className={a.lede}>Your notes live in the cloud and sync between iPhone and Mac.</p>
       </div>
       <div className={a.run} aria-label={`Imported ${TOTAL.toLocaleString("en")} notes from Apple Notes, with ${PINNED} pinned. Folders kept, Apple Notes unchanged.`}>
         <p className={a.runTitle} aria-hidden="true">
@@ -160,10 +168,10 @@ export function ImportSection() {
   );
 }
 
-function FolderIcon() {
+export function FolderIcon() {
   return <svg width="17" height="14" viewBox="0 0 17 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 3.5a1.5 1.5 0 0 1 1.5-1.5h3.2l1.5 1.6H14a1.5 1.5 0 0 1 1.5 1.5v6.4A1.5 1.5 0 0 1 14 13H3a1.5 1.5 0 0 1-1.5-1.5Z" /></svg>;
 }
-function PinIcon() {
+export function PinIcon() {
   return <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.2 1.3a1 1 0 0 1 1.4 0l3.1 3.1a1 1 0 0 1 0 1.4l-1 1a1 1 0 0 1-1 .25l-2.1 2.1.3 2.3a1 1 0 0 1-.3.85l-.7.7a.8.8 0 0 1-1.1 0L6.3 10.5 2.6 14.2a.6.6 0 0 1-.85-.85L5.5 9.7 3 7.2a.8.8 0 0 1 0-1.1l.7-.7a1 1 0 0 1 .85-.3l2.3.3 2.1-2.1a1 1 0 0 1 .25-1Z" /></svg>;
 }
 
@@ -174,6 +182,31 @@ export function AlsoLine() {
     <ul className={a.alsoTicks} aria-label="Also">
       <li><Tick /> Lists that tidy themselves</li><li><Tick /> Real tables</li><li><Tick /> Photos and files</li><li><Tick /> No ads, no tracking in the app</li>
     </ul>
+  );
+}
+
+/* ───────────── A note can also be an app ───────────── */
+
+/// The "wait, it can do that?" moment: one request, and the note becomes a small app.
+export function AppsSection() {
+  const ask = "Turn my habits note into a tracker";
+  return (
+    <section className={a.section} aria-labelledby="apps">
+      <div className={a.appsRow}>
+        <div className={a.head}>
+          <h2 id="apps" className={a.h2}>A note can also be an app</h2>
+          <p className={a.lede}>Ask your AI to turn a note into a small app, and it builds one inside the note. Your habits note becomes a tracker you tick each day, and a budget note can add itself up. The note&apos;s text stays underneath, and you can remove the app whenever you like.</p>
+          <p className={a.also}><a href="/help#apps">How to make one</a></p>
+        </div>
+        <figure className={`${a.job} ${a.phone} ${a.appsCard}`} aria-label={`ChatGPT: ${ask}. Result: Habits, now an app you can tick.`}>
+          <figcaption className={a.jobBar} aria-hidden="true"><span className={a.jobApp}><AIGlyph name="openai" size={13} />ChatGPT</span></figcaption>
+          <div className={a.jobBody} aria-hidden="true">
+            <p className={a.bubble} data-on>{ask}</p>
+            <p className={a.chip} data-on><Tick /> <b>Habits</b> · now an app you can tick</p>
+          </div>
+        </figure>
+      </div>
+    </section>
   );
 }
 
@@ -191,7 +224,8 @@ function cipher(text: string, seed: number) {
 }
 const WALL = Array.from({ length: 22 }, (_, i) => cipher("Lisbon, 4 days in May. Day 3: Sintra. Dinner at Trindade. Pack light. Groceries: oat milk, lemons, bread. Standup: ship the import, fix the share link, plan Friday.", i + 3));
 
-export function PrivacySection() {
+/// `eyebrow={false}` drops the small label above the title (home page study E).
+export function PrivacySection({ eyebrow = true }: { eyebrow?: boolean } = {}) {
   const v = HOME_PRIVACY;
   const [ref, seen] = useFirstView<HTMLElement>();
   // Complete at rest. With motion allowed, the shackle waits open (off screen) and settles closed on first view.
@@ -206,7 +240,7 @@ export function PrivacySection() {
     <section ref={ref} className={a.vault} aria-labelledby="privacy">
       <div className={a.cipherWall} aria-hidden="true">{WALL.map((l, i) => <p key={i}>{l}</p>)}</div>
       <div className={a.vaultText}>
-        <p className={a.eyebrow}>{v.eyebrow}</p>
+        {eyebrow && <p className={a.eyebrow}>{v.eyebrow}</p>}
         <h2 id="privacy" className={a.vaultTitle}>{v.title}</h2>
         <p className={a.vaultLede}>{v.text}</p>
         <a className={a.vaultLink} href={PRIVACY_PATH}>{v.link.replace(/ \S+$/, " ")}<span className={a.nowrap}>{v.link.split(" ").pop()}<Arrow /></span></a>
@@ -274,14 +308,13 @@ export function Closing() {
     <section className={a.band} aria-labelledby="closing">
       <div className={a.bandInner}>
         <img src="/mark-256.png" alt="" width={96} height={96} className={a.bandIcon} />
-        <h2 id="closing" className={a.bandTitle}>Your notes deserve better than copy and paste.</h2>
-        <p className={a.bandLede}>Free and open source, with no ads and no tracking in the app. Import your Apple Notes, connect your AI, and get back to writing.</p>
+        <h2 id="closing" className={a.bandTitle}>Start with the notes you already have.</h2>
+        <p className={a.bandLede}>Pinto Notes is free and open source, with no ads and no tracking in the app. Import your Apple Notes, connect the AI you use, and ask it what&apos;s next.</p>
         <div className={`${a.bandCtas} pi-apple pi-not-ios`}>
           <DownloadLink className={a.bandPrimary}><Apple /> Download for Mac</DownloadLink>
-          <span className={a.bandSecondary}>iPhone · coming soon</span>
         </div>
         <PlatformNote place="band" />
-        <p className={`${a.bandFine} pi-apple pi-not-ios`}>Requires macOS 26. Updates install themselves.</p>
+        <p className={`${a.bandFine} pi-apple pi-not-ios`}>Requires macOS 26.</p>
       </div>
     </section>
   );

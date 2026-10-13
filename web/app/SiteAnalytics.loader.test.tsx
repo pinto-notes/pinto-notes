@@ -37,3 +37,31 @@ describe("Vercel's loader script", () => {
     await done();
   });
 });
+
+describe("the internal mark", () => {
+  afterEach(() => { localStorage.clear(); history.replaceState(null, "", "/"); });
+
+  it("is kept by ?internal=1 and cleared by ?internal=0", async () => {
+    history.replaceState(null, "", "/blog?internal=1");
+    let done = await mount("/blog");
+    expect(localStorage.getItem("pinto_internal")).toBe("1");
+    await done();
+    history.replaceState(null, "", "/?internal=0");
+    done = await mount("/");
+    expect(localStorage.getItem("pinto_internal")).toBeNull();
+    await done();
+  });
+
+  it("is never set from a page PostHog doesn't run on", async () => {
+    history.replaceState(null, "", "/n/abc123?internal=1");
+    const done = await mount("/n/abc123");
+    expect(localStorage.getItem("pinto_internal")).toBeNull();
+    await done();
+  });
+
+  it("isn't set by an ordinary visit", async () => {
+    const done = await mount("/");
+    expect(localStorage.length).toBe(0);
+    await done();
+  });
+});

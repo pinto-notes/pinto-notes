@@ -99,7 +99,16 @@ struct MarkdownStyler {
     static var titleFont: PFont { .systemFont(ofSize: EditorMetrics.title, weight: .heavy) }
 
     func headingFont(_ level: Int) -> PFont {
-        switch level {
+        // B (paper): headings in the website's voice, heavy and tight like the title.
+        if DesignLook.current == .paper || DesignLook.readingPage {
+            switch level {
+            case 1: return .systemFont(ofSize: EditorMetrics.title * 0.85, weight: .heavy)
+            case 2: return .systemFont(ofSize: bodySize * 1.3, weight: .heavy)
+            case 3: return .systemFont(ofSize: bodySize * 1.12, weight: .bold)
+            default: return .systemFont(ofSize: bodySize, weight: .bold)
+            }
+        }
+        return switch level {
         case 1: .systemFont(ofSize: EditorMetrics.title, weight: .bold)
         case 2: .systemFont(ofSize: bodySize * 1.25, weight: .bold)
         case 3: .systemFont(ofSize: bodySize * 1.1, weight: .semibold)
@@ -654,6 +663,9 @@ private struct StyleWalker: MarkupWalker {
     mutating func visitHeading(_ heading: Heading) {
         guard let r = map.range(heading.range), safe(r) else { return descendInto(heading) }
         storage.addAttribute(.font, value: styler.headingFont(heading.level), range: r)
+        if DesignLook.current == .paper || DesignLook.readingPage, heading.level <= 2 {
+            storage.addAttribute(.kern, value: Palette.tracking(styler.headingFont(heading.level).pointSize), range: r)
+        }
         let p = styler.baseParagraph()
         p.paragraphSpacingBefore = heading.level <= 2 ? 4 : 2
         p.paragraphSpacing = 2

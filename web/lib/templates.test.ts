@@ -76,8 +76,9 @@ describe("the template library", () => {
   });
 
   it("follows the schema", () => {
-    const keys = ["slug", "title", "category", "audiences", "audience", "description", "tagline", "seoTitle", "folder", "note", "prompt", "asks", "demo", "example", "related", "updated", "author"];
+    const keys = ["slug", "title", "category", "audiences", "audience", "description", "tagline", "seoTitle", "folder", "note", "prompt", "asks", "demo", "example", "related", "updated", "author", "app"];
     for (const t of all) {
+      if (t.app !== undefined) expect(t.app, `${t.slug}: app is true or left out`).toBe(true);
       for (const k of Object.keys(t)) expect(keys, `${t.slug}: ${k}`).toContain(k);
       expect(CATEGORIES).toContain(t.category);
       expect(t.audiences.length).toBeGreaterThan(0);
@@ -178,7 +179,8 @@ describe("the instructions", () => {
   });
 
   it("start by creating the note, and the create step produces exactly the template's markdown", () => {
-    for (const t of all) {
+    // An app template's create step names the template instead (template-apps.test.ts).
+    for (const t of all.filter((t) => !t.app)) {
       for (const i of instructions(t)) {
         expect(i.prompt.startsWith(createStep(t)), `${t.slug} (${i.name})`).toBe(true);
         expect(i.prompt).toContain(`with create at "${t.folder}/${t.title}.md"`);
@@ -238,14 +240,16 @@ describe("the example", () => {
   });
 
   it("adds something to the note, and keeps the title", () => {
-    for (const t of all) {
+    // An app template's AI changes the app's data, not the note.
+    for (const t of all.filter((t) => !t.app)) {
       expect(changedLines(t.note, t.example).size, t.slug).toBeGreaterThan(0);
       expect(t.example.split("\n")[0]).toBe(t.note.split("\n")[0]);
     }
   });
 
   it("shows a full slice of the real note on the card, with one tinted line", () => {
-    for (const t of all) {
+    // An app template's card shows its app instead.
+    for (const t of all.filter((t) => !t.app)) {
       const rows = slice(t);
       const lines = rows.reduce((n, r) => n + (r.kind === "table" ? 1 + r.rows.length : 1), 0);
       expect(lines, t.slug).toBeGreaterThanOrEqual(5);

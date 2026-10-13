@@ -141,20 +141,23 @@ struct WelcomeFlow: View {
             switch stage {
             case .welcome:
                 welcome
-                    .transition(stageTransition(forward: false))
+                    .transition(stageTransition)
             case .signIn(let returning):
                 signIn(returning: returning)
-                    .transition(stageTransition(forward: true))
+                    .transition(stageTransition)
             }
         }
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: stage)
         // Said once: back from sign-in it's the usual welcome.
         .onChange(of: stage) { farewell = false }
+        .blurDemoCue { cue in
+            if cue == "signIn" { stage = .signIn(returning: false) } else if cue == "welcome" { stage = .welcome }
+        }
     }
 
-    private func stageTransition(forward: Bool) -> AnyTransition {
-        if reduceMotion { return .opacity }
-        return .asymmetric(insertion: .opacity.combined(with: .offset(x: forward ? 24 : -24)), removal: .opacity)
+    /// The sign-in rises into focus as the welcome fades (and back), as pages do on the website.
+    private var stageTransition: AnyTransition {
+        reduceMotion ? .opacity : BlurMotion.page
     }
 
     private var welcome: some View {
@@ -205,7 +208,7 @@ struct WelcomeFlow: View {
     /// returning one, so a second button would only lead to the same screen.
     private var welcomeActions: some View {
         Button("Get started") { stage = .signIn(returning: false) }
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("welcome.start")
     }
@@ -217,12 +220,10 @@ struct WelcomeFlow: View {
                 stage = .welcome
             } label: {
                 Label("Back", systemImage: "chevron.left")
-                    .frame(minHeight: 24)
-                    .contentShape(.rect)
             }
-            .buttonStyle(.hoverText)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
+            .buttonStyle(.quiet)
+            // The word lines up with the heading under it; the hover fill reaches past it.
+            .padding(.leading, -QuietButtonStyle.inset)
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("welcome.back")
             #endif
@@ -261,14 +262,9 @@ struct WelcomeFlow: View {
     private var picture: some View { Self.picture }
 
     #if os(macOS)
-    /// Edge to edge, the window buttons on it. It fills its panel and crops from the centre,
-    /// where the leaf on the paper is.
-    static var art: some View {
-        Color.clear
-            .frame(minWidth: size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
-            .overlay { picture }
-            .clipped()
-    }
+    /// Edge to edge, the window buttons on it: this person's sign-in picture (OnboardingArt),
+    /// filling its panel and cropped from the centre. (iPhone keeps the leaf, `picture`.)
+    static var art: some View { FullBleedScene(name: OnboardingArt.name(.signin)) }
 
     private var art: some View { Self.art }
     #else
@@ -309,17 +305,51 @@ struct WelcomeFlow: View {
 /// device left?") in the welcome's window: the same picture on the left, the step on the right,
 /// so the window keeps its size and place from the welcome until the notes open.
 struct CardLayout<Side: View>: View {
+    /// A step's own picture, edge to edge. Nil: this person's sign-in picture, so the screens
+    /// between sign-in and the first step (the key, the wait) keep the same set.
+    var picture: String? = nil
     @ViewBuilder var side: Side
 
     var body: some View {
         HStack(spacing: 0) {
-            WelcomeFlow.art
+            if let picture {
+                Self.framed(picture)
+            } else {
+                WelcomeFlow.art
+            }
             side
                 .frame(width: WelcomeFlow.size.width / 2)
                 .modifier(CardHeight())
         }
         .frame(minWidth: WelcomeFlow.size.width, maxWidth: .infinity, maxHeight: .infinity)
         .background { Backdrop() }
+    }
+}
+
+extension CardLayout {
+    /// A picture edge to edge, no frame, cropped from the centre. Its dark version comes from the
+    /// catalog by the window's appearance.
+    static func framed(_ name: String) -> some View {
+        FullBleedScene(name: name)
+    }
+}
+
+/// The card window's left panel: a 3:4 picture (900 by 1200, the panel's 450 by 600 at 2x)
+/// filling it edge to edge.
+struct FullBleedScene: View {
+    let name: String
+
+    var body: some View {
+        Color.clear
+            .frame(minWidth: WelcomeFlow.size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                Image(name)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFill()
+                    .accessibilityHidden(true)
+            }
+            .clipped()
     }
 }
 

@@ -230,7 +230,7 @@ struct MakeAppSheet: View {
                 VStack(alignment: .leading, spacing: Metrics.stepGap) {
                     if ai.isChat {
                         Button { hand(to: ai.name) } label: { Text("Make it with \(ai.name)").frame(maxWidth: .infinity) }
-                            .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                            .buttonStyle(.amberProminent(.regular, wide: true))
                             .disabled(!ready)
                             .accessibilityIdentifier("makeApp.with.\(ai.name)")
                         if ai.name == "Claude" {
@@ -279,7 +279,7 @@ struct MakeAppSheet: View {
                 .accessibilityIdentifier("makeApp.connect")
             } else {
                 Button { connecting = true } label: { Text(isNew ? "Connect Your AI" : "Connect an AI").frame(maxWidth: .infinity) }
-                    .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+                    .buttonStyle(.amberProminent(.regular, wide: true))
                     .accessibilityIdentifier("makeApp.connect")
             }
         } else {
@@ -305,7 +305,7 @@ struct MakeAppSheet: View {
             Button { appsBefore = Set(NotePageStore.shared.pages.keys); copy(); withAnimation(.smooth(duration: 0.25)) { waitingFor = ai } } label: {
                 Label("Copy for \(ai)", systemImage: "doc.on.doc").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))
+            .buttonStyle(.amberProminent(.regular, wide: true))
             .disabled(!ready)
             .accessibilityIdentifier("makeApp.copy")
         }
@@ -343,9 +343,9 @@ struct MakeAppSheet: View {
                 .frame(maxWidth: .infinity)
             if late {
                 Button { copy(); withAnimation(.smooth(duration: 0.2)) { copied = true } } label: {
-                    Label(copied ? "Copied" : "Copy the Words", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity).frame(height: Metrics.button - 8)
+                    Label(copied ? "Copied" : "Copy the Words", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.secondary(.compact, wide: true))
                 .padding(.top, 4)
                 .accessibilityIdentifier("makeApp.copyAgain")
             }

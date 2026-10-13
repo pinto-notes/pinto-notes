@@ -111,6 +111,7 @@ export function problemText(code: string | undefined): string {
       return `Pinto Notes doesn't know this app's connection anymore. In Claude, remove the Pinto Notes connector under Settings → Connectors and add it again. In ChatGPT, delete the Pinto Notes app under Settings → Apps and add it again. In any other app, remove the server and add it again at ${MCP_URL}.`;
     case "wrong_return": return "The app's return address doesn't match what it registered. Remove the connector and add it again.";
     case "too_many": return "Too many attempts. Wait a few minutes, then start connecting again.";
+    case "too_long": return "The app sent a sign-in address too long for Pinto Notes to pass on. Start connecting again from the app.";
     case "pkce": case "unsupported": case "wrong_server":
       return `The app asked to connect in a way Pinto Notes doesn't support. Check that it uses the address ${MCP_URL}. The older ${OLD_MCP_URL} works too.`;
     default: return "Start connecting again from ChatGPT, Claude or the other app you were using.";
