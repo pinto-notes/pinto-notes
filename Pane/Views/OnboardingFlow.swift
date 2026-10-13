@@ -770,7 +770,7 @@ struct OnboardingFlow: View {
         static let tilePadding: CGFloat = 16
         static let quietHeight: CGFloat = 44
         static let askMark: CGFloat = 26
-        static let sourceIcon: CGFloat = 28
+        static let sourceIcon: CGFloat = 30
         static let sourceRow: CGFloat = 48
         static let sourceInset: CGFloat = 16
         static let sourceName = Font.body

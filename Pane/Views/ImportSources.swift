@@ -41,6 +41,8 @@ enum ImportOrigin: Identifiable, Hashable {
         switch self {
         case .files(.evernote): "ImportIconEvernote"
         case .files(.bear): "ImportIconBear"
+        case .files(.obsidian): "ImportIconObsidian"
+        case .files(.keep): "ImportIconKeep"
         default: nil
         }
     }
@@ -101,9 +103,9 @@ extension ImportOrigin {
 /// A source's icon. On the Mac it is the app's own icon when that app is on this Mac, drawn by the
 /// system from the installed copy (Apple Notes always is), and Finder's document icon for Markdown
 /// files. Otherwise, and on iPhone, it is a tile drawn on an app icon's grid with a plain symbol.
-/// Evernote's terms allow its icon to show compatibility but publish no file; Bear publishes no
-/// terms; Google requires a request for any product icon (checked 2026-10-12). So no other
-/// company's artwork ships inside Pinto Notes until one of them grants it.
+/// Evernote, Bear, Obsidian and Google Keep ship their own icons for when the app isn't there
+/// (sources and terms: docs/Technical/import-source-icons.md). Apple's never ship: on iPhone
+/// Apple Notes is a drawn notes page and Markdown a drawn document.
 struct ImportSourceIcon: View {
     let origin: ImportOrigin
     var size: CGFloat = 24
@@ -134,8 +136,78 @@ struct ImportSourceIcon: View {
             tile
         }
         #else
-        if let bundled = origin.bundledIcon { image(bundled) } else { tile }
+        // Apple's own icons are never shipped (App Review): Apple Notes is a drawn notes page,
+        // Markdown a drawn document like the Files app's.
+        if let bundled = origin.bundledIcon {
+            image(bundled)
+        } else if origin == .appleNotes {
+            notesTile
+        } else if origin == .files(.markdown) {
+            documentTile
+        } else {
+            tile
+        }
         #endif
+    }
+
+    /// A notes page on the app-icon grid: white, a yellow band on top, a few ruled lines. It
+    /// says Notes at a glance without being Apple's icon.
+    private var notesTile: some View {
+        let side = size * 0.805
+        let shape = RoundedRectangle(cornerRadius: side * 0.2237, style: .continuous)
+        return shape
+            .fill(LinearGradient(colors: [Color(white: 1), Color(white: 0.95)], startPoint: .top, endPoint: .bottom))
+            .overlay(alignment: .top) {
+                LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.24), Color(red: 0.99, green: 0.76, blue: 0.05)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: side * 0.27)
+            }
+            .overlay(alignment: .top) {
+                VStack(spacing: side * 0.115) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        Rectangle().fill(Color(white: 0.84)).frame(height: max(0.5, side * 0.022))
+                    }
+                }
+                .padding(.horizontal, side * 0.12)
+                .padding(.top, side * 0.4)
+            }
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color.black.opacity(0.1), lineWidth: max(0.5, size / 64)))
+            .frame(width: side, height: side)
+            .shadow(color: .black.opacity(0.2), radius: size * 0.018, y: size * 0.012)
+            .frame(width: size, height: size)
+            .environment(\.colorScheme, .light)
+            .accessibilityHidden(true)
+    }
+
+    /// A document, as the Files app and Finder draw one: a white page with its corner folded and
+    /// a few lines of text, a little narrower than an app icon.
+    private var documentTile: some View {
+        let height = size * 0.86
+        let width = height * 0.78
+        let fold = width * 0.3
+        return ZStack(alignment: .topTrailing) {
+            FoldedPage(fold: fold)
+                .fill(LinearGradient(colors: [Color(white: 1), Color(white: 0.95)], startPoint: .top, endPoint: .bottom))
+                .overlay(FoldedPage(fold: fold).stroke(Color.black.opacity(0.16), lineWidth: max(0.5, size / 64)))
+                .overlay(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: height * 0.075) {
+                        ForEach([0.62, 0.62, 0.62, 0.4], id: \.self) { share in
+                            Capsule().fill(Color(white: 0.78)).frame(width: width * share, height: max(0.5, height * 0.035))
+                        }
+                    }
+                    .padding(.leading, width * 0.17)
+                    .padding(.top, height * 0.4)
+                }
+            FoldCorner(fold: fold)
+                .fill(LinearGradient(colors: [Color(white: 0.97), Color(white: 0.86)], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .overlay(FoldCorner(fold: fold).stroke(Color.black.opacity(0.16), lineWidth: max(0.5, size / 64)))
+                .frame(width: fold, height: fold)
+        }
+        .frame(width: width, height: height)
+        .shadow(color: .black.opacity(0.18), radius: size * 0.018, y: size * 0.012)
+        .frame(width: size, height: size)
+        .environment(\.colorScheme, .light)
+        .accessibilityHidden(true)
     }
 
     private func image(_ name: String) -> some View {
@@ -165,6 +237,40 @@ struct ImportSourceIcon: View {
             .frame(width: size, height: size)
             .environment(\.colorScheme, .light)
             .accessibilityHidden(true)
+    }
+}
+
+/// A page with its top right corner cut for the fold.
+private struct FoldedPage: Shape {
+    let fold: CGFloat
+    func path(in r: CGRect) -> Path {
+        let c = r.width * 0.08
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX + c, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX - fold, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY + fold))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - c))
+        p.addQuadCurve(to: CGPoint(x: r.maxX - c, y: r.maxY), control: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX + c, y: r.maxY))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - c), control: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY + c))
+        p.addQuadCurve(to: CGPoint(x: r.minX + c, y: r.minY), control: CGPoint(x: r.minX, y: r.minY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// The folded corner: a triangle under the cut.
+private struct FoldCorner: Shape {
+    let fold: CGFloat
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX + r.width * 0.12, y: r.maxY))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - r.height * 0.12), control: CGPoint(x: r.minX, y: r.maxY))
+        p.closeSubpath()
+        return p
     }
 }
 
