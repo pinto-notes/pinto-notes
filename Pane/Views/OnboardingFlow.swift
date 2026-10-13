@@ -96,7 +96,7 @@ struct OnboardingFlow: View {
             .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
             #endif
             .sheet(item: $importing, onDismiss: { EvernoteInbox.clear(); importClosed() }) { kind in
-                ImportSheet(kind) { ids in notesBrought(ids.count) }
+                ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
             }
             .connectGuides(client: backend.client)
     }

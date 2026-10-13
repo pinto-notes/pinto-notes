@@ -270,7 +270,7 @@ struct RootView: View {
             .animation(.easeOut(duration: 0.25), value: showImport)
             #endif
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
-                ImportSheet(kind, files: importFiles) { ids in
+                ImportFlow(kind: kind, files: importFiles) { ids in
                     #if os(macOS)
                     if let first = ids.first { scope = .all; selectedNote = first }
                     #endif
