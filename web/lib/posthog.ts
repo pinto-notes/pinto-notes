@@ -12,8 +12,11 @@ import { CONSENT_COOKIE_DAYS, CONSENT_KEY } from "./consent";
 // return visits for up to a year, and the visit is recorded as a session replay (replayAllowed):
 // what the public pages showed and where the pointer went, with everything typed into a field
 // masked. A visitor who rejects, never answers, or sends Do Not Track or Global Privacy Control is
-// never recorded. Never person profiles. Everything here is decided without PostHog loaded, so the
-// tests can check it.
+// never recorded. Never person profiles. Our own visits are tagged, never dropped: a browser that
+// opened a page with ?internal=1 (our own devices; the only thing kept in the browser without the
+// banner's Accept, and only because we asked for it on purpose) or one driven by automation
+// (navigator.webdriver, HeadlessChrome) sends every event with internal: true, so reports can leave
+// them out. Everything here is decided without PostHog loaded, so the tests can check it.
 
 export const POSTHOG_DEFAULT_HOST = "https://eu.i.posthog.com";
 
@@ -150,8 +153,58 @@ export function sanitizeEvent(event: CaptureResult | null): CaptureResult | null
   for (const [key, value] of Object.entries(props)) {
     if (URL_PROPERTY.test(key) && typeof value === "string") props[key] = withoutQuery(value);
   }
+  if (internalHere()) props.internal = true;
   const { $set: _set, $set_once: _once, ...rest } = event;
   return { ...rest, properties: props };
+}
+
+/// localStorage key that marks a browser as ours: "1" after a page was opened with ?internal=1,
+/// removed by ?internal=0. Holds nothing else.
+export const INTERNAL_KEY = "pinto_internal";
+
+type InternalStore = { getItem(key: string): string | null; setItem?(key: string, value: string): void; removeItem?(key: string): void };
+type InternalNav = { webdriver?: boolean; userAgent?: string };
+
+/// What a page's query says: true for ?internal=1, false for ?internal=0, null when it says nothing.
+export function internalFromQuery(search: string | null | undefined): boolean | null {
+  const value = new URLSearchParams(search ?? "").get("internal");
+  return value === "1" ? true : value === "0" ? false : null;
+}
+
+/// A browser driven by a test or a script: WebDriver (Playwright, Selenium) or headless Chrome.
+export function automatedBrowser(nav: InternalNav | undefined): boolean {
+  return nav?.webdriver === true || /HeadlessChrome/.test(nav?.userAgent ?? "");
+}
+
+/// Keeps or clears the internal mark when the page's query asks for it. Blocked storage changes
+/// nothing.
+export function rememberInternal(search: string | null | undefined, storage: InternalStore | undefined): void {
+  const asked = internalFromQuery(search);
+  if (asked === null || !storage) return;
+  try {
+    if (asked) storage.setItem?.(INTERNAL_KEY, "1");
+    else storage.removeItem?.(INTERNAL_KEY);
+  } catch { /* storage blocked: tagged for this page only */ }
+}
+
+/// Whether this browser's events get internal: true. Automation always does; otherwise the page's
+/// own ?internal= wins over the stored mark, so the first page view is tagged too.
+export function internalBrowser(search: string | null | undefined, storage: InternalStore | undefined, nav: InternalNav | undefined): boolean {
+  if (automatedBrowser(nav)) return true;
+  const asked = internalFromQuery(search);
+  if (asked !== null) return asked;
+  try {
+    return storage?.getItem(INTERNAL_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function internalHere(): boolean {
+  if (typeof window === "undefined") return false;
+  let storage: InternalStore | undefined;
+  try { storage = globalThis.localStorage; } catch { storage = undefined; }
+  return internalBrowser(window.location?.search, storage, globalThis.navigator);
 }
 
 /// A heatmap batch, keyed by page address: only marketing pages, addresses without a query or
