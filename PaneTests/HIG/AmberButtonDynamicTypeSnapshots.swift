@@ -48,9 +48,11 @@ import UIKit
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         for (name, size) in [("default", DynamicTypeSize.large), ("xxxlarge", .xxxLarge), ("accessibility5", .accessibility5)] {
             for dark in [false, true] {
-                let view = Self.buttons(size)
+                // The buttons at their own height, clear of the status bar's safe area (a window
+                // just as tall as the content squeezed it).
+                let view = Self.buttons(size).frame(maxHeight: .infinity, alignment: .top).background(Color(Palette.sheetGround)).ignoresSafeArea()
                 let window = UIWindow(windowScene: scene)
-                window.frame = CGRect(origin: .zero, size: CGSize(width: 402, height: Self.height(view)))
+                window.frame = CGRect(origin: .zero, size: CGSize(width: 402, height: Self.height(Self.buttons(size))))
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
                 window.rootViewController = UIHostingController(rootView: view)
                 window.isHidden = false
