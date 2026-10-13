@@ -230,6 +230,9 @@ final class ConnectRun {
     @ObservationIgnored var claudeCodeOnly: @MainActor () -> Bool = ConnectFinder.claudeCodeOnly
     #endif
     @ObservationIgnored var address: String?
+    /// How long the row says the browser is about to open before it does, so the browser coming to
+    /// the front isn't a surprise. Tests set none.
+    @ObservationIgnored var browserNotice: Duration = .seconds(1.5)
 
     var server: String { address ?? BackendConfig.mcpPublicURL?.absoluteString ?? "" }
 
@@ -345,6 +348,12 @@ final class ConnectRun {
         }
     }
 
+    /// Captures: a row as it shows partway through connecting.
+    func show(_ g: Guide, _ phase: Phase) {
+        guide = g
+        self.phase = phase
+    }
+
     /// Connected. Internal for tests: the app gets here from the server's list.
     func done(_ g: Guide) {
         if let ai = funnelAI { ConnectFunnel.connected(ai) }
@@ -369,11 +378,14 @@ final class ConnectRun {
             wait(client, ConnectCopy.pasteInTerminal)
             return
         }
-        phase = .waiting(ConnectCopy.adding(ai))
         let server = server
         // At an address with a path (staging, a local stack) the AI can't sign in through the
         // browser, so it gets an access token instead (see TerminalConnect).
         let way = TerminalConnect.way(server: server)
+        // Signing in opens the browser: the row says so before it happens.
+        phase = .waiting(way == .token ? ConnectCopy.adding(ai) : ConnectCopy.opensBrowser(ai))
+        let pressedAt = ContinuousClock.now
+        let notice = browserNotice
         // The row that was pressed: Claude's, when Claude goes straight to Claude Code.
         let pressed = guide
         let shell = shell
@@ -382,7 +394,6 @@ final class ConnectRun {
                 self?.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
                 return
             }
-            var token: String?
             if way == .token {
                 if ai == .codex {
                     // Codex takes a token only in its config file: copied, to paste there.
@@ -393,16 +404,31 @@ final class ConnectRun {
                     self?.waitForToken(client, ai, ConnectCopy.pasteInCodexConfig)
                     return
                 }
-                token = try? await ConnectTokens.create(client, name: ai.title, write: true, make: { try AccountCrypto.shared.accessToken() })
-                if token == nil { self?.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain); return }
+                guard let token = try? await ConnectTokens.create(client, name: ai.title, write: true, make: { try AccountCrypto.shared.accessToken() }) else {
+                    self?.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain); return
+                }
+                let result = await shell.add(ai, server, token)
+                guard let self, self.guide == pressed else { return }
+                switch result {
+                case .added: self.waitForToken(client, ai, ConnectCopy.askIt(ai))
+                case .notFound: self.fail(ConnectCopy.notOnThisMac(ai), fix: ConnectCopy.tryAgain)
+                case .refused: self.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain)
+                }
+                return
             }
-            let result = await shell.add(ai, server, token)
+            try? await Task.sleep(until: pressedAt + notice, clock: .continuous)
+            guard self?.guide == pressed else { return }
+            // One sign-in: Codex signs in as it adds the server, so nothing starts a second one
+            // (on 13 October 2026 a second `codex mcp login` asked again, and Allow showed twice).
+            let started = Date.now
+            let result = await shell.signIn(ai, server)
             guard let self, self.guide == pressed else { return }
             switch result {
-            case .added where token != nil:
-                self.waitForToken(client, ai, ConnectCopy.askIt(ai))
-            case .added:
-                shell.signIn(ai)
+            case .opened(let authorization):
+                // What ties the request that comes next to this sign-in (ConnectOwnSignIn).
+                if let own = authorization.flatMap({ ConnectOwnSignIn(ai: ai.title, authorization: $0, at: started) }) {
+                    ConnectCenter.shared.ownSignIn = own
+                }
                 self.wait(client, ConnectCopy.allowInBrowser)
             case .notFound:
                 self.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
@@ -429,12 +455,13 @@ final class ConnectRun {
     }
 
     /// An approval made on this device that finishes this AI's wait. The consent sheet reports the
-    /// AI it could vouch for (ChatGPT, Claude); anything else reports none.
+    /// AI it could vouch for (ChatGPT, Claude, or the Codex or Claude Code sign-in started here);
+    /// anything else reports none.
     nonisolated static func approvalCounts(_ ai: String?, for g: Guide) -> Bool {
         switch g {
         case .chatgpt: ai == "ChatGPT"
-        case .claude: ai == "Claude" || ai == nil
-        default: ai == nil
+        case .claude: ai == "Claude" || ai == Guide.claudeCode.title || ai == nil
+        default: ai == nil || ai == g.title
         }
     }
 
@@ -460,15 +487,22 @@ enum ConnectShell {
 
     enum Result: Equatable { case added, notFound, refused }
 
+    /// How starting a sign-in went. `opened`: it's waiting for the browser, with the address it
+    /// opened there when it printed one.
+    enum SignIn: Equatable { case opened(URL?), notFound, refused }
+
     /// What a connection asks of the shell, so tests can stand in for it.
     struct Steps: Sendable {
         var isAvailable: @Sendable () -> Bool
         var exists: @Sendable (ConnectAISection.Guide) async -> Bool
+        /// Adds the server with an access token.
         var add: @Sendable (ConnectAISection.Guide, String, String?) async -> Result
-        var signIn: @Sendable (ConnectAISection.Guide) -> Void
+        /// Adds the server and starts its sign-in, which opens the browser.
+        var signIn: @Sendable (ConnectAISection.Guide, String) async -> SignIn
 
         static let live = Steps(isAvailable: { ConnectShell.isAvailable }, exists: { await ConnectShell.exists($0) },
-                                add: { await ConnectShell.add($0, server: $1, token: $2) }, signIn: { ConnectShell.signIn($0) })
+                                add: { await ConnectShell.add($0, server: $1, token: $2) },
+                                signIn: { await ConnectShell.signIn($0, server: $1) })
     }
 
     static func tool(_ g: ConnectAISection.Guide) -> String { g == .codex ? "codex" : "claude" }
@@ -499,46 +533,118 @@ enum ConnectShell {
 
     /// Whether the person's shell finds the command.
     static func exists(_ g: ConnectAISection.Guide) async -> Bool {
-        await run("command -v \(tool(g))", env: [:], waits: true).0 == 0
+        await run("command -v \(tool(g))", env: [:]).0 == 0
     }
 
     static func add(_ g: ConnectAISection.Guide, server: String, token: String? = nil) async -> Result {
         var script = addScript(g)
         if token != nil { script += " --header \"Authorization: Bearer $PINTO_TOKEN\"" }
-        let (status, text) = await run(script, env: ["PINTO_URL": server, "PINTO_TOKEN": token ?? ""], waits: true)
+        let (status, text) = await run(script, env: ["PINTO_URL": server, "PINTO_TOKEN": token ?? ""])
         if status == 0 { return .added }
         return text.contains("not-found") ? .notFound : .refused
     }
 
-    /// Starts the AI's sign-in: it opens our page in the browser and waits for the answer, so it
-    /// isn't waited for here. It is stopped after ten minutes if nothing came.
-    static func signIn(_ g: ConnectAISection.Guide) {
-        Task { _ = await run("\(tool(g)) mcp login \(ConnectSnippets.serverName)", env: [:], waits: false) }
+    /// Adds the server and starts the AI's sign-in, exactly once: it opens our page in the browser
+    /// and waits there for the answer, so it isn't waited for here (it's stopped after ten minutes
+    /// if nothing came). Codex signs in by itself when it adds a server that has sign-in (Codex
+    /// 0.159 prints "Detected OAuth support. Starting OAuth flow"), so its add is the sign-in; an
+    /// older Codex only adds, and `codex mcp login` follows. Claude Code adds, then logs in.
+    static func signIn(_ g: ConnectAISection.Guide, server: String) async -> SignIn {
+        if g == .codex {
+            switch await launch(addScript(g), env: ["PINTO_URL": server]) {
+            case .opened(let url): return .opened(url)
+            case .exited(0, _): break
+            case .exited(_, let text): return text.contains("not-found") ? .notFound : .refused
+            }
+        } else {
+            switch await add(g, server: server) {
+            case .added: break
+            case .notFound: return .notFound
+            case .refused: return .refused
+            }
+        }
+        switch await launch("\(tool(g)) mcp login \(ConnectSnippets.serverName)", env: [:]) {
+        case .opened(let url): return .opened(url)
+        case .exited(0, _): return .opened(nil)
+        case .exited: return .refused
+        }
     }
 
-    /// A sign-in left running, stopped later from another task.
+    enum Launch: Equatable { case opened(URL?), exited(Int32, String) }
+
+    /// A sign-in started and left running: what it printed so far, answered once (it printed the
+    /// address it opens, it ended, or it stayed quiet), and stopped later.
     private final class Running: @unchecked Sendable {
         private let process: Process
-        init(_ process: Process) { self.process = process }
+        private let lock = NSLock()
+        private var text = ""
+        private var answer: CheckedContinuation<Launch, Never>?
+        init(_ process: Process, answer: CheckedContinuation<Launch, Never>) { self.process = process; self.answer = answer }
         func stop() { if process.isRunning { process.terminate() } }
+
+        func printed(_ data: Data) {
+            let now: String? = lock.withLock {
+                guard answer != nil else { return nil }
+                text += String(decoding: data, as: UTF8.self)
+                return text
+            }
+            if let now, let url = ConnectOwnSignIn.authorization(in: now) { give(.opened(url)) }
+        }
+
+        func ended(_ status: Int32, rest: Data) {
+            printed(rest)
+            give(.exited(status, lock.withLock { text }))
+        }
+
+        func give(_ launch: Launch) {
+            lock.withLock { () -> CheckedContinuation<Launch, Never>? in defer { answer = nil }; return answer }?.resume(returning: launch)
+        }
     }
 
-    private static func run(_ script: String, env: [String: String], waits: Bool) async -> (Int32, String) {
-        await Task.detached {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
-            p.arguments = ["-l", "-i", "-c", script]
-            p.environment = ProcessInfo.processInfo.environment.merging(env) { $1 }
+    /// Starts a sign-in in the person's shell. Returns once it printed the address it opens in
+    /// the browser, once it ended, or after `quiet` without either (taken as started).
+    static func launch(_ script: String, env: [String: String], quiet: Duration = .seconds(20)) async -> Launch {
+        await withCheckedContinuation { answer in
+            let p = process(script, env: env)
             let out = Pipe()
             p.standardOutput = out
             p.standardError = out
-            p.standardInput = FileHandle.nullDevice
-            do { try p.run() } catch { return (Int32(-1), "") }
-            guard waits else {
-                let running = Running(p)
-                Task.detached { try? await Task.sleep(for: .seconds(600)); running.stop() }
-                return (0, "")
+            let running = Running(p, answer: answer)
+            // Read as it comes, and all along: a pipe nobody reads stops the command once it's full.
+            out.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty { handle.readabilityHandler = nil } else { running.printed(data) }
             }
+            p.terminationHandler = { p in
+                out.fileHandleForReading.readabilityHandler = nil
+                running.ended(p.terminationStatus, rest: out.fileHandleForReading.readDataToEndOfFile())
+            }
+            do { try p.run() } catch { running.give(.exited(-1, "")); return }
+            Task.detached {
+                try? await Task.sleep(for: quiet)
+                running.give(.opened(nil))
+                try? await Task.sleep(for: .seconds(600) - quiet)
+                running.stop()
+            }
+        }
+    }
+
+    private static func process(_ script: String, env: [String: String]) -> Process {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
+        p.arguments = ["-l", "-i", "-c", script]
+        p.environment = ProcessInfo.processInfo.environment.merging(env) { $1 }
+        p.standardInput = FileHandle.nullDevice
+        return p
+    }
+
+    private static func run(_ script: String, env: [String: String]) async -> (Int32, String) {
+        await Task.detached {
+            let p = process(script, env: env)
+            let out = Pipe()
+            p.standardOutput = out
+            p.standardError = out
+            do { try p.run() } catch { return (Int32(-1), "") }
             p.waitUntilExit()
             return (p.terminationStatus, String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")
         }.value
@@ -571,6 +677,7 @@ enum ConnectCopy {
     static let onComputer = "Finish on your computer. This shows when it\u{2019}s done."
     static let pasteInTerminal = "Command copied. Paste it in Terminal."
     static let allowInBrowser = "In your browser: choose Open Pinto Notes, then Allow."
+    static func opensBrowser(_ g: Guide) -> String { "\(g.title) opens your browser to sign in. Then allow it here." }
     static let pasteInCodexConfig = "Copied. Paste it at the end of ~/.codex/config.toml."
     static func askIt(_ g: Guide) -> String { "Added. Ask \(g.title) about your notes." }
     static func adding(_ g: Guide) -> String { "Adding it to \(g.title)\u{2026}" }
@@ -600,6 +707,8 @@ struct ConnectChoices: View {
     var preview: [Connection]? = nil
     /// Captures: what counts as found on this device.
     var previewFound: [Guide]? = nil
+    /// Captures: a row partway through connecting.
+    var previewPhase: (Guide, ConnectRun.Phase)? = nil
     /// A short sheet (Make an App): no headings and no Having trouble? (Settings has both).
     var compact = false
     /// Tells the view around it what is connected, each time it has been asked again.
@@ -661,6 +770,7 @@ struct ConnectChoices: View {
         .disabled(reach != .online)
         .onAppear {
             if previewFound == nil { found = ConnectFinder.found() }
+            if let (g, phase) = previewPhase { run.show(g, phase) }
             run.connected = { _ in Task { await load() } }
         }
         .onDisappear { run.stop() }

@@ -61,7 +61,8 @@ extension FunnelTests {
             let run = ConnectRun()
             run.address = "https://mcp.example.com"
             run.claudeCodeOnly = { true }
-            run.shell = .init(isAvailable: { true }, exists: { _ in installed }, add: { _, _, _ in .added }, signIn: { _ in })
+            run.shell = .init(isAvailable: { true }, exists: { _ in installed }, add: { _, _, _ in .added }, signIn: { _, _ in .opened(nil) })
+            run.browserNotice = .zero
             return (run, SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test"))
         }
 
