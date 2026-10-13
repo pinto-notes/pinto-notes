@@ -236,12 +236,11 @@ struct SidebarView: View {
         d.fetchLimit = 1
         return d
     }
-    fileprivate static var anyNote: FetchDescriptor<Note> {
-        var d = FetchDescriptor<Note>()
-        d.fetchLimit = 1
-        return d
-    }
 
+    /// The window's notes as the list keeps them (RootView): the counted rows and the folders' counts
+    /// come from there. A sidebar on its own keeps its own.
+    @Environment(LibraryNotes.self) private var windowLibrary: LibraryNotes?
+    @State private var ownLibrary = LibraryNotes()
     @State private var renaming: Folder?
     @State private var newFolderParent: Folder??
     @State private var nameDraft = ""
@@ -329,6 +328,7 @@ struct SidebarView: View {
         // In stages, in the same order: as one chain the body took the type checker about 8 s
         // (compile-time audit, 2026-10-13).
         return withDialogs(withChrome(folderList(files), files: files))
+            .environment(windowLibrary ?? ownLibrary)
     }
 
     /// The folders, All Notes and Recently Deleted.
@@ -608,13 +608,14 @@ struct SidebarView: View {
     }
 }
 
-/// "All Notes" or "Recently Deleted" with its count. The row follows every note itself: a query
-/// of at most one note, here so the row updates whenever any note changes, with the count taken
-/// from the store (unsaved changes included). In SidebarView that query worked out every folder
-/// row five times for each save while you type.
+/// "All Notes" or "Recently Deleted" with its count, as the list counts its notes (LibraryNotes):
+/// the row hears only when that count changes. It used to follow every note with a query and
+/// count by asking the store, which read every note's row from disk, on each change.
 private struct CountedRow: View {
     @Environment(\.modelContext) private var context
-    @Query(SidebarView.anyNote) private var noteChanges: [Note]
+    /// The window's notes as the list keeps them: the counts come from there, and the row hears
+    /// when they change.
+    @Environment(LibraryNotes.self) private var library
     let title: String
     let icon: String
     /// Recently Deleted's count, not All Notes'.
@@ -629,8 +630,7 @@ private struct CountedRow: View {
         let _ = RenderProbe.count("CountedRow")
         #endif
         let selected = selection == (trash ? .trash : .all)
-        let _ = noteChanges
-        let counts = SidebarView.counts(in: context)
+        let counts = library.libraryCounts(context: context)
         let count = trash ? counts.trashed : counts.live
         // Recently Deleted has no row while nothing is in it.
         if !trash || SidebarView.showsTrash(notes: count, files: files) {
@@ -653,17 +653,17 @@ private struct CountedRow: View {
 
 #if os(macOS)
 /// Recently Deleted was open and its last note left (recovered, or deleted for good): its row is
-/// gone, so the list shows the notes again. A view of its own with the one-note query, so it
-/// follows every note without the sidebar working out its rows again.
+/// gone, so the list shows the notes again. A view of its own that reads the list's count of
+/// Recently Deleted, so it follows the notes without the sidebar working out its rows again.
 private struct EmptyTrashLeaver: View {
     @Environment(\.modelContext) private var context
-    @Query(SidebarView.anyNote) private var noteChanges: [Note]
+    @Environment(LibraryNotes.self) private var library
     @Binding var scope: Scope?
     let files: Int
 
     var body: some View {
-        let _ = noteChanges
-        let shows = SidebarView.showsTrash(notes: SidebarView.counts(in: context).trashed, files: files)
+        let trashed = library.libraryCounts(context: context).trashed
+        let shows = SidebarView.showsTrash(notes: trashed, files: files)
         Color.clear
             .onChange(of: shows, initial: true) { _, shows in
                 if let next = SidebarView.leavingEmptyTrash(scope, showsTrash: shows) { scope = next }

@@ -1219,7 +1219,7 @@ final class LibraryNotes {
     /// rows whose counts it changed.
     private func publish() {
         generation += 1
-        if !folderCounts.isEmpty { countFolders() }
+        if counted { countFolders() }
     }
 
     /// Each folder's notes as its list shows them: live, and not a sub-note inside its parent.
@@ -1228,27 +1228,48 @@ final class LibraryNotes {
     func listedCount(inFolder id: UUID, context: ModelContext) -> Int {
         if self.context !== context { start(context) }
         // Asked while views are worked out: only boxes nobody reads yet are filled in here.
-        if folderCounts.isEmpty { countFolders() }
+        if !counted { countFolders() }
         let box = folderCounts[id] ?? { let b = FolderCount(); folderCounts[id] = b; return b }()
         return box.value
     }
 
+    /// All Notes and Recently Deleted as the list shows them (SidebarView.counts), counted in the
+    /// same pass: the sidebar's counted rows read these instead of asking the store, which counted
+    /// by reading every note's row from disk, three times for every change.
+    func libraryCounts(context: ModelContext) -> (live: Int, trashed: Int) {
+        if self.context !== context { start(context) }
+        if !counted { countFolders() }
+        return (totals.live, totals.trashed)
+    }
+
     @Observable final class FolderCount { var value = 0 }
+    @Observable final class Totals {
+        var live = 0
+        var trashed = 0
+    }
     @ObservationIgnored private var folderCounts: [UUID: FolderCount] = [:]
+    @ObservationIgnored private let totals = Totals()
+    /// Counted once: from then on every change the list shows counts again.
+    @ObservationIgnored private var counted = false
 
     private func countFolders() {
         guard let context else { return }
         let inside = Set(SubNoteIndex.nestedIDs(in: context))
         var counts: [UUID: Int] = [:]
-        for e in sorted where !e.deleted && !e.trashed {
-            guard let folder = e.folderID, !inside.contains(e.id) else { continue }
-            counts[folder, default: 0] += 1
+        var live = 0, trashed = 0
+        for e in sorted where !e.deleted && !inside.contains(e.id) {
+            if e.trashed { trashed += 1; continue }
+            live += 1
+            if let folder = e.folderID { counts[folder, default: 0] += 1 }
         }
+        if totals.live != live { totals.live = live }
+        if totals.trashed != trashed { totals.trashed = trashed }
         for (id, n) in counts where folderCounts[id] == nil { folderCounts[id] = FolderCount() }
         for (id, box) in folderCounts {
             let n = counts[id] ?? 0
             if box.value != n { box.value = n }
         }
+        counted = true
     }
 
     /// Goes up when so many notes came or went in one save that the list is shown as a new list.
