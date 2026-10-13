@@ -112,6 +112,11 @@ describe("landing pages", () => {
     expect(css).toMatch(/\.col > \* \{ min-width: 0; \}/);
   });
 
+  it("sends /chatgpt, the address ChatGPT ads link to, to the ChatGPT page for good (308)", async () => {
+    expect(await nextConfig.redirects!()).toContainEqual({ source: "/chatgpt", destination: "/for/chatgpt", permanent: true });
+    expect(landings.some((x) => landingPath(x) === "/for/chatgpt")).toBe(true);
+  });
+
   it("lists the same pages in the footer as there are", () => {
     expect(LANDING_LINKS.map((l) => l.href).sort()).toEqual(landings.map(landingPath).sort());
   });

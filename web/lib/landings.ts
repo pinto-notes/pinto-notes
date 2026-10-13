@@ -107,7 +107,7 @@ export const landings: Landing[] = [
     story: {
       title: "How the connection works",
       paras: [
-        "Pinto Notes has an MCP server built in, which is the standard way ChatGPT talks to other apps. You add Pinto Notes in ChatGPT on the web, under Plugins, with Developer mode on. OpenAI's docs list that for Plus, Pro, Business, Enterprise and Edu; the free plan can't add your own app yet.",
+        "Pinto Notes has an MCP server built in, which is the standard way ChatGPT talks to other apps. You add Pinto Notes in ChatGPT on the web, under Plugins, with Developer mode on. OpenAI's docs list that for Plus, Pro, Business, Enterprise and Edu; the free plan can't add your own app yet. Pinto Notes is also coming to ChatGPT's app directory.",
         "When ChatGPT asks for your notes, Pinto Notes asks you first, on your Mac or iPhone. You choose read only, or read and edit. Settings shows when ChatGPT last used your notes, and Disconnect stops it straight away.",
         "Every change ChatGPT makes keeps the version before it. If it rewrote a note you liked better before, open the note's history and restore it.",
       ],

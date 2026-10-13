@@ -63,6 +63,8 @@ const config: NextConfig = {
       { source: "/blog/obsidian-mcp-servers-compared", destination: "/blog/obsidian-mcp", permanent: true },
       // The comparison took the app's new name (October 2026); its old address keeps working.
       { source: "/blog/amber-notes-vs-apple-notes", destination: "/blog/pinto-notes-vs-apple-notes", permanent: true },
+      // A short address for ChatGPT ads and links: the ChatGPT landing page.
+      { source: "/chatgpt", destination: "/for/chatgpt", permanent: true },
       // The old name, typed as an address, lands on the page that says what it's called now.
       { source: "/ambernotes", destination: "/amber-notes", permanent: true },
     ];
