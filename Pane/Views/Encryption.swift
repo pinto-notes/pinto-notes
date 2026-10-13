@@ -456,7 +456,7 @@ struct KeyGateView: View {
         if backend.apple != nil || backend.google {
             if backend.apple != nil { appleAgain }
             if backend.google {
-                GoogleAuthButton(height: Row.height, cornerRadius: Row.radius) {
+                GoogleAuthButton {
                     run { try await signInWithGoogleAndStartFresh() }
                 }
                 .disabled(working)
@@ -629,7 +629,7 @@ struct KeyGateView: View {
                             action: @escaping () async throws -> Void) -> some View {
         let on = enabled && !working
         return Button(title, role: destructive ? .destructive : nil) { run(action) }
-        .buttonStyle(.amberProminent(height: Row.height, cornerRadius: Row.radius))
+        .buttonStyle(.amberProminent(.form, wide: true))
         .amberBusy(working)
         .disabled(!on)
         .keyboardShortcut(destructive ? nil : .defaultAction)

@@ -447,7 +447,7 @@ struct ImportSheet: View {
                 ProgressView().controlSize(.small).padding(.top, 6)
             } else {
                 Button(kind.chooseTitle) { picking = true }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.secondary(.regular))
                     .padding(.top, 6)
                     .accessibilityIdentifier("evernote.choose")
             }
@@ -478,7 +478,7 @@ struct ImportSheet: View {
                         .frame(width: 28, height: 28)
                         .contentShape(.rect)
                 }
-                .buttonStyle(.hoverIcon(cornerRadius: 14))
+                .buttonStyle(.quietIcon)
                 .accessibilityLabel("Remove \(s.name)")
             }
         }

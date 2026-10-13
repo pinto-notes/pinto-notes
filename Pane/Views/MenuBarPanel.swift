@@ -225,8 +225,7 @@ struct MenuBarPanel: View {
     private var footer: some View {
         HStack(spacing: 4) {
             Button("Open Pinto Notes") { showWindow() }
-                .buttonStyle(.hoverText)
-                .foregroundStyle(.tint)
+                .buttonStyle(.quiet)
                 .accessibilityIdentifier("menubar.open")
             Spacer()
             // Settings is a sheet on the notes window: bring it forward, then show it there.
@@ -237,7 +236,7 @@ struct MenuBarPanel: View {
                 .help("Quit Pinto Notes")
                 .accessibilityLabel("Quit Pinto Notes")
         }
-        .buttonStyle(.hoverIcon)
+        .buttonStyle(.quietIcon)
         .padding(.horizontal, 10)
         .frame(height: 36)
     }

@@ -208,7 +208,7 @@ struct WelcomeFlow: View {
     /// returning one, so a second button would only lead to the same screen.
     private var welcomeActions: some View {
         Button("Get started") { stage = .signIn(returning: false) }
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("welcome.start")
     }
@@ -220,12 +220,10 @@ struct WelcomeFlow: View {
                 stage = .welcome
             } label: {
                 Label("Back", systemImage: "chevron.left")
-                    .frame(minHeight: 24)
-                    .contentShape(.rect)
             }
-            .buttonStyle(.hoverText)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
+            .buttonStyle(.quiet)
+            // The word lines up with the heading under it; the hover fill reaches past it.
+            .padding(.leading, -QuietButtonStyle.inset)
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("welcome.back")
             #endif

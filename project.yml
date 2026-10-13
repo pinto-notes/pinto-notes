@@ -304,6 +304,9 @@ targets:
       - path: PaneShare
         type: folder
         buildPhase: resources
+      # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
+      - path: docs/DESIGN.md
+        buildPhase: resources
       # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
       # link it (see Pane/Collab/CollabText.swift).
       - path: Pane/Collab/CollabText.swift
