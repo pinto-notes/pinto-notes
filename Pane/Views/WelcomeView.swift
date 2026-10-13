@@ -250,16 +250,18 @@ struct WelcomeFlow: View {
 
     // MARK: The picture
 
-    /// Decorative: the words say everything, so VoiceOver skips it.
-    static var picture: some View {
-        Image("Welcome")
+    /// This person's picture for `moment` (OnboardingArt: one set each, kept), filling its frame
+    /// and cropped from the centre, where each scene's subject sits. Decorative: the words say
+    /// everything, so VoiceOver skips it.
+    static func picture(_ moment: OnboardingArt.Moment = .signin) -> some View {
+        Image(OnboardingArt.name(moment))
             .resizable()
             .interpolation(.high)
             .scaledToFill()
             .accessibilityHidden(true)
     }
 
-    private var picture: some View { Self.picture }
+    private var picture: some View { Self.picture() }
 
     #if os(macOS)
     /// Edge to edge, the window buttons on it: this person's sign-in picture (OnboardingArt),

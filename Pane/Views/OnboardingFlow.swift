@@ -221,7 +221,7 @@ struct OnboardingFlow: View {
     private var phoneArt: some View {
         Color.clear
             .containerRelativeFrame(.vertical) { height, _ in height * Self.artShare(accessibilitySize: typeSize.isAccessibilitySize) }
-            .overlay { WelcomeFlow.picture }
+            .overlay { WelcomeFlow.picture(OnboardingArt.moment(step)) }
             .clipped()
     }
 

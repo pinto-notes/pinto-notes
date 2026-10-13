@@ -61,15 +61,18 @@ import Testing
         #expect(!names.contains(OnboardingArt.name(.signin, in: .still)))
     }
 
-    /// The pictures live in their own catalog, which the share extension doesn't list and the
-    /// iPhone app doesn't get.
+    /// The pictures live in their own catalog, which comes with the app's folder (the Mac and the
+    /// iPhone app) and which the share extension, listing its own sources, never gets.
     @Test func theShareExtensionDoesntCarryThem() throws {
         let project = try String(contentsOf: TestFiles.url("project.yml"), encoding: .utf8)
         let share = try #require(project.components(separatedBy: "\n  PaneShare:\n").last?.components(separatedBy: "\n  Pane").first)
         #expect(share.contains("Assets.xcassets"))
         #expect(!share.contains("Onboarding.xcassets"))
-        #expect(project.contains("excludes: [\"Resources/Onboarding.xcassets\"]"))
-        #expect(project.contains("- path: Pane/Resources/Onboarding.xcassets\n        destinationFilters: [macOS]"))
+        #expect(!share.contains("      - Pane\n"), "the share extension lists files, never the whole app folder")
+        // Both apps: the folder whole, with no filter or exclusion keeping the pictures from iPhone.
+        #expect(project.contains("sources: &appSources\n      - Pane\n"))
+        #expect(!project.contains("excludes: [\"Resources/Onboarding.xcassets\"]"))
+        #expect(!project.contains("Onboarding.xcassets\n        destinationFilters"))
     }
 }
 #endif
