@@ -2,11 +2,14 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isBlogList } from "./blog-list";
 import BlogList from "./BlogList";
 import { BlogIndex } from "./BlogIndex";
 import { categories, categoryPath, pagePath } from "./posts";
+
+// The lists end in the closing band, whose Mac download reads the route.
+vi.mock("next/navigation", () => ({ usePathname: () => "/blog", useRouter: () => ({ push: () => {} }) }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -40,5 +43,16 @@ describe("the blog's lists", () => {
     const text = html.replace(/<[^>]+>/g, "");
     expect(text.split("Guides to connecting ChatGPT, Claude, Gemini").length).toBe(2); // once as text; the copy is only an attribute
     expect(text).not.toContain("The Pinto Notes blog");
+  });
+
+  it("lead the first page with the newest post, wide, end in the dark band, and drop the chips' coloured dots", () => {
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
+    const first = doc.querySelector(".filter-grid > li");
+    expect(first?.querySelector('img[src^="/art/blog-"]')).not.toBeNull();
+    expect(doc.querySelector("[data-closing-band]")).not.toBeNull();
+    expect(doc.querySelectorAll("[data-blog-chips] i").length).toBe(0);
+    expect(doc.querySelector("h1 mark")).toBeNull();
+    const later = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={2} />), "text/html");
+    expect(later.querySelector(".filter-grid > li")?.querySelector('img[src^="/art/blog-"]')).toBeNull();
   });
 });
