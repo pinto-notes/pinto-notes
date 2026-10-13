@@ -386,8 +386,9 @@ struct SidebarView: View {
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
         // A bar, not a plain inset: the folders scrolled under it showed through its words (and
         // through the account row at the foot, where a folder's name and the email ran together).
+        // Soft edges, as Apple Notes: the list fades under the bars, with no line drawn across.
         .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
-        .scrollEdgeEffectStyle(.hard, for: [.top, .bottom])
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
