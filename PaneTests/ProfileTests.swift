@@ -178,4 +178,15 @@ import UniformTypeIdentifiers
         ProfileStore.suggest("   ", for: b, defaults: defaults)
         #expect(defaults.string(forKey: ProfileStore.suggestionKey(b)) == nil, "nothing is kept for an empty name")
     }
+
+    /// Item 100 (2026-10-12): after Sign in with Apple the name step was empty. Apple hands the
+    /// name over only at an app's very first sign-in, so a second account on the same Mac got none.
+    @Test func aNewAccountsNameIsTheProfilesThenTheSignInsThenThisDevicesLast() {
+        #expect(ProfileStore.knownName(profile: "Sara L", suggested: "Sara Lindqvist", lastOnDevice: "Emil") == "Sara L")
+        #expect(ProfileStore.knownName(profile: nil, suggested: " Sara Lindqvist ", lastOnDevice: "Emil") == "Sara Lindqvist")
+        #expect(ProfileStore.knownName(profile: nil, suggested: nil, lastOnDevice: "Emil Wagman") == "Emil Wagman", "the account this device had before")
+        #expect(ProfileStore.knownName(profile: nil, suggested: "  ", lastOnDevice: nil) == nil, "nobody knows it: the flow asks")
+        // Kept outside the per-account keys, so signing in to another account doesn't remove it.
+        #expect(!ProfileStore.lastNameKey.hasPrefix("profile."))
+    }
 }
