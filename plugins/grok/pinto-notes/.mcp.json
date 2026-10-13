@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pinto-notes": {
+      "type": "http",
+      "url": "https://mcp.pintonotes.com"
+    }
+  }
+}
