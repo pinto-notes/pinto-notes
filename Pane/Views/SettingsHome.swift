@@ -104,7 +104,6 @@ struct SettingsHome: View {
     @State private var query = ""
     @State private var profile = ProfileStore.shared
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var scheme
     /// As tall as `height`, or less on a short notes window, so the sheet never runs past it.
     @State private var fit = SettingsHome.fitted(NSApp.keyWindow ?? NSApp.mainWindow)
 
@@ -155,6 +154,7 @@ struct SettingsHome: View {
                         }
                     }
                     .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
                 }
                 // The sheet's own header names the page and goes back; the stack draws neither.
                 .toolbar(.hidden)
@@ -164,7 +164,9 @@ struct SettingsHome: View {
             }
         }
         .frame(width: Self.width, height: fit)
-        .background(Color(nsColor: .windowBackgroundColor))
+        // The app's warm sheet ground, as the import and "How did you hear" sheets have.
+        .background(Color(Palette.sheetGround))
+        .presentationBackground(Color(Palette.sheetGround))
         // Room under the last row, like WhatsApp's.
         .contentMargins(.bottom, 28, for: .scrollContent)
         .onAppear { if let start { path = [start] } }
@@ -188,14 +190,15 @@ struct SettingsHome: View {
                 .accessibilityAddTraits(.isHeader)
             HStack {
                 if !path.isEmpty {
+                    // A plain chevron at the top left, like WhatsApp's; a soft circle under the pointer.
                     Button { path.removeLast() } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.ink)
                             .frame(width: 30, height: 30)
-                            .background(Circle().fill(Color.primary.opacity(0.08)))
                             .contentShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverIcon(cornerRadius: 15))
                     .keyboardShortcut("[", modifiers: .command)
                     .help("Back")
                     .accessibilityLabel("Back")
@@ -227,7 +230,7 @@ struct SettingsHome: View {
         .font(.system(size: 14))
         .padding(.horizontal, 11)
         .frame(height: 36)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(scheme == .dark ? Color.black.opacity(0.32) : Color.primary.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(Palette.searchFill)))
         .padding(.horizontal, 20)
         .padding(.top, 4)
     }
@@ -263,7 +266,8 @@ struct SettingsHome: View {
                 .frame(width: 22, height: 22)
                 .background(Self.tile(place), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         } else {
-            Image(systemName: place.symbol).foregroundStyle(.secondary)
+            // One width for every symbol, so the rows' words line up.
+            Image(systemName: place.symbol).foregroundStyle(Color.muted).frame(width: 20)
         }
     }
 

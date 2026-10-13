@@ -69,6 +69,9 @@ enum Palette {
     static let fieldHairline = pair(brown, 0.30, 0xFFFFFF, 0.22)
     /// A field's placeholder: the muted text, dimmed, still about 4:1 on the field.
     static let placeholder = pair(0x74604C, 0.85, 0xBCB0A3, 0.80)
+    /// Settings' search field: a step darker than the sheet's ground and its rows, in the brown,
+    /// so it never reads as one of the rows.
+    static let searchFill = pair(brown, 0.10, 0x000000, 0.36)
     /// A solid sheet's ground (How did you hear about Amber Notes?): the sign-in screen's cream,
     /// and its warm near-black in the dark.
     static let sheetGround = pair(0xF9F7F4, 0x1B1A1C)

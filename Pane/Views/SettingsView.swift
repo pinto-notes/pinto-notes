@@ -244,6 +244,8 @@ private struct SettingsPage<Content: View>: View {
         }
             .formStyle(.grouped)
             #if os(macOS)
+            // On the Settings sheet's own warm ground (SettingsHome).
+            .scrollContentBackground(.hidden)
             .frame(width: SettingsLayout.width)
             .background(NoInitialFocus())
             #endif
