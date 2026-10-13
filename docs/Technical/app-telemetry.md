@@ -69,7 +69,7 @@ This is enforced by the types, not by care at each call:
 | `signed_in` | A sign-in worked | `method`: `apple`, `google`, `email` |
 | `signed_up` | A sign-in worked for an account made in the last five minutes, or an email sign-up was confirmed | `method` |
 | `key_ready` | The account's key arrived on this device while the app was running | `how`: `created`, `recovery_key`, `linked` (Add a device), `icloud_keychain`, `start_fresh`, `sign_in` (from the copy the server keeps) |
-| `gate_shown` | A screen between signing in and the notes was shown (once a launch for each) | `screen`: `welcome`, `add_device`, `no_device`, `waiting`, `recovery`, `start_fresh`, `unreachable`, `checking`, `held` (waiting out the hold after a password reset), `before_fetch` (before the key comes from the copy the server keeps: sign in again, or say yes first) |
+| `gate_shown` | A screen between signing in and the notes was shown (once a launch for each) | `screen`: `welcome`, `add_device`, `no_device`, `waiting`, `recovery`, `start_fresh`, `unreachable`, `accountGone` (the account was deleted on the server), `checking`, `held` (waiting out the hold after a password reset), `before_fetch` (before the key comes from the copy the server keeps: sign in again, or say yes first) |
 | `first_note_created` | The first note made with New Note on this install | |
 | `first_sync` | The first sync that finished on this install | `duration_ms` |
 | `ai_connected` | An AI connection was approved, or a token was made for one | `kind`: `claude`, `chatgpt`, `other` |
