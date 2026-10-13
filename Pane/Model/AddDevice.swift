@@ -349,6 +349,24 @@ enum AddDeviceApproval {
     /// key and kind against the tag only that device's screen could vouch for, and opens its name. Stretches a
     /// typed code, so it runs off the main actor.
     static func find(_ input: Input, user: UUID, server: AddDeviceServer) async throws -> Candidate {
+        // The link-device funnel (`link_device_step`, the device that has the key): how the code came in.
+        switch input {
+        case .scanned: Funnel.record(.linkDeviceStep(.existingDevice, .scanned))
+        case .typed: Funnel.record(.linkDeviceStep(.existingDevice, .typed))
+        }
+        do { return try await lookUp(input, user: user, server: server) } catch {
+            Funnel.record(.linkDeviceStep(.existingDevice, .failed, kind: failureKind(error)))
+            throw error
+        }
+    }
+
+    /// A failure's kind for the funnel: this flow's own errors say offline or not; others as usual.
+    nonisolated static func failureKind(_ error: Error) -> FailureKind {
+        guard let e = error as? AddDeviceError else { return FailureSummary(error).kind }
+        return e == .offline ? .offline : .other
+    }
+
+    private static func lookUp(_ input: Input, user: UUID, server: AddDeviceServer) async throws -> Candidate {
         let prk: Data
         switch input {
         case .scanned(let text):
@@ -372,6 +390,18 @@ enum AddDeviceApproval {
 
     /// Seals this device's key to the new device and stores it for pickup.
     static func approve(_ c: Candidate, key: StoredKey, user: UUID, device: UUID, server: AddDeviceServer) async throws {
+        // Called once the person said yes (and Face ID, Touch ID or the passcode agreed).
+        Funnel.record(.linkDeviceStep(.existingDevice, .approved))
+        do {
+            try await handOver(c, key: key, user: user, device: device, server: server)
+            Funnel.record(.linkDeviceStep(.existingDevice, .done))
+        } catch {
+            Funnel.record(.linkDeviceStep(.existingDevice, .failed, kind: failureKind(error)))
+            throw error
+        }
+    }
+
+    private static func handOver(_ c: Candidate, key: StoredKey, user: UUID, device: UUID, server: AddDeviceServer) async throws {
         let sealed = try E2EE.sealDeviceKey(key.encoded, to: c.publicKey, bind: SymmetricKey(data: c.bind), requestID: c.id, user: user)
         let result: AddDeviceAnswer
         do { result = try await server.answer(id: c.id, answer: c.answer, sealed: sealed, device: device) } catch let e as AddDeviceError { throw e } catch { throw AddDeviceError.offline }
