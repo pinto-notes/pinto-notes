@@ -69,7 +69,7 @@ struct OnboardingFlow: View {
 
     var body: some View {
         screen
-            .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: step)
+            .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.35 * Self.stepPace), value: step)
             .task { await loadAccount() }
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
@@ -216,9 +216,38 @@ struct OnboardingFlow: View {
     }
     #endif
 
-    private var stepTransition: AnyTransition {
-        if reduceMotion { return .opacity }
-        return .asymmetric(insertion: .opacity.combined(with: .offset(x: forward ? 24 : -24)), removal: .opacity)
+    /// The step going out fades in the first part of the move; the one coming in shows only
+    /// after, sliding in from the side it is on. Two steps are never readable at once (they were
+    /// when both faded over the same time). One value drives both, so the whole step moves as one.
+    private var stepTransition: AnyTransition { stepTransition(dx: reduceMotion ? 0 : (forward ? 24 : -24)) }
+
+    private func stepTransition(dx: CGFloat) -> AnyTransition {
+        .asymmetric(insertion: .modifier(active: StepMove(shown: 0, incoming: true, dx: dx), identity: StepMove(shown: 1, incoming: true, dx: dx)),
+                    removal: .modifier(active: StepMove(shown: 0, incoming: false, dx: 0), identity: StepMove(shown: 1, incoming: false, dx: 0)))
+    }
+
+    /// Tests: slows the step transition down, to see it frame by frame.
+    static var stepPace: Double = 1
+
+    /// A step coming in or going out: `shown` runs from 0 (off) to 1 (on screen) with the
+    /// transition's animation. The step going out is gone by `split`; the one coming in starts there.
+    nonisolated struct StepMove: ViewModifier, Animatable {
+        var shown: Double
+        let incoming: Bool
+        let dx: CGFloat
+        static let split = 0.3
+
+        var animatableData: Double {
+            get { shown }
+            set { shown = newValue }
+        }
+
+        func body(content: Content) -> some View {
+            let t = incoming ? max(0, (shown - Self.split) / (1 - Self.split)) : max(0, (shown - (1 - Self.split)) / Self.split)
+            content
+                .opacity(t)
+                .offset(x: incoming ? dx * (1 - t) : 0)
+        }
     }
 
     // MARK: Progress
@@ -567,25 +596,27 @@ struct OnboardingFlow: View {
     /// The step's main button and, on the two steps you may skip, the quiet way past.
     @ViewBuilder private var actions: some View {
         VStack(spacing: 6) {
-            switch step {
-            case .name:
-                primary("Continue", id: "onboarding.continue", action: { next() })
-            case .bring:
-                if broughtCount > 0 {
-                    primary("Continue", id: "onboarding.continue", action: { next() })
-                } else {
-                    quiet(Self.skipBring, id: "onboarding.skip", action: skip)
-                }
-            case .connect:
-                if connected {
-                    primary("Continue", id: "onboarding.continue", action: { next() })
-                } else {
-                    quiet(Self.skipConnect, id: "onboarding.skip", action: skip)
-                }
-            case .tryIt:
-                // Nothing to press when it works: the step ends by itself. This is for not now.
-                if !shownArrived { quiet("Skip", id: "onboarding.skip", action: skip) }
+            switch action {
+            case .proceed: primary("Continue", id: "onboarding.continue", action: { next() })
+            case .skip(let title): quiet(title, id: "onboarding.skip", action: skip)
+            case .none: EmptyView()
             }
+        }
+        // The same button stays put from step to step; a different one takes over the way the
+        // step does, never on top of the one before.
+        .id(action)
+        .transition(stepTransition(dx: 0))
+    }
+
+    private enum Action: Hashable { case proceed, skip(String), none }
+
+    private var action: Action {
+        switch step {
+        case .name: .proceed
+        case .bring: broughtCount > 0 ? .proceed : .skip(Self.skipBring)
+        case .connect: connected ? .proceed : .skip(Self.skipConnect)
+        // Nothing to press when it works: the step ends by itself. This is for not now.
+        case .tryIt: shownArrived ? .none : .skip("Skip")
         }
     }
 
