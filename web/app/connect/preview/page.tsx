@@ -19,6 +19,7 @@ const APPS: Record<string, ConnectLabel> = {
   codex: { claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true },
   fake: { claimed_name: "claude", redirect_host: "127.0.0.1", loopback: true },
   web: { claimed_name: "notebot", redirect_host: "notebot.example", loopback: false },
+  glama: { claimed_name: "glama", redirect_host: "glama.ai", loopback: false },
   none: { claimed_name: null, redirect_host: "127.0.0.1", loopback: true },
 };
 

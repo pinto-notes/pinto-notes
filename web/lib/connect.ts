@@ -160,24 +160,29 @@ const onDomain = (host: string, domains: string[]) => domains.some((d) => host =
 /// to have started it: a sign-in started in someone else's ChatGPT or Claude returns there too
 /// (the 2 October rule in the MCP function's describeRequest), so the name is never vouched for. A name that belongs to ChatGPT,
 /// Claude or Pinto Notes is a headline only when access goes to that AI's own domain; anywhere else
-/// it shows only in the quiet line, as the name the app gave. No name is ever shown with a mark.
+/// it shows only in the quiet line, as what the app calls itself. No name is ever shown with a mark.
 export function requestWords(label: ConnectLabel | null): { title: string; gets: string; who: string | null } {
   // checked: access goes to ChatGPT's or Claude's domain. That proves where, not whose account.
   const host = label?.redirect_host ?? null;
   const raw = label?.claimed_name?.trim() ?? "";
   const key = raw.toLowerCase().replace(/[\s_]+/g, "-");
   // Names that only stand for the address (what the function stores when it refused a name).
-  const given = raw && raw.toLowerCase() !== host && !/^an? app on this computer$/i.test(raw) ? KNOWN_NAMES[key] ?? KNOWN_NAMES[key.replace(/-/g, " ")] ?? raw : null;
+  const given = raw && raw.toLowerCase() !== host && !/^an? app on this computer$/i.test(raw) ? KNOWN_NAMES[key] ?? KNOWN_NAMES[key.replace(/-/g, " ")] ?? displayName(raw) : null;
   const brand = given ? Object.keys(BRANDS).find((b) => key.replace(/[^a-z]/g, "").includes(b)) : undefined;
   const checked = !!host && !label?.loopback && Object.values(BRANDS).flat().some((d) => onDomain(host, [d]));
   const headline = given && (!brand || (host && !label?.loopback && onDomain(host, BRANDS[brand]))) ? given : null;
   const title = `Connect ${headline ?? "an app"} to Pinto Notes?`;
   const gets = "It can read your notes and change them when you ask.";
   if (!host) return { title, gets, who: null };
-  const where = label?.loopback ? "This is an app on this computer." : `It goes to ${host}.`;
+  // Where access goes is the safety signal, so it is always said.
+  const where = label?.loopback ? "This request comes from an app on this computer." : `This request comes from ${host}.`;
   if (checked && (headline || !given)) return { title, gets, who: `${where} Allow it only if you started this.` };
-  return { title, gets, who: given ? `${where} ${given} is the name it gave.` : where };
+  return { title, gets, who: given && !headline ? `${where} It calls itself ${given}.` : where };
 }
+
+/// A name as the app gave it, with a capital first letter when it came all in lowercase
+/// (glama becomes Glama). Any other casing is the app's own and stays.
+export const displayName = (name: string) => (name === name.toLowerCase() ? name.charAt(0).toUpperCase() + name.slice(1) : name);
 
 /// Who will receive access, in words.
 export const destination = (host: string, loopback: boolean) => (loopback ? "an app on this computer" : host);

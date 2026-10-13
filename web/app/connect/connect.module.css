@@ -93,11 +93,14 @@
 .qr svg { display: block; }
 .qrPending { width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; }
 @media (prefers-reduced-motion: no-preference) { .qrPending { animation: spin 0.8s linear infinite; } }
-.hint { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
+.hint { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
+/* The code and its one line, kept together wherever the screen puts them. */
+.scan { display: grid; justify-items: center; gap: 12px; }
+.primary[aria-disabled="true"] { cursor: default; opacity: 0.6; }
 
 /* The small ways out at the bottom of a screen. */
 .links { display: grid; justify-items: center; margin-top: 4px; }
-.links .link { min-height: 36px; font-size: 14px; }
+.links .link { min-height: 36px; font-size: 14px; text-wrap: balance; }
 
 /* The recovery key's access choice, closed until you open it. */
 .options { width: 100%; text-align: left; }
@@ -298,6 +301,8 @@
 .page[data-layout="panel"] .lede, .page[data-layout="panel"] .small, .page[data-layout="panel"] .hint { text-align: left; }
 .page[data-layout="panel"] .status { justify-content: flex-start; }
 .page[data-layout="panel"] .links { justify-items: start; }
+.page[data-layout="panel"] .links .link { text-align: left; }
+.page[data-layout="panel"] .scan { justify-items: stretch; }
 .page[data-layout="panel"] .qr, .page[data-layout="panel"] .art, .page[data-layout="panel"] .done, .page[data-layout="panel"] .matchNumber { justify-self: center; }
 @media (max-width: 860px) {
   .page[data-layout="panel"] { grid-template-columns: minmax(0, 460px); }

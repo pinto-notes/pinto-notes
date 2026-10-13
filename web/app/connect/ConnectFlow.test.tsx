@@ -102,7 +102,7 @@ describe("the connect page's QR code", () => {
     render();
     await until(() => !!container.querySelector("svg path"));
 
-    expect(heading()).toBe("Scan with your iPhone");
+    expect(heading()).toBe("Approve in Pinto Notes");
     expect(container.textContent).toContain("It can read your notes and change them when you ask.");
     // The frame names the app (ConnectCard); the screen doesn't repeat it.
     expect(container.textContent).not.toContain("to Pinto Notes?");
@@ -149,12 +149,52 @@ describe("the connect page's QR code", () => {
     expect(mac?.getAttribute("href")).toBe(link.replace("https://ambernotes.app/open/connect?", "ambernotes://connect?"));
   });
 
-  it("has no Mac button elsewhere", async () => {
+  it("has no Mac button elsewhere, and leads with the code", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     vi.stubGlobal("fetch", fakeServer(() => ({ state: "asked" })).fetch);
     render();
     await until(() => !!container.querySelector("svg path"));
     expect(container.textContent).not.toContain("Open Pinto Notes on this Mac");
+    expect(container.textContent).toContain("Use your iPhone or Mac.");
+    expect(container.textContent).toContain("On your iPhone, open the Camera and point it at the code.");
+  });
+
+  it("on a Mac, puts opening the app here before the code for an iPhone", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    vi.spyOn(navigator, "maxTouchPoints", "get").mockReturnValue(0);
+    vi.stubGlobal("fetch", fakeServer(() => ({ state: "asked" })).fetch);
+    render();
+    await until(() => !!container.querySelector("svg path"));
+    expect(heading()).toBe("Approve in Pinto Notes");
+    expect(container.textContent).toContain("Use your iPhone or this Mac.");
+    const mac = [...container.querySelectorAll("a")].find((a) => a.textContent === "Open Pinto Notes on this Mac")!;
+    const code = container.querySelector("svg path")!;
+    expect(mac.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("on an iPhone, opens the app here with the code's link and shows no code to scan", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("iPhone");
+    vi.spyOn(navigator, "maxTouchPoints", "get").mockReturnValue(5);
+    vi.stubGlobal("fetch", fakeServer(() => ({ state: "asked" })).fetch);
+    render();
+    await until(() => !![...container.querySelectorAll("a")].find((a) => a.textContent === "Open Pinto Notes")?.getAttribute("href"));
+    const open = [...container.querySelectorAll("a")].find((a) => a.textContent === "Open Pinto Notes")!;
+    expect(open.getAttribute("href")).toMatch(/^https:\/\/ambernotes\.app\/open\/connect\?request=[0-9a-f-]{36}#s=[A-Za-z0-9_-]{22}&k=[A-Za-z0-9_-]{43}$/);
+    expect(container.querySelector("svg path")).toBeNull();
+    expect(container.textContent).not.toContain("Use your iPhone");
+    // The other ways stay.
+    expect(button("Get a notification instead")).toBeTruthy();
+    expect(button("No device with Pinto Notes? Use your recovery key")).toBeTruthy();
+  });
+
+  it("treats an iPad that says Mac as an iPad", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    vi.spyOn(navigator, "maxTouchPoints", "get").mockReturnValue(5);
+    vi.stubGlobal("fetch", fakeServer(() => ({ state: "asked" })).fetch);
+    render();
+    await until(() => !![...container.querySelectorAll("a")].find((a) => a.textContent === "Open Pinto Notes")?.getAttribute("href"));
+    expect(container.textContent).not.toContain("Open Pinto Notes on this Mac");
+    expect(container.querySelector("svg path")).toBeNull();
   });
 
   it("says when the request has expired", async () => {
@@ -341,7 +381,7 @@ describe("the recovery key path", () => {
     vi.stubGlobal("fetch", server.fetch);
     render();
     await until(() => !!container.querySelector("svg path"));
-    await act(async () => button("No iPhone? Use your recovery key").click());
+    await act(async () => button("No device with Pinto Notes? Use your recovery key").click());
     await until(() => heading() === "Use your recovery key");
     // Step one is only the sign-in: no key field next to the password.
     expect(container.querySelector("#connect-recovery")).toBeNull();
