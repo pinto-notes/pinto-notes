@@ -7,9 +7,9 @@
     "Families"
   ],
   "audience": "For anyone who wants to know where the money went without a budgeting app.",
-  "description": "A budget app: what's left this month, spending by category, quick add. Edit it yourself, or tell your AI what you spent and it logs it.",
+  "description": "A free budget and expense tracker in a note: what's left this month, spending by category, quick add. Or tell your AI what you spent and it logs it.",
   "tagline": "What you spend, against a monthly budget.",
-  "seoTitle": "Budget and expense log template for ChatGPT and Claude",
+  "seoTitle": "Budget tracker template and app for ChatGPT and Claude",
   "folder": "Home",
   "note": "Budget and expenses\n\nWhat you spend, one row each, and a monthly budget to measure it against. Amounts are in your own currency.\n\n<!-- pane-table: Date=text; What=text; Category=choice Groceries|Eating out|Transport|Home|Fun|Bills|Other; Amount=number -->\n| Date | What | Category | Amount |\n| --- | --- | --- | --- |\n\n## Monthly budget\n| Category | Budget |\n| --- | --- |\n| Groceries | 4000 |\n| Eating out | 1500 |\n| Transport | 800 |\n| Home | 1000 |\n| Fun | 1000 |\n| Bills | 3500 |\n\n## Month summaries\n",
   "prompt": {

@@ -38,6 +38,7 @@ const DOT: Record<Ground, string> = {
   linen: "#bc9a68", night: "#2c2a33", rose: "#d996a8", mint: "#86bf9f", sky: "#8eaed6", lemon: "#d4c443", coral: "#e88468",
   lagoon: "#5fa9a9", denim: "#6e84c6", slate: "#7d8798", olive: "#8f9a55", plum: "#a26f97", teal: "#4f9c88", berry: "#b0456b", rust: "#b4532a",
   apricot: "#e8964f", ice: "#6fa3b8", lilac: "#9d8fd6", pistachio: "#94b866",
+  fern: "#7fb36f", butter: "#d9b84a", harbor: "#6f97c9", orchid: "#c27fb0",
 };
 
 /// The first three distinct dots of a category's newest posts, as the templates chips show theirs.

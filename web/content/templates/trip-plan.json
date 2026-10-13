@@ -7,8 +7,9 @@
     "Families"
   ],
   "audience": "For anyone planning a trip who wants the plan, bookings and packing in one place.",
-  "description": "A trip app: the countdown, a day-by-day plan, bookings with paid ticks and a packing list. Change any of it yourself, or let your AI plan and fill it in.",
+  "description": "A free trip planner in a note: a countdown, a day-by-day itinerary, bookings with paid ticks and a packing list. Edit it yourself, or let your AI fill it in.",
   "tagline": "Days, bookings and the packing list in one place.",
+  "seoTitle": "Trip planner and itinerary template for ChatGPT and Claude",
   "folder": "Travel",
   "note": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack.\n\n## Bookings\n<!-- pane-table: What=text; When=text; Confirmation=text; Paid=choice Yes|No -->\n| What | When | Confirmation | Paid |\n| --- | --- | --- | --- |\n\n## Days\n\n## Packing\n- [ ] Passport\n- [ ] Chargers\n- [ ] Travel insurance details\n- [ ] Comfortable shoes\n\n## Ideas\n",
   "prompt": {

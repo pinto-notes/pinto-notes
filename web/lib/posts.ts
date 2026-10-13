@@ -29,7 +29,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -61,10 +61,62 @@ export const SHOTS = {
   lisbon: { src: "/blog/amber-notes-lisbon-trip-note.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac: a plan checklist, a list of places, a linked Hotel booking sub-note, and a table of where to eat.", width: 1250, height: 1420, window: false, title: "Lisbon" },
   iphoneFiles: { src: "/blog/amber-notes-iphone-files-in-a-note.webp", alt: "Pinto Notes on iPhone in dark mode: a Trip documents note holding a PDF, a CSV file, a photo and a link.", width: 1206, height: 2622, window: false, phone: true },
   iphoneGroceries: { src: "/blog/amber-notes-iphone-chatgpt-edited-checklist.webp", alt: "A Groceries checklist in Pinto Notes on iPhone. The five items ChatGPT just added are tinted, and a bar says ChatGPT changed 5 lines, with Undo.", width: 1206, height: 2622, window: false, phone: true },
+  habitApp: { src: "/blog/pinto-notes-habit-tracker-app-mac.webp", alt: "The habit tracker app in a Pinto Notes note on a Mac: this week's ring at 75 percent, 2 of 4 habits done today, and Walk, Read, No phone in bed and Water with their streaks and ticks.", width: 1720, height: 1520, window: false, title: "Habit tracker" },
+  budgetApp: { src: "/blog/pinto-notes-budget-log-app-mac.webp", alt: "The budget app in a Pinto Notes note on a Mac: 7,165 kr left in October with about 377 kr a day, an Add expense button, and each category against its budget.", width: 1720, height: 1520, window: false, title: "Budget and expenses" },
+  tripApp: { src: "/blog/pinto-notes-trip-plan-app-mac.webp", alt: "The trip plan app in a Pinto Notes note on a Mac: Lisbon, 9 days to go, 3 of 5 bookings paid, 5 of 14 items packed, and the plan for the first day.", width: 1720, height: 1520, window: false, title: "Trip plan" },
+  flashcardsApp: { src: "/blog/pinto-notes-study-flashcards-app-mac.webp", alt: "The flashcards app in a Pinto Notes note on a Mac: 12 cards due today, topic pills, a Study now button and a chart of how many cards are in each of five boxes.", width: 1720, height: 1520, window: false, title: "Study notes and flashcards" },
   standup: { src: "/blog/amber-notes-claude-code-standup-note.webp", alt: "Standup notes in Pinto Notes on a Mac. The line Claude Code just added is tinted, and a bar at the bottom says Claude Code changed 1 line, with Undo.", width: 1250, height: 1420, window: false, title: "Standup notes" },
 } satisfies Record<string, Shot>;
 
 export const posts: Post[] = [
+  {
+    slug: "habit-tracker-with-chatgpt-or-claude",
+    title: "How to make a habit tracker with ChatGPT or Claude (that you can still edit yourself)",
+    description: "Make a habit tracker with ChatGPT or Claude: the prompt for one built in chat, a free template with its own app, and where each one stops working.",
+    excerpt: "Ask your AI to build one in chat, or start from a habit tracker app it can update. The steps for both, and what each can't do.",
+    category: "Guides",
+    date: "2026-10-13",
+    updated: "2026-10-13",
+    image: SHOTS.habitApp,
+    thumb: thumb("fern", "thumb-app-habit-tracker", 1180, 748, "A habit tracker app in Pinto Notes on a Mac: 2 of 4 habits done today, with streaks"),
+    draft: false,
+  },
+  {
+    slug: "budget-tracker-with-chatgpt-or-claude",
+    title: "How to make a budget tracker with ChatGPT or Claude",
+    description: "Make a budget and expense tracker with ChatGPT or Claude: the prompt, a free template with its own app, and what an AI gets wrong about your money.",
+    excerpt: "A budget your AI can add expenses to and you can still edit by hand. The template route, the build-your-own route, and their limits.",
+    category: "Guides",
+    date: "2026-10-13",
+    updated: "2026-10-13",
+    image: SHOTS.budgetApp,
+    thumb: thumb("butter", "thumb-app-budget-log", 1180, 748, "A budget app in Pinto Notes on a Mac: 7,165 kr left this month, by category"),
+    draft: false,
+  },
+  {
+    slug: "plan-a-trip-with-chatgpt-or-claude",
+    title: "How to plan a trip with ChatGPT or Claude, and keep the itinerary",
+    description: "Plan a trip with ChatGPT or Claude: a prompt for a day-by-day itinerary, then keep it, with bookings and packing, in a trip planner you can edit.",
+    excerpt: "Getting an itinerary out of ChatGPT is easy. Keeping it, with the bookings and the packing list, is the part this post is about.",
+    category: "Guides",
+    date: "2026-10-13",
+    updated: "2026-10-13",
+    image: SHOTS.tripApp,
+    thumb: thumb("harbor", "thumb-app-trip-plan", 1180, 748, "A trip plan app in Pinto Notes on a Mac: Lisbon, 9 days to go, bookings and packing"),
+    draft: false,
+  },
+  {
+    slug: "flashcards-with-chatgpt-or-claude",
+    title: "How to make flashcards with ChatGPT or Claude",
+    description: "Make flashcards from your notes with ChatGPT or Claude: a prompt for good cards, ChatGPT's own flashcards, and a study app that brings back what you miss.",
+    excerpt: "Your AI can turn a chapter into cards in a minute. The prompt that keeps them short, and where to study them so the hard ones come back.",
+    category: "Guides",
+    date: "2026-10-13",
+    updated: "2026-10-13",
+    image: SHOTS.flashcardsApp,
+    thumb: thumb("orchid", "thumb-app-study-flashcards", 1180, 748, "A flashcards app in Pinto Notes on a Mac: 12 cards due today, in five boxes"),
+    draft: false,
+  },
   {
     slug: "connect-notes-to-grok",
     title: "How to connect your notes to Grok with a custom MCP connector",
