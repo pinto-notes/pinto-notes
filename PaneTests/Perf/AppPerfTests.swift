@@ -194,9 +194,10 @@ extension AppPerfTests {
             try c.mainContext.save()
         }
         let clock = ContinuousClock()
-        let started = clock.now
         let (w, host) = window(NoteListView(scope: .all, selection: .constant([]), onNewNote: {}).modelContainer(c))
         defer { w.close() }
+        // Timed from the window's first layout, as before the library was read off the main thread.
+        let started = clock.now
         host.layoutSubtreeIfNeeded()
         w.displayIfNeeded()
         // A large library is read off the main thread: the first display is when its rows are in.

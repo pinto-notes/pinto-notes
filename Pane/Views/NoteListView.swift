@@ -1215,19 +1215,22 @@ final class LibraryNotes {
         guard let container else { return }
         isLoading = true
         savedWhileLoading = ([], [])
-        let titled = order.key == .title
+        let order = self.order
         Task.detached(priority: .userInitiated) { [weak self] in
             let read = ModelContext(container)
+            let titled = order.key == .title
+            // Sorted here too: the main thread only takes them.
             let entries = ((try? read.fetch(FetchDescriptor<Note>())) ?? []).map { NoteEntry(untracked: $0, titled: titled) }
-            await MainActor.run { self?.install(entries, titled: titled) }
+                .sorted { LibraryNotes.precedes($0, $1, in: order) }
+            await MainActor.run { self?.install(entries, order: order) }
         }
     }
 
-    private func install(_ entries: [NoteEntry], titled: Bool) {
+    private func install(_ entries: [NoteEntry], order read: ListOrder) {
         guard isLoading, let context else { return }
         isLoading = false
-        sorted = entries.sorted(by: precedes)
-        if titled != (order.key == .title) { load() }
+        sorted = entries
+        if !read.sortsLike(order) { (read.key == .title) == (order.key == .title) ? sorted.sort(by: precedes) : load() }
         // Saves while it was read: their notes are read again here, from the context that saved them.
         let saved = savedWhileLoading
         savedWhileLoading = ([], [])
@@ -1333,7 +1336,9 @@ final class LibraryNotes {
     static let wholesaleChange = 200
 
     /// Whether `a` is listed before `b`. The list's own order is two dates compared, nothing more.
-    private func precedes(_ a: NoteEntry, _ b: NoteEntry) -> Bool {
+    private func precedes(_ a: NoteEntry, _ b: NoteEntry) -> Bool { Self.precedes(a, b, in: order) }
+
+    nonisolated static func precedes(_ a: NoteEntry, _ b: NoteEntry, in order: ListOrder) -> Bool {
         order.sortsLike(.standard) ? a.date > b.date : order.before(a, b)
     }
 
