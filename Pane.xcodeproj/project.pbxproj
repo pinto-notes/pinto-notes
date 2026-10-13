@@ -298,6 +298,7 @@
 		6C0D68D980CC55FA3C391007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */; };
 		6D597B1C5F30A6957832112C /* preact-hooks.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 52D415B84CA735B3B8845F5E /* preact-hooks.module.js */; };
 		6ECD30112C54E00E2746A529 /* LiveViewerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005D993BB051DBCB7CB4CED0 /* LiveViewerTests.swift */; };
+		6EDF9478D217E414AC038966 /* Info-Direct.plist in Resources */ = {isa = PBXBuildFile; fileRef = 205EB78628F64ADE88A5BF62 /* Info-Direct.plist */; };
 		6F0A081CD5824B2A571CBAA7 /* AppleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = F289BCC7CFF17C5E38FD609F /* AppleSignIn.swift */; };
 		6FA4E2DB5FE1AEFC619DB94A /* OfflineHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA53D7CEAE7816342EA0A55 /* OfflineHTML.swift */; };
 		702D254A2BA6152E5195D309 /* chart.js in Resources */ = {isa = PBXBuildFile; fileRef = 6A6208FEEA0F5F12A1F9C829 /* chart.js */; };
@@ -315,6 +316,7 @@
 		743A2DC87EC039B90E4FE7A8 /* DateFoldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA02ED549CE37D8148F24D5 /* DateFoldTests.swift */; };
 		74DF77630513432E838767C8 /* AccountNotices.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED7F107D0DDA0B69E2BCE603 /* AccountNotices.swift */; };
 		7513EFC1DD1E49DA7A33D282 /* KeyCopyInvisibleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D297B96DFE569E9C682B420E /* KeyCopyInvisibleTests.swift */; };
+		754C0BAE9A8182360E0045EF /* UpdaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17CB8FD610675468F2C8D0A /* UpdaterTests.swift */; };
 		75B75A7713FF1676CE2A1BF8 /* HeardFromTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787F5668426144E8B28D3830 /* HeardFromTests.swift */; };
 		7637A309FB8BE9C4CFCBC611 /* NetworkPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9060604CABB2AA90D8EC1B77 /* NetworkPath.swift */; };
 		76B80CE97B1BBCAE648D5D04 /* ShareNotePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66516BF38B1483418D07594C /* ShareNotePopover.swift */; };
@@ -1068,6 +1070,7 @@
 		CFFEC0432D36C47F49C28AEB /* anime.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = anime.js; sourceTree = "<group>"; };
 		D058AF887BE21AC49E51A5C7 /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
 		D0F69910B21B087593045DD7 /* SignOutRemovalSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignOutRemovalSyncTests.swift; sourceTree = "<group>"; };
+		D17CB8FD610675468F2C8D0A /* UpdaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterTests.swift; sourceTree = "<group>"; };
 		D297B96DFE569E9C682B420E /* KeyCopyInvisibleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCopyInvisibleTests.swift; sourceTree = "<group>"; };
 		D2C3828F02A46D62F6896F82 /* NoteExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteExportTests.swift; sourceTree = "<group>"; };
 		D2FFA510B01DACFC168BE214 /* ConnectAsks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAsks.swift; sourceTree = "<group>"; };
@@ -1627,6 +1630,7 @@
 				775EAC727A32670CD0DB5CCC /* TestFiles.swift */,
 				3BA93B1E52E9234DA5E09729 /* TipsTests.swift */,
 				2FB0FAF5FA660EBD5F3003ED /* TypedTableTests.swift */,
+				D17CB8FD610675468F2C8D0A /* UpdaterTests.swift */,
 				0BC98D85A82BA1ECBFDE6ABB /* WelcomeTests.swift */,
 				C0BF05AC42703752FBAE6D6D /* WhatsNewTests.swift */,
 				23048764AEDD0924DCD67868 /* WikiLinksTests.swift */,
@@ -2181,6 +2185,7 @@
 				948DF945F13C39F0B814D8A8 /* 20261012120000_feature_use_new_app.sql in Resources */,
 				96D8440726302B859F0DAF2B /* App in Resources */,
 				81B6CB6F3479E2A99C3DB3B5 /* Editor in Resources */,
+				6EDF9478D217E414AC038966 /* Info-Direct.plist in Resources */,
 				4090C3EDDC29BA7E01EAB111 /* Keep in Resources */,
 				418C42CA062EA975E4ED96B1 /* Markdown in Resources */,
 				9AD15C7651C3548622FF3F58 /* Model in Resources */,
@@ -2385,6 +2390,7 @@
 				D74868EC5AD24025CC15A002 /* TipsTests.swift in Sources */,
 				F9056BC1B1B9B2AE0C137E25 /* TwoDeviceLiveSyncTests.swift in Sources */,
 				901131A181463954A80C697B /* TypedTableTests.swift in Sources */,
+				754C0BAE9A8182360E0045EF /* UpdaterTests.swift in Sources */,
 				B8E32610DE26332AB8853B4D /* VersionHistorySnapshots.swift in Sources */,
 				2898465930190134A07C70F6 /* WarmGreySnapshots.swift in Sources */,
 				0A1ACD933DAE00CD5397ADF3 /* WelcomeSnapshots.swift in Sources */,

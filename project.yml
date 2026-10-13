@@ -176,8 +176,13 @@ targets:
         <<: *appInfo
         SUFeedURL: $(PANE_UPDATE_FEED)
         SUPublicEDKey: $(SPARKLE_PUBLIC_KEY)
+        # Updates come on their own: a check every hour (Sparkle's shortest), downloaded quietly and
+        # installed when the app quits. Setting SUEnableAutomaticChecks here also skips Sparkle's
+        # "check automatically?" question. Updater.swift has the rest.
         SUEnableAutomaticChecks: true
-        SUScheduledCheckInterval: 86400
+        SUAllowsAutomaticUpdates: true
+        SUAutomaticallyUpdate: true
+        SUScheduledCheckInterval: 3600
     settings:
       base:
         <<: *appSettings
@@ -271,6 +276,9 @@ targets:
       - path: supabase/functions/mcp/amber-base.ts
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
+        buildPhase: resources
+      # The Mac download's Info.plist, for its update settings (UpdaterTests).
+      - path: Pane/Resources/Info-Direct.plist
         buildPhase: resources
       - path: Pane/Views
         type: folder
