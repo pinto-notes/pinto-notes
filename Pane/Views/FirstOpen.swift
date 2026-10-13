@@ -126,7 +126,7 @@ struct FirstOpenContent: View {
             Button(action: start) {
                 Text("Start").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.amberProminent(height: 48, cornerRadius: 14))
+            .buttonStyle(.amberProminent(.big, wide: true))
             .accessibilityIdentifier("firstOpen.start")
             .entrance(shown, 4, reduceMotion)
             .padding(.top, 2)

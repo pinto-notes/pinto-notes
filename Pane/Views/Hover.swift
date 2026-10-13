@@ -10,6 +10,14 @@ import SwiftUI
 enum Hover {
     /// In and out quickly, so the fill follows the pointer without trailing it.
     static let animation = Animation.easeOut(duration: 0.08)
+
+    /// The hover's fade. C and D (DesignLook.calmList): 120 ms in, 80 ms out (things that leave go
+    /// faster), and none with Reduce Motion. Today's look: `animation` both ways.
+    static func fade(in: Bool, reduceMotion: Bool) -> Animation? {
+        guard DesignLook.calmList else { return animation }
+        if reduceMotion { return nil }
+        return .easeOut(duration: `in` ? 0.12 : 0.08)
+    }
     /// A hovered row: a light fill, well under the selection's.
     static let row = AnyShapeStyle(.fill.quaternary)
     /// A hovered icon button or plain button with its own shape.
@@ -87,13 +95,14 @@ extension Color {
 struct HoverTracking: ViewModifier {
     @Binding var hovering: Bool
     var pointer: ((Bool) -> Void)?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
             #if os(macOS)
             .onHover { over in
                 guard over != hovering else { return }
-                withAnimation(Hover.animation) { hovering = over }
+                withAnimation(Hover.fade(in: over, reduceMotion: reduceMotion)) { hovering = over }
                 pointer?(over)
             }
             #endif
@@ -118,6 +127,8 @@ struct HoverRowReader<Content: View>: View {
     var reach = Hover.listReach
     /// The sidebar's selected row draws its own fill here (see `QuietSelection`), in place of the hover's.
     var selected = false
+    /// C and D's note rows: the selection is a card a step lighter than the list, with sm corners.
+    var card = false
     var pointer: ((Bool) -> Void)?
     @ViewBuilder let content: (Bool) -> Content
     @State private var hovering = false
@@ -136,8 +147,11 @@ struct HoverRowReader<Content: View>: View {
             .modifier(HoverTracking(hovering: $hovering, pointer: pointer))
             .background {
                 if selected || on {
-                    RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
-                        .fill(selected ? Hover.selected : Hover.row)
+                    // C and D: sm corners on every row, and the hover a little under half way to the selection's
+                    // fill (a note row's card, a folder's neutral pill), never on the selected row.
+                    RoundedRectangle(cornerRadius: DesignLook.calmList ? Radius.sm : Hover.pillRadius, style: .continuous)
+                        .fill(selected ? (card ? AnyShapeStyle(Color.card) : Hover.selected)
+                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color.card.opacity(0.4)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
@@ -242,85 +256,6 @@ private struct HoverOverlay<S: InsettableShape>: ViewModifier {
         content
         #endif
     }
-}
-
-/// An icon-only button (a close ×, a toolbar-like glyph in a card): a soft rounded background
-/// under the pointer, a firmer one while pressed.
-struct HoverIconButtonStyle: ButtonStyle {
-    var cornerRadius: CGFloat = 6
-    /// Room around a bare symbol, so the background isn't tight on its ink.
-    var padding: CGFloat = 0
-
-    func makeBody(configuration: Configuration) -> some View {
-        HoverIconButton(configuration: configuration, cornerRadius: cornerRadius, padding: padding)
-    }
-}
-
-private struct HoverIconButton: View {
-    let configuration: ButtonStyleConfiguration
-    let cornerRadius: CGFloat
-    let padding: CGFloat
-    @State private var hovering = false
-    @Environment(\.hoverPreview) private var preview
-    @Environment(\.isEnabled) private var enabled
-
-    var body: some View {
-        #if os(macOS)
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        let on = enabled && (hovering || preview.contains("*"))
-        configuration.label
-            .padding(padding)
-            .opacity(enabled ? 1 : 0.5)
-            .background {
-                if configuration.isPressed { shape.fill(Hover.pressed) } else if on { shape.fill(Hover.fill) }
-            }
-            .contentShape(shape)
-            .modifier(HoverTracking(hovering: $hovering))
-        #else
-        // On iPhone, as the plain style draws it.
-        configuration.label.padding(padding).opacity(configuration.isPressed ? 0.6 : enabled ? 1 : 0.5)
-        #endif
-    }
-}
-
-/// A button that's only words ("Skip", "Use a different email"): underlined under the
-/// pointer and dimmed while pressed. A link also shows the pointing hand.
-struct HoverTextButtonStyle: ButtonStyle {
-    var link = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        HoverTextButton(configuration: configuration, link: link)
-    }
-}
-
-private struct HoverTextButton: View {
-    let configuration: ButtonStyleConfiguration
-    let link: Bool
-    @State private var hovering = false
-    @Environment(\.hoverPreview) private var preview
-    @Environment(\.isEnabled) private var enabled
-
-    var body: some View {
-        let on = enabled && (hovering || preview.contains("*"))
-        configuration.label
-            .underline(on)
-            .opacity(configuration.isPressed ? 0.6 : enabled ? 1 : 0.5)
-            .contentShape(.rect)
-            .modifier(HoverTracking(hovering: $hovering))
-            #if os(macOS)
-            .pointerStyle(link && enabled ? .link : nil)
-            #endif
-    }
-}
-
-extension ButtonStyle where Self == HoverIconButtonStyle {
-    static var hoverIcon: HoverIconButtonStyle { .init() }
-    static func hoverIcon(cornerRadius: CGFloat = 6, padding: CGFloat = 0) -> HoverIconButtonStyle { .init(cornerRadius: cornerRadius, padding: padding) }
-}
-
-extension ButtonStyle where Self == HoverTextButtonStyle {
-    static var hoverText: HoverTextButtonStyle { .init() }
-    static var hoverLink: HoverTextButtonStyle { .init(link: true) }
 }
 
 #if DEBUG

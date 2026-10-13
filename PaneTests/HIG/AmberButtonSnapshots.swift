@@ -28,7 +28,7 @@ import Testing
 
         // The button itself: a row (sign-in, key screens) and a capsule (sheets), idle, busy, disabled.
         let row = { (title: String, busy: Bool, enabled: Bool, role: ButtonRole?) in
-            Button(title, role: role) {}.buttonStyle(.amberProminent(height: 36, cornerRadius: 8)).amberBusy(busy).disabled(!enabled)
+            Button(title, role: role) {}.buttonStyle(.amberProminent(.form, wide: true)).amberBusy(busy).disabled(!enabled)
         }
         let states = VStack(spacing: 12) {
             row("Continue", false, true, nil)

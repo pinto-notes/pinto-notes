@@ -154,7 +154,7 @@ struct SidebarCardShell<Art: View>: View {
                 .hoverOverlay(shape, Color.primary.opacity(0.05))
                 .contentShape(shape)
         }
-        .buttonStyle(SidebarCardPress())
+        .buttonStyle(CardPress())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .clipShape(shape)
         // One button for VoiceOver: the words, then what it does.
@@ -171,7 +171,7 @@ struct SidebarCardShell<Art: View>: View {
                     .frame(width: Metrics.closeSize, height: Metrics.closeSize)
                     .contentShape(.rect)
             }
-            .buttonStyle(.hoverIcon(cornerRadius: Metrics.closeSize / 2))
+            .buttonStyle(.quietIcon)
             .padding(Metrics.closeInset)
             .accessibilityLabel("Close \(title)")
             .accessibilityHint("Hides this for good")
@@ -210,16 +210,6 @@ struct SidebarCardShell<Art: View>: View {
             .foregroundStyle(Color.amberInk)
             .frame(minHeight: Metrics.buttonHeight)
         }
-    }
-}
-
-/// A card pressed: it dims a little and settles a touch smaller, the way the app's large choices do.
-struct SidebarCardPress: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(configuration.isPressed ? 0.8 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 

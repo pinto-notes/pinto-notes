@@ -1,12 +1,14 @@
 import { COVERS, coverPath, inkOn } from "@/lib/template-covers";
 import { APP_TEMPLATES } from "@/lib/site";
-import { appLink, authorLink, slice, templatePath, usePath, type SliceRow, type Template } from "@/lib/templates";
+import { appLink, useLabel, authorLink, slice, templatePath, usePath, type SliceRow, type Template } from "@/lib/templates";
 import OpenInApp from "../OpenInApp";
+import AppSwap from "./AppSwap";
+import UseLabel from "./UseLabel";
 import s from "./templates.module.css";
 
 /// One template in the gallery or under "More templates": its cover fills the card, the title sits
-/// once on the cover's calm lower third, and under it a slice of the real note, filled in, with
-/// "Use template". The card is one link to the template's page (its title link, stretched over the
+/// once on the cover's calm lower third, and under it a slice of the real note, filled in (for an app
+/// template, the table first and then, once, the top of its iPhone app: AppSwap), with "Use template". The card is one link to the template's page (its title link, stretched over the
 /// card), except "Use template", its own link that opens Pinto Notes from the gallery, and a community template's
 /// "by @handle", a link to its author on GitHub. No link sits inside another.
 export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2" | "h3" }) {
@@ -20,12 +22,14 @@ export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2
         <span className={s.cardLine}>{t.tagline}</span>
       </span>
       <span className={s.slice}>
-        <span className={s.sliceNote} aria-hidden="true">{slice(t).map((r, i) => <Row key={i} r={r} />)}</span>
+        {t.app
+          ? <AppSwap slug={t.slug} title={t.title}><span className={s.sliceNote} aria-hidden="true">{slice(t).map((r, i) => <Row key={i} r={r} />)}</span></AppSwap>
+          : <span className={s.sliceNote} aria-hidden="true">{slice(t).map((r, i) => <Row key={i} r={r} />)}</span>}
         <span className={s.cardFoot}>
           {t.author && <a className={s.by} href={authorLink(t.author)}>by @{t.author}</a>}
           {APP_TEMPLATES.live
-            ? <OpenInApp className={s.use} href={usePath(t.slug)} app={appLink(t.slug)} label={`Use template: ${t.title}`}>Use template<ArrowGlyph /></OpenInApp>
-            : <span className={s.use} aria-hidden="true">Use template<ArrowGlyph /></span>}
+            ? <OpenInApp className={s.use} href={usePath(t.slug)} app={appLink(t.slug)} label={`${useLabel(t, "desktop")}: ${t.title}`} labelIos={`${useLabel(t, "ios")}: ${t.title}`}><UseLabel t={t} /><ArrowGlyph /></OpenInApp>
+            : <span className={s.use} aria-hidden="true"><UseLabel t={t} /><ArrowGlyph /></span>}
         </span>
       </span>
     </article>

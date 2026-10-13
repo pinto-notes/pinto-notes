@@ -339,8 +339,7 @@ struct ImageViewer: View {
                 Button { saveRotatedCopy() } label: { Label("Save a Copy", systemImage: "square.and.arrow.down.on.square") }
                     #if os(macOS)
                     .labelStyle(.titleOnly)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(.secondary)
                     #endif
                     .help("Save the turned picture as a copy next to this one")
                     .accessibilityIdentifier("image.saveCopy")
@@ -350,7 +349,7 @@ struct ImageViewer: View {
                 .accessibilityIdentifier("image.copy")
         }
         .labelStyle(.iconOnly)
-        .buttonStyle(.borderless)
+        .iconBarButtons()
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(.bar)

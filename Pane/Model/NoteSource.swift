@@ -78,12 +78,15 @@ struct NoteTemplate: Decodable, Equatable, Sendable {
     var instructions: [Instruction]
     var example: String?
     var url: URL?
-    /// A note app: where its project is, a picture of it, and the first thing to ask your AI.
+    /// A note app (docs/Technical/templates.md): where its project and its starting data are,
+    /// pictures of it in light and dark, and the first thing to ask your AI.
     var app: String?
+    var data: String?
     var preview: String?
+    var previewDark: String?
     var ask: String?
 
-    private enum Keys: String, CodingKey { case version, slug, title, category, audience, description, folder, note, instructions, example, url, app, preview, ask }
+    private enum Keys: String, CodingKey { case version, slug, title, category, audience, description, folder, note, instructions, example, url, app, data, preview, previewDark, ask }
 
     /// One instruction that doesn't read is left out, not the whole template.
     private struct Lossy: Decodable {
@@ -106,7 +109,9 @@ struct NoteTemplate: Decodable, Equatable, Sendable {
         example = try? c.decodeIfPresent(String.self, forKey: .example)
         url = try? c.decodeIfPresent(URL.self, forKey: .url)
         app = try? c.decodeIfPresent(String.self, forKey: .app)
+        data = try? c.decodeIfPresent(String.self, forKey: .data)
         preview = try? c.decodeIfPresent(String.self, forKey: .preview)
+        previewDark = try? c.decodeIfPresent(String.self, forKey: .previewDark)
         ask = try? c.decodeIfPresent(String.self, forKey: .ask)
     }
 }
@@ -122,9 +127,12 @@ struct NoteDraft: Equatable, Sendable {
     var instructions: [NoteTemplate.Instruction] = []
     /// Photos and files in a shared page: they belong to its owner and don't come along.
     var leftOut = 0
-    /// A note app (from an app template): its project, a picture of it, and a first ask.
+    /// A note app (from an app template): its project, its starting data (as the app keeps it),
+    /// pictures of it in light and dark, and a first ask.
     var appProject: String?
+    var appData: Data?
     var preview: Data?
+    var previewDark: Data?
     var ask: String?
 
     init(template t: NoteTemplate, link: NoteSourceLink) {
@@ -263,17 +271,29 @@ struct WebNoteSource: NoteSourceFetching {
         guard (200..<300).contains(status), let t = try? JSONDecoder().decode(NoteTemplate.self, from: data),
               !t.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw NoteSourceError.unavailable }
         var draft = NoteDraft(template: t, link: link)
-        // An app template brings the app (a project, checked like any other) and its picture.
-        if apps, let path = t.app, path.hasPrefix("/"), let url = URL(string: path, relativeTo: site) {
+        // An app template brings the app (a project, checked like any other), its starting data
+        // and its pictures. Only paths on the site are followed.
+        if apps, let url = onSite(t.app) {
             let (project, r) = try await session.data(for: URLRequest(url: url, timeoutInterval: timeout))
             guard (r as? HTTPURLResponse)?.statusCode == 200, let text = String(data: project, encoding: .utf8),
                   NotePageProject.parse(text) != nil else { throw NoteSourceError.unavailable }
             draft.appProject = text
-            if let p = t.preview, p.hasPrefix("/"), let u = URL(string: p, relativeTo: site) {
-                draft.preview = try? await session.data(for: URLRequest(url: u, timeoutInterval: timeout)).0
+            if let u = onSite(t.data) {
+                let (data, r) = try await session.data(for: URLRequest(url: u, timeoutInterval: timeout))
+                guard (r as? HTTPURLResponse)?.statusCode == 200, data.count <= NotePageData.maxBytes,
+                      (try? JSONSerialization.jsonObject(with: data)) is [String: Any] else { throw NoteSourceError.unavailable }
+                draft.appData = data
             }
+            if let u = onSite(t.preview) { draft.preview = try? await session.data(for: URLRequest(url: u, timeoutInterval: timeout)).0 }
+            if let u = onSite(t.previewDark) { draft.previewDark = try? await session.data(for: URLRequest(url: u, timeoutInterval: timeout)).0 }
         }
         return draft
+    }
+
+    /// A path the template names, on the site it came from ("/templates/apps/x.json"), or nil.
+    private func onSite(_ path: String?) -> URL? {
+        guard let path, path.hasPrefix("/"), !path.hasPrefix("//") else { return nil }
+        return URL(string: path, relativeTo: site)
     }
 
     private struct Shared: Decodable { let title: String?; let body: String }
@@ -432,8 +452,10 @@ final class NoteSourceModel {
         duplicate = nil
         let note = context.addNote(from: d, to: folder ?? context.suggestedFolder(for: d))
         ledger.record(link, note: note.id)
-        // An app template: the note is the app from the start. Then the first-open moment.
+        // An app template: the note is the app from the start, with the template's data (both
+        // sealed and synced like any app). Then the first-open moment.
         if let project = d.appProject {
+            if let data = d.appData { NotePageDataStore.shared.set(note.id, NotePageData.decode(data)) }
             NotePageStore.shared.setHere(note.id, .init(html: project, by: FirstOpen.templateWriter, at: .now))
         }
         FirstOpen.shared.added(note: note.id, draft: d)

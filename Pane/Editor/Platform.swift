@@ -80,9 +80,18 @@ enum EditorMetrics {
     static var title: CGFloat { UIFontMetrics(forTextStyle: .title1).scaledValue(for: 28) }
     static var lineSpacing: CGFloat { UIFontMetrics(forTextStyle: .body).scaledValue(for: 5) }
     #else
-    // Apple Notes on the Mac: 13 pt body, ~20 pt title, tight lines.
+    // Apple Notes on the Mac: 13 pt body, ~20 pt title, tight lines. The candidates (DesignLook)
+    // give the title the display size the website gives a headline's one line.
     static let body: CGFloat = 13
-    static let title: CGFloat = 20
+    static var title: CGFloat {
+        switch DesignLook.current {
+        case .control: 20
+        case .warm: 24
+        case .paper: 26
+        case .calm: 24
+        case .reading: 28
+        }
+    }
     static let lineSpacing: CGFloat = 1.5
     #endif
     static var gutter: CGFloat { body * 1.6 }
@@ -94,7 +103,13 @@ enum EditorMetrics {
     /// Distance from one item's baseline to the next.
     static var checkPitch: CGFloat { body * 1.76 }
     /// The empty circle's hairline: about 1.1 pt on iPhone, never under 1 pt.
-    static var checkStroke: CGFloat { max(1, body * 0.065) }
+    static var checkStroke: CGFloat {
+        #if os(macOS)
+        // D (reading page): a lighter ring, so a list of open items doesn't read as a form.
+        if DesignLook.readingPage { return 0.75 }
+        #endif
+        return max(1, body * 0.065)
+    }
     /// How far from the circle's centre a click still ticks it (a 24 pt target at least).
     static var checkHitRadius: CGFloat { max(checkSize / 2 + 3, 12) }
     static var nestStep: CGFloat { body * 1.4 }

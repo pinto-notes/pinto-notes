@@ -111,7 +111,7 @@ struct OnboardingFlow: View {
 
     @ViewBuilder private var screen: some View {
         #if os(macOS)
-        CardLayout {
+        CardLayout(picture: OnboardingArt.name(OnboardingArt.moment(step))) {
             page
                 .padding(.horizontal, 52)
                 .padding(.top, 26)
@@ -197,12 +197,10 @@ struct OnboardingFlow: View {
         if Onboarding.previous(before: step, first: store.first) != nil {
             Button(action: goBack) {
                 Label("Back", systemImage: "chevron.left")
-                    .frame(minHeight: 24)
-                    .contentShape(.rect)
             }
-            .buttonStyle(.hoverText)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
+            .buttonStyle(.quiet)
+            // The word lines up with the heading under it; the hover fill reaches past it.
+            .padding(.leading, -QuietButtonStyle.inset)
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("onboarding.back")
         }
@@ -462,17 +460,13 @@ struct OnboardingFlow: View {
         }
         if first {
             Button { ask(ai) } label: { label }
-                .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+                .buttonStyle(.amberProminent(.form, wide: true))
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("onboarding.ask.\(ai)")
         } else {
-            Button { ask(ai) } label: {
-                Text(TryIt.askTitle(ai)).frame(maxWidth: .infinity, minHeight: Metrics.quietHeight).contentShape(.rect)
-            }
-            .buttonStyle(.hoverLink)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
-            .accessibilityIdentifier("onboarding.ask.\(ai)")
+            Button { ask(ai) } label: { Text(TryIt.askTitle(ai)) }
+                .buttonStyle(.secondary(.form, wide: true))
+                .accessibilityIdentifier("onboarding.ask.\(ai)")
         }
     }
 
@@ -488,7 +482,7 @@ struct OnboardingFlow: View {
                 .accessibilityIdentifier("onboarding.prompt")
             Spacer(minLength: 4)
             Button(shownCopied ? "Copied" : "Copy", action: copy)
-                .buttonStyle(.amberProminent)
+                .buttonStyle(.secondary)
                 .fixedSize()
                 .accessibilityIdentifier("onboarding.copy")
         }
@@ -554,9 +548,8 @@ struct OnboardingFlow: View {
                     sourceRow(kind)
                 }
             }
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
             .clipShape(shape)
+            .choiceCard(shape)
         }
     }
 
@@ -661,21 +654,16 @@ struct OnboardingFlow: View {
 
     private func primary(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier(id)
     }
 
     private func quiet(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .frame(maxWidth: .infinity, minHeight: Metrics.quietHeight)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.hoverLink)
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.tint)
-        .accessibilityIdentifier(id)
+        Button(title, action: action)
+            .buttonStyle(.quiet)
+            .frame(maxWidth: .infinity, minHeight: Metrics.quietHeight)
+            .accessibilityIdentifier(id)
     }
 
     // MARK: What the buttons do
@@ -984,7 +972,7 @@ struct AppleNotesOnMacSheet: View {
             ShareLink(item: OnboardingFlow.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
                 Text(Self.send)
             }
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .padding(.top, 8)
             .accessibilityIdentifier("onboarding.appleNotes.send")
             Button(Self.oneByOne) { sharingHowTo = true }

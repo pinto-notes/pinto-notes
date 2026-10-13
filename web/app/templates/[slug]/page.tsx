@@ -12,7 +12,9 @@ import CopyButton from "../CopyButton";
 import Instructions from "../Instructions";
 import PromptCopy from "../PromptCopy";
 import NoteWindow from "../NoteWindow";
+import AppWindow from "../AppWindow";
 import s from "../templates.module.css";
+import UseLabel from "../UseLabel";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -32,13 +34,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /// The steps, for the page and its HowTo data. Until the app opens template links, the AI makes the note.
 const steps = (t: Template) => APP_TEMPLATES.live
   ? [
-      { name: "Add the template to Pinto Notes", text: `Choose Use template. Pinto Notes opens and adds the "${noteTitle(t)}" note to the folder you pick.` },
+      { name: "Add the template to Pinto Notes", text: `Choose Use template. Pinto Notes opens and adds the "${noteTitle(t)}" note${t.app ? " with its app" : ""} to the folder you pick.` },
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can fill in the note." },
       { name: "Give your AI the prompt", text: "Copy the prompt for your AI and paste it into a chat. Then tell it what happened, in your own words." },
     ]
   : [
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can write the note." },
-      { name: "Paste the prompt", text: `Copy the prompt for your AI and paste it into a chat. It creates the "${noteTitle(t)}" note in your ${t.folder} folder, if you don't have it yet.` },
+      { name: "Paste the prompt", text: `Copy the prompt for your AI and paste it into a chat. It creates the "${noteTitle(t)}" note${t.app ? " with its app" : ""} in your ${t.folder} folder, if you don't have it yet.` },
       { name: "Talk to your AI", text: "Tell it what happened, in your own words. It fills in the note, and you see every change in Pinto Notes." },
     ];
 
@@ -82,34 +84,38 @@ export default async function Page({ params }: Props) {
               {t.author && <> A community template by <a className={s.forBy} href={authorLink(t.author)}>@{t.author}</a>.</>}
             </p>
             <div className={`${s.ctas} rise`} style={at(2)}>
-              {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> Use template</OpenInApp>}
+              {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> <UseLabel t={t} /></OpenInApp>}
               {APP_TEMPLATES.live ? (
                 <>
                   <PromptCopy variants={vs} className={s.secondary} />
-                  <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />
+                  {!t.app && <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />}
                 </>
               ) : (
                 <PromptCopy variants={vs} className={s.primary}>
-                  <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />
+                  {!t.app && <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />}
                 </PromptCopy>
               )}
             </div>
             <p className={`${s.fine} rise`} style={at(3)}>
-              Free. {APP_TEMPLATES.live && <>Use template opens Pinto Notes and adds the note. </>}No Pinto Notes yet? <a href="/download">Download it for Mac</a>.
+              Free. {APP_TEMPLATES.live && <><UseLabel t={t} /> opens Pinto Notes and adds the note{t.app && " and its app"}. </>}No Pinto Notes yet? <a href="/download">Download it for Mac</a>.
             </p>
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
             {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
             <div className={s.heroStage} style={{ "--ground": COVERS[t.slug].ground } as React.CSSProperties}>
               <img className={s.heroCover} src={coverPath(t.slug)} alt="" width={800} height={800} />
-              <p className={s.changes} aria-hidden="true">{by} changed <span>{changed} {changed === 1 ? "line" : "lines"}</span><i>Undo</i></p>
+              {!t.app && <p className={s.changes} aria-hidden="true">{by} changed <span>{changed} {changed === 1 ? "line" : "lines"}</span><i>Undo</i></p>}
               <div className={s.heroWindow}>
-                <NoteWindow markdown={t.example} before={t.note} folder={t.folder} date="30 September 2026" label={`The ${t.title.toLowerCase()} template filled in by an AI`} />
+                {t.app
+                  ? <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} template's app in Pinto Notes`} />
+                  : <NoteWindow markdown={t.example} before={t.note} folder={t.folder} date="30 September 2026" label={`The ${t.title.toLowerCase()} template filled in by an AI`} />}
               </div>
             </div>
             <p className={s.caption}>
-              The note after a few days of talking to your AI. Tinted lines are what it added, the way Pinto Notes shows an AI&apos;s changes, with
-              Undo and the earlier version kept in the note&apos;s history.
+              {t.app
+                ? <>The note is an app. It keeps its data with the note, and your AI reads and changes that data, or the app itself, when you ask.</>
+                : <>The note after a few days of talking to your AI. Tinted lines are what it added, the way Pinto Notes shows an AI&apos;s changes, with
+                  Undo and the earlier version kept in the note&apos;s history.</>}
             </p>
           </div>
         </div>
@@ -117,6 +123,20 @@ export default async function Page({ params }: Props) {
 
       <Instructions title={noteTitle(t)} folder={t.folder} intro={intro(t)} variants={vs} asks={t.asks} />
 
+      {t.app ? (
+        <section className={s.section} aria-labelledby="result">
+          <div className={s.sectionHead}>
+            <h2 id="result" className={s.h2}>The app you start with</h2>
+            <p className={s.sectionLede}>
+              <UseLabel t={t} /> adds the note with this app and its sample data, on your Mac and iPhone. It follows your device in light and dark.
+            </p>
+          </div>
+          <div className={`${s.result} ${s.appPair}`}>
+            <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} app in light mode`} />
+            <AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} />
+          </div>
+        </section>
+      ) : (
       <section className={s.section} aria-labelledby="result">
         <div className={s.sectionHead}>
           <h2 id="result" className={s.h2}>The note you start with</h2>
@@ -129,6 +149,7 @@ export default async function Page({ params }: Props) {
           <NoteWindow markdown={t.note} folder={t.folder} date="Today" label={`The ${t.title.toLowerCase()} template as a note in Pinto Notes`} />
         </div>
       </section>
+      )}
 
       <section className={s.section} aria-labelledby="how">
         <div className={s.sectionHead}>

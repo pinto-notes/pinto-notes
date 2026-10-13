@@ -39,6 +39,7 @@ The website's and the app's colours come from the same family. Names differ by p
 
 - **System font only** (SF Pro). The voice comes from weight and tracking, not from a different family.
 - **Display:** weight 800, tracking −0.03 em (`Palette.tracking(_:)`), line height about 1.0. Use it for one line per screen at most: a page title, the onboarding step's heading, a note's title in the editor, an email headline.
+- **One display headline per page.** Section titles are a clear step smaller, and nothing at the fold may look like a second hero.
 - **Body:** regular 400, the platform's default size (13 pt Mac UI, 17 pt iPhone and web body). Secondary text uses `muted`, never a smaller size to say the same thing.
 - **Labels and buttons:** semibold 600 or bold 700. Never 500 next to 600.
 - Tabular figures wherever numbers line up: counts, dates, times.
@@ -96,6 +97,7 @@ In code: `AmberProminentButtonStyle` (primary), a secondary style and a quiet st
 - Standard easing is ease-out, 120 ms for press, 150–220 ms for state changes, and up to 500 ms for an entrance (the single blur-in: 9 px to 0, small rise, fade).
 - Things that leave go faster than things that arrive.
 - Filters and lists never go blank: cards settle into place.
+- **Website only:** story sections show one thing and play the story over time, one change at a time, instead of showing every state at once.
 - Respect Reduce Motion everywhere: cut to the end state.
 
 ## States
@@ -114,6 +116,8 @@ Every interactive thing gets each of these designed, not left to defaults:
 ## Copy
 
 Sentence case, short sentences, no hype. Buttons say what happens ("Import my notes"), not "OK" or "Continue" when something more exact fits.
+
+Every line earns its place: if a first-time reader doesn't need it at that moment, cut it.
 
 ## How design decisions get made
 

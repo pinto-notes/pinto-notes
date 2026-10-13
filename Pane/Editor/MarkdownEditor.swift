@@ -1219,6 +1219,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     weak var controller: EditorController?
     private let headerLabel = NSTextField(labelWithString: "")
     private let readableWidth: CGFloat = 720
+    /// D's reading column.
+    static let readingColumn: CGFloat = 680
 
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
 
@@ -1280,10 +1282,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
-        // Like Notes on the Mac: a slim margin and text that uses the full width.
-        let inset = NSSize(width: 20, height: headerLabel.stringValue.isEmpty ? 14 : 44)
-        if textContainerInset != inset { textContainerInset = inset }
-        headerLabel.frame = NSRect(x: 0, y: 14, width: newSize.width, height: 16)
+        // Like Notes on the Mac: a slim margin and text that uses the full width. D (the reading
+        // page) sets the text in a centred column about 680 pt wide, with the date small above it.
+        if DesignLook.readingPage {
+            let side = max(32, (newSize.width - Self.readingColumn) / 2)
+            let inset = NSSize(width: side, height: headerLabel.stringValue.isEmpty ? 40 : 64)
+            if textContainerInset != inset { textContainerInset = inset }
+            headerLabel.alignment = .left
+            headerLabel.frame = NSRect(x: side, y: 36, width: min(Self.readingColumn, newSize.width - side * 2), height: 16)
+        } else {
+            let inset = NSSize(width: 20, height: headerLabel.stringValue.isEmpty ? 14 : 44)
+            if textContainerInset != inset { textContainerInset = inset }
+            headerLabel.alignment = .center
+            headerLabel.frame = NSRect(x: 0, y: 14, width: newSize.width, height: 16)
+        }
         // Straight to their new places: while the width changes (the sidebar sliding, the window
         // being resized) the cards follow the text instead of gliding after it.
         DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false) }

@@ -729,19 +729,7 @@ struct ImportDoneLine: View {
     let text: String
 
     var body: some View {
-        Label(text, systemImage: "checkmark.circle.fill")
-            .symbolRenderingMode(.hierarchical)
-            .font(.callout.weight(.medium))
-            .foregroundStyle(Color.ink)
-            .lineLimit(1)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            // Solid, so note text behind never shows through.
-            .background(Color.notePage, in: .capsule)
-            .overlay(Capsule().strokeBorder(Color.line, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.updatesFrequently)
+        Toast(text: text)
             .accessibilityIdentifier("import.doneLine")
     }
 }

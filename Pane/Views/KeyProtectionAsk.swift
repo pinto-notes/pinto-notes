@@ -52,10 +52,9 @@ struct KeyProtectionAsk: View {
                 // server down) is there a way past it, so nobody is kept from their notes by a sheet.
                 if problem != nil {
                     Button { crypto.askProtectionLater() } label: {
-                        Text(Words.askNotNow).frame(maxWidth: .infinity).frame(minHeight: 28)
+                        Text(Words.askNotNow)
                     }
-                    .buttonStyle(.hoverText)
-                    .foregroundStyle(Color.muted)
+                    .buttonStyle(.quiet)
                     .disabled(working)
                     .accessibilityIdentifier("keyAsk.later")
                 }
@@ -116,22 +115,15 @@ struct KeyProtectionAsk: View {
         }
     }
 
-    /// `prominent`: the amber primary button, whose style colours the label itself.
+    /// `prominent`: the primary button; the other answer is a secondary one.
     private func button(_ title: String, id: String, prominent: Bool = false, action: @escaping () async throws -> Void) -> some View {
-        let label = Text(title)
-            .foregroundStyle(prominent ? AnyShapeStyle(Color(AmberProminentButtonStyle.label)) : AnyShapeStyle(.tint))
-            .frame(maxWidth: .infinity)
-        return Group {
+        Group {
             if prominent {
-                Button { run(action) } label: { label }.buttonStyle(.amberProminent)
+                Button(title) { run(action) }.buttonStyle(.amberProminent(.form, wide: true))
             } else {
-                Button { run(action) } label: { label }.buttonStyle(.bordered)
+                Button(title) { run(action) }.buttonStyle(.secondary(.form, wide: true))
             }
         }
-        .controlSize(.large)
-        #if os(iOS)
-        .buttonBorderShape(.capsule)
-        #endif
         .disabled(working)
         .accessibilityIdentifier(id)
     }

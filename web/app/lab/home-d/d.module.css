@@ -6,14 +6,20 @@
 @media (max-width: 700px) { .main { gap: 88px; } }
 
 /* ── Hero: the words on the left, the desk on the right; on phones the desk under the words ── */
-.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: center; padding-top: 56px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: center; padding-top: 28px; }
 @media (max-width: 960px) { .hero { grid-template-columns: 1fr; gap: 36px; padding-top: 28px; } }
 .heroText { display: grid; gap: 22px; justify-items: start; }
 .h1 { max-width: 13ch; }
 
 /* The desk: the picture's own top, two pencils pointing down at the note laid on its plain lower half.
    Its table and floor are warm cream (scripts/recolor-desk.py), so the headline leads and the note is the subject. */
-.desk { position: relative; aspect-ratio: 1 / 0.94; border-radius: 28px; overflow: hidden; background: #f7e2c7; isolation: isolate; }
+.desk { position: relative; aspect-ratio: 1 / 0.88; border-radius: 28px; overflow: hidden; background: #f7e2c7; isolation: isolate; }
+/* Laptop screens (wide but short): a shorter desk, so the fold shows the next section's note coming, not a bare title. */
+@media (min-width: 961px) and (max-height: 860px) {
+  .hero { padding-top: 4px; }
+  .desk { aspect-ratio: 1 / 0.74; }
+  .note { top: 29%; }
+}
 .deskArt { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 
 /* The note, as the app draws it, on its own white paper, a little turned like a sheet put down. */
@@ -50,56 +56,12 @@
 @keyframes tick { from { transform: scale(0.4); opacity: 0; } }
 @keyframes chip { from { opacity: 0; filter: blur(6px); transform: translateY(6px); } }
 
-/* ── One notebook: the note with its authors in the margin ── */
-.team { width: 100%; max-width: 920px; justify-self: center; }
-
-/* ── Plans: the week rail from study B; on phones Friday's note under a small rail ── */
-.week { position: relative; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start; }
-.week::before { content: ""; position: absolute; left: 0; right: 0; top: 13px; height: 2px; border-radius: 1px; background: var(--soft); }
-.day { position: relative; display: grid; gap: 14px; }
-.dayHead { position: relative; margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; font-size: 15px; }
-.dayHead b { display: inline-flex; align-items: center; gap: 10px; padding-right: 10px; background: var(--bg); font-weight: 750; }
-.dayHead b::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 2.5px var(--amber); }
-.day[data-last] .dayHead b::before { background: var(--amber); }
-.dayWho { display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 4px; border-radius: 99px; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--muted); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
-.dayPaper { padding: 18px 20px 20px; border-radius: 18px; }
-.day[data-last] .dayPaper { box-shadow: 0 0 0 2px var(--amber), 0 34px 70px -34px rgba(var(--shade), 0.55); }
-.dayTitle { margin: 0 0 8px; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--n-text); }
-.dayPaper [data-k] { margin-left: -20px !important; padding-left: 20px !important; margin-right: -20px; padding-right: 20px; }
-.rail { display: none; }
-@media (max-width: 700px) {
-  .week { grid-template-columns: 1fr; }
-  .week::before, .day:not([data-last]), .day .dayHead { display: none; }
-  .dayPaper { padding: 14px 16px 16px; }
-  .dayPaper [data-k] { margin-left: -16px !important; padding-left: 16px !important; margin-right: -16px; padding-right: 16px; }
-  /* The rail: three stops on a line, the earlier days small, Friday filled. */
-  .rail { position: relative; list-style: none; margin: 0 0 -20px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .rail::before { content: ""; position: absolute; left: 6px; right: 6px; top: 6px; height: 2px; border-radius: 1px; background: var(--soft); }
-  .rail li { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 6px; padding-top: 20px; font-size: 13px; color: var(--muted); }
-  .rail li::before { content: ""; position: absolute; left: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 2.5px var(--amber); }
-  .rail li[data-now]::before { background: var(--amber); }
-  .rail b { grid-column: 1 / -1; color: var(--ink); font-size: 14px; font-weight: 750; }
-  .rail li[data-now] { color: var(--ink); }
-  .rail span { line-height: 1.25; font-weight: 600; }
-}
-
-/* ── Feels like Apple Notes: two phones, then the import ── */
-.feel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
-@media (max-width: 960px) { .feel { grid-template-columns: 1fr; gap: 40px; } }
-.phones { position: relative; margin: 0; display: flex; justify-content: center; gap: 24px; padding-bottom: 44px; }
-.phones > figure { --pw: 260px !important; }
-.chatScreen { min-height: 0; display: grid; }
-.chatScreen > figure { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
-.chatScreen > figure > div:nth-child(2) { justify-content: flex-start; padding-top: 36px; gap: 22px; }
-.notePhone { margin-top: 48px; }
-.soon { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); padding: 7px 14px; border-radius: 99px; background: var(--soft); color: var(--ink); font-size: 14px; font-weight: 650; white-space: nowrap; }
-@media (max-width: 640px) { .chatPhone { display: none; } .notePhone { margin-top: 0; } }
-
+/* ── The import card ── */
 .import { display: grid; gap: 18px; padding: 24px 26px 26px; border-radius: 28px; background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 30px 60px -40px rgba(60, 30, 5, 0.5); }
 .importTop { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; }
 .importTop img { margin: -4px 0 -4px -4px; }
 .importName { display: grid; gap: 3px; min-width: 0; }
-.importName b { font-size: 16px; font-weight: 700; }
+.importName b { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .importTicks { display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: 14px; font-weight: 600; }
 .importTicks > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .importTicks svg { width: 14px; height: 14px; color: var(--amber); }
@@ -115,23 +77,184 @@
   .folders li { gap: 6px; padding: 0 10px; }
 }
 
-/* ── Wait, it can do that: three templates, as their own cards ── */
-.picks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px 32px; }
-@media (max-width: 1000px) { .picks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 620px) { .picks { grid-template-columns: 1fr; gap: 36px; } }
-.picks > li { display: grid; }
 
-/* ── The facts: four, in a row, under a hairline ── */
-.facts { list-style: none; margin: 0; padding: 28px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; box-shadow: inset 0 1px 0 var(--line); }
-@media (max-width: 860px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.facts li { display: grid; gap: 6px; align-content: start; }
-.facts b { font-size: 19px; font-weight: 750; letter-spacing: -0.01em; }
-.facts span { color: var(--muted); font-size: 16px; line-height: 1.45; text-wrap: pretty; }
-@media (max-width: 420px) { .facts { gap: 20px 16px; } .facts b { font-size: 17px; } .facts span { font-size: 15px; } }
+/* ── Type: one display headline (the hero's). Section titles a clear step down (about 58% of it);
+   the dark band's statement is the one big line below the fold. ── */
+.title { margin: 0; font-size: clamp(28px, 3.3vw, 46px); line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; text-wrap: balance; }
+.lede { margin: 0; max-width: 34em; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.inline { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 3px; white-space: nowrap; }
+.inline:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 3px; }
+.centerHead { display: grid; gap: 14px; justify-items: center; text-align: center; }
+.columnHead { display: grid; gap: 14px; }
 
-/* ── The ending: on cream, centred, the one button ── */
-.closing { display: grid; justify-items: center; text-align: center; gap: 20px; padding: 16px 0 24px; }
-.closingIcon { border-radius: 20px; box-shadow: 0 0 0 0.5px var(--line), 0 18px 40px -16px rgba(150, 70, 0, 0.5); }
-.closingTitle { max-width: 16ch; margin-top: 8px; font-size: clamp(40px, 6vw, 72px); line-height: 1; letter-spacing: -0.045em; }
-.closingLede { max-width: 32em; text-wrap: balance; }
-.closingCta { justify-items: center; margin-top: 8px; }
+/* ── 2. One notebook: one column, one left edge, closer under the hero so the fold shows the note coming ── */
+.notebook { width: 100%; max-width: 860px; justify-self: center; display: grid; gap: 24px; margin-top: -72px; }
+@media (max-width: 700px) { .notebook { margin-top: -24px; } }
+.story { display: grid; gap: 16px; }
+.window { margin: 0; border-radius: 16px; overflow: hidden; background: #fdfbf8; color: #1d1d1f;
+  box-shadow: 0 0 0 0.5px rgba(var(--shade), 0.25), 0 34px 70px -34px rgba(var(--shade), 0.55), 0 8px 18px -10px rgba(var(--shade), 0.25); }
+.windowBar { position: relative; display: flex; align-items: center; justify-content: center; height: 40px; background: #f4f1ed; box-shadow: inset 0 -0.5px 0 #e6e2dc; font-size: 13px; font-weight: 600; color: #86868b; }
+.lights { position: absolute; left: 16px; top: 50%; margin-top: -6px; display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.windowPaper { position: relative; padding: 22px 36px 26px 72px; }
+.windowTitle { margin: 0 0 10px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+@media (max-width: 600px) { .windowPaper { padding: 16px 18px 20px 48px; } .windowTitle { font-size: 21px; } }
+
+/* A note's lines, as the app draws them. A line not written yet keeps its place, unseen. */
+.lines { --n-tint: #fdeedd; --n-bar: #f2c48f; --n-tick: #e8820e; display: grid; font-size: 17px; line-height: 1.4; }
+.row { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 4px 12px; margin: 0 -12px; border-radius: 6px; opacity: 0; filter: blur(6px); transform: translateY(6px); }
+.row[data-in] { opacity: 1; filter: none; transform: none; }
+.row[data-k="h"] { font-weight: 700; font-size: 1.1em; padding-top: 12px; }
+.row[data-k="done"] .rowText { color: #86868b; }
+.row[data-tint] { background: var(--n-tint); }
+.mark { position: absolute; left: -44px; top: 5px; opacity: 0.4; }
+.row[data-k="h"] .mark { top: 13px; }
+.mark[data-now] { opacity: 1; }
+@media (max-width: 600px) { .mark { left: -36px; } .lines { font-size: 15.5px; } }
+.circle { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; margin-top: 0.1em; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #c7c7cc; color: #fff; }
+.circle svg { width: 0.75em; height: 0.75em; }
+.circle[data-done] { background: var(--n-tick, #e8820e); box-shadow: none; }
+.rowText { min-width: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .row { transition: opacity 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.5s ease-out; }
+  .mark { transition: opacity 0.3s ease-out; }
+  .circle { transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out; }
+}
+
+/* Who made the change being told: the app's receipt, under the note. It changes with one blur-in. */
+.creditRow { display: flex; justify-content: center; min-height: 36px; margin-top: 18px; }
+.credit { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 5px; border-radius: 17px; background: #fdf0dc; color: #8a4a1c; font-size: 14px; font-weight: 650; white-space: nowrap;
+  box-shadow: 0 0 0 1px #f0d2a8, 0 8px 18px -10px rgba(80, 25, 5, 0.4); }
+.credit i { width: 1px; height: 16px; background: #f0d2a8; }
+.credit b { color: #c46a00; }
+@media (prefers-reduced-motion: no-preference) { .credit { animation: chip 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; } }
+
+/* The steps under the note: who did what, in order; pick one to see it. */
+.steps { display: flex; flex-wrap: wrap; gap: 6px; }
+.stepButton { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px 0 6px; border: 0; border-radius: 18px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.stepButton[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
+.stepButton:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (hover: hover) { .stepButton:not([aria-pressed="true"]):hover { color: var(--ink); background: color-mix(in srgb, var(--soft) 60%, transparent); } }
+@media (prefers-reduced-motion: no-preference) { .stepButton { transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.12s ease-out; } .stepButton:active { transform: scale(0.97); } }
+
+/* ── 3 and 6. The leaf brown bands: full width inside the cream page ── */
+.band { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 120px var(--gutter) 128px; background: #2e180a; color: #fbeedd;
+  --ink: #fbeedd; --muted: #d9bf9f; --soft: #40240f; --line: rgba(255, 220, 170, 0.14); --cta-bg: #fbeedd; --cta-ink: #2e180a; --amber: #f5a53a; }
+@media (max-width: 700px) { .band { padding: 80px var(--gutter) 88px; } }
+.bandInner { max-width: 1200px; margin: 0 auto; display: grid; justify-items: center; text-align: center; gap: 22px; }
+.statement { margin: 0; max-width: 12ch; font-size: clamp(56px, 9vw, 132px); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; text-wrap: balance; }
+.bandLede { margin: 0; max-width: 30em; color: #d9bf9f; font-size: clamp(17px, 1.7vw, 21px); line-height: 1.45; text-wrap: balance; }
+
+/* The week: one plan, a rail of days above it with a dot that walks. */
+.weekStory { width: 100%; max-width: 560px; display: grid; gap: 22px; margin-top: 34px; }
+.rail { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); }
+.rail::before { content: ""; position: absolute; left: 16.6%; right: 16.6%; top: 50%; height: 2px; margin-top: -1px; background: rgba(251, 238, 221, 0.18); border-radius: 1px; }
+.railStop { position: relative; z-index: 1; justify-self: center; min-width: 64px; min-height: 40px; padding: 0 14px; border: 0; border-radius: 20px; background: #2e180a; color: #b89c7c; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.railStop[aria-pressed="true"] { color: #fbeedd; }
+.railStop:focus-visible { outline: 2px solid #f5a53a; outline-offset: 2px; }
+@media (hover: hover) { .railStop:not([aria-pressed="true"]):hover { color: #fbeedd; } }
+.railDot { position: absolute; z-index: 2; top: 50%; left: calc(16.6% + var(--at) * 33.4%); width: 10px; height: 10px; margin: 13px 0 0 -5px; border-radius: 50%; background: #f5a53a; box-shadow: 0 0 0 4px rgba(245, 165, 58, 0.18); }
+@media (prefers-reduced-motion: no-preference) {
+  .railDot { transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+  .railStop { transition: color 0.15s ease-out; }
+}
+
+.plan { --row: 34px; margin: 0; padding: 22px 26px 24px; border-radius: 20px; background: #fdfbf8; color: #1d1d1f; text-align: left;
+  box-shadow: 0 0 0 1px rgba(255, 220, 170, 0.08), 0 0 90px -10px rgba(245, 165, 58, 0.28), 0 40px 80px -40px rgba(0, 0, 0, 0.8); }
+.planHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+.planTitle { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+.planLede { margin: 6px 0 12px; color: #86868b; font-size: 15.5px; }
+.runs { position: relative; height: calc(4 * var(--row)); --n-tint: #fdeedd; }
+.run { position: absolute; left: -12px; right: -12px; top: calc(var(--slot) * var(--row)); height: var(--row); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 6px; font-size: 16.5px; white-space: nowrap; }
+.run[data-tint] { background: var(--n-tint); }
+.run .rowText { overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: no-preference) { .run { transition: top 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s ease-out; } }
+@media (max-width: 600px) {
+  .plan { --row: 32px; padding: 18px 18px 20px; }
+  .planHead { flex-wrap: wrap; }
+  .planTitle { font-size: 20px; }
+  .run { font-size: 14.5px; }
+  .planHead .credit { height: 30px; font-size: 13px; }
+}
+
+/* ── 4. Feels like Apple Notes: the picture on the left with the import laid on it, words on the right ── */
+.feel { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+@media (max-width: 960px) { .feel { grid-template-columns: 1fr; gap: 40px; } }
+.feelArt { position: relative; display: grid; padding-bottom: 96px; }
+.feelArt img { width: 100%; height: auto; aspect-ratio: 1086 / 1100; object-fit: cover; object-position: center 70%; border-radius: 28px; }
+.feelArt > div { position: absolute; left: 4%; right: 4%; bottom: 0; }
+@media (max-width: 600px) { .feelArt { padding-bottom: 0; } .feelArt > div { position: relative; left: auto; right: auto; margin: -64px 10px 0; } }
+.feelText { display: grid; gap: 16px; justify-items: start; }
+.feelPhone { position: relative; margin: 20px 0 0; padding-bottom: 44px; }
+.soon { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); padding: 7px 14px; border-radius: 99px; background: var(--soft); color: var(--ink); font-size: 14px; font-weight: 650; white-space: nowrap; }
+@media (max-width: 960px) { .feelPhone { justify-self: center; } }
+
+/* ── 5. Wait, it can do that: three template cards fanned like the templates page's covers; hover lifts one ── */
+.wait { display: grid; gap: 56px; }
+.fan { list-style: none; margin: 0 auto; padding: 0; position: relative; display: grid; grid-template-columns: repeat(3, 320px); justify-content: center; }
+.fan > li { display: grid; transform-origin: 50% 90%; }
+.fan > li:nth-child(1) { transform: translate(40px, 24px) rotate(-7deg); z-index: 1; }
+.fan > li:nth-child(2) { transform: translateY(0); z-index: 2; }
+.fan > li:nth-child(3) { transform: translate(-40px, 24px) rotate(7deg); z-index: 1; }
+@media (hover: hover) {
+  .fan > li:hover { z-index: 3; }
+  .fan > li:nth-child(1):hover { transform: translate(40px, 8px) rotate(-5deg); }
+  .fan > li:nth-child(2):hover { transform: translateY(-16px); }
+  .fan > li:nth-child(3):hover { transform: translate(-40px, 8px) rotate(5deg); }
+}
+@media (prefers-reduced-motion: no-preference) { .fan > li { transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); } }
+@media (max-width: 1000px) { .fan { grid-template-columns: repeat(3, 260px); } }
+@media (max-width: 760px) {
+  /* Phones: the cards overlap down the page, each a little turned. */
+  .fan { grid-template-columns: minmax(0, 340px); }
+  .fan > li + li { margin-top: -120px; }
+  .fan > li:nth-child(1) { transform: rotate(-3deg); }
+  .fan > li:nth-child(2) { transform: rotate(2deg); }
+  .fan > li:nth-child(3) { transform: rotate(-1.5deg); }
+}
+
+/* ── 6. The ending on leaf brown: the icon, the line, the one button, then the facts ── */
+.closing { margin-bottom: -56px; }
+.closingIcon { border-radius: 24px; box-shadow: 0 22px 50px -16px rgba(0, 0, 0, 0.6); }
+.closingTitle { margin: 8px 0 0; max-width: 16ch; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.02; font-weight: 800; letter-spacing: -0.04em; text-wrap: balance; }
+.closingCta { justify-items: center; margin-top: 6px; }
+.closingCta p { text-align: center; justify-self: center; }
+
+.facts { list-style: none; margin: 56px 0 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fact { display: grid; justify-items: center; align-content: start; gap: 6px; padding: 22px 16px 24px; border-radius: 20px; background: #3a2010; text-align: center; }
+.fact b { margin-top: 6px; font-size: 17px; font-weight: 700; color: #fbeedd; }
+.factLine { color: #d9bf9f; font-size: 15px; line-height: 1.4; text-wrap: balance; }
+.factIcon { display: block; width: 88px; height: 88px; perspective: 400px; }
+.factFlip { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; }
+.factFlip img { width: 100%; height: 100%; backface-visibility: hidden; }
+.factBack { position: absolute; inset: 14% 20% 8%; display: grid; place-items: center; border-radius: 10px 10px 14px 14px; background: #f3e6cf; color: #2e180a; font-size: 44px; font-weight: 800; letter-spacing: -0.04em; transform: rotateY(180deg); backface-visibility: hidden; }
+/* Encrypted: the line turns to dots and back. */
+.word { position: relative; display: inline-block; }
+.word::after { content: attr(data-dots); position: absolute; inset: 0; overflow: hidden; white-space: nowrap; text-align: center; color: #d9bf9f; opacity: 0; }
+/* Undoable: one word struck, ⌘Z, and the word comes back. */
+.strike { position: relative; white-space: nowrap; background: linear-gradient(currentColor, currentColor) 0 55% / 0 1.5px no-repeat; }
+.strike i { position: absolute; left: 50%; top: 1.45em; transform: translateX(-50%); padding: 1px 6px; border-radius: 6px; background: #f5a53a; color: #2e180a; font-size: 12px; font-style: normal; font-weight: 700; opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .factFlip { transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  @media (hover: hover) {
+    .fact[data-fact="lock"]:hover .word { animation: scrambleText 0.4s ease-in-out; }
+    .fact[data-fact="lock"]:hover .word::after { animation: scrambleDots 0.4s ease-in-out; }
+    .fact[data-fact="box"]:hover .factFlip { transform: translateY(-7px) rotate(-6deg); }
+    .fact[data-fact="tag"]:hover .factFlip { transform: rotateY(180deg); }
+    .fact[data-fact="undo"]:hover .strike { animation: strikeWord 0.4s ease-in-out; }
+    .fact[data-fact="undo"]:hover .strike i { animation: undoKey 0.4s ease-in-out; }
+  }
+  .fact[data-play][data-fact="lock"] .word { animation: scrambleText 0.4s ease-in-out; }
+  .fact[data-play][data-fact="lock"] .word::after { animation: scrambleDots 0.4s ease-in-out; }
+  .fact[data-play][data-fact="box"] .factFlip { transform: translateY(-7px) rotate(-6deg); }
+  .fact[data-play][data-fact="tag"] .factFlip { transform: rotateY(180deg); }
+  .fact[data-play][data-fact="undo"] .strike { animation: strikeWord 0.4s ease-in-out; }
+  .fact[data-play][data-fact="undo"] .strike i { animation: undoKey 0.4s ease-in-out; }
+}
+@keyframes scrambleText { 30%, 70% { color: transparent; } }
+@keyframes scrambleDots { 30%, 70% { opacity: 1; } }
+@keyframes strikeWord { 0% { background-size: 0 1.5px; } 35%, 60% { background-size: 100% 1.5px; } 100% { background-size: 0 1.5px; } }
+@keyframes undoKey { 0%, 40% { opacity: 0; transform: translate(-50%, -4px); } 55%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }

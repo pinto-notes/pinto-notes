@@ -503,14 +503,10 @@ struct PhoneVersionPreview: View {
                 Button {
                     Task { if await model.restore() { close() } }
                 } label: {
-                    Group {
-                        if model.restoring { ProgressView() } else { Text("Restore This Version") }
-                    }
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 32)
+                    Text("Restore This Version")
                 }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
+                .buttonStyle(.amberProminent(.form, wide: true))
+                .amberBusy(model.restoring)
                 .disabled(model.previewText == nil || model.restoring)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)

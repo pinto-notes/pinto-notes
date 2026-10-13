@@ -410,7 +410,7 @@ struct CompactTip<T: Tip>: View {
                     .frame(width: 28, height: 28)
                     .contentShape(.rect)
             }
-            .buttonStyle(.hoverIcon(cornerRadius: 14))
+            .buttonStyle(.quietIcon)
             .accessibilityLabel("Close tip")
         }
         .padding(.leading, card ? 14 : 0)

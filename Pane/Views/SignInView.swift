@@ -54,15 +54,14 @@ struct SignInView: View {
     /// Sign in with Google sits directly under Sign in with Apple.
     static let offersGoogle = true
 
-    /// One size and shape for every row (Apple button, fields, the main button), so the card reads as one form.
+    /// One size and shape for every row (Apple button, fields, the main button), so the card reads
+    /// as one form: the design system's form size (40 pt on the Mac, 50 on iPhone, `md` corners).
     enum Row {
+        static let height = ButtonSize.form.height
+        static let radius = ButtonSize.form.radius
         #if os(macOS)
-        static let height: CGFloat = 36
-        static let radius: CGFloat = 8
         static let text: CGFloat = 14
         #else
-        static let height: CGFloat = 48
-        static let radius: CGFloat = 12
         static let text: CGFloat = 17
         #endif
     }
@@ -158,7 +157,7 @@ struct SignInView: View {
 
                         // Directly under Apple, which stays first (App Review guideline 4.8).
                         if Self.offersGoogle {
-                            GoogleAuthButton(height: Row.height, cornerRadius: Row.radius, busy: working && pressed == .google, action: signInWithGoogle)
+                            GoogleAuthButton(busy: working && pressed == .google, action: signInWithGoogle)
                                 .disabled(working)
                                 .accessibilityIdentifier("signin.google")
                         }
@@ -462,7 +461,7 @@ struct SignInView: View {
         let busy = (working && pressed == nil) || flow.step == .checking || flow.step == .forgot(sending: true)
         let enabled = flow.buttonEnabled && !working
         return Button(title, action: primary)
-        .buttonStyle(.amberProminent(height: Row.height, cornerRadius: Row.radius))
+        .buttonStyle(.amberProminent(.form, wide: true))
         .amberBusy(busy)
         .disabled(!enabled)
         .animation(.easeOut(duration: 0.15), value: enabled)
@@ -648,6 +647,6 @@ struct Backdrop: View {
     }
 
     static func color(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(red: 0.105, green: 0.1, blue: 0.11) : Color(red: 0.975, green: 0.968, blue: 0.955)
+        Color(Palette.sheetGround)
     }
 }

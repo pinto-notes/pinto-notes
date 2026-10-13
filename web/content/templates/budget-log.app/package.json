@@ -1,0 +1,37 @@
+{
+  "name": "budget-and-expenses",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest"
+  },
+  "//": "Pinto Notes compiles this project when a file is saved and runs it inside the note. Nothing is installed: these are the packages the app provides.",
+  "dependencies": {
+    "react": "19",
+    "react-dom": "19",
+    "radix-ui": "1.4",
+    "lucide-react": "0.544",
+    "recharts": "2.15",
+    "date-fns": "4",
+    "zod": "3.25",
+    "motion": "11",
+    "sonner": "2",
+    "react-day-picker": "9",
+    "clsx": "2",
+    "tailwind-merge": "3",
+    "class-variance-authority": "0.7",
+    "amber": "*",
+    "amber-router": "*"
+  },
+  "devDependencies": {
+    "typescript": "5",
+    "vite": "7",
+    "tailwindcss": "4",
+    "vitest": "3",
+    "@testing-library/react": "16",
+    "@testing-library/user-event": "14",
+    "@testing-library/jest-dom": "6"
+  }
+}

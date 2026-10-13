@@ -12,6 +12,7 @@ struct NoteSourceSheet: View {
     let model: NoteSourceModel
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var client: String?
     @State private var copied = false
 
@@ -95,7 +96,7 @@ struct NoteSourceSheet: View {
                     Text(d).font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            if let picture = FirstOpen.image(data: draft.preview) {
+            if let picture = FirstOpen.image(data: colorScheme == .dark ? draft.previewDark ?? draft.preview : draft.preview) {
                 // An app: a picture of it, as it will open.
                 picture.resizable().scaledToFit()
                     .clipShape(.rect(cornerRadius: 18, style: .continuous))
@@ -123,8 +124,7 @@ struct NoteSourceSheet: View {
             Button { model.add(context: context) } label: {
                 Text("Add to my notes").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.amberProminent)
-            .controlSize(.large)
+            .buttonStyle(.amberProminent(.regular, wide: true))
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("noteSource.add")
         }
@@ -168,8 +168,7 @@ struct NoteSourceSheet: View {
                 } label: {
                     Text("Open note").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .accessibilityIdentifier("noteSource.open")
             }
             .padding(20)
@@ -218,7 +217,7 @@ struct NoteSourceSheet: View {
                     .contentTransition(.symbolEffect(.replace))
                     .frame(minWidth: 88)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.secondary)
             .accessibilityIdentifier("noteSource.copy")
         }
     }

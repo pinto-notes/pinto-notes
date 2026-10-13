@@ -50,16 +50,15 @@ struct ShareAskView: View {
             VStack(spacing: Metrics.buttonGap) {
                 ForEach(Array(content.choices.enumerated()), id: \.element) { i, choice in
                     if i == 0 {
-                        share(choice, prominent: true).buttonStyle(.amberProminent)
+                        share(choice).buttonStyle(.amberProminent(.form, wide: true))
                     } else {
-                        share(choice).buttonStyle(.bordered)
+                        share(choice).buttonStyle(.secondary(.form, wide: true))
                     }
                 }
                 Button { store.choose(.dismissed) } label: {
-                    Text(ShareAsk.buttonTitle(.dismissed)).frame(maxWidth: .infinity).frame(minHeight: Metrics.quietHeight)
+                    Text(ShareAsk.buttonTitle(.dismissed))
                 }
-                .buttonStyle(.hoverText)
-                .foregroundStyle(Color.muted)
+                .buttonStyle(.quiet)
                 .accessibilityIdentifier("shareAsk.notNow")
             }
             .padding(.top, Metrics.buttonsTop)
@@ -68,17 +67,12 @@ struct ShareAskView: View {
         .accessibilityIdentifier("shareAsk")
     }
 
-    /// `prominent`: the amber primary button, whose style colours the label itself.
-    private func share(_ choice: ShareAsk.Choice, prominent: Bool = false) -> some View {
+    private func share(_ choice: ShareAsk.Choice) -> some View {
         Button {
             if let url = store.choose(choice) { openURL(url) }
         } label: {
-            Text(ShareAsk.buttonTitle(choice)).foregroundStyle(prominent ? AnyShapeStyle(Color(AmberProminentButtonStyle.label)) : AnyShapeStyle(.tint)).frame(maxWidth: .infinity)
+            Text(ShareAsk.buttonTitle(choice))
         }
-        .controlSize(.large)
-        #if os(iOS)
-        .buttonBorderShape(.capsule)
-        #endif
         .accessibilityIdentifier(Self.identifier(choice))
     }
 
@@ -105,13 +99,9 @@ struct ShareAskView: View {
                     .foregroundStyle(Color.muted)
             }
             Button { store.visible = false } label: {
-                Text("Done").frame(maxWidth: .infinity)
+                Text("Done")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            #if os(iOS)
-            .buttonBorderShape(.capsule)
-            #endif
+            .buttonStyle(.secondary(.form, wide: true))
             .padding(.top, Metrics.buttonsTop)
             .accessibilityIdentifier("shareAsk.done")
         }
@@ -129,7 +119,6 @@ struct ShareAskView: View {
         static let gap: CGFloat = 14
         static let buttonGap: CGFloat = 8
         static let buttonsTop: CGFloat = 6
-        static let quietHeight: CGFloat = 24
         static let mark: CGFloat = 52
         static let check: CGFloat = 44
         #else
@@ -140,7 +129,6 @@ struct ShareAskView: View {
         static let gap: CGFloat = 16
         static let buttonGap: CGFloat = 10
         static let buttonsTop: CGFloat = 4
-        static let quietHeight: CGFloat = 44
         static let mark: CGFloat = 60
         static let check: CGFloat = 52
         #endif
