@@ -74,10 +74,19 @@ struct OnboardingFlow: View {
             .task { await loadAccount() }
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
-            .onChange(of: step, initial: true) { _, now in
-                #if os(macOS)
-                if now == .name { nameFocused = true }
-                #endif
+            // The cursor in the name field as the step opens, so typing goes there. A moment after
+            // it appears: focus set in the same update as the field is lost.
+            .task(id: step) {
+                guard step == .name else { return }
+                try? await Task.sleep(for: .milliseconds(120))
+                if !Task.isCancelled, step == .name { nameFocused = true }
+            }
+            // The name is kept as it is typed (a pause of half a second), not only on Continue:
+            // quitting at this step keeps it.
+            .task(id: name) {
+                guard step == .name, nameEdited, preview == nil else { return }
+                try? await Task.sleep(for: .milliseconds(500))
+                if !Task.isCancelled { await profile.setName(name) }
             }
             #if os(macOS)
             .sheet(isPresented: $importingAppleNotes, onDismiss: importClosed) {
@@ -216,14 +225,15 @@ struct OnboardingFlow: View {
     // MARK: Progress
 
     /// Short segments (your name, your notes, your AI; two when the name was known): amber for
-    /// the one you're on and the ones behind you.
+    /// the ones behind you, a light amber for the one you're on (`Onboarding.segments`).
     private var progress: some View {
+        let segments = Onboarding.segments(on: step, first: store.first)
         let steps = Onboarding.Step.counted(from: store.first)
         let done = step == .tryIt ? steps.count : (steps.firstIndex(of: step) ?? 0) + 1
         return HStack(spacing: 4) {
-            ForEach(steps.indices, id: \.self) { i in
+            ForEach(segments.indices, id: \.self) { i in
                 Capsule()
-                    .fill(i < done ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.secondary))
+                    .fill(Self.segmentFill(segments[i]))
                     .frame(height: 4)
             }
         }
@@ -232,6 +242,14 @@ struct OnboardingFlow: View {
         #endif
         .accessibilityElement()
         .accessibilityLabel("Step \(min(done, steps.count)) of \(steps.count)")
+    }
+
+    private static func segmentFill(_ segment: Onboarding.Segment) -> AnyShapeStyle {
+        switch segment {
+        case .done: AnyShapeStyle(.tint)
+        case .current: AnyShapeStyle(.tint.opacity(0.4))
+        case .ahead: AnyShapeStyle(.fill.secondary)
+        }
     }
 
     // MARK: The words
@@ -755,10 +773,6 @@ struct OnboardingFlow: View {
     /// The name the account already has (from Apple, Google or Settings) fills the field, unless
     /// you have typed; and which AIs are connected already.
     private func loadAccount() async {
-        #if os(macOS)
-        // The Mac puts the cursor in the field; an iPhone keeps its keyboard down until asked.
-        if step == .name { nameFocused = true }
-        #endif
         if let preview {
             name = preview.name
             return

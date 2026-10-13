@@ -55,6 +55,14 @@ import Testing
     }
     #endif
 
+    /// Newcomer audit #25: all three segments were amber on Connect, with Try it still to come.
+    @Test func theBarIsFullOnlyForStepsBehindYou() {
+        #expect(Onboarding.segments(on: .name, first: .name) == [.current, .ahead, .ahead])
+        #expect(Onboarding.segments(on: .connect, first: .name) == [.done, .done, .current], "not full on the last counted step")
+        #expect(Onboarding.segments(on: .tryIt, first: .name) == [.done, .done, .done])
+        #expect(Onboarding.segments(on: .bring, first: .bring) == [.current, .ahead])
+    }
+
     @Test func aStepSavedByAVersionWithTheWelcomeResumesAtTheName() {
         let defaults = TestDefaults()
         let account = UUID()

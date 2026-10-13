@@ -31,6 +31,16 @@ enum Onboarding {
         }
     }
 
+    enum Segment: Equatable { case done, current, ahead }
+
+    /// The progress bar's segments on `step`: full only for the steps behind you, so the bar is
+    /// never full while a step is still to do. Try it, after the last counted step, fills them all.
+    static func segments(on step: Step, first: Step) -> [Segment] {
+        let steps = Step.counted(from: first)
+        guard let at = steps.firstIndex(of: step) else { return steps.map { _ in .done } }
+        return steps.indices.map { $0 < at ? .done : $0 == at ? .current : .ahead }
+    }
+
     /// Where the flow begins: the name, unless one is known already (from Apple or Google, or the
     /// account this device had before), then bringing your notes.
     static func first(nameKnown: Bool) -> Step { nameKnown ? .bring : .name }

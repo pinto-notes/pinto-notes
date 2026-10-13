@@ -189,4 +189,16 @@ import UniformTypeIdentifiers
         // Kept outside the per-account keys, so signing in to another account doesn't remove it.
         #expect(!ProfileStore.lastNameKey.hasPrefix("profile."))
     }
+
+    /// Newcomer audit #5: a name typed before the profile knew the account (the first run resumed
+    /// at its name step after a relaunch) was stored under no account and lost at the next bind.
+    @Test @MainActor func aNameSetBeforeTheAccountIsKnownWaitsForIt() async {
+        let defaults = TestDefaults()
+        let store = ProfileStore(defaults: defaults, folder: FileManager.default.temporaryDirectory.appending(path: "profile-unbound-\(UUID())"))
+        await store.setName("  Sara Lind ")
+        #expect(store.name == "Sara Lind", "shown at once")
+        #expect(!defaults.dictionaryRepresentation().keys.contains { $0.hasSuffix(".none") }, "nothing kept under no account")
+        store.reset()
+        #expect(store.name == nil)
+    }
 }

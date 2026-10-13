@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The first screen when you're signed out: what Amber Notes is, then the way in. "Get started"
-/// and "I already have an account" both lead to sign-in in the same frame, with a way back.
+/// leads to sign-in in the same frame, with a way back.
 /// On the Mac it's a wide window split in two, a paper-cut picture (an amber leaf on a stack of
 /// notes, at dusk in dark mode) on the left and the words on the right; on iPhone the picture
 /// sits on top.
@@ -13,13 +13,15 @@ struct WelcomeFlow: View {
     var flow = EmailSignInFlow()
     /// Captures: an error under the form.
     var error: String?
+    /// Captures: Apple or Google under way.
+    var pressed: SignInView.Way?
     @State private var stage: Stage
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Stage: Equatable {
         case welcome
-        /// Sign-in, from "Get started" (new) or "I already have an account" (returning).
+        /// Sign-in, from "Get started" (`returning` false) or from a button that said Sign in (true).
         case signIn(returning: Bool)
 
         /// Where a signed-out launch starts: the welcome, unless a test asks for sign-in
@@ -37,8 +39,10 @@ struct WelcomeFlow: View {
         nonisolated(unsafe) static var signInNext = false
     }
 
-    init(backend: Backend, stage: Stage = .first(), focusEmail: Bool = false, flow: EmailSignInFlow = EmailSignInFlow(), error: String? = nil) {
+    init(backend: Backend, stage: Stage = .first(), focusEmail: Bool = false, flow: EmailSignInFlow = EmailSignInFlow(), error: String? = nil,
+         pressed: SignInView.Way? = nil) {
         self.backend = backend
+        self.pressed = pressed
         self.focusEmail = focusEmail
         self.flow = flow
         self.error = error
@@ -163,24 +167,13 @@ struct WelcomeFlow: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// One way in: sign-in asks for the email and then says whether it is a new account or a
+    /// returning one, so a second button would only lead to the same screen.
     private var welcomeActions: some View {
-        VStack(spacing: 6) {
-            Button("Get started") { stage = .signIn(returning: false) }
-                .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("welcome.start")
-            Button {
-                stage = .signIn(returning: true)
-            } label: {
-                Text("I already have an account")
-                    .frame(maxWidth: .infinity, minHeight: 36)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.hoverLink)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
-            .accessibilityIdentifier("welcome.signIn")
-        }
+        Button("Get started") { stage = .signIn(returning: false) }
+            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("welcome.start")
     }
 
     private func signIn(returning: Bool) -> some View {
@@ -199,10 +192,10 @@ struct WelcomeFlow: View {
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("welcome.back")
             #endif
-            // The same neutral words from Get started and I already have an account: until the email
+            // Neutral words, whoever pressed Get started: until the email
             // is checked, nobody knows which it is (SignInView then says Welcome back or Create your account).
             SignInView(backend: backend, flow: flow, heading: .beside(title: SignInView.startTitle, line: SignInView.startLine),
-                       focusEmail: focusEmail, error: error)
+                       focusEmail: focusEmail, error: error, pressed: pressed)
                 #if os(macOS)
                 // Top-anchored, so the form keeps its place as its steps come and go, but low
                 // enough that the first step sits near the middle of the window.
