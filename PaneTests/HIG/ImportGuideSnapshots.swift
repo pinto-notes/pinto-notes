@@ -21,12 +21,11 @@ import UIKit
 
     static var guides: [ImportGuide] {
         #if os(iOS)
-        let keep = ImportGuide.keepPhone
+        return [.keepPhone, .obsidianPhone(picture: picture("obsidian/obsidian-icloud-folder-location.png")), .markdown]
         #else
-        let keep = ImportGuide.keep
+        return [.keep, .evernote, .bear(picture: picture("bear/bear-export-panel-crop.png")),
+                .obsidian(picture: picture("obsidian/obsidian-reveal-in-finder-crop.png")), .markdown]
         #endif
-        return [keep, .evernote, .bear(picture: picture("bear/bear-export-panel-crop.png")),
-                .obsidian(picture: picture("obsidian/obsidian-reveal-in-finder.png")), .markdown]
     }
 
     /// The pages of a guide, in order, with the file name each is written to.
@@ -51,7 +50,7 @@ import UIKit
     static let notices: [(String, String, ImportNoticePage)] = {
         #if os(iOS)
         [("apple-notes", "iphone-easiest-on-mac", .phoneAppleNotes), ("apple-notes", "iphone-one-at-a-time", .phoneAppleNotesOne),
-         ("evernote", "00-iphone-easiest-on-a-computer", .phoneEvernote)]
+         ("evernote", "easiest-on-a-computer", .phoneEvernote), ("bear", "easiest-on-mac", .phoneBear)]
         #else
         [("apple-notes", "permission-denied", .notesDenied), ("apple-notes", "nothing-found", .notesEmpty)]
         #endif
@@ -113,7 +112,7 @@ import UIKit
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let mode = dark ? "dark" : "light"
         let size = CGSize(width: 402, height: 874)
-        for g in Self.guides where g.id != "evernote" {
+        for g in Self.guides {
             for (name, page, opened) in Self.pages(g) {
                 try await Self.shoot(ImportGuideSheet(guide: g, page: page, opened: opened), to: dir.appending(path: "\(g.id)/iphone-\(mode)-\(name).png"),
                                      size: size, dark: dark, scene: scene)

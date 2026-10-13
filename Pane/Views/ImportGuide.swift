@@ -61,13 +61,13 @@ extension ImportGuide {
         skipTitle: "I already have the download",
         steps: [
             Step(title: "Ask Google for your notes",
-                 text: "Google Takeout is Google's page for downloading your own things. Click Deselect all, tick Keep, then click Next step at the bottom.",
+                 text: "The link opens Google's download page with only Keep ticked. Scroll down and click Next step.",
                  art: .drawn(.takeoutPick), action: "Open Google Takeout"),
             Step(title: "Click Create export",
-                 text: "Leave everything else as it is. Google emails you when your notes are ready, usually within a few minutes.",
+                 text: "Leave the rest as it is. Google emails you in a few minutes. You can close this and come back.",
                  art: .drawn(.takeoutCreate), action: nil),
             Step(title: "Download it from the email",
-                 text: "Open Google's email and click Download archive. It lands in your Downloads folder.",
+                 text: "In Google's email, click Download archive. It goes to your Downloads folder.",
                  art: .drawn(.takeoutEmail), action: "Open Gmail"),
         ],
         drop: Drop(title: "Drop the download here",
@@ -86,10 +86,10 @@ extension ImportGuide {
         skipTitle: "I already have the files",
         steps: [
             Step(title: "Open Evernote on this Mac",
-                 text: "Only Evernote's Mac and Windows apps can save notebooks as files. The website and the phone app can't.",
+                 text: "Click Notebooks. By a notebook, click the three dots, then Export Notebook. The website can't do this; the app can.",
                  art: .drawn(.evernoteExport), action: "Open Evernote"),
-            Step(title: "Save each notebook as a file",
-                 text: "Click Notebooks in the sidebar. Next to a notebook, click the three dots and choose Export Notebook. Pick ENEX, Evernote's own file type, and click Export. Do this once per notebook.",
+            Step(title: "Save it as an ENEX file",
+                 text: "Choose ENEX and click Export. Do this once for each notebook.",
                  art: .drawn(.evernoteFormat), action: nil),
         ],
         drop: Drop(title: "Drop the notebook files here",
@@ -110,7 +110,7 @@ extension ImportGuide {
                      text: "Click Notes at the top of Bear's sidebar, then press Command-A.",
                      art: .drawn(.bearSelect), action: "Open Bear"),
                 Step(title: "Save them as Markdown",
-                     text: "Choose File, Export Notes. Set Export as to Markdown, tick Export attachments, and save into a new folder.",
+                     text: "Choose File, then Export Notes. Pick Markdown, tick Export attachments, and save into a new folder.",
                      art: picture.map { .picture($0, rings: [(CGRect(x: 0.27, y: 0.42, width: 0.24, height: 0.105), "Markdown"),
                                                              (CGRect(x: 0.055, y: 0.64, width: 0.22, height: 0.1), "Tick it")]) } ?? .drawn(.bearExport),
                      action: nil),
@@ -131,8 +131,9 @@ extension ImportGuide {
             skipTitle: "I know where my vault is",
             steps: [
                 Step(title: "Find your vault",
-                     text: "A vault is the folder Obsidian keeps your notes in. In Obsidian, right-click any note and choose Reveal in Finder. The folder at the top is your vault.",
-                     art: picture.map { .picture($0) } ?? .drawn(.obsidianReveal), action: "Open Obsidian"),
+                     text: "Your vault is the folder your notes live in. In Obsidian, right-click any note and choose Reveal in Finder.",
+                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.15, y: 0.758, width: 0.27, height: 0.067), nil)]) } ?? .drawn(.obsidianReveal),
+                     action: "Open Obsidian"),
             ],
             drop: Drop(title: "Drop your vault here",
                        line: "The whole folder. Subfolders, pictures and links between notes come too.",
@@ -167,6 +168,18 @@ extension ImportGuide {
                       choose: "Choose File", found: nil, fileSymbol: "doc.zipper")
         return g
     }()
+
+    /// On iPhone a vault lives in Files, usually in iCloud Drive's Obsidian folder.
+    static func obsidianPhone(picture: URL?) -> ImportGuide {
+        var g = obsidian(picture: nil)
+        g.steps = [Step(title: "Find your vault in Files",
+                        text: "Open Files, then iCloud Drive, then Obsidian. Each folder in there is a vault.",
+                        art: picture.map { .picture($0) } ?? .none, action: "Open Files")]
+        g.drop = Drop(title: "Choose your vault",
+                      line: "The whole folder. Subfolders, pictures and links between notes come too.",
+                      choose: "Choose Folder", found: nil, fileSymbol: "folder")
+        return g
+    }
     #endif
 }
 
@@ -415,7 +428,7 @@ struct ImportGuideSheet: View {
             default:
                 fileIcon(guide.drop.fileSymbol, size: 52)
                     .offset(y: state == .hovering ? -4 : 0)
-                Text(Self.compact ? "Your download goes here" : state == .hovering ? "Let go to import" : "Drag it here from Finder")
+                Text(Self.compact ? "Tap the button to choose it" : state == .hovering ? "Let go to import" : "Drag it here from Finder")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(state == .hovering ? Color(Palette.amberInk) : Color.muted)
             }
@@ -581,12 +594,12 @@ struct GuideDrawing: View {
                     HStack {
                         bar(120, 9)
                         Spacer()
-                        ring { Text("Deselect all").font(.system(size: 11, weight: .medium)).foregroundStyle(blue) }
+                        Text("1 of 70 selected").font(.system(size: 10)).foregroundStyle(ink.opacity(0.55))
                     }
                     checkRow("Google Fit", on: false)
-                    ring { checkRow("Keep", on: true, bold: true) }
+                    checkRow("Keep", on: true, bold: true)
                     checkRow("Maps", on: false)
-                    HStack { Spacer(); pill("Next step", filled: true) }
+                    HStack { Spacer(); ring { pill("Next step", filled: true) } }
                 }
             }
         case .takeoutCreate:
@@ -987,6 +1000,12 @@ struct ImportNoticePage: View {
         title: "One note at a time",
         line: "In Apple Notes, open a note, tap Share, then Export as Markdown, and choose Save to Files. Then choose those files here.",
         art: nil, primary: "Choose Files", primarySymbol: nil, quiet: "Back")
+
+    static let phoneBear = ImportNoticePage(
+        origin: .files(.bear),
+        title: "Easiest on your Mac",
+        line: "Bear on the Mac saves all your notes into one folder in a minute, and Pinto Notes on the Mac brings them in. They're on this iPhone a moment later.",
+        art: .macHandoff, primary: "Send Me the Mac Link", primarySymbol: "square.and.arrow.up", quiet: "I already have the folder")
 
     static let phoneEvernote = ImportNoticePage(
         origin: .files(.evernote),
