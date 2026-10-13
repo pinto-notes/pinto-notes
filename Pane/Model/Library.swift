@@ -387,9 +387,12 @@ extension ModelContext {
     }
 
     /// Apple Notes keeps deleted notes for 30 days.
+    /// At launch: the store picks the notes, instead of every note being read (with 20,000 notes,
+    /// most of a second before the window).
     func purgeExpiredTrash() {
         let cutoff = Date.now.addingTimeInterval(-30 * 24 * 3600)
-        let old = ((try? fetch(FetchDescriptor<Note>())) ?? []).filter { ($0.trashedAt ?? .distantFuture) < cutoff && $0.deletedAt == nil }
+        let expired = #Predicate<Note> { $0.deletedAt == nil && $0.trashedAt != nil && ($0.trashedAt ?? cutoff) < cutoff }
+        let old = (try? fetch(FetchDescriptor<Note>(predicate: expired))) ?? []
         old.forEach(purge)
         purgeExpiredTrashedFiles()
     }
