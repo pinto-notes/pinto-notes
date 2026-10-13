@@ -1020,7 +1020,7 @@ struct ConsentSheet: View {
     /// The server took this sheet's answer. A sheet that closes without one lets go of the request
     /// (`release`): on 13 October 2026 a failed answer left it held, and the recovery key on the
     /// page, signed in to another account, was turned away.
-    @State private var answered = false
+    @State private var serverAnswered = false
     var release: (SupabaseClient, UUID) async -> Void = { client, id in
         try? await ConnectAPI.release(id: id, send: ConnectAPI.sender(client))
     }
@@ -1075,7 +1075,7 @@ struct ConsentSheet: View {
             }
             .animation(.smooth(duration: 0.25), value: phase)
             .onDisappear {
-                guard !answered else { return }
+                guard !serverAnswered else { return }
                 let (release, client, id) = (release, client, requestID)
                 Task { await release(client, id) }
             }
@@ -1412,7 +1412,7 @@ struct ConsentSheet: View {
                                                        match: r.isAsked ? match : nil, scanned: scanned,
                                                        read: { try await askMatch(client, r.id) },
                                                        code: { try AccountCrypto.shared.connectionCode() }, send: ConnectAPI.sender(client))
-            answered = true
+            serverAnswered = true
             guard case .answered(let answer) = answered else {
                 match = nil
                 phase = .failed(ConnectMatchCopy.changedWhileAnswering)
