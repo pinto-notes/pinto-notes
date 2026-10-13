@@ -70,4 +70,11 @@ describe("the site's controls", () => {
     expect(css("blog/blog.module.css")).toMatch(/@media \(max-width: 600px\) \{\s*\.filters \{\s*flex-wrap: nowrap; overflow-x: auto/);
     expect(css("templates/templates.module.css")).toMatch(/\.filterRow \{\s*flex-wrap: nowrap; overflow-x: auto/);
   });
+
+  it("plays the download page's install as one story, and drops the lines under it", () => {
+    const page = css("download/page.tsx");
+    expect(page).toContain("<StoryPlayer");
+    expect(page).not.toMatch(/Updates install themselves|Syncs with your iPhone/);
+    expect(page).toContain("/art/download.webp");
+  });
 });

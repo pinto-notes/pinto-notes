@@ -8,10 +8,11 @@ import { JsonLd, app, breadcrumbs, incredible, maker, organization } from "@/lib
 import PlatformNote from "../PlatformNote";
 import styles from "./download.module.css";
 import { ClosingBand } from "@/lib/ClosingBand";
+import { StoryPlayer } from "@/lib/StoryPlayer";
 
 export const metadata: Metadata = pageMetadata({
   title: "Download Pinto Notes for Mac",
-  description: "Download Pinto Notes, the free notes app for Mac that ChatGPT and Claude can read and edit. Needs macOS 26 or later. Updates install themselves.",
+  description: "Download Pinto Notes, the free notes app for Mac that ChatGPT and Claude can read and edit. Needs macOS 26 or later.",
   path: "/download",
   image: { url: "/download/opengraph-image", alt: "Download Pinto Notes for Mac. Free, for macOS 26 or later." },
 });
@@ -56,36 +57,31 @@ export default function Download() {
         )}
       </section>
 
-      <section className={styles.steps} aria-label="How to install">
-        <div className={`${styles.step} rise`} style={r(5)}>
-          <div className={styles.art} aria-hidden="true">
-            <div className={styles.dmg}><span>DMG</span></div>
-          </div>
-          <strong>1. Open the download</strong>
-          <span>Double-click {release?.file ?? "the file"} in your Downloads.</span>
-        </div>
-        <div className={`${styles.step} rise`} style={r(6)}>
-          <div className={styles.art} aria-hidden="true">
-            <img src="/mark-256.png" alt="" width={48} height={48} />
-            <svg width="44" height="16" viewBox="0 0 44 16" className={styles.arrow}><path d="M2 8h36m-6-6 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <div className={styles.folder}><span>A</span></div>
-          </div>
-          <strong>2. Drag it to Applications</strong>
-          <span>Drop Pinto Notes on the Applications folder.</span>
-        </div>
-        <div className={`${styles.step} rise`} style={r(7)}>
-          <div className={styles.art} aria-hidden="true">
-            <div className={styles.signin}><i /><b><Apple /> Sign in</b></div>
-          </div>
-          <strong>3. Open it and sign in</strong>
-          <span>With Apple or email. Your notes sync to your iPhone.</span>
-        </div>
-      </section>
-
-      <section className={`${styles.more} rise`} style={r(8)}>
-        <p><strong>Updates install themselves.</strong> Pinto Notes checks once a day, or choose Check for Updates… in the app menu</p>
-        <p><strong>Syncs with your iPhone.</strong> Your notes live in the cloud and sync with the iPhone app, coming soon to the App Store.</p>
-        <p><a href="/changelog">See what's new in each version</a></p>
+      <section className={`${styles.install} rise`} style={r(5)} aria-labelledby="install">
+        <h2 id="install" className={styles.h2}>Install it in three steps</h2>
+        <StoryPlayer
+          label="How to install Pinto Notes"
+          numbered
+          seconds={3.2}
+          steps={[
+            { title: "Open the download", text: `Double-click ${release?.file ?? "the file"} in your Downloads.` },
+            { title: "Drag it to Applications", text: "Drop Pinto Notes on the Applications folder." },
+            { title: "Open it and sign in", text: "With Apple or email. Your notes sync to your iPhone." },
+          ]}
+          backdrop={<img className={styles.stageArt} src="/art/download.webp" alt="" width={1672} height={941} loading="lazy" decoding="async" />}
+          slides={[
+            <div key="dmg" className={`${styles.pin} ${styles.pinLeft}`} aria-hidden="true">
+              <div className={styles.dmg}><img src="/mark-256.png" alt="" width={44} height={44} /><b>{release?.file ?? "Pinto-Notes.dmg"}</b>{size && <span>{size}</span>}</div>
+            </div>,
+            <div key="drag" className={`${styles.pin} ${styles.pinMid}`} aria-hidden="true">
+              <div className={styles.drag}><img src="/mark-256.png" alt="" width={40} height={40} /><span className={styles.dragArrow}>→</span><b>Applications</b></div>
+            </div>,
+            <div key="signin" className={`${styles.pin} ${styles.pinRight}`} aria-hidden="true">
+              <div className={styles.signin}><img src="/mark-256.png" alt="" width={36} height={36} /><b>Welcome to Pinto Notes</b><i /><span className={styles.apple}><Apple /> Sign in</span></div>
+            </div>,
+          ]}
+        />
+        <p className={styles.more}><a href="/changelog">See what&apos;s new in each version</a></p>
       </section>
 
       <ClosingBand

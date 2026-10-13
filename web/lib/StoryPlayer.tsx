@@ -11,7 +11,7 @@ import s from "./story-player.module.css";
 /// playing one is shown, so its entrance plays each time it comes back.
 export type Step = { title: string; text?: string };
 
-export function StoryPlayer({ steps, slides, label, seconds = 5.5, numbered = false }: {
+export function StoryPlayer({ steps, slides, label, seconds = 5.5, numbered = false, backdrop }: {
   steps: Step[];
   /// One stage picture per step, in the same order.
   slides: React.ReactNode[];
@@ -19,6 +19,8 @@ export function StoryPlayer({ steps, slides, label, seconds = 5.5, numbered = fa
   seconds?: number;
   /// Number the rows (an install, a set-up), or not (three things to ask).
   numbered?: boolean;
+  /// A picture that stays put behind every step (a scene); only the steps' own parts change on it.
+  backdrop?: React.ReactNode;
 }) {
   const [at, setAt] = useState(0);
   const [held, setHeld] = useState(false);
@@ -59,7 +61,8 @@ export function StoryPlayer({ steps, slides, label, seconds = 5.5, numbered = fa
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setHeld(false); }}
       style={{ "--story-s": `${seconds}s` } as React.CSSProperties}
     >
-      <div className={s.stage}>
+      <div className={s.stage} data-backdrop={backdrop ? "" : undefined}>
+        {backdrop && <div className={s.backdrop}>{backdrop}</div>}
         {slides.map((slide, i) => (
           <div key={i} className={s.slide} hidden={i !== at} aria-hidden={i !== at}>{slide}</div>
         ))}
