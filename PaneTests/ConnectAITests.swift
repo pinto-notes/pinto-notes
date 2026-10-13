@@ -50,11 +50,17 @@ import Testing
         #expect(codex.hasPrefix("[mcp_servers.pinto_notes]\n"))
         #expect(!claude.contains("amber") && !codex.contains("amber"))
         #if os(macOS)
-        // Add to Claude Code replaces what it added before, under either name, so the notes aren't listed twice.
-        let script = ClaudeCodeInstaller.script
+        // The direct add replaces what it added before, under either name, so the notes aren't listed twice.
+        let script = ConnectShell.addScript(.claudeCode)
         #expect(script.contains("claude mcp remove --scope user amber-notes"))
         #expect(script.contains("claude mcp remove --scope user pinto-notes"))
-        #expect(script.contains("claude mcp add --scope user --transport http pinto-notes \"$AMBER_URL\""))
+        #expect(script.contains("claude mcp add --scope user --transport http pinto-notes \"$PINTO_URL\""))
+        let codexScript = ConnectShell.addScript(.codex)
+        #expect(codexScript.contains("codex mcp remove pinto-notes"))
+        #expect(codexScript.contains("codex mcp add pinto-notes --url \"$PINTO_URL\""))
+        // For Terminal: the add and the sign-in that opens the browser.
+        #expect(ConnectShell.command(.codex, server: url) == "codex mcp add pinto-notes --url \(url) && codex mcp login pinto-notes")
+        #expect(ConnectShell.command(.claudeCode, server: url).hasSuffix("&& claude mcp login pinto-notes"))
         #endif
     }
 
@@ -581,14 +587,29 @@ import Testing
         #expect(ConnectCompletion.newConnection(rows, ai: "ChatGPT", since: opened) == nil)
     }
 
-    #if os(macOS)
-    @Test func theFloatingStepsSitTopRightOnScreen() {
-        let screen = CGRect(x: 0, y: 0, width: 1512, height: 944)
-        let p = ConnectPanel.placement(screen: screen, size: CGSize(width: 360, height: 520))
-        #expect(p.x + 360 <= screen.maxX && p.x > screen.midX)
-        #expect(p.y + 520 <= screen.maxY && p.y >= screen.minY)
+    /// A row turns Connected for its own AI's new connection only, made since the press.
+    @Test func aRowFinishesOnItsOwnAIsNewConnection() {
+        let opened = Date.now.addingTimeInterval(-60)
+        func row(_ name: String, kind: String = "oauth", host: String?, ago: TimeInterval = 10) -> Connection {
+            Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: .now.addingTimeInterval(-ago), last_used_at: nil, revoked_at: nil, redirect_host: host)
+        }
+        let chatgpt = row("ChatGPT", host: "chatgpt.com"), claude = row("Claude", host: "claude.ai")
+        let local = row("claude-code", host: "127.0.0.1"), old = row("ChatGPT", host: "chatgpt.com", ago: 3600)
+        #expect(ConnectRun.isNew([chatgpt], for: .chatgpt, since: opened))
+        #expect(!ConnectRun.isNew([claude], for: .chatgpt, since: opened), "Claude's sign-in doesn't finish ChatGPT")
+        #expect(!ConnectRun.isNew([old], for: .chatgpt, since: opened), "only what came after the press")
+        #expect(ConnectRun.isNew([local], for: .codex, since: opened))
+        #expect(ConnectRun.isNew([local], for: .claude, since: opened), "Claude straight to Claude Code signs in from this computer")
+        #expect(ConnectRun.isNew([row("Notebot", host: "notebot.example")], for: .other, since: opened))
+        // Which row a connection shows on: by where its approval went, else by the name it gave.
+        #expect(ConnectRun.owner(of: chatgpt) == .chatgpt && ConnectRun.owner(of: claude) == .claude)
+        #expect(ConnectRun.owner(of: row("Claude Code", kind: "token", host: nil)) == .claude)
+        #expect(ConnectRun.owner(of: row("codex", host: "127.0.0.1")) == .codex)
+        #expect(ConnectRun.owner(of: row("ChatGPT", host: "chatgpt-login.example.com")) == .other, "a name proves nothing")
+        // An approval made here finishes the wait for the AI it vouched for.
+        #expect(ConnectRun.approvalCounts("ChatGPT", for: .chatgpt) && !ConnectRun.approvalCounts("Claude", for: .chatgpt))
+        #expect(ConnectRun.approvalCounts(nil, for: .codex) && !ConnectRun.approvalCounts("ChatGPT", for: .other))
     }
-    #endif
 }
 
 /// Connect Incredible: a local app, so the guide never vouches for the name.
@@ -662,21 +683,18 @@ extension AIEditSnapshots {
 }
 
 extension AIEditSnapshots {
-    /// Connect ChatGPT and Claude: the guide, the floating steps, and "connected".
-    @Test func webConnectGuides() async throws {
+    /// Connect an AI: nothing found, Claude and Codex found, one connected, and Having trouble?.
+    @Test func connectSheet() async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
-        for plan in [WebConnectPlan.chatgpt, .claude] {
-            let slug = plan.ai.lowercased()
-            try await AppSnapshotTests.render(Form { WebConnectGuide(plan: plan, client: client) }.formStyle(.grouped).frame(width: 520, height: 560),
-                                              name: "connect-\(slug)-guide", dark: false)
-            try await AppSnapshotTests.render(Form { WebConnectGuide(plan: plan, client: client, started: true) }.formStyle(.grouped).frame(width: 360, height: 560),
-                                              name: "connect-\(slug)-panel", dark: false)
-            try await AppSnapshotTests.render(Form { WebConnectGuide(plan: plan, client: client, connected: true) }.formStyle(.grouped).frame(width: 360, height: 460),
-                                              name: "connect-\(slug)-connected", dark: false)
+        let claude = Connection(id: UUID(), name: "Claude", kind: "oauth", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")
+        for dark in [false, true] {
+            let d = dark ? "-dark" : ""
+            try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: [], previewFound: []), name: "connect-sheet-none\(d)", dark: dark)
+            try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: [], previewFound: [.claude, .codex]), name: "connect-sheet-found\(d)", dark: dark)
+            try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: [claude], previewFound: [.claude, .codex]), name: "connect-sheet-connected\(d)", dark: dark)
         }
-        try await AppSnapshotTests.render(Form { WebConnectGuide(plan: .chatgpt, client: client, started: true) }.formStyle(.grouped).frame(width: 360, height: 560),
-                                          name: "connect-chatgpt-panel-dark", dark: true)
+        try await AppSnapshotTests.render(ConnectHelpSheet(topic: HelpTopic(guide: .codex), client: client), name: "connect-help-codex", dark: false)
     }
 }
 extension AIEditSnapshots {
@@ -816,6 +834,7 @@ extension AIEditSnapshots {
         #expect(!ConnectAISection.Guide.offered(incredibleInstalled: false).contains(.incredible))
         #expect(ConnectAISection.Guide.offered(incredibleInstalled: true).contains(.incredible))
         // Everything else stays, in the same order.
-        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .claudeCode, .codex, .other])
+        // Everything else stays, in the same order. Claude Code rides on Claude's connection.
+        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .codex, .other])
     }
 }

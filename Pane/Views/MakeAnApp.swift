@@ -14,10 +14,7 @@ enum MakeAnApp {
     /// an app (not "Another AI", whose steps are Settings').
     /// As two large choices, ChatGPT and Claude (the two most people have), and the rest in a
     /// menu under them: those that can build an app (not "Another AI", whose steps are Settings').
-    static var connectGuides: [ConnectAISection.Guide] { [.chatgpt, .claude] }
-    static var moreGuides: [ConnectAISection.Guide] {
-        ConnectAISection.Guide.offered.filter { $0 != .other && !connectGuides.contains($0) }
-    }
+    static var connectGuides: [ConnectAISection.Guide] { [.chatgpt, .claude, .codex] }
 
     /// What kind of app the note would make, from what it holds.
     enum Kind: Equatable { case budget, tracker, cards, checklist, plain }
@@ -276,7 +273,6 @@ struct MakeAppSheet: View {
                                    preview: Self.stateForPictures != nil ? [] : nil) { connected in
                         if !connected.isEmpty { Task { await check() } }
                     }
-                    MoreAIsMenu(guides: MakeAnApp.moreGuides)
                 }
                 .connectGuides(client: client)
                 .accessibilityIdentifier("makeApp.connect")
@@ -717,29 +713,3 @@ struct AppPreviewSection: View {
     }
 }
 
-/// The AIs past the two large choices, by name in one quiet menu; choosing one opens its guide,
-/// as a large choice does.
-private struct MoreAIsMenu: View {
-    let guides: [ConnectAISection.Guide]
-    @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
-
-    var body: some View {
-        if !guides.isEmpty {
-            Menu {
-                ForEach(guides) { g in
-                    Button(g.title) { route?.guide = g }.accessibilityIdentifier("makeApp.more.\(g.rawValue)")
-                }
-            } label: {
-                Text("Another AI: \(guides.map(\.title).formatted(.list(type: .or)))")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.muted)
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .frame(maxWidth: .infinity, alignment: .center)
-            .accessibilityIdentifier("makeApp.moreAIs")
-        }
-    }
-}

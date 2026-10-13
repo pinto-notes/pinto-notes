@@ -150,7 +150,7 @@ final class NoteAppsStagingUITests: XCTestCase {
 
     // MARK: The steps
 
-    /// Signs in and makes a Claude Code access token in Settings. Nothing of it is logged or pictured.
+    /// Signs in and makes an access token in Settings (Having trouble?). Nothing of it is logged or pictured.
     func testA_SignInAndMakeAToken() throws {
         guard let email = env["PANE_EMAIL"], let password = env["PANE_PASSWORD"], let tokenFile = env["PANE_TOKEN_FILE"] else { throw XCTSkip("no account") }
         launch(["-signout"])
@@ -173,19 +173,21 @@ final class NoteAppsStagingUITests: XCTestCase {
         let ai = app.descendants(matching: .any)["settings.ai"].firstMatch
         XCTAssertTrue(ai.waitForExistence(timeout: 8))
         ai.tap()
-        let guide = app.descendants(matching: .any)["connect.guide.claudeCode"].firstMatch
-        XCTAssertTrue(guide.waitForExistence(timeout: 8))
-        guide.tap()
-        let make = app.buttons["connect.terminal.copy"].firstMatch
+        let trouble = app.buttons["connect.trouble"].firstMatch
+        XCTAssertTrue(trouble.waitForExistence(timeout: 8))
+        trouble.tap()
+        let make = app.buttons["connect.help.token"].firstMatch
         XCTAssertTrue(make.waitForExistence(timeout: 8))
+        if !make.isHittable { app.swipeUp() }
         tokenShowing = true
         make.tap()
-        let snippet = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Authorization: Bearer pane_'")).firstMatch
-        XCTAssertTrue(snippet.waitForExistence(timeout: 20), "the command with the token should show")
+        let snippet = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'pane_'")).firstMatch
+        XCTAssertTrue(snippet.waitForExistence(timeout: 20), "the token should show")
+        let place = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'http'")).firstMatch.label
         let text = snippet.label
-        guard let token = text.range(of: #"pane_[0-9a-f]{64}"#, options: .regularExpression).map({ String(text[$0]) }),
-              let address = text.range(of: #"https?://[^\s"]+"#, options: .regularExpression).map({ String(text[$0]) }) else {
-            XCTFail("The command should hold an address and a token.")
+        let address = place
+        guard let token = text.range(of: #"pane_[0-9a-f]{64}"#, options: .regularExpression).map({ String(text[$0]) }), address.hasPrefix("http") else {
+            XCTFail("The sheet should show the address and a token.")
             return
         }
         try "\(address)\n\(token)".write(toFile: tokenFile, atomically: true, encoding: .utf8)

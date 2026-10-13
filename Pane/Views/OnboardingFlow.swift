@@ -39,8 +39,6 @@ struct OnboardingFlow: View {
     @State private var sharingHowTo = false
     /// Titles of the AIs that are connected, as the server lists them.
     @State private var connectedTitles: Set<String> = []
-    /// What was connected when the connect step first asked; something new after that moves on.
-    @State private var connectSeen: Set<String>?
     @State private var brought = 0
     /// An import brought notes: the flow moves on when its sheet closes (`importClosed`).
     @State private var moveOnAfterImport = false
@@ -536,28 +534,19 @@ struct OnboardingFlow: View {
         .keep: "Your Google Takeout download",
     ]
 
-    /// Every way an AI connects, each leading to its guide.
-    static let guides: [ConnectAISection.Guide] = [.chatgpt, .claude, .claudeCode, .codex, .other]
+    /// Every way an AI connects.
+    static let guides: [ConnectAISection.Guide] = [.chatgpt, .claude, .codex, .other]
 
     /// Connect an AI, the same view Settings shows, without its list of what's connected: here a
-    /// connected AI is marked on its own choice.
+    /// connected AI is marked on its own row. Nothing moves on by itself: with an AI connected the
+    /// step's one button is Continue, and every other AI can still be connected first.
     @ViewBuilder private var connect: some View {
         if let preview {
             ConnectChoices(client: CaptureScreen.client, guides: Self.guides, listsConnected: false, preview: Self.connections(preview.connected))
         } else if let client = backend.client {
             ConnectChoices(client: client, guides: Self.guides, listsConnected: false) { titles in
-                // An AI connected while this step was up: a moment to see its check, then on.
-                let first = connectSeen == nil
-                let fresh = !first && !titles.subtracting(connectSeen ?? []).isEmpty
                 connectedTitles = titles
-                if first { connectSeen = titles }
                 Task { await setup?.refresh(force: true) }
-                if fresh, step == .connect {
-                    Task {
-                        try? await Task.sleep(for: .seconds(Self.connectedHold))
-                        if step == .connect { next() }
-                    }
-                }
             }
         }
     }
@@ -754,9 +743,6 @@ struct OnboardingFlow: View {
             if !late, Date.now.timeIntervalSince(began) > TryIt.lateAfter { withAnimation { late = true } }
         }
     }
-
-    /// How long a new connection's check shows before the flow moves on by itself.
-    static var connectedHold: Double = 1.2
 
     /// How long "It worked" stays before the notes open.
     static var workedHold: Double = 2.4

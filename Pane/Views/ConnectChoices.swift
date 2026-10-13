@@ -149,67 +149,479 @@ private struct BigChoicePress: ButtonStyle {
     }
 }
 
-/// Connect an AI, the same wherever it is offered (the first-run flow, Settings, the sheet a note
-/// opens): every way to connect as a large choice with the product's own mark and one plain line
-/// about what happens, what is connected (only when something is) with Disconnect, and one quiet
-/// line of reassurance. The steps and anything technical are in the guide a choice opens.
+// MARK: Finding the AIs
+
+/// Which AIs are on this device, asking nothing of the person: no dialog, no permission.
+/// Mac: installed apps by bundle id (Launch Services), and the `claude` and `codex` commands as
+/// files where their installers put them. iPhone: the apps' link schemes, declared in
+/// LSApplicationQueriesSchemes, which shows nothing either. A sandboxed build can't see the
+/// commands (they live outside its container), so there Codex counts only as an app.
+@MainActor
+enum ConnectFinder {
+    typealias Guide = ConnectAISection.Guide
+
+    #if os(macOS)
+    static let claudeApp = "com.anthropic.claudefordesktop"
+    static let apps: [(Guide, String)] = [(.chatgpt, "com.openai.chat"), (.claude, claudeApp), (.codex, "com.openai.codex")]
+    static let commands: [(Guide, String)] = [(.claude, "claude"), (.codex, "codex")]
+
+    /// Where installers put the commands. An app started from the Dock has a short PATH, so the
+    /// usual places are looked at too.
+    static func places() -> [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        return path + ["/opt/homebrew/bin", "/usr/local/bin", "\(home)/.local/bin", "\(home)/.claude/local",
+                       "\(home)/.npm-global/bin", "\(home)/.bun/bin", "\(home)/.volta/bin"]
+    }
+
+    static func hasApp(_ id: String) -> Bool { NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) != nil }
+
+    static func hasCommand(_ name: String) -> Bool {
+        places().contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(name)") }
+    }
+
+    static func found() -> [Guide] {
+        var out: Set<Guide> = []
+        for (g, id) in apps where hasApp(id) { out.insert(g) }
+        for (g, name) in commands where hasCommand(name) { out.insert(g) }
+        return Guide.allCases.filter(out.contains)
+    }
+
+    /// Claude Code without the Claude app: Claude is then added to Claude Code directly (a
+    /// hidden `claude mcp add`), on a claude.ai login and on an API key alike. With the app there
+    /// too, Claude's connector covers both (code.claude.com/docs/en/mcp).
+    static func claudeCodeOnly() -> Bool {
+        ConnectShell.isAvailable && !hasApp(claudeApp) && hasCommand("claude")
+    }
+    #else
+    static let schemes: [(Guide, String)] = [(.chatgpt, "chatgpt://"), (.claude, "claude://")]
+
+    static func found() -> [Guide] {
+        schemes.filter { UIApplication.shared.canOpenURL(URL(string: $0.1)!) }.map(\.0)
+    }
+
+    static func claudeCodeOnly() -> Bool { false }
+    #endif
+}
+
+// MARK: Connecting one
+
+/// One AI being connected: what was started, what the row says while the other side works, and
+/// watching for the new connection. Every step of a connection passes through here (start,
+/// waiting, connected, failed), so this is the one place that knows where a connection is.
+@MainActor
+@Observable
+final class ConnectRun {
+    typealias Guide = ConnectAISection.Guide
+    enum Phase: Equatable { case waiting(String), failed(String, fix: String) }
+
+    private(set) var guide: Guide?
+    private(set) var phase: Phase?
+    /// Claude went straight to Claude Code (only the command is on this Mac).
+    private(set) var direct = false
+    private(set) var since = Date.now
+    @ObservationIgnored private var watching: Task<Void, Never>?
+    @ObservationIgnored private var expecting = false
+    /// Told when the connection exists, so the list loads again.
+    @ObservationIgnored var connected: (Guide) -> Void = { _ in }
+
+    var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
+
+    /// The press on an AI's row.
+    func start(_ g: Guide, client: SupabaseClient, open: @escaping (URL) -> Void) {
+        stop()
+        guide = g
+        since = .now.addingTimeInterval(-5)
+        direct = false
+        expect()
+        #if os(macOS)
+        switch g {
+        case .chatgpt:
+            ConnectClipboard.set(server)
+            open(WebConnectPlan.chatgpt.setupPage(server: server))
+            wait(client, ConnectCopy.waiting(.chatgpt))
+        case .claude:
+            if ConnectFinder.claudeCodeOnly() {
+                direct = true
+                add(.claudeCode, client: client)
+            } else {
+                open(WebConnectPlan.directoryListing)
+                wait(client, ConnectCopy.waiting(.claude))
+            }
+        case .claudeCode, .codex:
+            add(g, client: client)
+        case .other, .incredible:
+            ConnectClipboard.set(server)
+            wait(client, ConnectCopy.waiting(.other))
+        }
+        #else
+        if g == .other {
+            ConnectClipboard.set(server)
+            wait(client, ConnectCopy.waiting(.other))
+        } else {
+            // The link went to the computer (ShareLink): it finishes there, and shows here too.
+            wait(client, ConnectCopy.onComputer)
+        }
+        #endif
+    }
+
+    /// The fix a failed row offers.
+    func fix(client: SupabaseClient, open: @escaping (URL) -> Void) {
+        guard let g = guide else { return }
+        if case .failed(_, let fix) = phase, fix == ConnectCopy.getCodex {
+            open(ConnectCopy.codexPage)
+            return
+        }
+        start(g, client: client, open: open)
+    }
+
+    func stop() {
+        watching?.cancel()
+        watching = nil
+        if expecting { ConnectCenter.shared.stopExpectingAsks(); expecting = false }
+        guide = nil
+        phase = nil
+    }
+
+    private func expect() {
+        if !expecting { ConnectCenter.shared.expectAsks(); expecting = true }
+    }
+
+    private func wait(_ client: SupabaseClient, _ line: String) {
+        phase = .waiting(line)
+        guard let g = guide else { return }
+        let since = since
+        watching?.cancel()
+        watching = Task { [weak self] in
+            while !Task.isCancelled {
+                let here = ConnectCenter.shared.approved.map { $0.at >= since && ConnectRun.approvalCounts($0.ai, for: g) } ?? false
+                if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value,
+                   ConnectRun.isNew(rows, for: g, since: since) || here {
+                    self?.done(g)
+                    return
+                }
+                try? await Task.sleep(for: .seconds(here ? 1 : 3))
+            }
+        }
+    }
+
+    /// An access token: connected at its first call.
+    private func waitForToken(_ client: SupabaseClient, _ ai: Guide, _ line: String) {
+        phase = .waiting(line)
+        guard let g = guide else { return }
+        let since = since
+        watching?.cancel()
+        watching = Task { [weak self] in
+            while !Task.isCancelled {
+                if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value,
+                   TerminalConnect.isConnected(rows, guide: ai, way: .token, since: since) {
+                    self?.done(g)
+                    return
+                }
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
+    }
+
+    private func done(_ g: Guide) {
+        stop()
+        connected(g)
+    }
+
+    private func fail(_ line: String, fix: String) {
+        watching?.cancel()
+        phase = .failed(line, fix: fix)
+    }
+
+    /// Claude Code or Codex: Pinto Notes adds itself with their own command, out of sight, and
+    /// starts their sign-in, which opens our page in the browser; Allow happens in Pinto Notes.
+    private func add(_ g: Guide, client: SupabaseClient) {
+        let ai = g == .codex ? Guide.codex : .claudeCode
+        #if os(macOS)
+        guard ConnectShell.isAvailable else {
+            // A sandboxed build can't start a shell: the command is copied for Terminal instead.
+            ConnectClipboard.set(ConnectShell.command(ai, server: server))
+            wait(client, ConnectCopy.pasteInTerminal)
+            return
+        }
+        phase = .waiting(ConnectCopy.adding(ai))
+        let server = server
+        // At an address with a path (staging, a local stack) the AI can't sign in through the
+        // browser, so it gets an access token instead (see TerminalConnect).
+        let way = TerminalConnect.way(server: server)
+        Task { [weak self] in
+            guard await ConnectShell.exists(ai) else {
+                self?.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
+                return
+            }
+            var token: String?
+            if way == .token {
+                if ai == .codex {
+                    // Codex takes a token only in its config file: copied, to paste there.
+                    guard let t = try? await ConnectTokens.create(client, name: ai.title, write: true, make: { try AccountCrypto.shared.accessToken() }) else {
+                        self?.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain); return
+                    }
+                    ConnectClipboard.set(ConnectSnippets.codex(url: server, token: t))
+                    self?.waitForToken(client, ai, ConnectCopy.pasteInCodexConfig)
+                    return
+                }
+                token = try? await ConnectTokens.create(client, name: ai.title, write: true, make: { try AccountCrypto.shared.accessToken() })
+                if token == nil { self?.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain); return }
+            }
+            let result = await ConnectShell.add(ai, server: server, token: token)
+            guard let self, self.guide == g else { return }
+            switch result {
+            case .added where token != nil:
+                self.waitForToken(client, ai, ConnectCopy.askIt(ai))
+            case .added:
+                ConnectShell.signIn(ai)
+                self.wait(client, ConnectCopy.allowInBrowser)
+            case .notFound:
+                self.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
+            case .refused:
+                self.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain)
+            }
+        }
+        #endif
+    }
+
+    /// A new connection for this AI, made since the press.
+    nonisolated static func isNew(_ rows: [Connection], for g: Guide, since: Date) -> Bool {
+        let fresh = rows.filter { $0.revoked_at == nil && $0.created_at >= since }
+        switch g {
+        case .chatgpt, .claude:
+            if fresh.contains(where: { owner(of: $0) == g }) { return true }
+            // Claude straight to Claude Code: a sign-in from this computer.
+            return g == .claude && fresh.contains { $0.isOAuth && Connection.isLoopback($0.redirect_host ?? "") }
+        case .claudeCode, .codex:
+            return fresh.contains { $0.isOAuth && Connection.isLoopback($0.redirect_host ?? "") }
+        case .other, .incredible:
+            return !fresh.isEmpty
+        }
+    }
+
+    /// An approval made on this device that finishes this AI's wait. The consent sheet reports the
+    /// AI it could vouch for (ChatGPT, Claude); anything else reports none.
+    nonisolated static func approvalCounts(_ ai: String?, for g: Guide) -> Bool {
+        switch g {
+        case .chatgpt: ai == "ChatGPT"
+        case .claude: ai == "Claude" || ai == nil
+        default: ai == nil
+        }
+    }
+
+    /// Which row a connection belongs to. ChatGPT and Claude by where the approval went; others
+    /// by the name they gave (shown as a hint on the row, never trusted for anything else).
+    nonisolated static func owner(of c: Connection) -> Guide {
+        if c.isOAuth, let ai = ConnectTrust.verifiedAI(host: c.redirect_host ?? "", loopback: false) {
+            return ai == "ChatGPT" ? .chatgpt : ai == "Claude" ? .claude : .other
+        }
+        let n = c.name.lowercased()
+        if n.contains("codex") { return .codex }
+        if n.contains("claude") { return .claude }
+        if n.contains("incredible") { return .incredible }
+        return .other
+    }
+}
+
+#if os(macOS)
+/// Runs Claude Code's and Codex's own commands in the person's login shell (a GUI app doesn't see
+/// their PATH). Outside the sandbox only: a sandboxed app can't start a shell.
+enum ConnectShell {
+    static var isAvailable: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil }
+
+    enum Result: Equatable { case added, notFound, refused }
+
+    static func tool(_ g: ConnectAISection.Guide) -> String { g == .codex ? "codex" : "claude" }
+
+    /// Adds the server under its name, replacing an entry made before (under this name or the
+    /// old one), so nobody ends up with the same notes listed twice.
+    static func addScript(_ g: ConnectAISection.Guide) -> String {
+        let name = ConnectSnippets.serverName, old = ConnectSnippets.oldServerName
+        return g == .codex ? """
+            command -v codex >/dev/null 2>&1 || { echo "not-found"; exit 127; }
+            codex mcp remove \(old) >/dev/null 2>&1
+            codex mcp remove \(name) >/dev/null 2>&1
+            codex mcp add \(name) --url "$PINTO_URL"
+            """ : """
+            command -v claude >/dev/null 2>&1 || { echo "not-found"; exit 127; }
+            claude mcp remove --scope user \(old) >/dev/null 2>&1
+            claude mcp remove --scope user \(name) >/dev/null 2>&1
+            claude mcp add --scope user --transport http \(name) "$PINTO_URL"
+            """
+    }
+
+    /// The same, as one line for Terminal (Having trouble?, and the sandboxed build).
+    static func command(_ g: ConnectAISection.Guide, server: String) -> String {
+        let name = ConnectSnippets.serverName
+        return g == .codex ? "codex mcp add \(name) --url \(server) && codex mcp login \(name)"
+            : "claude mcp add --scope user --transport http \(name) \(server) && claude mcp login \(name)"
+    }
+
+    /// Whether the person's shell finds the command.
+    static func exists(_ g: ConnectAISection.Guide) async -> Bool {
+        await run("command -v \(tool(g))", env: [:], waits: true).0 == 0
+    }
+
+    static func add(_ g: ConnectAISection.Guide, server: String, token: String? = nil) async -> Result {
+        var script = addScript(g)
+        if token != nil { script += " --header \"Authorization: Bearer $PINTO_TOKEN\"" }
+        let (status, text) = await run(script, env: ["PINTO_URL": server, "PINTO_TOKEN": token ?? ""], waits: true)
+        if status == 0 { return .added }
+        return text.contains("not-found") ? .notFound : .refused
+    }
+
+    /// Starts the AI's sign-in: it opens our page in the browser and waits for the answer, so it
+    /// isn't waited for here. It is stopped after ten minutes if nothing came.
+    static func signIn(_ g: ConnectAISection.Guide) {
+        Task { _ = await run("\(tool(g)) mcp login \(ConnectSnippets.serverName)", env: [:], waits: false) }
+    }
+
+    /// A sign-in left running, stopped later from another task.
+    private final class Running: @unchecked Sendable {
+        private let process: Process
+        init(_ process: Process) { self.process = process }
+        func stop() { if process.isRunning { process.terminate() } }
+    }
+
+    private static func run(_ script: String, env: [String: String], waits: Bool) async -> (Int32, String) {
+        await Task.detached {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
+            p.arguments = ["-l", "-i", "-c", script]
+            p.environment = ProcessInfo.processInfo.environment.merging(env) { $1 }
+            let out = Pipe()
+            p.standardOutput = out
+            p.standardError = out
+            p.standardInput = FileHandle.nullDevice
+            do { try p.run() } catch { return (Int32(-1), "") }
+            guard waits else {
+                let running = Running(p)
+                Task.detached { try? await Task.sleep(for: .seconds(600)); running.stop() }
+                return (0, "")
+            }
+            p.waitUntilExit()
+            return (p.terminationStatus, String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")
+        }.value
+    }
+}
+#endif
+
+// MARK: The words
+
+enum ConnectCopy {
+    typealias Guide = ConnectAISection.Guide
+    static let why = "Your AI can then read and write your notes when you ask it to."
+    #if os(macOS)
+    static let here = "On this Mac"
+    #else
+    static let here = "On this iPhone"
+    #endif
+    static let others = "Other AIs"
+    static let trouble = "Having trouble?"
+    static let connected = "Connected"
+
+    static func waiting(_ g: Guide) -> String {
+        switch g {
+        case .chatgpt: "Finish on chatgpt.com. The link is copied."
+        case .claude: "Finish in Claude: choose Connect."
+        default: "Link copied. Paste it in your AI app."
+        }
+    }
+
+    static let onComputer = "Finish on your computer. This shows when it\u{2019}s done."
+    static let pasteInTerminal = "Command copied. Paste it in Terminal."
+    static let allowInBrowser = "In your browser: choose Open Pinto Notes, then Allow."
+    static let pasteInCodexConfig = "Copied. Paste it at the end of ~/.codex/config.toml."
+    static func askIt(_ g: Guide) -> String { "Added. Ask \(g.title) about your notes." }
+    static func adding(_ g: Guide) -> String { "Adding it to \(g.title)\u{2026}" }
+    static func notOnThisMac(_ g: Guide) -> String { "\(g.title) isn\u{2019}t on this Mac yet." }
+    static func refused(_ g: Guide) -> String { "\(g.title) didn\u{2019}t take it. Having trouble? has the command." }
+    static let tryAgain = "Try Again"
+    static let getCodex = "Get Codex"
+    static let codexPage = URL(string: "https://chatgpt.com/codex")!
+}
+
+// MARK: The choices
+
+/// Connect an AI, the same wherever it is offered (the first-run flow, Settings, the sheet the
+/// sidebar card, the File menu and Make an App open): the AIs found on this device first, as large
+/// choices; every other AI in a quiet list under them. Each row is the button that connects it,
+/// says what that AI is for, then where to finish while the other side works, then Connected.
+/// Nothing dims: after one is connected, every other stays there to press. The view around it has
+/// the one orange button to go on (Continue, Done). Anything technical is behind Having trouble?.
 struct ConnectChoices: View {
+    typealias Guide = ConnectAISection.Guide
     let client: SupabaseClient
     /// The ways offered, in order.
-    var guides: [ConnectAISection.Guide] = ConnectAISection.Guide.offered
-    /// The first-run flow marks a connected AI on its choice and leaves the list out.
+    var guides: [Guide] = Guide.offered
+    /// Settings: what is connected, each with Disconnect, under the choices.
     var listsConnected = true
     /// Captures: shows these instead of asking the server.
     var preview: [Connection]? = nil
-    /// Tells the flow what is connected, each time it has been asked again.
+    /// Captures: what counts as found on this device.
+    var previewFound: [Guide]? = nil
+    /// Tells the view around it what is connected, each time it has been asked again.
     var onLoaded: (Set<String>) -> Void = { _ in }
 
     @State private var connections: [Connection] = []
     @State private var removing: Connection?
     @State private var error: String?
     @State private var center = ConnectCenter.shared
-    /// Which guide is open, held by the view around this one (`connectGuides`).
+    @State private var run = ConnectRun()
+    @State private var found: [Guide] = []
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
     @Environment(\.networkReach) private var reach
+    @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    static let another = "Connect another"
-    static let reassurance = "You approve each AI, and every change can be undone."
-    static let why = "Your AI can then read and write your notes when you ask it to."
+    static let why = ConnectCopy.why
 
     private var active: [Connection] { (preview ?? connections).filter { $0.revoked_at == nil } }
+    private var connectedGuides: Set<Guide> { Set(active.map(ConnectRun.owner(of:))) }
+    private var shownFound: [Guide] { previewFound ?? found }
+    /// On top: what is on this device; with nothing found, the two most people use.
+    private var top: [Guide] {
+        let here = guides.filter(shownFound.contains)
+        return here.isEmpty ? guides.filter { [.chatgpt, .claude].contains($0) } : here
+    }
+    private var rest: [Guide] { guides.filter { !top.contains($0) } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Metrics.gap) {
+        VStack(alignment: .leading, spacing: 8) {
             if let ask = center.waiting().first {
                 ConnectWaitingRow(ask: ask)
             }
-            // With something connected, that comes first, each with its Disconnect; the ways to
-            // connect follow under their own small heading.
-            if listsConnected, !active.isEmpty {
-                connected
-                Text(Self.another)
-                    .font(Metrics.header)
-                    .foregroundStyle(Color.muted)
-                    .padding(.top, 4)
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityIdentifier("connect.another")
+            if !shownFound.filter(guides.contains).isEmpty { header(ConnectCopy.here) }
+            VStack(spacing: Metrics.gap) { ForEach(top) { big($0) } }
+            if let g = run.guide, top.contains(g) { fixButton }
+            if !rest.isEmpty {
+                header(ConnectCopy.others).padding(.top, 10)
+                quietList
+                if let g = run.guide, rest.contains(g) { fixButton }
             }
-            BigChoices(list: choices)
-                .disabled(reach != .online)
             if reach != .online {
                 Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted)
             }
             if let error, reach == .online {
                 Text(error).font(.footnote).foregroundStyle(.red)
             }
-            Text(Self.reassurance)
-                .font(.footnote)
+            Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
+                .buttonStyle(.hoverLink)
+                .font(Metrics.quiet)
                 .foregroundStyle(Color.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("connect.reassurance")
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
+                .accessibilityIdentifier("connect.trouble")
+            if listsConnected, !active.isEmpty { connectedList.padding(.top, 8) }
         }
-        // Asks again when a guide closes (it may have connected something) and when back online.
+        .disabled(reach != .online)
+        .onAppear {
+            if previewFound == nil { found = ConnectFinder.found() }
+            run.connected = { _ in Task { await load() } }
+        }
+        .onDisappear { run.stop() }
+        // Asks again when a sheet over it closes and when back online.
         .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
         .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
@@ -218,22 +630,185 @@ struct ConnectChoices: View {
         }
     }
 
-    private var choices: [BigChoice] {
-        let titles = Set(active.map(\.title))
-        return guides.map { g in
-            let done = !listsConnected && titles.contains(g.title)
-            return BigChoice(id: "connect.guide.\(g.rawValue)", title: g.title, detail: done ? "Connected" : g.plain,
-                             mark: .ai(g.title), done: done, hint: g.subtitle) { route?.guide = g }
+    private func header(_ text: String) -> some View {
+        Text(text).font(Metrics.header).foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: Rows
+
+    private enum RowState: Equatable { case rest, waiting(String), failed(String), connected }
+
+    private func state(_ g: Guide) -> RowState {
+        if run.guide == g, let phase = run.phase {
+            switch phase {
+            case .waiting(let line): return .waiting(line)
+            case .failed(let line, _): return .failed(line)
+            }
+        }
+        return connectedGuides.contains(g) ? .connected : .rest
+    }
+
+    private func detail(_ g: Guide) -> String {
+        switch state(g) {
+        case .rest: g.line
+        case .waiting(let line), .failed(let line): line
+        case .connected: ConnectCopy.connected
         }
     }
 
+    private func press(_ g: Guide) {
+        if g == .incredible { route?.guide = .incredible; return }
+        run.start(g, client: client) { openURL($0) }
+    }
+
+    private var anyConnected: Bool { !connectedGuides.isEmpty }
+
+    /// The fix for a row that failed: the orange button while nothing is connected, else quiet,
+    /// so Continue (or Done) stays the one orange control.
+    @ViewBuilder private var fixButton: some View {
+        if case .failed(_, let fix) = run.phase {
+            if anyConnected {
+                Button(fix) { run.fix(client: client) { openURL($0) } }
+                    .buttonStyle(.hoverLink).font(Metrics.quiet).foregroundStyle(Color.amberInk)
+                    .accessibilityIdentifier("connect.fix")
+            } else {
+                Button(fix) { run.fix(client: client) { openURL($0) } }
+                    .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+                    .accessibilityIdentifier("connect.fix")
+            }
+        }
+    }
+
+    @ViewBuilder private func trailing(_ g: Guide, size: CGFloat) -> some View {
+        switch state(g) {
+        case .waiting: ProgressView().controlSize(.small)
+        case .connected:
+            Image(systemName: "checkmark.circle.fill").font(.system(size: size, weight: .semibold)).foregroundStyle(.white, .green)
+        case .failed:
+            Image(systemName: "exclamationmark.circle.fill").font(.system(size: size, weight: .semibold)).foregroundStyle(.white, .red)
+        case .rest:
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+        }
+    }
+
+    private func lit(_ g: Guide) -> Bool { if case .waiting = state(g) { return true }; return false }
+
+    /// The row as a button; on iPhone, the AIs added on a computer send the link there (ShareLink).
+    @ViewBuilder private func pressable(_ g: Guide, @ViewBuilder label: () -> some View) -> some View {
+        #if os(iOS)
+        if g != .other, g != .incredible, state(g) != .connected {
+            ShareLink(item: ConnectCopy.message(g, server: run.server), subject: Text("Connect \(g.title) to Pinto Notes"),
+                      preview: SharePreview("Connect \(g.title) to Pinto Notes", icon: Image("Mark"))) { label() }
+                .buttonStyle(BigChoicePress())
+                .simultaneousGesture(TapGesture().onEnded { press(g) })
+        } else {
+            Button { press(g) } label: { label() }.buttonStyle(BigChoicePress())
+        }
+        #else
+        Button { press(g) } label: { label() }.buttonStyle(BigChoicePress())
+        #endif
+    }
+
+    private func big(_ g: Guide) -> some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        let words = VStack(alignment: .leading, spacing: 2) {
+            Text(g.title).font(BigChoices.Metrics.title).foregroundStyle(Color.ink)
+            Text(detail(g)).font(BigChoices.Metrics.detail).foregroundStyle(state(g) == .rest ? Color.muted : Color.ink)
+        }
+        .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
+        return pressable(g) {
+            Group {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack { AITile(ai: g.title, size: BigChoices.Metrics.rowMark); Spacer(minLength: 8); trailing(g, size: BigChoices.Metrics.check) }
+                        words
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        AITile(ai: g.title, size: BigChoices.Metrics.rowMark)
+                        words
+                        Spacer(minLength: 8)
+                        trailing(g, size: BigChoices.Metrics.check)
+                    }
+                }
+            }
+            .padding(.horizontal, BigChoices.Metrics.padding)
+            .padding(.vertical, BigChoices.Metrics.rowPadding)
+            .frame(maxWidth: .infinity, minHeight: BigChoices.Metrics.rowHeight, alignment: .leading)
+            .background(lit(g) ? Color.amberSoft : Color(Palette.field), in: shape)
+            .overlay(shape.strokeBorder(lit(g) ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: lit(g) ? 1.5 : 1))
+            .hoverOverlay(shape, Color.primary.opacity(0.05))
+            .contentShape(shape)
+        }
+        .modifier(Said(id: "connect.guide.\(g.rawValue)", label: "\(g.title). \(detail(g))"))
+    }
+
+    private var quietList: some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        return VStack(spacing: 0) {
+            ForEach(Array(rest.enumerated()), id: \.element) { i, g in
+                if i > 0 { Divider().padding(.leading, Metrics.smallMark + 22) }
+                small(g)
+            }
+        }
+        .background(Color(Palette.field))
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+    }
+
+    private func small(_ g: Guide) -> some View {
+        let words = VStack(alignment: .leading, spacing: 1) {
+            Text(g.title).font(Metrics.smallTitle).foregroundStyle(Color.ink)
+            Text(detail(g)).font(Metrics.smallDetail).foregroundStyle(state(g) == .rest ? Color.muted : Color.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .multilineTextAlignment(.leading)
+        return pressable(g) {
+            Group {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack { AITile(ai: g.title, size: Metrics.smallMark); Spacer(); trailing(g, size: Metrics.smallCheck) }
+                        words
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        AITile(ai: g.title, size: Metrics.smallMark)
+                        words
+                        Spacer(minLength: 8)
+                        trailing(g, size: Metrics.smallCheck)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, Metrics.smallPad)
+            .frame(maxWidth: .infinity, minHeight: Metrics.smallHeight, alignment: .leading)
+            .background(lit(g) ? Color.amberSoft : .clear)
+            .hoverOverlay(Rectangle(), Color.primary.opacity(0.05))
+            .contentShape(.rect)
+        }
+        .modifier(Said(id: "connect.guide.\(g.rawValue)", label: "\(g.title). \(detail(g))"))
+    }
+
+    /// What VoiceOver and tests see: one button, named by its words.
+    private struct Said: ViewModifier {
+        let id: String
+        let label: String
+        func body(content: Content) -> some View {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(label)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityIdentifier(id)
+        }
+    }
+
+    // MARK: What is connected (Settings)
+
     /// What is connected: a plain list under the choices, each with Disconnect.
-    private var connected: some View {
+    private var connectedList: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Connected")
-                .font(Metrics.header)
-                .foregroundStyle(Color.muted)
-                .accessibilityAddTraits(.isHeader)
+            header(ConnectCopy.connected)
             VStack(spacing: 0) {
                 ForEach(Array(active.enumerated()), id: \.element.id) { i, c in
                     if i > 0 { Divider().padding(.leading, Metrics.rowInset) }
@@ -302,25 +877,180 @@ struct ConnectChoices: View {
         #if os(macOS)
         static let header = Font.system(size: 12, weight: .semibold)
         static let rowTitle = Font.system(size: 13)
-        static let gap: CGFloat = 12
+        static let quiet = Font.system(size: 13, weight: .medium)
+        static let smallTitle = Font.system(size: 12, weight: .semibold)
+        static let smallDetail = Font.system(size: 11)
+        static let gap: CGFloat = 8
         static let rowInset: CGFloat = 36
+        static let smallMark: CGFloat = 22
+        static let smallPad: CGFloat = 6
+        static let smallHeight: CGFloat = 38
+        static let smallCheck: CGFloat = 13
         #else
         static let header = Font.footnote.weight(.semibold)
         static let rowTitle = Font.body
-        static let gap: CGFloat = 14
+        static let quiet = Font.subheadline.weight(.medium)
+        static let smallTitle = Font.subheadline.weight(.semibold)
+        static let smallDetail = Font.footnote
+        static let gap: CGFloat = 10
         static let rowInset: CGFloat = 36
+        static let smallMark: CGFloat = 28
+        static let smallPad: CGFloat = 8
+        static let smallHeight: CGFloat = 50
+        static let smallCheck: CGFloat = 17
         #endif
     }
 }
 
-/// Connect an AI as its own sheet (from a note that asks for an AI): the title, why, the choices.
+extension ConnectCopy {
+    /// iPhone: what is sent to the computer for an AI that is added there.
+    static func message(_ g: Guide, server: String) -> String {
+        switch g {
+        case .chatgpt, .claude:
+            WebConnectPlan.forAI(g.title)?.message(server: server) ?? server
+        default:
+            "Connect \(g.title) to Pinto Notes, on your computer, in Terminal:\n\n\(TerminalConnect.command(g == .codex ? .codex : .claudeCode, server: server, way: .signIn))"
+        }
+    }
+}
+
+/// Which help to show: one AI's, or all of it.
+struct HelpTopic: Identifiable {
+    let guide: ConnectAISection.Guide?
+    var id: String { guide?.rawValue ?? "all" }
+}
+
+// MARK: Having trouble?
+
+/// Everything technical, behind the one quiet link: the address, the commands, ChatGPT's own
+/// steps, Claude's custom connector, an access token for an app that asks for one.
+struct ConnectHelpSheet: View {
+    typealias Guide = ConnectAISection.Guide
+    let topic: HelpTopic
+    let client: SupabaseClient
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var copied: String?
+    @State private var token: String?
+    @State private var readOnly = false
+    @State private var problem: String?
+
+    private var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
+    private var order: [Guide] {
+        let all: [Guide] = [.chatgpt, .claude, .claudeCode, .codex, .other]
+        guard let g = topic.guide, all.contains(g) else { return all }
+        return [g] + all.filter { $0 != g }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    copyRow(server, id: "address")
+                } header: { Text("The address") } footer: { Text("Any AI app that can add a connector (an MCP server) can use it. It holds no password.") }
+                ForEach(order) { section($0) }
+            }
+            .formStyle(.grouped)
+            .navigationTitle(ConnectCopy.trouble)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        #if os(macOS)
+        .frame(width: 520, height: 560)
+        #endif
+    }
+
+    @ViewBuilder private func section(_ g: Guide) -> some View {
+        switch g {
+        case .chatgpt:
+            Section("ChatGPT") {
+                Text(WebConnectPlan.chatgpt.steps.dropLast().joined(separator: " ")).fixedSize(horizontal: false, vertical: true)
+                Text(WebConnectPlan.chatgpt.plans).font(.footnote).foregroundStyle(.secondary)
+            }
+        case .claude:
+            Section("Claude") {
+                Text("Pinto Notes isn\u{2019}t in your Claude app\u{2019}s directory? Add it as a custom connector. Free includes one.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Add as Custom Connector", systemImage: "plus.circle") { openURL(WebConnectPlan.installLink(server: server)) }
+                    .accessibilityIdentifier("connect.help.custom")
+            }
+        case .claudeCode, .codex:
+            Section(g == .codex ? "Codex" : "Claude Code") {
+                Text(g == .codex ? "Paste this in Terminal. Codex in the ChatGPT app, in Terminal and in your editor share it."
+                                 : "Claude Code on an API key, or the Claude connector doesn\u{2019}t show in it? Paste this in Terminal.")
+                    .fixedSize(horizontal: false, vertical: true)
+                #if os(macOS)
+                copyRow(ConnectShell.command(g, server: server), id: g.rawValue)
+                #else
+                copyRow(TerminalConnect.command(g, server: server, way: .signIn), id: g.rawValue)
+                #endif
+            }
+        case .other:
+            Section {
+                Text("If it asks for a token instead of signing in, make one here. It is shown once.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Toggle("Read only: it can read your notes, not change them", isOn: $readOnly)
+                if let token {
+                    copyRow(token, id: "token")
+                } else {
+                    Button("Make an Access Token", systemImage: "key") { Task { await makeToken() } }
+                        .accessibilityIdentifier("connect.help.token")
+                }
+                if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
+            } header: { Text("An app that asks for a token") }
+        case .incredible:
+            EmptyView()
+        }
+    }
+
+    private func copyRow(_ value: String, id: String) -> some View {
+        HStack(alignment: .top) {
+            Text(value).font(.system(.callout, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            Button(copied == id ? "Copied" : "Copy") {
+                ConnectClipboard.set(value)
+                withAnimation(.snappy) { copied = id }
+            }
+            .accessibilityIdentifier("connect.help.copy.\(id)")
+        }
+    }
+
+    private func makeToken() async {
+        do {
+            token = try await ConnectTokens.create(client, name: "Another AI", write: !readOnly) { try AccountCrypto.shared.accessToken() }
+            problem = nil
+        } catch {
+            problem = "Couldn\u{2019}t make a token. Check your connection and try again."
+        }
+    }
+}
+
+/// Connect an AI as its own sheet (the sidebar card, the File menu, a note that asks for an AI):
+/// the title, why, the choices; Done, the one orange button, once something is connected.
 struct ConnectAISheet: View {
     let client: SupabaseClient
     /// Captures: shows these instead of asking the server.
     var preview: [Connection]? = nil
+    var previewFound: [ConnectAISection.Guide]? = nil
     @Environment(\.dismiss) private var dismiss
+    @State private var anyConnected = false
 
     static let title = "Connect an AI"
+
+    private var choices: some View {
+        ConnectChoices(client: client, listsConnected: false, preview: preview, previewFound: previewFound) { titles in
+            anyConnected = !titles.isEmpty
+        }
+    }
+
+    private var done: some View {
+        Button("Done") { dismiss() }
+            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("connect.done")
+    }
 
     var body: some View {
         #if os(macOS)
@@ -332,19 +1062,22 @@ struct ConnectAISheet: View {
                     .foregroundStyle(Color.ink)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
-                Button("Done") { dismiss() }
-                    .buttonStyle(.hoverText)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tint)
-                    .keyboardShortcut(.defaultAction)
-                    .accessibilityIdentifier("connect.done")
+                if !anyConnected {
+                    Button("Close") { dismiss() }
+                        .buttonStyle(.hoverText)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.muted)
+                        .keyboardShortcut(.cancelAction)
+                        .accessibilityIdentifier("connect.close")
+                }
             }
-            Text(ConnectChoices.why)
+            Text(ConnectCopy.why)
                 .font(.system(size: 13))
                 .foregroundStyle(Color.muted)
                 .padding(.top, 6)
-                .padding(.bottom, 18)
-            ConnectChoices(client: client, preview: preview)
+                .padding(.bottom, 16)
+            choices
+            if anyConnected { done.padding(.top, 16) }
         }
         .padding(28)
         .frame(width: 480)
@@ -356,20 +1089,23 @@ struct ConnectAISheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(ConnectChoices.why)
+                    Text(ConnectCopy.why)
                         .font(.body)
                         .foregroundStyle(Color.muted)
                         .fixedSize(horizontal: false, vertical: true)
-                    ConnectChoices(client: client, preview: preview)
+                    choices
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
+            }
+            .safeAreaInset(edge: .bottom) {
+                if anyConnected { done.padding(.horizontal, 20).padding(.bottom, 8) }
             }
             .background { Backdrop() }
             .navigationTitle(Self.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                if !anyConnected { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             }
         }
         .connectGuides(client: client)

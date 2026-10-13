@@ -95,10 +95,8 @@ import Testing
     /// button that opens Settings (newcomer audit #14). "Another AI" is left to Settings. (What the
     /// sheet then looks like is the "none" picture of `theSheetIsTheSizeOfWhatItSays`.)
     @Test func withoutAnAITheSheetOffersConnectingOneInPlace() {
-        #expect(MakeAnApp.connectGuides == [.chatgpt, .claude])
-        // The rest in one menu, whatever is installed: never "Another AI", never twice.
-        #expect(MakeAnApp.moreGuides.contains(.claudeCode) && MakeAnApp.moreGuides.contains(.codex))
-        #expect(!MakeAnApp.moreGuides.contains(.other) && !MakeAnApp.moreGuides.contains(.chatgpt))
+        // The AIs that can build an app; what is on this device comes first (ConnectChoices).
+        #expect(MakeAnApp.connectGuides == [.chatgpt, .claude, .codex])
     }
 
     private func host(state: String, sketch: Bool, dark: Bool, note: (String, String)) async throws -> NSHostingView<some View> {

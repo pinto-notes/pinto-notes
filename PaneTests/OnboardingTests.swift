@@ -459,20 +459,23 @@ import Testing
         #expect(OnboardingFlow.sourceOrder.count == ImportKind.allCases.count)
     }
 
-    /// Connect an AI is one design: what a choice says is what happens, in plain words. Commands,
-    /// file paths and menu trails belong in the guide it opens.
-    @Test func connectChoicesSayWhatHappensInPlainWords() {
+    /// Connect an AI is one design: each choice says what that AI is for, in plain words, never
+    /// where it runs (Claude Code and Codex also live in the Claude and ChatGPT apps). Commands,
+    /// file paths and menu trails belong behind Having trouble?.
+    @Test func connectChoicesSayWhatEachAIIsFor() {
         for g in ConnectAISection.Guide.allCases {
-            let words = g.plain
+            let words = g.line
             #expect(!words.isEmpty)
-            for raw in ["→", "~/", ".toml", "mcp add", "Plugins", "Directory", "Amber", "MCP", "address", "token", "header"] {
+            for raw in ["→", "~/", ".toml", "mcp add", "Plugins", "Directory", "Amber", "MCP", "address", "token", "header", "Terminal"] {
                 #expect(!words.contains(raw), "\(g.title): \(words)")
             }
             #expect(!words.hasSuffix("."))
         }
-        #expect(ConnectAISection.Guide.incredible.plain.contains("Incredible"))
+        #expect(ConnectAISection.Guide.claude.line.contains("Claude Code"), "one connection covers both")
+        #expect(ConnectAISection.Guide.codex.line == "ChatGPT for coding")
+        #expect(ConnectAISection.Guide.incredible.line.contains("Incredible"))
         #expect(ConnectAISheet.title == "Connect an AI", "not just \u{201C}AI\u{201D}")
-        #expect(ConnectChoices.reassurance == "You approve each AI, and every change can be undone.")
+        #expect(ConnectCopy.trouble == "Having trouble?")
         #expect(OnboardingFlow.line(.connect) == ConnectChoices.why, "the flow and the sheet give the same reason")
     }
 
