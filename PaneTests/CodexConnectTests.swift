@@ -1,3 +1,4 @@
+import Foundation
 import Supabase
 import Testing
 @testable import Pane

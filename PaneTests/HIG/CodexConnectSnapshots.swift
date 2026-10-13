@@ -37,9 +37,9 @@ import Testing
     func mac(dark: Bool) async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let mode = dark ? "dark" : "light"
-        var own = codex
+        var own = Self.codex
         own.startedHere = "Codex"
-        try await AppSnapshotTests.render(Self.sheet(codex), name: "before-allow-sheet-\(mode)", dark: dark, wait: 1.4)
+        try await AppSnapshotTests.render(Self.sheet(Self.codex), name: "before-allow-sheet-\(mode)", dark: dark, wait: 1.4)
         try await AppSnapshotTests.render(Self.sheet(own), name: "after-allow-sheet-\(mode)", dark: dark, wait: 1.4)
         try await AppSnapshotTests.render(Self.row(ConnectCopy.adding(.codex)), name: "before-row-\(mode)", dark: dark, wait: 1)
         try await AppSnapshotTests.render(Self.row(ConnectCopy.opensBrowser(.codex)), name: "after-row-1-before-browser-\(mode)", dark: dark, wait: 1)

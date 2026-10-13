@@ -627,16 +627,17 @@ import Testing
         run.claudeCodeOnly = { true }
         run.shell = .init(isAvailable: { true }, exists: { _ in true },
                           add: { ai, _, _ in calls.added.append(ai); return .added },
-                          signIn: { calls.signedIn.append($0) })
+                          signIn: { ai, _ in calls.signedIn.append(ai); return .opened(nil) })
+        run.browserNotice = .zero
         let client = SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test")
         run.start(.claude, client: client, open: { _ in Issue.record("nothing opens: Claude Code is added directly") })
         defer { run.stop() }
-        #expect(run.phase == .waiting(ConnectCopy.adding(.claudeCode)))
+        #expect(run.phase == .waiting(ConnectCopy.opensBrowser(.claudeCode)))
         for _ in 0..<100 where run.phase != .waiting(ConnectCopy.allowInBrowser) {
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(run.phase == .waiting(ConnectCopy.allowInBrowser))
-        #expect(calls.added == [.claudeCode] && calls.signedIn == [.claudeCode])
+        #expect(calls.added.isEmpty && calls.signedIn == [.claudeCode], "the sign-in adds it first (ConnectShell.signIn)")
         #expect(run.guide == .claude && run.direct, "the Claude row carries it, and turns Connected")
     }
 
