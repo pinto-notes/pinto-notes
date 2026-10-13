@@ -69,7 +69,12 @@ if [[ $IN_PLACE != 1 ]]; then
   # releases (1.2.20 to 1.2.22) of the morning's code, and each one deployed the site from it too.
   git -C "$MAIN" fetch -q origin main
   [[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" origin/main
+  # The clean checkout can be a clone of its own, with its own origin/main: fetch there too.
+  git -C "$CLEAN" fetch -q origin main
   git -C "$CLEAN" checkout -q --detach origin/main
+  want=$(git -C "$MAIN" rev-parse origin/main); got=$(git -C "$CLEAN" rev-parse HEAD)
+  # 1.2.20-1.2.22 and 1.2.24 shipped an older commit than GitHub's main: never again.
+  [[ $want == "$got" ]] || { echo "✗ The clean checkout is at ${got:0:8}, GitHub's main is ${want:0:8}. Not releasing." >&2; exit 1; }
   cp "$MAIN/Config/Backend.local.xcconfig" "$CLEAN/Config/"
 fi
 COMMIT=$(git -C "$CLEAN" rev-parse --short HEAD)
