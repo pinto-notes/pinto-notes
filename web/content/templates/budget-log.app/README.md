@@ -5,9 +5,9 @@ What you spend against a monthly budget: what's left this month, where it went, 
 **Read docs/ first.** It's this app's memory: what it's for, the shape of its data, the decisions made and why, and what's missing. Keep it current whenever you change the app.
 
 ## Screens
-- Month (src/screens/month.tsx): what's left this month as a number and a bar, each category against its budget, the latest expenses, and Add expense.
+- Month (src/screens/month.tsx): what's left this month as a number and a bar, each category against its budget (with what rolled over), the last six months, this month's bills, the latest expenses, and Add expense (with Every month for bills).
 - Expenses (src/screens/expenses.tsx): every expense of a month, by day; tap one to edit it, or delete it (with Undo).
-- Budget (src/screens/budget.tsx): the monthly budget per category (rename, change, add, remove), and the currency.
+- Budget (src/screens/budget.tsx): the monthly budget per category (rename, change, add, remove), monthly bills (src/components/bill-sheet.tsx), roll-over and the currency.
 
 The add and edit sheet is src/components/add-expense.tsx; the data and the sums are in src/lib/budget.ts; the shared pieces (sections, rows, bar, sheet) in src/components/kit.tsx.
 

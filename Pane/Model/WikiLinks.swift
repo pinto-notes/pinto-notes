@@ -257,18 +257,125 @@ enum WikiDirectory {
     private(set) static var generation = 0
     private static var lastSignature: [String] = []
 
+    /// Where each note that links to others links, by its id: what "Linked from" is worked out
+    /// from, instead of every note's text being searched each time a note opens.
+    private static var outgoing: [UUID: OutgoingLinks]?
+    private static weak var outgoingContext: ModelContext?
+    /// Being read off the main thread (`prepare`), for this context.
+    private static weak var reading: ModelContext?
+    /// Notes saved while it was read: they're read again once it's in.
+    private static var savedWhileReading: Set<UUID> = []
+    /// Posted (object: the context) when the index and the links are in after being read.
+    static let didRead = Notification.Name("WikiDirectory.didRead")
+
+    private static func watchSaves() {
+        guard observer == nil else { return }
+        // As the save posts, so whoever reads the index after a save sees it.
+        observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { n in
+            // The library's context saves on the main thread; others (TipKit keeps its own
+            // store) can save on any, and aren't the library.
+            guard Thread.isMainThread else { return }
+            nonisolated(unsafe) let saved = n
+            MainActor.assumeIsolated { WikiDirectory.take(saved) }
+        }
+    }
+
+    /// The index if it's there; nil while it's being read (`prepare` has started it). A library of
+    /// up to `readHere` notes is read here and now: quick enough, and its links show at once.
+    static func ready(_ context: ModelContext) -> WikiIndex? {
+        if let cached, cachedContext === context, outgoing != nil, outgoingContext === context { return cached }
+        let live = #Predicate<Note> { $0.deletedAt == nil && $0.trashedAt == nil }
+        if reading !== context, ((try? context.fetchCount(FetchDescriptor<Note>(predicate: live))) ?? 0) <= readHere {
+            watchSaves()
+            reading = context
+            savedWhileReading = []
+            // Whoever asked gets it now: nobody is told it was read (telling the open note made it
+            // ask again, the same turn).
+            install(read(using: context), announce: false)
+            return cached
+        }
+        prepare(context)
+        return nil
+    }
+
+    /// Libraries up to this many notes have their titles and links read on the main thread.
+    static let readHere = 2_000
+
+    /// Reads the titles and links of every note on a context of its own, off the main thread, and
+    /// posts `didRead` when they're in. Opening a note at launch used to read every note's text on
+    /// the main thread first (at 20,000 notes, most of a second, twice).
+    static func prepare(_ context: ModelContext) {
+        guard reading !== context else { return }
+        watchSaves()
+        reading = context
+        savedWhileReading = []
+        let container = context.container
+        Task.detached(priority: .userInitiated) {
+            let read = WikiDirectory.read(using: ModelContext(container))
+            await MainActor.run { WikiDirectory.install(read) }
+        }
+    }
+
+    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]]), announce: Bool = true) {
+        guard let context = reading else { return }
+        reading = nil
+        if cached == nil || cachedContext !== context {
+            cached = WikiIndex(read.entries)
+            cachedContext = context
+            lastSignature = []
+            generation += 1
+        }
+        outgoing = read.outgoing
+        outgoingContext = context
+        folderPaths = read.paths
+        // What was saved while it was read is read again from the context, which has it.
+        let again = savedWhileReading
+        savedWhileReading = []
+        if !again.isEmpty, var index = cached {
+            for id in again {
+                let n = context.note(id)
+                let live = n.map { $0.deletedAt == nil && $0.trashedAt == nil } ?? false
+                let entry = live ? n.map { WikiIndex.Entry(id: $0.id, title: $0.title, folders: context.folderPath($0.folder), updated: $0.updatedAt) } : nil
+                if index.take(entry, id: id) { generation += 1 }
+                outgoing?[id] = n.flatMap { OutgoingLinks(of: $0, folders: context.folderPath($0.folder)) }
+            }
+            cached = index
+        }
+        if announce { NotificationCenter.default.post(name: didRead, object: context) }
+    }
+
+    /// The titles and links of every live note, read on `context` (one of its own, off the main
+    /// thread, for a large library).
+    nonisolated static func read(using context: ModelContext) -> (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]]) {
+        let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
+        var byID: [UUID: (name: String, parent: UUID?)] = [:]
+        for f in folders { byID[f.id] = (f.name, f.parent?.id) }
+        var paths: [UUID: [String]] = [:]
+        func path(_ id: UUID?) -> [String] {
+            guard let id else { return [] }
+            if let p = paths[id] { return p }
+            // As ModelContext.folderPath: names from the top down, a loop read once.
+            var parts: [String] = [], seen = Set<UUID>(), at: UUID? = id
+            while let x = at, let f = byID[x], seen.insert(x).inserted { parts.insert(f.name, at: 0); at = f.parent }
+            paths[id] = parts
+            return parts
+        }
+        let notes = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
+        var entries: [WikiIndex.Entry] = []
+        entries.reserveCapacity(notes.count)
+        var outgoing: [UUID: OutgoingLinks] = [:]
+        for n in notes {
+            let folders = path(n.folder?.id)
+            entries.append(WikiIndex.Entry(id: n.id, title: n.summaryTitle ?? NoteText.head(of: n.body).title, folders: folders, updated: n.updatedAt))
+            if let links = OutgoingLinks(of: n, folders: folders) { outgoing[n.id] = links }
+        }
+        for f in folders { _ = path(f.id) }
+        return (entries, outgoing, paths)
+    }
+
     static func index(_ context: ModelContext) -> WikiIndex {
         if let cached { return cached }
-        if observer == nil {
-            // As the save posts, so whoever reads the index after a save sees it.
-            observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { n in
-                // The library's context saves on the main thread; others (TipKit keeps its own
-                // store) can save on any, and aren't the library.
-                guard Thread.isMainThread else { return }
-                nonisolated(unsafe) let saved = n
-                MainActor.assumeIsolated { WikiDirectory.take(saved) }
-            }
-        }
+        watchSaves()
         let notes = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil }
         // Each folder's path worked out once, not once per note in it.
         var paths: [ObjectIdentifier: [String]] = [:]
@@ -291,14 +398,33 @@ enum WikiDirectory {
         return index
     }
 
-    static func invalidate() { cached = nil }
+    static func invalidate() {
+        cached = nil
+        outgoing = nil
+        folderPaths = [:]
+    }
 
-    /// A save, taken into the index note by note: most saves are a note being typed in, and with
-    /// thousands of notes building the index again after each of them took most of the save's time.
-    /// Folders changing or notes deleted for good build it again. Taking the same save twice is harmless.
+    /// A save, taken into the index and the links note by note: most saves are a note being typed
+    /// in, and with thousands of notes building the index again after each of them took most of
+    /// the save's time. Folders changing or notes deleted for good build them again. Taking the
+    /// same save twice is harmless.
     static func take(_ saved: Notification) {
-        guard var index = cached, let context = saved.object as? ModelContext, context === cachedContext else { return }
-        guard let changes = context.savedNotes(saved), !changes.folders else {
+        guard let context = saved.object as? ModelContext else { return }
+        // A folder that only gained or lost notes (the store saves it with them) leaves every
+        // path as it was: only a rename or a move of a folder makes the index read again.
+        let changes = context.savedModels(saved).map { (notes: $0.notes, folders: movedOrRenamed($0.folders, in: context)) }
+        if reading === context {
+            if let changes, !changes.folders { savedWhileReading.formUnion(changes.notes.map(\.id)) } else { reading = nil; prepare(context) }
+        }
+        if outgoingContext === context, outgoing != nil {
+            if let changes, !changes.folders {
+                for n in changes.notes { outgoing?[n.id] = OutgoingLinks(of: n, folders: context.folderPath(n.folder)) }
+            } else {
+                outgoing = nil
+            }
+        }
+        guard var index = cached, context === cachedContext else { return }
+        guard let changes, !changes.folders else {
             cached = nil
             return
         }
@@ -312,6 +438,27 @@ enum WikiDirectory {
         if changed { generation += 1 }
     }
 
+    /// Each folder's path as the index last read it; empty when the index wasn't read here.
+    private static var folderPaths: [UUID: [String]] = [:]
+
+    /// Whether any of `folders` has another path than the index read (or the index can't tell).
+    private static func movedOrRenamed(_ folders: [Folder], in context: ModelContext) -> Bool {
+        guard !folders.isEmpty else { return false }
+        guard !folderPaths.isEmpty, cachedContext === context || outgoingContext === context else { return true }
+        var moved = false
+        for f in folders {
+            let path: [String] = context.folderPath(f)
+            if let was = folderPaths[f.id], was != path { moved = true }
+            folderPaths[f.id] = path
+        }
+        return moved
+    }
+
+    /// The notes that link to others, as last read: nil until they've been (see `didRead`).
+    static func linking(_ context: ModelContext) -> [UUID: OutgoingLinks]? {
+        outgoingContext === context ? outgoing : nil
+    }
+
     /// Titles to offer after `[[`: those starting with what's typed, then those containing it,
     /// each edited last first. Every title once; never the note being written.
     static func suggestions(_ typed: String, excluding id: UUID, in context: ModelContext, limit: Int = 5) -> [String] {
@@ -323,9 +470,10 @@ enum WikiDirectory {
         return (starts + contains).map(\.title).filter { seen.insert(WikiLinks.key($0)).inserted }.prefix(limit).map { $0 }
     }
 
-    /// The index as the editor of `note` sees it.
+    /// The index as the editor of `note` sees it. While the index is being read it's empty, and
+    /// the note's links are coloured when it's in (`didRead`).
     static func scope(for note: Note, in context: ModelContext) -> WikiScope {
-        let index = index(context)
+        guard let index = ready(context) else { return WikiScope(index: WikiIndex([]), from: [], generation: -1) }
         return WikiScope(index: index, from: context.folderPath(note.folder), generation: generation)
     }
 }
@@ -349,14 +497,19 @@ extension ModelContext {
     /// The notes a save added or changed, and whether it changed folders; nil when it deleted
     /// something for good (those can't be looked at any more).
     func savedNotes(_ saved: Notification) -> (notes: [Note], folders: Bool)? {
+        savedModels(saved).map { ($0.notes, !$0.folders.isEmpty) }
+    }
+
+    /// The notes and folders a save added or changed; nil when it deleted something for good.
+    func savedModels(_ saved: Notification) -> (notes: [Note], folders: [Folder])? {
         func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (saved.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
         guard ids(.deletedIdentifiers).isEmpty else { return nil }
         var notes: [Note] = []
-        var folders = false
+        var folders: [Folder] = []
         for id in ids(.insertedIdentifiers) + ids(.updatedIdentifiers) {
             switch model(for: id) {
             case let n as Note: notes.append(n)
-            case is Folder: folders = true
+            case let f as Folder: folders.append(f)
             default: break
             }
         }
@@ -364,21 +517,20 @@ extension ModelContext {
     }
 
     /// Notes that link to `note`, with a wiki link or a note link, newest first. Its parent's link
-    /// to a sub-note isn't counted: the sub-note already leads back to it.
+    /// to a sub-note isn't counted: the sub-note already leads back to it. Worked out from where
+    /// each note links (WikiDirectory), not by searching every note's text, which the store did
+    /// on opening a note and after every save. Empty while those are being read (`didRead`).
     func backlinks(to note: Note) -> [Note] {
-        let index = WikiDirectory.index(self)
-        let noteLink = "pane-note:\(note.id.uuidString.lowercased())"
-        let key = WikiLinks.key(note.title)
-        // Only notes that could link here are read: the store picks them, instead of every
-        // note's text being loaded and searched here (on opening a note and after every save).
-        let candidates = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.contains("[[") || $0.body.contains(noteLink) }))) ?? []
-        return candidates.sorted { $0.updatedAt > $1.updatedAt }.filter { other in
-            guard other.id != note.id, other.deletedAt == nil, other.trashedAt == nil, !other.isLocked else { return false }
-            if other.id != note.parentID, other.body.contains(noteLink) { return true }
-            guard other.body.contains("[["), other.body.lowercased().contains(key.split(separator: " ").first.map(String.init) ?? key) else { return false }
-            let from = folderPath(other.folder)
-            return WikiLinks.links(in: other.body).contains { index.resolve($0.target, from: from) == note.id }
+        guard let index = WikiDirectory.ready(self), let linking = WikiDirectory.linking(self) else { return [] }
+        let id = note.id, parent = note.parentID
+        var found: [UUID] = []
+        for (other, links) in linking where other != id {
+            if other != parent, links.noteLinks.contains(id) { found.append(other); continue }
+            if links.wikiTargets.contains(where: { index.resolve($0, from: links.folders) == id }) { found.append(other) }
         }
+        guard !found.isEmpty else { return [] }
+        let notes = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { found.contains($0.id) }))) ?? []
+        return notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !$0.isLocked }.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     /// After `note` was renamed from `oldTitle`, points the wiki links that led to it under its
@@ -391,7 +543,15 @@ extension ModelContext {
         let before = WikiDirectory.index(self).with(title: oldTitle, for: note.id)
         let oldKey = WikiLinks.key(oldTitle)
         var changed = 0
-        for other in (try? fetch(FetchDescriptor<Note>())) ?? [] where other.id != note.id && other.deletedAt == nil && !other.isLocked && other.body.contains("[[") {
+        // Only the notes that link by that name are read, when it's known where notes link.
+        let candidates: [Note]
+        if let linking = WikiDirectory.linking(self) {
+            let ids = linking.filter { $0.value.wikiTargets.contains { WikiLinks.key(WikiLinks.name(of: $0)) == oldKey } }.map(\.key)
+            candidates = ids.isEmpty ? [] : (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
+        } else {
+            candidates = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.contains("[[") }))) ?? []
+        }
+        for other in candidates where other.id != note.id && other.deletedAt == nil && !other.isLocked && other.body.contains("[[") {
             let from = folderPath(other.folder)
             let updated = WikiLinks.retarget(other.body, to: newTitle) { link in
                 WikiLinks.key(link.name) == oldKey && before.resolve(link.target, from: from) == note.id
@@ -406,6 +566,31 @@ extension ModelContext {
             SyncSignal.changed()
         }
         return changed
+    }
+}
+
+/// Where a note links: the targets of its wiki links as written and the notes its note links
+/// name, with its folders (a wiki link is resolved from there). Nil for a note that links
+/// nowhere, isn't live, or is locked (its text can't be read).
+struct OutgoingLinks: Equatable, Sendable {
+    var wikiTargets: [String]
+    var noteLinks: Set<UUID>
+    var folders: [String]
+
+    nonisolated(unsafe) private static let noteLink = /pane-note:([0-9a-fA-F-]{36})/
+
+    init?(of note: Note, folders: [String]) {
+        guard note.deletedAt == nil, note.trashedAt == nil, note.lockedBody == nil else { return nil }
+        let body = note.body
+        let wiki = body.contains("[[") ? WikiLinks.links(in: body).map(\.target) : []
+        var ids = Set<UUID>()
+        if body.contains("pane-note:") {
+            for m in body.matches(of: Self.noteLink) { if let id = UUID(uuidString: String(m.1)) { ids.insert(id) } }
+        }
+        guard !wiki.isEmpty || !ids.isEmpty else { return nil }
+        wikiTargets = wiki
+        noteLinks = ids
+        self.folders = folders
     }
 }
 

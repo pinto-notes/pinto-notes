@@ -151,7 +151,7 @@ import Testing
         var found: Set<UUID> = []
         let together = clock.measure { found = NoteListView.nested(in: all, context: ctx) }
         var asked: Set<UUID> = []
-        let oneByOne = clock.measure { asked = Set(all.filter { $0.parentID != nil && ctx.isNested($0.note) }.map(\.id)) }
+        let oneByOne = clock.measure { asked = Set(all.filter { e in e.parentID != nil && e.note(in: ctx).map { ctx.isNested($0) } == true }.map(\.id)) }
         print("PERF 401 sub-notes among 641 notes: found together in \(together), asked one by one in \(oneByOne)")
         #expect(found == asked, "the same sub-notes as the store names")
         #expect(found == Set(linked.map(\.id)).union([lateChild.id]))
@@ -328,9 +328,10 @@ import Testing
             await settle()
         }
         print("PERF 3 saves of the open note: bodies worked out again \(RenderProbe.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
-        // Three writes, each with its sync mark: at most one pass over the 12 folder rows each
-        // (it was five passes).
-        #expect((RenderProbe.counts["FolderTree"] ?? 0) <= 12 * 3, "a save works the folder rows out at most once")
+        // Three writes, each saved (a touch saves on the next turn, so the list shows the change
+        // from what the save says) and then saved again with its sync mark: at most one pass over
+        // the 12 folder rows for each save (it was five passes for each write).
+        #expect((RenderProbe.counts["FolderTree"] ?? 0) <= 12 * 3 * 2, "a save works the folder rows out at most once")
 
         // A new note still counts at once, in All Notes and in its folder.
         RenderProbe.counts = [:]
@@ -466,7 +467,7 @@ import Testing
         }
         try await check("as loaded")
 
-        // Typing: the text and the date change, nothing is saved yet. The note moves to the top.
+        // Typing: the text and the date change, and the touch saves on the next turn. The note moves to the top.
         notes[17].body = "Note 17\n\nedited"
         notes[17].touch()
         try await check("an unsaved edit")
@@ -482,7 +483,9 @@ import Testing
         try await check("recovered")
         ctx.move(notes[3], to: home)
         try await check("moved to another folder")
+        // A change made without a touch shows with its save (a touch saves on the next turn).
         notes[8].parentID = notes[2].id
+        try ctx.save()
         try await check("made a sub-note")
         ctx.purge(notes[11])
         try await check("deleted for good (a tombstone)")
@@ -556,9 +559,9 @@ import Testing
         #expect(moved, "a note that moves to the top is a change to the list")
         #expect(library.entries(in: ctx).first?.id == notes[7].id)
 
-        let refiled = await change { notes[7].folder = home }
+        let refiled = await change { notes[7].folder = home; try? ctx.save() }
         #expect(refiled, "so is the first note changing folder")
-        let pinned = await change { notes[7].isPinned = true }
+        let pinned = await change { notes[7].isPinned = true; try? ctx.save() }
         #expect(pinned, "or being pinned")
 
         library.publishesEveryChange = true
@@ -588,6 +591,9 @@ import Testing
         _ = library.entries(in: ctx)
         func check(_ what: Comment) async throws {
             try? await Task.sleep(for: .milliseconds(150))
+            // A library this size is read off the main thread (LibraryNotes.readHere).
+            let clock = ContinuousClock(), start = clock.now
+            while library.isLoading, clock.now - start < .seconds(60) { try? await Task.sleep(for: .milliseconds(20)) }
             let have = library.entries(in: ctx)
             let want = try ctx.fetch(FetchDescriptor<Note>()).map(NoteEntry.init).sorted { $0.date > $1.date }
             #expect(have.count == want.count, what)
@@ -698,6 +704,17 @@ import Testing
             w.contentView?.layoutSubtreeIfNeeded()
             w.displayIfNeeded()
             try? await Task.sleep(for: .milliseconds(200))
+        }
+        // A large library is read off the main thread: timed once its rows are in.
+        let started = ContinuousClock.now
+        func rows() -> Int {
+            func tables(_ v: NSView) -> [NSTableView] { (v as? NSTableView).map { [$0] } ?? v.subviews.flatMap(tables) }
+            return tables(w.contentView!).map(\.numberOfRows).max() ?? 0
+        }
+        while rows() < 100, ContinuousClock.now - started < .seconds(60) {
+            try? await Task.sleep(for: .milliseconds(20))
+            w.contentView?.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
         }
         var times: [Double] = []
         for i in 0..<9 {

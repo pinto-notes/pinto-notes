@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { APP_TEMPLATES, pageMetadata } from "@/lib/site";
-import { JsonLd, breadcrumbs, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
+import { JsonLd, breadcrumbs, faqPage, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
+import { templateSeo } from "@/lib/template-seo";
 import { COVERS, coverPath } from "@/lib/template-covers";
 import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, searchTitle, template, templates, usePath, type Template } from "@/lib/templates";
 import Card from "../Card";
@@ -63,11 +64,29 @@ export default async function Page({ params }: Props) {
   // The example bar names the AI the template is mostly used with.
   const by = t.prompt.claudeCode && t.audiences.includes("Developers") ? "Claude Code" : "ChatGPT";
   const vs = variants(t);
+  // The templates with an app also answer their search: what you can do in the app, questions, the how-to post.
+  const seo = templateSeo(t.slug);
+  const appSection = t.app && (
+    <section className={s.section} aria-labelledby="result">
+      <div className={s.sectionHead}>
+        <h2 id="result" className={s.h2}>{seo ? "What you can do in the app" : "The app you start with"}</h2>
+        <p className={s.sectionLede}>
+          <UseLabel t={t} /> adds the note with this app and its sample data in Pinto Notes on your Mac. It follows your Mac in light and dark{seo ? ", and everything in it works without your AI" : ""}.
+        </p>
+      </div>
+      {seo && <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>}
+      <div className={`${s.result} ${s.appPair}`}>
+        <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} app in light mode`} />
+        <AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} />
+      </div>
+    </section>
+  );
   return (
     <div className={s.main}>
       <JsonLd graph={[
         breadcrumbs([{ name: "Templates", path: "/templates" }, { name: t.title, path: `/templates/${t.slug}` }]),
         templateWork(t), templateHowTo(t, steps(t)), organization, maker,
+        ...(seo ? [faqPage(seo.faq, `/templates/${t.slug}`)] : []),
       ]} />
       <div>
         <ol className={s.crumbs} aria-label="Breadcrumb">
@@ -76,7 +95,7 @@ export default async function Page({ params }: Props) {
         </ol>
         <div className={s.top}>
           <header className={s.intro}>
-            <h1 className={`${s.title} rise`} style={at(0)}>{t.title}</h1>
+            <h1 className={`${s.title} rise`} style={at(0)}>{seo?.h1 ?? t.title}</h1>
             <p className={`${s.lede} rise`} style={at(1)}>{t.description}</p>
             <p className={`${s.for} rise`} style={at(1)}>
               {t.audience}
@@ -112,22 +131,11 @@ export default async function Page({ params }: Props) {
         </div>
       </div>
 
+      {seo && appSection}
+
       <Instructions title={noteTitle(t)} folder={t.folder} intro={intro(t)} variants={vs} asks={t.asks} />
 
-      {t.app ? (
-        <section className={s.section} aria-labelledby="result">
-          <div className={s.sectionHead}>
-            <h2 id="result" className={s.h2}>The app you start with</h2>
-            <p className={s.sectionLede}>
-              <UseLabel t={t} /> adds the note with this app and its sample data, on your Mac and iPhone. It follows your device in light and dark.
-            </p>
-          </div>
-          <div className={`${s.result} ${s.appPair}`}>
-            <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} app in light mode`} />
-            <AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} />
-          </div>
-        </section>
-      ) : (
+      {t.app ? (seo ? null : appSection) : (
       <section className={s.section} aria-labelledby="result">
         <div className={s.sectionHead}>
           <h2 id="result" className={s.h2}>The note you start with</h2>
@@ -151,6 +159,20 @@ export default async function Page({ params }: Props) {
         </ol>
         <p className={s.connectOne}><a href="/open/connect-ai">Connect ChatGPT, Claude or Claude Code</a></p>
       </section>
+
+      {seo && (
+        <section className={s.section} aria-labelledby="questions">
+          <div className={s.sectionHead}>
+            <h2 id="questions" className={s.h2}>Questions</h2>
+            <p className={s.sectionLede}>
+              Would you rather build your own with your AI? <a href={`/blog/${seo.post.slug}`}>{seo.post.title}</a> shows both ways, and where each one stops.
+            </p>
+          </div>
+          <dl className={s.faq}>
+            {seo.faq.map((f) => <div key={f.q}><dt>{f.q}</dt>{f.a.map((a) => <dd key={a}>{a}</dd>)}</div>)}
+          </dl>
+        </section>
+      )}
 
       {related.length > 0 && (
         <section className={s.section} aria-labelledby="more">

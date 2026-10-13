@@ -34,11 +34,12 @@ final class Folder {
 
     var liveNotes: [Note] { notes.filter { $0.trashedAt == nil && $0.deletedAt == nil } }
 
-    /// Marks a local change for sync.
+    /// Marks a local change for sync, and saves it on the next turn.
     @MainActor func touch() {
         updatedAt = .now
         dirty = true
         SyncSignal.changed()
+        modelContext?.saveSoon()
     }
 }
 
@@ -63,8 +64,15 @@ final class Note {
     var serverVersion: Int64 = 0
     /// Set for a locked note: its text, sealed (see NoteVault). `body` is then its title only.
     var lockedBody: String?
+    /// The title and the line under it in the list, as of the last save: worked out from the text
+    /// as the note is saved (NoteSummaries), so the list, links and the AI tools never work them out
+    /// from every note's text. Nil for a note last saved by a build from before them: worked out
+    /// from the text when asked, and filled in once after launch (NoteSummaries.fill).
+    var summaryTitle: String?
+    var summaryPreview: String?
 
     init(body: String = "", folder: Folder? = nil) {
+        NoteSummaries.install()
         id = UUID()
         self.body = body
         createdAt = .now
@@ -73,17 +81,93 @@ final class Note {
         self.folder = folder
     }
 
-    /// Marks a local change for sync.
+    /// Marks a local change for sync, and saves it on the next turn: the list and the sidebar
+    /// show a change with its save (LibraryNotes).
     @MainActor func touch() {
         updatedAt = .now
         dirty = true
         SyncSignal.changed()
+        modelContext?.saveSoon()
     }
 
     var isLocked: Bool { lockedBody != nil }
 
-    var title: String { NoteText.summary(of: self).title }
-    var preview: String { NoteText.summary(of: self).preview }
+    /// The saved summary while the note has no changes waiting to be saved; worked out from the
+    /// text otherwise (a note being typed in, or one saved before summaries were kept). The list
+    /// asks for every row's title whenever it changes: one stored value each, nothing more.
+    var title: String {
+        if let title = summaryTitle, !hasChanges { return title }
+        return NoteText.summary(of: self).title
+    }
+
+    var preview: String {
+        if let preview = summaryPreview, !hasChanges { return preview }
+        return NoteText.summary(of: self).preview
+    }
+
+    /// Works the summary out from the text again (NoteSummaries, as the note is saved).
+    func summarize() {
+        let head = NoteText.head(of: body)
+        let title = head.title, preview = head.preview ?? NoteText.noPreview
+        if summaryTitle != title { summaryTitle = title }
+        if summaryPreview != preview { summaryPreview = preview }
+    }
+}
+
+/// Keeps each note's saved summary (`Note.summaryTitle`, `summaryPreview`) in step with its text.
+///
+/// The text is written in about forty places (the editor, sync, imports, the AI, links that follow
+/// a rename) and a model's property observers aren't called, so the summary is worked out where
+/// every write ends up: as the context saves, for each note the save inserts or changes. Changes
+/// made there go into the same save. A save posts this on the thread that saves, so a context of
+/// its own (`fill`) is worked out on its own thread.
+enum NoteSummaries {
+    nonisolated(unsafe) private static let observer: NSObjectProtocol = NotificationCenter.default.addObserver(forName: ModelContext.willSave, object: nil, queue: nil) { n in
+        guard let context = n.object as? ModelContext else { return }
+        for case let note as Note in context.insertedModelsArray + context.changedModelsArray { note.summarize() }
+    }
+
+    /// Before the library is opened, and before any note is made. Once is enough; more is harmless.
+    static func install() { _ = observer }
+
+    /// Notes saved before summaries were kept get theirs, a batch at a time, on a context of their
+    /// own off the main thread: the main context hears of them as of any other save elsewhere.
+    /// Returns how many were filled in.
+    @discardableResult
+    static func fill(_ container: ModelContainer, batch: Int = 500) -> Int {
+        install()
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        var filled = 0
+        while true {
+            var missing = FetchDescriptor<Note>(predicate: #Predicate { $0.summaryTitle == nil })
+            missing.fetchLimit = batch
+            guard let notes = try? context.fetch(missing), !notes.isEmpty else { break }
+            for n in notes { n.summarize() }
+            guard (try? context.save()) != nil else { break }
+            filled += notes.count
+        }
+        return filled
+    }
+}
+
+extension ModelContext {
+    /// Saves on the next turn of the main queue: however many changes come before it, one save.
+    @MainActor func saveSoon() {
+        let id = ObjectIdentifier(self)
+        guard SaveSoon.pending.insert(id).inserted else { return }
+        // A context whose library has gone (a closed test window) can't save: it's left alone.
+        Task { @MainActor [weak self, weak container = self.container] in
+            SaveSoon.pending.remove(id)
+            guard let self, container != nil, self.hasChanges else { return }
+            self.saveOrReport()
+        }
+    }
+}
+
+@MainActor
+private enum SaveSoon {
+    static var pending: Set<ObjectIdentifier> = []
 }
 
 /// Lets model changes nudge the sync engine without depending on it.
@@ -107,7 +191,7 @@ enum NoteText {
         if let s = summaries[note.id], s.body == body { return (s.title, s.preview) }
         let head = head(of: body)
         let title = head.title
-        let preview = head.preview ?? "No additional text"
+        let preview = head.preview ?? noPreview
         summaries[note.id] = Summary(body: body, title: title, preview: preview)
         return (title, preview)
     }
@@ -117,8 +201,11 @@ enum NoteText {
     }
 
     static func preview(of body: String) -> String {
-        head(of: body).preview ?? "No additional text"
+        head(of: body).preview ?? noPreview
     }
+
+    /// A note's second line in the list when it has nothing after its title.
+    static let noPreview = "No additional text"
 
     /// The title and the line under it in the list. A table never previews as its header row:
     /// the first line of text after it does, or, with none, its latest row ("27 Sep · 10 km · Minutes 56").

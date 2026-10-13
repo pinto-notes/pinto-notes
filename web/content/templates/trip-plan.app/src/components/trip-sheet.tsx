@@ -1,10 +1,11 @@
 import { useLayoutEffect, useState } from "react"
-import { Field, inputClass, PrimaryButton, Sheet } from "@/components/kit"
+import { DeleteButton, Field, inputClass, offerUndo, PrimaryButton, Sheet } from "@/components/kit"
 import { iso, useTrip } from "@/lib/trip"
 
 // The trip itself: its name, where, and the dates (the countdown and the day numbers follow them).
+// Start a new trip keeps the packing list (unpacked) and moves this trip to past, with Undo.
 export function TripSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { trip, setTrip } = useTrip()
+  const { trip, setTrip, newTrip } = useTrip()
   const [name, setName] = useState("")
   const [place, setPlace] = useState("")
   const [start, setStart] = useState("")
@@ -34,6 +35,14 @@ export function TripSheet({ open, onClose }: { open: boolean; onClose: () => voi
           <div className="min-w-0 flex-1"><Field label="Last day" htmlFor="t-end"><input id="t-end" type="date" className={inputClass} value={end} onInput={(e) => setEnd(e.currentTarget.value)} /></Field></div>
         </div>
         <PrimaryButton type="submit" disabled={!ok}>Save</PrimaryButton>
+        {trip && (
+          <DeleteButton className="text-primary" onClick={async () => {
+            const name = trip.name
+            onClose()
+            const undo = await newTrip()
+            offerUndo(`${name} put away. The packing list is ready again.`, undo)
+          }}>Start a new trip</DeleteButton>
+        )}
       </form>
     </Sheet>
   )

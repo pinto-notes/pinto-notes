@@ -14,7 +14,7 @@ const screens = [
 export default function App() {
   return (
     <AppShell title="Flashcards" screens={screens}>
-      <div className="mx-auto max-w-4xl px-4 pt-4 min-[900px]:px-10 min-[900px]:pt-8">
+      <div className="mx-auto max-w-6xl px-4 pt-4 min-[700px]:px-6 min-[900px]:px-10 min-[900px]:pt-8">
         <UndoBar />
         <Router>
           <Route path="/" component={Study} default />
