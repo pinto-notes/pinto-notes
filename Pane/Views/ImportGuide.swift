@@ -50,6 +50,8 @@ struct ImportGuide: Identifiable {
         case bearSelect, bearExport
         case obsidianReveal, obsidianFound
         case settingsAutomation, notesEmpty, macHandoff, notesShareOne
+        /// For the journey boards: macOS's own Notes prompt, and Gmail's inbox with Google's email.
+        case notesPrompt, gmailInbox
     }
 }
 
@@ -787,6 +789,47 @@ struct GuideDrawing: View {
             }
         case .notesShareOne:
             Color.clear
+        case .notesPrompt:
+            VStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 9).fill(Color(Palette.amber)).frame(width: 44, height: 44)
+                    .overlay(Image(systemName: "note.text").font(.system(size: 20, weight: .semibold)).foregroundStyle(.white))
+                Text("\u{201C}Pinto Notes\u{201D} wants access to control \u{201C}Notes\u{201D}.")
+                    .font(.system(size: 12, weight: .bold)).foregroundStyle(ink).multilineTextAlignment(.center)
+                Text("Allowing control will provide access to documents and data in \u{201C}Notes\u{201D}, and to perform actions within that app.")
+                    .font(.system(size: 10)).foregroundStyle(ink.opacity(0.75)).multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Text("Don\u{2019}t Allow").font(.system(size: 11, weight: .medium)).foregroundStyle(ink)
+                        .frame(maxWidth: .infinity).padding(.vertical, 5)
+                        .background(Color.gray.opacity(0.16), in: .rect(cornerRadius: 6))
+                    ring {
+                        Text("Allow").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 5)
+                            .background(blue, in: .rect(cornerRadius: 6))
+                    }
+                }
+            }
+            .padding(16)
+            .frame(width: 250)
+            .background(paper, in: .rect(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
+            .environment(\.colorScheme, .light)
+        case .gmailInbox:
+            browser("mail.google.com") {
+                VStack(alignment: .leading, spacing: 9) {
+                    ring {
+                        HStack(spacing: 8) {
+                            Text("Google").font(.system(size: 11, weight: .bold)).foregroundStyle(ink).frame(width: 70, alignment: .leading)
+                            Text("Your Google data is ready to download").font(.system(size: 11, weight: .bold)).foregroundStyle(ink)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: 330)
+                    }
+                    ForEach(0..<4, id: \.self) { _ in
+                        HStack(spacing: 8) { bar(60, 6); bar(200, 6) }.padding(.horizontal, 6)
+                    }
+                }
+            }
         }
     }
 
