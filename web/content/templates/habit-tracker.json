@@ -6,12 +6,12 @@
     "Personal"
   ],
   "audience": "For anyone building a few small daily habits.",
-  "description": "A daily habit tracker your AI fills in. Tell ChatGPT or Claude what you did today and it logs the row in Pinto Notes.",
+  "description": "A daily habit tracker app. Tick off your habits each day, or tell ChatGPT or Claude what you did and it records the day in Pinto Notes.",
   "tagline": "Tick off a few small habits every day.",
   "folder": "Habits",
-  "note": "Habit tracker\n\nOne row a day. Tick it off yourself, or tell your AI what you did and it logs the row.\n\n<!-- pane-table: Date=date; Walk=choice Yes|No; Read=choice Yes|No; No phone in bed=choice Yes|No; Water (glasses)=number; Note=text -->\n| Date | Walk | Read | No phone in bed | Water (glasses) | Note |\n| --- | --- | --- | --- | --- | --- |\n\n## Habits\n- Walk: 30 minutes outside\n- Read: 20 pages\n- No phone in bed: it charges in the kitchen\n- Water: 8 glasses\n\n## Weekly check-in\n",
+  "note": "Habit tracker\n\nTick off your habits in the app each day, or tell your AI what you did and it records the day.\n\n## Weekly check-in\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Habit tracker\". Read it with fetch before each change. When I tell you what I did today, add one row to the table with edit: Yes or No for Walk, Read and No phone in bed, Water (glasses) as a number, and anything else in Note. If today already has a row, change that one instead. When I ask for my week, add three short lines under \"Weekly check-in\" with edit: what went well, what slipped, and one thing to try next week."
+    "default": "Use my Pinto Notes note \"Habit tracker\". It is an app, and its data is \"Habits/Habit tracker.app/data.json\". Read it with fetch before each change. When I tell you what I did today, change it with edit: find the habit ids in collections.habits, then add them to done in the record in collections.days whose date is today (yyyy-mm-dd), or add that record. When I ask for my week, add three short lines under \"Weekly check-in\" in the note with edit: what went well, what slipped, and one thing to try next week."
   },
   "asks": [
     "Log today: walked, read 30 pages, 6 glasses of water, phone in bed again.",
@@ -23,40 +23,17 @@
       "tool": "edit",
       "args": {
         "path": "Habits/Habit tracker.md",
-        "old_string": "| --- | --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- | --- |\n| 2026-09-28 | Yes | Yes | No | 6 | Late call with the US team |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Habit tracker.md",
-        "old_string": "| 2026-09-28 | Yes | Yes | No | 6 | Late call with the US team |\n",
-        "new_string": "| 2026-09-28 | Yes | Yes | No | 6 | Late call with the US team |\n| 2026-09-29 | Yes | No | Yes | 8 |   |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Habit tracker.md",
-        "old_string": "| 2026-09-29 | Yes | No | Yes | 8 |   |\n",
-        "new_string": "| 2026-09-29 | Yes | No | Yes | 8 |   |\n| 2026-09-30 | No | Yes | Yes | 7 | Rain all day |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Habit tracker.md",
         "old_string": "## Weekly check-in\n",
-        "new_string": "## Weekly check-in\n**Week of 28 September.** Phone stayed out of the bedroom two nights out of three. Walking slipped when it rained. Next week: a 15-minute indoor walk counts on rainy days.\n"
+        "new_string": "## Weekly check-in\n**Week of 5 October:** walked six days out of seven and read every evening. Water slipped on the two office days. Next week: a full bottle on the desk before the first meeting.\n"
       }
     }
   ],
-  "example": "Habit tracker\n\nOne row a day. Tick it off yourself, or tell your AI what you did and it logs the row.\n\n<!-- pane-table: Date=date; Walk=choice Yes|No; Read=choice Yes|No; No phone in bed=choice Yes|No; Water (glasses)=number; Note=text -->\n| Date | Walk | Read | No phone in bed | Water (glasses) | Note |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-28 | Yes | Yes | No | 6 | Late call with the US team |\n| 2026-09-29 | Yes | No | Yes | 8 |   |\n| 2026-09-30 | No | Yes | Yes | 7 | Rain all day |\n\n## Habits\n- Walk: 30 minutes outside\n- Read: 20 pages\n- No phone in bed: it charges in the kitchen\n- Water: 8 glasses\n\n## Weekly check-in\n**Week of 28 September.** Phone stayed out of the bedroom two nights out of three. Walking slipped when it rained. Next week: a 15-minute indoor walk counts on rainy days.\n",
+  "example": "Habit tracker\n\nTick off your habits in the app each day, or tell your AI what you did and it records the day.\n\n## Weekly check-in\n**Week of 5 October:** walked six days out of seven and read every evening. Water slipped on the two office days. Next week: a full bottle on the desk before the first meeting.\n",
   "related": [
     "mood-energy-log",
     "workout-log",
     "weekly-review"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-10-13",
+  "app": true
 }

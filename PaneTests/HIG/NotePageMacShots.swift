@@ -59,6 +59,7 @@ import WebKit
         try await training(dir, want("training"))
         try await firstOpen(dir, want("firstopen"))
         try await marks(dir, want("mark"))
+        try await templateApp(dir, want("template"))
         guard want("pages") else { return }
         let sizes: [(String, CGSize)] = [("narrow", CGSize(width: 1000, height: 760)), ("typical", CGSize(width: 1440, height: 900)), ("wide", CGSize(width: 1920, height: 1160))]
         for dark in [false, true] {
@@ -174,6 +175,50 @@ import WebKit
             var windows = [("main", w)]
             if let sheet = w.attachedSheet { windows.append(("sheet", sheet)) }
             try await MacStoreShots.shoot(dir, "firstopen-\(variant.rawValue)\(isNote ? "-note" : "")-\(dark ? "dark" : "light")", windows)
+        }
+    }
+
+    /// Use template on an app template (docs/Technical/templates.md), the way a link does it: the
+    /// site's real files for the habit tracker (web/public/templates/apps), fetched and added by
+    /// NoteSourceModel, then the note opened, light and dark.
+    func templateApp(_ dir: URL, _ on: Bool) async throws {
+        guard on else { return }
+        let web = Self.demo.deletingLastPathComponent().deletingLastPathComponent().appending(path: "web")
+        let content = try JSONSerialization.jsonObject(with: Data(contentsOf: web.appending(path: "content/templates/habit-tracker.json"))) as! [String: Any]
+        let served: [String: Any] = ["version": 1, "slug": "habit-tracker", "title": content["title"]!, "folder": content["folder"]!, "note": content["note"]!,
+                                     "description": content["description"]!, "app": "/templates/apps/habit-tracker.project.json", "data": "/templates/apps/habit-tracker.data.json",
+                                     "preview": "/templates/apps/habit-tracker-light.png", "previewDark": "/templates/apps/habit-tracker-dark.png"]
+        let json = try JSONSerialization.data(withJSONObject: served)
+        let session = StubSite.session(host: "template-shots.stub.test") { req in
+            let path = req.url?.path ?? ""
+            if path == "/templates/habit-tracker.json" { return (200, json) }
+            guard let data = try? Data(contentsOf: web.appending(path: "public" + path)) else { return (404, Data()) }
+            return (200, data)
+        }
+        for dark in [true, false] {
+            let c = try AppSnapshotTests.container()
+            let link = NoteSourceLink(kind: .template, slug: "habit-tracker")
+            let model = NoteSourceModel(link: link, source: WebNoteSource(site: URL(string: "https://template-shots.stub.test")!, session: session, apps: true),
+                                        ledger: NoteSourceLedger(defaults: UserDefaults(suiteName: "TemplateShots.\(UUID())")!, account: UUID()))
+            await model.load(context: c.mainContext)
+            model.add(context: c.mainContext)
+            guard case .added(_, let id, _) = model.phase else { Issue.record("not added: \(model.phase)"); return }
+            try c.mainContext.save()
+            FirstOpen.shared.reset()
+            let d = UserDefaults.standard
+            let keep = d.object(forKey: "lastNote")
+            d.removeObject(forKey: "lastScope")
+            d.set(id.uuidString, forKey: "lastNote")
+            defer { if let keep { d.set(keep, forKey: "lastNote") } else { d.removeObject(forKey: "lastNote") } }
+            let w = MacStoreShots.window(RootView().modelContainer(c).environment(SetupStore()), size: CGSize(width: 1440, height: 900), dark: dark)
+            defer { w.orderOut(nil); w.close() }
+            try? await Task.sleep(for: .seconds(1))
+            if let split = AIEditSnapshots.splitView(in: w.contentView) {
+                split.setPosition(220, ofDividerAt: 0)
+                split.setPosition(520, ofDividerAt: 1)
+            }
+            try? await Task.sleep(for: .seconds(3))
+            try await MacStoreShots.shoot(dir, "template-habit-tracker-\(dark ? "dark" : "light")", [("main", w)])
         }
     }
 

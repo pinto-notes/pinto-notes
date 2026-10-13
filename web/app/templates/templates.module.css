@@ -351,3 +351,18 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
   .fan img:nth-child(3) { left: 140px; top: 22px; transform: rotate(4deg); }
   .fan img:nth-child(4) { left: 200px; top: 62px; transform: rotate(10deg); }
 }
+
+/* An app template's app: its picture in the window, the window's size from the picture. On a card,
+   the top of it fills the white sheet the note's slice uses. */
+.appShot { display: block; background: #fff; }
+.appShot img { display: block; width: 100%; height: auto; }
+.window[data-scheme="dark"] { background: #1c1c1e; }
+.window[data-scheme="dark"] .bar { background: #2c2c2e; color: #d1d1d6; box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08); }
+.window[data-scheme="dark"] .appShot { background: #1c1c1e; }
+.heroWindow .appShot { max-height: 440px; overflow: hidden; }
+/* Light and dark side by side, as the app follows the device. */
+.appPair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 3vw, 32px); align-items: start; }
+@media (max-width: 760px) { .appPair { grid-template-columns: minmax(0, 1fr); } }
+.sliceApp { position: relative; flex: 1 0 120px; min-height: 0; overflow: hidden; }
+/* The app's picture is 1280 px wide with its sidebar: the card shows its main column, larger. */
+.sliceApp img { position: absolute; top: -6px; left: -46%; width: 165%; max-width: none; height: auto; }
