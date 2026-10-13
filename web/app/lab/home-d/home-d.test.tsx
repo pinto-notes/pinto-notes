@@ -58,7 +58,9 @@ describe("home study D", () => {
   it("gives every fact a paper-cut icon and a moment, and none under Reduce Motion", () => {
     for (const f of ["lock", "box", "tag", "undo"]) expect(html).toContain(`/home-d/facts/${f}.webp`);
     const moments = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference) {\n  .factFlip"));
-    expect(moments).toContain(':hover .scramble');
+    expect(moments).toContain(':hover .word');
+    // The dots take each word's own box, so the line keeps its shape.
+    expect(html).toMatch(/data-dots="•{9}">Encrypted<\/span>/);
   });
 });
 

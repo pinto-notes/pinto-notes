@@ -31,7 +31,7 @@ export default function ImportCard() {
       <div className={s.importTop} aria-hidden="true">
         <img src="/apple-notes.webp" alt="" width={36} height={36} />
         <div className={s.importName}>
-          <b>{full ? "Imported from Apple Notes" : "Importing from Apple Notes…"}</b>
+          <b>{full ? "Imported from Apple Notes" : "Importing from Apple Notes"}</b>
           <span className={s.importTicks}><span><Tick />Folders kept</span><span><Tick />Apple Notes unchanged</span></span>
         </div>
         <p className={s.importTotal}><span className={a.num}>{Math.round(TOTAL * p).toLocaleString("en")}</span> notes</p>

@@ -43,10 +43,22 @@ export default function Facts() {
           </span>
           <b>{f.title}</b>
           <span className={s.factLine}>
-            {f.key === "lock" ? <span className={s.scramble} data-dots={"•".repeat(28)}>{f.line}</span> : f.line}
+            {f.key === "lock" && typeof f.line === "string" ? <Scramble text={f.line} /> : f.line}
           </span>
         </li>
       ))}
     </ul>
+  );
+}
+
+/// The line as words, each with a run of dots laid over it: the dots take each word's own box, so the
+/// block keeps its lines, their lengths and their wraps when it turns to dots.
+function Scramble({ text }: { text: string }) {
+  return (
+    <span className={s.scramble}>
+      {text.split(" ").map((w, i, all) => (
+        <span key={i}><span className={s.word} data-dots={"•".repeat(w.length)}>{w}</span>{i < all.length - 1 ? " " : ""}</span>
+      ))}
+    </span>
   );
 }

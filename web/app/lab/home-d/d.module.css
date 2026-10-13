@@ -61,7 +61,7 @@
 .importTop { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; }
 .importTop img { margin: -4px 0 -4px -4px; }
 .importName { display: grid; gap: 3px; min-width: 0; }
-.importName b { font-size: 16px; font-weight: 700; }
+.importName b { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .importTicks { display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: 14px; font-weight: 600; }
 .importTicks > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .importTicks svg { width: 14px; height: 14px; color: var(--amber); }
@@ -184,7 +184,7 @@
 @media (max-width: 960px) { .feel { grid-template-columns: 1fr; gap: 40px; } }
 .feelArt { position: relative; display: grid; padding-bottom: 96px; }
 .feelArt img { width: 100%; height: auto; aspect-ratio: 1086 / 1100; object-fit: cover; object-position: center 70%; border-radius: 28px; }
-.feelArt > div { position: absolute; left: 7%; right: 7%; bottom: 0; }
+.feelArt > div { position: absolute; left: 4%; right: 4%; bottom: 0; }
 @media (max-width: 600px) { .feelArt { padding-bottom: 0; } .feelArt > div { position: relative; left: auto; right: auto; margin: -64px 10px 0; } }
 .feelText { display: grid; gap: 16px; justify-items: start; }
 .feelPhone { position: relative; margin: 20px 0 0; padding-bottom: 44px; }
@@ -232,23 +232,23 @@
 .factFlip img { width: 100%; height: 100%; backface-visibility: hidden; }
 .factBack { position: absolute; inset: 14% 20% 8%; display: grid; place-items: center; border-radius: 10px 10px 14px 14px; background: #f3e6cf; color: #2e180a; font-size: 44px; font-weight: 800; letter-spacing: -0.04em; transform: rotateY(180deg); backface-visibility: hidden; }
 /* Encrypted: the line turns to dots and back. */
-.scramble { position: relative; display: inline-block; }
-.scramble::after { content: attr(data-dots); position: absolute; inset: 0; overflow: hidden; white-space: nowrap; letter-spacing: 0.08em; color: #d9bf9f; opacity: 0; }
+.word { position: relative; display: inline-block; }
+.word::after { content: attr(data-dots); position: absolute; inset: 0; overflow: hidden; white-space: nowrap; text-align: center; color: #d9bf9f; opacity: 0; }
 /* Undoable: one word struck, ⌘Z, and the word comes back. */
 .strike { position: relative; white-space: nowrap; background: linear-gradient(currentColor, currentColor) 0 55% / 0 1.5px no-repeat; }
 .strike i { position: absolute; left: 50%; top: 1.45em; transform: translateX(-50%); padding: 1px 6px; border-radius: 6px; background: #f5a53a; color: #2e180a; font-size: 12px; font-style: normal; font-weight: 700; opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
   .factFlip { transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1); }
   @media (hover: hover) {
-    .fact[data-fact="lock"]:hover .scramble { animation: scrambleText 0.4s ease-in-out; }
-    .fact[data-fact="lock"]:hover .scramble::after { animation: scrambleDots 0.4s ease-in-out; }
+    .fact[data-fact="lock"]:hover .word { animation: scrambleText 0.4s ease-in-out; }
+    .fact[data-fact="lock"]:hover .word::after { animation: scrambleDots 0.4s ease-in-out; }
     .fact[data-fact="box"]:hover .factFlip { transform: translateY(-7px) rotate(-6deg); }
     .fact[data-fact="tag"]:hover .factFlip { transform: rotateY(180deg); }
     .fact[data-fact="undo"]:hover .strike { animation: strikeWord 0.4s ease-in-out; }
     .fact[data-fact="undo"]:hover .strike i { animation: undoKey 0.4s ease-in-out; }
   }
-  .fact[data-play][data-fact="lock"] .scramble { animation: scrambleText 0.4s ease-in-out; }
-  .fact[data-play][data-fact="lock"] .scramble::after { animation: scrambleDots 0.4s ease-in-out; }
+  .fact[data-play][data-fact="lock"] .word { animation: scrambleText 0.4s ease-in-out; }
+  .fact[data-play][data-fact="lock"] .word::after { animation: scrambleDots 0.4s ease-in-out; }
   .fact[data-play][data-fact="box"] .factFlip { transform: translateY(-7px) rotate(-6deg); }
   .fact[data-play][data-fact="tag"] .factFlip { transform: rotateY(180deg); }
   .fact[data-play][data-fact="undo"] .strike { animation: strikeWord 0.4s ease-in-out; }
