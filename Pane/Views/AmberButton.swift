@@ -101,14 +101,15 @@ private struct AmberProminentButton: View {
             .lineLimit(wraps ? 3 : twoLines ? 2 : 1)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: twoLines)
-            .padding(.vertical, wraps || twoLines ? 6 : 0)
+            // Room above and below the title that grows with it, so a large title never meets the edge.
+            .padding(.vertical, twoLines ? 12 : wraps ? 6 : grows ? 6 : 0)
             // Busy: the label keeps its place (so nothing moves) and a spinner sits on it.
             .opacity(busy ? 0 : 1)
             .overlay { if busy { AmberSpinner(reduceMotion: reduceMotion) } }
             .padding(.horizontal, horizontalPadding)
             .frame(maxWidth: row == nil ? nil : .infinity)
             // A row keeps its height until a larger text size needs more; then it grows with it.
-            .frame(minHeight: row?.height ?? minHeight, maxHeight: grows ? nil : row?.height)
+            .frame(minHeight: row.map { $0.height * rowGrowth } ?? minHeight, maxHeight: grows ? nil : row?.height)
             .background {
                 shape
                     .fill(Color(fill))
@@ -136,6 +137,16 @@ private struct AmberProminentButton: View {
         .system(size: (height * 0.375 * scale).rounded(), weight: .medium)
         #else
         AmberProminentButtonStyle.rowTitle(height: height)
+        #endif
+    }
+
+    /// A row's height follows its title's size, up to half as tall again (past that the title wraps
+    /// and the padding takes over).
+    private var rowGrowth: CGFloat {
+        #if os(iOS)
+        grows ? min(max(scale, 1), 1.5) : 1
+        #else
+        1
         #endif
     }
 
