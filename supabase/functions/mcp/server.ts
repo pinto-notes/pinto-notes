@@ -15,7 +15,7 @@
 import type { Sql } from "npm:postgres@3.4.5";
 import { tokenKey, unwrap, Vault } from "../_shared/e2ee.ts";
 import { errorKind, log } from "../_shared/log.ts";
-import { Content, runTool, ToolContext, ToolError } from "./tools.ts";
+import { Content, runTool, ToolContext, ToolError, tools as everyClassicTool } from "./tools.ts";
 import { FILE_INSTRUCTIONS, FILE_PROMPTS, runFileTool } from "./files_tools.ts";
 import { servedTools, toolSet } from "./tool_set.ts";
 import { toolErrorKind } from "./tool_errors.ts";
@@ -238,6 +238,13 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
       case "tools/call": {
         const name = String(msg.params?.name ?? "");
         if (!servedTools().some((t) => t.name === name)) {
+          // A tool this server used to serve (a chat opened before the tool set changed): answer as a
+          // tool result that names today's tools, so the model switches. Directories count protocol
+          // errors against the server's health, and the client did nothing wrong.
+          if (everyClassicTool.some((t) => t.name === name)) {
+            const now = servedTools().filter((t) => ctx.canWrite || t.annotations.readOnlyHint).map((t) => t.name).join(", ");
+            return ok(id, { content: [{ type: "text", text: `${name} is no longer one of this server's tools. Use these instead: ${now}. Start with search or list to find the note.` }], isError: true });
+          }
           return { jsonrpc: "2.0", id, error: { code: -32602, message: `Unknown tool: ${name || "(none)"}` } };
         }
         const given = msg.params?.arguments ?? {};

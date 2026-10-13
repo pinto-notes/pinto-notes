@@ -70,8 +70,12 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   assertStringIncludes(read.structuredContent.text, "- [ ] Milk");
   const ticked = await rpc("tools/call", { name: "edit", arguments: { path: "Groceries.md", old_string: "- [ ] Milk", new_string: "- [x] Milk" } });
   assertEquals(ticked.isError, undefined, JSON.stringify(ticked));
-  // An old tool name is unknown.
-  await rpc("tools/call", { name: "read_note", arguments: { title: "Groceries" } }).then(() => { throw new Error("read_note answered"); }, (e) => assertStringIncludes(e.message, "Unknown tool"));
+  // A tool name from before the switch gets a tool result naming today's tools, not a protocol error
+  // (directories count those against the server's health). A name that never existed is unknown.
+  const old = await rpc("tools/call", { name: "read_note", arguments: { title: "Groceries" } });
+  assertEquals(old.isError, true);
+  assertStringIncludes(old.content[0].text, "search, list, fetch");
+  await rpc("tools/call", { name: "no_such_tool", arguments: {} }).then(() => { throw new Error("no_such_tool answered"); }, (e) => assertStringIncludes(e.message, "Unknown tool"));
 
   const ro = client(pg, await connect(pg, a, false));
   const reads = (await ro("tools/list")).tools.map((t: { name: string }) => t.name);
