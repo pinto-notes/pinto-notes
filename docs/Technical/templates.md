@@ -44,6 +44,9 @@ for every save.
 - Pictures: PNG, the app at 1280 px wide (see_app's desktop size), light and dark, under 400 KB
   each. Both are required.
 
+The app's own tests run with the template's data.json loaded, the same as a save over the
+person's data, so write them to add what they need rather than assume an empty store.
+
 ## Generated (committed, never edited by hand)
 
 `deno run -A scripts/template-apps.ts` (add `<slug>` for one) checks every tree, compiles it with
@@ -82,7 +85,20 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
 - **MCP** (`create { type: "app", path: "<Folder>/<Title>.md", template: "<slug>" }`): the
   server fetches the template from the site, makes the note with its markdown, saves the project
   through the same gate as any save (its tests and the smoke check run) and stores the data. The
-  template's copy-paste prompt says to do this, so an AI makes the same note and app.
-- **The site**: an app template's page and its card show the picture of the app (light or dark,
-  as the reader's system is) instead of the note.
+  template's copy-paste prompt says to do this, so an AI makes the same note and app. The server
+  reads templates from `TEMPLATE_SITE_URL` (default https://pintonotes.com).
+- **The site**: an app template's page shows the light picture where a note template shows its
+  filled note, then "The app you start with", light and dark side by side (the template pages are
+  always cream). Its card shows the top of the light picture instead of the note's slice. No code
+  runs on the site.
 - A template without an app is unchanged everywhere.
+
+## Tests and pictures
+
+- `supabase/functions/mcp/template_apps.pglite.test.ts`: the folder's rules and the round trip.
+- `web/lib/template-apps.test.ts`: the generated files are in step with each folder, and the
+  template data names them.
+- `PaneTests/NoteSourceTests.swift`: Use template fetches the app, data and pictures, and adds
+  all three (the same code on Mac and iPhone); a template without an app adds only its note.
+- `AMBER_PAGE_SCENES=template scripts/note-pages-mac.sh`: Use template on the habit tracker with
+  the site's real files, in the Mac app off screen, light and dark.
