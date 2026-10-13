@@ -44,6 +44,8 @@ struct PaneApp: App {
         // Performance runs can keep their library on disk, as the app does: `-uitest -perfStore /tmp/probe.store`.
         let perfStore = args.contains("-uitest") ? Capture.argument("-perfStore") : nil
         let config = perfStore.map { ModelConfiguration(url: URL(fileURLWithPath: $0)) } ?? ModelConfiguration("Pane", isStoredInMemoryOnly: inMemory)
+        // Each save keeps its notes' titles and previews (Note.summaryTitle): from the first save on.
+        NoteSummaries.install()
         do {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: config)
         } catch {
@@ -58,7 +60,11 @@ struct PaneApp: App {
             LocalUpkeep.keepServerAnswersOffDisk()
             // After launch has settled: it can be a few hundred thousand rows the first time.
             Task.detached(priority: .utility) { [container] in
-                try? await Task.sleep(for: .seconds(30))
+                // Notes saved by a build from before summaries were kept get theirs, once, off the
+                // main thread, after launch has settled.
+                try? await Task.sleep(for: .seconds(5))
+                NoteSummaries.fill(container)
+                try? await Task.sleep(for: .seconds(25))
                 LocalUpkeep.forgetOldHistory(in: container)
             }
         }
