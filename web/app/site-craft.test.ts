@@ -77,4 +77,17 @@ describe("the site's controls", () => {
     expect(page).not.toMatch(/Updates install themselves|Syncs with your iPhone/);
     expect(page).toContain("/art/download.webp");
   });
+
+  it("groups help's questions, leads each version of the changelog with its highlights, and opens privacy with the promises", () => {
+    const help = css("help/page.tsx");
+    for (const g of ["Getting started", "Connecting an AI", "Your notes and account", "Sharing"]) expect(help).toContain(`title: "${g}"`);
+    expect(help).not.toContain("WHAT_IT_IS");
+    const log = css("changelog/page.tsx");
+    expect(log).toContain("r.highlights");
+    expect(log).toMatch(/All \{all\.length\} changes/);
+    expect(log).not.toMatch(/updates itself/);
+    const privacy = css("privacy-security/page.tsx");
+    expect(privacy).toContain("f.short");
+    expect(privacy.indexOf('id="logs"')).toBeLessThan(privacy.indexOf("<LongPage"));
+  });
 });

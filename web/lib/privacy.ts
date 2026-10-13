@@ -5,14 +5,15 @@
 
 export const PRIVACY_PATH = "/privacy-security";
 
-export type Fact = { title: string; text: string };
+/// `short` is the one sentence the page's row of promises shows; `text` is the whole fact.
+export type Fact = { title: string; text: string; short: string };
 
 /// The short list the Privacy & Security page opens with.
 export const FACTS: Fact[] = [
-  { title: "End-to-end encrypted", text: "Your notes, titles, folder names, files and earlier versions are encrypted on your iPhone or Mac with a key that only your devices, and AI connections you approve, can unlock. We can't read them." },
-  { title: "AI only with your approval", text: "An AI app can read your notes only after you approve it on your iPhone or Mac. While it works, our server opens the notes it asks for in memory. Disconnect it at any time." },
-  { title: "No ads, no tracking in the app", text: "No ads and no tracking in the apps. They count a few things on our own server, and versions after 1.2 send error reports and a few usage counts, never your notes, to PostHog in the EU; one switch in Settings turns the reports off. This website counts page views and where visitors came from, clicks and how far pages are scrolled, without profiles, without cookies unless you accept them, and never on shared notes, and Mac downloads as daily totals. We never sell or share your data." },
-  { title: "Stored in the EU", text: "Your encrypted notes and files are kept in Frankfurt, Germany." },
+  { title: "End-to-end encrypted", text: "Your notes, titles, folder names, files and earlier versions are encrypted on your iPhone or Mac with a key that only your devices, and AI connections you approve, can unlock. We can't read them.", short: "Encrypted on your iPhone or Mac before they're uploaded. We can't read them." },
+  { title: "AI only with your approval", text: "An AI app can read your notes only after you approve it on your iPhone or Mac. While it works, our server opens the notes it asks for in memory. Disconnect it at any time.", short: "An AI reads your notes only after you approve it on your device." },
+  { title: "No ads, no tracking in the app", text: "No ads and no tracking in the apps. They count a few things on our own server, and versions after 1.2 send error reports and a few usage counts, never your notes, to PostHog in the EU; one switch in Settings turns the reports off. This website counts page views and where visitors came from, clicks and how far pages are scrolled, without profiles, without cookies unless you accept them, and never on shared notes, and Mac downloads as daily totals. We never sell or share your data.", short: "No ads and no tracking in the apps. We never sell or share your data." },
+  { title: "Stored in the EU", text: "Your encrypted notes and files are kept in Frankfurt, Germany.", short: "Your encrypted notes and files are kept in Frankfurt, Germany." },
 ];
 
 /// The one line under the facts: end to end has limits, and the page lists them.

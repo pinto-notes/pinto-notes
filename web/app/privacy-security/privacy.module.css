@@ -1,14 +1,25 @@
 /* Privacy & Security: the four facts as cards, then the long form in the legal pages' column. */
-.facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 640px) { .facts { grid-template-columns: 1fr; gap: 12px; } }
-.fact { display: grid; gap: 8px; align-content: start; padding: 22px 24px; border-radius: 22px; background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 20px 40px -32px rgba(60, 30, 5, 0.45); }
-.fact h2 { display: flex; align-items: flex-start; gap: 10px; margin: 0; font-size: 18px; line-height: 1.25; font-weight: 750; letter-spacing: -0.01em; }
-.fact h2 svg { flex: none; margin-top: 2px; color: var(--amber); }
+/* The top: the hero with the lockbox, the four promises in one row, and the one line on the limits. */
+.top { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; display: grid; gap: 32px; }
+.facts { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .facts { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+/* A fill, no ring and no icon: the promise is the words. */
+.fact { display: grid; gap: 8px; align-content: start; padding: 22px 22px 24px; border-radius: 20px; background: var(--soft); }
+.fact h2 { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 750; letter-spacing: -0.01em; }
 .fact p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.5; }
 
-.caveat { margin: 0; padding: 16px 20px; border-radius: 16px; background: var(--soft); font-size: 16px; line-height: 1.5; }
-.caveat a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 3px; border-radius: 3px; }
+.caveat { margin: 0; max-width: 46em; font-size: 16px; line-height: 1.5; color: var(--muted); }
+.caveat a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; border-radius: 3px; }
+@media (hover: hover) { .caveat a:hover { text-decoration-color: var(--amber); } }
 .caveat a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* Every log: the page's strongest proof, on its own soft band right after the promises. */
+.logsBand { margin-top: 96px; padding: 88px var(--gutter); background: var(--soft); }
+@media (max-width: 600px) { .logsBand { margin-top: 64px; padding: 56px var(--gutter); } }
+.logsInner { max-width: 900px; margin: 0 auto; }
+.logsInner h2 { margin-top: 0; font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -0.03em; }
+.logsInner :global(.tableWrap) { background: var(--card); border-radius: 16px; }
 
 .kept { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 

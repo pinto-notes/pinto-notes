@@ -1,0 +1,37 @@
+/* The changelog: cream, one column, each version with its paper-craft picture, its few headline
+   changes, and the full list folded away. Then the dark band. */
+.main { width: 100%; max-width: 900px; margin: 0 auto; padding: 56px var(--gutter) 0; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 72px; }
+@media (max-width: 600px) { .main { padding-top: 28px; gap: 56px; } }
+.head { display: grid; gap: 14px; }
+.title { margin: 0; font-size: clamp(40px, 5vw, 64px); line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+.lede { margin: 0; font-size: clamp(18px, 2vw, 21px); line-height: 1.45; color: var(--muted); }
+
+.entry { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; scroll-margin-top: 100px; }
+.entry[data-art] { grid-template-columns: 200px minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 640px) { .entry[data-art] { grid-template-columns: 112px minmax(0, 1fr); gap: 20px; } }
+.art { display: block; width: 100%; height: auto; border-radius: 20px; }
+@media (max-width: 640px) { .art { border-radius: 14px; } }
+.body { display: grid; gap: 12px; min-width: 0; }
+.meta { margin: 0; display: flex; align-items: baseline; gap: 12px; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+.version { display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px; border-radius: 10px; background: var(--soft); color: var(--ink); font-weight: 800; font-size: 15px; text-decoration: none; }
+@media (hover: hover) { .version:hover { background: color-mix(in srgb, var(--soft) 82%, var(--amber)); } }
+.version:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.name { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; }
+.top { margin: 4px 0 0; padding-left: 1.2em; display: grid; gap: 8px; font-size: 18px; line-height: 1.5; }
+.top li::marker, .all li::marker { color: var(--muted); }
+
+.all { margin-top: 4px; }
+.all summary {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; margin-left: -2px; border-radius: 12px; background: var(--soft);
+  color: var(--ink); font-weight: 600; font-size: 15px; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent;
+}
+.all summary::-webkit-details-marker { display: none; }
+.all[open] summary svg { transform: rotate(180deg); }
+@media (hover: hover) { .all summary:hover { background: color-mix(in srgb, var(--soft) 82%, var(--amber)); } }
+.all summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .all summary { transition: background-color 0.15s ease-out, transform 0.12s ease-out; }
+  .all summary:active { transform: scale(0.97); }
+  .all summary svg { transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+.all ul { margin: 16px 0 0; padding-left: 1.2em; display: grid; gap: 6px; color: var(--muted); font-size: 16px; line-height: 1.5; }
