@@ -133,6 +133,28 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .sliceTr span { padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sliceTr span + span { box-shadow: -0.5px 0 0 rgba(0, 0, 0, 0.12); }
 .sliceTr:first-child { background: #f2f1ef; font-weight: 650; }
+/* An app template: the table first, then the iPhone app in its place (AppSwap). The area keeps the
+   app's height from the start; the app is the top of its iPhone screen, a phone screen's rounded
+   corners and a soft shadow, no device drawn around it. The dark shot shows on a dark page. */
+.swap { position: relative; flex: 1 0 196px; display: grid; min-height: 196px; }
+.swapTable, .appScreen { grid-area: 1 / 1; min-width: 0; }
+.swapTable { display: flex; flex-direction: column; }
+.swapTable > .sliceNote { flex: 1 0 auto; }
+.appScreen { justify-self: center; align-self: end; width: min(78%, 250px); aspect-ratio: 600 / 430; margin-top: 12px; overflow: hidden; border-radius: 22px 22px 0 0;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 -2px 14px -4px rgba(60, 30, 5, 0.28); opacity: 0; transform: translateY(18px); }
+.appScreen img { display: block; width: 100%; height: auto; }
+/* The screen runs on below the card's edge: its foot fades into the paper, as the table's does. */
+.appScreen { -webkit-mask-image: linear-gradient(#000 82%, transparent); mask-image: linear-gradient(#000 82%, transparent); }
+.appDark { display: none !important; }
+:global(html[data-theme="leaf"]) .appLight { display: none !important; }
+:global(html[data-theme="leaf"]) .appDark { display: block !important; }
+.swap[data-app] .swapTable { opacity: 0; filter: blur(6px); }
+.swap[data-app] .appScreen { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .swapTable { transition: opacity 0.4s ease-out, filter 0.4s ease-out; }
+  .appScreen { transition: opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+@media (prefers-reduced-motion: reduce) { .swapTable { opacity: 0; } .appScreen { opacity: 1; transform: none; } }
 .cardFoot { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: auto; padding: 6px 14px 14px; }
 /* A community template's credit, left of Use template, above the card's stretched link. */
 .by {
@@ -363,6 +385,3 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 /* Light and dark side by side, as the app follows the device. */
 .appPair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 3vw, 32px); align-items: start; }
 @media (max-width: 760px) { .appPair { grid-template-columns: minmax(0, 1fr); } }
-.sliceApp { position: relative; flex: 1 0 120px; min-height: 0; overflow: hidden; }
-/* The app's picture is 1280 px wide with its sidebar: the card shows its main column, larger. */
-.sliceApp img { position: absolute; top: -6px; left: -46%; width: 165%; max-width: none; height: auto; }

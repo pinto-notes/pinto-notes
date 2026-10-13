@@ -1,12 +1,13 @@
 import { COVERS, coverPath, inkOn } from "@/lib/template-covers";
 import { APP_TEMPLATES } from "@/lib/site";
-import { appFiles, appLink, authorLink, slice, templatePath, usePath, type SliceRow, type Template } from "@/lib/templates";
+import { appLink, authorLink, slice, templatePath, usePath, type SliceRow, type Template } from "@/lib/templates";
 import OpenInApp from "../OpenInApp";
+import AppSwap from "./AppSwap";
 import s from "./templates.module.css";
 
 /// One template in the gallery or under "More templates": its cover fills the card, the title sits
-/// once on the cover's calm lower third, and under it a slice of the real note, filled in (or, for
-/// an app template, the top of its app), with "Use template". The card is one link to the template's page (its title link, stretched over the
+/// once on the cover's calm lower third, and under it a slice of the real note, filled in (for an app
+/// template, the table first and then, once, the top of its iPhone app: AppSwap), with "Use template". The card is one link to the template's page (its title link, stretched over the
 /// card), except "Use template", its own link that opens Pinto Notes from the gallery, and a community template's
 /// "by @handle", a link to its author on GitHub. No link sits inside another.
 export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2" | "h3" }) {
@@ -21,7 +22,7 @@ export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2
       </span>
       <span className={s.slice}>
         {t.app
-          ? <span className={s.sliceApp} aria-hidden="true"><img src={appFiles(t.slug).light} alt="" loading="lazy" decoding="async" /></span>
+          ? <AppSwap slug={t.slug} title={t.title}><span className={s.sliceNote} aria-hidden="true">{slice(t).map((r, i) => <Row key={i} r={r} />)}</span></AppSwap>
           : <span className={s.sliceNote} aria-hidden="true">{slice(t).map((r, i) => <Row key={i} r={r} />)}</span>}
         <span className={s.cardFoot}>
           {t.author && <a className={s.by} href={authorLink(t.author)}>by @{t.author}</a>}

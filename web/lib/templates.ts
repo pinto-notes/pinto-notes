@@ -208,7 +208,7 @@ export type SliceRow =
 /// useful: a filled table, ticked items, the newest day or decision. The slice runs on from there
 /// across sections, so the card's panel is always full.
 const SLICE_FROM: Record<string, string> = {
-  "habit-tracker": "|", "meeting-notes": "Open action items", "daily-standup": "30 September", "meal-plan": "|",
+  "habit-tracker": "Weekly check-in", "meeting-notes": "Open action items", "daily-standup": "30 September", "meal-plan": "|",
   "reading-list": "|", "mood-energy-log": "|", "job-hunt": "|", "trip-plan": "|", "study-flashcards": "Cell respiration",
   "decision-log": "Stay on Postgres, 29 September", "workout-log": "|", "budget-log": "|", "one-on-one-notes": "Follow-ups",
   "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 28 September",
