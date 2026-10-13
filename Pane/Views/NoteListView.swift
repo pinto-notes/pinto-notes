@@ -14,7 +14,10 @@ struct NoteListView: View {
     #endif
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
-    @State private var library = LibraryNotes()
+    @State private var ownLibrary = LibraryNotes()
+    /// The window's (RootView), shared with the sidebar's folder counts; a list on its own keeps its own.
+    @Environment(LibraryNotes.self) private var windowLibrary: LibraryNotes?
+    private var library: LibraryNotes { windowLibrary ?? ownLibrary }
     /// "Sort By" and "Group By Date", as chosen on this device.
     @State private var orderStore = ListOrderStore.shared
     /// The order the list is shown in. What a search finds keeps the list's own order, newest first.
@@ -1159,7 +1162,7 @@ final class LibraryNotes {
         guard let context else { return }
         guard inserted.count + deleted.count <= Self.wholesaleChange else {
             load()
-            generation += 1
+            publish()
             return
         }
         if !deleted.isEmpty {
@@ -1173,7 +1176,7 @@ final class LibraryNotes {
             came.append(watched(n))
         }
         place(came)
-        generation += 1
+        publish()
     }
 
     /// Every note, read once and sorted; watched from the next turn on.
@@ -1217,6 +1220,42 @@ final class LibraryNotes {
                 // A turn of the run loop between slices: the window draws and takes events.
                 if start < entries.count { try? await Task.sleep(for: .milliseconds(1)) }
             }
+        }
+    }
+
+    /// The entries changed in a way the list shows: the list hears of it, and so do the folder
+    /// rows whose counts it changed.
+    private func publish() {
+        generation += 1
+        if !folderCounts.isEmpty { countFolders() }
+    }
+
+    /// Each folder's notes as its list shows them: live, and not a sub-note inside its parent.
+    /// Counted from the entries in one pass whenever they change; each folder's row hears only of
+    /// its own count, so the sidebar's 800 folder rows aren't worked out again for every change.
+    func listedCount(inFolder id: UUID, context: ModelContext) -> Int {
+        if self.context !== context { start(context) }
+        // Asked while views are worked out: only boxes nobody reads yet are filled in here.
+        if folderCounts.isEmpty { countFolders() }
+        let box = folderCounts[id] ?? { let b = FolderCount(); folderCounts[id] = b; return b }()
+        return box.value
+    }
+
+    @Observable final class FolderCount { var value = 0 }
+    @ObservationIgnored private var folderCounts: [UUID: FolderCount] = [:]
+
+    private func countFolders() {
+        guard let context else { return }
+        let inside = Set(SubNoteIndex.nestedIDs(in: context))
+        var counts: [UUID: Int] = [:]
+        for e in sorted where !e.deleted && !e.trashed {
+            guard let folder = e.folderID, !inside.contains(e.id) else { continue }
+            counts[folder, default: 0] += 1
+        }
+        for (id, n) in counts where folderCounts[id] == nil { folderCounts[id] = FolderCount() }
+        for (id, box) in folderCounts {
+            let n = counts[id] ?? 0
+            if box.value != n { box.value = n }
         }
     }
 
@@ -1269,7 +1308,7 @@ final class LibraryNotes {
             let stays = (i == 0 || !precedes(new, sorted[i - 1])) && (i == sorted.count - 1 || !precedes(sorted[i + 1], new))
             if stays {
                 sorted[i] = new
-                if !new.listsLike(old) || publishesEveryChange { generation += 1 }
+                if !new.listsLike(old) || publishesEveryChange { publish() }
                 return
             }
             // Its new entry is watched; the general path below reads it again and moves it.
@@ -1282,7 +1321,7 @@ final class LibraryNotes {
             return true
         }
         place(moved)
-        generation += 1
+        publish()
     }
 
     /// Puts `entries` where they go in the order.

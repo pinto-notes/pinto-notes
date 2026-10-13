@@ -273,15 +273,11 @@ struct SidebarView: View {
         context.nestedSubNotes()
     }
 
-    /// A folder's notes as its list counts them: without the sub-notes inside a parent. Counted by
-    /// the store, not by reading the folder's notes.
+    /// A folder's notes as its list counts them: without the sub-notes inside a parent. In a window
+    /// the list's notes count them (LibraryNotes.listedCount); this reads the folder's own notes.
     static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        let id = folder.id
-        let live = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.folder?.id == id && $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
-        let nested = SubNoteIndex.nestedIDs(in: context)
-        guard live > 0, !nested.isEmpty else { return live }
-        let inside = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { nested.contains($0.id) && $0.folder?.id == id && $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
-        return live - inside
+        let nested = Set(SubNoteIndex.nestedIDs(in: context))
+        return folder.liveNotes.count { !nested.contains($0.id) }
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
@@ -735,6 +731,8 @@ extension SidebarView: @MainActor Equatable {
 /// skipping its updates kept the sidebar's selection from following some clicks on folder rows.
 private struct FolderTree: View {
     @Environment(\.modelContext) private var context
+    /// The window's notes as the list keeps them: the folder counts come from there.
+    @Environment(LibraryNotes.self) private var library: LibraryNotes?
     let folder: Folder
     /// Live files per folder, counted once for the whole tree.
     let files: [UUID: Int]
@@ -769,7 +767,7 @@ private struct FolderTree: View {
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         let selected = selection == .folder(folder.id)
-        let listed = SidebarView.listedNotes(in: folder, context: context)
+        let listed = library?.listedCount(inFolder: folder.id, context: context) ?? SidebarView.listedNotes(in: folder, context: context)
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 SidebarRowText(title: folder.name, selected: selected) {

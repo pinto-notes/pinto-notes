@@ -572,7 +572,7 @@ enum SubNoteIndex {
     private static weak var cachedContext: ModelContext?
     private static var observer: NSObjectProtocol?
     /// Goes up when the answer is dropped, so a change heard from an older answer is ignored.
-    private static var generation = 0
+    private(set) static var generation = 0
 
     static func nested(in context: ModelContext) -> [Note] {
         if let cached, cachedContext === context { return cached }
