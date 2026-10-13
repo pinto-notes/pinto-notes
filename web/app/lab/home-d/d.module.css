@@ -9,7 +9,7 @@
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding-top: 56px; }
 @media (max-width: 960px) { .hero { grid-template-columns: 1fr; gap: 36px; padding-top: 28px; } }
 .heroText { display: grid; gap: 22px; justify-items: start; }
-.h1 { max-width: 11ch; }
+.h1 { max-width: 13ch; }
 
 /* The desk: the picture's own top, two pencils pointing down at the note laid on its plain lower half. */
 .desk { position: relative; aspect-ratio: 1 / 1.02; border-radius: 28px; overflow: hidden; background: #e2603f; isolation: isolate; }
@@ -18,7 +18,10 @@
 /* The note, as the app draws it, on its own white paper, a little turned like a sheet put down. */
 .note {
   position: absolute; left: 13%; right: 13%; top: 44%; padding: 18px 22px 20px; border-radius: 16px; box-sizing: border-box;
-  background: #fdfbf8; color: #1d1d1f; transform: rotate(-2.5deg); transform-origin: 50% 0;
+  /* The app's light colours (kit.module.css), always: the desk is a picture, not a theme. */
+  --n-page: #fdfbf8; --n-chrome: #f4f1ed; --n-text: #1d1d1f; --n-sec: #86868b; --n-ter: #c7c7cc; --n-rule: #e6e2dc;
+  --n-tint: #fdeedd; --n-bar: #f2c48f; --n-tick: #e8820e; --n-accent: #c46a00;
+  background: var(--n-page); color: var(--n-text); transform: rotate(-2.5deg); transform-origin: 50% 0;
   box-shadow: 0 1px 2px rgba(80, 25, 5, 0.18), 0 24px 40px -18px rgba(80, 25, 5, 0.55);
 }
 .noteTitle { margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
@@ -31,7 +34,8 @@
 }
 .noteChip[data-on] { opacity: 1; }
 @media (max-width: 520px) {
-  .note { left: 7%; right: 7%; top: 40%; padding: 14px 16px 16px; }
+  .desk { aspect-ratio: 1 / 1.2; }
+  .note { left: 7%; right: 7%; top: 35%; padding: 14px 16px 16px; }
   .note [data-k] { margin-left: -16px !important; padding-left: 16px !important; margin-right: -16px; padding-right: 16px; font-size: 14.5px; }
   .noteTitle { font-size: 19px; margin-bottom: 4px; }
 }
@@ -81,6 +85,7 @@
 .feel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
 @media (max-width: 960px) { .feel { grid-template-columns: 1fr; gap: 40px; } }
 .phones { position: relative; margin: 0; display: flex; justify-content: center; gap: 24px; padding-bottom: 44px; }
+.phones > figure { --pw: 260px !important; }
 .chatScreen { min-height: 0; display: grid; }
 .chatScreen > figure { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
 .chatScreen > figure > div:nth-child(2) { justify-content: flex-start; padding-top: 36px; gap: 22px; }
