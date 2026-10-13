@@ -54,7 +54,7 @@ import UIKit
         return [
             ("signin-existing", flow(.signIn(fallback: false)), nil),
             ("signin-create-short", flow(.create, password: "123456789"), nil),
-            ("signin-create-met", flow(.create, password: "123456789abc"), nil),
+            ("signin-create-met", flow(.create, password: String(repeating: "p", count: 12)), nil),
             ("signin-google-busy", EmailSignInFlow(), .google),
         ]
     }

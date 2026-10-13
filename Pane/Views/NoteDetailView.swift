@@ -94,7 +94,14 @@ struct NoteDetailView: View {
     /// Opens another note; `edit` puts the keyboard in it.
     var onOpenNote: (UUID, Bool) -> Void = { _, _ in }
 
+    // The body's modifiers in stages, in the same order: as one chain it took the type checker
+    // about 10 s, the slowest function in the app (compile-time audit, 2026-10-13).
     var body: some View {
+        withCollab(withArrivals(withFirstOpen(withLockAndSheets(editorWithImports))))
+    }
+
+    /// The editor, its importers and the dialogs about links.
+    private var editorWithImports: some View {
         chrome(editor)
             .quickLookPreview(previewBinding)
             .fileImporter(isPresented: $importing, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true, onCompletion: attach)
@@ -133,6 +140,11 @@ struct NoteDetailView: View {
                 refreshLinks(after: saved)
             }
             .shareLinkChrome(shareLinks, note: note)
+    }
+
+    /// The lock, history and app sheets, and the overlays at the foot.
+    private func withLockAndSheets(_ content: some View) -> some View {
+        content
             .focusedSceneValue(\.showHistoryAction, { if !note.isLocked { showHistory = true } })
             .sheet(item: $lockSheet) { step in
                 switch step {
@@ -174,6 +186,11 @@ struct NoteDetailView: View {
             #else
             .sheet(item: firstOpenWelcome) { m in FirstOpenWelcome(moment: m) { startFirstOpen(m) } }
             #endif
+    }
+
+    /// A template's first open, and the app's info sheet.
+    private func withFirstOpen(_ content: some View) -> some View {
+        content
             // Later templates: just a line.
             .task(id: firstOpen?.note) {
                 guard let m = firstOpen, !m.full else { return }
@@ -194,6 +211,11 @@ struct NoteDetailView: View {
                                      })
                 }
             }
+    }
+
+    /// What arrives while the note is open: an AI's edit, an app's data, captures.
+    private func withArrivals(_ content: some View) -> some View {
+        content
             .onChange(of: note.aiEditedAt) { _, _ in showAIEdit() }
             .onChange(of: NotePageStore.shared[note.id]) { _, _ in pageArrived(NotePageStore.shared.live(note.id)) }
             // An AI's new version failed its checks on the server and waits there as a draft: the
@@ -225,6 +247,11 @@ struct NoteDetailView: View {
             }
             .task(id: note.id) { await noteOpened() }
             .onChange(of: showHistory) { _, open in if open { FeatureUse.mark(.versionHistory) } }
+    }
+
+    /// Collaboration (prototype) and the history link from an email.
+    private func withCollab(_ content: some View) -> some View {
+        content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, store: store) } }
             .sheet(isPresented: $showTemplateShare) { if let store = CollabStore.shared { TemplateShareSheet(note: note, store: store) } }

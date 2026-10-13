@@ -648,7 +648,7 @@ struct NoteListView: View {
                 Text(Self.emptyLine)
             } actions: {
                 Button("New Note", action: onNewNote)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.amberProminent)
                     .accessibilityIdentifier("empty.newNote")
                 if let imports {
                     // In the ink: one orange control on the screen.

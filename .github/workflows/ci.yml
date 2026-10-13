@@ -1,26 +1,38 @@
 name: ci
 
-# Small on purpose (2026-10-12): only what has caught real problems blocks.
+# Small on purpose (2026-10-12), and lean (2026-10-13): each commit is tested once, where it lands.
 #
-# A pull request, once it is marked ready for review: the server's tests, the secret scan, and one
-# Mac job that builds the app's tests and runs the ones the change is likely to break
-# (scripts/ci/select-tests.py: a smoke set, the touched test files, their near relations). A
-# draft runs no Mac job, and neither does a change that touches nothing of the app (the job then
-# stops after its first step). Whoever pushes runs scripts/prepush.sh first: it compiles what
-# ships (the Mac download and the iPhone app, Release), which no job here does; release-mac.sh
-# compiles it again for a release. A pull request into main also builds the share site.
+# A pull request into dev, once it is marked ready for review: the server's tests, the secret scan,
+# and one Mac job that builds the app's tests and runs the ones the change is likely to break
+# (scripts/ci/select-tests.py: a smoke set, the touched test files, their near relations, about
+# 8 minutes). A draft runs no Mac job, and neither does a change that touches nothing of the app
+# (the job then stops after its first step). Whoever pushes runs scripts/prepush.sh first: it
+# compiles what ships (the Mac download and the iPhone app, Release), which no job here does;
+# release-mac.sh compiles it again for a release.
 #
-# A push to dev or main (a merge): the server's tests, the secret scan, and one Mac job with every
-# unit test and the timing and render-count tests. That job never fails the run: it reports what
-# failed and the timing numbers in its summary, for a person to read. It also fills the caches
-# the pull requests read.
+# A push to dev (a merge): the same three, the Mac job selecting by what the push changed. Any of
+# them failing makes the run red.
+#
+# A release, a pull request from dev into main: the server's tests and the share site only. The
+# commit already ran on dev, so the Mac job stops after its first step (it is a required check of
+# main, so it still reports) and there is no secret scan. A push to main runs nothing: main only
+# ever gets the dev commit that already ran.
+#
+# Every app test (all unit and interaction tests, then the timing and render-count tests) runs once
+# a night on dev, and by hand (Run workflow): one Mac job of about 25 minutes that reports what
+# failed and the timing numbers in its summary, shows red when a test failed, and never blocks
+# anything. It also fills the caches the other Mac jobs read.
 on:
   push:
-    branches: [main, dev]
+    branches: [dev]
   pull_request:
     # ready_for_review: the Mac work starts when a draft is marked ready. A push to a pull request
     # that is already ready runs it again.
     types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    # 02:00 UTC, every night.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,6 +46,8 @@ concurrency:
 jobs:
   secrets:
     name: Secret scan
+    # Not for a release (dev into main: the commit was scanned on dev), not in the nightly run.
+    if: (github.event_name == 'push' || github.event_name == 'pull_request') && !(github.event_name == 'pull_request' && github.head_ref == 'dev' && github.base_ref == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +61,7 @@ jobs:
   lane-tests:
     # The name is a required check of the main branch's ruleset.
     name: App tests (macOS)
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'push'
     runs-on: macos-26
     timeout-minutes: 20
     env:
@@ -61,12 +75,26 @@ jobs:
       # that touches nothing the app is built or tested from stops here, as passed. supabase/ is
       # not such a place (the app's tests read server files), and web/content/changelog.json ships
       # inside the app.
+      #
+      # A push to dev: what the push changed, against the commit dev was at before it. A release
+      # (dev into main): nothing to do, the commit already ran on dev.
       - name: What changed
         id: paths
+        env:
+          BEFORE: ${{ github.event.before }}
+          RELEASE: ${{ github.event_name == 'pull_request' && github.head_ref == 'dev' && github.base_ref == 'main' }}
         run: |
-          git diff --name-only HEAD^1 HEAD > changed.txt
-          echo "$(wc -l < changed.txt | tr -d ' ') files changed"
+          base=HEAD^1
+          if [ "${{ github.event_name }}" = push ] && git fetch -q --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then base=$BEFORE; fi
+          echo "BASE=$base" >> "$GITHUB_ENV"
+          git diff --name-only "$base" HEAD > changed.txt
+          echo "$(wc -l < changed.txt | tr -d ' ') files changed since $base"
           app=false
+          if [ "$RELEASE" = true ]; then
+            echo "a release: this commit already ran on dev"
+            echo "app=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if grep -qvE '^(web/|docs/|strategy/|brand/|plugins/|cli/|scripts/|[^/]+\.md$|LICENSE$|\.github/)' changed.txt \
              || grep -qxE 'web/content/changelog\.json|\.github/workflows/ci\.yml' changed.txt; then app=true; fi
           echo "app tests: $app"
@@ -112,8 +140,9 @@ jobs:
           TEST_RUNNER_PANE_SNAPSHOTS: "1"
         run: |
           set -o pipefail
-          # Against the first parent of the merged checkout: this pull request's change and no one else's.
-          git diff --name-only HEAD^1 HEAD > changed.txt
+          # A pull request: against the first parent of the merged checkout, its change and no one
+          # else's. A push: against where dev was before it (BASE, from "What changed").
+          git diff --name-only "$BASE" HEAD > changed.txt
           python3 scripts/ci/select-tests.py changed.txt > only.txt
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
             $(tr '\n' ' ' < only.txt) -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
@@ -130,6 +159,15 @@ jobs:
             echo "error: $asked single tests were asked for and $ran ran; a line in scripts/ci/smoke-tests.txt matches no test"
             exit 1
           fi
+      # A push to dev keeps what it compiled for the pull requests after it.
+      - name: Keep the packages and compiled output
+        if: github.event_name == 'push' && steps.paths.outputs.app == 'true' && success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/DD/SourcePackages
+            build/cas
+          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
       - name: Keep the test results
         if: failure()
         uses: actions/upload-artifact@v4
@@ -142,13 +180,13 @@ jobs:
             ~/Library/Logs/DiagnosticReports/Pane*
           retention-days: 7
 
-  # After a merge: every app test, in one job that reports and never blocks. The unit and
-  # interaction tests first, then the suites that time things or count what is worked out again,
-  # in a process of their own, one test at a time. What failed and every PERF line go to the
+  # Every night on dev, and by hand: every app test, in one job that reports and never blocks. The
+  # unit and interaction tests first, then the suites that time things or count what is worked out
+  # again, in a process of their own, one test at a time. What failed and every PERF line go to the
   # job's summary.
   app-unit:
-    name: After merge, every app test (macOS, reports only)
-    if: github.event_name == 'push'
+    name: Nightly, every app test (macOS, reports only)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     continue-on-error: true
     runs-on: macos-26
     timeout-minutes: 45
@@ -158,7 +196,10 @@ jobs:
       PERF_SKIP: -skip-testing:PaneTests/EditorPerfTests -skip-testing:PaneTests/AppPerfTests -skip-testing:PaneTests/ScanPerfTests -skip-testing:PaneTests/WindowUpdateTests -skip-testing:PaneTests/NoteOpenTests -skip-testing:PaneTests/ListPiecesPerfTests
       XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
     steps:
+      # The schedule runs on the default branch (main): the nightly tests dev, where the work is.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
       - name: Select the newest Xcode
         id: xcode
         run: |
@@ -266,6 +307,7 @@ jobs:
 
   server:
     name: Server (Deno)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
