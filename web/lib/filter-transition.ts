@@ -74,10 +74,10 @@ export async function filterTransition(update: () => Promise<void> | void, chip:
         { duration: IN_MS, delay: 60 + Math.min(arriving++, 6) * 24, easing: SETTLE, fill: "backwards" });
     }
   }
-  // A card that left fades where it was, from a copy laid over the page (it's hidden or gone by now).
+  // A card that left fades where it was, from a copy laid under the page (it's hidden or gone by now).
   for (const [key, { box, copy }] of before) {
     if (now.has(key) || !box.width) continue;
-    Object.assign(copy.style, { position: "absolute", left: `${box.left + scrollX}px`, top: `${box.top + scrollY}px`, width: `${box.width}px`, height: `${box.height}px`, margin: "0", display: "grid", pointerEvents: "none", zIndex: "0" });
+    Object.assign(copy.style, { position: "absolute", left: `${box.left + scrollX}px`, top: `${box.top + scrollY}px`, width: `${box.width}px`, height: `${box.height}px`, margin: "0", display: "grid", pointerEvents: "none", zIndex: "-1" }); // under the cards that stay and arrive
     copy.setAttribute("aria-hidden", "true");
     copy.removeAttribute("hidden");
     copy.dataset.leaving = "";

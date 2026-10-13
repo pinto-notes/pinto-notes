@@ -68,7 +68,7 @@ html[data-theme] { scroll-padding-top: 100px; }
 }
 .site-header::before {
   content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
-  background: color-mix(in srgb, var(--bg) 82%, transparent); box-shadow: 0 1px 0 var(--line);
+  background: color-mix(in srgb, var(--bg) 92%, transparent); box-shadow: 0 1px 0 var(--line);
   -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); opacity: 0;
 }
 .site-header[data-scrolled]::before { opacity: 1; }

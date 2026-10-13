@@ -85,7 +85,7 @@ export function ImportCard({ className = "" }: { className?: string }) {
         <img src="/apple-notes.webp" alt="" width={36} height={36} />
         <div className={h.importName}>
           <b>{full ? "Imported from Apple Notes" : "Importing from Apple Notes…"}</b>
-          <span><Tick /> Folders kept <Tick /> Apple Notes unchanged</span>
+          <span className={h.importTicks}><span><Tick />Folders kept</span><span><Tick />Apple Notes unchanged</span></span>
         </div>
         <p className={h.importTotal}><span className={a.num}>{Math.round(TOTAL * p).toLocaleString("en")}</span> notes</p>
       </div>
