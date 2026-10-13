@@ -296,7 +296,7 @@ private struct SheetParentReader: NSViewRepresentable {
 
     final class Probe: NSView {
         var changed: (NSWindow?) -> Void
-        private var watch: NSObjectProtocol?
+        nonisolated(unsafe) private var watch: NSObjectProtocol?
         init(changed: @escaping (NSWindow?) -> Void) { self.changed = changed; super.init(frame: .zero) }
         required init?(coder: NSCoder) { nil }
 
