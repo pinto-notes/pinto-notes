@@ -16,28 +16,27 @@ import UIKit
     static func pages() -> [(String, ConnectGuideRun)] {
         let chatgpt = ConnectWebGuide.chatgpt(listing: nil)
         let live = ConnectWebGuide.chatgpt(listing: URL(string: "https://chatgpt.com/plugins/pinto-notes"))
+        let apps = ConnectWebGuide.App.allCases
         func r(_ ai: ConnectAISection.Guide, _ g: ConnectWebGuide? = nil, _ stage: ConnectGuideRun.Stage, opened: Set<Int> = [],
-               copied: ConnectGuideRun.Copied? = nil) -> ConnectGuideRun {
-            ConnectGuideRun(ai: ai, guide: g, server: server, stage: stage, opened: opened, copied: copied)
+               copied: Bool = false, picked: ConnectWebGuide.App? = nil) -> ConnectGuideRun {
+            ConnectGuideRun(ai: ai, guide: g, apps: apps, server: server, stage: stage, opened: opened, copied: copied, picked: picked)
         }
         let done = r(.chatgpt, chatgpt, .intro)
         done.connected("ChatGPT")
-        let otherDone = r(.other, nil, .step(0))
-        otherDone.connected("Le Chat")
+        let otherDone = r(.other, nil, .step(0), picked: .cursor)
+        otherDone.connected(nil)
         return [
             ("chatgpt-0-intro", r(.chatgpt, chatgpt, .intro)),
             ("chatgpt-1-open", r(.chatgpt, chatgpt, .step(0))),
-            ("chatgpt-1-opened", r(.chatgpt, chatgpt, .step(0), opened: [0])),
-            ("chatgpt-2-add", r(.chatgpt, chatgpt, .step(1), opened: [0])),
-            ("chatgpt-3-paste", r(.chatgpt, chatgpt, .step(2), opened: [0])),
-            ("chatgpt-3-copied", r(.chatgpt, chatgpt, .step(2), opened: [0], copied: .address)),
-            ("chatgpt-4-allow-waiting", r(.chatgpt, chatgpt, .step(3), opened: [0])),
+            ("chatgpt-2-paste-waiting", r(.chatgpt, chatgpt, .step(1), opened: [0], copied: false)),
+            ("chatgpt-2-paste-copied-again", r(.chatgpt, chatgpt, .step(1), opened: [0], copied: true)),
+            ("chatgpt-1-back-opened", r(.chatgpt, chatgpt, .step(0), opened: [0])),
             ("chatgpt-9-connected", done),
-            ("plugin-0-intro", r(.chatgpt, live, .intro)),
-            ("plugin-1-open", r(.chatgpt, live, .step(0))),
+            ("plugin-0-open", r(.chatgpt, live, .step(0))),
             ("plugin-1-waiting", r(.chatgpt, live, .step(0), opened: [0])),
-            ("other-0-page", r(.other, nil, .step(0))),
-            ("other-1-copied-waiting", r(.other, nil, .step(0), copied: .address)),
+            ("other-0-apps", r(.other, nil, .step(0))),
+            ("other-1-cursor-waiting", r(.other, nil, .step(0), picked: .cursor)),
+            ("other-2-copied-waiting", r(.other, nil, .step(0), copied: true)),
             ("other-9-connected", otherDone),
         ]
     }
@@ -53,8 +52,7 @@ import UIKit
             }
         }
         // The smallest window's height: the picture gives way, never the words.
-        for name in ["chatgpt-3-copied", "other-1-copied-waiting"] {
-            let run = try #require(Self.pages().first { $0.0 == name }?.1)
+        for (name, run) in Self.pages() {
             try await VersionHistorySnapshots.shoot(ConnectWebGuideSheet(run: run, height: 480),
                                                     to: dir.appending(path: "mac-light-480-\(name).png"),
                                                     size: CGSize(width: 540, height: 480), dark: false)

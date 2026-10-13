@@ -1,12 +1,16 @@
 import Supabase
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
-// Connect ChatGPT and Connect another AI, to the guided imports' bar (13 October 2026): a sheet of
-// pages, each with a picture and one orange button, Back, and a page that says it worked. Nothing
-// opens a browser unless a button says it will. ChatGPT is added on chatgpt.com as a custom MCP
-// server until OpenAI lists Pinto Notes in its plugins (in review since 13 October); then the guide
-// is one step, Open Pinto Notes in ChatGPT, and Connect. Another AI is one page: the address,
-// where to paste it, and the token way behind Having trouble?.
+// Connect ChatGPT and Connect another AI, built like the guided imports (Emil's pick, 13 October
+// 2026): one picture, one short sentence and one orange button per page; the button opens exactly
+// the right place, and the sheet moves on by itself. ChatGPT: "Open ChatGPT" copies the address
+// and opens its plugins, the next page shows the form and waits, Connected comes by itself. Once
+// OpenAI lists Pinto Notes in its plugins (in review since 13 October), it's one page: open
+// Pinto Notes in ChatGPT, Connect. Another AI: the apps that take a link, each one press, and the
+// address to copy for anything else.
 
 /// Pinto Notes in ChatGPT's plugin directory, once OpenAI has approved it.
 enum ChatGPTPlugin {
@@ -23,15 +27,15 @@ enum ChatGPTPlugin {
     static let plugins = URL(string: "https://chatgpt.com/plugins")!
 }
 
-/// A connect guide's words and pictures, page by page.
+/// Connect ChatGPT's words and pictures, page by page.
 struct ConnectWebGuide {
     typealias Guide = ConnectAISection.Guide
     var ai: Guide
     var introTitle: String
     var introLine: String
-    /// Who can do it, under the intro's line.
-    var note: String?
     var steps: [Step]
+    /// One page, no intro (the public plugin): the picture, the marks, the words, the button.
+    var single = false
     var doneTitle: String
 
     struct Step {
@@ -41,8 +45,8 @@ struct ConnectWebGuide {
         /// What the step's button opens, said on it ("Open ChatGPT"), and where it goes.
         var action: String?
         var link: URL?
-        /// The address, with Copy, under the words.
-        var copiesAddress = false
+        /// The button also copies the address, and the sheet goes on to the next page by itself.
+        var copiesAndMovesOn = false
         /// Allow comes next: the page waits for the AI to connect.
         var waits = false
     }
@@ -51,58 +55,96 @@ struct ConnectWebGuide {
     static func opensSheet(_ g: Guide) -> Bool { g == .chatgpt || g == .other }
 
     #if os(macOS)
-    static let click = "Click", device = "this Mac"
+    static let click = "Click", paste = "press \u{2318}V"
     #else
-    static let click = "Tap", device = "this iPhone"
+    static let click = "Tap", paste = "paste"
     #endif
 
     static func chatgpt(listing: URL? = ChatGPTPlugin.listing) -> ConnectWebGuide {
-        let intro = "ChatGPT can then find, read and write your notes when you ask it to."
         if let listing {
             return ConnectWebGuide(
-                ai: .chatgpt, introTitle: "Connect ChatGPT",
-                introLine: "\(intro) It takes a minute, once, and then works in the ChatGPT apps too.",
-                note: nil,
-                steps: [Step(title: "Open Pinto Notes in ChatGPT",
-                             text: "ChatGPT shows Pinto Notes in its plugins. \(click) Connect, then choose Allow when \(device) asks.",
-                             art: .listing, action: "Open ChatGPT", link: listing, waits: true)],
-                doneTitle: "ChatGPT is connected")
+                ai: .chatgpt, introTitle: "Connect ChatGPT", introLine: "",
+                steps: [Step(title: "Connect ChatGPT",
+                             text: "ChatGPT opens Pinto Notes. \(click) Connect there, then Allow here.",
+                             art: .listing, action: "Open Pinto Notes in ChatGPT", link: listing, waits: true)],
+                single: true, doneTitle: "ChatGPT is connected")
         }
         return ConnectWebGuide(
             ai: .chatgpt, introTitle: "Connect ChatGPT",
-            introLine: "\(intro) You add Pinto Notes once on chatgpt.com, in about a minute, and then it works in the ChatGPT apps too.",
-            note: "Needs ChatGPT Plus, Pro, Business, Enterprise or Edu.",
+            introLine: "You add Pinto Notes once on chatgpt.com. It takes a minute, and the address is copied for you.",
             steps: [
                 Step(title: "Open ChatGPT\u{2019}s plugins",
-                     text: "Sign in if ChatGPT asks. The Plugins page opens, with Add at the top right.",
-                     art: .plugins, action: "Open ChatGPT", link: ChatGPTPlugin.plugins),
-                Step(title: "Add a custom MCP server",
-                     text: "\(click) Add, then Add custom MCP server. A form opens.",
-                     art: .addMenu),
-                Step(title: "Paste the address",
-                     text: "Name it Pinto Notes and paste this under Connection. Tick I understand and want to continue, then \(click.lowercased()) Create as a plugin.",
-                     art: .form, copiesAddress: true),
-                Step(title: "Allow it in Pinto Notes",
-                     text: "Your browser opens a Pinto Notes page. Choose Open Pinto Notes, then Allow when \(device) asks.",
-                     art: .allow, waits: true),
+                     text: "\(click) Add, then Add custom MCP server.",
+                     art: .addMenu, action: "Open ChatGPT", link: ChatGPTPlugin.plugins, copiesAndMovesOn: true),
+                Step(title: "Paste, tick, create",
+                     text: "Name it Pinto Notes, \(paste) under Connection, tick I understand, then Create. Choose Allow when Pinto Notes asks.",
+                     art: .form, waits: true),
             ],
             doneTitle: "ChatGPT is connected")
     }
 
-    /// Another AI: one page, so only its words live here.
-    enum Other {
-        static let title = "Connect another AI"
-        static let line = "Add Pinto Notes in your AI app as a connector (also called an MCP server), with this address."
-        static let whereTitle = "Where it goes"
-        static let places: [(String, String)] = [
-            ("Claude", "Settings \u{2192} Connectors \u{2192} Add custom connector"),
-            ("VS Code", "Command Palette \u{2192} MCP: Add Server \u{2192} HTTP"),
-            ("Cursor and others", "Their settings, under MCP or connectors"),
-        ]
+    static func waiting(_ g: Guide) -> String {
+        g == .other ? "Waiting for your AI\u{2026}" : "Waiting for \(g.title)\u{2026}"
     }
 
-    static func waiting(_ g: Guide) -> String {
-        g == .other ? "Waiting for your AI to connect\u{2026}" : "Waiting for \(g.title) to connect\u{2026}"
+    // MARK: Another AI
+
+    static let otherTitle = "Connect another AI"
+    static let otherLine = "Choose your app. It opens with Pinto Notes filled in."
+    static let copyTheAddress = "Something else? Copy the address"
+    static let pasteIt = "Paste it where your app adds a connector."
+
+    /// The apps that take a link that adds Pinto Notes in one press.
+    enum App: String, CaseIterable, Identifiable {
+        case claude, cursor, vscode
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .claude: "Claude"
+            case .cursor: "Cursor"
+            case .vscode: "VS Code"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .claude: "Adds it on claude.ai"
+            case .cursor: "Adds it in Cursor"
+            case .vscode: "Adds it in VS Code"
+            }
+        }
+
+        /// The link that opens the app's own add dialog with Pinto Notes filled in. Claude's
+        /// custom connector dialog (claude.com/docs/connectors/building/directory-vs-custom),
+        /// Cursor's install link (cursor.com/docs/context/mcp, "Add to Cursor"), VS Code's
+        /// (code.visualstudio.com/docs/copilot/chat/mcp-servers, "vscode:mcp/install").
+        func link(server: String) -> URL {
+            let name = ConnectSnippets.serverName
+            switch self {
+            case .claude:
+                return WebConnectPlan.installLink(server: server)
+            case .cursor:
+                let config = Data(#"{"url":"\#(server)"}"#.utf8).base64EncodedString()
+                var c = URLComponents(string: "cursor://anysphere.cursor-deeplink/mcp/install")!
+                c.queryItems = [URLQueryItem(name: "name", value: name), URLQueryItem(name: "config", value: config)]
+                return c.url!
+            case .vscode:
+                let json = #"{"name":"\#(name)","type":"http","url":"\#(server)"}"#
+                return URL(string: "vscode:mcp/install?" + (json.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""))!
+            }
+        }
+
+        /// The ones that can open here: Claude everywhere (a web page); Cursor and VS Code when
+        /// they are on this Mac (asked of Launch Services, nothing shown). Never a row that does
+        /// nothing when pressed.
+        static func here(server: String) -> [App] {
+            #if os(macOS)
+            allCases.filter { $0 == .claude || NSWorkspace.shared.urlForApplication(toOpen: $0.link(server: server)) != nil }
+            #else
+            [.claude]
+            #endif
+        }
     }
 }
 
@@ -110,29 +152,32 @@ struct ConnectWebGuide {
 
 /// One guide on screen: the page, the presses, copying, and watching for the connection. Every
 /// step of the connect funnel passes through here (`started` at the first press that does
-/// something, `waiting` when the page says it waits, `connected`); the sheet's route records
-/// `opened` and, on closing before it worked, `gave_up`.
+/// something, `waiting` when the page waits, `connected`); the sheet's route records `opened`
+/// and, on closing before it worked, `gave_up`.
 @MainActor
 @Observable
 final class ConnectGuideRun {
     typealias Guide = ConnectAISection.Guide
+    typealias App = ConnectWebGuide.App
     enum Stage: Equatable { case intro, step(Int), connected }
 
     let ai: Guide
     /// ChatGPT's pages; Another AI has one page and none of these.
     let guide: ConnectWebGuide?
+    /// Another AI: the apps offered.
+    let apps: [App]
     private(set) var stage: Stage
     private(set) var trail: [Stage] = []
     /// Steps whose link was opened.
     private(set) var opened: Set<Int> = []
-    /// What was just copied: the address, or the question to try.
-    private(set) var copied: Copied?
+    /// The address was just copied.
+    private(set) var copied = false
+    /// Another AI: the app whose link was opened.
+    private(set) var picked: App?
     /// What connected: its name as the server lists it.
     private(set) var connectedAs: String?
     let since = Date.now.addingTimeInterval(-5)
     let server: String
-
-    enum Copied: Equatable { case address, question }
 
     @ObservationIgnored var open: (URL) -> Void = { _ in }
     @ObservationIgnored var copy: (String) -> Void = ConnectClipboard.set
@@ -142,14 +187,17 @@ final class ConnectGuideRun {
     @ObservationIgnored private var expecting = false
     @ObservationIgnored private var saidWaiting = false
 
-    init(ai: Guide, guide: ConnectWebGuide? = nil, server: String = BackendConfig.mcpPublicURL?.absoluteString ?? "",
-         stage: Stage? = nil, opened: Set<Int> = [], copied: Copied? = nil) {
+    init(ai: Guide, guide: ConnectWebGuide? = nil, apps: [App]? = nil, server: String = BackendConfig.mcpPublicURL?.absoluteString ?? "",
+         stage: Stage? = nil, opened: Set<Int> = [], copied: Bool = false, picked: App? = nil) {
         self.ai = ai
-        self.guide = ai == .other ? nil : (guide ?? .chatgpt())
+        let guide = ai == .other ? nil : (guide ?? .chatgpt())
+        self.guide = guide
         self.server = server
-        self.stage = stage ?? (ai == .other ? .step(0) : .intro)
+        self.apps = ai == .other ? (apps ?? App.here(server: server)) : []
+        self.stage = stage ?? (ai == .other || guide?.single == true ? .step(0) : .intro)
         self.opened = opened
         self.copied = copied
+        self.picked = picked
     }
 
     var step: ConnectWebGuide.Step? {
@@ -157,9 +205,9 @@ final class ConnectGuideRun {
     }
 
     /// The page waits for the AI, and says so with a spinner: only once there is something to
-    /// wait for (ChatGPT's last step, or the address copied for another AI).
+    /// wait for (ChatGPT's form page, its plugin opened, an app opened or the address copied).
     var waits: Bool {
-        if ai == .other { return stage == .step(0) && copied == .address }
+        if ai == .other { return stage == .step(0) && (picked != nil || copied) }
         guard case .step(let i) = stage, let s = step, s.waits else { return false }
         return s.action == nil || opened.contains(i)
     }
@@ -171,27 +219,33 @@ final class ConnectGuideRun {
         case .intro:
             go(.step(0))
         case .step(let i):
-            if ai == .other { copyAddress(); return }
             guard let s = step else { return }
-            if s.action != nil, !opened.contains(i) { openLink(i) } else if !waits { next(after: i) }
+            if s.action != nil, !opened.contains(i) || !s.waits { openLink(i) } else if !waits { next(after: i) }
         case .connected:
-            close()
+            // ChatGPT: a chat with a first question; another AI has no orange button here.
+            if ai == .chatgpt { open(WebConnectPlan.chatgpt.testPage) } else { close() }
         }
     }
 
     func quiet() {
         switch stage {
         case .intro:
-            // Added it already: straight to the step that waits for Allow.
-            if let last = guide?.steps.indices.last { go(.step(last)) }
+            break
         case .step(let i):
-            guard let s = step else { return }
-            if s.action != nil, !opened.contains(i), !s.waits { next(after: i) }
-            else if s.action != nil, opened.contains(i) { openLink(i) }
+            if ai == .other || step?.action == nil { copyAddress() }
+            else if opened.contains(i) { openLink(i) }
         case .connected:
-            copy(WebConnectPlan.testPrompt)
-            copied = .question
+            close()
         }
+    }
+
+    /// Another AI: an app's row.
+    func pick(_ app: App) {
+        picked = app
+        copy(server)
+        ConnectFunnel.started(ai.funnel)
+        open(app.link(server: server))
+        said()
     }
 
     func back() {
@@ -202,7 +256,7 @@ final class ConnectGuideRun {
 
     func copyAddress() {
         copy(server)
-        copied = .address
+        copied = true
         ConnectFunnel.started(ai.funnel)
         said()
     }
@@ -218,11 +272,12 @@ final class ConnectGuideRun {
     }
 
     private func openLink(_ i: Int) {
-        guard let link = guide?.steps[i].link else { return }
+        guard let s = guide?.steps[i], let link = s.link else { return }
         opened.insert(i)
+        if s.copiesAndMovesOn { copy(server); copied = true }
         ConnectFunnel.started(ai.funnel)
         open(link)
-        said()
+        if s.copiesAndMovesOn { next(after: i) } else { said() }
     }
 
     /// The funnel hears `waiting` the first time the page waits.
@@ -243,9 +298,10 @@ final class ConnectGuideRun {
         watching?.cancel()
         watching = Task { [weak self] in
             while !Task.isCancelled {
-                let here = ConnectCenter.shared.approved.map { $0.at >= since && ConnectRun.approvalCounts($0.ai, for: ai) } ?? false
+                // Another AI may be any app, Claude's custom connector included.
+                let here = ConnectCenter.shared.approved.map { $0.at >= since && (ai == .other || ConnectRun.approvalCounts($0.ai, for: ai)) } ?? false
                 let rows: [Connection]? = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value
-                if let rows, ConnectRun.isNew(rows, for: ai, since: since) || here {
+                if let rows, ConnectRun.isNew(rows, for: ai, since: since) {
                     self?.connected(Self.newest(rows, for: ai, since: since)?.title)
                     return
                 }
@@ -265,9 +321,9 @@ final class ConnectGuideRun {
     func connected(_ name: String?) {
         guard stage != .connected else { return }
         stop()
-        connectedAs = name
+        connectedAs = name ?? picked?.title
         trail = []
-        copied = nil
+        copied = false
         stage = .connected
         ConnectFunnel.connected(ai.funnel)
     }
@@ -281,6 +337,7 @@ final class ConnectGuideRun {
 
 /// Connect ChatGPT, or another AI, as a sheet of pages. Presented by `ConnectGuides`.
 struct ConnectWebGuideSheet: View {
+    typealias App = ConnectWebGuide.App
     @State var run: ConnectGuideRun
     var client: SupabaseClient?
     /// The sheet's height when it is set here (renders); otherwise fitted to the window.
@@ -308,6 +365,9 @@ struct ConnectWebGuideSheet: View {
     #else
     static let compact = false
     #endif
+
+    /// Between a picture and the marks under it, as between the import guides' picture and words.
+    static let pictureGap: CGFloat = 28
 
     private var sheetHeight: CGFloat {
         #if os(macOS)
@@ -348,15 +408,17 @@ struct ConnectWebGuideSheet: View {
             content.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .animation(.snappy(duration: 0.2), value: run.copied)
+        .animation(.snappy(duration: 0.2), value: run.picked)
     }
 
     // MARK: Parts
 
     private var steps: [ConnectWebGuide.Step] { run.guide?.steps ?? [] }
+    private var stepped: Bool { run.ai != .other && run.guide?.single != true }
 
     private var topBar: some View {
         HStack {
-            if case .step = run.stage, run.ai != .other {
+            if case .step = run.stage, stepped {
                 Button { run.back() } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
@@ -370,7 +432,7 @@ struct ConnectWebGuideSheet: View {
                 Color.clear.frame(width: 1, height: 1)
             }
             Spacer()
-            if run.stage != .connected, !steps.isEmpty {
+            if run.stage != .connected, stepped {
                 HStack(spacing: 6) {
                     ForEach(0...steps.count, id: \.self) { i in
                         Capsule()
@@ -407,17 +469,18 @@ struct ConnectWebGuideSheet: View {
     @ViewBuilder private var content: some View {
         switch run.stage {
         case .intro: intro
-        case .step(let i): if run.ai == .other { other } else { step(steps[i], number: i + 1) }
+        case .step(let i):
+            if run.ai == .other { other } else if !stepped { single(steps[i]) } else { step(steps[i], number: i + 1) }
         case .connected: connected
         }
     }
 
     /// The AI's mark and Pinto Notes', side by side.
-    private var marks: some View {
+    private func marks(_ size: CGFloat) -> some View {
         HStack(spacing: 14) {
-            AITile(ai: run.ai == .other ? "" : run.ai.title, size: Self.compact ? 64 : 60)
-            Image(systemName: "arrow.left.arrow.right").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.muted)
-            AppMark(size: Self.compact ? 64 : 60)
+            AITile(ai: run.ai == .other ? "" : run.ai.title, size: size)
+            Image(systemName: "arrow.left.arrow.right").font(.system(size: size < 50 ? 13 : 15, weight: .semibold)).foregroundStyle(Color.muted)
+            AppMark(size: size)
         }
         .accessibilityHidden(true)
     }
@@ -425,7 +488,7 @@ struct ConnectWebGuideSheet: View {
     private var intro: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
-            marks.padding(.bottom, 22)
+            marks(Self.compact ? 64 : 60).padding(.bottom, 22)
             Text(run.guide?.introTitle ?? "")
                 .font(.display(Self.compact ? 30 : 28))
                 .tracking(Palette.tracking(28))
@@ -437,34 +500,23 @@ struct ConnectWebGuideSheet: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 400)
-            if let note = run.guide?.note {
-                Text(note)
-                    .font(Self.compact ? .footnote : .system(size: 12))
-                    .foregroundStyle(Color.muted.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 10)
-            }
             Spacer(minLength: 0)
             primary("Show Me How")
-            quiet(steps.count > 1 ? "I\u{2019}ve added it already" : " ").opacity(steps.count > 1 ? 1 : 0)
+            quiet(" ").hidden()
         }
         .padding(.horizontal, 40)
         .padding(.bottom, Self.compact ? 12 : 26)
     }
 
-    @ViewBuilder
     private func step(_ s: ConnectWebGuide.Step, number: Int) -> some View {
         let opened = run.opened.contains(number - 1)
-        // Drawn at the picture's full height; the page with the address shrinks it to make room.
-        let full = Self.compact ? 280 : ImportSheetFit.picture
-        VStack(spacing: 0) {
-            ImportSheetFit.scaled(art(s.art), to: full - (s.copiesAddress ? 60 : 0) - shortBy, from: full)
+        let full = Self.compact ? 300 : ImportSheetFit.picture
+        return VStack(spacing: 0) {
+            ImportSheetFit.scaled(art(s.art), to: full - shortBy, from: full)
                 .padding(.top, 8)
-                .padding(.bottom, 18)
+                .padding(.bottom, 20)
             VStack(alignment: .leading, spacing: 8) {
-                Text(ImportGuideSheet.stepLabel(number, of: steps.count))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.muted)
+                // No "Step 1 of 2": the dots at the top say where you are.
                 Text(s.title).font(.system(size: Self.compact ? 24 : 21, weight: .bold)).tracking(-0.3)
                     .accessibilityAddTraits(.isHeader)
                 Text(s.text)
@@ -472,121 +524,149 @@ struct ConnectWebGuideSheet: View {
                     .foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(2)
-                if s.copiesAddress { address(large: false).padding(.top, 4) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 12)
             if run.waits {
-                waitingRow
-                quiet(s.action.map { "\($0) again" } ?? ConnectCopy.trouble)
+                waitingRow(ConnectWebGuide.waiting(run.ai))
+                quiet(run.copied ? "Copied" : "Copy the address again")
             } else if let action = s.action, !opened {
                 primary(action, symbol: "arrow.up.right")
-                quiet(s.waits ? ConnectCopy.trouble : "Next")
+                quiet(" ").hidden()
             } else {
-                primary("Next")
-                if let action = s.action { quiet("\(action) again") } else { quiet(" ").hidden() }
+                primary(s.action.map { "\($0) Again" } ?? "Next", symbol: s.action == nil ? nil : "arrow.up.right")
+                quiet(" ").hidden()
             }
         }
         .padding(.horizontal, Self.compact ? 24 : 36)
         .padding(.bottom, Self.compact ? 12 : 26)
     }
 
-    /// Another AI: the address to copy, where it goes, and the wait once it's copied.
+    /// One page (the public plugin): the picture, room, the marks, the words, the button.
+    private func single(_ s: ConnectWebGuide.Step) -> some View {
+        let full: CGFloat = Self.compact ? 260 : 200
+        return VStack(spacing: 0) {
+            ImportSheetFit.scaled(art(s.art), to: full - shortBy, from: full)
+                .padding(.top, 8)
+                .padding(.bottom, Self.pictureGap)
+            marks(Self.compact ? 48 : 44).padding(.bottom, 14)
+            Text(s.title)
+                .font(.display(Self.compact ? 26 : 24))
+                .tracking(Palette.tracking(24))
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, 8)
+            Text(s.text)
+                .font(Self.compact ? .body : .system(size: 15))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 410)
+            Spacer(minLength: 12)
+            if run.waits {
+                waitingRow(ConnectWebGuide.waiting(run.ai))
+                quiet(s.action.map { "\($0) again" } ?? " ")
+            } else {
+                primary(s.action ?? "", symbol: "arrow.up.right")
+                quiet(" ").hidden()
+            }
+        }
+        .padding(.horizontal, Self.compact ? 24 : 36)
+        .padding(.bottom, Self.compact ? 12 : 26)
+    }
+
+    /// Another AI: the apps that add it in one press, and the address for anything else.
     private var other: some View {
         VStack(spacing: 0) {
             // A short window gives up the marks, never the words.
-            if shortBy < 40 { marks.padding(.top, Self.compact ? 18 : 6).padding(.bottom, 16) }
-            Text(ConnectWebGuide.Other.title)
+            if shortBy < 40 { marks(Self.compact ? 64 : 60).padding(.top, Self.compact ? 18 : 10).padding(.bottom, 18) }
+            Text(ConnectWebGuide.otherTitle)
                 .font(.display(Self.compact ? 28 : 26))
                 .tracking(Palette.tracking(26))
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.bottom, 8)
-            Text(ConnectWebGuide.Other.line)
-                .font(Self.compact ? .body : .system(size: 14))
+            Text(run.copied && run.picked == nil ? ConnectWebGuide.pasteIt : ConnectWebGuide.otherLine)
+                .font(Self.compact ? .body : .system(size: 15))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 420)
-                .padding(.bottom, 16)
-            address(large: true)
-            if run.copied == .address {
-                primary("Copied", symbol: "checkmark").padding(.top, 10)
-            } else {
-                primary("Copy Address").padding(.top, 10)
-            }
-            places.padding(.top, 18)
+                .padding(.bottom, 18)
+            VStack(spacing: BigChoices.Metrics.gap) { ForEach(run.apps) { appRow($0) } }
+            if run.copied, run.picked == nil { addressField.padding(.top, 14) }
             Spacer(minLength: 8)
-            if run.waits { waitingRow } else { Color.clear.frame(height: 24) }
-            quiet(ConnectCopy.trouble)
+            if run.waits, run.picked == nil { waitingRow(ConnectWebGuide.waiting(.other)) }
+            if run.copied {
+                quiet(ConnectCopy.trouble)
+            } else {
+                quiet(ConnectWebGuide.copyTheAddress)
+            }
         }
         .padding(.horizontal, Self.compact ? 24 : 36)
         .padding(.bottom, Self.compact ? 12 : 22)
     }
 
-    private var places: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(ConnectWebGuide.Other.whereTitle)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.muted)
-                .accessibilityAddTraits(.isHeader)
-            ForEach(ConnectWebGuide.Other.places, id: \.0) { name, path in
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(name).font(.system(size: Self.compact ? 15 : 13, weight: .semibold)).frame(width: 120, alignment: .leading)
-                        Text(path).font(.system(size: Self.compact ? 15 : 13)).foregroundStyle(Color.muted)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(name).font(.system(size: Self.compact ? 15 : 13, weight: .semibold))
-                        Text(path).font(.system(size: Self.compact ? 15 : 13)).foregroundStyle(Color.muted)
-                    }
+    private func appRow(_ app: App) -> some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        let lit = run.picked == app
+        return Button { run.pick(app) } label: {
+            HStack(spacing: 12) {
+                AITile(ai: app == .claude ? "Claude" : "", size: BigChoices.Metrics.rowMark)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(app.title).font(BigChoices.Metrics.title).foregroundStyle(Color.ink)
+                    Text(lit ? "Waiting for \(app.title)\u{2026} Choose Allow when Pinto Notes asks." : app.detail)
+                        .font(BigChoices.Metrics.detail).foregroundStyle(lit ? Color.ink : Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityElement(children: .combine)
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Group {
+                    if lit { ProgressView().controlSize(.small) }
+                    else { Image(systemName: "arrow.up.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary) }
+                }
+                .accessibilityHidden(true)
             }
+            .padding(.horizontal, BigChoices.Metrics.padding)
+            .padding(.vertical, BigChoices.Metrics.rowPadding)
+            .frame(maxWidth: .infinity, minHeight: BigChoices.Metrics.rowHeight, alignment: .leading)
+            .background(lit ? Color.amberSoft : Color(Palette.field), in: shape)
+            .overlay(shape.strokeBorder(lit ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: lit ? 1.5 : 1))
+            .hoverOverlay(shape, Color.primary.opacity(0.05))
+            .contentShape(shape)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(Palette.field).opacity(0.6), in: RoundedRectangle(cornerRadius: Self.compact ? 12 : 10, style: .continuous))
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(app.title). \(lit ? "Waiting" : app.detail)")
+        .accessibilityIdentifier("connect.app.\(app.rawValue)")
     }
 
-    /// The address in a field to select, and on ChatGPT's step its own Copy button.
-    private func address(large: Bool) -> some View {
+    /// The address, copied, in a field to select.
+    private var addressField: some View {
         let shape = RoundedRectangle(cornerRadius: Self.compact ? 12 : 10, style: .continuous)
-        return HStack(spacing: 10) {
+        return HStack(spacing: 8) {
             Text(run.server)
-                .font(.system(size: large ? (Self.compact ? 18 : 17) : 14, weight: .medium, design: .monospaced))
+                .font(.system(size: Self.compact ? 16 : 15, weight: .medium, design: .monospaced))
                 .textSelection(.enabled)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .frame(maxWidth: .infinity, alignment: large ? .center : .leading)
-            if !large {
-                Button {
-                    run.copyAddress()
-                } label: {
-                    Label(run.copied == .address ? "Copied" : "Copy", systemImage: run.copied == .address ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(run.copied == .address ? Color(Palette.amberInk) : Color.ink)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Color.line.opacity(0.6), in: .capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("connect.address.copy")
-            }
+            Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Color(Palette.amberInk))
+                .accessibilityHidden(true)
+            Text("Copied").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color(Palette.amberInk))
         }
         .padding(.horizontal, 14)
-        .frame(height: large ? (Self.compact ? 56 : 50) : 40)
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.compact ? 50 : 44)
         .background(Color(Palette.field), in: shape)
         .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Address, \(run.server)")
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("connect.address")
     }
 
     /// Something is being waited for, and only then: the spinner, and what for.
-    private var waitingRow: some View {
+    private func waitingRow(_ text: String) -> some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
-            Text(ConnectWebGuide.waiting(run.ai)).font(.system(size: Self.compact ? 15 : 13, weight: .medium)).foregroundStyle(Color.muted)
+            Text(text).font(.system(size: Self.compact ? 15 : 13, weight: .medium)).foregroundStyle(Color.muted)
         }
         .frame(height: Self.compact ? 50 : 40)
         .accessibilityElement(children: .combine)
@@ -597,7 +677,7 @@ struct ConnectWebGuideSheet: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             ZStack(alignment: .bottomTrailing) {
-                if run.ai == .other { AppMark(size: 76) } else { AITile(ai: run.ai.title, size: 76) }
+                AITile(ai: run.ai == .other ? (run.picked == .claude ? "Claude" : "") : run.ai.title, size: 76)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 28))
                     .symbolRenderingMode(.palette)
@@ -613,15 +693,17 @@ struct ConnectWebGuideSheet: View {
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 10)
                 .accessibilityIdentifier("connect.connected")
-            Text("Ask it about your notes, like this: \u{201C}\(WebConnectPlan.testPrompt)\u{201D}")
+            Text("Ask it about your notes: \u{201C}\(WebConnectPlan.testPrompt)\u{201D}")
                 .font(Self.compact ? .body : .system(size: 15))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 400)
             Spacer(minLength: 0)
-            primary("Done")
-            quiet(run.copied == .question ? "Copied" : "Copy the Question")
+            if run.ai == .chatgpt {
+                primary("Ask ChatGPT", symbol: "arrow.up.right")
+            }
+            quiet("Done")
         }
         .padding(.horizontal, 40)
         .padding(.bottom, Self.compact ? 12 : 26)
@@ -720,12 +802,12 @@ struct ConnectDrawing: View {
             }
         case .form:
             browser("chatgpt.com/plugins") {
-                VStack(alignment: .leading, spacing: 7) {
+                // Authentication is left as it is (OAuth), so it isn't drawn: the form fits the picture.
+                VStack(alignment: .leading, spacing: 5) {
                     Text("Add custom MCP server").font(.system(size: 12, weight: .semibold)).foregroundStyle(ink)
                     fieldRow("Name", "Pinto Notes")
                     Text("Connection").font(.system(size: 9.5, weight: .medium)).foregroundStyle(ink.opacity(0.6))
                     ring { field(server, strong: true).frame(width: 250) }
-                    fieldRow("Authentication", "OAuth")
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 3).fill(ink)
                             .overlay { Image(systemName: "checkmark").font(.system(size: 7, weight: .heavy)).foregroundStyle(.white) }
