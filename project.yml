@@ -51,7 +51,12 @@ targets:
     type: application
     supportedDestinations: [iOS, macOS]
     sources: &appSources
-      - Pane
+      - path: Pane
+        excludes: ["Resources/Onboarding.xcassets"]
+      # The sign-in and first-run pictures (OnboardingArt): the Mac's card window only. Not in
+      # the iPhone app, and never in the share extension (its own sources list below).
+      - path: Pane/Resources/Onboarding.xcassets
+        destinationFilters: [macOS]
     configFiles:
       Debug: Config/Backend.xcconfig
       Release: Config/Backend.xcconfig
@@ -303,6 +308,9 @@ targets:
         buildPhase: resources
       - path: PaneShare
         type: folder
+        buildPhase: resources
+      # The project, for OnboardingArtTests (the pictures stay out of the share extension).
+      - path: project.yml
         buildPhase: resources
       # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md

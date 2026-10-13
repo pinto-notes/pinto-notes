@@ -111,7 +111,7 @@ struct OnboardingFlow: View {
 
     @ViewBuilder private var screen: some View {
         #if os(macOS)
-        CardLayout {
+        CardLayout(picture: OnboardingArt.name(OnboardingArt.moment(step))) {
             page
                 .padding(.horizontal, 52)
                 .padding(.top, 26)

@@ -262,14 +262,9 @@ struct WelcomeFlow: View {
     private var picture: some View { Self.picture }
 
     #if os(macOS)
-    /// Edge to edge, the window buttons on it. It fills its panel and crops from the centre,
-    /// where the leaf on the paper is.
-    static var art: some View {
-        Color.clear
-            .frame(minWidth: size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
-            .overlay { picture }
-            .clipped()
-    }
+    /// Edge to edge, the window buttons on it: this person's sign-in picture (OnboardingArt),
+    /// filling its panel and cropped from the centre. (iPhone keeps the leaf, `picture`.)
+    static var art: some View { FullBleedScene(name: OnboardingArt.name(.signin)) }
 
     private var art: some View { Self.art }
     #else
@@ -310,8 +305,8 @@ struct WelcomeFlow: View {
 /// device left?") in the welcome's window: the same picture on the left, the step on the right,
 /// so the window keeps its size and place from the welcome until the notes open.
 struct CardLayout<Side: View>: View {
-    /// A scene of its own in place of the leaf, edge to edge like it (the per-step art to come:
-    /// 3:4, 1086 by 1448). Nil: the leaf.
+    /// A step's own picture, edge to edge. Nil: this person's sign-in picture, so the screens
+    /// between sign-in and the first step (the key, the wait) keep the same set.
     var picture: String? = nil
     @ViewBuilder var side: Side
 
@@ -332,16 +327,17 @@ struct CardLayout<Side: View>: View {
 }
 
 extension CardLayout {
-    /// A scene edge to edge, no frame, cropped from the centre like the leaf. Art without a dusk
-    /// version is dimmed a little in the dark to sit beside the warm near-black.
+    /// A picture edge to edge, no frame, cropped from the centre. Its dark version comes from the
+    /// catalog by the window's appearance.
     static func framed(_ name: String) -> some View {
         FullBleedScene(name: name)
     }
 }
 
-private struct FullBleedScene: View {
+/// The card window's left panel: a 3:4 picture (900 by 1200, the panel's 450 by 600 at 2x)
+/// filling it edge to edge.
+struct FullBleedScene: View {
     let name: String
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         Color.clear
@@ -351,7 +347,6 @@ private struct FullBleedScene: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
-                    .overlay { if scheme == .dark { Color.black.opacity(0.22) } }
                     .accessibilityHidden(true)
             }
             .clipped()
