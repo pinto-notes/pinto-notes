@@ -101,6 +101,9 @@ html[data-theme] { scroll-padding-top: 100px; }
 .site-nav a[aria-current="page"]:not(.site-cta):not(.site-gh) { color: var(--ink); }
 .site-nav a.site-cta[aria-current="page"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--amber); }
 @media (max-width: 760px) { .site-header { height: 72px; } }
+/* The home page directions (app/home-v): the header carries the page links and Download alone; the
+   version is on the changelog, the stars on GitHub. */
+html:has([data-home-v]) .site-badge, html:has([data-home-v]) .site-stars { display: none; }
 /* Tablets and narrow windows (601 to 920px): the four text links always stay. To make room the header
    sheds the version and the stars and tightens the links; under 800px GitHub goes (the footer has it)
    and the button says just "Download"; under 700px the button goes too, and the pages carry it. */

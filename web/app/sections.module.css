@@ -29,7 +29,7 @@
 .bubble { align-self: flex-end; max-width: 90%; margin: 0; padding: 9px 13px; border-radius: 17px; background: #f1f1f1; font-size: 15px; line-height: 1.35; opacity: 0; }
 .bubble[data-on] { opacity: 1; }
 .chip { align-self: flex-start; margin: auto 0 0; display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 12px; background: #fff1dc; color: #7a4300; font-size: 14px; box-shadow: 0 0 0 1px rgba(240, 144, 26, 0.35); opacity: 0; transform: translateY(6px) scale(0.96); }
-.chip b { color: #2a1d10; }
+.chip b { color: #2a1d10; white-space: nowrap; }
 .chip svg, .termResult svg { color: #f0901a; }
 .chip[data-on] { opacity: 1; transform: none; }
 .prompt, .call, .termResult { margin: 0; font: 500 13.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
@@ -140,7 +140,14 @@
 .bandCtas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
 .bandPrimary, .bandSecondary { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-weight: 700; font-size: 16px; text-decoration: none; }
 .bandPrimary { background: #fbeedd; color: #2a1d10; }
-.bandSecondary { color: #fbeedd; box-shadow: inset 0 0 0 1.5px rgba(251, 238, 221, 0.3); }
-.bandPrimary:focus-visible { outline: 2px solid #f5a53a; outline-offset: 3px; }
-@media (prefers-reduced-motion: no-preference) { .bandPrimary { transition: transform 0.12s ease-out; } .bandPrimary:active { transform: scale(0.97); } }
+.bandSecondary { color: #fbeedd; background: rgba(251, 238, 221, 0.12); }
+.bandPrimary:focus-visible, .bandSecondary:focus-visible { outline: 2px solid #f5a53a; outline-offset: 3px; }
+@media (hover: hover) {
+  .bandPrimary:hover { background: color-mix(in srgb, #fbeedd 86%, #f5a53a); }
+  .bandSecondary:hover { background: rgba(251, 238, 221, 0.2); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bandPrimary, .bandSecondary { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
+  .bandPrimary:active, .bandSecondary:active { transform: scale(0.97); }
+}
 .bandFine { margin: 0; color: #b89c7c; font-size: 14px; }

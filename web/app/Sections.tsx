@@ -11,10 +11,10 @@ import DownloadLink from "./DownloadLink";
 import PlatformNote from "./PlatformNote";
 import a from "./sections.module.css";
 
-const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+export const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /// True once, the first time the element is mostly on screen.
-function useFirstView<T extends HTMLElement>(threshold = 0.5) {
+export function useFirstView<T extends HTMLElement>(threshold = 0.5) {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -27,14 +27,14 @@ function useFirstView<T extends HTMLElement>(threshold = 0.5) {
   return [ref, seen] as const;
 }
 
-const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>;
+export const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>;
 
 /* ───────────── Every AI you use works from the same notes ───────────── */
 
 /// One thing an AI does with your notes: its name and one line (under the card), the app it's asked
 /// in, the request, and what it did in Pinto Notes. `call` is the tool line a terminal shows.
-type Job = { title: string; line: string; app: string; glyph: "openai" | "claude"; kind: "phone" | "desk" | "term"; ask: string; note: string; did: string; call?: string };
-const JOBS: Job[] = [
+export type Job = { title: string; line: string; app: string; glyph: "openai" | "claude"; kind: "phone" | "desk" | "term"; ask: string; note: string; did: string; call?: string };
+export const JOBS: Job[] = [
   { title: "Turns a messy note into next steps", line: "It writes the steps as a checklist at the top of the note and leaves the rest alone.",
     app: "ChatGPT", glyph: "openai", kind: "phone", ask: "Turn my kitchen reno note into next steps", note: "Kitchen reno", did: "7 steps added as a checklist" },
   { title: "Checks in on the plan when you ask", line: "It reads the plan, counts what you ticked, and moves what's left to next week.",
@@ -43,10 +43,9 @@ const JOBS: Job[] = [
     app: "Claude Code", glyph: "claude", kind: "term", ask: "What did I say I'd do before the release?", note: "Standup notes", did: "3 open items", call: "amber-notes · search" },
 ];
 
-/// Three things an AI does with your notes, in three apps: each a request and what it did in Pinto Notes.
-export function AiSection() {
-  const [ref, seen] = useFirstView<HTMLElement>();
-  // Per card: how much of the request is typed, and whether the result is in. At rest: all complete.
+/// Per card: how much of the request is typed, and whether the result is in. At rest: all complete;
+/// the first time the cards are seen they type and answer, one after another.
+export function useJobTyping(seen: boolean) {
   const [typed, setTyped] = useState(JOBS.map((j) => j.ask.length));
   const [done, setDone] = useState(JOBS.map(() => true));
   useEffect(() => {
@@ -60,55 +59,76 @@ export function AiSection() {
     });
     return () => ts.forEach(clearTimeout);
   }, [seen]);
+  return [typed, done] as const;
+}
 
+/// One request in its app, and what it did in Pinto Notes.
+export function JobFigure({ j, typed, done, className = "" }: { j: Job; typed: number; done: boolean; className?: string }) {
+  const text = j.ask.slice(0, typed);
+  const typing = typed < j.ask.length;
+  return (
+    <figure className={`${a.job} ${a[j.kind]} ${className}`} aria-label={`${j.app}: ${j.ask}. Result: ${j.note}, ${j.did}.`}>
+      <figcaption className={a.jobBar} aria-hidden="true">
+        {j.kind !== "phone" && <span className={a.lights}><i /><i /><i /></span>}
+        <span className={a.jobApp}><AIGlyph name={j.glyph} size={13} />{j.app}</span>
+      </figcaption>
+      <div className={a.jobBody} aria-hidden="true">
+        {j.kind === "term" ? (
+          <>
+            <p className={a.prompt}><span className={a.promptMark}>›</span>{text}{typing && <i className={a.caret} />}</p>
+            <p className={a.call} data-on={done || undefined}><span>⏺</span> {j.call}</p>
+            <p className={a.termResult} data-on={done || undefined}><Tick /> {j.note} · {j.did}</p>
+          </>
+        ) : (
+          <>
+            <p className={a.bubble} data-on={typed > 0 || undefined}>{text}{typing && <i className={a.caretDark} />}</p>
+            <p className={a.chip} data-on={done || undefined}><Tick /> <b>{j.note}</b> · {j.did}</p>
+          </>
+        )}
+      </div>
+    </figure>
+  );
+}
+
+export const AI_TITLE = "Every AI you use works from the same notes";
+export const AI_LEDE = "Connect ChatGPT, Claude, Claude Code, Codex or Incredible, and each one reads the notes you already keep. Ask ChatGPT on your phone in the morning and Claude at your desk in the afternoon, and both see the same plan.";
+export function AiAlso() {
+  return <p className={a.also}>Also Codex, <a href="https://incredible.one" rel="noopener">Incredible</a>, and any app that supports MCP. <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Available in Claude&apos;s connector directory</a> · <a href="/blog/connect-chatgpt-to-your-notes">How to connect</a> · <a href="/templates">Start from a template</a></p>;
+}
+
+/// Three things an AI does with your notes, in three apps: each a request and what it did in Pinto Notes.
+/// `art` (the home page studies) sits beside the heading; `headClass` lays the two out.
+export function AiSection({ art, headClass }: { art?: React.ReactNode; headClass?: string } = {}) {
+  const [ref, seen] = useFirstView<HTMLElement>();
+  const [typed, done] = useJobTyping(seen);
+  const head = (
+    <div className={a.head}>
+      <h2 id="ai" className={a.h2}>{AI_TITLE}</h2>
+      <p className={a.lede}>{AI_LEDE}</p>
+    </div>
+  );
   return (
     <section ref={ref} className={a.section} aria-labelledby="ai">
-      <div className={a.head}>
-        <h2 id="ai" className={a.h2}>Every AI you use works from the same notes</h2>
-        <p className={a.lede}>Connect ChatGPT, Claude, Claude Code, Codex or Incredible, and each one reads the notes you already keep. Ask ChatGPT on your phone in the morning and Claude at your desk in the afternoon, and both see the same plan.</p>
-      </div>
+      {art ? <div className={headClass}>{head}{art}</div> : head}
       <div className={a.jobs}>
-        {JOBS.map((j, k) => {
-          const text = j.ask.slice(0, typed[k]);
-          const typing = typed[k] < j.ask.length;
-          return (
-            <div key={j.app} className={a.cap}>
-            <figure className={`${a.job} ${a[j.kind]}`} aria-label={`${j.app}: ${j.ask}. Result: ${j.note}, ${j.did}.`}>
-              <figcaption className={a.jobBar} aria-hidden="true">
-                {j.kind !== "phone" && <span className={a.lights}><i /><i /><i /></span>}
-                <span className={a.jobApp}><AIGlyph name={j.glyph} size={13} />{j.app}</span>
-              </figcaption>
-              <div className={a.jobBody} aria-hidden="true">
-                {j.kind === "term" ? (
-                  <>
-                    <p className={a.prompt}><span className={a.promptMark}>›</span>{text}{typing && <i className={a.caret} />}</p>
-                    <p className={a.call} data-on={done[k] || undefined}><span>⏺</span> {j.call}</p>
-                    <p className={a.termResult} data-on={done[k] || undefined}><Tick /> {j.note} · {j.did}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className={a.bubble} data-on={typed[k] > 0 || undefined}>{text}{typing && <i className={a.caretDark} />}</p>
-                    <p className={a.chip} data-on={done[k] || undefined}><Tick /> <b>{j.note}</b> · {j.did}</p>
-                  </>
-                )}
-              </div>
-            </figure>
+        {JOBS.map((j, k) => (
+          <div key={j.app} className={a.cap}>
+            <JobFigure j={j} typed={typed[k]} done={done[k]} />
             <h3 className={a.capTitle}>{j.title}</h3>
             <p className={a.capLine}>{j.line}</p>
-            </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
-      <p className={a.also}>Also Codex, <a href="https://incredible.one" rel="noopener">Incredible</a>, and any app that supports MCP. <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Available in Claude&apos;s connector directory</a> · <a href="/blog/connect-chatgpt-to-your-notes">How to connect</a> · <a href="/templates">Start from a template</a></p>
+      <AiAlso />
     </section>
   );
 }
 
 /* ───────────── Feels like Apple Notes, and brings yours over in one go ───────────── */
 
-const FOLDERS = [{ name: "Notes", n: 612 }, { name: "Recipes", n: 188 }, { name: "Work", n: 241 }, { name: "Travel", n: 97 }, { name: "Home", n: 146 }];
-const TOTAL = FOLDERS.reduce((s, f) => s + f.n, 0); // 1,284
-const PINNED = 12;
+export const FOLDERS = [{ name: "Notes", n: 612 }, { name: "Recipes", n: 188 }, { name: "Work", n: 241 }, { name: "Travel", n: 97 }, { name: "Home", n: 146 }];
+export const TOTAL = FOLDERS.reduce((s, f) => s + f.n, 0); // 1,284
+export const PINNED = 12;
 
 /// The import, run once: a thin amber bar fills while folders count up; then the total.
 export function ImportSection() {
@@ -168,10 +188,10 @@ export function ImportSection() {
   );
 }
 
-function FolderIcon() {
+export function FolderIcon() {
   return <svg width="17" height="14" viewBox="0 0 17 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 3.5a1.5 1.5 0 0 1 1.5-1.5h3.2l1.5 1.6H14a1.5 1.5 0 0 1 1.5 1.5v6.4A1.5 1.5 0 0 1 14 13H3a1.5 1.5 0 0 1-1.5-1.5Z" /></svg>;
 }
-function PinIcon() {
+export function PinIcon() {
   return <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.2 1.3a1 1 0 0 1 1.4 0l3.1 3.1a1 1 0 0 1 0 1.4l-1 1a1 1 0 0 1-1 .25l-2.1 2.1.3 2.3a1 1 0 0 1-.3.85l-.7.7a.8.8 0 0 1-1.1 0L6.3 10.5 2.6 14.2a.6.6 0 0 1-.85-.85L5.5 9.7 3 7.2a.8.8 0 0 1 0-1.1l.7-.7a1 1 0 0 1 .85-.3l2.3.3 2.1-2.1a1 1 0 0 1 .25-1Z" /></svg>;
 }
 
