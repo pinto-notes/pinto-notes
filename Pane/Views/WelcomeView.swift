@@ -141,20 +141,23 @@ struct WelcomeFlow: View {
             switch stage {
             case .welcome:
                 welcome
-                    .transition(stageTransition(forward: false))
+                    .transition(stageTransition)
             case .signIn(let returning):
                 signIn(returning: returning)
-                    .transition(stageTransition(forward: true))
+                    .transition(stageTransition)
             }
         }
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: stage)
         // Said once: back from sign-in it's the usual welcome.
         .onChange(of: stage) { farewell = false }
+        .blurDemoCue { cue in
+            if cue == "signIn" { stage = .signIn(returning: false) } else if cue == "welcome" { stage = .welcome }
+        }
     }
 
-    private func stageTransition(forward: Bool) -> AnyTransition {
-        if reduceMotion { return .opacity }
-        return .asymmetric(insertion: .opacity.combined(with: .offset(x: forward ? 24 : -24)), removal: .opacity)
+    /// The sign-in rises into focus as the welcome fades (and back), as pages do on the website.
+    private var stageTransition: AnyTransition {
+        reduceMotion ? .opacity : BlurMotion.page
     }
 
     private var welcome: some View {

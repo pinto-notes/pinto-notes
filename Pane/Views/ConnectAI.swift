@@ -85,6 +85,58 @@ enum ConnectTrust {
     }
 }
 
+/// A sign-in this app started itself: Codex or Claude Code, run from Connect an AI, printed the
+/// address it opened in the browser. Its `state` is a secret only that command, this app and the
+/// browser it opened on this Mac have, and its return address is the port that command listens
+/// on. A request that carries both is that sign-in, whatever it calls itself; the name a request
+/// gives itself is never enough. Anything else keeps the caution.
+struct ConnectOwnSignIn: Equatable {
+    let ai: String
+    let state: String
+    let redirectURI: String
+    let at: Date
+    /// The command gives up after this long (ConnectShell stops it), and so does this.
+    static let lasts: TimeInterval = 600
+
+    /// From the address the command printed: needs a `state` and a return address back to this
+    /// computer.
+    init?(ai: String, authorization: URL, at: Date = .now) {
+        let items = URLComponents(url: authorization, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        guard let state = items.first(where: { $0.name == "state" })?.value, state.count >= 16,
+              let redirect = items.first(where: { $0.name == "redirect_uri" })?.value, let url = URL(string: redirect),
+              url.scheme?.lowercased() == "http", Connection.isLoopback(url.host ?? "") else { return nil }
+        self.ai = ai
+        self.state = state
+        redirectURI = redirect
+        self.at = at
+    }
+
+    /// The address a sign-in prints for the browser (Codex before it opens it, Claude Code under
+    /// "If the browser didn't open, visit:"): the first web address with a `state` and a return
+    /// address.
+    nonisolated static func authorization(in text: String) -> URL? {
+        for word in text.split(whereSeparator: \.isWhitespace) where word.hasPrefix("https://") || word.hasPrefix("http://") {
+            guard let url = URL(string: String(word)),
+                  let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+                  items.contains(where: { $0.name == "state" }), items.contains(where: { $0.name == "redirect_uri" }) else { continue }
+            return url
+        }
+        return nil
+    }
+
+    func recognizes(_ r: ConnectRequest, now: Date = .now) -> Bool {
+        r.loopback && r.state == state && r.redirect_uri == redirectURI && now.timeIntervalSince(at) < Self.lasts
+    }
+
+    /// The request as the sheet shows it: named after the AI when it's this sign-in.
+    static func mark(_ r: ConnectRequest, by own: ConnectOwnSignIn?, now: Date = .now) -> ConnectRequest {
+        guard let own, own.recognizes(r, now: now) else { return r }
+        var r = r
+        r.startedHere = own.ai
+        return r
+    }
+}
+
 enum ConnectSnippets {
     /// What Claude Code and Codex call the server in their own lists. It was amber-notes (and
     /// amber_notes) before the app was renamed; a connection added under the old name keeps working.
@@ -140,6 +192,14 @@ struct ConnectRequest: Decodable, Identifiable, Equatable {
     /// scanned the code checks against the code (`ConnectScan`).
     var scan: Bool? = nil
     var browser_key: String? = nil
+    /// The AI whose sign-in this app started itself (`ConnectOwnSignIn`), when this is that
+    /// sign-in. Set here, never read from the server.
+    var startedHere: String? = nil
+
+    private enum CodingKeys: String, CodingKey {
+        case id, client_name, redirect_host, redirect_uri, claimed_name, loopback, wants_write, asked, started_at, started_from,
+             state, iss, scan, browser_key
+    }
 
     var isAsked: Bool { asked == true }
 
@@ -160,8 +220,9 @@ struct ConnectRequest: Decodable, Identifiable, Equatable {
 
     /// The AI access goes to, when the return address is its own. For a request asked from a
     /// browser too: what ties that request to the person is the code they scanned on their own
-    /// screen (or the number it shows), and the address decides who gets access.
-    var verifiedAI: String? { ConnectTrust.verifiedAI(redirectURI: redirect_uri) }
+    /// screen (or the number it shows), and the address decides who gets access. Or the AI whose
+    /// sign-in this app started (`startedHere`).
+    var verifiedAI: String? { ConnectTrust.verifiedAI(redirectURI: redirect_uri) ?? startedHere }
     /// Who's asking, as the sheet names it: the verified AI, or else where access goes.
     var who: String { verifiedAI ?? ConnectTrust.destination(host: redirect_host, loopback: loopback) }
     /// The name an unverified app gave itself, shown only as a secondary claim, and only as the
@@ -569,6 +630,14 @@ enum ConnectTokens {
         try await client.rpc("create_mcp_token", params: Params(token_name: name, write_access: write, token_hash: made.hash, dk_wrap: made.wrap)).execute()
         return made.token
     }
+
+    /// Revokes the tokens by this name made since then that were never used.
+    static func dropUnused(_ client: SupabaseClient, name: String, since: Date) async {
+        let rows: [Connection] = (try? await client.from("mcp_tokens").select().eq("name", value: name)
+            .gte("created_at", value: since.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            .is("last_used_at", value: nil).is("revoked_at", value: nil).execute().value) ?? []
+        for c in rows where !c.isOAuth { try? await ConnectRevoke.revoke(client, id: c.id) }
+    }
 }
 
 /// Face ID or Touch ID (or the device password) before an AI gets your notes.
@@ -608,6 +677,11 @@ final class ConnectCenter: NSObject {
     private var offered: Set<UUID> = []
     /// Answered on this device: the update saying so doesn't cut the sheet's "Allowed" short.
     private var answeredHere: Set<UUID> = []
+    /// Answered here and closed: a link or ask for one of these (the page's button pressed again, a
+    /// second link for the same request) never opens a second sheet.
+    private var finished: Set<UUID> = []
+    /// The sign-in Connect an AI started on this Mac, while it runs (`ConnectRun`).
+    var ownSignIn: ConnectOwnSignIn?
     /// When each ask became known here, counted, so a look at the server that started before it
     /// can't close it (see `gone(from:lookedAt:)`).
     private var learned = 0
@@ -683,7 +757,7 @@ final class ConnectCenter: NSObject {
             learnedAt[ask.id] = learned
         }
         asks[ask.id] = ask
-        guard !offered.contains(ask.id) else { return false }
+        guard !offered.contains(ask.id), !finished.contains(ask.id) else { return false }
         offered.insert(ask.id)
         if pending == ask.id { return false }
         if pending == nil { show(ask.id) } else { queue.append(ask.id) }
@@ -720,7 +794,7 @@ final class ConnectCenter: NSObject {
 
     /// The notification for an ask was tapped, or "Approval waiting": it's next, or showing already.
     func showAsk(_ id: UUID) {
-        guard pending != id else { return }
+        guard pending != id, !finished.contains(id) else { return }
         if pending == nil { show(id); return }
         queue.removeAll { $0 == id }
         queue.insert(id, at: 0)
@@ -732,7 +806,10 @@ final class ConnectCenter: NSObject {
     /// The sheet closed, answered or not: the next ask shows. One answered here is done; one that
     /// wasn't stays waiting (`waiting`).
     func sheetClosed() {
-        if let id = pending, answeredHere.remove(id) != nil { asks[id] = nil }
+        if let id = pending, answeredHere.remove(id) != nil {
+            asks[id] = nil
+            finished.insert(id)
+        }
         pending = nil
         expiry?.cancel()
         showNextSoon()
@@ -747,6 +824,8 @@ final class ConnectCenter: NSObject {
         scans = [:]
         offered = []
         answeredHere = []
+        finished = []
+        ownSignIn = nil
         learnedAt = [:]
         expiry?.cancel()
     }
@@ -809,7 +888,7 @@ final class ConnectCenter: NSObject {
         if let from { browsers[id] = from } else { browsers[id] = nil }
         activate()
         #endif
-        guard pending != id else { return }
+        guard pending != id, !finished.contains(id) else { return }
         guard pending == nil else {
             // Queued asks keep their place behind the person's own link.
             if !queue.contains(id) { queue.insert(id, at: 0) }
@@ -1074,6 +1153,9 @@ struct ConsentSheet: View {
                 if !Task.isCancelled { armed = true }
             }
             .animation(.smooth(duration: 0.25), value: phase)
+            .blurDemoCue { cue in
+                if cue == "working" { phase = .working } else if cue == "done" { phase = .done("ChatGPT") }
+            }
             .onDisappear {
                 guard !serverAnswered else { return }
                 let (release, client, id) = (release, client, requestID)
@@ -1105,8 +1187,29 @@ struct ConsentSheet: View {
         #endif
     }
 
-    @ViewBuilder
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Each of the sheet's states rises into focus as the one before fades (BlurMotion).
     private var content: some View {
+        ZStack {
+            states
+                .id(phaseKey)
+                .transition(reduceMotion ? .opacity : BlurMotion.page)
+        }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: phaseKey)
+    }
+
+    private var phaseKey: Int {
+        switch phase {
+        case .loading, .working: 0
+        case .asking: 1
+        case .done, .handedOff: 2
+        case .failed: 3
+        }
+    }
+
+    @ViewBuilder
+    private var states: some View {
         switch phase {
         case .loading, .working:
             ProgressView().controlSize(.large).frame(maxWidth: .infinity).frame(height: 160)
@@ -1192,6 +1295,7 @@ struct ConsentSheet: View {
     /// caution, with the name it gives itself shown only as a claim (anyone can call themselves
     /// Claude), and never the name the person is told to check against.
     nonisolated static func detail(_ r: ConnectRequest) -> String {
+        if let ai = r.startedHere { return "You started connecting \(ai) on this Mac. Locked notes stay private." }
         guard r.verifiedAI == nil else { return "Access goes to \(r.redirect_host). Locked notes stay private." }
         let claim = r.claimedName.map { " It calls itself \(displayName($0))." } ?? ""
         return "Pinto Notes doesn\u{2019}t recognize this app.\(claim) Only allow it if you just started connecting it yourself."
@@ -1323,7 +1427,8 @@ struct ConsentSheet: View {
 
     private func load() async {
         do {
-            let r = try await ConnectAPI.request(client, id: requestID)
+            // Codex or Claude Code signing in from Connect an AI here: shown as that AI.
+            let r = ConnectOwnSignIn.mark(try await ConnectAPI.request(client, id: requestID), by: ConnectCenter.shared.ownSignIn)
             // Someone who just started connecting expects their AI to work.
             write = r.startsWithWrite
             phase = .asking(r)

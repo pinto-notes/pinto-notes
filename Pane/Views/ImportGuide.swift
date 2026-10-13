@@ -282,8 +282,27 @@ struct ImportGuideSheet: View {
     var pages: some View {
         VStack(spacing: 0) {
             topBar
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Each page rises into focus as the one before fades (BlurMotion).
+            ZStack {
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(pageKey)
+                    .transition(reduceMotion ? .opacity : BlurMotion.page)
+            }
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: pageKey)
+        }
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Which page this is, apart from its state (a hovered drop area or a count going up is the
+    /// same page).
+    private var pageKey: Int {
+        switch page {
+        case .intro: -1
+        case .step(let i): i
+        case .drop, .importing: 1000
+        case .success: 1001
         }
     }
 

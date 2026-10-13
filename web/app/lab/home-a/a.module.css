@@ -1,0 +1,29 @@
+/* Study A: the note everyone writes in. Text left, the note right and wider than its half, so the
+   authorship margin reads at a glance. */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; padding-top: 72px; }
+.heroText { display: grid; gap: 24px; justify-items: start; }
+.heroText > div:last-child { margin-top: 12px; }
+.heroNote { min-width: 0; }
+@media (max-width: 1000px) { .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 40px; } }
+
+/* Four asks: who, where, the words, and what landed. One row on a laptop, two by two below. */
+.asks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { .asks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .asks { grid-template-columns: 1fr; } }
+.ask { display: grid; grid-template-rows: auto 1fr auto; gap: 14px; padding: 20px; border-radius: 20px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+.askWho { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.askWho span:last-child { color: var(--muted); font-weight: 600; }
+.askSaid { margin: 0; font-size: 19px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; text-wrap: pretty; }
+.askDid { margin: 0; display: grid; gap: 2px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; font-weight: 600; }
+.askNote { color: var(--ink); }
+
+.undo { align-items: center; }
+.undoPhone { display: flex; justify-content: center; }
+
+.apps { align-items: center; }
+.appsScene { display: grid; gap: 16px; max-width: 580px; width: 100%; justify-self: center; }
+.appsChat { max-width: 420px; }
+.appsNote { display: grid; gap: 10px; padding: 18px; border-radius: 20px; background: var(--card); box-shadow: 0 0 0 1px var(--line); margin-left: 40px; }
+@media (max-width: 560px) { .appsNote { margin-left: 0; padding: 12px; } }
+.appsTitle { margin: 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+@media (max-width: 900px) { .apps > :first-child { order: 2; } }
