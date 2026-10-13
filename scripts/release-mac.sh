@@ -65,8 +65,11 @@ notarize() { xcrun notarytool submit "$1" --key "$KEY" --key-id "$ASC_KEY_ID" --
 
 if [[ $IN_PLACE != 1 ]]; then
   echo "→ Clean checkout of main"
-  [[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" main
-  git -C "$CLEAN" checkout -q --detach main
+  # GitHub's main, never the local branch: on 2026-10-13 a local main nobody had pulled made three
+  # releases (1.2.20 to 1.2.22) of the morning's code, and each one deployed the site from it too.
+  git -C "$MAIN" fetch -q origin main
+  [[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" origin/main
+  git -C "$CLEAN" checkout -q --detach origin/main
   cp "$MAIN/Config/Backend.local.xcconfig" "$CLEAN/Config/"
 fi
 COMMIT=$(git -C "$CLEAN" rev-parse --short HEAD)

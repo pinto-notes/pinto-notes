@@ -1,34 +1,33 @@
 #!/bin/zsh
 # Before you push app code: does it compile the way it ships, and the way CI builds it?
 #
-#   scripts/prepush.sh            the three compiles below, side by side (about 2 minutes after an
-#                                 edit to the app, 20 s when nothing changed, 3 the first time)
+#   scripts/prepush.sh            the app and its tests, Debug, as CI builds them (about 30 s after
+#                                 an edit), plus the iPhone app and its tests when the change touches it
 #   scripts/prepush.sh --tests    and then the suites of the test files this branch touches, the
 #                                 smoke tests and the suites that check the whole app at once
 #                                 (scripts/ci/smoke-tests.txt, scripts/ci/always-tests.txt)
+#   PREPUSH_RELEASE=1             also the two Release compiles (the Mac download, the iPhone app)
 #
-# 1. PaneDirect, Release: the Mac download.          2. The iPhone app, Release.
-# 3. The app and its tests, Debug: what CI builds.   All with code signing off.
+# Debug by default because Release compiles the app as a whole module: about 130 s each after a
+# one-line edit, against about 25 s for Debug (measured 2026-10-13). The Release compiles still run
+# where they matter: scripts/release-mac.sh and scripts/testflight.sh build Release before anything
+# ships, and stop on an error (on 2026-10-10 a data-race error showed only in Release).
 #
-# The iPhone app is compiled only when the change touches what it is built from (Pane/ outside the
-# Mac-only files, PaneShare/, the project, Config/: scripts/ci/touches-iphone.py); no CI job
-# compiles it, so this is the only check it gets. PREPUSH_IPHONE=1 compiles it anyway.
+# The iPhone app and its tests are compiled (Debug, for the simulator) only when the change touches
+# what they are built from (Pane/ outside the Mac-only files, PaneShare/, PaneTests/, the project,
+# Config/: scripts/ci/touches-iphone.py). On 2026-10-13 a test that used Process broke the iPhone
+# test build and nothing caught it. PREPUSH_IPHONE=1 compiles them anyway.
 #
 # A tree that passed once is not compiled again: the check remembers the last tree it passed for
 # (by git's hash of the files, with what isn't committed yet) and says so. --tests always runs.
-#
-# Release and Debug are both here because they fail differently: on 2026-10-10 CI was green and
-# the Release build did not compile (a data-race error only the optimizer's mode reports), and
-# two of that day's red CI runs were plain compile errors in the test build.
 #
 # Headless: nothing is launched by the compiles. --tests starts the test host (no window, no Dock
 # icon), so use it where tests may run (CI, the Air); on a Mac someone is working at, the compiles
 # alone are the check.
 #
-# The three compiles run side by side. The Swift packages are compiled once for every checkout
+# The compiles run side by side. The Swift packages are compiled once for every checkout
 # and worktree (a cache by content in ~/Library/Caches/pinto-prepush, held to 8 GB by Xcode
-# itself); the app is compiled again whenever one of its files changed, in Release as a whole,
-# which is most of the time this takes. No build folder is left behind.
+# itself); the app is compiled again whenever one of its files changed. No build folder is left behind.
 #
 # One check at a time on a machine: a second one waits and says for whom. It does not start with
 # less than 20 GB free on the disk.
@@ -111,16 +110,21 @@ changed=(${(f)"$( { git diff --name-only "$base"; git diff --name-only; git ls-f
 cp "$(git rev-parse --path-format=absolute --git-path index)" "$DD/index"
 tree=$(GIT_INDEX_FILE="$DD/index" git add -A . >/dev/null 2>&1; GIT_INDEX_FILE="$DD/index" git write-tree)
 PASSED="$CACHE/passed-$(print -n -- "$PWD" | shasum | cut -c1-12)"
-if [[ ${1:-} != --tests && ${PREPUSH_IPHONE:-0} != 1 && -f $PASSED && $(cat "$PASSED") == "$tree" ]]; then
+if [[ ${1:-} != --tests && ${PREPUSH_IPHONE:-0} != 1 && ${PREPUSH_RELEASE:-0} != 1 && -f $PASSED && $(cat "$PASSED") == "$tree" ]]; then
   print -- "✓ This tree passed the check already ($tree): nothing to compile."
   exit 0
 fi
 
-compile mac "Mac download, Release (PaneDirect)" build -scheme AmberNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
-pids=($!)
+pids=()
+if [[ ${PREPUSH_RELEASE:-0} == 1 ]]; then
+  compile mac "Mac download, Release (PaneDirect)" build -scheme AmberNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
+  pids+=($!)
+  compile ios "iPhone app, Release" build -scheme Pane "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
+  pids+=($!)
+fi
 iphone=$(python3 scripts/ci/touches-iphone.py $changed)
 if [[ ${PREPUSH_IPHONE:-0} == 1 || $iphone == yes* ]]; then
-  compile ios "iPhone app, Release" build -scheme Pane "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
+  compile iostests "iPhone app and tests, Debug (simulator)" build-for-testing -scheme Pane -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DD/iostests" &
   pids+=($!)
 else
   print -- "→ iPhone app not compiled: nothing it is built from changed (PREPUSH_IPHONE=1 compiles it anyway)"
@@ -174,4 +178,4 @@ print("\n".join(sorted(suites)))' > "$DD/ran.txt"
 fi
 
 print -r -- "$tree" > "$PASSED"
-print -- "✓ Compiles as it ships and as CI builds it: $((SECONDS - start)) s"
+print -- "✓ Compiles as CI builds it$([[ ${PREPUSH_RELEASE:-0} == 1 ]] && print -n " and as it ships"): $((SECONDS - start)) s"
