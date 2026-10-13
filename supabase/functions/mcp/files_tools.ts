@@ -112,7 +112,7 @@ export const FILE_TOOLS: Tool[] = ([
       type: "object",
       properties: {
         path: str(PATH), content: str("The whole text (data.json: JSON)."), content_base64: str("A file's bytes, base64 (up to 10 MB)."), mime_type: str("With content_base64, like \"application/pdf\"."),
-        file: { type: "object", description: "A file from the chat (ChatGPT hands these over), instead of content_base64.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } } },
+        file: { type: "object", description: "A file from the chat (ChatGPT hands these over), instead of content_base64.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } }, required: ["download_url", "file_id"] },
       },
       required: ["path"],
     },
