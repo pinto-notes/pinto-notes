@@ -1,0 +1,96 @@
+/* Study E. Spacing on the 4-point grid, radii from docs/DESIGN.md (cards 20, big panels 28). */
+
+/* ── First screen: the words left, the note right and wider, its margin naming who wrote what ── */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; padding-top: 64px; padding-bottom: 48px; }
+.heroText { display: grid; gap: 24px; justify-items: start; }
+.heroText > div:last-child { margin-top: 8px; }
+.h1 { letter-spacing: -0.04em; }
+.heroMac { min-width: 0; }
+@media (max-width: 1000px) { .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 32px; } }
+
+/* ── The week: one plan on three days; what changed is the only thing at full strength ── */
+.week { position: relative; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.week::before { content: ""; position: absolute; left: 0; right: 0; top: 13px; height: 2px; border-radius: 1px; background: var(--soft); }
+.day { position: relative; display: grid; gap: 16px; }
+.dayHead { position: relative; margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px; font-size: 15px; }
+.dayHead b { display: inline-flex; align-items: center; gap: 10px; padding-right: 12px; background: var(--bg); font-weight: 700; }
+.dayHead b::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 2.5px var(--amber); }
+.day[data-last] .dayHead b::before { background: var(--amber); }
+.dayWho { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 99px; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--ink); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.dots { display: none; }
+.dayPaper { padding: 20px 20px 20px; border-radius: 20px; }
+/* Friday is today: raised a step higher than the other two, without a second orange thing. */
+.day[data-last] .dayPaper { box-shadow: 0 0 0 1px var(--line), 0 2px 4px rgba(var(--shade), 0.08), 0 40px 80px -30px rgba(var(--shade), 0.6); }
+.dayTitle { margin: 0 0 8px; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--n-text); }
+.dayPaper [data-k] { margin-left: -20px !important; padding-left: 20px !important; margin-right: -20px; padding-right: 20px; }
+/* Wednesday and Friday: the lines nobody touched that day step back, so the ticks and the move pop. */
+.dayPaper [data-dim] [data-k]:not([data-tint]) { opacity: 0.4; }
+.dayReceipt { display: flex; justify-content: center; margin-top: 16px; }
+@media (max-width: 900px) {
+  /* Phones: Monday and Wednesday as a small rail (the plan in four dots), Friday in full. */
+  .week { grid-template-columns: 1fr; gap: 8px; }
+  .week::before { display: none; }
+  .day { gap: 12px; }
+  .day:not([data-last]) { padding: 12px 16px; border-radius: 14px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+  .day:not([data-last]) .dayPaper { display: none; }
+  .day[data-last] { margin-top: 16px; }
+  .dayHead { gap: 10px; }
+  .dayHead b { padding-right: 0; background: none; }
+  .day:not([data-last]) .dayHead { justify-content: flex-start; }
+  .day:not([data-last]) .dayWho { padding: 0; background: none; box-shadow: none; color: var(--muted); font-size: 13px; }
+  .day:not([data-last]) .dayWho > span { display: none; }
+  .dots { display: inline-flex; gap: 4px; margin-left: auto; }
+  .dots i { display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #c7c7cc; color: #fff; }
+  .dots i[data-d="done"] { background: #e8820e; box-shadow: none; }
+  .dots i[data-d="moved"] { background: #fdeedd; box-shadow: inset 0 0 0 1.5px #f2c48f; }
+  .dots svg { width: 11px; height: 11px; }
+  .day[data-last] .dots { display: none; }
+  .dayPaper { padding: 16px; }
+  .dayPaper [data-k] { margin-left: -16px !important; padding-left: 16px !important; margin-right: -16px; padding-right: 16px; }
+}
+
+/* ── The feel: two phones; the band is the tint itself, running from ChatGPT's answer to the lines it added ── */
+.feel { display: grid; gap: 48px; }
+/* --band-top and --band-h are measured: the five tinted lines start 204 px below the phone's top and run 139 px. */
+.scene { --pw: 320px; --band-top: 204px; --band-h: 139px; position: relative; display: grid; gap: 24px; justify-items: center; }
+.chatCard { display: none; }
+.phones { position: relative; display: flex; justify-content: center; gap: 120px; }
+.phones > figure { --pw: inherit; position: relative; }
+/* Only the gap between the phones shows the band; inside each screen the tint carries it on. */
+.band { position: absolute; left: calc(50% - 64px); width: 128px; top: var(--band-top); height: var(--band-h); background: #fdeedd; box-shadow: inset 0 3px 0 #f2c48f, inset 0 -3px 0 #f2c48f; }
+.chatScreen { min-height: 0; display: grid; }
+.chatScreen > figure { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
+.chatScreen > figure > div:nth-child(2) { justify-content: flex-start; padding-top: 24px; gap: 22px; }
+/* ChatGPT's answer, in the same tint as the lines it added. */
+.chatScreen > figure > div:nth-child(2) > div:last-child { box-sizing: border-box; min-height: var(--band-h); align-content: center; margin: 0 -16px; padding: 12px 16px; background: #fdeedd; }
+.soon { margin: 0; color: var(--muted); font-size: 15px; font-weight: 600; }
+@media (max-width: 760px) {
+  .scene { --pw: 300px; gap: 0; }
+  .band, .chatPhone { display: none; }
+  /* One phone; ChatGPT's window above it says what was asked. */
+  .chatCard { display: grid; width: 100%; max-width: 360px; margin-bottom: -40px; position: relative; z-index: 1; font-size: 14.5px; }
+  .chatCard > div:last-child { display: none; }
+  .soon { margin-top: 24px; }
+}
+
+/* ── Moving in ── */
+.folders { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 900px) { .folders { display: flex; flex-wrap: wrap; } .folders li { flex: 1 1 auto; gap: 12px; } }
+.total { padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* ── A note that is an app, on the template's paper-cut cover ── */
+.apps { align-items: center; }
+.appsAsk { margin: 4px 0 0; display: inline-flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; }
+.cover { position: relative; margin: 0; width: 100%; max-width: 560px; justify-self: center; aspect-ratio: 1; border-radius: 28px; overflow: hidden; background: #92a36f; }
+.cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.habits { position: absolute; left: 32px; right: 32px; bottom: 32px; padding: 16px; border-radius: 20px; }
+.habits > div { box-shadow: none; padding: 4px 0 0; }
+.habitsTitle { margin: 0 4px 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--n-text); }
+@media (max-width: 560px) { .habits { left: 12px; right: 12px; bottom: 12px; padding: 12px; } .cover { aspect-ratio: 4 / 5; } }
+
+/* ── The facts ── */
+.facts { list-style: none; margin: 0; padding: 32px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; border-top: 1px solid var(--line); }
+.facts li { display: grid; gap: 8px; align-content: start; }
+.facts b { font-size: 22px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.facts span { color: var(--muted); font-size: 17px; line-height: 1.4; }
+@media (max-width: 900px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 16px; } .facts b { font-size: 19px; } .facts span { font-size: 15.5px; } }

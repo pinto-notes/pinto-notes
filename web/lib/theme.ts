@@ -4,9 +4,16 @@
 export function themeFor(path: string): "cream" | "leaf" | null {
   if (/^\/(n|s|t|report)(\/|$)/.test(path)) return null;
   if (/^\/(changelog|support|help|privacy-security|privacy|terms)(\/|$)/.test(path)) return "leaf";
-  // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in dark.
-  if (/^\/lab(\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
+  // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in
+  // dark. The home page studies (/lab/home-d, -e, -f) are cream like the home page: the home page is never dark.
+  if (/^\/lab(\/|$)/.test(path) && !/^\/lab\/home-[def](\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
   return "cream";
+}
+
+/// Pages whose header drops the version badge and the GitHub stars (the stars move to the footer).
+/// Only home page studies E and F for now, to compare against the live header.
+export function quietHeader(path: string): boolean {
+  return path === "/lab/home-e" || path === "/lab/home-f";
 }
 
 /// Site pages that are one card under their own quiet top bar (lib/ui.tsx Shell and TopBar): the
@@ -21,4 +28,4 @@ export function ownTopBar(path: string, copyIds: readonly string[] = []): boolea
 
 /// Runs in <head> before first paint, so a page never flashes the wrong theme. The consent page's
 /// CSP allows it by its hash (middleware.ts), so change it only here.
-export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(changelog|support|help|privacy-security|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
+export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(changelog|support|help|privacy-security|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/home-[def](\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;

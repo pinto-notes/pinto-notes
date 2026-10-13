@@ -1,0 +1,137 @@
+/* Study D: the plan that gets done. Cream throughout (lib/theme.ts keeps it cream in dark mode, as
+   the home page is). The hero sets a real note on a paper-cut desk; the sections follow in the order
+   a visitor asks: who, does it stick, does it feel right, what else, can I trust it. */
+
+.main { gap: 144px; }
+@media (max-width: 700px) { .main { gap: 88px; } }
+
+/* ── Hero: the words on the left, the desk on the right; on phones the desk under the words ── */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: center; padding-top: 56px; }
+@media (max-width: 960px) { .hero { grid-template-columns: 1fr; gap: 36px; padding-top: 28px; } }
+.heroText { display: grid; gap: 22px; justify-items: start; }
+.h1 { max-width: 13ch; }
+
+/* The desk: the picture's own top, two pencils pointing down at the note laid on its plain lower half.
+   Its table and floor are warm cream (scripts/recolor-desk.py), so the headline leads and the note is the subject. */
+.desk { position: relative; aspect-ratio: 1 / 0.94; border-radius: 28px; overflow: hidden; background: #f7e2c7; isolation: isolate; }
+.deskArt { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+
+/* The note, as the app draws it, on its own white paper, a little turned like a sheet put down. */
+.note {
+  position: absolute; left: 8%; right: 8%; top: 37%; padding: 20px 26px 22px; border-radius: 16px; box-sizing: border-box;
+  /* The app's light colours (kit.module.css), always: the desk is a picture, not a theme. */
+  --n-page: #fdfbf8; --n-chrome: #f4f1ed; --n-text: #1d1d1f; --n-sec: #86868b; --n-ter: #c7c7cc; --n-rule: #e6e2dc;
+  --n-tint: #fdeedd; --n-bar: #f2c48f; --n-tick: #e8820e; --n-accent: #c46a00;
+  background: var(--n-page); color: var(--n-text); transform: rotate(-2.5deg); transform-origin: 50% 0;
+  box-shadow: 0 1px 2px rgba(80, 25, 5, 0.18), 0 24px 40px -18px rgba(80, 25, 5, 0.55);
+}
+.noteTitle { margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.note [data-k] { margin-left: -26px !important; padding-left: 26px !important; margin-right: -26px; padding-right: 26px; font-size: 17.5px; }
+/* Who ticked: the app's mark and a few words, pinned to the note's top corner. */
+.noteChip {
+  position: absolute; right: 16px; top: -19px; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 15px 0 6px; border-radius: 19px;
+  background: #fdf0dc; color: #8a4a1c; font-size: 15.5px; font-weight: 650; white-space: nowrap;
+  box-shadow: 0 0 0 1px #f0d2a8, 0 8px 18px -8px rgba(80, 25, 5, 0.45); opacity: 0;
+}
+.noteChip[data-on] { opacity: 1; }
+@media (max-width: 520px) {
+  .desk { aspect-ratio: 1 / 1.22; }
+  .note { left: 7%; right: 7%; top: 35%; padding: 14px 16px 16px; }
+  .note [data-k] { margin-left: -16px !important; padding-left: 16px !important; margin-right: -16px; padding-right: 16px; font-size: 14.5px; }
+  .noteTitle { font-size: 20px; margin-bottom: 4px; }
+  .noteChip { height: 32px; font-size: 13.5px; top: -16px; right: 12px; padding: 0 12px 0 5px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* A tick lands with a small overshoot; the tint comes up under it; the chip rises in, once per change. */
+  .note [data-done] { animation: tick 0.34s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .note [data-k] { transition: background-color 0.4s ease-out, box-shadow 0.4s ease-out, color 0.3s ease-out; }
+  .noteChip[data-on] { animation: chip 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+}
+@keyframes tick { from { transform: scale(0.4); opacity: 0; } }
+@keyframes chip { from { opacity: 0; filter: blur(6px); transform: translateY(6px); } }
+
+/* ── One notebook: the note with its authors in the margin ── */
+.team { width: 100%; max-width: 920px; justify-self: center; }
+
+/* ── Plans: the week rail from study B; on phones Friday's note under a small rail ── */
+.week { position: relative; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.week::before { content: ""; position: absolute; left: 0; right: 0; top: 13px; height: 2px; border-radius: 1px; background: var(--soft); }
+.day { position: relative; display: grid; gap: 14px; }
+.dayHead { position: relative; margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; font-size: 15px; }
+.dayHead b { display: inline-flex; align-items: center; gap: 10px; padding-right: 10px; background: var(--bg); font-weight: 750; }
+.dayHead b::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 2.5px var(--amber); }
+.day[data-last] .dayHead b::before { background: var(--amber); }
+.dayWho { display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 4px; border-radius: 99px; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--muted); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.dayPaper { padding: 18px 20px 20px; border-radius: 18px; }
+.day[data-last] .dayPaper { box-shadow: 0 0 0 2px var(--amber), 0 34px 70px -34px rgba(var(--shade), 0.55); }
+.dayTitle { margin: 0 0 8px; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--n-text); }
+.dayPaper [data-k] { margin-left: -20px !important; padding-left: 20px !important; margin-right: -20px; padding-right: 20px; }
+.rail { display: none; }
+@media (max-width: 700px) {
+  .week { grid-template-columns: 1fr; }
+  .week::before, .day:not([data-last]), .day .dayHead { display: none; }
+  .dayPaper { padding: 14px 16px 16px; }
+  .dayPaper [data-k] { margin-left: -16px !important; padding-left: 16px !important; margin-right: -16px; padding-right: 16px; }
+  /* The rail: three stops on a line, the earlier days small, Friday filled. */
+  .rail { position: relative; list-style: none; margin: 0 0 -20px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .rail::before { content: ""; position: absolute; left: 6px; right: 6px; top: 6px; height: 2px; border-radius: 1px; background: var(--soft); }
+  .rail li { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 6px; padding-top: 20px; font-size: 13px; color: var(--muted); }
+  .rail li::before { content: ""; position: absolute; left: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 2.5px var(--amber); }
+  .rail li[data-now]::before { background: var(--amber); }
+  .rail b { grid-column: 1 / -1; color: var(--ink); font-size: 14px; font-weight: 750; }
+  .rail li[data-now] { color: var(--ink); }
+  .rail span { line-height: 1.25; font-weight: 600; }
+}
+
+/* ── Feels like Apple Notes: two phones, then the import ── */
+.feel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+@media (max-width: 960px) { .feel { grid-template-columns: 1fr; gap: 40px; } }
+.phones { position: relative; margin: 0; display: flex; justify-content: center; gap: 24px; padding-bottom: 44px; }
+.phones > figure { --pw: 260px !important; }
+.chatScreen { min-height: 0; display: grid; }
+.chatScreen > figure { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
+.chatScreen > figure > div:nth-child(2) { justify-content: flex-start; padding-top: 36px; gap: 22px; }
+.notePhone { margin-top: 48px; }
+.soon { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); padding: 7px 14px; border-radius: 99px; background: var(--soft); color: var(--ink); font-size: 14px; font-weight: 650; white-space: nowrap; }
+@media (max-width: 640px) { .chatPhone { display: none; } .notePhone { margin-top: 0; } }
+
+.import { display: grid; gap: 18px; padding: 24px 26px 26px; border-radius: 28px; background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 30px 60px -40px rgba(60, 30, 5, 0.5); }
+.importTop { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.importTop img { margin: -4px 0 -4px -4px; }
+.importName { display: grid; gap: 3px; min-width: 0; }
+.importName b { font-size: 16px; font-weight: 700; }
+.importTicks { display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.importTicks > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.importTicks svg { width: 14px; height: 14px; color: var(--amber); }
+.importTotal { margin: 0; color: var(--muted); font-size: 17px; font-weight: 600; white-space: nowrap; }
+.importTotal span { color: var(--ink); font-size: clamp(30px, 3.4vw, 40px); font-weight: 800; letter-spacing: -0.035em; margin-right: 4px; }
+.folders { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.folders li { box-shadow: none; }
+@media (max-width: 600px) {
+  .import { padding: 20px 18px; border-radius: 24px; }
+  .importTop { grid-template-columns: auto minmax(0, 1fr); }
+  .importTotal { grid-column: 1 / -1; }
+  .folders { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .folders li { gap: 6px; padding: 0 10px; }
+}
+
+/* ── Wait, it can do that: three templates, as their own cards ── */
+.picks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px 32px; }
+@media (max-width: 1000px) { .picks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .picks { grid-template-columns: 1fr; gap: 36px; } }
+.picks > li { display: grid; }
+
+/* ── The facts: four, in a row, under a hairline ── */
+.facts { list-style: none; margin: 0; padding: 28px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 32px; box-shadow: inset 0 1px 0 var(--line); }
+@media (max-width: 860px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.facts li { display: grid; gap: 6px; align-content: start; }
+.facts b { font-size: 19px; font-weight: 750; letter-spacing: -0.01em; }
+.facts span { color: var(--muted); font-size: 16px; line-height: 1.45; text-wrap: pretty; }
+@media (max-width: 420px) { .facts { gap: 20px 16px; } .facts b { font-size: 17px; } .facts span { font-size: 15px; } }
+
+/* ── The ending: on cream, centred, the one button ── */
+.closing { display: grid; justify-items: center; text-align: center; gap: 20px; padding: 16px 0 24px; }
+.closingIcon { border-radius: 20px; box-shadow: 0 0 0 0.5px var(--line), 0 18px 40px -16px rgba(150, 70, 0, 0.5); }
+.closingTitle { max-width: 16ch; margin-top: 8px; font-size: clamp(40px, 6vw, 72px); line-height: 1; letter-spacing: -0.045em; }
+.closingLede { max-width: 32em; text-wrap: balance; }
+.closingCta { justify-items: center; margin-top: 8px; }

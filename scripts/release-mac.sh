@@ -192,5 +192,13 @@ if [[ ${SKIP_DEPLOY:-0} != 1 ]]; then
   (cd "$CLEAN" && scripts/deploy-web.sh)
 fi
 [[ ${SKIP_TAG:-0} == 1 ]] || git -C "$MAIN" tag -f "mac-v$VERSION" "$COMMIT"
+# The tag on GitHub and a GitHub release with the DMG, so people watching the repository hear
+# about it. A failure here doesn't undo the release: the site and the update feed are already live.
+if [[ ${SKIP_TAG:-0} != 1 ]]; then
+  git -C "$MAIN" push -q origin "mac-v$VERSION" || echo "! The tag mac-v$VERSION didn't reach GitHub; push it by hand." >&2
+  RELNOTES=$( { [[ -n $NOTES ]] && print -r -- "$NOTES" | awk 'NF {print "- " $0}'; print; print "All changes: https://pintonotes.com/changelog"; } )
+  gh release create "mac-v$VERSION" "$DIST/$FILE" --repo pinto-notes/pinto-notes --title "Pinto Notes $VERSION" --notes "$RELNOTES" --latest >/dev/null \
+    || echo "! No GitHub release for $VERSION; make it by hand (gh release create)." >&2
+fi
 
 echo "✓ Pinto Notes $VERSION ($BUILD) is live: https://pintonotes.com/download"

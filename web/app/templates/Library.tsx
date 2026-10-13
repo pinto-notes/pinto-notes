@@ -49,7 +49,7 @@ export default function Library({ items, cards, categories }: { items: Item[]; c
         <p className={s.shown} aria-live="polite">{category ? `${shown} of ${items.length} templates` : `${items.length} templates`}</p>
       </div>
       <ul className={`${s.grid} ${FILTER_GRID}`}>
-        {items.map((i, k) => <li key={i.slug} hidden={!show[k]}>{cards[k]}</li>)}
+        {items.map((i, k) => <li key={i.slug} data-key={i.slug} hidden={!show[k]}>{cards[k]}</li>)}
       </ul>
     </div>
   );

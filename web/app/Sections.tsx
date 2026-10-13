@@ -11,10 +11,10 @@ import DownloadLink from "./DownloadLink";
 import PlatformNote from "./PlatformNote";
 import a from "./sections.module.css";
 
-const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+export const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /// True once, the first time the element is mostly on screen.
-function useFirstView<T extends HTMLElement>(threshold = 0.5) {
+export function useFirstView<T extends HTMLElement>(threshold = 0.5) {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -27,7 +27,7 @@ function useFirstView<T extends HTMLElement>(threshold = 0.5) {
   return [ref, seen] as const;
 }
 
-const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>;
+export const Tick = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>;
 
 /* ───────────── Every AI you use works from the same notes ───────────── */
 
@@ -106,9 +106,9 @@ export function AiSection() {
 
 /* ───────────── Feels like Apple Notes, and brings yours over in one go ───────────── */
 
-const FOLDERS = [{ name: "Notes", n: 612 }, { name: "Recipes", n: 188 }, { name: "Work", n: 241 }, { name: "Travel", n: 97 }, { name: "Home", n: 146 }];
-const TOTAL = FOLDERS.reduce((s, f) => s + f.n, 0); // 1,284
-const PINNED = 12;
+export const FOLDERS = [{ name: "Notes", n: 612 }, { name: "Recipes", n: 188 }, { name: "Work", n: 241 }, { name: "Travel", n: 97 }, { name: "Home", n: 146 }];
+export const TOTAL = FOLDERS.reduce((s, f) => s + f.n, 0); // 1,284
+export const PINNED = 12;
 
 /// The import, run once: a thin amber bar fills while folders count up; then the total.
 export function ImportSection() {
@@ -168,10 +168,10 @@ export function ImportSection() {
   );
 }
 
-function FolderIcon() {
+export function FolderIcon() {
   return <svg width="17" height="14" viewBox="0 0 17 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 3.5a1.5 1.5 0 0 1 1.5-1.5h3.2l1.5 1.6H14a1.5 1.5 0 0 1 1.5 1.5v6.4A1.5 1.5 0 0 1 14 13H3a1.5 1.5 0 0 1-1.5-1.5Z" /></svg>;
 }
-function PinIcon() {
+export function PinIcon() {
   return <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.2 1.3a1 1 0 0 1 1.4 0l3.1 3.1a1 1 0 0 1 0 1.4l-1 1a1 1 0 0 1-1 .25l-2.1 2.1.3 2.3a1 1 0 0 1-.3.85l-.7.7a.8.8 0 0 1-1.1 0L6.3 10.5 2.6 14.2a.6.6 0 0 1-.85-.85L5.5 9.7 3 7.2a.8.8 0 0 1 0-1.1l.7-.7a1 1 0 0 1 .85-.3l2.3.3 2.1-2.1a1 1 0 0 1 .25-1Z" /></svg>;
 }
 
@@ -224,7 +224,8 @@ function cipher(text: string, seed: number) {
 }
 const WALL = Array.from({ length: 22 }, (_, i) => cipher("Lisbon, 4 days in May. Day 3: Sintra. Dinner at Trindade. Pack light. Groceries: oat milk, lemons, bread. Standup: ship the import, fix the share link, plan Friday.", i + 3));
 
-export function PrivacySection() {
+/// `eyebrow={false}` drops the small label above the title (home page study E).
+export function PrivacySection({ eyebrow = true }: { eyebrow?: boolean } = {}) {
   const v = HOME_PRIVACY;
   const [ref, seen] = useFirstView<HTMLElement>();
   // Complete at rest. With motion allowed, the shackle waits open (off screen) and settles closed on first view.
@@ -239,7 +240,7 @@ export function PrivacySection() {
     <section ref={ref} className={a.vault} aria-labelledby="privacy">
       <div className={a.cipherWall} aria-hidden="true">{WALL.map((l, i) => <p key={i}>{l}</p>)}</div>
       <div className={a.vaultText}>
-        <p className={a.eyebrow}>{v.eyebrow}</p>
+        {eyebrow && <p className={a.eyebrow}>{v.eyebrow}</p>}
         <h2 id="privacy" className={a.vaultTitle}>{v.title}</h2>
         <p className={a.vaultLede}>{v.text}</p>
         <a className={a.vaultLink} href={PRIVACY_PATH}>{v.link.replace(/ \S+$/, " ")}<span className={a.nowrap}>{v.link.split(" ").pop()}<Arrow /></span></a>

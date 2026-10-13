@@ -6,11 +6,12 @@ import DownloadLink from "./DownloadLink";
 import GitHubLink, { GitHubGlyph } from "./GitHubLink";
 import PlatformNote from "./PlatformNote";
 import MobileMenu from "./MobileMenu";
-import { ownTopBar, themeFor } from "@/lib/theme";
+import { ownTopBar, quietHeader, themeFor } from "@/lib/theme";
 import PROMPTS from "@/lib/try-prompts.json";
 import { isBlogList } from "@/lib/blog-list";
 import { CONSENT_OPEN_EVENT } from "@/lib/consent";
 import { filterTransition } from "@/lib/filter-transition";
+import { LANDING_LINKS } from "@/lib/landing-links";
 
 const GITHUB = "https://github.com/pinto-notes/pinto-notes";
 const X_URL = "https://x.com/EmilWagman";
@@ -33,12 +34,23 @@ export default function SiteChrome({ version, stars, children }: { version: stri
     // A page link at the foot of a blog list lands with the list's chips at the top, not at the old scroll.
     if (toList.current === "pages") {
       const chips = document.querySelector("[data-blog-chips]");
-      if (chips && chips.getBoundingClientRect().top < 0) window.scrollTo({ top: Math.max(0, chips.getBoundingClientRect().top + window.scrollY - 24) });
+      if (chips && chips.getBoundingClientRect().top < 84) window.scrollTo({ top: Math.max(0, chips.getBoundingClientRect().top + window.scrollY - 100) }); // under the header
     }
     toList.current = null;
     done.current?.();
     done.current = null;
   }, [path]);
+
+  // The header's frosted band comes up once the page has scrolled under it (site.css).
+  const header = useRef<HTMLElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const paint = () => { raf = 0; const h = header.current; if (h) h.toggleAttribute("data-scrolled", window.scrollY > 4); };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(paint); };
+    paint();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
+  }, [site]);
 
   // Same-site links between site pages navigate inside a view transition.
   useEffect(() => {
@@ -79,6 +91,8 @@ export default function SiteChrome({ version, stars, children }: { version: stri
   if (!site || ownTopBar(path, COPY_IDS)) return <>{children}</>;
 
   const current = (href: string) => (path === href ? "page" : undefined);
+  // A page with a quieter header (lib/theme.ts): no version badge, and the GitHub stars in the footer.
+  const lean = quietHeader(path);
   // On the home page the logo takes you back to the top instead of reloading.
   const toTop = (e: React.MouseEvent) => {
     if (path !== "/" || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -87,18 +101,18 @@ export default function SiteChrome({ version, stars, children }: { version: stri
   };
   return (
     <div className="site">
-      <header className="site-header">
+      <header ref={header} className="site-header">
         <a className="site-brand" href="/" aria-current={current("/")} aria-label="Pinto Notes home" onClick={toTop}>
           <img src="/mark-256.png" alt="" width={34} height={34} />
           <span className="site-name">Pinto Notes</span>
-          {version && <span className="site-badge">v{version}</span>}
+          {version && !lean && <span className="site-badge">v{version}</span>}
         </a>
         <nav className="site-nav" aria-label="Site">
           <a href="/templates" aria-current={path === "/templates" || path.startsWith("/templates/") ? "page" : undefined}>Templates</a>
           <a href="/blog" aria-current={path === "/blog" || path.startsWith("/blog/") ? "page" : undefined}>Blog</a>
           <a href="/changelog" aria-current={current("/changelog")}>Changelog</a>
           <a href="/help" aria-current={path === "/help" || path === "/support" ? "page" : undefined}>Help</a>
-          <GitHubLink stars={stars} />
+          {!lean && <GitHubLink stars={stars} />}
           <DownloadLink className="site-cta pi-apple" aria-current={current("/download")}>
             <AppleGlyph /> <span className="site-cta-long">Download for Mac</span><span className="site-cta-short">Download</span>
           </DownloadLink>
@@ -124,11 +138,14 @@ export default function SiteChrome({ version, stars, children }: { version: stri
           </nav>
           <span className="site-footsep" aria-hidden="true" />
           <div className="site-social">
-            <a href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>
+            {lean ? <GitHubLink stars={stars} /> : <a href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>}
             <a href={X_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on X"><XGlyph /></a>
             <a href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on LinkedIn"><LinkedInGlyph /></a>
           </div>
         </div>
+        <nav className="site-footrow" aria-label="Pinto Notes for">
+          {LANDING_LINKS.map((x) => <a key={x.href} href={x.href} aria-current={current(x.href)}>{x.label}</a>)}
+        </nav>
         <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a> at <a className="site-maker" href="https://incredible.one" target="_blank" rel="noopener">Incredible</a>. Formerly <a className="site-maker" href="/amber-notes">Amber Notes</a>. Works with ChatGPT and Claude; not affiliated with Apple, OpenAI or Anthropic.</p>
         <svg className="site-wordmark" viewBox="0 0 1000 170" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
           <text x="500" y="160" textAnchor="middle" textLength="980" lengthAdjust="spacingAndGlyphs">Pinto Notes</text>
