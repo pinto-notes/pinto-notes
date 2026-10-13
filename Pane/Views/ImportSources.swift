@@ -36,6 +36,9 @@ enum ImportOrigin: Identifiable, Hashable {
         }
     }
 
+    /// A white app icon (Evernote, Google Keep), which needs a drawn edge on a white row.
+    var lightFace: Bool { self == .files(.evernote) || self == .files(.keep) }
+
     /// The app's own icon, shipped for when the app isn't installed (sources: docs/Technical/import-source-icons.md).
     var bundledIcon: String? {
         switch self {
@@ -169,8 +172,8 @@ struct ImportSourceIcon: View {
                 .padding(.top, side * 0.4)
             }
             .clipShape(shape)
-            .overlay(shape.strokeBorder(Color.black.opacity(0.1), lineWidth: max(0.5, size / 64)))
             .frame(width: side, height: side)
+            .overlay { Self.edge(size) }
             .shadow(color: .black.opacity(0.2), radius: size * 0.018, y: size * 0.012)
             .frame(width: size, height: size)
             .environment(\.colorScheme, .light)
@@ -213,7 +216,18 @@ struct ImportSourceIcon: View {
             .resizable()
             .interpolation(.high)
             .frame(width: size, height: size)
+            .overlay { if origin.lightFace { Self.edge(size) } }
             .accessibilityHidden(true)
+    }
+
+    /// The edge of a white icon on the app-icon grid (824 of 1024, Apple's corner), so a white
+    /// face doesn't melt into a white row. The coloured icons carry their own.
+    static func edge(_ size: CGFloat) -> some View {
+        let side = size * 0.805
+        return RoundedRectangle(cornerRadius: side * 0.2237, style: .continuous)
+            .strokeBorder(Color.black.opacity(0.16), lineWidth: max(0.5, size / 48))
+            .frame(width: side, height: side)
+            .environment(\.colorScheme, .light)
     }
 
     /// Drawn on the grid of a real app icon (Apple's 824 of 1024, the same corner, the same light
