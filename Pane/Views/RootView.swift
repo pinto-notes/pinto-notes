@@ -571,7 +571,7 @@ struct PaneCommands: Commands {
             Divider()
             Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                 .disabled(importNotes == nil)
-            ForEach(ImportKind.allCases) { kind in
+            ForEach(ImportKind.listed) { kind in
                 Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     .disabled(importFrom == nil)
             }

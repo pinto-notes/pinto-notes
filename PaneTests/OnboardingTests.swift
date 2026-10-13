@@ -441,8 +441,15 @@ import Testing
         #expect(OnboardingFlow.skipBring.lowercased() != AccountCrypto.startFreshPhrase, "not the account's destructive action")
     }
 
+    @Test func installedAppsComeFirstThenByPopularityMarkdownLast() {
+        #expect(ImportKind.listed(installed: { _ in false }) == [.evernote, .keep, .obsidian, .bear, .markdown])
+        #expect(ImportKind.listed(installed: { $0 == .bear || $0 == .obsidian }) == [.obsidian, .bear, .evernote, .keep, .markdown],
+                "installed apps first, each group keeps the popularity order")
+        #expect(ImportKind.listed(installed: { _ in true }).last == .markdown, "Markdown files stay last")
+    }
+
     @Test func appleNotesComesFirstThenTheImportSheetsKinds() {
-        #expect(OnboardingFlow.sourceOrder == ImportKind.allCases, "the import sheet's own order")
+        #expect(OnboardingFlow.sourceOrder == ImportKind.listed, "the import sheet's own order")
         #if os(iOS)
         // On iPhone Apple Notes is not a choice like the others: it says where it is easy.
         #expect(OnboardingFlow.appleNotesLine.hasPrefix("Easiest on a Mac."))

@@ -518,8 +518,8 @@ struct OnboardingFlow: View {
         .accessibilityIdentifier("onboarding.source.\(kind.rawValue)")
     }
 
-    /// The import sheet's kinds, in its own order (Obsidian, Bear, Evernote, Keep, Markdown).
-    static var sourceOrder: [ImportKind] { ImportKind.allCases }
+    /// The import sheet's kinds, in its own order: apps on this Mac first, then by popularity.
+    static var sourceOrder: [ImportKind] { ImportKind.listed }
 
     static func sourceTitle(_ kind: ImportKind) -> String { kind.sourceName }
 
