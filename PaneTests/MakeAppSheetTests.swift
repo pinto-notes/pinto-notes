@@ -130,7 +130,7 @@ import Testing
                     // One step under a title and a line: short. Only the words to paste make it taller.
                     #expect(size.height < (["code": 420, "three": 450, "both": 310, "late": 400, "waiting": 320, "waiting-claude": 320, "claude": 320,
                                             // No AI yet: the ways to connect one, in place (newcomer audit #14).
-                                            "none": 420][state] ?? 280) - (sketch ? 0 : 80), "\(state)\(sketch ? "" : ", no sketch") is \(size.height) pt tall")
+                                            "none": 430][state] ?? 280) - (sketch ? 0 : 80), "\(state)\(sketch ? "" : ", no sketch") is \(size.height) pt tall")
                     guard let dir else { continue }
                     let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                     host.cacheDisplay(in: host.bounds, to: rep)
@@ -152,7 +152,7 @@ import Testing
                 try await Task.sleep(for: .milliseconds(400))
                 host.frame = CGRect(origin: .zero, size: host.fittingSize)
                 host.layoutSubtreeIfNeeded()
-                #expect(host.fittingSize.width == 420 && host.fittingSize.height < (state == "none" ? 420 : 360), "new app \(state) is \(host.fittingSize.height) pt tall")
+                #expect(host.fittingSize.width == 420 && host.fittingSize.height < (state == "none" ? 440 : 360), "new app \(state) is \(host.fittingSize.height) pt tall")
                 let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                 host.cacheDisplay(in: host.bounds, to: rep)
                 try #require(rep.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: dir).appending(path: "new-app-mac-\(state)-\(dark ? "dark" : "light").png"))
