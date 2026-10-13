@@ -955,6 +955,15 @@ struct ImportNoticePage: View {
     var primary: String
     var primarySymbol: String?
     var quiet: String?
+    /// A press on one of the page's controls.
+    var act: (ImportGuideSheet.Action) -> Void = { _ in }
+
+    /// This page, its controls answered by `act`.
+    func with(_ act: @escaping (ImportGuideSheet.Action) -> Void) -> ImportNoticePage {
+        var page = self
+        page.act = act
+        return page
+    }
 
     #if os(iOS)
     private let compact = true
@@ -966,9 +975,14 @@ struct ImportNoticePage: View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                    .frame(width: 26, height: 26)
-                    .background(Color.line.opacity(0.6), in: .circle)
+                Button { act(.close) } label: {
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
+                        .frame(width: 26, height: 26)
+                        .background(Color.line.opacity(0.6), in: .circle)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Close")
             }
             .frame(height: 30)
             .padding(.horizontal, 18)
@@ -998,7 +1012,7 @@ struct ImportNoticePage: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 420)
                 Spacer(minLength: 0)
-                Button { } label: {
+                Button { act(.primary) } label: {
                     HStack(spacing: 6) {
                         Text(primary)
                         if let primarySymbol { Image(systemName: primarySymbol).font(.system(size: 12, weight: .bold)) }
@@ -1007,7 +1021,7 @@ struct ImportNoticePage: View {
                 }
                 .buttonStyle(.amberProminent(height: compact ? 50 : 40, cornerRadius: compact ? 14 : 10))
                 .frame(maxWidth: compact ? .infinity : 320)
-                Button(quiet ?? " ") { }
+                Button(quiet ?? " ") { act(.quiet) }
                     .buttonStyle(.hoverLink)
                     .font(.system(size: compact ? 15 : 13, weight: .medium))
                     .foregroundStyle(Color.muted)
