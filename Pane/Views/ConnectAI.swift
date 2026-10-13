@@ -1153,6 +1153,9 @@ struct ConsentSheet: View {
                 if !Task.isCancelled { armed = true }
             }
             .animation(.smooth(duration: 0.25), value: phase)
+            .blurDemoCue { cue in
+                if cue == "working" { phase = .working } else if cue == "done" { phase = .done("ChatGPT") }
+            }
             .onDisappear {
                 guard !serverAnswered else { return }
                 let (release, client, id) = (release, client, requestID)
@@ -1184,8 +1187,29 @@ struct ConsentSheet: View {
         #endif
     }
 
-    @ViewBuilder
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Each of the sheet's states rises into focus as the one before fades (BlurMotion).
     private var content: some View {
+        ZStack {
+            states
+                .id(phaseKey)
+                .transition(reduceMotion ? .opacity : BlurMotion.page)
+        }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: phaseKey)
+    }
+
+    private var phaseKey: Int {
+        switch phase {
+        case .loading, .working: 0
+        case .asking: 1
+        case .done, .handedOff: 2
+        case .failed: 3
+        }
+    }
+
+    @ViewBuilder
+    private var states: some View {
         switch phase {
         case .loading, .working:
             ProgressView().controlSize(.large).frame(maxWidth: .infinity).frame(height: 160)

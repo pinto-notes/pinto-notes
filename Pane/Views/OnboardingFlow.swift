@@ -54,6 +54,10 @@ struct OnboardingFlow: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.openURL) private var openURL
     @State private var forward = true
+    #if os(iOS)
+    /// Where the status bar ends, for the steps without the picture.
+    @State private var phoneTop: CGFloat = 0
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
@@ -69,7 +73,7 @@ struct OnboardingFlow: View {
 
     var body: some View {
         screen
-            .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.35 * Self.stepPace), value: step)
+            .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.45 * Self.stepPace), value: step)
             .task { await loadAccount() }
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
@@ -98,6 +102,9 @@ struct OnboardingFlow: View {
                 ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
             }
             .connectGuides(client: backend.client)
+            .blurDemoCue { cue in
+                if cue == "next" { next() } else if cue == "back" { goBack() }
+            }
     }
 
     // MARK: The window
@@ -113,18 +120,26 @@ struct OnboardingFlow: View {
         #else
         ScrollView {
             VStack(spacing: 0) {
-                phoneArt
-                VStack(alignment: .leading, spacing: Metrics.gap) {
-                    progress
-                    heading
-                    middle
+                if Self.showsArt(step, first: store.first) {
+                    phoneArt
+                } else {
+                    // Under the status bar and the Back button.
+                    Color.clear.frame(height: phoneTop + Self.backRoom)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 24)
-                .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
-                .id(step)
-                .transition(stepTransition)
+                // The step going out and the one coming in share one place while they cross.
+                ZStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: Metrics.gap) {
+                        progress
+                        heading
+                        middle
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, Self.showsArt(step, first: store.first) ? 20 : 8)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
+                    .id(step)
+                    .transition(stepTransition)
+                }
             }
             .frame(maxWidth: .infinity)
         }
@@ -140,7 +155,12 @@ struct OnboardingFlow: View {
                 .background { Backdrop() }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .overlay(alignment: .topLeading) { phoneBack }
+        .overlay(alignment: .topLeading) {
+            // The overlay keeps the safe area: its top is where the status bar ends.
+            phoneBack
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { phoneTop = $0 }
+        }
         .background { Backdrop() }
         #endif
     }
@@ -156,14 +176,17 @@ struct OnboardingFlow: View {
                 progress.frame(width: 96)
             }
             .frame(height: 24)
-            VStack(alignment: .leading, spacing: Metrics.gap) {
-                heading
-                middle
+            // The step going out and the one coming in share one place while they cross.
+            ZStack(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: Metrics.gap) {
+                    heading
+                    middle
+                }
+                .padding(.top, 28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .id(step)
+                .transition(stepTransition)
             }
-            .padding(.top, 28)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .id(step)
-            .transition(stepTransition)
             Spacer(minLength: 16)
             actions
         }
@@ -188,6 +211,10 @@ struct OnboardingFlow: View {
     /// The picture's part of the screen: one size for every step, so it never jumps between
     /// them. Less of it at the largest text sizes, where the words need the room.
     static func artShare(accessibilitySize: Bool) -> CGFloat { accessibilitySize ? 0.12 : 0.2 }
+
+    /// The Back button's band at the top of a step without the picture: its 4 pt inset, its 44 pt
+    /// and a little air.
+    static let backRoom: CGFloat = 56
 
     private var phoneArt: some View {
         Color.clear
@@ -216,14 +243,19 @@ struct OnboardingFlow: View {
     }
     #endif
 
-    /// The step going out fades in the first part of the move; the one coming in shows only
-    /// after, sliding in from the side it is on. Two steps are never readable at once (they were
-    /// when both faded over the same time). One value drives both, so the whole step moves as one.
-    private var stepTransition: AnyTransition { stepTransition(dx: reduceMotion ? 0 : (forward ? 24 : -24)) }
+    /// Only the flow's first step has the picture; the steps after it give its room to the words
+    /// (Emil, 13 October 2026), starting under the Back button.
+    static func showsArt(_ step: Onboarding.Step, first: Onboarding.Step) -> Bool { step == first }
 
-    private func stepTransition(dx: CGFloat) -> AnyTransition {
-        .asymmetric(insertion: .modifier(active: StepMove(shown: 0, incoming: true, dx: dx), identity: StepMove(shown: 1, incoming: true, dx: dx)),
-                    removal: .modifier(active: StepMove(shown: 0, incoming: false, dx: 0), identity: StepMove(shown: 1, incoming: false, dx: 0)))
+    /// The step going out fades and blurs in the first part of the move; the one coming in shows
+    /// only after, rising into focus as the website's content does (blur, a little lower and
+    /// smaller, then sharp). Two steps are never readable at once. One value drives both, so the
+    /// whole step moves as one. With Reduce Motion, a plain fade.
+    private var stepTransition: AnyTransition { stepTransition(moves: !reduceMotion) }
+
+    private func stepTransition(moves: Bool, lift: CGFloat = 12) -> AnyTransition {
+        .asymmetric(insertion: .modifier(active: StepMove(shown: 0, incoming: true, moves: moves, lift: lift), identity: StepMove(shown: 1, incoming: true, moves: moves, lift: lift)),
+                    removal: .modifier(active: StepMove(shown: 0, incoming: false, moves: moves, lift: 0), identity: StepMove(shown: 1, incoming: false, moves: moves, lift: 0)))
     }
 
     /// Tests: slows the step transition down, to see it frame by frame.
@@ -234,7 +266,9 @@ struct OnboardingFlow: View {
     nonisolated struct StepMove: ViewModifier, Animatable {
         var shown: Double
         let incoming: Bool
-        let dx: CGFloat
+        /// Blur and rise (off with Reduce Motion: only the fade).
+        let moves: Bool
+        let lift: CGFloat
         static let split = 0.3
 
         var animatableData: Double {
@@ -244,9 +278,12 @@ struct OnboardingFlow: View {
 
         func body(content: Content) -> some View {
             let t = incoming ? max(0, (shown - Self.split) / (1 - Self.split)) : max(0, (shown - (1 - Self.split)) / Self.split)
+            let away = moves ? 1 - t : 0
             content
+                .blur(radius: away * (incoming ? BlurMotion.Rise.page.blur : 4))
+                .scaleEffect(incoming ? 1 - away * (1 - BlurMotion.Rise.page.scale) : 1)
+                .offset(y: incoming ? lift * away : 0)
                 .opacity(t)
-                .offset(x: incoming ? dx * (1 - t) : 0)
         }
     }
 
@@ -382,7 +419,7 @@ struct OnboardingFlow: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("onboarding.worked")
-                .transition(.opacity)
+                .transition(reduceMotion ? .opacity : BlurMotion.arrival)
             } else {
                 ForEach(TryIt.ways(connected: tryConnected)) { way in
                     switch way {
@@ -489,7 +526,7 @@ struct OnboardingFlow: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
+                    .transition(reduceMotion ? .opacity : BlurMotion.arrival)
                     .accessibilityIdentifier("onboarding.brought")
             }
         }
@@ -607,7 +644,7 @@ struct OnboardingFlow: View {
         // The same button stays put from step to step; a different one takes over the way the
         // step does, never on top of the one before.
         .id(action)
-        .transition(stepTransition(dx: 0))
+        .transition(stepTransition(moves: !reduceMotion, lift: 0))
     }
 
     private enum Action: Hashable { case proceed, skip(String), none }
