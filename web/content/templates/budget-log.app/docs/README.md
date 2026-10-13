@@ -24,6 +24,7 @@ To log an expense, append to expenses with a new id. To add a bill, append to re
 - Over budget is the only place with a second colour (the system's red); everything else uses Pinto's amber.
 - Months run from the 1st. Earlier months are one tap back, on Month and on Expenses.
 - The app sets the note's summary line to "7,165 kr left in October".
+- No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 
 ## Known gaps
 - No income, no budgets that differ by month, no savings goals per category.
