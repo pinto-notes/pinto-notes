@@ -15,6 +15,9 @@
 #
 # CHANNEL=beta uploads Amber Notes Beta (Config/Beta.xcconfig, the staging backend;
 # docs/Technical/staging.md) from the current checkout, to its own App Store Connect app.
+#
+# A release archive whose app has no PostHog key (Config/Backend.local.xcconfig, or main from before
+# telemetry) stops before export: scripts/check-telemetry-key.sh.
 set -euo pipefail
 MAIN="$(cd "$(dirname "$0")/.." && pwd)"
 CLEAN="$MAIN/../AmberNotes-install"
@@ -78,6 +81,8 @@ ship() {
     DEVELOPMENT_TEAM=$TEAM CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
     PROVISIONING_PROFILE_SPECIFIER= CURRENT_PROJECT_VERSION=$BUILD ${VERSION:+MARKETING_VERSION=$VERSION} "$@" \
     > "$OUT/$platform-$BUILD-archive.log" 2>&1 || { grep -E " error: " "$OUT/$platform-$BUILD-archive.log" | head -20; return 1; }
+  # A release build without the PostHog key reports nothing; the 1.2 builds went to review that way.
+  [[ $CHANNEL != release ]] || "$MAIN/scripts/check-telemetry-key.sh" "$archive" || return 1
   echo "→ $platform build $BUILD: $([[ $UPLOAD == 1 ]] && echo uploading || echo exporting)"
   xcodebuild -exportArchive -archivePath "$archive" -exportOptionsPlist "$exportopts" \
     -exportPath "$OUT/$platform-$BUILD-export" -allowProvisioningUpdates "${auth[@]}" \
