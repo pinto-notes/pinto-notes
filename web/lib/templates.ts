@@ -100,6 +100,25 @@ export const anchor = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-")
 
 export const searchTitle = (t: Template) => t.seoTitle ?? `${t.title} template for ChatGPT and Claude`;
 export const templatePath = (slug: string) => `/templates/${slug}`;
+/// An app template's button says what you'll do with it ("Start tracking") instead of "Use template",
+/// once the app that installs the template's app is out on that platform: the Mac with 1.2.26, the
+/// iPhone with its next App Store build. Flip one line per platform. Templates without an app always
+/// say "Use template". The page shows both labels and site.css picks one by html[data-platform]
+/// (lib/platform.ts), so the right one shows from the first frame.
+export const APP_TEMPLATE_VERBS_LIVE = true;
+export const APP_TEMPLATE_VERBS_IPHONE = false;
+export const APP_VERBS: Record<string, string> = {
+  "habit-tracker": "Start tracking", "budget-log": "Start budgeting", "trip-plan": "Plan the trip", "study-flashcards": "Study now",
+};
+export const USE_TEMPLATE = "Use template";
+
+/// The button's words for a visitor on a Mac or another desktop ("desktop") or on an iPhone or iPad ("ios").
+export function useLabel(t: Pick<Template, "slug" | "app">, on: "desktop" | "ios"): string {
+  const verb = t.app ? APP_VERBS[t.slug] : undefined;
+  if (!verb || !APP_TEMPLATE_VERBS_LIVE) return USE_TEMPLATE;
+  return on === "ios" && !APP_TEMPLATE_VERBS_IPHONE ? USE_TEMPLATE : verb;
+}
+
 /// The universal link the app opens (https://ambernotes.app/open/template/<slug>).
 export const useLink = (slug: string) => `${APP_LINK_URL}/open/template/${slug}`;
 /// The same, as the site's own buttons link it: a path, so a preview or local build stays on itself.

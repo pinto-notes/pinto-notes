@@ -385,3 +385,9 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 /* Light and dark side by side, as the app follows the device. */
 .appPair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 3vw, 32px); align-items: start; }
 @media (max-width: 760px) { .appPair { grid-template-columns: minmax(0, 1fr); } }
+
+/* An app template's button words (UseLabel): its verb on a Mac or desktop, "Use template" on an
+   iPhone or iPad until the iPhone app installs template apps. Before the platform is known, the verb. */
+.labelIos { display: none; }
+:global(:root[data-platform="ios"]) .labelDesktop { display: none; }
+:global(:root[data-platform="ios"]) .labelIos { display: inline; }

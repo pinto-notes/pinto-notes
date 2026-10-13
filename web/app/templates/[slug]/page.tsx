@@ -14,6 +14,7 @@ import PromptCopy from "../PromptCopy";
 import NoteWindow from "../NoteWindow";
 import AppWindow from "../AppWindow";
 import s from "../templates.module.css";
+import UseLabel from "../UseLabel";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -83,7 +84,7 @@ export default async function Page({ params }: Props) {
               {t.author && <> A community template by <a className={s.forBy} href={authorLink(t.author)}>@{t.author}</a>.</>}
             </p>
             <div className={`${s.ctas} rise`} style={at(2)}>
-              {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> Use template</OpenInApp>}
+              {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> <UseLabel t={t} /></OpenInApp>}
               {APP_TEMPLATES.live ? (
                 <>
                   <PromptCopy variants={vs} className={s.secondary} />
@@ -96,7 +97,7 @@ export default async function Page({ params }: Props) {
               )}
             </div>
             <p className={`${s.fine} rise`} style={at(3)}>
-              Free. {APP_TEMPLATES.live && <>Use template opens Pinto Notes and adds the note{t.app && " and its app"}. </>}No Pinto Notes yet? <a href="/download">Download it for Mac</a>.
+              Free. {APP_TEMPLATES.live && <><UseLabel t={t} /> opens Pinto Notes and adds the note{t.app && " and its app"}. </>}No Pinto Notes yet? <a href="/download">Download it for Mac</a>.
             </p>
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
@@ -127,7 +128,7 @@ export default async function Page({ params }: Props) {
           <div className={s.sectionHead}>
             <h2 id="result" className={s.h2}>The app you start with</h2>
             <p className={s.sectionLede}>
-              Use template adds the note with this app and its sample data, on your Mac and iPhone. It follows your device in light and dark.
+              <UseLabel t={t} /> adds the note with this app and its sample data, on your Mac and iPhone. It follows your device in light and dark.
             </p>
           </div>
           <div className={`${s.result} ${s.appPair}`}>

@@ -1,8 +1,9 @@
 import { COVERS, coverPath, inkOn } from "@/lib/template-covers";
 import { APP_TEMPLATES } from "@/lib/site";
-import { appLink, authorLink, slice, templatePath, usePath, type SliceRow, type Template } from "@/lib/templates";
+import { appLink, useLabel, authorLink, slice, templatePath, usePath, type SliceRow, type Template } from "@/lib/templates";
 import OpenInApp from "../OpenInApp";
 import AppSwap from "./AppSwap";
+import UseLabel from "./UseLabel";
 import s from "./templates.module.css";
 
 /// One template in the gallery or under "More templates": its cover fills the card, the title sits
@@ -27,8 +28,8 @@ export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2
         <span className={s.cardFoot}>
           {t.author && <a className={s.by} href={authorLink(t.author)}>by @{t.author}</a>}
           {APP_TEMPLATES.live
-            ? <OpenInApp className={s.use} href={usePath(t.slug)} app={appLink(t.slug)} label={`Use template: ${t.title}`}>Use template<ArrowGlyph /></OpenInApp>
-            : <span className={s.use} aria-hidden="true">Use template<ArrowGlyph /></span>}
+            ? <OpenInApp className={s.use} href={usePath(t.slug)} app={appLink(t.slug)} label={`${useLabel(t, "desktop")}: ${t.title}`} labelIos={`${useLabel(t, "ios")}: ${t.title}`}><UseLabel t={t} /><ArrowGlyph /></OpenInApp>
+            : <span className={s.use} aria-hidden="true"><UseLabel t={t} /><ArrowGlyph /></span>}
         </span>
       </span>
     </article>
