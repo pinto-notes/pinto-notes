@@ -522,24 +522,41 @@ enum ConnectShell {
     /// How adding with a token went. `added`: what the AI's own command lists for it now.
     enum TokenAdd: Equatable { case added(details: String), notFound, refused }
 
+    /// The Keychain item that holds Codex's token, one per Codex home (the account).
+    static let keychainService = "Pinto Notes"
+
     /// Between the add and what the command lists after it.
     static let detailsMark = "--- pinto-notes details ---"
 
     /// Adds the server with the token, the way each command keeps it. Claude Code: its own
     /// `--header`, kept in ~/.claude.json (only the person can read it). Codex has no header option,
     /// and `codex mcp add` for a server with sign-in starts that sign-in, so the entry goes into
-    /// its config.toml as Codex's `http_headers`, after `codex mcp remove` takes out an older one;
-    /// the file is only the person's to read, and is put back as it was when Codex can't read the
-    /// result. The token reaches the command in its environment, never in the app's words or logs.
+    /// its config.toml, after `codex mcp remove` takes out an older one: the token in the Keychain
+    /// (readable by `security` without asking), and an `http_headers_helper` script that reads it
+    /// there each time Codex connects, so config.toml holds no secret. Where the Keychain can't be
+    /// written (locked), the token goes in as Codex's `http_headers`. The file is only the person's
+    /// to read, and is put back as it was when Codex can't read the result. `PINTO_KEYCHAIN`
+    /// (tests) names another keychain. The token reaches the command in its environment, never in the app's words or logs.
     /// Then the command shows the entry, in its own words (Claude Code also tries it).
     nonisolated static func tokenScript(_ g: ConnectAISection.Guide) -> String {
         let name = ConnectSnippets.serverName, old = ConnectSnippets.oldServerName
         return g == .codex ? """
             command -v codex >/dev/null 2>&1 || { echo "not-found"; exit 127; }
             for n in \(old) \(name) pinto_notes; do codex mcp remove $n >/dev/null 2>&1; done
-            f="${CODEX_HOME:-$HOME/.codex}/config.toml"
-            mkdir -p "$(dirname "$f")" && touch "$f" && chmod 600 "$f" && cp -p "$f" "$f.pinto-before" || exit 1
-            printf '\\n[mcp_servers.\(name)]\\nurl = "%s"\\nhttp_headers = { "Authorization" = "Bearer %s" }\\n' "$PINTO_URL" "$PINTO_TOKEN" >> "$f"
+            d="${CODEX_HOME:-$HOME/.codex}"; f="$d/config.toml"; h="$d/pinto-notes-token.sh"
+            mkdir -p "$d" && touch "$f" && chmod 600 "$f" && cp -p "$f" "$f.pinto-before" || exit 1
+            if printf 'add-generic-password -U -s "\(keychainService)" -a "%s" -T /usr/bin/security -w "%s" %s\\n' "$d" "$PINTO_TOKEN" "$PINTO_KEYCHAIN" | /usr/bin/security -i >/dev/null 2>&1 \\
+                && /usr/bin/security find-generic-password -s "\(keychainService)" -a "$d" -w $PINTO_KEYCHAIN >/dev/null 2>&1; then
+              cat > "$h" <<EOF
+            #!/bin/sh
+            t=\\$(/usr/bin/security find-generic-password -s "\(keychainService)" -a "$d" -w $PINTO_KEYCHAIN) || exit 1
+            printf '{"Authorization":"Bearer %s"}' "\\$t"
+            EOF
+              chmod 700 "$h" || exit 1
+              printf '\\n[mcp_servers.\(name)]\\nurl = "%s"\\nhttp_headers_helper = %s\\n' "$PINTO_URL" "\\"/bin/sh \\\\\\"$h\\\\\\"\\"" >> "$f"
+            else
+              printf '\\n[mcp_servers.\(name)]\\nurl = "%s"\\nhttp_headers = { "Authorization" = "Bearer %s" }\\n' "$PINTO_URL" "$PINTO_TOKEN" >> "$f"
+            fi
             if ! codex mcp get \(name) >/dev/null 2>&1; then mv "$f.pinto-before" "$f"; exit 1; fi
             rm -f "$f.pinto-before"
             echo "\(detailsMark)"

@@ -6,6 +6,22 @@ import Testing
 /// Connecting Codex (or Claude Code) from Connect an AI on the Mac, as Emil did on 13 October 2026:
 /// the row says the browser is about to open, one sign-in runs, the Allow sheet names the AI it
 /// started, and one request shows one sheet.
+#if os(macOS)
+private extension Process {
+    /// Runs a program to its end; what it printed.
+    @discardableResult static func run(_ path: String, _ args: [String]) -> String {
+        let p = Process(), out = Pipe()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return "" }
+        p.waitUntilExit()
+        return String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    }
+}
+#endif
+
 @MainActor @Suite struct CodexConnectTests {
     /// What Codex 0.159 prints from `codex mcp add` for a server with sign-in (Windows probe,
     /// 13 October 2026, against a public server).
@@ -261,30 +277,41 @@ import Testing
         #expect(ConnectShell.tokenScript(.codex).contains("chmod 600"))
     }
 
-    /// The real Codex, when this Mac has it, in a Codex home of its own: the entry it can read,
-    /// a file only the person can read, and the token nowhere in what's shown.
+    /// The real Codex, when this Mac has it, in a Codex home and a keychain of its own: the
+    /// entry it can read, the token in the keychain and not in config.toml, the helper Codex runs
+    /// handing it over, and the token nowhere in what's shown. (End to end, on 13 October 2026:
+    /// `codex app-server`'s mcpServerStatus/list against a local server got "Authorization: Bearer
+    /// <token>" on initialize and tools/list through this helper.)
     @Test func theRealCodexTakesTheToken() async throws {
         guard await ConnectShell.exists(.codex) else { return }
         let home = FileManager.default.temporaryDirectory.appending(path: "pinto-codex-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: home) }
+        let keychain = home.appending(path: "test.keychain-db").path
+        let made = await ConnectShell.launch("/usr/bin/security create-keychain -p test '\(keychain)' && /usr/bin/security unlock-keychain -p test '\(keychain)'", env: [:])
+        guard case .exited(0, _) = made else { Issue.record("no keychain: \(made)"); return }
+        defer { _ = Process.run("/usr/bin/security", ["delete-keychain", keychain]) }
         setenv("CODEX_HOME", home.path, 1)
-        defer { unsetenv("CODEX_HOME") }
+        setenv("PINTO_KEYCHAIN", keychain, 1)
+        defer { unsetenv("CODEX_HOME"); unsetenv("PINTO_KEYCHAIN") }
         let token = "pane_" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
         let result = await ConnectShell.addToken(.codex, server: "https://mcp.example.com", token: token)
         guard case .added(let details) = result else { Issue.record("\(result)"); return }
-        #expect(details.contains("url: https://mcp.example.com") && details.contains("Authorization=*****"))
+        #expect(details.contains("url: https://mcp.example.com") && details.contains("http_headers_helper: <redacted>"))
         #expect(!details.contains(token))
         let config = home.appending(path: "config.toml")
-        #expect(try String(contentsOf: config, encoding: .utf8).contains("Bearer \(token)"))
+        #expect(!(try String(contentsOf: config, encoding: .utf8)).contains(token), "no secret in config.toml")
         let mode = try FileManager.default.attributesOfItem(atPath: config.path)[.posixPermissions] as? Int
         #expect(mode == 0o600)
         #expect(!FileManager.default.fileExists(atPath: config.path + ".pinto-before"))
-        // Pressed again: one entry, the new token.
+        let helper = home.appending(path: "pinto-notes-token.sh").path
+        #expect(Process.run("/bin/sh", [helper]) == "{\"Authorization\":\"Bearer \(token)\"}")
+        // Pressed again: one entry, and the helper hands over the new token.
         let again = await ConnectShell.addToken(.codex, server: "https://mcp.example.com", token: token + "2")
         #expect(again != .refused)
         let text = try String(contentsOf: config, encoding: .utf8)
-        #expect(text.components(separatedBy: "[mcp_servers.pinto-notes]").count == 2 && text.contains(token + "2"))
+        #expect(text.components(separatedBy: "[mcp_servers.pinto-notes]").count == 2)
+        #expect(Process.run("/bin/sh", [helper]) == "{\"Authorization\":\"Bearer \(token)2\"}")
     }
     #endif
 }
