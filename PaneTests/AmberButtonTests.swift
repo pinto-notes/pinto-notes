@@ -167,16 +167,12 @@ import Testing
         #expect(Self.contrast(Self.resolved(Palette.disabledButtonLabel, appearance), soft) >= 3)
     }
 
-    /// The candidates are for choosing, not shipping: without PINTO_LOOK or PINTO_ONBOARDING_LOOK
-    /// the app draws today's window and the leaf-scene first run.
+    /// The candidates are for choosing, not shipping: without PINTO_LOOK the app draws today's window.
     @Test func theDefaultLooksAreTodays() {
         let env = ProcessInfo.processInfo.environment
         if env["PINTO_LOOK"] == nil && UserDefaults.standard.string(forKey: "PintoLook") == nil {
             #expect(DesignLook.current == .control)
             #expect(!DesignLook.isCandidate && !DesignLook.calmList && !DesignLook.readingPage)
-        }
-        if env["PINTO_ONBOARDING_LOOK"] == nil && UserDefaults.standard.string(forKey: "PintoOnboardingLook") == nil {
-            #expect(OnboardingLook.current == .a)
         }
     }
 }

@@ -177,26 +177,6 @@ enum DesignLook: String, CaseIterable, Sendable {
     }
 }
 
-/// The first-run flow's candidates (Mac): A keeps the leaf scene beside every step; B2 gives each
-/// step its own paper-craft scene (the emails' and Templates' art at full size), edge to edge on
-/// the left like the leaf. (B, the same scenes framed small on a soft ground, left too much empty
-/// ground and is gone.) Release builds draw A; a debug build reads `PINTO_ONBOARDING_LOOK=b2` or
-/// the `PintoOnboardingLook` default.
-enum OnboardingLook: String, CaseIterable, Sendable {
-    case a, b2
-
-    nonisolated(unsafe) static var current: OnboardingLook = initial
-
-    private static var initial: OnboardingLook {
-        #if DEBUG
-        let raw = ProcessInfo.processInfo.environment["PINTO_ONBOARDING_LOOK"] ?? UserDefaults.standard.string(forKey: "PintoOnboardingLook")
-        return raw.flatMap(OnboardingLook.init(rawValue:)) ?? .a
-        #else
-        return .a
-        #endif
-    }
-}
-
 extension Color {
     static let ink = Color(Palette.ink)
     static let muted = Color(Palette.muted)

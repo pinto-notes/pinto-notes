@@ -310,7 +310,8 @@ struct WelcomeFlow: View {
 /// device left?") in the welcome's window: the same picture on the left, the step on the right,
 /// so the window keeps its size and place from the welcome until the notes open.
 struct CardLayout<Side: View>: View {
-    /// A scene of its own, framed on a soft ground (onboarding candidate B), instead of the leaf.
+    /// A scene of its own in place of the leaf, edge to edge like it (the per-step art to come:
+    /// 3:4, 1086 by 1448). Nil: the leaf.
     var picture: String? = nil
     @ViewBuilder var side: Side
 
@@ -331,9 +332,8 @@ struct CardLayout<Side: View>: View {
 }
 
 extension CardLayout {
-    /// A step's own scene, edge to edge like the leaf: 940 by 1254 pixels, sharp at the panel's
-    /// 450 by 600 points on a Retina screen. The scenes have no dusk versions, so in the dark they
-    /// are dimmed a little to sit beside the warm near-black.
+    /// A scene edge to edge, no frame, cropped from the centre like the leaf. Art without a dusk
+    /// version is dimmed a little in the dark to sit beside the warm near-black.
     static func framed(_ name: String) -> some View {
         FullBleedScene(name: name)
     }
