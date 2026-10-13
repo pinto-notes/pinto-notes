@@ -1,8 +1,8 @@
 <!-- Generated from supabase/functions/mcp/page_guide.ts by scripts/page-evals/build-skill.ts. Don't edit. -->
 
-# Amber Notes apps (for AGENTS.md)
+# Pinto Notes apps (for AGENTS.md)
 
-Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Amber Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and `get_page_guide`; this keeps it in front of agents that skim server instructions.
+Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and `get_page_guide`; this keeps it in front of agents that skim server instructions.
 
 Apps: a note in Pinto Notes can be an app (some tools call a one-file app a page).
 - Before making or changing an app, call get_page_guide once. It says where an app lives; how it looks and works is up to you.

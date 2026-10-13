@@ -64,10 +64,9 @@ struct AppPlaceTests {
         let route = SettingsRoute(defaults: defaults())
         route.open(.ai)
         #expect(route.tab == .ai)
-        #if os(iOS)
-        #expect(route.target == .ai, "iPhone pushes the page once Settings shows")
-        #else
-        #expect(route.target == nil, "the Mac's window just switches tab")
+        #expect(route.target == .ai, "the page opens once Settings shows")
+        #if os(macOS)
+        #expect(route.presenting, "the Mac shows Settings as a sheet on the notes window")
         #endif
     }
 

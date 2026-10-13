@@ -114,7 +114,7 @@ export default function Page() {
       <h2>Option 3: move your notes to an app Claude can reach</h2>
       <p>
         Pinto Notes is a free, open-source notes app for iPhone and Mac that works like Apple Notes and has an MCP server built in. You
-        import your Apple Notes once, on your Mac, then open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Amber Notes in Claude&apos;s connector directory</a> and
+        import your Apple Notes once, on your Mac, then open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a> and
         choose Connect to Claude. After that Claude can search,
         read and edit your notes from claude.ai, the desktop app, the iPhone app and Claude Code.
       </p>
@@ -123,7 +123,7 @@ export default function Page() {
         <li>You approve Claude in Pinto Notes on your iPhone or Mac, typing the number your browser shows, and choose Read Only, or Read and Edit.</li>
         <li>Checklists stay checklists: Pinto Notes stores notes as Markdown, and Claude ticks an item without rewriting the note.</li>
         <li>When Claude changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version.</li>
-        <li>Amber Notes is listed in Claude&apos;s connector directory, so there&apos;s no address to paste. If your Claude app doesn&apos;t show the listing, add <code>{MCP_URL}</code> as a custom connector instead; that works on every plan, and the free plan includes one.</li>
+        <li>Pinto Notes is listed in Claude&apos;s connector directory, so there&apos;s no address to paste. If your Claude app doesn&apos;t show the listing, add <code>{MCP_URL}</code> as a custom connector instead; that works on every plan, and the free plan includes one.</li>
       </ul>
       <p>
         The catch: your notes move to Pinto Notes, so you&apos;d write there instead of in Apple Notes. The import leaves Apple Notes

@@ -87,7 +87,8 @@ enum SignInShown {
     }
 }
 
-/// The first page of Settings, and the pages it opens.
+/// The first page of Settings, and the pages it opens: a sheet on the notes window, with its own
+/// header row (back at the left, level with the title; Done at the right; Esc closes it).
 struct SettingsHome: View {
     let backend: Backend
     let sync: SyncEngine?
@@ -102,66 +103,138 @@ struct SettingsHome: View {
     @State private var path: [SettingsPlace] = []
     @State private var query = ""
     @State private var profile = ProfileStore.shared
+    @Environment(\.dismiss) private var dismiss
+    /// As tall as `height`, or less on a short notes window, so the sheet never runs past it.
+    @State private var fit = SettingsHome.fitted(NSApp.keyWindow ?? NSApp.mainWindow)
 
-    static let width: CGFloat = 520
+    /// A little narrower than a window's Settings, and taller, like WhatsApp's (owner, 2026-10-12).
+    static let width: CGFloat = 460
+    static let height: CGFloat = 660
+
+    /// The sheet's height on `window`: `height`, less on a window that is not tall enough.
+    static func fitted(_ window: NSWindow?) -> CGFloat {
+        guard let window else { return height }
+        return min(height, max(360, window.frame.height - 60))
+    }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Form {
-                Section {
-                    HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        TextField("Search", text: $query).textFieldStyle(.plain)
-                            .accessibilityIdentifier("settings.search")
-                        if !query.isEmpty {
-                            Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Clear search")
-                        }
-                    }
-                }
-                if query.isEmpty {
-                    if available.contains(.profile) { profileCard }
-                    ForEach(Array(SettingsPlace.groups(available: available).enumerated()), id: \.offset) { _, group in
-                        Section {
-                            ForEach(group) { place in
-                                NavigationLink(value: place) { label(place) }
-                                    .accessibilityIdentifier("settings.\(place.rawValue)")
+        VStack(spacing: 0) {
+            header
+            NavigationStack(path: $path) {
+                VStack(spacing: 0) {
+                    searchField
+                    Form {
+                        if query.isEmpty {
+                            if available.contains(.profile) { profileCard }
+                            ForEach(Array(SettingsPlace.groups(available: available).enumerated()), id: \.offset) { _, group in
+                                Section {
+                                    ForEach(group) { place in
+                                        NavigationLink(value: place) { label(place) }
+                                            .accessibilityIdentifier("settings.\(place.rawValue)")
+                                    }
+                                }
                             }
-                        }
-                    }
-                } else {
-                    let found = SettingsIndex.matches(query, available: available)
-                    Section {
-                        if found.isEmpty {
-                            Text("No settings match \u{201C}\(query)\u{201D}").foregroundStyle(.secondary)
-                        }
-                        ForEach(found, id: \.self) { entry in
-                            NavigationLink(value: entry.place) {
-                                LabeledContent {
-                                    Text(entry.place.title).foregroundStyle(.secondary)
-                                } label: {
-                                    Label { Text(entry.label) } icon: { icon(entry.place) }
+                        } else {
+                            let found = SettingsIndex.matches(query, available: available)
+                            Section {
+                                if found.isEmpty {
+                                    Text("No settings match \u{201C}\(query)\u{201D}").foregroundStyle(.secondary)
+                                }
+                                ForEach(found, id: \.self) { entry in
+                                    NavigationLink(value: entry.place) {
+                                        LabeledContent {
+                                            Text(entry.place.title).foregroundStyle(.secondary)
+                                        } label: {
+                                            Label { Text(entry.label) } icon: { icon(entry.place) }
+                                        }
+                                        .padding(.vertical, SettingsRows.padding)
+                                    }
                                 }
                             }
                         }
                     }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+                }
+                // The sheet's own header names the page and goes back; the stack draws neither.
+                .toolbar(.hidden)
+                .navigationDestination(for: SettingsPlace.self) { place in
+                    page(place).navigationBarBackButtonHidden(true).toolbar(.hidden)
                 }
             }
-            .formStyle(.grouped)
-            .frame(width: Self.width)
-            .navigationTitle("Settings")
-            .navigationDestination(for: SettingsPlace.self) { place in
-                page(place).navigationTitle(place.title)
-            }
         }
+        .frame(width: Self.width, height: fit)
+        // The window the sheet hangs on, as it is now and as it is resized.
+        .background(SheetParentReader { fit = Self.fitted($0) })
+        // The app's warm sheet ground, as the import and "How did you hear" sheets have.
+        .background(Color(Palette.sheetGround))
+        .presentationBackground(Color(Palette.sheetGround))
+        // Room under the last row, like WhatsApp's.
+        .contentMargins(.bottom, 28, for: .scrollContent)
         .onAppear { if let start { path = [start] } }
         // A link into Settings (the account row, a card, the storage warning) opens its page.
-        .onChange(of: route.opened) {
-            let place = SettingsPlace(route.tab)
+        .onChange(of: route.target, initial: true) { _, target in
+            guard let target else { return }
+            let place = SettingsPlace(target)
             if available.contains(place), path.last != place { path = [place] }
+            route.target = nil
         }
         .task(id: backend.state) { await profile.bind(backend) }
+    }
+
+    /// Back at the left (on an inner page), the page's name in the middle, Done at the right.
+    private var header: some View {
+        ZStack {
+            Text(path.last?.title ?? "Settings")
+                .font(.system(size: 14, weight: .semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 90)
+                .accessibilityAddTraits(.isHeader)
+            HStack {
+                if !path.isEmpty {
+                    // A plain chevron at the top left, like WhatsApp's; a soft circle under the pointer.
+                    Button { path.removeLast() } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.ink)
+                            .frame(width: 30, height: 30)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.hoverIcon(cornerRadius: 15))
+                    .keyboardShortcut("[", modifiers: .command)
+                    .help("Back")
+                    .accessibilityLabel("Back")
+                    .accessibilityIdentifier("settings.back")
+                }
+                Spacer()
+                Button("Done") { dismiss() }
+                    // Esc closes Settings, wherever you are in it.
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("settings.done")
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 54)
+    }
+
+    /// Search, in a fill of its own so it never reads as one of the rows.
+    private var searchField: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search", text: $query).textFieldStyle(.plain)
+                .accessibilityIdentifier("settings.search")
+            if !query.isEmpty {
+                Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+            }
+        }
+        .font(.system(size: 14))
+        .padding(.horizontal, 11)
+        .frame(height: 36)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(Palette.searchFill)))
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
     }
 
     /// You, at the top: your photo (or initials) and name, opening Profile.
@@ -183,6 +256,8 @@ struct SettingsHome: View {
 
     private func label(_ place: SettingsPlace) -> some View {
         Label { Text(place.title) } icon: { icon(place) }
+            .font(.system(size: SettingsRows.text))
+            .padding(.vertical, SettingsRows.padding)
     }
 
     @ViewBuilder private func icon(_ place: SettingsPlace) -> some View {
@@ -193,7 +268,8 @@ struct SettingsHome: View {
                 .frame(width: 22, height: 22)
                 .background(Self.tile(place), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         } else {
-            Image(systemName: place.symbol).foregroundStyle(.secondary)
+            // One width for every symbol, so the rows' words line up.
+            Image(systemName: place.symbol).foregroundStyle(Color.muted).frame(width: 20)
         }
     }
 
@@ -208,6 +284,52 @@ struct SettingsHome: View {
         default: .gray
         }
     }
+}
+
+/// Tells `changed` the window a sheet hangs on, when the sheet shows and each time that window
+/// is resized.
+private struct SheetParentReader: NSViewRepresentable {
+    let changed: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> Probe { Probe(changed: changed) }
+    func updateNSView(_ view: Probe, context: Context) { view.changed = changed }
+
+    final class Probe: NSView {
+        var changed: (NSWindow?) -> Void
+        nonisolated(unsafe) private var watch: NSObjectProtocol?
+        init(changed: @escaping (NSWindow?) -> Void) { self.changed = changed; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let watch { NotificationCenter.default.removeObserver(watch) }
+            watch = nil
+            guard window != nil else { return }
+            // The sheet's window is in place before it is attached to its parent: wait for that.
+            Task { @MainActor [weak self] in
+                for _ in 0..<40 {
+                    guard let self, let sheet = self.window else { return }
+                    if let parent = sheet.sheetParent { self.follow(parent); return }
+                    try? await Task.sleep(for: .milliseconds(50))
+                }
+            }
+        }
+
+        private func follow(_ parent: NSWindow) {
+            changed(parent)
+            watch = NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: parent, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.changed(parent) }
+            }
+        }
+
+        deinit { if let watch { NotificationCenter.default.removeObserver(watch) } }
+    }
+}
+
+/// Settings' rows: taller than a form's own, like WhatsApp's.
+enum SettingsRows {
+    static let padding: CGFloat = 7
+    static let text: CGFloat = 14
 }
 
 /// Profile: your photo large, with Edit photo under it; your name and how you sign in, each a
@@ -226,62 +348,51 @@ struct ProfilePage: View {
     }
 
     var body: some View {
+        // Each field a row of its own under its label, like WhatsApp's Profile.
         Section {
-            VStack(spacing: 8) {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 96)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
-                        Task { await profile.setPhoto(data) }
-                        return true
-                    }
-                Menu("Edit photo") {
-                    Button(profile.photo == nil ? "Choose Photo…" : "Change Photo…") { importing = true }
-                        .accessibilityIdentifier("settings.choosePhoto")
-                    if profile.photo != nil {
-                        Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
-                            .accessibilityIdentifier("settings.removePhoto")
-                    }
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .foregroundStyle(.tint)
-                .fixedSize()
-                if profile.working { ProgressView().controlSize(.small) }
-                if let problem = profile.problem { Text(problem).font(.footnote).foregroundStyle(.secondary) }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-        }
-        Section {
-            LabeledContent("Name") {
-                TextField("Name", text: $draft, prompt: Text("Your name"))
-                    .labelsHidden()
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .focused($editing)
-                    .onSubmit { Task { await profile.setName(draft) } }
-                    .accessibilityIdentifier("settings.profileName")
+            TextField("Name", text: $draft, prompt: Text("Add your name"))
+                .labelsHidden()
+                .textFieldStyle(.plain)
+                .focused($editing)
+                .onSubmit { Task { await profile.setName(draft) } }
+                .font(.system(size: SettingsRows.text))
+                .padding(.vertical, SettingsRows.padding)
+                .accessibilityLabel("Name")
+                .accessibilityIdentifier("settings.profileName")
+        } header: {
+            // Your photo with Edit photo under it, on the page itself rather than in a card, then
+            // the field's label.
+            VStack(alignment: .leading, spacing: 0) {
+                photo
+                Text("Name")
             }
         } footer: {
             Text("Shown in the app and on notes you share.")
         }
         Section {
-            LabeledContent("Signed in with") {
-                Text(SignInShown.label(email: email, apple: backend.apple != nil, google: backend.google))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
-            .accessibilityIdentifier("settings.signedInWith")
+            Text(SignInShown.label(email: email, apple: backend.apple != nil, google: backend.google))
+                .textSelection(.enabled)
+                .font(.system(size: SettingsRows.text))
+                .padding(.vertical, SettingsRows.padding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Signed in with \(SignInShown.label(email: email, apple: backend.apple != nil, google: backend.google))")
+                .accessibilityIdentifier("settings.signedInWith")
+        } header: {
+            Text("Signed in with")
         }
         Section {
-            // A red row of its own, like Log out in WhatsApp; the same sign-out choices.
+            // Alone at the end, in red, like Log out in WhatsApp; the same sign-out choices.
             SignOutButton(backend: backend, sync: sync)
                 .buttonStyle(.plain)
+                .font(.system(size: SettingsRows.text))
+                .padding(.vertical, SettingsRows.padding)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        } header: {
+            Color.clear.frame(height: 22).accessibilityHidden(true)
         }
         .onAppear { draft = profile.name ?? "" }
-        .onChange(of: profile.name) { _, new in if !editing { draft = new ?? "" } }
+        // The name as it arrives, unless you are typing a different one.
+        .onChange(of: profile.name) { _, new in if !editing || draft.isEmpty { draft = new ?? "" } }
         .onChange(of: editing) { _, now in if !now { Task { await profile.setName(draft) } } }
         .onChange(of: draft) { _, new in if new.count > ProfileName.maxLength { draft = String(new.prefix(ProfileName.maxLength)) } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.jpeg, .png, .heic, .image]) { result in
@@ -291,6 +402,37 @@ struct ProfilePage: View {
             guard let data = try? Data(contentsOf: url) else { return }
             Task { await profile.setPhoto(data) }
         }
+    }
+
+    private var photo: some View {
+        VStack(spacing: 10) {
+            AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 96)
+                .dropDestination(for: URL.self) { urls, _ in
+                    guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
+                    Task { await profile.setPhoto(data) }
+                    return true
+                }
+            Menu("Edit photo") {
+                Button(profile.photo == nil ? "Choose Photo…" : "Change Photo…") { importing = true }
+                    .accessibilityIdentifier("settings.choosePhoto")
+                if profile.photo != nil {
+                    Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
+                        .accessibilityIdentifier("settings.removePhoto")
+                }
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(.tint)
+            .fixedSize()
+            if profile.working { ProgressView().controlSize(.small) }
+            if let problem = profile.problem { Text(problem).font(.footnote).foregroundStyle(.secondary) }
+        }
+        .textCase(nil)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+        .padding(.bottom, 26)
     }
 }
 
@@ -303,12 +445,14 @@ struct GeneralPage: View {
     var body: some View {
         Section {
             Toggle("Show in menu bar", isOn: $menuBar)
+                .tint(Color(Palette.switchOn))
                 .accessibilityIdentifier("settings.menuBar")
         } footer: {
             Text("Capture or find a note from the menu bar.")
         }
         Section {
             Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
+                .tint(Color(Palette.switchOn))
                 .accessibilityIdentifier("settings.diagnostics")
         } footer: {
             Text("Error reports and a few counts. Never your notes.")

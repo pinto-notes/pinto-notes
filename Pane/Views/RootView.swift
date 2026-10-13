@@ -539,6 +539,11 @@ struct PaneCommands: Commands {
     @FocusedValue(\.showHistoryAction) private var showHistory
 
     var body: some Commands {
+        // Settings shows as a sheet on the notes window in front, like WhatsApp's.
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings\u{2026}") { SettingsRoute.shared.show() }
+                .keyboardShortcut(",")
+        }
         CommandGroup(replacing: .newItem) {
             Button("New Note") { newNote?() }
                 .keyboardShortcut("n")

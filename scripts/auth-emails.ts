@@ -40,7 +40,6 @@ export type AuthEmail = {
 
 export const SITE = "https://pintonotes.com";
 /// For the people who made an account under the old name. Take it out when the old name is forgotten.
-const RENAMED = "Pinto Notes was called Amber Notes until October 2026.";
 const ASSETS = `${SITE}/email`;
 const RESET = "{{ .SiteURL }}/reset-password#token_hash={{ .TokenHash }}&amp;type=recovery";
 const CHANGE = "{{ .SiteURL }}/account/confirm?token_hash={{ .TokenHash }}&type=email_change";
@@ -257,8 +256,7 @@ ${body}
     </table>
   </td></tr>
   <tr><td class="muted" style="padding:20px 8px 0;font-family:${SANS};font-size:13px;line-height:1.55;color:${L.muted};">
-    Pinto Notes, made by Emil Wagman in Sweden. <a class="foot-lnk" href="${SITE}/help" style="color:${L.link};">Help</a> &middot; <a class="foot-lnk" href="${SITE}/privacy" style="color:${L.link};">Privacy</a><br>
-    ${RENAMED}
+    Pinto Notes, made by Emil Wagman in Sweden. <a class="foot-lnk" href="${SITE}/help" style="color:${L.link};">Help</a> &middot; <a class="foot-lnk" href="${SITE}/privacy" style="color:${L.link};">Privacy</a>
   </td></tr>
 </table>
 </td></tr>

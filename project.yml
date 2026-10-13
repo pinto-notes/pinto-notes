@@ -275,6 +275,25 @@ targets:
       - path: Pane/Views
         type: folder
         buildPhase: resources
+      # The rest of the app's code, for OldNameTests (no string says the old name).
+      - path: Pane/App
+        type: folder
+        buildPhase: resources
+      - path: Pane/Model
+        type: folder
+        buildPhase: resources
+      - path: Pane/Editor
+        type: folder
+        buildPhase: resources
+      - path: Pane/Sync
+        type: folder
+        buildPhase: resources
+      - path: Pane/Telemetry
+        type: folder
+        buildPhase: resources
+      - path: PaneShare
+        type: folder
+        buildPhase: resources
       # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
       # link it (see Pane/Collab/CollabText.swift).
       - path: Pane/Collab/CollabText.swift
