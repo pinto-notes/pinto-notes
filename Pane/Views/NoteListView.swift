@@ -187,6 +187,12 @@ struct NoteListView: View {
     }
 
     private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
+        let noteSections = visibleFiles.isEmpty ? DateBucket.sections(ordered: visible, by: order) : nil
+        let mixedSections = visibleFiles.isEmpty ? nil : DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order)
+        let collapsed = self.collapsed
+        // The rows above the first section (the asks below), for finding a note's row in the table.
+        let leadingRows = (scope != .trash && search.isEmpty && connectCenter.waiting().first != nil ? 1 : 0)
+            + (scope != .trash && search.isEmpty && (storage.usage.map { $0.level != .fine } ?? false) ? 1 : 0)
         #if os(macOS)
         // The list's own changes are told apart from code's in the click log (RowClickLog).
         let listSelection = Binding(get: { selection }, set: { new in RowClickLog.listSet(selection, new); selection = new })
@@ -225,12 +231,12 @@ struct NoteListView: View {
             }
             #endif
             // Without files the notes go straight in, in the order they're kept in.
-            if visibleFiles.isEmpty {
-                ForEach(DateBucket.sections(ordered: visible, by: order), id: \.0) { section in
+            if let noteSections {
+                ForEach(noteSections, id: \.0) { section in
                     dateSection(section) { noteRow($0.note) }
                 }
-            } else {
-                ForEach(DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order), id: \.0) { section in
+            } else if let mixedSections {
+                ForEach(mixedSections, id: \.0) { section in
                     dateSection(section) { item in
                         switch item {
                         case .note(let entry):
@@ -271,7 +277,10 @@ struct NoteListView: View {
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
         // stays the same list: a new one took the keys away from the search field.
         // A new list starts at its top: it shows the open note's row again.
-        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil))
+        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil) { id in
+            (noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
+                ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
+        })
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #endif
         #if os(iOS)
@@ -978,17 +987,92 @@ enum ListEntry: Identifiable, DatedListItem {
 /// A list built new (another folder, then back; a launch that reopens a note) starts scrolled to
 /// its top, with the open note's row far off screen and nothing to show which note that is. When
 /// the list appears it scrolls to that row, if it has one.
-private struct ShowsSelectedRow: ViewModifier {
+///
+/// Only when the row is in this list and below its first rows, and by moving the table to the row
+/// it worked out. SwiftUI's `scrollTo` finds a row by building the list's rows one by one from the
+/// top until it meets it, all of them when the list doesn't have it: with 20,000 notes that was a
+/// hang of seconds at every launch and every folder switch (release gate, 2026-10-13: four in five
+/// hang samples at 20,000 notes). Moving the table builds only the rows that come on screen, as a
+/// scroll by hand does.
+struct ShowsSelectedRow: ViewModifier {
     let selected: UUID?
+    /// The selected note's row in the table, counting section headings and the rows above them;
+    /// nil when the list doesn't show it.
+    let row: (UUID) -> Int?
+
+    /// Rows always on screen when a list starts at its top, in any window the notes fit in.
+    static let firstRows = 6
+
+    init(selected: UUID?, row: @escaping (UUID) -> Int?) {
+        self.selected = selected
+        self.row = row
+    }
+
+    /// This list's table, found once the list is in a window.
+    @State private var finder = TableFinder.Probe()
 
     func body(content: Content) -> some View {
-        ScrollViewReader { proxy in
-            content.onAppear {
-                guard let selected else { return }
+        content
+            .background(TableFinder(probe: finder))
+            .onAppear {
+                guard let selected, let at = row(selected), at >= Self.firstRows else { return }
                 // A turn later: the rows are there by then.
-                DispatchQueue.main.async { proxy.scrollTo(selected, anchor: .center) }
+                DispatchQueue.main.async { finder.center(row: at) }
+            }
+    }
+
+    private struct TableFinder: NSViewRepresentable {
+        let probe: Probe
+
+        func makeNSView(context: Context) -> Probe { probe }
+        func updateNSView(_ view: Probe, context: Context) {}
+
+        final class Probe: NSView {
+            private weak var table: NSTableView?
+
+            /// The table whose scroll view covers this view: the list's, not the sidebar's.
+            private func find() -> NSTableView? {
+                if let table, table.window === window { return table }
+                guard let window, let root = window.contentView else { return nil }
+                let mine = convert(bounds, to: nil)
+                let center = CGPoint(x: mine.midX, y: mine.midY)
+                var found: NSTableView?
+                func walk(_ v: NSView) {
+                    if found != nil { return }
+                    if let t = v as? NSTableView, let scroll = t.enclosingScrollView, scroll.convert(scroll.bounds, to: nil).contains(center) { found = t; return }
+                    v.subviews.forEach(walk)
+                }
+                walk(root)
+                table = found
+                return found
+            }
+
+            /// Centres `row` in the table, if it has that row.
+            func center(row: Int) {
+                guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
+                let clip = scroll.contentView
+                let rect = table.rect(ofRow: row)
+                let y = max(0, min(rect.midY - clip.bounds.height / 2, table.bounds.height - clip.bounds.height))
+                clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+                scroll.reflectScrolledClipView(clip)
             }
         }
+    }
+
+    /// Where `id` is among the rows of `sections`, each heading a row; nil when it isn't shown
+    /// (not in the list, or in a section that is folded away).
+    static func row<Item: Identifiable>(of id: UUID, in sections: [(String, [Item])], collapsed: Set<String>) -> Int? where Item.ID == UUID {
+        var rows = 0
+        for (name, items) in sections {
+            rows += 1
+            if collapsed.contains(name) {
+                if items.contains(where: { $0.id == id }) { return nil }
+                continue
+            }
+            if let i = items.firstIndex(where: { $0.id == id }) { return rows + i }
+            rows += items.count
+        }
+        return nil
     }
 }
 #endif

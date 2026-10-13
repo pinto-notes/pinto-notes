@@ -302,3 +302,77 @@ extension AppPerfTests {
     static let listBudgets: [Int: (first: Double, save: Double)] = [2_000: (first: 250, save: 100), 20_000: (first: 1000, save: 600)]
 }
 #endif
+
+#if os(macOS)
+extension AppPerfTests {
+    /// A list built new shows the open note's row only when it has the row and the row is below its
+    /// first screen, by moving the table to the row worked out here: SwiftUI's scrollTo found the
+    /// row by building every row above it, and every row of a list that doesn't have it (at 20,000
+    /// notes, seconds at each launch and folder switch). A section heading is a row.
+    @Test func theSelectedRowIsLookedForOnlyWhereItIs() {
+        struct Item: Identifiable { let id: UUID }
+        let ids = (0..<30).map { _ in UUID() }
+        let sections: [(String, [Item])] = [("Today", ids[0..<3].map(Item.init)), ("Previous 7 Days", ids[3..<30].map(Item.init))]
+        #expect(ShowsSelectedRow.row(of: ids[0], in: sections, collapsed: []) == 1, "under its heading")
+        #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: []) == 6, "two headings and four rows above it")
+        #expect(ShowsSelectedRow.row(of: UUID(), in: sections, collapsed: []) == nil, "not in this list")
+        #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: ["Previous 7 Days"]) == nil, "folded away")
+        #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: ["Today"]) == 3, "a folded section is one row")
+    }
+
+    /// All Notes built new (back from a folder) with an old note open, far down 20,000 rows: the
+    /// list shows that row in the middle, and getting there costs about a first display, not a
+    /// walk over every row above it.
+    @Test(.timeLimit(.minutes(5))) func aRowFarDownIsShownWithoutWalkingTheRowsAboveIt() async throws {
+        let (c, notes) = try library(notes: 20_000, big: false)
+        let ctx = c.mainContext
+        let small = ctx.createFolder(named: "Small")
+        for n in notes.prefix(25) { n.folder = small }
+        try ctx.save()
+        // Newest first: note 15,000 is row 15,000 or so.
+        let open = notes[15_000]
+        let box = ScopeBox()
+        box.scope = .folder(small.id)
+        let clock = ContinuousClock()
+        await PerfTiming.quietMainQueue()
+        let (w, host) = window(SelectedList(box: box, selected: open.id).modelContainer(c))
+        defer { w.close() }
+        host.layoutSubtreeIfNeeded()
+        w.displayIfNeeded()
+        try? await Task.sleep(for: .milliseconds(300))
+        // Rows tell the hover probe they were made: the open note's row is made once it is on screen.
+        HoverProbe.enabled = true
+        defer { HoverProbe.enabled = false; HoverProbe.reset() }
+        var samples: [Double] = []
+        for _ in 0..<3 {
+            HoverProbe.reset()
+            let start = clock.now
+            box.scope = .all
+            try? await Task.sleep(for: .milliseconds(2))
+            host.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+            // The turn the row is shown in.
+            try? await Task.sleep(for: .milliseconds(2))
+            host.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+            samples.append(ms(clock.now - start))
+            try? await Task.sleep(for: .milliseconds(200))
+            #expect(HoverProbe.hover(open.title, false), "the open note's row was made: it is on screen")
+            box.scope = .folder(small.id)
+            try? await Task.sleep(for: .milliseconds(300))
+            host.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+        }
+        let median = PerfTiming.median(samples)
+        print("PERF list of 20000 notes, back to All Notes with note 15000 open: \(String(format: "%.0f", median)) ms (median of 3: \(samples.map { String(format: "%.0f", $0) }.joined(separator: ", ")))")
+        // 1,208 ms with SwiftUI's scrollTo, 282 ms moving the table (Debug, 2026-10-13, an M-series Mac).
+        #expect(median < 600 * PerfBudget.slack, "showing a far row doesn't walk the rows above it")
+    }
+
+    struct SelectedList: View {
+        let box: ScopeBox
+        let selected: UUID
+        var body: some View { NoteListView(scope: box.scope, selection: .constant([selected]), onNewNote: {}) }
+    }
+}
+#endif
