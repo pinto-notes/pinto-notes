@@ -62,7 +62,7 @@ export default function HomeE() {
           <p className={l.lede}>{E.lede}</p>
           <Download quiet={E.quiet} />
         </div>
-        <MacNote className={s.heroMac} title="Bakery website" folder="Work" date="Today at 16:40" lines={BAKERY} gutter bigBy receipt={{ who: "codex", text: "Codex changed 1 line" }}
+        <MacNote className={s.heroMac} title="Bakery website" folder="Work" date="Today at 16:40" lines={BAKERY} gutter size="l" receipt={{ who: "codex", text: "Codex changed 1 line" }}
           label="A note called Bakery website. You wrote the goal and the ideas, Claude wrote the next steps, and Codex added a line that is tinted, with Undo." />
       </section>
 

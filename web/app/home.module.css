@@ -24,9 +24,13 @@
 .primary:focus-visible, .secondary:focus-visible {
   outline: 2px solid var(--amber); outline-offset: 3px;
 }
+@media (hover: hover) {
+  .primary:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); }
+  .secondary:hover { background: color-mix(in srgb, var(--soft) 80%, var(--amber)); color: var(--ink); }
+}
 @media (prefers-reduced-motion: no-preference) {
-  .primary { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
-  .primary:active { transform: scale(0.97); }
+  .primary, .secondary { transition: transform 0.12s ease-out, background-color 0.15s ease-out, color 0.15s ease-out; }
+  .primary:active, .secondary:active { transform: scale(0.97); }
 }
 .h2 { margin: 0; font-size: clamp(34px, 4.8vw, 56px); line-height: 1.02; font-weight: 800; letter-spacing: -0.035em; text-wrap: balance; }
 

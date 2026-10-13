@@ -40,23 +40,16 @@
 .by { position: absolute; left: 0; top: 4px; width: 112px; display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 650; line-height: 20px; color: var(--n-text); white-space: nowrap; }
 .line[data-k="h"] .by { top: 13px; }
 .line[data-k="h"]:first-child .by { top: 4px; }
+/* The large size: the names in the margin at a reading size. */
+.body[data-size="l"][data-gutter] .line { padding-left: 156px; margin-left: -156px; }
+.body[data-size="l"] .by { width: 140px; top: 5px; gap: 8px; font-size: 15px; line-height: 22px; }
+.body[data-size="l"] .line[data-k="h"] .by { top: 15px; }
+.body[data-size="l"] .line[data-k="h"]:first-child .by { top: 5px; }
 @media (max-width: 700px) {
-  .body[data-gutter] .line { padding-left: 42px; margin-left: -42px; }
+  .body[data-gutter] .line, .body[data-size="l"][data-gutter] .line { padding-left: 42px; margin-left: -42px; }
+  .body[data-size="l"] .by { width: 26px; }
   .by { width: 26px; }
   .byName { display: none; }
-}
-
-/* Larger margin names (study E's hero): 15 px, and on a phone each name above its run. */
-.mac[data-big-by] .by { font-size: 15px; gap: 8px; top: 3px; }
-.mac[data-big-by] .line[data-k="h"] .by { top: 12px; }
-@media (max-width: 700px) {
-  .mac[data-gutter][data-big-by] .macPaper { padding-left: 20px; }
-  .mac[data-big-by] .body[data-gutter] .line { padding-left: 10px; margin-left: -10px; }
-  .mac[data-big-by] .line[data-by-start] { padding-top: 34px; }
-  .mac[data-big-by] .line[data-by-start]:first-child { padding-top: 30px; }
-  .mac[data-big-by] .by, .mac[data-big-by] .line[data-k="h"] .by { left: 10px; top: 4px; width: auto; font-size: 14px; }
-  .mac[data-big-by] .line[data-by-start]:not(:first-child) .by { top: 10px; }
-  .mac[data-big-by] .byName { display: inline; }
 }
 
 /* ── The receipt ── */
@@ -109,12 +102,13 @@
 .lights i:nth-child(3) { background: #28c840; }
 .macPaper { position: relative; padding: 22px 36px 34px; }
 .mac[data-gutter] .macPaper { padding-left: 166px; }
+.mac[data-gutter][data-size="l"] .macPaper { padding-left: 196px; padding-right: 44px; }
 .macDate { margin: 0 0 10px; text-align: center; font-size: 12.5px; color: var(--n-sec); }
 .macTitle { margin: 0 0 12px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
 .macReceipt { display: flex; justify-content: center; margin-top: 22px; }
 @media (max-width: 700px) {
   .macPaper { padding: 16px 18px 24px; }
-  .mac[data-gutter] .macPaper { padding-left: 58px; }
+  .mac[data-gutter] .macPaper, .mac[data-gutter][data-size="l"] .macPaper { padding-left: 58px; padding-right: 18px; }
   .macTitle { font-size: 22px; }
 }
 

@@ -8,7 +8,9 @@ import { quietHeader, themeFor, themeScript } from "@/lib/theme";
 import { metadata } from "./layout";
 
 // The home page studies (/lab/*) are for the team: kept out of search, the sitemap and the site's links.
-const STUDIES = ["/lab/home-a", "/lab/home-b", "/lab/home-c", "/lab/home-e"];
+const STUDIES = ["/lab/home-a", "/lab/home-b", "/lab/home-c", "/lab/home-d", "/lab/home-e", "/lab/home-f"];
+/** The home page candidates: cream in light and dark, like the home page. */
+const HOME_CANDIDATES = ["/lab/home-d", "/lab/home-e", "/lab/home-f"];
 const APP = fileURLToPath(new URL("..", import.meta.url));
 
 function sources(dir: string): string[] {
@@ -54,24 +56,28 @@ describe("the /lab design studies", () => {
     expect(themeFor("/labrador")).toBe("cream");
   });
 
-  it("keep study E, the home page candidate, cream in a dark system too, like the home page", () => {
-    expect(themeIn("/lab/home-e", false)).toBe("cream");
-    expect(themeIn("/lab/home-e", true)).toBe("cream");
+  it("keep the home page candidates (D, E and F) cream in a dark system too, like the home page", () => {
+    for (const p of HOME_CANDIDATES) {
+      expect(themeIn(p, false), p).toBe("cream");
+      expect(themeIn(p, true), p).toBe("cream");
+    }
     expect(themeIn("/", true)).toBe("cream");
+    expect(themeIn("/lab/home-g", true)).toBe("leaf");
     const g = globalThis as { matchMedia?: unknown };
     const before = g.matchMedia;
     g.matchMedia = () => ({ matches: true });
     try {
-      expect(themeFor("/lab/home-e")).toBe("cream");
+      for (const p of HOME_CANDIDATES) expect(themeFor(p), p).toBe("cream");
       expect(themeFor("/lab/home-a")).toBe("leaf");
     } finally {
       g.matchMedia = before;
     }
   });
 
-  it("study E's header drops the version and the stars, and only study E's", () => {
+  it("studies E and F drop the version and the stars from the header, and only theirs", () => {
     expect(quietHeader("/lab/home-e")).toBe(true);
-    for (const p of ["/", "/lab/home-a", "/lab/home-e/x", "/templates"]) expect(quietHeader(p), p).toBe(false);
+    expect(quietHeader("/lab/home-f")).toBe(true);
+    for (const p of ["/", "/lab/home-a", "/lab/home-e/x", "/lab/home-f/x", "/templates"]) expect(quietHeader(p), p).toBe(false);
     const chrome = readFileSync(join(APP, "SiteChrome.tsx"), "utf8");
     expect(chrome).toMatch(/const lean = quietHeader\(path\);/);
     expect(chrome).toMatch(/\{version && !lean && <span className="site-badge">/);
@@ -87,12 +93,14 @@ function themeIn(pathname: string, dark: boolean) {
   return document.documentElement.dataset.theme;
 }
 
-describe("study E", () => {
-  it("has no em or en dashes in its words", () => {
-    for (const f of ["home-e/page.tsx", "copy.ts"]) {
-      const src = readFileSync(join(APP, "lab", f), "utf8");
-      const e = f === "copy.ts" ? src.slice(src.indexOf("export const E")) : src;
-      expect(e, f).not.toMatch(/[–—]/);
+describe("studies E and F", () => {
+  it("have no em or en dashes in their words", () => {
+    const copy = readFileSync(join(APP, "lab", "copy.ts"), "utf8");
+    expect(copy.slice(copy.indexOf("export const E")), "copy.ts").not.toMatch(/[–—]/);
+    for (const dir of ["home-e", "home-f"]) {
+      for (const f of readdirSync(join(APP, "lab", dir)).filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f))) {
+        expect(readFileSync(join(APP, "lab", dir, f), "utf8"), `${dir}/${f}`).not.toMatch(/[–—]/);
+      }
     }
   });
 });

@@ -34,12 +34,23 @@ export default function SiteChrome({ version, stars, children }: { version: stri
     // A page link at the foot of a blog list lands with the list's chips at the top, not at the old scroll.
     if (toList.current === "pages") {
       const chips = document.querySelector("[data-blog-chips]");
-      if (chips && chips.getBoundingClientRect().top < 0) window.scrollTo({ top: Math.max(0, chips.getBoundingClientRect().top + window.scrollY - 24) });
+      if (chips && chips.getBoundingClientRect().top < 84) window.scrollTo({ top: Math.max(0, chips.getBoundingClientRect().top + window.scrollY - 100) }); // under the header
     }
     toList.current = null;
     done.current?.();
     done.current = null;
   }, [path]);
+
+  // The header's frosted band comes up once the page has scrolled under it (site.css).
+  const header = useRef<HTMLElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const paint = () => { raf = 0; const h = header.current; if (h) h.toggleAttribute("data-scrolled", window.scrollY > 4); };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(paint); };
+    paint();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
+  }, [site]);
 
   // Same-site links between site pages navigate inside a view transition.
   useEffect(() => {
@@ -90,7 +101,7 @@ export default function SiteChrome({ version, stars, children }: { version: stri
   };
   return (
     <div className="site">
-      <header className="site-header">
+      <header ref={header} className="site-header">
         <a className="site-brand" href="/" aria-current={current("/")} aria-label="Pinto Notes home" onClick={toTop}>
           <img src="/mark-256.png" alt="" width={34} height={34} />
           <span className="site-name">Pinto Notes</span>

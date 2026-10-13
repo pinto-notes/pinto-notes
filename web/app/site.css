@@ -51,15 +51,31 @@ html[data-theme] ::selection { background: var(--mark); }
   html[data-theme] body { transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out; }
 }
 
-.site { min-height: 100dvh; display: flex; flex-direction: column; }
+.site { min-height: 100dvh; display: flex; flex-direction: column; overflow-x: clip; }
+/* The header stays in view, so a jump to an anchor lands below it. */
+html[data-theme] { scroll-padding-top: 100px; }
+@media (max-width: 760px) { html[data-theme] { scroll-padding-top: 88px; } }
 .site-main { flex: 1; width: 100%; overflow-x: clip; } /* the full-width ending band is 100vw; never a sideways scroll */
 
-/* Header: identical on every page. Only its colours follow the theme. */
+/* Header: identical on every page. Only its colours follow the theme. It stays at the top; at the
+   top of the page it's the page itself, and once the page scrolls under it (SiteChrome sets
+   data-scrolled) it turns to frosted glass of the page's colour, full width, with a hairline under it.
+   The frost is the header's own background, not a layer inside it: a backdrop-filter on a child of an
+   isolated header only sees the header (Chrome), so it blurred nothing. The header spans the window
+   and pads its contents into the 1240 px column. */
 .site-header {
   view-transition-name: site-header;
+  position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; max-width: 1240px; height: 84px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box;
+  width: 100%; height: 84px; margin: 0; box-sizing: border-box;
+  padding: 0 max(var(--gutter), calc((100% - 1240px) / 2 + var(--gutter)));
+  background-color: color-mix(in srgb, var(--bg) 0%, transparent); box-shadow: 0 1px 0 transparent;
 }
+.site-header[data-scrolled] {
+  background-color: color-mix(in srgb, var(--bg) 76%, transparent); box-shadow: 0 1px 0 var(--line);
+  -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px);
+}
+@media (prefers-reduced-motion: no-preference) { .site-header { transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out; } }
 .site-brand { display: inline-flex; align-items: center; gap: 11px; min-height: 44px; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 19px; letter-spacing: -0.01em; white-space: nowrap; }
 .site-brand img { border-radius: 8px; box-shadow: 0 0 0 0.5px var(--line); }
 /* The logo is the way home: it lifts on hover, dims its name, and presses in. */
@@ -88,6 +104,9 @@ html[data-theme] ::selection { background: var(--mark); }
 .site-nav a[aria-current="page"]:not(.site-cta):not(.site-gh) { color: var(--ink); }
 .site-nav a.site-cta[aria-current="page"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--amber); }
 @media (max-width: 760px) { .site-header { height: 72px; } }
+/* A page marked data-quiet-nav (the home page study, app/lab/home-d): the header carries the page links
+   and Download alone; the version is on the changelog, the stars on GitHub. */
+html:has([data-quiet-nav]) .site-badge, html:has([data-quiet-nav]) .site-stars { display: none; }
 /* Tablets and narrow windows (601 to 920px): the four text links always stay. To make room the header
    sheds the version and the stars and tightens the links; under 800px GitHub goes (the footer has it)
    and the button says just "Download"; under 700px the button goes too, and the pages carry it. */
@@ -105,8 +124,16 @@ html[data-theme] ::selection { background: var(--mark); }
   .site-brand { font-size: 17px; gap: 9px; }
   .site-brand img { width: 30px; height: 30px; }
 }
-@media (hover: hover) { .site-nav a:not(.site-cta):hover { background: var(--soft); color: var(--ink); } .site-nav a.site-cta:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); } }
-@media (prefers-reduced-motion: no-preference) { .site-nav a.site-cta { transition: transform 0.12s ease-out, background-color 0.15s ease-out; } .site-nav a.site-cta:active { transform: scale(0.97); } }
+/* Text links: quiet until hover, when a soft pill tinted toward amber comes up under the word and the
+   word turns ink; they press in like every button. The current page's pill stays faint. */
+@media (hover: hover) {
+  .site-nav a:not(.site-cta):hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); color: var(--ink); }
+  .site-nav a.site-cta:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .site-nav a { transition: transform 0.12s ease-out, background-color 0.15s ease-out, color 0.15s ease-out; }
+  .site-nav a:active { transform: scale(0.97); }
+}
 .site-brand:focus-visible, .site-nav a:focus-visible, .site-footer a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
 
 /* ── Phones (600px and under): the logo, Templates, and a button that opens the menu with the rest
@@ -252,9 +279,6 @@ html[data-theme] ::selection { background: var(--mark); }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
-/* The filter motion (lib/filter-transition.ts) is a fade-through of the grid, run from script; while
-   its content is swapped the grid is hidden, a new one mounting included. */
-html[data-filter="out"] .filter-grid { opacity: 0; }
 @keyframes vt-out { to { opacity: 0; } }
 @keyframes vt-in { from { opacity: 0; } }
 
@@ -319,45 +343,42 @@ html[data-filter="out"] .filter-grid { opacity: 0; }
 .pi-dev button:focus-visible { outline: 2px solid #f5a53a; outline-offset: 2px; }
 @media (hover: hover) { .pi-dev button:hover { background: rgba(251, 238, 221, 0.28); } }
 
-/* The cookie banner (app/ConsentBanner.tsx): a bar centred at the bottom of the window, up to 720 px
-   wide, the leaf mark, one sentence and two buttons of the same size, Accept on the right. Phones put
-   the buttons on their own row. It keeps clear of the safe-area insets and sits over the page's foot
-   without dimming or blocking anything else. */
+/* The cookie banner (app/ConsentBanner.tsx): a small card in the bottom left corner, up to 400 px
+   wide, one sentence and two buttons of the same size under it, Accept on the right. It asks after the
+   first screen, keeps clear of the safe-area insets, and never dims or blocks anything else. On phones
+   it spans the bottom edge. A raised card: the shared ring and brown shadow; the buttons are fills. */
 .consent {
   position: fixed; z-index: 50;
-  left: max(var(--gutter), env(safe-area-inset-left)); right: max(var(--gutter), env(safe-area-inset-right));
+  left: max(var(--gutter), env(safe-area-inset-left));
   bottom: max(16px, calc(8px + env(safe-area-inset-bottom)));
-  max-width: 720px; margin-inline: auto;
-  display: grid; grid-template-columns: 28px 1fr auto; gap: 10px 14px; align-items: center;
-  padding: 12px 12px 12px 16px; border-radius: 18px;
-  background: var(--card); color: var(--ink); border: 1px solid var(--line);
-  box-shadow: 0 12px 34px rgba(var(--shade), 0.16), 0 1px 3px rgba(var(--shade), 0.08);
+  width: min(400px, calc(100vw - 2 * var(--gutter))); box-sizing: border-box;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px;
+  padding: 14px; border-radius: 20px;
+  background: var(--card); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(var(--shade), 0.08), 0 18px 40px -18px rgba(var(--shade), 0.45);
   font-size: 14px; line-height: 1.45;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .consent { animation: consent-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s both; }
+  .consent { animation: consent-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 }
-@keyframes consent-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-.consent-mark { border-radius: 7px; }
-.consent-text { margin: 0; text-wrap: pretty; }
+@keyframes consent-in { from { opacity: 0; filter: blur(6px); transform: translateY(10px); } to { opacity: 1; filter: none; transform: none; } }
+.consent-text { margin: 0; padding: 0 2px; text-wrap: pretty; }
 .consent-text a { color: var(--link); text-underline-offset: 3px; }
 .consent-now { color: var(--muted); }
 .consent-actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 .consent-button {
-  min-width: 96px; min-height: 40px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line);
-  background: var(--soft); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
+  min-height: 40px; padding: 0 16px; border-radius: 10px; border: 0;
+  background: color-mix(in srgb, var(--soft), var(--ink) 4%); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
   transition-property: background-color, transform; transition-duration: 120ms;
 }
 @media (hover: hover) { .consent-button:hover { background: color-mix(in srgb, var(--soft) 80%, var(--amber) 20%); } }
 .consent-button:active { transform: scale(0.97); }
-.consent-accept { background: var(--cta-bg); color: var(--cta-ink); border-color: var(--cta-bg); }
-@media (hover: hover) { .consent-accept:hover { background: color-mix(in srgb, var(--cta-bg) 88%, var(--amber) 12%); } }
+.consent-accept { background: var(--cta-bg); color: var(--cta-ink); }
+@media (hover: hover) { .consent-accept:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber) 14%); } }
 .consent-button:focus-visible, .consent-text a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .consent-button[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--amber); }
 @media (max-width: 600px) {
-  .consent { grid-template-columns: 24px 1fr; align-items: start; gap: 10px; padding: 12px; border-radius: 16px; }
-  .consent-mark { width: 24px; height: 24px; border-radius: 6px; margin-top: 1px; }
-  .consent-actions { grid-column: 1 / -1; }
+  .consent { right: max(var(--gutter), env(safe-area-inset-right)); width: auto; padding: 12px; border-radius: 18px; }
 }
 
 /* The footer's Cookie settings: a button that reads as one of the footer's links. */
