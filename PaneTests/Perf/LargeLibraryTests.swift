@@ -70,20 +70,6 @@ import Testing
         #expect(entries.count == Self.count)
     }
 
-    /// Where the list's first read goes: the fetch, reading each note's dates and flags, and
-    /// watching each note.
-    @Test(.timeLimit(.minutes(4))) func theListsFirstReadInParts() throws {
-        let c = try open()
-        let ctx = c.mainContext
-        let clock = ContinuousClock()
-        var notes: [Note] = []
-        perf("fetch every note", ms(clock.measure { notes = (try? ctx.fetch(FetchDescriptor<Note>())) ?? [] }))
-        perf("read their list values", ms(clock.measure { for n in notes { _ = (n.updatedAt, n.isPinned, n.trashedAt, n.deletedAt, n.folder?.id, n.parentID, n.createdAt) } }))
-        perf("read them again", ms(clock.measure { for n in notes { _ = (n.updatedAt, n.isPinned, n.trashedAt, n.deletedAt, n.folder?.id, n.parentID, n.createdAt) } }))
-        perf("watch each note", ms(clock.measure { for n in notes { withObservationTracking { _ = (n.updatedAt, n.isPinned, n.trashedAt, n.deletedAt, n.folder?.id, n.parentID, n.createdAt) } onChange: {} } }))
-        perf("read untracked", ms(clock.measure { for n in notes { _ = (n.getValue(forKey: \.updatedAt), n.getValue(forKey: \.isPinned), n.getValue(forKey: \.trashedAt), n.getValue(forKey: \.deletedAt), n.getValue(forKey: \.parentID), n.getValue(forKey: \.createdAt)) } }))
-    }
-
     @Test(.timeLimit(.minutes(4))) func theSidebarCounts() throws {
         let c = try open()
         let clock = ContinuousClock()

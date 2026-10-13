@@ -87,3 +87,36 @@ import Testing
         #expect(library.wholesale == wholesale + 1, "an import is a new list")
     }
 }
+
+extension LibraryNotesTests {
+    /// The sidebar's folder counts come from the list's notes: live notes in the folder, without
+    /// the sub-notes inside their parent, and each folder hears when its own count changes.
+    @Test func folderCountsFollowTheNotes() async throws {
+        let ctx = container.mainContext
+        SubNoteIndex.invalidate()
+        let work = ctx.createFolder(named: "Work"), home = ctx.createFolder(named: "Home")
+        let a = ctx.createNote(in: .folder(work.id), body: "A")
+        let b = ctx.createNote(in: .folder(work.id), body: "B")
+        _ = ctx.createNote(in: .folder(home.id), body: "C")
+        let sub = ctx.createSubNote(of: a, body: "Sub")
+        a.body += "\n" + ModelContext.subNoteLine(for: sub)
+        try ctx.save()
+        let library = LibraryNotes()
+        #expect(library.listedCount(inFolder: work.id, context: ctx) == 2, "A and B; the sub-note lives inside A")
+        #expect(library.listedCount(inFolder: home.id, context: ctx) == 1)
+
+        let heard = Flag()
+        withObservationTracking { _ = library.listedCount(inFolder: home.id, context: ctx) } onChange: { heard.on = true }
+        ctx.trash(b)
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(library.listedCount(inFolder: work.id, context: ctx) == 1, "B went to Recently Deleted")
+        #expect(!heard.on, "Home's row isn't told of Work's change")
+        ctx.move(a, to: home)
+        try? await Task.sleep(for: .milliseconds(100))
+        for f in [work, home] {
+            #expect(library.listedCount(inFolder: f.id, context: ctx) == SidebarView.listedNotes(in: f, context: ctx), "the same as the folder's own notes say")
+        }
+        #expect(library.listedCount(inFolder: home.id, context: ctx) == 2)
+        #expect(heard.on, "Home's row hears of the note that came")
+    }
+}

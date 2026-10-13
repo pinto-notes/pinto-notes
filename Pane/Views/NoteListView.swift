@@ -224,14 +224,14 @@ struct NoteListView: View {
             // Without files the notes go straight in, in the order they're kept in.
             if let noteSections {
                 ForEach(noteSections, id: \.0) { section in
-                    dateSection(section) { noteRow($0.note) }
+                    dateSection(section) { noteRow($0) }
                 }
             } else if let mixedSections {
                 ForEach(mixedSections, id: \.0) { section in
                     dateSection(section) { item in
                         switch item {
                         case .note(let entry):
-                            noteRow(entry.note)
+                            noteRow(entry)
                         case .file(let file):
                             FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                                         remove: { remove([file.id]) })
@@ -561,30 +561,22 @@ struct NoteListView: View {
         #endif
     }
 
-    private func noteRow(_ note: Note) -> some View {
-        // Its own equatable view: when one note changes, the others' rows (and their
-        // drag and swipe setup) are left alone instead of rebuilt.
-        ListRow(note: note, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
-                dragWith: dragOthers(for: note), selectedCount: selection.count,
-                togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
-                remove: { remove(note) })
-            .equatable()
-            #if os(macOS)
-            // Under the pointer the row's ••• appears at its right, with the same menu as a
-            // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
-            .padding(.trailing, Hover.menuTarget + 2)
-            #endif
-            .tag(note.id)
-            // Outside the equatable row, so the list sees its background. On the Mac the row draws
-            // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .modifier(NoteRowHover(id: note.title, selected: Self.quiet(selection, note.id), top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && note.folder != nil),
-                                   pointer: { over in NotePreload.pointer(over, on: note) }) {
-                menu(for: note, folders: foldersByName)
-            })
-            .quietSelection()
-            #if os(iOS)
-            .listRowBackground(Color(Palette.row))
-            #endif
+    /// SwiftUI works this out for every row of the list whenever the list changes, on screen or not:
+    /// it reads only plain values, and the row is one equatable view, so a row whose values are
+    /// the same isn't worked out again (with 20,000 notes, every row's hover and menu were, half
+    /// a second for each change shown).
+    private func noteRow(_ entry: NoteEntry) -> some View {
+        let note = entry.note, id = entry.id
+        return NoteListItem(note: note, id: id, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
+                            dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
+                            top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil),
+                            togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
+                            remove: { remove(note) }) {
+            menu(for: note, folders: foldersByName)
+        }
+        .equatable()
+        // On the row as the list holds it, where the list's selection finds it.
+        .tag(id)
     }
 
     #if os(iOS)
@@ -791,9 +783,9 @@ struct NoteListView: View {
     }
 
     /// Dragging a selected note carries the whole selection; any other note goes alone (nil).
-    private func dragOthers(for note: Note) -> [UUID]? {
-        guard selection.count > 1, selection.contains(note.id) else { return nil }
-        return selection.filter { $0 != note.id }.sorted { $0.uuidString < $1.uuidString }
+    private func dragOthers(for id: UUID) -> [UUID]? {
+        guard selection.count > 1, selection.contains(id) else { return nil }
+        return selection.filter { $0 != id }.sorted { $0.uuidString < $1.uuidString }
     }
 
     private func moveSelection(to folder: Folder) {
@@ -1379,6 +1371,52 @@ enum RowMetrics {
     #endif
 }
 
+/// A note's row as the list holds it: the row, its hover and its menu. Equal values mean an
+/// unchanged row; the actions it's given read the list's state when they run.
+private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
+    let note: Note
+    let id: UUID
+    let query: String
+    let showFolder: Bool
+    let datedByCreation: Bool
+    let dragWith: [UUID]?
+    let selectedCount: Int
+    /// Selected, drawn by the row (the Mac's quiet selection).
+    let quiet: Bool
+    /// The room above the title's line, where the ••• lines up.
+    let top: CGFloat
+    let togglePin: () -> Void
+    let remove: () -> Void
+    @ViewBuilder let menu: () -> Menu
+
+    static func == (a: NoteListItem, b: NoteListItem) -> Bool {
+        a.note === b.note && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
+            && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount) && a.quiet == b.quiet && a.top == b.top
+    }
+
+    var body: some View {
+        // Its own equatable view: when one note changes, the others' rows (and their
+        // drag and swipe setup) are left alone instead of rebuilt.
+        ListRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation,
+                dragWith: dragWith, selectedCount: selectedCount, togglePin: togglePin, remove: remove)
+            .equatable()
+            #if os(macOS)
+            // Under the pointer the row's ••• appears at its right, with the same menu as a
+            // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
+            .padding(.trailing, Hover.menuTarget + 2)
+            #endif
+            // Outside the equatable row, so the list sees its background. On the Mac the row draws
+            // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
+            .modifier(NoteRowHover(note: note, selected: quiet, top: top, pointer: { [note] over in NotePreload.pointer(over, on: note) }) {
+                menu()
+            })
+            .quietSelection()
+            #if os(iOS)
+            .listRowBackground(Color(Palette.row))
+            #endif
+    }
+}
+
 /// A note in the list with its drag and swipe actions. Equal inputs mean an unchanged row:
 /// its note's own changes still reach NoteRow, which observes the note.
 private struct ListRow: View, @MainActor Equatable {
@@ -1394,7 +1432,7 @@ private struct ListRow: View, @MainActor Equatable {
     let remove: () -> Void
 
     static func == (a: ListRow, b: ListRow) -> Bool {
-        a.note.id == b.note.id && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
+        a.note === b.note && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
             && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
     }
 
@@ -1539,7 +1577,8 @@ struct NoteRow: View {
 
 /// The note row's hover: the light fill, and on the Mac its ••• at the right edge.
 private struct NoteRowHover<Items: View>: ViewModifier {
-    let id: String
+    /// Its title names the row (captures, tests), read here: only rows on screen are worked out.
+    let note: Note
     let selected: Bool
     /// The room above the title's line, where the ••• lines up.
     let top: CGFloat
@@ -1548,7 +1587,7 @@ private struct NoteRowHover<Items: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         // The pill fills the row from edge to edge, as Apple Notes' does.
-        HoverRowReader(id: id, reach: Hover.noteRowReach, selected: selected, pointer: pointer) { hovering in
+        HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, pointer: pointer) { hovering in
             content
                 #if os(macOS)
                 // Always the top right corner, on the title's line, whatever the row holds.

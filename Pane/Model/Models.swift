@@ -89,14 +89,17 @@ final class Note {
 
     var isLocked: Bool { lockedBody != nil }
 
-    var title: String { summary.title }
-    var preview: String { summary.preview }
-
     /// The saved summary while the note has no changes waiting to be saved; worked out from the
-    /// text otherwise (a note being typed in, or one saved before summaries were kept).
-    private var summary: (title: String, preview: String) {
-        if !hasChanges, let title = summaryTitle, let preview = summaryPreview { return (title, preview) }
-        return NoteText.summary(of: self)
+    /// text otherwise (a note being typed in, or one saved before summaries were kept). The list
+    /// asks for every row's title whenever it changes: one stored value each, nothing more.
+    var title: String {
+        if let title = summaryTitle, !hasChanges { return title }
+        return NoteText.summary(of: self).title
+    }
+
+    var preview: String {
+        if let preview = summaryPreview, !hasChanges { return preview }
+        return NoteText.summary(of: self).preview
     }
 
     /// Works the summary out from the text again (NoteSummaries, as the note is saved).
