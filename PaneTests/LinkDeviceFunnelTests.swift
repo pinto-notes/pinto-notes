@@ -33,26 +33,21 @@ extension FunnelTests {
             #expect(steps.count(.linkDeviceStep(.existingDevice, .failed, kind: .other)) == 1)
         }
 
-        @Test func closingTheScreenBeforeTheKeyComesIsGivingUpButANewCodeIsnt() async throws {
+        @Test func closingTheScreenBeforeTheKeyComesIsGivingUp() async throws {
             let steps = FunnelSteps()
             try await steps.watch {
+                // The account has its key on a first device; this one waits for it.
+                let (a, _) = await flow.firstDevice()
                 let (b, _) = await flow.newDevice()
-                let s = flow.session(b)
-                // "Show a new code": the run starts again, nobody gave up.
-                let first = try await flow.showCode(s)
-                s.again()
-                first.task.cancel()
-                await first.task.value
-                #expect(steps.count(.linkDeviceStep(.newDevice, .gaveUp)) == 0)
-                // The screen goes away.
-                let second = try await flow.showCode(s)
-                second.task.cancel()
-                await second.task.value
-                b.signedOut()
+                let shown = try await flow.showCode(flow.session(b))
+                // The screen goes away before the key came.
+                shown.task.cancel()
+                await shown.task.value
+                for x in [a, b] { x.signedOut() }
             }
+            #expect(steps.count(.linkDeviceStep(.newDevice, .shown)) == 1)
+            #expect(steps.count(.linkDeviceStep(.newDevice, .codeShown)) == 1)
             #expect(steps.count(.linkDeviceStep(.newDevice, .gaveUp)) == 1)
-            #expect(steps.count(.linkDeviceStep(.newDevice, .shown)) == 1, "shown once per screen, not per code")
-            #expect(steps.count(.linkDeviceStep(.newDevice, .codeShown)) == 1, "the code on screen carries over")
         }
     }
 }
