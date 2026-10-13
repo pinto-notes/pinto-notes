@@ -7,14 +7,15 @@ import Testing
 /// work that reads the whole library costs on the main thread. In-memory stores (the other timing
 /// tests) never fault a note in from SQLite, which is where large libraries spend their time.
 ///
-/// The store is written once per test run (about 20 s), then each test opens it in a container of
-/// its own, so nothing a test before it read is still in memory.
+/// The store is written once per test run (about 20 s), off the main thread so the tests running
+/// beside it aren't held up, then each test opens it in a container of its own, so nothing a test
+/// before it read is still in memory.
 @MainActor @Suite(.serialized) struct LargeLibraryTests {
-    static let count = 20_000
+    nonisolated static let count = 20_000
 
     /// The store's folder, made the first time a test asks for it: 800 folders three deep, every
     /// 20th note a sub-note, every 50th note with a wiki link, every note a few lines long.
-    static let store: URL = {
+    nonisolated static let store = Task.detached(priority: .utility) { () -> URL in
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("LargeLibraryTests-\(ProcessInfo.processInfo.processIdentifier)")
         try? FileManager.default.removeItem(at: dir)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -31,7 +32,7 @@ import Testing
             folders.append(f)
         }
         var last: Note?
-        for i in 0..<count {
+        for i in 0..<Self.count {
             let link = i % 50 == 7 ? "\nSee [[Note \(i - 7)]] for more.\n" : ""
             let n = Note(body: "Note \(i)\n\nSome text for note \(i), with **bold** and a list:\n- one\n- two\n\(link)\nA last line of ordinary text for note \(i).\n", folder: folders[i % folders.count])
             n.updatedAt = Date().addingTimeInterval(Double(-i * 600))
@@ -45,13 +46,13 @@ import Testing
         }
         try! ctx.save()
         return url
-    }()
+    }
 
     /// The library opened afresh, as at launch.
-    func open() throws -> ModelContainer {
-        _ = Self.store
+    func open() async throws -> ModelContainer {
+        let url = await Self.store.value
         WikiDirectory.invalidate()
-        return try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(url: Self.store))
+        return try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(url: url))
     }
 
     func ms(_ d: Duration) -> Double { Double(d.components.attoseconds) / 1e15 + Double(d.components.seconds) * 1000 }
@@ -63,7 +64,7 @@ import Testing
     /// The list's first read: on the main thread it costs next to nothing (a large library is read
     /// on a context of its own), and the notes are all there once it's in.
     @Test(.timeLimit(.minutes(4))) func theListReadsTheLibrary() async throws {
-        let c = try open()
+        let c = try await open()
         let clock = ContinuousClock()
         let notes = LibraryNotes()
         let start = clock.now
@@ -77,8 +78,8 @@ import Testing
         #expect(main < .milliseconds(100), "the main thread doesn't read the library")
     }
 
-    @Test(.timeLimit(.minutes(4))) func theSidebarCounts() throws {
-        let c = try open()
+    @Test(.timeLimit(.minutes(4))) func theSidebarCounts() async throws {
+        let c = try await open()
         let clock = ContinuousClock()
         let t = clock.measure { _ = SidebarView.counts(in: c.mainContext) }
         perf("the sidebar's counts", ms(t))
@@ -87,7 +88,7 @@ import Testing
     /// Opening a note at launch: the wiki index and "Linked from" are read off the main thread; on
     /// it, asking for them costs next to nothing, and once read they cost next to nothing too.
     @Test(.timeLimit(.minutes(4))) func wikiLinksOnOpeningANote() async throws {
-        let c = try open()
+        let c = try await open()
         let ctx = c.mainContext
         var first = FetchDescriptor<Note>(predicate: #Predicate { $0.parentID == nil }, sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         first.fetchLimit = 1
@@ -105,7 +106,7 @@ import Testing
     }
 
     @Test(.timeLimit(.minutes(4))) func savingOneNote() async throws {
-        let c = try open()
+        let c = try await open()
         let ctx = c.mainContext
         let list = LibraryNotes()
         _ = list.entries(in: ctx)
