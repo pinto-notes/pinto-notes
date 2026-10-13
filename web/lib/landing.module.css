@@ -1,0 +1,35 @@
+/* Landing pages (lib/Landing.tsx): the home page's hero, job cards and closing band, with a little
+   of their own. Colours come from the page theme (cream). */
+.main { gap: 120px; }
+@media (max-width: 700px) { .main { gap: 80px; } }
+
+.hero { padding-top: 104px; }
+@media (max-width: 600px) { .hero { padding-top: 48px; } }
+.eyebrow { margin: 0; color: var(--link); font-weight: 700; font-size: 15px; letter-spacing: 0.01em; }
+.h1 { max-width: 18ch; font-size: clamp(38px, 4.6vw, 66px); }
+
+/* The capture under the promise: the blog's figure, a little narrower than the page. */
+.shot { width: 100%; max-width: 980px; justify-self: center; margin-top: -56px; }
+.shot figure { margin: 0; }
+@media (max-width: 700px) { .shot { margin-top: -40px; } }
+
+/* Three things to do: a heading, a sentence and the exchange, side by side on wide screens. */
+.things { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; counter-reset: thing; }
+@media (max-width: 960px) { .things { grid-template-columns: 1fr; max-width: 560px; } }
+.thing { display: grid; grid-template-rows: auto auto 1fr; gap: 10px; counter-increment: thing; }
+.thingTitle { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 800; letter-spacing: -0.015em; text-wrap: balance; }
+.thingTitle::before { content: counter(thing); display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 10px; border-radius: 50%; background: var(--amber); color: #fff; font-size: 14px; vertical-align: 2px; }
+.thingText { margin: 0 0 6px; color: var(--muted); font-size: 16.5px; line-height: 1.5; text-wrap: pretty; }
+.job { align-self: stretch; }
+.jobBody { gap: 12px; min-height: 0; }
+.reply { align-self: flex-start; max-width: 92%; margin: 0; font-size: 14.5px; line-height: 1.45; color: #3a3a3c; }
+.termReply { margin: 0; font: 500 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: #d9bf9f; }
+
+/* Comparison, questions and reading: the blog's readable column. */
+.col { width: 100%; max-width: 760px; justify-self: center; display: grid; gap: 64px; }
+/* Grid items may shrink below their content, so a wide table scrolls in its box instead of widening the page. */
+.col > * { min-width: 0; }
+.col > section > h2, .col > nav > h2 { margin-top: 0; }
+.checked { color: var(--muted); font-size: 14px; }
+.q { margin: 26px 0 8px; font-size: 18px; line-height: 1.3; font-weight: 750; }
+.read ul { list-style: none; padding: 0; }

@@ -85,7 +85,7 @@ const config: NextConfig = {
         // robots.txt, the sitemap and llms.txt are for crawlers. So are the templates' pages; their
         // .json data isn't. Blog posts carry their own robots meta
         // (drafts say noindex). A new page for search is added here too.
-        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|templates(?!/[^/]+\\.json$)|connect$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$).+)",
+        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|for/[^/]+$|alternatives/[^/]+$|templates(?!/[^/]+\\.json$)|connect$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$).+)",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, ...security],
       },
       { source: "/connect", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },
@@ -105,6 +105,9 @@ const config: NextConfig = {
       { source: "/support", headers: security },
       { source: "/blog", headers: security },
       { source: "/blog/:slug", headers: security },
+      // The landing pages (lib/landings.ts).
+      { source: "/for/:slug", headers: security },
+      { source: "/alternatives/:slug", headers: security },
       // Sealed links and shared templates (prototype) show a note's page in a frame from the
       // user-content origin, never this one; everything else stays as strict as the rest.
       ...["/s/:id", "/t/:id"].map((source) => ({ source, headers: [...security.filter((h) => h.key !== "Content-Security-Policy"),
