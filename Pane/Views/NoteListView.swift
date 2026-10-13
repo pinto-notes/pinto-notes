@@ -14,7 +14,10 @@ struct NoteListView: View {
     #endif
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
-    @State private var library = LibraryNotes()
+    @State private var ownLibrary = LibraryNotes()
+    /// The window's (RootView), shared with the sidebar's folder counts; a list on its own keeps its own.
+    @Environment(LibraryNotes.self) private var windowLibrary: LibraryNotes?
+    private var library: LibraryNotes { windowLibrary ?? ownLibrary }
     /// "Sort By" and "Group By Date", as chosen on this device.
     @State private var orderStore = ListOrderStore.shared
     /// The order the list is shown in. What a search finds keeps the list's own order, newest first.
@@ -71,24 +74,12 @@ struct NoteListView: View {
     }
 
     /// The sub-notes still linked from their parent (`ModelContext.isNested`), for the whole
-    /// list at once. Each parent is found among the entries the list already holds: asked of
-    /// the store one sub-note at a time, a library with a few hundred sub-notes spent a fetch
-    /// on each of them whenever the list was worked out, which is every time a note is opened.
-    /// Without sub-notes nothing is looked up at all.
+    /// list at once, from SubNoteIndex: asked of the store one sub-note at a time, a library with
+    /// a few hundred sub-notes spent a fetch on each of them whenever the list was worked out,
+    /// which is every time a note is opened. Without sub-notes nothing is looked up at all.
     static func nested(in all: [NoteEntry], context: ModelContext) -> Set<UUID> {
-        var parents: [UUID: Note]?
-        var out: Set<UUID> = []
-        for e in all {
-            guard let pid = e.parentID else { continue }
-            if parents == nil { parents = Dictionary(all.map { ($0.id, $0.note) }, uniquingKeysWith: { first, _ in first }) }
-            // A parent the list doesn't hold yet (made a moment ago, not saved) is asked of the store.
-            guard let parent = parents?[pid] else {
-                if context.isNested(e.note) { out.insert(e.id) }
-                continue
-            }
-            if parent.deletedAt == nil, parent.body.contains("pane-note:\(e.id.uuidString.lowercased())") { out.insert(e.id) }
-        }
-        return out
+        guard all.contains(where: { $0.parentID != nil }) else { return [] }
+        return Set(context.nestedSubNotes().map(\.id))
     }
 
     private var filtered: [NoteEntry] {
@@ -141,13 +132,17 @@ struct NoteListView: View {
         let q = search.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return scoped }
         let base = scope == .trash ? scoped : all.filter { !$0.deleted && !$0.trashed }
-        return Self.found(q, in: base, listedBy: orderStore.order)
+        return Self.found(q, in: base, listedBy: orderStore.order, context: context)
     }
 
     /// The notes whose text holds `query`, newest first whatever order the list is in: only the
     /// few found are sorted.
-    static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder) -> [NoteEntry] {
-        let found = base.filter { $0.note.body.localizedStandardContains(query) }
+    ///
+    /// The store finds them (`localizedStandardContains`, as before): the list no longer holds every
+    /// note's text, and reading it a note at a time cost a query per note.
+    static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder, context: ModelContext) -> [NoteEntry] {
+        let matching = Set((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(query) }))) ?? [])
+        let found = base.filter { matching.contains($0.pid) }
         return order.sortsLike(.standard) ? found : found.sorted { $0.date > $1.date }
     }
 
@@ -187,6 +182,12 @@ struct NoteListView: View {
     }
 
     private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
+        let noteSections = visibleFiles.isEmpty ? DateBucket.sections(ordered: visible, by: order) : nil
+        let mixedSections = visibleFiles.isEmpty ? nil : DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order)
+        let collapsed = self.collapsed
+        // The rows above the first section (the asks below), for finding a note's row in the table.
+        let leadingRows = (scope != .trash && search.isEmpty && connectCenter.waiting().first != nil ? 1 : 0)
+            + (scope != .trash && search.isEmpty && (storage.usage.map { $0.level != .fine } ?? false) ? 1 : 0)
         #if os(macOS)
         // The list's own changes are told apart from code's in the click log (RowClickLog).
         let listSelection = Binding(get: { selection }, set: { new in RowClickLog.listSet(selection, new); selection = new })
@@ -225,16 +226,16 @@ struct NoteListView: View {
             }
             #endif
             // Without files the notes go straight in, in the order they're kept in.
-            if visibleFiles.isEmpty {
-                ForEach(DateBucket.sections(ordered: visible, by: order), id: \.0) { section in
-                    dateSection(section) { noteRow($0.note) }
+            if let noteSections {
+                ForEach(noteSections, id: \.0) { section in
+                    dateSection(section) { noteRow($0) }
                 }
-            } else {
-                ForEach(DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order), id: \.0) { section in
+            } else if let mixedSections {
+                ForEach(mixedSections, id: \.0) { section in
                     dateSection(section) { item in
                         switch item {
                         case .note(let entry):
-                            noteRow(entry.note)
+                            noteRow(entry)
                         case .file(let file):
                             FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                                         remove: { remove([file.id]) })
@@ -273,7 +274,10 @@ struct NoteListView: View {
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
         // stays the same list: a new one took the keys away from the search field.
         // A new list starts at its top: it shows the open note's row again.
-        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil))
+        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil) { id in
+            (noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
+                ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
+        })
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #endif
         #if os(iOS)
@@ -286,7 +290,7 @@ struct NoteListView: View {
         .scrollContentBackground(.hidden)
         .background(Color(Palette.listGround).ignoresSafeArea())
         .overlay {
-            if visible.isEmpty && visibleFiles.isEmpty { emptyState }
+            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading { emptyState }
         }
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
@@ -567,33 +571,26 @@ struct NoteListView: View {
         #endif
     }
 
-    private func noteRow(_ note: Note) -> some View {
-        // Its own equatable view: when one note changes, the others' rows (and their
-        // drag and swipe setup) are left alone instead of rebuilt.
-        ListRow(note: note, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
-                dragWith: dragOthers(for: note), selectedCount: selection.count,
-                togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
-                remove: { remove(note) })
-            .equatable()
-            #if os(macOS)
-            // Under the pointer the row's ••• appears at its right, with the same menu as a
-            // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
-            .padding(.trailing, Hover.menuTarget + 2)
-            #endif
-            .tag(note.id)
-            // Outside the equatable row, so the list sees its background. On the Mac the row draws
-            // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .modifier(NoteRowHover(id: note.title, selected: Self.quiet(selection, note.id), top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && note.folder != nil) + RowMetrics.calmAir,
-                                   pointer: { over in NotePreload.pointer(over, on: note) }) {
-                menu(for: note, folders: foldersByName)
-            })
-            .quietSelection()
-            #if os(iOS)
-            .listRowBackground(Color(Palette.row))
-            #else
-            // C and D: no hairlines between rows.
-            .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
-            #endif
+    /// SwiftUI works this out for every row of the list whenever the list changes, on screen or not:
+    /// it reads only plain values, and the row is one equatable view, so a row whose values are
+    /// the same isn't worked out again (with 20,000 notes, every row's hover and menu were, half
+    /// a second for each change shown).
+    private func noteRow(_ entry: NoteEntry) -> some View {
+        let id = entry.id
+        return NoteListItem(entry: entry, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
+                            dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
+                            top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil) + RowMetrics.calmAir,
+                            togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
+                            remove: { note in remove(note) }) { note in
+            menu(for: note, folders: foldersByName)
+        }
+        .equatable()
+        // On the row as the list holds it, where the list's selection finds it.
+        .tag(id)
+        #if os(macOS)
+        // C and D: no hairlines between rows.
+        .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
+        #endif
     }
 
     #if os(iOS)
@@ -800,9 +797,9 @@ struct NoteListView: View {
     }
 
     /// Dragging a selected note carries the whole selection; any other note goes alone (nil).
-    private func dragOthers(for note: Note) -> [UUID]? {
-        guard selection.count > 1, selection.contains(note.id) else { return nil }
-        return selection.filter { $0 != note.id }.sorted { $0.uuidString < $1.uuidString }
+    private func dragOthers(for id: UUID) -> [UUID]? {
+        guard selection.count > 1, selection.contains(id) else { return nil }
+        return selection.filter { $0 != id }.sorted { $0.uuidString < $1.uuidString }
     }
 
     private func moveSelection(to folder: Folder) {
@@ -864,8 +861,11 @@ extension NoteListView: @MainActor Equatable {
 
 /// What the list needs to know about a note to place it: plain values, read from the note once
 /// and again only when the note changes.
-struct NoteEntry: Identifiable, DatedListItem {
-    let note: Note
+struct NoteEntry: Identifiable, DatedListItem, Sendable {
+    /// The note in the store. Its model is looked up when a row is shown (`note(in:)`): the list
+    /// doesn't keep every note of the library in memory, and a context that holds fewer notes saves
+    /// faster (SwiftData tells each note it holds of every save).
+    let pid: PersistentIdentifier
     let id: UUID
     var date: Date
     var pinned: Bool
@@ -879,8 +879,35 @@ struct NoteEntry: Identifiable, DatedListItem {
 
     init(_ note: Note) { self.init(note, titled: false) }
 
+    /// The same values, read without Observation hearing of it: nothing that reads this entry
+    /// depends on the note (see LibraryNotes).
+    init(untracked note: Note, titled: Bool) {
+        pid = note.persistentModelID
+        id = note.getValue(forKey: \.id)
+        created = note.getValue(forKey: \.createdAt)
+        if titled { title = (note.hasChanges ? nil : note.getValue(forKey: \.summaryTitle)) ?? NoteText.head(of: note.getValue(forKey: \.body)).title }
+        date = note.getValue(forKey: \.updatedAt)
+        pinned = note.getValue(forKey: \.isPinned)
+        trashed = note.getValue(forKey: \.trashedAt) != nil
+        deleted = note.getValue(forKey: \.deletedAt) != nil
+        folderID = note.getValue(forKey: \.folder).map { $0.getValue(forKey: \.id) }
+        parentID = note.getValue(forKey: \.parentID)
+    }
+
+    /// The note's model in `context`, if it's still there.
+    func note(in context: ModelContext) -> Note? {
+        guard let n = context.model(for: pid) as? Note, n.modelContext != nil else { return nil }
+        return n
+    }
+
+    /// Every value the same as `other`'s.
+    func same(as other: NoteEntry) -> Bool {
+        id == other.id && date == other.date && pinned == other.pinned && trashed == other.trashed && deleted == other.deleted
+            && folderID == other.folderID && parentID == other.parentID && created == other.created && title == other.title
+    }
+
     init(_ note: Note, titled: Bool) {
-        self.note = note
+        pid = note.persistentModelID
         id = note.id
         created = note.createdAt
         if titled { title = note.title }
@@ -987,17 +1014,92 @@ enum ListEntry: Identifiable, DatedListItem {
 /// A list built new (another folder, then back; a launch that reopens a note) starts scrolled to
 /// its top, with the open note's row far off screen and nothing to show which note that is. When
 /// the list appears it scrolls to that row, if it has one.
-private struct ShowsSelectedRow: ViewModifier {
+///
+/// Only when the row is in this list and below its first rows, and by moving the table to the row
+/// it worked out. SwiftUI's `scrollTo` finds a row by building the list's rows one by one from the
+/// top until it meets it, all of them when the list doesn't have it: with 20,000 notes that was a
+/// hang of seconds at every launch and every folder switch (release gate, 2026-10-13: four in five
+/// hang samples at 20,000 notes). Moving the table builds only the rows that come on screen, as a
+/// scroll by hand does.
+struct ShowsSelectedRow: ViewModifier {
     let selected: UUID?
+    /// The selected note's row in the table, counting section headings and the rows above them;
+    /// nil when the list doesn't show it.
+    let row: (UUID) -> Int?
+
+    /// Rows always on screen when a list starts at its top, in any window the notes fit in.
+    static let firstRows = 6
+
+    init(selected: UUID?, row: @escaping (UUID) -> Int?) {
+        self.selected = selected
+        self.row = row
+    }
+
+    /// This list's table, found once the list is in a window.
+    @State private var finder = TableFinder.Probe()
 
     func body(content: Content) -> some View {
-        ScrollViewReader { proxy in
-            content.onAppear {
-                guard let selected else { return }
+        content
+            .background(TableFinder(probe: finder))
+            .onAppear {
+                guard let selected, let at = row(selected), at >= Self.firstRows else { return }
                 // A turn later: the rows are there by then.
-                DispatchQueue.main.async { proxy.scrollTo(selected, anchor: .center) }
+                DispatchQueue.main.async { finder.center(row: at) }
+            }
+    }
+
+    private struct TableFinder: NSViewRepresentable {
+        let probe: Probe
+
+        func makeNSView(context: Context) -> Probe { probe }
+        func updateNSView(_ view: Probe, context: Context) {}
+
+        final class Probe: NSView {
+            private weak var table: NSTableView?
+
+            /// The table whose scroll view covers this view: the list's, not the sidebar's.
+            private func find() -> NSTableView? {
+                if let table, table.window === window { return table }
+                guard let window, let root = window.contentView else { return nil }
+                let mine = convert(bounds, to: nil)
+                let center = CGPoint(x: mine.midX, y: mine.midY)
+                var found: NSTableView?
+                func walk(_ v: NSView) {
+                    if found != nil { return }
+                    if let t = v as? NSTableView, let scroll = t.enclosingScrollView, scroll.convert(scroll.bounds, to: nil).contains(center) { found = t; return }
+                    v.subviews.forEach(walk)
+                }
+                walk(root)
+                table = found
+                return found
+            }
+
+            /// Centres `row` in the table, if it has that row.
+            func center(row: Int) {
+                guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
+                let clip = scroll.contentView
+                let rect = table.rect(ofRow: row)
+                let y = max(0, min(rect.midY - clip.bounds.height / 2, table.bounds.height - clip.bounds.height))
+                clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+                scroll.reflectScrolledClipView(clip)
             }
         }
+    }
+
+    /// Where `id` is among the rows of `sections`, each heading a row; nil when it isn't shown
+    /// (not in the list, or in a section that is folded away).
+    static func row<Item: Identifiable>(of id: UUID, in sections: [(String, [Item])], collapsed: Set<String>) -> Int? where Item.ID == UUID {
+        var rows = 0
+        for (name, items) in sections {
+            rows += 1
+            if collapsed.contains(name) {
+                if items.contains(where: { $0.id == id }) { return nil }
+                continue
+            }
+            if let i = items.firstIndex(where: { $0.id == id }) { return rows + i }
+            rows += items.count
+        }
+        return nil
     }
 }
 #endif
@@ -1013,10 +1115,16 @@ struct ListIdentity: Hashable {
 ///
 /// The list used to read each note's date, folder, trash and parent from the store on every
 /// update, sort them all and group them: about 100,000 reads to show one save with 20,000 notes
-/// (close to a second). Here each note is read once into a `NoteEntry` and kept in order. Each
-/// note is watched on its own: when one changes, only its entry is read again and moved. Notes a
-/// save adds or deletes are fetched again (a save says so). So showing a change costs what
-/// changed, plus a pass over plain values.
+/// (close to a second). Here each note is read once into a `NoteEntry` and kept in order, and a
+/// save says which notes it added, changed or deleted: only those are read again and moved. So
+/// showing a change costs what changed, plus a pass over plain values. A change shows with its
+/// save; a note's `touch()` saves on the next turn.
+///
+/// The notes aren't watched one by one (Observation): reading them inside the list's body made
+/// the body depend on every note, and SwiftData tells every note it holds of a change after each
+/// save, so 20,000 watches were read again and set up again several times a minute (release
+/// gate, 2026-10-13: a hang of seconds while typing). Notes are read here without telling
+/// Observation (`NoteEntry(untracked:)`).
 @MainActor @Observable
 final class LibraryNotes {
     /// Goes up with each change to the entries; reading it is what updates the list.
@@ -1025,11 +1133,6 @@ final class LibraryNotes {
     @ObservationIgnored private weak var context: ModelContext?
     @ObservationIgnored private var container: ModelContainer?
     @ObservationIgnored private var observer: NSObjectProtocol?
-    /// Notes that changed since the entries were last brought up to date.
-    @ObservationIgnored private var changed: Set<UUID> = []
-    @ObservationIgnored private var flushScheduled = false
-    /// Goes up with each fetch, so a watch from before it is ignored.
-    @ObservationIgnored private var epoch = 0
 
     /// While a search is on, a note's text decides whether it is listed: every change counts.
     @ObservationIgnored var publishesEveryChange = false
@@ -1054,27 +1157,115 @@ final class LibraryNotes {
         // The notes read here stay readable for as long as this list is around, also after
         // its window has closed with changes still waiting.
         container = context.container
-        load()
+        // A large library is read off the main thread: the window comes up at once, and the list
+        // fills in when it's read (at 20,000 notes, most of a second on the main thread before).
+        if ((try? context.fetchCount(FetchDescriptor<Note>())) ?? 0) > Self.readHere { loadElsewhere() } else { load() }
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak self] n in
-            let keys = [ModelContext.NotificationKey.insertedIdentifiers, .deletedIdentifiers].map(\.rawValue)
-            let changed = keys.contains { !((n.userInfo?[$0] as? [PersistentIdentifier]) ?? []).isEmpty }
-            guard changed else { return }
-            MainActor.assumeIsolated {
-                self?.load()
-                self?.generation += 1
-            }
+            func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
+            let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers), updated = ids(.updatedIdentifiers)
+            guard !inserted.isEmpty || !deleted.isEmpty || !updated.isEmpty else { return }
+            MainActor.assumeIsolated { self?.take(inserted: inserted, deleted: deleted, updated: updated) }
         }
     }
 
-    /// Every note, read once, sorted, and watched.
+    /// What a save added, changed and deleted for good. Many notes coming or going at once (an
+    /// import, a first sync, another account) read every note again; otherwise only those notes
+    /// are read again and placed.
+    private func take(inserted: [PersistentIdentifier], deleted: [PersistentIdentifier], updated: [PersistentIdentifier]) {
+        guard let context else { return }
+        if isLoading {
+            // Taken in once the library is read (it may have been read before this save).
+            savedWhileLoading.inserted.formUnion(inserted + updated)
+            savedWhileLoading.deleted.formUnion(deleted)
+            return
+        }
+        guard inserted.count + deleted.count <= Self.wholesaleChange else {
+            load()
+            publish()
+            return
+        }
+        var listChanged = false
+        if !deleted.isEmpty {
+            let gone = Set(deleted)
+            let before = sorted.count
+            sorted.removeAll { gone.contains($0.pid) }
+            listChanged = sorted.count != before
+        }
+        let titled = order.key == .title
+        let have = Set(sorted.map(\.id))
+        var came: [NoteEntry] = []
+        for id in inserted {
+            guard let n = context.model(for: id) as? Note, n.modelContext != nil else { continue }
+            let entry = NoteEntry(untracked: n, titled: titled)
+            if have.contains(entry.id) { changed.insert(entry.id) } else { came.append(entry) }
+        }
+        if !came.isEmpty {
+            place(came)
+            listChanged = true
+        }
+        for id in updated {
+            guard let n = context.model(for: id) as? Note else { continue }
+            changed.insert(n.getValue(forKey: \.id))
+        }
+        if !changed.isEmpty { flush(alreadyChanged: listChanged) } else if listChanged { publish() }
+    }
+
+    /// Notes a save changed, read again before they're placed.
+    @ObservationIgnored private var changed: Set<UUID> = []
+
+    /// Libraries up to this many notes are read on the main thread, at once.
+    static let readHere = 3_000
+    /// The library is being read off the main thread: the list shows nothing yet, and no empty state.
+    private(set) var isLoading = false
+    @ObservationIgnored private var savedWhileLoading: (inserted: Set<PersistentIdentifier>, deleted: Set<PersistentIdentifier>) = ([], [])
+
+    /// Every note, read on a context of its own, then sorted and shown as a new list.
+    private func loadElsewhere() {
+        guard let container else { return }
+        isLoading = true
+        savedWhileLoading = ([], [])
+        let order = self.order
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let read = ModelContext(container)
+            let titled = order.key == .title
+            // Sorted here too: the main thread only takes them.
+            let entries = ((try? read.fetch(FetchDescriptor<Note>())) ?? []).map { NoteEntry(untracked: $0, titled: titled) }
+                .sorted { LibraryNotes.precedes($0, $1, in: order) }
+            await MainActor.run { self?.install(entries, order: order) }
+        }
+    }
+
+    private func install(_ entries: [NoteEntry], order read: ListOrder) {
+        guard isLoading, let context else { return }
+        isLoading = false
+        sorted = entries
+        if !read.sortsLike(order) { (read.key == .title) == (order.key == .title) ? sorted.sort(by: precedes) : load() }
+        // Saves while it was read: their notes are read again here, from the context that saved them.
+        let saved = savedWhileLoading
+        savedWhileLoading = ([], [])
+        if !saved.deleted.isEmpty { sorted.removeAll { saved.deleted.contains($0.pid) } }
+        let have = Dictionary(sorted.map { ($0.pid, $0.id) }, uniquingKeysWith: { first, _ in first })
+        var came: [NoteEntry] = []
+        for pid in saved.inserted {
+            guard let n = context.model(for: pid) as? Note, n.modelContext != nil else { continue }
+            if let id = have[pid] { changed.insert(id) } else { came.append(NoteEntry(untracked: n, titled: order.key == .title)) }
+        }
+        place(came)
+        if !changed.isEmpty { flush(alreadyChanged: true) }
+        // Shown as a new list: it scrolls to the open note's row as a list built new does.
+        wholesale += 1
+        publish()
+    }
+
+    /// Every note, read once and sorted.
     private func load() {
         guard let context else { return }
-        epoch += 1
         changed = []
         let before = Set(sorted.map(\.id))
         let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
-        var entries = notes.map { watched($0) }
+        let titled = order.key == .title
+        var entries = notes.map { NoteEntry(untracked: $0, titled: titled) }
         if order.key == .title, !sorted.isEmpty {
             // Titles are slow to compare, and the list was in order a moment ago: put back in that
             // order first, the sort has only the notes that came or changed to place.
@@ -1089,72 +1280,126 @@ final class LibraryNotes {
         if differing > Self.wholesaleChange { wholesale += 1 }
     }
 
+    /// The entries changed in a way the list shows: the list hears of it, and so do the folder
+    /// rows whose counts it changed.
+    private func publish() {
+        generation += 1
+        if counted { countFolders() }
+    }
+
+    /// Each folder's notes as its list shows them: live, and not a sub-note inside its parent.
+    /// Counted from the entries in one pass whenever they change; each folder's row hears only of
+    /// its own count, so the sidebar's 800 folder rows aren't worked out again for every change.
+    func listedCount(inFolder id: UUID, context: ModelContext) -> Int? {
+        if self.context !== context { start(context) }
+        // While a large library is read the folders show no count yet.
+        if isLoading { return nil }
+        // Asked while views are worked out: only boxes nobody reads yet are filled in here.
+        if !counted { countFolders() }
+        let box = folderCounts[id] ?? { let b = FolderCount(); folderCounts[id] = b; return b }()
+        return box.value
+    }
+
+    /// All Notes and Recently Deleted as the list shows them (SidebarView.counts), counted in the
+    /// same pass: the sidebar's counted rows read these instead of asking the store, which counted
+    /// by reading every note's row from disk, three times for every change.
+    func libraryCounts(context: ModelContext) -> (live: Int, trashed: Int) {
+        if self.context !== context { start(context) }
+        // While a large library is read, the store counts (once or twice, at launch).
+        if isLoading { return SidebarView.counts(in: context) }
+        if !counted { countFolders() }
+        return (totals.live, totals.trashed)
+    }
+
+    @Observable final class FolderCount { var value = 0 }
+    @Observable final class Totals {
+        var live = 0
+        var trashed = 0
+    }
+    @ObservationIgnored private var folderCounts: [UUID: FolderCount] = [:]
+    @ObservationIgnored private let totals = Totals()
+    /// Counted once: from then on every change the list shows counts again.
+    @ObservationIgnored private var counted = false
+
+    private func countFolders() {
+        guard let context else { return }
+        let inside = Set(SubNoteIndex.nestedIDs(in: context))
+        var counts: [UUID: Int] = [:]
+        var live = 0, trashed = 0
+        for e in sorted where !e.deleted && !inside.contains(e.id) {
+            if e.trashed { trashed += 1; continue }
+            live += 1
+            if let folder = e.folderID { counts[folder, default: 0] += 1 }
+        }
+        if totals.live != live { totals.live = live }
+        if totals.trashed != trashed { totals.trashed = trashed }
+        for (id, n) in counts where folderCounts[id] == nil { folderCounts[id] = FolderCount() }
+        for (id, box) in folderCounts {
+            let n = counts[id] ?? 0
+            if box.value != n { box.value = n }
+        }
+        counted = true
+    }
+
     /// Goes up when so many notes came or went in one save that the list is shown as a new list.
     @ObservationIgnored private(set) var wholesale = 0
     static let wholesaleChange = 200
 
-    /// The note's entry as it is now; the next change to what it holds marks the note changed.
-    private func watched(_ note: Note) -> NoteEntry {
-        let id = note.id, epoch = self.epoch
-        let titled = order.key == .title
-        return withObservationTracking { NoteEntry(note, titled: titled) } onChange: { [weak self] in
-            // Called as the note is about to change, on the thread changing it (the main one:
-            // the library's context lives there). The entry is read again once it has.
-            Task { @MainActor in self?.noteChanged(id, epoch: epoch) }
-        }
-    }
-
-    private func noteChanged(_ id: UUID, epoch: Int) {
-        guard epoch == self.epoch else { return }
-        changed.insert(id)
-        guard !flushScheduled else { return }
-        flushScheduled = true
-        // Several changes in a row (a save sets the text, the date and the sync mark) are one update.
-        Task { @MainActor in self.flush() }
-    }
-
     /// Whether `a` is listed before `b`. The list's own order is two dates compared, nothing more.
-    private func precedes(_ a: NoteEntry, _ b: NoteEntry) -> Bool {
+    private func precedes(_ a: NoteEntry, _ b: NoteEntry) -> Bool { Self.precedes(a, b, in: order) }
+
+    nonisolated static func precedes(_ a: NoteEntry, _ b: NoteEntry, in order: ListOrder) -> Bool {
         order.sortsLike(.standard) ? a.date > b.date : order.before(a, b)
     }
 
-    private func flush() {
-        flushScheduled = false
-        // The library is gone (its window closed, or a test let its container go) with changes
-        // still waiting: its notes can't be read any more.
-        guard context != nil else {
+    /// Reads the notes a save changed again and puts them where they go. `alreadyChanged`: the
+    /// same save added or dropped notes, so the list changes anyway.
+    private func flush(alreadyChanged: Bool = false) {
+        guard context != nil, !changed.isEmpty else {
             changed = []
+            if alreadyChanged { publish() }
             return
         }
-        guard !changed.isEmpty else { return }
         let ids = changed
         changed = []
+        let titled = order.key == .title
         // One note changed and stays where it is, in the same folder and day: a save of the
         // note being typed in. Nothing the list is made of changed (the row shows its own note),
         // so the list isn't worked out again. Built again, the list put that note's row in anew
         // on every save, on or off screen, and laid out twice the cells.
-        if ids.count == 1, let id = ids.first, let i = sorted.firstIndex(where: { $0.id == id }), sorted[i].note.modelContext != nil {
-            let old = sorted[i], new = watched(old.note)
+        guard let context else { return }
+        if !alreadyChanged, ids.count == 1, let id = ids.first, let i = sorted.firstIndex(where: { $0.id == id }), let note = sorted[i].note(in: context) {
+            let old = sorted[i], new = NoteEntry(untracked: note, titled: titled)
             let stays = (i == 0 || !precedes(new, sorted[i - 1])) && (i == sorted.count - 1 || !precedes(sorted[i + 1], new))
             if stays {
                 sorted[i] = new
-                if !new.listsLike(old) || publishesEveryChange { generation += 1 }
+                if !new.listsLike(old) || publishesEveryChange { publish() }
                 return
             }
-            // Its new entry is watched; the general path below reads it again and moves it.
         }
+        // Notes whose list values are the same (a sync mark, text that changed in place) stay
+        // where they are; the others are taken out and placed again.
         var moved: [NoteEntry] = []
+        var dropped = false
         sorted.removeAll { e in
             guard ids.contains(e.id) else { return false }
-            // A note deleted for good is dropped by the fetch its save brings.
-            if e.note.modelContext != nil { moved.append(watched(e.note)) }
+            guard let note = e.note(in: context) else { dropped = true; return true }
+            let new = NoteEntry(untracked: note, titled: titled)
+            if new.same(as: e) { return false }
+            moved.append(new)
             return true
         }
-        if moved.count > 64 {
+        place(moved)
+        if alreadyChanged || publishesEveryChange || dropped || !moved.isEmpty { publish() }
+    }
+
+    /// Puts `entries` where they go in the order.
+    private func place(_ entries: [NoteEntry]) {
+        if entries.count > 64 {
             // A sync or an import changed many at once: one sort beats that many insertions.
-            sorted = (sorted + moved).sorted(by: precedes)
+            sorted = (sorted + entries).sorted(by: precedes)
         } else {
-            for e in moved.sorted(by: precedes) {
+            for e in entries.sorted(by: precedes) {
                 // Before the first entry that doesn't come before it.
                 var low = 0, high = sorted.count
                 while low < high {
@@ -1164,7 +1409,6 @@ final class LibraryNotes {
                 sorted.insert(e, at: low)
             }
         }
-        generation += 1
     }
 }
 
@@ -1210,6 +1454,56 @@ enum RowMetrics {
     #endif
 }
 
+/// A note's row as the list holds it: the row, its hover and its menu. Equal values mean an
+/// unchanged row. The note's model is looked up here, where the row is drawn: SwiftUI builds the
+/// list's rows for every note whenever the list changes, and only the rows on screen draw.
+private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
+    let entry: NoteEntry
+    let query: String
+    let showFolder: Bool
+    let datedByCreation: Bool
+    let dragWith: [UUID]?
+    let selectedCount: Int
+    /// Selected, drawn by the row (the Mac's quiet selection).
+    let quiet: Bool
+    /// The room above the title's line, where the ••• lines up.
+    let top: CGFloat
+    let togglePin: (Note) -> Void
+    let remove: (Note) -> Void
+    @ViewBuilder let menu: (Note) -> Menu
+    @Environment(\.modelContext) private var context
+
+    static func == (a: NoteListItem, b: NoteListItem) -> Bool {
+        a.entry.pid == b.entry.pid && a.entry.same(as: b.entry) && a.query == b.query && a.showFolder == b.showFolder
+            && a.datedByCreation == b.datedByCreation && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
+            && a.quiet == b.quiet && a.top == b.top
+    }
+
+    var body: some View {
+        if let note = entry.note(in: context) {
+            // Its own equatable view: when one note changes, the others' rows (and their
+            // drag and swipe setup) are left alone instead of rebuilt.
+            ListRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation,
+                    dragWith: dragWith, selectedCount: selectedCount, togglePin: { togglePin(note) }, remove: { remove(note) })
+                .equatable()
+                #if os(macOS)
+                // Under the pointer the row's ••• appears at its right, with the same menu as a
+                // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
+                .padding(.trailing, Hover.menuTarget + 2)
+                #endif
+                // Outside the equatable row, so the list sees its background. On the Mac the row draws
+                // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
+                .modifier(NoteRowHover(note: note, selected: quiet, top: top, pointer: { [note] over in NotePreload.pointer(over, on: note) }) {
+                    menu(note)
+                })
+                .quietSelection()
+                #if os(iOS)
+                .listRowBackground(Color(Palette.row))
+                #endif
+        }
+    }
+}
+
 /// A note in the list with its drag and swipe actions. Equal inputs mean an unchanged row:
 /// its note's own changes still reach NoteRow, which observes the note.
 private struct ListRow: View, @MainActor Equatable {
@@ -1225,7 +1519,7 @@ private struct ListRow: View, @MainActor Equatable {
     let remove: () -> Void
 
     static func == (a: ListRow, b: ListRow) -> Bool {
-        a.note.id == b.note.id && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
+        a.note === b.note && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
             && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
     }
 
@@ -1378,7 +1672,8 @@ struct NoteRow: View {
 
 /// The note row's hover: the light fill, and on the Mac its ••• at the right edge.
 private struct NoteRowHover<Items: View>: ViewModifier {
-    let id: String
+    /// Its title names the row (captures, tests), read here: only rows on screen are worked out.
+    let note: Note
     let selected: Bool
     /// The room above the title's line, where the ••• lines up.
     let top: CGFloat
@@ -1387,7 +1682,7 @@ private struct NoteRowHover<Items: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         // The pill fills the row from edge to edge, as Apple Notes' does.
-        HoverRowReader(id: id, reach: Hover.noteRowReach, selected: selected, card: DesignLook.calmList, pointer: pointer) { hovering in
+        HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, card: DesignLook.calmList, pointer: pointer) { hovering in
             content
                 #if os(macOS)
                 // Always the top right corner, on the title's line, whatever the row holds.

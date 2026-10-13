@@ -26,7 +26,7 @@ export const SHARED = {
   closing: {
     title: "Start with the notes you already have.",
     lede: "Pinto Notes is free and open source, with no ads and no tracking in the app. Import your Apple Notes, connect the AI you use, and ask it what's next.",
-    fine: "Requires macOS 26. Updates install themselves.",
+    fine: "Requires macOS 26.",
   },
 };
 
@@ -66,36 +66,34 @@ export const C = {
   },
 };
 
-/** D: the plan that gets done. */
+/** D: the plan that gets done. Every line earns its place (docs/DESIGN.md, Copy). */
 export const D = {
   concept: "A real plan on a paper desk, ticked off by you and your AI; then why it stays done.",
   h1: "One notes app for every AI you use.",
-  lede: "ChatGPT, Claude, Claude Code and Codex read and edit the notes you keep on your iPhone and Mac.",
+  lede: "ChatGPT, Claude, Claude Code, Codex and Incredible read and edit the notes you keep.",
   quiet: "Free. Brings your Apple Notes over.",
   oneNotebook: {
     title: "Every AI you use, one notebook.",
-    lede: "Ask ChatGPT on your phone and Claude at your desk. Both work in the same note, and Pinto Notes shows who changed what, with Undo.",
+    lede: "You and your AIs work in the same note, and each change says who made it.",
   },
   plans: {
     title: "Plans don't die here.",
-    lede: "Write the plan once. Your AI reads it when you ask, counts what you ticked, and moves what's left. It never changes a note on its own.",
+    lede: "Your AI reads the plan when you ask and moves what's left.",
   },
   feel: {
     title: "Feels like Apple Notes. Brings yours over.",
-    lede: "The same note list and the same checklists. Import on your Mac: folders, checklists and tables come along, and your Apple Notes stay as they are.",
+    lede: "Import on your Mac. Folders, checklists and tables come along, and Apple Notes stays as it is.",
     soon: "iPhone app coming soon",
   },
   wait: {
     title: "Wait, it can do that?",
-    lede: "A note can be a tracker your AI keeps up, a budget that adds itself up, or a trip planned day by day. Start from a template.",
+    lede: "Start from a template your AI fills in.",
     all: "See all templates",
   },
-  facts: [
-    { title: "Encrypted", line: "Your notes are encrypted on your iPhone or Mac." },
-    { title: "Open source", line: "The app's code is on GitHub." },
-    { title: "Free", line: "No ads, and no tracking in the app." },
-    { title: "Every change undoable", line: "Each edit keeps the version before it." },
-  ],
+  closing: {
+    title: "Start with the notes you already have.",
+    fine: "Requires macOS 26.",
+  },
 };
 
 /** E: the revised direction (A's first screen, B's week, C's two phones). One sentence per lede. */
@@ -132,6 +130,6 @@ export const E = {
   closing: {
     title: "Start with the notes you already have.",
     lede: "Import your Apple Notes, connect the AI you use, and ask it what's next.",
-    fine: "Requires macOS 26. Updates install themselves.",
+    fine: "Requires macOS 26.",
   },
 };

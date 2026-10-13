@@ -1,0 +1,33 @@
+{
+  "values": {
+    "currency": "kr",
+    "categories": [
+      {
+        "name": "Groceries",
+        "budget": 4000
+      },
+      {
+        "name": "Eating out",
+        "budget": 1500
+      },
+      {
+        "name": "Transport",
+        "budget": 800
+      },
+      {
+        "name": "Home",
+        "budget": 1000
+      },
+      {
+        "name": "Fun",
+        "budget": 1000
+      },
+      {
+        "name": "Bills",
+        "budget": 3500
+      }
+    ],
+    "expenses": []
+  },
+  "collections": {}
+}

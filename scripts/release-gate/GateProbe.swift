@@ -221,12 +221,20 @@ final class GateProbe: NSObject {
         results["idle"] = await idle(seconds: 20)
         if ProcessInfo.processInfo.arguments.contains("-gateIdleTwice") { results["idleAgain"] = await idle(seconds: 20) }
 
-        let notes = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
-        func find(_ title: String) -> Note? { notes.first { $0.title == title } }
+        // The gate's notes are asked of the store by their first line, not found among every note
+        // read into memory: holding the whole library here would make the app hold it too.
+        func find(_ title: String) -> Note? {
+            var d = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil && $0.body.starts(with: title) })
+            d.fetchLimit = 4
+            return ((try? context.fetch(d)) ?? []).first { $0.title == title }
+        }
         guard let short = find("Gate short note"), let typing = find("Gate typing note"), let long = find("Gate long note") else {
             throw GateError("the account has no Gate notes: scripts/release-gate.sh seeds them")
         }
-        let other = notes.first { $0.id != short.id && $0.id != typing.id && $0.id != long.id } ?? typing
+        let gate = [short.id, typing.id, long.id]
+        var others = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil && !gate.contains($0.id) })
+        others.fetchLimit = 1
+        let other = ((try? context.fetch(others)) ?? []).first ?? typing
 
         await open(short.id)
         for i in 0..<6 {

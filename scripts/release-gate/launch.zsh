@@ -2,6 +2,9 @@
 #   zsh -s -- <out file> <app> <stdin file or -> <app arguments...>
 # Opens the app the way Finder does, passes on the probe's lines as they come, waits for it to quit,
 # and samples it (by its own pid) the moment the probe says the main thread hangs, up to 40 times.
+# With GATE_PROFILE=1 it samples the whole run instead, once, every millisecond (<out>.profile): a
+# profile of where the main thread's time goes, for performance work. Its numbers are then not
+# the gate's: sampling slows the app.
 out=$1 app=$2 input=$3; shift 3
 rm -f "$out" "$out".hang*(N)
 if [[ $input == - ]]; then open -W -n --stdout "$out" --stderr "$out.err" "$app" --args "$@" &
@@ -21,7 +24,9 @@ while kill -0 $op 2>/dev/null; do
     pid=$(print -r -- "$new" | sed -n 's/^GATE started .* pid \([0-9]*\).*/\1/p' | head -1)
     # The app has read the account: its file goes.
     [[ -n $pid && $input != - ]] && rm -f "$input"
+    [[ -n $pid && -n ${GATE_PROFILE:-} ]] && { sample "$pid" 600 1 -mayDie -file "$out.profile" >/dev/null 2>&1 & }
   fi
+  [[ -n ${GATE_PROFILE:-} ]] && continue
   # One sample at a time: a second one on the same process fails.
   if [[ -n $pid ]] && (( hangs < 40 )) && { [[ -z $sp ]] || ! kill -0 $sp 2>/dev/null; } && print -r -- "$new" | grep -q '^GATE hang'; then
     hangs=$((hangs + 1))

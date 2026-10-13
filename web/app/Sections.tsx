@@ -314,7 +314,7 @@ export function Closing() {
           <DownloadLink className={a.bandPrimary}><Apple /> Download for Mac</DownloadLink>
         </div>
         <PlatformNote place="band" />
-        <p className={`${a.bandFine} pi-apple pi-not-ios`}>Requires macOS 26. Updates install themselves.</p>
+        <p className={`${a.bandFine} pi-apple pi-not-ios`}>Requires macOS 26.</p>
       </div>
     </section>
   );
