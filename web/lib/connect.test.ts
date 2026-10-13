@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ALLOW_HEADING, requestWords, appleSignInURL, EMAIL_NOT_CONFIRMED, oauthSignInURL, appLink, destination, fetchLabel, functionURL, parseLabel, pkcePair, problemText, qrConnectLive, returnURL, scanFragment, signInError, startsWithWrite, universalLink, validRequest } from "./connect";
+import { ALLOW_HEADING, displayName, requestWords, appleSignInURL, EMAIL_NOT_CONFIRMED, oauthSignInURL, appLink, destination, fetchLabel, functionURL, parseLabel, pkcePair, problemText, qrConnectLive, returnURL, scanFragment, signInError, startsWithWrite, universalLink, validRequest } from "./connect";
 import { allowedPath, functionRegion, upstream, upstreamHeaders } from "./mcp-proxy";
 
 const ID = "5a0f6c1e-2b1d-4c36-9e0a-6b6f0c1a2b3c";
@@ -33,36 +33,50 @@ describe("the connect page", () => {
     const words = (claimed_name: string | null, redirect_host: string | null, loopback = false) => requestWords({ claimed_name, redirect_host, loopback });
     const gets = "It can read your notes and change them when you ask.";
 
-    it("asks with a known app's proper name, and says once that a local app's name is its own", () => {
-      expect(words("codex", "127.0.0.1", true)).toEqual({ title: "Connect Codex to Pinto Notes?", gets, who: "This is an app on this computer. Codex is the name it gave." });
+    const local = "This request comes from an app on this computer.";
+
+    it("asks with a known app's proper name, and says only that a local app is local", () => {
+      expect(words("codex", "127.0.0.1", true)).toEqual({ title: "Connect Codex to Pinto Notes?", gets, who: local });
       expect(words("cursor", "localhost", true).title).toBe("Connect Cursor to Pinto Notes?");
       // Claude Code runs on this computer, where nothing checks a name: Claude's name stays in the quiet line.
-      expect(words("claude-code", "localhost", true)).toEqual({ title: "Connect an app to Pinto Notes?", gets, who: "This is an app on this computer. Claude Code is the name it gave." });
+      expect(words("claude-code", "localhost", true)).toEqual({ title: "Connect an app to Pinto Notes?", gets, who: `${local} It calls itself Claude Code.` });
     });
 
-    it("uses any other name as given, and the address the name doesn't change", () => {
-      expect(words("notebot", "notes.example", false)).toEqual({ title: "Connect notebot to Pinto Notes?", gets, who: "It goes to notes.example. notebot is the name it gave." });
+    it("uses any other name as given, with a capital when it came all in lowercase, and always says where it comes from", () => {
+      expect(words("glama", "glama.ai")).toEqual({ title: "Connect Glama to Pinto Notes?", gets, who: "This request comes from glama.ai." });
+      expect(words("notebot", "notes.example").title).toBe("Connect Notebot to Pinto Notes?");
+      expect(words("iA Writer", "ia.example").title).toBe("Connect iA Writer to Pinto Notes?");
+      expect(words("NoteBot", "notes.example").title).toBe("Connect NoteBot to Pinto Notes?");
+    });
+
+    it("capitalises only a name that came all in lowercase", () => {
+      expect(displayName("glama")).toBe("Glama");
+      expect(displayName("my-notes")).toBe("My-notes");
+      expect(displayName("iA Writer")).toBe("iA Writer");
+      expect(displayName("GLAMA")).toBe("GLAMA");
+      expect(displayName("42")).toBe("42");
     });
 
     it("heads the card with ChatGPT's or Claude's name on its own domain, and still asks you to have started it", () => {
-      expect(words("claude", "claude.ai")).toEqual({ title: "Connect Claude to Pinto Notes?", gets, who: "It goes to claude.ai. Allow it only if you started this." });
-      expect(words("chatgpt", "chatgpt.com")).toEqual({ title: "Connect ChatGPT to Pinto Notes?", gets, who: "It goes to chatgpt.com. Allow it only if you started this." });
-      expect(words(null, "claude.ai").who).toBe("It goes to claude.ai. Allow it only if you started this.");
+      expect(words("claude", "claude.ai")).toEqual({ title: "Connect Claude to Pinto Notes?", gets, who: "This request comes from claude.ai. Allow it only if you started this." });
+      expect(words("chatgpt", "chatgpt.com")).toEqual({ title: "Connect ChatGPT to Pinto Notes?", gets, who: "This request comes from chatgpt.com. Allow it only if you started this." });
+      expect(words(null, "claude.ai").who).toBe("This request comes from claude.ai. Allow it only if you started this.");
     });
 
     it("never heads the card with ChatGPT's, Claude's or Pinto Notes' name for an app elsewhere", () => {
       for (const [name, host, loopback] of [["claude", "127.0.0.1", true], ["ChatGPT", "localhost", true], ["claude", "notes.example", false], ["chatgpt", "claude.ai", false], ["pinto notes", "127.0.0.1", true]] as const) {
         const w = words(name, host, loopback);
         expect(w.title).toBe("Connect an app to Pinto Notes?");
-        expect(w.who).toMatch(/is the name it gave\.$/);
+        expect(w.who).toMatch(/^This request comes from .+\. It calls itself .+\.$/);
       }
-      expect(words("claude", "127.0.0.1", true).who).toBe("This is an app on this computer. Claude is the name it gave.");
+      expect(words("claude", "127.0.0.1", true).who).toBe(`${local} It calls itself Claude.`);
+      expect(words("claude", "notes.example").who).toBe("This request comes from notes.example. It calls itself Claude.");
     });
 
     it("says only what is known when the app gives no name, or the name is its address", () => {
-      expect(words(null, "127.0.0.1", true)).toEqual({ title: "Connect an app to Pinto Notes?", gets, who: "This is an app on this computer." });
+      expect(words(null, "127.0.0.1", true)).toEqual({ title: "Connect an app to Pinto Notes?", gets, who: local });
       expect(words("an app on this computer", "127.0.0.1", true).title).toBe("Connect an app to Pinto Notes?");
-      expect(words("notes.example", "notes.example").who).toBe("It goes to notes.example.");
+      expect(words("notes.example", "notes.example").who).toBe("This request comes from notes.example.");
       expect(requestWords(null)).toEqual({ title: "Connect an app to Pinto Notes?", gets, who: null });
     });
   });

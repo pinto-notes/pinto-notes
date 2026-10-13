@@ -16,7 +16,7 @@ export const metadata = postMetadata("connect-chatgpt-to-your-notes");
 // Address and Open <AI>" (ConnectGuide.swift); the ask is "Allow ChatGPT to use your notes?" with Read and
 // edit or Read only and Don't Allow (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
 // Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Show Version History (RootView.swift); the
-// connect page's "No iPhone? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
+// connect page's "No device with Pinto Notes? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
 
 const FAQ = [
   { q: "Which ChatGPT plans can add Pinto Notes?", a: [

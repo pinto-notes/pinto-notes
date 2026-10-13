@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { approveOnFromUA } from "@/lib/connect-flow";
 import { fetchLabel, functionURL, problemText, qrConnectLive, validRequest } from "@/lib/connect";
 import { functionRegion, upstreamHeaders } from "@/lib/mcp-proxy";
 import { publicVersion } from "@/lib/public-release";
@@ -42,9 +43,10 @@ export default async function Connect({ searchParams }: { searchParams: Promise<
   // The QR page once the public apps can scan it (lib/connect.ts, qrConnectLive); until then the
   // page those apps understand, and ?qr=1 for testing a newer build.
   const live = qrConnectLive(publicVersion());
+  const device = approveOnFromUA((await headers()).get("user-agent"));
   return (
     <ConnectCard request label={label}>
-      {qrConnectLive(publicVersion(), qr) ? <ConnectFlow {...flow} keepQR={!live} /> : <ConnectFlowV1 {...flow} />}
+      {qrConnectLive(publicVersion(), qr) ? <ConnectFlow {...flow} keepQR={!live} device={device} /> : <ConnectFlowV1 {...flow} />}
     </ConnectCard>
   );
 }
