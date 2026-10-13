@@ -164,6 +164,8 @@ struct SettingsHome: View {
             }
         }
         .frame(width: Self.width, height: fit)
+        // The window the sheet hangs on, as it is now and as it is resized.
+        .background(SheetParentReader { fit = Self.fitted($0) })
         // The app's warm sheet ground, as the import and "How did you hear" sheets have.
         .background(Color(Palette.sheetGround))
         .presentationBackground(Color(Palette.sheetGround))
@@ -281,6 +283,35 @@ struct SettingsHome: View {
         case .help: .indigo
         default: .gray
         }
+    }
+}
+
+/// Tells `changed` the window a sheet hangs on, when the sheet shows and each time that window
+/// is resized.
+private struct SheetParentReader: NSViewRepresentable {
+    let changed: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> Probe { Probe(changed: changed) }
+    func updateNSView(_ view: Probe, context: Context) { view.changed = changed }
+
+    final class Probe: NSView {
+        var changed: (NSWindow?) -> Void
+        private var watch: NSObjectProtocol?
+        init(changed: @escaping (NSWindow?) -> Void) { self.changed = changed; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let watch { NotificationCenter.default.removeObserver(watch) }
+            watch = nil
+            guard let parent = window?.sheetParent else { return }
+            changed(parent)
+            watch = NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: parent, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.changed(parent) }
+            }
+        }
+
+        deinit { if let watch { NotificationCenter.default.removeObserver(watch) } }
     }
 }
 
