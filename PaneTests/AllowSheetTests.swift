@@ -125,5 +125,30 @@ import AppKit
         #expect(answered == [Self.glama.id], "Escape is Don't Allow")
         #expect(confirmed.count == 1, "Don't Allow asks for nothing")
     }
+
+    /// 13 October 2026: an answer that failed left the request held by this account, and the
+    /// recovery key on the page, signed in to another account, was turned away. A sheet closed
+    /// without an answer lets go of it.
+    @Test func closingWithoutAnAnswerLetsGoOfTheRequest() async throws {
+        var released: [UUID] = []
+        var sheet = ConsentSheet(client: Self.client, requestID: Self.claude.id, initial: .failed("Something went wrong."), finish: { _ in })
+        sheet.release = { _, id in released.append(id) }
+        let (w, _) = await Self.host(sheet)
+        #expect(released.isEmpty, "showing it lets go of nothing")
+        w.contentView = nil
+        w.close()
+        for _ in 0..<20 where released.isEmpty { try? await Task.sleep(for: .milliseconds(50)) }
+        #expect(released == [Self.claude.id])
+    }
+
+    @Test func releaseAsksTheServerToLetGo() async throws {
+        final class Sent: @unchecked Sendable { var calls: [(String, String, [String: Any]?)] = [] }
+        let sent = Sent()
+        let id = UUID()
+        try await ConnectAPI.release(id: id) { path, method, body in sent.calls.append((path, method, body)); return Data("{}".utf8) }
+        #expect(sent.calls.count == 1)
+        #expect(sent.calls.first?.0 == "/connect/release" && sent.calls.first?.1 == "POST")
+        #expect(sent.calls.first?.2?["id"] as? String == id.uuidString.lowercased())
+    }
     #endif
 }

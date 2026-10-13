@@ -25,7 +25,7 @@ Deno.env.delete("MCP_ALIAS_URLS");
 Deno.env.delete("CONNECT_PAGE_URL");
 Deno.env.set("MCP_PROXY_SECRET", "proxy-secret");
 
-const { handleOAuth, setPushSender, publicBase, resolveAccessToken, subpath, clientIP, cleanName, claimsATrustedName, hostClaimsATrustedName, KNOWN_CALLBACKS, displayName, claimedName, sha256Hex } = await import("./oauth.ts");
+const { handleOAuth, setPushSender, publicBase, resolveAccessToken, subpath, clientIP, cleanName, claimsATrustedName, hostClaimsATrustedName, KNOWN_CALLBACKS, displayName, claimedName, sha256Hex, MAX_HANDOFF, MAX_REDIRECT } = await import("./oauth.ts");
 const { handleRequest } = await import("./server.ts");
 
 // MARK: Database: every migration, on PGlite
@@ -318,6 +318,8 @@ Deno.test("a request belongs to the first account that opens it", async () => {
   assertEquals((await opened.json()).redirect_host, "chatgpt.com");
   const theirs = await consent(sql, requestId, other);
   assertEquals(theirs.described.status, 403);
+  // Says what happened, and names who to start again from.
+  assertEquals((await theirs.described.json()).error, "This request was opened in Pinto Notes with another account. Start connecting again from ChatGPT.");
   assertEquals(theirs.decided.status, 403);
   const mine = await consent(sql, requestId, owner);
   assertEquals(mine.decided.status, 200);
@@ -1068,7 +1070,7 @@ Deno.test("a sign-in whose return address can't be handed over ends on our page,
   assertEquals((await sql`select count(*)::int as n from public.oauth_requests`)[0].n, 0);
 });
 
-Deno.test("a device that sends no sealed code is told what's missing, not to update", async () => {
+Deno.test("a device that sends no sealed code is told what's missing, not to update, and lets go of the request", async () => {
   const { sql, pg } = await db();
   const { requestId } = await pendingRequest(sql);
   const me = await newUser(pg);
@@ -1079,6 +1081,53 @@ Deno.test("a device that sends no sealed code is told what's missing, not to upd
   const r = await decideAs(sql, me, { ...JSON.parse(body), handoff: "amb2h.not base64" });
   assertEquals(r.status, 400);
   assertEquals(r.body.error, "The answer for your browser was missing or damaged. Start connecting again in your browser.");
+  // 13 October 2026: the failed answer left the request held by this account, so the recovery key
+  // on the page, signed in to another account, got "Another Pinto Notes account is answering".
+  const other = await newUser(pg);
+  const theirs = await consent(sql, requestId, other);
+  assertEquals([theirs.described.status, theirs.decided.status], [200, 200]);
+});
+
+Deno.test("a sealed code over the limit says the address is too long, and lets go of the request", async () => {
+  const { sql, pg } = await db();
+  const { requestId } = await pendingRequest(sql);
+  const me = await newUser(pg);
+  const page = await newHandoffKeys();
+  const asked = await askAs(sql, me, requestId, toBase64(page.publicRaw));
+  await matchUp(sql, me, requestId, asked.pickup, asked.nonce);
+  const { body } = await appDecision(me, requestId, CHATGPT);
+  const r = await decideAs(sql, me, { ...JSON.parse(body), handoff: "amb2h." + "A".repeat(MAX_HANDOFF) });
+  assertEquals([r.status, r.body.error], [400, "ChatGPT's return address is too long to pass to your browser. Use your recovery key on the page instead."]);
+  assertEquals((await sql`select claimed_by from public.oauth_requests where id = ${requestId}`)[0].claimed_by, null);
+});
+
+Deno.test("the longest return address /authorize takes seals within what decide and connect_asks take", async () => {
+  const { sql, pg } = await db();
+  const clientId = await register(sql, "proxy");
+  const { verifier, challenge } = await pkce();
+  const authorizeWith = (state: string) => call(sql, request("proxy", `/authorize?${new URLSearchParams({
+    response_type: "code", client_id: clientId, redirect_uri: CHATGPT, code_challenge: challenge, code_challenge_method: "S256", state, resource: ALIAS })}`));
+  // state=…&iss=… on the callback: the longest state that still fits MAX_REDIRECT.
+  const room = MAX_REDIRECT - `${CHATGPT}?state=&iss=${encodeURIComponent(ALIAS)}`.length;
+  assertEquals(new URL((await authorizeWith("s".repeat(room + 1))).headers.get("location")!).searchParams.get("problem"), "too_long");
+  const res = await authorizeWith("s".repeat(room));
+  const requestId = new URL(res.headers.get("location")!).searchParams.get("request")!;
+  const me = await newUser(pg);
+  const page = await newHandoffKeys();
+  const asked = await askAs(sql, me, requestId, toBase64(page.publicRaw));
+  await matchUp(sql, me, requestId, asked.pickup, asked.nonce);
+  const seen = await (await call(sql, request("function", `/connect/request?id=${requestId}`, { headers: { authorization: `Bearer ${me.jwt}` } }))).json();
+  const built = new URL(seen.redirect_uri);
+  built.searchParams.set("state", seen.state);
+  built.searchParams.set("iss", seen.iss);
+  assertEquals(built.toString().length, MAX_REDIRECT);
+  const { code, body } = await appDecision(me, requestId, CHATGPT);
+  const handoff = await sealHandoff(handoffPayload({ code, redirect: built.toString() }), page.publicRaw, requestId);
+  assert(handoff.length <= MAX_HANDOFF, `${handoff.length}`);
+  assertEquals((await decideAs(sql, me, { ...JSON.parse(body), handoff })).status, 200);
+  const done = await statusOf(sql, requestId, asked.pickup);
+  assertEquals(readHandoffPayload(await openHandoff(done.handoff, page.privateKey, requestId)).redirect, built.toString());
+  assertEquals((await exchange(sql, "proxy", clientId, code, verifier)).status, 200);
 });
 
 Deno.test("declined on a device, the page gets the declined redirect", async () => {
