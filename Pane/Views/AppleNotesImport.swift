@@ -7,12 +7,12 @@ import SwiftUI
 enum AppleNotesBridge {
     enum Failure: LocalizedError {
         case script(String)
-        /// macOS didn't let the app read Apple Notes (Automation is off for it).
-        case notAllowed
+        /// Don't Allow was chosen when macOS asked.
+        case denied
         var errorDescription: String? {
             switch self {
             case .script(let m): m
-            case .notAllowed: "Pinto Notes isn't allowed to read Apple Notes. Turn it on in System Settings → Privacy & Security → Automation."
+            case .denied: "Pinto Notes isn't allowed to read Apple Notes. Turn it on in System Settings → Privacy & Security → Automation."
             }
         }
     }
@@ -31,9 +31,7 @@ enum AppleNotesBridge {
         let result = script.executeAndReturnError(&error)
         if let error {
             let code = error[NSAppleScript.errorNumber] as? Int
-            if code == -1743 {
-                throw Failure.notAllowed
-            }
+            if code == -1743 { throw Failure.denied }
             throw Failure.script(error[NSAppleScript.errorMessage] as? String ?? "Apple Notes didn't answer.")
         }
         return result
@@ -171,7 +169,7 @@ enum AppleNotesFunnel {
     /// or another failure.
     static func read(_ result: Result<AppleNotesListing, Error>) {
         switch result {
-        case .failure(AppleNotesBridge.Failure.notAllowed):
+        case .failure(AppleNotesBridge.Failure.denied):
             Funnel.record(.importStep(.appleNotes, .permissionDenied))
         case .failure(let error):
             Funnel.record(.importStep(.appleNotes, .failed, kind: FailureSummary(error).kind))
@@ -217,6 +215,10 @@ struct AppleNotesImportView: View {
     @State private var query = ""
     @State private var loading = true
     @State private var failure: String?
+    /// The import's own pages for when it can't just work: Don't Allow was chosen, or Apple Notes
+    /// has no notes on this Mac yet.
+    @State private var notice: Notice?
+    enum Notice { case denied, empty }
     @State private var progress: (done: Int, total: Int)?
     /// The notes already here, by title and date.
     @State private var existing: Set<String> = []
@@ -262,6 +264,35 @@ struct AppleNotesImportView: View {
     private var pickable: [AppleNote] { shown.filter { !$0.locked } }
 
     var body: some View {
+        if let notice {
+            noticePage(notice)
+        } else {
+            sheet
+        }
+    }
+
+    private func noticePage(_ notice: Notice) -> some View {
+        (notice == .denied ? ImportNoticePage.notesDenied : ImportNoticePage.notesEmpty)
+            .with { action in
+                switch action {
+                case .primary:
+                    if notice == .denied, let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                        NSWorkspace.shared.open(url)
+                    } else if let notes = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Notes") {
+                        NSWorkspace.shared.openApplication(at: notes, configuration: NSWorkspace.OpenConfiguration())
+                    }
+                case .quiet: Task { await load() }
+                case .close, .back: dismiss()
+                }
+            }
+            .presentationBackground(Color(Palette.sheetGround))
+            // Back from System Settings or Apple Notes: look again, so the notes show up by themselves.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                Task { await load() }
+            }
+    }
+
+    private var sheet: some View {
         VStack(spacing: 0) {
             header
             content
@@ -661,10 +692,15 @@ struct AppleNotesImportView: View {
             // Everything that isn't here yet, in every folder, ready to go: importing all of it
             // is the usual wish, and nothing is left out for being further down the list.
             picked = listing.pickedAtFirst(keys: existing)
+        } catch AppleNotesBridge.Failure.denied {
+            AppleNotesFunnel.read(.failure(AppleNotesBridge.Failure.denied))
+            failure = AppleNotesBridge.Failure.denied.localizedDescription
         } catch {
             AppleNotesFunnel.read(.failure(error))
             failure = error.localizedDescription
         }
+        notice = failure == AppleNotesBridge.Failure.denied.localizedDescription ? .denied
+            : failure == nil && listing.notes.isEmpty && listing.unreadFolders.isEmpty ? .empty : nil
         loading = false
     }
 

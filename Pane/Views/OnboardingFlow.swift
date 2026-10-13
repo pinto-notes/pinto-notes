@@ -36,7 +36,8 @@ struct OnboardingFlow: View {
     @FocusState private var nameFocused: Bool
     @State private var importing: ImportKind?
     @State private var importingAppleNotes = false
-    @State private var sharingHowTo = false
+    /// iPhone: the sheet that says Apple Notes come in from the Mac app (`AppleNotesOnMacSheet`).
+    @State private var appleNotesOnMac = false
     /// Titles of the AIs that are connected, as the server lists them.
     @State private var connectedTitles: Set<String> = []
     /// What was connected when the connect step first asked; something new after that moves on.
@@ -93,10 +94,10 @@ struct OnboardingFlow: View {
                 AppleNotesImportView(onImported: { ids in notesBrought(ids.count) })
             }
             #else
-            .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
+            .sheet(isPresented: $appleNotesOnMac) { AppleNotesOnMacSheet() }
             #endif
             .sheet(item: $importing, onDismiss: { EvernoteInbox.clear(); importClosed() }) { kind in
-                ImportSheet(kind) { ids in notesBrought(ids.count) }
+                ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
             }
             .connectGuides(client: backend.client)
     }
@@ -446,14 +447,14 @@ struct OnboardingFlow: View {
     // MARK: Choices
 
     /// Where notes can come from. Apple Notes first and large, where most notes are (on the Mac
-    /// it reads the Notes app directly; on iPhone and iPad see `appleNotesOnMac`), then the kinds
-    /// the import sheet knows, one quiet line each, so the step fits the window with its button.
+    /// it reads the Notes app directly; on iPhone and iPad it opens `AppleNotesOnMacSheet`), then
+    /// the kinds the import sheet knows, one quiet line each, so the step fits with its button.
     private var bring: some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
             #if os(macOS)
             BigChoices(list: [BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .origin(.appleNotes)) { importingAppleNotes = true }])
             #else
-            appleNotesOnMac
+            BigChoices(list: [BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: Self.appleNotesLine, mark: .origin(.appleNotes)) { appleNotesOnMac = true }])
             #endif
             otherSources
             if broughtCount > 0 {
@@ -568,59 +569,8 @@ struct OnboardingFlow: View {
     }
 
     #if os(iOS)
-    static let appleNotesTitle = "Apple Notes"
-    static let appleNotesLine = "Easiest on a Mac. Open Pinto Notes on your Mac and import there. Your notes then appear here."
-    static let sendDownload = "Send the Mac download to myself"
-    static let shareOneByOne = "Or share notes one at a time from the Notes app"
+    static let appleNotesLine = "From your Mac"
     static let macDownload = URL(string: "https://pintonotes.com/download")!
-
-    /// Apple Notes on iPhone and iPad, said as it is: an iPhone can only take notes one at a time
-    /// through Share, so this is not a choice like the others. It says where it is easy, gives
-    /// the way to get there (the Mac download, sent to yourself), and keeps the slow way small.
-    private var appleNotesOnMac: some View {
-        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "note.text")
-                    .font(.system(size: BigChoices.Metrics.rowMark * 0.46, weight: .medium))
-                    .foregroundStyle(Color.amberInk)
-                    .frame(width: BigChoices.Metrics.rowMark, height: BigChoices.Metrics.rowMark)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: BigChoices.Metrics.rowMark * 0.3, style: .continuous))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Self.appleNotesTitle).font(BigChoices.Metrics.title).foregroundStyle(Color.ink)
-                    Text(Self.appleNotesLine).font(BigChoices.Metrics.detail).foregroundStyle(Color.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .accessibilityElement(children: .combine)
-            }
-            ShareLink(item: Self.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
-                Label(Self.sendDownload, systemImage: "square.and.arrow.up")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color.amberSoft, in: .rect(cornerRadius: 10, style: .continuous))
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.amberInk)
-            .accessibilityIdentifier("onboarding.source.appleNotes.sendDownload")
-            Button { sharingHowTo = true } label: {
-                Text(Self.shareOneByOne)
-                    .font(.footnote.weight(.medium))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-            .accessibilityIdentifier("onboarding.source.appleNotes.oneByOne")
-        }
-        .padding(BigChoices.Metrics.padding)
-        .background(Color(Palette.field), in: shape)
-        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("onboarding.source.appleNotes")
-    }
     #endif
 
     // MARK: Buttons
@@ -823,7 +773,7 @@ struct OnboardingFlow: View {
         static let tilePadding: CGFloat = 16
         static let quietHeight: CGFloat = 44
         static let askMark: CGFloat = 26
-        static let sourceIcon: CGFloat = 28
+        static let sourceIcon: CGFloat = 30
         static let sourceRow: CGFloat = 48
         static let sourceInset: CGFloat = 16
         static let sourceName = Font.body
@@ -939,3 +889,59 @@ struct OnboardingWait: View {
 
     static let limit: Double = 20
 }
+
+#if os(iOS)
+/// iPhone: Apple Notes come in from the Mac app, said in one sentence, with one thing to do
+/// (send yourself the Mac download) and, quieter, the one-note-at-a-time way.
+struct AppleNotesOnMacSheet: View {
+    @State private var sharingHowTo = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    static let title = "Your Apple Notes come in from the Mac app"
+    static let line = "Import them in Pinto Notes on your Mac. They show up here a moment later."
+    static let send = "Send the Mac link to myself"
+    static let oneByOne = "Share one note at a time instead"
+
+    var body: some View {
+        ScrollView {
+            content
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(Color(Palette.sheetGround))
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(Palette.sheetGround))
+        .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
+    }
+
+    private var content: some View {
+        VStack(spacing: 14) {
+            ImportSourceIcon(origin: .appleNotes, size: 64)
+            Text(Self.title)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(Color.ink)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            Text(Self.line)
+                .font(.subheadline)
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+            ShareLink(item: OnboardingFlow.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
+                Text(Self.send)
+            }
+            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .padding(.top, 8)
+            .accessibilityIdentifier("onboarding.appleNotes.send")
+            Button(Self.oneByOne) { sharingHowTo = true }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.muted)
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("onboarding.appleNotes.oneByOne")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 28)
+        .padding(.top, 32)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+}
+#endif

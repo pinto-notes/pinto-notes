@@ -70,7 +70,7 @@ extension FunnelTests {
             let other = AppleNote(id: "b", name: "B", folder: "Notes", modified: .now, account: "On My Mac")
             await steps.watch {
                 AppleNotesFunnel.opened()
-                AppleNotesFunnel.read(.failure(AppleNotesBridge.Failure.notAllowed))
+                AppleNotesFunnel.read(.failure(AppleNotesBridge.Failure.denied))
                 AppleNotesFunnel.read(.failure(AppleNotesBridge.Failure.script("Apple Notes didn't answer.")))
                 AppleNotesFunnel.read(.success(AppleNotesListing(notes: [])))
                 AppleNotesFunnel.read(.success(AppleNotesListing(notes: [one, other])))
@@ -92,7 +92,7 @@ extension FunnelTests {
         }
 
         @Test func appleNotesNotAllowedStillSaysWhatToDo() {
-            #expect(AppleNotesBridge.Failure.notAllowed.errorDescription?.contains("Automation") == true)
+            #expect(AppleNotesBridge.Failure.denied.errorDescription?.contains("Automation") == true)
         }
         #endif
     }

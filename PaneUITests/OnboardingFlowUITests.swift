@@ -89,8 +89,8 @@ final class OnboardingFlowUITests: XCTestCase {
         for id in ["onboarding.source.obsidian", "onboarding.source.markdown", "onboarding.source.evernote", "onboarding.source.keep"] {
             XCTAssertTrue(app.buttons[id].exists, id)
         }
-        // Apple Notes on iPhone is not a choice like those: it says where it is easy.
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.source.appleNotes.sendDownload"].firstMatch.exists)
+        // Apple Notes is the same large choice as on the Mac; on iPhone it opens a sheet about the Mac app.
+        XCTAssertTrue(app.buttons["onboarding.source.appleNotes"].exists)
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "a4-connect")
         for id in ["chatgpt", "claude", "claudeCode", "codex", "other"] { XCTAssertTrue(app.buttons["connect.guide.\(id)"].exists, id) }
@@ -188,8 +188,7 @@ final class OnboardingFlowUITests: XCTestCase {
     func testD_RelaunchResumesThenConnects() throws {
         launch()
         expectStep("Bring your notes", "d1-resumed-at-bring", timeout: 60)
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.source.appleNotes.sendDownload"].firstMatch.exists, "Apple Notes says where it is easy, and how to get there")
-        XCTAssertTrue(app.buttons["onboarding.source.appleNotes.oneByOne"].exists, "and keeps the slow way small")
+        XCTAssertTrue(app.buttons["onboarding.source.appleNotes"].exists, "Apple Notes, the same large choice as on the Mac")
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "d2-connect")
         let ai = try connectClaudeCode(picture: "d3-guide-claude-code")

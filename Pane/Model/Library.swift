@@ -60,6 +60,14 @@ extension ModelContext {
         try? fetch(FetchDescriptor<Folder>(predicate: #Predicate { $0.id == id })).first
     }
 
+    /// Where an import's notes are: the top folder above the note (Google Keep, not its label's
+    /// folder inside it), or All Notes when it has none.
+    func importScope(of noteID: UUID) -> Scope {
+        guard var folder = note(noteID)?.folder else { return .all }
+        while let parent = folder.parent { folder = parent }
+        return .folder(folder.id)
+    }
+
     func note(_ id: UUID) -> Note? {
         try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first
     }
