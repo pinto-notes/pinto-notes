@@ -150,10 +150,14 @@ struct WelcomeFlow: View {
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: stage)
         // Said once: back from sign-in it's the usual welcome.
         .onChange(of: stage) { farewell = false }
+        .blurDemoCue { cue in
+            if cue == "signIn" { stage = .signIn(returning: false) } else if cue == "welcome" { stage = .welcome }
+        }
     }
 
     private func stageTransition(forward: Bool) -> AnyTransition {
         if reduceMotion { return .opacity }
+        if BlurMotion.on { return BlurMotion.page }
         return .asymmetric(insertion: .opacity.combined(with: .offset(x: forward ? 24 : -24)), removal: .opacity)
     }
 

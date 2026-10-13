@@ -69,7 +69,7 @@ struct OnboardingFlow: View {
 
     var body: some View {
         screen
-            .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.35 * Self.stepPace), value: step)
+            .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.45 * Self.stepPace), value: step)
             .task { await loadAccount() }
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
@@ -98,6 +98,9 @@ struct OnboardingFlow: View {
                 ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
             }
             .connectGuides(client: backend.client)
+            .blurDemoCue { cue in
+                if cue == "next" { next() } else if cue == "back" { goBack() }
+            }
     }
 
     // MARK: The window
@@ -114,17 +117,19 @@ struct OnboardingFlow: View {
         ScrollView {
             VStack(spacing: 0) {
                 phoneArt
-                VStack(alignment: .leading, spacing: Metrics.gap) {
-                    progress
-                    heading
-                    middle
+                BlurStage(alignment: .top) {
+                    VStack(alignment: .leading, spacing: Metrics.gap) {
+                        progress
+                        heading
+                        middle
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
+                    .id(step)
+                    .transition(stepTransition)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 24)
-                .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
-                .id(step)
-                .transition(stepTransition)
             }
             .frame(maxWidth: .infinity)
         }
@@ -156,14 +161,16 @@ struct OnboardingFlow: View {
                 progress.frame(width: 96)
             }
             .frame(height: 24)
-            VStack(alignment: .leading, spacing: Metrics.gap) {
-                heading
-                middle
+            BlurStage(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: Metrics.gap) {
+                    heading
+                    middle
+                }
+                .padding(.top, 28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .id(step)
+                .transition(stepTransition)
             }
-            .padding(.top, 28)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .id(step)
-            .transition(stepTransition)
             Spacer(minLength: 16)
             actions
         }
@@ -216,14 +223,15 @@ struct OnboardingFlow: View {
     }
     #endif
 
-    /// The step going out fades in the first part of the move; the one coming in shows only
-    /// after, sliding in from the side it is on. Two steps are never readable at once (they were
-    /// when both faded over the same time). One value drives both, so the whole step moves as one.
-    private var stepTransition: AnyTransition { stepTransition(dx: reduceMotion ? 0 : (forward ? 24 : -24)) }
+    /// The step going out fades and blurs in the first part of the move; the one coming in shows
+    /// only after, rising into focus as the website's content does (blur, a little lower and
+    /// smaller, then sharp). Two steps are never readable at once. One value drives both, so the
+    /// whole step moves as one. With Reduce Motion, a plain fade.
+    private var stepTransition: AnyTransition { stepTransition(moves: !reduceMotion) }
 
-    private func stepTransition(dx: CGFloat) -> AnyTransition {
-        .asymmetric(insertion: .modifier(active: StepMove(shown: 0, incoming: true, dx: dx), identity: StepMove(shown: 1, incoming: true, dx: dx)),
-                    removal: .modifier(active: StepMove(shown: 0, incoming: false, dx: 0), identity: StepMove(shown: 1, incoming: false, dx: 0)))
+    private func stepTransition(moves: Bool, lift: CGFloat = 12) -> AnyTransition {
+        .asymmetric(insertion: .modifier(active: StepMove(shown: 0, incoming: true, moves: moves, lift: lift), identity: StepMove(shown: 1, incoming: true, moves: moves, lift: lift)),
+                    removal: .modifier(active: StepMove(shown: 0, incoming: false, moves: moves, lift: 0), identity: StepMove(shown: 1, incoming: false, moves: moves, lift: 0)))
     }
 
     /// Tests: slows the step transition down, to see it frame by frame.
@@ -234,7 +242,9 @@ struct OnboardingFlow: View {
     nonisolated struct StepMove: ViewModifier, Animatable {
         var shown: Double
         let incoming: Bool
-        let dx: CGFloat
+        /// Blur and rise (off with Reduce Motion: only the fade).
+        let moves: Bool
+        let lift: CGFloat
         static let split = 0.3
 
         var animatableData: Double {
@@ -244,9 +254,12 @@ struct OnboardingFlow: View {
 
         func body(content: Content) -> some View {
             let t = incoming ? max(0, (shown - Self.split) / (1 - Self.split)) : max(0, (shown - (1 - Self.split)) / Self.split)
+            let away = moves ? 1 - t : 0
             content
+                .blur(radius: away * (incoming ? BlurMotion.Rise.page.blur : 4))
+                .scaleEffect(incoming ? 1 - away * (1 - BlurMotion.Rise.page.scale) : 1)
+                .offset(y: incoming ? lift * away : 0)
                 .opacity(t)
-                .offset(x: incoming ? dx * (1 - t) : 0)
         }
     }
 
@@ -382,7 +395,7 @@ struct OnboardingFlow: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("onboarding.worked")
-                .transition(.opacity)
+                .transition(BlurMotion.on && !reduceMotion ? BlurMotion.arrival : .opacity)
             } else {
                 ForEach(TryIt.ways(connected: tryConnected)) { way in
                     switch way {
@@ -489,7 +502,7 @@ struct OnboardingFlow: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
+                    .transition(BlurMotion.on && !reduceMotion ? BlurMotion.arrival : .opacity)
                     .accessibilityIdentifier("onboarding.brought")
             }
         }
@@ -605,7 +618,7 @@ struct OnboardingFlow: View {
         // The same button stays put from step to step; a different one takes over the way the
         // step does, never on top of the one before.
         .id(action)
-        .transition(stepTransition(dx: 0))
+        .transition(stepTransition(moves: !reduceMotion, lift: 0))
     }
 
     private enum Action: Hashable { case proceed, skip(String), none }
