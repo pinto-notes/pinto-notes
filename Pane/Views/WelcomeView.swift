@@ -60,7 +60,7 @@ struct WelcomeFlow: View {
                 .padding(.top, 48)
                 .padding(.bottom, 36)
                 .frame(width: Self.size.width / 2)
-                .frame(maxHeight: .infinity)
+                .modifier(CardHeight())
         }
         // The window is held at this size (WindowShaper); whatever it ends up, the picture
         // takes the rest of it, so there's never a band beside or around it.
@@ -289,10 +289,19 @@ struct CardLayout<Side: View>: View {
             WelcomeFlow.art
             side
                 .frame(width: WelcomeFlow.size.width / 2)
-                .frame(maxHeight: .infinity)
+                .modifier(CardHeight())
         }
         .frame(minWidth: WelcomeFlow.size.width, maxWidth: .infinity, maxHeight: .infinity)
         .background { Backdrop() }
+    }
+}
+
+/// The card's words side takes the window's height and no more, whatever a step holds: a step
+/// taller than the window must not make the row taller, or the picture beside it is laid out
+/// again at another size and crop (a step that jumped, seen on Bring your notes).
+struct CardHeight: ViewModifier {
+    func body(content: Content) -> some View {
+        content.frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
     }
 }
 #endif
