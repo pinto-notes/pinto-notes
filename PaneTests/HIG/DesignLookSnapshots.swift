@@ -30,10 +30,10 @@ import Testing
             try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-root-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 0.6)
         }
         try await AppSnapshotTests.withLastNote(c, "Lisbon") {
-            try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-root-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 1.6)
+            try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-root-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
         }
         try await AppSnapshotTests.withLastNote(c, "Evening tracker") {
-            try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-tracker-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 1.6)
+            try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-tracker-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
         }
         // The sidebar's List draws no rows offscreen (its rows come only in a window on screen), so
         // its rows are laid out here from the real row parts: the icon, the name and the count.
@@ -63,9 +63,9 @@ import Testing
         try await AppSnapshotTests.shoot(side, name: "look-\(look)-sidebar-\(mode)", size: Self.sidebar.size, dark: dark, wait: 0.6)
         let toast = ZStack(alignment: .bottom) {
             Color.notePage
-            Toast(text: "Imported 4 notes").padding(.bottom, 24)
+            Toast(text: "Imported 4 notes").padding(.bottom, 48)
         }
-        try await AppSnapshotTests.shoot(toast, name: "look-\(look)-toast-\(mode)", size: CGSize(width: 420, height: 140), dark: dark)
+        try await AppSnapshotTests.shoot(toast, name: "look-\(look)-toast-\(mode)", size: CGSize(width: 420, height: 180), dark: dark)
     }
 }
 #endif

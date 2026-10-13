@@ -48,7 +48,7 @@ enum Palette {
     /// with the shared shadow (`Depth`) instead of a border.
     static let card = pair(0xFFFEFB, 0x2C2A27)
     /// The tint of the shared shadow's long, soft part: the brown, never grey.
-    static let shadow = pair(0x3C1E05, 0.16, 0x000000, 0.45)
+    static let shadow = pair(0x3C1E05, 0.13, 0x000000, 0.45)
 
     /// The note itself: nearly white, and nearly native in the dark. Candidate B (`paper`) lays
     /// a soft cream page instead, like the website's cards.

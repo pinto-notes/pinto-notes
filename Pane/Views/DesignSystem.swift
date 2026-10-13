@@ -502,7 +502,7 @@ struct Toast: View {
         HStack(spacing: 8) {
             switch kind {
             case .working: ProgressView().controlSize(.small)
-            case .done: Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.hierarchical).foregroundStyle(Color(Palette.amber))
+            case .done: Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, Color(Palette.amberButton))
             case .failed: Image(systemName: "exclamationmark.triangle.fill").symbolRenderingMode(.multicolor)
             }
             Text(text)
