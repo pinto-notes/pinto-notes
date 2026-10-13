@@ -2,14 +2,9 @@
 
 # Pinto Notes apps (for AGENTS.md)
 
-Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and `get_page_guide`; this keeps it in front of agents that skim server instructions.
+Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
 
-Apps: a note in Pinto Notes can be an app (some tools call a one-file app a page).
-- Before making or changing an app, call get_page_guide once. It says where an app lives; how it looks and works is up to you.
-- An app is a normal Vite + React + TypeScript + Tailwind + shadcn/ui project. create_app starts one; list_app_files, read_app_file, write_app_file and edit_app_file work on it like any codebase. Every save compiles it and tells you what broke.
-- Its data is JSON the app keeps (useStore, useCollection, useSettings from "@/lib/amber", or localStorage: all synced and encrypted). You read and change it with get_page_data, query_app_data and update_page_data.
-- It runs inside a note on iPhone and Mac, light and dark, with no network except hosts the person allows.
-- See your work with preview_app and check_app before you say it's done.
+A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person.
 
 The default look every app starts with, amber-base.css (the real file; override any rule, or opt out with `<meta name="amber-base" content="none">`):
 

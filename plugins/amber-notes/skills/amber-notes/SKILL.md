@@ -15,17 +15,18 @@ A read-only connection only has the reading tools. If a change is refused for th
 
 ## How to work with the notes
 
-- Find before you write: `get_overview` for folders, pinned and recent notes; `search_notes` for anything specific. Read a note with `read_note` before editing it.
-- Notes are markdown. The first line is the title. Checklists are `- [ ] item` lines; tables are markdown tables.
-- Make the smallest change that does the job: `edit_note` (exact find and replace, copied from `read_note`) or `append_to_note` (end of a note, or under a heading). Use `replace_note_body` only when the person asks for a full rewrite.
-- Tick items with `set_checklist_item`. For tables and trackers, call `read_table` first, then `log_table_row`, so the column names and values are right.
-- Deleting is recoverable: `delete_note` moves a note to Recently Deleted for 30 days, and `restore_note` brings it back. `note_history` and `restore_revision` undo an edit.
+- The notes are files. Each note is a markdown file at a path like `Work/Acme.md`; its first line is the title. A note's sub-notes and files sit in the folder with its name (`Work/Acme/Agenda.md`). Deleted notes are in `Recently Deleted/`.
+- Find before you write: `list` for folders, pinned and recent notes; `search` for anything specific. Read a note with `fetch` before you change it; a change to a note you haven't read, or that changed since, is refused.
+- Checklists are `- [ ] item` lines; tables are markdown tables. A tracker has a `<!-- pane-table: … -->` line above its table that gives each column's type.
+- Make the smallest change that does the job: `edit` is an exact find and replace (copy the text from `fetch`, without the line numbers). Tick an item by editing `- [ ]` to `- [x]`; add a row to a table the same way. Use `write` only when the person asks for a full rewrite.
+- `edit` and `write` answer with checks, such as a tracker value out of range or a checklist line that no longer shows as one. Fix what they report.
+- Deleting is recoverable: `delete` moves a note to Recently Deleted for 30 days, and `restore` brings it back. `history` and `restore` with a version undo an edit.
 - A note with `locked: true` is encrypted on the person's devices. Only its title is visible; don't try to read or change it.
 - When you're done, name the note you changed and what you changed, in one line.
 
 ## Good uses from a coding session
 
 - Write today's standup into a note, from the commits since yesterday.
-- Append a decision to the project's note, under a "Decisions" heading.
-- Keep a dated work log: `append_to_note` under today's date.
+- Add a decision to the project's note, under a "Decisions" heading.
+- Keep a dated work log: `edit` under today's date.
 - Read a checklist note (a release checklist, say) and go through it, ticking items as they're done.

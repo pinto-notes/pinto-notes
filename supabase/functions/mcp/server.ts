@@ -15,27 +15,27 @@
 import type { Sql } from "npm:postgres@3.4.5";
 import { tokenKey, unwrap, Vault } from "../_shared/e2ee.ts";
 import { errorKind, log } from "../_shared/log.ts";
-import { Content, runTool, servedTools, ToolContext, ToolError } from "./tools.ts";
-import { FILE_INSTRUCTIONS, FILE_TOOLS, runFileTool } from "./files_tools.ts";
-// The file-like tool set (prototype) when AMBER_MCP_TOOLS=files; otherwise what servedTools() serves.
-const fileSet = () => Deno.env.get("AMBER_MCP_TOOLS") === "files";
+import { Content, runTool, ToolContext, ToolError } from "./tools.ts";
+import { FILE_INSTRUCTIONS, FILE_PROMPTS, runFileTool } from "./files_tools.ts";
+import { servedTools, toolSet } from "./tool_set.ts";
 import { toolErrorKind } from "./tool_errors.ts";
 import { challenge, handleOAuth, isOAuthPath, publicBase, resolveAccessToken, subpath } from "./oauth.ts";
 import { SERVER_CARD_PATH, SERVER_INFO, serverCardResponse } from "./card.ts";
-import { BASE_CSS_URI, GUIDE_URI, PAGE_INSTRUCTIONS, PAGE_PROMPTS, pageGuide } from "./page_guide.ts";
+import { APPS_GUIDE_URI, appsGuide, BASE_CSS_URI, GUIDE_URI, PAGE_INSTRUCTIONS, PAGE_PROMPTS, pageGuide } from "./page_guide.ts";
 import { AMBER_BASE_CSS } from "./amber-base.ts";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
-/** Whether this server serves the app tools (servedTools). Everything else it says about apps
- *  follows from this: the instructions' app lines, the prompts and the resources. (The server card
- *  lists servedTools() itself.) */
+/** Whether this server's tools build apps: the file tools do (an app is a path, "X.app/"), and so
+ *  does "pages" with its app tools; the classic note tools alone don't. Everything else it says
+ *  about apps follows from this: the instructions' app lines, the prompts and the resources. */
 export function appsServed(set: string | undefined = Deno.env.get("AMBER_MCP_TOOLS")): boolean {
-  return servedTools(set).some((t) => t.name === "get_page_guide");
+  return toolSet(set) === "files" || servedTools(set).some((t) => t.name === "get_page_guide");
 }
 
 /** The server's instructions. They name a tool only where this server serves it: the lines about
  *  apps are there with the app tools, and left out without them. */
 export function instructions(set: string | undefined = Deno.env.get("AMBER_MCP_TOOLS")): string {
+  if (toolSet(set) === "files") return FILE_INSTRUCTIONS;
   const apps = appsServed(set);
   return `Pinto Notes is the user's personal notes app. Notes are markdown; the first line is the title.
 Start with get_overview or search_notes to find things. Read a note before editing it.
@@ -228,16 +228,16 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
           capabilities: { tools: { listChanged: false }, resources: { listChanged: false }, prompts: { listChanged: false } },
           serverInfo: SERVER_INFO,
           // AMBER_MCP_INSTRUCTIONS=none: none at all, as clients that drop them see it (an eval arm).
-          ...(Deno.env.get("AMBER_MCP_INSTRUCTIONS") === "none" ? {} : { instructions: fileSet() ? FILE_INSTRUCTIONS : instructions() }),
+          ...(Deno.env.get("AMBER_MCP_INSTRUCTIONS") === "none" ? {} : { instructions: instructions() }),
         });
       }
       case "ping":
         return ok(id, {});
       case "tools/list":
-        return ok(id, { tools: (fileSet() ? FILE_TOOLS : servedTools()).filter((t) => ctx.canWrite || t.annotations.readOnlyHint) });
+        return ok(id, { tools: servedTools().filter((t) => ctx.canWrite || t.annotations.readOnlyHint) });
       case "tools/call": {
         const name = String(msg.params?.name ?? "");
-        if (!(fileSet() ? FILE_TOOLS : servedTools()).some((t) => t.name === name)) {
+        if (!servedTools().some((t) => t.name === name)) {
           return { jsonrpc: "2.0", id, error: { code: -32602, message: `Unknown tool: ${name || "(none)"}` } };
         }
         const given = msg.params?.arguments ?? {};
@@ -247,7 +247,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
         const args = given as Record<string, unknown>;
         const started = performance.now();
         try {
-          const result = fileSet() ? await runFileTool(name, args, ctx) : await runTool(name, args, ctx);
+          const result = toolSet() === "files" ? await runFileTool(name, args, ctx) : await runTool(name, args, ctx);
           if (ctx.timing) ctx.timing.total = performance.now() - started;
           if (result instanceof Content) {
             return ok(id, { content: result.content, ...(result.structured ? { structuredContent: result.structured } : {}) });
@@ -267,7 +267,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
         }
       }
       case "resources/list":
-        return ok(id, { resources: fileSet() ? [] : (await servedResources()).map(({ text: _, ...r }) => r) });
+        return ok(id, { resources: (await servedResources()).map(({ text: _, ...r }) => r) });
       case "resources/templates/list":
         return ok(id, { resourceTemplates: [] });
       case "resources/read": {
@@ -277,7 +277,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
         return ok(id, { contents: [{ uri: r.uri, mimeType: r.mimeType, text: r.text }] });
       }
       case "prompts/list":
-        return ok(id, { prompts: fileSet() ? [] : servedPrompts().map(({ text: _, ...p }) => p) });
+        return ok(id, { prompts: servedPrompts().map(({ text: _, ...p }) => p) });
       case "prompts/get": {
         const p = servedPrompts().find((x) => x.name === msg.params?.name);
         if (!p) return { jsonrpc: "2.0", id, error: { code: -32602, message: `Unknown prompt: ${String(msg.params?.name ?? "")}` } };
@@ -295,24 +295,29 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
   }
 }
 
+type Resource = { uri: string; name: string; title: string; description: string; mimeType: string; text: string };
 /** Read-only documents a client can attach: the guide, the default stylesheet and an example app
- *  project. Made the first time a client asks (they're big; most requests never need them). */
-let resources: Promise<{ uri: string; name: string; title: string; description: string; mimeType: string; text: string }[]> | null = null;
-const RESOURCES = () => resources ??= (async () => {
+ *  project. Made the first time a client asks (they're big; most requests never need them). The
+ *  guide is the tool set's: with the file tools, what every new app's README.md says. */
+const resources: Partial<Record<"files" | "pages", Promise<Resource[]>>> = {};
+const RESOURCES = (set: "files" | "pages") => resources[set] ??= (async () => {
   const { APP_EXAMPLES } = await import("./app_examples.gen.ts");
   return [
-    { uri: GUIDE_URI, name: "note-pages-guide", title: "Building note pages", description: "How to build and edit Pinto Notes pages: the window.amber API, data model, design rules and a starter page.", mimeType: "text/markdown", text: await pageGuide() },
+    set === "files"
+      ? { uri: APPS_GUIDE_URI, name: "apps-guide", title: "Apps in Pinto Notes", description: "How a note's app runs in Pinto Notes: the project, its data (data.json), the network and the device. Every new app's README.md says the same.", mimeType: "text/markdown", text: appsGuide() }
+      : { uri: GUIDE_URI, name: "note-pages-guide", title: "Building note pages", description: "How to build and edit Pinto Notes pages: the window.amber API, data model, design rules and a starter page.", mimeType: "text/markdown", text: await pageGuide() },
     { uri: BASE_CSS_URI, name: "amber-base-css", title: "amber-base.css", description: "The default stylesheet every note's app gets, before its own styles and in a cascade layer: override any rule, or opt out with <meta name=\"amber-base\" content=\"none\">.", mimeType: "text/css", text: AMBER_BASE_CSS },
     ...Object.entries(APP_EXAMPLES).flatMap(([name, ex]) => Object.entries(ex.files).map(([path, text]) => ({ uri: `amber://examples/${name}${path}`, name: `example-${name}${path.replace(/[/.]/g, "-")}`, title: `Example app ${name}: ${path}`, description: `A file of the ${name} example project.`, mimeType: path.endsWith(".md") ? "text/markdown" : path.endsWith(".css") ? "text/css" : path.endsWith(".html") ? "text/html" : "text/javascript", text: text as string }))),
   ];
 })();
 
-/** The prompts and resources are all about apps: offered only where the app tools are served. */
-export function servedPrompts(set: string | undefined = Deno.env.get("AMBER_MCP_TOOLS")): readonly (typeof PAGE_PROMPTS)[number][] {
-  return appsServed(set) ? PAGE_PROMPTS : [];
+/** The prompts and resources are all about apps: offered only where the tools build apps, and in
+ *  the words of the tools served. */
+export function servedPrompts(set: string | undefined = Deno.env.get("AMBER_MCP_TOOLS")): readonly ((typeof PAGE_PROMPTS)[number] | (typeof FILE_PROMPTS)[number])[] {
+  return toolSet(set) === "files" ? FILE_PROMPTS : appsServed(set) ? PAGE_PROMPTS : [];
 }
-export async function servedResources(set: string | undefined = Deno.env.get("AMBER_MCP_TOOLS")): ReturnType<typeof RESOURCES> {
-  return appsServed(set) ? await RESOURCES() : [];
+export async function servedResources(set: string | undefined = Deno.env.get("AMBER_MCP_TOOLS")): Promise<Resource[]> {
+  return toolSet(set) === "files" ? await RESOURCES("files") : appsServed(set) ? await RESOURCES("pages") : [];
 }
 
 function ok(id: unknown, result: unknown) {

@@ -137,7 +137,7 @@ export default function Page() {
         for iPhone and Mac that I make, has an MCP server built in, which is the kind of API AI apps speak:
       </p>
       <ul>
-        <li>Tools to search, read, create and edit notes, with precise edits (<code>edit_note</code>, <code>append_to_note</code>, <code>set_checklist_item</code>) instead of rewriting a whole note.</li>
+        <li>Tools to search, read, create and edit notes, with precise edits (<code>edit</code> replaces exact text, after <code>fetch</code> reads the note) instead of rewriting a whole note.</li>
         <li>Sign-in with OAuth and your approval in the app, read only or read and edit, or an access token for scripts, Claude Code and Codex.</li>
         <li>Every change keeps the previous version, so a bad edit can be put back.</li>
       </ul>

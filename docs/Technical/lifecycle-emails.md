@@ -38,9 +38,9 @@ yet: until the app calls `pane_feature_used('template')` when it adds a template
 every account reaching rung 6 gets the templates email once. The `apps` and `share` words must be
 checked against the shipped features before their flags go on.
 
-The `connect` email's examples use only what the MCP tools do today (`append_to_note`,
-`set_checklist_item`, `create_folder`, `move_note`); `try`'s prompts use `search_notes`,
-`create_note`, `append_to_note` and `edit_note`. "Mostly in one folder" comes from folder ids alone
+The `connect` email's examples use only what the MCP tools do today (adding a line under a
+heading and ticking an item with `edit`, making a folder with `create`, filing a note with
+`move`); `try`'s prompts need `search`, `fetch`, `create` and `edit`. "Mostly in one folder" comes from folder ids alone
 (folder names are encrypted), and no email ever says a number about the person's notes. An account whose browser connection is waiting
 (`connect_asks`, which expire) gets a last line on typing the number.
 

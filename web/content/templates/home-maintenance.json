@@ -13,7 +13,7 @@
   "folder": "Home",
   "note": "Home maintenance\n\nThe jobs that keep a home working, how often they're due, and when you last did them.\n\n<!-- pane-table: Task=text; Every=choice Month|3 months|6 months|Year; Last done=text; Next due=text -->\n| Task | Every | Last done | Next due |\n| --- | --- | --- | --- |\n\n## This month\n\n## Who to call\n- Plumber:\n- Electrician:\n\n## Appliances\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Home maintenance\". When I tell you about a recurring job, add a row with log_table_row: Task, Every, Last done and Next due as yyyy-mm-dd. At the start of a month, when I ask, read the table with read_table and add what's due this month under \"This month\" as a checklist with append_to_note. When I say I've done one, update its Last done and Next due with edit_note and tick it with set_checklist_item. Keep model numbers and warranty dates I mention under \"Appliances\"."
+    "default": "Use my Pinto Notes note \"Home maintenance\". Read it with fetch before each change. When I tell you about a recurring job, add a row to the table with edit: Task, Every, Last done and Next due as yyyy-mm-dd. At the start of a month, when I ask, add what's due this month under \"This month\" as a checklist. When I say I've done one, update its Last done and Next due and tick it. Keep model numbers and warranty dates I mention under \"Appliances\"."
   },
   "asks": [
     "Add: clean the dishwasher filter every month, last done 1 September.",
@@ -22,50 +22,43 @@
   ],
   "demo": [
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Task": "Clean the dishwasher filter",
-          "Every": "Month",
-          "Last done": "2026-09-01",
-          "Next due": "2026-10-01"
-        }
+        "path": "Home/Home maintenance.md",
+        "old_string": "| --- | --- | --- | --- |\n",
+        "new_string": "| --- | --- | --- | --- |\n| Clean the dishwasher filter | Month | 2026-09-01 | 2026-10-01 |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Task": "Test the smoke alarms",
-          "Every": "3 months",
-          "Last done": "2026-07-05",
-          "Next due": "2026-10-05"
-        }
+        "path": "Home/Home maintenance.md",
+        "old_string": "| Clean the dishwasher filter | Month | 2026-09-01 | 2026-10-01 |\n",
+        "new_string": "| Clean the dishwasher filter | Month | 2026-09-01 | 2026-10-01 |\n| Test the smoke alarms | 3 months | 2026-07-05 | 2026-10-05 |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Task": "Service the boiler",
-          "Every": "Year",
-          "Last done": "2025-10-12",
-          "Next due": "2026-10-12"
-        }
+        "path": "Home/Home maintenance.md",
+        "old_string": "| Test the smoke alarms | 3 months | 2026-07-05 | 2026-10-05 |\n",
+        "new_string": "| Test the smoke alarms | 3 months | 2026-07-05 | 2026-10-05 |\n| Service the boiler | Year | 2025-10-12 | 2026-10-12 |\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "This month",
-        "text": "- [ ] Clean the dishwasher filter (due 1 Oct)\n- [ ] Test the smoke alarms (due 5 Oct)\n- [ ] Service the boiler (due 12 Oct)"
+        "path": "Home/Home maintenance.md",
+        "old_string": "## This month\n",
+        "new_string": "## This month\n- [ ] Clean the dishwasher filter (due 1 Oct)\n- [ ] Test the smoke alarms (due 5 Oct)\n- [ ] Service the boiler (due 12 Oct)\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Appliances",
-        "text": "- Dishwasher: Bosch SMV4HTX31E, warranty until March 2028"
+        "path": "Home/Home maintenance.md",
+        "old_string": "## Appliances\n",
+        "new_string": "## Appliances\n- Dishwasher: Bosch SMV4HTX31E, warranty until March 2028\n"
       }
     }
   ],
@@ -75,5 +68,5 @@
     "meal-plan",
     "gift-ideas"
   ],
-  "updated": "2026-10-01"
+  "updated": "2026-10-13"
 }

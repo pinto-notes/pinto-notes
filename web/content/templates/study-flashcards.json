@@ -12,7 +12,7 @@
   "folder": "Study",
   "note": "Study notes and flashcards\n\nNotes for each topic, and flashcards your AI quizzes you on. Cards you miss go back to box 1; cards you know move up to box 5.\n\n## Notes\n\n## Flashcards\n<!-- pane-table: Question=text; Answer=text; Topic=text; Box=scale 1-5 -->\n| Question | Answer | Topic | Box |\n| --- | --- | --- | --- |\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Study notes and flashcards\". When I paste lecture notes or a chapter, add a tidy summary under \"Notes\" with append_to_note, under a \"###\" heading with the topic, and make five to ten flashcards from it with log_table_row: Question, Answer, Topic, and Box 1. When I say \"quiz me\", read the table with read_table and ask me one card at a time, lowest box first, without showing the answer. After each answer, tell me if I was right and update its Box with edit_note: up one when I get it right, back to 1 when I don't."
+    "default": "Use my Pinto Notes note \"Study notes and flashcards\". Read it with fetch before each change. When I paste lecture notes or a chapter, add a tidy summary under \"Notes\" with edit, under a \"###\" heading with the topic, and make five to ten flashcards from it as rows in the table: Question, Answer, Topic, and Box 1. When I say \"quiz me\", ask me one card at a time, lowest box first, without showing the answer. After each answer, tell me if I was right and update its Box: up one when I get it right, back to 1 when I don't."
   },
   "asks": [
     "Here are my notes on cell respiration: …",
@@ -21,54 +21,43 @@
   ],
   "demo": [
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Notes",
-        "text": "### Cell respiration\n- Glucose is broken down to make ATP, the cell's energy.\n- Three stages: glycolysis, the Krebs cycle, the electron transport chain.\n- Most ATP comes from the electron transport chain, in the mitochondria."
+        "path": "Study/Study notes and flashcards.md",
+        "old_string": "## Notes\n",
+        "new_string": "## Notes\n### Cell respiration\n- Glucose is broken down to make ATP, the cell's energy.\n- Three stages: glycolysis, the Krebs cycle, the electron transport chain.\n- Most ATP comes from the electron transport chain, in the mitochondria.\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Question": "Where does glycolysis happen?",
-          "Answer": "In the cytoplasm",
-          "Topic": "Cell respiration",
-          "Box": 1
-        }
+        "path": "Study/Study notes and flashcards.md",
+        "old_string": "| --- | --- | --- | --- |\n",
+        "new_string": "| --- | --- | --- | --- |\n| Where does glycolysis happen? | In the cytoplasm | Cell respiration | 1 |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Question": "Which stage makes the most ATP?",
-          "Answer": "The electron transport chain",
-          "Topic": "Cell respiration",
-          "Box": 1
-        }
+        "path": "Study/Study notes and flashcards.md",
+        "old_string": "| Where does glycolysis happen? | In the cytoplasm | Cell respiration | 1 |\n",
+        "new_string": "| Where does glycolysis happen? | In the cytoplasm | Cell respiration | 1 |\n| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 1 |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Question": "What is ATP for?",
-          "Answer": "It carries energy the cell can use",
-          "Topic": "Cell respiration",
-          "Box": 1
-        }
+        "path": "Study/Study notes and flashcards.md",
+        "old_string": "| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 1 |\n",
+        "new_string": "| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 1 |\n| What is ATP for? | It carries energy the cell can use | Cell respiration | 1 |\n"
       }
     },
     {
-      "tool": "edit_note",
+      "tool": "edit",
       "args": {
-        "edits": [
-          {
-            "old_text": "| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 1 |",
-            "new_text": "| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 2 |"
-          }
-        ]
+        "path": "Study/Study notes and flashcards.md",
+        "old_string": "| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 1 |",
+        "new_string": "| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 2 |"
       }
     }
   ],
@@ -78,5 +67,5 @@
     "reading-list",
     "cornell-notes"
   ],
-  "updated": "2026-10-01"
+  "updated": "2026-10-13"
 }

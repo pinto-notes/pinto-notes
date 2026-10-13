@@ -684,7 +684,7 @@ import AppKit
             #expect(first.components(separatedBy: ":").count <= 2 && first.components(separatedBy: " app").count == 2, "\(first)")
         }
         #expect(MakeAnApp.prompt(title: "Packing", body: "Packing\n- [ ] a\n- [ ] b\n- [ ] c").contains("make my note \u{201C}Packing\u{201D} an app: a checklist that shows what's left"))
-        #expect(MakeAnApp.prompt(title: "Thoughts", body: "Thoughts\n\nNothing to track.").hasPrefix("In Pinto Notes, make my note \u{201C}Thoughts\u{201D} an app. Call get_page_guide"))
+        #expect(MakeAnApp.prompt(title: "Thoughts", body: "Thoughts\n\nNothing to track.").hasPrefix("In Pinto Notes, make my note \u{201C}Thoughts\u{201D} an app. Read the note, start its app with create (type app)"))
     }
 
     // MARK: Pushing an app's data

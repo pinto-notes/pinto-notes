@@ -31,13 +31,13 @@ export default function Page() {
 - Standups go in the "Standup notes" note in Pinto Notes: append under today's date.
 - When I say we're done for the day, add three lines to "Work log":
   what shipped, what's blocked, what's next.
-- Log hours in the "Timesheet" table with log_table_row.`}</code></pre>
+- Log hours as a row in the "Timesheet" table.`}</code></pre>
 
       <h2>The standup</h2>
       <p>
-        Ask &ldquo;Write today&apos;s standup from the commits since yesterday.&rdquo; Claude Code reads the git log, then calls{" "}
-        <code>append_to_note</code>, which adds text at the end of a note, or under a heading you name. The rest of the note stays exactly as it
-        was.
+        Ask &ldquo;Write today&apos;s standup from the commits since yesterday.&rdquo; Claude Code reads the git log, reads the note with{" "}
+        <code>fetch</code>, then adds the lines under today&apos;s heading with <code>edit</code>, an exact search and replace. The rest of the
+        note stays exactly as it was.
       </p>
       <p>
         In Pinto Notes the new lines are tinted, and the bar at the bottom says what Claude Code changed, with Undo, like the picture at the top.
@@ -50,21 +50,21 @@ export default function Page() {
       <h2>A daily log</h2>
       <p>
         One running note, with a heading per day, is easier to search later than a note per day. &ldquo;Add today&apos;s summary to Work
-        log&rdquo; puts it under today&apos;s heading. If you prefer a note per day, ask for it: <code>create_note</code> makes one, and{" "}
-        <code>move_note</code> files it in a folder like Work/2026.
+        log&rdquo; puts it under today&apos;s heading. If you prefer a note per day, ask for it: <code>create</code> makes one at a path{" "}
+        like <code>Work/2026/2026-10-13.md</code>, and <code>move</code> files older ones.
       </p>
 
       <h2>A tracker</h2>
       <p>
         For numbers, like hours, energy or the day&apos;s focus, a table works better than prose. Make a table with a Date column and ask
-        Claude Code to log a row. <code>log_table_row</code> checks each value against its column, and in a tracker with a date column it
-        updates today&apos;s row instead of adding a second one.
+        Claude Code to log a row. It adds the row with <code>edit</code>, and the answer says if a value doesn&apos;t fit its column, like a
+        score out of range, so it can fix it.
       </p>
       <Figure shot={SHOTS.tracker} caption="A tracker note: one row per day, filled in by you or by Claude Code." />
 
       <h2>Reading it back</h2>
       <ul>
-        <li>&ldquo;What did I do last week?&rdquo; <code>search_notes</code> and <code>read_note</code> find it.</li>
+        <li>&ldquo;What did I do last week?&rdquo; <code>search</code> and <code>fetch</code> find it.</li>
         <li>On your phone, the log is just a note: open it in Pinto Notes.</li>
         <li>Every change Claude Code makes keeps the previous version. If a summary goes wrong, restore the earlier one from the note&apos;s history.</li>
       </ul>

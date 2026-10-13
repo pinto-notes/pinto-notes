@@ -12,7 +12,7 @@
   "folder": "Travel",
   "note": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack.\n\n## Bookings\n<!-- pane-table: What=text; When=text; Confirmation=text; Paid=choice Yes|No -->\n| What | When | Confirmation | Paid |\n| --- | --- | --- | --- |\n\n## Days\n\n## Packing\n- [ ] Passport\n- [ ] Chargers\n- [ ] Travel insurance details\n- [ ] Comfortable shoes\n\n## Ideas\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Trip plan\". I'll tell you where I'm going, when, and what I like. Write a day-by-day plan under \"Days\" with append_to_note: a \"###\" heading per day with three to five bullets, and keep it realistic, with travel time between places. When I paste a booking confirmation, add a row to the Bookings table with log_table_row (What, When, Confirmation, Paid). Add anything this trip needs to the \"Packing\" checklist, and save places I mention for later under \"Ideas\"."
+    "default": "Use my Pinto Notes note \"Trip plan\". Read it with fetch before each change. I'll tell you where I'm going, when, and what I like. Write a day-by-day plan under \"Days\" with edit: a \"###\" heading per day with three to five bullets, and keep it realistic, with travel time between places. When I paste a booking confirmation, add a row to the Bookings table (What, When, Confirmation, Paid). Add anything this trip needs to the \"Packing\" checklist, and save places I mention for later under \"Ideas\"."
   },
   "asks": [
     "Lisbon, 4 days in May. I like food, views and walking. Not museums.",
@@ -21,57 +21,51 @@
   ],
   "demo": [
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "What": "Flights ARN to LIS",
-          "When": "14 May, 07:10",
-          "Confirmation": "K7Q2PX",
-          "Paid": "Yes"
-        }
+        "path": "Travel/Trip plan.md",
+        "old_string": "| --- | --- | --- | --- |\n",
+        "new_string": "| --- | --- | --- | --- |\n| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "What": "Hotel in Príncipe Real, 4 nights",
-          "When": "14 to 18 May",
-          "Confirmation": "48213377",
-          "Paid": "No"
-        }
+        "path": "Travel/Trip plan.md",
+        "old_string": "| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n",
+        "new_string": "| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "What": "Train Lisbon to Sintra",
-          "When": "16 May, 09:10",
-          "Confirmation": "CP-55120",
-          "Paid": "Yes"
-        }
+        "path": "Travel/Trip plan.md",
+        "old_string": "| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n",
+        "new_string": "| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n| Train Lisbon to Sintra | 16 May, 09:10 | CP-55120 | Yes |\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Days",
-        "text": "### Thursday 14 May\n- Land 10:40, drop bags at the hotel\n- Lunch at Time Out Market\n- Sunset at Miradouro da Senhora do Monte\n\n### Friday 15 May\n- Tram 28 before 9, ahead of the crowds\n- Alfama on foot, lunch at a tasca\n- Dinner at Ramiro (book ahead)"
+        "path": "Travel/Trip plan.md",
+        "old_string": "## Days\n",
+        "new_string": "## Days\n### Thursday 14 May\n- Land 10:40, drop bags at the hotel\n- Lunch at Time Out Market\n- Sunset at Miradouro da Senhora do Monte\n\n### Friday 15 May\n- Tram 28 before 9, ahead of the crowds\n- Alfama on foot, lunch at a tasca\n- Dinner at Ramiro (book ahead)\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Packing",
-        "text": "- [ ] Sunglasses\n- [ ] A light jacket for the evenings"
+        "path": "Travel/Trip plan.md",
+        "old_string": "- [ ] Comfortable shoes\n",
+        "new_string": "- [ ] Comfortable shoes\n- [ ] Sunglasses\n- [ ] A light jacket for the evenings\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Ideas",
-        "text": "- Day trip to Sintra\n- LX Factory on Sunday"
+        "path": "Travel/Trip plan.md",
+        "old_string": "## Ideas\n",
+        "new_string": "## Ideas\n- Day trip to Sintra\n- LX Factory on Sunday\n"
       }
     }
   ],
@@ -81,5 +75,5 @@
     "meal-plan",
     "gift-ideas"
   ],
-  "updated": "2026-10-01"
+  "updated": "2026-10-13"
 }

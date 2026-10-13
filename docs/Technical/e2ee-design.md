@@ -127,7 +127,7 @@ The security review's requirements, and where they're met:
 | Requirement | Where |
 |---|---|
 | The app sends the exact redirect_uri it displayed; the server requires a match | `oauth.ts` decide, `ConnectAI.swift` |
-| No tokens or secrets in URL paths; refuse `pane_` URL tokens | `mcp/server.ts`; `get_file` returns content inline instead of a link |
+| No tokens or secrets in URL paths; refuse `pane_` URL tokens | `mcp/server.ts`; `fetch` (and the classic `get_file`) return content inline instead of a link |
 | Log an allowlist of fields only | `_shared/log.ts`, used by every function log line in `mcp/` |
 | Canary test | `mcp/canary.pglite.test.ts` |
 | A locked note's head is its title only | apps and server; vectors `locked_head` |

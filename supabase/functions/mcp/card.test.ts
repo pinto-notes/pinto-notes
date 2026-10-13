@@ -1,7 +1,7 @@
 // deno test card.test.ts
 import { assertEquals } from "jsr:@std/assert@1";
 import { serverCard, serverCardResponse } from "./card.ts";
-import { servedTools } from "./tools.ts";
+import { servedTools } from "./tool_set.ts";
 
 Deno.test("the server card lists every tool the server serves, as it serves it", () => {
   const card = serverCard();

@@ -12,7 +12,7 @@
   "folder": "Reading",
   "note": "Book notes\n\nWhat stuck from each book: the big idea, the lines worth keeping, and what you'll do differently. Newest book first.\n\n## Books\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Book notes\". When I start a book, add a heading for it at the start of \"Books\" with append_to_note (at_start), like \"### Title by Author\". As I send you highlights and thoughts, add them under that book's heading with append_to_note: quotes as > quotes with the page number, my own thoughts as bullets. Keep my words; don't polish them. When I say I've finished, add \"**The big idea:**\" in three sentences and two to four things I'll do differently as a checklist."
+    "default": "Use my Pinto Notes note \"Book notes\". Read it with fetch before each change. When I start a book, add a heading for it at the start of \"Books\" with edit, like \"### Title by Author\". As I send you highlights and thoughts, add them under that book's heading with edit: quotes as > quotes with the page number, my own thoughts as bullets. Keep my words; don't polish them. When I say I've finished, add \"**The big idea:**\" in three sentences and two to four things I'll do differently as a checklist."
   },
   "asks": [
     "Starting Four Thousand Weeks by Oliver Burkeman.",
@@ -21,18 +21,19 @@
   ],
   "demo": [
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Books",
-        "at_start": true,
-        "text": "### Four Thousand Weeks by Oliver Burkeman"
+        "path": "Reading/Book notes.md",
+        "old_string": "## Books\n",
+        "new_string": "## Books\n### Four Thousand Weeks by Oliver Burkeman\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Four Thousand Weeks by Oliver Burkeman",
-        "text": "> \"The day will never arrive when you finally have everything under control.\" (p. 31)\n\n- The to-do list is infinite by design. Finishing it isn't the goal.\n- Pick your three big projects; everything else waits.\n\n**The big idea:** life is short and attention is finite. Trying to do everything guarantees the important things get squeezed. Choose what to neglect, on purpose.\n\n- [ ] Keep a list of three active projects, no more\n- [ ] Do the most important thing first, before email"
+        "path": "Reading/Book notes.md",
+        "old_string": "### Four Thousand Weeks by Oliver Burkeman\n",
+        "new_string": "### Four Thousand Weeks by Oliver Burkeman\n> \"The day will never arrive when you finally have everything under control.\" (p. 31)\n\n- The to-do list is infinite by design. Finishing it isn't the goal.\n- Pick your three big projects; everything else waits.\n\n**The big idea:** life is short and attention is finite. Trying to do everything guarantees the important things get squeezed. Choose what to neglect, on purpose.\n\n- [ ] Keep a list of three active projects, no more\n- [ ] Do the most important thing first, before email\n"
       }
     }
   ],
@@ -42,5 +43,5 @@
     "study-flashcards",
     "weekly-review"
   ],
-  "updated": "2026-10-01"
+  "updated": "2026-10-13"
 }

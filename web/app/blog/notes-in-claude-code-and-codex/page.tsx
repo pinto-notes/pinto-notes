@@ -86,7 +86,7 @@ http_headers = { "Authorization" = "Bearer pane_…" }`}</code></pre>
       <h2>Check that it works</h2>
       <p>
         Start a new session and ask: &ldquo;Search my Pinto Notes and tell me what I wrote most recently.&rdquo; The agent should call{" "}
-        <code>get_overview</code> or <code>search_notes</code>. In Claude Code, <code>/mcp</code> lists the servers it has.
+        <code>list</code> or <code>search</code>. In Claude Code, <code>/mcp</code> lists the servers it has.
       </p>
 
       <h2>Stay in control</h2>

@@ -234,7 +234,7 @@ export class Paths {
   /** A directory's entries: a folder's, a note's sub-notes, or the top ("" ). */
   children(dir: string): Entry[] { return this.dirs.get(lower(dir.replace(/^\/+/, ""))) ?? []; }
   /** Whether a directory exists (a folder, or a note's folder with something in it). */
-  isDir(dir: string): boolean { return dir === "" || this.dirs.has(lower(dir)) || this.at(dir)?.kind === "folder"; }
+  isDir(dir: string): boolean { return dir === "" || lower(dir) === lower(DELETED) || this.dirs.has(lower(dir)) || this.at(dir)?.kind === "folder"; }
   /** Every entry: folders, notes and files kept in folders. */
   all(): Entry[] { return [...this.byPath.values()]; }
   /** The note whose folder this directory is ("Work/Acme/" → "Work/Acme.md"), if any. */

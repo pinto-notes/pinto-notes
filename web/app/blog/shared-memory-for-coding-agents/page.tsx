@@ -62,8 +62,8 @@ export default function Page() {
 
       <h2>One note they read first</h2>
       <p>
-        Keep one note per project, called Project memory and the project&apos;s name, with three headings. Pin it: <code>get_overview</code>{" "}
-        lists pinned notes, so an agent that starts there sees it straight away.
+        Keep one note per project, called Project memory and the project&apos;s name, with three headings. Pin it: <code>list</code> marks pinned notes{" "}
+        and <code>search</code> can look at pinned notes only, so an agent finds it straight away.
       </p>
       <pre><code>{`# Project memory: Atlas
 
@@ -90,20 +90,18 @@ export default function Page() {
 - Before a task, read the note
   "Project memory: Atlas" in Pinto Notes.
 - When we decide something, add it under
-  Decisions with append_to_note: the date,
-  the decision and one line on why.
+  Decisions with edit: the date, the
+  decision and one line on why.
 - When you finish or stop, add one line
-  under Handoff log with append_to_note:
-  the date, your name, what changed and
-  what's next.
-- Never rewrite the note. To correct a
-  line, use edit_note on that line only.`}</code></pre>
+  under Handoff log with edit: the date,
+  your name, what changed and what's next.
+- Never rewrite the note with write. To
+  correct a line, edit that line only.`}</code></pre>
       <p>
-        The last rule is there because of the second agent. <code>append_to_note</code> adds text under the heading you name, to whatever the note
-        holds at that moment; the server locks the note for each change, so two agents adding a line at the same time both get theirs in. A full
-        rewrite would send back the agent&apos;s own copy of the note and could drop what the other one added a minute earlier.{" "}
-        <code>edit_note</code> changes only the text it matches, and with the version from <code>read_note</code> it refuses to edit a note that
-        changed since it was read.
+        The last rule is there because of the second agent. <code>edit</code> changes only the text it matches, and only in a note the agent
+        has read with <code>fetch</code>. If the other agent changed the note since, the edit is refused and the agent reads it again, so
+        neither one overwrites the other&apos;s line. A full rewrite would send back the agent&apos;s own copy of the note, which is why the
+        rule keeps agents to small edits.
       </p>
       <p>
         If the memory outgrows one note, give it a folder per project and a note per topic. The <a href="/templates/decision-log">decision log
@@ -120,7 +118,7 @@ export default function Page() {
       </p>
       <p>
         That covers the latest edit. For older ones, choose File, then Show Version History: every version is kept, each with who made it,
-        you or an agent by name, and Restore This Version puts one back. Agents can see the same thing with <code>note_history</code>, so
+        you or an agent by name, and Restore This Version puts one back. Agents can see the same thing with <code>history</code>, so
         Codex can check whether it was Claude Code that wrote a line before it changes it.
       </p>
 

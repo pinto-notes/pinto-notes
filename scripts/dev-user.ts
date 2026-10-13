@@ -2,6 +2,7 @@
 //   eval "$(deno run -A scripts/dev-user.ts)"
 // Refuses to run against anything but 127.0.0.1, so it can never touch production.
 import postgres from "npm:postgres@3.4.5";
+import { keyIdOf, newDataKey, recoveryKEK, tokenKey, verifierOf, wrap } from "../supabase/functions/_shared/e2ee.ts";
 
 const status = new TextDecoder().decode((await new Deno.Command("supabase", { args: ["status", "-o", "env"], stderr: "null" }).output()).stdout);
 const env = Object.fromEntries(status.split("\n").filter((l) => l.includes("=")).map((l) => {
@@ -14,7 +15,9 @@ if (!api || !/^http:\/\/127\.0\.0\.1:/.test(api)) throw new Error(`Not a local s
 const sql = postgres(db, { max: 1, prepare: false });
 const password = "pane-dev-password-1";
 
+/** A test user made fresh each run, with an encryption key (its data key never leaves this run). */
 async function user(email: string) {
+  await sql`delete from auth.users where email = ${email}`;
   await sql`insert into public.signup_allowlist (email) values (${email}) on conflict do nothing`;
   const created = await fetch(`${api}/auth/v1/admin/users`, {
     method: "POST",
@@ -28,17 +31,28 @@ async function user(email: string) {
     body: JSON.stringify({ email, password }),
   }).then((r) => r.json());
   if (!login.access_token) throw new Error(`Sign-in failed for ${email}: ${JSON.stringify(login)}`);
-  return login.access_token as string;
+  const jwt = login.access_token as string, id = login.user.id as string;
+  const dk = newDataKey();
+  await rpc(jwt, "create_account_key", { p_key_id: await keyIdOf(dk), p_verifier: await verifierOf(dk, id), p_recovery_wrap: await wrap(dk, await recoveryKEK(crypto.getRandomValues(new Uint8Array(16)), id), "recovery", id), p_generation: 0 });
+  return { jwt, id, dk };
 }
 
-async function token(jwt: string, name: string, write: boolean) {
-  const res = await fetch(`${api}/rest/v1/rpc/create_mcp_token`, {
+async function rpc(jwt: string, fn: string, args: Record<string, unknown>) {
+  const res = await fetch(`${api}/rest/v1/rpc/${fn}`, {
     method: "POST",
     headers: { authorization: `Bearer ${jwt}`, apikey: anon, "content-type": "application/json" },
-    body: JSON.stringify({ token_name: name, write_access: write }),
+    body: JSON.stringify(args),
   });
-  if (!res.ok) throw new Error(`create_mcp_token: ${await res.text()}`);
-  return (await res.json()) as string;
+  if (!res.ok) throw new Error(`${fn}: ${await res.text()}`);
+  return await res.json();
+}
+
+/** An AI connection as the app makes one: a pane_ token, its hash, and the data key wrapped under it. */
+async function token(u: Awaited<ReturnType<typeof user>>, name: string, write: boolean) {
+  const t = `pane_${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+  const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  await rpc(u.jwt, "create_mcp_token", { token_name: name, write_access: write, token_hash: hash, dk_wrap: await wrap(u.dk, await tokenKey(t, "pane"), "pane", u.id) });
+  return t;
 }
 
 try {
@@ -54,8 +68,8 @@ try {
     PANE_ANON: anon,
     PANE_DB_URL: db,
     PANE_MCP_URL: `${api}/functions/v1/mcp`,
-    PANE_USER_JWT: a,
-    PANE_OTHER_JWT: b,
+    PANE_USER_JWT: a.jwt,
+    PANE_OTHER_JWT: b.jwt,
     PANE_TOKEN: await token(a, "Claude Code (test)", true),
     PANE_READONLY_TOKEN: await token(a, "Read-only (test)", false),
     PANE_OTHER_TOKEN: await token(b, "Other user (test)", false),
