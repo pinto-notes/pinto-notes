@@ -530,6 +530,12 @@ enum ConnectAPI {
                                           handoffRedirect: r.handoffRedirect, wrongNumber: wrongNumber, send: send))
     }
 
+    /// Lets go of a request this account opened and didn't answer, so another account (or the
+    /// recovery key on the page) can answer it.
+    static func release(id: UUID, send: Send) async throws {
+        _ = try await send("/connect/release", "POST", ["id": id.uuidString.lowercased()])
+    }
+
     /// This device's nonce for an asked request (16 random bytes, lowercase hex), written once
     /// before the page reveals its own.
     static func writeNonce(id: UUID, nonce: Data, send: Send) async throws {
@@ -1011,6 +1017,13 @@ struct ConsentSheet: View {
     /// Allow waits a moment after what the sheet shows changes, so a tap meant for what was there
     /// before doesn't land on what's there now.
     @State private var armed = false
+    /// The server took this sheet's answer. A sheet that closes without one lets go of the request
+    /// (`release`): on 13 October 2026 a failed answer left it held, and the recovery key on the
+    /// page, signed in to another account, was turned away.
+    @State private var serverAnswered = false
+    var release: (SupabaseClient, UUID) async -> Void = { client, id in
+        try? await ConnectAPI.release(id: id, send: ConnectAPI.sender(client))
+    }
     static let armDelay: Duration = .seconds(1)
     /// The sheet's height follows what it shows (iPhone), up to the full screen.
     @State private var contentHeight: CGFloat = 0
@@ -1061,6 +1074,11 @@ struct ConsentSheet: View {
                 if !Task.isCancelled { armed = true }
             }
             .animation(.smooth(duration: 0.25), value: phase)
+            .onDisappear {
+                guard !serverAnswered else { return }
+                let (release, client, id) = (release, client, requestID)
+                Task { await release(client, id) }
+            }
     }
 
     /// iPhone: as tall as what it shows, scrolling when that's more than the screen (the
@@ -1394,6 +1412,7 @@ struct ConsentSheet: View {
                                                        match: r.isAsked ? match : nil, scanned: scanned,
                                                        read: { try await askMatch(client, r.id) },
                                                        code: { try AccountCrypto.shared.connectionCode() }, send: ConnectAPI.sender(client))
+            serverAnswered = true
             guard case .answered(let answer) = answered else {
                 match = nil
                 phase = .failed(ConnectMatchCopy.changedWhileAnswering)
