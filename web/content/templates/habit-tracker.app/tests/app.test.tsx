@@ -17,6 +17,7 @@ beforeEach(async () => {
   route("/")
   await amber.store.set("habits", [])
   await amber.store.set("days", {})
+  await amber.store.set("skips", {})
 })
 // The sidebar (Mac) and the tab bar (iPhone) both have the screens' links; either one goes there.
 const go = async (name: string) => userEvent.click((await screen.findAllByRole("link", { name }))[0])
@@ -29,7 +30,7 @@ describe("Today", () => {
     expect(tick).toHaveAttribute("aria-pressed", "false")
     await userEvent.click(tick)
     await waitFor(() => expect(values().days?.[day]?.walk).toBe(1))
-    expect(await screen.findByText("1 of 1 done today")).toBeInTheDocument()
+    expect(await screen.findByText("All done today")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Done: Walk" })).toHaveAttribute("aria-pressed", "true")
 
     await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
@@ -91,7 +92,7 @@ describe("Habits", () => {
     await userEvent.type(screen.getByLabelText("Unit (optional)"), "reps")
     await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
     await waitFor(() => expect(values().habits).toEqual([{ id: "push-ups", name: "Push-ups", target: 20, unit: "reps" }]))
-    expect(await screen.findByText("20 reps a day")).toBeInTheDocument()
+    expect(await screen.findByText("Every day · 20 reps a day")).toBeInTheDocument()
   })
 
   it("reorders and removes habits", async () => {
@@ -145,38 +146,164 @@ describe("Habits", () => {
 
 describe("Any day", () => {
   const label = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
+  const first = new Date(today().getFullYear(), today().getMonth(), 1, 12)
 
-  it("ticks and unticks an earlier day from History", async () => {
-    const monday = addDays(today(), -((today().getDay() + 6) % 7))
+  it("ticks, skips and clears a day from the month calendar", async () => {
     await amber.store.set("habits", [walk])
-    route("/history")
+    route("/month")
     render(<App />)
-    const dot = await screen.findByRole("button", { name: `Walk, ${label(monday)}` })
-    await userEvent.click(dot)
-    await waitFor(() => expect(values().days?.[iso(monday)]?.walk).toBe(1))
-    expect(screen.getByRole("button", { name: `Walk, ${label(monday)}` })).toHaveAttribute("aria-pressed", "true")
-    await userEvent.click(screen.getByRole("button", { name: `Walk, ${label(monday)}` }))
-    await waitFor(() => expect(values().days?.[iso(monday)]).toBeUndefined())
+    const name = `Walk, ${label(first)}`
+    await userEvent.click(await screen.findByRole("button", { name }))
+    await waitFor(() => expect(values().days?.[iso(first)]?.walk).toBe(1))
+    expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true")
+    await userEvent.click(screen.getByRole("button", { name }))
+    await waitFor(() => expect(values().skips?.[iso(first)]).toEqual(["walk"]))
+    expect(values().days?.[iso(first)]).toBeUndefined()
+    expect(await screen.findByRole("button", { name: `${name}, skipped` })).toHaveAttribute("data-state", "skipped")
+    await userEvent.click(screen.getByRole("button", { name: `${name}, skipped` }))
+    await waitFor(() => expect(values().skips?.[iso(first)]).toBeUndefined())
+    expect(await screen.findByRole("button", { name })).toHaveAttribute("data-state", "none")
   })
 
-  it("ticks a day weeks ago from History, and can't tick the future", async () => {
-    const back = addDays(today(), -20), ahead = addDays(today(), 1)
+  it("goes back a month and ticks a day there, and can't tick the future", async () => {
+    const back = new Date(today().getFullYear(), today().getMonth() - 1, 3, 12), ahead = addDays(today(), 1)
     await amber.store.set("habits", [water])
-    route("/history")
+    route("/month")
     render(<App />)
+    const future = await screen.findAllByRole("button", { name: `Water, ${label(ahead)}` }).catch(() => [])
+    for (const b of future) expect(b).toBeDisabled()
+    await userEvent.click(screen.getByRole("button", { name: "Previous month" }))
+    expect(await screen.findByRole("heading", { name: back.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) })).toBeInTheDocument()
     await userEvent.click(await screen.findByRole("button", { name: `Water, ${label(back)}` }))
     await waitFor(() => expect(values().days?.[iso(back)]?.water).toBe(8))
-    const future = screen.queryAllByRole("button", { name: `Water, ${label(ahead)}` })
-    for (const b of future) expect(b).toBeDisabled()
   })
 })
 
-describe("History", () => {
-  it("shows how many of the last days each habit was done", async () => {
+describe("Month", () => {
+  it("shows how often each habit was done, its streak and its best", async () => {
     await amber.store.set("habits", [walk])
     await amber.store.set("days", { [day]: { walk: 1 }, [iso(addDays(today(), -1))]: { walk: 1 } })
-    route("/history")
+    route("/month")
     render(<App />)
-    expect(await screen.findByText(/^2 of \d+ days · now 2 in a row · best 2$/)).toBeInTheDocument()
+    expect(await screen.findByText(/^\d+ of \d+ · now 2 in a row · best 2$/)).toBeInTheDocument()
+  })
+})
+
+describe("Schedules", () => {
+  const tomorrow = (addDays(today(), 1).getDay() + 6) % 7
+
+  it("adds a habit for some weekdays only", async () => {
+    render(<App />)
+    await go("Habits")
+    await userEvent.click(await screen.findByRole("button", { name: "Add" }))
+    await userEvent.type(await screen.findByLabelText("Name"), "Spanish")
+    await userEvent.click(screen.getByRole("radio", { name: "Some days" }))
+    // Monday to Friday are on to start with; take Friday off.
+    await userEvent.click(screen.getByRole("button", { name: "Friday" }))
+    expect(screen.getByRole("button", { name: "Friday" })).toHaveAttribute("aria-pressed", "false")
+    await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "spanish", name: "Spanish", target: 1, days: [0, 1, 2, 3] }]))
+    expect(await screen.findByText("Mon, Tue, Wed, Thu")).toBeInTheDocument()
+  })
+
+  it("adds a habit with a weekly goal, and shows the week's count on Today", async () => {
+    render(<App />)
+    await go("Habits")
+    await userEvent.click(await screen.findByRole("button", { name: "Add" }))
+    await userEvent.type(await screen.findByLabelText("Name"), "Gym")
+    await userEvent.click(screen.getByRole("radio", { name: "A week" }))
+    await userEvent.clear(screen.getByLabelText("Times a week"))
+    await userEvent.type(screen.getByLabelText("Times a week"), "3")
+    await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "gym", name: "Gym", target: 1, perWeek: 3 }]))
+    await go("Today")
+    expect(await screen.findByText("0 of 3 this week")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Done: Gym" }))
+    expect(await screen.findByText("1 of 3 this week")).toBeInTheDocument()
+  })
+
+  it("puts a habit that isn't for today under Not today, and leaves it out of today's count", async () => {
+    await amber.store.set("habits", [walk, { id: "spanish", name: "Spanish", target: 1, days: [tomorrow] }])
+    render(<App />)
+    expect(await screen.findByRole("heading", { name: "Not today" })).toBeInTheDocument()
+    expect(screen.getByTestId("today-count")).toHaveTextContent("0 of 1 done today")
+    await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
+    expect(await screen.findByText("All done today")).toBeInTheDocument()
+  })
+
+  it("counts a weekly goal's streak in weeks", async () => {
+    const lastMonday = addDays(today(), -((today().getDay() + 6) % 7) - 7)
+    const log: Record<string, Record<string, number>> = {}
+    for (const w of [0, -7]) for (const i of [0, 1, 2]) log[iso(addDays(lastMonday, w + i))] = { gym: 1 }
+    await amber.store.set("habits", [{ id: "gym", name: "Gym", target: 1, perWeek: 3 }])
+    await amber.store.set("days", log)
+    render(<App />)
+    expect(await screen.findByText("2-week streak")).toBeInTheDocument()
+  })
+
+  it("doesn't break a streak on a day the habit isn't for", async () => {
+    const off = (addDays(today(), -1).getDay() + 6) % 7
+    await amber.store.set("habits", [{ ...walk, days: [0, 1, 2, 3, 4, 5, 6].filter((d) => d !== off) }])
+    await amber.store.set("days", { [iso(addDays(today(), -2))]: { walk: 1 }, [iso(addDays(today(), -3))]: { walk: 1 } })
+    render(<App />)
+    expect(await screen.findByText("2-day streak")).toBeInTheDocument()
+  })
+
+  it("changes a habit's schedule from its page", async () => {
+    await amber.store.set("habits", [walk])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Open Walk" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Edit habit" }))
+    await userEvent.click(await screen.findByRole("radio", { name: "A week" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(values().habits).toEqual([{ ...walk, perWeek: 3 }]))
+  })
+})
+
+describe("Skipping", () => {
+  it("skips today from the habit's page, keeping the streak, and takes the skip back", async () => {
+    await amber.store.set("habits", [walk])
+    await amber.store.set("days", { [iso(addDays(today(), -1))]: { walk: 1 }, [iso(addDays(today(), -2))]: { walk: 1 } })
+    render(<App />)
+    expect(await screen.findByText("2-day streak")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Open Walk" }))
+    expect(await screen.findByRole("dialog", { name: "Walk" })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Skip today" }))
+    await waitFor(() => expect(values().skips?.[day]).toEqual(["walk"]))
+    expect(await screen.findByRole("button", { name: "Don't skip today" })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Close" }))
+    expect(await screen.findByText(/^Skipped today · 2-day streak$/)).toBeInTheDocument()
+    expect(screen.getByText("2-day streak")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Open Walk" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Don't skip today" }))
+    await waitFor(() => expect(values().skips?.[day]).toBeUndefined())
+  })
+
+  it("keeps a streak over a skipped day", async () => {
+    await amber.store.set("habits", [walk])
+    await amber.store.set("days", { [iso(addDays(today(), -1))]: { walk: 1 }, [iso(addDays(today(), -3))]: { walk: 1 } })
+    await amber.store.set("skips", { [iso(addDays(today(), -2))]: ["walk"] })
+    render(<App />)
+    expect(await screen.findByText("2-day streak")).toBeInTheDocument()
+  })
+
+  it("ticking a skipped day clears the skip", async () => {
+    await amber.store.set("habits", [walk])
+    await amber.store.set("skips", { [day]: ["walk"] })
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Done: Walk" }))
+    await waitFor(() => expect(values().days?.[day]?.walk).toBe(1))
+    await waitFor(() => expect(values().skips?.[day]).toBeUndefined())
+  })
+})
+
+describe("Older data", () => {
+  it("opens data from before schedules and skips (no skips key, no days on habits)", async () => {
+    await amber.store.set("skips", null)
+    await amber.store.set("habits", [walk, water])
+    await amber.store.set("days", { [iso(addDays(today(), -1))]: { walk: 1, water: 8 } })
+    render(<App />)
+    expect(await screen.findByTestId("today-count")).toHaveTextContent("0 of 2 done today")
+    expect(screen.getAllByText("1-day streak").length).toBe(2)
   })
 })

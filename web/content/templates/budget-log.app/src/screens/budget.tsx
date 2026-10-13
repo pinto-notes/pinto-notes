@@ -1,14 +1,17 @@
 import { cn } from "@/lib/utils"
 import { useLayoutEffect, useRef, useState } from "react"
-import { Plus, Trash2 } from "lucide-react"
-import { inputClass, offerUndo, Row, Section, Title, TintButton } from "@/components/kit"
-import { money, useBudget, type Category } from "@/lib/budget"
+import { ChevronRight, Plus, Trash2 } from "lucide-react"
+import { BillSheet } from "@/components/bill-sheet"
+import { inputClass, offerUndo, Row, Section, Title, TintButton, Toggle } from "@/components/kit"
+import { money, monthName, ordinal, useBudget, type Bill, type Category } from "@/lib/budget"
 
-// The monthly budget per category (rename, change, add, remove), and the currency.
+// The monthly budget per category (rename, change, add, remove), monthly bills, roll-over and the
+// currency. Two columns on a wide note.
 export default function Budget() {
   const b = useBudget()
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
+  const [bill, setBill] = useState<Bill | "new" | null>(null)
   const total = b.categories.reduce((s, c) => s + (Number(c.budget) || 0), 0)
 
   const add = async (e: React.FormEvent) => {
@@ -26,6 +29,8 @@ export default function Budget() {
   return (
     <>
       <Title title="Budget" subtitle={`${money(total, b.currency)} a month`} />
+      <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[700px]:items-start min-[700px]:gap-6">
+      <div>
       <Section title="Each month" footer="Tap a name to rename it; its expenses move with it. Expenses keep their category when you remove one here.">
         {!b.categories.length && <p className="px-4 pt-4 text-center text-muted-foreground">No categories yet. Add the first one below, with what you can spend on it a month.</p>}
         {b.categories.map((c) => (
@@ -42,12 +47,36 @@ export default function Budget() {
           <TintButton type="submit" aria-label="Add category" disabled={!name.trim()} className="h-10 w-10 shrink-0 px-0"><Plus /></TintButton>
         </form>
       </Section>
+      </div>
+      <div>
+      <Section title="Every month" action={<TintButton className="-my-2 h-11 bg-transparent px-2 text-[0.9375rem]" onClick={() => setBill("new")}><Plus /> Add bill</TintButton>}
+        footer="Rent, subscriptions and other bills are added as expenses on their day each month.">
+        {!b.bills.length && <p className="px-4 py-5 text-center text-muted-foreground">No monthly bills yet.</p>}
+        {b.bills.map((x) => (
+          <Row key={x.id} className="p-0">
+            <button type="button" aria-label={`Edit ${x.what}`} onClick={() => setBill(x)} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{x.what}</p>
+                <p className="text-[0.8125rem] text-muted-foreground">{x.category} · on the {ordinal(x.day)}</p>
+              </div>
+              <span className="font-semibold tabular-nums">{money(x.amount, b.currency)}</span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+          </Row>
+        ))}
+      </Section>
+      <Section footer={b.rollover ? `Since ${monthName(b.rollover)}, what's left in a category (or what went over) carries into the next month.` : "Carry what's left in each category into the next month, and what went over out of it."}>
+        <Toggle label="Roll over what's left" checked={!!b.rollover} onChange={(on) => b.setRollover(on)} />
+      </Section>
       <Section title="Currency">
         <Row>
           <label htmlFor="currency" className="flex-1 font-medium">Shown with amounts</label>
           <LiveInput id="currency" className="w-24 text-center" value={b.currency} clean={(v) => v.slice(0, 4)} onSave={(v) => b.setCurrency(v)} />
         </Row>
       </Section>
+      </div>
+      </div>
+      <BillSheet bill={bill} onClose={() => setBill(null)} />
     </>
   )
 }

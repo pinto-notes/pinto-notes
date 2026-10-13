@@ -8,7 +8,9 @@ export const metadata = postMetadata("plan-a-trip-with-chatgpt-or-claude", { tit
 // Checked on 13 October 2026 against the Trip plan template on main (Mac 1.2.26): content/templates/trip-plan.json
 // (prompt, asks) and trip-plan.app (README.md, docs/README.md: Trip, Days, Bookings and Packing tabs; Edit for the
 // trip and dates; add, edit, delete days, bookings and packing items with Undo; paid and packed ticks; "Day 2 of 5"
-// during the trip; no item reordering within a day, no costs, map or weather; no network unless allowed). The
+// during the trip; each day as a timeline with its bookings; Share a day or the trip as text; grouped packing that
+// stays for the next trip; no item reordering within a day, no costs, map or weather; no network unless allowed).
+// Re-checked on growth/apps-bar for the upgraded app. The
 // iPhone app isn't on the App Store yet. What ChatGPT and Claude do in a chat is described as what you can check.
 
 const PROMPT = `Plan a 4-day trip to Lisbon for two, 22 to 25 October. We like food, views and walking. Not museums. We're staying in Príncipe Real and don't want a car.
@@ -39,7 +41,7 @@ export default function Page() {
     <PostPage
       slug="plan-a-trip-with-chatgpt-or-claude"
       intro={<>ChatGPT and Claude will write you a Lisbon itinerary in ten seconds. Two weeks later you&apos;re scrolling up through a long chat looking for the restaurant on day three, with the hotel confirmation in your email and the packing list on the back of an envelope.</>}
-      caption="The trip plan template's app in Pinto Notes on a Mac: the countdown, what's still open, and the first day of the plan."
+      caption="The trip plan template's app in Pinto Notes on a Mac: the countdown, what's still open, and the next day as a timeline."
       answer={
         <Answer jump={[
           { href: "#prompt", label: "The prompt" },
@@ -117,12 +119,17 @@ export default function Page() {
 
       <h2 id="yourself">What you can still do yourself</h2>
       <p>
-        The app has four tabs. Trip shows the countdown, bookings paid and items packed, and the first day of the plan; during the trip
+        The app has four tabs. Trip shows the countdown, bookings paid and items packed, and the next day as a timeline; during the trip
         the countdown becomes &ldquo;Day 2 of 5&rdquo; and the plan shows today. Edit on that tab changes the trip&apos;s name and dates.
       </p>
       <p>
-        Days lists the plan a section a day: add a day, edit one, or delete it. Bookings has each booking with its time and reference;
-        tap to tick it once it&apos;s paid. Packing is a list you tap to pack, and packed items drop to the bottom. You can add, edit or
+        Days shows each day as a timeline. A line that starts with a time, like &ldquo;09:30 Tram 28&rdquo;, goes in its place, and a
+        booking with a day and time joins that day, so the 06:55 flight sits above lunch. Share sends one day, or the whole trip, as
+        text: handy for the friend who asks &ldquo;so what are we doing Thursday?&rdquo;. Add a day, edit one, or delete it.
+      </p>
+      <p>
+        Bookings has each booking with its kind, day, time and reference; tap to tick it once it&apos;s paid. Packing is grouped
+        (documents, clothes, toiletries, tech), you tap an item to pack it, and packed items drop to the bottom. You can add, edit or
         delete bookings and packing items too, and every delete shows Undo at the top of the screen. If you&apos;d rather keep a plain
         checklist, <a href="/blog/apple-notes-templates">Apple Notes templates</a> has a packing list note to copy.
       </p>
@@ -136,7 +143,8 @@ export default function Page() {
       <p>
         The iPhone app isn&apos;t on the App Store yet, so for now the trip plan opens on a Mac with macOS 26 or later. During the
         trip you can still ask ChatGPT or Claude on your phone &ldquo;what&apos;s on today?&rdquo;, since the AI reads the plan
-        through the connection. One trip per note works best; make another note from the template for the next trip.
+        through the connection. When you&apos;re home, Start a new trip in the Edit sheet clears the plan and bookings and keeps the
+        packing list, unpacked, so the next trip starts from what you took last time.
       </p>
       <PostCta slug="plan-a-trip-with-chatgpt-or-claude" position="how-amber-helps" title="Try the trip planner on your Mac">
         <p>The plan, the bookings and the packing list in one note your AI can fill in.</p>

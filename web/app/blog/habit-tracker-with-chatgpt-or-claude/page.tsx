@@ -7,8 +7,9 @@ export const metadata = postMetadata("habit-tracker-with-chatgpt-or-claude", { t
 
 // Checked on 13 October 2026 against the Habit tracker template on main (Mac 1.2.26):
 // content/templates/habit-tracker.json (its prompt and asks) and habit-tracker.app (README.md, docs/README.md:
-// Today, History and Habits screens; add, rename, reorder and remove with Undo; days kept on remove; counted
-// habits; no weekly goals; no notifications). The "Make my note an app" wording is the make_app prompt in
+// Today, Month and Habits screens; schedules (every day, some weekdays, times a week); skip days that keep the
+// streak; a habit's own page; add, rename, reorder and remove with Undo; days kept on remove; counted habits;
+// no notifications). Re-checked on growth/apps-bar for the upgraded app. The "Make my note an app" wording is the make_app prompt in
 // supabase/functions/mcp/files_tools.ts. The iPhone app isn't on the App Store yet. What ChatGPT and Claude
 // build in a chat is described as what you can check yourself, not as tested behaviour.
 
@@ -112,11 +113,17 @@ export default function Page() {
       <h2 id="yourself">What you can still do yourself</h2>
       <p>
         The app has three tabs. Today shows this week&apos;s ring and each habit with its tick and streak. A counted habit, like
-        Water with a goal of 8 glasses, gets minus and plus buttons, and its ring fills as you go. History shows the last five
-        weeks, a day per square: tap a day to tick or untick it, which is how you fix the Tuesday you forgot.
+        Water with a goal of 8 glasses, gets minus and plus buttons, and its ring fills as you go. Habits that aren&apos;t for
+        today, like a weekday habit on a Sunday, wait under Not today. Month shows a calendar per habit: tap a day to tick it,
+        which is how you fix the Tuesday you forgot. Tap it again to mark it skipped.
       </p>
       <p>
-        On the Habits tab you add, rename, reorder and remove habits. Removing one shows Undo at the top of the screen, and the
+        Tap a habit&apos;s name for its own page: its streak, its best run, this month, and Skip today. A skipped day doesn&apos;t
+        break the streak, so a sick day doesn&apos;t wipe out three weeks of walks.
+      </p>
+      <p>
+        On the Habits tab you add, rename, reorder and remove habits, and set how often each one is for: every day, some
+        weekdays, or a number of times a week, like the gym three times. Removing one shows Undo at the top of the screen, and the
         habit&apos;s days stay in the data, so Undo brings its history back. None of this needs your AI. I&apos;d set the habits up
         by hand on the first day, because it&apos;s quicker than describing them.
       </p>
@@ -147,9 +154,8 @@ export default function Page() {
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>
       <p>
-        Every habit in the template is daily. There are no &ldquo;three times a week&rdquo; goals yet; you can ask your AI to add
-        them, but they&apos;re not there when you start. Apps in Pinto Notes can&apos;t send notifications, so nothing reminds you to
-        tick, and the AI only logs a day when you tell it to.
+        Apps in Pinto Notes can&apos;t send notifications, so nothing reminds you to tick, and the AI only logs a day when you tell
+        it to. There are no habit icons or colours, and no notes on a day yet; ask your AI if you want them.
       </p>
       <p>
         The iPhone app isn&apos;t on the App Store yet, so today the tracker opens on a Mac (macOS 26 or later). ChatGPT and Claude

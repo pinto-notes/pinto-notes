@@ -61,10 +61,10 @@ export const SHOTS = {
   lisbon: { src: "/blog/amber-notes-lisbon-trip-note.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac: a plan checklist, a list of places, a linked Hotel booking sub-note, and a table of where to eat.", width: 1250, height: 1420, window: false, title: "Lisbon" },
   iphoneFiles: { src: "/blog/amber-notes-iphone-files-in-a-note.webp", alt: "Pinto Notes on iPhone in dark mode: a Trip documents note holding a PDF, a CSV file, a photo and a link.", width: 1206, height: 2622, window: false, phone: true },
   iphoneGroceries: { src: "/blog/amber-notes-iphone-chatgpt-edited-checklist.webp", alt: "A Groceries checklist in Pinto Notes on iPhone. The five items ChatGPT just added are tinted, and a bar says ChatGPT changed 5 lines, with Undo.", width: 1206, height: 2622, window: false, phone: true },
-  habitApp: { src: "/blog/pinto-notes-habit-tracker-app-mac.webp", alt: "The habit tracker app in a Pinto Notes note on a Mac: this week's ring at 75 percent, 2 of 4 habits done today, and Walk, Read, No phone in bed and Water with their streaks and ticks.", width: 1720, height: 1520, window: false, title: "Habit tracker" },
-  budgetApp: { src: "/blog/pinto-notes-budget-log-app-mac.webp", alt: "The budget app in a Pinto Notes note on a Mac: 7,165 kr left in October with about 377 kr a day, an Add expense button, and each category against its budget.", width: 1720, height: 1520, window: false, title: "Budget and expenses" },
-  tripApp: { src: "/blog/pinto-notes-trip-plan-app-mac.webp", alt: "The trip plan app in a Pinto Notes note on a Mac: Lisbon, 9 days to go, 3 of 5 bookings paid, 5 of 14 items packed, and the plan for the first day.", width: 1720, height: 1520, window: false, title: "Trip plan" },
-  flashcardsApp: { src: "/blog/pinto-notes-study-flashcards-app-mac.webp", alt: "The flashcards app in a Pinto Notes note on a Mac: 12 cards due today, topic pills, a Study now button and a chart of how many cards are in each of five boxes.", width: 1720, height: 1520, window: false, title: "Study notes and flashcards" },
+  habitApp: { src: "/blog/pinto-notes-habit-tracker-app-mac.webp", alt: "The habit tracker app in a Pinto Notes note on a Mac: this week's ring at 62 percent, 2 of 6 habits done today, a grid of every habit's week, and the habits with their ticks and streaks, including Gym at 1 of 3 this week.", width: 1720, height: 1520, window: false, title: "Habit tracker" },
+  budgetApp: { src: "/blog/pinto-notes-budget-log-app-mac.webp", alt: "The budget app in a Pinto Notes note on a Mac: 8,205 kr left in October with about 410 kr a day after bills, a chart of the last six months, this month's bills, and each category against its budget with what rolled over.", width: 1720, height: 1520, window: false, title: "Budget and expenses" },
+  tripApp: { src: "/blog/pinto-notes-trip-plan-app-mac.webp", alt: "The trip plan app in a Pinto Notes note on a Mac: Lisbon, 9 days to go, 3 of 5 bookings paid, 5 of 14 items packed, and the first day as a timeline with the flight and the hotel in it.", width: 1720, height: 1520, window: false, title: "Trip plan" },
+  flashcardsApp: { src: "/blog/pinto-notes-study-flashcards-app-mac.webp", alt: "The flashcards app in a Pinto Notes note on a Mac: 8 cards due today, topic pills, a Study now button, an 11-day streak with a calendar, what's coming up this week and how many cards are in each box.", width: 1720, height: 1520, window: false, title: "Study notes and flashcards" },
   standup: { src: "/blog/amber-notes-claude-code-standup-note.webp", alt: "Standup notes in Pinto Notes on a Mac. The line Claude Code just added is tinted, and a bar at the bottom says Claude Code changed 1 line, with Undo.", width: 1250, height: 1420, window: false, title: "Standup notes" },
 } satisfies Record<string, Shot>;
 
@@ -78,7 +78,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.habitApp,
-    thumb: thumb("fern", "thumb-app-habit-tracker", 1180, 748, "A habit tracker app in Pinto Notes on a Mac: 2 of 4 habits done today, with streaks"),
+    thumb: thumb("fern", "thumb-app-habit-tracker", 1180, 748, "A habit tracker app in Pinto Notes on a Mac: 2 of 6 habits done today, with streaks and the week"),
     draft: false,
   },
   {
@@ -90,7 +90,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.budgetApp,
-    thumb: thumb("butter", "thumb-app-budget-log", 1180, 748, "A budget app in Pinto Notes on a Mac: 7,165 kr left this month, by category"),
+    thumb: thumb("butter", "thumb-app-budget-log", 1180, 748, "A budget app in Pinto Notes on a Mac: 8,205 kr left this month, and the last six months"),
     draft: false,
   },
   {
@@ -102,7 +102,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.tripApp,
-    thumb: thumb("harbor", "thumb-app-trip-plan", 1180, 748, "A trip plan app in Pinto Notes on a Mac: Lisbon, 9 days to go, bookings and packing"),
+    thumb: thumb("harbor", "thumb-app-trip-plan", 1180, 748, "A trip plan app in Pinto Notes on a Mac: Lisbon, 9 days to go, and the first day as a timeline"),
     draft: false,
   },
   {
@@ -114,7 +114,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.flashcardsApp,
-    thumb: thumb("orchid", "thumb-app-study-flashcards", 1180, 748, "A flashcards app in Pinto Notes on a Mac: 12 cards due today, in five boxes"),
+    thumb: thumb("orchid", "thumb-app-study-flashcards", 1180, 748, "A flashcards app in Pinto Notes on a Mac: 8 cards due today and what's coming up"),
     draft: false,
   },
   {

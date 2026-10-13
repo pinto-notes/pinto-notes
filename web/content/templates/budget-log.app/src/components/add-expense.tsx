@@ -1,12 +1,14 @@
 import { cn } from "@/lib/utils"
 import { useLayoutEffect, useState } from "react"
 import { DeleteButton, Field, inputClass, offerUndo, Pills, PrimaryButton, Sheet } from "@/components/kit"
-import { iso, useBudget, type Expense } from "@/lib/budget"
+import { Toggle } from "@/components/kit"
+import { iso, monthOf, newId, useBudget, type Expense } from "@/lib/budget"
 
 // Add or edit an expense: the amount first (the number keypad on iPhone), what it was, a category,
 // the day. Editing has Delete at the bottom, with Undo afterwards.
 export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expense?: Expense | null; onClose: () => void }) {
-  const { categories, currency, add, update, remove, restore, expenses } = useBudget()
+  const { categories, currency, add, update, remove, restore, expenses, addBill } = useBudget()
+  const [repeats, setRepeats] = useState(false)
   const names = categories.length ? categories.map((c) => c.name) : ["Other"]
   const [amount, setAmount] = useState("")
   const [what, setWhat] = useState("")
@@ -15,7 +17,7 @@ export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expens
   useLayoutEffect(() => {
     if (!open) return
     setAmount(expense ? String(expense.amount) : ""); setWhat(expense?.what ?? "")
-    setCategory(expense?.category ?? names[0]); setDate(expense?.date ?? iso(new Date()))
+    setCategory(expense?.category ?? names[0]); setDate(expense?.date ?? iso(new Date())); setRepeats(false)
   }, [open, expense?.id])
   const value = Number(amount.replace(",", "."))
   const ok = value > 0 && Number.isFinite(value)
@@ -25,7 +27,13 @@ export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expens
     e.preventDefault()
     if (!ok) return
     const fields = { date: date || iso(new Date()), what: what.trim() || category, category: options.includes(category) ? category : names[0], amount: Math.round(value * 100) / 100 }
-    if (expense) await update(expense.id, fields); else await add(fields)
+    if (expense) await update(expense.id, fields)
+    else if (repeats) {
+      // A monthly bill: this one now, then the same day every month.
+      const id = newId("r")
+      await addBill({ id, what: fields.what, category: fields.category, amount: fields.amount, day: Number(fields.date.slice(8)), last: monthOf(fields.date) })
+      await add({ ...fields, rec: id })
+    } else await add(fields)
     onClose()
   }
   const drop = async () => {
@@ -53,6 +61,12 @@ export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expens
         <Field label="Day" htmlFor="day">
           <input id="day" type="date" className={inputClass} value={date} onInput={(e) => setDate(e.currentTarget.value)} />
         </Field>
+        {!expense && (
+          <div className="mb-4">
+            <Toggle label="Every month" checked={repeats} onChange={setRepeats} />
+            <p className="px-1 pt-1.5 text-[0.8125rem] text-muted-foreground">For rent, subscriptions and other bills: it's added again on the same day each month.</p>
+          </div>
+        )}
         <PrimaryButton type="submit" disabled={!ok}>{expense ? "Save" : "Add"}</PrimaryButton>
         {expense && <DeleteButton onClick={drop}>Delete expense</DeleteButton>}
       </form>
