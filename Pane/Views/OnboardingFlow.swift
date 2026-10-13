@@ -54,6 +54,10 @@ struct OnboardingFlow: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.openURL) private var openURL
     @State private var forward = true
+    #if os(iOS)
+    /// Where the status bar ends, for the steps without the picture.
+    @State private var phoneTop: CGFloat = 0
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
@@ -116,15 +120,21 @@ struct OnboardingFlow: View {
         #else
         ScrollView {
             VStack(spacing: 0) {
-                phoneArt
-                BlurStage(alignment: .top) {
+                if Self.showsArt(step, first: store.first) {
+                    phoneArt
+                } else {
+                    // Under the status bar and the Back button.
+                    Color.clear.frame(height: phoneTop + Self.backRoom)
+                }
+                // The step going out and the one coming in share one place while they cross.
+                ZStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: Metrics.gap) {
                         progress
                         heading
                         middle
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, 20)
+                    .padding(.top, Self.showsArt(step, first: store.first) ? 20 : 8)
                     .padding(.bottom, 24)
                     .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
                     .id(step)
@@ -145,7 +155,12 @@ struct OnboardingFlow: View {
                 .background { Backdrop() }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .overlay(alignment: .topLeading) { phoneBack }
+        .overlay(alignment: .topLeading) {
+            // The overlay keeps the safe area: its top is where the status bar ends.
+            phoneBack
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { phoneTop = $0 }
+        }
         .background { Backdrop() }
         #endif
     }
@@ -161,7 +176,8 @@ struct OnboardingFlow: View {
                 progress.frame(width: 96)
             }
             .frame(height: 24)
-            BlurStage(alignment: .topLeading) {
+            // The step going out and the one coming in share one place while they cross.
+            ZStack(alignment: .topLeading) {
                 VStack(alignment: .leading, spacing: Metrics.gap) {
                     heading
                     middle
@@ -196,6 +212,10 @@ struct OnboardingFlow: View {
     /// them. Less of it at the largest text sizes, where the words need the room.
     static func artShare(accessibilitySize: Bool) -> CGFloat { accessibilitySize ? 0.12 : 0.2 }
 
+    /// The Back button's band at the top of a step without the picture: its 4 pt inset, its 44 pt
+    /// and a little air.
+    static let backRoom: CGFloat = 56
+
     private var phoneArt: some View {
         Color.clear
             .containerRelativeFrame(.vertical) { height, _ in height * Self.artShare(accessibilitySize: typeSize.isAccessibilitySize) }
@@ -222,6 +242,10 @@ struct OnboardingFlow: View {
         }
     }
     #endif
+
+    /// Only the flow's first step has the picture; the steps after it give its room to the words
+    /// (Emil, 13 October 2026), starting under the Back button.
+    static func showsArt(_ step: Onboarding.Step, first: Onboarding.Step) -> Bool { step == first }
 
     /// The step going out fades and blurs in the first part of the move; the one coming in shows
     /// only after, rising into focus as the website's content does (blur, a little lower and
@@ -395,7 +419,7 @@ struct OnboardingFlow: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("onboarding.worked")
-                .transition(BlurMotion.on && !reduceMotion ? BlurMotion.arrival : .opacity)
+                .transition(reduceMotion ? .opacity : BlurMotion.arrival)
             } else {
                 ForEach(TryIt.ways(connected: tryConnected)) { way in
                     switch way {
@@ -502,7 +526,7 @@ struct OnboardingFlow: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(BlurMotion.on && !reduceMotion ? BlurMotion.arrival : .opacity)
+                    .transition(reduceMotion ? .opacity : BlurMotion.arrival)
                     .accessibilityIdentifier("onboarding.brought")
             }
         }

@@ -282,19 +282,14 @@ struct ImportGuideSheet: View {
     var pages: some View {
         VStack(spacing: 0) {
             topBar
-            if BlurMotion.on && !reduceMotion {
-                // Blur prototype: each page rises into focus as the one before fades.
-                ZStack {
-                    content
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .id(pageKey)
-                        .transition(BlurMotion.page)
-                }
-                .animation(BlurMotion.enter, value: pageKey)
-            } else {
+            // Each page rises into focus as the one before fades (BlurMotion).
+            ZStack {
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(pageKey)
+                    .transition(reduceMotion ? .opacity : BlurMotion.page)
             }
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: pageKey)
         }
     }
 

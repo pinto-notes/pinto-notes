@@ -5,18 +5,15 @@ import Combine
 import QuartzCore
 import SwiftUI
 
-// PROTOTYPE (proto/blur-transitions, 2026-10-13): the website's content entrance (web/app/site.css
-// `.rise`: blur 9px, 12px lower, 98.5% size, transparent, into focus over 500 ms on
-// cubic-bezier(0.2, 0.8, 0.2, 1)) as a SwiftUI transition, for a few page changes in the app.
-// Off unless launched with `-blurTransitions YES` (or the default set), so it can't reach a
-// release by accident. With Reduce Motion the callers keep their plain fade.
+// The website's content entrance (web/app/site.css `.rise`: blur 9px, 12px lower, 98.5% size,
+// transparent, into focus over 500 ms on cubic-bezier(0.2, 0.8, 0.2, 1)) for the few places one
+// page replaces another: the welcome's sign-in, the first-run steps (`OnboardingFlow.StepMove`),
+// the import guides' pages and the Allow sheet's states. One blur, the whole page at once: Emil
+// chose it over a staggered entrance on 13 October 2026 ("when it's an app you're supposed to use
+// all the time, you should not overdo it"). Opening notes, folders and the sidebar stay instant.
+// With Reduce Motion the callers use a plain fade.
 
 enum BlurMotion {
-    static let key = "blurTransitions"
-
-    /// The switch. A launch argument `-blurTransitions YES` lands in the arguments domain.
-    static var on: Bool { UserDefaults.standard.bool(forKey: key) }
-
     /// The site's curve and time for the entrance; the page before leaves quickly, as the site's
     /// view transition does (160 ms, ease-in), a little blurred on its way out.
     static let enter = Animation.timingCurve(0.2, 0.8, 0.2, 1, duration: 0.5).delay(0.06)
@@ -24,16 +21,8 @@ enum BlurMotion {
 
     /// A page that replaces another: the new one rises into focus, the old one fades out.
     static var page: AnyTransition {
-        .asymmetric(insertion: AnyTransition(Rise(blur: 9, lift: 12, scale: 0.985)).animation(enter),
+        .asymmetric(insertion: AnyTransition(Rise.page).animation(enter),
                     removal: AnyTransition(Fade(blur: 4)).animation(leave))
-    }
-
-    /// Option B (`-blurStyle stagger`): as the site does it, each part of the page rises on its
-    /// own, in reading order, 55 ms apart (`blurRise(_:)`); the page itself only fades out.
-    static var staggered: Bool { on && UserDefaults.standard.string(forKey: "blurStyle") == "stagger" }
-
-    static var pageStaggered: AnyTransition {
-        .asymmetric(insertion: .identity, removal: AnyTransition(Fade(blur: 4)).animation(leave))
     }
 
     /// A small thing that arrives (a confirmation line): the same entrance, shorter way to travel.
@@ -46,6 +35,8 @@ enum BlurMotion {
         var blur: CGFloat
         var lift: CGFloat
         var scale: CGFloat
+
+        static let page = Rise(blur: 9, lift: 12, scale: 0.985)
 
         func body(content: Content, phase: TransitionPhase) -> some View {
             let away = phase != .identity
@@ -68,49 +59,7 @@ enum BlurMotion {
     }
 }
 
-/// One part of a staggered page: rises into focus when it first shows, `order` × 55 ms late.
-private struct RiseIn: ViewModifier {
-    let order: Int
-    @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        let away = !shown && !reduceMotion
-        content
-            .blur(radius: away ? 9 : 0)
-            .scaleEffect(away ? 0.985 : 1)
-            .offset(y: away ? 12 : 0)
-            .opacity(away ? 0 : 1)
-            .onAppear {
-                withAnimation(.timingCurve(0.2, 0.8, 0.2, 1, duration: 0.5).delay(0.06 + Double(order) * 0.055)) { shown = true }
-            }
-    }
-}
-
-extension View {
-    /// Option B's rise for one part of a page; nothing unless the staggered blur is on.
-    @ViewBuilder func blurRise(_ order: Int) -> some View {
-        if BlurMotion.staggered { modifier(RiseIn(order: order)) } else { self }
-    }
-}
-
-/// Where one page replaces another. With the blur on, the old page and the new one share their
-/// place while they cross; off, they stack for that moment as they always have (a one-child VStack).
-struct BlurStage<Content: View>: View {
-    var alignment: Alignment
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        if BlurMotion.on {
-            ZStack(alignment: alignment) { content }
-        } else {
-            VStack(spacing: 0) { content }
-        }
-    }
-}
-
-/// Recording the prototype without touching the input: `-uitest -blurTransitions YES -blurDemo
-/// <spot>` shows a stage that presses through the real views on a timer. Views listen for cues
+/// Recording the transitions without touching the input: `-uitest -blurDemo <spot>` shows a stage that presses through the real views on a timer. Views listen for cues
 /// (`blurDemoCue`) only while a demo runs.
 enum BlurDemo {
     static let cue = Notification.Name("BlurDemo.cue")

@@ -1110,19 +1110,14 @@ struct ConsentSheet: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Blur prototype: each of the sheet's states rises into focus as the one before fades.
-    @ViewBuilder
+    /// Each of the sheet's states rises into focus as the one before fades (BlurMotion).
     private var content: some View {
-        if BlurMotion.on && !reduceMotion {
-            ZStack {
-                states
-                    .id(phaseKey)
-                    .transition(BlurMotion.page)
-            }
-            .animation(BlurMotion.enter, value: phaseKey)
-        } else {
+        ZStack {
             states
+                .id(phaseKey)
+                .transition(reduceMotion ? .opacity : BlurMotion.page)
         }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : BlurMotion.enter, value: phaseKey)
     }
 
     private var phaseKey: Int {
