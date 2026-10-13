@@ -91,9 +91,13 @@ final class KeepImporter {
             notes = files.filter { isNoteJSON($0.lastPathComponent) }.count
             bytes = files.reduce(0) { $0 + Int64((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
         }
-        return ImportSource(url: url, name: "Google Keep", notes: notes, bytes: bytes,
-                            problem: notes == 0 ? "No Keep notes in here. Choose the Takeout folder, its Keep folder, or the Takeout .zip." : nil)
+        // Nothing of Keep in it: the row names what was picked, not Keep (newcomer audit #20).
+        guard notes > 0 else { return ImportSource(url: url, name: url.lastPathComponent, notes: 0, bytes: bytes, problem: notInHere) }
+        return ImportSource(url: url, name: "Google Keep", notes: notes, bytes: bytes, problem: nil)
     }
+
+    /// What to choose instead, when what was picked has no Keep notes in it.
+    nonisolated static let notInHere = "No Google Keep notes in here. Choose the Takeout folder from your Google download, the Keep folder in it, or the Takeout .zip."
 
     func run(_ sources: [ImportSource], into destination: ImportDestination,
              progress: (Int, Int) -> Void = { _, _ in }, shouldStop: () -> Bool = { false }) async -> ImportSummary {

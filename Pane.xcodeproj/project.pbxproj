@@ -325,6 +325,7 @@
 		7787C605AEF964F597ED6307 /* HeardFrom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025496AD1008785E931A6425 /* HeardFrom.swift */; };
 		779FB36891A0E3E0D6EC6260 /* ConnectGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */; };
 		77B3410E4519C6D281BA661E /* PressSelect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 138C228FA740D92E0D104154 /* PressSelect.swift */; };
+		77BD4F4AD7D96478C461BEB9 /* EmptyLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2645544EC93B2A847792408A /* EmptyLibraryTests.swift */; };
 		79738886844F66E95BFAB207 /* HeardFromView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730B7663C46D3F18F6A80738 /* HeardFromView.swift */; };
 		7A098FE97DEFF91BC87CF24B /* AppleNotesImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483CA88017A03E92EEC52DFD /* AppleNotesImport.swift */; };
 		7A39FF51239708385F72BE50 /* preact.js in Resources */ = {isa = PBXBuildFile; fileRef = 19D80BDF04976B1F5E2449A1 /* preact.js */; };
@@ -767,6 +768,7 @@
 		24D8355994666F6DBB272BC0 /* amber-ui.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "amber-ui.json"; sourceTree = "<group>"; };
 		24F0468D706470F75BC78618 /* CardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardView.swift; sourceTree = "<group>"; };
 		25098E4C4EF554486AD7952E /* AIEdit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIEdit.swift; sourceTree = "<group>"; };
+		2645544EC93B2A847792408A /* EmptyLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyLibraryTests.swift; sourceTree = "<group>"; };
 		27341730693C9C5F11516EAE /* PaneShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaneShare.entitlements; sourceTree = "<group>"; };
 		27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectScan.swift; sourceTree = "<group>"; };
 		2856CB2ECE7B50E11419DC6C /* NoteLockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLockTests.swift; sourceTree = "<group>"; };
@@ -1476,6 +1478,7 @@
 				06F885F11369967DA92A32CE /* CaretFixTests.swift */,
 				8BDEFF02B8B16DE3DF974509 /* ChecklistInteractionTests.swift */,
 				F7306680E0E335C07172C36F /* ChecklistLookTests.swift */,
+				2645544EC93B2A847792408A /* EmptyLibraryTests.swift */,
 				8DE676E076D7616ADB19BB34 /* ExtremesTests.swift */,
 				F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */,
 				103DA695D50259C942F1C50D /* GalleryTests.swift */,
@@ -2273,6 +2276,7 @@
 				4F076F4BD77FEA75A56F4078 /* EditorHarness.swift in Sources */,
 				9F62E76CDE7AE2DD7C74B970 /* EditorPerfTests.swift in Sources */,
 				23C51C81E1F1A07BDF892635 /* EmailSignInFlowTests.swift in Sources */,
+				77BD4F4AD7D96478C461BEB9 /* EmptyLibraryTests.swift in Sources */,
 				1E19A90801FFFD1FDEBB3653 /* EvernoteImportTests.swift in Sources */,
 				7E2EA31EB61B678C8D93773D /* ExtremesTests.swift in Sources */,
 				C785F0780DE69D802E7DDA51 /* FileOutTests.swift in Sources */,
