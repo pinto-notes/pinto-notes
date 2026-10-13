@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { amber } from "amber"
 import App from "@/App"
-import { dayKey, streak, type Day, type Habit } from "@/lib/habits"
+import { dayKey, shown, streak, type Day, type Habit } from "@/lib/habits"
 
 // Each test starts from the app's data as it is (the template's habits, or the person's), so it
 // adds what it needs and checks only what it changed.
@@ -24,11 +24,39 @@ async function addHabit(name: string) {
 }
 
 describe("Habits", () => {
-  it("adds a habit and removes it", async () => {
+  const shownNames = () => shown(habits()).map((h) => h.name)
+
+  it("adds a habit, removes it, and brings it back with Undo", async () => {
     render(<App />)
     await addHabit("Stretch")
     await userEvent.click(screen.getByRole("button", { name: "Remove Stretch" }))
-    await waitFor(() => expect(habits().some((h) => h.name === "Stretch")).toBe(false))
+    await waitFor(() => expect(shownNames()).not.toContain("Stretch"))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
+    await waitFor(() => expect(shownNames()).toContain("Stretch"))
+    expect(screen.queryByText("Removed Stretch")).not.toBeInTheDocument()
+  })
+
+  it("renames a habit", async () => {
+    render(<App />)
+    await addHabit("Stretch")
+    await userEvent.click(screen.getByRole("button", { name: "Rename Stretch" }))
+    const field = screen.getByLabelText("Name")
+    await userEvent.clear(field)
+    await userEvent.type(field, "Stretch 10 minutes")
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    expect(await screen.findByText("Stretch 10 minutes")).toBeInTheDocument()
+    await waitFor(() => expect(shownNames()).toContain("Stretch 10 minutes"))
+  })
+
+  it("moves a habit up and down", async () => {
+    render(<App />)
+    await addHabit("Stretch")
+    const before = shownNames()
+    expect(before.at(-1)).toBe("Stretch")
+    await userEvent.click(screen.getByRole("button", { name: "Move Stretch up" }))
+    await waitFor(() => expect(shownNames().at(-2)).toBe("Stretch"))
+    await userEvent.click(screen.getByRole("button", { name: "Move Stretch down" }))
+    await waitFor(() => expect(shownNames()).toEqual(before))
   })
 })
 

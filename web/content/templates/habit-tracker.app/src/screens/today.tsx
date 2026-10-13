@@ -5,12 +5,12 @@ import { PageHeader } from "@/components/app-shell"
 import { StatCard } from "@/components/stat-card"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { dayKey, doneOn, lastDays, streak, type Day, type Habit } from "@/lib/habits"
+import { dayKey, doneOn, lastDays, shown, streak, type Day, type Habit } from "@/lib/habits"
 
 export default function Today() {
   const habits = useCollection("habits")
   const days = useCollection("days")
-  const list = habits.items as Habit[]
+  const list = shown(habits.items as Habit[])
   const log = days.items as Day[]
   const now = new Date()
   const today = dayKey(now)
