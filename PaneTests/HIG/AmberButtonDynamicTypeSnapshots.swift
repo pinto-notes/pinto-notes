@@ -70,3 +70,25 @@ import UIKit
     }
 }
 #endif
+
+#if os(macOS)
+import AppKit
+import SwiftUI
+import Testing
+@testable import Pane
+
+/// On the Mac the amber button stays as it is, whatever the text size: its sizes follow the
+/// control size, as the system's buttons do.
+@MainActor @Suite struct AmberButtonDynamicTypeSnapshots {
+    static func size(_ view: some View, _ type: DynamicTypeSize) -> CGSize {
+        NSHostingView(rootView: view.dynamicTypeSize(type).fixedSize()).fittingSize
+    }
+
+    @Test func theMacButtonKeepsItsSize() {
+        let row = Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(height: 36, cornerRadius: 8)).frame(width: 300)
+        #expect(Self.size(row, .accessibility5) == Self.size(row, .large))
+        let capsule = Button("Add to my notes") {}.buttonStyle(.amberProminent)
+        #expect(Self.size(capsule, .accessibility5) == Self.size(capsule, .large))
+    }
+}
+#endif
