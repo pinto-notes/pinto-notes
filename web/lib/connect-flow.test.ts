@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  browserFrom, isMacBrowser, keyFingerprint, newScan, scanAppLink, scanLink, scanRequest, newCode, newPageNonce, newPickup, pageCommit, pageNumber, parseKeyRow, recoveryApproval, RecoveryError, revealRequest, safeDeniedRedirect,
+  approveOn, approveOnFromUA, approveWords, browserFrom, isMacBrowser, keyFingerprint, newScan, scanAppLink, scanLink, scanRequest, newCode, newPageNonce, newPickup, pageCommit, pageNumber, parseKeyRow, recoveryApproval, RecoveryError, revealRequest, safeDeniedRedirect,
   sealedDestination, sha256Hex, statusRequest, statusStep, withCode,
 } from "./connect-flow";
 import { fromBase64, openHandoff, toBase64, tokenKey, unwrap } from "./e2ee";
@@ -291,5 +291,43 @@ describe("the QR code's secret, key fingerprint and links", () => {
     expect(isMacBrowser("iPad", "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)", 5)).toBe(false);
     expect(isMacBrowser("Win32", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", 0)).toBe(false);
     expect(isMacBrowser("Linux x86_64", "Mozilla/5.0 (X11; Linux x86_64)", 0)).toBe(false);
+  });
+});
+
+describe("the approve screen", () => {
+  const MAC_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
+  const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1";
+  const IPAD_UA = "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+  const WINDOWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+
+  it("knows a Mac, an iPhone, an iPad and anything else", () => {
+    expect(approveOn("MacIntel", MAC_UA, 0)).toBe("mac");
+    expect(approveOn("iPhone", IPHONE_UA, 5)).toBe("iphone");
+    expect(approveOn("iPad", IPAD_UA, 5)).toBe("ipad");
+    expect(approveOn("MacIntel", MAC_UA, 5)).toBe("ipad");
+    expect(approveOn("Win32", WINDOWS_UA, 0)).toBe("other");
+    expect(approveOn("Linux x86_64", "Mozilla/5.0 (X11; Linux x86_64)", 0)).toBe("other");
+  });
+
+  it("guesses from the user agent alone on the server", () => {
+    expect(approveOnFromUA(MAC_UA)).toBe("mac");
+    expect(approveOnFromUA(IPHONE_UA)).toBe("iphone");
+    expect(approveOnFromUA(IPAD_UA)).toBe("ipad");
+    expect(approveOnFromUA(WINDOWS_UA)).toBe("other");
+    expect(approveOnFromUA(null)).toBe("other");
+  });
+
+  it("names neither device in the heading", () => {
+    for (const on of ["mac", "iphone", "ipad", "other"] as const) {
+      expect(approveWords(on).title).toBe("Approve in Pinto Notes");
+      expect(approveWords(on).recover).toBe("No device with Pinto Notes? Use your recovery key");
+    }
+  });
+
+  it("opens the app first on a Mac, only opens it on an iPhone or iPad, and shows the code first elsewhere", () => {
+    expect(approveWords("mac")).toMatchObject({ lede: "Use your iPhone or this Mac.", ways: ["open", "scan"], open: "Open Pinto Notes on this Mac", hint: "Or scan the code with your iPhone's Camera." });
+    expect(approveWords("iphone")).toMatchObject({ lede: null, ways: ["open"], open: "Open Pinto Notes" });
+    expect(approveWords("ipad")).toMatchObject({ lede: null, ways: ["open"], open: "Open Pinto Notes" });
+    expect(approveWords("other")).toMatchObject({ lede: "Use your iPhone or Mac.", ways: ["scan"], hint: "On your iPhone, open the Camera and point it at the code." });
   });
 });

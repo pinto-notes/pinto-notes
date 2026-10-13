@@ -277,6 +277,43 @@ export function browserOn(platform: string, ua: string, maxTouchPoints = 0): Bro
   return isMacBrowser(platform, ua, maxTouchPoints) ? "mac" : "other";
 }
 
+// MARK: The approve screen
+
+/// Where this browser is, for the first screen. You can approve on an iPhone or a Mac, so neither
+/// is the heading. On a Mac, opening the app here comes first and the code for an iPhone sits next
+/// to it. On an iPhone or iPad, the app opens here: no code to scan with the device showing it.
+/// Anywhere else, the code comes first.
+export type ApproveOn = "mac" | "iphone" | "ipad" | "other";
+export function approveOn(platform: string, ua: string, maxTouchPoints = 0): ApproveOn {
+  if (/iPhone|iPod/.test(platform) || /iPhone|iPod/.test(ua)) return "iphone";
+  // iPadOS Safari says "MacIntel" and has touch.
+  if (/iPad/.test(platform) || /iPad/.test(ua) || (/^Mac/.test(platform) && maxTouchPoints > 1)) return "ipad";
+  return isMacBrowser(platform, ua, maxTouchPoints) ? "mac" : "other";
+}
+
+/// The same from the user agent alone, for the server's first render. An iPad that asks for the
+/// desktop site reads as a Mac here; the page corrects it once it runs.
+export const approveOnFromUA = (ua: string | null): ApproveOn => approveOn("", ua ?? "");
+
+/// The ways to approve, in the order the screen shows them: "open" opens Pinto Notes on this
+/// device, "scan" is the QR code for an iPhone.
+export type ApproveWay = "open" | "scan";
+
+export function approveWords(on: ApproveOn): {
+  title: string; lede: string | null; ways: ApproveWay[]; open: string; hint: string; recover: string;
+} {
+  // On an iPhone or iPad the button says it all, under the line saying what the app can do.
+  const here = on === "iphone" || on === "ipad";
+  return {
+    title: "Approve in Pinto Notes",
+    lede: on === "mac" ? "Use your iPhone or this Mac." : here ? null : "Use your iPhone or Mac.",
+    ways: on === "mac" ? ["open", "scan"] : here ? ["open"] : ["scan"],
+    open: on === "mac" ? "Open Pinto Notes on this Mac" : "Open Pinto Notes",
+    hint: on === "mac" ? "Or scan the code with your iPhone's Camera." : "On your iPhone, open the Camera and point it at the code.",
+    recover: "No device with Pinto Notes? Use your recovery key",
+  };
+}
+
 /// The one thing the page tells you to do once you've signed in:
 /// - "thisMac": the browser is on a Mac and the account has a Mac app: open it here.
 /// - "thisIphone": the browser is on an iPhone and the account has the iPhone app: open it here.

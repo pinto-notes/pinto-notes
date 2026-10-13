@@ -147,7 +147,7 @@ export const FILE_TOOLS: Tool[] = ([
   {
     name: "pin", title: "Pin",
     description: "Pins a note to the top of the list, or unpins it.",
-    inputSchema: { type: "object", properties: { path: str(PATH), pinned: { type: "boolean" } }, required: ["path", "pinned"] },
+    inputSchema: { type: "object", properties: { path: str(PATH), pinned: { type: "boolean", description: "true to pin, false to unpin." } }, required: ["path", "pinned"] },
     annotations: { ...change, idempotentHint: true },
   },
   {

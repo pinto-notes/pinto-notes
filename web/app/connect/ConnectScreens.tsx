@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { APPLE_ON_WEB, GOOGLE_ON_WEB, requestWords } from "@/lib/connect";
-import { afterCheck, emailLooksValid, parseEmailStatus, type Devices, type EmailStatus, type EmailStep, type Lead } from "@/lib/connect-flow";
+import { afterCheck, approveWords, emailLooksValid, parseEmailStatus, type ApproveOn, type Devices, type EmailStatus, type EmailStep, type Lead } from "@/lib/connect-flow";
 import { PasswordInput } from "@/lib/PasswordInput";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { DeviceScreen } from "./DeviceLead";
@@ -31,21 +31,30 @@ export function ErrorLine({ text }: { text: string | null }) {
   return <p className={styles.error} role="alert">{text}</p>;
 }
 
-/// The main screen: one QR code to scan with your iPhone. `link` is null until the code is ready;
-/// `macLink` opens the app on this Mac with the same secret.
-export function ScanScreen({ to, link, macLink, onNotify, onRecover }: {
-  to: string | null; link: string | null; macLink: string | null; onNotify: () => void; onRecover: () => void;
+/// The main screen: approve on your iPhone or Mac, the way that fits this browser first
+/// (approveWords). `link` is what the QR code encodes, null until it's ready; on an iPhone or iPad
+/// it is also what opens the app here. `macLink` opens the app on this Mac with the same secret.
+export function ScanScreen({ to, on, link, macLink, onNotify, onRecover }: {
+  to: string | null; on: ApproveOn; link: string | null; macLink: string | null; onNotify: () => void; onRecover: () => void;
 }) {
+  const words = approveWords(on);
+  const open = on === "mac" ? macLink : link;
   return (
     <>
-      <h1 className={styles.title}>Scan with your iPhone</h1>
+      <h1 className={styles.title}>{words.title}</h1>
+      {words.lede && <p className={styles.lede}>{words.lede}</p>}
       <AccessLine to={to} />
-      <QRCode link={link} label="QR code to connect with Pinto Notes on your iPhone" />
-      <p className={styles.hint}>Open the Camera and point it at the code.</p>
-      {macLink && <a className={styles.secondary} href={macLink}>Open Pinto Notes on this Mac</a>}
+      {words.ways.map((way) => way === "open" ? (
+        <a key={way} className={styles.primary} href={open ?? undefined} aria-disabled={!open || undefined}>{words.open}</a>
+      ) : (
+        <div key={way} className={styles.scan}>
+          <QRCode link={link} label="QR code to connect with Pinto Notes on your iPhone" />
+          <p className={styles.hint}>{words.hint}</p>
+        </div>
+      ))}
       <BottomLinks>
         <button type="button" className={styles.link} onClick={onNotify}>Get a notification instead</button>
-        <button type="button" className={styles.link} onClick={onRecover}>No iPhone? Use your recovery key</button>
+        <button type="button" className={styles.link} onClick={onRecover}>{words.recover}</button>
       </BottomLinks>
     </>
   );

@@ -30,9 +30,11 @@ export default function Preview({ state, number, action, both }: {
   const signIn = { email, password, onEmail: setEmail, onPassword: setPassword, onApple: noop, onGoogle: noop, busy: false, ready: true, failure: null };
   switch (state) {
     case "scan":
-      return <ScanScreen to={TO} link={PREVIEW_LINK} macLink={null} onNotify={noop} onRecover={noop} />;
+      return <ScanScreen to={TO} on="other" link={PREVIEW_LINK} macLink={null} onNotify={noop} onRecover={noop} />;
     case "scanMac":
-      return <ScanScreen to={TO} link={PREVIEW_LINK} macLink={scanAppLink(ID, SCAN, FINGERPRINT)} onNotify={noop} onRecover={noop} />;
+      return <ScanScreen to={TO} on="mac" link={PREVIEW_LINK} macLink={scanAppLink(ID, SCAN, FINGERPRINT)} onNotify={noop} onRecover={noop} />;
+    case "scanPhone":
+      return <ScanScreen to={TO} on="iphone" link={PREVIEW_LINK} macLink={null} onNotify={noop} onRecover={noop} />;
     case "notifySignIn":
       return <NotifySignInScreen {...signIn} to={TO} onSubmit={prevent} onScan={noop} />;
     case "notifyNumber":

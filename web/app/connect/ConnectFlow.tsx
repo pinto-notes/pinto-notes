@@ -6,7 +6,7 @@ import {
   type ConnectLabel, type ConnectRequest,
 } from "@/lib/connect";
 import {
-  browserOn, leadFor, parseDevices, resendRequest, type Devices, type Lead,
+  approveOn, browserOn, leadFor, type ApproveOn, parseDevices, resendRequest, type Devices, type Lead,
   browserFrom, isMacBrowser, keyFingerprint, newPageNonce, newPickup, newScan, pageCommit, pageNumber, parseKeyRow, recoveryApproval, RecoveryError,
   revealRequest, scanAppLink, scanLink, scanRequest, sealedDestination, statusRequest, statusStep, withCode,
   type AccountKey,
@@ -36,7 +36,7 @@ const OFFLINE = "Couldn't reach Pinto Notes. Check your connection and try again
 const EXPIRED: View = { kind: "ended", title: "This request has expired", text: "Start connecting again from ChatGPT, Claude or the other app you were using." };
 const LOST: View = { kind: "ended", title: "Couldn't finish here", text: "Start connecting again from the other app." };
 
-export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, recover, authCode, authError, keepQR = false, pollMs = POLL_MS }: {
+export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, recover, authCode, authError, keepQR = false, pollMs = POLL_MS, device = "other" }: {
   requestId: string;
   supabaseURL: string;
   anonKey: string;
@@ -50,6 +50,8 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
   keepQR?: boolean;
   /// How often /connect/status is asked (tests make it short).
   pollMs?: number;
+  /// Where the server thinks this browser is (approveOnFromUA), until the page can tell.
+  device?: ApproveOn;
 }) {
   const [view, setView] = useState<View>(authCode ? { kind: "working", text: "Signing in…" } : recover ? { kind: "recover" } : { kind: "scan" });
   const [email, setEmail] = useState("");
@@ -64,6 +66,7 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
   /// What the QR code encodes, and the same for the app on this Mac (null elsewhere).
   const [link, setLink] = useState<string | null>(null);
   const [macLink, setMacLink] = useState<string | null>(null);
+  const [on, setOn] = useState<ApproveOn>(device);
   // Where the account has Pinto Notes (from /connect/ask), and so the one device the page names.
   const [devices, setDevices] = useState<Devices | null>(null);
   const [lead, setLead] = useState<Lead>("any");
@@ -88,6 +91,7 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
 
   useEffect(() => {
     setReady(true);
+    setOn(approveOn(navigator.platform, navigator.userAgent, navigator.maxTouchPoints));
     void (async () => {
       const ok = await prepare();
       if (authCode) {
@@ -544,7 +548,7 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
 
   switch (view.kind) {
     case "scan":
-      return <ScanScreen to={to} link={link} macLink={macLink} onNotify={showNotify} onRecover={showRecovery} />;
+      return <ScanScreen to={to} on={on} link={link} macLink={macLink} onNotify={showNotify} onRecover={showRecovery} />;
     case "notifySignIn":
       return <NotifySignInScreen {...signIn} to={to} onApple={() => signInWith("apple", false)} onGoogle={() => signInWith("google", false)} onSubmit={submitSignIn} onScan={backToScan} />;
     case "notify":
