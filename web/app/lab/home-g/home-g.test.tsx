@@ -78,7 +78,7 @@ describe("home study G, the final changes", async () => {
     expect(rest(alt)).toBe(rest(html));
   });
   it("gives the fanned cards short lines", () => {
-    for (const l of ["Days, bookings, packing.", "Spending against your budget.", "A few small habits, every day."]) expect(text(html)).toContain(l);
+    for (const l of ["Days, bookings, packing.", "Spending against your budget.", "A few small habits, on your schedule."]) expect(text(html)).toContain(l);
   });
   it("puts macOS 26 in step 1, not in the small print, and keeps iPhone coming soon", () => {
     expect(text(html)).toContain("Free, macOS 26.");

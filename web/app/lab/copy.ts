@@ -154,7 +154,7 @@ export const G = {
     lede: "A note can be an app: a habit tracker, a budget, a trip plan. Change it yourself, or ask your AI.",
     all: "See all templates",
     /** The cards' lines, short enough to sit on one line on a fanned card. */
-    taglines: { "habit-tracker": "A few small habits, every day.", "trip-plan": "Days, bookings, packing.", "budget-log": "Spending against your budget." } as Record<string, string>,
+    taglines: { "habit-tracker": "A few small habits, on your schedule.", "trip-plan": "Days, bookings, packing.", "budget-log": "Spending against your budget." } as Record<string, string>,
   },
   feel: {
     title: "Feels like Apple Notes. Brings yours over.",
