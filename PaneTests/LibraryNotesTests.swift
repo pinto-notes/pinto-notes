@@ -4,8 +4,8 @@ import SwiftData
 import Testing
 @testable import Pane
 
-/// The note list's entries (LibraryNotes): read without Observation, watched a slice at a time
-/// after, and taken in or dropped one by one when a save adds or deletes notes.
+/// The note list's entries (LibraryNotes): read without Observation, and brought up to date note
+/// by note from what each save says it added, changed or deleted.
 @MainActor @Suite(.serialized) struct LibraryNotesTests {
     /// Kept for the test's whole run: a context whose container has gone can't be read.
     let container = try! ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
@@ -36,26 +36,34 @@ import Testing
         // A note changes in a way the list doesn't show (its text): nothing tells the reader.
         notes[10].body = "Changed"
         #expect(!fired.on, "the reader isn't told of a note's text")
-        // A change the list shows does reach it, through the list's counter.
+        // A change the list shows does reach it, through the list's counter, with its save.
         try? await Task.sleep(for: .milliseconds(100))
-        notes[10].isPinned = true
+        ctx.togglePin(notes[10])
         try? await Task.sleep(for: .milliseconds(100))
         #expect(fired.on, "a pin moves the note: the list says so")
     }
 
-    /// A note that changes after the first read but before its watch began is still caught.
-    @Test func aChangeBeforeTheWatchBeganIsCaught() async throws {
-        let (ctx, notes) = try library(3 * LibraryNotes.watchSlice)
+    /// A change shows with its save, and a note's touch saves it on the next turn: typing moves
+    /// the note to the top without anything else saving.
+    @Test func aTouchedNoteMovesOnTheNextTurn() async throws {
+        let (ctx, notes) = try library(300)
         let library = LibraryNotes()
         _ = library.entries(in: ctx)
-        // In the same turn as the read: no note is watched yet.
         let last = notes[notes.count - 1]
-        last.updatedAt = .now
-        last.isPinned = true
-        try? await Task.sleep(for: .milliseconds(300))
-        let entries = library.entries(in: ctx)
-        #expect(entries.first?.id == last.id, "the changed note moved to the top")
-        #expect(entries.first?.pinned == true)
+        last.body = "Typed"
+        last.touch()
+        #expect(ctx.hasChanges, "not saved yet")
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(!ctx.hasChanges, "saved on the next turn")
+        #expect(library.entries(in: ctx).first?.id == last.id, "the edited note moved to the top")
+        // A save of a change the list doesn't show (the sync mark) leaves the list alone.
+        let generation = library.entries(in: ctx).map(\.id)
+        let watcher = Flag()
+        withObservationTracking { _ = library.entries(in: ctx) } onChange: { watcher.on = true }
+        last.dirty = false
+        try ctx.save()
+        #expect(!watcher.on, "nothing the list shows changed")
+        #expect(library.entries(in: ctx).map(\.id) == generation)
     }
 
     /// A note added or deleted for good is taken in or dropped where it goes, not by reading
@@ -76,9 +84,8 @@ import Testing
         entries = library.entries(in: ctx)
         #expect(entries.count == 400)
         #expect(!entries.contains { $0.id == gone.id })
-        // The new note is watched too.
-        made.isPinned = true
-        try? await Task.sleep(for: .milliseconds(100))
+        // The new note's changes show too.
+        ctx.togglePin(made)
         #expect(library.entries(in: ctx).first { $0.id == made.id }?.pinned == true)
         let wholesale = library.wholesale
         for i in 0..<(LibraryNotes.wholesaleChange + 1) { ctx.insert(Note(body: "Imported \(i)")) }

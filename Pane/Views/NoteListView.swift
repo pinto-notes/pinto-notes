@@ -132,13 +132,17 @@ struct NoteListView: View {
         let q = search.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return scoped }
         let base = scope == .trash ? scoped : all.filter { !$0.deleted && !$0.trashed }
-        return Self.found(q, in: base, listedBy: orderStore.order)
+        return Self.found(q, in: base, listedBy: orderStore.order, context: context)
     }
 
     /// The notes whose text holds `query`, newest first whatever order the list is in: only the
     /// few found are sorted.
-    static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder) -> [NoteEntry] {
-        let found = base.filter { $0.note.body.localizedStandardContains(query) }
+    ///
+    /// The store finds them (`localizedStandardContains`, as before): the list no longer holds every
+    /// note's text, and reading it a note at a time cost a query per note.
+    static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder, context: ModelContext) -> [NoteEntry] {
+        let matching = Set((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(query) }))) ?? [])
+        let found = base.filter { matching.contains($0.pid) }
         return order.sortsLike(.standard) ? found : found.sorted { $0.date > $1.date }
     }
 
@@ -566,12 +570,12 @@ struct NoteListView: View {
     /// the same isn't worked out again (with 20,000 notes, every row's hover and menu were, half
     /// a second for each change shown).
     private func noteRow(_ entry: NoteEntry) -> some View {
-        let note = entry.note, id = entry.id
-        return NoteListItem(note: note, id: id, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
+        let id = entry.id
+        return NoteListItem(entry: entry, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                             dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
                             top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil),
-                            togglePin: { withAnimation(.snappy) { context.togglePin(note) } },
-                            remove: { remove(note) }) {
+                            togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
+                            remove: { note in remove(note) }) { note in
             menu(for: note, folders: foldersByName)
         }
         .equatable()
@@ -848,7 +852,10 @@ extension NoteListView: @MainActor Equatable {
 /// What the list needs to know about a note to place it: plain values, read from the note once
 /// and again only when the note changes.
 struct NoteEntry: Identifiable, DatedListItem {
-    let note: Note
+    /// The note in the store. Its model is looked up when a row is shown (`note(in:)`): the list
+    /// doesn't keep every note of the library in memory, and a context that holds fewer notes saves
+    /// faster (SwiftData tells each note it holds of every save).
+    let pid: PersistentIdentifier
     let id: UUID
     var date: Date
     var pinned: Bool
@@ -865,16 +872,22 @@ struct NoteEntry: Identifiable, DatedListItem {
     /// The same values, read without Observation hearing of it: nothing that reads this entry
     /// depends on the note (see LibraryNotes).
     init(untracked note: Note, titled: Bool) {
-        self.note = note
+        pid = note.persistentModelID
         id = note.getValue(forKey: \.id)
         created = note.getValue(forKey: \.createdAt)
-        if titled { title = NoteText.head(of: note.getValue(forKey: \.body)).title }
+        if titled { title = (note.hasChanges ? nil : note.getValue(forKey: \.summaryTitle)) ?? NoteText.head(of: note.getValue(forKey: \.body)).title }
         date = note.getValue(forKey: \.updatedAt)
         pinned = note.getValue(forKey: \.isPinned)
         trashed = note.getValue(forKey: \.trashedAt) != nil
         deleted = note.getValue(forKey: \.deletedAt) != nil
         folderID = note.getValue(forKey: \.folder).map { $0.getValue(forKey: \.id) }
         parentID = note.getValue(forKey: \.parentID)
+    }
+
+    /// The note's model in `context`, if it's still there.
+    func note(in context: ModelContext) -> Note? {
+        guard let n = context.model(for: pid) as? Note, n.modelContext != nil else { return nil }
+        return n
     }
 
     /// Every value the same as `other`'s.
@@ -884,7 +897,7 @@ struct NoteEntry: Identifiable, DatedListItem {
     }
 
     init(_ note: Note, titled: Bool) {
-        self.note = note
+        pid = note.persistentModelID
         id = note.id
         created = note.createdAt
         if titled { title = note.title }
@@ -1092,15 +1105,16 @@ struct ListIdentity: Hashable {
 ///
 /// The list used to read each note's date, folder, trash and parent from the store on every
 /// update, sort them all and group them: about 100,000 reads to show one save with 20,000 notes
-/// (close to a second). Here each note is read once into a `NoteEntry` and kept in order. Each
-/// note is watched on its own: when one changes, only its entry is read again and moved. Notes a
-/// save adds or deletes for good are taken in or dropped one by one (a save says which). So
-/// showing a change costs what changed, plus a pass over plain values.
+/// (close to a second). Here each note is read once into a `NoteEntry` and kept in order, and a
+/// save says which notes it added, changed or deleted: only those are read again and moved. So
+/// showing a change costs what changed, plus a pass over plain values. A change shows with its
+/// save; a note's `touch()` saves on the next turn.
 ///
-/// The first read doesn't watch: the notes are read without telling Observation (the list's view
-/// would otherwise depend on every note, and watching 20,000 notes inside its body took seconds,
-/// each note's watch merged into the body's), and are watched a slice at a time once the list is
-/// up. A note that changed before its watch began is caught as its watch begins.
+/// The notes aren't watched one by one (Observation): reading them inside the list's body made
+/// the body depend on every note, and SwiftData tells every note it holds of a change after each
+/// save, so 20,000 watches were read again and set up again several times a minute (release
+/// gate, 2026-10-13: a hang of seconds while typing). Notes are read here without telling
+/// Observation (`NoteEntry(untracked:)`).
 @MainActor @Observable
 final class LibraryNotes {
     /// Goes up with each change to the entries; reading it is what updates the list.
@@ -1109,11 +1123,6 @@ final class LibraryNotes {
     @ObservationIgnored private weak var context: ModelContext?
     @ObservationIgnored private var container: ModelContainer?
     @ObservationIgnored private var observer: NSObjectProtocol?
-    /// Notes that changed since the entries were last brought up to date.
-    @ObservationIgnored private var changed: Set<UUID> = []
-    @ObservationIgnored private var flushScheduled = false
-    /// Goes up with each fetch, so a watch from before it is ignored.
-    @ObservationIgnored private var epoch = 0
 
     /// While a search is on, a note's text decides whether it is listed: every change counts.
     @ObservationIgnored var publishesEveryChange = false
@@ -1142,39 +1151,54 @@ final class LibraryNotes {
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak self] n in
             func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
-            let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers)
-            guard !inserted.isEmpty || !deleted.isEmpty else { return }
-            MainActor.assumeIsolated { self?.take(inserted: inserted, deleted: deleted) }
+            let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers), updated = ids(.updatedIdentifiers)
+            guard !inserted.isEmpty || !deleted.isEmpty || !updated.isEmpty else { return }
+            MainActor.assumeIsolated { self?.take(inserted: inserted, deleted: deleted, updated: updated) }
         }
     }
 
-    /// What a save added and deleted for good. Many at once (an import, a first sync, another
-    /// account) read every note again; a few are taken in or dropped where they are.
-    private func take(inserted: [PersistentIdentifier], deleted: [PersistentIdentifier]) {
+    /// What a save added, changed and deleted for good. Many notes coming or going at once (an
+    /// import, a first sync, another account) read every note again; otherwise only those notes
+    /// are read again and placed.
+    private func take(inserted: [PersistentIdentifier], deleted: [PersistentIdentifier], updated: [PersistentIdentifier]) {
         guard let context else { return }
         guard inserted.count + deleted.count <= Self.wholesaleChange else {
             load()
             publish()
             return
         }
+        var listChanged = false
         if !deleted.isEmpty {
             let gone = Set(deleted)
-            sorted.removeAll { gone.contains($0.note.persistentModelID) }
+            let before = sorted.count
+            sorted.removeAll { gone.contains($0.pid) }
+            listChanged = sorted.count != before
         }
+        let titled = order.key == .title
         let have = Set(sorted.map(\.id))
         var came: [NoteEntry] = []
         for id in inserted {
-            guard let n = context.model(for: id) as? Note, n.modelContext != nil, !have.contains(n.id) else { continue }
-            came.append(watched(n))
+            guard let n = context.model(for: id) as? Note, n.modelContext != nil else { continue }
+            let entry = NoteEntry(untracked: n, titled: titled)
+            if have.contains(entry.id) { changed.insert(entry.id) } else { came.append(entry) }
         }
-        place(came)
-        publish()
+        if !came.isEmpty {
+            place(came)
+            listChanged = true
+        }
+        for id in updated {
+            guard let n = context.model(for: id) as? Note else { continue }
+            changed.insert(n.getValue(forKey: \.id))
+        }
+        if !changed.isEmpty { flush(alreadyChanged: listChanged) } else if listChanged { publish() }
     }
 
-    /// Every note, read once and sorted; watched from the next turn on.
+    /// Notes a save changed, read again before they're placed.
+    @ObservationIgnored private var changed: Set<UUID> = []
+
+    /// Every note, read once and sorted.
     private func load() {
         guard let context else { return }
-        epoch += 1
         changed = []
         let before = Set(sorted.map(\.id))
         let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
@@ -1192,27 +1216,6 @@ final class LibraryNotes {
         for e in sorted where !before.contains(e.id) { differing += 1 }
         differing += before.count - (sorted.count - differing)
         if differing > Self.wholesaleChange { wholesale += 1 }
-        watch(sorted, epoch: epoch)
-    }
-
-    /// Notes watched per turn: about 10 ms at a time, so the window keeps drawing.
-    static let watchSlice = 1000
-
-    /// Watches each of `entries`, a slice per turn. A note that changed since it was read is
-    /// read again then, as any change is.
-    private func watch(_ entries: [NoteEntry], epoch: Int) {
-        Task { @MainActor [weak self] in
-            var start = 0
-            while start < entries.count {
-                guard let self, self.epoch == epoch else { return }
-                for e in entries[start ..< min(start + Self.watchSlice, entries.count)] where e.note.modelContext != nil {
-                    if !self.watched(e.note).same(as: e) { self.noteChanged(e.id, epoch: epoch) }
-                }
-                start += Self.watchSlice
-                // A turn of the run loop between slices: the window draws and takes events.
-                if start < entries.count { try? await Task.sleep(for: .milliseconds(1)) }
-            }
-        }
     }
 
     /// The entries changed in a way the list shows: the list hears of it, and so do the folder
@@ -1276,65 +1279,50 @@ final class LibraryNotes {
     @ObservationIgnored private(set) var wholesale = 0
     static let wholesaleChange = 200
 
-    /// The note's entry as it is now; the next change to what it holds marks the note changed.
-    private func watched(_ note: Note) -> NoteEntry {
-        let id = note.id, epoch = self.epoch
-        let titled = order.key == .title
-        return withObservationTracking { NoteEntry(note, titled: titled) } onChange: { [weak self] in
-            // Called as the note is about to change, on the thread changing it (the main one:
-            // the library's context lives there). The entry is read again once it has.
-            Task { @MainActor in self?.noteChanged(id, epoch: epoch) }
-        }
-    }
-
-    private func noteChanged(_ id: UUID, epoch: Int) {
-        guard epoch == self.epoch else { return }
-        changed.insert(id)
-        guard !flushScheduled else { return }
-        flushScheduled = true
-        // Several changes in a row (a save sets the text, the date and the sync mark) are one update.
-        Task { @MainActor in self.flush() }
-    }
-
     /// Whether `a` is listed before `b`. The list's own order is two dates compared, nothing more.
     private func precedes(_ a: NoteEntry, _ b: NoteEntry) -> Bool {
         order.sortsLike(.standard) ? a.date > b.date : order.before(a, b)
     }
 
-    private func flush() {
-        flushScheduled = false
-        // The library is gone (its window closed, or a test let its container go) with changes
-        // still waiting: its notes can't be read any more.
-        guard context != nil else {
+    /// Reads the notes a save changed again and puts them where they go. `alreadyChanged`: the
+    /// same save added or dropped notes, so the list changes anyway.
+    private func flush(alreadyChanged: Bool = false) {
+        guard context != nil, !changed.isEmpty else {
             changed = []
+            if alreadyChanged { publish() }
             return
         }
-        guard !changed.isEmpty else { return }
         let ids = changed
         changed = []
+        let titled = order.key == .title
         // One note changed and stays where it is, in the same folder and day: a save of the
         // note being typed in. Nothing the list is made of changed (the row shows its own note),
         // so the list isn't worked out again. Built again, the list put that note's row in anew
         // on every save, on or off screen, and laid out twice the cells.
-        if ids.count == 1, let id = ids.first, let i = sorted.firstIndex(where: { $0.id == id }), sorted[i].note.modelContext != nil {
-            let old = sorted[i], new = watched(old.note)
+        guard let context else { return }
+        if !alreadyChanged, ids.count == 1, let id = ids.first, let i = sorted.firstIndex(where: { $0.id == id }), let note = sorted[i].note(in: context) {
+            let old = sorted[i], new = NoteEntry(untracked: note, titled: titled)
             let stays = (i == 0 || !precedes(new, sorted[i - 1])) && (i == sorted.count - 1 || !precedes(sorted[i + 1], new))
             if stays {
                 sorted[i] = new
                 if !new.listsLike(old) || publishesEveryChange { publish() }
                 return
             }
-            // Its new entry is watched; the general path below reads it again and moves it.
         }
+        // Notes whose list values are the same (a sync mark, text that changed in place) stay
+        // where they are; the others are taken out and placed again.
         var moved: [NoteEntry] = []
+        var dropped = false
         sorted.removeAll { e in
             guard ids.contains(e.id) else { return false }
-            // A note deleted for good is dropped by the fetch its save brings.
-            if e.note.modelContext != nil { moved.append(watched(e.note)) }
+            guard let note = e.note(in: context) else { dropped = true; return true }
+            let new = NoteEntry(untracked: note, titled: titled)
+            if new.same(as: e) { return false }
+            moved.append(new)
             return true
         }
         place(moved)
-        publish()
+        if alreadyChanged || publishesEveryChange || dropped || !moved.isEmpty { publish() }
     }
 
     /// Puts `entries` where they go in the order.
@@ -1393,10 +1381,10 @@ enum RowMetrics {
 }
 
 /// A note's row as the list holds it: the row, its hover and its menu. Equal values mean an
-/// unchanged row; the actions it's given read the list's state when they run.
+/// unchanged row. The note's model is looked up here, where the row is drawn: SwiftUI builds the
+/// list's rows for every note whenever the list changes, and only the rows on screen draw.
 private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
-    let note: Note
-    let id: UUID
+    let entry: NoteEntry
     let query: String
     let showFolder: Bool
     let datedByCreation: Bool
@@ -1406,35 +1394,39 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     let quiet: Bool
     /// The room above the title's line, where the ••• lines up.
     let top: CGFloat
-    let togglePin: () -> Void
-    let remove: () -> Void
-    @ViewBuilder let menu: () -> Menu
+    let togglePin: (Note) -> Void
+    let remove: (Note) -> Void
+    @ViewBuilder let menu: (Note) -> Menu
+    @Environment(\.modelContext) private var context
 
     static func == (a: NoteListItem, b: NoteListItem) -> Bool {
-        a.note === b.note && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
-            && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount) && a.quiet == b.quiet && a.top == b.top
+        a.entry.pid == b.entry.pid && a.entry.same(as: b.entry) && a.query == b.query && a.showFolder == b.showFolder
+            && a.datedByCreation == b.datedByCreation && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
+            && a.quiet == b.quiet && a.top == b.top
     }
 
     var body: some View {
-        // Its own equatable view: when one note changes, the others' rows (and their
-        // drag and swipe setup) are left alone instead of rebuilt.
-        ListRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation,
-                dragWith: dragWith, selectedCount: selectedCount, togglePin: togglePin, remove: remove)
-            .equatable()
-            #if os(macOS)
-            // Under the pointer the row's ••• appears at its right, with the same menu as a
-            // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
-            .padding(.trailing, Hover.menuTarget + 2)
-            #endif
-            // Outside the equatable row, so the list sees its background. On the Mac the row draws
-            // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
-            .modifier(NoteRowHover(note: note, selected: quiet, top: top, pointer: { [note] over in NotePreload.pointer(over, on: note) }) {
-                menu()
-            })
-            .quietSelection()
-            #if os(iOS)
-            .listRowBackground(Color(Palette.row))
-            #endif
+        if let note = entry.note(in: context) {
+            // Its own equatable view: when one note changes, the others' rows (and their
+            // drag and swipe setup) are left alone instead of rebuilt.
+            ListRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation,
+                    dragWith: dragWith, selectedCount: selectedCount, togglePin: { togglePin(note) }, remove: { remove(note) })
+                .equatable()
+                #if os(macOS)
+                // Under the pointer the row's ••• appears at its right, with the same menu as a
+                // right-click, as on the sidebar's folders. The room for it is kept, so nothing moves.
+                .padding(.trailing, Hover.menuTarget + 2)
+                #endif
+                // Outside the equatable row, so the list sees its background. On the Mac the row draws
+                // its selection itself, a neutral fill like the sidebar's, not the list's amber bar.
+                .modifier(NoteRowHover(note: note, selected: quiet, top: top, pointer: { [note] over in NotePreload.pointer(over, on: note) }) {
+                    menu(note)
+                })
+                .quietSelection()
+                #if os(iOS)
+                .listRowBackground(Color(Palette.row))
+                #endif
+        }
     }
 }
 

@@ -34,11 +34,12 @@ final class Folder {
 
     var liveNotes: [Note] { notes.filter { $0.trashedAt == nil && $0.deletedAt == nil } }
 
-    /// Marks a local change for sync.
+    /// Marks a local change for sync, and saves it on the next turn.
     @MainActor func touch() {
         updatedAt = .now
         dirty = true
         SyncSignal.changed()
+        modelContext?.saveSoon()
     }
 }
 
@@ -80,11 +81,13 @@ final class Note {
         self.folder = folder
     }
 
-    /// Marks a local change for sync.
+    /// Marks a local change for sync, and saves it on the next turn: the list and the sidebar
+    /// show a change with its save (LibraryNotes).
     @MainActor func touch() {
         updatedAt = .now
         dirty = true
         SyncSignal.changed()
+        modelContext?.saveSoon()
     }
 
     var isLocked: Bool { lockedBody != nil }
@@ -146,6 +149,24 @@ enum NoteSummaries {
         }
         return filled
     }
+}
+
+extension ModelContext {
+    /// Saves on the next turn of the main queue: however many changes come before it, one save.
+    @MainActor func saveSoon() {
+        let id = ObjectIdentifier(self)
+        guard SaveSoon.pending.insert(id).inserted else { return }
+        Task { @MainActor [weak self] in
+            SaveSoon.pending.remove(id)
+            guard let self, self.hasChanges else { return }
+            self.saveOrReport()
+        }
+    }
+}
+
+@MainActor
+private enum SaveSoon {
+    static var pending: Set<ObjectIdentifier> = []
 }
 
 /// Lets model changes nudge the sync engine without depending on it.
