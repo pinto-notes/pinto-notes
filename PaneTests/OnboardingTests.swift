@@ -12,14 +12,57 @@ import Testing
 
     // MARK: Who sees it
 
-    @Test func aNewAccountWaitsThenIsWelcomed() {
+    /// Item 99 (2026-10-12): after signing in, the flow opened on a second "Welcome to Pinto
+    /// Notes" with only Continue. The welcome before sign-in said it; the flow starts at the name.
+    @Test func aNewAccountWaitsThenStartsAtItsName() {
         let s = store()
         let account = UUID()
         s.attach(account: account, created: justNow, holdsNothing: true, now: now)
         #expect(s.phase == .waiting, "the window holds on the picture until the first sync has said")
         #expect(s.covers(account))
         s.settle(accountIsNew: true, progress: SetupProgress())
-        #expect(s.phase == .showing(.welcome))
+        #expect(s.phase == .showing(.name))
+        #expect(Onboarding.Step.counted(from: s.first) == [.name, .bring, .connect])
+    }
+
+    /// Item 100: a name that is known (Apple's, Google's, this device's last) is not asked again.
+    @Test func aKnownNameStartsAtBringingNotes() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        let s = store(defaults)
+        s.attach(account: account, created: justNow, holdsNothing: true, now: now)
+        s.settle(accountIsNew: true, progress: SetupProgress(), nameKnown: true)
+        #expect(s.phase == .showing(.bring))
+        #expect(Onboarding.Step.counted(from: s.first) == [.bring, .connect], "Step 1 of 2")
+        s.back()
+        #expect(s.step == .bring, "nothing behind the first step")
+        s.advance(connected: false)
+        s.back()
+        #expect(s.step == .bring)
+        // Quit and opened again: it still began at Bring.
+        let again = store(defaults)
+        again.attach(account: account, created: justNow, holdsNothing: false, now: now)
+        #expect(again.first == .bring)
+        again.back()
+        #expect(again.step == .bring)
+    }
+
+    #if os(macOS)
+    /// Item 100: with no name from the sign-in, the field starts with the Mac user's name.
+    @Test func theNameFieldStartsWithTheMacUsersName() throws {
+        let name = try #require(OnboardingFlow.macUserName())
+        #expect(name == ProfileName.normalized(name))
+    }
+    #endif
+
+    @Test func aStepSavedByAVersionWithTheWelcomeResumesAtTheName() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        defaults.set("welcome", forKey: Onboarding.savedKey(account))
+        let s = store(defaults)
+        #expect(s.covers(account))
+        s.attach(account: account, created: justNow, holdsNothing: false, now: now)
+        #expect(s.phase == .showing(.name))
     }
 
     @Test func anAccountWithNotesNeverSeesIt() {
@@ -74,7 +117,7 @@ import Testing
         s.giveUpWaiting()
         #expect(s.phase == .off, "the notes, rather than a window that stays shut")
         s.settle(accountIsNew: true, progress: SetupProgress())
-        #expect(s.phase == .showing(.welcome), "and the flow when the sync has answered")
+        #expect(s.phase == .showing(.name), "and the flow when the sync has answered")
     }
 
     @Test func aSlowFirstSyncOfAnAccountWithNotesStaysInTheNotes() {
@@ -91,12 +134,13 @@ import Testing
 
     @Test func theStepsInOrderWithAndWithoutAnAI() {
         var seen: [Onboarding.Step] = []
-        var step: Onboarding.Step? = .welcome
+        var step: Onboarding.Step? = .name
         while let s = step { seen.append(s); step = Onboarding.next(after: s, connected: false) }
-        #expect(seen == [.welcome, .name, .bring, .connect])
+        #expect(seen == [.name, .bring, .connect])
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .tryIt, connected: true) == nil)
-        #expect(Onboarding.previous(before: .welcome) == nil)
+        #expect(Onboarding.previous(before: .name) == nil)
+        #expect(Onboarding.previous(before: .bring, first: .bring) == nil)
         #expect(Onboarding.previous(before: .tryIt) == .connect)
     }
 
@@ -106,7 +150,6 @@ import Testing
         let first = store(defaults)
         first.attach(account: account, created: justNow, holdsNothing: true, now: now)
         first.settle(accountIsNew: true, progress: SetupProgress())
-        first.advance(connected: false)
         first.advance(connected: false)
         #expect(first.step == .bring)
 
@@ -139,7 +182,6 @@ import Testing
         let s = store(defaults)
         s.attach(account: account, created: justNow, holdsNothing: true, now: now)
         s.settle(accountIsNew: true, progress: SetupProgress())
-        #expect(s.advance(connected: false))   // welcome
         #expect(s.advance(connected: false))   // name, left as it was
         #expect(s.advance(connected: false))   // Skip, I'll start empty
         #expect(!s.advance(connected: false), "Skip for now: nothing after it without an AI")
@@ -189,13 +231,13 @@ import Testing
 
     // MARK: Help › Show Setup Guide
 
-    @Test func replayStartsAtTheWelcomeAndSavesNothing() {
+    @Test func replayStartsAtTheNameAndSavesNothing() {
         let defaults = TestDefaults()
         let account = UUID()
         let s = store(defaults)
         s.attach(account: account, created: now.addingTimeInterval(-90 * 86_400), holdsNothing: false, now: now)
         s.startReplay()
-        #expect(s.phase == .showing(.welcome))
+        #expect(s.phase == .showing(.name))
         #expect(s.replay)
         s.advance(connected: true)
         #expect(defaults.string(forKey: Onboarding.savedKey(account)) == nil, "quitting during a replay doesn't bring it back")
@@ -210,7 +252,7 @@ import Testing
         s.settle(accountIsNew: true, progress: SetupProgress())
         s.advance(connected: false)
         s.startReplay()
-        #expect(s.step == .name)
+        #expect(s.step == .bring)
         #expect(!s.replay)
     }
 
