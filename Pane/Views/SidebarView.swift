@@ -393,7 +393,10 @@ struct SidebarView: View {
         // A bar, not a plain inset: the folders scrolled under it showed through its words (and
         // through the account row at the foot, where a folder's name and the email ran together).
         // Soft edges, as Apple Notes: the list fades under the bars, with no line drawn across.
-        .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
+        // C and D: no brand mark in the chrome (DESIGN.md, Icons); the rows start under the window's buttons.
+        .safeAreaBar(edge: .top, spacing: 0) {
+            if DesignLook.calmList { Color.clear.frame(height: 4) } else { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
+        }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)

@@ -331,20 +331,27 @@ struct CardLayout<Side: View>: View {
 }
 
 extension CardLayout {
-    /// A scene from the emails (1040 by 624) as a big illustrated panel: the xl corners and the
-    /// shared shadow, centred on the soft ground, at a size its pixels hold sharp.
+    /// A step's own scene, edge to edge like the leaf: 940 by 1254 pixels, sharp at the panel's
+    /// 450 by 600 points on a Retina screen. The scenes have no dusk versions, so in the dark they
+    /// are dimmed a little to sit beside the warm near-black.
     static func framed(_ name: String) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.xl, style: .continuous)
-        return Color(Palette.soft)
+        FullBleedScene(name: name)
+    }
+}
+
+private struct FullBleedScene: View {
+    let name: String
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Color.clear
             .frame(minWidth: WelcomeFlow.size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
                 Image(name)
                     .resizable()
                     .interpolation(.high)
-                    .aspectRatio(1040.0 / 624.0, contentMode: .fit)
-                    .clipShape(shape)
-                    .raised(in: shape)
-                    .padding(40)
+                    .scaledToFill()
+                    .overlay { if scheme == .dark { Color.black.opacity(0.22) } }
                     .accessibilityHidden(true)
             }
             .clipped()

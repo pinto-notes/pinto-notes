@@ -118,6 +118,8 @@ struct HoverRowReader<Content: View>: View {
     var reach = Hover.listReach
     /// The sidebar's selected row draws its own fill here (see `QuietSelection`), in place of the hover's.
     var selected = false
+    /// C and D's note rows: the selection is a card a step lighter than the list, with sm corners.
+    var card = false
     var pointer: ((Bool) -> Void)?
     @ViewBuilder let content: (Bool) -> Content
     @State private var hovering = false
@@ -136,8 +138,8 @@ struct HoverRowReader<Content: View>: View {
             .modifier(HoverTracking(hovering: $hovering, pointer: pointer))
             .background {
                 if selected || on {
-                    RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
-                        .fill(selected ? Hover.selected : Hover.row)
+                    RoundedRectangle(cornerRadius: card ? Radius.sm : Hover.pillRadius, style: .continuous)
+                        .fill(selected ? (card ? AnyShapeStyle(Color.card) : Hover.selected) : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }

@@ -100,7 +100,7 @@ struct MarkdownStyler {
 
     func headingFont(_ level: Int) -> PFont {
         // B (paper): headings in the website's voice, heavy and tight like the title.
-        if DesignLook.current == .paper {
+        if DesignLook.current == .paper || DesignLook.readingPage {
             switch level {
             case 1: return .systemFont(ofSize: EditorMetrics.title * 0.85, weight: .heavy)
             case 2: return .systemFont(ofSize: bodySize * 1.3, weight: .heavy)
@@ -663,7 +663,7 @@ private struct StyleWalker: MarkupWalker {
     mutating func visitHeading(_ heading: Heading) {
         guard let r = map.range(heading.range), safe(r) else { return descendInto(heading) }
         storage.addAttribute(.font, value: styler.headingFont(heading.level), range: r)
-        if DesignLook.current == .paper, heading.level <= 2 {
+        if DesignLook.current == .paper || DesignLook.readingPage, heading.level <= 2 {
             storage.addAttribute(.kern, value: Palette.tracking(styler.headingFont(heading.level).pointSize), range: r)
         }
         let p = styler.baseParagraph()

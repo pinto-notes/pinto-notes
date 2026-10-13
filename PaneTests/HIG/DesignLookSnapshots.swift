@@ -32,6 +32,10 @@ import Testing
         try await AppSnapshotTests.withLastNote(c, "Lisbon") {
             try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-root-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
         }
+        // A wide window: where D's reading column shows (the note's pane past 680 pt).
+        try await AppSnapshotTests.withLastNote(c, "Lisbon") {
+            try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-wide-\(mode)", size: CGSize(width: 1500, height: 900), dark: dark, wait: 2.6)
+        }
         try await AppSnapshotTests.withLastNote(c, "Evening tracker") {
             try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-tracker-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
         }
@@ -40,7 +44,7 @@ import Testing
         let rows: [(String, String, Int, Bool)] = [("All Notes", "tray.full", 12, false), ("Notes", "folder", 5, false), ("Ideas", "folder", 2, false),
                                                    ("Travel", "folder", 3, true), ("Work", "folder", 2, false), ("Q4 planning", "folder", 1, false)]
         let side = VStack(alignment: .leading, spacing: 0) {
-            SidebarHeader().padding(.bottom, 12)
+            if DesignLook.calmList { Color.clear.frame(height: 20) } else { SidebarHeader().padding(.bottom, 12) }
             ForEach(rows, id: \.0) { title, icon, count, selected in
                 Label {
                     SidebarRowText(title: title, selected: selected) { Text(count, format: .number).monospacedDigit().foregroundStyle(.secondary) }

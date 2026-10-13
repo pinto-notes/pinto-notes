@@ -109,7 +109,8 @@ struct OnboardingFlow: View {
 
     // MARK: The window
 
-    /// Candidate B's scene for each step: your desk, moving in, two hands on one note, a talk.
+    /// Candidate B2's scene for each step: your desk, moving in, two pencils on one page, a to-do
+    /// list on the kitchen wall.
     static func picture(_ step: Onboarding.Step) -> String {
         switch step {
         case .name: "OnboardingName"
@@ -121,7 +122,7 @@ struct OnboardingFlow: View {
 
     @ViewBuilder private var screen: some View {
         #if os(macOS)
-        CardLayout(picture: OnboardingLook.current == .b ? Self.picture(step) : nil) {
+        CardLayout(picture: OnboardingLook.current == .b2 ? Self.picture(step) : nil) {
             page
                 .padding(.horizontal, 52)
                 .padding(.top, 26)
