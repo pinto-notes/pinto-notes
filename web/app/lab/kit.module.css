@@ -46,6 +46,19 @@
   .byName { display: none; }
 }
 
+/* Larger margin names (study E's hero): 15 px, and on a phone each name above its run. */
+.mac[data-big-by] .by { font-size: 15px; gap: 8px; top: 3px; }
+.mac[data-big-by] .line[data-k="h"] .by { top: 12px; }
+@media (max-width: 700px) {
+  .mac[data-gutter][data-big-by] .macPaper { padding-left: 20px; }
+  .mac[data-big-by] .body[data-gutter] .line { padding-left: 10px; margin-left: -10px; }
+  .mac[data-big-by] .line[data-by-start] { padding-top: 34px; }
+  .mac[data-big-by] .line[data-by-start]:first-child { padding-top: 30px; }
+  .mac[data-big-by] .by, .mac[data-big-by] .line[data-k="h"] .by { left: 10px; top: 4px; width: auto; font-size: 14px; }
+  .mac[data-big-by] .line[data-by-start]:not(:first-child) .by { top: 10px; }
+  .mac[data-big-by] .byName { display: inline; }
+}
+
 /* ── The receipt ── */
 .receipt { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px; border-radius: 20px; background: var(--n-pill); color: var(--n-accent); box-shadow: 0 0 0 1px var(--n-pill-ring), 0 8px 20px -10px rgba(var(--n-shadow), 0.45); font-size: 14.5px; font-weight: 600; white-space: nowrap; }
 .receipt svg { color: var(--n-text); }
