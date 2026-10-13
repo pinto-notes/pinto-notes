@@ -36,6 +36,17 @@ import Testing
         try await AppSnapshotTests.withLastNote(c, "Lisbon") {
             try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-wide-\(mode)", size: CGSize(width: 1500, height: 900), dark: dark, wait: 2.6)
         }
+        // The pointer over Groceries in the list, with Lisbon selected.
+        try await AppSnapshotTests.withLastNote(c, "Lisbon") {
+            try await AppSnapshotTests.shoot(RootView().modelContainer(c).environment(\.hoverPreview, ["Groceries"]), name: "look-\(look)-hover-\(mode)",
+                                             size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
+        }
+        // One folder: its rows have no folder line (only All Notes and search show it).
+        let travel = try #require(c.mainContext.allFolders().first { $0.name == "Travel" })
+        try await AppSnapshotTests.withLastNote(c, "Lisbon") {
+            UserDefaults.standard.set(try JSONEncoder().encode(Scope.folder(travel.id)), forKey: "lastScope")
+            try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-folder-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
+        }
         try await AppSnapshotTests.withLastNote(c, "Evening tracker") {
             try await AppSnapshotTests.shoot(RootView().modelContainer(c), name: "look-\(look)-tracker-\(mode)", size: CGSize(width: 1180, height: 760), dark: dark, wait: 2.6)
         }
@@ -43,7 +54,7 @@ import Testing
         // its rows are laid out here from the real row parts: the icon, the name and the count.
         let rows: [(String, String, Int, Bool)] = [("All Notes", "tray.full", 12, false), ("Notes", "folder", 5, false), ("Ideas", "folder", 2, false),
                                                    ("Travel", "folder", 3, true), ("Work", "folder", 2, false), ("Q4 planning", "folder", 1, false)]
-        let side = VStack(alignment: .leading, spacing: 0) {
+        let side = { (hovered: Set<String>) in VStack(alignment: .leading, spacing: 0) {
             if DesignLook.calmList { Color.clear.frame(height: 20) } else { SidebarHeader().padding(.bottom, 12) }
             ForEach(rows, id: \.0) { title, icon, count, selected in
                 Label {
@@ -52,9 +63,9 @@ import Testing
                     SidebarIcon(name: icon, selected: selected)
                 }
                 .sidebarRowLabel()
+                .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
                 .padding(.horizontal, 14)
                 .frame(height: 32)
-                .background { if selected { RoundedRectangle(cornerRadius: Hover.pillRadius).fill(Hover.selected).padding(.horizontal, 6) } }
             }
             Spacer()
         }
@@ -64,7 +75,11 @@ import Testing
         .background(Self.glass(dark))
         .tint(Color(PColor.paneAccent))
         .environment(\.controlActiveState, .key)
-        try await AppSnapshotTests.shoot(side, name: "look-\(look)-sidebar-\(mode)", size: Self.sidebar.size, dark: dark, wait: 0.6)
+        .environment(\.hoverPreview, hovered)
+        }
+        try await AppSnapshotTests.shoot(side([]), name: "look-\(look)-sidebar-\(mode)", size: Self.sidebar.size, dark: dark, wait: 0.6)
+        // The pointer over Ideas, beside the selected Travel.
+        try await AppSnapshotTests.shoot(side(["Ideas"]), name: "look-\(look)-sidebarhover-\(mode)", size: Self.sidebar.size, dark: dark, wait: 0.6)
         let toast = ZStack(alignment: .bottom) {
             Color.notePage
             Toast(text: "Imported 4 notes").padding(.bottom, 48)
