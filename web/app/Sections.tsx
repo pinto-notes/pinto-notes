@@ -224,7 +224,8 @@ function cipher(text: string, seed: number) {
 }
 const WALL = Array.from({ length: 22 }, (_, i) => cipher("Lisbon, 4 days in May. Day 3: Sintra. Dinner at Trindade. Pack light. Groceries: oat milk, lemons, bread. Standup: ship the import, fix the share link, plan Friday.", i + 3));
 
-export function PrivacySection() {
+/// `eyebrow={false}` drops the small label above the title (home page study E).
+export function PrivacySection({ eyebrow = true }: { eyebrow?: boolean } = {}) {
   const v = HOME_PRIVACY;
   const [ref, seen] = useFirstView<HTMLElement>();
   // Complete at rest. With motion allowed, the shackle waits open (off screen) and settles closed on first view.
@@ -239,7 +240,7 @@ export function PrivacySection() {
     <section ref={ref} className={a.vault} aria-labelledby="privacy">
       <div className={a.cipherWall} aria-hidden="true">{WALL.map((l, i) => <p key={i}>{l}</p>)}</div>
       <div className={a.vaultText}>
-        <p className={a.eyebrow}>{v.eyebrow}</p>
+        {eyebrow && <p className={a.eyebrow}>{v.eyebrow}</p>}
         <h2 id="privacy" className={a.vaultTitle}>{v.title}</h2>
         <p className={a.vaultLede}>{v.text}</p>
         <a className={a.vaultLink} href={PRIVACY_PATH}>{v.link.replace(/ \S+$/, " ")}<span className={a.nowrap}>{v.link.split(" ").pop()}<Arrow /></span></a>
