@@ -345,7 +345,7 @@ The script works as that user through the public API, and it reads the password 
 | Personal | Groceries (pinned) | a checklist |
 | Personal | Book notes: The Creative Act | a quote and a list |
 
-There are no files. `list_files` returns an empty list, and no test prompt uses files. To show files, attach a small PDF to "Lisbon in May" in the app.
+There are no files, and no test prompt uses files. To show files, attach a small PDF to "Lisbon in May" in the app.
 
 ### 7.3 Live check (2026-09-30, production, `scripts/review-account.py check`)
 

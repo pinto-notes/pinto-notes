@@ -82,7 +82,7 @@
             {
               "description": "Create a new note from an existing one",
               "prompt": "Turn the points from my design meeting note into a checklist in a new note called Design follow-ups, in the Work folder.",
-              "tools_triggered": "search, fetch, create",
+              "tools_triggered": "search, fetch, create (or write)",
               "expected_behavior": "Reads \"Meeting with design\" in Work and creates Work/Design follow-ups.md with three unchecked items: simplify the settings screen, one primary action per screen, and test the new icon at small sizes. Confirms the new note's title and folder."
             }
           ],
