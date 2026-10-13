@@ -28,7 +28,7 @@ export const STEPS: Step[] = [
   { who: "chatgpt", credit: "ChatGPT asks first" },
   { who: "you", credit: "You allow Read and edit" },
   { who: "chatgpt", credit: "ChatGPT added 1 line", undo: true },
-  { who: "you", credit: "You pressed Undo" },
+  { who: "you", credit: "Undo took it back" },
 ];
 
 /// The note at a step: ChatGPT's line is in, and tinted, at step 2 only.

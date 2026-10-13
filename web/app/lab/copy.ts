@@ -153,10 +153,14 @@ export const G = {
     title: "Wait, it can do that?",
     lede: "A note can be an app: a habit tracker, a budget, a trip plan. Change it yourself, or ask your AI.",
     all: "See all templates",
+    /** The cards' lines, short enough to sit on one line on a fanned card. */
+    taglines: { "habit-tracker": "A few small habits, every day.", "trip-plan": "Days, bookings, packing.", "budget-log": "Spending against your budget." } as Record<string, string>,
   },
   feel: {
     title: "Feels like Apple Notes. Brings yours over.",
     lede: "Import Apple Notes in one go. Folders, checklists and tables come along, and Apple Notes stays as it is.",
+    /** ?alt=art: the picture and the import card, no phone. */
+    ledeAlt: "Import Apple Notes in one go. Folders, checklists and tables come along, and Apple Notes stays as it is. Mac today, iPhone app coming soon.",
     soon: "iPhone app coming soon",
   },
   control: {
@@ -164,8 +168,13 @@ export const G = {
   },
   closing: {
     title: "Start with the notes you already have.",
-    steps: ["Download for Mac", "Import your Apple Notes", "Connect your AI: One press for Claude Code and Codex. ChatGPT, Claude, Incredible and any MCP app work too."],
-    fine: "Requires macOS 26. iPhone app coming soon.",
+    steps: [
+      { title: "Download for Mac", line: "Free, macOS 26." },
+      { title: "Import your Apple Notes", line: "Folders, checklists and tables come along." },
+      { title: "Connect your AI", line: "One press for Claude Code and Codex." },
+    ],
+    works: "Works with ChatGPT, Claude, Incredible and any MCP app.",
+    fine: "iPhone app coming soon.",
     /** Each one checked before printing: MIT in LICENSE; listed in jaywcjlove/awesome-mac (as Amber Notes, the old name), 13 October 2026. */
     proof: ["Open source (MIT)", "Listed in awesome-mac"],
   },

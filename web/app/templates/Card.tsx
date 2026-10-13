@@ -11,7 +11,8 @@ import s from "./templates.module.css";
 /// template, the table first and then, once, the top of its iPhone app: AppSwap), with "Use template". The card is one link to the template's page (its title link, stretched over the
 /// card), except "Use template", its own link that opens Pinto Notes from the gallery, and a community template's
 /// "by @handle", a link to its author on GitHub. No link sits inside another.
-export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2" | "h3" }) {
+/// `tagline` replaces the template's own line where a page needs it shorter (the home page studies).
+export default function Card({ t, heading = "h2", tagline }: { t: Template; heading?: "h2" | "h3"; tagline?: string }) {
   const H = heading;
   const cover = COVERS[t.slug];
   return (
@@ -19,7 +20,7 @@ export default function Card({ t, heading = "h2" }: { t: Template; heading?: "h2
       <span className={s.cover}><img src={coverPath(t.slug)} alt={cover.alt} width={800} height={800} loading="lazy" decoding="async" /></span>
       <span className={s.cardText}>
         <H className={s.cardTitle}><a className={s.cardLink} href={templatePath(t.slug)}>{t.title}</a></H>
-        <span className={s.cardLine}>{t.tagline}</span>
+        <span className={s.cardLine}>{tagline ?? t.tagline}</span>
       </span>
       <span className={s.slice}>
         {t.app

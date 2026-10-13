@@ -28,7 +28,9 @@ const CONTROL_FACTS = [
 
 // Study G, the joint homepage: D's sections and stories with growth's words, a story of the approval
 // sheet, and a closing in three steps. Cream, cream, dark, cream, tint, cream, dark.
-export default function HomeG() {
+export default async function HomeG({ searchParams }: { searchParams: Promise<{ alt?: string }> }) {
+  // ?alt=art: section 5 with the picture and the import card, no phone. Only that section differs.
+  const art = (await searchParams).alt === "art";
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
@@ -43,7 +45,7 @@ export default function HomeG() {
         <div className={`${d.desk} rise-soft`} {...rise(2)}>
           <img className={d.deskArt} src="/home-d/desk.webp" srcSet="/home-d/desk-700.webp 700w, /home-d/desk.webp 1254w" sizes="(min-width: 1000px) 640px, 92vw"
             width={1254} height={1254} alt="" fetchPriority="high" />
-          <HeroNote />
+          <HeroNote order="ai-last" />
         </div>
       </section>
 
@@ -71,28 +73,40 @@ export default function HomeG() {
           <h2 id="wait" className={d.title}>{G.apps.title}</h2>
           <p className={d.lede}>{G.apps.lede} <a className={d.inline} href="/templates">{G.apps.all}</a></p>
         </div>
-        <ul className={d.fan}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" /></li>)}</ul>
+        <ul className={`${d.fan} ${s.fanWrap}`}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} /></li>)}</ul>
       </section>
 
       {/* 5. It feels like the notes app you know, and yours come along: on a soft tint. */}
-      <section className={s.tint} aria-labelledby="feel">
-        <div className={d.feel}>
-          <div className={d.feelArt}>
-            <img src="/home-d/bring.webp" srcSet="/home-d/bring-600.webp 600w, /home-d/bring.webp 1086w" sizes="(min-width: 960px) 560px, 92vw" width={1086} height={1448}
-              alt="Paper-cut notes in a folder, tied with an orange ribbon, beside an olive sprig" loading="lazy" decoding="async" />
-            <ImportCard />
+      <section className={s.tint} aria-labelledby="feel" data-alt={art ? "art" : undefined}>
+        {art ? (
+          <div className={d.feel}>
+            <div className={d.feelArt}>
+              <img src="/home-d/bring.webp" srcSet="/home-d/bring-600.webp 600w, /home-d/bring.webp 1086w" sizes="(min-width: 960px) 560px, 92vw" width={1086} height={1448}
+                alt="Paper-cut notes in a folder, tied with an orange ribbon, beside an olive sprig" loading="lazy" decoding="async" />
+              <ImportCard />
+            </div>
+            <div className={d.feelText}>
+              <h2 id="feel" className={d.title}>{G.feel.title}</h2>
+              <p className={d.lede}>{G.feel.ledeAlt}</p>
+            </div>
           </div>
-          <div className={d.feelText}>
-            <h2 id="feel" className={d.title}>{G.feel.title}</h2>
-            <p className={d.lede}>{G.feel.lede}</p>
-            <figure className={d.feelPhone}>
-              <Phone width="272px" label="Pinto Notes on iPhone: the Groceries note, with the lines ChatGPT just added tinted.">
-                <PhoneNote title="Groceries" lines={GROCERIES} receipt={{ who: "chatgpt", text: "ChatGPT changed 5 lines" }} />
-              </Phone>
-              <figcaption className={d.soon}>{G.feel.soon}</figcaption>
-            </figure>
+        ) : (
+          <div className={s.feelG}>
+            <div className={s.feelObjects}>
+              <figure className={s.feelPhone}>
+                <Phone width="272px" label="Pinto Notes on iPhone: the Groceries note, with the lines ChatGPT just added tinted.">
+                  <PhoneNote title="Groceries" lines={GROCERIES} receipt={{ who: "chatgpt", text: "ChatGPT changed 5 lines" }} />
+                </Phone>
+                <figcaption className={d.soon}>{G.feel.soon}</figcaption>
+              </figure>
+              <div className={s.feelImport}><ImportCard /></div>
+            </div>
+            <div className={d.feelText}>
+              <h2 id="feel" className={d.title}>{G.feel.title}</h2>
+              <p className={d.lede}>{G.feel.lede}</p>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* 6. You approve each AI, and every change can be undone. */}
@@ -108,12 +122,12 @@ export default function HomeG() {
           <img src="/mark-256.png" alt="" width={104} height={104} className={d.closingIcon} />
           <h2 id="closing" className={d.closingTitle}>{G.closing.title}</h2>
           <ol className={s.stepsRow}>
-            {G.closing.steps.map((t, k) => {
-              const [head, rest] = t.split(/: (.*)/s);
-              return <li key={k}><span className={s.num}>{k + 1}</span><span><b>{head}</b>{rest && <span className={s.stepRest}>{rest}</span>}</span></li>;
-            })}
+            {G.closing.steps.map((t, k) => (
+              <li key={k}><span className={s.num}>{k + 1}</span><span><b>{t.title}</b><span className={s.stepRest}>{t.line}</span></span></li>
+            ))}
           </ol>
-          <Download className={d.closingCta} quiet={G.closing.fine} />
+          <Download className={d.closingCta} />
+          <div className={s.after}><p className={s.works}>{G.closing.works}</p><p className={s.fine}>{G.closing.fine}</p></div>
           <p className={s.proof}>{G.closing.proof.join(" · ")}</p>
         </div>
       </section>
