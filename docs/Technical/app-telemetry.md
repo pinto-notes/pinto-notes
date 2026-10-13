@@ -66,7 +66,7 @@ This is enforced by the types, not by care at each call:
 | Event | When | Properties |
 |---|---|---|
 | `app_opened` | At launch, and once for each new day (UTC) the app is still running | `launch`, `signed_in` (yes or no) |
-| `signed_in` | A sign-in worked | `method`: `apple`, `google`, `email` |
+| `signed_in` | A sign-in worked | `method`: `apple`, `apple_web` (Sign in with Apple through the web, in the Mac download), `google`, `email` |
 | `signed_up` | A sign-in worked for an account made in the last five minutes, or an email sign-up was confirmed | `method` |
 | `key_ready` | The account's key arrived on this device while the app was running | `how`: `created`, `recovery_key`, `linked` (Add a device), `icloud_keychain`, `start_fresh`, `sign_in` (from the copy the server keeps) |
 | `gate_shown` | A screen between signing in and the notes was shown (once a launch for each) | `screen`: `welcome`, `add_device`, `no_device`, `waiting`, `recovery`, `start_fresh`, `unreachable`, `accountGone` (the account was deleted on the server), `checking`, `held` (waiting out the hold after a password reset), `before_fetch` (before the key comes from the copy the server keeps: sign in again, or say yes first) |
@@ -74,6 +74,22 @@ This is enforced by the types, not by care at each call:
 | `first_sync` | The first sync that finished on this install | `duration_ms` |
 | `ai_connected` | An AI connection was approved, or a token was made for one | `kind`: `claude`, `chatgpt`, `other` |
 | `first_ai_edit_seen` | The first time a note an AI changed was opened on this install | |
+
+## Funnels
+
+Where people get stuck, one event per funnel with a closed set of steps. A step can be sent more
+than once (a person goes back, or tries again); each is sent when it happens.
+
+| Event | When | Properties |
+|---|---|---|
+| `onboarding_step` | A first-run screen is shown or left | `step`: `welcome`, `name`, `bring`, `connect`, `try_it`, `done`; `action`: `shown`, `continued`, `skipped`, `back` |
+| `import_step` | An import moves on a step | `source`: `apple_notes`, `evernote`, `keep`, `obsidian`, `bear`, `markdown`; `step`: `opened`, `guide_page` (with `page`, 1 to 5), `already_have_file`, `file_found_automatically`, `wrong_file`, `permission_denied`, `nothing_found`, `second_account`, `importing`, `done` (with `count`: `1-9`, `10-99`, `100-999`, `1000+`), `failed` (with `kind`), `cancelled` |
+| `connect_step` | Connecting an AI moves on a step | `ai`: `chatgpt`, `claude`, `claude_code`, `codex`, `other`, `incredible`; `step`: `opened`, `started`, `waiting`, `connected`, `failed` (with `kind`), `gave_up` (the sheet closed while waiting) |
+| `sign_in_step` | Signing in moves on a step | `step`: `shown`, `method_chosen`, `browser_opened`, `code_sent`, `code_entered`, `password_shown`, `succeeded`, `failed` (with `kind`, as `sign_in_failed`), `cancelled`; `method` once one is chosen |
+| `link_device_step` | Adding a device moves on a step | `role`: `new_device`, `existing_device`; `step`: `shown`, `code_shown`, `scanned`, `typed`, `approved`, `done`, `failed` (with `kind`), `gave_up` |
+
+`kind` on `import_step`, `connect_step` and `link_device_step` is one of `offline`, `timeout`,
+`network`, `cancelled`, `http`, `database`, `storage`, `auth`, `decoding`, `crypto`, `file`, `other`.
 
 ## Error reports
 
