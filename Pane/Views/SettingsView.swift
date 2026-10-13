@@ -307,7 +307,7 @@ private struct NoInitialFocus: NSViewRepresentable {
 #endif
 
 private enum SettingsLayout {
-    static let width: CGFloat = 520
+    static let width: CGFloat = 460
 }
 
 /// General: the menu bar item (on iPhone, the setup guide), API keys for apps in notes, the
