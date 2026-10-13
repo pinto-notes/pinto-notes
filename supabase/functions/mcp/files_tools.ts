@@ -172,7 +172,7 @@ export const FILE_TOOLS: Tool[] = ([
 /** What the server tells every client when this tool set is on: how the files are laid out. The
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
-In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title.
+In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title.
 A note listed with locked: true is locked by the person with a separate password: only its title shows here, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
 ${FILE_APP_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
@@ -246,7 +246,8 @@ const blobItem = (id: string) => `blob:${id}`;
 type Ref =
   | { kind: "dir"; dir: string }
   | { kind: "note"; note: Note; path: string }
-  | { kind: "app"; note: Note; base: string }
+  /** An app, or a folder in it (dir: "docs/"). */
+  | { kind: "app"; note: Note; base: string; dir?: string }
   | { kind: "appfile"; note: Note; base: string; file: string }
   | { kind: "data"; note: Note; base: string }
   /** A file a note embeds (note), or one kept in a folder (folder). */
@@ -306,6 +307,7 @@ async function resolve(tx: Tx, c: Call, raw: unknown, opts: { trashed?: boolean 
     const sub = ref.slice(at + 4).replace(/^\/+/, "");
     const app = e.path.replace(/\.md$/, ".app");
     if (!sub) return { kind: "app", note: n, base: app };
+    if (sub.endsWith("/")) return { kind: "app", note: n, base: app, dir: sub };
     if (sub === "data.json") return { kind: "data", note: n, base: app };
     return { kind: "appfile", note: n, base: app, file: sub };
   }
@@ -667,10 +669,12 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const r = await resolve(tx, c, a.path, { trashed: true });
     if (r.kind === "app" || r.kind === "appfile" || r.kind === "data") {
       const p = await appProject(tx, c, r.note);
-      const files = [...fileList(p).map((f) => ({ path: `${r.base}${f.path}`, lines: f.lines })), { path: `${r.base}/data.json`, what: "the app's data" }];
+      const inDir = r.kind === "app" && r.dir ? `/${r.dir}` : "";
+      const files = [...fileList(p).filter((f) => f.path.startsWith(inDir)).map((f) => ({ path: `${r.base}${f.path}`, lines: f.lines })), ...(inDir ? [] : [{ path: `${r.base}/data.json`, what: "the app's data" }])];
+      if (inDir && !files.length) throw new ToolError(`No folder ${r.base}${inDir}. Its files: list "${r.base}".`);
       const want = typeof a.pattern === "string" && a.pattern ? globRe(`${r.base}/${a.pattern.replace(/^\/+/, "")}`) : null;
       const shown = want ? files.filter((f) => want.test(f.path)) : files;
-      return { path: `${r.base}/`, files: shown.slice(pg.offset, pg.offset + pg.limit), ...more(shown.length, pg.offset, Math.min(pg.limit, shown.length)) };
+      return { path: `${r.base}${inDir || "/"}`, files: shown.slice(pg.offset, pg.offset + pg.limit), ...more(shown.length, pg.offset, Math.min(pg.limit, shown.length)) };
     }
     if (r.kind === "note") return await fileHandlers.list(tx, { ...a, path: r.path.replace(/\.md$/, "/") }, c);
     if (r.kind !== "dir") throw new ToolError(`${clean(a.path)} is a file: read it with fetch.`);
@@ -748,7 +752,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       return {
         id: r.path, title: n.title, text: shown.text, url: `ambernotes://note/${n.id}`,
         metadata: {
-          path: r.path, lines: shown.lines, updated: iso(n.updated_at), ...(n.is_pinned ? { pinned: true } : {}),
+          path: r.path, lines: shown.lines, updated: iso(n.updated_at), today: today(), ...(n.is_pinned ? { pinned: true } : {}),
           ...(n.trashed_at ? { deleted: "In Recently Deleted: restore brings it back." } : {}),
           ...(subs.length ? { sub_notes: subs } : {}), ...(files.length ? { files: files.map((f) => f.path) } : {}),
           ...(wikiLinks(body).length ? { links: wikiLinks(body) } : {}),
@@ -770,6 +774,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
           about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." } };
     }
     const p = await appProject(tx, c, r.note);
+    if (r.kind === "app" && r.dir) {
+      const listing = await fileHandlers.list(tx, { path: `${r.base}/${r.dir}` }, c) as { files: { path: string; lines: number }[] };
+      return { id: `${r.base}/${r.dir}`, title: `${r.note.title} (app): ${r.dir}`, text: listing.files.map((f) => `${f.path}  (${f.lines} lines)`).join("\n"), url: `ambernotes://note/${r.note.id}`, metadata: { path: `${r.base}/${r.dir}`, type: "folder" } };
+    }
     if (r.kind === "app") {
       const { draft } = await projectOf(tx, c, r.note.id);
       return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${f.lines} lines)`), `${r.base}/data.json`].join("\n"), url: `ambernotes://note/${r.note.id}`,

@@ -266,3 +266,16 @@ Deno.test("no text of the account is stored or logged readably after every file 
   }
   for (const line of logged) assert(!line.includes(CANARY), `logged: ${line}`);
 });
+
+Deno.test("what the bench found: an app's folders list, an empty Recently Deleted lists, and fetch gives today's date", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  assertEquals((await tool(pg, a, "list", { path: "Recently Deleted/" })).entries, []);
+  await tool(pg, a, "create", { type: "app", path: "Habits.md" });
+  const docs = await tool(pg, a, "list", { path: "Habits.app/docs/" });
+  assertEquals([docs.path, docs.files.map((f: { path: string }) => f.path)], ["Habits.app/docs/", ["Habits.app/docs/README.md"]]);
+  assertEquals((await tool(pg, a, "fetch", { id: "Habits.app/docs/" })).text.split("\n").map((l: string) => l.split("  ")[0]), ["Habits.app/docs/README.md"]);
+  assertStringIncludes(await fails(tool(pg, a, "list", { path: "Habits.app/nothing/" })), "No folder");
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
+  assertEquals((await tool(pg, a, "fetch", { id: "Habits.md" })).metadata.today, today);
+});

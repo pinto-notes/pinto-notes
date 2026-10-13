@@ -1071,7 +1071,9 @@ export const TASKS: Task[] = [
     seed: { body: N_MOOD, folder: "Health" }, page: false,
     checks: (f) => {
       const t = findTables(f.after)[0];
-      const today = t?.rows.find((r) => /^2026-10-0[567]$/.test(r[0]) && !N_MOOD.includes(`| ${r[0]} |`));
+      // Today where the server runs (files_tools.ts's today(), Europe/Stockholm), or a day either side of it.
+      const near = [-1, 0, 1].map((d) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date(Date.now() + d * 86400000)));
+      const today = t?.rows.find((r) => near.includes(r[0]) && !N_MOOD.includes(`| ${r[0]} |`));
       return [
         check("tracker_kept", /<!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes\|No -->/.test(f.after), "the tracker's type line changed"),
         check("row_for_today", !!today && today[1] === "4" && today[2] === "Yes", `rows: ${JSON.stringify(t?.rows.slice(-2))}`),
