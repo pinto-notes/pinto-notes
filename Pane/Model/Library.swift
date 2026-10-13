@@ -68,6 +68,19 @@ extension ModelContext {
         return .folder(folder.id)
     }
 
+    /// What Show My Notes opens after an import: its top folder, on the newest note that folder's
+    /// list shows (notes in folders inside it aren't in that list). When every note went into an
+    /// inner folder, the first note's own folder.
+    func importLanding(of ids: [UUID]) -> (scope: Scope, note: UUID?) {
+        guard let first = ids.first else { return (.all, nil) }
+        let scope = importScope(of: first)
+        guard case .folder(let top) = scope else { return (scope, first) }
+        let notes = ids.compactMap(note)
+        if let shown = notes.filter({ $0.folder?.id == top }).max(by: { $0.updatedAt < $1.updatedAt }) { return (scope, shown.id) }
+        guard let newest = notes.max(by: { $0.updatedAt < $1.updatedAt }), let folder = newest.folder else { return (scope, nil) }
+        return (.folder(folder.id), newest.id)
+    }
+
     func note(_ id: UUID) -> Note? {
         try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first
     }

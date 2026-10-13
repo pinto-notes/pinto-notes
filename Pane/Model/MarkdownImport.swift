@@ -5,7 +5,7 @@ import ZIPFoundation
 
 /// Markdown and text notes from a folder or a .zip: what Obsidian, Notion, Bear, Joplin, Logseq,
 /// Simplenote and Standard Notes export. Subfolders become folders; the title is the front
-/// matter's, else the first heading, else the file name; images and files linked from the notes
+/// matter's, else a first `#` heading, else the file name; images and files linked from the notes
 /// (relative links, Notion's URL-encoded paths, Obsidian's `![[embeds]]`) come in as attachments;
 /// front-matter tags become a last line of #tags; dates come from front matter, else the file.
 @MainActor
@@ -88,6 +88,28 @@ final class MarkdownImporter {
         return s.trimmingCharacters(in: .whitespaces)
     }
 
+    /// Unzips `zip` with each file's time as it was where the .zip was made. A .zip keeps the
+    /// wall-clock time of the Mac or PC that wrote it (Finder, `zip`, Windows), but the unzipper reads
+    /// it as UTC: notes came in two hours ahead in Sweden (Air test 2026-10-13).
+    nonisolated static func unzip(_ zip: URL, to dest: URL) throws {
+        try FileManager.default.unzipItem(at: zip, to: dest)
+        let files = FileManager.default.enumerator(at: dest, includingPropertiesForKeys: [.contentModificationDateKey])
+        while let url = files?.nextObject() as? URL {
+            guard let written = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else { continue }
+            try? FileManager.default.setAttributes([.modificationDate: localTime(ofUTCWallClock: written)], ofItemAtPath: url.path)
+        }
+    }
+
+    /// The moment whose local wall clock reads what `date` reads in UTC.
+    nonisolated static func localTime(ofUTCWallClock date: Date, in zone: TimeZone = .current) -> Date {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = .gmt
+        var local = utc
+        local.timeZone = zone
+        let wall = utc.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        return local.date(from: wall) ?? date
+    }
+
     // MARK: Importing
 
     func run(_ sources: [ImportSource], into destination: ImportDestination,
@@ -105,7 +127,7 @@ final class MarkdownImporter {
                 let dest = scratch.appending(path: UUID().uuidString, directoryHint: .isDirectory)
                 let url = source.url
                 do {
-                    try await Task.detached { try FileManager.default.unzipItem(at: url, to: dest) }.value
+                    try await Task.detached { try MarkdownImporter.unzip(url, to: dest) }.value
                 } catch {
                     writer.summary.failedFiles.append("\(source.name): the .zip couldn't be opened.")
                     continue
@@ -397,10 +419,13 @@ struct MarkdownNote: Equatable {
 
         var note = MarkdownNote(body: "")
         note.title = props["title"]?.first.flatMap { $0.isEmpty ? nil : $0 }
-        // The first heading is the title when the note starts with it.
+        // A first `#` heading is the title when the note starts with it. A smaller one is a section
+        // ("## What went well" in "Weekly review"): the file name stays the title, as in Obsidian,
+        // unless the heading repeats it.
         if !plainText, let first = lines.first, let r = first.range(of: #"^#{1,6}\s+"#, options: .regularExpression) {
             let heading = String(first[r.upperBound...]).trimmingCharacters(in: .whitespaces)
-            if note.title == nil || note.title == heading { note.title = heading; lines.removeFirst() }
+            let isTitle = first.hasPrefix("# ") || first.hasPrefix("#\t") || heading.caseInsensitiveCompare(fileName) == .orderedSame
+            if isTitle, note.title == nil || note.title == heading { note.title = heading; lines.removeFirst() }
         }
         // Notion lists a page's properties under its title: "Created: …", "Tags: a, b". Dates and
         // tags are taken from there; other properties ("Author: …") stay in the note.

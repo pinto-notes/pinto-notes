@@ -34,6 +34,56 @@ import Testing
         #expect(c.mainContext.importScope(of: loose.id) == .all)
     }
 
+    /// Air test 10-13: Show My Notes opened Obsidian's folder with a note from a folder inside it
+    /// in the editor, a note the list didn't show.
+    @Test func showMyNotesOpensANoteTheListShows() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let vault = Folder(name: "Second brain"), daily = Folder(name: "Daily", parent: vault)
+        let inner = Note(body: "# 2026-10-12", folder: daily), older = Note(body: "# Ideas", folder: vault), newer = Note(body: "# Weekly review", folder: vault)
+        older.updatedAt = .now.addingTimeInterval(-3600)
+        [vault, daily].forEach { c.mainContext.insert($0) }
+        [inner, older, newer].forEach { c.mainContext.insert($0) }
+        let landing = c.mainContext.importLanding(of: [inner.id, older.id, newer.id])
+        #expect(landing.scope == .folder(vault.id) && landing.note == newer.id, "the vault, on its newest note there")
+        let onlyInner = c.mainContext.importLanding(of: [inner.id])
+        #expect(onlyInner.scope == .folder(daily.id) && onlyInner.note == inner.id, "nothing at the top: the note's own folder")
+    }
+
+    /// Air test 10-13: Obsidian's one page had no label over its title, unlike every other guide's.
+    @Test func everyStepPageIsLabelled() {
+        #expect(ImportGuideSheet.stepLabel(2, of: 3) == "Step 2 of 3")
+        #expect(ImportGuide.obsidian(picture: nil).steps.count == 1)
+        #expect(ImportGuideSheet.stepLabel(1, of: 1) == "One step")
+    }
+
+    #if os(macOS)
+    /// Air test 10-13: Bear's "Pick Markdown" sat under its ring, over the picture's words, and the
+    /// picture cut "Convert note links to HTML links" at its edge. A label goes beside its ring
+    /// (rings ending left of 0.7), and the picture is cropped wide enough for the whole row.
+    @Test func ringLabelsSitBesideTheirRing() throws {
+        let url = try #require(ImportGuide.picture("guide-bear-export"))
+        for kind in ImportKind.allCases {
+            for step in ImportGuide.live(kind)?.steps ?? [] {
+                guard case .picture(_, let rings) = step.art else { continue }
+                for (ring, label) in rings where label != nil { #expect(ring.maxX < 0.7, "\(kind) \(label!)") }
+            }
+        }
+        let size = try #require(NSImage(contentsOf: url)?.size)
+        #expect(size.width / size.height > 4.5, "the whole checkbox row is in the picture")
+    }
+    #endif
+
+    /// Air test 10-13: two Evernote notebooks were "Drag it here" and "This looks like the one".
+    @Test func severalFilesAreThem() {
+        #expect(ImportGuideSheet.foundLine(many: true) == "These look like the ones. Import them, or choose others.")
+        #expect(ImportGuideSheet.foundLine(many: false) == "This looks like the one. Import it, or choose another.")
+        #if os(macOS)
+        #expect(ImportGuideSheet.dropHint(.empty, many: ImportGuide.evernote.drop.choose.contains("Files")) == "Drag them here from Finder")
+        #expect(ImportGuideSheet.dropHint(.empty, many: ImportGuide.keep.drop.choose.contains("Files")) == "Drag it here from Finder")
+        #endif
+        #expect(GuideDrawing.evernoteNotebooks.last == "Work", "the menu opens under the last notebook, covering none")
+    }
+
     @Test func theRealPicturesShipWithTheApp() {
         for name in ["guide-bear-export", "guide-obsidian-reveal", "guide-obsidian-files"] {
             #expect(ImportGuide.picture(name) != nil, "\(name).png is in the app")

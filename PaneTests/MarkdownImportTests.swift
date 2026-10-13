@@ -62,6 +62,14 @@ import ZIPFoundation
         #expect(MarkdownNote.parse("# Not a heading in text\nx", fileName: "f", plainText: true).title == nil)
     }
 
+    /// Air test 10-13: Obsidian's "Weekly review" came in titled "What went well", its first section.
+    @Test func aSectionHeadingIsNotTheTitle() {
+        let n = MarkdownNote.parse("## What went well\n\nShipped.\n", fileName: "Weekly review")
+        #expect(n.title == nil, "the file name is the title")
+        #expect(n.body.hasPrefix("## What went well"))
+        #expect(MarkdownNote.parse("## Weekly review\n\nShipped.", fileName: "Weekly review").title == "Weekly review", "a heading that repeats the name is the title")
+    }
+
     @Test func logseqPropertiesAndTasks() {
         let n = MarkdownNote.parse("tags:: reading, friends\nalias:: Books\n\n- TODO pick a book\n- DONE invites\n  id:: 65f2a1b0\n\t- LATER table\n- CANCELED party\n```\n- TODO in code\n```", fileName: "Book club")
         #expect(n.tags == ["reading", "friends"])
@@ -182,6 +190,33 @@ import ZIPFoundation
             let dune = try r.note("Dune")
             #expect(r.path(dune) == "\(source)/Books" && dune.body == "Dune\nAuthor: Frank Herbert\nStatus: Read\n\nSpice must flow.\n")
         }
+    }
+
+    /// Air test 10-13: notes from a .zip came in two hours ahead in Sweden. Zips keep the time of
+    /// day where they were made; it was read as UTC.
+    @Test func aZipKeepsTheTimeOfDayItWasMadeIn() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "md-\(UUID().uuidString)/Notes")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appending(path: "Groceries.md")
+        try "Milk\n".write(to: file, atomically: true, encoding: .utf8)
+        let written = Self.utc("2026-10-01T08:00:00Z")
+        try FileManager.default.setAttributes([.modificationDate: written, .creationDate: written], ofItemAtPath: file.path)
+        // Zipped as Finder and `zip` do: the Mac's own time of day in the .zip.
+        let zip = dir.deletingLastPathComponent().appending(path: "Notes.zip")
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        p.currentDirectoryURL = dir.deletingLastPathComponent()
+        p.arguments = ["-qr", "Notes.zip", "Notes"]
+        try p.run()
+        p.waitUntilExit()
+        #expect(p.terminationStatus == 0)
+        let r = try await Self.importing([zip])
+        defer { r.cleanUp() }
+        #expect(abs(try r.note("Groceries").createdAt.timeIntervalSince(written)) <= 2, "the time it was written, not hours off")
+
+        let stockholm = TimeZone(identifier: "Europe/Stockholm")!
+        #expect(MarkdownImporter.localTime(ofUTCWallClock: Self.utc("2026-10-01T10:00:00Z"), in: stockholm) == Self.utc("2026-10-01T08:00:00Z"))
+        #expect(MarkdownImporter.localTime(ofUTCWallClock: Self.utc("2026-12-01T10:00:00Z"), in: stockholm) == Self.utc("2026-12-01T09:00:00Z"))
     }
 
     @Test func bearExportWithATextBundle() async throws {

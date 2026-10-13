@@ -150,7 +150,7 @@ struct ImportGuideFlow: View {
     private var noteCount: Int { importable.reduce(0) { $0 + $1.notes } }
 
     var body: some View {
-        ImportGuideSheet(guide: guide, page: page, opened: openedHere, found: found, brought: summary?.notes, broughtLine: broughtLine,
+        ImportGuideSheet(guide: guide, page: page, opened: openedHere, found: found, brought: summary?.notes, foundMany: importable.count > 1, broughtLine: broughtLine,
                          act: act, onDrop: { urls in
                              guard stage == .drop else { return false }
                              add(urls, replacing: true)

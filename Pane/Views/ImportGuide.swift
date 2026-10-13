@@ -121,8 +121,8 @@ extension ImportGuide {
                      art: .drawn(.bearSelect), action: "Open Bear", link: URL(string: "https://bear.app"), app: "net.shinyfrog.bear"),
                 Step(title: "Save them as Markdown",
                      text: "Choose File, then Export Notes. Pick Markdown, tick Export attachments, and save into a new folder.",
-                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.485, y: 0.04, width: 0.5, height: 0.27), "Pick Markdown"),
-                                                             (CGRect(x: 0.015, y: 0.74, width: 0.56, height: 0.24), "Tick it")]) } ?? .drawn(.bearExport),
+                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.339, y: 0.04, width: 0.349, height: 0.27), "Pick Markdown"),
+                                                             (CGRect(x: 0.011, y: 0.74, width: 0.391, height: 0.24), "Tick it")]) } ?? .drawn(.bearExport),
                      action: nil),
             ],
             drop: Drop(title: "Drop the folder here",
@@ -223,6 +223,8 @@ struct ImportGuideSheet: View {
     var found: (name: String, detail: String, button: String)?
     /// How many notes came, on the success page (the guide's own example otherwise).
     var brought: Int?
+    /// More than one file was picked or dropped.
+    var foundMany = false
     /// The success page's line when it isn't the guide's own (nothing new came).
     var broughtLine: String?
     /// A press on one of the page's controls.
@@ -374,11 +376,9 @@ struct ImportGuideSheet: View {
     @ViewBuilder
     private func step(_ s: ImportGuide.Step, number: Int) -> some View {
         let words = VStack(alignment: .leading, spacing: 8) {
-            if guide.steps.count > 1 {
-                Text("Step \(number) of \(guide.steps.count)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.muted)
-            }
+            Text(Self.stepLabel(number, of: guide.steps.count))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.muted)
             Text(s.title).font(.system(size: Self.compact ? 24 : 21, weight: .bold)).tracking(-0.3)
             Text(s.text)
                 .font(Self.compact ? .body : .system(size: 14))
@@ -424,6 +424,22 @@ struct ImportGuideSheet: View {
         }
     }
 
+    /// What the found page says: one file, or several (Evernote's notebooks).
+    static func foundLine(many: Bool) -> String {
+        many ? "These look like the ones. Import them, or choose others." : "This looks like the one. Import it, or choose another."
+    }
+
+    /// What the empty drop area says, for one file or several.
+    static func dropHint(_ state: ImportGuidePage.DropState, many: Bool) -> String {
+        if state == .hovering { return "Let go to import" }
+        return compact ? "Tap the button to choose \(many ? "them" : "it")" : "Drag \(many ? "them" : "it") here from Finder"
+    }
+
+    /// "Step 2 of 3"; a guide of one step says so, never "Step 1 of 1".
+    static func stepLabel(_ number: Int, of count: Int) -> String {
+        count == 1 ? "One step" : "Step \(number) of \(count)"
+    }
+
     /// "Choose Another Folder…", "Choose Other Files…"
     private var chooseAnother: String {
         guide.drop.choose.replacingOccurrences(of: "Choose", with: guide.drop.choose.contains("Files") ? "Choose Other" : "Choose Another")
@@ -434,7 +450,7 @@ struct ImportGuideSheet: View {
             Text(state == .found ? "Found it" : guide.drop.title)
                 .font(.system(size: Self.compact ? 24 : 21, weight: .bold)).tracking(-0.3)
                 .padding(.top, 6)
-            Text(state == .found ? "This looks like the one. Import it, or choose another." : guide.drop.line)
+            Text(state == .found ? Self.foundLine(many: foundMany) : guide.drop.line)
                 .font(Self.compact ? .body : .system(size: 14))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
@@ -489,7 +505,7 @@ struct ImportGuideSheet: View {
             default:
                 fileIcon(guide.drop.fileSymbol, size: 52)
                     .offset(y: state == .hovering ? -4 : 0)
-                Text(Self.compact ? "Tap the button to choose it" : state == .hovering ? "Let go to import" : "Drag it here from Finder")
+                Text(Self.dropHint(state, many: guide.drop.choose.contains("Files")))
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(state == .hovering ? Color(Palette.amberInk) : Color.muted)
             }
@@ -621,13 +637,17 @@ struct ImportGuideSheet: View {
                                 .frame(width: r.width, height: r.height)
                                 .overlay(alignment: ring.0.maxX < 0.7 ? .trailing : .bottomTrailing) {
                                     if let label = ring.1 {
-                                        Text(label).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                                        let pill = Text(label).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                                             .padding(.horizontal, 7).padding(.vertical, 3)
                                             .background(Color(Palette.amberButton), in: .capsule)
                                             .fixedSize()
-                                            .offset(x: 0)
-                                            .alignmentGuide(.trailing) { ring.0.maxX < 0.7 ? $0[.leading] - 8 : $0[.trailing] }
-                                            .offset(y: ring.0.maxX < 0.7 ? 0 : 26)
+                                        if ring.0.maxX < 0.7 {
+                                            // Beside the ring, off the picture's words: from a point on its right edge.
+                                            Color.clear.frame(width: 0, height: 0)
+                                                .overlay(alignment: .leading) { pill.padding(.leading, 8) }
+                                        } else {
+                                            pill.offset(y: 26)
+                                        }
                                     }
                                 }
                                 .position(x: r.midX, y: r.midY)
@@ -653,6 +673,9 @@ struct ImportGuideSheet: View {
 /// thing to click drawn as it is labelled there and ringed in amber. No other company's logo.
 struct GuideDrawing: View {
     var drawn: ImportGuide.Drawn
+
+    /// Evernote's notebooks; the menu opens from the last one's three dots.
+    static let evernoteNotebooks = ["Recipes", "Travel journal", "Work"]
 
     var body: some View {
         switch drawn {
@@ -709,9 +732,7 @@ struct GuideDrawing: View {
                     .frame(maxHeight: .infinity, alignment: .top)
                     .background(Color.gray.opacity(0.10))
                     VStack(alignment: .leading, spacing: 10) {
-                        notebookRow("Recipes", dots: false)
-                        notebookRow("Work", dots: true)
-                        notebookRow("Travel journal", dots: false)
+                        ForEach(Self.evernoteNotebooks, id: \.self) { notebookRow($0, dots: $0 == Self.evernoteNotebooks.last) }
                     }
                     .padding(14)
                     .overlay(alignment: .topTrailing) {
@@ -724,7 +745,8 @@ struct GuideDrawing: View {
                         .padding(10)
                         .background(paper, in: .rect(cornerRadius: 8))
                         .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
-                        .offset(x: -14, y: 66)
+                        // Under the last row, where it covers no notebook's name.
+                        .offset(x: -14, y: 98)
                     }
                 }
             }

@@ -272,8 +272,12 @@ struct RootView: View {
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportFlow(kind: kind, files: importFiles) { ids in
                     #if os(macOS)
-                    // Show My Notes: the folder the import made, open on its first note.
-                    if let first = ids.first { scope = context.importScope(of: first); selectedNote = first }
+                    // Show My Notes: the folder the import made, open on a note its list shows.
+                    if !ids.isEmpty {
+                        let landing = context.importLanding(of: ids)
+                        scope = landing.scope
+                        selectedNote = landing.note
+                    }
                     #endif
                 }
             }
