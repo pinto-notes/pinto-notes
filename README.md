@@ -5,15 +5,78 @@
 <h1 align="center">Pinto Notes</h1>
 
 <p align="center">
-  The notes app your AI can actually use. Apple Notes-style notes for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can read and edit.
-  Formerly Amber Notes.
+  A notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can read and edit.<br>
+  It looks and works like Apple Notes, and it imports your Apple Notes.
 </p>
 
 <p align="center">
-  <a href="https://pintonotes.com/download"><b>Download for Mac</b></a>
-  &nbsp;·&nbsp; iPhone app in App Store review
-  &nbsp;·&nbsp; <a href="https://pintonotes.com">pintonotes.com</a>
+  <a href="https://pintonotes.com/download"><img src="https://img.shields.io/badge/Download_for_Mac-free-e8820c?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac, free"></a>
+  <a href="https://github.com/pinto-notes/pinto-notes/releases/latest"><img src="https://img.shields.io/github/v/release/pinto-notes/pinto-notes?style=for-the-badge&label=latest&color=555" alt="Latest release"></a>
+  <a href="https://github.com/pinto-notes/pinto-notes/stargazers"><img src="https://img.shields.io/github/stars/pinto-notes/pinto-notes?style=for-the-badge&color=555" alt="GitHub stars"></a>
 </p>
+
+<p align="center">
+  <a href="https://pintonotes.com">pintonotes.com</a> &nbsp;·&nbsp; The iPhone app is coming to the App Store soon &nbsp;·&nbsp; Formerly Amber Notes
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-ai-edit.gif" width="960" alt="Pinto Notes on the Mac. ChatGPT writes a note called Lisbon, 4 days in May. The new text arrives tinted and then fades to normal. Then it edits the note: day 3 becomes Sintra and a new row appears in the Where to eat table, each change tinted.">
+</p>
+
+Your notes, your iPhone and Mac, and every AI you use, all working on the same notes. Ask ChatGPT to plan a trip into a note, tick items off a checklist in Claude Code, and see it all on your phone a second later. Every change an AI makes is tinted with its name, keeps the version before it, and undoes with one tap.
+
+## Works with
+
+| App | How it connects |
+|---|---|
+| ChatGPT | Connector (OAuth). A ChatGPT plugin is in review. |
+| Claude (web, desktop, iPhone) | Custom connector (OAuth) |
+| Claude Code | `claude mcp add` or the Claude Code plugin |
+| Codex | `codex mcp add` |
+| Gemini CLI | Extension |
+| Any MCP client | Streamable HTTP at `https://mcp.pintonotes.com`, OAuth 2.1 |
+
+## Connect an AI in a minute
+
+1. [Download the Mac app](https://pintonotes.com/download) and sign in with Apple or email.
+2. Add the server to your AI:
+
+   **ChatGPT or Claude:** add a custom connector with the address `https://mcp.pintonotes.com`.
+
+   **Claude Code:**
+   ```sh
+   claude mcp add --scope user --transport http amber-notes https://mcp.pintonotes.com
+   ```
+   Or install the plugin, which adds a skill that tells Claude how your notes are laid out:
+   ```sh
+   claude plugin marketplace add pinto-notes/pinto-notes
+   claude plugin install amber-notes
+   ```
+
+   **Codex:**
+   ```sh
+   codex mcp add amber_notes --url https://mcp.pintonotes.com
+   ```
+
+   **Gemini CLI:**
+   ```sh
+   gemini extensions install https://github.com/pinto-notes/pinto-notes
+   ```
+3. Approve it in Pinto Notes on your iPhone or Mac, and choose read only or read and edit.
+
+Then try "find my Lisbon note and add a day in Sintra". The server name still says `amber-notes` because renaming it would break existing installs.
+
+## What it does
+
+- **AI edits you can see and undo.** Whatever an assistant writes is tinted and labeled with its name, and one tap undoes it.
+- **Version history.** Every change keeps the previous version, with who made it: you on iPhone, you on Mac, or which AI.
+- **A note can also be an app.** Ask your AI to turn a note into a small app, like a habit tracker you tick each day or a budget that adds itself up. The note's text stays underneath.
+- **Apple Notes import** on the Mac, and **Evernote** (.enex), **Google Keep** (Takeout) and **Markdown or text** imports on the Mac and iPhone, bring your notes over.
+- **Sync between iPhone and Mac** in about half a second.
+- **End-to-end encrypted.** Notes are sealed on your devices before upload. How AI access works with that is under [Privacy and security](#privacy-and-security).
+- **Free and open source,** MIT licensed.
+
+New versions ship most days. Star the repo to follow along, and see [Releases](https://github.com/pinto-notes/pinto-notes/releases) or the [changelog](https://pintonotes.com/changelog) for what changed.
 
 <p align="center">
   <img src="docs/images/banner.jpg" width="1280" alt="ChatGPT writes a note called Lisbon, 4 days in May into Pinto Notes on the Mac. The new text is tinted, with a pill that says ChatGPT wrote this note and an Undo button.">
@@ -27,13 +90,6 @@
   </tr>
 </table>
 
-## What it does
-
-- **AI edits you can see and undo.** Whatever an assistant writes is tinted and labeled with its name, and one tap undoes it.
-- **Version history.** Every change keeps the previous version, with who made it: you on iPhone, you on Mac, or which AI.
-- **Apple Notes import** on the Mac, and **Evernote** (.enex), **Google Keep** (Takeout) and **Markdown or text** imports on the Mac and iPhone, bring your notes over.
-- **Sync between iPhone and Mac** in about half a second.
-- **Connect ChatGPT, Claude, Claude Code or Codex.** You approve each connection in the app and choose read-only or read-and-edit.
 
 ## Features in detail
 
