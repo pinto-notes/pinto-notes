@@ -21,8 +21,9 @@
 /* Three steps in one row, on a template's page: connect, paste, talk. */
 .steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; counter-reset: step; }
 @media (max-width: 760px) { .steps { grid-template-columns: 1fr; gap: 8px; } }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 12px; align-items: start; padding: 14px 16px; border-radius: 16px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
-.steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--amber); color: #fff; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* A fill, no ring: three soft steps, each numbered in ink on the card colour. */
+.steps li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 12px; align-items: start; padding: 18px 20px; border-radius: 20px; background: var(--soft); }
+.steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--card); color: var(--ink); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
 .steps b { font-size: 16px; font-weight: 700; line-height: 28px; }
 .steps span { color: var(--muted); font-size: 14.5px; line-height: 1.4; }
 
@@ -336,7 +337,15 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .result { display: grid; padding: clamp(18px, 4vw, 48px); border-radius: 30px; background: linear-gradient(180deg, #fbe7c9, #f6d3a4); }
 .result .window { width: min(100%, 820px); justify-self: center; }
 
-/* How to connect: one card per AI, each to its guide. */
+/* How to connect: one quiet link to the guided page that covers every AI. */
+.connectOne { margin: 0; }
+.connectOne a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; margin-left: -14px; border-radius: 12px;
+  color: var(--ink); font-weight: 600; font-size: 16px; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 4px;
+}
+@media (hover: hover) { .connectOne a:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
+.connectOne a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+/* How to connect, as cards (no longer on the template pages; kept for the guided pages' use). */
 .connect { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 760px) { .connect { grid-template-columns: 1fr; } }
 .connect a {

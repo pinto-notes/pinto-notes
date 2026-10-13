@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AIGlyph } from "@/lib/ai-glyphs";
-import { CLAUDE_DIRECTORY_URL } from "@/lib/facts";
 import { APP_TEMPLATES, pageMetadata } from "@/lib/site";
 import { JsonLd, breadcrumbs, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
 import { COVERS, coverPath } from "@/lib/template-covers";
@@ -15,6 +13,7 @@ import NoteWindow from "../NoteWindow";
 import AppWindow from "../AppWindow";
 import s from "../templates.module.css";
 import UseLabel from "../UseLabel";
+import { ClosingBand, bandButton } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -96,9 +95,7 @@ export default async function Page({ params }: Props) {
                 </PromptCopy>
               )}
             </div>
-            <p className={`${s.fine} rise`} style={at(3)}>
-              Free. {APP_TEMPLATES.live && <><UseLabel t={t} /> opens Pinto Notes and adds the note{t.app && " and its app"}. </>}No Pinto Notes yet? <a href="/download">Download it for Mac</a>.
-            </p>
+            <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes for Mac</a>.</p>
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
             {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
@@ -111,12 +108,6 @@ export default async function Page({ params }: Props) {
                   : <NoteWindow markdown={t.example} before={t.note} folder={t.folder} date="30 September 2026" label={`The ${t.title.toLowerCase()} template filled in by an AI`} />}
               </div>
             </div>
-            <p className={s.caption}>
-              {t.app
-                ? <>The note is an app. It keeps its data with the note, and your AI reads and changes that data, or the app itself, when you ask.</>
-                : <>The note after a few days of talking to your AI. Tinted lines are what it added, the way Pinto Notes shows an AI&apos;s changes, with
-                  Undo and the earlier version kept in the note&apos;s history.</>}
-            </p>
           </div>
         </div>
       </div>
@@ -158,11 +149,7 @@ export default async function Page({ params }: Props) {
         <ol className={s.steps}>
           {steps(t).map((st, i) => <li key={st.name} id={`step-${i + 1}`}><b>{st.name}</b><span>{st.text}</span></li>)}
         </ol>
-        <ul className={s.connect}>
-          <li><a href="/blog/connect-chatgpt-to-your-notes"><b><AIGlyph name="openai" size={18} />ChatGPT</b><span>Plus, Pro, Business, Enterprise or Edu, on the web. A few minutes in Developer mode.</span><em>Connect ChatGPT</em></a></li>
-          <li><a href={CLAUDE_DIRECTORY_URL} rel="noopener"><b><AIGlyph name="claude" size={18} />Claude</b><span>Open Pinto Notes in Claude&apos;s connector directory, choose Connect to Claude, then Allow.</span><em>Connect Claude</em></a></li>
-          <li><a href="/blog/notes-in-claude-code-and-codex"><b><AIGlyph name="claude" size={18} />Claude Code</b><span>One command in your terminal, or the button in Pinto Notes on a Mac.</span><em>Connect Claude Code</em></a></li>
-        </ul>
+        <p className={s.connectOne}><a href="/open/connect-ai">Connect ChatGPT, Claude or Claude Code</a></p>
       </section>
 
       {related.length > 0 && (
@@ -171,6 +158,15 @@ export default async function Page({ params }: Props) {
           <ul className={s.grid}>{related.map((r) => <li key={r.slug}><Card t={r} heading="h3" /></li>)}</ul>
         </section>
       )}
+
+      <ClosingBand
+        title={`Start your ${t.title.toLowerCase()} today.`}
+        text="Your AI keeps it, and you see every line it changes."
+        actions={APP_TEMPLATES.live
+          ? <OpenInApp className={bandButton.primary} href={usePath(t.slug)} app={appLink(t.slug)}><UseLabel t={t} /></OpenInApp>
+          : undefined}
+        fine={APP_TEMPLATES.live ? <>Free. Needs Pinto Notes for Mac.</> : undefined}
+      />
     </div>
   );
 }

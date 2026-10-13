@@ -215,8 +215,9 @@ describe("Use template and Use this note in a browser", () => {
 
   it.runIf(APP_TEMPLATES.live)("keeps Use template the universal link, with nothing of the attempt in the page as served", async () => {
     const html = renderToStaticMarkup(await TemplatePage(params("habit-tracker")));
-    // The button is still the universal link, for a copied link or a click without JavaScript.
-    expect(html.match(/href="\/open\/template\/habit-tracker"/g)).toHaveLength(1);
+    // The button is still the universal link, for a copied link or a click without JavaScript: the
+    // hero's, and the closing band's at the end of the page.
+    expect(html.match(/href="\/open\/template\/habit-tracker"/g)).toHaveLength(2);
     // Nothing about the attempt is in the page as served: the sheet only appears in the browser.
     expect(html).not.toContain("open-sheet");
     expect(html).not.toContain("ambernotes://");
