@@ -21,7 +21,7 @@ export default function Expenses() {
   }
 
   return (
-    <>
+    <div className="max-w-3xl">
       <header className="flex items-center gap-1 pb-1 pt-2">
         <h1 className="min-w-0 flex-1 text-[2rem] font-bold leading-tight tracking-tight">Expenses</h1>
         <TintButton aria-label="Add expense" onClick={() => setAdding(true)}><Plus /> Add</TintButton>
@@ -40,7 +40,7 @@ export default function Expenses() {
                 <button type="button" aria-label={`Edit ${e.what}`} onClick={() => setEditing(e)} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 text-left">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{e.what}</p>
-                    <p className="text-[0.8125rem] text-muted-foreground">{e.category}</p>
+                    <p className="text-[0.8125rem] text-muted-foreground">{e.category}{e.rec ? " · Monthly" : ""}</p>
                   </div>
                   <span className="font-semibold tabular-nums">{fmt(e.amount)}</span>
                 </button>
@@ -52,6 +52,6 @@ export default function Expenses() {
       })}
       {!days.length && <p className="px-1 py-6 text-center text-muted-foreground">Nothing spent in {monthName(m, false)}. Tap Add to log the first expense.</p>}
       <ExpenseSheet open={adding || !!editing} expense={editing} onClose={() => { setAdding(false); setEditing(null) }} />
-    </>
+    </div>
   )
 }

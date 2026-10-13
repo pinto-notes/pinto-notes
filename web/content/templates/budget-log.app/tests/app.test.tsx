@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { amber } from "amber"
 import { route } from "amber-router"
 import App from "@/App"
-import { iso, shiftMonth, thisMonth } from "@/lib/budget"
+import { iso, monthName, shiftMonth, thisMonth } from "@/lib/budget"
 
 // Each test does what the person does, then checks what they see and what was saved in data.json.
 const values = () => amber.data.values ?? {}
@@ -19,6 +19,8 @@ beforeEach(async () => {
   await amber.store.set("currency", "kr")
   await amber.store.set("categories", cats)
   await amber.store.set("expenses", [])
+  await amber.store.set("recurring", [])
+  await amber.store.set("rollover", null)
 })
 
 describe("Month", () => {
@@ -165,5 +167,139 @@ describe("Budget", () => {
     await userEvent.type(field, "€")
     await waitFor(() => expect(values().currency).toBe("€"))
     expect(await screen.findByText("€1,500 a month")).toBeInTheDocument()
+  })
+})
+
+describe("Monthly bills", () => {
+  const m = thisMonth()
+  const bills = () => values().recurring ?? []
+
+  it("adds an expense that repeats every month", async () => {
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Add expense" }))
+    await userEvent.type(await screen.findByLabelText("Amount (kr)"), "129")
+    await userEvent.type(screen.getByLabelText("What"), "Streaming")
+    await userEvent.click(screen.getByRole("switch", { name: "Every month" }))
+    expect(screen.getByRole("switch", { name: "Every month" })).toHaveAttribute("aria-checked", "true")
+    await userEvent.click(screen.getByRole("button", { name: "Add" }))
+    await waitFor(() => expect(bills()).toHaveLength(1))
+    const bill = bills()[0]
+    expect(bill).toEqual({ id: bill.id, what: "Streaming", category: "Groceries", amount: 129, day: new Date().getDate(), last: m })
+    await waitFor(() => expect(saved()).toEqual([{ date: today, what: "Streaming", category: "Groceries", amount: 129, rec: bill.id }]))
+    expect(await screen.findByRole("heading", { name: "Bills this month" })).toBeInTheDocument()
+  })
+
+  it("adds a bill's expense on its day, once", async () => {
+    await amber.store.set("recurring", [{ id: "rent", what: "Rent", category: "Groceries", amount: 300, day: 1 }])
+    const { unmount } = render(<App />)
+    await waitFor(() => expect(saved()).toEqual([{ date: `${m}-01`, what: "Rent", category: "Groceries", amount: 300, rec: "rent" }]))
+    await waitFor(() => expect(bills()[0].last).toBe(m))
+    expect(await screen.findByTestId("left")).toHaveTextContent("1,200 kr")
+    unmount()
+    render(<App />)
+    expect(await screen.findByTestId("left")).toHaveTextContent("1,200 kr")
+    expect(saved()).toHaveLength(1)
+  })
+
+  it("doesn't add a bill again after its expense is deleted", async () => {
+    await amber.store.set("recurring", [{ id: "rent", what: "Rent", category: "Groceries", amount: 300, day: 1, last: m }])
+    render(<App />)
+    expect(await screen.findByTestId("left")).toHaveTextContent("1,500 kr")
+    expect(saved()).toEqual([])
+  })
+
+  it("shows a bill still to come this month, and what's left after it", async () => {
+    const day = new Date().getDate()
+    if (day >= 28) return
+    await amber.store.set("recurring", [{ id: "gym", what: "Gym", category: "Eating out", amount: 400, day: day + 1 }])
+    render(<App />)
+    expect(await screen.findByText("400 kr still to come this month.")).toBeInTheDocument()
+    expect(screen.getByText(/ · Due \d+ /)).toBeInTheDocument()
+    expect(saved()).toEqual([])
+    expect(screen.getByTestId("month-line")).toHaveTextContent("after bills")
+  })
+
+  it("adds, changes and stops a bill on the Budget tab, with Undo", async () => {
+    render(<App />)
+    await go("Budget")
+    await userEvent.click(await screen.findByRole("button", { name: "Add bill" }))
+    await userEvent.type(await screen.findByLabelText("What"), "Phone")
+    await userEvent.type(screen.getByLabelText("Amount (kr)"), "299")
+    await userEvent.clear(screen.getByLabelText("Day of month"))
+    await userEvent.type(screen.getByLabelText("Day of month"), "28")
+    await userEvent.click(screen.getByRole("radio", { name: "Eating out" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save bill" }))
+    await waitFor(() => expect(bills().map(({ id, last, ...b }: { id: string; last?: string }) => b)).toEqual([{ what: "Phone", amount: 299, category: "Eating out", day: 28 }]))
+    expect(await screen.findByText("Eating out · on the 28th")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Edit Phone" }))
+    const amount = await screen.findByLabelText("Amount (kr)")
+    await userEvent.clear(amount)
+    await userEvent.type(amount, "199")
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(bills()[0].amount).toBe(199))
+    await userEvent.click(await screen.findByRole("button", { name: "Edit Phone" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Stop this bill" }))
+    await waitFor(() => expect(bills()).toEqual([]))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
+    await waitFor(() => expect(bills()).toHaveLength(1))
+  })
+
+  it("moves a bill with its category when the category is renamed", async () => {
+    await amber.store.set("recurring", [{ id: "rent", what: "Rent", category: "Groceries", amount: 300, day: 1, last: m }])
+    render(<App />)
+    await go("Budget")
+    const field = await screen.findByLabelText("Groceries name")
+    await userEvent.clear(field)
+    await userEvent.type(field, "Food")
+    fireEvent.blur(field)
+    await waitFor(() => expect(bills()[0].category).toBe("Food"))
+  })
+})
+
+describe("Roll-over", () => {
+  it("turns roll-over on from this month", async () => {
+    render(<App />)
+    await go("Budget")
+    await userEvent.click(await screen.findByRole("switch", { name: "Roll over what's left" }))
+    await waitFor(() => expect(values().rollover).toBe(thisMonth()))
+    await userEvent.click(screen.getByRole("switch", { name: "Roll over what's left" }))
+    await waitFor(() => expect(values().rollover ?? null).toBeNull())
+  })
+
+  it("carries last month's leftover into this month, per category", async () => {
+    const last = shiftMonth(thisMonth(), -1)
+    await amber.store.set("rollover", last)
+    await amber.store.set("expenses", [
+      { id: "a", date: `${last}-10`, what: "Shop", category: "Groceries", amount: 200 },
+      { id: "b", date: `${last}-12`, what: "Dinner", category: "Eating out", amount: 700 },
+    ])
+    render(<App />)
+    // Groceries: 1,000 + 800 left over. Eating out: 500 - 200 over.
+    expect(await screen.findByTestId("left")).toHaveTextContent("2,100 kr")
+    expect(screen.getByText("0 kr of 1,800 kr (+800 kr from last month)")).toBeInTheDocument()
+    expect(screen.getByText("0 kr of 300 kr (−200 kr from last month)")).toBeInTheDocument()
+  })
+
+  it("carries nothing from before roll-over was turned on", async () => {
+    const last = shiftMonth(thisMonth(), -1)
+    await amber.store.set("rollover", thisMonth())
+    await amber.store.set("expenses", [{ id: "a", date: `${last}-10`, what: "Shop", category: "Groceries", amount: 200 }])
+    render(<App />)
+    expect(await screen.findByTestId("left")).toHaveTextContent("1,500 kr")
+  })
+})
+
+describe("Trend", () => {
+  it("compares this month with last month by the same day, and opens a month from the chart", async () => {
+    const last = shiftMonth(thisMonth(), -1)
+    await amber.store.set("expenses", [
+      { id: "a", date: `${last}-01`, what: "Big shop", category: "Groceries", amount: 500 },
+      { id: "b", date: today, what: "Lunch", category: "Eating out", amount: 100 },
+    ])
+    render(<App />)
+    expect(await screen.findByTestId("pace")).toHaveTextContent(`400 kr less than ${monthName(last, false)}`)
+    await userEvent.click(screen.getByRole("button", { name: `Show ${monthName(last)}` }))
+    expect(await screen.findByRole("heading", { name: monthName(last) })).toBeInTheDocument()
+    expect(await screen.findByText("Big shop")).toBeInTheDocument()
   })
 })
