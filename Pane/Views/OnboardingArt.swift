@@ -42,6 +42,31 @@ enum OnboardingArt {
     /// The image's name in the catalog.
     static func name(_ moment: Moment, in set: Set) -> String { "Onboarding-\(set.rawValue)-\(moment.rawValue)" }
 
+    /// Where in the picture (0 top, 1 bottom) a narrow band should centre: the step's new object.
+    /// iPhone shows each step's picture in a band about a third of its height; the centre slice cut
+    /// through the easel and the ribbon. Chosen by eye on each picture (light and dark share the
+    /// layout): the name card, the bundle, the two pencils, the checklist; on the desk, the
+    /// notebook's spread with what was just added.
+    static func focus(_ moment: Moment, in set: Set) -> CGFloat {
+        switch (set, moment) {
+        case (_, .signin): 0.5
+        case (.still, .name): 0.5
+        case (.still, .bring): 0.57
+        case (.still, .connect): 0.5
+        case (.still, .tryit): 0.62
+        case (.desk, .name): 0.54
+        case (.desk, .bring): 0.76
+        case (.desk, .connect): 0.5
+        case (.desk, .tryit): 0.5
+        }
+    }
+
+    /// The vertical offset that puts `focus` (0–1 down a picture of `height`) in the middle of a
+    /// band `band` tall, without leaving the picture: 0 shows its top, `band - height` its foot.
+    static func offset(focus: CGFloat, height: CGFloat, band: CGFloat) -> CGFloat {
+        min(0, max(band - height, band / 2 - focus * height))
+    }
+
     /// This person's picture for `moment`.
     static func name(_ moment: Moment) -> String { name(moment, in: set()) }
 

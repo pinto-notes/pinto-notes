@@ -218,10 +218,23 @@ struct OnboardingFlow: View {
     /// and a little air.
     static let backRoom: CGFloat = 56
 
+    /// The step's picture in its band, placed on the step's new object (OnboardingArt.focus).
     private var phoneArt: some View {
-        Color.clear
+        let moment = OnboardingArt.moment(step)
+        return Color.clear
             .containerRelativeFrame(.vertical) { height, _ in height * Self.artShare(accessibilitySize: typeSize.isAccessibilitySize) }
-            .overlay { WelcomeFlow.picture(OnboardingArt.moment(step)) }
+            .overlay {
+                GeometryReader { band in
+                    // The picture at the band's width, 3:4, moved so the focus sits mid-band.
+                    let height = band.size.width * 4 / 3
+                    Image(OnboardingArt.name(moment))
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: band.size.width, height: height)
+                        .offset(y: OnboardingArt.offset(focus: OnboardingArt.focus(moment, in: OnboardingArt.set()), height: height, band: band.size.height))
+                        .accessibilityHidden(true)
+                }
+            }
             .clipped()
     }
 

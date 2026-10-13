@@ -61,6 +61,25 @@ import Testing
         #expect(!names.contains(OnboardingArt.name(.signin, in: .still)))
     }
 
+    /// A band a third of a picture's height, centred on the focus, stays inside the picture and
+    /// holds the focus; every step of both sets has its own focus between the edges.
+    @Test func theBandSitsOnTheFocus() {
+        let height: CGFloat = 536, band: CGFloat = 175
+        for set in OnboardingArt.Set.allCases {
+            for moment in OnboardingArt.Moment.allCases {
+                let f = OnboardingArt.focus(moment, in: set)
+                #expect(f > 0.2 && f < 0.8, "\(set) \(moment)")
+                let y = OnboardingArt.offset(focus: f, height: height, band: band)
+                #expect(y <= 0 && y >= band - height, "the band stays inside the picture")
+                let shown = (-y)...(-y + band)
+                #expect(shown.contains(f * height), "\(set) \(moment): the focus is in the band")
+            }
+        }
+        // At the edges it stops at the picture's top and foot instead of showing past them.
+        #expect(OnboardingArt.offset(focus: 0, height: height, band: band) == 0)
+        #expect(OnboardingArt.offset(focus: 1, height: height, band: band) == band - height)
+    }
+
     /// The pictures live in their own catalog, which comes with the app's folder (the Mac and the
     /// iPhone app) and which the share extension, listing its own sources, never gets.
     @Test func theShareExtensionDoesntCarryThem() throws {
