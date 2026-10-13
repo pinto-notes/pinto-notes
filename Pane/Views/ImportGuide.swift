@@ -995,7 +995,7 @@ struct ImportNoticePage: View {
 
     static let notesDenied = ImportNoticePage(
         title: "Pinto Notes needs your OK to read Apple Notes",
-        line: "macOS asked earlier, and the answer was Don't Allow. Turn on Notes under Pinto Notes in System Settings, then come back here. Your notes show up by themselves.",
+        line: "Turn on Notes under Pinto Notes in System Settings. Your notes show up here by themselves.",
         art: .settingsAutomation, primary: "Open System Settings", primarySymbol: "arrow.up.right", quiet: "Try Again")
 
     static let notesEmpty = ImportNoticePage(
