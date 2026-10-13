@@ -161,6 +161,7 @@ describe("the connect page", () => {
     expect(problemText("unknown_app")).toMatch(/doesn't know this app/);
     expect(problemText("unknown_app")).toMatch(/In Claude.*In ChatGPT.*add it again at https:\/\/mcp\.pintonotes\.com\./);
     expect(problemText("wrong_server")).toMatch(/https:\/\/mcp\.pintonotes\.com\. The older https:\/\/mcp\.ambernotes\.app works too\./);
+    expect(problemText("too_long")).toMatch(/sign-in address too long/);
     expect(problemText("<script>alert(1)</script>")).toMatch(/Start connecting again/);
     expect(problemText(undefined)).toMatch(/Start connecting again/);
   });

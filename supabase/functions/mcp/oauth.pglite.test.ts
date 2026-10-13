@@ -690,7 +690,7 @@ Deno.test("decide stores the code's hash and wrap, and answers without a code", 
   const sent = JSON.parse(body);
   // A hash that isn't one, or a wrap under another key, is refused before anything is decided.
   assertEquals((await decideAs(sql, me, { ...sent, code_hash: "nope" })).status, 400);
-  assertEquals((await decideAs(sql, me, { ...sent, code_wrap: undefined })).body.error, "Update Pinto Notes to connect an AI.");
+  assertEquals((await decideAs(sql, me, { ...sent, code_wrap: undefined })).body.error, "The code this device made was missing or damaged. Try connecting again.");
   const stale = sent.code_wrap.replace(/^amb2\.[0-9a-f]{16}\./, `amb2.${hex(8)}.`);
   assertEquals((await decideAs(sql, me, { ...sent, code_wrap: stale })).status, 409);
   const r = await decideAs(sql, me, sent);
@@ -1023,6 +1023,62 @@ Deno.test("a browser asks the account's devices; the device seals the code to th
   assertEquals(await statusOf(sql, requestId), { state: "delivered" });
   const tokens = await exchange(sql, "proxy", clientId, opened, verifier);
   assertEquals(tokens.status, 200);
+});
+
+Deno.test("a long state (ChatGPT's or the OpenAI platform's) still reaches the page sealed with the code", async () => {
+  // 13 October 2026: the sealed code was capped at 600 characters, so a client whose state is a few
+  // hundred characters got "Update Pinto Notes to connect an AI." from a current app.
+  const { sql, pg } = await db();
+  const clientId = await register(sql, "proxy");
+  const { verifier, challenge } = await pkce();
+  const state = [b64url(crypto.getRandomValues(new Uint8Array(60))), b64url(crypto.getRandomValues(new Uint8Array(400))), b64url(crypto.getRandomValues(new Uint8Array(64)))].join(".");
+  const res = await call(sql, request("proxy", `/authorize?${new URLSearchParams({
+    response_type: "code", client_id: clientId, redirect_uri: CHATGPT, code_challenge: challenge, code_challenge_method: "S256", state,
+    scope: "notes:read notes:write", resource: ALIAS })}`));
+  const requestId = new URL(res.headers.get("location")!).searchParams.get("request")!;
+  const me = await newUser(pg);
+  const page = await newHandoffKeys();
+  const asked = await askAs(sql, me, requestId, toBase64(page.publicRaw));
+  await matchUp(sql, me, requestId, asked.pickup, asked.nonce);
+  const seen = await (await call(sql, request("function", `/connect/request?id=${requestId}`, { headers: { authorization: `Bearer ${me.jwt}` } }))).json();
+  assertEquals(seen.state, state);
+  const built = new URL(seen.redirect_uri);
+  built.searchParams.set("state", seen.state);
+  built.searchParams.set("iss", seen.iss);
+  const { code, body } = await appDecision(me, requestId, CHATGPT);
+  const handoff = await sealHandoff(handoffPayload({ code, redirect: built.toString() }), page.publicRaw, requestId);
+  assert(handoff.length > 600);
+  const r = await decideAs(sql, me, { ...JSON.parse(body), handoff });
+  assertEquals([r.status, r.body.handoff], [200, true]);
+  const done = await statusOf(sql, requestId, asked.pickup);
+  assertEquals(readHandoffPayload(await openHandoff(done.handoff, page.privateKey, requestId)), { code, redirect: built.toString() });
+  assertEquals(new URL(done.redirect).searchParams.get("state"), state);
+  assertEquals((await exchange(sql, "proxy", clientId, code, verifier)).status, 200);
+});
+
+Deno.test("a sign-in whose return address can't be handed over ends on our page, before anyone answers", async () => {
+  const { sql } = await db();
+  const clientId = await register(sql, "proxy");
+  const res = await call(sql, request("proxy", `/authorize?${new URLSearchParams({
+    response_type: "code", client_id: clientId, redirect_uri: CHATGPT, code_challenge: (await pkce()).challenge, code_challenge_method: "S256",
+    state: "s".repeat(4000) })}`));
+  assertEquals(res.status, 302);
+  const to = new URL(res.headers.get("location")!);
+  assertEquals([...to.searchParams.entries()], [["problem", "too_long"]]);
+  assertEquals((await sql`select count(*)::int as n from public.oauth_requests`)[0].n, 0);
+});
+
+Deno.test("a device that sends no sealed code is told what's missing, not to update", async () => {
+  const { sql, pg } = await db();
+  const { requestId } = await pendingRequest(sql);
+  const me = await newUser(pg);
+  const page = await newHandoffKeys();
+  const asked = await askAs(sql, me, requestId, toBase64(page.publicRaw));
+  await matchUp(sql, me, requestId, asked.pickup, asked.nonce);
+  const { body } = await appDecision(me, requestId, CHATGPT);
+  const r = await decideAs(sql, me, { ...JSON.parse(body), handoff: "amb2h.not base64" });
+  assertEquals(r.status, 400);
+  assertEquals(r.body.error, "The answer for your browser was missing or damaged. Start connecting again in your browser.");
 });
 
 Deno.test("declined on a device, the page gets the declined redirect", async () => {

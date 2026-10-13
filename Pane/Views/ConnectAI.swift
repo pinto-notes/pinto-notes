@@ -448,6 +448,9 @@ enum ConnectAPI {
         return String(decoding: bytes, as: UTF8.self)
     }
 
+    /// The server described the request without its return address, so there's nowhere to send an answer.
+    static let noReturnAddress = "Pinto Notes didn't get this AI's return address. Start connecting again from the AI."
+
     /// Allow or deny. `redirect_uri` goes back exactly as /connect/request gave it. Allowing sends
     /// a code made here (`code`): only its hash and the account's key wrapped under it reach the
     /// server. A request asked from a browser (`browserKey`, the page's public key) also gets the
@@ -460,7 +463,7 @@ enum ConnectAPI {
     static func decide(id: UUID, redirectURI: String?, allow: Bool, write: Bool,
                        code: (code: String, hash: String, wrap: String)?, browserKey: Data? = nil, handoffRedirect: String? = nil,
                        wrongNumber: Bool = false, scan: String? = nil, send: Send) async throws -> Answer {
-        guard let redirectURI else { throw Failure(message: "Update Pinto Notes to connect an AI.") }
+        guard let redirectURI else { throw Failure(message: Self.noReturnAddress) }
         guard !allow || code != nil else { throw Failure(message: "Open Pinto Notes and finish setting up encryption first.") }
         var body: [String: Any] = ["id": id.uuidString.lowercased(), "allow": allow, "write": write, "redirect_uri": redirectURI]
         if !allow, wrongNumber { body["wrong_number"] = true }

@@ -820,8 +820,32 @@ extension NetworkFaults {
         await #expect(throws: ConnectAPI.Failure.self) {
             _ = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, write: true, code: nil) { _, _, _ in Issue.record("sent"); return Data() }
         }
-        await #expect(throws: ConnectAPI.Failure.self) {
+        let failure = await #expect(throws: ConnectAPI.Failure.self) {
             _ = try await ConnectAPI.decide(id: UUID(), redirectURI: nil, allow: false, write: false, code: nil) { _, _, _ in Issue.record("sent"); return Data() }
+        }
+        #expect(failure?.message == ConnectAPI.noReturnAddress)
+        #expect(!ConnectAPI.noReturnAddress.contains("Update"), "a current app is never told to update")
+    }
+
+    /// 13 October 2026: ChatGPT's and the OpenAI platform's states are a few hundred characters, and
+    /// the server took a sealed code of at most 600, so "Open Pinto Notes on this Mac" failed. The
+    /// longest return address the server takes (4000) seals within what it takes now (8000).
+    @Test func aLongStateSealsWithinWhatTheServerTakes() async throws {
+        let redirect = "https://chatgpt.com/connector_platform_oauth_redirect"
+        let id = UUID()
+        let page = P256.KeyAgreement.PrivateKey()
+        let secret = "amb_code_" + E2EE.randomHex()
+        let code = (code: secret, hash: E2EE.sha256Hex(secret), wrap: "amb2.0123456789abcdef.AAAA")
+        for state in [String(repeating: "eyJhbGciOiJSUzI1NiJ9.", count: 25), String(repeating: "s", count: 3900)] {
+            let back = String(ConnectAPI.clientRedirect(redirect, state: state, iss: "https://mcp.pintonotes.com").prefix(4000))
+            final class Sent: @unchecked Sendable { var body: [String: Any] = [:] }
+            let sent = Sent()
+            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, write: true, code: code,
+                                            browserKey: page.publicKey.x963Representation, handoffRedirect: back,
+                                            send: { _, _, body in sent.body = body ?? [:]; return try JSONSerialization.data(withJSONObject: ["handoff": true]) })
+            let handoff = try #require(sent.body["handoff"] as? String)
+            #expect(handoff.count <= 8000, "MAX_HANDOFF in supabase/functions/mcp/oauth.ts")
+            #expect(try E2EE.openHandoff(handoff, browserPrivate: page, requestID: id) == E2EE.handoffPayload(code: secret, redirect: back))
         }
     }
 

@@ -443,6 +443,9 @@ async function authorize(req: Request, sql: Sql, base: string): Promise<Response
   if (q.response_type !== "code") return problem("unsupported");
   if (!q.code_challenge || q.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(q.code_challenge)) return problem("pkce");
   if (q.resource && !isThisServer(q.resource, req)) return problem("wrong_server");
+  // The return address with state and iss is what a device seals for a browser elsewhere and
+  // what connect_asks keeps: refused here, before anyone is asked, when it can't fit there.
+  if (clientRedirect(redirect, q.state ?? null, base).toString().length > MAX_REDIRECT) return problem("too_long");
 
   const [row] = await sql<{ id: string }[]>`
     insert into public.oauth_requests (client_id, redirect_uri, state, code_challenge, scope, resource)
@@ -708,7 +711,7 @@ async function deviceNonce(req: Request, sql: Sql): Promise<Response> {
   const body = await req.json().catch(() => ({})) as { id?: unknown; nonce?: unknown };
   const id = typeof body.id === "string" && UUID.test(body.id) ? body.id : "";
   const nonce = typeof body.nonce === "string" ? body.nonce : "";
-  if (!NONCE.test(nonce)) return json({ error: "Update Pinto Notes to connect an AI." }, 400);
+  if (!NONCE.test(nonce)) return json({ error: "This device's half of the number was missing or damaged. Start connecting again in your browser." }, 400);
   if (!id) return json({ error: EXPIRED }, 404);
   const [set] = await sql<{ device_nonce: string }[]>`
     update public.connect_asks a set device_nonce = ${nonce}
@@ -849,6 +852,13 @@ async function label(req: Request, sql: Sql): Promise<Response> {
   });
 }
 
+/// The longest return address (with state and iss) a sign-in may have, and the longest sealed code
+/// for a browser: the code and that address as JSON, sealed (93 bytes more), in base64. Both match
+/// connect_asks' checks. They were 600 for the sealed code until 13 October 2026, which turned away
+/// ChatGPT's and the OpenAI platform's long states with "Update Pinto Notes".
+const MAX_REDIRECT = 4000;
+const MAX_HANDOFF = 8000;
+
 const CHANGED = "This request changed. Start connecting again from the other app.";
 const SCAN_CHANGED = "This code changed on your computer. Scan it again.";
 
@@ -879,7 +889,7 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
     const [key] = await sql<{ key_id: string }[]>`select key_id from public.account_keys where user_id = ${user}`;
     if (!key) return json({ error: "Set up Pinto Notes on this device first." }, 409);
     if (!/^[0-9a-f]{64}$/.test(codeHash) || codeWrap.length > 300 || !/^amb2\.[0-9a-f]{16}\.[A-Za-z0-9+/]+={0,2}$/.test(codeWrap)) {
-      return json({ error: "Update Pinto Notes to connect an AI." }, 400);
+      return json({ error: "The code this device made was missing or damaged. Try connecting again." }, 400);
     }
     if (codeWrap.split(".")[1] !== key.key_id) {
       return json({ error: "This device has an old key for your notes. Open Pinto Notes again to get the current one." }, 409);
@@ -899,7 +909,9 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   }
   const fromPage = req.headers.get("origin") === new URL(connectPage()).origin;
   const handoff = typeof body.handoff === "string" && !fromPage ? body.handoff : "";
-  if (asked && allow && !fromPage && (!HANDOFF.test(handoff) || handoff.length > 600)) return json({ error: "Update Pinto Notes to connect an AI." }, 400);
+  if (asked && allow && !fromPage && (!HANDOFF.test(handoff) || handoff.length > MAX_HANDOFF)) {
+    return json({ error: "The answer for your browser was missing or damaged. Start connecting again in your browser." }, 400);
+  }
 
   // The issuer the client started with: the address its /authorize went through. Built as
   // clientRedirect documents, the same way the device builds what it seals.
