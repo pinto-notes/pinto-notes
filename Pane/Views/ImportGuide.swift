@@ -240,19 +240,34 @@ struct ImportGuideSheet: View {
     static let compact = false
     #endif
 
+    /// The sheet's height when it is set here (renders); otherwise fitted to the window.
+    var height: CGFloat?
+    #if os(macOS)
+    @State private var fit = ImportSheetFit.height(NSApp.mainWindow)
+    #endif
+
     /// Every page is the same size, so moving between them never changes the sheet's height.
     static func size(_ layout: ImportGuideLayout) -> CGSize {
-        layout == .stacked ? CGSize(width: 540, height: 560) : CGSize(width: 760, height: 440)
+        layout == .stacked ? CGSize(width: 540, height: ImportSheetFit.designed) : CGSize(width: 760, height: 440)
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+    /// The height the sheet has: its designed height, less on a short window.
+    private var sheetHeight: CGFloat {
         #if os(macOS)
-        .frame(width: Self.size(layout).width, height: Self.size(layout).height)
+        min(Self.size(layout).height, height ?? fit)
+        #else
+        Self.size(layout).height
+        #endif
+    }
+
+    /// How much shorter than designed the sheet is: the picture gives that up, never the words.
+    private var shortBy: CGFloat { Self.compact ? 0 : Self.size(layout).height - sheetHeight }
+
+    var body: some View {
+        pages
+        #if os(macOS)
+        .frame(width: Self.size(layout).width, height: sheetHeight)
+        .background(SheetParentReader { fit = ImportSheetFit.height($0) })
         #endif
         .foregroundStyle(Color.ink)
         .background(Color(Palette.sheetGround))
@@ -260,6 +275,15 @@ struct ImportGuideSheet: View {
     }
 
     // MARK: Parts
+
+    /// The page without the sheet's frame (tests measure what it needs).
+    var pages: some View {
+        VStack(spacing: 0) {
+            topBar
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
 
     private var pageCount: Int { guide.steps.count + 2 }
     private var pageIndex: Int {
@@ -388,8 +412,7 @@ struct ImportGuideSheet: View {
             .padding(.bottom, 26)
         } else {
             VStack(spacing: 0) {
-                art(s.art)
-                    .frame(height: Self.compact ? 300 : 236)
+                ImportSheetFit.scaled(art(s.art), to: Self.compact ? 300 : ImportSheetFit.picture - shortBy, from: Self.compact ? 300 : ImportSheetFit.picture)
                     .padding(.top, 8)
                     .padding(.bottom, 20)
                 words
@@ -472,7 +495,7 @@ struct ImportGuideSheet: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: Self.compact ? 230 : 250)
+        .frame(height: Self.compact ? 230 : 250 - shortBy)
         .background(state == .hovering ? Color(Palette.amberSoft) : Color(Palette.page).opacity(state == .found ? 1 : 0.55), in: shape)
         .overlay(
             shape.strokeBorder(state == .hovering ? Color(Palette.amber) : wrong ? Color(Palette.amber).opacity(0.6) : Color.line,
@@ -944,6 +967,44 @@ struct GuideDrawing: View {
     }
 }
 
+// MARK: Fitting a short window
+
+/// The guide's sheets on the Mac are 560 tall, less on a short window: never taller than the
+/// window less 80, and never within 40 of its bottom (a sheet hangs under the title bar and
+/// toolbar). What a short sheet gives up comes out of the picture, never the words.
+enum ImportSheetFit {
+    static let designed: CGFloat = 560
+    /// The picture's height on a guide page at the designed height.
+    static let picture: CGFloat = 236
+    /// The window's bottom stays this far below the sheet's.
+    static let margin: CGFloat = 40
+
+    /// `window`: the window's full height; `underBars`: its height under the title bar and toolbar.
+    static func height(window: CGFloat, underBars: CGFloat) -> CGFloat {
+        max(300, min(designed, window - 80, underBars - margin))
+    }
+
+    #if os(macOS)
+    static func height(_ window: NSWindow?) -> CGFloat {
+        guard let window else { return designed }
+        return height(window: window.frame.height, underBars: window.contentLayoutRect.height)
+    }
+    #endif
+
+    /// `view` laid out at its full height `from`, then shrunk whole to `height`: the drawing stays
+    /// as designed, only smaller.
+    static func scaled(_ view: some View, to height: CGFloat, from full: CGFloat) -> some View {
+        let scale = min(1, max(height, 1) / full)
+        return GeometryReader { g in
+            view
+                .frame(width: g.size.width, height: full)
+                .scaleEffect(scale)
+                .frame(width: g.size.width, height: g.size.height)
+        }
+        .frame(height: min(height, full))
+    }
+}
+
 // MARK: One-page notices (Apple Notes' edge paths, the iPhone)
 
 /// A page on its own: what happened in plain words, a picture when it helps, and one button.
@@ -959,6 +1020,11 @@ struct ImportNoticePage: View {
     var act: (ImportGuideSheet.Action) -> Void = { _ in }
     /// The filled button shares this link instead (the Mac download, sent to yourself).
     var shareURL: URL?
+    /// The page's height when it is set here (renders); otherwise fitted to the window.
+    var height: CGFloat?
+    #if os(macOS)
+    @State private var fit = ImportSheetFit.height(NSApp.mainWindow)
+    #endif
 
     /// This page, its controls answered by `act`.
     func with(_ act: @escaping (ImportGuideSheet.Action) -> Void) -> ImportNoticePage {
@@ -973,7 +1039,27 @@ struct ImportNoticePage: View {
     private let compact = false
     #endif
 
+    private var sheetHeight: CGFloat {
+        #if os(macOS)
+        min(ImportSheetFit.designed, height ?? fit)
+        #else
+        ImportSheetFit.designed
+        #endif
+    }
+
     var body: some View {
+        page
+        #if os(macOS)
+        .frame(width: 540, height: sheetHeight)
+        .background(SheetParentReader { fit = ImportSheetFit.height($0) })
+        #endif
+        .foregroundStyle(Color.ink)
+        .background(Color(Palette.sheetGround))
+        .tint(Color(Palette.amber))
+    }
+
+    /// The page without the sheet's frame (tests measure what it needs).
+    var page: some View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
@@ -991,12 +1077,12 @@ struct ImportNoticePage: View {
             .padding(.top, 14)
             VStack(spacing: 0) {
                 if let art {
-                    GuideDrawing(drawn: art)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: compact ? 260 : 210)
+                    let drawing = GuideDrawing(drawn: art)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color(Palette.page))
                         .clipShape(.rect(cornerRadius: 14, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+                    ImportSheetFit.scaled(drawing, to: compact ? 260 : 210 - (ImportSheetFit.designed - sheetHeight), from: compact ? 260 : 210)
                         .padding(.bottom, 22)
                 } else {
                     Spacer(minLength: 0)
@@ -1034,12 +1120,6 @@ struct ImportNoticePage: View {
             .padding(.horizontal, compact ? 24 : 36)
             .padding(.bottom, compact ? 12 : 26)
         }
-        #if os(macOS)
-        .frame(width: 540, height: 560)
-        #endif
-        .foregroundStyle(Color.ink)
-        .background(Color(Palette.sheetGround))
-        .tint(Color(Palette.amber))
     }
 
     private var primaryLabel: some View {

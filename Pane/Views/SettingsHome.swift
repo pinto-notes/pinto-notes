@@ -288,7 +288,7 @@ struct SettingsHome: View {
 
 /// Tells `changed` the window a sheet hangs on, when the sheet shows and each time that window
 /// is resized.
-private struct SheetParentReader: NSViewRepresentable {
+struct SheetParentReader: NSViewRepresentable {
     let changed: (NSWindow?) -> Void
 
     func makeNSView(context: Context) -> Probe { Probe(changed: changed) }
