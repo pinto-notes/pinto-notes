@@ -107,7 +107,8 @@ struct ImportGuideFlow: View {
     private var found: (name: String, detail: String, button: String)? {
         guard !importable.isEmpty else { return nil }
         let notes = noteCount.formatted(.number.locale(Locale(identifier: "en_US")))
-        let name = importable.count == 1 ? importable[0].name : "\(importable.count) files"
+        // The file as it was downloaded, so the person sees it's the one they picked.
+        let name = importable.count == 1 ? importable[0].url.lastPathComponent : "\(importable.count) files"
         return (name, noteCount == 1 ? "1 note" : "\(notes) notes", noteCount == 1 ? "Import 1 Note" : "Import \(notes) Notes")
     }
 
@@ -123,7 +124,7 @@ struct ImportGuideFlow: View {
     private func act(_ action: ImportGuideSheet.Action) {
         switch action {
         case .close:
-            if !isImporting { dismiss() }
+            if !isImporting { leave() }
         case .back:
             if !isImporting, let last = trail.popLast() { stage = last; targeted = false }
         case .primary:
@@ -145,8 +146,15 @@ struct ImportGuideFlow: View {
         case .importing:
             break
         case .success:
-            dismiss()
+            leave()
         }
+    }
+
+    /// Closing the sheet. After an import, the window shows the notes that came (not before:
+    /// they'd open behind the sheet while it still says what happened).
+    private func leave() {
+        if let summary { onImported(summary.noteIDs) }
+        dismiss()
     }
 
     private func quiet() {
@@ -205,6 +213,5 @@ struct ImportGuideFlow: View {
         trail = []
         stage = .success
         EvernoteInbox.clear()
-        onImported(result.noteIDs)
     }
 }
