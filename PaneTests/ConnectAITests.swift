@@ -809,3 +809,13 @@ extension AIEditSnapshots {
     }
     #endif
 }
+
+/// Incredible is offered only on a Mac where the Incredible app is (newcomer audit #17).
+@Suite struct IncredibleOfferedTests {
+    @Test func incredibleIsOfferedOnlyWhereItIsInstalled() {
+        #expect(!ConnectAISection.Guide.offered(incredibleInstalled: false).contains(.incredible))
+        #expect(ConnectAISection.Guide.offered(incredibleInstalled: true).contains(.incredible))
+        // Everything else stays, in the same order.
+        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .claudeCode, .codex, .other])
+    }
+}

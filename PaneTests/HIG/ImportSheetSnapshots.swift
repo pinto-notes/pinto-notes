@@ -55,7 +55,12 @@ import UIKit
             done.archived = 37
             done.dropped = ["212 notes had colors, which Pinto Notes doesn't have.", "3 notes had reminders, which Pinto Notes doesn't keep."]
         }
-        return [("empty", .choosing, []), ("files", .choosing, s), ("progress", .importing(done: 642, total: 1_489), s), ("summary", .finished(done), s)]
+        var out: [(name: String, phase: ImportSheet.Phase, sources: [ImportSource])] = [("empty", .choosing, []), ("files", .choosing, s), ("progress", .importing(done: 642, total: 1_489), s), ("summary", .finished(done), s)]
+        // The wrong folder picked: named as it is, with what to choose instead (newcomer audit #20).
+        if kind == .keep {
+            out.append(("wrong-folder", .choosing, [ImportSource(url: URL(fileURLWithPath: "/demo/Bear export"), name: "Bear export", notes: 0, bytes: 0, problem: KeepImporter.notInHere)]))
+        }
+        return out
     }
 
     static func container() throws -> ModelContainer {
