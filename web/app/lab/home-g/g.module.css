@@ -79,3 +79,9 @@
 
 /* ── 4: the fanned cards' lines wrap rather than clip ── */
 .fanWrap [class*="cardLine"] { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* ── 2 in G: the note first (order, so the heading stays first for a screen reader), its title under it ── */
+.noteFirst > :first-child { order: 2; margin-top: 12px; }
+/* The hero fills the first screen down to about 150 px above its foot (the header is 84), so section
+   2's note window always peeks in there, on short laptops and tall screens alike. */
+@media (min-width: 961px) { .heroFold { min-height: calc(100svh - 84px - 150px); box-sizing: border-box; } }

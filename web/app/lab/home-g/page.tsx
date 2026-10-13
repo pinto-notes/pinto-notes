@@ -36,7 +36,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
   return (
     <div className={`${l.main} ${d.main}`} data-quiet-nav="">
       {/* 1. What it is, and the plan getting done. */}
-      <section className={d.hero}>
+      <section className={`${d.hero} ${s.heroFold}`}>
         <div className={d.heroText}>
           <h1 className={`${l.h1} ${d.h1} rise`}>{G.h1}</h1>
           <p className={`${l.lede} rise`} {...rise(1)}>{G.lede}</p>
@@ -50,7 +50,8 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
       </section>
 
       {/* 2. Every AI writes in the same note, one change at a time. */}
-      <section className={d.notebook} aria-labelledby="one-notebook">
+      {/* The note leads and its title follows, so the first screen's foot shows the note coming, never a second headline. */}
+      <section className={`${d.notebook} ${s.noteFirst}`} aria-labelledby="one-notebook">
         <div className={d.columnHead}>
           <h2 id="one-notebook" className={d.title}>{G.notebook.title}</h2>
           <p className={d.lede}>{G.notebook.lede}</p>

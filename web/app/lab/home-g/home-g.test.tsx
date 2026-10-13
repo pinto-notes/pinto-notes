@@ -93,3 +93,11 @@ describe("home study G, the final changes", async () => {
     expect(chipAt(H.length)).toEqual({ who: "you", text: "You ticked 1" }); // home-d keeps its order
   });
 });
+
+describe("home study G's first screen", () => {
+  const css = readFileSync(resolve(__dirname, "g.module.css"), "utf8");
+  it("ends on section 2's note, never its headline: the hero fills to just above the fold, and the note comes before the title", () => {
+    expect(css).toMatch(/\.heroFold \{ min-height: calc\(100svh - 84px - 150px\)/);
+    expect(css).toMatch(/\.noteFirst > :first-child \{ order: 2;/);
+  });
+});
