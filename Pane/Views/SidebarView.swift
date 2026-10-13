@@ -257,11 +257,26 @@ struct SidebarView: View {
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
 
-    /// All Notes and Recently Deleted, counted by the store (unsaved changes included).
+    /// All Notes and Recently Deleted, counted by the store (unsaved changes included), as the list
+    /// shows them: a sub-note lives inside its parent and is no row of its own (NoteListView.nested).
     static func counts(in context: ModelContext) -> (live: Int, trashed: Int) {
         let live = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
         let trashed = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt != nil }))) ?? 0
-        return (live, trashed)
+        let nested = nestedSubNotes(in: context)
+        return (live - nested.filter { $0.trashedAt == nil }.count, trashed - nested.filter { $0.trashedAt != nil }.count)
+    }
+
+    /// The sub-notes inside their parent, which the list doesn't count as rows. The folder said 2
+    /// while its list said "1 note" (newcomer audit, 2026-10-12). Only notes with a parent are
+    /// fetched: a library without sub-notes pays for one empty fetch.
+    static func nestedSubNotes(in context: ModelContext) -> [Note] {
+        let subs = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.parentID != nil && $0.deletedAt == nil }))) ?? []
+        return subs.filter { context.isNested($0) }
+    }
+
+    /// A folder's notes as its list counts them: without the sub-notes inside a parent.
+    static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
+        folder.liveNotes.count { !($0.parentID != nil && context.isNested($0)) }
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
@@ -729,11 +744,12 @@ private struct FolderTree: View {
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         let selected = selection == .folder(folder.id)
+        let listed = SidebarView.listedNotes(in: folder, context: context)
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 SidebarRowText(title: folder.name, selected: selected) {
                     HoverSwap(on: hovering, help: "Folder options") {
-                        Text(folder.liveNotes.count + (files[folder.id] ?? 0), format: .number)
+                        Text(listed + (files[folder.id] ?? 0), format: .number)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     } items: { menuItems }
@@ -743,7 +759,7 @@ private struct FolderTree: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()
-            .rowAccessibility(folder.name, count: folder.liveNotes.count, files: files[folder.id] ?? 0)
+            .rowAccessibility(folder.name, count: listed, files: files[folder.id] ?? 0)
         }
         .quietSelection()
         .tag(Scope.folder(folder.id))

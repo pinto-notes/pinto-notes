@@ -13,6 +13,14 @@ import Testing
         #expect(WelcomeFlow.Stage.first(arguments: ["-signout", "-skipWelcome"]) == .signIn(returning: true))
     }
 
+    /// After deleting the account the welcome says so, once (newcomer audit, 2026-10-12).
+    @Test func theWelcomeAfterDeletingTheAccountSaysSo() {
+        #expect(!WelcomeFlow.Farewell.take())
+        WelcomeFlow.Farewell.accountDeleted()
+        #expect(WelcomeFlow.Farewell.take())
+        #expect(!WelcomeFlow.Farewell.take(), "the next welcome is the usual one")
+    }
+
     /// "Sign in" on a deleted account's screen lands on sign-in, not on the welcome; once.
     @Test func aSignInButtonLandsOnSignIn() {
         WelcomeFlow.Stage.signInNext = true
