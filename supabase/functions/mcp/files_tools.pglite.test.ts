@@ -15,6 +15,11 @@ const MOOD = "Mood\n\n<!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Ye
 
 Deno.test("twelve tools, named as ChatGPT and the directories expect", () => {
   assertEquals(FILE_TOOLS.map((t) => t.name), ["search", "list", "fetch", "create", "edit", "write", "move", "delete", "history", "restore", "pin", "see_app"]);
+  // Every tool that changes existing data says so (Claude's and OpenAI's directory rules: being able
+  // to undo it doesn't make it additive). Only create adds without changing anything.
+  for (const t of FILE_TOOLS.filter((t) => !t.annotations.readOnlyHint)) {
+    assertEquals(t.annotations.destructiveHint, t.name !== "create", t.name);
+  }
   for (const t of FILE_TOOLS) assertEquals(t.annotations.title, t.title);
 });
 
