@@ -216,8 +216,8 @@ import ZIPFoundation
         #expect(abs(try r.note("Groceries").createdAt.timeIntervalSince(written)) <= 2, "the time it was written, not hours off")
 
         let stockholm = TimeZone(identifier: "Europe/Stockholm")!
-        #expect(MarkdownImporter.localTime(ofUTCWallClock: Self.utc("2026-10-01T10:00:00Z"), in: stockholm) == Self.utc("2026-10-01T08:00:00Z"))
-        #expect(MarkdownImporter.localTime(ofUTCWallClock: Self.utc("2026-12-01T10:00:00Z"), in: stockholm) == Self.utc("2026-12-01T09:00:00Z"))
+        #expect(ZipTimes.local(fromStored: Self.utc("2026-10-01T10:00:00Z"), in: stockholm) == Self.utc("2026-10-01T08:00:00Z"))
+        #expect(ZipTimes.local(fromStored: Self.utc("2026-12-01T10:00:00Z"), in: stockholm) == Self.utc("2026-12-01T09:00:00Z"))
     }
     #endif
 

@@ -103,6 +103,36 @@ import Testing
         #expect(ImportGuideFlow(guide: .obsidian(picture: nil), kind: .obsidian, vault: vault).vault == vault)
     }
 
+    /// The guides' import_step: each page as it shows (intro 1, steps, the drop page last), the
+    /// "already have it" shortcut, and Obsidian's found vault, whose found page counts as its page.
+    @Test func theGuideRecordsItsSteps() {
+        #expect(ImportGuideFunnel.page(.intro, steps: 3) == 1)
+        #expect(ImportGuideFunnel.page(.step(2), steps: 3) == 4)
+        #expect(ImportGuideFunnel.page(.drop, steps: 3) == 5, "Keep's drop page is its fifth")
+        #expect(ImportGuideFunnel.page(.drop, steps: 1) == 3)
+        #expect(ImportGuideFunnel.page(.success, steps: 3) == nil)
+
+        let steps = FunnelSteps()
+        steps.watch {
+            ImportGuideFunnel.opened(.keep, at: .intro, steps: 3, vaultFound: false)
+            ImportGuideFunnel.moved(.keep, to: .step(0), steps: 3)
+            ImportGuideFunnel.alreadyHaveFile(.keep)
+            ImportGuideFunnel.moved(.keep, to: .importing(done: 0, total: 3), steps: 3)
+        }
+        #expect(steps.count(.importStep(.keep, .opened)) == 1)
+        #expect(steps.count(.importStep(.keep, .guidePage, page: 1)) == 1)
+        #expect(steps.count(.importStep(.keep, .guidePage, page: 2)) == 1)
+        #expect(steps.count(.importStep(.keep, .alreadyHaveFile)) == 1)
+        #expect(steps.events.count == 4, "importing isn't a page")
+
+        let found = FunnelSteps()
+        let opening = ImportGuideFlow.opening(vault: URL(fileURLWithPath: "/v/Second brain"))
+        found.watch { ImportGuideFunnel.opened(.obsidian, at: opening.stage, steps: 1, vaultFound: true) }
+        #expect(found.count(.importStep(.obsidian, .fileFoundAutomatically)) == 1)
+        #expect(found.count(.importStep(.obsidian, .guidePage, page: 3)) == 1, "the found page is the drop page")
+        #expect(found.count(.importStep(.obsidian, .guidePage, page: 1)) == 0)
+    }
+
     @Test func theRealPicturesShipWithTheApp() {
         for name in ["guide-bear-export", "guide-obsidian-reveal", "guide-obsidian-files"] {
             #expect(ImportGuide.picture(name) != nil, "\(name).png is in the app")

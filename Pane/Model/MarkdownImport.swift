@@ -88,28 +88,6 @@ final class MarkdownImporter {
         return s.trimmingCharacters(in: .whitespaces)
     }
 
-    /// Unzips `zip` with each file's time as it was where the .zip was made. A .zip keeps the
-    /// wall-clock time of the Mac or PC that wrote it (Finder, `zip`, Windows), but the unzipper reads
-    /// it as UTC: notes came in two hours ahead in Sweden (Air test 2026-10-13).
-    nonisolated static func unzip(_ zip: URL, to dest: URL) throws {
-        try FileManager.default.unzipItem(at: zip, to: dest)
-        let files = FileManager.default.enumerator(at: dest, includingPropertiesForKeys: [.contentModificationDateKey])
-        while let url = files?.nextObject() as? URL {
-            guard let written = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else { continue }
-            try? FileManager.default.setAttributes([.modificationDate: localTime(ofUTCWallClock: written)], ofItemAtPath: url.path)
-        }
-    }
-
-    /// The moment whose local wall clock reads what `date` reads in UTC.
-    nonisolated static func localTime(ofUTCWallClock date: Date, in zone: TimeZone = .current) -> Date {
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = .gmt
-        var local = utc
-        local.timeZone = zone
-        let wall = utc.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        return local.date(from: wall) ?? date
-    }
-
     // MARK: Importing
 
     func run(_ sources: [ImportSource], into destination: ImportDestination,
@@ -127,7 +105,7 @@ final class MarkdownImporter {
                 let dest = scratch.appending(path: UUID().uuidString, directoryHint: .isDirectory)
                 let url = source.url
                 do {
-                    try await Task.detached { try MarkdownImporter.unzip(url, to: dest) }.value
+                    try await Task.detached { try ZipTimes.unzip(url, to: dest) }.value
                 } catch {
                     writer.summary.failedFiles.append("\(source.name): the .zip couldn't be opened.")
                     continue

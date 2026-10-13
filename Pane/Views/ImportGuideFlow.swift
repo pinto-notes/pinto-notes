@@ -187,8 +187,9 @@ struct ImportGuideFlow: View {
             // Where the file is likely to be: a vault in Documents, an export in Downloads.
             .fileDialogDefaultDirectory(FileManager.default.urls(for: kind == .obsidian ? .documentDirectory : .downloadsDirectory, in: .userDomainMask).first)
             .task {
-                if let vault { add([vault], replacing: true) }
                 if startAtDrop { stage = .drop }
+                ImportGuideFunnel.opened(kind, at: stage, steps: guide.steps.count, vaultFound: vault != nil)
+                if let vault { add([vault], replacing: true) }
                 guard !files.isEmpty else { return }
                 if stage != .drop { go(.drop) }
                 add(files, replacing: true)
@@ -281,6 +282,7 @@ struct ImportGuideFlow: View {
     /// Closing the sheet. After an import, the window shows the notes that came (not before:
     /// they'd open behind the sheet while it still says what happened).
     private func leave() {
+        if summary == nil { ImportFunnel.cancelled(kind.funnelSource) }
         if let summary { onImported(summary.noteIDs) }
         dismiss()
     }
@@ -288,7 +290,10 @@ struct ImportGuideFlow: View {
     private func quiet() {
         switch stage {
         case .intro:
-            if !guide.skipTitle.isEmpty { go(.drop) }
+            if !guide.skipTitle.isEmpty {
+                ImportGuideFunnel.alreadyHaveFile(kind)
+                go(.drop)
+            }
         case .step(let i):
             if guide.steps[i].action != nil, !opened.contains(i) { next(after: i) } else if guide.steps[i].action != nil { open(i) }
         case .drop:
@@ -304,6 +309,7 @@ struct ImportGuideFlow: View {
     private func go(_ next: Stage) {
         trail.append(stage)
         stage = next
+        ImportGuideFunnel.moved(kind, to: next, steps: guide.steps.count)
     }
 
     private func next(after i: Int) {
@@ -331,6 +337,7 @@ struct ImportGuideFlow: View {
         Task {
             let kind = kind
             let seen = await Task.detached { urls.map(kind.inspect) }.value
+            ImportFunnel.inspected(kind, seen)
             sources += seen
             inspecting = false
         }
@@ -342,12 +349,43 @@ struct ImportGuideFlow: View {
         imported = chosen
         stopRequested = false
         go(.importing(done: 0, total: noteCount))
+        ImportFunnel.importing(kind.funnelSource)
         let result = await kind.run(chosen, into: .perSource, context: context,
                                     progress: { done, total in stage = .importing(done: done, total: total) },
                                     shouldStop: { stopRequested })
         summary = result
+        ImportFunnel.finished(kind.funnelSource, result)
         trail = []
         stage = .success
         EvernoteInbox.clear()
     }
+}
+
+/// The guides' own steps of the import funnel (`import_step`): each guide page as it shows, the
+/// "I already have it" shortcut, and Obsidian's vault found by itself. Opening, what was picked,
+/// importing and how it ended are recorded as the import sheet records them (`ImportFunnel`).
+enum ImportGuideFunnel {
+    /// The page number a stage is in the funnel: the intro 1, each step after it, the drop page
+    /// last (5 at most). Importing and success are `importing` and `done`, not pages.
+    static func page(_ stage: ImportGuideFlow.Stage, steps: Int) -> Int? {
+        switch stage {
+        case .intro: 1
+        case .step(let i): i + 2
+        case .drop: steps + 2
+        case .importing, .success: nil
+        }
+    }
+
+    static func opened(_ kind: ImportKind, at stage: ImportGuideFlow.Stage, steps: Int, vaultFound: Bool) {
+        ImportFunnel.opened(kind.funnelSource)
+        if vaultFound { Funnel.record(.importStep(kind.funnelSource, .fileFoundAutomatically)) }
+        moved(kind, to: stage, steps: steps)
+    }
+
+    static func moved(_ kind: ImportKind, to stage: ImportGuideFlow.Stage, steps: Int) {
+        guard let page = page(stage, steps: steps) else { return }
+        Funnel.record(.importStep(kind.funnelSource, .guidePage, page: page))
+    }
+
+    static func alreadyHaveFile(_ kind: ImportKind) { Funnel.record(.importStep(kind.funnelSource, .alreadyHaveFile)) }
 }
