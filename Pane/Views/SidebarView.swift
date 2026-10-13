@@ -168,6 +168,9 @@ extension View {
 enum SidebarStyle {
     #if os(macOS)
     static let iconFont = Font.system(size: 17, weight: .regular)
+    /// The candidates' icon (DesignLook, DESIGN.md Icons): medium, and smaller and lighter than the
+    /// name beside it, so the names lead.
+    static let candidateIconFont = Font.system(size: 14, weight: .medium)
     /// The rows' icons' left edge from the sidebar's own: where the title's mark, the Folders
     /// heading and the account's photo start too, so they all share one line (owner, 2026-10-12:
     /// three edges a few points apart). Measured from the list as AppKit lays it out: the icon of
@@ -195,10 +198,13 @@ struct SidebarIcon: View {
 
     var body: some View {
         Image(systemName: name)
-            .font(SidebarStyle.iconFont)
             #if os(macOS)
-            .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+            .font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
+            .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)
+                : DesignLook.isCandidate ? AnyShapeStyle(Color.muted) : AnyShapeStyle(.primary))
+            .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
             #else
+            .font(SidebarStyle.iconFont)
             .foregroundStyle(SidebarStyle.icon)
             #endif
     }

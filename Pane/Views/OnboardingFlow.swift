@@ -109,9 +109,19 @@ struct OnboardingFlow: View {
 
     // MARK: The window
 
+    /// Candidate B's scene for each step: your desk, moving in, two hands on one note, a talk.
+    static func picture(_ step: Onboarding.Step) -> String {
+        switch step {
+        case .name: "OnboardingName"
+        case .bring: "OnboardingBring"
+        case .connect: "OnboardingConnect"
+        case .tryIt: "OnboardingTryIt"
+        }
+    }
+
     @ViewBuilder private var screen: some View {
         #if os(macOS)
-        CardLayout {
+        CardLayout(picture: OnboardingLook.current == .b ? Self.picture(step) : nil) {
             page
                 .padding(.horizontal, 52)
                 .padding(.top, 26)
@@ -662,7 +672,7 @@ struct OnboardingFlow: View {
     private func quiet(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .buttonStyle(.quiet)
-            .frame(minHeight: Metrics.quietHeight)
+            .frame(maxWidth: .infinity, minHeight: Metrics.quietHeight)
             .accessibilityIdentifier(id)
     }
 

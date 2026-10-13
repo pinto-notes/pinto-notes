@@ -310,17 +310,44 @@ struct WelcomeFlow: View {
 /// device left?") in the welcome's window: the same picture on the left, the step on the right,
 /// so the window keeps its size and place from the welcome until the notes open.
 struct CardLayout<Side: View>: View {
+    /// A scene of its own, framed on a soft ground (onboarding candidate B), instead of the leaf.
+    var picture: String? = nil
     @ViewBuilder var side: Side
 
     var body: some View {
         HStack(spacing: 0) {
-            WelcomeFlow.art
+            if let picture {
+                Self.framed(picture)
+            } else {
+                WelcomeFlow.art
+            }
             side
                 .frame(width: WelcomeFlow.size.width / 2)
                 .modifier(CardHeight())
         }
         .frame(minWidth: WelcomeFlow.size.width, maxWidth: .infinity, maxHeight: .infinity)
         .background { Backdrop() }
+    }
+}
+
+extension CardLayout {
+    /// A scene from the emails (1040 by 624) as a big illustrated panel: the xl corners and the
+    /// shared shadow, centred on the soft ground, at a size its pixels hold sharp.
+    static func framed(_ name: String) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.xl, style: .continuous)
+        return Color(Palette.soft)
+            .frame(minWidth: WelcomeFlow.size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                Image(name)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(1040.0 / 624.0, contentMode: .fit)
+                    .clipShape(shape)
+                    .raised(in: shape)
+                    .padding(40)
+                    .accessibilityHidden(true)
+            }
+            .clipped()
     }
 }
 

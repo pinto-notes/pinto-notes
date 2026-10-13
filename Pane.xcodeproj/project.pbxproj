@@ -30,6 +30,7 @@
 		05B78ACCABC34029545D70D7 /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0968B22016B98500451306BA /* Capture.swift */; };
 		05D152F4A8063C28B318BBD5 /* RowClickLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B5618336684876E7AA8BDE /* RowClickLog.swift */; };
 		05F8C9C8D804221A6AF45CB4 /* Automerge in Frameworks */ = {isa = PBXBuildFile; productRef = 23099B9A858DCE339242BFFC /* Automerge */; };
+		063345C03226663894E9C485 /* DesignLookSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7445A08E777B5138830E17A8 /* DesignLookSnapshots.swift */; };
 		069EEA48CE389EDDFE5913DA /* ShareLinkMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB712C0AD9C55B685303BA9 /* ShareLinkMenu.swift */; };
 		06F7EAAE8C5A877B40369156 /* StressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A49ECF5C2416ECB7428670 /* StressTests.swift */; };
 		084AB6033F32F9B47966A1E4 /* OfflineLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4327ACE6BF465D8E84D0D3EB /* OfflineLine.swift */; };
@@ -952,6 +953,7 @@
 		730B7663C46D3F18F6A80738 /* HeardFromView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeardFromView.swift; sourceTree = "<group>"; };
 		73D9C8D75A7519F7CA04449D /* WarmGreySnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarmGreySnapshots.swift; sourceTree = "<group>"; };
 		743043273E1045605B8F012E /* ListOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListOrderTests.swift; sourceTree = "<group>"; };
+		7445A08E777B5138830E17A8 /* DesignLookSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignLookSnapshots.swift; sourceTree = "<group>"; };
 		74B99DE5320A61F5F5F0A9B8 /* NotePageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageData.swift; sourceTree = "<group>"; };
 		75759167CE7F0B24B4814F25 /* keycopy-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "keycopy-vectors.json"; sourceTree = "<group>"; };
 		7693F09926468E8130148F1D /* ImportSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSources.swift; sourceTree = "<group>"; };
@@ -1922,6 +1924,7 @@
 				04902FC432C162C34F9F9439 /* CodexConnectSnapshots.swift */,
 				2C13E00C01A59783D2FD1B04 /* CollabMacShots.swift */,
 				A8786C7B228ED2A8B4BF620A /* ConnectJourneySnapshots.swift */,
+				7445A08E777B5138830E17A8 /* DesignLookSnapshots.swift */,
 				E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */,
 				6BD1216B6D4DCB8FA429A9E9 /* FolderFilesMacShots.swift */,
 				85DCD4307028741585A99583 /* FormatPopoverSnapshots.swift */,
@@ -2374,6 +2377,7 @@
 				2A1222002E0A3A15AB75B59B /* ConnectSnapshotTests.swift in Sources */,
 				743A2DC87EC039B90E4FE7A8 /* DateFoldTests.swift in Sources */,
 				E7B0E85521B5A8A07BDFE91A /* DeleteAccountTests.swift in Sources */,
+				063345C03226663894E9C485 /* DesignLookSnapshots.swift in Sources */,
 				6446F4952BF2E70ECC8E9236 /* E2EESyncTests.swift in Sources */,
 				6993A695E36E1F6AEB6C307A /* E2EETests.swift in Sources */,
 				4F076F4BD77FEA75A56F4078 /* EditorHarness.swift in Sources */,

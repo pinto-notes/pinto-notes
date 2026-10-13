@@ -80,9 +80,16 @@ enum EditorMetrics {
     static var title: CGFloat { UIFontMetrics(forTextStyle: .title1).scaledValue(for: 28) }
     static var lineSpacing: CGFloat { UIFontMetrics(forTextStyle: .body).scaledValue(for: 5) }
     #else
-    // Apple Notes on the Mac: 13 pt body, ~20 pt title, tight lines.
+    // Apple Notes on the Mac: 13 pt body, ~20 pt title, tight lines. The candidates (DesignLook)
+    // give the title the display size the website gives a headline's one line.
     static let body: CGFloat = 13
-    static let title: CGFloat = 20
+    static var title: CGFloat {
+        switch DesignLook.current {
+        case .control: 20
+        case .warm: 24
+        case .paper: 26
+        }
+    }
     static let lineSpacing: CGFloat = 1.5
     #endif
     static var gutter: CGFloat { body * 1.6 }

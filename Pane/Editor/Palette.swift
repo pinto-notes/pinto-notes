@@ -67,7 +67,7 @@ enum Palette {
     #else
     /// Laid inside the sidebar's glass, so it keeps its vibrancy: about 5.5% toward the brown
     /// (5% in the dark, where more reads as brown).
-    static let sidebarWarmth = looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.065), paper: (brown, 0.085, brown, 0.07))
+    static let sidebarWarmth = looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.055), paper: (brown, 0.085, brown, 0.06))
     /// The notes list: a little warmth, less than the sidebar.
     static let listGround = looks(control: (0xFCFAF8, 0x252423), warm: (0xFBF8F4, 0x282522), paper: (0xF8F2EA, 0x2A2622))
     #endif
@@ -152,6 +152,24 @@ enum DesignLook: String, CaseIterable, Sendable {
         return raw.flatMap(DesignLook.init(rawValue:)) ?? .control
         #else
         return .control
+        #endif
+    }
+}
+
+/// The first-run flow's candidates (Mac): A keeps the leaf scene beside every step; B gives each
+/// step its own paper-craft scene from the emails, framed as a card on a soft ground. Release
+/// builds draw A; a debug build reads `PINTO_ONBOARDING_LOOK=b` or the `PintoOnboardingLook` default.
+enum OnboardingLook: String, CaseIterable, Sendable {
+    case a, b
+
+    nonisolated(unsafe) static var current: OnboardingLook = initial
+
+    private static var initial: OnboardingLook {
+        #if DEBUG
+        let raw = ProcessInfo.processInfo.environment["PINTO_ONBOARDING_LOOK"] ?? UserDefaults.standard.string(forKey: "PintoOnboardingLook")
+        return raw.flatMap(OnboardingLook.init(rawValue:)) ?? .a
+        #else
+        return .a
         #endif
     }
 }

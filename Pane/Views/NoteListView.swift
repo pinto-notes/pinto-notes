@@ -1266,6 +1266,7 @@ struct NoteRow: View {
             HStack(spacing: 5) {
                 Text(title)
                     .font(RowMetrics.title)
+                    .tracking(DesignLook.isCandidate ? -0.15 : 0)
                     .foregroundStyle(Color.ink)
                     .lineLimit(large ? 3 : 1)
                 if app {
@@ -1316,7 +1317,10 @@ struct NoteRow: View {
             .font(RowMetrics.detail)
             if folderLine, let f = note.folder {
                 HStack(spacing: 5) {
+                    // The candidates draw it lighter and smaller than the name (DESIGN.md, Icons).
                     Image(systemName: "folder")
+                        .imageScale(DesignLook.isCandidate ? .small : .medium)
+                        .opacity(DesignLook.isCandidate ? 0.75 : 1)
                     Text(f.name)
                 }
                 .font(RowMetrics.detail)

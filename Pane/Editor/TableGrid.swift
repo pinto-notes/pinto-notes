@@ -559,7 +559,11 @@ struct TableGridView: View {
     }
 
     /// Grid lines get firmer with Increase Contrast.
-    private var border: Color { Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45) }
+    /// The cells' edges: grey, or in the candidates (DesignLook) the warm muted ink, so the grid
+    /// sits in the page's warmth instead of on it.
+    private var border: Color {
+        DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
+    }
 
     private func cellBinding(_ r: Int, _ c: Int) -> Binding<String> {
         Binding(

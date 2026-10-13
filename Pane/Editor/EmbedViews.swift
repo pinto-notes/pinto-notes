@@ -130,7 +130,9 @@ private struct SubNoteChip: View {
 
 extension Color {
     /// A quiet fill for chips inside a note.
-    static var paneChip: Color { Color(PColor.paneFill) }
+    /// A sub-note's or file's card in a note: the system's fill, or in the candidates (DesignLook)
+    /// the soft fill, so it stays warm on a warm page.
+    static var paneChip: Color { DesignLook.isCandidate ? Color.soft : Color(PColor.paneFill) }
 }
 
 private struct ImageEmbed: View {
