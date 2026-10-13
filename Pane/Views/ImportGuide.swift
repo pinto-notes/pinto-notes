@@ -162,6 +162,9 @@ extension ImportGuide {
     /// On iPhone the Takeout download lands in Files, and the drop page is a button.
     static let keepPhone: ImportGuide = {
         var g = keep
+        g.steps[0].text = "The link opens Google's download page with only Keep ticked. Scroll down and tap Next step."
+        g.steps[1].text = "Leave the rest as it is. Google emails you in a few minutes. You can close this and come back."
+        g.steps[1].title = "Tap Create export"
         g.steps[2].text = "Open Google's email and tap Download archive. Safari saves it in Files, in Downloads."
         g.drop = Drop(title: "Choose the download",
                       line: "In Files, Downloads: a file named takeout and some numbers. No need to open it.",
