@@ -106,10 +106,20 @@ describe("landing pages", () => {
     expect(text).not.toMatch(/on the App Store now|available on the App Store/i);
   });
 
-  it("lets the text column shrink on a phone, so a wide comparison scrolls in its box instead of widening the page", () => {
-    // At 390 px the comparison table pushed the questions and links past the screen's edge.
+  it("lets the comparison shrink on a phone, so a wide table scrolls in its box instead of widening the page", () => {
+    // At 390 px the comparison table pushed the questions and links past the screen's edge. Since the
+    // audit of 13 October 2026 the table sits in its own band, in a box that may shrink.
     const css = readFileSync(join(process.cwd(), "lib/landing.module.css"), "utf8");
-    expect(css).toMatch(/\.col > \* \{ min-width: 0; \}/);
+    expect(css).toMatch(/\.table \{ width: 100%; min-width: 0; \}/);
+  });
+
+  it("plays the three things in one window instead of three columns, and has no eyebrow or fake iPhone button", async () => {
+    const doc = await render(landings[0]);
+    expect(doc.querySelectorAll('[aria-roledescription="story"]').length).toBe(1);
+    expect(doc.querySelectorAll('[aria-roledescription="story"] button[aria-pressed]').length).toBe(3);
+    expect(doc.body.innerHTML).not.toContain("iPhone · coming soon");
+    expect(doc.body.textContent).not.toContain(landings[0].eyebrow);
+    expect(doc.querySelector('img[src^="/art/"]')).not.toBeNull();
   });
 
   it("sends /chatgpt, the address ChatGPT ads link to, to the ChatGPT page for good (308)", async () => {
