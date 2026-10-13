@@ -70,28 +70,45 @@ private struct AmberProminentButton: View {
     @Environment(\.controlSize) private var controlSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.hoverPreview) private var preview
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var hovering = false
+    #if os(iOS)
+    /// How far the person's text size has moved the body text from its default: a row's title
+    /// grows with it, as every other label does.
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+    #endif
+
+    /// At the accessibility sizes a title that doesn't fit takes a second line instead of being cut.
+    private var twoLines: Bool {
+        #if os(iOS)
+        typeSize.isAccessibilitySize
+        #else
+        false
+        #endif
+    }
 
     var body: some View {
         // Two or three lines in a capsule lose their corners: a wrapping title gets a rounded rectangle.
         let shape: AnyShape = row.map { AnyShape(RoundedRectangle(cornerRadius: $0.cornerRadius, style: .continuous)) }
-            ?? (wraps ? AnyShape(RoundedRectangle(cornerRadius: 18, style: .continuous)) : AnyShape(Capsule()))
+            ?? (wraps || twoLines ? AnyShape(RoundedRectangle(cornerRadius: 18, style: .continuous)) : AnyShape(Capsule()))
         // A busy button stays solid: it's working, not unavailable.
         let off = !isEnabled && !busy
         let fill = off ? AmberProminentButtonStyle.disabledFill
             : configuration.role == .destructive ? AmberProminentButtonStyle.destructiveFill : AmberProminentButtonStyle.fill
         return configuration.label
-            .font(row.map { AmberProminentButtonStyle.rowTitle(height: $0.height) } ?? font)
+            .font(row.map { rowFont($0.height) } ?? font)
             .foregroundStyle(Color(off ? AmberProminentButtonStyle.disabledLabel : AmberProminentButtonStyle.label))
-            .lineLimit(wraps ? 3 : 1)
+            .lineLimit(wraps ? 3 : twoLines ? 2 : 1)
             .multilineTextAlignment(.center)
-            .padding(.vertical, wraps ? 6 : 0)
+            .fixedSize(horizontal: false, vertical: twoLines)
+            .padding(.vertical, wraps || twoLines ? 6 : 0)
             // Busy: the label keeps its place (so nothing moves) and a spinner sits on it.
             .opacity(busy ? 0 : 1)
             .overlay { if busy { AmberSpinner(reduceMotion: reduceMotion) } }
             .padding(.horizontal, horizontalPadding)
             .frame(maxWidth: row == nil ? nil : .infinity)
-            .frame(minHeight: row?.height ?? minHeight, maxHeight: row?.height)
+            // A row keeps its height until a larger text size needs more; then it grows with it.
+            .frame(minHeight: row?.height ?? minHeight, maxHeight: grows ? nil : row?.height)
             .background {
                 shape
                     .fill(Color(fill))
@@ -111,6 +128,24 @@ private struct AmberProminentButton: View {
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
             .accessibilityValue(busy ? Text("Working") : Text(""))
+    }
+
+    /// A row's title at the person's text size (on the Mac, the size its height gives).
+    private func rowFont(_ height: CGFloat) -> Font {
+        #if os(iOS)
+        .system(size: (height * 0.375 * scale).rounded(), weight: .medium)
+        #else
+        AmberProminentButtonStyle.rowTitle(height: height)
+        #endif
+    }
+
+    /// Whether a row may grow past its height: on iPhone, when the text size is larger than the default.
+    private var grows: Bool {
+        #if os(iOS)
+        typeSize > .large
+        #else
+        false
+        #endif
     }
 
     private var focusRing: Color {
