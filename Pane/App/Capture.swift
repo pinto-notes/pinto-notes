@@ -693,20 +693,29 @@ extension Capture {
 /// A film of the window's sheet as it opens, at 30 frames a second, from inside the app (no
 /// screen recording, no input): `-uitest -demo -importSheet -importDelay 1.5 -captureSheetFilm <dir>`
 /// writes `<dir>/frames.csv` (time, sheet height) and `<dir>/NNN.png` (the sheet as drawn), then quits.
+/// `-filmWindow` films the whole window with its sheet on it, and `-filmFrames <n>` sets the length
+/// (150 frames, 5 s, unless said).
 extension Capture {
     @MainActor static func sheetFilmFromArguments() {
         guard ProcessInfo.processInfo.arguments.contains("-uitest"), let path = argument("-captureSheetFilm") else { return }
         let dir = URL(fileURLWithPath: path)
+        let whole = ProcessInfo.processInfo.arguments.contains("-filmWindow")
+        let frames = argument("-filmFrames").flatMap(Int.init) ?? 150
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         Task { @MainActor in
             var rows = ["t,height"]
             let start = Date.now
-            for frame in 0..<150 {
+            for frame in 0..<frames {
                 let t = Date.now.timeIntervalSince(start)
-                if let sheet = NSApp.windows.lazy.compactMap(\.attachedSheet).first, let view = sheet.contentView,
-                   let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                let name = dir.appending(path: String(format: "%03d.png", frame))
+                let parent = NSApp.windows.first { $0.attachedSheet != nil } ?? (whole ? NSApp.windows.first { $0.isVisible && $0.contentView != nil && !$0.isSheet } : nil)
+                let sheet = parent?.attachedSheet
+                if whole, let parent, let rep = picture(parent, sheet: sheet) {
+                    try? rep.representation(using: .png, properties: [:])?.write(to: name)
+                    rows.append(String(format: "%.3f,%.0f", t, sheet?.frame.height ?? 0))
+                } else if let sheet, let view = sheet.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                     view.cacheDisplay(in: view.bounds, to: rep)
-                    try? rep.representation(using: .png, properties: [:])?.write(to: dir.appending(path: String(format: "%03d.png", frame)))
+                    try? rep.representation(using: .png, properties: [:])?.write(to: name)
                     rows.append(String(format: "%.3f,%.0f", t, sheet.frame.height))
                 } else {
                     rows.append(String(format: "%.3f,0", t))
@@ -716,6 +725,23 @@ extension Capture {
             try? rows.joined(separator: "\n").write(to: dir.appending(path: "frames.csv"), atomically: true, encoding: .utf8)
             NSApp.terminate(nil)
         }
+    }
+
+    /// The window as drawn, with its sheet (if any) drawn over it where it sits.
+    @MainActor private static func picture(_ window: NSWindow, sheet: NSWindow?) -> NSBitmapImageRep? {
+        guard let content = window.contentView, let base = content.bitmapImageRepForCachingDisplay(in: content.bounds) else { return nil }
+        content.cacheDisplay(in: content.bounds, to: base)
+        guard let sheet, let view = sheet.contentView, let top = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return base }
+        view.cacheDisplay(in: view.bounds, to: top)
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: base)
+        // Dim the window under the sheet a little, as the system does.
+        NSColor.black.withAlphaComponent(0.12).setFill()
+        content.bounds.fill(using: .sourceOver)
+        let inWindow = window.convertFromScreen(sheet.frame)
+        top.draw(in: CGRect(x: inWindow.minX, y: inWindow.minY, width: inWindow.width, height: inWindow.height))
+        return base
     }
 }
 
