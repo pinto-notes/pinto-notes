@@ -391,6 +391,7 @@
 		864098AF04B94A0FCD1273BC /* KeyCopyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21F840C976633C76FA3F16DD /* KeyCopyUITests.swift */; };
 		869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		86C1385AEB3FC6BCC79658D6 /* app-telemetry.md in Resources */ = {isa = PBXBuildFile; fileRef = B187D7429CA1DE585C11C930 /* app-telemetry.md */; };
+		8711A6B6103B9EAD70D11C6B /* AllowSheetSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7E4558253D684B6A0050A2 /* AllowSheetSnapshots.swift */; };
 		87568C98BF19851F89FAE1F1 /* ImportGuideSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F4D7634D2164D97CEDCA6A /* ImportGuideSnapshots.swift */; };
 		88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED450707209CA52772670C64 /* CollabCrypto.swift */; };
 		8889FCE0EDB748F49B82D0A0 /* FunnelTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F163BF2242A8F34759838487 /* FunnelTestSupport.swift */; };
@@ -652,6 +653,7 @@
 		ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */; };
 		EE41FCC568A1B667F8C3BDEB /* ChecklistSortTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFCA13DCB9435718E4F5BF8C /* ChecklistSortTests.swift */; };
 		EE7853D46B5E9CF04434468B /* KeyGateCardSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E30239F17A47DADC020482B /* KeyGateCardSnapshotTests.swift */; };
+		EEE5D6310D591DDA45514520 /* AllowSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43324C7785F4C59035DABD60 /* AllowSheetTests.swift */; };
 		EF5FA3E4964C257EA768A12D /* SidebarCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */; };
 		F0E7D0F93F1EC84D87C81F82 /* WikiLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA346A4AC288B31B07A05AB /* WikiLinks.swift */; };
 		F15F300B7F662D0F7B93BDE4 /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */; };
@@ -816,6 +818,7 @@
 		2E2167FA347940753904964C /* PaneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PaneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E585AAB4EEC89DFEE3790F9 /* PasswordResetUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordResetUITests.swift; sourceTree = "<group>"; };
 		2E9CE1B4EE228D52D58729C2 /* MenuBarModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarModel.swift; sourceTree = "<group>"; };
+		2F7E4558253D684B6A0050A2 /* AllowSheetSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllowSheetSnapshots.swift; sourceTree = "<group>"; };
 		2FB0FAF5FA660EBD5F3003ED /* TypedTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedTableTests.swift; sourceTree = "<group>"; };
 		2FE7BB86935ED6B278E0039C /* PasswordFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordFieldTests.swift; sourceTree = "<group>"; };
 		301899D6EDE0A22460BBE357 /* DebouncedSave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebouncedSave.swift; sourceTree = "<group>"; };
@@ -857,6 +860,7 @@
 		4267A4FCD098BA1E2B52B13F /* Hover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hover.swift; sourceTree = "<group>"; };
 		42D03E7A49F61302F141D7D8 /* ShareAskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareAskView.swift; sourceTree = "<group>"; };
 		4327ACE6BF465D8E84D0D3EB /* OfflineLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineLine.swift; sourceTree = "<group>"; };
+		43324C7785F4C59035DABD60 /* AllowSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllowSheetTests.swift; sourceTree = "<group>"; };
 		449E501D19F7AB860CA38215 /* HeardFromSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeardFromSnapshots.swift; sourceTree = "<group>"; };
 		44B0E260DC82F504A3C85868 /* 20261012120000_feature_use_new_app.sql */ = {isa = PBXFileReference; path = 20261012120000_feature_use_new_app.sql; sourceTree = "<group>"; };
 		44D4445CBE0C9888D0A78476 /* MenuBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarTests.swift; sourceTree = "<group>"; };
@@ -1596,6 +1600,7 @@
 				89A5B5992BCBFBD45F14C80D /* AccountLibraryTests.swift */,
 				9BF202EE121B78E2D670FEBB /* AddDeviceTests.swift */,
 				212906CC78A0D33147DA9115 /* AIEditTests.swift */,
+				43324C7785F4C59035DABD60 /* AllowSheetTests.swift */,
 				8B19F579047FE527B735EFCE /* AmberButtonTests.swift */,
 				D74F650F22A22CCD8A020271 /* AppleNotesImportTests.swift */,
 				8A537C18B9F9C98B1862B423 /* AppleNotesLiveTests.swift */,
@@ -1892,6 +1897,7 @@
 			children = (
 				2C8C1097F11A537E7117D38F /* AddDeviceSnapshots.swift */,
 				B3C667730E3C8E3C905E7874 /* AIEditSnapshots.swift */,
+				2F7E4558253D684B6A0050A2 /* AllowSheetSnapshots.swift */,
 				19A3CFE92D58ADD46C8269EB /* AmberButtonDynamicTypeSnapshots.swift */,
 				AB372EDEDFC65E45ED67E97E /* AmberButtonSnapshots.swift */,
 				3595708C4A80422C798DEB09 /* AppSnapshotTests.swift */,
@@ -2314,6 +2320,8 @@
 				144364F1DE25F2E94CE07A30 /* AddDeviceLiveTests.swift in Sources */,
 				97BCA485122DB4D867E5EC96 /* AddDeviceSnapshots.swift in Sources */,
 				F99A3DE164DE43C54A5BE075 /* AddDeviceTests.swift in Sources */,
+				8711A6B6103B9EAD70D11C6B /* AllowSheetSnapshots.swift in Sources */,
+				EEE5D6310D591DDA45514520 /* AllowSheetTests.swift in Sources */,
 				FF9F6BFD97A3C3BD33AB9E3F /* AmberButtonDynamicTypeSnapshots.swift in Sources */,
 				ABF944F6B9C37D89B25BC32F /* AmberButtonSnapshots.swift in Sources */,
 				18C02D793F48E2FF3C7F447F /* AmberButtonTests.swift in Sources */,
