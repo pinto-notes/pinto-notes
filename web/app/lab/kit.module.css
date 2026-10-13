@@ -1,0 +1,174 @@
+/* The app's surfaces, drawn. Colours measured from the app's captures (light) and its dark mode;
+   every surface is solid. The site's cream page shows the light app, its leaf brown the dark app. */
+.phone, .mac, .chat, .habit, .receipt, .whoMark {
+  --n-page: #fdfbf8; --n-chrome: #f4f1ed; --n-text: #1d1d1f; --n-sec: #86868b; --n-ter: #c7c7cc; --n-rule: #e6e2dc;
+  --n-tint: #fdeedd; --n-bar: #f2c48f; --n-tick: #e8820e; --n-accent: #c46a00; --n-pill: #fdf0dc; --n-pill-ring: #f0d2a8;
+  --n-bubble: #f1f1f1; --n-shadow: 60, 30, 5;
+}
+:global(html[data-theme="leaf"]) :is(.phone, .mac, .chat, .habit, .receipt, .whoMark) {
+  --n-page: #1e1e1e; --n-chrome: #2a2a2a; --n-text: #f5f5f7; --n-sec: #98989d; --n-ter: #5a5a5e; --n-rule: #38383a;
+  --n-tint: #43341f; --n-bar: #a8722c; --n-tick: #f5a53a; --n-accent: #f5ad33; --n-pill: #3b2d1a; --n-pill-ring: #5c4424;
+  --n-bubble: #303030; --n-shadow: 0, 0, 0;
+}
+
+/* ── Who did it ── */
+.whoMark { flex: none; display: inline-grid; place-items: center; border-radius: 50%; background: var(--n-chrome); color: var(--n-text); box-shadow: inset 0 0 0 1px var(--n-rule); }
+.whoMark[data-who="claude"], .whoMark[data-who="claude-code"] { color: #d97757; }
+.whoMark[data-who="you"] { color: var(--n-accent); }
+
+/* ── A note's body ── */
+.body { --fs: 17px; display: grid; font-size: var(--fs); line-height: 1.4; color: var(--n-text); }
+.body[data-size="s"] { --fs: 15.5px; }
+.body[data-size="l"] { --fs: 18px; }
+.line { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 3px 10px 3px 0; margin-left: -10px; padding-left: 10px; }
+.line[data-k="h"] { font-weight: 700; font-size: 1.12em; padding-top: 12px; padding-bottom: 4px; }
+.line[data-k="h"]:first-child { padding-top: 3px; }
+.line[data-k="p"] + .line[data-k="p"] { padding-top: 8px; }
+.line[data-quiet] { color: var(--n-sec); }
+.line[data-k="done"] .text { color: var(--n-sec); }
+/* The app's tint: a solid pale amber band with a 3 pt bar on its left edge. */
+.line[data-tint] { background: var(--n-tint); box-shadow: inset 3px 0 0 var(--n-bar); }
+.line[data-first-tint] { margin-top: 2px; }
+.circle { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; margin-top: 0.1em; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--n-ter); color: #fff; }
+.circle svg { width: 0.75em; height: 0.75em; }
+.circle[data-done] { background: var(--n-tick); box-shadow: none; }
+.dash { flex: none; width: 1.2em; text-align: center; }
+.text { min-width: 0; }
+/* The authorship margin: who wrote each run of lines, outside the paper's text edge. */
+.body[data-gutter] .line { padding-left: 130px; margin-left: -130px; }
+.body[data-gutter] .line[data-tint] { box-shadow: inset 3px 0 0 var(--n-bar); }
+.by { position: absolute; left: 0; top: 4px; width: 112px; display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 650; line-height: 20px; color: var(--n-text); white-space: nowrap; }
+.line[data-k="h"] .by { top: 13px; }
+.line[data-k="h"]:first-child .by { top: 4px; }
+@media (max-width: 700px) {
+  .body[data-gutter] .line { padding-left: 42px; margin-left: -42px; }
+  .by { width: 26px; }
+  .byName { display: none; }
+}
+
+/* ── The receipt ── */
+.receipt { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px; border-radius: 20px; background: var(--n-pill); color: var(--n-accent); box-shadow: 0 0 0 1px var(--n-pill-ring), 0 8px 20px -10px rgba(var(--n-shadow), 0.45); font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+.receipt svg { color: var(--n-text); }
+.receipt i { width: 1px; height: 18px; background: var(--n-pill-ring); }
+
+/* ── iPhone ── */
+.phone { --pw: 300px; margin: 0; width: var(--pw); aspect-ratio: 9 / 19.2; padding: calc(var(--pw) * 0.034); border-radius: calc(var(--pw) * 0.17); background: #1b1b1d; box-sizing: border-box;
+  box-shadow: inset 0 0 0 1.5px #3a3a3c, 0 30px 60px -28px rgba(var(--n-shadow), 0.55), 0 10px 20px -12px rgba(var(--n-shadow), 0.3); }
+:global(html[data-theme="leaf"]) .phone { box-shadow: inset 0 0 0 1.5px #4a4a4c, 0 0 0 1px rgba(255, 220, 170, 0.1), 0 30px 60px -28px rgba(0, 0, 0, 0.7); }
+.screen { position: relative; height: 100%; overflow: hidden; border-radius: calc(var(--pw) * 0.14); background: var(--n-page); color: var(--n-text); display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.status { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 26px 0 30px; font-size: 15px; font-weight: 600; }
+.island { position: absolute; left: 50%; top: 10px; width: 31%; height: 28px; margin-left: -15.5%; border-radius: 14px; background: #000; }
+.bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.bars b { width: 3px; border-radius: 1px; background: currentColor; }
+.bars b:nth-child(1) { height: 4px; } .bars b:nth-child(2) { height: 6px; } .bars b:nth-child(3) { height: 8.5px; } .bars b:nth-child(4) { height: 11px; }
+
+.pNote, .pList { position: relative; display: flex; flex-direction: column; padding: 0 18px; min-height: 0; overflow: hidden; }
+.pNav { display: flex; justify-content: space-between; padding: 2px 0 6px; color: var(--n-text); }
+.round { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--n-page); box-shadow: 0 2px 10px -2px rgba(var(--n-shadow), 0.18), 0 0 0 0.5px var(--n-rule); color: var(--n-text); }
+.pNav .round:last-child, .pTools .round { color: var(--n-accent); }
+.pTitle { margin: 6px 0 12px; font-size: 27px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
+.pNote .body .line { margin-left: -18px; padding-left: 18px; margin-right: -18px; padding-right: 18px; }
+.pReceipt { position: absolute; left: 0; right: 0; bottom: 74px; display: flex; justify-content: center; }
+.pReceipt .receipt { height: 36px; font-size: 13px; padding: 0 14px; }
+.pTools { position: absolute; left: 14px; right: 14px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+.toolGroup { display: inline-flex; gap: 22px; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: var(--n-page); color: var(--n-accent); box-shadow: 0 2px 10px -2px rgba(var(--n-shadow), 0.18), 0 0 0 0.5px var(--n-rule); }
+.search { display: inline-flex; align-items: center; gap: 8px; flex: 1; margin-right: 10px; height: 40px; padding: 0 14px; border-radius: 20px; background: var(--n-chrome); color: var(--n-sec); font-size: 15px; }
+.pGroup { display: grid; gap: 6px; margin-bottom: 14px; }
+.pDay { margin: 0; font-size: 17px; font-weight: 700; }
+.pRows { list-style: none; margin: 0; padding: 0; border-radius: 12px; background: var(--n-chrome); overflow: hidden; }
+.pRows li { display: grid; gap: 1px; padding: 9px 14px; font-size: 14.5px; line-height: 1.3; box-shadow: inset 0 -0.5px 0 var(--n-rule); }
+.pRows li:last-child { box-shadow: none; }
+.pRows li[data-tint] { background: var(--n-tint); box-shadow: inset 3px 0 0 var(--n-bar), inset 0 -0.5px 0 var(--n-rule); }
+.pRows b { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pRows span { color: var(--n-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.pRows em { font-style: normal; color: var(--n-text); margin-right: 4px; }
+
+/* ── Mac window with one note ── */
+.mac { margin: 0; border-radius: 14px; overflow: hidden; background: var(--n-page); color: var(--n-text);
+  box-shadow: 0 0 0 0.5px rgba(var(--n-shadow), 0.25), 0 34px 70px -34px rgba(var(--n-shadow), 0.55), 0 8px 18px -10px rgba(var(--n-shadow), 0.25); }
+:global(html[data-theme="leaf"]) .mac { box-shadow: 0 0 0 1px #3a3a3c, 0 34px 70px -30px rgba(0, 0, 0, 0.7); }
+.sheet { padding: 0; }
+.macBar { position: relative; display: flex; align-items: center; justify-content: center; height: 44px; background: var(--n-chrome); box-shadow: inset 0 -0.5px 0 var(--n-rule); font-size: 13px; font-weight: 600; color: var(--n-sec); }
+.macFolder { display: inline-flex; align-items: center; gap: 7px; }
+.lights { position: absolute; left: 16px; top: 50%; margin-top: -6px; display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.macPaper { position: relative; padding: 22px 36px 34px; }
+.mac[data-gutter] .macPaper { padding-left: 166px; }
+.macDate { margin: 0 0 10px; text-align: center; font-size: 12.5px; color: var(--n-sec); }
+.macTitle { margin: 0 0 12px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.macReceipt { display: flex; justify-content: center; margin-top: 22px; }
+@media (max-width: 700px) {
+  .macPaper { padding: 16px 18px 24px; }
+  .mac[data-gutter] .macPaper { padding-left: 58px; }
+  .macTitle { font-size: 22px; }
+}
+
+/* ── AI chat ── */
+.chat { margin: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border-radius: 16px; overflow: hidden; background: #ffffff; color: #0d0d0d;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.2), 0 30px 60px -30px rgba(var(--n-shadow), 0.55); font-size: 15px; line-height: 1.45; }
+.chat[data-app="claude"] { background: #faf9f5; color: #141413; }
+:global(html[data-theme="leaf"]) .chat { background: #212121; color: #ececec; box-shadow: 0 0 0 1px #3a3a3c, 0 30px 60px -30px rgba(0, 0, 0, 0.7); }
+:global(html[data-theme="leaf"]) .chat[data-app="claude"] { background: #262624; color: #f0eee6; }
+.chat[data-frame="bare"] { border-radius: 0; box-shadow: none; background: transparent; }
+:global(html[data-theme="leaf"]) .chat[data-frame="bare"] { background: transparent; box-shadow: none; }
+.chatBar { position: relative; display: flex; align-items: center; justify-content: center; height: 40px; font-size: 13px; font-weight: 600; box-shadow: inset 0 -0.5px 0 rgba(128, 128, 128, 0.25); }
+.chatTop { display: flex; justify-content: center; padding: 6px 0 10px; font-size: 16px; font-weight: 600; }
+.chatTitle { display: inline-flex; align-items: center; gap: 7px; }
+.chat[data-app="claude"] .chatTitle svg { color: #d97757; }
+.msgs { display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px 16px 8px; }
+.turn { display: grid; gap: 6px; }
+.me { justify-self: end; max-width: 84%; margin: 0; padding: 9px 14px; border-radius: 18px; background: #f1f1f1; }
+.chat[data-app="claude"] .me { background: #f0eee6; border-radius: 12px; }
+:global(html[data-theme="leaf"]) .me { background: #303030; }
+:global(html[data-theme="leaf"]) .chat[data-app="claude"] .me { background: #141413; }
+.tool { margin: 0; font-size: 12.5px; color: #8e8e93; }
+.ai { margin: 0; }
+.input { display: flex; align-items: center; gap: 8px; margin: 6px 12px 12px; height: 44px; padding: 0 6px 0 12px; border-radius: 22px; box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.28); color: #8e8e93; font-size: 15px; }
+.input b { font-weight: 400; font-size: 20px; }
+.input em { flex: 1; font-style: normal; }
+.send { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #0d0d0d; color: #fff; font-size: 15px; }
+:global(html[data-theme="leaf"]) .send { background: #ececec; color: #0d0d0d; }
+.chat[data-app="claude"] .send { background: #d97757; color: #fff; border-radius: 9px; }
+
+/* ── Terminal ── */
+.term { margin: 0; border-radius: 14px; overflow: hidden; background: #1c140c; color: #f5e9da; box-shadow: 0 0 0 1px rgba(255, 220, 170, 0.08), 0 30px 60px -30px rgba(40, 18, 2, 0.6); }
+.termBar { position: relative; display: flex; align-items: center; justify-content: center; height: 36px; font: 600 12px ui-monospace, "SF Mono", Menlo, monospace; color: #b89c7c; box-shadow: inset 0 -1px 0 rgba(255, 240, 220, 0.08); }
+.term .lights i { background: rgba(255, 240, 220, 0.2); }
+.termBody { display: grid; gap: 8px; padding: 16px 18px 18px; font: 500 13.5px/1.55 ui-monospace, "SF Mono", Menlo, monospace; }
+.termBody p { margin: 0; }
+.prompt span { color: #f5a53a; margin-right: 8px; }
+.call { color: #b89c7c; }
+.call span { color: #f5a53a; }
+.out { padding-left: 22px; color: #f5e9da; }
+
+/* ── A note that holds an app ── */
+.habit { display: grid; gap: 8px; padding: 16px; border-radius: 16px; background: var(--n-page); color: var(--n-text); box-shadow: 0 0 0 1px var(--n-rule); font-size: 15px; }
+.habitRow { display: grid; grid-template-columns: minmax(130px, 1fr) repeat(7, 30px) 48px; align-items: center; gap: 6px; }
+.habitRow b { font-size: 12px; font-weight: 600; color: var(--n-sec); text-align: center; }
+.habitRow i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--n-chrome); color: #fff; }
+.habitRow i[data-on] { background: var(--n-tick); }
+.habitRow i svg { width: 16px; height: 16px; }
+.habitName { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.habitStreak { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--n-accent); }
+.habitRow:first-child .habitStreak { font-size: 12px; font-weight: 600; color: var(--n-sec); }
+.habit[data-compact] .habitRow { grid-template-columns: minmax(0, 1fr) repeat(7, 22px) 36px; gap: 4px; }
+.habit[data-compact] .habitRow i { width: 22px; height: 22px; border-radius: 7px; }
+.habit[data-compact] .habitRow i svg { width: 12px; height: 12px; }
+.habit[data-compact] { font-size: 13.5px; padding: 12px; }
+@media (max-width: 560px) {
+  .habit .habitRow { grid-template-columns: minmax(0, 1fr) repeat(7, 24px) 34px; gap: 4px; }
+  .habit .habitRow i { width: 24px; height: 24px; border-radius: 7px; }
+  .habit .habitRow i svg { width: 13px; height: 13px; }
+  .habit { font-size: 14px; padding: 12px; }
+}
+
+/* ── The download ── */
+.cta { display: grid; gap: 12px; justify-items: start; }
+.primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-weight: 700; font-size: 16px; text-decoration: none;
+  background: var(--cta-bg); color: var(--cta-ink); box-shadow: 0 10px 24px -8px rgba(var(--shade), 0.55); }
+.primary:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+@media (hover: hover) { .primary:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); } }
+@media (prefers-reduced-motion: no-preference) { .primary { transition: transform 0.12s ease-out, background-color 0.15s ease-out; } .primary:active { transform: scale(0.97); } }
+.ctaQuiet { margin: 0; color: var(--muted); font-size: 14.5px; font-weight: 600; }
