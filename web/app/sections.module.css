@@ -9,6 +9,11 @@
 /* ── Works with the AI you already use: three small, complete scenes ── */
 .jobs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
 @media (max-width: 860px) { .jobs { grid-template-columns: 1fr; } }
+/* Each card with what it does underneath: a short title and one line. */
+.cap { display: grid; grid-template-rows: auto auto 1fr; gap: 10px; align-content: start; }
+.cap .job { margin-bottom: 8px; }
+.capTitle { margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+.capLine { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.45; text-wrap: pretty; }
 .job { margin: 0; display: grid; grid-template-rows: auto 1fr; border-radius: 20px; overflow: hidden; background: #fff; color: #1d1d1f; box-shadow: 0 0 0 1px var(--line), 0 20px 40px -30px rgba(60, 30, 5, 0.5); }
 .phone { border-radius: 30px; }
 .term { background: #22160b; color: #fbeedd; }
@@ -80,6 +85,11 @@
 @media (max-width: 700px) { .alsoTicks { margin-top: -56px; } }
 .alsoTicks li { display: inline-flex; align-items: center; gap: 8px; }
 .alsoTicks svg { color: var(--amber); }
+
+/* ── A note can also be an app: the words beside one phone card ── */
+.appsRow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+@media (max-width: 860px) { .appsRow { grid-template-columns: 1fr; } }
+.appsCard { max-width: 380px; width: 100%; justify-self: center; }
 
 /* ── Private by design: one dark card, one claim, a brass lock over a wall of ciphertext ── */
 .vault {
