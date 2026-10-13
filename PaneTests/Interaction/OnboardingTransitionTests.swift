@@ -27,6 +27,8 @@ import Testing
         let store = OnboardingStore(defaults: TestDefaults())
         var shots: [(ms: Int, frame: Frame)] = []
         let dir: URL?
+        /// Film the left half (the picture) instead of the step.
+        var left = false
 
         init(_ name: String) {
             dir = ProcessInfo.processInfo.environment["ONBOARDING_FILM"].map { URL(fileURLWithPath: $0).appending(path: name) }
@@ -57,8 +59,8 @@ import Testing
             var px = [UInt8](repeating: 0, count: w * h * 4)
             let ctx = try #require(CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
                                              space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-            // The right half: the step's words and rows.
-            ctx.draw(cg, in: CGRect(x: -w, y: 0, width: w * 2, height: h))
+            // The right half: the step's words and rows (or the left: the picture).
+            ctx.draw(cg, in: CGRect(x: left ? 0 : -w, y: 0, width: w * 2, height: h))
             var lum = [Float](repeating: 0, count: w * h)
             for i in 0..<(w * h) {
                 lum[i] = (0.2126 * Float(px[i * 4]) + 0.7152 * Float(px[i * 4 + 1]) + 0.0722 * Float(px[i * 4 + 2])) / 255
@@ -189,6 +191,48 @@ import Testing
         let (from, to) = try await stage.film { stage.store.back() }
         #expect(stage.store.step == .bring)
         Self.check(stage, from: from, to: to)
+    }
+
+    /// The picture panel holds still and crossfades between steps (the desk set's payoff: only
+    /// the new object appears on the desk), forward and back: wherever the old and new pictures
+    /// agree every frame agrees with them (nothing slides or scales), and elsewhere each frame is
+    /// the old picture with the new one over it at a share that only grows, through the middle,
+    /// to all of it.
+    @Test(arguments: [true, false])
+    func theArtHoldsStillAndCrossfades(forward: Bool) async throws {
+        OnboardingArt.forced = .desk
+        defer { OnboardingArt.forced = nil }
+        ConnectFinder.fixed = [.claude, .codex]
+        defer { ConnectFinder.fixed = nil }
+        let stage = Stage(forward ? "art-forward" : "art-back")
+        stage.left = true
+        if !forward { stage.store.showForPreview(.connect) }
+        defer { stage.close() }
+        let (from, to) = try await stage.film {
+            if forward { _ = stage.store.advance(connected: false) } else { stage.store.back() }
+        }
+        #expect(stage.store.step == (forward ? .connect : .bring))
+        var same: [Int] = [], changed: [Int] = []
+        for i in stride(from: 0, to: from.lum.count, by: 7) {
+            let d = abs(from.lum[i] - to.lum[i])
+            if d < 0.01 { same.append(i) } else if d > 0.08 { changed.append(i) }
+        }
+        #expect(same.count > 1000 && changed.count > 100, "the two desk frames share most of the picture (\(same.count) same, \(changed.count) changed)")
+        guard !same.isEmpty, !changed.isEmpty else { return }
+        var moved: [String] = [], shares: [Float] = []
+        for (ms, f) in stage.shots {
+            let drift = same.map { abs(f.lum[$0] - from.lum[$0]) }.sorted()
+            if drift[drift.count * 95 / 100] > 0.03 { moved.append("\(ms)ms") }
+            let t = changed.map { (f.lum[$0] - from.lum[$0]) / (to.lum[$0] - from.lum[$0]) }.sorted()
+            let share = t[t.count / 2]
+            shares.append(share)
+            print("ART \(ms)ms new picture \(String(format: "%.2f", share))")
+        }
+        #expect(moved.isEmpty, "the picture moved: \(moved)")
+        #expect(shares.contains { $0 > 0.2 && $0 < 0.8 }, "a crossfade, not a cut: \(shares)")
+        #expect(zip(shares, shares.dropFirst()).allSatisfy { $1 >= $0 - 0.05 }, "the new picture only comes in: \(shares)")
+        #expect((shares.last ?? 0) > 0.95)
+        #expect(shares.allSatisfy { $0 > -0.05 && $0 < 1.05 }, "never darker or lighter than either picture: \(shares)")
     }
 
     /// The list of AIs is laid out from its first frame as it settles: nothing found after it

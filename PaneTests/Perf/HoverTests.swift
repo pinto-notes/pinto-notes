@@ -23,7 +23,13 @@ import Testing
         let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1180, height: 760),
                          styleMask: [.borderless], backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
-        w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c))
+        // The window keeps its size: a hosting controller otherwise sizes it to the view's ideal
+        // size, which in the shipped look (no mark at the sidebar's top) came out a heading tall,
+        // and the list had no rows to hover.
+        let host = NSHostingController(rootView: RootView().modelContainer(c))
+        host.sizingOptions = []
+        w.contentViewController = host
+        w.setContentSize(CGSize(width: 1180, height: 760))
         w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
         defer { w.close() }
         func settle() async {
@@ -42,7 +48,7 @@ import Testing
         for _ in 0..<5 {
             for id in ["Folder 0", "Note 199", "All Notes", "Folder 1"] {
                 let start = clock.now
-                #expect(HoverProbe.hover(id, true), "\(id) is a hoverable row")
+                #expect(HoverProbe.hover(id, true), "\(id) is a hoverable row; registered: \(HoverProbe.ids)")
                 w.contentView?.layoutSubtreeIfNeeded()
                 w.displayIfNeeded()
                 times.append(clock.now - start)
