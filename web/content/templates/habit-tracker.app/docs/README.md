@@ -5,11 +5,12 @@ A daily habit tracker. You tick off each habit for today, or tell your AI what y
 
 ## Data
 How data.json is shaped (the person's AI reads and edits it directly):
-- collections.habits: [{ id, name, detail? }]: the habits, in the order they show. id is a short slug ("walk").
+- collections.habits: [{ id, name, detail?, order, removed? }]: the habits. They show by order (0 first). id is a short slug ("walk"). A habit removed in the app gets removed: true, so Undo (and its days) can bring it back.
 - collections.days: [{ id, date: "yyyy-mm-dd", done: [habit ids] }]: one record per day that has anything done. Leave a day out rather than writing an empty one; to untick, remove the id from done.
 
 ## Decisions
 - Today is one tap per habit, and the week is a grid of dots under it: no separate history screen.
+- The person manages habits in the app (add, rename, reorder, remove with Undo), not only through their AI.
 - A streak counts back from yesterday while today is still open, so it doesn't drop to 0 each morning.
 
 ## Known gaps

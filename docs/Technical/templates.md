@@ -44,6 +44,10 @@ for every save.
 - Pictures: PNG, the app at 1280 px wide (see_app's desktop size), light and dark, under 400 KB
   each. Both are required.
 
+A template's app follows the rule every app's README states: the person stays in control inside
+the app (they add, edit, rename, reorder and remove what it keeps, change its settings in the app,
+and can undo a delete), not only through their AI.
+
 The app's own tests run with the template's data.json loaded, the same as a save over the
 person's data, so write them to add what they need rather than assume an empty store.
 
