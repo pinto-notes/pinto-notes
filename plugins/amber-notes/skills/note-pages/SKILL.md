@@ -1,10 +1,10 @@
 ---
 name: note-pages
-description: Build, change, check and fill the apps in Amber Notes notes (a note's App side: habit trackers, budgets, reading or workout logs, CRMs, trip plans, flashcards, dashboards) through the amber-notes MCP server, and put data into them: rows, records, settings, files. Use when the person asks to make a note an app, change or fix a note's app, add or import data to it, or set up an API key for one.
+description: Build, change, check and fill the apps in Pinto Notes notes (a note's App side: habit trackers, budgets, reading or workout logs, CRMs, trip plans, flashcards, dashboards) through the amber-notes MCP server, and put data into them: rows, records, settings, files. Use when the person asks to make a note an app, change or fix a note's app, add or import data to it, or set up an API key for one.
 ---
 <!-- Generated from supabase/functions/mcp/page_guide.ts by scripts/page-evals/build-skill.ts. Don't edit. -->
 
-# Apps in Amber Notes notes
+# Apps in Pinto Notes notes
 
 Apps: a note in Pinto Notes can be an app (some tools call a one-file app a page).
 - Before making or changing an app, call get_page_guide once. It says where an app lives; how it looks and works is up to you.

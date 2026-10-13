@@ -106,7 +106,7 @@ export default function Page() {
 
       <h2>Connect it</h2>
       <ul>
-        <li>Claude: <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Amber Notes in Claude&apos;s connector directory</a>, then Connect to Claude.</li>
+        <li>Claude: <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a>, then Connect to Claude.</li>
         <li><a href="/blog/connect-chatgpt-to-your-notes">Connect ChatGPT or Claude to your notes</a>: add the address as a custom app in ChatGPT, or as a custom connector in an older Claude app.</li>
         <li><a href="/blog/notes-in-claude-code-and-codex">Use your notes from Claude Code and Codex</a>: one command, or a few lines of config.</li>
         <li><a href="#install">Gemini CLI, VS Code and Incredible</a>: the steps for each are above.</li>

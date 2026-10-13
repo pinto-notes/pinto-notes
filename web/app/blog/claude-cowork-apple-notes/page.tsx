@@ -95,7 +95,7 @@ export default function Page() {
         behaves like any other connector from Claude&apos;s directory:
       </p>
       <ol>
-        <li>Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Amber Notes in Claude&apos;s connector directory</a> and choose Connect to Claude. (No listing in your Claude? Go to Customize, Connectors, choose + and then Add custom connector, and paste <code>{MCP_URL}</code>.)</li>
+        <li>Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a> and choose Connect to Claude. (No listing in your Claude? Go to Customize, Connectors, choose + and then Add custom connector, and paste <code>{MCP_URL}</code>.)</li>
         <li>Sign in when asked, and approve Claude in Pinto Notes on your iPhone or Mac by typing the number the page shows. Pick Read Only or Read and Edit.</li>
         <li>In Cowork, turn the connector on from the + menu and ask away, from any device.</li>
       </ol>

@@ -76,17 +76,17 @@ button{font:inherit;border:0;border-radius:12px;padding:12px;cursor:pointer;widt
 async function connectPage(id: string): Promise<Response> {
   const r = await (await local(`/connect/request?id=${encodeURIComponent(id)}`, { headers: { authorization: session } })).json();
   if (r.error) return html(`${STYLE}<div class="card"><h1>Couldn't connect</h1><p>${esc(r.error)}</p></div>`);
-  return html(`<!doctype html><meta name="viewport" content="width=device-width"><title>Connect to Amber Notes</title>${STYLE}
+  return html(`<!doctype html><meta name="viewport" content="width=device-width"><title>Connect to Pinto Notes</title>${STYLE}
 <form class="card" method="post" action="/connect/answer">
   <div class="marks"><div class="tile">${r.loopback ? "&#x1F5A5;&#xFE0E;" : "&#x1F310;&#xFE0E;"}</div><span class="fine">&#x1F517;&#xFE0E;</span><div class="tile amber">A</div></div>
   <h1>Allow ${esc(r.verified_ai ?? (r.loopback ? "an app on this computer" : r.redirect_host))} to use your notes?</h1>
-  ${r.verified_ai ? "" : `<div class="warn">&#x26A0;&#xFE0E; Amber Notes doesn't recognize this app. Only allow it if you just started connecting it.${r.claimed_name ? ` It calls itself "${esc(r.claimed_name)}".` : ""}</div>`}
+  ${r.verified_ai ? "" : `<div class="warn">&#x26A0;&#xFE0E; Pinto Notes doesn't recognize this app. Only allow it if you just started connecting it.${r.claimed_name ? ` It calls itself "${esc(r.claimed_name)}".` : ""}</div>`}
   <input type="hidden" name="id" value="${esc(r.id)}">
   <button class="allow" name="allow" value="1" id="allow">Allow</button>
   <button class="deny" name="allow" value="0" id="deny">Don't Allow</button>
   <div class="seg"><label><input type="radio" name="write" value="1" ${r.wants_write ? "checked" : "disabled"}><span>Read and edit</span></label><label><input type="radio" name="write" value="0" ${r.wants_write ? "" : "checked"}><span>Read only</span></label></div>
   <div class="fine">Access goes to <b>${esc(r.redirect_host)}</b>. Locked notes stay private.</div>
-  <div class="stand">Local test stand-in for ambernotes.app/connect and the approval sheet in the Amber Notes app.</div>
+  <div class="stand">Local test stand-in for ambernotes.app/connect and the approval sheet in the Pinto Notes app.</div>
 </form>`);
 }
 
@@ -118,7 +118,7 @@ async function connections() {
   }));
 }
 
-Deno.serve({ port, hostname: "127.0.0.1", onListen: () => console.log(`local Amber Notes MCP server on ${base}/mcp (files tools, OAuth on)`) }, async (req) => {
+Deno.serve({ port, hostname: "127.0.0.1", onListen: () => console.log(`local Pinto Notes MCP server on ${base}/mcp (files tools, OAuth on)`) }, async (req) => {
   const url = new URL(req.url);
   if (url.pathname === "/__ready") return new Response("ok");
   if (url.pathname === "/auth/v1/user") return req.headers.get("authorization") === session ? Response.json({ id: a.id }) : Response.json({}, { status: 401 });

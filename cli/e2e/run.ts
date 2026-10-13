@@ -5,7 +5,7 @@
 //   deno task compile && deno run -A e2e/run.ts > e2e/transcript.txt
 //
 // The browser is e2e/approve.sh: it follows /authorize to the consent page and presses Allow, which
-// does what the Amber Notes app does on Allow. "Settings" is the app's Connect an AI list and its
+// does what the Pinto Notes app does on Allow. "Settings" is the app's Connect an AI list and its
 // Disconnect, through local_server.ts. Keychain items go under amber-cli-e2e and are removed after.
 import { parseArgs } from "@std/cli/parse-args";
 
@@ -55,7 +55,7 @@ secrets.push(paneToken);
 const settings = async () => (await (await fetch(`${origin}/__app/connections`)).json()) as { id: string; title: string; access: string; revoked: boolean }[];
 const showSettings = async () => {
   const list = (await settings()).filter((c) => !c.revoked);
-  say(`[Amber Notes › Settings › Connect an AI]\n${list.map((c) => `  ${c.title}  (${c.access})`).join("\n") || "  Nothing is connected yet."}`);
+  say(`[Pinto Notes › Settings › Connect an AI]\n${list.map((c) => `  ${c.title}  (${c.access})`).join("\n") || "  Nothing is connected yet."}`);
   return list;
 };
 const keychain = async () => (await new Deno.Command("/usr/bin/security", { args: ["find-generic-password", "-s", SERVICE, "-a", server], stdout: "piped", stderr: "null" }).output());
@@ -69,10 +69,10 @@ await amber("--version");
 const help = await amber("help");
 check(help.out.split("\n").length <= 25, `amber help fits on one screen (${help.out.split("\n").length} lines)`);
 
-step("Sign in: browser, approve in Amber Notes");
+step("Sign in: browser, approve in Pinto Notes");
 const before = (await settings()).length;
 const login = await amber("login", { show: "amber login        # the browser opens the consent page; Allow" });
-check(login.code === 0 && /Connected to Amber Notes \(read & edit\)/.test(login.out), "connected with read & edit");
+check(login.code === 0 && /Connected to Pinto Notes \(read & edit\)/.test(login.out), "connected with read & edit");
 const conns = await showSettings();
 const terminal = (await settings()).slice(before).find((c) => !c.revoked);
 check(terminal?.title === "An app on this computer", "Settings lists it as \"An app on this computer\", like any app signing in from this computer");
@@ -163,7 +163,7 @@ await amber("logout", { env: fileEnv, quiet: true });
 
 step("Disconnect it in the app: the terminal is turned away");
 await showSettings();
-say(`[Amber Notes › Settings › Connect an AI] Disconnect "An app on this computer"`);
+say(`[Pinto Notes › Settings › Connect an AI] Disconnect "An app on this computer"`);
 await fetch(`${origin}/__app/revoke`, { method: "POST", body: JSON.stringify({ id: terminal!.id }) });
 const gone = await amber("list");
 check(gone.code === 1 && /amber login/.test(gone.err), "the next command fails and says to run amber login");
@@ -171,7 +171,7 @@ await showSettings();
 
 step("Don't Allow");
 const denied = await amber("login", { env: { APPROVE: "0" }, show: "amber login        # this time: Don't Allow" });
-check(denied.code === 1 && /Declined in Amber Notes/.test(denied.err), "declining connects nothing");
+check(denied.code === 1 && /Declined in Pinto Notes/.test(denied.err), "declining connects nothing");
 
 step("A server without a browser: amber login --no-browser");
 say("$ amber login --no-browser");
@@ -197,7 +197,7 @@ await nb.status;
 const nbOut = await outText;
 await rest;
 say(clean(errText.join("") + landed.replace(/code=[^&]+/, "code=…") + "\n" + nbOut).trimEnd());
-check(/Connected to Amber Notes/.test(nbOut), "pasting the address the browser landed on connects");
+check(/Connected to Pinto Notes/.test(nbOut), "pasting the address the browser landed on connects");
 const ok = await amber("search 'Lisbon'");
 check(/Travel\/Trip.md/.test(ok.out), "and amber works");
 

@@ -690,7 +690,7 @@ async function bell(name) {
     return;
   }
   const time = S.get().time || "20:30";
-  const r = await amber.device.reminders.create({ title: name, notes: "A daily habit, from Habits in Amber Notes.", due: time, repeat: "daily" });
+  const r = await amber.device.reminders.create({ title: name, notes: "A daily habit, from Habits in Pinto Notes.", due: time, repeat: "daily" });
   if (!r.ok) { errors[name] = r.error; render(); return; }
   await amber.setData({ values: { habits: { [name]: { bell: true, reminder: r.id } } } });
   flash(`${name}: a daily reminder at ${time} is in Reminders.`);

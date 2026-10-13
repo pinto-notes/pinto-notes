@@ -84,7 +84,7 @@ export async function loadCredentials(server: string): Promise<Credentials | nul
 export async function saveCredentials(server: string, c: Credentials): Promise<void> {
   if (useKeychain()) {
     // base64 keeps the value free of quotes and spaces; stdin keeps it out of `ps`.
-    const r = await security(`add-generic-password -U -s ${SERVICE} -a "${account(server)}" -l "Amber Notes (amber CLI)" -w ${b64(JSON.stringify(c))}\n`, "-i");
+    const r = await security(`add-generic-password -U -s ${SERVICE} -a "${account(server)}" -l "Pinto Notes (amber CLI)" -w ${b64(JSON.stringify(c))}\n`, "-i");
     if (!r.ok) throw new Error("Couldn't save to the macOS Keychain.");
     return;
   }

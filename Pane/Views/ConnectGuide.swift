@@ -79,14 +79,14 @@ struct WebConnectPlan: Equatable {
         ai: "Claude",
         prefills: true,
         steps: [
-            "Claude opens Amber Notes in its connector directory. Choose Connect to Claude.",
+            "Claude opens Pinto Notes in its connector directory. Choose Connect to Claude.",
             allowStep,
         ],
-        plans: "Amber Notes is in Claude's connector directory. On Team and Enterprise, an Owner may need to allow it first.",
+        plans: "Pinto Notes is in Claude's connector directory. On Team and Enterprise, an Owner may need to allow it first.",
         testPrompt: testPrompt,
         testPage: prefilled("https://claude.ai/new", testPrompt),
         page: { _ in directoryListing },
-        fallback: (line: "Using an older Claude app, or it doesn't show Amber Notes? Add it as a custom connector instead. That works on every plan; Free includes one.",
+        fallback: (line: "Using an older Claude app, or it doesn't show Pinto Notes? Add it as a custom connector instead. That works on every plan; Free includes one.",
                    button: "Add as Custom Connector",
                    page: installLink))
 
@@ -427,7 +427,7 @@ enum IncredibleConnect {
 
     /// Amber Notes as one of Incredible's apps (Incredible's built-in, found by search).
     static let steps = [
-        "Open Apps and search for Pinto Notes (older versions of Incredible list it as Amber Notes).",
+        "Open Apps and search for notes, then choose the notes app with the orange leaf.",
         "Choose Connect. Your browser opens Pinto Notes.",
         allowStep,
         "Back in Incredible, choose Let's go.",
