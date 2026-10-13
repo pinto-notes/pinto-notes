@@ -69,3 +69,9 @@
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; }
 }
+
+/* The tick: a small spring and a ring that fades out, once, when a habit is done. */
+@keyframes tick-pop { 0% { transform: scale(0.72); } 55% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes tick-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--amber-accent) 50%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.tick-pop { animation: tick-pop 320ms cubic-bezier(0.3, 1.4, 0.5, 1), tick-ring 600ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .tick-pop { animation: none; } }
