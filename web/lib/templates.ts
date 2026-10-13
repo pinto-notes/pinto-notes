@@ -39,8 +39,10 @@ export type Template = {
   tagline: string;
   /// The search title, when "<title> template for ChatGPT and Claude" isn't the best one.
   seoTitle?: string;
-  /// The note holds an app (a habit tracker you tick, a budget that adds up). Set once app notes
-  /// ship; the gallery then offers an Apps filter (?category=apps), which the onboarding emails link to.
+  /// The note holds an app (a habit tracker you tick, a budget that adds up): its project is the
+  /// folder content/templates/<slug>.app/ (docs/Technical/templates.md), compiled for the site into
+  /// public/templates/apps/ by scripts/template-apps.ts. The gallery offers an Apps filter
+  /// (?category=apps), which the onboarding emails link to.
   app?: boolean;
   /// The folder the app suggests for it.
   folder: string;
@@ -106,9 +108,20 @@ export const appLink = (slug: string) => appURL(`template/${slug}`);
 
 export const noteTitle = (t: Template) => t.note.split("\n")[0];
 
+/// What an app template's site serves (scripts/template-apps.ts writes them): the project as the
+/// server stores it, its starting data, and pictures of it in light and dark.
+export const appFiles = (slug: string) => ({
+  project: `/templates/apps/${slug}.project.json`,
+  data: `/templates/apps/${slug}.data.json`,
+  light: `/templates/apps/${slug}-light.png`,
+  dark: `/templates/apps/${slug}-dark.png`,
+});
+
 /// The prompt's first step: the AI makes the note itself (create, which every installed app's
-/// MCP server has), so a template works without the app opening any link.
+/// MCP server has), so a template works without the app opening any link. An app template's note
+/// comes with its app and data: create fetches them from the site by the template's name.
 export function createStep(t: Template): string {
+  if (t.app) return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create { type: "app", path: "${t.folder}/${noteTitle(t)}.md", template: "${t.slug}" }: that adds the note with its app and the app's starting data.`;
   return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create at "${t.folder}/${noteTitle(t)}.md", using exactly the markdown at the end of this message, the <!-- pane-table --> line included (it gives the table's columns their types).`;
 }
 
@@ -118,7 +131,7 @@ export const fencedNote = (t: Template) => "```markdown\n" + t.note.replace(/\n$
 /// What to tell each AI, resolved: the create step, the client's own text (or the shared one), then
 /// the note's markdown.
 export function instructions(t: Template): { client: ClientId; name: string; prompt: string }[] {
-  return CLIENTS.map((c) => ({ client: c.id, name: c.name, prompt: `${createStep(t)}\n\nThen: ${t.prompt[c.key] ?? t.prompt.default}\n\n${fencedNote(t)}` }));
+  return CLIENTS.map((c) => ({ client: c.id, name: c.name, prompt: `${createStep(t)}\n\nThen: ${t.prompt[c.key] ?? t.prompt.default}${t.app ? "" : `\n\n${fencedNote(t)}`}` }));
 }
 
 /// The markdown inside a prompt's fence, as create would get it.
@@ -143,6 +156,9 @@ export function publicTemplate(t: Template) {
     url: `${SITE_URL}${templatePath(t.slug)}`,
     // The first thing to ask your AI, shown when the note first opens in the app.
     ask: t.asks[0],
+    // An app template: its project and data (the app adds both), and its pictures. Builds from
+    // before data read app and preview only.
+    ...(t.app ? (({ project, data, light, dark }) => ({ app: project, data, preview: light, previewDark: dark }))(appFiles(t.slug)) : {}),
   };
 }
 

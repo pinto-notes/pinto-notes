@@ -188,6 +188,71 @@ private final class NoteSourceFixtureToken {}
         #expect(StubSite.requests(host).count == 1)
     }
 
+    // MARK: Templates with apps (docs/Technical/templates.md)
+
+    /// The site's /templates/<slug>.json for an app template, and the files it names.
+    private func appSite(_ host: String, data: String = #"{"values":{"settings":{"goal":8}},"collections":{"habits":[{"id":"walk","name":"Walk"}]}}"#) -> WebNoteSource {
+        let json = habitJSON.replacingOccurrences(of: #""folder": "Habits","#, with: #""folder": "Habits", "app": "/templates/apps/habit-tracker.project.json", "data": "/templates/apps/habit-tracker.data.json", "preview": "/templates/apps/habit-tracker-light.png", "previewDark": "/templates/apps/habit-tracker-dark.png","#)
+        return source(host) { req in
+            switch req.url?.path {
+            case "/templates/habit-tracker.json": (200, Data(json.utf8))
+            case "/templates/apps/habit-tracker.project.json": (200, Data(Self.appProject.utf8))
+            case "/templates/apps/habit-tracker.data.json": (200, Data(data.utf8))
+            case "/templates/apps/habit-tracker-light.png": (200, Data("light".utf8))
+            case "/templates/apps/habit-tracker-dark.png": (200, Data("dark".utf8))
+            default: (404, Data())
+            }
+        }
+    }
+    nonisolated static let appProject = #"{"amberApp":1,"compiled":{"/src/main.tsx":"document.body.textContent = 'Habits'"},"files":{"/index.html":"<!doctype html><html lang=\"en\"><body><script type=\"module\" src=\"/src/main.tsx\"></script></body></html>","/src/main.tsx":"document.body.textContent = 'Habits'"}}"#
+
+    @Test func fetchesAnAppTemplateWithItsDataAndPictures() async throws {
+        let draft = try await appSite("ta1.stub.test").draft(for: NoteSourceLink(kind: .template, slug: "habit-tracker"))
+        #expect(draft.appProject == Self.appProject)
+        #expect(NotePageData.decode(draft.appData)["values"] as? [String: [String: Int]] == ["settings": ["goal": 8]])
+        #expect(draft.preview == Data("light".utf8) && draft.previewDark == Data("dark".utf8))
+        #expect(StubSite.requests("ta1.stub.test").count == 5)
+    }
+
+    @Test func anAppTemplateWhoseDataDoesNotReadIsUnavailable() async {
+        let s = appSite("ta2.stub.test", data: "[1, 2]")
+        await #expect(throws: NoteSourceError.unavailable) { try await s.draft(for: NoteSourceLink(kind: .template, slug: "habit-tracker")) }
+    }
+
+    @Test func anAppTemplateFollowsOnlyPathsOnTheSite() async throws {
+        let json = habitJSON.replacingOccurrences(of: #""folder": "Habits","#, with: #""folder": "Habits", "app": "//evil.example/x.json", "data": "https://evil.example/d.json","#)
+        let s = source("ta3.stub.test") { _ in (200, Data(json.utf8)) }
+        let draft = try await s.draft(for: NoteSourceLink(kind: .template, slug: "habit-tracker"))
+        #expect(draft.appProject == nil && draft.appData == nil)
+        #expect(StubSite.requests("ta3.stub.test").count == 1)
+    }
+
+    /// Use template on an app template: the note, its app and the app's data, all to be pushed.
+    @Test func usingAnAppTemplateAddsTheNoteWithItsAppAndData() async throws {
+        let ctx = try context()
+        let model = NoteSourceModel(link: NoteSourceLink(kind: .template, slug: "habit-tracker"), source: appSite("ta4.stub.test"), ledger: NoteSourceLedger(defaults: defaults(), account: UUID()))
+        await model.load(context: ctx)
+        model.add(context: ctx)
+        guard case .added(_, let id, _) = model.phase, let note = ctx.note(id) else { Issue.record("not added"); return }
+        #expect(note.title == "Habit tracker" && note.dirty)
+        #expect(NotePageStore.shared[id]?.html == Self.appProject)
+        #expect(NotePageStore.shared.unpushed[id] != nil, "the app syncs")
+        let data = NotePageDataStore.shared.doc(id)
+        #expect((data["collections"] as? [String: [[String: String]]])?["habits"]?.first?["name"] == "Walk")
+        #expect(NotePageDataStore.shared.dirty.contains(id), "the data syncs")
+    }
+
+    /// A template without an app adds its note and nothing else.
+    @Test func usingANoteTemplateAddsNoAppOrData() async throws {
+        let ctx = try context()
+        let model = NoteSourceModel(link: NoteSourceLink(kind: .template, slug: "habit-tracker"), source: source("ta5.stub.test") { _ in (200, Data(habitJSON.utf8)) }, ledger: NoteSourceLedger(defaults: defaults(), account: UUID()))
+        await model.load(context: ctx)
+        model.add(context: ctx)
+        guard case .added(_, let id, _) = model.phase else { Issue.record("not added"); return }
+        #expect(NotePageStore.shared[id] == nil && !NotePageDataStore.shared.dirty.contains(id))
+        #expect(StubSite.requests("ta5.stub.test").count == 1)
+    }
+
     @Test func unknownTemplateIsNotFound() async {
         let s = source("t2.stub.test") { _ in (404, Data("{}".utf8)) }
         await #expect(throws: NoteSourceError.notFound(.template)) { try await s.draft(for: NoteSourceLink(kind: .template, slug: "nope")) }

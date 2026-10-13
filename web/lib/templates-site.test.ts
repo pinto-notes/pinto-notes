@@ -89,8 +89,9 @@ describe("the gallery", () => {
   it("shows each category chip with its templates' colours, and no trial switches", () => {
     const html = gallery();
     const chips = html.slice(html.indexOf('aria-label="Category"'), html.indexOf("templates</p>"));
-    // Three dots per category chip, in its templates' cover colours; none on "All".
-    expect(chips.match(/<i style="background:#[0-9a-f]{6}"/g)).toHaveLength(12);
+    // Three dots per category chip, in its templates' cover colours (up to three on Apps); none on "All".
+    const apps = templates().filter((t) => t.app).length;
+    expect(chips.match(/<i style="background:#[0-9a-f]{6}"/g)).toHaveLength(12 + Math.min(3, apps));
     expect(html).not.toContain("data-top");
   });
 

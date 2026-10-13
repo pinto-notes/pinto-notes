@@ -13,9 +13,10 @@ import { scaffold } from "./app_scaffold.ts";
 import { fileList, projectOf, saveProject, withFile, withFiles } from "./app_files.ts";
 import { pageDataOf, storePageData } from "./data_tools.ts";
 import { dataShape } from "./data_ops.ts";
+import { fetchTemplateApp, type TemplateApp } from "./template_apps.ts";
 import { appHandlers, realPreviewsServed } from "./app_tools.ts";
 import { FILE_APP_INSTRUCTIONS } from "./page_guide.ts";
-import type { PageData } from "./page.ts";
+import { pageDataProblems, type PageData } from "./page.ts";
 import {
   bodyOf, Content, descendants, findFolder, handlers as classic, iso, LOCKED, MAX_READ_CHARS,
   type Note, type NoteRow, quote, refuseLocked, runIn, save, Scan, type Tool, type ToolContext, ToolError, type Tx, type Call, UUID,
@@ -77,13 +78,14 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "create", title: "Create",
-    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
         type: { type: "string", enum: ["note", "folder", "app"], description: "Default note." },
         path: str("Where: \"Work/Acme.md\", \"Work/Clients/\", or the app's note."),
         content: str("A note's markdown."),
+        template: str("An app: start from this template's app, data and note (its name, as in pintonotes.com/templates/habit-tracker)."),
         pinned: { type: "boolean" },
       },
       required: ["path"],
@@ -460,6 +462,25 @@ async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData
   return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it." };
 }
 
+/** create { type: "app", template }: the template's note, then its app through the same gate as any
+ *  save (compiled here, its tests and the smoke check run) and its data (docs/Technical/templates.md). */
+async function appFromTemplate(tx: Tx, c: Call, path: string, slug: string, a: Args) {
+  let t: TemplateApp;
+  try { t = await fetchTemplateApp(slug); } catch (e) { throw new ToolError((e as Error).message); }
+  const at = path.replace(/\.app\/?$/i, "").replace(/\.md$/i, "") + ".md";
+  const made = await newNote(tx, c, at, t.note);
+  const n = (await pathsOf(tx, c)).noteAt(made.path)!;
+  const problems = pageDataProblems(t.data);
+  if (problems.length) throw new ToolError(`The template's data didn't read:\n- ${problems.join("\n- ")}`);
+  await storePageData(tx, c, n.id, t.data);
+  const proj = await withFiles({ amberApp: 1, files: {}, compiled: {} }, t.files);
+  const result = await saveProject(tx, c, await full(tx, c, n.id), proj, `the ${slug} template's app`, a) as Record<string, unknown>;
+  const base = (await pathsOf(tx, c, true)).pathOf(n.id)!.replace(/\.md$/, ".app");
+  for (const [f, text] of Object.entries(proj.files)) await markRead(tx, c, fileItem(n.id, f), await hash(c, text));
+  const { app: _, ...rest } = result;
+  return { ...rest, created: made.path, app: `${base}/`, next: `Read ${base}/README.md and ${base}/data.json before changing the app or its data.` };
+}
+
 /** Where a new note goes: a folder (made if needed), or under a note when the place is that note's folder. */
 async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folder: string | null; parent?: Note }> {
   if (!dir) return { folder: null };
@@ -800,6 +821,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const f = await findFolder(tx, c.v, path.replace(/\/+$/, ""), true);
       return { created: (await pathsOf(tx, c, true)).folderPathOf(f.id) };
     }
+    if (type === "app" && a.template !== undefined) return await appFromTemplate(tx, c, path, String(a.template), a);
     if (type === "app") {
       let n: Note;
       try {
