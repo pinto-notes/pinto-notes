@@ -133,6 +133,9 @@ struct FileRow: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    /// Whether the row has its third line, the file's folder.
+    private var folderLine: Bool { showFolder && file.folderID.flatMap { context.folder($0) } != nil }
+
     var body: some View {
         let large = typeSize.isAccessibilitySize
         let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 8))
@@ -159,7 +162,7 @@ struct FileRow: View {
                     }
                 }
                 .font(RowMetrics.detail)
-                if showFolder, let id = file.folderID, let f = context.folder(id) {
+                if folderLine, let id = file.folderID, let f = context.folder(id) {
                     HStack(spacing: 5) {
                         Image(systemName: "folder")
                         Text(f.name)
@@ -171,7 +174,8 @@ struct FileRow: View {
             Spacer(minLength: 0)
             FileThumbnail(file: file, side: RowMetrics.thumbnail)
         }
-        .padding(.vertical, RowMetrics.vertical)
+        .padding(.top, RowMetrics.top(folderLine: folderLine))
+        .padding(.bottom, RowMetrics.bottom(folderLine: folderLine))
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(file.filename)

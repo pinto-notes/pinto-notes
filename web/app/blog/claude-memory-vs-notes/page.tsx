@@ -94,10 +94,10 @@ export default function Page() {
 
       <h2 id="connect">Connect Claude to your notes</h2>
       <p>
-        Claude reaches a notes app through a connector, which is an MCP server. Amber Notes is in Claude&apos;s connector directory:
+        Claude reaches a notes app through a connector, which is an MCP server. Pinto Notes is in Claude&apos;s connector directory:
       </p>
       <Steps>
-        <li>Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">the Amber Notes listing</a> on claude.ai or in the Claude desktop app, and choose Connect to Claude.</li>
+        <li>Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">the Pinto Notes listing</a> on claude.ai or in the Claude desktop app, and choose Connect to Claude.</li>
         <li>Sign in to Pinto Notes on the page that opens.</li>
         <li>Pinto Notes on your iPhone or Mac asks whether to allow Claude. Pick Read and Edit or Read Only, and choose Allow.</li>
       </Steps>

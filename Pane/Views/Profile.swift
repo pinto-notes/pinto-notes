@@ -25,6 +25,10 @@ final class ProfileStore {
     private(set) var problem: String?
 
     @ObservationIgnored private var user: UUID?
+    /// A name set before the account was known here (the first run resumed at its name step after
+    /// a relaunch): kept until `bind`, then written to that account. Without this it was stored
+    /// under no account and removed by the next bind (newcomer audit #5).
+    @ObservationIgnored private var unboundName: String??
     /// Screenshots and previews: a fixed profile, never touched by bind().
     @ObservationIgnored private var previewing = false
     @ObservationIgnored private var client: SupabaseClient?
@@ -60,6 +64,10 @@ final class ProfileStore {
             signInPhoto = defaults.string(forKey: key("signInPhoto")) == nil ? nil : (try? Data(contentsOf: file("signin.jpg"))).flatMap(PImage.init(data:))
         }
         self.client = client
+        if let waiting = unboundName {
+            unboundName = nil
+            await setName(waiting ?? "")
+        }
         await flush()
         await loadSignInPhoto(backend.signInPicture, for: id)
         guard await refresh() else { return }
@@ -91,6 +99,28 @@ final class ProfileStore {
 
     nonisolated static func suggestionKey(_ account: UUID) -> String { "profile.suggestedName.\(account.uuidString.lowercased())" }
 
+    /// The last name any account had on this device. Not under "profile.", so it outlives the
+    /// account (`forgetOthers`): a new account here, after a deleted one, starts with it.
+    nonisolated static let lastNameKey = "device.lastProfileName"
+
+    /// A new account's name before the first-run flow begins: its profile's own, else the one its
+    /// sign-in handed over (Apple gives it only at an app's very first authorisation), else the
+    /// last one on this device, written to the profile. nil: nobody knows it, so the flow asks.
+    func settleNewAccountName(_ backend: Backend) async -> String? {
+        await bind(backend)
+        guard !previewing, let user else { return name }
+        // bind() uses up the suggestion only once the server has answered; offline it is still here.
+        let known = Self.knownName(profile: name, suggested: Self.takeSuggestion(for: user, defaults: defaults),
+                                   lastOnDevice: defaults.string(forKey: Self.lastNameKey))
+        if let known, known != name { await setName(known) }
+        return name
+    }
+
+    /// The first of: the profile's name, the sign-in's, the last one on this device.
+    nonisolated static func knownName(profile: String?, suggested: String?, lastOnDevice: String?) -> String? {
+        [profile, suggested, lastOnDevice].lazy.compactMap { $0.flatMap(ProfileName.normalized) }.first
+    }
+
     /// For screenshots and previews only.
     func showForPreview(name: String?, photo: PImage?) {
         previewing = true
@@ -102,6 +132,7 @@ final class ProfileStore {
     /// Signed out: nothing of the last account stays on screen.
     func reset() {
         user = nil
+        unboundName = nil
         client = nil
         name = nil
         photo = nil
@@ -134,9 +165,14 @@ final class ProfileStore {
 
     func setName(_ raw: String) async {
         let clean = ProfileName.normalized(raw)
+        guard user != nil else {
+            if !previewing { name = clean; unboundName = .some(clean) }
+            return
+        }
         guard clean != name else { return }
         name = clean
         store("name", clean)
+        if let clean { defaults.set(clean, forKey: Self.lastNameKey) }
         var p = pending
         p.name = clean ?? ""
         pending = p
@@ -195,6 +231,7 @@ final class ProfileStore {
             let row = rows.first
             name = row?.display_name
             store("name", row?.display_name)
+            if let shown = row?.display_name { defaults.set(shown, forKey: Self.lastNameKey) }
             let current = defaults.string(forKey: key("avatar"))
             if row?.avatar_path != current {
                 if let path = row?.avatar_path, let url = Self.avatarURL(path) {

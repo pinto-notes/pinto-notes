@@ -233,9 +233,10 @@ enum SidebarCardMetrics {
     static let padding: CGFloat = 10
     static let radius: CGFloat = 8
     static let buttonHeight: CGFloat = 20
-    static let closeSize: CGFloat = 20
-    static let closeGlyph: CGFloat = 8
-    static let closeInset: CGFloat = 4
+    /// The X: a 24-point target, its glyph a little larger than the words' size (2026-10-12).
+    static let closeSize: CGFloat = 24
+    static let closeGlyph: CGFloat = 10.5
+    static let closeInset: CGFloat = 3
     static let thumb: CGFloat = 36
     static let stackedThumb: CGFloat = 28
     /// Wide enough for the pictures beside the words.
@@ -250,7 +251,7 @@ enum SidebarCardMetrics {
     static let radius: CGFloat = 14
     static let buttonHeight: CGFloat = 36
     static let closeSize: CGFloat = 44
-    static let closeGlyph: CGFloat = 11
+    static let closeGlyph: CGFloat = 14
     static let closeInset: CGFloat = 0
     static let thumb: CGFloat = 54
     static let stackedThumb: CGFloat = 40

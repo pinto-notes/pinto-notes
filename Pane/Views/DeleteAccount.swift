@@ -55,6 +55,8 @@ struct DeleteAccountButton: View {
             PushRegistration.shared.accountDeleted()
             // Reports that were waiting to be sent under the account's identifier are dropped.
             Telemetry.shared.accountDeleted()
+            // The welcome that follows says the account is deleted.
+            WelcomeFlow.Farewell.accountDeleted()
             await backend.signOut()
             dismiss()
         } catch FunctionsError.httpError(_, let data) where Backend.deletePausedMessage(data) != nil {
@@ -147,6 +149,9 @@ struct ExportNotesButton: View {
             }
             made = nil
         }
+        // The panel moves the finished zip where you choose, and its button said "Move": it sounded
+        // like the notes would leave the app (newcomer audit, 2026-10-12).
+        .fileDialogConfirmationLabel("Export")
         // Said so it can't be missed: an export that isn't whole.
         .alert(leftOut?.title ?? "", isPresented: Binding(get: { leftOut != nil }, set: { if !$0 { leftOut = nil } })) {
             Button("OK", role: .cancel) {}

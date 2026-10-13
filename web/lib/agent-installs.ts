@@ -49,7 +49,7 @@ claude plugin install amber-notes`,
   {
     // Pinto Notes is one of Incredible's apps from the release that ships it (slug amber_notes).
     tool: "Incredible",
-    steps: ["Open Apps and search for Amber Notes.", "Choose Connect, then Allow in Pinto Notes.", "Back in Incredible, choose Let's go."],
+    steps: ["Open Apps and search for notes.", "Choose Connect, then Allow in Pinto Notes.", "Back in Incredible, choose Let's go."],
     signIn: `Pinto Notes shows it as an app on this computer that calls itself "incredible". Allow it only if you just chose Connect. On an older version of Incredible, choose Add it here at the bottom of Apps (or Add another MCP server), paste ${MCP_URL}, then Continue and Sign in, and Add server after you allow it.`,
   },
 ];

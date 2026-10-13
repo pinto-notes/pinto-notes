@@ -1,9 +1,10 @@
 import Supabase
 import SwiftUI
 
-/// The first-run flow (see `Onboarding`): a welcome, your name, bring your notes, connect your
-/// AI, and, once an AI is connected, the prompt to try. It has the whole window: on the Mac the
-/// welcome's card with its picture, on iPhone and iPad the picture on top, as the sign-in before it.
+/// The first-run flow (see `Onboarding`): your name (unless it is known), bring your notes,
+/// connect your AI, and, once an AI is connected, the prompt to try. It has the whole window: on
+/// the Mac the welcome's card with its picture, on iPhone and iPad the picture on top, as the
+/// sign-in before it. The picture keeps one size and crop through every step.
 struct OnboardingFlow: View {
     /// Captures: fixed values in place of the account's.
     struct Preview {
@@ -41,6 +42,8 @@ struct OnboardingFlow: View {
     /// What was connected when the connect step first asked; something new after that moves on.
     @State private var connectSeen: Set<String>?
     @State private var brought = 0
+    /// An import brought notes: the flow moves on when its sheet closes (`importClosed`).
+    @State private var moveOnAfterImport = false
     @State private var copied = false
     // The Try it step: the trial note, what it held when the step began, and how far along it is.
     @State private var tryNote: UUID?
@@ -56,7 +59,7 @@ struct OnboardingFlow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
 
-    private var step: Onboarding.Step { store.step ?? .welcome }
+    private var step: Onboarding.Step { store.step ?? store.first }
 
     private var connected: Bool {
         if let preview { return !preview.connected.isEmpty }
@@ -71,19 +74,28 @@ struct OnboardingFlow: View {
             .task { await loadAccount() }
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
-            .onChange(of: step, initial: true) { _, now in
-                #if os(macOS)
-                if now == .name { nameFocused = true }
-                #endif
+            // The cursor in the name field as the step opens, so typing goes there. A moment after
+            // it appears: focus set in the same update as the field is lost.
+            .task(id: step) {
+                guard step == .name else { return }
+                try? await Task.sleep(for: .milliseconds(120))
+                if !Task.isCancelled, step == .name { nameFocused = true }
+            }
+            // The name is kept as it is typed (a pause of half a second), not only on Continue:
+            // quitting at this step keeps it.
+            .task(id: name) {
+                guard step == .name, nameEdited, preview == nil else { return }
+                try? await Task.sleep(for: .milliseconds(500))
+                if !Task.isCancelled { await profile.setName(name) }
             }
             #if os(macOS)
-            .sheet(isPresented: $importingAppleNotes) {
+            .sheet(isPresented: $importingAppleNotes, onDismiss: importClosed) {
                 AppleNotesImportView(onImported: { ids in notesBrought(ids.count) })
             }
             #else
             .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
             #endif
-            .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
+            .sheet(item: $importing, onDismiss: { EvernoteInbox.clear(); importClosed() }) { kind in
                 ImportSheet(kind) { ids in notesBrought(ids.count) }
             }
             .connectGuides(client: backend.client)
@@ -102,7 +114,7 @@ struct OnboardingFlow: View {
         #else
         ScrollView {
             VStack(spacing: 0) {
-                phoneArt(share: artShare)
+                phoneArt
                 VStack(alignment: .leading, spacing: Metrics.gap) {
                     progress
                     heading
@@ -146,11 +158,10 @@ struct OnboardingFlow: View {
             }
             .frame(height: 24)
             VStack(alignment: .leading, spacing: Metrics.gap) {
-                if step == .welcome { AppMark(size: 56).padding(.bottom, 8) }
                 heading
                 middle
             }
-            .padding(.top, step == .welcome ? 72 : 28)
+            .padding(.top, 28)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .id(step)
             .transition(stepTransition)
@@ -161,7 +172,7 @@ struct OnboardingFlow: View {
     }
 
     @ViewBuilder private var back: some View {
-        if Onboarding.previous(before: step) != nil {
+        if Onboarding.previous(before: step, first: store.first) != nil {
             Button(action: goBack) {
                 Label("Back", systemImage: "chevron.left")
                     .frame(minHeight: 24)
@@ -175,26 +186,19 @@ struct OnboardingFlow: View {
         }
     }
     #else
-    /// Less of the picture as the steps need more room, and at the largest text sizes.
-    private var artShare: CGFloat {
-        if typeSize.isAccessibilitySize { return step == .welcome ? 0.3 : 0.16 }
-        switch step {
-        case .welcome: return 0.5
-        case .name, .tryIt: return 0.24
-        case .bring, .connect: return 0.16
-        }
-    }
+    /// The picture's part of the screen: one size for every step, so it never jumps between
+    /// them. Less of it at the largest text sizes, where the words need the room.
+    static func artShare(accessibilitySize: Bool) -> CGFloat { accessibilitySize ? 0.12 : 0.2 }
 
-    private func phoneArt(share: CGFloat) -> some View {
+    private var phoneArt: some View {
         Color.clear
-            .containerRelativeFrame(.vertical) { height, _ in height * share }
+            .containerRelativeFrame(.vertical) { height, _ in height * Self.artShare(accessibilitySize: typeSize.isAccessibilitySize) }
             .overlay { WelcomeFlow.picture }
             .clipped()
-            .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: share)
     }
 
     @ViewBuilder private var phoneBack: some View {
-        if Onboarding.previous(before: step) != nil {
+        if Onboarding.previous(before: step, first: store.first) != nil {
             Button(action: goBack) {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
@@ -220,24 +224,31 @@ struct OnboardingFlow: View {
 
     // MARK: Progress
 
-    /// Three short segments (your name, your notes, your AI): amber for the one you're on and
-    /// the ones behind you. The welcome, before them, shows none.
-    @ViewBuilder private var progress: some View {
-        let steps = Onboarding.Step.counted
-        if step != .welcome {
-            let done = step == .tryIt ? steps.count : (steps.firstIndex(of: step) ?? 0) + 1
-            HStack(spacing: 4) {
-                ForEach(steps.indices, id: \.self) { i in
-                    Capsule()
-                        .fill(i < done ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.secondary))
-                        .frame(height: 4)
-                }
+    /// Short segments (your name, your notes, your AI; two when the name was known): amber for
+    /// the ones behind you, a light amber for the one you're on (`Onboarding.segments`).
+    private var progress: some View {
+        let segments = Onboarding.segments(on: step, first: store.first)
+        let steps = Onboarding.Step.counted(from: store.first)
+        let done = step == .tryIt ? steps.count : (steps.firstIndex(of: step) ?? 0) + 1
+        return HStack(spacing: 4) {
+            ForEach(segments.indices, id: \.self) { i in
+                Capsule()
+                    .fill(Self.segmentFill(segments[i]))
+                    .frame(height: 4)
             }
-            #if os(iOS)
-            .frame(width: 96)
-            #endif
-            .accessibilityElement()
-            .accessibilityLabel("Step \(min(done, steps.count)) of \(steps.count)")
+        }
+        #if os(iOS)
+        .frame(width: 96)
+        #endif
+        .accessibilityElement()
+        .accessibilityLabel("Step \(min(done, steps.count)) of \(steps.count)")
+    }
+
+    private static func segmentFill(_ segment: Onboarding.Segment) -> AnyShapeStyle {
+        switch segment {
+        case .done: AnyShapeStyle(.tint)
+        case .current: AnyShapeStyle(.tint.opacity(0.4))
+        case .ahead: AnyShapeStyle(.fill.secondary)
         }
     }
 
@@ -245,7 +256,6 @@ struct OnboardingFlow: View {
 
     static func title(_ step: Onboarding.Step) -> String {
         switch step {
-        case .welcome: "Welcome to Pinto Notes"
         case .name: "What should we call you?"
         case .bring: "Bring your notes"
         case .connect: "Connect your AI"
@@ -255,7 +265,6 @@ struct OnboardingFlow: View {
 
     static func line(_ step: Onboarding.Step) -> String {
         switch step {
-        case .welcome: "Your notes, in an app your AI can read and write when you ask it to."
         case .name: "Your name shows on your account and on notes you share."
         case .bring: "Choose where they are now. Nothing changes there."
         case .connect: ConnectChoices.why
@@ -263,17 +272,14 @@ struct OnboardingFlow: View {
         }
     }
 
-    /// Under the empty name field: allowed, and what it means.
-    static let noNameNote = "You can leave this empty. Your account then shows your email address."
-
     static let skipBring = "Skip, I\u{2019}ll start empty"
     static let skipConnect = "Skip for now"
 
     private var heading: some View {
         VStack(alignment: .leading, spacing: Metrics.headingGap) {
             Text(Self.title(step))
-                .font(step == .welcome ? WelcomeFlow.titleFont : Metrics.title)
-                .tracking(step == .welcome ? -0.8 : -0.4)
+                .font(Metrics.title)
+                .tracking(-0.4)
                 .foregroundStyle(Color.ink)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("onboarding.title")
@@ -290,9 +296,8 @@ struct OnboardingFlow: View {
 
     @ViewBuilder private var middle: some View {
         switch step {
-        case .welcome: EmptyView()
         case .name: nameField
-        case .bring: choices(sources)
+        case .bring: bring
         case .connect: connect
         case .tryIt: tryIt
         }
@@ -300,38 +305,30 @@ struct OnboardingFlow: View {
 
     private var nameField: some View {
         let shape = RoundedRectangle(cornerRadius: SignInView.Row.radius, style: .continuous)
-        return VStack(alignment: .leading, spacing: 8) {
-            TextField("Your name", text: Binding(get: { name }, set: { name = $0; nameEdited = true }))
-                .textFieldStyle(.plain)
-                #if os(macOS)
-                .font(.system(size: SignInView.Row.text))
-                #else
-                // The body size, so it grows with the text size setting like the words around it.
-                .font(.body)
-                .padding(.vertical, 10)
-                #endif
-                #if os(iOS)
-                .textContentType(.name)
-                .textInputAutocapitalization(.words)
-                .submitLabel(.continue)
-                #endif
-                .autocorrectionDisabled()
-                .focused($nameFocused)
-                .onSubmit(next)
-                .padding(.horizontal, 12)
-                .frame(minHeight: SignInView.Row.height)
-                .background(Color(Palette.field), in: shape)
-                .overlay(shape.strokeBorder(nameFocused ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: nameFocused ? 2 : 1))
-                .accessibilityLabel("Your name")
-                .accessibilityIdentifier("onboarding.name")
-            if ProfileName.normalized(name) == nil {
-                Text(Self.noNameNote)
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("onboarding.noName")
-            }
-        }
+        // Only a real change counts as typing: focusing the field writes the same text back.
+        return TextField("Your name", text: Binding(get: { name }, set: { if $0 != name { name = $0; nameEdited = true } }))
+            .textFieldStyle(.plain)
+            #if os(macOS)
+            .font(.system(size: SignInView.Row.text))
+            #else
+            // The body size, so it grows with the text size setting like the words around it.
+            .font(.body)
+            .padding(.vertical, 10)
+            #endif
+            #if os(iOS)
+            .textContentType(.name)
+            .textInputAutocapitalization(.words)
+            .submitLabel(.continue)
+            #endif
+            .autocorrectionDisabled()
+            .focused($nameFocused)
+            .onSubmit(next)
+            .padding(.horizontal, 12)
+            .frame(minHeight: SignInView.Row.height)
+            .background(Color(Palette.field), in: shape)
+            .overlay(shape.strokeBorder(nameFocused ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: nameFocused ? 2 : 1))
+            .accessibilityLabel("Your name")
+            .accessibilityIdentifier("onboarding.name")
     }
 
     // MARK: Try it
@@ -448,22 +445,81 @@ struct OnboardingFlow: View {
 
     // MARK: Choices
 
-    /// Where notes can come from, as equal choices: on the Mac, Apple Notes first (it reads the
-    /// Notes app directly), then the kinds the import sheet knows. On iPhone and iPad Apple Notes
-    /// is not one of them: see `appleNotesOnMac`.
-    private var sources: [BigChoice] {
-        var list: [BigChoice] = []
-        #if os(macOS)
-        list.append(BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .origin(.appleNotes)) { importingAppleNotes = true })
-        #endif
-        for kind in Self.sourceOrder {
-            list.append(BigChoice(id: "onboarding.source.\(kind.rawValue)", title: Self.sourceTitle(kind), detail: Self.sourceDetail(kind), mark: .origin(.files(kind))) { importing = kind })
+    /// Where notes can come from. Apple Notes first and large, where most notes are (on the Mac
+    /// it reads the Notes app directly; on iPhone and iPad see `appleNotesOnMac`), then the kinds
+    /// the import sheet knows, one quiet line each, so the step fits the window with its button.
+    private var bring: some View {
+        VStack(alignment: .leading, spacing: Metrics.gap) {
+            #if os(macOS)
+            BigChoices(list: [BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .origin(.appleNotes)) { importingAppleNotes = true }])
+            #else
+            appleNotesOnMac
+            #endif
+            otherSources
+            if broughtCount > 0 {
+                Label(Self.broughtLine(broughtCount), systemImage: "checkmark.circle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Color.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("onboarding.brought")
+            }
         }
-        return list
+        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: broughtCount)
     }
 
-    /// The import sheet's kinds, in its own order (Obsidian, Bear, Evernote, Keep, Markdown).
-    static var sourceOrder: [ImportKind] { ImportKind.allCases }
+    static func broughtLine(_ count: Int) -> String {
+        count == 1 ? "1 note brought in" : "\(count.formatted()) notes brought in"
+    }
+
+    static let otherSourcesTitle = "From another app"
+
+    /// The other sources as one grouped list: the app's icon and its name, a line each. What
+    /// each one needs is said in the import sheet it opens (and to VoiceOver here).
+    private var otherSources: some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(Self.otherSourcesTitle)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Color.muted)
+                .accessibilityAddTraits(.isHeader)
+            VStack(spacing: 0) {
+                ForEach(Array(Self.sourceOrder.enumerated()), id: \.element) { i, kind in
+                    if i > 0 { Divider().padding(.leading, Metrics.sourceIcon + Metrics.sourceInset + 10) }
+                    sourceRow(kind)
+                }
+            }
+            .background(Color(Palette.field), in: shape)
+            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+            .clipShape(shape)
+        }
+    }
+
+    private func sourceRow(_ kind: ImportKind) -> some View {
+        Button { importing = kind } label: {
+            HStack(spacing: 10) {
+                ImportSourceIcon(origin: .files(kind), size: Metrics.sourceIcon)
+                Text(Self.sourceTitle(kind))
+                    .font(Metrics.sourceName)
+                    .foregroundStyle(Color.ink)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, Metrics.sourceInset)
+            .frame(maxWidth: .infinity, minHeight: Metrics.sourceRow, alignment: .leading)
+            .contentShape(.rect)
+            .hoverOverlay(Rectangle(), Color.primary.opacity(0.05))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.sourceTitle(kind))
+        .accessibilityHint(Self.sourceDetail(kind))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("onboarding.source.\(kind.rawValue)")
+    }
+
+    /// The import sheet's kinds, in its own order: apps on this Mac first, then by popularity.
+    static var sourceOrder: [ImportKind] { ImportKind.listed }
 
     static func sourceTitle(_ kind: ImportKind) -> String { kind.sourceName }
 
@@ -509,22 +565,6 @@ struct OnboardingFlow: View {
     /// Captures: connections by those names.
     static func connections(_ titles: [String]) -> [Connection] {
         titles.map { Connection(id: UUID(), name: $0, kind: "token", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: nil) }
-    }
-
-    private func choices(_ list: [BigChoice]) -> some View {
-        VStack(alignment: .leading, spacing: Metrics.gap) {
-            #if os(iOS)
-            appleNotesOnMac
-            #endif
-            BigChoices(list: list)
-            if step == .bring, broughtCount > 0 {
-                Label(broughtCount == 1 ? "1 note brought in" : "\(broughtCount.formatted()) notes brought in", systemImage: "checkmark.circle.fill")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(Color.muted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("onboarding.brought")
-            }
-        }
     }
 
     #if os(iOS)
@@ -589,7 +629,7 @@ struct OnboardingFlow: View {
     @ViewBuilder private var actions: some View {
         VStack(spacing: 6) {
             switch step {
-            case .welcome, .name:
+            case .name:
                 primary("Continue", id: "onboarding.continue", action: next)
             case .bring:
                 if broughtCount > 0 {
@@ -646,12 +686,26 @@ struct OnboardingFlow: View {
         store.back()
     }
 
-    /// An import finished with notes: the flow moves on to the next step under its sheet.
+    /// An import finished with notes: counted now, and the flow moves on once its sheet has closed.
     private func notesBrought(_ count: Int) {
         guard count > 0 else { return }
         brought += count
-        if step == .bring { next() }
+        if step == .bring { moveOnAfterImport = true }
     }
+
+    /// The import's sheet has closed. After an import that brought notes, "35 notes brought in"
+    /// shows for a moment on this step, then the flow moves on by itself.
+    private func importClosed() {
+        guard moveOnAfterImport else { return }
+        moveOnAfterImport = false
+        Task {
+            try? await Task.sleep(for: .seconds(Self.broughtHold))
+            if step == .bring { next() }
+        }
+    }
+
+    /// How long "35 notes brought in" shows before the flow moves on.
+    static var broughtHold: Double = 1.2
 
     /// One click: the AI's site opens with the prompt in it. The prompt is copied as well, for
     /// an app that opens without it.
@@ -719,18 +773,29 @@ struct OnboardingFlow: View {
     /// The name the account already has (from Apple, Google or Settings) fills the field, unless
     /// you have typed; and which AIs are connected already.
     private func loadAccount() async {
-        #if os(macOS)
-        // The Mac puts the cursor in the field; an iPhone keeps its keyboard down until asked.
-        if step == .name { nameFocused = true }
-        #endif
         if let preview {
             name = preview.name
             return
         }
+        #if os(macOS)
+        // Until the account says otherwise (Apple sends a name only at an app's very first
+        // sign-in): the name this Mac's user goes by, to keep or change.
+        if !nameEdited, let mine = Self.macUserName() { name = mine }
+        #endif
         if let known = profile.name, !nameEdited { name = known }
         await profile.bind(backend)
         if let known = profile.name, !nameEdited { name = known }
     }
+
+    #if os(macOS)
+    /// The Mac user's full name, as the system has it. NSFullUserName can come back empty in the
+    /// sandbox; the user's record says it then.
+    static func macUserName() -> String? {
+        if let name = ProfileName.normalized(NSFullUserName()) { return name }
+        guard let entry = getpwuid(getuid()), let gecos = entry.pointee.pw_gecos else { return nil }
+        return ProfileName.normalized(String(cString: gecos).components(separatedBy: ",").first ?? "")
+    }
+    #endif
 
     enum Metrics {
         #if os(macOS)
@@ -742,6 +807,10 @@ struct OnboardingFlow: View {
         static let tilePadding: CGFloat = 12
         static let quietHeight: CGFloat = 32
         static let askMark: CGFloat = 20
+        static let sourceIcon: CGFloat = 20
+        static let sourceRow: CGFloat = 34
+        static let sourceInset: CGFloat = 12
+        static let sourceName = Font.system(size: 13, weight: .medium)
         #else
         static let title = Font.title.weight(.heavy)
         static let prompt = Font.body.weight(.medium)
@@ -751,6 +820,10 @@ struct OnboardingFlow: View {
         static let tilePadding: CGFloat = 16
         static let quietHeight: CGFloat = 44
         static let askMark: CGFloat = 26
+        static let sourceIcon: CGFloat = 28
+        static let sourceRow: CGFloat = 48
+        static let sourceInset: CGFloat = 16
+        static let sourceName = Font.body
         #endif
     }
 }

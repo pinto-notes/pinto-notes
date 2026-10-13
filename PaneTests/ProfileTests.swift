@@ -178,4 +178,27 @@ import UniformTypeIdentifiers
         ProfileStore.suggest("   ", for: b, defaults: defaults)
         #expect(defaults.string(forKey: ProfileStore.suggestionKey(b)) == nil, "nothing is kept for an empty name")
     }
+
+    /// Item 100 (2026-10-12): after Sign in with Apple the name step was empty. Apple hands the
+    /// name over only at an app's very first sign-in, so a second account on the same Mac got none.
+    @Test func aNewAccountsNameIsTheProfilesThenTheSignInsThenThisDevicesLast() {
+        #expect(ProfileStore.knownName(profile: "Sara L", suggested: "Sara Lindqvist", lastOnDevice: "Emil") == "Sara L")
+        #expect(ProfileStore.knownName(profile: nil, suggested: " Sara Lindqvist ", lastOnDevice: "Emil") == "Sara Lindqvist")
+        #expect(ProfileStore.knownName(profile: nil, suggested: nil, lastOnDevice: "Emil Wagman") == "Emil Wagman", "the account this device had before")
+        #expect(ProfileStore.knownName(profile: nil, suggested: "  ", lastOnDevice: nil) == nil, "nobody knows it: the flow asks")
+        // Kept outside the per-account keys, so signing in to another account doesn't remove it.
+        #expect(!ProfileStore.lastNameKey.hasPrefix("profile."))
+    }
+
+    /// Newcomer audit #5: a name typed before the profile knew the account (the first run resumed
+    /// at its name step after a relaunch) was stored under no account and lost at the next bind.
+    @Test @MainActor func aNameSetBeforeTheAccountIsKnownWaitsForIt() async {
+        let defaults = TestDefaults()
+        let store = ProfileStore(defaults: defaults, folder: FileManager.default.temporaryDirectory.appending(path: "profile-unbound-\(UUID())"))
+        await store.setName("  Sara Lind ")
+        #expect(store.name == "Sara Lind", "shown at once")
+        #expect(!defaults.dictionaryRepresentation().keys.contains { $0.hasSuffix(".none") }, "nothing kept under no account")
+        store.reset()
+        #expect(store.name == nil)
+    }
 }

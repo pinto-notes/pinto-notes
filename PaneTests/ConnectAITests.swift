@@ -631,7 +631,7 @@ import Testing
         let server = "https://mcp.ambernotes.app"
         let text = IncredibleConnect.message(server: server)
         #expect(text.hasSuffix("\n\(server)"))
-        #expect(text.contains("search for Pinto Notes") && text.contains("Let's go"), "the built-in app comes first")
+        #expect(text.contains("search for notes") && text.contains("Let's go"), "the built-in app comes first")
         #expect(text.contains("Add another MCP server") && text.contains("Add server"), "older versions add the address")
         #expect(!text.contains("pane_"), "Incredible signs in; it never needs a token")
     }
@@ -808,4 +808,14 @@ extension AIEditSnapshots {
         }
     }
     #endif
+}
+
+/// Incredible is offered only on a Mac where the Incredible app is (newcomer audit #17).
+@Suite struct IncredibleOfferedTests {
+    @Test func incredibleIsOfferedOnlyWhereItIsInstalled() {
+        #expect(!ConnectAISection.Guide.offered(incredibleInstalled: false).contains(.incredible))
+        #expect(ConnectAISection.Guide.offered(incredibleInstalled: true).contains(.incredible))
+        // Everything else stays, in the same order.
+        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .claudeCode, .codex, .other])
+    }
 }

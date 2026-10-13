@@ -295,4 +295,12 @@ import Testing
         #expect(body == ["email": "you@example.com"], "no code_challenge, no redirect: the email's link is the template's")
         #expect(r.url?.query == nil)
     }
+
+    /// Newcomer audit 8 and 24: the rule for a new password stays in words under the field, and
+    /// Welcome back no longer repeats the address that is in the row under it.
+    @Test func theSignInWordsSayEachThingOnce() {
+        #expect(SignInView.passwordRuleText == "At least \(EmailSignInFlow.minimumPassword) characters")
+        #expect(!SignInView.existingLine.contains("@"))
+        #expect(!SignInView.existingLine.isEmpty)
+    }
 }

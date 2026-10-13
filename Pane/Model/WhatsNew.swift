@@ -21,8 +21,13 @@ final class SettingsRoute {
 
     /// The Mac's tab, remembered across launches.
     var tab: SettingsTab { didSet { if tab != oldValue { defaults.set(tab.rawValue, forKey: Self.key) } } }
-    /// iPhone: the page to open once Settings is showing; cleared when it has.
+    /// The page to open once Settings is showing; cleared when it has.
     var target: SettingsTab?
+    #if os(macOS)
+    /// Mac: Settings is waiting to show, as a sheet on the notes window in front (NoteListView takes it).
+    var presenting = false
+    @ObservationIgnored private var asks = 0
+    #endif
     /// Counts `open` calls, so the Mac's Settings goes to the page even when it is the remembered one.
     private(set) var opened = 0
 
@@ -31,12 +36,27 @@ final class SettingsRoute {
         tab = defaults.string(forKey: Self.key).flatMap(SettingsTab.init) ?? .general
     }
 
-    /// Settings at `tab`: the Mac's window switches to it, iPhone opens its page.
+    /// Settings at `tab`: it shows (on the Mac, as a sheet on the notes window) and opens the page.
     func open(_ tab: SettingsTab) {
         self.tab = tab
         opened += 1
-        #if os(iOS)
         target = tab
+        #if os(macOS)
+        show()
         #endif
     }
+
+    #if os(macOS)
+    /// Settings on the notes window in front: Cmd-comma, the menu bar. A request no notes window
+    /// takes soon (signed out, say) is dropped rather than showing later out of nowhere.
+    func show() {
+        presenting = true
+        asks += 1
+        let asked = asks
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            if asks == asked { presenting = false }
+        }
+    }
+    #endif
 }

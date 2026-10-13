@@ -1458,6 +1458,20 @@ struct ConnectAISection: View {
             case .other: "Any app that speaks MCP, with the address or an access token"
             }
         }
+        /// The ways offered: Incredible only on a Mac where the Incredible app is (a newcomer has
+        /// never heard of it; newcomer audit #17).
+        static var offered: [Guide] { offered(incredibleInstalled: incredibleInstalled) }
+        static func offered(incredibleInstalled: Bool) -> [Guide] {
+            allCases.filter { $0 != .incredible || incredibleInstalled }
+        }
+        private static var incredibleInstalled: Bool {
+            #if os(macOS)
+            IncredibleConnect.appURL != nil
+            #else
+            false
+            #endif
+        }
+
         /// What choosing it does, in one plain line. Anything technical is inside the guide.
         var plain: String {
             switch self {

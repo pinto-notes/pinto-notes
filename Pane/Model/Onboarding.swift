@@ -2,8 +2,9 @@ import Foundation
 import Observation
 import SwiftData
 
-/// The first-run flow: a welcome, your name, bring your notes, connect your AI, then the notes
-/// with the first useful thing ready. It fills the window once, right after an account's first
+/// The first-run flow: your name, bring your notes, connect your AI, then the notes with the
+/// first useful thing ready. It starts at the first step that does something: the welcome before
+/// sign-in already said what the app is, and a name this device already knows is not asked again. It fills the window once, right after an account's first
 /// sign-up, and never again: not for an account that already holds anything, not on a second
 /// device, not after it was finished or skipped. Help › Show Setup Guide plays it again.
 ///
@@ -16,12 +17,33 @@ import SwiftData
 /// versions of the app on your other devices from showing their setup card.
 enum Onboarding {
     enum Step: String, CaseIterable, Sendable {
-        case welcome, name, bring, connect, tryIt
+        case name, bring, connect, tryIt
 
-        /// The steps that count in "Step 2 of 3": the welcome comes before them, and Try it only
+        /// The steps that count in "Step 2 of 3", from the one the flow began at: Try it only
         /// exists once an AI is connected.
-        static let counted: [Step] = [.name, .bring, .connect]
+        static func counted(from first: Step) -> [Step] {
+            Array([Step.name, .bring, .connect].drop { $0 != first })
+        }
+
+        /// A step saved by a version that still had a welcome after sign-in resumes at the name.
+        init?(saved raw: String) {
+            if raw == "welcome" { self = .name } else { self.init(rawValue: raw) }
+        }
     }
+
+    enum Segment: Equatable { case done, current, ahead }
+
+    /// The progress bar's segments on `step`: full only for the steps behind you, so the bar is
+    /// never full while a step is still to do. Try it, after the last counted step, fills them all.
+    static func segments(on step: Step, first: Step) -> [Segment] {
+        let steps = Step.counted(from: first)
+        guard let at = steps.firstIndex(of: step) else { return steps.map { _ in .done } }
+        return steps.indices.map { $0 < at ? .done : $0 == at ? .current : .ahead }
+    }
+
+    /// Where the flow begins: the name, unless one is known already (from Apple or Google, or the
+    /// account this device had before), then bringing your notes.
+    static func first(nameKnown: Bool) -> Step { nameKnown ? .bring : .name }
 
     /// Where the notes open when the flow ends.
     enum Landing: Equatable, Sendable {
@@ -52,7 +74,6 @@ enum Onboarding {
     /// The step after `step`. nil: the flow is over.
     static func next(after step: Step, connected: Bool) -> Step? {
         switch step {
-        case .welcome: .name
         case .name: .bring
         case .bring: .connect
         case .connect: connected ? .tryIt : nil
@@ -60,11 +81,11 @@ enum Onboarding {
         }
     }
 
-    /// The step before `step`. nil on the welcome.
-    static func previous(before step: Step) -> Step? {
-        switch step {
-        case .welcome: nil
-        case .name: .welcome
+    /// The step before `step`. nil on `first`, the step the flow began at.
+    static func previous(before step: Step, first: Step = .name) -> Step? {
+        guard step != first else { return nil }
+        return switch step {
+        case .name: nil
         case .bring: .name
         case .connect: .bring
         case .tryIt: .connect
@@ -72,6 +93,7 @@ enum Onboarding {
     }
 
     static func savedKey(_ account: UUID) -> String { "onboarding.step.\(account.uuidString.lowercased())" }
+    static func firstKey(_ account: UUID) -> String { "onboarding.first.\(account.uuidString.lowercased())" }
     static func endedKey(_ account: UUID) -> String { "onboarding.ended.\(account.uuidString.lowercased())" }
 
     /// No ask ("How did you hear…", "Enjoying Pinto Notes?") for this long after the flow ends,
@@ -91,6 +113,8 @@ final class OnboardingStore {
     }
 
     private(set) var phase: Phase = .off
+    /// The step the flow began at: Back stops there, and the progress counts from it.
+    private(set) var first: Onboarding.Step = .name
     /// Played again from Help › Show Setup Guide: nothing is saved or marked.
     private(set) var replay = false
     /// Where the notes open once the flow has ended. The notes window takes it (`takeLanding`).
@@ -115,8 +139,9 @@ final class OnboardingStore {
     }
 
     /// For screenshots and previews only.
-    func showForPreview(_ step: Onboarding.Step, replay: Bool = false) {
+    func showForPreview(_ step: Onboarding.Step, first: Onboarding.Step = .name, replay: Bool = false) {
         phase = .showing(step)
+        self.first = first
         self.replay = replay
     }
 
@@ -146,8 +171,10 @@ final class OnboardingStore {
         landing = nil
         endedThisLaunch = false
         waitedOut = false
+        first = .name
         guard let account else { phase = .off; return }
         if let step = saved(account) {
+            first = defaults.string(forKey: Onboarding.firstKey(account)).flatMap(Onboarding.Step.init(rawValue:)) ?? .name
             phase = .showing(step)
         } else if Onboarding.isCandidate(created: created, holdsNothing: holdsNothing, now: now) {
             phase = .waiting
@@ -156,16 +183,17 @@ final class OnboardingStore {
         }
     }
 
-    /// The first sync has answered. A wait becomes the welcome for an account that has never held
+    /// The first sync has answered. A wait becomes the flow for an account that has never held
     /// anything and has no setup behind it; a resumed flow closes if setup was finished elsewhere.
-    func settle(accountIsNew: Bool, progress: SetupProgress?) {
+    /// `nameKnown`: the account has its name already, so the flow starts past that step.
+    func settle(accountIsNew: Bool, progress: SetupProgress?, nameKnown: Bool = false) {
         switch phase {
         case .waiting:
-            if accountIsNew, !Onboarding.alreadySetUp(progress) { show(.welcome) } else { phase = .off }
+            if accountIsNew, !Onboarding.alreadySetUp(progress) { begin(nameKnown: nameKnown) } else { phase = .off }
         // The wait ran out before a slow first sync answered: the flow still comes, late.
         case .off where waitedOut:
             waitedOut = false
-            if accountIsNew, !Onboarding.alreadySetUp(progress) { show(.welcome) }
+            if accountIsNew, !Onboarding.alreadySetUp(progress) { begin(nameKnown: nameKnown) }
         case .showing where !replay:
             if let progress, progress.dismissed || progress.celebrated { close() }
         default:
@@ -197,7 +225,7 @@ final class OnboardingStore {
     }
 
     func back() {
-        guard let step, let previous = Onboarding.previous(before: step) else { return }
+        guard let step, let previous = Onboarding.previous(before: step, first: first) else { return }
         show(previous)
     }
 
@@ -213,11 +241,18 @@ final class OnboardingStore {
         return landing
     }
 
-    /// Help › Show Setup Guide.
+    /// Help › Show Setup Guide: from the name, where it can be changed.
     func startReplay() {
         guard account != nil, phase == .off else { return }
         replay = true
-        phase = .showing(.welcome)
+        first = .name
+        phase = .showing(.name)
+    }
+
+    private func begin(nameKnown: Bool) {
+        first = Onboarding.first(nameKnown: nameKnown)
+        if let account { defaults.set(first.rawValue, forKey: Onboarding.firstKey(account)) }
+        show(first)
     }
 
     private func show(_ step: Onboarding.Step) {
@@ -226,7 +261,10 @@ final class OnboardingStore {
     }
 
     private func close() {
-        if !replay, let account { defaults.removeObject(forKey: Onboarding.savedKey(account)) }
+        if !replay, let account {
+            defaults.removeObject(forKey: Onboarding.savedKey(account))
+            defaults.removeObject(forKey: Onboarding.firstKey(account))
+        }
         if !replay {
             endedThisLaunch = true
             if let account { defaults.set(Date.now, forKey: Onboarding.endedKey(account)) }
@@ -236,7 +274,7 @@ final class OnboardingStore {
     }
 
     private func saved(_ account: UUID) -> Onboarding.Step? {
-        defaults.string(forKey: Onboarding.savedKey(account)).flatMap(Onboarding.Step.init(rawValue:))
+        defaults.string(forKey: Onboarding.savedKey(account)).flatMap(Onboarding.Step.init(saved:))
     }
 }
 
@@ -348,7 +386,7 @@ enum TryIt {
 }
 
 extension Notification.Name {
-    /// Help › Show Setup Guide (Settings on iPhone): the first-run flow, from the welcome.
+    /// Help › Show Setup Guide (Settings on iPhone): the first-run flow, from the name.
     static let paneReplayOnboarding = Notification.Name("pane.replayOnboarding")
     /// Connect an AI: the File menu, the list's menu on iPhone and iPad, the sidebar's card.
     static let paneConnectAI = Notification.Name("pane.connectAI")

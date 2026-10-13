@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The first screen when you're signed out: what Amber Notes is, then the way in. "Get started"
-/// and "I already have an account" both lead to sign-in in the same frame, with a way back.
+/// leads to sign-in in the same frame, with a way back.
 /// On the Mac it's a wide window split in two, a paper-cut picture (an amber leaf on a stack of
 /// notes, at dusk in dark mode) on the left and the words on the right; on iPhone the picture
 /// sits on top.
@@ -13,28 +13,58 @@ struct WelcomeFlow: View {
     var flow = EmailSignInFlow()
     /// Captures: an error under the form.
     var error: String?
+    /// Captures: Apple or Google under way.
+    var pressed: SignInView.Way?
     @State private var stage: Stage
+    /// The account was just deleted: the welcome says so first (`Farewell`).
+    @State private var farewell: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Stage: Equatable {
         case welcome
-        /// Sign-in, from "Get started" (new) or "I already have an account" (returning).
+        /// Sign-in, from "Get started" (`returning` false) or from a button that said Sign in (true).
         case signIn(returning: Bool)
 
         /// Where a signed-out launch starts: the welcome, unless a test asks for sign-in
-        /// straight away (`-skipWelcome`).
+        /// straight away (`-skipWelcome`) or the way here was a button that said Sign in (`signInNext`).
         static func first(arguments: [String] = ProcessInfo.processInfo.arguments) -> Stage {
-            arguments.contains("-skipWelcome") ? .signIn(returning: true) : .welcome
+            if signInNext {
+                signInNext = false
+                return .signIn(returning: true)
+            }
+            return arguments.contains("-skipWelcome") ? .signIn(returning: true) : .welcome
         }
+
+        /// The next signed-out screen is sign-in, once: set by "Sign in" on a deleted account's
+        /// screen (KeyGateView), which would otherwise land on the welcome.
+        nonisolated(unsafe) static var signInNext = false
     }
 
-    init(backend: Backend, stage: Stage = .first(), focusEmail: Bool = false, flow: EmailSignInFlow = EmailSignInFlow(), error: String? = nil) {
+    init(backend: Backend, stage: Stage = .first(), focusEmail: Bool = false, flow: EmailSignInFlow = EmailSignInFlow(), error: String? = nil,
+         pressed: SignInView.Way? = nil) {
         self.backend = backend
+        self.pressed = pressed
         self.focusEmail = focusEmail
         self.flow = flow
         self.error = error
         _stage = State(initialValue: stage)
+        _farewell = State(initialValue: stage == .welcome && Farewell.take())
+    }
+
+    /// Deleting an account ended on the welcome without a word (newcomer audit, 2026-10-12): the
+    /// next welcome after it says the account is deleted, once.
+    enum Farewell {
+        nonisolated(unsafe) private static var pending = false
+        static let title = "Your account is deleted."
+        static let line = "Your notes, files and AI connections are gone from Pinto Notes and from this device. Thank you for trying Pinto Notes."
+
+        static func accountDeleted() { pending = true }
+        /// Whether to say it now; true once after `accountDeleted`.
+        static func take() -> Bool {
+            defer { pending = false }
+            return pending
+        }
     }
 
     #if os(macOS)
@@ -52,7 +82,7 @@ struct WelcomeFlow: View {
                 .padding(.top, 48)
                 .padding(.bottom, 36)
                 .frame(width: Self.size.width / 2)
-                .frame(maxHeight: .infinity)
+                .modifier(CardHeight())
         }
         // The window is held at this size (WindowShaper); whatever it ends up, the picture
         // takes the rest of it, so there's never a band beside or around it.
@@ -118,6 +148,8 @@ struct WelcomeFlow: View {
             }
         }
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: stage)
+        // Said once: back from sign-in it's the usual welcome.
+        .onChange(of: stage) { farewell = false }
     }
 
     private func stageTransition(forward: Bool) -> AnyTransition {
@@ -133,18 +165,32 @@ struct WelcomeFlow: View {
             #endif
             VStack(alignment: .leading, spacing: 12) {
                 // The website's display type, and its low amber marker under "your AI".
-                Text("The notes app \(Text("your AI").customAttribute(Marker())) can use.")
-                    .textRenderer(Marker.Renderer(color: Color(Palette.underline)))
-                    .font(Self.titleFont)
-                    .tracking(-0.8)
-                    .foregroundStyle(Color.ink)
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityIdentifier("welcome.title")
-                Text("ChatGPT and Claude can read and edit your notes, with your approval. End-to-end encrypted, on iPhone, iPad and Mac.")
-                    .font(Self.lineFont)
-                    .foregroundStyle(Color.muted)
-                    .lineSpacing(2)
-                    .accessibilityIdentifier("welcome.line")
+                if farewell {
+                    Text(Farewell.title)
+                        .font(Self.titleFont)
+                        .tracking(-0.8)
+                        .foregroundStyle(Color.ink)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("welcome.title")
+                    Text(Farewell.line)
+                        .font(Self.lineFont)
+                        .foregroundStyle(Color.muted)
+                        .lineSpacing(2)
+                        .accessibilityIdentifier("welcome.line")
+                } else {
+                    Text("The notes app \(Text("your AI").customAttribute(Marker())) can use.")
+                        .textRenderer(Marker.Renderer(color: Color(Palette.underline)))
+                        .font(Self.titleFont)
+                        .tracking(-0.8)
+                        .foregroundStyle(Color.ink)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("welcome.title")
+                    Text("ChatGPT and Claude can read and edit your notes, with your approval. End-to-end encrypted, on iPhone, iPad and Mac.")
+                        .font(Self.lineFont)
+                        .foregroundStyle(Color.muted)
+                        .lineSpacing(2)
+                        .accessibilityIdentifier("welcome.line")
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
             #if os(macOS)
@@ -155,24 +201,13 @@ struct WelcomeFlow: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// One way in: sign-in asks for the email and then says whether it is a new account or a
+    /// returning one, so a second button would only lead to the same screen.
     private var welcomeActions: some View {
-        VStack(spacing: 6) {
-            Button("Get started") { stage = .signIn(returning: false) }
-                .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("welcome.start")
-            Button {
-                stage = .signIn(returning: true)
-            } label: {
-                Text("I already have an account")
-                    .frame(maxWidth: .infinity, minHeight: 36)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.hoverLink)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.tint)
-            .accessibilityIdentifier("welcome.signIn")
-        }
+        Button("Get started") { stage = .signIn(returning: false) }
+            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("welcome.start")
     }
 
     private func signIn(returning: Bool) -> some View {
@@ -191,10 +226,10 @@ struct WelcomeFlow: View {
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("welcome.back")
             #endif
-            // The same neutral words from Get started and I already have an account: until the email
+            // Neutral words, whoever pressed Get started: until the email
             // is checked, nobody knows which it is (SignInView then says Welcome back or Create your account).
             SignInView(backend: backend, flow: flow, heading: .beside(title: SignInView.startTitle, line: SignInView.startLine),
-                       focusEmail: focusEmail, error: error)
+                       focusEmail: focusEmail, error: error, pressed: pressed)
                 #if os(macOS)
                 // Top-anchored, so the form keeps its place as its steps come and go, but low
                 // enough that the first step sits near the middle of the window.
@@ -281,10 +316,19 @@ struct CardLayout<Side: View>: View {
             WelcomeFlow.art
             side
                 .frame(width: WelcomeFlow.size.width / 2)
-                .frame(maxHeight: .infinity)
+                .modifier(CardHeight())
         }
         .frame(minWidth: WelcomeFlow.size.width, maxWidth: .infinity, maxHeight: .infinity)
         .background { Backdrop() }
+    }
+}
+
+/// The card's words side takes the window's height and no more, whatever a step holds: a step
+/// taller than the window must not make the row taller, or the picture beside it is laid out
+/// again at another size and crop (a step that jumped, seen on Bring your notes).
+struct CardHeight: ViewModifier {
+    func body(content: Content) -> some View {
+        content.frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
     }
 }
 #endif

@@ -68,8 +68,6 @@ Import from Evernote, Google Keep, or Markdown and text files. On the Mac, impor
 No ads and no tracking. Open source. 2 GB of storage.
 
 Sign in with Apple, Google or email. Connecting ChatGPT or Claude needs your own account with that service.
-
-Pinto Notes was called Amber Notes until October 2026.
 ```
 
 **Keywords** (no spaces after commas):
@@ -174,7 +172,7 @@ Paid content: none. The app is free.
 A notes app for iPhone and Mac with checklists, tables, files and folders, synced and end-to-end encrypted. It is for people who use ChatGPT or Claude and want it to read and update their notes. With no AI connected it is a complete notes app.
 
 3. HOW TO TEST
-Sign in: tap "I already have an account", enter the demo email, Continue, the password.
+Sign in: tap "Get started", enter the demo email, Continue, the password.
 Next you see "Open your notes on this iPhone". The notes are encrypted and your device has no key yet. Tap "Use a recovery key instead" and enter:
 [RECOVERY KEY]
 Please do not use "No device left?" and "Start fresh". It erases the demo notes.
@@ -200,7 +198,6 @@ The app works the same in every region.
 Not applicable. ChatGPT and Claude are named only to identify the service a user connects.
 
 New in 1.2: new name and icon, writing offline, files in folders with 2 GB of storage, PDF and image viewers, Sign in with Google, connecting an AI by scanning a QR code.
-In Connect an AI, Claude's steps say "Amber Notes" because Claude's directory still lists the old name.
 Encryption: only Apple's (CryptoKit, CommonCrypto, HTTPS). No algorithms of our own.
 ```
 

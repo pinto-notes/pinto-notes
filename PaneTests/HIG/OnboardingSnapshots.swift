@@ -17,16 +17,18 @@ import UIKit
         let name: String
         let step: Onboarding.Step
         var preview = OnboardingFlow.Preview()
+        /// Where the flow began: Bring when the name was known.
+        var first: Onboarding.Step = .name
     }
 
     static let withCallMom = TrialNote.body + "- [ ] Call mom\n"
 
     static let shots: [Shot] = [
-        Shot(name: "1-welcome", step: .welcome),
         Shot(name: "2-name-prefilled", step: .name, preview: .init(name: "Sara Lindqvist")),
         Shot(name: "2-name-empty", step: .name),
         Shot(name: "3-bring", step: .bring),
-        Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 18)),
+        Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 35)),
+        Shot(name: "3-bring-name-known", step: .bring, first: .bring),
         Shot(name: "4-connect", step: .connect),
         Shot(name: "4-connect-connected", step: .connect, preview: .init(connected: ["Claude Code"])),
         Shot(name: "5-try-it-chatgpt", step: .tryIt, preview: .init(connected: ["ChatGPT"])),
@@ -40,9 +42,26 @@ import UIKit
         Shot(name: "5-try-it-nothing-yet", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", late: true)),
     ]
 
+    /// The sign-in states newcomer audit 8, 23 and 24 were about.
+    static var signInStates: [(String, EmailSignInFlow, SignInView.Way?)] {
+        func flow(_ step: EmailSignInFlow.Step, password: String = "") -> EmailSignInFlow {
+            var f = EmailSignInFlow()
+            f.email = "sara.lindqvist@example.com"
+            f.step = step
+            f.password = password
+            return f
+        }
+        return [
+            ("signin-existing", flow(.signIn(fallback: false)), nil),
+            ("signin-create-short", flow(.create, password: "123456789"), nil),
+            ("signin-create-met", flow(.create, password: String(repeating: "p", count: 12)), nil),
+            ("signin-google-busy", EmailSignInFlow(), .google),
+        ]
+    }
+
     static func flow(_ shot: Shot) -> some View {
         let store = OnboardingStore(defaults: TestDefaults())
-        store.showForPreview(shot.step)
+        store.showForPreview(shot.step, first: shot.first)
         return OnboardingFlow(store: store, backend: Backend(), preview: shot.preview, finish: { _ in })
             .tint(Color(PColor.paneAccent))
             .environment(\.locale, Locale(identifier: "en_US"))
@@ -260,6 +279,37 @@ import UIKit
                 window.isHidden = true
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 try #require(image.pngData()).write(to: dir.appending(path: "iphone-6-sidebar-card-\(label)-\(dark ? "dark" : "light").png"))
+            }
+        }
+    }
+    #endif
+
+    #if os(iOS)
+    /// The welcome (one button, audit 22) and the sign-in states, at the default text size.
+    @Test func iPhoneWelcome() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let states: [(String, WelcomeFlow.Stage, EmailSignInFlow, SignInView.Way?)] = [("welcome", .welcome, EmailSignInFlow(), nil)]
+            + Self.signInStates.map { ($0.0, .signIn(returning: false), $0.1, $0.2) }
+        for (name, stage, flow, pressed) in states {
+            for dark in [false, true] {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+                window.overrideUserInterfaceStyle = dark ? .dark : .light
+                let view = WelcomeFlow(backend: Backend(), stage: stage, flow: flow, pressed: pressed)
+                    .tint(Color(PColor.paneAccent))
+                    .environment(\.locale, Locale(identifier: "en_US"))
+                window.rootViewController = UIHostingController(rootView: view)
+                window.isHidden = false
+                try? await Task.sleep(for: .seconds(0.9))
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 3
+                let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                window.isHidden = true
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-\(name)-\(dark ? "dark" : "light").png"))
             }
         }
     }

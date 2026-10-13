@@ -100,6 +100,17 @@ struct SignOutRemoval {
         await finish(account)
     }
 
+    /// The account was deleted on the server: nothing there to push to or keep, and this device's
+    /// copy of its notes goes, as with Sign Out and Remove Notes. Then signed out.
+    func runAfterAccountGone(account: UUID) async {
+        guard !gate.running else { return }
+        gate.running = true
+        defer { gate.running = false }
+        await stopSync()
+        defaults.set(account.uuidString.lowercased(), forKey: Self.pendingFlag)
+        await finish(account)
+    }
+
     private func allowed() throws {
         switch offer() {
         case .offered: return

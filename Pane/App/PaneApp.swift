@@ -89,6 +89,8 @@ struct PaneApp: App {
         if !PaneApp.isUnitTestHost {
             NetworkPath.shared.start()
             AccountCrypto.shared.networkUp = { NetworkPath.shared.isUp }
+            // A key check the server doesn't answer: an outage, or a deleted account (Backend.accountExists).
+            AccountCrypto.shared.accountExists = { await backend.accountExists() }
             #if DEBUG || QA
             DebugOffline.realtime = { up in
                 guard let realtime = backend.client?.realtimeV2 else { return }
@@ -146,6 +148,7 @@ struct PaneApp: App {
         Capture.importSequenceFromArguments()
         #if os(macOS)
         Capture.windowShotFromArguments(container)
+        Capture.sheetFilmFromArguments()
         #endif
         #endif
     }
@@ -224,11 +227,7 @@ struct PaneApp: App {
         #endif
 
         #if os(macOS)
-        Settings {
-            SettingsView(backend: backend, sync: sync)
-                // Change Password seals the library's locked notes again.
-                .modelContainer(container)
-        }
+        // Settings is a sheet on the notes window (NoteListView), not a window of its own.
 
         // Connect ChatGPT or Claude: the steps float over the browser while you follow them.
         Window("Connect", id: ConnectPanel.windowID) {
@@ -784,7 +783,9 @@ final class AppSession {
             sync.schedule()
         }
         if setup.progress == nil { await setup.refresh(force: true) }
-        onboarding.settle(accountIsNew: isNew, progress: setup.progress)
+        // A new account whose name is known already (its sign-in's, or this device's last) is not asked it.
+        let nameKnown = isNew ? await ProfileStore.shared.settleNewAccountName(backend) != nil : false
+        onboarding.settle(accountIsNew: isNew, progress: setup.progress, nameKnown: nameKnown)
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) after the first sync (new \(isNew, privacy: .public), setup behind it \(Onboarding.alreadySetUp(self.setup.progress), privacy: .public))")
     }
 

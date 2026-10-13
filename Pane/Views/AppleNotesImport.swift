@@ -204,8 +204,19 @@ struct AppleNotesImportView: View {
 
     /// Folders alone need little room: the sheet fits them, up to its full height for picking notes.
     private var sheetHeight: CGFloat {
-        guard !loading, failure == nil, unread == nil, !choosingNotes, !groups.isEmpty else { return Self.height }
-        return min(Self.height, max(300, 170 + CGFloat(groups.count) * 30 + CGFloat(listing.unreadFolders.count) * 22))
+        Self.sheetHeight(loading: loading, choosingNotes: choosingNotes, result: unread != nil,
+                         folders: groups.count + listing.unreadFolders.count, full: Self.height)
+    }
+
+    /// The sheet opens at the height most libraries end at, so the folder list arrives without the
+    /// sheet jumping (2026-10-12: it opened 640 tall, then snapped to fit). A long folder list grows
+    /// it a little, smoothly, and then scrolls; picking notes one by one takes the full height.
+    static func sheetHeight(loading: Bool, choosingNotes: Bool, result: Bool, folders: Int, full: CGFloat) -> CGFloat {
+        let opening: CGFloat = 380, most: CGFloat = 460
+        if choosingNotes { return full }
+        if loading { return opening }
+        if result { return most }
+        return min(most, max(opening, 170 + CGFloat(folders) * 30))
     }
 
     /// Shown notes that can be picked: a locked note's text can't be read.
@@ -220,7 +231,8 @@ struct AppleNotesImportView: View {
             footer
         }
         .frame(width: 540, height: sheetHeight)
-        .animation(.easeOut(duration: 0.2), value: choosingNotes)
+        // Any change of height is one short, even move: never a jump.
+        .animation(.easeInOut(duration: 0.22), value: sheetHeight)
         .foregroundStyle(Color.ink)
         // The app's own warm ground, not the system's grey sheet.
         .background(Color(Palette.sheetGround))
@@ -589,6 +601,8 @@ struct AppleNotesImportView: View {
         failure = nil
         existing = AppleNotesListing.keysOfNotes(in: context)
         if AppleNotesBridge.isDemo {
+            // `-importDelay 1.5`: captures of the sheet while Apple Notes is being read.
+            if let wait = Capture.argument("-importDelay").flatMap(Double.init) { try? await Task.sleep(for: .seconds(wait)) }
             // Captures never read the real Apple Notes: a made-up library, most of it picked.
             listing = Self.demoListing ?? AppleNotesListing(notes: AppleNotesBridge.demoNotes)
             picked = Set(notes.filter { $0.folder != "Archive" }.map(\.id))

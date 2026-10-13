@@ -6,7 +6,7 @@
 # also installs a binary called amber. The URLs point at GitHub release assets that don't exist
 # yet; the checksums are of the v0.2.0 archives from `deno task compile` (cli/dist/SHA256SUMS).
 class AmberNotes < Formula
-  desc "Your Amber Notes from the terminal"
+  desc "Your Pinto Notes from the terminal"
   homepage "https://ambernotes.app"
   version "0.2.0"
   license "MIT"

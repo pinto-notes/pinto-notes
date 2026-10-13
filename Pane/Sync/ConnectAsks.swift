@@ -210,7 +210,12 @@ final class ConnectAsks {
     /// Opens the sheet for a new ask (or queues it), and says so when the app isn't in front.
     func take(_ ask: ConnectAsk) async {
         guard center.offer(ask, now: now()) else { return }
+        #if os(iOS)
         await notifier.askPermission()
+        #endif
+        // The Mac doesn't ask here: the system's question popped up over the AI's web page with no
+        // reason given (newcomer audit, 2026-10-12). It asks once an AI is connected (ConnectAI),
+        // and until then a request that comes while the app is behind is said only if allowed.
         guard !notifier.isFrontmost() else { return }
         await notifier.post(ask, await describe(ask.id))
     }

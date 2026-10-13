@@ -159,7 +159,7 @@ export default function Page() {
 
       <h2 id="claude">Connect Claude</h2>
       <p>
-        Amber Notes, the name Pinto Notes had until October, is in Claude&apos;s connector directory. Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">its
+        Pinto Notes is in Claude&apos;s connector directory. Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">its
         listing</a> on claude.ai or in the Claude desktop app, choose Connect to Claude, sign in, then Allow in Pinto Notes. In Connect
         an AI, Claude gives you the same link. Once it&apos;s added, Claude&apos;s phone apps can use it too. On Team and Enterprise an Owner
         may need to allow it for the organization first.
@@ -182,7 +182,7 @@ export default function Page() {
         Notes is one of its apps.
       </p>
       <Steps>
-        <li><strong>Open Apps in Incredible and search for Amber Notes</strong>Choose Connect, and your browser opens Pinto Notes.</li>
+        <li><strong>Open Apps in Incredible and search for notes</strong>Choose Connect, and your browser opens Pinto Notes.</li>
         <li>
           <strong>Allow it in Pinto Notes</strong>
           Pinto Notes asks to allow an app on this computer that calls itself &ldquo;incredible&rdquo;. A sign-in that returns to your

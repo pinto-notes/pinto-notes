@@ -36,12 +36,11 @@ Deno.test("the reset email's links all go to the same reset page (scripts/passwo
   assert(hrefs.length >= 2 && hrefs.every((h) => h === hrefs[0]));
 });
 
-Deno.test("the name is Pinto Notes, the old one is said once in the footer and never in a subject, and every link and picture is on pintonotes.com", () => {
+Deno.test("the name is Pinto Notes, the old name is never said, and every link and picture is on pintonotes.com", () => {
   for (const e of EMAILS) {
     const page = html(e);
     assert(e.subject.includes("Pinto Notes") && !/amber/i.test(e.subject), e.subject);
-    assertEquals(page.match(/Amber Notes/g), ["Amber Notes"], e.file);
-    assert(page.includes("Pinto Notes was called Amber Notes until October 2026."), e.file);
+    assertEquals(/amber notes/i.test(page), false, e.file);
     assertEquals(/ambernotes/i.test(page), false, `${e.file}: the old address`);
     for (const m of page.matchAll(/(?:href|src)="(https?:[^"]+)"/g)) assert(m[1].startsWith("https://pintonotes.com/"), `${e.file}: ${m[1]}`);
   }

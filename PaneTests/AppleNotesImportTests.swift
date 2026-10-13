@@ -545,7 +545,10 @@ import Testing
     }
 
     @Test func everySourceIsListedByNameWithObsidianAndBearAsMarkdown() {
-        #expect(ImportOrigin.all.map(\.name) == ["Apple Notes", "Obsidian", "Bear", "Evernote", "Google Keep", "Markdown or text files"])
+        // The middle depends on what this Mac has installed (ImportKind.listed); the ends don't.
+        let names = ImportOrigin.all.map(\.name)
+        #expect(names.first == "Apple Notes" && names.last == "Markdown or text files")
+        #expect(Set(names) == ["Apple Notes", "Obsidian", "Bear", "Evernote", "Google Keep", "Markdown or text files"])
         #expect(ImportKind.obsidian.isMarkdown && ImportKind.bear.isMarkdown && ImportKind.markdown.isMarkdown)
         #expect(!ImportKind.evernote.isMarkdown && !ImportKind.keep.isMarkdown)
         #expect(ImportKind.obsidian.contentTypes == ImportKind.markdown.contentTypes)
@@ -583,6 +586,17 @@ import Testing
         // The press on Apple Notes opens its sheet, and that is where Notes is asked: once.
         await Self.draw(AppleNotesImportView().modelContainer(c))
         #expect(AppleNotesBridge.calls == 1)
+    }
+
+    @Test func theSheetOpensAtTheHeightItKeeps() {
+        func h(loading: Bool = false, choosing: Bool = false, result: Bool = false, folders: Int) -> CGFloat {
+            AppleNotesImportView.sheetHeight(loading: loading, choosingNotes: choosing, result: result, folders: folders, full: 640)
+        }
+        // Reading Apple Notes, then a library of up to seven folders: the same height, no jump.
+        for n in 0...7 { #expect(h(folders: n) == h(loading: true, folders: 0), "\(n) folders") }
+        // A long folder list grows the sheet by at most 80 points, then scrolls.
+        #expect(h(folders: 40) == 460 && h(folders: 40) - h(loading: true, folders: 0) <= 80)
+        #expect(h(choosing: true, folders: 5) == 640)
     }
 
     @Test func theOneButtonSaysWhatItWillDo() {

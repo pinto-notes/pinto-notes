@@ -518,7 +518,10 @@ import Testing
         #expect(AddDeviceCopy.gateTitle("iPad") == "Link this iPad to open your notes")
         #expect(AddDeviceCopy.gateWhy == "You already have notes in this account. They are encrypted, and only your own devices can open them.")
         #expect(AddDeviceCopy.gateSteps("Mac") == ["On your iPhone, iPad or other Mac, open Pinto Notes \u{203A} Settings \u{203A} Security \u{203A} Add a device.",
-                                                   "Scan this code with it. You only do this once."])
+                                                   "On an iPhone or iPad, scan this code. On a Mac, type the code under it. You only do this once."])
+        // A Mac can't scan (newcomer audit #21): nothing tells one to.
+        for kind in ["Mac", "iPhone", "iPad"] { #expect(!AddDeviceCopy.gateSteps(kind)[1].contains("Scan this code with it")) }
+        #expect(AddDeviceCopy.codeLead == "On a Mac, or if you can\u{2019}t scan, type this code:")
         #expect(AddDeviceCopy.gateSteps("iPhone")[0].hasPrefix("On your iPad, Mac or other iPhone, "))
         #expect(AddDeviceCopy.gateSteps("iPad")[0].hasPrefix("On your iPhone, Mac or other iPad, "))
         #expect(AddDeviceCopy.useRecovery == "Use a recovery key instead" && AddDeviceCopy.noDeviceLink == "I don\u{2019}t have another device")
