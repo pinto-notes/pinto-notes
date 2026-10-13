@@ -585,6 +585,17 @@ import Testing
         #expect(AppleNotesBridge.calls == 1)
     }
 
+    @Test func theSheetOpensAtTheHeightItKeeps() {
+        func h(loading: Bool = false, choosing: Bool = false, result: Bool = false, folders: Int) -> CGFloat {
+            AppleNotesImportView.sheetHeight(loading: loading, choosingNotes: choosing, result: result, folders: folders, full: 640)
+        }
+        // Reading Apple Notes, then a library of up to seven folders: the same height, no jump.
+        for n in 0...7 { #expect(h(folders: n) == h(loading: true, folders: 0), "\(n) folders") }
+        // A long folder list grows the sheet by at most 80 points, then scrolls.
+        #expect(h(folders: 40) == 460 && h(folders: 40) - h(loading: true, folders: 0) <= 80)
+        #expect(h(choosing: true, folders: 5) == 640)
+    }
+
     @Test func theOneButtonSaysWhatItWillDo() {
         let en = Locale(identifier: "en_US")
         #expect(AppleNotesImportView.importTitle(picked: 35, new: 35, all: 35, locale: en) == "Import 35 Notes")

@@ -24,7 +24,13 @@ enum RowPressSlop {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
             let through = MainActor.assumeIsolated {
-                passes(event.type, at: event.locationInWindow, onRow: event.type == .leftMouseDown && isOnRow(event))
+                let pressed = event.type == .leftMouseDown ? row(under: event) : nil
+                // A plain press on a note selects it now (PressSelect), before the list sees it.
+                if let pressed { PressSelect.press(event, on: pressed.table, row: pressed.row) }
+                let through = passes(event.type, at: event.locationInWindow, onRow: pressed != nil)
+                if event.type == .leftMouseUp { PressSelect.lifted() }
+                if event.type == .leftMouseDragged, through { PressSelect.dragged() }
+                return through
             }
             return through ? event : nil
         }
@@ -47,17 +53,21 @@ enum RowPressSlop {
         return true
     }
 
-    /// Whether the press is over a row of a list in its window. Asked of the lists themselves, by
+    /// The row of a list in its window the press is over, if any. Asked of the lists themselves, by
     /// where their rows are: the view under the pointer isn't always inside the list (a row near
     /// the bottom of the note list sits under the window's bottom bar, and is still what's pressed).
-    private static func isOnRow(_ event: NSEvent) -> Bool {
-        guard let window = event.window, let content = window.contentView else { return false }
-        func found(in view: NSView) -> Bool {
+    private static func row(under event: NSEvent) -> (table: NSTableView, row: Int)? {
+        guard let window = event.window, let content = window.contentView else { return nil }
+        func found(in view: NSView) -> (table: NSTableView, row: Int)? {
             if let table = view as? NSTableView {
                 let p = table.convert(event.locationInWindow, from: nil)
-                return table.visibleRect.contains(p) && table.row(at: p) >= 0
+                let row = table.row(at: p)
+                return table.visibleRect.contains(p) && row >= 0 ? (table, row) : nil
             }
-            return view.subviews.contains { !$0.isHidden && found(in: $0) }
+            for sub in view.subviews where !sub.isHidden {
+                if let hit = found(in: sub) { return hit }
+            }
+            return nil
         }
         return found(in: content)
     }

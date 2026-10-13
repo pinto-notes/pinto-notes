@@ -52,6 +52,16 @@ struct RootView: View {
         nonmutating set { selection = newValue.map { [$0] } ?? [] }
     }
 
+    #if os(macOS)
+    /// For a pass after a press on a row, the note pane keeps what it showed (PressSelect).
+    @State private var hold = DetailHold.shared
+    /// What the note pane shows: the selection, or what it had while a pressed row's fill goes out.
+    private var shown: Set<UUID> { hold.held ?? selection }
+    #else
+    private var shown: Set<UUID> { selection }
+    #endif
+    private var shownNote: UUID? { shown.count == 1 ? shown.first : nil }
+
     var body: some View {
         #if DEBUG
         RenderProbe.count("RootView")
@@ -166,6 +176,9 @@ struct RootView: View {
                 #endif
             }
             .onChange(of: selectedNote) { old, new in noteChanged(from: old, to: new) }
+            #if os(macOS)
+            .onChange(of: selection, initial: true) { _, new in DetailHold.shared.current = new }
+            #endif
             // The first-run flow just ended: the notes open on what it left ready.
             .task(id: onboarding?.landing) { openLanding() }
             // A note opened from the menu bar.
@@ -294,7 +307,7 @@ struct RootView: View {
 
     @ViewBuilder
     private var detail: some View {
-            if let id = selectedNote, let note = context.note(id), note.deletedAt == nil {
+            if let id = shownNote, let note = context.note(id), note.deletedAt == nil {
                 #if os(macOS)
                 NoteToolbarStage {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
@@ -310,14 +323,14 @@ struct RootView: View {
                 }
                     .id(id)
                 #endif
-            } else if let id = selectedNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
+            } else if let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
                 // A file kept in the folder: its preview.
                 FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
                     .id(id)
             } else {
                 Group {
-                    if selection.count > 1 {
-                        MultipleSelectionView(count: selection.count, items: selection.contains { context.attachment($0) != nil })
+                    if shown.count > 1 {
+                        MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
                     } else {
                         EmptyDetailView()
                     }
