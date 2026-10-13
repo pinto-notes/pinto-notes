@@ -5,10 +5,10 @@ One trip in one place: the countdown, the plan for each day, the bookings with p
 **Read docs/ first.** It's this app's memory: what it's for, the shape of its data, the decisions made and why, and what's missing. Keep it current whenever you change the app.
 
 ## Screens
-- Trip (src/screens/overview.tsx): the countdown (or which day of the trip it is), bookings paid, items packed, and the first day of the plan; Edit changes the trip and its dates (src/components/trip-sheet.tsx).
-- Days (src/screens/days.tsx): the plan, a section a day; add, edit or delete a day.
-- Bookings (src/screens/bookings.tsx): each booking with its time and confirmation; tick it once it's paid; add, edit or delete one.
-- Packing (src/screens/packing.tsx): the list, a tap to pack; add, rename or delete items.
+- Trip (src/screens/overview.tsx): the countdown (or which day of the trip it is), bookings paid, items packed, and the next day as a timeline with Share; Edit changes the trip and its dates, or starts a new trip that keeps the packing list (src/components/trip-sheet.tsx).
+- Days (src/screens/days.tsx): every day of the trip as a timeline of its plan and bookings (src/components/timeline.tsx); share a day or the whole trip; add, edit or delete a day.
+- Bookings (src/screens/bookings.tsx): each booking with its kind, day, time and confirmation; tick it once it's paid; add, edit or delete one.
+- Packing (src/screens/packing.tsx): the list by group, a tap to pack; add, rename, regroup or delete items; unpack all.
 
 The data and the date maths are in src/lib/trip.ts; the shared pieces (sections, rows, ring, bar, sheet) in src/components/kit.tsx.
 
