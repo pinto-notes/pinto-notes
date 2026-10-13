@@ -653,7 +653,7 @@ struct NoteListView: View {
                 if let imports {
                     // In the ink: one orange control on the screen.
                     Button(Self.bringNotes, action: imports.appleNotes)
-                        .foregroundStyle(Color.ink)
+                        .tint(Color.ink)
                         .accessibilityIdentifier("empty.bringNotes")
                 }
             }
