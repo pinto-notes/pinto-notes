@@ -131,7 +131,8 @@ async function probe(mode: "setup" | "measure", size: number): Promise<ProbeResu
   const home = (await ssh("echo $HOME")).stdout.trim();
   // One ssh session for the whole run, so nothing polls the Mac while it's measured: the launcher
   // passes the probe's lines on as they come.
-  const proc = new Deno.Command("ssh", { args: [HOST, `zsh -s -- ${[out, `${home}/${app}`, stdin || "-", ...launchArgs].map(q).join(" ")}`], stdin: "piped", stdout: "piped", stderr: "null" }).spawn();
+  const profile = Deno.env.get("AMBER_GATE_PROFILE") && mode === "measure";
+  const proc = new Deno.Command("ssh", { args: [HOST, `${profile ? "GATE_PROFILE=1 " : ""}zsh -s -- ${[out, `${home}/${app}`, stdin || "-", ...launchArgs].map(q).join(" ")}`], stdin: "piped", stdout: "piped", stderr: "null" }).spawn();
   { const w = proc.stdin.getWriter(); await w.write(new TextEncoder().encode(script)); await w.close(); }
   let pid = "", arrived = false;
   const limit = setTimeout(() => { if (pid) ssh(`kill ${pid}`, { allowFail: true }); }, (mode === "setup" ? 20 : 6) * 60_000);
@@ -164,7 +165,16 @@ async function probe(mode: "setup" | "measure", size: number): Promise<ProbeResu
     const t = await symbolicate(raw);
     if (t.trim()) samples.push(t);
   }
-  await ssh(`rm -f ${out} ${out}.err ${out}.hang*`, { allowFail: true });
+  if (profile) {
+    // AMBER_GATE_PROFILE=1: the whole run sampled (launch.zsh), kept beside the build for scripts/release-gate/profile.py.
+    await new Promise((r) => setTimeout(r, 3000));
+    const raw = (await ssh(`cat ${out}.profile`, { allowFail: true })).stdout;
+    if (raw.trim()) {
+      await Deno.mkdir(`${OUT}/profiles`, { recursive: true });
+      await Deno.writeTextFile(`${OUT}/profiles/${size}-${Date.now()}.txt`, raw);
+    }
+  }
+  await ssh(`rm -f ${out} ${out}.err ${out}.hang* ${out}.profile`, { allowFail: true });
   const line = text.split("\n").find((l) => l.startsWith("GATE RESULT "));
   if (!line) return { error: `no result (${text.trim().split("\n").slice(-3).join(" / ") || "no output"})` };
   const result = JSON.parse(line.slice("GATE RESULT ".length)) as ProbeResult;

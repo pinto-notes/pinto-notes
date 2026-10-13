@@ -151,6 +151,11 @@ async function ensure(n: number) {
   // window at every launch, and the gate then measures a window with a sheet on it.
   const settled = await rest(s, "POST", "rpc/pane_setup_mark", { step: "dismissed" }, "return=minimal");
   if (settled.status >= 300) throw new Error(`dismissing the setup card: ${settled.status}`);
+  // Whether the server may keep a copy of the key is answered: an account from before copies is
+  // asked once at launch, in a sheet over the notes. The bench accounts keep their key on their
+  // devices (their key rows predate the key ids the copy checks, so a copy is refused as the wrong key).
+  const kept = await rest(s, "POST", "rpc/keep_key_on_devices", { p_device: crypto.randomUUID() }, "return=minimal");
+  if (kept.status >= 300) throw new Error(`answering the key protection ask: ${kept.status} ${JSON.stringify(kept.body).slice(0, 120)}`);
   // "How did you hear about us?" comes up once the card is gone: skipped, as most people do.
   const heard = await rest(s, "POST", "rpc/pane_heard_from_answer", { source: "skipped" }, "return=minimal");
   if (heard.status >= 300) throw new Error(`answering heard-from: ${heard.status}`);

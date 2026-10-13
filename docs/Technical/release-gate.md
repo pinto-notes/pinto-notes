@@ -85,7 +85,9 @@ median and slowest are held to budgets like every other line.
 
 Each bench account is put in the same settled state before every run (`staging.ts ensure`), the state
 of someone who has used the app for a while: the first-run setup card dismissed, "How did you hear
-about us?" skipped, the share ask dismissed, and no account notices waiting. Without that the app
+about us?" skipped, the share ask dismissed, the key protection question answered (keep the key on
+devices only; from 2026-10-13 an account from before key copies is asked in a sheet at launch), and
+no account notices waiting. Without that the app
 opens a sheet or an alert over the notes window at launch, and the gate measures a dimmed window
 with a disabled toolbar. That happened on 2026-10-08: checks run against the bench accounts had left
 1, 5 and 6 "an AI was connected" notices on them, and the 2,000-note run laid out thousands of views
@@ -101,6 +103,11 @@ Idle is measured from 15 seconds after launch at the earliest, for every account
 account is synced two seconds after launch, and the window's last settling pass (six layouts, once)
 then fell inside its idle window; it was never a loop (a second idle window right after it counts 0).
 
+`AMBER_GATE_PROFILE=1` samples each measured run whole, every millisecond, instead of sampling hangs
+(`build/release-gate/out/<sha>/profiles/`): where the main thread's time went, for performance work.
+Sampling slows the app, so those runs' numbers aren't the gate's. `scripts/release-gate/profile.py
+<dSYM> <reports...> [--match LibraryNotes.load] [--exclude scrollTo]` adds reports up (a profile, or
+the kept hang samples) and names the app's functions with the most samples.
 `AMBER_GATE_KEEP_SAMPLES=1` keeps each hang's whole `sample` report in `build/release-gate/out/<sha>/samples/`;
 `AMBER_GATE_IDLE_TWICE=1` measures a second idle window after the first (`idleAgain` in the raw run).
 
