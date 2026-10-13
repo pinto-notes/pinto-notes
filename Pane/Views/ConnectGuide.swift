@@ -6,17 +6,15 @@ import AppKit
 import UIKit
 #endif
 
-// Connect ChatGPT or Claude in as few moves as the two apps allow.
+// What connecting ChatGPT, Claude and Incredible takes, and watching for the sign-in. The
+// choices themselves (one row per AI, its state, the press) are `ConnectChoices`.
 //
-// Amber Notes is listed in Claude's connector directory (since 2 October 2026), so for Claude one
-// button opens the listing and the person chooses Connect to Claude. Claude's install link for its
-// Add custom connector dialog, with the name and address filled in, stays as the fallback for
-// older Claude apps. ChatGPT has no such link: the button copies the address and opens ChatGPT's
-// Plugins page. Both are added on the web or desktop, once; after that they work in the phone
-// apps too. claude.ai doesn't hand /directory links to its iPhone app, so iPhone sends the link
-// to the computer, as before. The steps stay
-// in view (on a Mac, in a small window that floats over the browser), and the guide watches
-// for the sign-in itself and says when it worked, with a first thing to ask.
+// Pinto Notes is listed in Claude's connector directory (since 2 October 2026), so for Claude the
+// press opens the listing and the person chooses Connect. Claude's install link for its Add custom
+// connector dialog stays as the fallback (Having trouble?). ChatGPT has no such link: the press
+// copies the address and opens ChatGPT's Plugins page. Both are added on the web or desktop,
+// once; after that they work in the phone apps too. claude.ai doesn't hand /directory links to
+// its iPhone app, so iPhone sends the link to the computer.
 //
 // Sources: claude.ai/directory/amber-notes (the listing),
 // claude.com/docs/connectors/building/directory-vs-custom (install link),
@@ -101,7 +99,7 @@ struct WebConnectPlan: Equatable {
     }
 
     /// A new chat with the question typed in. Not documented by either app, so the question is
-    /// also copied (see WebConnectGuide.tryIt).
+    /// also copied.
     static func prefilled(_ page: String, _ prompt: String) -> URL {
         var c = URLComponents(string: page)!
         c.queryItems = [URLQueryItem(name: "q", value: prompt)]
@@ -136,8 +134,8 @@ extension ConnectAIKind {
 }
 
 /// How far connecting each AI got, for the connect funnel (`connect_step`): each step once for
-/// each time its guide is opened, and `gave_up` when the guide closes after it was started and
-/// before the AI was connected.
+/// each time its row is pressed (`ConnectRun`) or its guide opened (Incredible), and `gave_up`
+/// when it stops after it was started and before the AI was connected.
 @MainActor
 enum ConnectFunnel {
     private struct Progress { var started = false, waiting = false, connected = false }
@@ -148,7 +146,7 @@ enum ConnectFunnel {
         Funnel.record(.connectStep(ai, .opened))
     }
 
-    /// The guide's button that starts it: opens the AI, copies the command, sends the steps.
+    /// The press that starts it: the AI's row, or Incredible's guide button.
     static func started(_ ai: ConnectAIKind) { mark(ai, \.started, .started) }
     /// The request to allow it is here.
     static func waiting(_ ai: ConnectAIKind) { mark(ai, \.waiting, .waiting) }
@@ -158,14 +156,14 @@ enum ConnectFunnel {
         Funnel.record(.connectStep(ai, .failed, kind: kind))
     }
 
-    /// The guide closed. `handedOff`: on the Mac it goes on in the floating window, so it's not over.
-    static func closed(_ ai: ConnectAIKind, handedOff: Bool = false) {
-        guard !handedOff, let progress = open.removeValue(forKey: ai) else { return }
+    /// The guide closed, or the row stopped.
+    static func closed(_ ai: ConnectAIKind) {
+        guard let progress = open.removeValue(forKey: ai) else { return }
         if progress.started, !progress.connected { Funnel.record(.connectStep(ai, .gaveUp)) }
     }
 
     private static func mark(_ ai: ConnectAIKind, _ key: WritableKeyPath<Progress, Bool>, _ step: ConnectFunnelStep) {
-        // A guide reached another way (Handoff, the floating window) counts from where it is.
+        // A guide reached another way (Handoff) counts from where it is.
         var progress = open[ai] ?? Progress()
         guard !progress[keyPath: key] else { return }
         progress[keyPath: key] = true
@@ -222,203 +220,7 @@ final class ConnectWatch {
     #endif
 }
 
-// MARK: The guide
-
-/// Connect ChatGPT or Claude: three steps that tick themselves as it happens. Add Amber Notes in
-/// the AI, allow it here, ask the AI something.
-struct WebConnectGuide: View {
-    let plan: WebConnectPlan
-    let client: SupabaseClient
-    /// Mac: opens the floating steps, and closes the sheet this sits in.
-    var popOut: (() -> Void)? = nil
-    @State private var watch: ConnectWatch
-    @State private var center = ConnectCenter.shared
-    @State private var copied = false
-    @State private var started: Bool
-    @Environment(\.openURL) private var openURL
-
-    init(plan: WebConnectPlan, client: SupabaseClient, popOut: (() -> Void)? = nil, started: Bool = false, connected: Bool = false) {
-        self.plan = plan
-        self.client = client
-        self.popOut = popOut
-        _started = State(initialValue: started)
-        let w = ConnectWatch(ai: plan.ai)
-        #if DEBUG
-        if connected { w.pretendConnected() }
-        #endif
-        _watch = State(initialValue: w)
-    }
-
-    private var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
-
-    /// 0: add it in the AI. 1: the request is here, allow it. 2: connected.
-    private var stage: Int {
-        if watch.isConnected { return 2 }
-        return center.pending != nil ? 1 : 0
-    }
-
-    var body: some View {
-        Group {
-            Section {
-                step(0, "Add Pinto Notes in \(plan.ai)", detail: addDetail) { addButton }
-                step(1, Self.allowLine, detail: stage < 2 ? Self.notifyLine : nil, detailAhead: true) { EmptyView() }
-                step(2, "Ask \(plan.ai) about your notes", detail: nil) { tryIt }
-            } footer: {
-                Text(stage == 2 ? "It works in the \(plan.ai) app on your phone too." : plan.plans)
-            }
-            if stage < 2 { addressSection }
-        }
-        .animation(.smooth(duration: 0.3), value: stage)
-        .task { await watch.run(client: client) }
-        // The connect funnel: the request to allow it arrived, then it's connected.
-        .onChange(of: stage, initial: true) { _, now in
-            let ai = ConnectAIKind(guideName: plan.ai)
-            if now >= 1 { ConnectFunnel.waiting(ai) }
-            if now == 2 { ConnectFunnel.connected(ai) }
-        }
-        // The approval comes to this device: it looks for it every couple of seconds while the
-        // guide is open. Permission to notify isn't asked for just by opening the guide: on
-        // iPhone that waits until the link is sent (`askToNotify`), on the Mac until it's connected.
-        .onAppear { ConnectCenter.shared.expectAsks() }
-        .onDisappear { ConnectCenter.shared.stopExpectingAsks() }
-        #if os(iOS)
-        // Handoff: the same guide is waiting on the Mac.
-        .userActivity(ConnectHandoff.activityType, isActive: !watch.isConnected) { a in
-            a.title = "Connect \(plan.ai)"
-            a.addUserInfoEntries(from: [ConnectHandoff.key: plan.ai])
-        }
-        #endif
-    }
-
-    #if os(iOS)
-    static var allowLine: String { "Scan the code on your computer with this \(InstallID.kind), then choose Allow" }
-    static var notifyLine: String { "The request to allow it also arrives as a notification on this \(InstallID.kind)." }
-    #else
-    static let allowLine = "Choose Open Pinto Notes on this Mac, then Allow"
-    /// Nothing about notifications on the Mac: they're asked for after the AI is connected.
-    static let notifyLine: String? = nil
-    #endif
-
-    #if os(iOS)
-    /// The link is on its way to the AI: from now a request to allow it can arrive on this phone,
-    /// so this is when the system asks whether Pinto Notes may notify.
-    private func askToNotify() {
-        if !PaneApp.isUnitTestHost { Task { await ConnectNotifier.system.askPermission() } }
-    }
-    #endif
-
-    /// What adding takes, while it's the step at hand.
-    private var addDetail: String? {
-        #if os(iOS)
-        "On a computer, once. Then it works on your phone too."
-        #else
-        plan.steps.dropLast().joined(separator: " ")
-        #endif
-    }
-
-    /// iPhone: custom AIs are added on the web, so the link goes to the computer. Mac: open it.
-    @ViewBuilder
-    private var addButton: some View {
-        #if os(iOS)
-        // The preview names what is being sent: without it the share sheet's header was a blank icon.
-        ShareLink(item: plan.message(server: server), subject: Text("Connect \(plan.ai) to Pinto Notes"),
-                  preview: SharePreview("Connect \(plan.ai) to Pinto Notes", icon: Image("Mark"))) {
-            Label("Send Link to My Computer", systemImage: "paperplane").frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.amberProminent)
-        .controlSize(.large)
-        .simultaneousGesture(TapGesture().onEnded {
-            askToNotify()
-            ConnectFunnel.started(ConnectAIKind(guideName: plan.ai))
-        })
-        .accessibilityIdentifier("connect.sendSteps")
-        #else
-        Button {
-            copy()
-            openURL(plan.setupPage(server: server))
-            started = true
-            ConnectFunnel.started(ConnectAIKind(guideName: plan.ai))
-            popOut?()
-        } label: {
-            Label(started ? "Open \(plan.ai) Again" : plan.prefills ? "Open in \(plan.ai)'s Directory" : "Copy Address and Open \(plan.ai)",
-                  systemImage: "arrow.up.forward.app")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.amberProminent)
-        .controlSize(.large)
-        .accessibilityIdentifier("connect.open")
-        #endif
-    }
-
-    private var tryIt: some View {
-        Button {
-            // The question is copied too, in case the chat opens empty.
-            ConnectClipboard.set(plan.testPrompt)
-            openURL(plan.testPage)
-        } label: {
-            Label("Try It in \(plan.ai)", systemImage: "arrow.up.forward.app").frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.amberProminent)
-        .controlSize(.large)
-        .accessibilityIdentifier("connect.tryIt")
-    }
-
-    /// One step: a number that becomes a check, the line, and its button while it's the one at hand.
-    /// `detailAhead`: the detail shows before this step is the one at hand too.
-    private func step(_ i: Int, _ text: String, detail: String?, detailAhead: Bool = false, @ViewBuilder action: () -> some View) -> some View {
-        let done = stage > i, now = stage == i
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Image(systemName: done ? "checkmark.circle.fill" : now ? "\(i + 1).circle.fill" : "\(i + 1).circle")
-                    .font(.title3)
-                    .foregroundStyle(done ? AnyShapeStyle(.green) : now ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(text)
-                        .fontWeight(now ? .semibold : .regular)
-                        .foregroundStyle(now ? .primary : .secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if now || detailAhead, let detail {
-                        Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                Spacer(minLength: 0)
-                if now && i == 1 { ProgressView().accessibilityIdentifier("connect.waiting") }
-            }
-            if now { action() }
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(done ? "Done: \(text)" : text)
-        .accessibilityIdentifier(done && i == 1 ? "connect.connected" : "connect.step.\(i)")
-    }
-
-    /// The address, for adding it by hand, and the AI's other way in if it has one. It holds no password.
-    private var addressSection: some View {
-        Section {
-            if let fallback = plan.fallback {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(fallback.line).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    #if os(macOS)
-                    Button(fallback.button, systemImage: "plus.circle") { openURL(fallback.page(server)) }
-                        .accessibilityIdentifier("connect.fallback")
-                    #endif
-                }
-            }
-            DisclosureGroup("Server Address") {
-                Text(server).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                Button(copied ? "Copied" : "Copy Address", systemImage: copied ? "checkmark" : "doc.on.doc") { copy() }
-                    .accessibilityIdentifier("connect.copyAddress")
-            }
-        }
-    }
-
-    private func copy() {
-        ConnectClipboard.set(server)
-        withAnimation(.snappy) { copied = true }
-    }
-}
-
+/// One numbered step of Incredible's guide.
 struct ConnectStep: View {
     let number: Int
     let text: String
@@ -443,40 +245,6 @@ enum ConnectClipboard {
     }
 }
 
-#if os(macOS)
-/// A small window that floats over the browser with the steps and the address, and says
-/// "connected" when the approval comes through. Opened by the guide's one button, or by Handoff.
-struct ConnectPanel: View {
-    static let windowID = "connect-panel"
-    let backend: Backend
-    @State private var center = ConnectCenter.shared
-    @Environment(\.dismissWindow) private var dismissWindow
-
-    var body: some View {
-        Group {
-            if let ai = center.panelAI, let plan = WebConnectPlan.forAI(ai), let client = backend.client {
-                Form { WebConnectGuide(plan: plan, client: client, started: true) }
-                    .formStyle(.grouped)
-                    .navigationTitle("Connect \(ai)")
-                    .id(ai)
-            } else {
-                ContentUnavailableView("Nothing to connect", systemImage: "link")
-            }
-        }
-        .frame(width: 360)
-        .frame(minHeight: 420)
-        .onDisappear {
-            if let ai = center.panelAI { ConnectFunnel.closed(ConnectAIKind(guideName: ai)) }
-            center.panelAI = nil
-        }
-    }
-
-    /// Top right of the screen, clear of where the browser's page content usually is.
-    static func placement(screen: CGRect, size: CGSize) -> CGPoint {
-        CGPoint(x: screen.maxX - size.width - 24, y: screen.maxY - size.height - 24)
-    }
-}
-#endif
 
 // MARK: Incredible
 

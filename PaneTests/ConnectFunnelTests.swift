@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 import Testing
 @testable import Pane
 
@@ -9,7 +10,6 @@ extension FunnelTests {
         /// No guide left open by another test.
         private func reset() {
             for ai in ConnectAIKind.allCases { ConnectFunnel.closed(ai) }
-            ConnectCenter.shared.panelAI = nil
         }
 
         @Test func eachStepOnceThenConnected() {
@@ -55,23 +55,67 @@ extension FunnelTests {
             #expect(steps.events == [.connectStep(.claude, .opened)])
         }
 
-        @Test func theFloatingWindowCarriesTheGuideOn() {
+        #if os(macOS)
+        /// A row that runs Claude Code's command, stood in for: no shell, nothing opened.
+        private func claudeCodeRun(installed: Bool = true) -> (ConnectRun, SupabaseClient) {
+            let run = ConnectRun()
+            run.address = "https://mcp.example.com"
+            run.claudeCodeOnly = { true }
+            run.shell = .init(isAvailable: { true }, exists: { _ in installed }, add: { _, _, _ in .added }, signIn: { _ in })
+            return (run, SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test"))
+        }
+
+        private func settle(_ run: ConnectRun, until done: () -> Bool) async throws {
+            for _ in 0..<100 where !done() { try await Task.sleep(for: .milliseconds(20)) }
+        }
+
+        /// A row: pressed, waiting, connected, each once; Claude straight to Claude Code counts as
+        /// Claude Code. Closing the sheet after that isn't giving up.
+        @Test func aRowSaysEachStepOnce() async throws {
             reset()
             let steps = FunnelSteps()
-            steps.watch {
-                let route = ConnectGuideRoute()
-                route.guideOpened(.claude)
-                ConnectFunnel.started(.claude)
-                // Mac: the button hands the guide to the floating window, then the sheet closes.
-                ConnectCenter.shared.panelAI = "Claude"
-                route.guideClosed()
-                #expect(steps.count(.connectStep(.claude, .gaveUp)) == 0)
-                // The window closes before it's connected.
-                ConnectFunnel.closed(ConnectAIKind(guideName: "Claude"))
+            let (run, client) = claudeCodeRun()
+            try await steps.watch {
+                run.start(.claude, client: client, open: { _ in })
+                try await settle(run) { run.phase == .waiting(ConnectCopy.allowInBrowser) }
+                run.done(.claude)
+                run.stop()
             }
-            ConnectCenter.shared.panelAI = nil
-            #expect(steps.count(.connectStep(.claude, .gaveUp)) == 1)
+            #expect(steps.events == [.connectStep(.claudeCode, .opened), .connectStep(.claudeCode, .started),
+                                     .connectStep(.claudeCode, .waiting), .connectStep(.claudeCode, .connected)])
         }
+
+        /// The sheet closes while the row waits: given up, once. Trying the same AI again isn't.
+        @Test func aRowStoppedWhileWaitingIsGivingUp() async throws {
+            reset()
+            let steps = FunnelSteps()
+            let (run, client) = claudeCodeRun()
+            try await steps.watch {
+                run.start(.claude, client: client, open: { _ in })
+                try await settle(run) { run.phase == .waiting(ConnectCopy.allowInBrowser) }
+                run.start(.claude, client: client, open: { _ in })      // pressed again
+                try await settle(run) { run.phase == .waiting(ConnectCopy.allowInBrowser) }
+                run.stop()
+                run.stop()
+            }
+            #expect(steps.count(.connectStep(.claudeCode, .gaveUp)) == 1)
+            #expect(steps.count(.connectStep(.claudeCode, .opened)) == 2)
+        }
+
+        /// Claude Code isn't on this Mac: the row fails, and says so.
+        @Test func aRowThatFailsSaysSo() async throws {
+            reset()
+            let steps = FunnelSteps()
+            let (run, client) = claudeCodeRun(installed: false)
+            try await steps.watch {
+                run.start(.claude, client: client, open: { _ in })
+                try await settle(run) { if case .failed = run.phase { true } else { false } }
+                run.stop()
+            }
+            #expect(steps.count(.connectStep(.claudeCode, .failed, kind: .other)) == 1)
+            #expect(steps.count(.connectStep(.claudeCode, .gaveUp)) == 1, "started and never connected")
+        }
+        #endif
 
         @Test func aFailureSaysItsKind() {
             reset()

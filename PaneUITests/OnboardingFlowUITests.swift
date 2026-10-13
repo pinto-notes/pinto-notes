@@ -93,7 +93,7 @@ final class OnboardingFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["onboarding.source.appleNotes"].exists)
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "a4-connect")
-        for id in ["chatgpt", "claude", "claudeCode", "codex", "other"] { XCTAssertTrue(app.buttons["connect.guide.\(id)"].exists, id) }
+        for id in ["chatgpt", "claude", "codex", "other"] { XCTAssertTrue(app.buttons["connect.guide.\(id)"].exists, id) }
         app.buttons["onboarding.skip"].tap()
         // Done: a new empty note with the cursor in it.
         let editor = app.textViews.firstMatch
@@ -158,26 +158,29 @@ final class OnboardingFlowUITests: XCTestCase {
         return (ok, String(text.prefix(4000)))
     }
 
-    /// On the connect step: Claude Code's guide, Copy (which makes the token on staging, where the
-    /// address has a path), and the address and token read from the command it shows. Then Done.
-    func connectClaudeCode(picture: String?) throws -> (address: URL, token: String) {
-        app.buttons["connect.guide.claudeCode"].tap()
-        let copy = app.buttons["connect.terminal.copy"].firstMatch
-        XCTAssertTrue(copy.waitForExistence(timeout: 20), "the guide for Claude Code")
-        XCTAssertTrue(app.descendants(matching: .any)["connect.terminal.onAComputer"].firstMatch.exists, "says it runs on a computer")
+    /// On the connect step: Having trouble?, an access token for an app that asks for one (this
+    /// test plays that app), and the address and token read from the sheet. Then Done, and the
+    /// step's Continue: nothing moves on by itself.
+    func connectWithToken(picture: String?) throws -> (address: URL, token: String) {
+        app.buttons["connect.trouble"].tap()
+        let make = app.buttons["connect.help.token"].firstMatch
+        XCTAssertTrue(make.waitForExistence(timeout: 20), "Having trouble? offers a token")
         if let picture { shot(picture) }
-        if !copy.isHittable { app.swipeUp() }
+        if !make.isHittable { app.swipeUp() }
         // No picture while the token is on screen.
-        copy.tap()
-        let command = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Authorization: Bearer pane_'")).firstMatch
-        XCTAssertTrue(command.waitForExistence(timeout: 30), "Copy made the token and shows the command whole")
-        let text = command.label
+        make.tap()
+        let shown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'pane_'")).firstMatch
+        XCTAssertTrue(shown.waitForExistence(timeout: 30), "the token shows once")
+        let text = shown.label
+        let place = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'http'")).firstMatch.label
         guard let token = text.range(of: #"pane_[0-9a-f]{64}"#, options: .regularExpression).map({ String(text[$0]) }),
-              let address = text.range(of: #"https?://[^\s"]+"#, options: .regularExpression).flatMap({ URL(string: String(text[$0])) }) else {
-            throw XCTSkip("the command should hold an address and a token")
+              let address = URL(string: place) else {
+            throw XCTSkip("the sheet should show the address and a token")
         }
-        XCTAssertTrue(app.descendants(matching: .any)["connect.terminal.waiting"].firstMatch.waitForExistence(timeout: 10), "the guide waits for the first call")
         app.buttons["Done"].tap()
+        let next = app.buttons["onboarding.continue"]
+        XCTAssertTrue(next.waitForExistence(timeout: 20), "connected: the step's one button is Continue")
+        next.tap()
         return (address, token)
     }
 
@@ -191,11 +194,10 @@ final class OnboardingFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["onboarding.source.appleNotes"].exists, "Apple Notes, the same large choice as on the Mac")
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "d2-connect")
-        let ai = try connectClaudeCode(picture: "d3-guide-claude-code")
+        let ai = try connectWithToken(picture: "d3-having-trouble")
         // As if a pile of notes had been imported, one of them called To-do.
         let imported = callTool("create_note", ["body": "To-do\n\n- [ ] Buy milk"], at: ai.address, token: ai.token)
         XCTAssertTrue(imported.ok, "the imported note: \(imported.text)")
-        // Connected: the step moves on by itself.
         expectStep("Try it", "d5-try-it-waiting")
         XCTAssertTrue(app.staticTexts["onboarding.prompt"].waitForExistence(timeout: 10), "Claude Code has no link: the prompt to paste")
         XCTAssertTrue(app.staticTexts["onboarding.prompt"].label.contains("my note called My first AI note"), "the prompt names the note")
@@ -233,7 +235,7 @@ final class OnboardingFlowUITests: XCTestCase {
         expectStep("Bring your notes", "f3-bring")
         app.buttons["onboarding.skip"].tap()
         expectStep("Connect your AI", "f4-connect")
-        let ai = try connectClaudeCode(picture: nil)
+        let ai = try connectWithToken(picture: nil)
         expectStep("Try it", "f5-try-it")
         // The note is on the server while the step waits.
         var there = false

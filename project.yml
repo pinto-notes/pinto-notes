@@ -99,6 +99,8 @@ targets:
             CFBundleURLSchemes: [$(PANE_URL_SCHEME)]
         # Handoff: Connect ChatGPT or Claude, started on iPhone, continues on the Mac.
         NSUserActivityTypes: [dev.emilwagman.pane.connect]
+        # Connect an AI: whether the ChatGPT and Claude apps are on this iPhone (canOpenURL; no dialog).
+        LSApplicationQueriesSchemes: [chatgpt, claude]
         PaneSupabaseURL: $(PANE_SUPABASE_URL)
         PaneSupabaseKey: $(PANE_SUPABASE_KEY)
         PaneShareURL: $(PANE_SHARE_URL)

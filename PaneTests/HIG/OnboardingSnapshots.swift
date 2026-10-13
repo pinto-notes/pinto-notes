@@ -81,20 +81,16 @@ import UIKit
 
     // MARK: Connecting Claude Code, Codex and another AI
 
-    /// (name, guide, preview): the command with no secret (production's address), the one that
-    /// carries a token (staging's), waiting after Copy, and connected.
-    static let terminalSheets: [(String, ConnectAISection.Guide, TerminalConnectGuide.Preview)] = [
-        ("8-claude-code", .claudeCode, .init()),
-        ("8-claude-code-copied-waiting", .claudeCode, .init(copied: true)),
-        ("8-claude-code-connected", .claudeCode, .init(copied: true, connected: true)),
-        ("8-claude-code-with-token-options", .claudeCode, .init(server: "https://example.supabase.co/functions/v1/mcp", optionsOpen: true)),
-        ("8-codex", .codex, .init()),
-        ("8-another-ai", .other, .init()),
-        ("8-another-ai-options", .other, .init(optionsOpen: true)),
+    /// (name, guide): Having trouble?, opened from each AI's row (that AI's help first).
+    static let terminalSheets: [(String, ConnectAISection.Guide?)] = [
+        ("8-help-claude-code", .claudeCode),
+        ("8-help-codex", .codex),
+        ("8-help-another-ai", .other),
+        ("8-help-all", nil),
     ]
 
-    static func terminalSheet(_ guide: ConnectAISection.Guide, _ preview: TerminalConnectGuide.Preview) -> some View {
-        TerminalConnectSheet(guide: guide, client: CaptureScreen.client, preview: preview)
+    static func terminalSheet(_ guide: ConnectAISection.Guide?) -> some View {
+        ConnectHelpSheet(topic: HelpTopic(guide: guide), client: CaptureScreen.client)
             .tint(Color(PColor.paneAccent))
             .environment(\.locale, Locale(identifier: "en_US"))
     }
@@ -103,8 +99,8 @@ import UIKit
     @Test(arguments: [false, true])
     func macTerminalSheets(dark: Bool) async throws {
         guard AppSnapshotTests.dir != nil else { return }
-        for (name, guide, preview) in Self.terminalSheets {
-            try await AppSnapshotTests.render(Self.terminalSheet(guide, preview), name: "mac-\(name)-\(dark ? "dark" : "light")", dark: dark, wait: 0.8)
+        for (name, guide) in Self.terminalSheets {
+            try await AppSnapshotTests.render(Self.terminalSheet(guide), name: "mac-\(name)-\(dark ? "dark" : "light")", dark: dark, wait: 0.8)
         }
     }
     #endif
@@ -114,12 +110,12 @@ import UIKit
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        for (name, guide, preview) in Self.terminalSheets {
+        for (name, guide) in Self.terminalSheets {
             for dark in [false, true] {
                 let window = UIWindow(windowScene: scene)
                 window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
-                window.rootViewController = UIHostingController(rootView: Self.terminalSheet(guide, preview))
+                window.rootViewController = UIHostingController(rootView: Self.terminalSheet(guide))
                 window.isHidden = false
                 try? await Task.sleep(for: .seconds(0.9))
                 let format = UIGraphicsImageRendererFormat()
