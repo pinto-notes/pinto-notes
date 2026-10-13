@@ -186,6 +186,8 @@ struct AppleNotesImportView: View {
     @State private var explainingChecklists = false
     /// Captures: the sheet as it is on a Mac where Notes' database can't be read.
     nonisolated(unsafe) static var demoWithoutAccess = false
+    /// Design studies: a made-up library of their own (two accounts, say).
+    nonisolated(unsafe) static var demoListing: AppleNotesListing?
     /// Set when some notes couldn't be read: the sheet stays to say which.
     @State private var unread: AppleNotesImportSummary?
     @FocusState private var searchFocused: Bool
@@ -588,7 +590,7 @@ struct AppleNotesImportView: View {
         existing = AppleNotesListing.keysOfNotes(in: context)
         if AppleNotesBridge.isDemo {
             // Captures never read the real Apple Notes: a made-up library, most of it picked.
-            listing = AppleNotesListing(notes: AppleNotesBridge.demoNotes)
+            listing = Self.demoListing ?? AppleNotesListing(notes: AppleNotesBridge.demoNotes)
             picked = Set(notes.filter { $0.folder != "Archive" }.map(\.id))
             existing = []
             storeAccess = !Self.demoWithoutAccess
