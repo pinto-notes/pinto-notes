@@ -23,8 +23,8 @@ import UIKit
         #if os(iOS)
         return [.keepPhone, .obsidianPhone(picture: picture("obsidian/obsidian-icloud-folder-location.png")), .markdown]
         #else
-        return [.keep, .evernote, .bear(picture: picture("bear/bear-export-panel-crop.png")),
-                .obsidian(picture: picture("obsidian/obsidian-reveal-in-finder-crop.png")), .markdown]
+        return [.keep, .evernote, .bear(picture: picture("bear/bear-export-options-tight.png")),
+                .obsidian(picture: picture("obsidian/obsidian-reveal-in-finder-tight.png")), .markdown]
         #endif
     }
 
@@ -49,7 +49,7 @@ import UIKit
 
     static let notices: [(String, String, ImportNoticePage)] = {
         #if os(iOS)
-        [("apple-notes", "iphone-easiest-on-mac", .phoneAppleNotes), ("apple-notes", "iphone-one-at-a-time", .phoneAppleNotesOne),
+        [("apple-notes", "easiest-on-mac", .phoneAppleNotes), ("apple-notes", "one-at-a-time", .phoneAppleNotesOne),
          ("evernote", "easiest-on-a-computer", .phoneEvernote), ("bear", "easiest-on-mac", .phoneBear)]
         #else
         [("apple-notes", "permission-denied", .notesDenied), ("apple-notes", "nothing-found", .notesEmpty)]

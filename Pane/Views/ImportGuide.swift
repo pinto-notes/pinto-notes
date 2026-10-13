@@ -85,7 +85,7 @@ extension ImportGuide {
         introLine: "Evernote saves each notebook as a file you can bring here. About a minute per notebook, and nothing in Evernote changes.",
         skipTitle: "I already have the files",
         steps: [
-            Step(title: "Open Evernote on this Mac",
+            Step(title: "Export a notebook",
                  text: "Click Notebooks. By a notebook, click the three dots, then Export Notebook. The website can't do this; the app can.",
                  art: .drawn(.evernoteExport), action: "Open Evernote"),
             Step(title: "Save it as an ENEX file",
@@ -111,8 +111,8 @@ extension ImportGuide {
                      art: .drawn(.bearSelect), action: "Open Bear"),
                 Step(title: "Save them as Markdown",
                      text: "Choose File, then Export Notes. Pick Markdown, tick Export attachments, and save into a new folder.",
-                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.27, y: 0.42, width: 0.24, height: 0.105), "Markdown"),
-                                                             (CGRect(x: 0.055, y: 0.64, width: 0.22, height: 0.1), "Tick it")]) } ?? .drawn(.bearExport),
+                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.485, y: 0.04, width: 0.5, height: 0.27), "Pick Markdown"),
+                                                             (CGRect(x: 0.015, y: 0.74, width: 0.56, height: 0.24), "Tick it")]) } ?? .drawn(.bearExport),
                      action: nil),
             ],
             drop: Drop(title: "Drop the folder here",
@@ -132,7 +132,7 @@ extension ImportGuide {
             steps: [
                 Step(title: "Find your vault",
                      text: "Your vault is the folder your notes live in. In Obsidian, right-click any note and choose Reveal in Finder.",
-                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.15, y: 0.758, width: 0.27, height: 0.067), nil)]) } ?? .drawn(.obsidianReveal),
+                     art: picture.map { .picture($0, rings: [(CGRect(x: 0.235, y: 0.4, width: 0.7, height: 0.17), nil)]) } ?? .drawn(.obsidianReveal),
                      action: "Open Obsidian"),
             ],
             drop: Drop(title: "Drop your vault here",
@@ -172,6 +172,7 @@ extension ImportGuide {
     /// On iPhone a vault lives in Files, usually in iCloud Drive's Obsidian folder.
     static func obsidianPhone(picture: URL?) -> ImportGuide {
         var g = obsidian(picture: nil)
+        g.introLine = "Your notes are already files, so there's nothing to export. Obsidian stays as it is."
         g.steps = [Step(title: "Find your vault in Files",
                         text: "Open Files, then iCloud Drive, then Obsidian. Each folder in there is a vault.",
                         art: picture.map { .picture($0) } ?? .none, action: "Open Files")]
@@ -321,9 +322,11 @@ struct ImportGuideSheet: View {
     @ViewBuilder
     private func step(_ s: ImportGuide.Step, number: Int) -> some View {
         let words = VStack(alignment: .leading, spacing: 8) {
-            Text("Step \(number) of \(guide.steps.count)")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.muted)
+            if guide.steps.count > 1 {
+                Text("Step \(number) of \(guide.steps.count)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+            }
             Text(s.title).font(.system(size: Self.compact ? 24 : 21, weight: .bold)).tracking(-0.3)
             Text(s.text)
                 .font(Self.compact ? .body : .system(size: 14))
@@ -370,6 +373,11 @@ struct ImportGuideSheet: View {
         }
     }
 
+    /// "Choose Another Folder…", "Choose Other Files…"
+    private var chooseAnother: String {
+        guide.drop.choose.replacingOccurrences(of: "Choose", with: guide.drop.choose.contains("Files") ? "Choose Other" : "Choose Another")
+    }
+
     private func drop(_ state: ImportGuidePage.DropState) -> some View {
         VStack(spacing: 0) {
             Text(state == .found ? "Found it" : guide.drop.title)
@@ -388,9 +396,9 @@ struct ImportGuideSheet: View {
             switch state {
             case .found:
                 primary(guide.drop.found?.button ?? "Import")
-                quiet(guide.drop.choose.replacingOccurrences(of: "Choose", with: "Choose Another"))
+                quiet(chooseAnother)
             case .wrong:
-                primary(guide.drop.choose.replacingOccurrences(of: "Choose", with: "Choose Another"))
+                primary(chooseAnother)
                 quiet(guide.steps.isEmpty ? " " : "Show me how again")
             default:
                 primary(guide.drop.choose)
@@ -457,7 +465,7 @@ struct ImportGuideSheet: View {
             ProgressView(value: Double(done), total: Double(total))
                 .frame(maxWidth: 300)
                 .tint(Color(Palette.amber))
-            Text("\(done) of \(total)").font(.system(size: 13)).foregroundStyle(Color.muted).monospacedDigit()
+            Text("\(done.formatted(.number.locale(Locale(identifier: "en_US")))) of \(total.formatted(.number.locale(Locale(identifier: "en_US"))))").font(.system(size: 13)).foregroundStyle(Color.muted).monospacedDigit()
             Spacer(minLength: 0)
             quiet("Stop")
         }
@@ -552,14 +560,15 @@ struct ImportGuideSheet: View {
                                            width: ring.0.width * g.size.width, height: ring.0.height * g.size.height)
                             RoundedRectangle(cornerRadius: 7).strokeBorder(Color(Palette.amberButton), lineWidth: 2.5)
                                 .frame(width: r.width, height: r.height)
-                                .overlay(alignment: .trailing) {
+                                .overlay(alignment: ring.0.maxX < 0.7 ? .trailing : .bottomTrailing) {
                                     if let label = ring.1 {
                                         Text(label).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                                             .padding(.horizontal, 7).padding(.vertical, 3)
                                             .background(Color(Palette.amberButton), in: .capsule)
                                             .fixedSize()
                                             .offset(x: 0)
-                                            .alignmentGuide(.trailing) { $0[.leading] - 8 }
+                                            .alignmentGuide(.trailing) { ring.0.maxX < 0.7 ? $0[.leading] - 8 : $0[.trailing] }
+                                            .offset(y: ring.0.maxX < 0.7 ? 0 : 26)
                                     }
                                 }
                                 .position(x: r.midX, y: r.midY)
