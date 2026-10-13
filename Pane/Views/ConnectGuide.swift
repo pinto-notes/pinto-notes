@@ -12,7 +12,7 @@ import UIKit
 // Pinto Notes is listed in Claude's connector directory (since 2 October 2026), so for Claude the
 // press opens the listing and the person chooses Connect. Claude's install link for its Add custom
 // connector dialog stays as the fallback (Having trouble?). ChatGPT has no such link: the press
-// copies the address and opens ChatGPT's Plugins page. Both are added on the web or desktop,
+// opens a guide (ConnectWebGuide) that walks through adding it on ChatGPT's Plugins page. Both are added on the web or desktop,
 // once; after that they work in the phone apps too. claude.ai doesn't hand /directory links to
 // its iPhone app, so iPhone sends the link to the computer.
 //
@@ -63,9 +63,9 @@ struct WebConnectPlan: Equatable {
         ai: "ChatGPT",
         prefills: false,
         steps: [
-            "Turn on Developer mode in Settings, Security and login (once).",
-            "In Plugins, choose + and name it Pinto Notes.",
-            "Paste the address, choose OAuth, then Create.",
+            "In Plugins, choose Add, then Add custom MCP server.",
+            "Name it Pinto Notes and paste the address under Connection.",
+            "Tick I understand and want to continue, then choose Create as a plugin.",
             allowStep,
         ],
         plans: "Needs ChatGPT Plus, Pro, Business, Enterprise or Edu, on the web.",

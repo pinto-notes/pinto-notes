@@ -700,7 +700,12 @@ struct ConnectChoices: View {
     }
 
     private func press(_ g: Guide) {
-        if g == .incredible { route?.guide = .incredible; return }
+        // Incredible, ChatGPT and Another AI open a guide of their own; the rest start from the row.
+        if let route, g == .incredible || ConnectWebGuide.opensSheet(g) {
+            run.stop(givingUp: run.guide != nil)
+            route.guide = g
+            return
+        }
         run.start(g, client: client) { openURL($0) }
     }
 
@@ -750,7 +755,7 @@ struct ConnectChoices: View {
     /// The row as a button; on iPhone, the AIs added on a computer send the link there (ShareLink).
     @ViewBuilder private func pressable(_ g: Guide, @ViewBuilder label: () -> some View) -> some View {
         #if os(iOS)
-        if g != .other, g != .incredible, state(g) != .connected {
+        if g != .incredible, !ConnectWebGuide.opensSheet(g), state(g) != .connected {
             ShareLink(item: ConnectCopy.message(g, server: run.server), subject: Text("Connect \(g.title) to Pinto Notes"),
                       preview: SharePreview("Connect \(g.title) to Pinto Notes", icon: Image("Mark"))) { label() }
                 .buttonStyle(BigChoicePress())
