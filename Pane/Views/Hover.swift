@@ -147,11 +147,11 @@ struct HoverRowReader<Content: View>: View {
             .modifier(HoverTracking(hovering: $hovering, pointer: pointer))
             .background {
                 if selected || on {
-                    // C and D: sm corners on every row, and the hover half way to the selection's
+                    // C and D: sm corners on every row, and the hover a little under half way to the selection's
                     // fill (a note row's card, a folder's neutral pill), never on the selected row.
                     RoundedRectangle(cornerRadius: DesignLook.calmList ? Radius.sm : Hover.pillRadius, style: .continuous)
                         .fill(selected ? (card ? AnyShapeStyle(Color.card) : Hover.selected)
-                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color.card.opacity(0.55)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
+                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color.card.opacity(0.4)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
