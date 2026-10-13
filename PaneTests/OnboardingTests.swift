@@ -47,6 +47,14 @@ import Testing
         #expect(again.step == .bring)
     }
 
+    #if os(macOS)
+    /// Item 100: with no name from the sign-in, the field starts with the Mac user's name.
+    @Test func theNameFieldStartsWithTheMacUsersName() throws {
+        let name = try #require(OnboardingFlow.macUserName())
+        #expect(name == ProfileName.normalized(name))
+    }
+    #endif
+
     @Test func aStepSavedByAVersionWithTheWelcomeResumesAtTheName() {
         let defaults = TestDefaults()
         let account = UUID()

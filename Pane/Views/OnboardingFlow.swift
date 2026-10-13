@@ -287,7 +287,8 @@ struct OnboardingFlow: View {
 
     private var nameField: some View {
         let shape = RoundedRectangle(cornerRadius: SignInView.Row.radius, style: .continuous)
-        return TextField("Your name", text: Binding(get: { name }, set: { name = $0; nameEdited = true }))
+        // Only a real change counts as typing: focusing the field writes the same text back.
+        return TextField("Your name", text: Binding(get: { name }, set: { if $0 != name { name = $0; nameEdited = true } }))
             .textFieldStyle(.plain)
             #if os(macOS)
             .font(.system(size: SignInView.Row.text))
@@ -762,15 +763,25 @@ struct OnboardingFlow: View {
             name = preview.name
             return
         }
+        #if os(macOS)
+        // Until the account says otherwise (Apple sends a name only at an app's very first
+        // sign-in): the name this Mac's user goes by, to keep or change.
+        if !nameEdited, let mine = Self.macUserName() { name = mine }
+        #endif
         if let known = profile.name, !nameEdited { name = known }
         await profile.bind(backend)
         if let known = profile.name, !nameEdited { name = known }
-        #if os(macOS)
-        // Nobody handed a name over (Apple sends it only at an app's very first sign-in): the
-        // name this Mac's user goes by, to keep or change.
-        if name.isEmpty, !nameEdited, let mine = ProfileName.normalized(NSFullUserName()) { name = mine }
-        #endif
     }
+
+    #if os(macOS)
+    /// The Mac user's full name, as the system has it. NSFullUserName can come back empty in the
+    /// sandbox; the user's record says it then.
+    static func macUserName() -> String? {
+        if let name = ProfileName.normalized(NSFullUserName()) { return name }
+        guard let entry = getpwuid(getuid()), let gecos = entry.pointee.pw_gecos else { return nil }
+        return ProfileName.normalized(String(cString: gecos).components(separatedBy: ",").first ?? "")
+    }
+    #endif
 
     enum Metrics {
         #if os(macOS)
