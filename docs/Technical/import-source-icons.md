@@ -13,5 +13,5 @@ ships in the asset catalog, unaltered, taken from the app's Mac App Store listin
 
 Apple's icons are never bundled (Apple's guidelines allow no Apple icon without a licence, and App
 Review can reject an app that shows one). On iPhone Apple Notes is a drawn notes page (white, a
-yellow band, ruled lines) and Markdown files a drawn document like the Files app's; on the Mac both
-come from the system (the installed Notes app, Finder's icon for .md).
+yellow band, ruled lines); on the Mac it is the installed Notes app's icon. Markdown files are a
+drawn document like the Files app's on both (Finder's page was too faint at row size).

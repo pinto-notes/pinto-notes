@@ -101,11 +101,10 @@ extension ImportOrigin {
 }
 
 /// A source's icon. On the Mac it is the app's own icon when that app is on this Mac, drawn by the
-/// system from the installed copy (Apple Notes always is), and Finder's document icon for Markdown
-/// files. Otherwise, and on iPhone, it is a tile drawn on an app icon's grid with a plain symbol.
-/// Evernote, Bear, Obsidian and Google Keep ship their own icons for when the app isn't there
-/// (sources and terms: docs/Technical/import-source-icons.md). Apple's never ship: on iPhone
-/// Apple Notes is a drawn notes page and Markdown a drawn document.
+/// system from the installed copy (Apple Notes always is). Evernote, Bear, Obsidian and Google Keep
+/// ship their own icons for when the app isn't there and for iPhone (sources and terms:
+/// docs/Technical/import-source-icons.md). Apple's never ship: on iPhone Apple Notes is a drawn
+/// notes page. Markdown files are a drawn document everywhere.
 struct ImportSourceIcon: View {
     let origin: ImportOrigin
     var size: CGFloat = 24
@@ -116,15 +115,14 @@ struct ImportSourceIcon: View {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: id).map { NSWorkspace.shared.icon(forFile: $0.path) }
     }
 
-    /// The icon for files of this kind, as Finder draws it (captures and tests set their own).
-    nonisolated(unsafe) static var documentIcon: () -> NSImage? = {
-        NSWorkspace.shared.icon(for: UTType(filenameExtension: "md") ?? .plainText)
-    }
     #endif
 
     var body: some View {
         #if os(macOS)
-        if let icon = origin.bundleIdentifier.flatMap(Self.installedIcon) ?? (origin == .files(.markdown) ? Self.documentIcon() : nil) {
+        if origin == .files(.markdown) {
+            // Drawn, not Finder's: Finder's page is too faint beside app icons at row size.
+            documentTile
+        } else if let icon = origin.bundleIdentifier.flatMap(Self.installedIcon) {
             Image(nsImage: icon)
                 .resizable()
                 .interpolation(.high)
@@ -182,29 +180,29 @@ struct ImportSourceIcon: View {
     /// A document, as the Files app and Finder draw one: a white page with its corner folded and
     /// a few lines of text, a little narrower than an app icon.
     private var documentTile: some View {
-        let height = size * 0.86
-        let width = height * 0.78
+        let height = size * 0.9
+        let width = height * 0.8
         let fold = width * 0.3
         return ZStack(alignment: .topTrailing) {
             FoldedPage(fold: fold)
-                .fill(LinearGradient(colors: [Color(white: 1), Color(white: 0.95)], startPoint: .top, endPoint: .bottom))
-                .overlay(FoldedPage(fold: fold).stroke(Color.black.opacity(0.16), lineWidth: max(0.5, size / 64)))
+                .fill(LinearGradient(colors: [Color(white: 1), Color(white: 0.93)], startPoint: .top, endPoint: .bottom))
+                .overlay(FoldedPage(fold: fold).stroke(Color.black.opacity(0.28), lineWidth: max(0.75, size / 40)))
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: height * 0.075) {
                         ForEach([0.62, 0.62, 0.62, 0.4], id: \.self) { share in
-                            Capsule().fill(Color(white: 0.78)).frame(width: width * share, height: max(0.5, height * 0.035))
+                            Capsule().fill(Color(white: 0.6)).frame(width: width * share, height: max(1, height * 0.05))
                         }
                     }
                     .padding(.leading, width * 0.17)
                     .padding(.top, height * 0.4)
                 }
             FoldCorner(fold: fold)
-                .fill(LinearGradient(colors: [Color(white: 0.97), Color(white: 0.86)], startPoint: .bottomLeading, endPoint: .topTrailing))
-                .overlay(FoldCorner(fold: fold).stroke(Color.black.opacity(0.16), lineWidth: max(0.5, size / 64)))
+                .fill(LinearGradient(colors: [Color(white: 0.95), Color(white: 0.8)], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .overlay(FoldCorner(fold: fold).stroke(Color.black.opacity(0.28), lineWidth: max(0.75, size / 40)))
                 .frame(width: fold, height: fold)
         }
         .frame(width: width, height: height)
-        .shadow(color: .black.opacity(0.18), radius: size * 0.018, y: size * 0.012)
+        .shadow(color: .black.opacity(0.25), radius: size * 0.02, y: size * 0.012)
         .frame(width: size, height: size)
         .environment(\.colorScheme, .light)
         .accessibilityHidden(true)
