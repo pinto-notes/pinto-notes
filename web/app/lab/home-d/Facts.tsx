@@ -7,14 +7,16 @@ import s from "./d.module.css";
 // moment that proves it: on hover (Mac), or once as the row comes into view (touch). Under Reduce
 // Motion nothing moves. Each moment is 400 ms or less and moves nothing around it.
 
-const FACTS = [
+export type Fact = { key: string; title?: string; line: React.ReactNode };
+export const FACTS: Fact[] = [
   { key: "lock", title: "Encrypted", line: "Encrypted on your Mac before it syncs." },
   { key: "box", title: "Open source", line: "The code is on GitHub." },
   { key: "tag", title: "Free", line: "No ads, no tracking in the app." },
   { key: "undo", title: "Every change undoable", line: <>Undo any <span className={s.strike}>change<i aria-hidden="true">⌘Z</i></span>, yours or your AI&apos;s.</> },
 ];
 
-export default function Facts() {
+/// `items` replaces the four facts (home-g: three lines, no titles); `light` sets them on cream.
+export default function Facts({ items = FACTS, light = false }: { items?: Fact[]; light?: boolean } = {}) {
   const ref = useRef<HTMLUListElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -32,8 +34,8 @@ export default function Facts() {
     return () => io.disconnect();
   }, []);
   return (
-    <ul ref={ref} className={s.facts}>
-      {FACTS.map((f) => (
+    <ul ref={ref} className={s.facts} data-light={light || undefined} data-count={items.length}>
+      {items.map((f) => (
         <li key={f.key} className={s.fact} data-fact={f.key}>
           <span className={s.factIcon} aria-hidden="true">
             <span className={s.factFlip}>
@@ -41,7 +43,7 @@ export default function Facts() {
               {f.key === "tag" && <span className={s.factBack}>0</span>}
             </span>
           </span>
-          <b>{f.title}</b>
+          {f.title && <b>{f.title}</b>}
           <span className={s.factLine}>
             {f.key === "lock" && typeof f.line === "string" ? <Scramble text={f.line} /> : f.line}
           </span>
@@ -61,4 +63,9 @@ function Scramble({ text }: { text: string }) {
       ))}
     </span>
   );
+}
+
+/// One word struck through and brought back with ⌘Z when its fact's moment plays (the undo fact).
+export function Struck({ children }: { children: React.ReactNode }) {
+  return <span className={s.strike}>{children}<i aria-hidden="true">⌘Z</i></span>;
 }
