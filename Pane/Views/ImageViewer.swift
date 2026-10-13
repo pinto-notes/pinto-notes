@@ -349,7 +349,7 @@ struct ImageViewer: View {
                 .accessibilityIdentifier("image.copy")
         }
         .labelStyle(.iconOnly)
-        .buttonStyle(.borderless)
+        .iconBarButtons()
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(.bar)

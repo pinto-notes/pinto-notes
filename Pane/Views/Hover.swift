@@ -10,6 +10,14 @@ import SwiftUI
 enum Hover {
     /// In and out quickly, so the fill follows the pointer without trailing it.
     static let animation = Animation.easeOut(duration: 0.08)
+
+    /// The hover's fade. C and D (DesignLook.calmList): 120 ms in, 80 ms out (things that leave go
+    /// faster), and none with Reduce Motion. Today's look: `animation` both ways.
+    static func fade(in: Bool, reduceMotion: Bool) -> Animation? {
+        guard DesignLook.calmList else { return animation }
+        if reduceMotion { return nil }
+        return .easeOut(duration: `in` ? 0.12 : 0.08)
+    }
     /// A hovered row: a light fill, well under the selection's.
     static let row = AnyShapeStyle(.fill.quaternary)
     /// A hovered icon button or plain button with its own shape.
@@ -87,13 +95,14 @@ extension Color {
 struct HoverTracking: ViewModifier {
     @Binding var hovering: Bool
     var pointer: ((Bool) -> Void)?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
             #if os(macOS)
             .onHover { over in
                 guard over != hovering else { return }
-                withAnimation(Hover.animation) { hovering = over }
+                withAnimation(Hover.fade(in: over, reduceMotion: reduceMotion)) { hovering = over }
                 pointer?(over)
             }
             #endif
@@ -138,8 +147,11 @@ struct HoverRowReader<Content: View>: View {
             .modifier(HoverTracking(hovering: $hovering, pointer: pointer))
             .background {
                 if selected || on {
-                    RoundedRectangle(cornerRadius: card ? Radius.sm : Hover.pillRadius, style: .continuous)
-                        .fill(selected ? (card ? AnyShapeStyle(Color.card) : Hover.selected) : Hover.row)
+                    // C and D: sm corners on every row, and the hover half way to the selection's
+                    // fill (a note row's card, a folder's neutral pill), never on the selected row.
+                    RoundedRectangle(cornerRadius: DesignLook.calmList ? Radius.sm : Hover.pillRadius, style: .continuous)
+                        .fill(selected ? (card ? AnyShapeStyle(Color.card) : Hover.selected)
+                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color.card.opacity(0.55)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }

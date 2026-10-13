@@ -461,6 +461,14 @@ struct CardPress: ButtonStyle {
     }
 }
 
+extension View {
+    /// A bar of our own icon buttons (the image viewer's): borderless in today's look; in C and D
+    /// (DesignLook.calmList) quiet icons, a soft fill under the pointer. Native toolbars stay native.
+    @ViewBuilder func iconBarButtons() -> some View {
+        if DesignLook.calmList { buttonStyle(.quietIcon(padding: 4)) } else { buttonStyle(.borderless) }
+    }
+}
+
 // MARK: Depth
 
 extension View {
