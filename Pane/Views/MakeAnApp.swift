@@ -76,7 +76,7 @@ enum MakeAnApp {
     /// New App's words: the AI makes the note and its app.
     static func newAppPrompt(_ idea: String) -> String {
         let what = idea.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "."))
-        return "In Pinto Notes, make me a new note that is an app: \(what). Call get_page_guide, make the note with create_note (a short title), then start its app with create_app and build it."
+        return "In Pinto Notes, make me a new note that is an app: \(what). Make it with create (type app, a short title), read the app's README.md, then build it and look at it with see_app."
     }
 
     /// Examples to start New App from: the app-shaped templates on the site.
@@ -97,7 +97,7 @@ enum MakeAnApp {
     }
 
     static func prompt(title: String, body: String) -> String {
-        "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app\(idea(for: body).map { ": \($0)" } ?? ""). Call get_page_guide, read the note, start the app with create_app, and keep what the note's table or checklist holds as the app's data."
+        "In Pinto Notes, make my note \u{201C}\(title)\u{201D} an app\(idea(for: body).map { ": \($0)" } ?? ""). Read the note, start its app with create (type app), read the app's README.md, and keep what the note's table or checklist holds in the app's data.json."
     }
 }
 

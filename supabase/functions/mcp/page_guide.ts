@@ -5,7 +5,7 @@
 
 import { MAX_PAGE_BYTES, MAX_PAGE_DATA_BYTES, PAGE_CONTRACT } from "./page.ts";
 import { AMBER_BASE_CSS, AMBER_TOKENS } from "./amber-base.ts";
-import { scaffold } from "./app_scaffold.ts";
+import { appGuide, scaffold } from "./app_scaffold.ts";
 
 const LIBS_BY_PACKAGE = "chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti, topojson-client and world-atlas";
 
@@ -17,6 +17,13 @@ export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app (som
 - Its data is JSON the app keeps (useStore, useCollection, useSettings from "@/lib/amber", or localStorage: all synced and encrypted). You read and change it with get_page_data, query_app_data and update_page_data.
 - It runs inside a note on iPhone and Mac, light and dark, with no network except hosts the person allows.
 - See your work with preview_app and check_app before you say it's done.`;
+
+/** What the file tools' instructions (files_tools.ts) say about apps, and the Claude skill with them. */
+export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person.`;
+
+/** The apps guide with the file tools: what every new app's README.md says, as a document (the
+ *  MCP resource and the Claude skill's reference). */
+export const appsGuide = () => `# Apps in Pinto Notes\n\n${appGuide().replace(/^## .*\n\n/, "")}\n`;
 
 const kb = (n: number) => (n >= 1048576 ? `${n / 1048576} MB` : `${n / 1024} KB`);
 

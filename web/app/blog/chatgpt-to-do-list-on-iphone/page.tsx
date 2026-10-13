@@ -41,8 +41,8 @@ export default function Page() {
         <li>&ldquo;Plan Sunday&apos;s paella for eight and add what I need to Groceries.&rdquo;</li>
       </ul>
       <p>
-        Behind these, ChatGPT uses the small tools Pinto Notes gives it: <code>append_to_note</code> to add items,{" "}
-        <code>set_checklist_item</code> to tick one by its text, and <code>edit_note</code> for a precise change. It doesn&apos;t rewrite the
+        Behind these, ChatGPT uses the small tools Pinto Notes gives it: <code>fetch</code> to read the list and{" "}
+        <code>edit</code> to change one line, to add an item or tick one off. It doesn&apos;t rewrite the
         whole note, so the rest of your list stays as it was. The <a href="/blog/mcp-server">MCP server page</a> lists every tool.
       </p>
       <p>

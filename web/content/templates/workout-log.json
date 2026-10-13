@@ -11,7 +11,7 @@
   "folder": "Health",
   "note": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Minutes=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Minutes | Effort |\n| --- | --- | --- | --- | --- | --- |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Workout log\". After a session I'll tell you what I did. Log one row with log_table_row: Workout as one of the options, the Main lift, the Top set like \"100 kg x 5\", Minutes, and Effort from 1 to 10. If I beat a number listed under \"Personal bests\", or there's none for that lift yet, add it there with append_to_note and today's date. When I ask how I'm doing, read the table with read_table and compare the last four weeks."
+    "default": "Use my Pinto Notes note \"Workout log\". Read it with fetch before each change. After a session I'll tell you what I did. Add one row to the table with edit: Workout as one of the options, the Main lift, the Top set like \"100 kg x 5\", Minutes, and Effort from 1 to 10. If I beat a number listed under \"Personal bests\", or there's none for that lift yet, add it there with today's date. When I ask how I'm doing, compare the last four weeks."
   },
   "asks": [
     "Legs today: squat 100 kg for 5, then lunges. About 55 minutes, felt hard.",
@@ -20,49 +20,35 @@
   ],
   "demo": [
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Date": "2026-09-26",
-          "Workout": "Pull",
-          "Main lift": "Deadlift",
-          "Top set": "120 kg x 3",
-          "Minutes": "60",
-          "Effort": "9"
-        }
+        "path": "Health/Workout log.md",
+        "old_string": "| --- | --- | --- | --- | --- | --- |\n",
+        "new_string": "| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Date": "2026-09-28",
-          "Workout": "Legs",
-          "Main lift": "Squat",
-          "Top set": "100 kg x 5",
-          "Minutes": 55,
-          "Effort": 8
-        }
+        "path": "Health/Workout log.md",
+        "old_string": "| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n",
+        "new_string": "| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n"
       }
     },
     {
-      "tool": "log_table_row",
+      "tool": "edit",
       "args": {
-        "values": {
-          "Date": "2026-09-30",
-          "Workout": "Push",
-          "Main lift": "Bench press",
-          "Top set": "70 kg x 6",
-          "Minutes": 50,
-          "Effort": 7
-        }
+        "path": "Health/Workout log.md",
+        "old_string": "| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n",
+        "new_string": "| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Personal bests",
-        "text": "- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)"
+        "path": "Health/Workout log.md",
+        "old_string": "## Personal bests\n",
+        "new_string": "## Personal bests\n- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)\n"
       }
     }
   ],
@@ -72,5 +58,5 @@
     "mood-energy-log",
     "meal-plan"
   ],
-  "updated": "2026-10-01"
+  "updated": "2026-10-13"
 }

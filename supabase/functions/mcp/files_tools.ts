@@ -14,6 +14,7 @@ import { fileList, projectOf, saveProject, withFile, withFiles } from "./app_fil
 import { pageDataOf, storePageData } from "./data_tools.ts";
 import { dataShape } from "./data_ops.ts";
 import { appHandlers, realPreviewsServed } from "./app_tools.ts";
+import { FILE_APP_INSTRUCTIONS } from "./page_guide.ts";
 import type { PageData } from "./page.ts";
 import {
   bodyOf, Content, descendants, findFolder, handlers as classic, iso, LOCKED, MAX_READ_CHARS,
@@ -173,7 +174,7 @@ export const FILE_TOOLS: Tool[] = ([
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
 In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title.
 A note listed with locked: true is locked by the person with a separate password: only its title shows here, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
-A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person.
+${FILE_APP_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
 
 /** MCP prompts with the file tools: starting points a client can offer the person. */

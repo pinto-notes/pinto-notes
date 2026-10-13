@@ -11,7 +11,7 @@
   "folder": "Study",
   "note": "Cornell notes\n\nOne section per lecture or chapter. Your notes go on the right, a question that each one answers on the left, and a summary of two or three sentences closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\n\n## Cues to revisit\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Cornell notes\". When I paste or dictate notes from a lecture or a chapter, add a section at the end of \"Lectures\" with append_to_note: a \"###\" heading with the topic and the date, then a table with two columns, Cue and Notes. Put my notes on the right as short rows in my own words, and on the left a question each row answers. End the section with a line starting \"**Summary:**\", two or three plain sentences. When I say \"quiz me\", read the note with read_note and ask me the cues one at a time without showing the notes. Add any I miss under \"Cues to revisit\" as a checklist with append_to_note, and tick one with set_checklist_item when I get it right later."
+    "default": "Use my Pinto Notes note \"Cornell notes\". Read it with fetch before each change. When I paste or dictate notes from a lecture or a chapter, add a section at the end of \"Lectures\" with edit: a \"###\" heading with the topic and the date, then a table with two columns, Cue and Notes. Put my notes on the right as short rows in my own words, and on the left a question each row answers. End with a line starting \"**Summary:**\", two or three plain sentences. When I say \"quiz me\", ask me the cues one at a time without showing the notes. Add any I miss under \"Cues to revisit\" as a checklist, and tick one when I get it right later."
   },
   "asks": [
     "Here are my notes from today's economics lecture: …",
@@ -20,24 +20,27 @@
   ],
   "demo": [
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Lectures",
-        "text": "### Supply and demand, 1 October\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage."
+        "path": "Study/Cornell notes.md",
+        "old_string": "## Lectures\n",
+        "new_string": "## Lectures\n### Supply and demand, 1 October\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage.\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Cues to revisit",
-        "text": "- [ ] What shifts the demand curve?\n- [ ] What does a price ceiling below equilibrium cause?"
+        "path": "Study/Cornell notes.md",
+        "old_string": "## Cues to revisit\n",
+        "new_string": "## Cues to revisit\n- [ ] What shifts the demand curve?\n- [ ] What does a price ceiling below equilibrium cause?\n"
       }
     },
     {
-      "tool": "set_checklist_item",
+      "tool": "edit",
       "args": {
-        "item": "What does a price ceiling below equilibrium cause?",
-        "checked": true
+        "path": "Study/Cornell notes.md",
+        "old_string": "- [ ] What does a price ceiling below equilibrium cause?",
+        "new_string": "- [x] What does a price ceiling below equilibrium cause?"
       }
     }
   ],
@@ -47,5 +50,5 @@
     "book-notes",
     "reading-list"
   ],
-  "updated": "2026-10-04"
+  "updated": "2026-10-13"
 }

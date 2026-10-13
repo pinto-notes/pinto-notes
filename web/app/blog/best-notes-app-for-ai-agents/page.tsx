@@ -64,11 +64,11 @@ export default function Page() {
 
       <h2>Where Pinto Notes fits</h2>
       <p>
-        I built Pinto Notes for exactly this: a notes app that works like Apple Notes, with an MCP server made for agents. The tools are small
-        and exact. <code>edit_note</code> replaces text that must match once, <code>append_to_note</code> adds under a heading,{" "}
-        <code>set_checklist_item</code> ticks one item, and <code>log_table_row</code> adds a row to a tracker and checks each value against
-        its column. Every change keeps the previous version, which the agent can list with <code>note_history</code> and you can restore in
-        the app.
+        I built Pinto Notes for exactly this: a notes app that works like Apple Notes, with an MCP server made for agents. The tools are few
+        and work like a coding agent&apos;s: notes are markdown files with paths, <code>fetch</code> reads one, and <code>edit</code> replaces
+        text that must match once, in a note the agent has read. Ticking an item or adding a row to a tracker is one small edit, and the
+        answer says if it broke something, like a value outside its column&apos;s range. Every change keeps the previous version, which the
+        agent can list with <code>history</code> and you can restore in the app.
       </p>
       <Figure shot={SHOTS.historyBurst} caption="Every version, with who made it: you, ChatGPT or Claude Code." />
       <p>

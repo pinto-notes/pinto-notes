@@ -23,41 +23,21 @@ type Notes = {
 const SERVER = path.resolve(__dirname, "../../supabase/functions/mcp/notes.ts");
 const notes = (await import(/* @vite-ignore */ SERVER)) as Notes;
 
-/// One tool call, the way supabase/functions/mcp/tools.ts runs it on the note's body.
+/// One tool call, the way supabase/functions/mcp/files_tools.ts runs it on the note's body.
 function run(body: string, { tool, args }: DemoCall): string {
   const a = args as Record<string, any>;
   switch (tool) {
-    case "append_to_note":
-      return notes.appendText(body, a.text, a.under_heading, a.at_start === true);
-    case "edit_note":
-      return notes.applyEdits(body, a.edits);
-    case "set_checklist_item":
-      return notes.setChecklistItem(body, a.item, a.checked === true).body;
-    case "create_sub_note": {
-      // The sub-note itself is a note of its own; the parent gets the link (the id is fixed here).
-      const link = `[${notes.titleOf(a.body).replace(/[[\]]/g, "")}](pane-note:${a.id})`;
-      return notes.appendText(body, link, a.under_heading);
+    case "edit": {
+      // Exact search and replace: old_string must be there once, unless replace_all.
+      const n = body.split(a.old_string).length - 1;
+      if (n === 0) throw new Error(`old_string isn't in the note: ${a.old_string}`);
+      if (n > 1 && a.replace_all !== true) throw new Error(`old_string is in the note ${n} times: ${a.old_string}`);
+      return a.replace_all === true ? body.split(a.old_string).join(a.new_string) : body.replace(a.old_string, () => a.new_string);
     }
-    case "log_table_row": {
-      const all = notes.findTables(body);
-      const t = a.table === undefined ? all.find((x) => x.typed) ?? all[0] : all[a.table];
-      if (!t) throw new Error("This note has no table.");
-      const byName = new Map(t.columns.map((c, i) => [c.name.toLowerCase(), i]));
-      const unknown = Object.keys(a.values).filter((k) => !byName.has(k.toLowerCase()));
-      if (unknown.length) throw new Error(`Unknown column(s): ${unknown.join(", ")}`);
-      const dateCol = t.columns.findIndex((c) => c.type.kind === "date");
-      const incoming = new Map<number, string>();
-      for (const [k, v] of Object.entries(a.values)) {
-        const i = byName.get(k.toLowerCase())!;
-        incoming.set(i, notes.coerce(v, t.columns[i], "2026-09-30"));
-      }
-      if (dateCol >= 0 && !incoming.get(dateCol)) throw new Error("demo rows give their date");
-      const existing = dateCol >= 0 ? t.rows.findIndex((r) => r[dateCol] === incoming.get(dateCol)) : -1;
-      const row = existing >= 0 ? [...t.rows[existing]] : t.columns.map(() => "");
-      for (const [i, v] of incoming) row[i] = v;
-      if (existing >= 0) t.rows[existing] = row; else t.rows.push(row);
-      if (dateCol >= 0) t.rows.sort((x, y) => x[dateCol].localeCompare(y[dateCol]));
-      return notes.replaceTable(body, t);
+    case "create": {
+      // A note in this note's folder is its sub-note, linked at the end of it (the id is fixed here).
+      const link = `[${notes.titleOf(a.content).replace(/[[\]]/g, "")}](pane-note:${a.id})`;
+      return notes.appendText(body, link);
     }
     default:
       throw new Error(`The demo can't replay ${tool}`);
@@ -201,8 +181,8 @@ describe("the instructions", () => {
     for (const t of all) {
       for (const i of instructions(t)) {
         expect(i.prompt.startsWith(createStep(t)), `${t.slug} (${i.name})`).toBe(true);
-        expect(i.prompt).toContain(`create_note in the folder "${t.folder}"`);
-        // create_note stores the body as it's given; the title is its first line.
+        expect(i.prompt).toContain(`with create at "${t.folder}/${t.title}.md"`);
+        // create stores the content as it's given; the title is its first line.
         const body = markdownIn(i.prompt);
         expect(body, `${t.slug} (${i.name})`).toBe(t.note);
         expect(notes.titleOf(body!)).toBe(t.title);
@@ -215,11 +195,13 @@ describe("the instructions", () => {
     const writes = new Set(MCP_TOOLS.filter((x) => x.kind !== "read").map((x) => x.name));
     for (const t of all) {
       for (const i of instructions(t)) {
-        // Snake case names a tool, or one of the tools' own options.
-        const used = [...i.prompt.matchAll(/\b([a-z]+(?:_[a-z]+)+)\b/g)].map((m) => m[1]).filter((w) => !["at_start", "under_heading"].includes(w));
-        expect(used.length, t.slug).toBeGreaterThan(0);
-        for (const u of used) expect(toolNames.has(u), `${t.slug} (${i.name}) uses ${u}`).toBe(true);
-        expect(used.some((u) => writes.has(u)), t.slug).toBe(true);
+        // Snake case would name a tool (or an option): only ones the server has.
+        const snake = [...i.prompt.matchAll(/\b([a-z]+(?:_[a-z]+)+)\b/g)].map((m) => m[1]).filter((w) => !["old_string", "new_string", "replace_all"].includes(w));
+        for (const u of snake) expect(toolNames.has(u), `${t.slug} (${i.name}) uses ${u}`).toBe(true);
+        // "with edit", "with fetch": the tools the prompt names.
+        const used = [...i.prompt.matchAll(/\bwith ([a-z_]+)\b/g)].map((m) => m[1]).filter((w) => toolNames.has(w));
+        expect(used.some((u) => writes.has(u)), `${t.slug} (${i.name}) names a tool that writes`).toBe(true);
+        expect(used.some((u) => u === "fetch"), `${t.slug} (${i.name}) reads before editing`).toBe(true);
       }
       for (const d of t.demo) expect(toolNames.has(d.tool), `${t.slug} demo uses ${d.tool}`).toBe(true);
     }

@@ -22,7 +22,7 @@ export default function Page() {
       <ul>
         <li>Transport: MCP Streamable HTTP, answering with JSON. There is no server-sent stream; clients post each request.</li>
         <li>Protocol versions: 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05.</li>
-        <li>Server name: <code>amber-notes</code>. It sends instructions on <code>initialize</code> that tell the model how the notes are laid out.</li>
+        <li>Server name: <code>pinto-notes</code>. It sends instructions on <code>initialize</code> that tell the model how the notes are laid out.</li>
       </ul>
 
       <h2>How access works</h2>
@@ -61,16 +61,27 @@ export default function Page() {
 
       <h2>What happens to changes</h2>
       <ul>
-        <li>Every edit keeps the previous version. <code>note_history</code> lists them and <code>restore_revision</code> puts one back.</li>
+        <li>Every edit keeps the previous version. <code>history</code> lists them and <code>restore</code> puts one back.</li>
         <li>In the app, the person sees what an AI changed, with Undo.</li>
-        <li>Deleted notes go to Recently Deleted for 30 days and can be restored with <code>restore_note</code>.</li>
+        <li>Deleted notes go to Recently Deleted for 30 days and can be brought back with <code>restore</code>.</li>
         <li>A read-only connection only sees the tools marked reads below.</li>
       </ul>
 
       <h2>Tools</h2>
       <p>
-        Notes are markdown, and the first line is the title. Checklists are <code>- [ ]</code> lines, and tables are markdown tables.
-        Start with <code>get_overview</code> or <code>search_notes</code>, and read a note before editing it.
+        The tools treat your notes like a folder of files, the way coding agents already work. Each note is a markdown file with a
+        path, like <code>Work/Acme.md</code>, and its first line is the title. A note&apos;s sub-notes and attached files sit in a
+        folder with its name, like <code>Work/Acme/Agenda.md</code>. Checklists are <code>- [ ]</code> lines, and tables are markdown
+        tables.
+      </p>
+      <p>
+        <code>edit</code> is an exact search and replace, like a coding agent&apos;s Edit. The AI has to read a note with{" "}
+        <code>fetch</code> before it changes it, and an edit is refused if the note changed since. That covers ticking a checklist
+        item, adding a row to a table and fixing a sentence, without rewriting the rest of the note.
+      </p>
+      <p>
+        A note can also hold an app: a small React project at a path like <code>Work/Habits.app/</code>, with its data in{" "}
+        <code>data.json</code>. The same tools read and change it, and <code>see_app</code> shows what it looks like.
       </p>
       <ul>
         {MCP_TOOLS.map((t) => (
