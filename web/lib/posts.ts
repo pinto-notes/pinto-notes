@@ -29,7 +29,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -65,6 +65,30 @@ export const SHOTS = {
 } satisfies Record<string, Shot>;
 
 export const posts: Post[] = [
+  {
+    slug: "connect-notes-to-grok",
+    title: "How to connect your notes to Grok with a custom MCP connector",
+    description: "Add any MCP server to Grok as a custom connector on grok.com or with grok mcp add in Grok Build, so Grok can read and edit your notes.",
+    excerpt: "Grok takes any MCP server as a custom connector. The steps on grok.com and in Grok Build, and what xAI's docs leave out.",
+    category: "Guides",
+    date: "2026-10-13",
+    updated: "2026-10-13",
+    image: SHOTS.historyBurst,
+    thumb: thumb("pistachio", "thumb-lisbon-window", 1180, 748, "Pinto Notes on a Mac: a Lisbon note with the line Claude added tinted, and Undo"),
+    draft: false,
+  },
+  {
+    slug: "meta-muse-connectors",
+    title: "Meta Muse connectors: what they are, and which to add",
+    description: "What Meta Muse connectors are, how to add and approve one, which to start with, and how Muse Code takes your own MCP servers.",
+    excerpt: "Muse connects to other apps through connectors Meta reviews. How to add one, what the approvals mean, and where MCP fits.",
+    category: "Guides",
+    date: "2026-10-13",
+    updated: "2026-10-13",
+    image: SHOTS.consent,
+    thumb: thumb("lilac", "thumb-consent-icons", 780, 524, "Pinto Notes asking to allow an AI to use your notes, with Read and Edit or Read Only"),
+    draft: false,
+  },
   {
     slug: "what-are-chatgpt-dots",
     title: "What are ChatGPT dots? What to give yours, and who can get one",
