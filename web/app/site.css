@@ -227,6 +227,7 @@ html[data-theme] ::selection { background: var(--mark); }
 .site-social { display: flex; gap: 4px; }
 .site-social a { width: 40px; height: 40px; min-height: 40px; justify-content: center; border-radius: 12px; }
 @media (hover: hover) { .site-social a:hover { background: var(--soft); } }
+.site-social a.site-gh { width: auto; gap: 6px; padding: 0 10px; font-variant-numeric: tabular-nums; }
 .site-footer a.site-maker { display: inline; min-height: 0; color: var(--ink); font-size: inherit; text-decoration: underline; text-decoration-color: var(--amber); text-underline-offset: 3px; }
 /* The big faded name: an SVG so it always fits the footer's width, centred, never cut at the sides. */
 .site-wordmark { display: block; width: 100%; height: auto; margin-top: 24px; margin-bottom: -2.2%; overflow: visible; user-select: none; }

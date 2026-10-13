@@ -6,7 +6,7 @@ import DownloadLink from "./DownloadLink";
 import GitHubLink, { GitHubGlyph } from "./GitHubLink";
 import PlatformNote from "./PlatformNote";
 import MobileMenu from "./MobileMenu";
-import { ownTopBar, themeFor } from "@/lib/theme";
+import { ownTopBar, quietHeader, themeFor } from "@/lib/theme";
 import PROMPTS from "@/lib/try-prompts.json";
 import { isBlogList } from "@/lib/blog-list";
 import { CONSENT_OPEN_EVENT } from "@/lib/consent";
@@ -80,6 +80,8 @@ export default function SiteChrome({ version, stars, children }: { version: stri
   if (!site || ownTopBar(path, COPY_IDS)) return <>{children}</>;
 
   const current = (href: string) => (path === href ? "page" : undefined);
+  // A page with a quieter header (lib/theme.ts): no version badge, and the GitHub stars in the footer.
+  const lean = quietHeader(path);
   // On the home page the logo takes you back to the top instead of reloading.
   const toTop = (e: React.MouseEvent) => {
     if (path !== "/" || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -92,14 +94,14 @@ export default function SiteChrome({ version, stars, children }: { version: stri
         <a className="site-brand" href="/" aria-current={current("/")} aria-label="Pinto Notes home" onClick={toTop}>
           <img src="/mark-256.png" alt="" width={34} height={34} />
           <span className="site-name">Pinto Notes</span>
-          {version && <span className="site-badge">v{version}</span>}
+          {version && !lean && <span className="site-badge">v{version}</span>}
         </a>
         <nav className="site-nav" aria-label="Site">
           <a href="/templates" aria-current={path === "/templates" || path.startsWith("/templates/") ? "page" : undefined}>Templates</a>
           <a href="/blog" aria-current={path === "/blog" || path.startsWith("/blog/") ? "page" : undefined}>Blog</a>
           <a href="/changelog" aria-current={current("/changelog")}>Changelog</a>
           <a href="/help" aria-current={path === "/help" || path === "/support" ? "page" : undefined}>Help</a>
-          <GitHubLink stars={stars} />
+          {!lean && <GitHubLink stars={stars} />}
           <DownloadLink className="site-cta pi-apple" aria-current={current("/download")}>
             <AppleGlyph /> <span className="site-cta-long">Download for Mac</span><span className="site-cta-short">Download</span>
           </DownloadLink>
@@ -125,7 +127,7 @@ export default function SiteChrome({ version, stars, children }: { version: stri
           </nav>
           <span className="site-footsep" aria-hidden="true" />
           <div className="site-social">
-            <a href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>
+            {lean ? <GitHubLink stars={stars} /> : <a href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>}
             <a href={X_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on X"><XGlyph /></a>
             <a href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on LinkedIn"><LinkedInGlyph /></a>
           </div>

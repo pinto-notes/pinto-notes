@@ -32,7 +32,7 @@ export type Line =
 /// A note's body, as the app draws it: 17 pt text, round checklist circles, amber ticks, and the
 /// app's tint (a pale amber band with a bar on its left edge) on the lines an AI just changed.
 /// With `gutter`, each line's author sits in the margin to its left.
-export function NoteBody({ lines, gutter = false, size = "m" }: { lines: Line[]; gutter?: boolean; size?: "s" | "m" | "l" }) {
+export function NoteBody({ lines, gutter = false, size = "m", bySize = 12 }: { lines: Line[]; gutter?: boolean; size?: "s" | "m" | "l"; bySize?: number }) {
   return (
     <div className={k.body} data-size={size} data-gutter={gutter || undefined}>
       {lines.map((l, i) => {
@@ -40,8 +40,8 @@ export function NoteBody({ lines, gutter = false, size = "m" }: { lines: Line[];
         const showBy = gutter && l.by && (!prev || prev.by !== l.by);
         return (
           <div key={i} className={k.line} data-k={l.k} data-tint={l.tint || undefined} data-first-tint={(l.tint && !prev?.tint) || undefined}
-            data-last-tint={(l.tint && !lines[i + 1]?.tint) || undefined} data-quiet={("quiet" in l && l.quiet) || undefined}>
-            {gutter && <span className={k.by}>{showBy && l.by ? <><WhoMark who={l.by} size={12} /><span className={k.byName}>{WHO[l.by].short}</span></> : null}</span>}
+            data-last-tint={(l.tint && !lines[i + 1]?.tint) || undefined} data-quiet={("quiet" in l && l.quiet) || undefined} data-by-start={showBy || undefined}>
+            {gutter && <span className={k.by}>{showBy && l.by ? <><WhoMark who={l.by} size={bySize} /><span className={k.byName}>{WHO[l.by].short}</span></> : null}</span>}
             {(l.k === "todo" || l.k === "done") && <span className={k.circle} data-done={l.k === "done" || undefined} aria-hidden="true">{l.k === "done" && <Tick />}</span>}
             {l.k === "bullet" && <span className={k.dash} aria-hidden="true">–</span>}
             <span className={k.text}>{l.text}</span>
@@ -125,16 +125,17 @@ export function PhoneList({ groups }: { groups: { day: string; notes: { title: s
 }
 
 /// A note in a Mac window: traffic lights, the folder, the date, the title, the note.
-export function MacNote({ title, folder, date, lines, gutter, receipt, className = "", label }: {
-  title: string; folder: string; date: string; lines: Line[]; gutter?: boolean; receipt?: { who: Who; text: string }; className?: string; label: string;
+/// With `bigBy`, the margin's names are set larger, and on a phone each name sits above its run.
+export function MacNote({ title, folder, date, lines, gutter, bigBy, receipt, className = "", label }: {
+  title: string; folder: string; date: string; lines: Line[]; gutter?: boolean; bigBy?: boolean; receipt?: { who: Who; text: string }; className?: string; label: string;
 }) {
   return (
-    <figure className={`${k.mac} ${className}`} aria-label={label} data-gutter={gutter || undefined}>
+    <figure className={`${k.mac} ${className}`} aria-label={label} data-gutter={gutter || undefined} data-big-by={bigBy || undefined}>
       <div className={k.macBar} aria-hidden="true"><span className={k.lights}><i /><i /><i /></span><span className={k.macFolder}><FolderIcon />{folder}</span></div>
       <div className={k.macPaper}>
         <p className={k.macDate}>{date}</p>
         <h3 className={k.macTitle}>{title}</h3>
-        <NoteBody lines={lines} gutter={gutter} />
+        <NoteBody lines={lines} gutter={gutter} bySize={bigBy ? 15 : 12} />
         {receipt && <div className={k.macReceipt}><Receipt {...receipt} /></div>}
       </div>
     </figure>

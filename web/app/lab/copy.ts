@@ -65,3 +65,41 @@ export const C = {
     lede: "It can search all your notes, so a promise you wrote down in March still comes up when you ask.",
   },
 };
+
+/** E: the revised direction (A's first screen, B's week, C's two phones). One sentence per lede. */
+export const E = {
+  concept: "A's note everyone writes in, with you and two AIs; then B's week, C's two phones, the import, a note that is an app, privacy and the facts.",
+  h1: "One notes app for every AI you use.",
+  lede: "ChatGPT, Claude, Claude Code, Codex and Incredible read and edit the same notes, and the margin shows who wrote what.",
+  quiet: "Free for Mac. Imports your Apple Notes.",
+  week: {
+    title: "Write the plan. Your AI helps you follow through.",
+    lede: "Tell your AI how the week went, and it ticks what you did and moves what you missed.",
+  },
+  iphone: {
+    title: "It feels like Apple Notes, especially on iPhone",
+    lede: "The same note list and the same checklists, and the lines an AI just added are tinted, with Undo.",
+    soon: "iPhone app coming soon",
+  },
+  importNotes: {
+    title: "Bring all your Apple Notes over in one go",
+    lede: "Import on your Mac, and folders, checklists and tables come along while your Apple Notes stay as they are.",
+  },
+  apps: {
+    title: "A note can also be an app",
+    lede: "Ask your AI to turn a note into a small app, and it builds one inside the note.",
+    ask: "Turn my habits note into a tracker",
+    templates: "Start from a template",
+  },
+  facts: [
+    { title: "Encrypted", text: "Your notes are encrypted on your iPhone or Mac." },
+    { title: "Open source", text: "The code is public on GitHub." },
+    { title: "Free", text: "The Mac app is free, with no ads and no tracking in the app." },
+    { title: "Every change undoable", text: "Each version of a note stays in its history." },
+  ],
+  closing: {
+    title: "Start with the notes you already have.",
+    lede: "Import your Apple Notes, connect the AI you use, and ask it what's next.",
+    fine: "Requires macOS 26. Updates install themselves.",
+  },
+};
