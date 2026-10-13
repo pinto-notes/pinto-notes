@@ -10,6 +10,10 @@ import AppKit
 /// connecting one. The menu is the only way in: a pill at the bottom of a note is for status (an AI
 /// changed this, with Undo), never for an offer. One that said "Make this an app" was removed.
 enum MakeAnApp {
+    /// The ways to connect an AI the sheet offers when none is connected: those that can build
+    /// an app (not "Another AI", whose steps are Settings').
+    static var connectGuides: [ConnectAISection.Guide] { ConnectAISection.Guide.offered.filter { $0 != .other } }
+
     /// What kind of app the note would make, from what it holds.
     enum Kind: Equatable { case budget, tracker, cards, checklist, plain }
 
@@ -207,8 +211,8 @@ struct MakeAppSheet: View {
                 .accessibilityAddTraits(.isHeader)
                 .padding(.trailing, Metrics.closeSize + 8)
             Text(isNew
-                 ? (ais?.isEmpty == true ? "An AI you connect builds it, as a new note. Connect your AI first." : "Your AI builds it, as a new note.")
-                 : (ais?.isEmpty == true ? "An AI you connect builds it from what this note holds." : "Your AI builds it from what this note holds. You can undo it."))
+                 ? (ais?.isEmpty == true ? "An AI you connect builds it, as a new note. Choose yours to connect it." : "Your AI builds it, as a new note.")
+                 : (ais?.isEmpty == true ? "An AI you connect builds it from what this note holds. Choose yours to connect it." : "Your AI builds it from what this note holds. You can undo it."))
                 .font(Metrics.line)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -256,6 +260,16 @@ struct MakeAppSheet: View {
                         .accessibilityIdentifier("makeApp.another")
                     }
                 }
+            } else if let client = backend?.client ?? (Self.stateForPictures != nil ? CaptureScreen.client : nil) {
+                // No AI yet: the ways to connect one, right here, each one press (newcomer audit
+                // #14: a lone button that opened Settings was a dead end). Once one is connected
+                // the sheet goes on to "Make it with …".
+                ConnectChoices(client: client, guides: MakeAnApp.connectGuides, listsConnected: false,
+                               preview: Self.stateForPictures != nil ? [] : nil) { connected in
+                    if !connected.isEmpty { Task { await check() } }
+                }
+                .connectGuides(client: client)
+                .accessibilityIdentifier("makeApp.connect")
             } else {
                 Button { connecting = true } label: { Text(isNew ? "Connect Your AI" : "Connect an AI").frame(maxWidth: .infinity) }
                     .buttonStyle(.amberProminent(height: Metrics.button, cornerRadius: Metrics.radius))

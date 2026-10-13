@@ -639,6 +639,22 @@ struct NoteListView: View {
             ContentUnavailableView.search(text: search)
         } else if scope == .trash {
             ContentUnavailableView("No Deleted Notes", systemImage: "trash", description: Text("Notes and files you delete stay here for 30 days."))
+        } else if scope == .all {
+            // Nothing in the whole library (a new account, or one whose first run didn't come):
+            // the two ways to start, in place (newcomer audit #19), New Note the one in the accent.
+            ContentUnavailableView {
+                Label { Text("No Notes") } icon: { AppMark(size: 56) }
+            } description: {
+                Text(Self.emptyLine)
+            } actions: {
+                Button("New Note", action: onNewNote)
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("empty.newNote")
+                if let imports {
+                    Button(Self.bringNotes, action: imports.appleNotes)
+                        .accessibilityIdentifier("empty.bringNotes")
+                }
+            }
         } else {
             // The leaf and "No Notes", like Notes: the compose button is the one way to start a note.
             ContentUnavailableView {
@@ -646,6 +662,10 @@ struct NoteListView: View {
             }
         }
     }
+
+    /// The empty library's line and its second button.
+    static let emptyLine = "Write a note, or bring your notes from Apple Notes, Obsidian, Bear, Evernote or Google Keep."
+    static let bringNotes = "Bring Your Notes\u{2026}"
 
     @ViewBuilder
     private func deleteButton(_ note: Note) -> some View {

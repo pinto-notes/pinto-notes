@@ -91,6 +91,27 @@ import Testing
         #expect(MakeAnApp.kind(for: "Thoughts\n\nNothing to track.") == .plain)
     }
 
+    /// No AI connected: the ways to connect one are in the sheet itself, one press each, not a
+    /// button that opens Settings (newcomer audit #14). "Another AI" is left to Settings.
+    @Test func withoutAnAITheSheetOffersConnectingOneInPlace() async throws {
+        #expect(MakeAnApp.connectGuides.first == .chatgpt && MakeAnApp.connectGuides.contains(.claude))
+        #expect(!MakeAnApp.connectGuides.contains(.other))
+        defer { MakeAppSheet.stateForPictures = nil }
+        let h = try await host(state: "none", sketch: true, dark: false, note: ("Weekend plan", "Weekend plan\n- [ ] Buy bread"))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: h.frame.width, height: h.frame.height), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = h
+        defer { window.close() }
+        try await Task.sleep(for: .milliseconds(300))
+        func ids(_ e: Any, _ depth: Int = 0) -> [String] {
+            guard depth < 30, let el = e as? NSAccessibilityProtocol else { return [] }
+            let own = (e as? NSObject)?.value(forKey: "accessibilityIdentifier") as? String
+            return [own].compactMap { $0 } + (el.accessibilityChildren() ?? []).flatMap { ids($0, depth + 1) }
+        }
+        let found = ids(h)
+        #expect(found.contains("connect.guide.chatgpt") && found.contains("connect.guide.claude"), "\(found)")
+    }
+
     private func host(state: String, sketch: Bool, dark: Bool, note: (String, String)) async throws -> NSHostingView<some View> {
         MakeAppSheet.stateForPictures = state
         MakeAppSheet.sketch = sketch
