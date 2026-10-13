@@ -549,12 +549,32 @@ struct KeychainAccountKeyStore: AccountKeyStore {
         SecItemDelete(probe as CFDictionary)
         // A write that fails for another reason still counts as usable below; it's reported, since
         // every save that follows is likely to fail the same way.
-        if write != errSecSuccess { Telemetry.shared.record(.keychainFailed(item: .keySynced, operation: .probeWrite, status: Int(write))) }
+        if reportsProbeWrite(write, direct: isDirect) {
+            Telemetry.shared.record(.keychainFailed(item: .keySynced, operation: .probeWrite, status: Int(write)))
+        }
         if read != errSecSuccess, read != errSecItemNotFound {
             Telemetry.shared.record(.keychainFailed(item: .keySynced, operation: .probeRead, status: Int(read)))
         }
         return usable(read: read, write: write)
     }()
+
+    /// The Mac download (Developer ID) ships without `keychain-access-groups` or a provisioning
+    /// profile, so its probe write is refused with `errSecMissingEntitlement` on every launch: the
+    /// expected answer, which keeps the key on this Mac (`kind` `file`, said on `key_startup` and
+    /// `key_ready`). Only another answer there, or that one from a build that has the group, is a
+    /// failure worth reporting (keychain-34018.md).
+    nonisolated static func reportsProbeWrite(_ write: OSStatus, direct: Bool) -> Bool {
+        if write == errSecSuccess { return false }
+        return !(direct && write == errSecMissingEntitlement)
+    }
+
+    nonisolated static var isDirect: Bool {
+        #if DIRECT
+        true
+        #else
+        false
+        #endif
+    }
 
     /// Whether the data protection keychain can hold the key, from a read and a write of a synced
     /// item. Only a missing entitlement rules it out: a locked device or a busy keychain is a moment,
@@ -1578,7 +1598,7 @@ final class AccountCrypto {
         key = k
         if let how {
             arrivedHow = how
-            if let said = Self.readyHow(how, startingFresh: startingFresh) { telemetry.record(.keyReady(said)) }
+            if let said = Self.readyHow(how, startingFresh: startingFresh) { telemetry.record(.keyReady(said, store: store.kind)) }
         }
         defaults.set(true, forKey: Self.hadKeyKey(account))
         backedUp = store.syncs && store.load(account: account, slot: .synced) == k
