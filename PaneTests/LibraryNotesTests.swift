@@ -127,3 +127,19 @@ extension LibraryNotesTests {
         #expect(heard.on, "Home's row hears of the note that came")
     }
 }
+
+extension LibraryNotesTests {
+    /// A touch saves on the next turn; when the library has gone by then (a window closed with
+    /// its container), nothing is saved and nothing breaks.
+    @Test func aTouchAfterTheLibraryWentSavesNothing() async throws {
+        var note: Note?
+        do {
+            let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            let n = c.mainContext.createNote(in: .all, body: "Left behind")
+            n.touch()
+            note = n
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(note != nil, "still here: the save that came after the library was skipped")
+    }
+}

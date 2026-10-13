@@ -156,9 +156,10 @@ extension ModelContext {
     @MainActor func saveSoon() {
         let id = ObjectIdentifier(self)
         guard SaveSoon.pending.insert(id).inserted else { return }
-        Task { @MainActor [weak self] in
+        // A context whose library has gone (a closed test window) can't save: it's left alone.
+        Task { @MainActor [weak self, weak container = self.container] in
             SaveSoon.pending.remove(id)
-            guard let self, self.hasChanges else { return }
+            guard let self, container != nil, self.hasChanges else { return }
             self.saveOrReport()
         }
     }

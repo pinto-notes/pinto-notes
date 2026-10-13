@@ -289,7 +289,9 @@ enum WikiDirectory {
             watchSaves()
             reading = context
             savedWhileReading = []
-            install(read(using: context))
+            // Whoever asked gets it now: nobody is told it was read (telling the open note made it
+            // ask again, the same turn).
+            install(read(using: context), announce: false)
             return cached
         }
         prepare(context)
@@ -314,7 +316,7 @@ enum WikiDirectory {
         }
     }
 
-    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]])) {
+    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]]), announce: Bool = true) {
         guard let context = reading else { return }
         reading = nil
         if cached == nil || cachedContext !== context {
@@ -339,7 +341,7 @@ enum WikiDirectory {
             }
             cached = index
         }
-        NotificationCenter.default.post(name: didRead, object: context)
+        if announce { NotificationCenter.default.post(name: didRead, object: context) }
     }
 
     /// The titles and links of every live note, read on `context` (one of its own, off the main
