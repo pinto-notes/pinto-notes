@@ -7,6 +7,8 @@
 // - /updates/ and /downloads/: the Sparkle feed and DMGs that installed Mac apps read.
 // - /api/: what apps and scripts call.
 // - /open/: the pages behind the universal links installed apps claim on ambernotes.app only.
+// - /mark.png: the icon Claude's connector directory shows for the listing published on 2 October,
+//   which doesn't follow redirects (13 Oct: the listing showed an empty placeholder).
 // - /<32 hex>.txt: the IndexNow key, which Bing reads on the host a ping names. The old address
 //   keeps it so its pages can be pinged too, and search engines see where they went.
 //
@@ -20,7 +22,7 @@ import { SITE_URL } from "./site";
 
 export const OLD_HOSTS = ["ambernotes.app", "www.ambernotes.app", "amber-notes.vercel.app"];
 export const WWW_HOST = "www.pintonotes.com";
-const KEPT = /^\/(?:\.well-known\/|updates\/|downloads\/|api\/|open(?:\/|$)|[0-9a-f]{32}\.txt$)/;
+const KEPT = /^\/(?:\.well-known\/|updates\/|downloads\/|api\/|open(?:\/|$)|mark\.png$|[0-9a-f]{32}\.txt$)/;
 
 /// Where a request to `url` on `host` goes now, or null when it stays.
 export function movedTo(host: string, url: URL): string | null {
