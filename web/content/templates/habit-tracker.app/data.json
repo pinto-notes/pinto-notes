@@ -1,32 +1,32 @@
 {
-  "values": {},
-  "collections": {
+  "values": {
     "habits": [
       {
         "id": "walk",
         "name": "Walk",
         "detail": "30 minutes outside",
-        "order": 0
+        "target": 1
       },
       {
         "id": "read",
         "name": "Read",
         "detail": "20 pages",
-        "order": 1
+        "target": 1
       },
       {
         "id": "no-phone-in-bed",
         "name": "No phone in bed",
         "detail": "It charges in the kitchen",
-        "order": 2
+        "target": 1
       },
       {
         "id": "water",
         "name": "Water",
-        "detail": "8 glasses",
-        "order": 3
+        "target": 8,
+        "unit": "glasses"
       }
     ],
-    "days": []
-  }
+    "days": {}
+  },
+  "collections": {}
 }

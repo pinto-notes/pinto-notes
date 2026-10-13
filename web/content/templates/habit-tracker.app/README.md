@@ -1,21 +1,23 @@
 # Habit tracker
 
-Tick off your habits each day and see the week at a glance.
+Tick off a few small daily habits in one tap, and see the week and your streaks at a glance.
 
 **Read docs/ first.** It's this app's memory: what it's for, the shape of its data, the decisions made and why, and what's missing. Keep it current whenever you change the app.
 
 ## Screens
-- Today (src/screens/today.tsx): today's habits to tick, streaks and the week
-- Habits (src/screens/habits.tsx): add, rename, reorder and remove habits (Undo brings one back)
+- Today (src/screens/today.tsx): this week's ring, then each habit with its tick (or a counter for habits with a goal, like water), its streak and the week's days.
+- History (src/screens/history.tsx): the last five weeks of each habit, a day each; tap a day to tick or untick it.
+- Habits (src/screens/manage.tsx): add, rename, reorder and remove habits (with Undo).
+
+The data and the date maths are in src/lib/habits.ts; the shared pieces (sections, rows, ring, sheet) in src/components/kit.tsx.
 
 ## Tests
-`npm test` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers; data starts empty for each test, and `amber` (from "amber") shows what was saved. Pinto Notes runs them, and a quick check that the app opens and its buttons work, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.
+`npm test` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers; `amber` (from "amber") shows what was saved. A test can start over a sample of the app's data, so each test here sets the data it needs first (beforeEach). Pinto Notes runs them, and a quick check that the app opens and its buttons work, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.
 
 **Every feature you add gets a test like the ones in tests/app.test.tsx**: do what the person does, check what they see, and check what was saved. When the app changes on purpose, change its tests to match the new behaviour. Never weaken, skip or delete a test just to make it pass: fix the app instead.
 
 ## How this app runs in Pinto Notes
 
-- The person stays in control inside the app, as in any real app, not only through their AI: whatever the app keeps, they can add, edit, rename, reorder and remove themselves (a habit tracker lets them manage its habits), settings are changed in the app, deletes can be undone, and everything is saved in data.json.
 - It is the note: opening the note opens the app, on iPhone (320-440 pt wide, safe areas, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Light and dark follow the device.
 - A normal Vite + React 19 + TypeScript + Tailwind 4 + shadcn/ui project. Pinto Notes compiles it when a file is saved (TSX, the @/ alias, imports without extensions, Tailwind from the classes used) and says what broke; nothing is installed. React runs on preact/compat.
 - Available by name: react, react-dom, radix-ui, lucide-react, recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, amber-router (Router, Route, route(), back()), chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti.

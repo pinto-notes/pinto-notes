@@ -1,94 +1,97 @@
-import { format } from "date-fns"
-import { Check, Flame, ListChecks } from "lucide-react"
-import { useCollection } from "@/lib/amber"
-import { PageHeader } from "@/components/app-shell"
-import { StatCard } from "@/components/stat-card"
-import { Card } from "@/components/ui/card"
+import { Check, Minus, Plus } from "lucide-react"
+import { route } from "amber-router"
+import { Ring, Row, Section, Title, TintButton } from "@/components/kit"
+import { addDays, done, iso, streak, today, week, weekStart, useHabits, type Habit } from "@/lib/habits"
 import { cn } from "@/lib/utils"
-import { dayKey, doneOn, lastDays, shown, streak, type Day, type Habit } from "@/lib/habits"
 
+const LETTERS = ["M", "T", "W", "T", "F", "S", "S"]
+
+// The app's main job: tick off today's habits in one tap, and see the week at a glance.
 export default function Today() {
-  const habits = useCollection("habits")
-  const days = useCollection("days")
-  const list = shown(habits.items as Habit[])
-  const log = days.items as Day[]
-  const now = new Date()
-  const today = dayKey(now)
-  const record = log.find((d) => d.date === today)
-  const doneToday = list.filter((h) => record?.done.includes(h.id)).length
-  const best = Math.max(0, ...list.map((h) => streak(log, h.id, now)))
-  const week = lastDays(now, 7)
-
-  const toggle = async (h: Habit) => {
-    if (!record) { await days.add({ date: today, done: [h.id] }); return }
-    const done = record.done.includes(h.id) ? record.done.filter((x) => x !== h.id) : [...record.done, h.id]
-    await days.update(record.id, { done })
-  }
+  const { habits, days, set } = useHabits()
+  const now = today(), day = iso(now)
+  const w = week(days, habits, now)
+  const doneToday = habits.filter((h) => done(days, h, day)).length
+  const dateLine = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
 
   return (
     <>
-      <PageHeader title="Today" subtitle={format(now, "EEEE d MMMM")} />
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={ListChecks} value={`${doneToday} of ${list.length}`} label="Done today" />
-        <StatCard icon={Flame} value={best === 1 ? "1 day" : `${best} days`} label="Longest streak now" />
-      </div>
-      <Card className="mt-4 gap-0 py-0">
-        {list.length ? list.map((h) => {
-          const done = !!record?.done.includes(h.id)
-          const run = streak(log, h.id, now)
-          return (
-            <button
-              key={h.id}
-              type="button"
-              role="checkbox"
-              aria-checked={done}
-              aria-label={h.name}
-              onClick={() => toggle(h)}
-              className="flex min-h-14 w-full items-center gap-3 border-t px-4 py-2.5 text-left first:border-0 hover:bg-accent/60"
-            >
-              <span className={cn("grid size-7 shrink-0 place-items-center rounded-full border-2 transition-colors", done ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
-                {done && <Check className="size-4" strokeWidth={3} />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className={cn("block font-medium", done && "text-muted-foreground line-through")}>{h.name}</span>
-                {h.detail && <span className="block truncate text-sm text-muted-foreground">{h.detail}</span>}
-              </span>
-              {run > 0 && <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{run} {run === 1 ? "day" : "days"}</span>}
-            </button>
-          )
-        }) : <p className="px-4 py-6 text-center text-muted-foreground">No habits yet. Add them under Habits.</p>}
-      </Card>
-
-      {list.length > 0 && (
-        <section className="mt-8" aria-labelledby="week">
-          <h2 id="week" className="pb-3 text-lg font-semibold tracking-tight">This week</h2>
-          <Card className="gap-0 overflow-x-auto px-4 py-3">
-            <table className="w-full border-separate border-spacing-y-1.5 text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left font-normal text-muted-foreground"><span className="sr-only">Habit</span></th>
-                  {week.map((d) => <th key={dayKey(d)} scope="col" className="w-10 text-center font-normal text-muted-foreground">{format(d, "EEEEE")}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((h) => (
-                  <tr key={h.id}>
-                    <th scope="row" className="truncate pr-3 text-left font-medium">{h.name}</th>
-                    {week.map((d) => {
-                      const on = doneOn(log, dayKey(d), h.id)
-                      return (
-                        <td key={dayKey(d)} className="text-center">
-                          <span aria-label={`${format(d, "EEEE")}: ${on ? "done" : "not done"}`} className={cn("inline-block size-4 rounded-full", on ? "bg-primary" : "border-2 border-input")} />
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        </section>
+      <Title subtitle={dateLine} title="Today" />
+      {habits.length === 0 ? (
+        <Section>
+          <div className="px-6 py-10 text-center">
+            <p className="text-[1.0625rem] font-semibold">No habits yet</p>
+            <p className="mt-1 text-muted-foreground">Add two or three small ones to start.</p>
+            <TintButton className="mt-5" onClick={() => route("/habits")}><Plus /> Add a habit</TintButton>
+          </div>
+        </Section>
+      ) : (
+        <div className="min-[900px]:grid min-[900px]:grid-cols-[300px_1fr] min-[900px]:gap-6 min-[900px]:items-start">
+          <Section>
+            <div className="flex items-center gap-5 p-5 min-[900px]:flex-col min-[900px]:text-center">
+              <Ring value={w.share} size={96} stroke={11} label={`This week ${Math.round(w.share * 100)}%`}>
+                <span className="text-xl font-bold tabular-nums">{Math.round(w.share * 100)}%</span>
+              </Ring>
+              <div className="min-w-0">
+                <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">This week</p>
+                <p className="text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="today-count">{doneToday} of {habits.length} done today</p>
+                <p className="text-[0.9375rem] text-muted-foreground tabular-nums">{w.got} of {w.of} since Monday</p>
+              </div>
+            </div>
+          </Section>
+          <Section title="Habits" footer="To change an earlier day, tap it in History.">
+            {habits.map((h) => <HabitRow key={h.id} habit={h} days={days} set={set} />)}
+          </Section>
+        </div>
       )}
     </>
+  )
+}
+
+function HabitRow({ habit: h, days, set }: { habit: Habit; days: Record<string, Record<string, number>>; set: (h: Habit, v: number | ((was: number) => number), on?: string) => unknown }) {
+  const now = today(), day = iso(now)
+  const value = days[day]?.[h.id] ?? 0
+  const isDone = value >= h.target
+  const s = streak(days, h, now)
+  const counted = h.target > 1
+  const start = weekStart(now)
+  return (
+    <Row className="py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-[1.0625rem] font-semibold leading-tight">{h.name}</p>
+        <p className="mt-0.5 text-[0.875rem] text-muted-foreground tabular-nums">
+          {counted ? `${value} of ${h.target} ${h.unit ?? ""}`.trim() : h.detail || (isDone ? "Done" : "Not yet")}
+          {s > 0 && <> · <span className="text-primary">{s}-day streak</span></>}
+        </p>
+        <div className="mt-2 flex gap-1.5" aria-hidden="true">
+          {LETTERS.map((l, i) => {
+            const d = iso(addDays(start, i)), got = (days[d]?.[h.id] ?? 0)
+            const full = got >= h.target, part = got > 0 && !full
+            return (
+              <span key={i} className={cn("grid size-6 place-items-center rounded-full text-[0.75rem] font-semibold",
+                full ? "bg-primary text-primary-foreground" : part ? "bg-[var(--amber-accent-soft)] text-primary" : "bg-muted text-muted-foreground",
+                d === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{l}</span>
+            )
+          })}
+        </div>
+      </div>
+      {counted ? (
+        <div className="flex items-center gap-2">
+          <button type="button" aria-label={`One less ${h.name}`} disabled={value === 0} onClick={() => set(h, (was) => Math.max(0, was - 1))}
+            className="grid size-11 place-items-center rounded-full bg-muted text-foreground disabled:opacity-30"><Minus className="size-5" /></button>
+          <button type="button" aria-label={`One more ${h.name}`} onClick={() => set(h, (was) => was + 1)}
+            className="relative grid size-12 place-items-center">
+            <Ring value={value / h.target} size={48} stroke={5} />
+            <span className="absolute inset-0 grid place-items-center">{isDone ? <Check className="size-5 text-primary" strokeWidth={3} /> : <Plus className="size-5 text-primary" strokeWidth={2.5} />}</span>
+          </button>
+        </div>
+      ) : (
+        <button type="button" aria-label={`Done: ${h.name}`} aria-pressed={isDone} onClick={() => set(h, isDone ? 0 : 1)}
+          className={cn("grid size-12 shrink-0 place-items-center rounded-full border-2 transition-colors duration-150 motion-reduce:transition-none",
+            isDone ? "border-transparent bg-[var(--amber-accent)] text-[var(--amber-on-accent)]" : "border-[var(--amber-field-border)] text-transparent")}>
+          <Check className={cn("size-6 transition-transform duration-200 motion-reduce:transition-none", isDone ? "scale-100" : "scale-50")} strokeWidth={3} />
+        </button>
+      )}
+    </Row>
   )
 }

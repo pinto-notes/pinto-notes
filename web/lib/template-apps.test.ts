@@ -42,6 +42,15 @@ describe("templates with apps", () => {
     expect(apps.map((t) => t.slug).sort()).toEqual(folders.sort());
   });
 
+  it("carry their tests and their docs, like any app the AI keeps up", () => {
+    for (const t of apps) {
+      const files = Object.keys(tree(path.join(CONTENT, `${t.slug}.app`)));
+      expect(files.some((f) => /^tests\/.+\.test\.(tsx|ts|jsx|js)$/.test(f)), `${t.slug}.app has no tests/`).toBe(true);
+      expect(files, t.slug).toContain("docs/README.md");
+      expect(files, t.slug).toContain("README.md");
+    }
+  });
+
   it("serve what the generator compiled from the folder, unchanged since", () => {
     for (const t of apps) {
       const f = appFiles(t.slug);
