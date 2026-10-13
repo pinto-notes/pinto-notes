@@ -99,7 +99,7 @@ struct WebConnectPlan: Equatable {
     }
 
     /// A new chat with the question typed in. Not documented by either app, so the question is
-    /// also copied (see WebConnectGuide.tryIt).
+    /// also copied.
     static func prefilled(_ page: String, _ prompt: String) -> URL {
         var c = URLComponents(string: page)!
         c.queryItems = [URLQueryItem(name: "q", value: prompt)]
@@ -114,6 +114,61 @@ struct WebConnectPlan: Equatable {
         if let fallback { lines += ["", fallback.line, fallback.page(server).absoluteString] }
         lines += ["", "After that, Pinto Notes works in the \(ai) app on your phone too."]
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: The connect funnel
+
+extension ConnectAIKind {
+    /// From the name a guide goes by ("ChatGPT", "Claude Code"). Any other name is `other`.
+    init(guideName: String) {
+        switch guideName {
+        case "ChatGPT": self = .chatgpt
+        case "Claude": self = .claude
+        case "Claude Code": self = .claudeCode
+        case "Codex": self = .codex
+        case IncredibleConnect.ai: self = .incredible
+        default: self = .other
+        }
+    }
+}
+
+/// How far connecting each AI got, for the connect funnel (`connect_step`): each step once for
+/// each time its row is pressed (`ConnectRun`) or its guide opened (Incredible), and `gave_up`
+/// when it stops after it was started and before the AI was connected.
+@MainActor
+enum ConnectFunnel {
+    private struct Progress { var started = false, waiting = false, connected = false }
+    private static var open: [ConnectAIKind: Progress] = [:]
+
+    static func opened(_ ai: ConnectAIKind) {
+        open[ai] = Progress()
+        Funnel.record(.connectStep(ai, .opened))
+    }
+
+    /// The press that starts it: the AI's row, or Incredible's guide button.
+    static func started(_ ai: ConnectAIKind) { mark(ai, \.started, .started) }
+    /// The request to allow it is here.
+    static func waiting(_ ai: ConnectAIKind) { mark(ai, \.waiting, .waiting) }
+    static func connected(_ ai: ConnectAIKind) { mark(ai, \.connected, .connected) }
+
+    static func failed(_ ai: ConnectAIKind, _ kind: FailureKind) {
+        Funnel.record(.connectStep(ai, .failed, kind: kind))
+    }
+
+    /// The guide closed, or the row stopped.
+    static func closed(_ ai: ConnectAIKind) {
+        guard let progress = open.removeValue(forKey: ai) else { return }
+        if progress.started, !progress.connected { Funnel.record(.connectStep(ai, .gaveUp)) }
+    }
+
+    private static func mark(_ ai: ConnectAIKind, _ key: WritableKeyPath<Progress, Bool>, _ step: ConnectFunnelStep) {
+        // A guide reached another way (Handoff) counts from where it is.
+        var progress = open[ai] ?? Progress()
+        guard !progress[keyPath: key] else { return }
+        progress[keyPath: key] = true
+        open[ai] = progress
+        Funnel.record(.connectStep(ai, step))
     }
 }
 
@@ -304,6 +359,7 @@ struct IncredibleGuide: View {
             }
         }
         .task { await watch.run(client: client) }
+        .onChange(of: watch.isConnected, initial: true) { _, connected in if connected { ConnectFunnel.connected(.incredible) } }
     }
 
     #if os(iOS)
@@ -325,6 +381,7 @@ struct IncredibleGuide: View {
             }
             .buttonStyle(.amberProminent)
             .controlSize(.large)
+            .simultaneousGesture(TapGesture().onEnded { ConnectFunnel.started(.incredible) })
             .accessibilityIdentifier("connect.sendSteps")
         }
     }
@@ -338,6 +395,7 @@ struct IncredibleGuide: View {
                 Button {
                     IncredibleConnect.open()
                     started = true
+                    ConnectFunnel.started(.incredible)
                 } label: {
                     Label(started ? "Open Incredible Again" : "Open Incredible", systemImage: "arrow.up.forward.app")
                         .frame(maxWidth: .infinity)

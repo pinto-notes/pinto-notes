@@ -323,7 +323,14 @@ struct SidebarView: View {
         RenderProbe.count("SidebarView")
         #endif
         let files = self.files
-        return List(selection: $scope) {
+        // In stages, in the same order: as one chain the body took the type checker about 8 s
+        // (compile-time audit, 2026-10-13).
+        return withDialogs(withChrome(folderList(files), files: files))
+    }
+
+    /// The folders, All Notes and Recently Deleted.
+    private func folderList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
+        List(selection: $scope) {
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
                 if folders.count > 1 {
@@ -368,14 +375,20 @@ struct SidebarView: View {
         // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
         .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
         #endif
+    }
+
+    /// The app's name above, the menus, drops and the toolbar.
+    private func withChrome(_ content: some View, files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
+        content
         #if os(macOS)
         // Recently Deleted leaves the sidebar when its last note does; the list goes back to the notes.
         .background { EmptyTrashLeaver(scope: $scope, files: files.trashed) }
         // The app's name at the top, so it's never mistaken for Notes. (iOS shows it as the large title.)
         // A bar, not a plain inset: the folders scrolled under it showed through its words (and
         // through the account row at the foot, where a folder's name and the email ran together).
+        // Soft edges, as Apple Notes: the list fades under the bars, with no line drawn across.
         .safeAreaBar(edge: .top, spacing: 0) { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
-        .scrollEdgeEffectStyle(.hard, for: [.top, .bottom])
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
@@ -432,6 +445,11 @@ struct SidebarView: View {
             }
             #endif
         }
+    }
+
+    /// The account at the foot, Settings, and the folder dialogs.
+    private func withDialogs(_ content: some View) -> some View {
+        content
         #if os(macOS)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn = backend.state {

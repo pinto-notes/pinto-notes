@@ -19,6 +19,16 @@ enum Onboarding {
     enum Step: String, CaseIterable, Sendable {
         case name, bring, connect, tryIt
 
+        /// The step as the onboarding funnel names it (`onboarding_step`).
+        var funnel: OnboardingStep {
+            switch self {
+            case .name: .name
+            case .bring: .bring
+            case .connect: .connect
+            case .tryIt: .tryIt
+            }
+        }
+
         /// The steps that count in "Step 2 of 3", from the one the flow began at: Try it only
         /// exists once an AI is connected.
         static func counted(from first: Step) -> [Step] {
@@ -176,6 +186,8 @@ final class OnboardingStore {
         if let step = saved(account) {
             first = defaults.string(forKey: Onboarding.firstKey(account)).flatMap(Onboarding.Step.init(rawValue:)) ?? .name
             phase = .showing(step)
+            // A flow quit midway is shown again where it was.
+            record(step.funnel, .shown)
         } else if Onboarding.isCandidate(created: created, holdsNothing: holdsNothing, now: now) {
             phase = .waiting
         } else {
@@ -212,9 +224,12 @@ final class OnboardingStore {
     }
 
     /// Moves to the next step. False when there is none: the caller ends the flow (`finish`).
+    /// `skipped`: left by the quiet way past (Skip), not Continue.
     @discardableResult
-    func advance(connected: Bool) -> Bool {
-        guard let step, let next = Onboarding.next(after: step, connected: connected) else { return false }
+    func advance(connected: Bool, skipped: Bool = false) -> Bool {
+        guard let step else { return false }
+        record(step.funnel, skipped ? .skipped : .continued)
+        guard let next = Onboarding.next(after: step, connected: connected) else { return false }
         show(next)
         return true
     }
@@ -226,12 +241,14 @@ final class OnboardingStore {
 
     func back() {
         guard let step, let previous = Onboarding.previous(before: step, first: first) else { return }
+        record(step.funnel, .back)
         show(previous)
     }
 
     /// The flow is over: the notes open on `landing`.
     func finish(landing: Onboarding.Landing?) {
         self.landing = landing
+        if phase != .off { record(.done, .shown) }
         close()
     }
 
@@ -256,6 +273,7 @@ final class OnboardingStore {
     }
 
     private func show(_ step: Onboarding.Step) {
+        if self.step != step { record(step.funnel, .shown) }
         phase = .showing(step)
         if !replay, let account { defaults.set(step.rawValue, forKey: Onboarding.savedKey(account)) }
     }
@@ -271,6 +289,13 @@ final class OnboardingStore {
         }
         replay = false
         phase = .off
+    }
+
+    /// The onboarding funnel, for a new account's own flow only: a replay from Help isn't someone
+    /// getting started.
+    private func record(_ step: OnboardingStep, _ action: FunnelAction) {
+        guard !replay else { return }
+        Funnel.record(.onboardingStep(step, action))
     }
 
     private func saved(_ account: UUID) -> Onboarding.Step? {

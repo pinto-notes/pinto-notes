@@ -342,4 +342,33 @@ import UIKit
         }
     }
     #endif
+
+    #if os(iOS)
+    /// The sheet Apple Notes opens on iPhone, over the Bring step.
+    @Test func iPhoneAppleNotesSheet() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+            for dark in [false, true] {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+                window.overrideUserInterfaceStyle = dark ? .dark : .light
+                let view = Self.flow(Shot(name: "3-bring", step: .bring))
+                    .sheet(isPresented: .constant(true)) { AppleNotesOnMacSheet().dynamicTypeSize(type) }
+                    .dynamicTypeSize(type)
+                window.rootViewController = UIHostingController(rootView: view)
+                window.isHidden = false
+                try? await Task.sleep(for: .seconds(1.2))
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 3
+                let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                window.isHidden = true
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-3-bring-apple-notes-sheet-\(label)-\(dark ? "dark" : "light").png"))
+            }
+        }
+    }
+    #endif
 }

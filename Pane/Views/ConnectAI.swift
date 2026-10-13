@@ -1431,6 +1431,17 @@ struct ConnectAISection: View {
     enum Guide: String, Identifiable, CaseIterable {
         case chatgpt, claude, claudeCode, codex, incredible, other
         var id: String { rawValue }
+        /// The guide as the connect funnel names its AI.
+        var funnel: ConnectAIKind {
+            switch self {
+            case .chatgpt: .chatgpt
+            case .claude: .claude
+            case .claudeCode: .claudeCode
+            case .codex: .codex
+            case .incredible: .incredible
+            case .other: .other
+            }
+        }
         var title: String {
             switch self {
             case .chatgpt: "ChatGPT"
@@ -1508,8 +1519,20 @@ final class ConnectGuideRoute {
     var help: HelpTopic?
     /// Bumped each time a guide closes, so the Connected list loads again.
     private(set) var closed = 0
+    /// The guide on screen, for the connect funnel.
+    @ObservationIgnored private var shown: ConnectAISection.Guide?
 
-    func guideClosed() { closed += 1 }
+    /// A guide opened (`guide` was set).
+    func guideOpened(_ g: ConnectAISection.Guide) {
+        shown = g
+        ConnectFunnel.opened(g.funnel)
+    }
+
+    func guideClosed() {
+        closed += 1
+        if let g = shown { ConnectFunnel.closed(g.funnel) }
+        shown = nil
+    }
 }
 
 /// Presents the connect guides for the Connect an AI section inside this view.
@@ -1520,6 +1543,7 @@ struct ConnectGuides: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(route)
+            .onChange(of: route.guide) { _, g in if let g { route.guideOpened(g) } }
             .sheet(item: Binding(get: { client == nil ? nil : route.guide }, set: { route.guide = $0 }),
                    onDismiss: { route.guideClosed() }) { _ in
                 if let client { IncredibleSheet(client: client) }

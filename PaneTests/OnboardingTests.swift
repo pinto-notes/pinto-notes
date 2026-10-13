@@ -451,8 +451,9 @@ import Testing
     @Test func appleNotesComesFirstThenTheImportSheetsKinds() {
         #expect(OnboardingFlow.sourceOrder == ImportKind.listed, "the import sheet's own order")
         #if os(iOS)
-        // On iPhone Apple Notes is not a choice like the others: it says where it is easy.
-        #expect(OnboardingFlow.appleNotesLine.hasPrefix("Easiest on a Mac."))
+        // On iPhone Apple Notes is the same large choice; it opens the sheet about the Mac app.
+        #expect(OnboardingFlow.appleNotesLine == "From your Mac")
+        #expect(AppleNotesOnMacSheet.title == "Your Apple Notes come in from the Mac app")
         #expect(OnboardingFlow.macDownload.absoluteString == "https://pintonotes.com/download")
         #endif
         #expect(Set(OnboardingFlow.sourceOrder) == Set(ImportKind.allCases), "every kind the import sheet knows is offered")

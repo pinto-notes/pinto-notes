@@ -235,10 +235,19 @@ final class ConnectRun {
 
     /// The press on an AI's row.
     func start(_ g: Guide, client: SupabaseClient, open: @escaping (URL) -> Void) {
-        stop()
+        // Trying the same AI again isn't giving up on it.
+        stop(givingUp: guide != g)
         guide = g
         since = .now.addingTimeInterval(-5)
+        #if os(macOS)
+        direct = g == .claude && claudeCodeOnly()
+        #else
         direct = false
+        #endif
+        if let ai = funnelAI {
+            ConnectFunnel.opened(ai)
+            ConnectFunnel.started(ai)
+        }
         expect()
         #if os(macOS)
         switch g {
@@ -247,8 +256,7 @@ final class ConnectRun {
             open(WebConnectPlan.chatgpt.setupPage(server: server))
             wait(client, ConnectCopy.waiting(.chatgpt))
         case .claude:
-            if claudeCodeOnly() {
-                direct = true
+            if direct {
                 add(.claudeCode, client: client)
             } else {
                 open(WebConnectPlan.directoryListing)
@@ -281,13 +289,19 @@ final class ConnectRun {
         start(g, client: client, open: open)
     }
 
-    func stop() {
+    /// The row stops: the sheet closed, or another row was pressed. `givingUp`: the connect funnel
+    /// hears that it was given up on, when it was started and isn't connected.
+    func stop(givingUp: Bool = true) {
         watching?.cancel()
         watching = nil
         if expecting { ConnectCenter.shared.stopExpectingAsks(); expecting = false }
+        if givingUp, let ai = funnelAI { ConnectFunnel.closed(ai) }
         guide = nil
         phase = nil
     }
+
+    /// The AI as the connect funnel names it: Claude straight to Claude Code is Claude Code.
+    private var funnelAI: ConnectAIKind? { guide.map { direct ? .claudeCode : $0.funnel } }
 
     private func expect() {
         if !expecting { ConnectCenter.shared.expectAsks(); expecting = true }
@@ -295,6 +309,7 @@ final class ConnectRun {
 
     private func wait(_ client: SupabaseClient, _ line: String) {
         phase = .waiting(line)
+        if let ai = funnelAI { ConnectFunnel.waiting(ai) }
         guard let g = guide else { return }
         let since = since
         watching?.cancel()
@@ -314,6 +329,7 @@ final class ConnectRun {
     /// An access token: connected at its first call.
     private func waitForToken(_ client: SupabaseClient, _ ai: Guide, _ line: String) {
         phase = .waiting(line)
+        if let kind = funnelAI { ConnectFunnel.waiting(kind) }
         guard let g = guide else { return }
         let since = since
         watching?.cancel()
@@ -329,7 +345,9 @@ final class ConnectRun {
         }
     }
 
-    private func done(_ g: Guide) {
+    /// Connected. Internal for tests: the app gets here from the server's list.
+    func done(_ g: Guide) {
+        if let ai = funnelAI { ConnectFunnel.connected(ai) }
         stop()
         connected(g)
     }
@@ -337,6 +355,7 @@ final class ConnectRun {
     private func fail(_ line: String, fix: String) {
         watching?.cancel()
         phase = .failed(line, fix: fix)
+        if let ai = funnelAI { ConnectFunnel.failed(ai, .other) }
     }
 
     /// Claude Code or Codex: Pinto Notes adds itself with their own command, out of sight, and
