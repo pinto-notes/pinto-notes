@@ -121,9 +121,14 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
 
         <div className={`${p.coverRow} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}><Cover x={x} art={art} /></div>
 
-        <div className={`${legal.article} ${p.body} rise`} style={{ "--i": 2 } as React.CSSProperties} data-short={minutes < 8 ? "" : undefined}>
+        {/* The intro and the short answer: on the first screen on every device (the cover sits beside
+            the title on wide screens, and after this on phones). */}
+        <div className={`${legal.article} ${p.body} ${p.top} rise`} style={{ "--i": 1 } as React.CSSProperties} data-short={minutes < 8 ? "" : undefined}>
           <p className={p.intro}>{intro}</p>
           {answer}
+        </div>
+
+        <div className={`${legal.article} ${p.body} ${p.rest} rise`} style={{ "--i": 2 } as React.CSSProperties}>
           {hero ?? (!art && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />)}
           {children}
           {faq?.length ? (

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import Post from "../app/blog/connect-chatgpt-to-your-notes/page";
 import Short from "../app/blog/apple-notes-vs-notion/page";
 import { CATEGORY_COVERS, categories } from "./posts";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/blog/x", useRouter: () => ({ push: () => {} }) }));
@@ -37,5 +37,14 @@ describe("a blog post", () => {
 
   it("has a cover for every category, on disk", () => {
     for (const c of categories()) expect(existsSync(join(process.cwd(), "public", CATEGORY_COVERS[c].src)), c).toBe(true);
+  });
+
+  it("keeps the intro and the short answer together, before the rest of the text, so they stay on the first screen", () => {
+    const top = d.querySelector("[data-short], article > div:nth-of-type(2)");
+    expect(top?.textContent).toContain("ChatGPT can't edit Apple Notes");
+    const css = readFileSync(join(process.cwd(), "lib/post.module.css"), "utf8");
+    // Wide screens: the cover beside the title block. Phones: the cover after the short answer.
+    expect(css).toMatch(/\.col > \.coverRow \{ grid-column: 2; grid-row: 1;/);
+    expect(css).toMatch(/\.col > \.coverRow \{ order: 1; \}/);
   });
 });

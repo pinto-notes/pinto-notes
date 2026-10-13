@@ -7,12 +7,23 @@
 }
 @media (max-width: 700px) { .main { padding-top: 20px; gap: 64px; } }
 
-/* ── The column: header and text at 720, the cover wider, at 960 ── */
-.col { width: 100%; max-width: 960px; display: grid; justify-items: center; gap: 36px; min-width: 0; }
+/* ── The column: the header with the cover beside it on wide screens, then the text at 720, on the
+   title's left edge. The intro and the short answer are on the first screen at 1440 x 900 and 1280 x
+   800; on narrower screens the cover comes after the short answer. ── */
+.col { width: 100%; max-width: 1120px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 36px; min-width: 0; }
 @media (max-width: 700px) { .col { gap: 24px; } }
-.col > * { min-width: 0; width: 100%; max-width: 720px; }
-.col > .coverRow { max-width: 860px; }
-
+.col > * { min-width: 0; width: 100%; max-width: 720px; justify-self: center; }
+.col > .coverRow { order: 1; }
+.col > .rest, .col > .signoff { order: 2; }
+/* The intro and short answer (.top), and the rest of the text (.rest): two blocks, so the cover can sit between them on a phone. */
+.top { order: 0; }
+.rest { order: 2; }
+@media (min-width: 960px) {
+  .col { grid-template-columns: minmax(0, 1fr) clamp(440px, 38vw, 500px); column-gap: 48px; row-gap: 40px; }
+  .col > * { grid-column: 1 / -1; justify-self: start; }
+  .col > .head { grid-column: 1; grid-row: 1; align-self: center; max-width: none; }
+  .col > .coverRow { grid-column: 2; grid-row: 1; order: 0; align-self: center; max-width: none; }
+}
 .head { display: grid; gap: 18px; }
 .crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--muted); }
 .crumbs li + li::before { content: "›"; margin-right: 8px; }
@@ -42,13 +53,13 @@
   .share a:active { transform: scale(0.94); }
 }
 
-/* ── The cover: paper-cut art at 2:1 (a post's own banner keeps its 5:2) ── */
-.cover { aspect-ratio: 1672 / 941; border-radius: 28px; overflow: hidden; background: var(--soft); }
+/* ── The cover: the whole paper-cut scene, never cropped (a post's own banner keeps its 5:2) ── */
+.cover { aspect-ratio: 1672 / 941; border-radius: 24px; overflow: hidden; background: var(--soft); }
 .cover[data-shape="banner"] { aspect-ratio: 5 / 2; }
 .cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 700px) {
-  .col > .coverRow { width: calc(100% + 2 * var(--gutter)); max-width: none; }
-  .cover { border-radius: 0; aspect-ratio: 16 / 10; }
+  .col > .coverRow { width: calc(100% + 2 * var(--gutter)); max-width: none; justify-self: center; }
+  .cover { border-radius: 0; }
 }
 
 /* ── The text ── */
