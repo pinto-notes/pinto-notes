@@ -660,7 +660,7 @@ struct ConnectChoices: View {
 
     // MARK: Rows
 
-    private enum RowState: Equatable { case rest, waiting(String), failed(String), connected }
+    enum RowState: Equatable { case rest, waiting(String), failed(String), connected }
 
     private func state(_ g: Guide) -> RowState {
         if run.guide == g, let phase = run.phase {
@@ -703,15 +703,26 @@ struct ConnectChoices: View {
         }
     }
 
-    @ViewBuilder private func trailing(_ g: Guide, size: CGFloat) -> some View {
-        switch state(g) {
-        case .waiting: ProgressView().controlSize(.small)
-        case .connected:
-            Image(systemName: "checkmark.circle.fill").font(.system(size: size, weight: .semibold)).foregroundStyle(.white, .green)
-        case .failed:
-            Image(systemName: "exclamationmark.circle.fill").font(.system(size: size, weight: .semibold)).foregroundStyle(.white, .red)
-        case .rest:
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+    private func trailing(_ g: Guide, size: CGFloat) -> some View { Accessory(state: state(g), size: size) }
+
+    /// The mark at a row's end. Hidden from VoiceOver: the row's words say the same, and the
+    /// spinner would make the whole row a busy indicator instead of a button.
+    struct Accessory: View {
+        let state: RowState
+        let size: CGFloat
+        var body: some View {
+            Group {
+                switch state {
+                case .waiting: ProgressView().controlSize(.small)
+                case .connected:
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: size, weight: .semibold)).foregroundStyle(.white, .green)
+                case .failed:
+                    Image(systemName: "exclamationmark.circle.fill").font(.system(size: size, weight: .semibold)).foregroundStyle(.white, .red)
+                case .rest:
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+            }
+            .accessibilityHidden(true)
         }
     }
 

@@ -647,7 +647,8 @@ import Testing
         final class Count { var presses = 0 }
         let count = Count()
         let row = Button { count.presses += 1 } label: {
-            HStack { Image(systemName: "sparkle"); Text("Claude"); Text("Chat with Claude, and Claude Code") }
+            // Waiting: the row's spinner mustn't turn the button into a busy indicator.
+            HStack { Image(systemName: "sparkle"); Text("Claude"); Text("Adding it to Claude Code…"); ConnectChoices.Accessory(state: .waiting("Adding it to Claude Code…"), size: 16) }
         }
         .buttonStyle(.plain)
         .modifier(ConnectChoices.Said(id: "connect.guide.claude", label: "Claude. Chat with Claude, and Claude Code"))
@@ -659,7 +660,7 @@ import Testing
         defer { window.orderOut(nil); window.close() }
         try await Task.sleep(for: .seconds(0.5))
         let pid = getpid()
-        let found: (label: String?, pressed: AXError?, error: String?) = {
+        let found: (label: String?, role: String?, pressed: AXError?, error: String?) = {
             func attr(_ e: AXUIElement, _ name: String) -> CFTypeRef? {
                 var v: CFTypeRef?
                 return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v : nil
@@ -674,13 +675,14 @@ import Testing
             AXUIElementSetMessagingTimeout(app, 5)
             guard let button = find(app, 0) else {
                 var v: CFTypeRef?
-                return (nil, nil, "no row; windows: \(AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &v).rawValue)")
+                return (nil, nil, nil, "no row; windows: \(AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &v).rawValue)")
             }
             return (attr(button, kAXDescriptionAttribute) as? String ?? attr(button, kAXTitleAttribute) as? String,
-                    AXUIElementPerformAction(button, kAXPressAction as CFString), nil)
+                    attr(button, kAXRoleAttribute) as? String, AXUIElementPerformAction(button, kAXPressAction as CFString), nil)
         }()
         #expect(found.error == nil, "\(found.error ?? "")")
         #expect(found.label == "Claude. Chat with Claude, and Claude Code")
+        #expect(found.role == kAXButtonRole)
         #expect(found.pressed == .success)
         try await Task.sleep(for: .seconds(0.3))
         #expect(count.presses == 1)
