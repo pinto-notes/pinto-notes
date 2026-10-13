@@ -561,6 +561,8 @@ struct ConnectChoices: View {
     var preview: [Connection]? = nil
     /// Captures: what counts as found on this device.
     var previewFound: [Guide]? = nil
+    /// A short sheet (Make an App): no headings and no Having trouble? (Settings has both).
+    var compact = false
     /// Tells the view around it what is connected, each time it has been asked again.
     var onLoaded: (Set<String>) -> Void = { _ in }
 
@@ -592,12 +594,12 @@ struct ConnectChoices: View {
             if let ask = center.waiting().first {
                 ConnectWaitingRow(ask: ask)
             }
-            if !shownFound.filter(guides.contains).isEmpty { header(ConnectCopy.here) }
+            if !compact, !shownFound.filter(guides.contains).isEmpty { header(ConnectCopy.here) }
             VStack(spacing: Metrics.gap) { ForEach(top) { big($0) } }
             if let g = run.guide, top.contains(g) { fixButton }
             if !rest.isEmpty {
-                header(ConnectCopy.others).padding(.top, 10)
-                quietList
+                if !compact { header(ConnectCopy.others).padding(.top, 10) }
+                quietList.padding(.top, compact ? 2 : 0)
                 if let g = run.guide, rest.contains(g) { fixButton }
             }
             if reach != .online {
@@ -606,13 +608,15 @@ struct ConnectChoices: View {
             if let error, reach == .online {
                 Text(error).font(.footnote).foregroundStyle(.red)
             }
-            Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
-                .buttonStyle(.hoverLink)
-                .font(Metrics.quiet)
-                .foregroundStyle(Color.muted)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 4)
-                .accessibilityIdentifier("connect.trouble")
+            if !compact {
+                Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
+                    .buttonStyle(.hoverLink)
+                    .font(Metrics.quiet)
+                    .foregroundStyle(Color.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
+                    .accessibilityIdentifier("connect.trouble")
+            }
             if listsConnected, !active.isEmpty { connectedList.padding(.top, 8) }
         }
         .disabled(reach != .online)

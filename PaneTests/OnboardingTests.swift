@@ -486,6 +486,7 @@ import Testing
     }
 
     @Test func everyWayToConnectHasItsGuide() {
-        #expect(OnboardingFlow.guides.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Another AI"])
+        // Claude Code rides on Claude's connection (or is added directly with only the command on the Mac).
+        #expect(OnboardingFlow.guides.map(\.title) == ["ChatGPT", "Claude", "Codex", "Another AI"])
     }
 }

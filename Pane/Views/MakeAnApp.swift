@@ -270,7 +270,8 @@ struct MakeAppSheet: View {
                 // (owner: no tall sheets).
                 VStack(spacing: Metrics.stepGap) {
                     ConnectChoices(client: client, guides: MakeAnApp.connectGuides, listsConnected: false,
-                                   preview: Self.stateForPictures != nil ? [] : nil) { connected in
+                                   preview: Self.stateForPictures != nil ? [] : nil,
+                                   previewFound: Self.stateForPictures != nil ? [] : nil, compact: true) { connected in
                         if !connected.isEmpty { Task { await check() } }
                     }
                 }
