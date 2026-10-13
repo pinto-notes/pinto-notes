@@ -957,6 +957,8 @@ struct ImportNoticePage: View {
     var quiet: String?
     /// A press on one of the page's controls.
     var act: (ImportGuideSheet.Action) -> Void = { _ in }
+    /// The filled button shares this link instead (the Mac download, sent to yourself).
+    var shareURL: URL?
 
     /// This page, its controls answered by `act`.
     func with(_ act: @escaping (ImportGuideSheet.Action) -> Void) -> ImportNoticePage {
@@ -1012,12 +1014,12 @@ struct ImportNoticePage: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 420)
                 Spacer(minLength: 0)
-                Button { act(.primary) } label: {
-                    HStack(spacing: 6) {
-                        Text(primary)
-                        if let primarySymbol { Image(systemName: primarySymbol).font(.system(size: 12, weight: .bold)) }
+                Group {
+                    if let shareURL {
+                        ShareLink(item: shareURL, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) { primaryLabel }
+                    } else {
+                        Button { act(.primary) } label: { primaryLabel }
                     }
-                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.amberProminent(height: compact ? 50 : 40, cornerRadius: compact ? 14 : 10))
                 .frame(maxWidth: compact ? .infinity : 320)
@@ -1038,6 +1040,14 @@ struct ImportNoticePage: View {
         .foregroundStyle(Color.ink)
         .background(Color(Palette.sheetGround))
         .tint(Color(Palette.amber))
+    }
+
+    private var primaryLabel: some View {
+        HStack(spacing: 6) {
+            Text(primary)
+            if let primarySymbol { Image(systemName: primarySymbol).font(.system(size: 12, weight: .bold)) }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     static let notesDenied = ImportNoticePage(
@@ -1064,11 +1074,13 @@ struct ImportNoticePage: View {
         origin: .files(.bear),
         title: "Easiest on your Mac",
         line: "Bear on the Mac saves all your notes into one folder in a minute, and Pinto Notes on the Mac brings them in. They're on this iPhone a moment later.",
-        art: .macHandoff, primary: "Send Me the Mac Link", primarySymbol: "square.and.arrow.up", quiet: "I already have the folder")
+        art: .macHandoff, primary: "Send Me the Mac Link", primarySymbol: "square.and.arrow.up", quiet: "I already have the folder",
+        shareURL: URL(string: "https://pintonotes.com/download"))
 
     static let phoneEvernote = ImportNoticePage(
         origin: .files(.evernote),
         title: "Easiest on a computer",
         line: "Evernote's phone app can't save notebooks as files. On a Mac or PC, Evernote can, and Pinto Notes on the Mac brings them in. They're on this iPhone a moment later.",
-        art: .macHandoff, primary: "Send Me the Mac Link", primarySymbol: "square.and.arrow.up", quiet: "I already have the files")
+        art: .macHandoff, primary: "Send Me the Mac Link", primarySymbol: "square.and.arrow.up", quiet: "I already have the files",
+        shareURL: URL(string: "https://pintonotes.com/download"))
 }

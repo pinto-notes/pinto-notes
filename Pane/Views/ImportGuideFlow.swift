@@ -14,6 +14,18 @@ struct ImportFlow: View {
     var onImported: ([UUID]) -> Void = { _ in }
 
     var body: some View {
+        #if os(iOS)
+        if let notice = ImportGuide.phoneHandoff(kind) {
+            PhoneHandoff(notice: notice, kind: kind, files: files, onImported: onImported)
+        } else {
+            guided
+        }
+        #else
+        guided
+        #endif
+    }
+
+    @ViewBuilder private var guided: some View {
         if let guide = ImportGuide.live(kind) {
             ImportGuideFlow(guide: guide, kind: kind, files: files, onImported: onImported)
         } else {
@@ -21,6 +33,62 @@ struct ImportFlow: View {
         }
     }
 }
+
+#if os(iOS)
+/// Evernote and Bear can't export on a phone: one page that sends the Mac download, and for
+/// someone who already has the files, the page to choose them.
+private struct PhoneHandoff: View {
+    let notice: ImportNoticePage
+    let kind: ImportKind
+    var files: [URL]
+    var onImported: ([UUID]) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var choosing = false
+
+    var body: some View {
+        if choosing || !files.isEmpty, let guide = ImportGuide.phoneFiles(kind) {
+            ImportGuideFlow(guide: guide, kind: kind, files: files, startAtDrop: true, onImported: onImported)
+        } else {
+            notice.with { action in
+                switch action {
+                case .quiet: choosing = true
+                case .close, .back: dismiss()
+                case .primary: break
+                }
+            }
+            .presentationBackground(Color(Palette.sheetGround))
+        }
+    }
+}
+
+extension ImportGuide {
+    /// The one page Evernote and Bear open on a phone.
+    static func phoneHandoff(_ kind: ImportKind) -> ImportNoticePage? {
+        switch kind {
+        case .evernote: .phoneEvernote
+        case .bear: .phoneBear
+        default: nil
+        }
+    }
+
+    /// Their files, chosen on a phone: no guide, a Choose button.
+    static func phoneFiles(_ kind: ImportKind) -> ImportGuide? {
+        switch kind {
+        case .evernote:
+            var g = evernote
+            g.drop = Drop(title: "Choose the notebook files", line: "Files that end in .enex. Choose all of them at once; each becomes a folder.",
+                          choose: "Choose Files", found: nil, fileSymbol: "doc")
+            return g
+        case .bear:
+            var g = bear(picture: nil)
+            g.drop = Drop(title: "Choose the folder", line: "The folder you exported from Bear on your Mac. Pictures inside it come too.",
+                          choose: "Choose Folder", found: nil, fileSymbol: "folder")
+            return g
+        default: return nil
+        }
+    }
+}
+#endif
 
 extension ImportGuide {
     /// The guide a source opens, once it has shipped (nil: the plain import sheet).
@@ -54,6 +122,8 @@ struct ImportGuideFlow: View {
     let guide: ImportGuide
     let kind: ImportKind
     var files: [URL] = []
+    /// Open on the drop page (the phone's Evernote and Bear, which have no guide there).
+    var startAtDrop = false
     var onImported: ([UUID]) -> Void = { _ in }
 
     @Environment(\.modelContext) private var context
@@ -94,8 +164,9 @@ struct ImportGuideFlow: View {
             // Where the file is likely to be: a vault in Documents, an export in Downloads.
             .fileDialogDefaultDirectory(FileManager.default.urls(for: kind == .obsidian ? .documentDirectory : .downloadsDirectory, in: .userDomainMask).first)
             .task {
+                if startAtDrop { stage = .drop }
                 guard !files.isEmpty else { return }
-                go(.drop)
+                if stage != .drop { go(.drop) }
                 add(files, replacing: true)
             }
     }
