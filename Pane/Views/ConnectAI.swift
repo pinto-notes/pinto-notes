@@ -962,6 +962,26 @@ extension View {
 
 // MARK: Consent
 
+/// An app the consent sheet can't name: a plain symbol on the same white tile as `AITile`, so a
+/// known AI and an unknown app look like one set.
+struct ClientTile: View {
+    let symbol: String
+    var size: CGFloat = 30
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.46, weight: .regular))
+            .foregroundStyle(Color(white: 0.45))
+            .frame(width: size, height: size)
+            .background(Color.white, in: shape)
+            .overlay(shape.strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5))
+            .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.10), radius: 3, y: 1.5)
+            .environment(\.colorScheme, .light)
+            .accessibilityHidden(true)
+    }
+}
+
 struct ConsentSheet: View {
     let client: SupabaseClient
     let requestID: UUID
@@ -976,7 +996,6 @@ struct ConsentSheet: View {
     enum Phase: Equatable { case loading, asking(ConnectRequest), working, done(String), handedOff(String), failed(String) }
     @State private var phase: Phase
     @State private var write = true
-    @State private var showOptions = false
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Asked from a browser that the person signed in on (a notification): what the number was
     /// made from (the page's key and commit as first read, and the revealed nonce), and the
@@ -1008,7 +1027,7 @@ struct ConsentSheet: View {
 
     init(client: SupabaseClient, requestID: UUID, initial: Phase = .loading, finish: @escaping (URL) -> Void,
          allowed: @escaping (ConnectRequest) -> Void = { _ in }, answering: @escaping (UUID) -> Void = { _ in },
-         scan: ConnectScan? = nil, previewMatch: Match? = nil, previewOptions: Bool = false) {
+         scan: ConnectScan? = nil, previewMatch: Match? = nil) {
         self.client = client
         self.requestID = requestID
         self.finish = finish
@@ -1017,7 +1036,6 @@ struct ConsentSheet: View {
         self.scan = scan ?? ConnectCenter.shared.scans[requestID]
         _phase = State(initialValue: initial)
         _match = State(initialValue: previewMatch)
-        _showOptions = State(initialValue: previewOptions)
     }
 
     private struct Shown: Equatable { var phase: Phase; var match: Match? }
@@ -1025,8 +1043,11 @@ struct ConsentSheet: View {
     var body: some View {
         sized
             #if os(macOS)
-            .frame(width: 420)
+            .frame(width: 440)
             #endif
+            .foregroundStyle(Color.ink)
+            .background(Color(Palette.sheetGround))
+            .tint(Color(Palette.amber))
             .task {
                 if phase == .loading { await load() }
                 else if case .asking(let r) = phase { await opened(r) }
@@ -1054,8 +1075,12 @@ struct ConsentSheet: View {
         .scrollBounceBehavior(.basedOnSize)
         .presentationDetents(contentHeight > 0 ? [.height(contentHeight + 24)] : [.medium])
         .presentationDragIndicator(.visible)
+        .presentationBackground(Color(Palette.sheetGround))
         #else
-        content.padding(28)
+        content
+            .padding(.horizontal, 36)
+            .padding(.top, 32)
+            .padding(.bottom, 20)
         #endif
     }
 
@@ -1101,73 +1126,112 @@ struct ConsentSheet: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// The AI's mark when the return address is its own, a link, our icon.
-    private func marks(_ r: ConnectRequest) -> some View {
+    #if os(iOS)
+    static let compact = true
+    #else
+    static let compact = false
+    #endif
+
+    /// One icon: the AI's mark when the return address is its own, else a plain tile.
+    private func icon(_ r: ConnectRequest) -> some View {
         let ai = r.verifiedAI
-        return HStack(spacing: 14) {
+        let size: CGFloat = Self.compact ? 72 : 64
+        return Group {
             if let ai {
-                AITile(ai: ai, size: 56)
+                AITile(ai: ai, size: size)
             } else {
                 // An app we can't vouch for: a plain glyph, never a borrowed mark.
-                Image(systemName: r.loopback ? "desktopcomputer" : "globe")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 56, height: 56)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: 56 * 0.3, style: .continuous))
+                ClientTile(symbol: r.loopback ? "desktopcomputer" : "globe", size: size)
             }
-            Image(systemName: "link")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.tertiary)
-            AppMark(size: 56)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(ai.map { "\($0) and Pinto Notes" } ?? "An app and Pinto Notes")
+        .accessibilityLabel(ai ?? "An app")
         .accessibilityIdentifier(ai == nil ? "connect.header.unknown" : "connect.header.\(ai!)")
     }
 
+    #if os(macOS)
+    static let allowHint = "Confirms with Touch ID or your password"
+    #else
+    static let allowHint = "Confirms with Face ID or your passcode"
+    #endif
+
     /// The title: who gets access, by the address it goes to.
     nonisolated static func title(_ r: ConnectRequest) -> String { "Allow \(r.who) to use your notes?" }
+
+    /// What an app calls itself, as a name reads: "glama" is Glama, "claude code" Claude Code.
+    /// A name with capitals of its own ("ChatGPT", "iA Writer") stays as it is.
+    nonisolated static func displayName(_ name: String) -> String {
+        guard name == name.lowercased() else { return name }
+        return name.split(separator: " ", omittingEmptySubsequences: false)
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
+    }
+
+    /// The line under the title. A recognized AI: where access goes. Any other app: a calm
+    /// caution, with the name it gives itself shown only as a claim (anyone can call themselves
+    /// Claude), and never the name the person is told to check against.
+    nonisolated static func detail(_ r: ConnectRequest) -> String {
+        guard r.verifiedAI == nil else { return "Access goes to \(r.redirect_host). Locked notes stay private." }
+        let claim = r.claimedName.map { " It calls itself \(displayName($0))." } ?? ""
+        return "Pinto Notes doesn\u{2019}t recognize this app.\(claim) Only allow it if you just started connecting it yourself."
+    }
+
+    /// What the chosen access lets the app do.
+    nonisolated static func accessLine(write: Bool) -> String {
+        write ? "It can read, create and change notes. Every change keeps the previous version."
+            : "It can read notes, but not change them."
+    }
 
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
 
     private func asking(_ r: ConnectRequest) -> some View {
         VStack(spacing: 0) {
-            marks(r)
+            icon(r).padding(.bottom, 18)
             Text(Self.title(r))
-                .font(.title2.weight(.semibold))
+                .font(.display(Self.compact ? 26 : 22))
+                .tracking(Palette.tracking(Self.compact ? 26 : 22))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 18)
+                .padding(.bottom, 8)
+                .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("connect.title")
-            if r.verifiedAI == nil {
-                Label("Pinto Notes doesn't recognize this app. Only allow it if you just started connecting it.",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 10)
-                    .accessibilityIdentifier("connect.unknown")
+            Text(Self.detail(r))
+                .font(Self.compact ? .body : .system(size: 14))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier(r.verifiedAI == nil ? "connect.unknown" : "connect.destination")
+            if let line = r.requestedLine() {
+                Text(line)
+                    .font(Self.compact ? .footnote : .system(size: 12))
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 6)
+                    .accessibilityIdentifier("connect.requested")
             }
-            if byNumber(r) { number.padding(.top, 20) }
-            VStack(spacing: 4) {
-                Button { Task { await decide(r, allow: true) } } label: {
-                    Text("Allow").frame(maxWidth: .infinity)
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
-                .disabled(!armed || (byNumber(r) && match == nil))
-                .accessibilityIdentifier("connect.allow")
-                Button("Don\u{2019}t Allow") { Task { await decide(r, allow: false) } }
-                    .keyboardShortcut(.cancelAction)
-                    .frame(minHeight: 44)
-                    .accessibilityIdentifier("connect.deny")
+            if byNumber(r) { number.padding(.top, 18) }
+            access(r).padding(.top, 20)
+            Button { Task { await decide(r, allow: true) } } label: {
+                Text("Allow").frame(maxWidth: .infinity)
             }
-            .padding(.top, 24)
-            options(r)
+            .buttonStyle(.amberProminent(height: Self.compact ? 50 : 40, cornerRadius: Self.compact ? 14 : 10))
+            .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: Self.compact ? .infinity : 320)
+            .disabled(!armed || (byNumber(r) && match == nil))
+            .padding(.top, 22)
+            .accessibilityHint(Self.allowHint)
+            .accessibilityIdentifier("connect.allow")
+            Button("Don\u{2019}t Allow") { Task { await decide(r, allow: false) } }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: Self.compact ? 15 : 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+                .keyboardShortcut(.cancelAction)
+                .frame(minHeight: Self.compact ? 44 : 34)
+                .padding(.top, 6)
+                .accessibilityIdentifier("connect.deny")
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// Asked by notification: the two digits the page shows, to compare.
@@ -1178,6 +1242,7 @@ struct ConsentSheet: View {
                 Text(match.number)
                     .font(.system(size: 52, weight: .semibold, design: .rounded))
                     .monospacedDigit()
+                    .foregroundStyle(Color.ink)
                     .accessibilityLabel("Number \(match.number.map(String.init).joined(separator: " "))")
                     .accessibilityIdentifier("connect.number")
                 Text("Allow only if your computer shows the same number.")
@@ -1186,21 +1251,21 @@ struct ConsentSheet: View {
                 Text("Waiting for your computer\u{2026}")
             }
         }
-        .font(.callout)
-        .foregroundStyle(.secondary)
+        .font(Self.compact ? .callout : .system(size: 13))
+        .foregroundStyle(Color.muted)
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Access and where it goes, out of the way: most people keep what the app asked for.
-    private func options(_ r: ConnectRequest) -> some View {
+    /// Read and edit or read only, in plain sight: what the app asked for is chosen. An app that
+    /// asked only to read gets no choice, just the line that says so.
+    private func access(_ r: ConnectRequest) -> some View {
         let canEdit = Binding(get: { write && r.wants_write }, set: { write = $0 })
-        return DisclosureGroup(isExpanded: $showOptions) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Segments don't grow with the largest text sizes; a menu does.
+        return VStack(spacing: 8) {
+            if r.wants_write {
                 Group {
                     if typeSize.isAccessibilitySize {
-                        // Segments and menus don't fit the largest text sizes: a choice per line does.
+                        // Segments don't fit the largest text sizes: a choice per line does.
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach([true, false], id: \.self) { edit in
                                 Button { canEdit.wrappedValue = edit } label: {
@@ -1209,7 +1274,7 @@ struct ConsentSheet: View {
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 .buttonStyle(.plain)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(Color.ink)
                                 .accessibilityAddTraits(canEdit.wrappedValue == edit ? .isSelected : [])
                             }
                         }
@@ -1220,30 +1285,19 @@ struct ConsentSheet: View {
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
+                        .frame(maxWidth: Self.compact ? .infinity : 260)
                     }
                 }
-                .disabled(!r.wants_write)
+                .accessibilityLabel("Access")
                 .accessibilityIdentifier("connect.access")
-                Text(canEdit.wrappedValue ? "It can read, create and change notes. Every change keeps the previous version." :
-                        "It can read notes, but not change them.")
-                Text("Access goes to \(Text(r.redirect_host).bold()). Locked notes stay private.")
-                    .accessibilityIdentifier("connect.destination")
-                if let line = r.requestedLine() {
-                    Text(line).accessibilityIdentifier("connect.requested")
-                }
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 8)
-        } label: {
-            Text(canEdit.wrappedValue ? "Options: read and edit" : "Options: read only")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Text(Self.accessLine(write: canEdit.wrappedValue))
+                .font(Self.compact ? .footnote : .system(size: 12))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("connect.access.line")
         }
-        .tint(.secondary)
-        .padding(.top, 6)
-        .accessibilityIdentifier("connect.options")
     }
 
     private func load() async {
