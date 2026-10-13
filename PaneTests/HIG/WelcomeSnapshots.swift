@@ -24,25 +24,9 @@ import Testing
         }
         try await Self.shoot(WelcomeFlow(backend: backend, stage: .signIn(returning: false), focusEmail: true), name: "mac-signin-focused-\(mode)", dark: dark)
         // Newcomer audit 8, 23, 24: the password rule, the spinner on the button pressed, the email said once.
-        for (name, flow, pressed) in Self.signInStates {
+        for (name, flow, pressed) in OnboardingSnapshots.signInStates {
             try await Self.shoot(WelcomeFlow(backend: backend, stage: .signIn(returning: false), flow: flow, pressed: pressed), name: "mac-\(name)-\(mode)", dark: dark)
         }
-    }
-
-    static var signInStates: [(String, EmailSignInFlow, SignInView.Way?)] {
-        func flow(_ step: EmailSignInFlow.Step, password: String = "") -> EmailSignInFlow {
-            var f = EmailSignInFlow()
-            f.email = "sara.lindqvist@example.com"
-            f.step = step
-            f.password = password
-            return f
-        }
-        return [
-            ("signin-existing", flow(.signIn(fallback: false)), nil),
-            ("signin-create-short", flow(.create, password: "123456789"), nil),
-            ("signin-create-met", flow(.create, password: "123456789abc"), nil),
-            ("signin-google-busy", EmailSignInFlow(), .google),
-        ]
     }
 }
 #endif
