@@ -2,10 +2,11 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { appsServed, instructions, servedPrompts, servedResources } from "./server.ts";
 import { serverCard } from "./card.ts";
-import { PAGE_INSTRUCTIONS } from "./page_guide.ts";
 import { CLASSIC_TOOL_NAMES } from "./tools.ts";
 import { servedTools } from "./tool_set.ts";
 import { FILE_INSTRUCTIONS } from "./files_tools.ts";
+import { appGuide, IN_CONTROL, scaffold } from "./app_scaffold.ts";
+import { appsGuide, PAGE_INSTRUCTIONS, pageGuide } from "./page_guide.ts";
 
 /** Tool names a text mentions: words with an underscore, as every classic tool is named. */
 const named = (text: string) => [...new Set(text.match(/\b[a-z]+(?:_[a-z]+)+\b/g) ?? [])];
@@ -119,4 +120,13 @@ Deno.test("nothing an AI reads offers the device features that were removed from
     assert(/not available yet/i.test(text), `${name} should say what is not available yet`);
     assertStringIncludes(text, "openURL");
   }
+});
+
+Deno.test("every guide an AI gets for apps says the person stays in control inside the app", async () => {
+  for (const s of ["add, edit, rename, reorder and remove", "settings are changed in the app", "deletes can be undone", "saved in data.json"]) assertStringIncludes(IN_CONTROL, s);
+  assertStringIncludes(appGuide(), IN_CONTROL);
+  assertStringIncludes(appsGuide(), IN_CONTROL);
+  assertStringIncludes(await pageGuide(), IN_CONTROL);
+  assertStringIncludes((await scaffold("Habits"))["/README.md"], IN_CONTROL);
+  assertStringIncludes(FILE_INSTRUCTIONS, IN_CONTROL);
 });
