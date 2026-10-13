@@ -314,7 +314,7 @@ enum WikiDirectory {
         }
     }
 
-    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks])) {
+    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]])) {
         guard let context = reading else { return }
         reading = nil
         if cached == nil || cachedContext !== context {
@@ -325,6 +325,7 @@ enum WikiDirectory {
         }
         outgoing = read.outgoing
         outgoingContext = context
+        folderPaths = read.paths
         // What was saved while it was read is read again from the context, which has it.
         let again = savedWhileReading
         savedWhileReading = []
@@ -343,7 +344,7 @@ enum WikiDirectory {
 
     /// The titles and links of every live note, read on `context` (one of its own, off the main
     /// thread, for a large library).
-    nonisolated static func read(using context: ModelContext) -> (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks]) {
+    nonisolated static func read(using context: ModelContext) -> (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]]) {
         let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
         var byID: [UUID: (name: String, parent: UUID?)] = [:]
         for f in folders { byID[f.id] = (f.name, f.parent?.id) }
@@ -366,7 +367,8 @@ enum WikiDirectory {
             entries.append(WikiIndex.Entry(id: n.id, title: n.summaryTitle ?? NoteText.head(of: n.body).title, folders: folders, updated: n.updatedAt))
             if let links = OutgoingLinks(of: n, folders: folders) { outgoing[n.id] = links }
         }
-        return (entries, outgoing)
+        for f in folders { _ = path(f.id) }
+        return (entries, outgoing, paths)
     }
 
     static func index(_ context: ModelContext) -> WikiIndex {
@@ -397,6 +399,7 @@ enum WikiDirectory {
     static func invalidate() {
         cached = nil
         outgoing = nil
+        folderPaths = [:]
     }
 
     /// A save, taken into the index and the links note by note: most saves are a note being typed
@@ -405,7 +408,9 @@ enum WikiDirectory {
     /// same save twice is harmless.
     static func take(_ saved: Notification) {
         guard let context = saved.object as? ModelContext else { return }
-        let changes = context.savedNotes(saved)
+        // A folder that only gained or lost notes (the store saves it with them) leaves every
+        // path as it was: only a rename or a move of a folder makes the index read again.
+        let changes = context.savedModels(saved).map { (notes: $0.notes, folders: movedOrRenamed($0.folders, in: context)) }
         if reading === context {
             if let changes, !changes.folders { savedWhileReading.formUnion(changes.notes.map(\.id)) } else { reading = nil; prepare(context) }
         }
@@ -429,6 +434,22 @@ enum WikiDirectory {
         }
         cached = index
         if changed { generation += 1 }
+    }
+
+    /// Each folder's path as the index last read it; empty when the index wasn't read here.
+    private static var folderPaths: [UUID: [String]] = [:]
+
+    /// Whether any of `folders` has another path than the index read (or the index can't tell).
+    private static func movedOrRenamed(_ folders: [Folder], in context: ModelContext) -> Bool {
+        guard !folders.isEmpty else { return false }
+        guard !folderPaths.isEmpty, cachedContext === context || outgoingContext === context else { return true }
+        var moved = false
+        for f in folders {
+            let path: [String] = context.folderPath(f)
+            if let was = folderPaths[f.id], was != path { moved = true }
+            folderPaths[f.id] = path
+        }
+        return moved
     }
 
     /// The notes that link to others, as last read: nil until they've been (see `didRead`).
@@ -474,14 +495,19 @@ extension ModelContext {
     /// The notes a save added or changed, and whether it changed folders; nil when it deleted
     /// something for good (those can't be looked at any more).
     func savedNotes(_ saved: Notification) -> (notes: [Note], folders: Bool)? {
+        savedModels(saved).map { ($0.notes, !$0.folders.isEmpty) }
+    }
+
+    /// The notes and folders a save added or changed; nil when it deleted something for good.
+    func savedModels(_ saved: Notification) -> (notes: [Note], folders: [Folder])? {
         func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (saved.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
         guard ids(.deletedIdentifiers).isEmpty else { return nil }
         var notes: [Note] = []
-        var folders = false
+        var folders: [Folder] = []
         for id in ids(.insertedIdentifiers) + ids(.updatedIdentifiers) {
             switch model(for: id) {
             case let n as Note: notes.append(n)
-            case is Folder: folders = true
+            case let f as Folder: folders.append(f)
             default: break
             }
         }
