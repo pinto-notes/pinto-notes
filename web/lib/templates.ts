@@ -106,10 +106,10 @@ export const appLink = (slug: string) => appURL(`template/${slug}`);
 
 export const noteTitle = (t: Template) => t.note.split("\n")[0];
 
-/// The prompt's first step: the AI makes the note itself (create_note, which every installed app's
+/// The prompt's first step: the AI makes the note itself (create, which every installed app's
 /// MCP server has), so a template works without the app opening any link.
 export function createStep(t: Template): string {
-  return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search_notes. If there isn't one, create it with create_note in the folder "${t.folder}", using exactly the markdown at the end of this message, the <!-- pane-table --> line included (it gives the table's columns their types).`;
+  return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create at "${t.folder}/${noteTitle(t)}.md", using exactly the markdown at the end of this message, the <!-- pane-table --> line included (it gives the table's columns their types).`;
 }
 
 /// The template's markdown, fenced, for the end of the prompt.
@@ -121,7 +121,7 @@ export function instructions(t: Template): { client: ClientId; name: string; pro
   return CLIENTS.map((c) => ({ client: c.id, name: c.name, prompt: `${createStep(t)}\n\nThen: ${t.prompt[c.key] ?? t.prompt.default}\n\n${fencedNote(t)}` }));
 }
 
-/// The markdown inside a prompt's fence, as create_note would get it.
+/// The markdown inside a prompt's fence, as create would get it.
 export function markdownIn(prompt: string): string | null {
   const m = prompt.match(/```markdown\n([\s\S]*?)\n```\s*$/);
   return m ? m[1] + "\n" : null;

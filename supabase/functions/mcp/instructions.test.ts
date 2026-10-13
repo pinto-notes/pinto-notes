@@ -3,10 +3,14 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { appsServed, instructions, servedPrompts, servedResources } from "./server.ts";
 import { serverCard } from "./card.ts";
 import { PAGE_INSTRUCTIONS } from "./page_guide.ts";
-import { PRODUCTION_TOOL_NAMES, servedTools } from "./tools.ts";
+import { CLASSIC_TOOL_NAMES } from "./tools.ts";
+import { servedTools } from "./tool_set.ts";
+import { FILE_INSTRUCTIONS } from "./files_tools.ts";
 
-/** Tool names a text mentions: words with an underscore, as every tool is named. */
+/** Tool names a text mentions: words with an underscore, as every classic tool is named. */
 const named = (text: string) => [...new Set(text.match(/\b[a-z]+(?:_[a-z]+)+\b/g) ?? [])];
+/** Every tool name any set has. */
+const everyName = () => [...new Set([...servedTools("pages"), ...servedTools("files")].map((t) => t.name))];
 
 async function withToolSet(set: string | undefined, run: () => void | Promise<void>) {
   const before = Deno.env.get("AMBER_MCP_TOOLS");
@@ -20,9 +24,27 @@ async function withToolSet(set: string | undefined, run: () => void | Promise<vo
   }
 }
 
-Deno.test("with AMBER_MCP_TOOLS unset, the instructions name no app tool", async () => {
+Deno.test("with AMBER_MCP_TOOLS unset, the server serves the file tools and teaches them", async () => {
   await withToolSet(undefined, () => {
+    assertEquals(servedTools().map((t) => t.name), ["search", "list", "fetch", "create", "edit", "write", "move", "delete", "history", "restore", "pin", "see_app"]);
+    assertEquals(instructions(), FILE_INSTRUCTIONS);
+    assert(appsServed(), "the file tools build apps");
+  });
+});
+
+Deno.test("the file tools' instructions keep what the classic ones taught", () => {
+  const text = instructions("files");
+  for (const s of ["- [ ] item", "- [x] item", "markdown table", "pane-table", "[[Title]]", "[[Title|shown text]]", "[[Title#Heading]]", "locked: true", "Recently Deleted/", "history, restore", "sub-notes", "To read/Paper.pdf", ".app", "data.json", "README.md", "index.html", "tests/", "Tests run on every save", "Read before you edit"]) {
+    assertStringIncludes(text, s);
+  }
+  // No classic tool name, nothing about how to talk.
+  assertEquals(named(text), []);
+});
+
+Deno.test("with AMBER_MCP_TOOLS=classic, the instructions name no app tool", async () => {
+  await withToolSet("classic", () => {
     const served = servedTools().map((t) => t.name);
+    assertEquals(served, [...CLASSIC_TOOL_NAMES]);
     const prototypes = servedTools("pages").map((t) => t.name).filter((n) => !served.includes(n));
     assert(prototypes.includes("create_app") && prototypes.includes("get_page_guide"));
     const text = instructions();
@@ -41,24 +63,39 @@ Deno.test("with AMBER_MCP_TOOLS=pages, the instructions teach the app tools", as
   });
 });
 
-Deno.test("the instructions name a tool only if the server serves it", () => {
-  for (const set of [undefined, "", "pages"]) {
+Deno.test("the instructions, prompts and tool descriptions name a tool only if the server serves it", () => {
+  for (const set of [undefined, "", "files", "classic", "pages"]) {
     const served = servedTools(set).map((t) => t.name);
-    assertEquals(named(instructions(set)).filter((n) => !served.includes(n)), [], `AMBER_MCP_TOOLS=${set}`);
+    const notServed = everyName().filter((n) => !served.includes(n) && n.includes("_"));
+    const texts = [instructions(set), ...servedPrompts(set).map((p) => p.text({ note: "N", idea: "I", data: "D", change: "C" })), ...servedTools(set).map((t) => t.description)];
+    for (const text of texts) assertEquals(notServed.filter((n) => new RegExp(`\\b${n}\\b`).test(text)), [], `AMBER_MCP_TOOLS=${set}: ${text.slice(0, 60)}`);
+    if (set !== undefined && set !== "" && set !== "files") assertEquals(named(instructions(set)).filter((n) => !served.includes(n)), [], `AMBER_MCP_TOOLS=${set}`);
   }
 });
 
-Deno.test("with AMBER_MCP_TOOLS unset, nothing about note apps is offered: no prompts, no resources, and the card lists production's tools", async () => {
+Deno.test("with the file tools, the prompts and resources are about apps made with them, and the card lists them", async () => {
   await withToolSet(undefined, async () => {
+    assertEquals(servedPrompts().map((p) => p.name), ["make_app", "add_data", "change_app"]);
+    for (const p of servedPrompts()) assert(!/get_page_guide|create_app|update_page_data|preview_app/.test(p.text({ note: "N", idea: "I", data: "D", change: "C" })), p.name);
+    const resources = await servedResources();
+    const guide = resources.find((r) => r.name === "apps-guide");
+    assert(guide, "the apps guide");
+    assertStringIncludes(guide.text, "data.json");
+    assert(!resources.some((r) => r.name === "note-pages-guide"), "not the classic tools' guide");
+    assert(resources.some((r) => r.name === "amber-base-css"));
+    assertEquals(serverCard().tools.map((t) => t.name), servedTools().map((t) => t.name));
+    assertStringIncludes(serverCard().description, "build apps");
+  });
+});
+
+Deno.test("with AMBER_MCP_TOOLS=classic, nothing about note apps is offered: no prompts, no resources, and the card lists the classic tools", async () => {
+  await withToolSet("classic", async () => {
     assert(!appsServed());
     assertEquals(servedPrompts(), []);
     assertEquals(await servedResources(), []);
     const card = serverCard();
-    assertEquals(card.tools.map((t) => t.name).sort(), [...PRODUCTION_TOOL_NAMES].sort());
-    // No served tool's own text sends an AI to a tool that isn't served.
-    const served = servedTools().map((t) => t.name);
-    const prototypes = servedTools("pages").map((t) => t.name).filter((n) => !served.includes(n));
-    for (const t of card.tools) assertEquals(prototypes.filter((n) => new RegExp(`\\b${n}\\b`).test(t.description)), [], t.name);
+    assertEquals(card.tools.map((t) => t.name).sort(), [...CLASSIC_TOOL_NAMES].sort());
+    assert(!card.description.includes("apps"));
   });
 });
 

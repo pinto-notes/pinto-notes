@@ -57,7 +57,7 @@ Mac: files from Finder, Mail or Safari onto a folder in the sidebar (it highligh
 
 ## What the AI can do
 
-File tool set (`AMBER_MCP_TOOLS=files`), paths only. `list` shows a folder's notes, apps and files; `fetch` reads a file as above, or with `raw: true` returns the bytes as an embedded resource; `search` (type file) matches names; `edit` changes text files; `write` creates or replaces any file from `content` (text), `content_base64` + `mime_type`, or `file` (ChatGPT's `openai/fileParams` link); `move`, `delete`, `history`, `restore` work on files. Read before edit or write (`mcp_reads`, keyed by `content_version`).
+The file tools (what production serves; `AMBER_MCP_TOOLS` unset or `files`), paths only. `list` shows a folder's notes, apps and files; `fetch` reads a file as above, or with `raw: true` returns the bytes as an embedded resource; `search` (type file) matches names; `edit` changes text files; `write` creates or replaces any file from `content` (text), `content_base64` + `mime_type`, or `file` (ChatGPT's `openai/fileParams` link); `move`, `delete`, `history`, `restore` work on files. Read before edit or write (`mcp_reads`, keyed by `content_version`).
 
 What clients do with bytes (checked against their issue trackers and docs, October 2026; not run end to end):
 
@@ -67,4 +67,4 @@ What clients do with bytes (checked against their issue trackers and docs, Octob
 | claude.ai and Claude desktop (custom connectors) | fails: a `resource` with `blob` is rejected with -32602 (anthropics/claude-ai-mcp#1086, open) | base64 in the arguments, same size problem | doesn't work; text, images and extracted text do |
 | ChatGPT | ignores the blob | a file from the chat via `openai/fileParams` (supported here) | upload works; download doesn't |
 
-So the default read of a PDF or Office file is its extracted text, never a blob. Production `get_file` still returns PDFs as blobs and is affected by the claude.ai bug.
+So the default read of a PDF or Office file is its extracted text, never a blob. The classic `get_file` (served only with `AMBER_MCP_TOOLS=classic` or `pages`) still returns PDFs as blobs and is affected by the claude.ai bug.

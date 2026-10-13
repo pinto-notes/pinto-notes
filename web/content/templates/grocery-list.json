@@ -12,7 +12,7 @@
   "folder": "Home",
   "note": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n\n## Bread and dairy\n\n## Meat and fish\n\n## Cupboard\n\n## Frozen\n\n## Household\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Grocery list\". When I tell you what we need, even in one long sentence, read the note with read_note, then add each item as a checklist line under the aisle heading it belongs to with append_to_note. Skip anything already on the list and unticked. Keep item names short and add a quantity only when I give one. When I say I'm back from the shop, remove the ticked lines with edit_note and tell me what's left. If something doesn't fit an aisle, put it under \"Household\"."
+    "default": "Use my Pinto Notes note \"Grocery list\". When I tell you what we need, even in one long sentence, read the note with fetch, then add each item as a checklist line under the aisle heading it belongs to with edit. Skip anything already on the list and unticked. Keep item names short and add a quantity only when I give one. When I say I'm back from the shop, remove the ticked lines and tell me what's left. If something doesn't fit an aisle, put it under \"Household\"."
   },
   "asks": [
     "We need oat milk, lemons, two cans of chickpeas, bin bags and something for Friday's tacos.",
@@ -21,38 +21,43 @@
   ],
   "demo": [
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Fruit and veg",
-        "text": "- [ ] Lemons\n- [ ] Limes\n- [ ] Avocados"
+        "path": "Home/Grocery list.md",
+        "old_string": "## Fruit and veg\n",
+        "new_string": "## Fruit and veg\n- [ ] Lemons\n- [ ] Limes\n- [ ] Avocados\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Bread and dairy",
-        "text": "- [ ] Oat milk\n- [ ] Tortillas"
+        "path": "Home/Grocery list.md",
+        "old_string": "## Bread and dairy\n",
+        "new_string": "## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Cupboard",
-        "text": "- [ ] Chickpeas, 2 cans"
+        "path": "Home/Grocery list.md",
+        "old_string": "## Cupboard\n",
+        "new_string": "## Cupboard\n- [ ] Chickpeas, 2 cans\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Household",
-        "text": "- [ ] Bin bags"
+        "path": "Home/Grocery list.md",
+        "old_string": "## Household\n",
+        "new_string": "## Household\n- [ ] Bin bags\n"
       }
     },
     {
-      "tool": "set_checklist_item",
+      "tool": "edit",
       "args": {
-        "item": "Limes",
-        "checked": true
+        "path": "Home/Grocery list.md",
+        "old_string": "- [ ] Limes\n- [ ] Avocados",
+        "new_string": "- [ ] Avocados\n- [x] Limes"
       }
     }
   ],
@@ -62,5 +67,5 @@
     "recipe-box",
     "budget-log"
   ],
-  "updated": "2026-10-04"
+  "updated": "2026-10-13"
 }

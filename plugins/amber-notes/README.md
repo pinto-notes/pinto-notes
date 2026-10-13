@@ -16,6 +16,6 @@ Prefer an access token? In Pinto Notes, open Settings, Connect an AI, Claude Cod
 ## Skills
 
 - `amber-notes`: how the notes are laid out and how to edit them safely.
-- `note-pages`: building, checking and filling the apps in notes (a note's App side) and setting up API keys for them: the guide (`references/guide.md`, generated from the server's `page_guide.ts`) and seven tested templates (`templates/`). The server serves the same guide and templates through `get_page_guide`, so every MCP client gets them with nothing installed.
+- `note-pages`: building, checking and filling the apps in notes (a note's App side) and setting up API keys for them: the guide (`references/guide.md`, generated from the server's `page_guide.ts`) and an example project (`examples/training/`). The server serves the same guide and example as MCP resources, and every new app's README.md says the same, so every MCP client gets them with nothing installed.
 
 `AGENTS.md` here is the same rules as a snippet for Codex, Cursor and other agents that read AGENTS.md, generated from the same source.

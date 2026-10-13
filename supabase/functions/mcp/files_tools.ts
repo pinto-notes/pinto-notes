@@ -1,5 +1,5 @@
-// The file-like tool set (prototype, chosen with AMBER_MCP_TOOLS=files): the account works like a
-// folder of files, the way coding agents already work, and the AI sees paths only, never ids
+// The file tools, what production serves (tool_set.ts): the account works like a folder of files,
+// the way coding agents already work, and the AI sees paths only, never ids
 // (paths.ts says how every note, sub-note, file and app gets one). Twelve tools: search, list,
 // fetch, create, edit, write, move, delete, history, restore, pin, see_app. search, fetch, list and
 // edit behave like a coding agent's Grep, Read, Glob and Edit; edit and write refuse to change what
@@ -13,7 +13,8 @@ import { scaffold } from "./app_scaffold.ts";
 import { fileList, projectOf, saveProject, withFile, withFiles } from "./app_files.ts";
 import { pageDataOf, storePageData } from "./data_tools.ts";
 import { dataShape } from "./data_ops.ts";
-import { appHandlers } from "./app_tools.ts";
+import { appHandlers, realPreviewsServed } from "./app_tools.ts";
+import { FILE_APP_INSTRUCTIONS } from "./page_guide.ts";
 import type { PageData } from "./page.ts";
 import {
   bodyOf, Content, descendants, findFolder, handlers as classic, iso, LOCKED, MAX_READ_CHARS,
@@ -151,7 +152,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "see_app", title: "See an app",
-    description: "Screenshots of a note's app at iPhone and Mac sizes, light and dark, over a sample with the shape of its data (data: \"real\" only if the person allowed it in Pinto Notes), with what each view shows and anything broken." +
+    description: "Screenshots of a note's app at iPhone and Mac sizes, light and dark, over a sample with the shape of its data" + (realPreviewsServed() ? " (data: \"real\" only if the person allowed it in Pinto Notes)" : "") + ", with what each view shows and anything broken." +
       (tryOn() ? " With steps, uses the app like a person instead and answers after each step with what's on screen, console errors, what changed in its data, and screenshots: { tap: \"Add\" } (text, label or CSS selector), { type: \"85\", into: \"Weight\" }, { scroll: \"down\" }, { wait: 500 | \"Saved\" }, { press: \"Enter\" }, { resize: \"phone\" | \"desktop\" }, { dark: true }. Nothing is written back." : ""),
     inputSchema: {
       type: "object",
@@ -159,7 +160,7 @@ export const FILE_TOOLS: Tool[] = ([
         path: str("The app (\"Work/Habits.app\") or its note."),
         widths: { type: "array", items: { type: "integer" }, description: "Default [390, 1280]." },
         themes: { type: "array", items: { type: "string", enum: ["light", "dark"] } },
-        data: { type: "string", enum: ["sample", "real"] },
+        ...(realPreviewsServed() ? { data: { type: "string", enum: ["sample", "real"] } } : {}),
         ...(tryOn() ? { steps: { type: "array", items: { type: "object" }, description: "Up to 30 steps, done in order on a throwaway copy." } } : {}),
       },
       required: ["path"],
@@ -170,7 +171,36 @@ export const FILE_TOOLS: Tool[] = ([
 
 /** What the server tells every client when this tool set is on: how the files are laid out. The
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
-export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf"). A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first. Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. Deleted notes are in "Recently Deleted/". Read before you edit; edit and write answer with checks: fix what they report.`;
+export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
+In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title.
+A note listed with locked: true is locked by the person with a separate password: only its title shows here, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
+${FILE_APP_INSTRUCTIONS}
+Read before you edit; edit and write answer with checks: fix what they report.`;
+
+/** MCP prompts with the file tools: starting points a client can offer the person. */
+export const FILE_PROMPTS = [
+  {
+    name: "make_app",
+    title: "Make this note an app",
+    description: "Give a note an app: a tracker, a budget, flashcards, a planner, over the note's data.",
+    arguments: [{ name: "note", description: "The note's title or path.", required: true }, { name: "idea", description: "What the app should do, if you have something in mind.", required: false }],
+    text: (a: Record<string, string>) => `Make my note "${a.note}" an app${a.idea ? `: ${a.idea}` : ""}. Read the note, start the app with create (type "app"), read its README.md and build it. Put any data the note already has into the app's data.json, keeping every fact. Look at it with see_app, then tell me what it does in a line or two.`,
+  },
+  {
+    name: "add_data",
+    title: "Add data to a note",
+    description: "Add rows or items to a note's table or checklist, from text, a list or pasted CSV.",
+    arguments: [{ name: "note", description: "The note's title or path.", required: true }, { name: "data", description: "The rows or items, in any form (CSV, a list, prose).", required: true }],
+    text: (a: Record<string, string>) => `Add this to my note "${a.note}". If it has an app, read its data.json first and add to it with the same fields and value formats; otherwise add it to the note's tables or checklists. Don't change the app itself.\n\n${a.data}`,
+  },
+  {
+    name: "change_app",
+    title: "Change a note's app",
+    description: "Change how a note's app looks or works, without touching its data.",
+    arguments: [{ name: "note", description: "The note's title or path.", required: true }, { name: "change", description: "What to change.", required: true }],
+    text: (a: Record<string, string>) => `Change the app of my note "${a.note}": ${a.change}. Read its README.md and docs/ first, then the files you need. Keep its data as it is; change files with edit (write for new ones), keep docs/ current, and look at it with see_app.`,
+  },
+] as const;
 
 const SWITCHES = new Set(["title_only", "case_sensitive", "pinned", "sub_notes", "deleted", "replace_all", "raw"]);
 export async function runFileTool(name: string, args: Args, ctx: ToolContext): Promise<unknown> {
@@ -216,7 +246,8 @@ const blobItem = (id: string) => `blob:${id}`;
 type Ref =
   | { kind: "dir"; dir: string }
   | { kind: "note"; note: Note; path: string }
-  | { kind: "app"; note: Note; base: string }
+  /** An app, or a folder in it (dir: "docs/"). */
+  | { kind: "app"; note: Note; base: string; dir?: string }
   | { kind: "appfile"; note: Note; base: string; file: string }
   | { kind: "data"; note: Note; base: string }
   /** A file a note embeds (note), or one kept in a folder (folder). */
@@ -276,6 +307,7 @@ async function resolve(tx: Tx, c: Call, raw: unknown, opts: { trashed?: boolean 
     const sub = ref.slice(at + 4).replace(/^\/+/, "");
     const app = e.path.replace(/\.md$/, ".app");
     if (!sub) return { kind: "app", note: n, base: app };
+    if (sub.endsWith("/")) return { kind: "app", note: n, base: app, dir: sub };
     if (sub === "data.json") return { kind: "data", note: n, base: app };
     return { kind: "appfile", note: n, base: app, file: sub };
   }
@@ -637,10 +669,12 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const r = await resolve(tx, c, a.path, { trashed: true });
     if (r.kind === "app" || r.kind === "appfile" || r.kind === "data") {
       const p = await appProject(tx, c, r.note);
-      const files = [...fileList(p).map((f) => ({ path: `${r.base}${f.path}`, lines: f.lines })), { path: `${r.base}/data.json`, what: "the app's data" }];
+      const inDir = r.kind === "app" && r.dir ? `/${r.dir}` : "";
+      const files = [...fileList(p).filter((f) => f.path.startsWith(inDir)).map((f) => ({ path: `${r.base}${f.path}`, lines: f.lines })), ...(inDir ? [] : [{ path: `${r.base}/data.json`, what: "the app's data" }])];
+      if (inDir && !files.length) throw new ToolError(`No folder ${r.base}${inDir}. Its files: list "${r.base}".`);
       const want = typeof a.pattern === "string" && a.pattern ? globRe(`${r.base}/${a.pattern.replace(/^\/+/, "")}`) : null;
       const shown = want ? files.filter((f) => want.test(f.path)) : files;
-      return { path: `${r.base}/`, files: shown.slice(pg.offset, pg.offset + pg.limit), ...more(shown.length, pg.offset, Math.min(pg.limit, shown.length)) };
+      return { path: `${r.base}${inDir || "/"}`, files: shown.slice(pg.offset, pg.offset + pg.limit), ...more(shown.length, pg.offset, Math.min(pg.limit, shown.length)) };
     }
     if (r.kind === "note") return await fileHandlers.list(tx, { ...a, path: r.path.replace(/\.md$/, "/") }, c);
     if (r.kind !== "dir") throw new ToolError(`${clean(a.path)} is a file: read it with fetch.`);
@@ -718,7 +752,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       return {
         id: r.path, title: n.title, text: shown.text, url: `ambernotes://note/${n.id}`,
         metadata: {
-          path: r.path, lines: shown.lines, updated: iso(n.updated_at), ...(n.is_pinned ? { pinned: true } : {}),
+          path: r.path, lines: shown.lines, updated: iso(n.updated_at), today: today(), ...(n.is_pinned ? { pinned: true } : {}),
           ...(n.trashed_at ? { deleted: "In Recently Deleted: restore brings it back." } : {}),
           ...(subs.length ? { sub_notes: subs } : {}), ...(files.length ? { files: files.map((f) => f.path) } : {}),
           ...(wikiLinks(body).length ? { links: wikiLinks(body) } : {}),
@@ -740,10 +774,15 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
           about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." } };
     }
     const p = await appProject(tx, c, r.note);
+    if (r.kind === "app" && r.dir) {
+      const listing = await fileHandlers.list(tx, { path: `${r.base}/${r.dir}` }, c) as { files: { path: string; lines: number }[] };
+      return { id: `${r.base}/${r.dir}`, title: `${r.note.title} (app): ${r.dir}`, text: listing.files.map((f) => `${f.path}  (${f.lines} lines)`).join("\n"), url: `ambernotes://note/${r.note.id}`, metadata: { path: `${r.base}/${r.dir}`, type: "folder" } };
+    }
     if (r.kind === "app") {
       const { draft } = await projectOf(tx, c, r.note.id);
       return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${f.lines} lines)`), `${r.base}/data.json`].join("\n"), url: `ambernotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/`, readme: p.files["/README.md"] ?? null, ...(await loadFailure(tx, r.note.id)),
+          ...(Object.keys(p.files).length === 1 ? { one_file: `An older app: one HTML document, ${r.base}/index.html, with its CSS and script inline and its data (data.json) through window.amber. Change it with edit and write like any file.` } : {}),
           ...(draft !== null && draft !== undefined ? { held_back: `These files are a version that failed its checks, so the person still has the last one that passed. What failed:\n${draft}` } : {}) } };
     }
     const file = appPath(r.file);

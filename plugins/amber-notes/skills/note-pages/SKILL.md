@@ -6,11 +6,8 @@ description: Build, change, check and fill the apps in Pinto Notes notes (a note
 
 # Apps in Pinto Notes notes
 
-Apps: a note in Pinto Notes can be an app (some tools call a one-file app a page).
-- Before making or changing an app, call get_page_guide once. It says where an app lives; how it looks and works is up to you.
-- An app is a normal Vite + React + TypeScript + Tailwind + shadcn/ui project. create_app starts one; list_app_files, read_app_file, write_app_file and edit_app_file work on it like any codebase. Every save compiles it and tells you what broke.
-- Its data is JSON the app keeps (useStore, useCollection, useSettings from "@/lib/amber", or localStorage: all synced and encrypted). You read and change it with get_page_data, query_app_data and update_page_data.
-- It runs inside a note on iPhone and Mac, light and dark, with no network except hosts the person allows.
-- See your work with preview_app and check_app before you say it's done.
+The server's tools work on the notes as files: `fetch` reads, `edit` changes (exact search and replace, after reading), `write` writes a whole file, `create` with type "app" gives a note its app, and `see_app` shows it at iPhone and Mac sizes or uses it step by step.
 
-Read `references/guide.md` before building or changing an app: the project and its hooks, where data lives, design and accessibility, API keys and the check-before-done loop. `references/amber-base.css` is the default stylesheet every app starts with, the real file: override any rule (it sits in a cascade layer, so no !important) or opt out with `<meta name="amber-base" content="none">`. `examples/training/` is a complete app project to learn from; the server serves the same guide and example through `get_page_guide`, so nothing here is needed for the tools to work.
+A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person.
+
+Read `references/guide.md` before building or changing an app: the project, where its data lives, the network and the device; a new app's README.md says the same. `references/amber-base.css` is the default stylesheet every app starts with, the real file: override any rule (it sits in a cascade layer, so no !important) or opt out with `<meta name="amber-base" content="none">`. `examples/training/` is a complete app project to learn from; the server serves the same guide and example as resources, so nothing here is needed for the tools to work.

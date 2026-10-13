@@ -189,7 +189,7 @@ Deno.test({ name: "limits: MCP calls are rate-limited per account, failed calls 
     const res = await fetch(mcp!, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "read_note", arguments: { id: crypto.randomUUID() } } }),
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "fetch", arguments: { id: crypto.randomUUID() } } }),
     });
     return await res.json();
   };

@@ -8,7 +8,7 @@ next to the real one on the same Mac and iPhone.
 |---|---|---|
 | Supabase | `rodegaeruhyybqilrnpn` | `amber-staging` (ref in `.secrets/staging.env`), same org and region |
 | Site | ambernotes.app (Vercel project `amber-notes`) | https://amber-notes-staging.vercel.app (Vercel project `amber-notes-staging`), kept out of search |
-| MCP server | https://mcp.ambernotes.app | `https://<staging ref>.supabase.co/functions/v1/mcp`, with the app tools (`AMBER_MCP_TOOLS=pages`) |
+| MCP server | https://mcp.ambernotes.app | `https://<staging ref>.supabase.co/functions/v1/mcp`, with the file tools like production (`AMBER_MCP_TOOLS=files`; `pages` serves the classic and app tools instead) |
 | App | Pinto Notes, `dev.emilwagman.pane`, `ambernotes://` | Amber Notes Beta, `dev.emilwagman.pane.beta`, `ambernotes-beta://` |
 
 ## What keeps the beta apart from the real app

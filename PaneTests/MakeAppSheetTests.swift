@@ -75,12 +75,30 @@ import Testing
     /// New App asks the AI to make the note too, so nothing is made here before the app arrives.
     @Test func newAppAsksTheAIToMakeTheNoteAndItsApp() {
         let p = MakeAnApp.newAppPrompt("  a water tracker.  ")
-        #expect(p.hasPrefix("In Pinto Notes, make me a new note that is an app: a water tracker. Call get_page_guide, make the note with create_note"))
-        #expect(p.contains("create_app") && !p.contains(".."))
+        #expect(p.hasPrefix("In Pinto Notes, make me a new note that is an app: a water tracker. Make it with create (type app"))
+        #expect(p.contains("see_app") && !p.contains(".."))
         #expect(MakeAnApp.examples.map(\.name) == ["Habit tracker", "Trip plan", "Workout log"])
         #expect(MakeAnApp.templatesPage.path() == "/templates")
         // The tip is a feature of its own, so its "shown" mark travels with the account.
         #expect(Feature(rawValue: "newApp") != nil && Feature.newApp.tip.id == "newApp")
+    }
+
+    /// The MCP server serves the file tools (search, list, fetch, create, edit, write, move, delete,
+    /// history, restore, pin, see_app) since 13 October 2026: the words handed to an AI name only
+    /// those, never a classic tool it no longer has (get_page_guide, create_app, log_table_row…).
+    @Test func thePromptsNameOnlyTheFileTools() {
+        let fileTools: Set<String> = ["search", "list", "fetch", "create", "edit", "write", "move", "delete", "history", "restore", "pin", "see_app"]
+        let prompts = [
+            MakeAnApp.newAppPrompt("a water tracker"),
+            MakeAnApp.prompt(title: "Habits", body: Capture.habitNote()),
+            MakeAnApp.prompt(title: "Thoughts", body: "Thoughts\n\nNothing to track."),
+        ]
+        for p in prompts {
+            // Every snake_case word names a tool, and each is a file tool.
+            let named = p.matches(of: /\b[a-z]+(?:_[a-z]+)+\b/).map { String($0.output) }
+            #expect(named.allSatisfy(fileTools.contains), "\(p) names \(named)")
+            #expect(p.contains("create (type app"), "\(p)")
+        }
     }
 
     @Test func theSketchFollowsWhatTheNoteHolds() {

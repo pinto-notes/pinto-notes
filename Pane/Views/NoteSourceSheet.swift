@@ -505,9 +505,9 @@ struct NoteSourceCapture: View {
             draft.description = "Tick off your habits, and have your AI log each day as a row."
             draft.folder = "Habits"
             draft.instructions = [
-                .init(client: "chatgpt", name: "ChatGPT", prompt: "In Pinto Notes, use the note \u{201C}Habit tracker\u{201D}. Ask me which habits I did today, then log a row with log_table_row."),
-                .init(client: "claude", name: "Claude", prompt: "In Pinto Notes, use the note \u{201C}Habit tracker\u{201D}. Ask me which habits I did today, then log a row with log_table_row."),
-                .init(client: "claude-code", name: "Claude Code", prompt: "Use the amber-notes MCP server. In the note \u{201C}Habit tracker\u{201D}, log today's row with log_table_row."),
+                .init(client: "chatgpt", name: "ChatGPT", prompt: "In Pinto Notes, use the note \u{201C}Habit tracker\u{201D}. Ask me which habits I did today, then add today's row to its table with edit."),
+                .init(client: "claude", name: "Claude", prompt: "In Pinto Notes, use the note \u{201C}Habit tracker\u{201D}. Ask me which habits I did today, then add today's row to its table with edit."),
+                .init(client: "claude-code", name: "Claude Code", prompt: "Use the amber-notes MCP server. In the note \u{201C}Habit tracker\u{201D}, add today's row to its table with edit."),
             ]
         }
         let m = NoteSourceModel(link: link, source: Fixed(draft: draft), ledger: NoteSourceLedger(defaults: UserDefaults(suiteName: "capture.noteSources") ?? .standard, account: nil))

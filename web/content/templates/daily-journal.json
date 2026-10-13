@@ -11,7 +11,7 @@
   "folder": "Journal",
   "note": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Add the day at the start of \"Entries\" with append_to_note (at_start): a \"###\" heading with the weekday and date, then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, read the note with read_note and answer from my entries."
+    "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Read the note with fetch, then add the day at the start of \"Entries\" with edit: a \"###\" heading with the weekday and date, then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, answer from my entries."
   },
   "asks": [
     "I want to journal.",
@@ -20,19 +20,19 @@
   ],
   "demo": [
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Entries",
-        "at_start": true,
-        "text": "### Thursday 1 October\n- **Today:** presented the budget; it went better than the rehearsal.\n- **Energy:** the 9 am meeting took it, the walk at lunch gave it back.\n- **Remember:** Ana said the second slide was the clearest.\n- **Tomorrow:** reply to the landlord before noon.\n"
+        "path": "Journal/Daily journal.md",
+        "old_string": "## Entries\n",
+        "new_string": "## Entries\n### Thursday 1 October\n- **Today:** presented the budget; it went better than the rehearsal.\n- **Energy:** the 9 am meeting took it, the walk at lunch gave it back.\n- **Remember:** Ana said the second slide was the clearest.\n- **Tomorrow:** reply to the landlord before noon.\n"
       }
     },
     {
-      "tool": "append_to_note",
+      "tool": "edit",
       "args": {
-        "under_heading": "Entries",
-        "at_start": true,
-        "text": "### Friday 2 October\n- **Today:** quiet day; finished the report and left at five.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n"
+        "path": "Journal/Daily journal.md",
+        "old_string": "### Thursday 1 October",
+        "new_string": "### Friday 2 October\n- **Today:** quiet day; finished the report and left at five.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n### Thursday 1 October"
       }
     }
   ],
@@ -42,5 +42,5 @@
     "weekly-review",
     "habit-tracker"
   ],
-  "updated": "2026-10-04"
+  "updated": "2026-10-13"
 }

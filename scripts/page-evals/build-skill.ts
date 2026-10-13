@@ -1,6 +1,7 @@
 // Writes what's generated from one source, so the server, the skill and the templates can't drift:
 // - supabase/functions/mcp/page_templates.gen.ts from scripts/page-evals/one-file-templates/*.html
-// - plugins/amber-notes/skills/note-pages/references/guide.md from PAGE_GUIDE (page_guide.ts)
+// - plugins/amber-notes/skills/note-pages/references/guide.md from appsGuide (page_guide.ts), the
+//   apps guide the server serves with its file tools
 //   deno run -A scripts/page-evals/build-skill.ts [--check]
 const root = new URL("../../", import.meta.url);
 const skill = new URL("plugins/amber-notes/skills/note-pages/", root);
@@ -44,7 +45,7 @@ export const STACK_FILES: Record<string, string> = ${JSON.stringify(Object.fromE
 }
 
 // Example projects (demo/note-pages/<name>-app/, built by note-pages-proto): their sources, for
-// get_page_guide { example } and the skill's examples/.
+// the MCP resources and the skill's examples/.
 const examples: Record<string, { files: Record<string, string> }> = {};
 for (const name of ["training"]) {
   const dir = new URL(`demo/note-pages/${name}-app/`, root);
@@ -70,10 +71,10 @@ for (const [name, ex] of Object.entries(examples)) {
 }
 
 // The guide imports the generated templates, so it's read after they're written.
-const { pageGuide, PAGE_INSTRUCTIONS } = await import(new URL("supabase/functions/mcp/page_guide.ts", root).href + `?v=${Date.now()}`);
+const { appsGuide, FILE_APP_INSTRUCTIONS } = await import(new URL("supabase/functions/mcp/page_guide.ts", root).href + `?v=${Date.now()}`);
 const stamp = "<!-- Generated from supabase/functions/mcp/page_guide.ts by scripts/page-evals/build-skill.ts. Don't edit. -->";
 await Deno.mkdir(new URL("references/", skill), { recursive: true });
-await write(new URL("references/guide.md", skill), `${stamp}\n${await pageGuide()}`);
+await write(new URL("references/guide.md", skill), `${stamp}\n${appsGuide()}`);
 // The real default stylesheet, as the app ships it (amber-base.ts mirrors Pane/Resources/AppLibraries/amber-base.css).
 const { AMBER_BASE_CSS } = await import(new URL("supabase/functions/mcp/amber-base.ts", root).href);
 await write(new URL("references/amber-base.css", skill), AMBER_BASE_CSS);
@@ -88,9 +89,11 @@ ${stamp}
 
 # Apps in Pinto Notes notes
 
-${PAGE_INSTRUCTIONS}
+The server's tools work on the notes as files: \`fetch\` reads, \`edit\` changes (exact search and replace, after reading), \`write\` writes a whole file, \`create\` with type "app" gives a note its app, and \`see_app\` shows it at iPhone and Mac sizes or uses it step by step.
 
-Read \`references/guide.md\` before building or changing an app: the project and its hooks, where data lives, design and accessibility, API keys and the check-before-done loop. \`references/amber-base.css\` is the default stylesheet every app starts with, the real file: override any rule (it sits in a cascade layer, so no !important) or opt out with \`<meta name="amber-base" content="none">\`. \`examples/training/\` is a complete app project to learn from; the server serves the same guide and example through \`get_page_guide\`, so nothing here is needed for the tools to work.
+${FILE_APP_INSTRUCTIONS}
+
+Read \`references/guide.md\` before building or changing an app: the project, where its data lives, the network and the device; a new app's README.md says the same. \`references/amber-base.css\` is the default stylesheet every app starts with, the real file: override any rule (it sits in a cascade layer, so no !important) or opt out with \`<meta name="amber-base" content="none">\`. \`examples/training/\` is a complete app project to learn from; the server serves the same guide and example as resources, so nothing here is needed for the tools to work.
 `);
 
 // The same rules for Codex, Cursor and other agents that read AGENTS.md.
@@ -98,9 +101,9 @@ await write(new URL("plugins/amber-notes/AGENTS.md", root), `${stamp}
 
 # Pinto Notes apps (for AGENTS.md)
 
-Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and \`get_page_guide\`; this keeps it in front of agents that skim server instructions.
+Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
 
-${PAGE_INSTRUCTIONS}
+${FILE_APP_INSTRUCTIONS}
 
 The default look every app starts with, amber-base.css (the real file; override any rule, or opt out with \`<meta name="amber-base" content="none">\`):
 

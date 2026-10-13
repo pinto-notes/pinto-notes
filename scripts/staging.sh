@@ -104,7 +104,7 @@ cmd_secrets() {
   local render_secret; render_secret=$(cd scripts/page-render/deploy && railway variables --service amber-render --kv 2>/dev/null | sed -n 's/^RENDER_SECRET=//p')
   local render_url; render_url=https://amber-render-production.up.railway.app
   (umask 077; cat > "$f" <<EOF
-AMBER_MCP_TOOLS=pages
+AMBER_MCP_TOOLS=files
 MCP_PUBLIC_URL=$(mcp_url)
 MCP_ALIAS_URLS=$(mcp_url)
 CONNECT_PAGE_URL=$SITE/connect
