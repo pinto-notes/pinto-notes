@@ -323,7 +323,14 @@ struct SidebarView: View {
         RenderProbe.count("SidebarView")
         #endif
         let files = self.files
-        return List(selection: $scope) {
+        // In stages, in the same order: as one chain the body took the type checker about 8 s
+        // (compile-time audit, 2026-10-13).
+        return withDialogs(withChrome(folderList(files), files: files))
+    }
+
+    /// The folders, All Notes and Recently Deleted.
+    private func folderList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
+        List(selection: $scope) {
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
                 if folders.count > 1 {
@@ -368,6 +375,11 @@ struct SidebarView: View {
         // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
         .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
         #endif
+    }
+
+    /// The app's name above, the menus, drops and the toolbar.
+    private func withChrome(_ content: some View, files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
+        content
         #if os(macOS)
         // Recently Deleted leaves the sidebar when its last note does; the list goes back to the notes.
         .background { EmptyTrashLeaver(scope: $scope, files: files.trashed) }
@@ -432,6 +444,11 @@ struct SidebarView: View {
             }
             #endif
         }
+    }
+
+    /// The account at the foot, Settings, and the folder dialogs.
+    private func withDialogs(_ content: some View) -> some View {
+        content
         #if os(macOS)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn = backend.state {

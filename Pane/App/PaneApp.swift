@@ -1273,27 +1273,48 @@ private struct NoticeAlerts: ViewModifier {
         content
             .modifier(noticeAlert)
             .modifier(confirmDisconnect(over: notice))
-            .alert(PrivacyCopy.recoveryChangedTitle, isPresented: Binding(get: { notice == nil && disconnecting == nil && crypto.recoveryKeyChangeNeedsSaying },
-                                                                         set: { if !$0 { crypto.recoveryKeyChangeShown() } })) {
+            .alert(PrivacyCopy.recoveryChangedTitle, isPresented: recoveryChanged(over: notice)) {
                 Button("OK", role: .cancel) { crypto.recoveryKeyChangeShown() }
             } message: {
                 Text(PrivacyCopy.recoveryChangedAlert)
             }
-            .alert(PrivacyCopy.notSavedTitle, isPresented: Binding(get: { notice == nil && disconnecting == nil && !crypto.recoveryKeyChangeNeedsSaying && crypto.keyNotSaved },
-                                                                   set: { if !$0 { crypto.keyNotSavedShown() } })) {
+            .alert(PrivacyCopy.notSavedTitle, isPresented: keyNotSaved(over: notice)) {
                 Button("OK", role: .cancel) { crypto.keyNotSavedShown() }
             } message: {
                 Text(PrivacyCopy.notSavedMessage)
             }
             // An account from before the server kept copies of keys is asked once, before any is made.
-            .sheet(isPresented: Binding(get: { crypto.asksProtection && crypto.isReady && !crypto.needsWelcome }, set: { _ in })) {
+            .sheet(isPresented: asksProtection) {
                 KeyProtectionAsk(crypto: crypto)
             }
-            .alert("Couldn't disconnect", isPresented: Binding(get: { problem != nil && notice == nil }, set: { if !$0 { problem = nil } })) {
+            .alert("Couldn't disconnect", isPresented: disconnectFailed(over: notice)) {
                 Button("OK", role: .cancel) { problem = nil }
             } message: {
                 Text(problem ?? "")
             }
+    }
+
+    // The alerts' conditions, each with its type spelled out: written inline in `body` they took
+    // the type checker over 2 s (compile-time audit, 2026-10-13).
+
+    private func recoveryChanged(over notice: AccountNotice?) -> Binding<Bool> {
+        Binding(get: { notice == nil && disconnecting == nil && crypto.recoveryKeyChangeNeedsSaying },
+                set: { (shown: Bool) in if !shown { crypto.recoveryKeyChangeShown() } })
+    }
+
+    private func keyNotSaved(over notice: AccountNotice?) -> Binding<Bool> {
+        Binding(get: {
+            let free: Bool = notice == nil && disconnecting == nil
+            return free && !crypto.recoveryKeyChangeNeedsSaying && crypto.keyNotSaved
+        }, set: { (shown: Bool) in if !shown { crypto.keyNotSavedShown() } })
+    }
+
+    private var asksProtection: Binding<Bool> {
+        Binding(get: { crypto.asksProtection && crypto.isReady && !crypto.needsWelcome }, set: { (_: Bool) in })
+    }
+
+    private func disconnectFailed(over notice: AccountNotice?) -> Binding<Bool> {
+        Binding(get: { problem != nil && notice == nil }, set: { (shown: Bool) in if !shown { problem = nil } })
     }
 
     /// The notice showing: one, or the AI connections that came together.

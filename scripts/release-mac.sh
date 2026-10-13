@@ -72,6 +72,12 @@ fi
 COMMIT=$(git -C "$CLEAN" rev-parse --short HEAD)
 (cd "$CLEAN" && xcodegen generate >/dev/null)
 
+# This archive is the release's own build; it can't reuse scripts/prepush.sh's Mac compile of the
+# same commit (looked at 2026-10-13). That one is a check, not a product: arm64 only (the download
+# is arm64 and x86_64), unsigned (no entitlements or provisioning profile to export with Developer
+# ID), a plain build rather than an archive (nothing stripped, no dSYM), the version numbers not yet
+# known, and the checkout's own gitignored Config/Backend.local.xcconfig, which in a working
+# worktree may point at staging or a local stack.
 echo "→ Archive $VERSION ($BUILD) from $COMMIT"
 rm -rf "$DIST" && mkdir -p "$DIST"
 xcodebuild -project "$CLEAN/Pane.xcodeproj" -scheme AmberNotesDirect -configuration Release \
