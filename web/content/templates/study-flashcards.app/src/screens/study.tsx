@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { Pills, PrimaryButton, Section, Title, Bar } from "@/components/kit"
 import { dueOn, GRADES, intervalOf, iso, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
 import { cn } from "@/lib/utils"
@@ -57,7 +57,7 @@ export default function Study() {
                 <div key={w.d} className="flex min-w-0 flex-1 flex-col items-center gap-1">
                   <span className="text-[0.75rem] font-semibold tabular-nums">{w.n || ""}</span>
                   <div className="w-full rounded-md bg-[var(--amber-accent)]" style={{ height: `${w.n ? Math.max(4, (w.n / weekMost) * 56) : 2}px`, opacity: w.n ? 0.85 : 0.25 }} />
-                  <span className="text-[0.6875rem] text-muted-foreground">{i === 0 ? "Tmrw" : new Date(w.d + "T12:00").toLocaleDateString("en-GB", { weekday: "short" })}</span>
+                  <span className="text-[0.75rem] text-muted-foreground">{i === 0 ? "Tmrw" : new Date(w.d + "T12:00").toLocaleDateString("en-GB", { weekday: "short" })}</span>
                 </div>
               ))}
             </div>
@@ -111,7 +111,8 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
   // the latest state through a ref, so a key right after a change still sees it.
   const live = useRef({ card, session, answer })
   live.current = { card, session, answer }
-  useEffect(() => {
+  // Attached in the same commit as the card, so a key pressed the moment it shows is never missed.
+  useLayoutEffect(() => {
     const key = (e: KeyboardEvent) => {
       const { card, session, answer } = live.current
       if (!card || (e.target as HTMLElement)?.closest?.("input, textarea, button")) return

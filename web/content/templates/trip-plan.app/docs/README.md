@@ -23,6 +23,7 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - Packing is grouped, groups side by side on a wide note.
 - The Trip tab has two columns from 700 px: the countdown and to-dos, and the next day's timeline with Share.
 - The app sets the note's summary line to "Lisbon: 9 days to go, 5 of 14 packed".
+- No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 
 ## Known gaps
 - A day's plan is edited as text, one line per item; there is no reordering of items within a day.

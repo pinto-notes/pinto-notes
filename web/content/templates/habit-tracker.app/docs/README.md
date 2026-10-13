@@ -25,6 +25,7 @@ To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a cou
 - Today's week strip is a picture, not buttons: 24 pt dots are too small to tap, so earlier days are changed on Month, where each day is a 44 pt target.
 - One accent (Pinto's amber); the only other colour is the danger red on Remove.
 - The app sets the note's summary line to "2 of 4 habits today" (or "All 4 habits done today").
+- No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 
 ## Known gaps
 - No notes per day, no habit icons or colours, no year view.

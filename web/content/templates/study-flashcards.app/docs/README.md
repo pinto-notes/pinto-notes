@@ -24,6 +24,7 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - The person is in control without the AI: add, edit (tap a card) and delete cards; deleting shows Undo in a bar at the top of the screen.
 - The box chart (How well you know them) shows where the cards are.
 - The app sets the note's summary line to "12 cards due today".
+- No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 
 ## Known gaps
 - No typed answers or multiple choice; grading is the person's own call.
