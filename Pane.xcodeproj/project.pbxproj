@@ -71,6 +71,7 @@
 		13517336EAED99CD82EEF612 /* ChangeHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */; };
 		13CDDDB6F9095142D93803C3 /* AccountLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A5B5992BCBFBD45F14C80D /* AccountLibraryTests.swift */; };
 		13D7CD1445F5E709AF65BA1A /* ListSortUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B576A0B7FE050DF74A468A9 /* ListSortUITests.swift */; };
+		14111932DF1013D13D97F56C /* ConnectDesignLab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC538952334E34E621622D3 /* ConnectDesignLab.swift */; };
 		141808DC42B86B4235ABDDFA /* AIMarks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907ECF183AD0A69658A04C3A /* AIMarks.swift */; };
 		144364F1DE25F2E94CE07A30 /* AddDeviceLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34D26FF6F1A986CCBFA21A04 /* AddDeviceLiveTests.swift */; };
 		14AE7021BA248A59791620E8 /* AppMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B255CC05106DC01C927C7CD /* AppMark.swift */; };
@@ -367,6 +368,7 @@
 		869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		86C1385AEB3FC6BCC79658D6 /* app-telemetry.md in Resources */ = {isa = PBXBuildFile; fileRef = B187D7429CA1DE585C11C930 /* app-telemetry.md */; };
 		88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED450707209CA52772670C64 /* CollabCrypto.swift */; };
+		88D12D5F905B13DD7C53E08F /* ConnectDesignSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB81B92827D98AE5EFD149F5 /* ConnectDesignSnapshots.swift */; };
 		88FA5879C30E175F9060645B /* AIEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25098E4C4EF554486AD7952E /* AIEdit.swift */; };
 		890902D4299B130C920C5DEC /* NotePreloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE746DF5EC2FAE02F068197 /* NotePreloadTests.swift */; };
 		8A04A2FEC23E05427C180EE1 /* BlogSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338A90129ABA3668433D376B /* BlogSnapshots.swift */; };
@@ -608,6 +610,7 @@
 		EAB87CE00ACD15BD840A9B73 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */; };
 		EB72815EF0591089238CFB26 /* e2ee-vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = D5DFD991B7F6D9071008215D /* e2ee-vectors.json */; };
 		EBA52C007B952E15C5C98BED /* AppPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */; };
+		EBC8EBC104D9429A963E43E5 /* ConnectDesignLab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC538952334E34E621622D3 /* ConnectDesignLab.swift */; };
 		ECAC47179CD26D8146CFD4AC /* PDFZoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 451925FBA71291F8A2590004 /* PDFZoomTests.swift */; };
 		ECC26EE8B9227D9F7F6B5E9C /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D058AF887BE21AC49E51A5C7 /* DemoData.swift */; };
 		ED4D6B9A57697446A36BE06A /* MarkdownImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C463F2C3009AF9A4D91619E /* MarkdownImport.swift */; };
@@ -936,6 +939,7 @@
 		8DE676E076D7616ADB19BB34 /* ExtremesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtremesTests.swift; sourceTree = "<group>"; };
 		8E1EDD6EA0A72A2064832EE9 /* FolderNavigationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderNavigationUITests.swift; sourceTree = "<group>"; };
 		8E820108DA2C23C11D35865C /* E2EESyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EESyncTests.swift; sourceTree = "<group>"; };
+		8EC538952334E34E621622D3 /* ConnectDesignLab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectDesignLab.swift; sourceTree = "<group>"; };
 		8ECD0B12EBDDFDF91722F337 /* MarkdownImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownImportTests.swift; sourceTree = "<group>"; };
 		8F4CFF72D9674A50F39589DE /* FolderFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderFiles.swift; sourceTree = "<group>"; };
 		8F75721B99AD389AEFA24318 /* EditorHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorHarness.swift; sourceTree = "<group>"; };
@@ -1086,6 +1090,7 @@
 		E9B8C69CC99B48440E21655A /* HoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverTests.swift; sourceTree = "<group>"; };
 		EA17BA72700473F0D52D9105 /* PresenceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresenceViews.swift; sourceTree = "<group>"; };
 		EA6ECF7DA4BD18007EE9AD20 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		EB81B92827D98AE5EFD149F5 /* ConnectDesignSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectDesignSnapshots.swift; sourceTree = "<group>"; };
 		EBE4742CB403A340CF931A03 /* ListEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListEditing.swift; sourceTree = "<group>"; };
 		EC624B54EEA0A47793FC7C74 /* SignOutRemoval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignOutRemoval.swift; sourceTree = "<group>"; };
 		ECF2B96DE946B4DD68695612 /* PerfProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfProbe.swift; sourceTree = "<group>"; };
@@ -1347,6 +1352,7 @@
 				0C6D15833CF6120B65D7384A /* ComposeButton.swift */,
 				39EF6421870B0C2E8060E578 /* ConnectAI.swift */,
 				A63BCA6A4FFD0CF3D4A3011E /* ConnectChoices.swift */,
+				8EC538952334E34E621622D3 /* ConnectDesignLab.swift */,
 				68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */,
 				D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */,
 				5D94335681A191B7DF159080 /* DeleteAccount.swift */,
@@ -1794,6 +1800,7 @@
 				7EC3B59C9BD747592E9D9EDE /* ChromeSnapshots.swift */,
 				1B4A785E0E10C6BB3865280D /* CodeFileSnapshots.swift */,
 				2C13E00C01A59783D2FD1B04 /* CollabMacShots.swift */,
+				EB81B92827D98AE5EFD149F5 /* ConnectDesignSnapshots.swift */,
 				A8786C7B228ED2A8B4BF620A /* ConnectJourneySnapshots.swift */,
 				E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */,
 				6BD1216B6D4DCB8FA429A9E9 /* FolderFilesMacShots.swift */,
@@ -2220,6 +2227,7 @@
 				F2D39BC149CE23319FE4EF4A /* CollabMacShots.swift in Sources */,
 				EA0DED6244B39111FEEBC2AC /* CollabText.swift in Sources */,
 				1CDE672D3CF4CC64C0D79511 /* ConnectAITests.swift in Sources */,
+				88D12D5F905B13DD7C53E08F /* ConnectDesignSnapshots.swift in Sources */,
 				A42882BBA2BE0998051BBAE3 /* ConnectJourneySnapshots.swift in Sources */,
 				2A1222002E0A3A15AB75B59B /* ConnectSnapshotTests.swift in Sources */,
 				743A2DC87EC039B90E4FE7A8 /* DateFoldTests.swift in Sources */,
@@ -2388,6 +2396,7 @@
 				BF2B915D732726B9367D9C98 /* ConnectAI.swift in Sources */,
 				14E3C2B4C906F7EB17833216 /* ConnectAsks.swift in Sources */,
 				B405872E5470EE9546C41019 /* ConnectChoices.swift in Sources */,
+				EBC8EBC104D9429A963E43E5 /* ConnectDesignLab.swift in Sources */,
 				779FB36891A0E3E0D6EC6260 /* ConnectGuide.swift in Sources */,
 				109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */,
 				D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */,
@@ -2627,6 +2636,7 @@
 				C036D7D76F7E932D5EB797F7 /* ConnectAI.swift in Sources */,
 				BABD15AB84CC4A437789F4CC /* ConnectAsks.swift in Sources */,
 				694F24EB79E3D68D455FE540 /* ConnectChoices.swift in Sources */,
+				14111932DF1013D13D97F56C /* ConnectDesignLab.swift in Sources */,
 				ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */,
 				D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */,
 				869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */,

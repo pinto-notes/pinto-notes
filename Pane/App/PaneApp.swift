@@ -103,7 +103,7 @@ struct PaneApp: App {
         let session = AppSession(backend: backend, sync: sync, context: container.mainContext)
         _session = State(initialValue: session)
         // Not in the unit-test host or a capture of one screen, which never ran this.
-        if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery") { session.start() }
+        if !Self.isUnitTestHost, CaptureScreen.requested == nil, !args.contains("-collabGallery"), !args.contains("-connectDesignLab") { session.start() }
         // With sync on, the library is seeded after the first pull so devices don't duplicate it.
         if backend.client == nil { Seed.ensureLibrary(container.mainContext, demo: args.contains("-demo")) }
         #if DEBUG || QA
@@ -166,6 +166,17 @@ struct PaneApp: App {
         return args[i + 1] == "light" ? .light : args[i + 1] == "dark" ? .dark : nil
     }
 
+    /// Design study: `-connectDesignLab A|B|C` plays one connect alternative in the window.
+    static var connectDesignLab: ConnectDesign.Alt? {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-connectDesignLab"), args.indices.contains(i + 1) else { return nil }
+        return ConnectDesign.Alt(rawValue: args[i + 1])
+        #else
+        return nil
+        #endif
+    }
+
     /// The notes window's scene id (the menu bar panel opens it by this).
     static let mainWindowID = "main"
 
@@ -186,6 +197,8 @@ struct PaneApp: App {
                 } else {
                     CollabGallery().tint(Color(PColor.paneAccent))
                 }
+            } else if let alt = Self.connectDesignLab {
+                ConnectDesignLab(alt: alt).preferredColorScheme(.dark)
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
