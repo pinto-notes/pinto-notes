@@ -221,11 +221,15 @@ struct ImportSourceIcon: View {
     }
 
     /// The edge of a white icon on the app-icon grid (824 of 1024, Apple's corner), so a white
-    /// face doesn't melt into a white row. The coloured icons carry their own.
+    /// face doesn't melt into a white row. The coloured icons carry their own. At the Mac's 20 pt
+    /// rows a thinner, paler line vanished and the white icons read smaller than the rest.
+    static let edgeOpacity = 0.26
+    static func edgeWidth(_ size: CGFloat) -> CGFloat { max(0.75, size / 40) }
+
     static func edge(_ size: CGFloat) -> some View {
         let side = size * 0.805
         return RoundedRectangle(cornerRadius: side * 0.2237, style: .continuous)
-            .strokeBorder(Color.black.opacity(0.16), lineWidth: max(0.5, size / 48))
+            .strokeBorder(Color.black.opacity(edgeOpacity), lineWidth: edgeWidth(size))
             .frame(width: side, height: side)
             .environment(\.colorScheme, .light)
     }

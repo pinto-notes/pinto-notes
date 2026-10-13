@@ -557,6 +557,36 @@ import Testing
         #expect(ImportOrigin.files(.keep).bundleIdentifier == nil && ImportOrigin.files(.markdown).bundleIdentifier == nil)
     }
 
+    /// Evernote and Google Keep are white icons: on a white row at the first run's 20 pt their
+    /// edge vanished and they read smaller than Obsidian and Bear (2026-10-13). Their edge must
+    /// show at every size the app draws them.
+    @Test func whiteIconsKeepAVisibleEdgeOnAWhiteRow() throws {
+        let real = ImportSourceIcon.installedIcon
+        ImportSourceIcon.installedIcon = { _ in nil }
+        defer { ImportSourceIcon.installedIcon = real }
+        for origin in [ImportOrigin.files(.evernote), .files(.keep)] {
+            #expect(origin.lightFace)
+            for size: CGFloat in [16, 20, 30, 44] {
+                let renderer = ImageRenderer(content: ImportSourceIcon(origin: origin, size: size).background(Color.white))
+                renderer.scale = 2
+                let image = try #require(renderer.cgImage)
+                let w = image.width, h = image.height
+                var px = [UInt8](repeating: 0, count: w * h * 4)
+                let ctx = try #require(CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                                 space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+                ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+                // The darkest pixel across the tile's left side, halfway down, is its edge.
+                let inset = Int((size - size * 0.805) / 2 * 2)
+                let darkest = (max(0, inset - 1)...(inset + 3)).map { x in
+                    let i = (h / 2 * w + x) * 4
+                    return (Double(px[i]) + Double(px[i + 1]) + Double(px[i + 2])) / (3 * 255)
+                }.min() ?? 1
+                #expect(darkest < 0.8, "\(origin.name) at \(size) pt: edge \(darkest)")
+            }
+        }
+        #expect(!ImportOrigin.files(.obsidian).lightFace && !ImportOrigin.files(.bear).lightFace)
+    }
+
     // MARK: Asking Apple Notes only after a press that names it (2026-10-12)
 
     /// Draws a view in an offscreen window and lets its tasks run.
