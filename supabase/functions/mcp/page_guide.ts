@@ -115,5 +115,6 @@ export const PAGE_PROMPTS = [
 ] as const;
 
 export const GUIDE_URI = "amber://guides/note-pages";
+export const APPS_GUIDE_URI = "amber://guides/apps";
 export const BASE_CSS_URI = "amber://styles/amber-base.css";
 export const templateUri = (name: string) => `amber://page-templates/${name}`;
