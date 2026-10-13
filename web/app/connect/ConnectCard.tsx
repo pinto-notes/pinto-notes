@@ -39,33 +39,9 @@ export default function ConnectCard({ request = false, label = null, children }:
   );
 }
 
-/// A note on one side (a heading, two lines and a short checklist, no logo), where access would go on the other, and a dotted line between them:
-/// not joined yet. Flat cut paper, in the picture colours of DeviceLead.tsx.
-function RequestPicture({ to }: { to: string | null }) {
-  return (
-    <svg className={`${styles.picture} ${styles.sidePicture}`} viewBox="0 0 300 150" role="presentation" focusable="false" aria-hidden="true">
-      <g transform="rotate(-5 62 78)">
-        <rect className={styles.pShadow} x="22" y="30" width="84" height="104" rx="12" />
-        <rect className={styles.pPaper} x="18" y="24" width="84" height="104" rx="12" />
-        <rect className={styles.pBar} x="28" y="40" width="44" height="6" rx="3" />
-        <rect className={styles.pBarSoft} x="28" y="56" width="62" height="5" rx="2.5" />
-        <rect className={styles.pBarSoft} x="28" y="68" width="54" height="5" rx="2.5" />
-        {[0, 1].map((i) => (
-          <g key={i}>
-            <circle className={styles.pCheck} cx="32" cy={90.5 + i * 14} r="4" />
-            <rect className={styles.pBarSoft} x="42" y={88 + i * 14} width={i ? 30 : 42} height="5" rx="2.5" />
-          </g>
-        ))}
-      </g>
-      {[0, 1, 2, 3, 4].map((i) => <circle key={i} className={styles.pDash} cx={124 + i * 12} cy="78" r="2.6" />)}
-      <rect className={styles.pShadow} x="186" y="40" width="104" height="82" rx="13" />
-      <rect className={styles.pBody} x="182" y="34" width="104" height="82" rx="13" />
-      <rect className={styles.pScreen} x="187" y="52" width="94" height="59" rx="8" />
-      {[0, 1, 2].map((i) => <circle key={i} className={styles.pDot} cx={193 + i * 8} cy="43" r="2.3" />)}
-      <rect className={styles.pPaper} x="196" y="62" width="76" height="16" rx="8" />
-      <rect className={styles.pBar} x="203" y="68" width="44" height="4" rx="2" />
-      <rect className={styles.pBarSoft} x="196" y="88" width="60" height="5" rx="2.5" />
-      <rect className={styles.pBarSoft} x="196" y="99" width="42" height="5" rx="2.5" />
-    </svg>
-  );
+/// A paper-cut note and a chat bubble, joined by a thread with a leaf knot (public/art/connect.webp):
+/// the one picture on these pages, the same for every state. Decoration: no alt text, and no app's
+/// mark, so nothing in it vouches for who is asking.
+function RequestPicture({ to: _to }: { to: string | null }) {
+  return <img className={`${styles.picture} ${styles.sidePicture} ${styles.sideArt}`} src="/art/connect.webp" alt="" width={1672} height={941} decoding="async" />;
 }

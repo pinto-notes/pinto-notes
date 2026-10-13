@@ -90,4 +90,8 @@ describe("the site's controls", () => {
     expect(privacy).toContain("f.short");
     expect(privacy.indexOf('id="logs"')).toBeLessThan(privacy.indexOf("<LongPage"));
   });
+
+  it("gives the connect pages' broken-link state a way forward", () => {
+    for (const f of ["connect/page.tsx", "open/connect/page.tsx"]) expect(css(f), f).toContain('href="/open/connect-ai"');
+  });
 });
