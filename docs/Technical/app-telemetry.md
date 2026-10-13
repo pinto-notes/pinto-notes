@@ -68,7 +68,7 @@ This is enforced by the types, not by care at each call:
 | `app_opened` | At launch, and once for each new day (UTC) the app is still running | `launch`, `signed_in` (yes or no) |
 | `signed_in` | A sign-in worked | `method`: `apple`, `apple_web` (Sign in with Apple through the web, in the Mac download), `google`, `email` |
 | `signed_up` | A sign-in worked for an account made in the last five minutes, or an email sign-up was confirmed | `method` |
-| `key_ready` | The account's key arrived on this device while the app was running | `how`: `created`, `recovery_key`, `linked` (Add a device), `icloud_keychain`, `start_fresh`, `sign_in` (from the copy the server keeps) |
+| `key_ready` | The account's key arrived on this device while the app was running | `how`: `created`, `recovery_key`, `linked` (Add a device), `icloud_keychain`, `start_fresh`, `sign_in` (from the copy the server keeps); `store`: `keychain` (the data protection keychain, synced through iCloud Keychain), `file` (this device only: the Mac download, which has no keychain access group), `memory` (tests) |
 | `gate_shown` | A screen between signing in and the notes was shown (once a launch for each) | `screen`: `welcome`, `add_device`, `no_device`, `waiting`, `recovery`, `start_fresh`, `unreachable`, `accountGone` (the account was deleted on the server), `checking`, `held` (waiting out the hold after a password reset), `before_fetch` (before the key comes from the copy the server keeps: sign in again, or say yes first) |
 | `first_note_created` | The first note made with New Note on this install | |
 | `first_sync` | The first sync that finished on this install | `duration_ms` |
@@ -95,7 +95,7 @@ than once (a person goes back, or tries again); each is sent when it happens.
 
 | Event | When | Properties |
 |---|---|---|
-| `keychain_failed` | A Keychain read or write failed | `item`: `key_synced`, `key_pending`, `key_previous`, `key_local`, `device_identity`, `session`, `notes_lock`; `operation`: `save`, `read`, `probe_read`, `probe_write`; `status` (the OSStatus) |
+| `keychain_failed` | A Keychain read or write failed | `item`: `key_synced`, `key_pending`, `key_previous`, `key_local`, `device_identity`, `session`, `notes_lock`; `operation`: `save`, `read`, `probe_read`, `probe_write`; `status` (the OSStatus). The Mac download's `probe_write` answer -34018 (no keychain access group) is expected and not sent: that build keeps the key in a file, said by `store` on `key_startup` and `key_ready` |
 | `key_startup` | Startup decided what to do about the account's key | `outcome`: `ready`, `ready_unverified`, `create`, `reregister`, `replace`, `wait`, `mismatch`, `unreachable`, `fetch` (the key comes from the copy the server keeps); `had_key` (the key was open on this device before); `store`: `keychain`, `file`, `memory` |
 | `sync_failed` | Syncs have failed for a minute, over at least three tries | `kind`, `status`, `code`, `hint`, `runs` |
 | `upload_refused` | The server refused a row or a file for good | `what`: `note`, `folder`, `file`; `kind`, `status`, `code`, `hint` |

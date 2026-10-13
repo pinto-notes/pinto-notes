@@ -618,4 +618,11 @@ private final class TelemetryDocToken {}
             #expect(GateScreen.allCases.contains(GateScreen(screen)))
         }
     }
+
+    /// key_ready says where the key is kept, so a build without the keychain shows as a state.
+    @Test func keyReadySaysWhereTheKeyIsKept() {
+        let props = TelemetryEvent.keyReady(.created, store: .file).properties
+        #expect(props[.store] == .word(KeyStoreKind.file))
+        #expect(props[.how] == .word(KeyReadyHow.created))
+    }
 }

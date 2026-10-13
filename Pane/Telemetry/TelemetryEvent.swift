@@ -357,7 +357,8 @@ enum TelemetryEvent: Equatable, Sendable {
     case appOpened(launch: Bool, signedIn: Bool)
     case signedIn(SignInMethod)
     case signedUp(SignInMethod)
-    case keyReady(KeyReadyHow)
+    /// `store`: where the key is kept on this device (the Mac download: `file`, see KeychainAccountKeyStore).
+    case keyReady(KeyReadyHow, store: KeyStoreKind)
     case gateShown(GateScreen)
     case firstNoteCreated
     case firstSync(milliseconds: Int)
@@ -445,7 +446,7 @@ enum TelemetryEvent: Equatable, Sendable {
         switch self {
         case .appOpened(let launch, let signedIn): [.launch: .flag(launch), .signedIn: .flag(signedIn)]
         case .signedIn(let m), .signedUp(let m): [.method: .word(m)]
-        case .keyReady(let how): [.how: .word(how)]
+        case .keyReady(let how, let store): [.how: .word(how), .store: .word(store)]
         case .gateShown(let screen): [.screen: .word(screen)]
         case .firstNoteCreated, .firstAIEditSeen: [:]
         case .firstSync(let ms): [.durationMS: .number(Self.rounded(ms))]
@@ -510,7 +511,7 @@ enum TelemetryEvent: Equatable, Sendable {
 
     /// One of every event, for the tests that read what would be sent.
     static let samples: [TelemetryEvent] = [
-        .appOpened(launch: true, signedIn: true), .signedIn(.apple), .signedUp(.email), .keyReady(.recoveryKey),
+        .appOpened(launch: true, signedIn: true), .signedIn(.apple), .signedUp(.email), .keyReady(.recoveryKey, store: .keychain),
         .gateShown(.addDevice), .firstNoteCreated, .firstSync(milliseconds: 1234), .aiConnected(.claude), .firstAIEditSeen,
         .onboardingStep(.bring, .skipped), .importStep(.appleNotes, .done, count: .upTo99), .connectStep(.chatgpt, .failed, kind: .network),
         .signInStep(.email, .failed, kind: .badCode), .linkDeviceStep(.newDevice, .codeShown),
