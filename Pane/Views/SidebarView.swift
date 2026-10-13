@@ -401,7 +401,7 @@ struct SidebarView: View {
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
-                    ForEach(ImportKind.allCases) { kind in
+                    ForEach(ImportKind.listed) { kind in
                         Button(kind.title, systemImage: kind.symbol) { imports?.from(kind) }
                     }
                 } label: {

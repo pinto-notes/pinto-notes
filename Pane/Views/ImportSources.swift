@@ -10,7 +10,7 @@ enum ImportOrigin: Identifiable, Hashable {
     case appleNotes
     case files(ImportKind)
 
-    static let all: [ImportOrigin] = [.appleNotes] + ImportKind.allCases.map(ImportOrigin.files)
+    static var all: [ImportOrigin] { [.appleNotes] + ImportKind.listed.map(ImportOrigin.files) }
 
     var id: String {
         switch self {
@@ -54,6 +54,30 @@ enum ImportOrigin: Identifiable, Hashable {
         case .files(.evernote): "com.evernote.Evernote"
         case .files(.keep), .files(.markdown): nil
         }
+    }
+}
+
+extension ImportKind {
+    /// The order every list of sources uses: apps on this Mac first, then by how many people come
+    /// from each (Evernote, Google Keep, Obsidian, Bear), Markdown files last as the catch-all.
+    /// Finding an installed app asks nothing of the person: no permission dialog, nothing opened.
+    static var listed: [ImportKind] { listed(installed: isInstalled) }
+
+    static let byPopularity: [ImportKind] = [.evernote, .keep, .obsidian, .bear, .markdown]
+
+    static func listed(installed: (ImportKind) -> Bool) -> [ImportKind] {
+        let apps = byPopularity.filter { $0 != .markdown }
+        return apps.filter(installed) + apps.filter { !installed($0) } + [.markdown]
+    }
+
+    /// Whether this kind's app is on this Mac (tests set their own). Always false on iPhone.
+    nonisolated(unsafe) static var isInstalled: (ImportKind) -> Bool = { kind in
+        #if os(macOS)
+        guard let id = ImportOrigin.files(kind).bundleIdentifier else { return false }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) != nil
+        #else
+        return false
+        #endif
     }
 }
 
