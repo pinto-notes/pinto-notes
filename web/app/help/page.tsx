@@ -8,6 +8,7 @@ import { FAQ } from "./questions";
 import { GITHUB_URL } from "@/lib/github";
 import { JsonLd, faqPage } from "@/lib/structured-data";
 import { WHAT_IT_IS } from "@/lib/facts";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
@@ -48,25 +49,22 @@ export default function Help() {
               <dd>In the app, open Settings → Account, scroll to the bottom and choose Delete Account… Your account and all your notes are deleted. Or email me and I&apos;ll do it.</dd>
             </div>
             <div>
+              <dt>Report a bug</dt>
+              <dd>Say what happened and what you expected, by email or <a href={`${GITHUB_URL}/issues/new/choose`} target="_blank" rel="noopener noreferrer">on GitHub</a>.</dd>
+            </div>
+            <div>
               <dt>Privacy</dt>
               <dd><Link href="/privacy">Privacy policy</Link> and <Link href="/terms">terms of use</Link>.</dd>
             </div>
           </dl>
         </div>
-        <div {...rise(4)}>
-          <h2 className={f.h3}>Still stuck?</h2>
-          <div className={f.contact}>
-            <a href="https://x.com/EmilWagman" target="_blank" rel="noopener noreferrer">
-              <strong>Message me on X</strong>
-              <span>@EmilWagman. I usually answer within a day.</span>
-            </a>
-            <a href={`${GITHUB_URL}/issues/new/choose`} target="_blank" rel="noopener noreferrer">
-              <strong>Report a bug on GitHub</strong>
-              <span>Say what happened and what you expected.</span>
-            </a>
-          </div>
-        </div>
       </section>
+      <ClosingBand
+        title="Still stuck? Write to me."
+        primary={{ href: `mailto:${SUPPORT_EMAIL}`, label: `Email ${SUPPORT_EMAIL}` }}
+        secondary={{ href: "https://x.com/EmilWagman", label: "Message me on X", external: true }}
+        fine="I read every email and usually answer within a day."
+      />
     </div>
   );
 }

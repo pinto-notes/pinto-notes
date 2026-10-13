@@ -7,6 +7,7 @@ import { latestVersion } from "@/lib/changelog";
 import { JsonLd, app, breadcrumbs, incredible, maker, organization } from "@/lib/structured-data";
 import PlatformNote from "../PlatformNote";
 import styles from "./download.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 export const metadata: Metadata = pageMetadata({
   title: "Download Pinto Notes for Mac",
@@ -44,7 +45,7 @@ export default function Download() {
             <p className={`${styles.meta} rise`} style={r(2)}>
               Version {release.version} · {size} · {date}
             </p>
-            <a className={`${styles.button} rise pi-apple`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file}>
+            <a className={`${styles.button} rise pi-apple`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file} data-hero-download="">
               <Apple /> Download for Mac
             </a>
             <PlatformNote place="download" className="rise" style={r(3)} />
@@ -86,6 +87,11 @@ export default function Download() {
         <p><strong>Syncs with your iPhone.</strong> Your notes live in the cloud and sync with the iPhone app, coming soon to the App Store.</p>
         <p><a href="/changelog">See what's new in each version</a></p>
       </section>
+
+      <ClosingBand
+        title="Your notes, and the AIs you already use."
+        secondary={{ href: "/blog/connect-chatgpt-to-your-notes", label: "Connect ChatGPT" }}
+      />
     </div>
   );
 }

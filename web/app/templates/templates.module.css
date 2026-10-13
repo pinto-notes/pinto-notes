@@ -31,6 +31,16 @@
 /* One row: the category chips, and how many templates show at its end. */
 .filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .filterRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* On phones the chips are one row that scrolls sideways, edge to edge, instead of three rows. */
+@media (max-width: 600px) {
+  .filters { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .filterRow {
+    flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter);
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .filterRow::-webkit-scrollbar { display: none; }
+  .filterRow .chip { flex: none; }
+}
 .chip {
   display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px;
   position: relative; isolation: isolate;

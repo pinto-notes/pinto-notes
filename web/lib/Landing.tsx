@@ -11,6 +11,7 @@ import l from "./landing.module.css";
 import { APP_STORE_LIVE, APP_STORE_URL, SITE_NAME, pageMetadata } from "./site";
 import { JsonLd, app, breadcrumbs, faqPage, incredible, maker, organization } from "./structured-data";
 import { latestVersion } from "./changelog";
+import { ClosingBand, MAC_FINE } from "./ClosingBand";
 
 /// A landing page for one audience or search (lib/landings.ts): the promise, a real capture, three
 /// things to do with a real-looking exchange each, a dated comparison where one is fair to make,
@@ -42,12 +43,8 @@ export function LandingPage({ x }: { x: Landing }) {
         <h1 className={`${home.h1} ${l.h1} rise`} {...rise(0)}><Headline text={x.h1} mark={x.mark} /></h1>
         <p className={`${home.lede} rise`} {...rise(1)}>{x.lede}</p>
         <div className={`${home.ctas} rise pi-apple pi-not-ios`} {...rise(2)}>
-          <DownloadLink className={home.primary}>Download for Mac, free</DownloadLink>
-          {APP_STORE_LIVE ? (
-            <a className={home.secondary} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>
-          ) : (
-            <span className={home.secondary}>iPhone · coming soon</span>
-          )}
+          <DownloadLink className={home.primary} data-hero-download="">Download for Mac, free</DownloadLink>
+          {APP_STORE_LIVE && <a className={home.secondary} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>}
         </div>
         <PlatformNote place="hero" className="rise" {...rise(2)} />
       </section>
@@ -137,19 +134,7 @@ export function LandingPage({ x }: { x: Landing }) {
         </nav>
       </div>
 
-      <section className={a.band} aria-labelledby="closing">
-        <div className={a.bandInner}>
-          <img src="/mark-256.png" alt="" width={96} height={96} className={a.bandIcon} />
-          <h2 id="closing" className={a.bandTitle}>{x.closing.title}</h2>
-          <p className={a.bandLede}>{x.closing.text}</p>
-          <div className={`${a.bandCtas} pi-apple pi-not-ios`}>
-            <DownloadLink className={a.bandPrimary}>Download for Mac</DownloadLink>
-            <span className={a.bandSecondary}>iPhone · coming soon</span>
-          </div>
-          <PlatformNote place="band" />
-          <p className={`${a.bandFine} pi-apple pi-not-ios`}>Free. Requires macOS 26. No ads, and no tracking in the app.</p>
-        </div>
-      </section>
+      <ClosingBand title={x.closing.title} text={x.closing.text} fine={MAC_FINE} />
     </div>
   );
 }

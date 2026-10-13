@@ -6,6 +6,7 @@ import Card from "./Card";
 import Library, { APPS } from "./Library";
 import { COVERS, coverPath } from "@/lib/template-covers";
 import s from "./templates.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
@@ -73,6 +74,8 @@ export default function Page() {
           <p className={s.loopLine}>Shared by Maja</p>
         </div>
       </section>}
+
+      <ClosingBand title="Pick one template, and let your AI keep it." text="Templates need Pinto Notes on your Mac, and an AI you connect once." />
     </div>
   );
 }

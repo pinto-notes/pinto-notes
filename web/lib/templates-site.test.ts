@@ -19,6 +19,9 @@ import { useLabel } from "./templates";
 import Card from "../app/templates/Card";
 import { templateWork } from "./structured-data";
 
+// The pages end in the site's closing band, whose Mac download is a client link that reads the route.
+vi.mock("next/navigation", async (orig) => ({ ...(await orig<typeof import("next/navigation")>()), usePathname: () => "/templates", useRouter: () => ({ push: () => {} }) }));
+
 const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
 
 describe("rendering a template like the app", () => {

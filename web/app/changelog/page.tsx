@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/site";
 import styles from "../home.module.css";
-import { changelog } from "@/lib/changelog";
+import { changelog, latestVersion } from "@/lib/changelog";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
@@ -38,6 +39,7 @@ export default function Changelog() {
           </article>
         ))}
       </section>
+      <ClosingBand title={latestVersion() ? `Get Pinto Notes ${latestVersion()}.` : "Get Pinto Notes."} />
     </div>
   );
 }

@@ -1,0 +1,18 @@
+/* The shared page hero (lib/PageHero.tsx). Centred: text, then the art under it at the page's width.
+   Left: text on the left, art on the right from 960 px; under the text on narrower screens. */
+.hero { display: grid; gap: 40px; padding-top: 72px; }
+@media (max-width: 600px) { .hero { padding-top: 32px; gap: 28px; } }
+.text { display: grid; gap: 20px; align-content: center; }
+.hero[data-align="center"] .text { justify-items: center; text-align: center; }
+.hero[data-align="left"] .text { justify-items: start; text-align: left; }
+@media (min-width: 960px) {
+  .hero[data-align="left"][data-art] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: 56px; }
+}
+.title { margin: 0; max-width: 18ch; font-size: clamp(40px, 5.4vw, 72px); line-height: 0.98; font-weight: 800; letter-spacing: -0.045em; text-wrap: balance; }
+.small { font-size: clamp(36px, 4.8vw, 56px); line-height: 1.02; letter-spacing: -0.035em; }
+.lede { margin: 0; max-width: 34em; font-size: clamp(17px, 1.8vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: balance; }
+.hero[data-align="left"] .lede { text-wrap: pretty; }
+.actions { display: grid; gap: 14px; justify-items: inherit; margin-top: 8px; }
+.picture { min-width: 0; }
+.art { display: block; width: 100%; height: auto; border-radius: 28px; }
+.hero[data-align="center"] .picture { width: 100%; max-width: 1080px; justify-self: center; }

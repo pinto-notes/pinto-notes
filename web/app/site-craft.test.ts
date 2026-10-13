@@ -40,4 +40,34 @@ describe("the site's controls", () => {
   it("draws the cookie banner's buttons as fills", () => {
     expect(rule(css("site.css"), ".consent-button")).toMatch(/border: 0/);
   });
+
+  // The site audit of 13 October 2026, "fix once, lift many pages".
+  it("marks the current page in the header one way on every width: ink, no underline, no ring", () => {
+    const site = css("site.css");
+    expect(site).not.toMatch(/aria-current="page"\]::after/);
+    expect(site).not.toMatch(/site-cta\[aria-current="page"\] \{ box-shadow/);
+  });
+
+  it("steps the header's Download aside on a page whose hero is the download, so one primary is in view", () => {
+    expect(css("site.css")).toContain("html:has([data-hero-download]) .site-nav a.site-cta { display: none; }");
+    expect(css("download/page.tsx")).toContain("data-hero-download");
+  });
+
+  it("gives the download page's button a hover, and help's cards a fill on hover instead of a ring", () => {
+    expect(css("download/download.module.css")).toMatch(/\.button:hover \{ background: color-mix/);
+    const faq = css("help/faq.module.css");
+    expect(faq).not.toMatch(/\.contact a:hover \{ box-shadow/);
+  });
+
+  it("draws Sign in with Google and the connect page's second buttons as fills, and disabled as warm grey", () => {
+    const connect = css("connect/connect.module.css");
+    expect(rule(connect, ".google")).not.toMatch(/inset 0 0 0 1px/);
+    expect(connect).not.toMatch(/\.secondary \{[^}]*inset 0 0 0 1\.5px/);
+    expect(connect).not.toMatch(/\.primary:disabled, \.secondary:disabled \{ cursor: default; opacity/);
+  });
+
+  it("puts the blog's and the templates' chips in one sideways-scrolling row on phones", () => {
+    expect(css("blog/blog.module.css")).toMatch(/@media \(max-width: 600px\) \{\s*\.filters \{\s*flex-wrap: nowrap; overflow-x: auto/);
+    expect(css("templates/templates.module.css")).toMatch(/\.filterRow \{\s*flex-wrap: nowrap; overflow-x: auto/);
+  });
 });

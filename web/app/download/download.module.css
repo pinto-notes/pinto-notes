@@ -10,7 +10,8 @@
   box-shadow: 0 14px 30px -10px rgba(60, 30, 5, 0.55);
 }
 .button:focus-visible, .more a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
-@media (prefers-reduced-motion: no-preference) { .button { transition: transform 0.12s ease-out; } .button:active { transform: scale(0.97); } }
+@media (hover: hover) { .button:hover { background: color-mix(in srgb, var(--cta-bg) 88%, var(--amber)); } }
+@media (prefers-reduced-motion: no-preference) { .button { transition: transform 0.12s ease-out, background-color 0.15s ease-out; } .button:active { transform: scale(0.97); } }
 .req { margin: 0; color: var(--muted); font-size: 14px; }
 
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }

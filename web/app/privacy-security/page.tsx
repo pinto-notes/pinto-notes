@@ -4,6 +4,7 @@ import { LongPage, SectionHeading } from "@/lib/LegalPage";
 import { pageMetadata, SUPPORT_EMAIL } from "@/lib/site";
 import { AI_ACCESS, CAVEAT, COUNTS, ENCRYPTION, FACTS, LIMITS, LOGS, PRIVACY_PATH, READABLE, WHO_CAN_SEE } from "@/lib/privacy";
 import s from "./privacy.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 // Privacy & Security for people, not lawyers: what we store, who can see it, which logs exist.
 // The facts live in lib/privacy.ts (shared with the home page); docs/privacy-policy.md is the long form.
@@ -40,6 +41,7 @@ const Shield = () => (
 
 export default function PrivacySecurity() {
   return (
+    <>
     <LongPage
       title="Privacy & Security"
       sub="What we store, who can see it, and every log we keep. In plain words."
@@ -163,5 +165,13 @@ export default function PrivacySecurity() {
           <p>The legal details are in the <a href="/privacy">privacy policy</a>.</p>
         </article>
     </LongPage>
+    <ClosingBand
+      title="Read the code yourself."
+      text="The apps, the server and this website are open source, so every promise on this page can be checked."
+      primary={{ href: GITHUB, label: "View on GitHub", external: true }}
+      secondary={{ href: "/privacy", label: "Privacy policy" }}
+      fine={null}
+    />
+    </>
   );
 }

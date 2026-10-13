@@ -34,8 +34,16 @@
 .filters a::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: color-mix(in srgb, var(--soft) 88%, var(--amber)); opacity: 0; }
 .filters a[aria-current] { color: var(--cta-ink); background: var(--cta-bg); }
 .filters a[aria-current] .count { color: var(--cta-ink); opacity: 0.75; }
-/* On phones the chips are a little tighter, so two of the longer names share a row. */
-@media (max-width: 600px) { .filters a { padding: 0 12px; gap: 6px; } }
+/* On phones the chips are one row that scrolls sideways, edge to edge, instead of stacking into
+   rows that take half the first screen. */
+@media (max-width: 600px) {
+  .filters {
+    flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter);
+    scroll-padding-inline: var(--gutter); scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .filters a { flex: none; padding: 0 12px; gap: 6px; }
+}
 @media (hover: hover) { .filters a:not([aria-current]):hover { color: var(--ink); } .filters a:not([aria-current]):hover::before { opacity: 1; } }
 .filters a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 /* Never a layer of the filter motion: the pick moves in the page at the click (lib/filter-transition.ts). */

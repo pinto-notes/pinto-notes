@@ -1,0 +1,28 @@
+/* The shared ending (lib/ClosingBand.tsx): full width in the leaf's dark brown on every theme, so it
+   is the one dark moment on a cream page. The footer then sits 64 px below it. */
+.band {
+  width: 100vw; margin: 0 0 -56px calc(50% - 50vw); padding: 104px var(--gutter) 112px; box-sizing: border-box;
+  background: #2e180a; color: #fbeedd;
+}
+@media (max-width: 600px) { .band { padding: 72px var(--gutter) 80px; } }
+.inner { max-width: 1200px; margin: 0 auto; display: grid; justify-items: center; text-align: center; gap: 20px; }
+.icon { border-radius: 22.5%; box-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.6); }
+.title { margin: 8px 0 0; max-width: 18ch; font-size: clamp(36px, 5.6vw, 72px); line-height: 1; font-weight: 800; letter-spacing: -0.04em; text-wrap: balance; }
+.text { margin: 0; max-width: 32em; color: #d9bf9f; font-size: clamp(17px, 1.9vw, 20px); line-height: 1.45; text-wrap: balance; }
+.ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
+.primary, .secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 50px; padding: 0 24px; box-sizing: border-box;
+  border-radius: 14px; font-weight: 700; font-size: 16px; text-decoration: none;
+}
+.primary { background: #fbeedd; color: #2a1d10; }
+.secondary { background: rgba(251, 238, 221, 0.12); color: #fbeedd; }
+.primary:focus-visible, .secondary:focus-visible { outline: 2px solid #f5a53a; outline-offset: 3px; }
+@media (hover: hover) {
+  .primary:hover { background: color-mix(in srgb, #fbeedd 86%, #f5a53a); }
+  .secondary:hover { background: rgba(251, 238, 221, 0.2); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .primary, .secondary { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
+  .primary:active, .secondary:active { transform: scale(0.97); }
+}
+.fine { margin: 0; color: #b89c7c; font-size: 14px; text-wrap: balance; }
