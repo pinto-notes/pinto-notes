@@ -77,7 +77,8 @@ export default function Page() {
         Pinto Notes is my middle ground: it feels like Apple Notes, keeps every note as markdown underneath, and has an MCP server in the cloud,
         so ChatGPT, Claude, Claude Code, Codex and Incredible can use your notes from any device. It keeps files and photos in notes too, like
         the trip documents above. It doesn&apos;t have plugins, and it isn&apos;t a folder of files on your disk.{" "}
-        <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> is one import on your Mac.
+        <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> is one import on your Mac, and{" "}
+        <a href="/alternatives/obsidian">Pinto Notes as an Obsidian alternative</a> covers bringing a vault over, wiki links included.
       </p>
 
       <h2>Which to use</h2>

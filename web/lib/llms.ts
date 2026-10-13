@@ -1,5 +1,6 @@
 import { CLAUDE_DIRECTORY_URL, FACTS, MCP_URL, OLD_MCP_URL_STAYS, WHAT_IT_IS } from "./facts";
 import { GITHUB_URL } from "./github";
+import { landingPath, landings } from "./landings";
 import { published } from "./posts";
 import { searchTitle, templates } from "./templates";
 import { MCP_TOOLS } from "./mcp-tools";
@@ -33,6 +34,10 @@ function summary(): string[] {
     `- Incredible (${INCREDIBLE_URL}), a desktop app for Mac and Windows: in Apps, search for notes, pick the one with the leaf icon and choose Connect, then Allow in Pinto Notes (it shows as an app on this computer). On an older Incredible, add ${MCP_URL} as an MCP server instead.`,
     "- Any other app that supports MCP: add the server address and sign in, then Allow in Pinto Notes.",
     `- Full details: ${SITE_URL}/blog/mcp-server`,
+    "",
+    "## Pinto Notes with your AI, or instead of another notes app",
+    "",
+    ...landings.map((x) => `- [${x.shareTitle ?? x.h1}](${SITE_URL}${landingPath(x)}): ${x.description}`),
     "",
     "## Blog posts",
     "",
