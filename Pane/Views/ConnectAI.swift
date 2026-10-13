@@ -630,6 +630,14 @@ enum ConnectTokens {
         try await client.rpc("create_mcp_token", params: Params(token_name: name, write_access: write, token_hash: made.hash, dk_wrap: made.wrap)).execute()
         return made.token
     }
+
+    /// Revokes the tokens by this name made since then that were never used.
+    static func dropUnused(_ client: SupabaseClient, name: String, since: Date) async {
+        let rows: [Connection] = (try? await client.from("mcp_tokens").select().eq("name", value: name)
+            .gte("created_at", value: since.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            .is("last_used_at", value: nil).is("revoked_at", value: nil).execute().value) ?? []
+        for c in rows where !c.isOAuth { try? await ConnectRevoke.revoke(client, id: c.id) }
+    }
 }
 
 /// Face ID or Touch ID (or the device password) before an AI gets your notes.

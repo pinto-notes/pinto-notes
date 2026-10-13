@@ -61,7 +61,9 @@ extension FunnelTests {
             let run = ConnectRun()
             run.address = "https://mcp.example.com"
             run.claudeCodeOnly = { true }
-            run.shell = .init(isAvailable: { true }, exists: { _ in installed }, add: { _, _, _ in .added }, signIn: { _, _ in .opened(nil) })
+            run.shell = .init(isAvailable: { true }, exists: { _ in installed }, add: { _, _, _ in .added }, signIn: { _, _ in .opened(nil) },
+                              addToken: { _, _, _ in .added(details: "pinto-notes") })
+            run.makeToken = { _, _ in "pane_test" }
             run.browserNotice = .zero
             return (run, SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test"))
         }
@@ -78,7 +80,7 @@ extension FunnelTests {
             let (run, client) = claudeCodeRun()
             try await steps.watch {
                 run.start(.claude, client: client, open: { _ in })
-                try await settle(run) { run.phase == .waiting(ConnectCopy.allowInBrowser) }
+                try await settle(run) { if case .added = run.phase { true } else { false } }
                 run.done(.claude)
                 run.stop()
             }
@@ -93,9 +95,9 @@ extension FunnelTests {
             let (run, client) = claudeCodeRun()
             try await steps.watch {
                 run.start(.claude, client: client, open: { _ in })
-                try await settle(run) { run.phase == .waiting(ConnectCopy.allowInBrowser) }
+                try await settle(run) { if case .added = run.phase { true } else { false } }
                 run.start(.claude, client: client, open: { _ in })      // pressed again
-                try await settle(run) { run.phase == .waiting(ConnectCopy.allowInBrowser) }
+                try await settle(run) { if case .added = run.phase { true } else { false } }
                 run.stop()
                 run.stop()
             }

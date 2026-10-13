@@ -141,6 +141,10 @@ import Testing
         var signIns: [ConnectAISection.Guide] = []
         var adds = 0
         var lineAtSignIn: String?
+        var tokenAdds: [ConnectAISection.Guide] = []
+        var tokens: [String] = []
+        var tokensMade: [String] = []
+        var dropped: [String] = []
     }
 
     /// The sign-in is answered as soon as it prints the address it opens, while it keeps running.
@@ -155,13 +159,14 @@ import Testing
         #expect(text.contains("not-found"))
     }
 
-    @Test func codexSaysTheBrowserOpensThenSignsInOnce() async throws {
-        let center = ConnectCenter.shared
-        center.ownSignIn = nil
-        let shell = Shell()
+    /// A run that makes no real token and runs no real command.
+    private func run(_ shell: Shell, addToken: ConnectShell.TokenAdd, claudeCodeOnly: Bool = false) -> (ConnectRun, SupabaseClient) {
         let run = ConnectRun()
-        run.address = "https://mcp.pintonotes.com"  // no path: signs in through the browser
+        run.address = "https://mcp.pintonotes.com"
         run.browserNotice = .milliseconds(50)
+        run.claudeCodeOnly = { claudeCodeOnly }
+        run.makeToken = { _, name in shell.tokensMade.append(name); return "pane_test" }
+        run.dropToken = { _, name, _ in shell.dropped.append(name) }
         let printed = ConnectOwnSignIn.authorization(in: Self.codexPrinted)
         run.shell = .init(isAvailable: { true }, exists: { _ in true },
                           add: { _, _, _ in shell.adds += 1; return .added },
@@ -171,13 +176,45 @@ import Testing
                                   if case .waiting(let line) = run.phase { shell.lineAtSignIn = line }
                               }
                               return .opened(printed)
+                          },
+                          addToken: { g, _, token in
+                              await MainActor.run { shell.tokenAdds.append(g); shell.tokens.append(token) }
+                              return addToken
                           })
-        let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
+        return (run, SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test"))
+    }
+
+    private func settle(_ done: () -> Bool) async throws {
+        for _ in 0..<150 where !done() { try await Task.sleep(for: .milliseconds(20)) }
+    }
+
+    /// Pressing Codex adds it with a token made here: no browser, no Allow, and the row says what
+    /// Codex itself lists for it.
+    @Test func codexIsAddedWithATokenAndNoBrowser() async throws {
+        let shell = Shell()
+        let details = "pinto-notes\n  url: https://mcp.pintonotes.com\n  http_headers: Authorization=*****"
+        let (run, client) = run(shell, addToken: .added(details: details))
+        run.start(.codex, client: client, open: { _ in Issue.record("nothing opens") })
+        #expect(run.phase == .waiting(ConnectCopy.adding(.codex)))
+        try await settle { if case .added = run.phase { true } else { false } }
+        #expect(run.phase == .added("Added to Codex. Ask it about your notes to finish.", details: details))
+        #expect(shell.tokensMade == ["Codex"] && shell.tokenAdds == [.codex] && shell.tokens == ["pane_test"])
+        #expect(shell.signIns.isEmpty && shell.adds == 0, "no sign-in, no browser")
+        run.stop()
+    }
+
+    /// A Codex too old to take the token: its token goes, and it signs in through the browser,
+    /// once, after the row says so.
+    @Test func anOldCodexSignsInThroughTheBrowserOnce() async throws {
+        let center = ConnectCenter.shared
+        center.ownSignIn = nil
+        let shell = Shell()
+        let (run, client) = run(shell, addToken: .refused)
         run.start(.codex, client: client, open: { _ in Issue.record("Codex opens the browser itself") })
-        #expect(run.phase == .waiting(ConnectCopy.opensBrowser(.codex)), "said before anything runs")
-        #expect(ConnectCopy.opensBrowser(.codex) == "Codex opens your browser to sign in. Then allow it here.")
-        for _ in 0..<100 where run.phase != .waiting(ConnectCopy.allowInBrowser) { try await Task.sleep(for: .milliseconds(20)) }
+        try await settle { run.phase == .waiting(ConnectCopy.allowInBrowser) }
         #expect(run.phase == .waiting(ConnectCopy.allowInBrowser))
+        #expect(ConnectCopy.opensBrowser(.codex) == "Codex opens your browser to sign in. Then allow it here.")
+        #expect(shell.dropped == ["Codex"], "the token it couldn't take is revoked")
         #expect(shell.signIns == [.codex], "one sign-in, so one request and one Allow")
         #expect(shell.adds == 0, "Codex's add is its sign-in; nothing runs a second one")
         #expect(shell.lineAtSignIn == ConnectCopy.opensBrowser(.codex), "the row said so before the browser opened")
@@ -186,31 +223,54 @@ import Testing
         center.ownSignIn = nil
     }
 
-    @Test func claudeCodeSaysTheBrowserOpensToo() async throws {
-        let center = ConnectCenter.shared
-        center.ownSignIn = nil
+    /// Claude straight to Claude Code: the same token route, as Claude Code.
+    @Test func claudeCodeIsAddedWithATokenToo() async throws {
         let shell = Shell()
-        let run = ConnectRun()
-        run.address = "https://mcp.pintonotes.com"  // no path: signs in through the browser
-        run.browserNotice = .zero
-        run.claudeCodeOnly = { true }
-        let printed = ConnectOwnSignIn.authorization(in: Self.claudeCodePrinted)
-        run.shell = .init(isAvailable: { true }, exists: { _ in true }, add: { _, _, _ in .added },
-                          signIn: { g, _ in
-                              await MainActor.run {
-                                  shell.signIns.append(g)
-                                  if case .waiting(let line) = run.phase { shell.lineAtSignIn = line }
-                              }
-                              return .opened(printed)
-                          })
-        let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
+        let (run, client) = run(shell, addToken: .added(details: "pinto-notes:\n  Status: \u{2714} Connected"), claudeCodeOnly: true)
         run.start(.claude, client: client, open: { _ in })
-        for _ in 0..<100 where run.phase != .waiting(ConnectCopy.allowInBrowser) { try await Task.sleep(for: .milliseconds(20)) }
-        #expect(shell.signIns == [.claudeCode])
-        #expect(shell.lineAtSignIn == "Claude Code opens your browser to sign in. Then allow it here.")
-        #expect(center.ownSignIn?.ai == "Claude Code")
+        try await settle { if case .added = run.phase { true } else { false } }
+        #expect(shell.tokenAdds == [.claudeCode] && shell.tokensMade == ["Claude Code"] && shell.signIns.isEmpty)
+        if case .added(let line, _) = run.phase { #expect(line == "Added to Claude Code. Ask it about your notes to finish.") }
         run.stop()
-        center.ownSignIn = nil
+    }
+
+    /// What the command printed is shown in its own words, never with the token, never coloured.
+    @Test func theDetailsAreTheCommandsOwnWordsWithoutTheToken() {
+        let out = "Added HTTP MCP server\n\(ConnectShell.detailsMark)\n\npinto-notes:\n  Status: \u{1B}[32m\u{2714} Connected\u{1B}[39m\n  Headers:\n    Authorization: Bearer pane_secret123\n\n"
+        let shown = ConnectShell.details(out, token: "pane_secret123")
+        #expect(shown == "pinto-notes:\n  Status: \u{2714} Connected\n  Headers:\n    Authorization: Bearer \(TerminalConnect.hidden)")
+        #expect(ConnectShell.details("no mark here", token: "x") == nil, "nothing listed: not added")
+        for g in [ConnectAISection.Guide.codex, .claudeCode] {
+            let script = ConnectShell.tokenScript(g)
+            #expect(script.contains("$PINTO_TOKEN") && !script.contains("pane_"), "the token only from the environment")
+        }
+        #expect(ConnectShell.tokenScript(.codex).contains("chmod 600"))
+    }
+
+    /// The real Codex, when this Mac has it, in a Codex home of its own: the entry it can read,
+    /// a file only the person can read, and the token nowhere in what's shown.
+    @Test func theRealCodexTakesTheToken() async throws {
+        guard await ConnectShell.exists(.codex) else { return }
+        let home = FileManager.default.temporaryDirectory.appending(path: "pinto-codex-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        setenv("CODEX_HOME", home.path, 1)
+        defer { unsetenv("CODEX_HOME") }
+        let token = "pane_" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let result = await ConnectShell.addToken(.codex, server: "https://mcp.example.com", token: token)
+        guard case .added(let details) = result else { Issue.record("\(result)"); return }
+        #expect(details.contains("url: https://mcp.example.com") && details.contains("Authorization=*****"))
+        #expect(!details.contains(token))
+        let config = home.appending(path: "config.toml")
+        #expect(try String(contentsOf: config, encoding: .utf8).contains("Bearer \(token)"))
+        let mode = try FileManager.default.attributesOfItem(atPath: config.path)[.posixPermissions] as? Int
+        #expect(mode == 0o600)
+        #expect(!FileManager.default.fileExists(atPath: config.path + ".pinto-before"))
+        // Pressed again: one entry, the new token.
+        let again = await ConnectShell.addToken(.codex, server: "https://mcp.example.com", token: token + "2")
+        #expect(again != .refused)
+        let text = try String(contentsOf: config, encoding: .utf8)
+        #expect(text.components(separatedBy: "[mcp_servers.pinto-notes]").count == 2 && text.contains(token + "2"))
     }
     #endif
 }
