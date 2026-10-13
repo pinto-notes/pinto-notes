@@ -37,6 +37,11 @@ struct OnboardingFlow: View {
     @State private var importing: ImportKind?
     @State private var importingAppleNotes = false
     @State private var sharingHowTo = false
+    /// iPhone: the sheet that says Apple Notes come in from the Mac app (`AppleNotesOnMacSheet`).
+    @State private var appleNotesHelp = false
+    /// A list row's icon grows with the text size, to twice its size at the largest.
+    @ScaledMetric(relativeTo: .body) private var listIconScaled = Metrics.listIcon
+    private var listIcon: CGFloat { min(listIconScaled, Metrics.listIcon * 1.5) }
     /// Titles of the AIs that are connected, as the server lists them.
     @State private var connectedTitles: Set<String> = []
     /// What was connected when the connect step first asked; something new after that moves on.
@@ -94,6 +99,7 @@ struct OnboardingFlow: View {
             }
             #else
             .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
+            .sheet(isPresented: $appleNotesHelp) { AppleNotesOnMacSheet() }
             #endif
             .sheet(item: $importing, onDismiss: { EvernoteInbox.clear(); importClosed() }) { kind in
                 ImportSheet(kind) { ids in notesBrought(ids.count) }
@@ -257,7 +263,7 @@ struct OnboardingFlow: View {
     static func title(_ step: Onboarding.Step) -> String {
         switch step {
         case .name: "What should we call you?"
-        case .bring: "Bring your notes"
+        case .bring: BringDesign.current == .grid ? "Where are your notes?" : "Bring your notes"
         case .connect: "Connect your AI"
         case .tryIt: "Try it"
         }
@@ -266,7 +272,7 @@ struct OnboardingFlow: View {
     static func line(_ step: Onboarding.Step) -> String {
         switch step {
         case .name: "Your name shows on your account and on notes you share."
-        case .bring: "Choose where they are now. Nothing changes there."
+        case .bring: BringDesign.current == .today ? "Choose where they are now. Nothing changes there." : "Nothing changes there."
         case .connect: ConnectChoices.why
         case .tryIt: "Ask your AI to add a to-do to this note. You\u{2019}ll see it arrive here."
         }
@@ -450,12 +456,26 @@ struct OnboardingFlow: View {
     /// the import sheet knows, one quiet line each, so the step fits the window with its button.
     private var bring: some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
-            #if os(macOS)
-            BigChoices(list: [BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .origin(.appleNotes)) { importingAppleNotes = true }])
-            #else
-            appleNotesOnMac
-            #endif
-            otherSources
+            switch BringDesign.current {
+            case .today:
+                #if os(macOS)
+                BigChoices(list: [BigChoice(id: "onboarding.source.appleNotes", title: "Apple Notes", detail: "Read from the Notes app on this Mac", mark: .origin(.appleNotes)) { importingAppleNotes = true }])
+                #else
+                appleNotesOnMac
+                #endif
+                otherSources
+            case .list:
+                sourceList(Self.allOrigins)
+            case .footnote:
+                #if os(macOS)
+                sourceList(Self.allOrigins)
+                #else
+                sourceList(Self.sourceOrder.map(ImportOrigin.files))
+                appleNotesFootnote
+                #endif
+            case .grid:
+                if typeSize.isAccessibilitySize { sourceList(Self.allOrigins) } else { sourceGrid }
+            }
             if broughtCount > 0 {
                 Label(Self.broughtLine(broughtCount), systemImage: "checkmark.circle.fill")
                     .font(.footnote.weight(.medium))
@@ -466,6 +486,117 @@ struct OnboardingFlow: View {
             }
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: broughtCount)
+    }
+
+    // MARK: The Bring step's designs under study (`BringDesign`)
+
+    /// Apple Notes first, where most notes are, then the import sheet's own order.
+    static var allOrigins: [ImportOrigin] { [.appleNotes] + sourceOrder.map(ImportOrigin.files) }
+
+    /// Apple Notes on the Mac reads the Notes app; on iPhone it explains where that happens.
+    private func choose(_ origin: ImportOrigin) {
+        switch origin {
+        case .appleNotes:
+            #if os(macOS)
+            importingAppleNotes = true
+            #else
+            appleNotesHelp = true
+            #endif
+        case .files(let kind): importing = kind
+        }
+    }
+
+    /// A: every source as one grouped list, icon and name, Apple Notes an ordinary first row.
+    private func sourceList(_ origins: [ImportOrigin]) -> some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        return VStack(spacing: 0) {
+            ForEach(Array(origins.enumerated()), id: \.element) { i, origin in
+                if i > 0 { Divider().padding(.leading, listIcon + Metrics.sourceInset + 12) }
+                originRow(origin)
+            }
+        }
+        .background(Color(Palette.field), in: shape)
+        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+        .clipShape(shape)
+    }
+
+    private func originRow(_ origin: ImportOrigin) -> some View {
+        Button { choose(origin) } label: {
+            HStack(spacing: 12) {
+                ImportSourceIcon(origin: origin, size: listIcon)
+                Text(origin.name)
+                    .font(Metrics.sourceName)
+                    .foregroundStyle(Color.ink)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                // At the largest text sizes the name needs the chevron's room.
+                if !typeSize.isAccessibilitySize {
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, Metrics.sourceInset)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, minHeight: Metrics.sourceRow, alignment: .leading)
+            .contentShape(.rect)
+            .hoverOverlay(Rectangle(), Color.primary.opacity(0.05))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(origin.name)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("onboarding.source.\(origin.id)")
+    }
+
+    #if os(iOS)
+    static let appleNotesQuestion = "Notes in Apple Notes?"
+    static let appleNotesOnYourMac = "Import them on your Mac"
+
+    /// B: Apple Notes is not a choice on iPhone; one quiet line under the list says where it is.
+    private var appleNotesFootnote: some View {
+        Button { appleNotesHelp = true } label: {
+            (Text(Self.appleNotesQuestion + " ").foregroundStyle(Color.muted)
+                + Text(Self.appleNotesOnYourMac).foregroundStyle(Color.ink).fontWeight(.semibold))
+                .font(.subheadline)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 4)
+        .accessibilityIdentifier("onboarding.source.appleNotes")
+    }
+    #endif
+
+    /// C: where your notes are, as a grid of app tiles: the icon large, the name under it.
+    private var sourceGrid: some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+            ForEach(Self.allOrigins) { origin in
+                Button { choose(origin) } label: {
+                    VStack(spacing: 8) {
+                        ImportSourceIcon(origin: origin, size: Metrics.gridIcon)
+                        Text(origin.gridName)
+                            .font(Metrics.gridName)
+                            .foregroundStyle(Color.ink)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 6)
+                    .frame(maxWidth: .infinity, minHeight: Metrics.gridTile)
+                    .background(Color(Palette.field), in: shape)
+                    .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+                    .contentShape(shape)
+                    .hoverOverlay(shape, Color.primary.opacity(0.05))
+                }
+                .buttonStyle(BigChoicePress())
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(origin.name)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityIdentifier("onboarding.source.\(origin.id)")
+            }
+        }
     }
 
     static func broughtLine(_ count: Int) -> String {
@@ -811,6 +942,10 @@ struct OnboardingFlow: View {
         static let sourceRow: CGFloat = 34
         static let sourceInset: CGFloat = 12
         static let sourceName = Font.system(size: 13, weight: .medium)
+        static let listIcon: CGFloat = 22
+        static let gridIcon: CGFloat = 40
+        static let gridName = Font.system(size: 12, weight: .medium)
+        static let gridTile: CGFloat = 92
         #else
         static let title = Font.title.weight(.heavy)
         static let prompt = Font.body.weight(.medium)
@@ -824,6 +959,10 @@ struct OnboardingFlow: View {
         static let sourceRow: CGFloat = 48
         static let sourceInset: CGFloat = 16
         static let sourceName = Font.body
+        static let listIcon: CGFloat = 32
+        static let gridIcon: CGFloat = 52
+        static let gridName = Font.subheadline.weight(.medium)
+        static let gridTile: CGFloat = 112
         #endif
     }
 }
@@ -936,3 +1075,85 @@ struct OnboardingWait: View {
 
     static let limit: Double = 20
 }
+
+/// The Bring step's designs under study, one picked before it ships. Debug builds read
+/// `BringDesign` from the app's defaults (today, list, footnote or grid); release
+/// shows today's.
+enum BringDesign: String, CaseIterable {
+    /// Apple Notes as a large card (the Mac reads it; iPhone explains the Mac), the rest as a list.
+    case today
+    /// A: one list, Apple Notes its ordinary first row.
+    case list
+    /// B: on iPhone the list without Apple Notes, and one quiet line under it about the Mac.
+    case footnote
+    /// C: "Where are your notes?" as a grid of app tiles.
+    case grid
+
+    #if DEBUG
+    nonisolated(unsafe) static var current: BringDesign = UserDefaults.standard.string(forKey: "BringDesign").flatMap(BringDesign.init) ?? .today
+    #else
+    static let current: BringDesign = .today
+    #endif
+}
+
+extension ImportOrigin {
+    /// The name under a grid tile: short enough for a third of an iPhone.
+    var gridName: String {
+        self == .files(.markdown) ? "Text files" : name
+    }
+}
+
+#if os(iOS)
+/// iPhone: Apple Notes come in from the Mac app, said in one sentence, with one thing to do
+/// (send yourself the Mac download) and, quieter, the one-note-at-a-time way.
+struct AppleNotesOnMacSheet: View {
+    @State private var sharingHowTo = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    static let title = "Your Apple Notes come in from the Mac app"
+    static let line = "Import them in Pinto Notes on your Mac. They show up here a moment later."
+    static let send = "Send the Mac link to myself"
+    static let oneByOne = "Share one note at a time instead"
+
+    var body: some View {
+        ScrollView {
+            content
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(Color(Palette.sheetGround))
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(Palette.sheetGround))
+        .sheet(isPresented: $sharingHowTo) { ShareHowToSheet() }
+    }
+
+    private var content: some View {
+        VStack(spacing: 14) {
+            ImportSourceIcon(origin: .appleNotes, size: 64)
+            Text(Self.title)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(Color.ink)
+                .multilineTextAlignment(.center)
+            Text(Self.line)
+                .font(.subheadline)
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+            ShareLink(item: OnboardingFlow.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
+                Text(Self.send)
+            }
+            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .padding(.top, 8)
+            .accessibilityIdentifier("onboarding.appleNotes.send")
+            Button(Self.oneByOne) { sharingHowTo = true }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.muted)
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("onboarding.appleNotes.oneByOne")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 28)
+        .padding(.top, 32)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+}
+#endif

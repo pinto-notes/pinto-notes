@@ -346,4 +346,62 @@ import UIKit
         }
     }
     #endif
+
+    // MARK: The Bring step's designs (BringDesign), side by side for the owner to pick one
+
+    static let bringDesigns: [(String, BringDesign)] = [("0-today", .today), ("A-list", .list), ("B-footnote", .footnote), ("C-grid", .grid)]
+
+    #if os(macOS)
+    @Test(arguments: [false, true])
+    func macBringDesigns(dark: Bool) async throws {
+        guard Self.dir != nil else { return }
+        defer { BringDesign.current = .today }
+        for (name, design) in Self.bringDesigns {
+            BringDesign.current = design
+            try await WelcomeSnapshots.shoot(Self.flow(Shot(name: "bring", step: .bring)), name: "mac-bring-\(name)-\(dark ? "dark" : "light")", dark: dark)
+        }
+    }
+    #endif
+
+    #if os(iOS)
+    @Test func iPhoneBringDesigns() async throws {
+        guard let dir = Self.dir else { return }
+        defer { BringDesign.current = .today }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        func shoot(_ view: some View, _ name: String, dark: Bool) async throws {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = UIHostingController(rootView: view)
+            window.isHidden = false
+            try? await Task.sleep(for: .seconds(1.2))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            window.isHidden = true
+            try #require(image.pngData()).write(to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"))
+        }
+        for (name, design) in Self.bringDesigns {
+            BringDesign.current = design
+            for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+                for dark in [false, true] {
+                    try await shoot(Self.flow(Shot(name: "bring", step: .bring)).dynamicTypeSize(type), "iphone-bring-\(name)-\(label)", dark: dark)
+                }
+            }
+        }
+        // The sheet Apple Notes opens on iPhone (A and C from its row or tile, B from its line).
+        BringDesign.current = .list
+        for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+            for dark in [false, true] {
+                let over = Self.flow(Shot(name: "bring", step: .bring))
+                    .sheet(isPresented: .constant(true)) { AppleNotesOnMacSheet().dynamicTypeSize(type) }
+                    .dynamicTypeSize(type)
+                try await shoot(over, "iphone-bring-sheet-apple-notes-\(label)", dark: dark)
+            }
+        }
+    }
+    #endif
 }

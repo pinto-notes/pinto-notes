@@ -140,7 +140,7 @@ struct BigChoices: View {
 }
 
 /// A big choice dips a little when pressed (the app's `PressScale` is sized for small buttons).
-private struct BigChoicePress: ButtonStyle {
+struct BigChoicePress: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
