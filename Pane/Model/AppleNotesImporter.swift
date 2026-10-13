@@ -86,7 +86,7 @@ extension AppleNotesListing {
 
     /// The live notes here, as the import tells an earlier import's note by: title and date.
     @MainActor static func keysOfNotes(in context: ModelContext) -> Set<String> {
-        Set(((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil }
+        Set(((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? [])
             .map { ImportWriter.key(title: $0.title, created: $0.createdAt) })
     }
 

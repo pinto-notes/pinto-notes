@@ -40,7 +40,7 @@ import Testing
         let clock = ContinuousClock()
         var times: [Duration] = []
         for _ in 0..<5 {
-            for id in ["Folder 0", "Note 199", "All Notes", "Note 198"] {
+            for id in ["Folder 0", "Note 199", "All Notes", "Folder 1"] {
                 let start = clock.now
                 #expect(HoverProbe.hover(id, true), "\(id) is a hoverable row")
                 w.contentView?.layoutSubtreeIfNeeded()
