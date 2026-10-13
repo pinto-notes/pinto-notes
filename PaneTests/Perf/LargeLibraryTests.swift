@@ -104,11 +104,13 @@ import Testing
         #expect(again < .milliseconds(100 * PerfBudget.slack))
     }
 
-    @Test(.timeLimit(.minutes(4))) func savingOneNote() throws {
+    @Test(.timeLimit(.minutes(4))) func savingOneNote() async throws {
         let c = try open()
         let ctx = c.mainContext
         let list = LibraryNotes()
         _ = list.entries(in: ctx)
+        let wait = ContinuousClock.now
+        while list.isLoading, ContinuousClock.now - wait < .seconds(60) { try await Task.sleep(for: .milliseconds(10)) }
         var first = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         first.fetchLimit = 1
         let note = try #require(try ctx.fetch(first).first)

@@ -591,6 +591,9 @@ import Testing
         _ = library.entries(in: ctx)
         func check(_ what: Comment) async throws {
             try? await Task.sleep(for: .milliseconds(150))
+            // A library this size is read off the main thread (LibraryNotes.readHere).
+            let clock = ContinuousClock(), start = clock.now
+            while library.isLoading, clock.now - start < .seconds(60) { try? await Task.sleep(for: .milliseconds(20)) }
             let have = library.entries(in: ctx)
             let want = try ctx.fetch(FetchDescriptor<Note>()).map(NoteEntry.init).sorted { $0.date > $1.date }
             #expect(have.count == want.count, what)
