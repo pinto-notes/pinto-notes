@@ -240,59 +240,80 @@ All seven acknowledgments apply without exceptions:
 
 ## 5. ChatGPT packet
 
+Version 1.0.4 (13 October 2026) renames the plugin to Pinto Notes and describes the 12 file tools. It is an update of the plugin submitted on 2 October, so two things stay as they were: the plugin id `amber-notes` (`name` in `plugin.json`; a different one fails with `plugin_name_mismatch`) and the server `https://mcp.ambernotes.app` (a new origin needs a new plugin).
+
 The ZIP source is `brand/directory/chatgpt-plugin/`: `plugin.json`, `mcp.json`, and `assets/` holding the logo and composer icon. Build the upload with:
 
 ```sh
-cd brand/directory/chatgpt-plugin && zip -r ../amber-notes-chatgpt.zip . -x '.*'
+cd brand/directory/chatgpt-plugin && zip -rX ../pinto-notes-chatgpt-plugin-1.0.4.zip plugin.json mcp.json assets -x '.*'
 ```
 
-What the ZIP already holds:
+What the ZIP holds:
 - display name, subtitle, long description, category, capabilities, the four URLs, and three starter prompts;
-- brand colors (#E39410 and #F5AD33 from the site's accent tokens) and the icons;
-- the 5 positive and 3 negative test cases;
-- `commerce: false`, and `countries: []` (everywhere).
+- brand colors (#E39410 and #F5AD33) and the icons;
+- the 5 positive and 3 negative test cases, written for the file tools (`search`, `fetch`, `edit`, `create`);
+- the demo recording URL, `https://pintonotes.com/demo/pinto-notes-chatgpt.mp4` (section 6);
+- `commerce: false`, `countries: []` (everywhere) and the release notes.
 
-It leaves out:
-- **the demo recording URL**, which is added in the dashboard after recording;
-- **credentials**, which OpenAI rejects inside the ZIP. They go in the dashboard under Review details.
+Credentials are never in the ZIP: OpenAI rejects `test_credentials` and `reviewer_instructions` there. They go in the dashboard under Review information > Review details.
 
-**Dashboard fields (not in the ZIP)**
-- **Developer identity:** Emil Wagman (individual verification).
-- **MCP server URL:** `https://mcp.ambernotes.app`
-- **Domain verification:**
-  1. Copy the token from the portal.
-  2. Put it in `web/app/.well-known/openai-apps-challenge/route.ts`; the site deploys on merge.
-  3. Check with `curl https://mcp.ambernotes.app/.well-known/openai-apps-challenge`, which should print only the token.
-  4. Click Verify.
-- **OAuth:** ChatGPT registers itself through DCR. If the page shows a redirect URI, it will be `https://chatgpt.com/connector_platform_oauth_redirect`, which is already accepted.
-- **Review details, test account:** use the same instructions as section 4.7, with ChatGPT's Plugins settings in place of the Claude path (OpenAI renamed Apps to Plugins in 2026). The login URL is `https://ambernotes.app/connect`. The account needs no MFA, email code or magic link.
-- **Demo recording URL:** an unlisted YouTube link or a public file link (section 6).
-- **Policy attestations:** Emil ticks these.
+**Review details (typed in the dashboard)**
+- **Login URL:** `https://pintonotes.com/connect`
+- **Username and password:** the review account, from `.secrets/appreview.txt`.
+- **Sign-in steps** (append the recovery key from the same file after "Recovery key:"):
 
-**Test cases** are in `plugin.json`, 5 positive and 3 negative:
-- Positive: summarize Lisbon; hotel confirmation; tick Tram 28; add A Cevicheria to the table; Design follow-ups from the design meeting.
-- Negative: the weather, booking a flight, reading Apple Notes. For each one, the expected result is no Amber Notes call, or a clear "can't" with no change.
-- Run all eight in ChatGPT with the demo account before submitting, as OpenAI asks.
+```
+Pinto Notes has no MFA, email codes or magic links. A new connection is normally approved on the account owner's iPhone or Mac. Reviewers don't have that device, so approve with the recovery key below.
 
-## 6. Demo video (75 seconds)
+1. In ChatGPT, connect Pinto Notes. A page on pintonotes.com opens, titled "Scan with your iPhone".
+2. Under the code, choose "No iPhone? Use your recovery key".
+3. Sign in with the email and password above: type the email, choose Continue, type the password, choose Sign in. Don't use Sign in with Apple or Google.
+4. Paste the recovery key into the Recovery key field. Leave "Read only" unticked, because the test cases change notes. Choose Allow.
+5. The page shows "Connected" and returns to ChatGPT.
 
-OpenAI requires one, and it must show "the main use cases and tools across supported platforms". Use the same cut for Claude, where it's optional.
+If the page says the request has expired, start connecting again from ChatGPT. The recovery key is used only in the browser and is never sent to our server.
 
-| Shot | Time | What's on screen | Where to record |
-|---|---|---|---|
-| 1 | 0–6 s | Amber Notes on the Mac with the Lisbon note open. Caption: "Amber Notes: your notes, in ChatGPT." | Emil's Mac (screen recording of the app) |
-| 2 | 6–20 s | ChatGPT on the web: Apps, connect Amber Notes, the ambernotes.app sign-in page, **Read and edit**, **Allow**, and back to ChatGPT. | Emil's Mac, Chrome with a clean profile signed in to the demo ChatGPT account |
-| 3 | 20–32 s | Prompt: "Find my Lisbon trip note and summarize the plan." Show the tool call and the answer. | Emil's Mac, ChatGPT web |
-| 4 | 32–42 s | Prompt: "What's the confirmation number for my Lisbon hotel?" Answer: LX-48213. | Emil's Mac, ChatGPT web |
-| 5 | 42–55 s | Prompt: "Check off 'Tram 28 early' and add A Cevicheria to the Where to eat table." Then switch to Amber Notes: the tick and the new row appear, with the change banner and Undo. | ChatGPT on the Mac. The Amber Notes half can be the iOS Simulator (Xcode, iPhone 17) signed in to the demo account. |
-| 6 | 55–65 s | ChatGPT on iPhone: "What's still open on my Lisbon checklist?" | A real iPhone screen recording. The ChatGPT app can't run in the Simulator. |
-| 7 | 65–75 s | Amber Notes → Settings → Connect an AI, showing the connection, then Disconnect. Caption: "You choose read only or read and edit, and you can disconnect at any time." | iOS Simulator or the Mac app |
+Recovery key:
+```
 
-Notes:
-- Record ChatGPT with a ChatGPT account whose history is clean. The demo notes account is separate from it.
-- No personal notes may be visible: sign the Mac app in to the demo account, or use the Simulator for every Amber Notes shot.
-- No voice-over is required. Captions are enough.
-- Only Emil can record shots 2 to 6, because they need his ChatGPT login and his phone. Shots 1, 5 (the Amber Notes half) and 7 can be done in the iOS Simulator by an agent without touching his Mac's input, using `simctl io recordVideo`.
+**Annotations** (only if the portal asks for justifications; order: read-only / destructive / open world)
+
+| Tools | Values | Justification |
+|---|---|---|
+| search, list, fetch, history | true / false / false | Reads the signed-in person's own notes, files and app code, or a note's list of earlier versions. Changes nothing and reaches nothing outside Pinto Notes. |
+| see_app | true / false / false | Renders the app kept in one of the person's notes on Pinto Notes' own render service, over sample data, and returns screenshots and what it saw. Works on a throwaway copy; nothing is written back to the account. |
+| create | false / false / false | Only adds: a new note, folder or app. It refuses a path that already exists, so nothing is overwritten. |
+| edit, write | false / true / false | Overwrite existing text in a note, a file or an app. The earlier version stays in history, but undo does not make an overwrite additive. |
+| move, pin | false / true / false | Change where a note sits, its name, or whether it is pinned. |
+| restore | false / true / false | Puts back an earlier version, replacing what is there now. |
+| delete | false / true / false | Removes a note, folder, file or app. Notes and files go to Recently Deleted for 30 days. |
+
+That is all 12.
+
+**Test cases** are in `plugin.json`:
+- Positive: summarize the Lisbon note; the hotel confirmation from its sub-note; tick "Tram 28 early"; add A Cevicheria to the Where to eat table; Design follow-ups from the design meeting.
+- Negative: the weather, booking a flight, reading Apple Notes. Expected: no Pinto Notes call and no change.
+- Run all eight in ChatGPT with the review account before submitting, as OpenAI asks.
+
+## 6. Demo video
+
+OpenAI asks for "a demo-recording URL that shows the main use cases and tools across supported platforms". Since 1.0.4 the video must say and show Pinto Notes; the 2 October video (`web/public/demo/amber-notes-chatgpt.mp4`) shows Amber Notes and its old tools. The new file goes at `web/public/demo/pinto-notes-chatgpt.mp4`, the address in `plugin.json`, and must be live before the ZIP is uploaded.
+
+Shot list, about 90 seconds, no voice-over, ChatGPT on the web on the Mac with a clean chat history, the review account in Pinto Notes (never personal notes):
+
+| Shot | What's on screen |
+|---|---|
+| 1 | ChatGPT, Settings > Plugins (or the plugin's page): connect Pinto Notes. The pintonotes.com page opens: "Scan with your iPhone", then "No iPhone? Use your recovery key", sign in with the review account, paste the key (blurred or cut), leave Read only unticked, Allow, "Connected", back in ChatGPT. |
+| 2 | Prompt: "Find my Lisbon trip note in Pinto Notes and summarize the plan." Open the tool calls (search, fetch) for a second, then the answer. |
+| 3 | Prompt: "What's the confirmation number for my Lisbon hotel, and what dates is it for?" Answer: LX-48213, 14 to 18 May. |
+| 4 | Prompt: "In my Lisbon note, check off \"Tram 28 early\"." Show the edit call and the reply. |
+| 5 | Prompt: "Add A Cevicheria to the Where to eat table in my Lisbon note: dish ceviche, area Príncipe Real." Show the edit call and the reply. |
+| 6 | Pinto Notes (Mac app or iOS Simulator, signed in to the review account): Lisbon in May with Tram 28 ticked and the new row in the table. |
+| 7 | Prompt: "Turn the points from my design meeting note into a checklist in a new note called Design follow-ups, in the Work folder." Then the new note in Pinto Notes. |
+| 8 | Prompt: "What's the weather in Lisbon this weekend?" ChatGPT answers without calling Pinto Notes. |
+| 9 | Optional: ChatGPT on iPhone, "What's still open on my Lisbon checklist?" (covers "supported platforms"). |
+
+Afterwards run `scripts/review-account.py reset` so the reviewer starts from the seeded notes.
 
 ## 7. Demo account
 
