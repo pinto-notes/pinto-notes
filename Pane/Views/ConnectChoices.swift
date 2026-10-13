@@ -224,8 +224,14 @@ final class ConnectRun {
     @ObservationIgnored private var expecting = false
     /// Told when the connection exists, so the list loads again.
     @ObservationIgnored var connected: (Guide) -> Void = { _ in }
+    #if os(macOS)
+    /// Claude Code's and Codex's commands, and the address; tests give their own.
+    @ObservationIgnored var shell = ConnectShell.Steps.live
+    @ObservationIgnored var claudeCodeOnly: @MainActor () -> Bool = ConnectFinder.claudeCodeOnly
+    #endif
+    @ObservationIgnored var address: String?
 
-    var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
+    var server: String { address ?? BackendConfig.mcpPublicURL?.absoluteString ?? "" }
 
     /// The press on an AI's row.
     func start(_ g: Guide, client: SupabaseClient, open: @escaping (URL) -> Void) {
@@ -241,7 +247,7 @@ final class ConnectRun {
             open(WebConnectPlan.chatgpt.setupPage(server: server))
             wait(client, ConnectCopy.waiting(.chatgpt))
         case .claude:
-            if ConnectFinder.claudeCodeOnly() {
+            if claudeCodeOnly() {
                 direct = true
                 add(.claudeCode, client: client)
             } else {
@@ -338,7 +344,7 @@ final class ConnectRun {
     private func add(_ g: Guide, client: SupabaseClient) {
         let ai = g == .codex ? Guide.codex : .claudeCode
         #if os(macOS)
-        guard ConnectShell.isAvailable else {
+        guard shell.isAvailable() else {
             // A sandboxed build can't start a shell: the command is copied for Terminal instead.
             ConnectClipboard.set(ConnectShell.command(ai, server: server))
             wait(client, ConnectCopy.pasteInTerminal)
@@ -349,8 +355,11 @@ final class ConnectRun {
         // At an address with a path (staging, a local stack) the AI can't sign in through the
         // browser, so it gets an access token instead (see TerminalConnect).
         let way = TerminalConnect.way(server: server)
+        // The row that was pressed: Claude's, when Claude goes straight to Claude Code.
+        let pressed = guide
+        let shell = shell
         Task { [weak self] in
-            guard await ConnectShell.exists(ai) else {
+            guard await shell.exists(ai) else {
                 self?.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
                 return
             }
@@ -368,13 +377,13 @@ final class ConnectRun {
                 token = try? await ConnectTokens.create(client, name: ai.title, write: true, make: { try AccountCrypto.shared.accessToken() })
                 if token == nil { self?.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain); return }
             }
-            let result = await ConnectShell.add(ai, server: server, token: token)
-            guard let self, self.guide == g else { return }
+            let result = await shell.add(ai, server, token)
+            guard let self, self.guide == pressed else { return }
             switch result {
             case .added where token != nil:
                 self.waitForToken(client, ai, ConnectCopy.askIt(ai))
             case .added:
-                ConnectShell.signIn(ai)
+                shell.signIn(ai)
                 self.wait(client, ConnectCopy.allowInBrowser)
             case .notFound:
                 self.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
@@ -431,6 +440,17 @@ enum ConnectShell {
     static var isAvailable: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil }
 
     enum Result: Equatable { case added, notFound, refused }
+
+    /// What a connection asks of the shell, so tests can stand in for it.
+    struct Steps: Sendable {
+        var isAvailable: @Sendable () -> Bool
+        var exists: @Sendable (ConnectAISection.Guide) async -> Bool
+        var add: @Sendable (ConnectAISection.Guide, String, String?) async -> Result
+        var signIn: @Sendable (ConnectAISection.Guide) -> Void
+
+        static let live = Steps(isAvailable: { ConnectShell.isAvailable }, exists: { await ConnectShell.exists($0) },
+                                add: { await ConnectShell.add($0, server: $1, token: $2) }, signIn: { ConnectShell.signIn($0) })
+    }
 
     static func tool(_ g: ConnectAISection.Guide) -> String { g == .codex ? "codex" : "claude" }
 
@@ -794,15 +814,14 @@ struct ConnectChoices: View {
         .modifier(Said(id: "connect.guide.\(g.rawValue)", label: "\(g.title). \(detail(g))"))
     }
 
-    /// What VoiceOver and tests see: one button, named by its words.
-    private struct Said: ViewModifier {
+    /// What VoiceOver and tests see: one button, named by its words. Named on the button itself:
+    /// a new element in its place (`accessibilityElement(children: .ignore)`) can't be pressed.
+    struct Said: ViewModifier {
         let id: String
         let label: String
         func body(content: Content) -> some View {
             content
-                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(label)
-                .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier(id)
         }
     }

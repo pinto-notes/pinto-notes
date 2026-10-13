@@ -1,6 +1,10 @@
+#if os(macOS)
+import ApplicationServices
+#endif
 import CryptoKit
 import Foundation
 import Supabase
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -610,6 +614,78 @@ import Testing
         #expect(ConnectRun.approvalCounts("ChatGPT", for: .chatgpt) && !ConnectRun.approvalCounts("Claude", for: .chatgpt))
         #expect(ConnectRun.approvalCounts(nil, for: .codex) && !ConnectRun.approvalCounts("ChatGPT", for: .other))
     }
+
+    #if os(macOS)
+    /// Claude on a Mac with only Claude Code: once the command has added it, the row moves on to
+    /// the sign-in. Found on the Air: the run was Claude's and the add Claude Code's, so the row
+    /// stayed on "Adding it to Claude Code…" for good.
+    @MainActor @Test func claudeStraightToClaudeCodeMovesOnAfterTheAdd() async throws {
+        final class Calls: @unchecked Sendable { var added: [ConnectAISection.Guide] = [], signedIn: [ConnectAISection.Guide] = [] }
+        let calls = Calls()
+        let run = ConnectRun()
+        run.address = "https://mcp.example.com"  // no path: Claude Code signs in through the browser
+        run.claudeCodeOnly = { true }
+        run.shell = .init(isAvailable: { true }, exists: { _ in true },
+                          add: { ai, _, _ in calls.added.append(ai); return .added },
+                          signIn: { calls.signedIn.append($0) })
+        let client = SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test")
+        run.start(.claude, client: client, open: { _ in Issue.record("nothing opens: Claude Code is added directly") })
+        defer { run.stop() }
+        #expect(run.phase == .waiting(ConnectCopy.adding(.claudeCode)))
+        for _ in 0..<100 where run.phase != .waiting(ConnectCopy.allowInBrowser) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(run.phase == .waiting(ConnectCopy.allowInBrowser))
+        #expect(calls.added == [.claudeCode] && calls.signedIn == [.claudeCode])
+        #expect(run.guide == .claude && run.direct, "the Claude row carries it, and turns Connected")
+    }
+
+    /// An AI's row presses from VoiceOver. Found on the Air: the rows were said as buttons, but
+    /// pressing one through accessibility did nothing (a new element stood in for the button).
+    /// Asked the way VoiceOver asks: through the accessibility API (in-process, so on this thread).
+    @MainActor @Test func anAIRowPressesFromVoiceOver() async throws {
+        final class Count { var presses = 0 }
+        let count = Count()
+        let row = Button { count.presses += 1 } label: {
+            HStack { Image(systemName: "sparkle"); Text("Claude"); Text("Chat with Claude, and Claude Code") }
+        }
+        .buttonStyle(.plain)
+        .modifier(ConnectChoices.Said(id: "connect.guide.claude", label: "Claude. Chat with Claude, and Claude Code"))
+        let window = KeyableWindow(contentRect: CGRect(x: -20000, y: -20000, width: 400, height: 120), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: row.padding())
+        window.setFrameOrigin(CGPoint(x: -20000, y: -20000))
+        window.orderFrontRegardless()  // far off screen; accessibility lists shown windows only
+        defer { window.orderOut(nil); window.close() }
+        try await Task.sleep(for: .seconds(0.5))
+        let pid = getpid()
+        let found: (label: String?, pressed: AXError?, error: String?) = {
+            func attr(_ e: AXUIElement, _ name: String) -> CFTypeRef? {
+                var v: CFTypeRef?
+                return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v : nil
+            }
+            func find(_ e: AXUIElement, _ depth: Int) -> AXUIElement? {
+                if attr(e, "AXIdentifier") as? String == "connect.guide.claude" { return e }
+                guard depth < 12 else { return nil }
+                for k in attr(e, kAXChildrenAttribute) as? [AXUIElement] ?? [] { if let hit = find(k, depth + 1) { return hit } }
+                return nil
+            }
+            let app = AXUIElementCreateApplication(pid)
+            AXUIElementSetMessagingTimeout(app, 5)
+            guard let button = find(app, 0) else {
+                var v: CFTypeRef?
+                return (nil, nil, "no row; windows: \(AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &v).rawValue)")
+            }
+            return (attr(button, kAXDescriptionAttribute) as? String ?? attr(button, kAXTitleAttribute) as? String,
+                    AXUIElementPerformAction(button, kAXPressAction as CFString), nil)
+        }()
+        #expect(found.error == nil, "\(found.error ?? "")")
+        #expect(found.label == "Claude. Chat with Claude, and Claude Code")
+        #expect(found.pressed == .success)
+        try await Task.sleep(for: .seconds(0.3))
+        #expect(count.presses == 1)
+    }
+    #endif
 }
 
 /// Connect Incredible: a local app, so the guide never vouches for the name.
