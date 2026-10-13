@@ -1100,6 +1100,16 @@ import Testing
         #expect(!KeychainAccountKeyStore.usable(read: errSecMissingEntitlement, write: errSecMissingEntitlement))
     }
 
+    /// keychain-34018.md: the Mac download's refused probe write is the expected answer on every
+    /// launch, not a failure. Anything else, or that answer from a build with the group, still is.
+    @Test func theMacDownloadsExpectedRefusalIsNotReported() {
+        #expect(!KeychainAccountKeyStore.reportsProbeWrite(errSecMissingEntitlement, direct: true))
+        #expect(KeychainAccountKeyStore.reportsProbeWrite(errSecMissingEntitlement, direct: false), "an App Store build should have the group")
+        #expect(KeychainAccountKeyStore.reportsProbeWrite(errSecInteractionNotAllowed, direct: true))
+        #expect(!KeychainAccountKeyStore.reportsProbeWrite(errSecSuccess, direct: true))
+        #expect(!KeychainAccountKeyStore.reportsProbeWrite(errSecSuccess, direct: false))
+    }
+
     /// A locked device or a busy keychain doesn't move the key somewhere else.
     @Test func aMomentaryFailureKeepsTheKeychain() {
         #expect(KeychainAccountKeyStore.usable(read: errSecInteractionNotAllowed, write: errSecInteractionNotAllowed))

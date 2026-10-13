@@ -68,12 +68,16 @@ struct SignInView: View {
     }
 
     var body: some View {
-        if case .beside = heading {
-            // The welcome flow places it.
-            card
-        } else {
-            cardScreen
+        Group {
+            if case .beside = heading {
+                // The welcome flow places it.
+                card
+            } else {
+                cardScreen
+            }
         }
+        // The sign-in funnel starts here: the form is on screen, no way chosen yet.
+        .onAppear { Funnel.record(.signInStep(nil, .shown)) }
     }
 
     private var cardScreen: some View {
@@ -141,7 +145,11 @@ struct SignInView: View {
                                         busy: working && pressed == .apple) { result in
                             switch result {
                             case .success(let credential): signIn(credential)
-                            case .failure(let failure): error = AppleSignIn.message(for: failure)
+                            case .failure(let failure):
+                                error = AppleSignIn.message(for: failure)
+                                // Apple's own sheet closed or failed before a credential came back.
+                                if case .canceled = failure { Funnel.record(.signInStep(.apple, .cancelled)) }
+                                else { Funnel.record(.signInStep(.apple, .failed, kind: .other)) }
                             }
                         }
                         .disabled(working)

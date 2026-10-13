@@ -166,6 +166,49 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
     }
 }
 
+extension ImportKind {
+    /// The import funnel's name for this source (`import_step`).
+    var funnelSource: ImportSourceKind {
+        switch self {
+        case .obsidian: .obsidian
+        case .bear: .bear
+        case .evernote: .evernote
+        case .keep: .keep
+        case .markdown: .markdown
+        }
+    }
+}
+
+/// The import funnel (`import_step`, docs/Technical/app-telemetry.md) of the import sheets: what is
+/// recorded at each step, kept apart from the views so tests can drive it.
+enum ImportFunnel {
+    static func opened(_ source: ImportSourceKind) { Funnel.record(.importStep(source, .opened)) }
+
+    /// What was picked has been looked at: one `wrong_file` when any of it isn't an export of this
+    /// kind, one `nothing_found` when the exports in it hold no notes.
+    static func inspected(_ kind: ImportKind, _ found: [ImportSource]) {
+        if found.contains(where: { $0.problem != nil }) { Funnel.record(.importStep(kind.funnelSource, .wrongFile)) }
+        let exports = found.filter { $0.problem == nil }
+        if !exports.isEmpty, exports.allSatisfy({ $0.notes == 0 }) { Funnel.record(.importStep(kind.funnelSource, .nothingFound)) }
+    }
+
+    static func importing(_ source: ImportSourceKind) { Funnel.record(.importStep(source, .importing)) }
+
+    /// The import ended: stopped is `cancelled`; nothing brought in while files failed is `failed`;
+    /// anything else is `done`, with how many notes came in as a range.
+    static func finished(_ source: ImportSourceKind, _ summary: ImportSummary) {
+        if summary.stopped {
+            Funnel.record(.importStep(source, .cancelled))
+        } else if summary.notes == 0, !summary.failedFiles.isEmpty {
+            Funnel.record(.importStep(source, .failed, kind: .file))
+        } else {
+            Funnel.record(.importStep(source, .done, count: CountBucket(summary.notes)))
+        }
+    }
+
+    static func cancelled(_ source: ImportSourceKind) { Funnel.record(.importStep(source, .cancelled)) }
+}
+
 /// The import sheet every source shares: pick files or folders, see what's in them, choose where
 /// the notes go, watch them come in, and read what happened. Nothing at the source is changed.
 struct ImportSheet: View {
@@ -220,9 +263,12 @@ struct ImportSheet: View {
                 if case .success(let urls) = result { add(urls) }
             }
             .task {
+                ImportFunnel.opened(kind.funnelSource)
                 folders = context.allFolders().map { ($0.id, $0.name) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
                 if !files.isEmpty { add(files) }
             }
+            // Closed before importing: Cancel, or the sheet pulled down.
+            .onDisappear { if phase == .choosing { ImportFunnel.cancelled(kind.funnelSource) } }
     }
 
     // MARK: Mac
@@ -555,6 +601,7 @@ struct ImportSheet: View {
             let kind = kind
             let found = await Task.detached { new.map(kind.inspect) }.value
             sources += found
+            ImportFunnel.inspected(kind, found)
             inspecting = false
         }
     }
@@ -564,10 +611,12 @@ struct ImportSheet: View {
         guard !chosen.isEmpty else { return }
         stopRequested = false
         phase = .importing(done: 0, total: noteCount)
+        ImportFunnel.importing(kind.funnelSource)
         let summary = await kind.run(chosen, into: destination, options: options, context: context,
                                      progress: { done, total in phase = .importing(done: done, total: total) },
                                      shouldStop: { stopRequested })
         phase = .finished(summary)
+        ImportFunnel.finished(kind.funnelSource, summary)
         EvernoteInbox.clear()
         onImported(summary.noteIDs)
     }

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Which tests a pull request runs before it merges: scripts/ci/select-tests.py <file of changed paths>
-(and, for scripts/prepush.sh, the suites of given test files: select-tests.py --suites-of <test file>...)
+(and, for scripts/prepush.sh, the suites of given test files: select-tests.py --suites-of <test file>...,
+and the tests every check runs: select-tests.py --always)
 
 Prints xcodebuild's -only-testing arguments, one per line, and says on stderr what it chose and why.
-Everything else runs on dev after the merge (the full suite), so this is about being fast and
+Everything else runs every night on dev (the full suite), so this is about being fast and
 catching the likely breakage, not about being complete.
 
 In this order, until about 90 seconds of known test time is planned:
-  1. the smoke set: one test for each bug that got out before (scripts/ci/smoke-tests.txt), always
+  1. the smoke set: one test for each bug that got out before (scripts/ci/smoke-tests.txt), and the
+     suites that check the whole app at once (scripts/ci/always-tests.txt), always
   2. the suites in the test files the change touches, always
   3. suites named after a changed file (Foo.swift -> FooTests)
   4. suites whose test file names a type the changed files declare, quickest first
@@ -27,6 +29,7 @@ def lines(name):
     except FileNotFoundError:
         return []
 smoke = lines("smoke-tests.txt")
+always_suites = lines("always-tests.txt")
 after_merge = set(lines("after-merge-suites.txt"))
 try:
     times = json.load(open(os.path.join(here, "suite-times.json")))
@@ -69,6 +72,17 @@ if sys.argv[1] == "--suites-of":
         if suites_in.get(f):
             print(f + "\t" + " ".join(path(s) for s in suites_in[f]))
     sys.exit(0)
+for s in always_suites:
+    if s not in all_suites:
+        sys.exit(f"error: scripts/ci/always-tests.txt names {s}, and no test file declares it")
+if sys.argv[1] == "--always":
+    # For scripts/prepush.sh: the smoke tests and the whole-app suites, as -only-testing arguments.
+    for t in smoke:
+        suite, test = t.split("/", 1)
+        print(f"-only-testing:PaneTests/{path(suite)}/{test}")
+    for s in always_suites:
+        print(f"-only-testing:PaneTests/{path(s)}")
+    sys.exit(0)
 changed = [l.strip() for l in open(sys.argv[1]) if l.strip()]
 
 chosen, why, planned = [], {}, 0.0
@@ -82,6 +96,8 @@ def take(suite, reason, always=False):
     chosen.append(suite)
     planned += cost(suite)
 
+for s in always_suites:                             # 1 (whole suites)
+    take(s, "checks the whole app (always-tests.txt)", always=True)
 for f in changed:                                   # 2
     for s in suites_in.get(f, []):
         take(s, f"its file changed ({f})", always=True)
@@ -123,4 +139,4 @@ print(f"{len(smoke)} smoke tests; {len(chosen)} suites, about {planned:.0f} s of
 for s in chosen:
     print(f"  {s} ({cost(s):.0f} s): {why[s]}", file=sys.stderr)
 if skipped:
-    print(f"left for the run on dev after the merge ({len(skipped)}): " + ", ".join(skipped[:40]), file=sys.stderr)
+    print(f"left for the nightly run on dev ({len(skipped)}): " + ", ".join(skipped[:40]), file=sys.stderr)

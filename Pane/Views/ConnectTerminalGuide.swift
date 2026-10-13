@@ -302,8 +302,12 @@ struct TerminalConnectGuide: View {
         problem = nil
         defer { working = false }
         guard let t = await makeToken() else { return }
+        ConnectFunnel.started(guide.funnel)
         let outcome = await ClaudeCodeInstaller.install(url: server, token: t)
-        if outcome.ok { installed = "Added. Start Claude Code and ask it about your notes." } else { problem = outcome.message }
+        if outcome.ok { installed = "Added. Start Claude Code and ask it about your notes." } else {
+            problem = outcome.message
+            ConnectFunnel.failed(guide.funnel, .other)
+        }
     }
     #endif
 
@@ -322,6 +326,7 @@ struct TerminalConnectGuide: View {
         }
         ConnectClipboard.set(text)
         withAnimation(.snappy(duration: 0.15)) { copied = true }
+        ConnectFunnel.started(guide.funnel)
     }
 
     private func makeToken() async -> String? {
@@ -333,6 +338,7 @@ struct TerminalConnectGuide: View {
             return t
         } catch {
             problem = "Couldn\u{2019}t get it ready. Check your connection and try again."
+            ConnectFunnel.failed(guide.funnel, FailureSummary(error).kind)
             return nil
         }
     }
@@ -350,6 +356,7 @@ struct TerminalConnectGuide: View {
             guard let rows: [Connection] = try? await client.from("mcp_tokens").select().execute().value else { continue }
             if TerminalConnect.isConnected(rows, guide: guide, way: way, since: opened) {
                 withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { connected = true }
+                ConnectFunnel.connected(guide.funnel)
                 try? await Task.sleep(for: .seconds(1.6))
                 if !Task.isCancelled { dismiss() }
             }

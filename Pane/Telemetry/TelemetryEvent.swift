@@ -57,13 +57,19 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     case crashedBuild = "crashed_build"
     case under250ms = "under_250ms", under1s = "under_1s", under4s = "under_4s", under15s = "under_15s", over15s = "over_15s"
     case failed
+    // The funnels (onboarding, imports, connecting an AI, signing in, adding a device).
+    case step, action, source, page, ai, role
 
     static let frameSlots: [TelemetryProperty] = [.frame0, .frame1, .frame2, .frame3, .frame4, .frame5, .frame6, .frame7]
 }
 
 // MARK: Words
 
-enum SignInMethod: String, TelemetryWord { case apple, google, email }
+enum SignInMethod: String, TelemetryWord {
+    case apple, google, email
+    /// Sign in with Apple through the web (the Mac download, which can't use the system's sheet).
+    case appleWeb = "apple_web"
+}
 
 /// How this device came to hold the account's key.
 enum KeyReadyHow: String, TelemetryWord {
@@ -218,6 +224,90 @@ enum LibrarySize: String, TelemetryWord {
     }
 }
 
+// MARK: Funnel words
+//
+// Where people get stuck, step by step (owner, 2026-10-13: "if a lot of people reach the error
+// Apple Notes permissions page"). Each funnel is one event with a closed set of steps.
+
+/// The first-run flow's screens (OnboardingFlow).
+enum OnboardingStep: String, TelemetryWord {
+    case welcome, name, bring, connect, done
+    case tryIt = "try_it"
+}
+
+/// What happened on an onboarding screen.
+enum FunnelAction: String, TelemetryWord { case shown, continued, skipped, back }
+
+/// Where an import comes from.
+enum ImportSourceKind: String, TelemetryWord {
+    case appleNotes = "apple_notes", evernote, keep, obsidian, bear, markdown
+}
+
+/// How far an import got.
+enum ImportStep: String, TelemetryWord {
+    case opened, importing, done, failed, cancelled
+    /// A page of the guide to getting the export (with `page`, 1 to 5).
+    case guidePage = "guide_page"
+    case alreadyHaveFile = "already_have_file"
+    case fileFoundAutomatically = "file_found_automatically"
+    case wrongFile = "wrong_file"
+    /// The Mac didn't let the app read Apple Notes (or the chosen folder).
+    case permissionDenied = "permission_denied"
+    case nothingFound = "nothing_found"
+    /// Apple Notes holds more than one account, and one is to be picked.
+    case secondAccount = "second_account"
+}
+
+/// How many notes an import brought, as a range. Never the number.
+enum CountBucket: String, TelemetryWord {
+    case upTo9 = "1-9", upTo99 = "10-99", upTo999 = "100-999", over999 = "1000+"
+
+    init?(_ n: Int) {
+        switch n {
+        case ...0: return nil
+        case 1...9: self = .upTo9
+        case 10...99: self = .upTo99
+        case 100...999: self = .upTo999
+        default: self = .over999
+        }
+    }
+}
+
+/// Which AI a connect guide is for, never a name the AI gave itself.
+enum ConnectAIKind: String, TelemetryWord {
+    case chatgpt, claude, codex, other, incredible
+    case claudeCode = "claude_code"
+}
+
+/// How far connecting an AI got.
+enum ConnectFunnelStep: String, TelemetryWord {
+    case opened, started, waiting, connected, failed
+    /// The sheet closed while it was waiting for the AI.
+    case gaveUp = "gave_up"
+}
+
+/// How far signing in got.
+enum SignInStep: String, TelemetryWord {
+    case shown, succeeded, failed, cancelled
+    case methodChosen = "method_chosen"
+    case browserOpened = "browser_opened"
+    case codeSent = "code_sent"
+    case codeEntered = "code_entered"
+    case passwordShown = "password_shown"
+}
+
+/// Which side of adding a device this one is.
+enum LinkRole: String, TelemetryWord {
+    case newDevice = "new_device", existingDevice = "existing_device"
+}
+
+/// How far adding a device got.
+enum LinkStep: String, TelemetryWord {
+    case shown, scanned, typed, approved, done, failed
+    case codeShown = "code_shown"
+    case gaveUp = "gave_up"
+}
+
 enum Platform: String, TelemetryWord { case ios, macos }
 enum DeviceClass: String, TelemetryWord { case iphone, ipad, mac }
 enum BuildChannel: String, TelemetryWord { case release, beta, debug }
@@ -235,6 +325,8 @@ enum TelemetryWords {
         add(SyncedThing.self); add(FailureKind.self); add(ServerCode.self); add(ServerHint.self); add(SignInFailureKind.self)
         add(ErrorDomain.self); add(LibrarySize.self); add(Platform.self); add(DeviceClass.self); add(BuildChannel.self)
         add(Distribution.self)
+        add(OnboardingStep.self); add(FunnelAction.self); add(ImportSourceKind.self); add(ImportStep.self); add(CountBucket.self)
+        add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
         return words
     }()
 }
@@ -265,12 +357,22 @@ enum TelemetryEvent: Equatable, Sendable {
     case appOpened(launch: Bool, signedIn: Bool)
     case signedIn(SignInMethod)
     case signedUp(SignInMethod)
-    case keyReady(KeyReadyHow)
+    /// `store`: where the key is kept on this device (the Mac download: `file`, see KeychainAccountKeyStore).
+    case keyReady(KeyReadyHow, store: KeyStoreKind)
     case gateShown(GateScreen)
     case firstNoteCreated
     case firstSync(milliseconds: Int)
     case aiConnected(AIKind)
     case firstAIEditSeen
+
+    // Funnels: where people get stuck, step by step.
+    case onboardingStep(OnboardingStep, FunnelAction)
+    /// `page` with `.guidePage`, `count` with `.done`, `kind` with `.failed`.
+    case importStep(ImportSourceKind, ImportStep, page: Int? = nil, count: CountBucket? = nil, kind: FailureKind? = nil)
+    case connectStep(ConnectAIKind, ConnectFunnelStep, kind: FailureKind? = nil)
+    /// No method until one is chosen (`.shown`).
+    case signInStep(SignInMethod?, SignInStep, kind: SignInFailureKind? = nil)
+    case linkDeviceStep(LinkRole, LinkStep, kind: FailureKind? = nil)
 
     // Errors
     case keychainFailed(item: KeychainItem, operation: KeychainOperation, status: Int)
@@ -295,6 +397,8 @@ enum TelemetryEvent: Equatable, Sendable {
         case appOpened = "app_opened", signedIn = "signed_in", signedUp = "signed_up", keyReady = "key_ready"
         case gateShown = "gate_shown", firstNoteCreated = "first_note_created", firstSync = "first_sync"
         case aiConnected = "ai_connected", firstAIEditSeen = "first_ai_edit_seen"
+        case onboardingStep = "onboarding_step", importStep = "import_step", connectStep = "connect_step"
+        case signInStep = "sign_in_step", linkDeviceStep = "link_device_step"
         case keychainFailed = "keychain_failed", keyStartup = "key_startup", syncFailed = "sync_failed"
         case uploadRefused = "upload_refused", rowUnreadable = "row_unreadable", fileDownloadFailed = "file_download_failed"
         case signInFailed = "sign_in_failed", storeOpenFailed = "store_open_failed", storeSaveFailed = "store_save_failed"
@@ -313,6 +417,11 @@ enum TelemetryEvent: Equatable, Sendable {
         case .firstSync: .firstSync
         case .aiConnected: .aiConnected
         case .firstAIEditSeen: .firstAIEditSeen
+        case .onboardingStep: .onboardingStep
+        case .importStep: .importStep
+        case .connectStep: .connectStep
+        case .signInStep: .signInStep
+        case .linkDeviceStep: .linkDeviceStep
         case .keychainFailed: .keychainFailed
         case .keyStartup: .keyStartup
         case .syncFailed: .syncFailed
@@ -337,11 +446,17 @@ enum TelemetryEvent: Equatable, Sendable {
         switch self {
         case .appOpened(let launch, let signedIn): [.launch: .flag(launch), .signedIn: .flag(signedIn)]
         case .signedIn(let m), .signedUp(let m): [.method: .word(m)]
-        case .keyReady(let how): [.how: .word(how)]
+        case .keyReady(let how, let store): [.how: .word(how), .store: .word(store)]
         case .gateShown(let screen): [.screen: .word(screen)]
         case .firstNoteCreated, .firstAIEditSeen: [:]
         case .firstSync(let ms): [.durationMS: .number(Self.rounded(ms))]
         case .aiConnected(let kind): [.kind: .word(kind)]
+        case .onboardingStep(let step, let action): [.step: .word(step), .action: .word(action)]
+        case .importStep(let source, let step, let page, let count, let kind):
+            Self.word(Self.word(Self.with([.source: .word(source), .step: .word(step)], .page, page.map { min(max($0, 1), 5) }), .count, count), .kind, kind)
+        case .connectStep(let ai, let step, let kind): Self.word([.ai: .word(ai), .step: .word(step)], .kind, kind)
+        case .signInStep(let method, let step, let kind): Self.word(Self.word([.step: .word(step)], .method, method), .kind, kind)
+        case .linkDeviceStep(let role, let step, let kind): Self.word([.role: .word(role), .step: .word(step)], .kind, kind)
         case .keychainFailed(let item, let operation, let status):
             [.item: .word(item), .operation: .word(operation), .status: .number(status)]
         case .keyStartup(let outcome, let hadKey, let store):
@@ -396,8 +511,10 @@ enum TelemetryEvent: Equatable, Sendable {
 
     /// One of every event, for the tests that read what would be sent.
     static let samples: [TelemetryEvent] = [
-        .appOpened(launch: true, signedIn: true), .signedIn(.apple), .signedUp(.email), .keyReady(.recoveryKey),
+        .appOpened(launch: true, signedIn: true), .signedIn(.apple), .signedUp(.email), .keyReady(.recoveryKey, store: .keychain),
         .gateShown(.addDevice), .firstNoteCreated, .firstSync(milliseconds: 1234), .aiConnected(.claude), .firstAIEditSeen,
+        .onboardingStep(.bring, .skipped), .importStep(.appleNotes, .done, count: .upTo99), .connectStep(.chatgpt, .failed, kind: .network),
+        .signInStep(.email, .failed, kind: .badCode), .linkDeviceStep(.newDevice, .codeShown),
         .keychainFailed(item: .keySynced, operation: .save, status: -34018),
         .keyStartup(.wait, hadKey: true, store: .keychain),
         .syncFailed(FailureSummary(kind: .database, status: nil, code: .rowSecurity, hint: .wrongKey), runs: 3),
@@ -422,6 +539,13 @@ enum TelemetryEvent: Equatable, Sendable {
         guard let n else { return p }
         var p = p
         p[key] = .number(n)
+        return p
+    }
+
+    private static func word<W: TelemetryWord>(_ p: Properties, _ key: TelemetryProperty, _ w: W?) -> Properties {
+        guard let w else { return p }
+        var p = p
+        p[key] = .word(w)
         return p
     }
 

@@ -3,10 +3,19 @@
 #
 #   scripts/prepush.sh            the three compiles below, side by side (about 2 minutes after an
 #                                 edit to the app, 20 s when nothing changed, 3 the first time)
-#   scripts/prepush.sh --tests    and then the suites of the test files this branch touches
+#   scripts/prepush.sh --tests    and then the suites of the test files this branch touches, the
+#                                 smoke tests and the suites that check the whole app at once
+#                                 (scripts/ci/smoke-tests.txt, scripts/ci/always-tests.txt)
 #
 # 1. PaneDirect, Release: the Mac download.          2. The iPhone app, Release.
 # 3. The app and its tests, Debug: what CI builds.   All with code signing off.
+#
+# The iPhone app is compiled only when the change touches what it is built from (Pane/ outside the
+# Mac-only files, PaneShare/, the project, Config/: scripts/ci/touches-iphone.py); no CI job
+# compiles it, so this is the only check it gets. PREPUSH_IPHONE=1 compiles it anyway.
+#
+# A tree that passed once is not compiled again: the check remembers the last tree it passed for
+# (by git's hash of the files, with what isn't committed yet) and says so. --tests always runs.
 #
 # Release and Debug are both here because they fail differently: on 2026-10-10 CI was green and
 # the Release build did not compile (a data-race error only the optimizer's mode reports), and
@@ -95,10 +104,27 @@ compile() { # <name> <what> <xcodebuild arguments...>
     return 1
   fi
 }
+# What this branch changes against dev, with what isn't committed yet.
+base=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
+changed=(${(f)"$( { git diff --name-only "$base"; git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )"})
+# The tree this check is about: HEAD's files with the working tree's changes on top.
+cp "$(git rev-parse --path-format=absolute --git-path index)" "$DD/index"
+tree=$(GIT_INDEX_FILE="$DD/index" git add -A . >/dev/null 2>&1; GIT_INDEX_FILE="$DD/index" git write-tree)
+PASSED="$CACHE/passed-$(print -n -- "$PWD" | shasum | cut -c1-12)"
+if [[ ${1:-} != --tests && ${PREPUSH_IPHONE:-0} != 1 && -f $PASSED && $(cat "$PASSED") == "$tree" ]]; then
+  print -- "✓ This tree passed the check already ($tree): nothing to compile."
+  exit 0
+fi
+
 compile mac "Mac download, Release (PaneDirect)" build -scheme AmberNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
 pids=($!)
-compile ios "iPhone app, Release" build -scheme Pane "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
-pids+=($!)
+iphone=$(python3 scripts/ci/touches-iphone.py $changed)
+if [[ ${PREPUSH_IPHONE:-0} == 1 || $iphone == yes* ]]; then
+  compile ios "iPhone app, Release" build -scheme Pane "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
+  pids+=($!)
+else
+  print -- "→ iPhone app not compiled: nothing it is built from changed (PREPUSH_IPHONE=1 compiles it anyway)"
+fi
 compile tests "App and tests, Debug (as CI)" build-for-testing -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO &
 pids+=($!)
 failed=0
@@ -107,16 +133,20 @@ for pid in $pids; do wait $pid || failed=1; done
 
 if [[ ${1:-} == --tests ]]; then
   # The suites declared in the test files this branch changed (against origin/dev, and not yet committed).
-  base=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
   only=(); touched=()
   # scripts/ci/select-tests.py knows which suites a test file holds and their full names: a suite
   # written inside "extension Outer {" is Outer/Suite to xcodebuild, and matches nothing without it.
-  python3 scripts/ci/select-tests.py --suites-of $( { git diff --name-only "$base"; git diff --name-only; } | sort -u | grep -E '^PaneTests/.*\.swift$' || true) | while IFS=$'\t' read -r f suites; do
+  python3 scripts/ci/select-tests.py --suites-of ${(M)changed:#PaneTests/*.swift} | while IFS=$'\t' read -r f suites; do
     for suite in ${=suites}; do only+=("-only-testing:PaneTests/$suite"); done
     touched+=("$f:${(j:|:)${(@)${=suites}:t}}")
   done
+  # Always: the smoke tests and the suites that check the whole app at once ("every primary button
+  # is amber", "the telemetry page lists every value"). A change elsewhere breaks them without
+  # touching their files: on 2026-10-13 two were red on dev all night.
+  always=(${(f)"$(python3 scripts/ci/select-tests.py --always)"})
+  only+=($always)
   if (( ${#only} )); then
-    compile run "Tests of the touched test files (${#only} suites)" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
+    compile run "Tests of the touched test files, the smoke tests and the whole-app suites (${#only})" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
     # A name that matches no test is not an error to xcodebuild, so look: every touched test file
     # has to have had a test of a suite of its own run. Read from the result bundle, not from the
     # log: the test host writes into the same stream and cuts its lines in two.
@@ -143,4 +173,5 @@ print("\n".join(sorted(suites)))' > "$DD/ran.txt"
   fi
 fi
 
+print -r -- "$tree" > "$PASSED"
 print -- "✓ Compiles as it ships and as CI builds it: $((SECONDS - start)) s"
