@@ -96,7 +96,7 @@ async function ensureGroup(appId: string, name: string, internal: boolean) {
   return r.data;
 }
 
-const DESCRIPTION = `Amber Notes is a fast, simple notes app for iPhone and Mac that syncs through the cloud.
+const DESCRIPTION = `Pinto Notes is a fast, simple notes app for iPhone and Mac that syncs through the cloud.
 Notes are markdown underneath: checklists, tables, images and files, sub-notes and folders.
 You can also connect ChatGPT, Claude, Claude Code or Codex so your AI can read and write your notes (only if you choose to).`;
 const WHAT_TO_TEST = `Sign in with Apple, then use it as your notes app for a few days:

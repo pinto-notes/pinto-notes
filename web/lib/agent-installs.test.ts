@@ -21,7 +21,7 @@ describe("installs for AI tools", () => {
 
   it("Incredible, which has no command, gives steps and the address for older versions", () => {
     const x = AGENT_INSTALLS.find((x) => x.tool === "Incredible")!;
-    expect(x.steps?.[0]).toBe("Open Apps and search for Amber Notes.");
+    expect(x.steps?.[0]).toBe("Open Apps and search for notes.");
     expect(x.signIn).toContain(MCP_URL);
   });
 

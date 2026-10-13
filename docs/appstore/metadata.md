@@ -68,8 +68,6 @@ Import from Evernote, Google Keep, or Markdown and text files. On the Mac, impor
 No ads and no tracking. Open source. 2 GB of storage.
 
 Sign in with Apple, Google or email. Connecting ChatGPT or Claude needs your own account with that service.
-
-Pinto Notes was called Amber Notes until October 2026.
 ```
 
 **Keywords** (no spaces after commas):
@@ -200,7 +198,6 @@ The app works the same in every region.
 Not applicable. ChatGPT and Claude are named only to identify the service a user connects.
 
 New in 1.2: new name and icon, writing offline, files in folders with 2 GB of storage, PDF and image viewers, Sign in with Google, connecting an AI by scanning a QR code.
-In Connect an AI, Claude's steps say "Amber Notes" because Claude's directory still lists the old name.
 Encryption: only Apple's (CryptoKit, CommonCrypto, HTTPS). No algorithms of our own.
 ```
 

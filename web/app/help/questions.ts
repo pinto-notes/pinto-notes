@@ -17,7 +17,7 @@ export const FAQ: QA[] = [
     "ChatGPT: in Pinto Notes, open Settings → Connect an AI, pick ChatGPT and follow the steps, on chatgpt.com, which is where OpenAI documents custom apps.",
     `Adding it yourself, or Claude doesn't show the listing? The address is ${MCP_URL}; in Claude, add it as a custom connector. ${OLD_MCP_URL_STAYS}`,
     "When ChatGPT or Claude asks for permission, sign in on the page that opens, then approve on your iPhone or Mac: type the number the page shows and choose Allow. No device nearby? Use your recovery key on that page.",
-    "Claude Code gets a one-line command with a token of its own, and Codex a few lines for its config file. In Incredible, open Apps, search for Amber Notes, choose Connect, then approve it on your iPhone or Mac. On an older version of Incredible, add the address as an MCP server instead. Settings → Connect an AI → Incredible has the steps. Any other app that supports MCP connects with the address and a sign-in too.",
+    "Claude Code gets a one-line command with a token of its own, and Codex a few lines for its config file. In Incredible, open Apps, search for notes, choose Connect, then approve it on your iPhone or Mac. On an older version of Incredible, add the address as an MCP server instead. Settings → Connect an AI → Incredible has the steps. Any other app that supports MCP connects with the address and a sign-in too.",
   ], more: { href: "/blog/connect-chatgpt-to-your-notes", text: "How to connect ChatGPT to your notes" } },
   { id: "ai-tools", q: "Can I use Pinto Notes in Gemini CLI or VS Code?", a: [
     `Yes. One command adds the address ${MCP_URL}, then you sign in to Pinto Notes in your browser the first time. Claude Code also has a plugin, and Codex takes one command too.`,

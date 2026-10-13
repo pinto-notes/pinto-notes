@@ -59,8 +59,6 @@ YOU DECIDE WHO GETS IN
 No ads and no tracking. Open source. 2 GB of storage.
 
 Sign in with Apple, Google or email. Connecting ChatGPT or Claude needs your own account with that service.
-
-Pinto Notes was called Amber Notes until October 2026.
 ```
 
 **Keywords** (no spaces after commas):

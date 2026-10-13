@@ -631,7 +631,7 @@ import Testing
         let server = "https://mcp.ambernotes.app"
         let text = IncredibleConnect.message(server: server)
         #expect(text.hasSuffix("\n\(server)"))
-        #expect(text.contains("search for Pinto Notes") && text.contains("Let's go"), "the built-in app comes first")
+        #expect(text.contains("search for notes") && text.contains("Let's go"), "the built-in app comes first")
         #expect(text.contains("Add another MCP server") && text.contains("Add server"), "older versions add the address")
         #expect(!text.contains("pane_"), "Incredible signs in; it never needs a token")
     }
