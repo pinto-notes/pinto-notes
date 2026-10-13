@@ -280,7 +280,7 @@ enum ConnectAIKind: String, TelemetryWord {
 }
 
 /// How far connecting an AI got.
-enum ConnectStep: String, TelemetryWord {
+enum ConnectFunnelStep: String, TelemetryWord {
     case opened, started, waiting, connected, failed
     /// The sheet closed while it was waiting for the AI.
     case gaveUp = "gave_up"
@@ -326,7 +326,7 @@ enum TelemetryWords {
         add(ErrorDomain.self); add(LibrarySize.self); add(Platform.self); add(DeviceClass.self); add(BuildChannel.self)
         add(Distribution.self)
         add(OnboardingStep.self); add(FunnelAction.self); add(ImportSourceKind.self); add(ImportStep.self); add(CountBucket.self)
-        add(ConnectAIKind.self); add(ConnectStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
+        add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
         return words
     }()
 }
@@ -368,7 +368,7 @@ enum TelemetryEvent: Equatable, Sendable {
     case onboardingStep(OnboardingStep, FunnelAction)
     /// `page` with `.guidePage`, `count` with `.done`, `kind` with `.failed`.
     case importStep(ImportSourceKind, ImportStep, page: Int? = nil, count: CountBucket? = nil, kind: FailureKind? = nil)
-    case connectStep(ConnectAIKind, ConnectStep, kind: FailureKind? = nil)
+    case connectStep(ConnectAIKind, ConnectFunnelStep, kind: FailureKind? = nil)
     /// No method until one is chosen (`.shown`).
     case signInStep(SignInMethod?, SignInStep, kind: SignInFailureKind? = nil)
     case linkDeviceStep(LinkRole, LinkStep, kind: FailureKind? = nil)

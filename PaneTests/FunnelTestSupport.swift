@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 @testable import Pane
 
 /// The funnel steps a piece of code records (Funnel.tap), for the funnel tests:
@@ -13,8 +14,8 @@ final class FunnelSteps: @unchecked Sendable {
     private func add(_ e: TelemetryEvent) { lock.withLock { events.append(e) } }
 
     /// Runs `body` with this collecting every funnel step recorded in its task (and tasks it starts).
-    func watch<T>(_ body: () async throws -> T) async rethrows -> T {
-        try await Funnel.$tap.withValue({ [self] e in add(e) }, operation: body)
+    func watch<T>(isolation: isolated (any Actor)? = #isolation, _ body: () async throws -> T) async rethrows -> T {
+        try await Funnel.$tap.withValue({ [self] e in add(e) }, operation: body, isolation: isolation)
     }
 
     /// The same, for code that doesn't wait.
@@ -25,3 +26,6 @@ final class FunnelSteps: @unchecked Sendable {
     /// How many times this exact step was recorded.
     func count(_ e: TelemetryEvent) -> Int { lock.withLock { events.filter { $0 == e }.count } }
 }
+
+/// The funnel tests, one after another (each suite is an extension of this one).
+@Suite(.serialized) struct FunnelTests {}

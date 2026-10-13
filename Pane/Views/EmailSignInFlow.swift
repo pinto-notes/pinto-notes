@@ -135,6 +135,8 @@ struct EmailSignInFlow: Equatable {
         guard step == .email, emailLooksValid else { return false }
         email = trimmedEmail
         step = .checking
+        // The sign-in funnel: email chosen (the browser ways are said by Backend.reporting).
+        Funnel.record(.signInStep(.email, .methodChosen))
         return true
     }
 
@@ -148,6 +150,7 @@ struct EmailSignInFlow: Equatable {
         case .appleOnly: step = .apple
         case nil: step = .signIn(fallback: true)
         }
+        if showsPassword { Funnel.record(.signInStep(.email, .passwordShown)) }
     }
 
     /// "Use a different email".
@@ -170,6 +173,8 @@ struct EmailSignInFlow: Equatable {
         password = ""
         code = ""
         codeSentAt = sentAt
+        // A code went out with the sign-up; without one, Resend code sends it (Backend says so then).
+        if sentAt != nil { Funnel.record(.signInStep(.email, .codeSent)) }
     }
 
     /// Seconds until Resend code works again; 0 when it does.

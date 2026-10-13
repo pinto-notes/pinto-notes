@@ -322,7 +322,7 @@ struct OnboardingFlow: View {
             #endif
             .autocorrectionDisabled()
             .focused($nameFocused)
-            .onSubmit(next)
+            .onSubmit { next() }
             .padding(.horizontal, 12)
             .frame(minHeight: SignInView.Row.height)
             .background(Color(Palette.field), in: shape)
@@ -630,22 +630,22 @@ struct OnboardingFlow: View {
         VStack(spacing: 6) {
             switch step {
             case .name:
-                primary("Continue", id: "onboarding.continue", action: next)
+                primary("Continue", id: "onboarding.continue", action: { next() })
             case .bring:
                 if broughtCount > 0 {
-                    primary("Continue", id: "onboarding.continue", action: next)
+                    primary("Continue", id: "onboarding.continue", action: { next() })
                 } else {
-                    quiet(Self.skipBring, id: "onboarding.skip", action: next)
+                    quiet(Self.skipBring, id: "onboarding.skip", action: skip)
                 }
             case .connect:
                 if connected {
-                    primary("Continue", id: "onboarding.continue", action: next)
+                    primary("Continue", id: "onboarding.continue", action: { next() })
                 } else {
-                    quiet(Self.skipConnect, id: "onboarding.skip", action: next)
+                    quiet(Self.skipConnect, id: "onboarding.skip", action: skip)
                 }
             case .tryIt:
                 // Nothing to press when it works: the step ends by itself. This is for not now.
-                if !shownArrived { quiet("Skip", id: "onboarding.skip", action: next) }
+                if !shownArrived { quiet("Skip", id: "onboarding.skip", action: skip) }
             }
         }
     }
@@ -671,14 +671,17 @@ struct OnboardingFlow: View {
 
     // MARK: What the buttons do
 
-    private func next() {
+    /// The quiet way past a step: the same as Continue, said apart in the onboarding funnel.
+    private func skip() { next(skipped: true) }
+
+    private func next(skipped: Bool = false) {
         forward = true
         if step == .name {
             nameFocused = false
             let typed = name
             if preview == nil { Task { await profile.setName(typed) } }
         }
-        if !store.advance(connected: connected) { finish(connected) }
+        if !store.advance(connected: connected, skipped: skipped) { finish(connected) }
     }
 
     private func goBack() {
@@ -747,7 +750,7 @@ struct OnboardingFlow: View {
                 if TryIt.lines(of: note.body, since: start.body).contains(where: \.fresh) || round % 3 == 0 {
                     withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { arrived = true }
                     try? await Task.sleep(for: .seconds(Self.workedHold))
-                    if !Task.isCancelled, step == .tryIt { finish(true) }
+                    if !Task.isCancelled, step == .tryIt { next() }
                     return
                 }
             }

@@ -153,6 +153,15 @@ final class NewDeviceSession {
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private var offer: (NewDeviceOffer, expires: Date)?
     @ObservationIgnored private var shown = 0
+    /// The link-device funnel (`link_device_step`, new device): said once per screen, not per retry.
+    @ObservationIgnored private var saidShown = false
+    @ObservationIgnored private var saidFailed = false
+
+    private func failedOnce(_ kind: FailureKind) {
+        guard !saidFailed else { return }
+        saidFailed = true
+        Funnel.record(.linkDeviceStep(.newDevice, .failed, kind: kind))
+    }
 
     init(crypto: AccountCrypto, server: AddDeviceServer?, device: UUID = DeviceIdentity.shared.id ?? UUID(), platform: String = InstallID.platform,
          name: String = AddDeviceNames.thisDevice, poll: Duration = .seconds(2), offers: Int = 6, preview: State? = nil,
@@ -183,6 +192,17 @@ final class NewDeviceSession {
     /// the task is cancelled (the screen went away). The code on screen carries over.
     func run() async {
         guard let server else { return }
+        if !saidShown {
+            saidShown = true
+            Funnel.record(.linkDeviceStep(.newDevice, .shown))
+        }
+        // The screen went away (the task was cancelled) before the key came: given up.
+        var arrived = false
+        // "Show a new code" restarts the run (the view's task follows `round`): that isn't giving up.
+        let started = round
+        defer {
+            if Task.isCancelled, !arrived, round == started { Funnel.record(.linkDeviceStep(.newDevice, .gaveUp)) }
+        }
         while !Task.isCancelled {
             guard let user = crypto.account, crypto.phase == .waiting || crypto.phase == .mismatch else { return }
             if offer == nil || offer!.expires <= .now {
@@ -198,14 +218,17 @@ final class NewDeviceSession {
                     offer = (made, Date.now.addingTimeInterval(Self.life))
                 } catch AddDeviceError.tooMany {
                     state = .failed(AddDeviceError.tooMany.localizedDescription)
+                    failedOnce(.http)
                     return
                 } catch {
                     if Task.isCancelled { return }
                     state = .failed(AddDeviceCopy.offline)
+                    failedOnce(FailureSummary(error).kind)
                     do { try await sleep(.seconds(5)) } catch { return }
                     continue
                 }
                 shown += 1
+                Funnel.record(.linkDeviceStep(.newDevice, .codeShown))
             }
             guard let (current, expires) = offer else { continue }
             state = .showing(qr: current.qrText, code: current.codeText)
@@ -221,10 +244,13 @@ final class NewDeviceSession {
                 do {
                     try crypto.adopt(added: try current.open(answer))
                     AddDeviceMoment.here = .now
+                    arrived = true
+                    Funnel.record(.linkDeviceStep(.newDevice, .done))
                     return
                 } catch {
                     // Not this account's key, or not sealed by someone who read this screen: never used.
                     problem = AddDeviceCopy.notAccountsKey
+                    failedOnce(.crypto)
                 }
             case .expired, .taken, .gone:
                 offer = nil
@@ -390,6 +416,13 @@ struct AddDeviceSheet: View {
     }
 
     var body: some View {
+        sheet
+            // The link-device funnel (`link_device_step`, the device that has the key).
+            .onAppear { Funnel.record(.linkDeviceStep(.existingDevice, .shown)) }
+            .onDisappear { if case .done = phase {} else { Funnel.record(.linkDeviceStep(.existingDevice, .gaveUp)) } }
+    }
+
+    @ViewBuilder private var sheet: some View {
         #if os(iOS)
         ScrollView {
             VStack(spacing: 16) {
