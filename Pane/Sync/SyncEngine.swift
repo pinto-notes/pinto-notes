@@ -1361,9 +1361,14 @@ final class SyncEngine {
             // Typing that isn't in the model yet goes in first, so the note counts as edited
             // here and what arrives can't replace it (the saver would then drop it).
             if !rows.isEmpty { DebouncedSave.flushAll() }
+            // The page's notes that are here already, in one fetch: asked one by one, a first
+            // sync of 20,000 notes made 20,000 fetches on the main thread.
+            let ids = rows.map(\.id)
+            var known: [UUID: Note]? = Dictionary(((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { ids.contains($0.id) }))) ?? []).map { ($0.id, $0) },
+                                   uniquingKeysWith: { first, _ in first })
             for r in rows {
                 if let s = r.server_updated_at, s > newest { newest = s }
-                if merge(r, folders: &byID) { changed = true; pulledNotes.append(r.id) }
+                if merge(r, folders: &byID, known: &known) { changed = true; pulledNotes.append(r.id) }
             }
             if rows.count < 500 { break }
             offset += 500
@@ -1399,10 +1404,17 @@ final class SyncEngine {
     /// push coming back, and touching the note would only churn the editor and the list.
     @discardableResult
     private func merge(_ r: NoteDTO, folders byID: inout [UUID: Folder]) -> Bool {
+        var known: [UUID: Note]?
+        return merge(r, folders: &byID, known: &known)
+    }
+
+    /// `known`: the notes of this page that are here already (fetched together); nil to ask the store.
+    private func merge(_ r: NoteDTO, folders byID: inout [UUID: Folder], known: inout [UUID: Note]?) -> Bool {
         if r.unreadable { _ = skipUnreadable(r.id, "A note"); return false }
-        let local = context.note(r.id)
+        let local = known.map { $0[r.id] } ?? context.note(r.id)
         if let local, !Self.takes(r, over: local) { return false }
         let n = local ?? { let n = Note(body: r.body); n.id = r.id; context.insert(n); return n }()
+        if local == nil { known?[r.id] = n }
         if n.body != r.body { remoteChangeTick += 1 }
         let before = (body: local?.body, version: local.map(\.serverVersion), aiAt: local?.aiEditedAt)
         apply(r, to: n)

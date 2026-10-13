@@ -81,3 +81,22 @@ import Testing
     }
     #endif
 }
+
+extension RecentlyDeletedTests {
+    /// After 30 days in Recently Deleted a note goes for good, at launch; the store picks them.
+    @Test func notesPastThirtyDaysGoForGood() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let day: TimeInterval = 24 * 3600
+        let old = ctx.createNote(in: .all, body: "Old")
+        old.trashedAt = .now.addingTimeInterval(-31 * day)
+        let recent = ctx.createNote(in: .all, body: "Recent")
+        recent.trashedAt = .now.addingTimeInterval(-29 * day)
+        let live = ctx.createNote(in: .all, body: "Live")
+        try ctx.save()
+        ctx.purgeExpiredTrash()
+        #expect(old.deletedAt != nil, "past 30 days")
+        #expect(recent.deletedAt == nil && recent.trashedAt != nil, "still in Recently Deleted")
+        #expect(live.deletedAt == nil && live.trashedAt == nil)
+    }
+}

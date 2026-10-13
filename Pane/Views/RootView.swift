@@ -16,6 +16,8 @@ struct RootView: View {
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
     @State private var editor = EditorController()
+    /// The library's notes as the list keeps them, for the list and the sidebar's folder counts.
+    @State private var library = LibraryNotes()
     @State private var justCreated: UUID?
     #if os(iOS)
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -99,6 +101,7 @@ struct RootView: View {
                 #if os(macOS)
                 .equatable()
                 #endif
+                .environment(library)
                 #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
                 #else
@@ -110,6 +113,7 @@ struct RootView: View {
                 #if os(macOS)
                 .equatable()
                 #endif
+                .environment(library)
                 #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 310, max: 420)
                 #else

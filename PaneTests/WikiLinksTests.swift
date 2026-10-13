@@ -146,6 +146,38 @@ import Testing
         #expect(context.backlinks(to: recipes).map(\.id) == [unsaved.id, byLink.id, byWiki.id], "a note not saved yet counts too")
     }
 
+    /// A library larger than `WikiDirectory.readHere` has its titles and links read off the main
+    /// thread: opening a note doesn't wait for them, and its links and "Linked from" follow when
+    /// they're in. A save while they're being read is taken in once they are.
+    @Test(.timeLimit(.minutes(3))) func aLargeLibrarysLinksAreReadOffTheMainThread() async throws {
+        let c = try Self.container()
+        let context = c.mainContext
+        for i in 0..<(WikiDirectory.readHere + 50) { context.insert(Note(body: "Note \(i)\n\ntext")) }
+        let budget = context.createNote(in: .all, body: "Budget\nnumbers")
+        let plan = context.createNote(in: .all, body: "Plan\nSee [[Budget]].")
+        let trip = context.createNote(in: .all, body: "Trip\nnothing yet")
+        try context.save()
+        WikiDirectory.invalidate()
+        let read = Flag()
+        let observer = NotificationCenter.default.addObserver(forName: WikiDirectory.didRead, object: context, queue: nil) { _ in read.on = true }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        #expect(context.backlinks(to: budget).isEmpty, "not read yet: nothing waits for it")
+        #expect(WikiDirectory.scope(for: plan, in: context).generation == -1)
+        // Saved while it's read.
+        trip.body = "Trip\nbook [[Budget]] first"
+        try context.save()
+        for _ in 0..<300 where !read.on { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(read.on, "the library was read")
+        #expect(Set(context.backlinks(to: budget).map(\.id)) == [plan.id, trip.id], "both links, the one saved while it was read too")
+        #expect(WikiDirectory.scope(for: plan, in: context).resolves("Budget"))
+        // From here saves are taken in note by note.
+        plan.body = "Plan\nno link"
+        try context.save()
+        #expect(context.backlinks(to: budget).map(\.id) == [trip.id])
+    }
+
+    final class Flag: @unchecked Sendable { var on = false }
+
     @Test func linkPolicyCarriesTheTarget() {
         let url = LinkPolicy.wikiURL("Projects/Kitchen remodel & co")!
         #expect(LinkPolicy.action(for: url) == .wiki("Projects/Kitchen remodel & co"))
