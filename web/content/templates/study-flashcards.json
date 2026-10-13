@@ -6,9 +6,9 @@
     "Students"
   ],
   "audience": "For students who want an AI study partner that remembers what they keep getting wrong.",
-  "description": "A flashcards app: study what's due a card at a time, in five boxes. Add and edit cards yourself, or paste your notes and your AI makes the cards.",
+  "description": "A free flashcard maker and study app in a note: paste your notes and your AI makes the cards, then study what's due, a card at a time, in five boxes.",
   "tagline": "Flashcards that come back when you need them.",
-  "seoTitle": "Study notes and flashcards template for AI",
+  "seoTitle": "Flashcard maker and study app for ChatGPT and Claude",
   "folder": "Study",
   "note": "Study notes and flashcards\n\nNotes for each topic, and flashcards your AI quizzes you on. Cards you miss go back to box 1; cards you know move up to box 5.\n\n## Notes\n\n## Flashcards\n<!-- pane-table: Question=text; Answer=text; Topic=text; Box=scale 1-5 -->\n| Question | Answer | Topic | Box |\n| --- | --- | --- | --- |\n",
   "prompt": {
