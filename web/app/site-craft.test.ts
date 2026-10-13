@@ -28,8 +28,12 @@ describe("the site's controls", () => {
 
   it("keeps the header in view and frosts it once the page scrolls", () => {
     const site = css("site.css");
-    expect(rule(site, ".site-header")).toMatch(/position: sticky; top: 0/);
-    expect(site).toContain(".site-header[data-scrolled]::before { opacity: 1; }");
+    const header = rule(site, ".site-header");
+    expect(header).toMatch(/position: sticky; top: 0/);
+    expect(rule(site, ".site-header[data-scrolled]")).toMatch(/backdrop-filter: saturate\(180%\) blur\(2[4-9]px|30px/);
+    // The frost is the header's own: an isolated header, or the blur on a layer inside it, blurs nothing.
+    expect(header).not.toMatch(/isolation|filter|opacity/);
+    expect(site).not.toMatch(/\.site-header::before/);
     expect(css("SiteChrome.tsx")).toContain('toggleAttribute("data-scrolled"');
   });
 

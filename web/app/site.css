@@ -58,21 +58,24 @@ html[data-theme] { scroll-padding-top: 100px; }
 .site-main { flex: 1; width: 100%; overflow-x: clip; } /* the full-width ending band is 100vw; never a sideways scroll */
 
 /* Header: identical on every page. Only its colours follow the theme. It stays at the top; at the
-   top of the page it's the page itself, and once the page scrolls under it a frosted band of the
-   page's colour fades in behind it, full width, with a hairline under it (SiteChrome sets data-scrolled). */
+   top of the page it's the page itself, and once the page scrolls under it (SiteChrome sets
+   data-scrolled) it turns to frosted glass of the page's colour, full width, with a hairline under it.
+   The frost is the header's own background, not a layer inside it: a backdrop-filter on a child of an
+   isolated header only sees the header (Chrome), so it blurred nothing. The header spans the window
+   and pads its contents into the 1240 px column. */
 .site-header {
   view-transition-name: site-header;
-  position: sticky; top: 0; z-index: 40; isolation: isolate;
+  position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; max-width: 1240px; height: 84px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box;
+  width: 100%; height: 84px; margin: 0; box-sizing: border-box;
+  padding: 0 max(var(--gutter), calc((100% - 1240px) / 2 + var(--gutter)));
+  background-color: color-mix(in srgb, var(--bg) 0%, transparent); box-shadow: 0 1px 0 transparent;
 }
-.site-header::before {
-  content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
-  background: color-mix(in srgb, var(--bg) 92%, transparent); box-shadow: 0 1px 0 var(--line);
-  -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); opacity: 0;
+.site-header[data-scrolled] {
+  background-color: color-mix(in srgb, var(--bg) 76%, transparent); box-shadow: 0 1px 0 var(--line);
+  -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px);
 }
-.site-header[data-scrolled]::before { opacity: 1; }
-@media (prefers-reduced-motion: no-preference) { .site-header::before { transition: opacity 0.2s ease-out; } }
+@media (prefers-reduced-motion: no-preference) { .site-header { transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out; } }
 .site-brand { display: inline-flex; align-items: center; gap: 11px; min-height: 44px; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 19px; letter-spacing: -0.01em; white-space: nowrap; }
 .site-brand img { border-radius: 8px; box-shadow: 0 0 0 0.5px var(--line); }
 /* The logo is the way home: it lifts on hover, dims its name, and presses in. */
