@@ -11,12 +11,12 @@ import UIKit
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 /// -only-testing:PaneTests/AmberButtonDynamicTypeSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct AmberButtonDynamicTypeSnapshots {
-    static let row: CGFloat = 48
+    static let row = ButtonSize.big.height
 
     static func buttons(_ size: DynamicTypeSize) -> some View {
         VStack(spacing: 14) {
-            Button("Continue") {}.buttonStyle(.amberProminent(height: row, cornerRadius: 14))
-            Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(height: row, cornerRadius: 14))
+            Button("Continue") {}.buttonStyle(.amberProminent(.big, wide: true))
+            Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(.big, wide: true))
             Button("Add to my notes") {}.buttonStyle(.amberProminent)
         }
         .padding(20)
@@ -32,7 +32,7 @@ import UIKit
 
     @Test func theButtonGrowsWithTheTextSize() {
         let row = { (size: DynamicTypeSize) in
-            Self.height(Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(height: Self.row, cornerRadius: 14)).frame(width: 362).dynamicTypeSize(size))
+            Self.height(Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(.big, wide: true)).frame(width: 362).dynamicTypeSize(size))
         }
         // The default size keeps the row's own height.
         #expect(abs(row(.large) - Self.row) < 0.5)
@@ -85,7 +85,7 @@ import Testing
     }
 
     @Test func theMacButtonKeepsItsSize() {
-        let row = Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(height: 36, cornerRadius: 8)).frame(width: 300)
+        let row = Button("Make it with ChatGPT") {}.buttonStyle(.amberProminent(.form, wide: true)).frame(width: 300)
         #expect(Self.size(row, .accessibility5) == Self.size(row, .large))
         let capsule = Button("Add to my notes") {}.buttonStyle(.amberProminent)
         #expect(Self.size(capsule, .accessibility5) == Self.size(capsule, .large))

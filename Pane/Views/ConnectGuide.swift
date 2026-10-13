@@ -379,8 +379,7 @@ struct IncredibleGuide: View {
                 Label("Send Steps to Yourself", systemImage: "paperplane")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.amberProminent)
-            .controlSize(.large)
+            .buttonStyle(.amberProminent(.regular, wide: true))
             .simultaneousGesture(TapGesture().onEnded { ConnectFunnel.started(.incredible) })
             .accessibilityIdentifier("connect.sendSteps")
         }
@@ -400,16 +399,14 @@ struct IncredibleGuide: View {
                     Label(started ? "Open Incredible Again" : "Open Incredible", systemImage: "arrow.up.forward.app")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .accessibilityIdentifier("connect.open")
             } else {
                 Link(destination: IncredibleConnect.site) {
                     Label("Get Incredible", systemImage: "arrow.up.forward.app")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .accessibilityIdentifier("connect.get")
             }
             if started {

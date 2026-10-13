@@ -59,12 +59,9 @@ struct BigChoices: View {
             .padding(.horizontal, Metrics.padding)
             .padding(.vertical, Metrics.rowPadding)
             .frame(maxWidth: .infinity, minHeight: Metrics.rowHeight, alignment: .leading)
-            .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
-            .hoverOverlay(shape, Color.primary.opacity(0.05))
-            .contentShape(shape)
+            .choiceCard(shape)
         }
-        .buttonStyle(BigChoicePress())
+        .buttonStyle(CardPress())
         .modifier(Said(choice: choice))
     }
 
@@ -119,7 +116,7 @@ struct BigChoices: View {
         static let title = Font.system(size: 14, weight: .semibold)
         static let detail = Font.system(size: 12)
         static let gap: CGFloat = 8
-        static let radius: CGFloat = 10
+        static let radius = Radius.md
         static let padding: CGFloat = 12
         static let rowPadding: CGFloat = 8
         static let rowHeight: CGFloat = 52
@@ -129,23 +126,13 @@ struct BigChoices: View {
         static let title = Font.body.weight(.semibold)
         static let detail = Font.subheadline
         static let gap: CGFloat = 10
-        static let radius: CGFloat = 14
+        static let radius = Radius.md
         static let padding: CGFloat = 16
         static let rowPadding: CGFloat = 10
         static let rowHeight: CGFloat = 64
         static let rowMark: CGFloat = 40
         static let check: CGFloat = 20
         #endif
-    }
-}
-
-/// A big choice dips a little when pressed (the app's `PressScale` is sized for small buttons).
-private struct BigChoicePress: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -960,7 +947,7 @@ struct ConnectChoices: View {
                     .accessibilityIdentifier("connect.fix")
             } else {
                 Button(fix) { run.fix(client: client) { openURL($0) } }
-                    .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+                    .buttonStyle(.amberProminent(.form, wide: true))
                     .accessibilityIdentifier("connect.fix")
             }
         }
@@ -1055,13 +1042,13 @@ struct ConnectChoices: View {
         if g != .other, g != .incredible, state(g) != .connected {
             ShareLink(item: ConnectCopy.message(g, server: run.server), subject: Text("Connect \(g.title) to Pinto Notes"),
                       preview: SharePreview("Connect \(g.title) to Pinto Notes", icon: Image("Mark"))) { label() }
-                .buttonStyle(BigChoicePress())
+                .buttonStyle(CardPress())
                 .simultaneousGesture(TapGesture().onEnded { press(g) })
         } else {
-            Button { press(g) } label: { label() }.buttonStyle(BigChoicePress())
+            Button { press(g) } label: { label() }.buttonStyle(CardPress())
         }
         #else
-        Button { press(g) } label: { label() }.buttonStyle(BigChoicePress())
+        Button { press(g) } label: { label() }.buttonStyle(CardPress())
         #endif
     }
 
@@ -1092,10 +1079,7 @@ struct ConnectChoices: View {
             .padding(.horizontal, BigChoices.Metrics.padding)
             .padding(.vertical, BigChoices.Metrics.rowPadding)
             .frame(maxWidth: .infinity, minHeight: BigChoices.Metrics.rowHeight, alignment: .leading)
-            .background(lit(g) ? Color.amberSoft : Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(lit(g) ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: lit(g) ? 1.5 : 1))
-            .hoverOverlay(shape, Color.primary.opacity(0.05))
-            .contentShape(shape)
+            .choiceCard(shape, lit: lit(g))
         }
         .modifier(Said(id: "connect.guide.\(g.rawValue)", label: "\(g.title). \(detail(g))"))
     }
@@ -1108,9 +1092,8 @@ struct ConnectChoices: View {
                 small(g)
             }
         }
-        .background(Color(Palette.field))
         .clipShape(shape)
-        .overlay(shape.strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
+        .choiceCard(shape)
     }
 
     private func small(_ g: Guide) -> some View {
@@ -1186,9 +1169,7 @@ struct ConnectChoices: View {
             .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
             Button("Disconnect…") { removing = c }
-                .buttonStyle(.hoverText)
-                .font(Metrics.rowTitle)
-                .foregroundStyle(.tint)
+                .buttonStyle(.quiet)
                 .accessibilityLabel("Disconnect \(c.title)")
                 .accessibilityIdentifier("connect.disconnect")
         }
@@ -1402,7 +1383,7 @@ struct ConnectAISheet: View {
 
     private var done: some View {
         Button("Done") { dismiss() }
-            .buttonStyle(.amberProminent(height: SignInView.Row.height, cornerRadius: SignInView.Row.radius))
+            .buttonStyle(.amberProminent(.form, wide: true))
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("connect.done")
     }
@@ -1419,9 +1400,7 @@ struct ConnectAISheet: View {
                 Spacer()
                 if !anyConnected {
                     Button("Close") { dismiss() }
-                        .buttonStyle(.hoverText)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.muted)
+                        .buttonStyle(.quiet)
                         .keyboardShortcut(.cancelAction)
                         .accessibilityIdentifier("connect.close")
                 }

@@ -204,14 +204,19 @@ import Testing
         #expect(!KeyGateView.sameAccount(before: a, after: nil))
     }
 
-    /// developers.google.com/identity/branding-guidelines: the light and dark buttons' colours.
-    @Test func theButtonUsesGooglesColours() {
-        #expect(GoogleAuthButton.colors(.light) == .init(fill: 0xFFFFFF, stroke: 0x747775, label: 0x1F1F1F))
-        #expect(GoogleAuthButton.colors(.dark) == .init(fill: 0x131314, stroke: 0x8E918F, label: 0xE3E3E3))
+    /// DESIGN.md: no borders on buttons. Sign in with Google is a secondary button (the soft fill
+    /// and the G), at the form's size, like Sign in with Apple beside it.
+    @Test func theButtonIsASecondaryFillWithoutAStroke() throws {
+        let src = try String(contentsOf: TestFiles.url("Sync").appendingPathComponent("GoogleSignIn.swift"), encoding: .utf8)
+        #expect(src.contains(".buttonStyle(.secondary(size, wide: true))"))
+        #expect(!src.contains("strokeBorder"))
+        #expect(!src.contains(".stroke("))
+        #expect(GoogleAuthButton(action: {}).size == .form)
     }
 
     @Test func theLogoKeepsGooglesProportionAtTheFormsRowHeights() {
-        // Google's 18 pt logo on its 40 pt button; the iPhone row is 48, the Mac row 36.
+        // Google's 18 pt logo on its 40 pt button; the iPhone row is 50, the Mac row 40.
+        #expect(GoogleAuthButton.logoSize(height: 50) == 21)
         #expect(GoogleAuthButton.logoSize(height: 48) == 20)
         #expect(GoogleAuthButton.logoSize(height: 40) == 17)
         #expect(GoogleAuthButton.logoSize(height: 36) == 16)

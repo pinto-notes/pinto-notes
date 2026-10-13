@@ -1340,7 +1340,7 @@ struct ConsentSheet: View {
             Button { Task { await decide(r, allow: true) } } label: {
                 Text("Allow").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.amberProminent(height: Self.compact ? 50 : 40, cornerRadius: Self.compact ? 14 : 10))
+            .buttonStyle(.amberProminent(Self.compact ? .big : .regular, wide: true))
             .keyboardShortcut(.defaultAction)
             .frame(maxWidth: Self.compact ? .infinity : 320)
             .disabled(!armed || (byNumber(r) && match == nil))

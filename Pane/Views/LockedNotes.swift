@@ -68,13 +68,13 @@ struct LockedNoteView: View {
             Button(action: submit) {
                 if working { ProgressView().controlSize(.small) } else { Text("View Note") }
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.amberProminent(.regular))
+            .amberBusy(working)
             .disabled(password.isEmpty || working)
             .accessibilityIdentifier("lock.view")
             if !earlier, let name = vault.biometryName {
                 Button("Use \(name)") { Task { await biometrics() } }
-                    .buttonStyle(.hoverText)
-                    .foregroundStyle(.tint)
+                    .buttonStyle(.quiet)
                     .accessibilityIdentifier("lock.biometrics")
             }
         }

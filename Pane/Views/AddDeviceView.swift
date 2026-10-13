@@ -558,8 +558,7 @@ struct AddDeviceSheet: View {
                 .onSubmit { if canSubmit { find(.typed(code)) } }
                 .accessibilityIdentifier("addDevice.codeField")
             Button { find(.typed(code)) } label: { Text("Continue").frame(maxWidth: .infinity) }
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .amberBusy(phase == .finding)
                 .disabled(!canSubmit)
                 .keyboardShortcut(.defaultAction)
@@ -706,8 +705,7 @@ struct AddDeviceSheet: View {
             VStack(spacing: 4) {
                 Button { add(c) } label: { Text(AddDeviceCopy.add).frame(maxWidth: .infinity) }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.amberProminent)
-                    .controlSize(.large)
+                    .buttonStyle(.amberProminent(.regular, wide: true))
                     .amberBusy(phase == .adding(c))
                     .disabled(!armed || phase != .confirm(c))
                     .accessibilityIdentifier("addDevice.add")
@@ -764,8 +762,7 @@ struct AddDeviceSheet: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button { dismiss() } label: { Text("Done").frame(maxWidth: .infinity) }
-                .buttonStyle(.amberProminent)
-                .controlSize(.large)
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .keyboardShortcut(.defaultAction)
                 .padding(.top, 14)
                 .accessibilityIdentifier("addDevice.close")

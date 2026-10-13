@@ -300,7 +300,7 @@ struct PDFReader: View {
             findField
         }
         .labelStyle(.iconOnly)
-        .buttonStyle(.hoverIcon(padding: 4))
+        .buttonStyle(.quietIcon(padding: 4))
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(.bar)

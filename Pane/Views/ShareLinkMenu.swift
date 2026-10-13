@@ -804,30 +804,14 @@ private struct ShareLinkChrome: ViewModifier {
         return store.confirming == .includeSubNotes ? "Make sub-notes public too?" : "Share \(title) publicly?"
     }
 
-    @ViewBuilder
     private func toast(_ f: ShareLinkState.Feedback) -> some View {
-        HStack(spacing: 8) {
+        Group {
             switch f {
-            case .working(let text):
-                ProgressView().controlSize(.small)
-                Text(text)
-            case .done(let text):
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
-                Text(text)
-            case .failed(let text):
-                Image(systemName: "exclamationmark.triangle.fill").symbolRenderingMode(.multicolor)
-                Text(text)
+            case .working(let text): Toast(text: text, kind: .working)
+            case .done(let text): Toast(text: text)
+            case .failed(let text): Toast(text: text, kind: .failed)
             }
         }
-        .font(.callout.weight(.medium))
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(.bar, in: .capsule)
-        .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.updatesFrequently)
         .accessibilityIdentifier("share.feedback")
     }
 }
