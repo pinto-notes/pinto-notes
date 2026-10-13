@@ -180,7 +180,7 @@ enum ConnectFinder {
         places().contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(name)") }
     }
 
-    static func found() -> [Guide] {
+    private static func look() -> [Guide] {
         var out: Set<Guide> = []
         for (g, id) in apps where hasApp(id) { out.insert(g) }
         for (g, name) in commands where hasCommand(name) { out.insert(g) }
@@ -196,12 +196,27 @@ enum ConnectFinder {
     #else
     static let schemes: [(Guide, String)] = [(.chatgpt, "chatgpt://"), (.claude, "claude://")]
 
-    static func found() -> [Guide] {
+    private static func look() -> [Guide] {
         schemes.filter { UIApplication.shared.canOpenURL(URL(string: $0.1)!) }.map(\.0)
     }
 
     static func claudeCodeOnly() -> Bool { false }
     #endif
+
+    /// Tests: what counts as found, in place of looking.
+    static var fixed: [Guide]?
+    private static var last: [Guide]?
+
+    /// Looks again (on each appearance), and remembers it for `known`.
+    static func found() -> [Guide] {
+        let now = fixed ?? look()
+        last = now
+        return now
+    }
+
+    /// What the last look found (looking now if there was none), for a list's first frame: rows
+    /// that change after it appears move in the middle of the step's transition.
+    static var known: [Guide] { last ?? found() }
 }
 
 // MARK: Connecting one
@@ -792,7 +807,7 @@ struct ConnectChoices: View {
     @State private var error: String?
     @State private var center = ConnectCenter.shared
     @State private var run = ConnectRun()
-    @State private var found: [Guide] = []
+    @State private var found = ConnectFinder.known
     @State private var showsDetails = false
     @State private var copied = false
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
