@@ -571,6 +571,16 @@ export const published = () => posts.filter((p) => !p.draft);
 export const categories = (): Category[] =>
   (["Guides", "Apple Notes", "Comparisons", "Building Pinto Notes"] as Category[]).filter((c) => published().some((p) => p.category === c));
 
+/// Each category's paper-craft cover (public/art, 1672 x 941): the top of every post in it that has no
+/// banner of its own, and its cards and chip on the blog's lists, until posts get covers of their own.
+export type Cover = { src: string; alt: string; width: number; height: number };
+export const CATEGORY_COVERS: Record<Category, Cover> = {
+  "Guides": { src: "/art/blog-guides.webp", alt: "A paper-cut chat bubble passing a folded note into an open notebook on a blue desk.", width: 1672, height: 941 },
+  "Comparisons": { src: "/art/blog-comparisons.webp", alt: "Two paper notebooks, one green and one brown, weighed on a paper balance scale in green hills.", width: 1672, height: 941 },
+  "Apple Notes": { src: "/art/blog-applenotes.webp", alt: "A yellow paper notepad with a leaf bookmark beside a cup of tea.", width: 1672, height: 941 },
+  "Building Pinto Notes": { src: "/art/blog-building.webp", alt: "A paper-cut workbench with scissors, glue and a paper leaf being put together.", width: 1672, height: 941 },
+};
+
 export const categoryAnchor = (c: Category) => c.toLowerCase().replace(/\s+/g, "-");
 
 /// The category's own page, which lists its posts (paged like the index).

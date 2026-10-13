@@ -1,7 +1,7 @@
 /* The shared ending (lib/ClosingBand.tsx): full width in the leaf's dark brown on every theme, so it
    is the one dark moment on a cream page. The footer then sits 64 px below it. */
 .band {
-  width: 100vw; margin: 0 0 -56px calc(50% - 50vw); padding: 104px var(--gutter) 112px; box-sizing: border-box;
+  width: 100vw; margin: 0 0 -56px calc(50% - 50vw); justify-self: start; /* in a centring grid too */ padding: 104px var(--gutter) 112px; box-sizing: border-box;
   background: #2e180a; color: #fbeedd;
 }
 @media (max-width: 600px) { .band { padding: 72px var(--gutter) 80px; } }
