@@ -109,3 +109,21 @@ import ZIPFoundation
 }
 
 private final class KeepFixtureToken {}
+
+extension KeepImportTests {
+    /// A folder with no Keep notes is shown by its own name, with what to choose instead
+    /// (newcomer audit #20: a folder called "Bear export" showed as "Google Keep").
+    @Test func aFolderWithoutKeepNotesIsNamedAsItIs() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "Bear export \(UUID().uuidString.prefix(6))", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data("# A Bear note".utf8).write(to: dir.appending(path: "Note.md"))
+        let source = KeepImporter.inspect(dir)
+        #expect(source.name == dir.lastPathComponent)
+        #expect(source.notes == 0)
+        #expect(source.problem == KeepImporter.notInHere)
+        #expect(KeepImporter.notInHere.contains("Takeout"))
+        // A real Takeout keeps its Keep name (it names the folder the notes go in).
+        #expect(KeepImporter.inspect(try Self.takeout()).name == "Google Keep")
+    }
+}

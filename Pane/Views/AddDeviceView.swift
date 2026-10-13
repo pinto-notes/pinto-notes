@@ -16,14 +16,17 @@ enum AddDeviceCopy {
     static let gateWhy = "You already have notes in this account. They are encrypted, and only your own devices can open them."
     /// What to do, on the device that already opens the notes: named, so it's clear which one.
     static func gateSteps(_ kind: String = InstallID.kind) -> [String] {
-        ["On your \(otherDevices(kind)), open Pinto Notes \u{203A} Settings \u{203A} Security \u{203A} Add a device.", "Scan this code with it. You only do this once."]
+        ["On your \(otherDevices(kind)), open Pinto Notes \u{203A} Settings \u{203A} Security \u{203A} Add a device.", scanOrType]
     }
+    /// A Mac has no camera to scan with: an iPhone or iPad scans the code, a Mac types it
+    /// (newcomer audit #21). You only do it once.
+    static let scanOrType = "On an iPhone or iPad, scan this code. On a Mac, type the code under it. You only do this once."
     /// The devices that could hold the notes already, this kind last: "iPhone, iPad or other Mac".
     static func otherDevices(_ kind: String) -> String {
         let others = ["iPhone", "iPad", "Mac"].filter { $0 != kind }
         return "\(others.joined(separator: ", ")) or other \(kind)"
     }
-    static let codeLead = "Can\u{2019}t scan? Type this code there:"
+    static let codeLead = "On a Mac, or if you can\u{2019}t scan, type this code:"
     static let copyCode = "Copy code"
     static let copiedCode = "Copied"
     static let useRecovery = "Use a recovery key instead"

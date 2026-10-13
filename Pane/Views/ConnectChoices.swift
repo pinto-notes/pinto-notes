@@ -156,7 +156,7 @@ private struct BigChoicePress: ButtonStyle {
 struct ConnectChoices: View {
     let client: SupabaseClient
     /// The ways offered, in order.
-    var guides: [ConnectAISection.Guide] = ConnectAISection.Guide.allCases
+    var guides: [ConnectAISection.Guide] = ConnectAISection.Guide.offered
     /// The first-run flow marks a connected AI on its choice and leaves the list out.
     var listsConnected = true
     /// Captures: shows these instead of asking the server.
