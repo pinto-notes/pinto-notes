@@ -60,6 +60,27 @@ extension ModelContext {
         try? fetch(FetchDescriptor<Folder>(predicate: #Predicate { $0.id == id })).first
     }
 
+    /// Where an import's notes are: the top folder above the note (Google Keep, not its label's
+    /// folder inside it), or All Notes when it has none.
+    func importScope(of noteID: UUID) -> Scope {
+        guard var folder = note(noteID)?.folder else { return .all }
+        while let parent = folder.parent { folder = parent }
+        return .folder(folder.id)
+    }
+
+    /// What Show My Notes opens after an import: its top folder, on the newest note that folder's
+    /// list shows (notes in folders inside it aren't in that list). When every note went into an
+    /// inner folder, the first note's own folder.
+    func importLanding(of ids: [UUID]) -> (scope: Scope, note: UUID?) {
+        guard let first = ids.first else { return (.all, nil) }
+        let scope = importScope(of: first)
+        guard case .folder(let top) = scope else { return (scope, first) }
+        let notes = ids.compactMap(note)
+        if let shown = notes.filter({ $0.folder?.id == top }).max(by: { $0.updatedAt < $1.updatedAt }) { return (scope, shown.id) }
+        guard let newest = notes.max(by: { $0.updatedAt < $1.updatedAt }), let folder = newest.folder else { return (scope, nil) }
+        return (.folder(folder.id), newest.id)
+    }
+
     func note(_ id: UUID) -> Note? {
         try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first
     }

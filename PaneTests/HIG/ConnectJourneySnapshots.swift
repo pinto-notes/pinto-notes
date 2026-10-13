@@ -53,9 +53,10 @@ import UIKit
 
     static func guide(connected: Bool = false) -> some View {
         NavigationStack {
-            Form { WebConnectGuide(plan: .claude, client: client, connected: connected) }
+            Form { ConnectChoices(client: client, listsConnected: false, preview: connected ? [Connection(id: UUID(), name: "Claude", kind: "oauth",
+                       can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")] : [], previewFound: []) }
                 .formStyle(.grouped)
-                .navigationTitle("Connect Claude")
+                .navigationTitle("Connect an AI")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -100,7 +101,7 @@ import UIKit
         let tall = CGSize(width: 375, height: type == .large ? 812 : 2000)
         let phone = CGSize(width: 375, height: 812)
         try await Self.shoot(Self.settings(), "iphone-1-settings-\(t)", size: phone, type: type, dark: dark, scene: scene, dir: dir)
-        try await Self.shoot(NavigationStack { GuideSheet(guide: .claude, client: Self.client) }, "iphone-2a-guide-\(t)", size: phone, type: type, dark: dark, scene: scene, dir: dir)
+        try await Self.shoot(ConnectAISheet(client: Self.client, preview: [], previewFound: [.claude]), "iphone-2a-guide-\(t)", size: phone, type: type, dark: dark, scene: scene, dir: dir)
         // The request arrived: step 2 is the one at hand.
         ConnectCenter.shared.pending = UUID()
         try await Self.shoot(Self.guide(), "iphone-2b-guide-waiting-\(t)", size: phone, type: type, dark: dark, scene: scene, dir: dir)

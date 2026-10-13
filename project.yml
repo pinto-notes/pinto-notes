@@ -99,6 +99,8 @@ targets:
             CFBundleURLSchemes: [$(PANE_URL_SCHEME)]
         # Handoff: Connect ChatGPT or Claude, started on iPhone, continues on the Mac.
         NSUserActivityTypes: [dev.emilwagman.pane.connect]
+        # Connect an AI: whether the ChatGPT and Claude apps are on this iPhone (canOpenURL; no dialog).
+        LSApplicationQueriesSchemes: [chatgpt, claude]
         PaneSupabaseURL: $(PANE_SUPABASE_URL)
         PaneSupabaseKey: $(PANE_SUPABASE_KEY)
         PaneShareURL: $(PANE_SHARE_URL)
@@ -176,8 +178,13 @@ targets:
         <<: *appInfo
         SUFeedURL: $(PANE_UPDATE_FEED)
         SUPublicEDKey: $(SPARKLE_PUBLIC_KEY)
+        # Updates come on their own: a check every hour (Sparkle's shortest), downloaded quietly and
+        # installed when the app quits. Setting SUEnableAutomaticChecks here also skips Sparkle's
+        # "check automatically?" question. Updater.swift has the rest.
         SUEnableAutomaticChecks: true
-        SUScheduledCheckInterval: 86400
+        SUAllowsAutomaticUpdates: true
+        SUAutomaticallyUpdate: true
+        SUScheduledCheckInterval: 3600
     settings:
       base:
         <<: *appSettings
@@ -271,6 +278,9 @@ targets:
       - path: supabase/functions/mcp/amber-base.ts
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
+        buildPhase: resources
+      # The Mac download's Info.plist, for its update settings (UpdaterTests).
+      - path: Pane/Resources/Info-Direct.plist
         buildPhase: resources
       - path: Pane/Views
         type: folder

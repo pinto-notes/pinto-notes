@@ -7,8 +7,13 @@ import SwiftUI
 enum AppleNotesBridge {
     enum Failure: LocalizedError {
         case script(String)
+        /// Don't Allow was chosen when macOS asked.
+        case denied
         var errorDescription: String? {
-            switch self { case .script(let m): m }
+            switch self {
+            case .script(let m): m
+            case .denied: "Pinto Notes isn't allowed to read Apple Notes. Turn it on in System Settings → Privacy & Security → Automation."
+            }
         }
     }
 
@@ -26,9 +31,7 @@ enum AppleNotesBridge {
         let result = script.executeAndReturnError(&error)
         if let error {
             let code = error[NSAppleScript.errorNumber] as? Int
-            if code == -1743 {
-                throw Failure.script("Pinto Notes isn't allowed to read Apple Notes. Turn it on in System Settings → Privacy & Security → Automation.")
-            }
+            if code == -1743 { throw Failure.denied }
             throw Failure.script(error[NSAppleScript.errorMessage] as? String ?? "Apple Notes didn't answer.")
         }
         return result
@@ -157,6 +160,40 @@ enum AppleNotesBridge {
 }
 
 /// Pick Apple Notes to copy in. Nothing in Apple Notes is changed.
+/// The Apple Notes import's steps in the import funnel (`import_step`, docs/Technical/app-telemetry.md),
+/// kept apart from the sheet so tests can drive them.
+enum AppleNotesFunnel {
+    static func opened() { Funnel.record(.importStep(.appleNotes, .opened)) }
+
+    /// Apple Notes was read, or wasn't: no permission, nothing in it, more than one account in it,
+    /// or another failure.
+    static func read(_ result: Result<AppleNotesListing, Error>) {
+        switch result {
+        case .failure(AppleNotesBridge.Failure.denied):
+            Funnel.record(.importStep(.appleNotes, .permissionDenied))
+        case .failure(let error):
+            Funnel.record(.importStep(.appleNotes, .failed, kind: FailureSummary(error).kind))
+        case .success(let listing):
+            if listing.notes.isEmpty { Funnel.record(.importStep(.appleNotes, .nothingFound)) }
+            if listing.accounts.count > 1 { Funnel.record(.importStep(.appleNotes, .secondAccount)) }
+        }
+    }
+
+    static func importing() { Funnel.record(.importStep(.appleNotes, .importing)) }
+
+    /// The import ended: `failed` when nothing came in and notes couldn't be read, else `done`
+    /// with how many came in as a range.
+    static func finished(_ summary: AppleNotesImportSummary) {
+        if summary.noteIDs.isEmpty, !summary.notImported.isEmpty {
+            Funnel.record(.importStep(.appleNotes, .failed, kind: .file))
+        } else {
+            Funnel.record(.importStep(.appleNotes, .done, count: CountBucket(summary.noteIDs.count)))
+        }
+    }
+
+    static func cancelled() { Funnel.record(.importStep(.appleNotes, .cancelled)) }
+}
+
 ///
 /// One step: every note that isn't here yet is picked when the sheet opens, and the amber button
 /// brings them in. When it's done the sheet closes by itself and the window says what came over;
@@ -178,6 +215,10 @@ struct AppleNotesImportView: View {
     @State private var query = ""
     @State private var loading = true
     @State private var failure: String?
+    /// The import's own pages for when it can't just work: Don't Allow was chosen, or Apple Notes
+    /// has no notes on this Mac yet.
+    @State private var notice: Notice?
+    enum Notice { case denied, empty }
     @State private var progress: (done: Int, total: Int)?
     /// The notes already here, by title and date.
     @State private var existing: Set<String> = []
@@ -192,6 +233,8 @@ struct AppleNotesImportView: View {
     /// The notes one by one. The sheet opens on folders and their counts: picking is the
     /// exception, so it's one quiet press away instead of the first thing seen.
     @State private var choosingNotes = false
+    /// An import ran (the import funnel's `cancelled` is for a sheet closed before one did).
+    @State private var imported = false
 
     private var shown: [AppleNote] {
         query.isEmpty ? notes : notes.filter { n in n.name.localizedStandardContains(query) || listing.destination(of: n).contains { $0.localizedStandardContains(query) } }
@@ -221,6 +264,35 @@ struct AppleNotesImportView: View {
     private var pickable: [AppleNote] { shown.filter { !$0.locked } }
 
     var body: some View {
+        if let notice {
+            noticePage(notice)
+        } else {
+            sheet
+        }
+    }
+
+    private func noticePage(_ notice: Notice) -> some View {
+        (notice == .denied ? ImportNoticePage.notesDenied : ImportNoticePage.notesEmpty)
+            .with { action in
+                switch action {
+                case .primary:
+                    if notice == .denied, let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                        NSWorkspace.shared.open(url)
+                    } else if let notes = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Notes") {
+                        NSWorkspace.shared.openApplication(at: notes, configuration: NSWorkspace.OpenConfiguration())
+                    }
+                case .quiet: Task { await load() }
+                case .close, .back: dismiss()
+                }
+            }
+            .presentationBackground(Color(Palette.sheetGround))
+            // Back from System Settings or Apple Notes: look again, so the notes show up by themselves.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                Task { await load() }
+            }
+    }
+
+    private var sheet: some View {
         VStack(spacing: 0) {
             header
             content
@@ -235,7 +307,11 @@ struct AppleNotesImportView: View {
         // The app's own warm ground, not the system's grey sheet.
         .background(Color(Palette.sheetGround))
         .presentationBackground(Color(Palette.sheetGround))
-        .task { await load() }
+        .task {
+            AppleNotesFunnel.opened()
+            await load()
+        }
+        .onDisappear { if !imported { AppleNotesFunnel.cancelled() } }
         // Coming back from System Settings: look again.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if !AppleNotesBridge.isDemo, ApplePins.isAvailable { storeAccess = ApplePins.hasAccess() }
@@ -612,12 +688,19 @@ struct AppleNotesImportView: View {
         storeAccess = !ApplePins.isAvailable || ApplePins.hasAccess()
         do {
             listing = try await Task.detached { try AppleNotesBridge.list() }.value
+            AppleNotesFunnel.read(.success(listing))
             // Everything that isn't here yet, in every folder, ready to go: importing all of it
             // is the usual wish, and nothing is left out for being further down the list.
             picked = listing.pickedAtFirst(keys: existing)
+        } catch AppleNotesBridge.Failure.denied {
+            AppleNotesFunnel.read(.failure(AppleNotesBridge.Failure.denied))
+            failure = AppleNotesBridge.Failure.denied.localizedDescription
         } catch {
+            AppleNotesFunnel.read(.failure(error))
             failure = error.localizedDescription
         }
+        notice = failure == AppleNotesBridge.Failure.denied.localizedDescription ? .denied
+            : failure == nil && listing.notes.isEmpty && listing.unreadFolders.isEmpty ? .empty : nil
         loading = false
     }
 
@@ -627,9 +710,12 @@ struct AppleNotesImportView: View {
         // The picked notes, and the locked ones nobody could pick: they're named afterwards.
         let chosen = notes.filter { picked.contains($0.id) || $0.locked }
         progress = (0, chosen.count)
+        imported = true
+        AppleNotesFunnel.importing()
         let summary = await AppleNotesImporter(context: context).run(chosen, listing: listing, keepFolders: true) { done, total in
             progress = (done, total)
         }
+        AppleNotesFunnel.finished(summary)
         onSummary(summary)
         onImported(summary.noteIDs)
         progress = nil

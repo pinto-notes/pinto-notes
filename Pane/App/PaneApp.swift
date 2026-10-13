@@ -229,20 +229,6 @@ struct PaneApp: App {
         #if os(macOS)
         // Settings is a sheet on the notes window (NoteListView), not a window of its own.
 
-        // Connect ChatGPT or Claude: the steps float over the browser while you follow them.
-        Window("Connect", id: ConnectPanel.windowID) {
-            ConnectPanel(backend: backend)
-                .tint(Color(PColor.paneAccent))
-        }
-        .windowLevel(.floating)
-        .windowResizability(.contentSize)
-        .restorationBehavior(.disabled)
-        .defaultLaunchBehavior(.suppressed)
-        .defaultWindowPlacement { content, context in
-            let size = content.sizeThatFits(.unspecified)
-            return WindowPlacement(ConnectPanel.placement(screen: context.defaultDisplay.visibleRect, size: size), size: size)
-        }
-
         MenuBarItem(backend: backend, sync: sync, container: container)
         #endif
     }
@@ -1218,17 +1204,12 @@ struct CaptureScreen: View {
                     #endif
             }
         case let guide where guide.hasPrefix("connect-") || guide.hasPrefix("connected-"):
-            // Connect ChatGPT or Claude, as the guide sheet shows it, or just after Allow.
-            if let plan = WebConnectPlan.forAI(guide.hasSuffix("claude") ? "Claude" : "ChatGPT") {
-                NavigationStack {
-                    Form { WebConnectGuide(plan: plan, client: Self.client, connected: guide.hasPrefix("connected-")) }
-                        .formStyle(.grouped)
-                        .navigationTitle("Connect \(plan.ai)")
-                        #if os(iOS)
-                        .navigationBarTitleDisplayMode(.inline)
-                        #endif
-                }
-            }
+            // Connect an AI, before and just after ChatGPT or Claude is connected.
+            let ai = guide.hasSuffix("claude") ? "Claude" : "ChatGPT"
+            ConnectAISheet(client: Self.client, preview: guide.hasPrefix("connected-") ? [
+                Connection(id: UUID(), name: ai, kind: "oauth", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil,
+                           redirect_host: ai == "Claude" ? "claude.ai" : "chatgpt.com"),
+            ] : [], previewFound: [])
         case "settings":
             // Settings as a signed-in account sees it (connections can't load here).
             SettingsView(backend: Backend(testClient: Self.client, email: "appreview@norditech.se"), sync: nil)

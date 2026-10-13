@@ -5,7 +5,7 @@ import ZIPFoundation
 
 /// Markdown and text notes from a folder or a .zip: what Obsidian, Notion, Bear, Joplin, Logseq,
 /// Simplenote and Standard Notes export. Subfolders become folders; the title is the front
-/// matter's, else the first heading, else the file name; images and files linked from the notes
+/// matter's, else a first `#` heading, else the file name; images and files linked from the notes
 /// (relative links, Notion's URL-encoded paths, Obsidian's `![[embeds]]`) come in as attachments;
 /// front-matter tags become a last line of #tags; dates come from front matter, else the file.
 @MainActor
@@ -105,7 +105,7 @@ final class MarkdownImporter {
                 let dest = scratch.appending(path: UUID().uuidString, directoryHint: .isDirectory)
                 let url = source.url
                 do {
-                    try await Task.detached { try FileManager.default.unzipItem(at: url, to: dest) }.value
+                    try await Task.detached { try ZipTimes.unzip(url, to: dest) }.value
                 } catch {
                     writer.summary.failedFiles.append("\(source.name): the .zip couldn't be opened.")
                     continue
@@ -397,10 +397,13 @@ struct MarkdownNote: Equatable {
 
         var note = MarkdownNote(body: "")
         note.title = props["title"]?.first.flatMap { $0.isEmpty ? nil : $0 }
-        // The first heading is the title when the note starts with it.
+        // A first `#` heading is the title when the note starts with it. A smaller one is a section
+        // ("## What went well" in "Weekly review"): the file name stays the title, as in Obsidian,
+        // unless the heading repeats it.
         if !plainText, let first = lines.first, let r = first.range(of: #"^#{1,6}\s+"#, options: .regularExpression) {
             let heading = String(first[r.upperBound...]).trimmingCharacters(in: .whitespaces)
-            if note.title == nil || note.title == heading { note.title = heading; lines.removeFirst() }
+            let isTitle = first.hasPrefix("# ") || first.hasPrefix("#\t") || heading.caseInsensitiveCompare(fileName) == .orderedSame
+            if isTitle, note.title == nil || note.title == heading { note.title = heading; lines.removeFirst() }
         }
         // Notion lists a page's properties under its title: "Created: …", "Tags: a, b". Dates and
         // tags are taken from there; other properties ("Author: …") stay in the note.
@@ -621,5 +624,34 @@ struct MarkdownNote: Equatable {
             last = NSMaxRange(m.range)
         }
         return out + ns.substring(from: last)
+    }
+}
+
+/// Obsidian's own list of vaults (`obsidian.json`), so the import can open on yours. Read only on
+/// a Mac outside the sandbox: the App Store build can't see it and shows the guide instead.
+enum ObsidianVaults {
+    /// The vault open in Obsidian, else the one used last; nil when none is found.
+    static func latest() -> URL? {
+        #if os(macOS)
+        guard let home = getpwuid(getuid())?.pointee.pw_dir else { return nil }
+        let list = URL(fileURLWithPath: String(cString: home)).appending(path: "Library/Application Support/obsidian/obsidian.json")
+        return (try? Data(contentsOf: list)).flatMap { latest(in: $0) }
+        #else
+        return nil
+        #endif
+    }
+
+    /// From the list's contents: only folders that are still there.
+    static func latest(in json: Data, exists: (URL) -> Bool = { url in
+        var folder: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &folder) && folder.boolValue
+    }) -> URL? {
+        struct List: Decodable { var vaults: [String: Vault] }
+        struct Vault: Decodable { var path: String; var ts: Double?; var open: Bool? }
+        guard let list = try? JSONDecoder().decode(List.self, from: json) else { return nil }
+        return list.vaults.values
+            .map { (url: URL(fileURLWithPath: $0.path, isDirectory: true), open: $0.open == true, ts: $0.ts ?? 0) }
+            .filter { exists($0.url) }
+            .max { ($0.open ? 1 : 0, $0.ts) < ($1.open ? 1 : 0, $1.ts) }?.url
     }
 }

@@ -275,12 +275,25 @@ final class Backend {
         Telemetry.shared.record(event)
     }
 
-    /// Runs a sign-in and reports a failure; the error goes on to the caller as before.
-    private func reporting<T>(_ method: SignInMethod, _ work: () async throws -> T) async throws -> T {
+    /// Runs a sign-in and reports a failure; the error goes on to the caller as before. The sign-in
+    /// funnel (`sign_in_step`) gets the method chosen, the browser sheet opening (`browser`: Google,
+    /// and Apple through the web), and how it ended: succeeded (when `signedIn` says the answer
+    /// signed in; a sign-up waiting for its code hasn't), failed with its kind, or cancelled.
+    static func reporting<T>(_ method: SignInMethod, browser: Bool = false, chosen: Bool = true,
+                             signedIn: (T) -> Bool = { _ in true }, _ work: () async throws -> T) async throws -> T {
+        if chosen { Funnel.record(.signInStep(method, .methodChosen)) }
+        if browser { Funnel.record(.signInStep(method, .browserOpened)) }
         do {
-            return try await work()
+            let result = try await work()
+            if signedIn(result) { Funnel.record(.signInStep(method, .succeeded)) }
+            return result
         } catch {
-            if let failure = SignInFailureKind.of(error) { Telemetry.shared.record(.signInFailed(method, failure.kind, status: failure.status)) }
+            if let failure = SignInFailureKind.of(error) {
+                Telemetry.shared.record(.signInFailed(method, failure.kind, status: failure.status))
+                Funnel.record(.signInStep(method, .failed, kind: failure.kind))
+            } else {
+                Funnel.record(.signInStep(method, .cancelled))
+            }
             throw error
         }
     }
@@ -371,7 +384,7 @@ final class Backend {
     /// the server refuses to create new accounts for anyone not invited.
     func signInWithApple(_ credential: AppleSignIn.Credential) async throws {
         guard let client else { return }
-        let session = try await reporting(.apple) {
+        let session = try await Self.reporting(.apple) {
             try await client.auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: credential.idToken, nonce: credential.rawNonce))
         }
         report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
@@ -406,7 +419,7 @@ final class Backend {
     @discardableResult
     func signInWithGoogle(hint: String? = nil) async throws -> UUID? {
         guard let client else { return nil }
-        let session = try await reporting(.google) {
+        let session = try await Self.reporting(.google, browser: true) {
             try await client.auth.signInWithOAuth(provider: .google, redirectTo: Self.webCallback, queryParams: Self.googleQuery(hint: hint)) { url in
                 try await WebAuthSession.run(BackendConfig.signInURL(url), callbackScheme: AppIdentity.scheme)
             }
@@ -457,12 +470,12 @@ final class Backend {
         guard let client else { return }
         // Our own sheet, as for Google: the library's built-in one makes its completion handler on
         // the main actor, and AuthenticationServices answers on a background queue, which traps.
-        let session = try await reporting(.apple) {
+        let session = try await Self.reporting(.appleWeb, browser: true) {
             try await client.auth.signInWithOAuth(provider: .apple, redirectTo: Self.webCallback, scopes: "name email") { url in
                 try await WebAuthSession.run(BackendConfig.signInURL(url), callbackScheme: AppIdentity.scheme)
             }
         }
-        report(Self.signInEvent(.apple, created: session.user.createdAt), for: session)
+        report(Self.signInEvent(.appleWeb, created: session.user.createdAt), for: session)
         // Apple's web sign-in sends the name to the server, not to the app: it is here only if
         // the server kept it.
         suggestName(SignInName.from(metadata: session.user.userMetadata), for: session.user)
@@ -495,7 +508,7 @@ final class Backend {
     /// Email and password sign-in, next to Sign in with Apple.
     func signIn(email: String, password: String) async throws {
         guard let client else { return }
-        let session = try await reporting(.email) { try await client.auth.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password) }
+        let session = try await Self.reporting(.email, chosen: false) { try await client.auth.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password) }
         report(.signedIn(.email), for: session)
     }
 
@@ -516,7 +529,7 @@ final class Backend {
     /// (docs/Technical/email-confirmation.md). With confirmation off, the session starts at once.
     func signUp(email: String, password: String) async throws -> Bool {
         guard let client else { return false }
-        let response = try await reporting(.email) { try await client.auth.signUp(email: email.trimmingCharacters(in: .whitespaces), password: password) }
+        let response = try await Self.reporting(.email, chosen: false, signedIn: { $0.session != nil }) { try await client.auth.signUp(email: email.trimmingCharacters(in: .whitespaces), password: password) }
         // With confirmation on, the account counts as made once its code is typed (confirmSignUp).
         if let session = response.session { report(.signedUp(.email), for: session) }
         return response.session == nil
@@ -526,7 +539,8 @@ final class Backend {
     /// first run follows from the session.
     func confirmSignUp(email: String, code: String) async throws {
         guard let client else { return }
-        let response = try await reporting(.email) { try await client.auth.verifyOTP(email: email.trimmingCharacters(in: .whitespaces), token: code, type: .signup) }
+        Funnel.record(.signInStep(.email, .codeEntered))
+        let response = try await Self.reporting(.email, chosen: false) { try await client.auth.verifyOTP(email: email.trimmingCharacters(in: .whitespaces), token: code, type: .signup) }
         report(.signedUp(.email), for: response.session)
     }
 
@@ -534,6 +548,7 @@ final class Backend {
     func resendSignUpCode(email: String) async throws {
         guard let client else { return }
         try await client.auth.resend(email: email.trimmingCharacters(in: .whitespaces), type: .signup)
+        Funnel.record(.signInStep(.email, .codeSent))
     }
 
     /// Signing in to an account whose email isn't confirmed yet.

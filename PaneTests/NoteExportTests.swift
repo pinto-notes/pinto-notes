@@ -39,6 +39,30 @@ import ZIPFoundation
         _ = n
     }
 
+    /// An export imported again keeps its notes' times: the zip stores them as the local time of
+    /// day, the way Finder and `zip` do and the import reads them (it read them 2 h early once
+    /// the import was fixed, 2026-10-13).
+    @Test func anExportImportedAgainKeepsItsTimes() async throws {
+        let context = ModelContext(try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        let work = context.createFolder(named: "Work")
+        let n = context.createNote(in: .folder(work.id), body: "Standup\nShipped it.")
+        let edited = Date(timeIntervalSince1970: 1_791_800_000)
+        n.updatedAt = edited
+        let result = try await NoteExport.make(context, vault: NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults()), now: .now)
+        defer { try? FileManager.default.removeItem(at: result.zip.deletingLastPathComponent()) }
+
+        // In the zip: the local time of day, as Archive Utility shows it.
+        let archive = try Archive(url: result.zip, accessMode: .read)
+        let entry = try #require(archive.first { $0.path.hasSuffix("Work/Standup.md") })
+        let stored = try #require(entry.fileAttributes[.modificationDate] as? Date)
+        #expect(abs(ZipTimes.local(fromStored: stored).timeIntervalSince(edited)) <= 2)
+
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        _ = await MarkdownImporter(context: c.mainContext).run([MarkdownImporter.inspect(result.zip)], into: .perSource)
+        let back = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Standup" })
+        #expect(abs(back.updatedAt.timeIntervalSince(edited)) <= 2, "the time it was edited, not hours off")
+    }
+
     /// Mac 1.2 left these out: a PDF kept in a folder on its own wasn't in the zip, and neither
     /// was its folder, since only notes and the files they embed were written.
     @Test func exportsFilesKeptInFoldersAndFoldersWithNoNotes() async throws {

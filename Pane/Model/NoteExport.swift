@@ -166,7 +166,8 @@ enum NoteExport {
             try Data(Self.leftOutText(leftOutPaths).utf8).write(to: top.appending(path: Self.leftOutFile))
         }
 
-        try FileManager.default.zipItem(at: top, to: result.zip, shouldKeepParent: true)
+        // Times as their local time of day, as Finder and `zip` store them (`top` is our own copy).
+        try ZipTimes.zip(top, to: result.zip)
         try? FileManager.default.removeItem(at: top)
         return result
     }

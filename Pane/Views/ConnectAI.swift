@@ -606,8 +606,6 @@ final class ConnectCenter: NSObject {
     private var expiry: Task<Void, Never>?
     /// Between one sheet closing and the next opening.
     var nextDelay: Duration = .milliseconds(450)
-    /// Mac: which AI the floating steps are for.
-    var panelAI: String?
     /// The last approval made on this device, so an open guide can say it worked right away.
     var approved: (ai: String?, at: Date)?
     /// Looks at the server for asks now (set while signed in, by ConnectAsks): a push was tapped
@@ -847,9 +845,6 @@ final class ConnectCenter: NSObject {
 struct ConnectHandler: ViewModifier {
     let backend: Backend
     @State private var center = ConnectCenter.shared
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
 
     func body(content: Content) -> some View {
         content
@@ -862,11 +857,9 @@ struct ConnectHandler: ViewModifier {
             // Links land in the window that's already open instead of a new one.
             .handlesExternalEvents(preferring: [ConnectLink.scheme], allowing: ["*"])
             .onAppear { center.installHandler() }
-            // Handoff from iPhone: carry on connecting ChatGPT or Claude here.
-            .onContinueUserActivity(ConnectHandoff.activityType) { activity in
-                guard let ai = activity.userInfo?[ConnectHandoff.key] as? String, WebConnectPlan.forAI(ai) != nil else { return }
-                center.panelAI = ai
-                openWindow(id: ConnectPanel.windowID)
+            // Handoff from iPhone: carry on connecting here, in Connect an AI.
+            .onContinueUserActivity(ConnectHandoff.activityType) { _ in
+                NotificationCenter.default.post(name: .paneConnectAI, object: nil)
             }
             #endif
             .onAppear { center.installNotifications() }
@@ -1438,6 +1431,17 @@ struct ConnectAISection: View {
     enum Guide: String, Identifiable, CaseIterable {
         case chatgpt, claude, claudeCode, codex, incredible, other
         var id: String { rawValue }
+        /// The guide as the connect funnel names its AI.
+        var funnel: ConnectAIKind {
+            switch self {
+            case .chatgpt: .chatgpt
+            case .claude: .claude
+            case .claudeCode: .claudeCode
+            case .codex: .codex
+            case .incredible: .incredible
+            case .other: .other
+            }
+        }
         var title: String {
             switch self {
             case .chatgpt: "ChatGPT"
@@ -1459,10 +1463,12 @@ struct ConnectAISection: View {
             }
         }
         /// The ways offered: Incredible only on a Mac where the Incredible app is (a newcomer has
-        /// never heard of it; newcomer audit #17).
+        /// never heard of it; newcomer audit #17). Claude Code has no choice of its own: Claude's
+        /// connector reaches it (code.claude.com/docs/en/mcp), and with only the command on the
+        /// Mac, Claude is added to Claude Code directly (`ConnectRun`).
         static var offered: [Guide] { offered(incredibleInstalled: incredibleInstalled) }
         static func offered(incredibleInstalled: Bool) -> [Guide] {
-            allCases.filter { $0 != .incredible || incredibleInstalled }
+            allCases.filter { $0 != .claudeCode && ($0 != .incredible || incredibleInstalled) }
         }
         private static var incredibleInstalled: Bool {
             #if os(macOS)
@@ -1472,20 +1478,16 @@ struct ConnectAISection: View {
             #endif
         }
 
-        /// What choosing it does, in one plain line. Anything technical is inside the guide.
-        var plain: String {
+        /// What it is for, in a few plain words, so someone who doesn't code sees at once which is
+        /// theirs. Never where it runs: Claude Code and Codex also live in the Claude and ChatGPT apps.
+        var line: String {
             switch self {
-            case .chatgpt: "Opens ChatGPT to add Pinto Notes"
-            case .claude: "Opens Claude and adds Pinto Notes"
-            case .claudeCode:
-                #if os(macOS)
-                ClaudeCodeInstaller.isAvailable ? "Adds Pinto Notes for you, on this Mac" : "Copies a command for your terminal"
-                #else
-                "Copies a command for your terminal"
-                #endif
-            case .codex: "Copies a command for your terminal"
+            case .chatgpt: "Chat with ChatGPT"
+            case .claude: "Chat with Claude, and Claude Code"
+            case .claudeCode: "Claude for coding"
+            case .codex: "ChatGPT for coding"
             case .incredible: "Connects from the Incredible app"
-            case .other: "For other AI apps on your computer"
+            case .other: "Any other app that can add a connector"
             }
         }
     }
@@ -1511,11 +1513,26 @@ struct ConnectAISection: View {
 @MainActor
 @Observable
 final class ConnectGuideRoute {
+    /// Incredible's own guide (the only AI that still has one).
     var guide: ConnectAISection.Guide?
+    /// Having trouble?
+    var help: HelpTopic?
     /// Bumped each time a guide closes, so the Connected list loads again.
     private(set) var closed = 0
+    /// The guide on screen, for the connect funnel.
+    @ObservationIgnored private var shown: ConnectAISection.Guide?
 
-    func guideClosed() { closed += 1 }
+    /// A guide opened (`guide` was set).
+    func guideOpened(_ g: ConnectAISection.Guide) {
+        shown = g
+        ConnectFunnel.opened(g.funnel)
+    }
+
+    func guideClosed() {
+        closed += 1
+        if let g = shown { ConnectFunnel.closed(g.funnel) }
+        shown = nil
+    }
 }
 
 /// Presents the connect guides for the Connect an AI section inside this view.
@@ -1526,14 +1543,14 @@ struct ConnectGuides: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(route)
+            .onChange(of: route.guide) { _, g in if let g { route.guideOpened(g) } }
             .sheet(item: Binding(get: { client == nil ? nil : route.guide }, set: { route.guide = $0 }),
-                   onDismiss: { route.guideClosed() }) { g in
-                if let client {
-                    switch g {
-                    case .claudeCode, .codex, .other: TerminalConnectSheet(guide: g, client: client)
-                    default: GuideSheet(guide: g, client: client)
-                    }
-                }
+                   onDismiss: { route.guideClosed() }) { _ in
+                if let client { IncredibleSheet(client: client) }
+            }
+            .sheet(item: Binding(get: { client == nil ? nil : route.help }, set: { route.help = $0 }),
+                   onDismiss: { route.guideClosed() }) { topic in
+                if let client { ConnectHelpSheet(topic: topic, client: client).consentHost(client: client) }
             }
     }
 }
@@ -1543,20 +1560,16 @@ extension View {
     func connectGuides(client: SupabaseClient?) -> some View { modifier(ConnectGuides(client: client)) }
 }
 
-/// Step by step for one app. ChatGPT and Claude need only the address; Claude Code and
-/// Codex get a fresh token that's used once here and never shown in a link.
-struct GuideSheet: View {
-    let guide: ConnectAISection.Guide
+/// Incredible's guide, as a sheet: it connects from the Incredible app, not from a web page.
+struct IncredibleSheet: View {
     let client: SupabaseClient
     @Environment(\.dismiss) private var dismiss
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
+
     var body: some View {
         NavigationStack {
-            Form { content }
+            Form { IncredibleGuide(client: client) }
                 .formStyle(.grouped)
-                .navigationTitle("Connect \(guide.title)")
+                .navigationTitle("Connect Incredible")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -1567,68 +1580,6 @@ struct GuideSheet: View {
         .frame(width: 560, height: 560)
         #endif
     }
-
-    @ViewBuilder
-    private var content: some View {
-        switch guide {
-        case .chatgpt, .claude:
-            if let plan = WebConnectPlan.forAI(guide.title) {
-                #if os(macOS)
-                WebConnectGuide(plan: plan, client: client, popOut: {
-                    ConnectCenter.shared.panelAI = plan.ai
-                    openWindow(id: ConnectPanel.windowID)
-                    dismiss()
-                })
-                #else
-                WebConnectGuide(plan: plan, client: client)
-                #endif
-            }
-        case .incredible:
-            IncredibleGuide(client: client)
-        case .claudeCode, .codex, .other:
-            // These three have their own sheet (`TerminalConnectSheet`).
-            EmptyView()
-        }
-    }
 }
 
-#if os(macOS)
-/// Finds the claude command and adds Amber Notes to it. A GUI app doesn't see the
-/// person's shell PATH, so it asks their login shell.
-enum ClaudeCodeInstaller {
-    /// A sandboxed app can't start the person's login shell, so the button only exists outside the sandbox.
-    static var isAvailable: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil }
 
-    /// Adds the server under its name, in place of an entry this button made before: under this
-    /// name, or under the old one (so nobody ends up with the same notes listed twice).
-    static let script = """
-        command -v claude >/dev/null 2>&1 || { echo "not-found"; exit 127; }
-        claude mcp remove --scope user \(ConnectSnippets.oldServerName) >/dev/null 2>&1
-        claude mcp remove --scope user \(ConnectSnippets.serverName) >/dev/null 2>&1
-        claude mcp add --scope user --transport http \(ConnectSnippets.serverName) "$AMBER_URL" --header "Authorization: Bearer $AMBER_TOKEN"
-        """
-
-    static func install(url: String, token: String) async -> (ok: Bool, message: String) {
-        await Task.detached {
-            let script = Self.script
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
-            p.arguments = ["-l", "-i", "-c", script]
-            var env = ProcessInfo.processInfo.environment
-            env["AMBER_URL"] = url
-            env["AMBER_TOKEN"] = token
-            p.environment = env
-            let out = Pipe()
-            p.standardOutput = out
-            p.standardError = out
-            p.standardInput = FileHandle.nullDevice
-            do { try p.run() } catch { return (false, "Couldn't start your shell.") }
-            p.waitUntilExit()
-            let text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            if p.terminationStatus == 0 { return (true, "Added. Start a new Claude Code session to use it.") }
-            if text.contains("not-found") { return (false, "Claude Code isn't installed, or isn't on your PATH. Copy the command below instead.") }
-            return (false, "Claude Code didn't accept it. Copy the command below instead.")
-        }.value
-    }
-}
-#endif
