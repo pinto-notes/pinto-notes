@@ -335,21 +335,65 @@ extension CardLayout {
 }
 
 /// The card window's left panel: a 3:4 picture (900 by 1200, the panel's 450 by 600 at 2x)
-/// filling it edge to edge.
+/// filling it edge to edge. The panel itself never moves. When the picture changes (the next
+/// step, or Back) the new one fades in over the old, 350 ms ease-out, with nothing else moving:
+/// the desk set's frames share one camera, so the desk seems to fill up. The old picture stays
+/// fully drawn underneath until the new one covers it, so the fade never shows the ground. With
+/// Reduce Motion it cuts.
 struct FullBleedScene: View {
     let name: String
+    /// What shows now, and what it fades in over.
+    @State private var shown: String
+    @State private var under: String?
+    @State private var opacity = 1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The crossfade's length (OnboardingFlow.stepPace slows it for tests).
+    static let fade = 0.35
+
+    init(name: String) {
+        self.name = name
+        _shown = State(initialValue: name)
+    }
 
     var body: some View {
         Color.clear
             .frame(minWidth: WelcomeFlow.size.width / 2, maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
-                Image(name)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFill()
-                    .accessibilityHidden(true)
+                ZStack {
+                    if let under { picture(under) }
+                    picture(shown).opacity(opacity)
+                }
             }
             .clipped()
+            .onChange(of: name) { _, new in show(new) }
+            // A change that came before the view was on screen (the flow restored at a later
+            // step) is shown as it is, without a fade.
+            .onAppear { if shown != name, under == nil { shown = name } }
+    }
+
+    private func picture(_ name: String) -> some View {
+        Image(name)
+            .resizable()
+            .interpolation(.high)
+            .scaledToFill()
+            .accessibilityHidden(true)
+    }
+
+    private func show(_ new: String) {
+        // Set up outside the step's own animation: the old picture goes under at once, fully drawn.
+        var still = Transaction()
+        still.disablesAnimations = true
+        guard !reduceMotion else {
+            withTransaction(still) { under = nil; shown = new; opacity = 1 }
+            return
+        }
+        withTransaction(still) { under = shown; shown = new; opacity = 0 }
+        withAnimation(.easeOut(duration: Self.fade * OnboardingFlow.stepPace)) {
+            opacity = 1
+        } completion: {
+            if shown == new { withTransaction(still) { under = nil } }
+        }
     }
 }
 

@@ -75,6 +75,10 @@ struct OnboardingFlow: View {
         screen
             .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.45 * Self.stepPace), value: step)
             .task { await loadAccount() }
+            #if os(macOS)
+            // The pictures either side of this step, decoded before a crossfade needs them.
+            .task(id: step) { OnboardingArt.prefetch(around: step) }
+            #endif
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
             // The cursor in the name field as the step opens, so typing goes there. A moment after
