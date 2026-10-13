@@ -12,6 +12,8 @@ struct ImportFlow: View {
     let kind: ImportKind
     var files: [URL] = []
     var onImported: ([UUID]) -> Void = { _ in }
+    /// Obsidian's vault, from Obsidian's own list of them (Mac, outside the sandbox).
+    @State private var vault = ObsidianVaults.latest()
 
     var body: some View {
         #if os(iOS)
@@ -27,7 +29,7 @@ struct ImportFlow: View {
 
     @ViewBuilder private var guided: some View {
         if let guide = ImportGuide.live(kind) {
-            ImportGuideFlow(guide: guide, kind: kind, files: files, onImported: onImported)
+            ImportGuideFlow(guide: guide, kind: kind, files: files, vault: vault, onImported: onImported)
         } else {
             ImportSheet(kind, files: files, onImported: onImported)
         }
@@ -124,7 +126,28 @@ struct ImportGuideFlow: View {
     var files: [URL] = []
     /// Open on the drop page (the phone's Evernote and Bear, which have no guide there).
     var startAtDrop = false
+    /// Obsidian's vault, found: the sheet opens on it, ready to import (Emil's option B,
+    /// 2026-10-13). Back goes to the guide. Without one, the guide as for every source.
+    var vault: URL?
     var onImported: ([UUID]) -> Void = { _ in }
+
+    init(guide: ImportGuide, kind: ImportKind, files: [URL] = [], startAtDrop: Bool = false, vault: URL? = nil,
+         onImported: @escaping ([UUID]) -> Void = { _ in }) {
+        self.guide = guide
+        self.kind = kind
+        self.files = files
+        self.startAtDrop = startAtDrop
+        self.vault = kind == .obsidian && files.isEmpty && !startAtDrop ? vault : nil
+        self.onImported = onImported
+        let opening = Self.opening(vault: self.vault)
+        _stage = State(initialValue: opening.stage)
+        _trail = State(initialValue: opening.trail)
+    }
+
+    /// Where the sheet opens: on the found vault, Back leading to the guide; else the guide.
+    static func opening(vault: URL?) -> (stage: Stage, trail: [Stage]) {
+        vault == nil ? (.intro, []) : (.drop, [.intro])
+    }
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -164,6 +187,7 @@ struct ImportGuideFlow: View {
             // Where the file is likely to be: a vault in Documents, an export in Downloads.
             .fileDialogDefaultDirectory(FileManager.default.urls(for: kind == .obsidian ? .documentDirectory : .downloadsDirectory, in: .userDomainMask).first)
             .task {
+                if let vault { add([vault], replacing: true) }
                 if startAtDrop { stage = .drop }
                 guard !files.isEmpty else { return }
                 if stage != .drop { go(.drop) }
@@ -183,7 +207,7 @@ struct ImportGuideFlow: View {
         case .success: .success
         case .drop:
             if targeted { .drop(.hovering) }
-            else if sources.isEmpty || inspecting { .drop(.empty) }
+            else if sources.isEmpty || inspecting { vault != nil && trail == [.intro] && sources.isEmpty ? .drop(.found) : .drop(.empty) }
             else if importable.isEmpty { .drop(.wrong) }
             else { .drop(.found) }
         }
@@ -194,6 +218,15 @@ struct ImportGuideFlow: View {
     }
 
     private var found: (name: String, detail: String, button: String)? {
+        // The found vault, named before its notes are counted, and its button by its name.
+        if let vault, sources.isEmpty { return (vault.lastPathComponent, "Counting notes…", "Import \(vault.lastPathComponent)") }
+        if let vault, importable.count == 1, importable[0].url.standardizedFileURL.path == vault.standardizedFileURL.path, let f = Self.found(importable, notes: noteCount) {
+            return (f.name, f.detail, "Import \(vault.lastPathComponent)")
+        }
+        return Self.found(importable, notes: noteCount)
+    }
+
+    private static func found(_ importable: [ImportSource], notes noteCount: Int) -> (name: String, detail: String, button: String)? {
         guard !importable.isEmpty else { return nil }
         let notes = noteCount.formatted(.number.locale(Locale(identifier: "en_US")))
         // The file as it was downloaded, so the person sees it's the one they picked.

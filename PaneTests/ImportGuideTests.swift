@@ -84,6 +84,25 @@ import Testing
         #expect(GuideDrawing.evernoteNotebooks.last == "Work", "the menu opens under the last notebook, covering none")
     }
 
+    /// Emil 10-13, option B: with Obsidian's vault found, Import opens on it, ready to import, and
+    /// Back goes to the guide. Without one, the guide as for every other source.
+    @Test func obsidianOpensOnTheFoundVault() throws {
+        let json = Data(#"{"vaults":{"a":{"path":"/v/Old","ts":1700000000000},"b":{"path":"/v/Second brain","ts":1791856569000,"open":true},"c":{"path":"/v/Gone","ts":1800000000000}},"frame":"hidden"}"#.utf8)
+        let vault = try #require(ObsidianVaults.latest(in: json, exists: { $0.path != "/v/Gone" }))
+        #expect(vault.path == "/v/Second brain", "the open vault, of those still there")
+        #expect(ObsidianVaults.latest(in: Data(#"{"vaults":{}}"#.utf8)) == nil)
+        #expect(ObsidianVaults.latest(in: Data("not json".utf8)) == nil)
+
+        let found = ImportGuideFlow.opening(vault: vault)
+        #expect(found.stage == .drop && found.trail == [.intro])
+        let none = ImportGuideFlow.opening(vault: nil)
+        #expect(none.stage == .intro && none.trail.isEmpty)
+        // Only Obsidian, and only when nothing was handed to the sheet.
+        #expect(ImportGuideFlow(guide: .markdown, kind: .markdown, vault: vault).vault == nil)
+        #expect(ImportGuideFlow(guide: .obsidian(picture: nil), kind: .obsidian, files: [vault], vault: vault).vault == nil)
+        #expect(ImportGuideFlow(guide: .obsidian(picture: nil), kind: .obsidian, vault: vault).vault == vault)
+    }
+
     @Test func theRealPicturesShipWithTheApp() {
         for name in ["guide-bear-export", "guide-obsidian-reveal", "guide-obsidian-files"] {
             #expect(ImportGuide.picture(name) != nil, "\(name).png is in the app")

@@ -27,9 +27,11 @@ import UIKit
             let pages = Self.pages(guide)
             for height: CGFloat in [560, 480] {
                 for (name, page) in pages {
-                    try await VersionHistorySnapshots.shoot(ImportGuideSheet(guide: guide, page: page, height: height),
-                                                            to: dir.appending(path: "\(guide.id)/mac-\(Int(height))-\(name).png"),
-                                                            size: CGSize(width: 540, height: height), dark: false)
+                    for dark in [false, true] {
+                        try await VersionHistorySnapshots.shoot(ImportGuideSheet(guide: guide, page: page, height: height),
+                                                                to: dir.appending(path: "\(guide.id)/mac-\(dark ? "dark" : "light")-\(Int(height))-\(name).png"),
+                                                                size: CGSize(width: 540, height: height), dark: dark)
+                    }
                 }
             }
         }

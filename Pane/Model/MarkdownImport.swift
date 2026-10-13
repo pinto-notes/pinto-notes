@@ -648,3 +648,32 @@ struct MarkdownNote: Equatable {
         return out + ns.substring(from: last)
     }
 }
+
+/// Obsidian's own list of vaults (`obsidian.json`), so the import can open on yours. Read only on
+/// a Mac outside the sandbox: the App Store build can't see it and shows the guide instead.
+enum ObsidianVaults {
+    /// The vault open in Obsidian, else the one used last; nil when none is found.
+    static func latest() -> URL? {
+        #if os(macOS)
+        guard let home = getpwuid(getuid())?.pointee.pw_dir else { return nil }
+        let list = URL(fileURLWithPath: String(cString: home)).appending(path: "Library/Application Support/obsidian/obsidian.json")
+        return (try? Data(contentsOf: list)).flatMap { latest(in: $0) }
+        #else
+        return nil
+        #endif
+    }
+
+    /// From the list's contents: only folders that are still there.
+    static func latest(in json: Data, exists: (URL) -> Bool = { url in
+        var folder: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &folder) && folder.boolValue
+    }) -> URL? {
+        struct List: Decodable { var vaults: [String: Vault] }
+        struct Vault: Decodable { var path: String; var ts: Double?; var open: Bool? }
+        guard let list = try? JSONDecoder().decode(List.self, from: json) else { return nil }
+        return list.vaults.values
+            .map { (url: URL(fileURLWithPath: $0.path, isDirectory: true), open: $0.open == true, ts: $0.ts ?? 0) }
+            .filter { exists($0.url) }
+            .max { ($0.open ? 1 : 0, $0.ts) < ($1.open ? 1 : 0, $1.ts) }?.url
+    }
+}
