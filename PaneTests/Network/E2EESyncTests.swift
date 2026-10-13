@@ -933,11 +933,17 @@ extension NetworkFaults {
         #expect(center.pending == open, "the newest opens")
         #expect(center.queue == [older], "the other waits its turn")
         #expect(Set(center.askIDs) == [open, older], "an expired or answered ask is ignored")
-        #expect(posted.asked == 2 && posted.asks.isEmpty, "in front: the sheet shows, no notification")
+        #if os(iOS)
+        let asked = 2
+        #else
+        // The Mac never asks to notify when a request arrives: that waits until an AI is connected.
+        let asked = 0
+        #endif
+        #expect(posted.asked == asked && posted.asks.isEmpty, "in front: the sheet shows, no notification")
 
         // Looking again finds nothing new; nothing opens twice.
         await asks.refresh()
-        #expect(center.pending == open && center.queue == [older] && posted.asked == 2)
+        #expect(center.pending == open && center.queue == [older] && posted.asked == asked)
 
         // Answered on another device: its sheet closes and the next one shows.
         center.nextDelay = .zero

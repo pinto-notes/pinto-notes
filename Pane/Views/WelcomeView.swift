@@ -16,6 +16,8 @@ struct WelcomeFlow: View {
     /// Captures: Apple or Google under way.
     var pressed: SignInView.Way?
     @State private var stage: Stage
+    /// The account was just deleted: the welcome says so first (`Farewell`).
+    @State private var farewell: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -47,6 +49,22 @@ struct WelcomeFlow: View {
         self.flow = flow
         self.error = error
         _stage = State(initialValue: stage)
+        _farewell = State(initialValue: stage == .welcome && Farewell.take())
+    }
+
+    /// Deleting an account ended on the welcome without a word (newcomer audit, 2026-10-12): the
+    /// next welcome after it says the account is deleted, once.
+    enum Farewell {
+        nonisolated(unsafe) private static var pending = false
+        static let title = "Your account is deleted."
+        static let line = "Your notes, files and AI connections are gone from Pinto Notes and from this device. Thank you for trying Pinto Notes."
+
+        static func accountDeleted() { pending = true }
+        /// Whether to say it now; true once after `accountDeleted`.
+        static func take() -> Bool {
+            defer { pending = false }
+            return pending
+        }
     }
 
     #if os(macOS)
@@ -130,6 +148,8 @@ struct WelcomeFlow: View {
             }
         }
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: stage)
+        // Said once: back from sign-in it's the usual welcome.
+        .onChange(of: stage) { farewell = false }
     }
 
     private func stageTransition(forward: Bool) -> AnyTransition {
@@ -145,18 +165,32 @@ struct WelcomeFlow: View {
             #endif
             VStack(alignment: .leading, spacing: 12) {
                 // The website's display type, and its low amber marker under "your AI".
-                Text("The notes app \(Text("your AI").customAttribute(Marker())) can use.")
-                    .textRenderer(Marker.Renderer(color: Color(Palette.underline)))
-                    .font(Self.titleFont)
-                    .tracking(-0.8)
-                    .foregroundStyle(Color.ink)
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityIdentifier("welcome.title")
-                Text("ChatGPT and Claude can read and edit your notes, with your approval. End-to-end encrypted, on iPhone, iPad and Mac.")
-                    .font(Self.lineFont)
-                    .foregroundStyle(Color.muted)
-                    .lineSpacing(2)
-                    .accessibilityIdentifier("welcome.line")
+                if farewell {
+                    Text(Farewell.title)
+                        .font(Self.titleFont)
+                        .tracking(-0.8)
+                        .foregroundStyle(Color.ink)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("welcome.title")
+                    Text(Farewell.line)
+                        .font(Self.lineFont)
+                        .foregroundStyle(Color.muted)
+                        .lineSpacing(2)
+                        .accessibilityIdentifier("welcome.line")
+                } else {
+                    Text("The notes app \(Text("your AI").customAttribute(Marker())) can use.")
+                        .textRenderer(Marker.Renderer(color: Color(Palette.underline)))
+                        .font(Self.titleFont)
+                        .tracking(-0.8)
+                        .foregroundStyle(Color.ink)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("welcome.title")
+                    Text("ChatGPT and Claude can read and edit your notes, with your approval. End-to-end encrypted, on iPhone, iPad and Mac.")
+                        .font(Self.lineFont)
+                        .foregroundStyle(Color.muted)
+                        .lineSpacing(2)
+                        .accessibilityIdentifier("welcome.line")
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
             #if os(macOS)

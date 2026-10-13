@@ -216,8 +216,8 @@ struct WebConnectGuide: View {
         .animation(.smooth(duration: 0.3), value: stage)
         .task { await watch.run(client: client) }
         // The approval comes to this device: it looks for it every couple of seconds while the
-        // guide is open. Permission to notify isn't asked for just by opening the guide: that
-        // waits until the link is sent or opened, when a request can arrive (`askToNotify`).
+        // guide is open. Permission to notify isn't asked for just by opening the guide: on
+        // iPhone that waits until the link is sent (`askToNotify`), on the Mac until it's connected.
         .onAppear { ConnectCenter.shared.expectAsks() }
         .onDisappear { ConnectCenter.shared.stopExpectingAsks() }
         #if os(iOS)
@@ -234,14 +234,17 @@ struct WebConnectGuide: View {
     static var notifyLine: String { "The request to allow it also arrives as a notification on this \(InstallID.kind)." }
     #else
     static let allowLine = "Choose Open Pinto Notes on this Mac, then Allow"
-    static let notifyLine = "The request to allow it also arrives as a notification on this Mac."
+    /// Nothing about notifications on the Mac: they're asked for after the AI is connected.
+    static let notifyLine: String? = nil
     #endif
 
-    /// The link is on its way to the AI: from now a request to allow it can arrive, so this is
-    /// when the system asks whether Pinto Notes may notify.
+    #if os(iOS)
+    /// The link is on its way to the AI: from now a request to allow it can arrive on this phone,
+    /// so this is when the system asks whether Pinto Notes may notify.
     private func askToNotify() {
         if !PaneApp.isUnitTestHost { Task { await ConnectNotifier.system.askPermission() } }
     }
+    #endif
 
     /// What adding takes, while it's the step at hand.
     private var addDetail: String? {
@@ -267,7 +270,6 @@ struct WebConnectGuide: View {
         .accessibilityIdentifier("connect.sendSteps")
         #else
         Button {
-            askToNotify()
             copy()
             openURL(plan.setupPage(server: server))
             started = true
