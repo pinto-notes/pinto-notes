@@ -705,10 +705,13 @@ extension Capture {
         Task { @MainActor in
             var rows = ["t,height"]
             let start = Date.now
+            // The whole window: from the moment a sheet is on it, and on after the sheet has gone.
+            var filmed: NSWindow?
             for frame in 0..<frames {
                 let t = Date.now.timeIntervalSince(start)
                 let name = dir.appending(path: String(format: "%03d.png", frame))
-                let parent = NSApp.windows.first { $0.attachedSheet != nil } ?? (whole ? NSApp.windows.first { $0.isVisible && $0.contentView != nil && !$0.isSheet } : nil)
+                let parent = NSApp.windows.first { $0.attachedSheet != nil } ?? (whole ? filmed : nil)
+                if whole, filmed == nil { filmed = parent }
                 let sheet = parent?.attachedSheet
                 if whole, let parent, let rep = picture(parent, sheet: sheet) {
                     try? rep.representation(using: .png, properties: [:])?.write(to: name)
