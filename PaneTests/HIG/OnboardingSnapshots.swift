@@ -17,16 +17,18 @@ import UIKit
         let name: String
         let step: Onboarding.Step
         var preview = OnboardingFlow.Preview()
+        /// Where the flow began: Bring when the name was known.
+        var first: Onboarding.Step = .name
     }
 
     static let withCallMom = TrialNote.body + "- [ ] Call mom\n"
 
     static let shots: [Shot] = [
-        Shot(name: "1-welcome", step: .welcome),
         Shot(name: "2-name-prefilled", step: .name, preview: .init(name: "Sara Lindqvist")),
         Shot(name: "2-name-empty", step: .name),
         Shot(name: "3-bring", step: .bring),
-        Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 18)),
+        Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 35)),
+        Shot(name: "3-bring-name-known", step: .bring, first: .bring),
         Shot(name: "4-connect", step: .connect),
         Shot(name: "4-connect-connected", step: .connect, preview: .init(connected: ["Claude Code"])),
         Shot(name: "5-try-it-chatgpt", step: .tryIt, preview: .init(connected: ["ChatGPT"])),
@@ -42,7 +44,7 @@ import UIKit
 
     static func flow(_ shot: Shot) -> some View {
         let store = OnboardingStore(defaults: TestDefaults())
-        store.showForPreview(shot.step)
+        store.showForPreview(shot.step, first: shot.first)
         return OnboardingFlow(store: store, backend: Backend(), preview: shot.preview, finish: { _ in })
             .tint(Color(PColor.paneAccent))
             .environment(\.locale, Locale(identifier: "en_US"))

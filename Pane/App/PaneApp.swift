@@ -787,7 +787,9 @@ final class AppSession {
             sync.schedule()
         }
         if setup.progress == nil { await setup.refresh(force: true) }
-        onboarding.settle(accountIsNew: isNew, progress: setup.progress)
+        // A new account whose name is known already (its sign-in's, or this device's last) is not asked it.
+        let nameKnown = isNew ? await ProfileStore.shared.settleNewAccountName(backend) != nil : false
+        onboarding.settle(accountIsNew: isNew, progress: setup.progress, nameKnown: nameKnown)
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) after the first sync (new \(isNew, privacy: .public), setup behind it \(Onboarding.alreadySetUp(self.setup.progress), privacy: .public))")
     }
 
