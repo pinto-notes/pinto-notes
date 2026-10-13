@@ -192,6 +192,7 @@ import ZIPFoundation
         }
     }
 
+    #if os(macOS)
     /// Air test 10-13: notes from a .zip came in two hours ahead in Sweden. Zips keep the time of
     /// day where they were made; it was read as UTC.
     @Test func aZipKeepsTheTimeOfDayItWasMadeIn() async throws {
@@ -218,6 +219,7 @@ import ZIPFoundation
         #expect(MarkdownImporter.localTime(ofUTCWallClock: Self.utc("2026-10-01T10:00:00Z"), in: stockholm) == Self.utc("2026-10-01T08:00:00Z"))
         #expect(MarkdownImporter.localTime(ofUTCWallClock: Self.utc("2026-12-01T10:00:00Z"), in: stockholm) == Self.utc("2026-12-01T09:00:00Z"))
     }
+    #endif
 
     @Test func bearExportWithATextBundle() async throws {
         let r = try await Self.importing([try Self.fixture("Bear export")])
