@@ -198,7 +198,7 @@ import Testing
         #expect(run.phase == .waiting(ConnectCopy.adding(.codex)))
         try await settle { if case .added = run.phase { true } else { false } }
         #expect(run.phase == .added("Added to Codex. Ask it about your notes to finish.", details: details))
-        #expect(shell.tokensMade == ["Codex"] && shell.tokenAdds == [.codex] && shell.tokens == ["pane_test"])
+        #expect(shell.tokensMade == [ConnectCopy.tokenName(.codex)] && shell.tokenAdds == [.codex] && shell.tokens == ["pane_test"])
         #expect(shell.signIns.isEmpty && shell.adds == 0, "no sign-in, no browser")
         run.stop()
     }
@@ -214,7 +214,7 @@ import Testing
         try await settle { run.phase == .waiting(ConnectCopy.allowInBrowser) }
         #expect(run.phase == .waiting(ConnectCopy.allowInBrowser))
         #expect(ConnectCopy.opensBrowser(.codex) == "Codex opens your browser to sign in. Then allow it here.")
-        #expect(shell.dropped == ["Codex"], "the token it couldn't take is revoked")
+        #expect(shell.dropped == [ConnectCopy.tokenName(.codex)], "the token it couldn't take is revoked")
         #expect(shell.signIns == [.codex], "one sign-in, so one request and one Allow")
         #expect(shell.adds == 0, "Codex's add is its sign-in; nothing runs a second one")
         #expect(shell.lineAtSignIn == ConnectCopy.opensBrowser(.codex), "the row said so before the browser opened")
@@ -229,9 +229,23 @@ import Testing
         let (run, client) = run(shell, addToken: .added(details: "pinto-notes:\n  Status: \u{2714} Connected"), claudeCodeOnly: true)
         run.start(.claude, client: client, open: { _ in })
         try await settle { if case .added = run.phase { true } else { false } }
-        #expect(shell.tokenAdds == [.claudeCode] && shell.tokensMade == ["Claude Code"] && shell.signIns.isEmpty)
+        #expect(shell.tokenAdds == [.claudeCode] && shell.tokensMade == [ConnectCopy.tokenName(.claudeCode)] && shell.signIns.isEmpty)
         if case .added(let line, _) = run.phase { #expect(line == "Added to Claude Code. Ask it about your notes to finish.") }
         run.stop()
+    }
+
+    /// A token is named for the Mac it's on, connects its own row, and fits the server's 80 characters.
+    @Test func aTokenIsNamedForThisMac() {
+        #expect(ConnectCopy.tokenName(.codex, device: "Emil\u{2019}s MacBook Pro") == "Codex on Emil\u{2019}s MacBook Pro")
+        let long = AddDeviceNames.clean(String(repeating: "M", count: 200))
+        #expect(ConnectCopy.tokenName(.claudeCode, device: long).count <= 80)
+        func row(_ name: String) -> Connection {
+            Connection(id: UUID(), name: name, kind: "token", can_write: true, created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: nil)
+        }
+        let since = Date.now.addingTimeInterval(-60)
+        #expect(TerminalConnect.isConnected([row("Codex on Studio")], guide: .codex, way: .token, since: since))
+        #expect(!TerminalConnect.isConnected([row("Claude Code on Studio")], guide: .codex, way: .token, since: since))
+        #expect(ConnectRun.owner(of: row("Codex on Studio")) == .codex)
     }
 
     /// What the command printed is shown in its own words, never with the token, never coloured.

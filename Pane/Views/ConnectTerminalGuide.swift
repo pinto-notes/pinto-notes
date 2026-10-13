@@ -89,7 +89,8 @@ enum TerminalConnect {
         let live = rows.filter { $0.revoked_at == nil && $0.created_at >= since.addingTimeInterval(-2) }
         switch way {
         case .signIn: return live.contains { $0.isOAuth && Connection.isLoopback($0.redirect_host ?? "") }
-        case .token: return live.contains { !$0.isOAuth && $0.name == guide.title && $0.last_used_at != nil }
+        // Named "Codex", or "Codex on <this Mac>" when the app added it itself.
+        case .token: return live.contains { !$0.isOAuth && ($0.name == guide.title || $0.name.hasPrefix("\(guide.title) on ")) && $0.last_used_at != nil }
         }
     }
 }

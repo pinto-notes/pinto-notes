@@ -423,7 +423,9 @@ final class ConnectRun {
                 self?.fail(ConnectCopy.notOnThisMac(ai), fix: ai == .codex ? ConnectCopy.getCodex : ConnectCopy.tryAgain)
                 return
             }
-            guard let self, let token = try? await self.makeToken(client, ai.title) else {
+            // Named for the Mac it's on, so Settings tells one computer's Codex from another's.
+            let name = ConnectCopy.tokenName(ai)
+            guard let self, let token = try? await self.makeToken(client, name) else {
                 self?.fail(ConnectCopy.refused(ai), fix: ConnectCopy.tryAgain); return
             }
             let result = await shell.addToken(ai, server, token)
@@ -437,7 +439,7 @@ final class ConnectRun {
                 return
             case .refused:
                 // Too old to take the token: its sign-in, in the browser. The unused token goes.
-                await self.dropToken(client, ai.title, self.since)
+                await self.dropToken(client, name, self.since)
                 guard self.guide == pressed else { return }
             }
             // Signing in opens the browser: the row says so before it happens.
@@ -759,6 +761,8 @@ enum ConnectCopy {
     static let onComputer = "Finish on your computer. This shows when it\u{2019}s done."
     static let pasteInTerminal = "Command copied. Paste it in Terminal."
     static let allowInBrowser = "In your browser: choose Open Pinto Notes, then Allow."
+    /// What Settings lists a token as: "Codex on Emil's MacBook Pro".
+    static func tokenName(_ g: Guide, device: String = AddDeviceNames.thisDevice) -> String { "\(g.title) on \(device)" }
     static func added(_ g: Guide) -> String { "Added to \(g.title). Ask it about your notes to finish." }
     static let sampleQuestion = "What did I write in my notes this week?"
     static let showDetails = "Show details"
