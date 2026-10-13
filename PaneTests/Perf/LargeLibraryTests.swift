@@ -84,19 +84,24 @@ import Testing
         perf("the sidebar's counts", ms(t))
     }
 
-    @Test(.timeLimit(.minutes(4))) func wikiLinksOnOpeningANote() throws {
+    /// Opening a note at launch: the wiki index and "Linked from" are read off the main thread; on
+    /// it, asking for them costs next to nothing, and once read they cost next to nothing too.
+    @Test(.timeLimit(.minutes(4))) func wikiLinksOnOpeningANote() async throws {
         let c = try open()
         let ctx = c.mainContext
         var first = FetchDescriptor<Note>(predicate: #Predicate { $0.parentID == nil }, sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         first.fetchLimit = 1
         let note = try #require(try ctx.fetch(first).first)
         let clock = ContinuousClock()
-        let index = clock.measure { _ = WikiDirectory.scope(for: note, in: ctx) }
-        perf("the wiki index, first", ms(index))
-        let back = clock.measure { _ = ctx.backlinks(to: note) }
-        perf("a note's backlinks", ms(back))
+        let start = clock.now
+        let ask = clock.measure { _ = WikiDirectory.scope(for: note, in: ctx); _ = ctx.backlinks(to: note) }
+        perf("the wiki index and backlinks, asked on the main thread at launch", ms(ask))
+        while WikiDirectory.linking(ctx) == nil, clock.now - start < .seconds(60) { try await Task.sleep(for: .milliseconds(5)) }
+        perf("the wiki index and links, read off the main thread", ms(clock.now - start))
         let again = clock.measure { _ = WikiDirectory.scope(for: note, in: ctx); _ = ctx.backlinks(to: note) }
         perf("opening another note's links", ms(again))
+        #expect(ask < .milliseconds(100 * PerfBudget.slack), "the main thread doesn't read the library for a note's links")
+        #expect(again < .milliseconds(100 * PerfBudget.slack))
     }
 
     @Test(.timeLimit(.minutes(4))) func savingOneNote() throws {
