@@ -639,7 +639,7 @@ struct NoteListView: View {
             ContentUnavailableView.search(text: search)
         } else if scope == .trash {
             ContentUnavailableView("No Deleted Notes", systemImage: "trash", description: Text("Notes and files you delete stay here for 30 days."))
-        } else if scope == .all {
+        } else if Self.offersWaysToStart(scope: scope) {
             // Nothing in the whole library (a new account, or one whose first run didn't come):
             // the two ways to start, in place (newcomer audit #19), New Note the one in the accent.
             ContentUnavailableView {
@@ -662,6 +662,10 @@ struct NoteListView: View {
             }
         }
     }
+
+    /// Whether an empty list offers New Note and Bring Your Notes: only the whole library (a
+    /// folder that's empty has the compose button).
+    static func offersWaysToStart(scope: Scope) -> Bool { scope == .all }
 
     /// The empty library's line and its second button.
     static let emptyLine = "Write a note, or bring your notes from Apple Notes, Obsidian, Bear, Evernote or Google Keep."
