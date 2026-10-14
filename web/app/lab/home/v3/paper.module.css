@@ -58,3 +58,8 @@
 .scene[data-dark] .art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(40, 20, 8, 0.82) 0%, rgba(40, 20, 8, 0.55) 30%, transparent 48%); }
 .words { width: min(440px, 34%); }
 @media (max-width: 760px) { .scene[data-dark] .art::after { background: none; } .words { width: auto; } }
+@media (max-width: 760px) {
+  .words h1 { font-size: 40px; }
+  .words h2 { font-size: 32px; }
+  .chip { white-space: normal; height: auto; min-height: 38px; padding: 8px 14px; max-width: 100%; }
+}

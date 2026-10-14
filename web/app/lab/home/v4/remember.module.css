@@ -56,3 +56,4 @@
 .statement { margin: 0; font-size: clamp(42px, 5.4vw, 80px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; text-wrap: balance; }
 .say { margin: 18px 0 0; max-width: 30em; font-size: 19px; line-height: 1.45; color: #6b5a48; }
 @media (max-width: 900px) { .row { grid-template-columns: minmax(0, 1fr); gap: 32px; } .row[data-flip] > :first-child { order: 0; } }
+@media (max-width: 600px) { .by { height: 19px; font-size: 10.5px; } .lines li { gap: 6px 8px; } }
