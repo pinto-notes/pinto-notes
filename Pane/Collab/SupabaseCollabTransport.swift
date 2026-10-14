@@ -56,19 +56,20 @@ final class SupabaseCollabTransport: CollabTransport {
 
     func memberships() async throws -> [Collab.Membership] {
         struct Row: Decodable {
-            struct Note: Decodable { let head_ct: String?; let owner_id: UUID }
+            struct Note: Decodable { let head_ct: String?; let owner_id: UUID; let rekey_after: String? }
             let note_id: UUID, role: String, epoch: Int, key_wrap: String, wrapped_by: UUID
             let self_wrap: String?, invited_by: UUID?, accepted_at: String?
             let shared_notes: Note
         }
         return try await call("memberships") {
             let rows: [Row] = try await client.from("note_members")
-                .select("note_id,role,epoch,key_wrap,wrapped_by,self_wrap,invited_by,accepted_at,shared_notes(head_ct,owner_id)")
+                .select("note_id,role,epoch,key_wrap,wrapped_by,self_wrap,invited_by,accepted_at,shared_notes(head_ct,owner_id,rekey_after)")
                 .eq("user_id", value: Self.id(me)).execute().value
             return rows.map {
                 Collab.Membership(note_id: $0.note_id, role: $0.role, epoch: $0.epoch, key_wrap: $0.key_wrap, wrapped_by: $0.wrapped_by,
                                   self_wrap: $0.self_wrap, invited_by: $0.invited_by, accepted_at: $0.accepted_at,
-                                  head_ct: $0.shared_notes.head_ct, owner_id: $0.shared_notes.owner_id)
+                                  head_ct: $0.shared_notes.head_ct, owner_id: $0.shared_notes.owner_id,
+                                  rekey_after: $0.shared_notes.rekey_after)
             }
         }
     }

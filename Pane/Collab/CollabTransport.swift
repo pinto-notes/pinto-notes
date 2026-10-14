@@ -115,6 +115,8 @@ enum Collab {
         let accepted_at: String?
         let head_ct: String?
         let owner_id: UUID
+        /// Someone left since the note's last key: the owner's devices renew it (`collab_leave`).
+        var rekey_after: String? = nil
     }
 
     struct Update: Decodable, Sendable, Equatable {
