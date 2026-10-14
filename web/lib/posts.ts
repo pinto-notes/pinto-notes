@@ -184,7 +184,7 @@ export const posts: Post[] = [
     excerpt: "Obsidian imports Apple Notes directly, Notion needs a Markdown detour, and Google Keep can't import at all. The steps for each.",
     category: "Apple Notes",
     date: "2026-10-12",
-    updated: "2026-10-12",
+    updated: "2026-10-14",
     image: SHOTS.notesExportMenu,
     thumb: thumb("rust", "thumb-notes-export-to", 800, 528, "The Apple Notes File menu on macOS 27, open at Export To, with Markdown"),
     draft: false,
