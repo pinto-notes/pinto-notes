@@ -44,7 +44,7 @@ struct SupabaseLockRemote: NoteLockRemote {
         }
     }
 
-    /// The server's refusals of a password change. "Notes changed" was 40001 until 20261014230000,
+    /// The server's refusals of a password change. "Notes changed" was 40001 until 20261015010000,
     /// which PostgREST retried without end; it's PT409 with hint `notes_changed` now. Both count.
     static func refusal(_ e: PostgrestError) -> NoteLockError? {
         switch e.code {

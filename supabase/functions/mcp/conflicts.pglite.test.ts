@@ -1,4 +1,4 @@
-// "Changed on another device" refusals (20261014230000_conflicts_not_retried.sql) on the whole schema
+// "Changed on another device" refusals (20261015010000_conflicts_not_retried.sql) on the whole schema
 // in an in-process Postgres (PGlite). They answer PT409: PostgREST retries 40001
 // (serialization_failure) by itself, at once and without end, so a 40001 refusal never reached the
 // app and the request hung until the gateway gave up. Needs no Docker or local stack:
