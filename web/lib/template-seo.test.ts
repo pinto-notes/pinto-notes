@@ -36,7 +36,8 @@ describe("the app templates' search copy", () => {
       // Use installs the app, so the prompt is the second way in: one quiet line under Use, and what
       // to ask your AI sits beside the app (Emil, 14 October 2026: no "What the prompt does" section).
       expect(html.indexOf('href="/open/template/')).toBeLessThan(html.indexOf('id="prompt"'));
-      expect(html).toContain("Only using ChatGPT or Claude?");
+      expect(html).toContain("Rather ask your AI to set it up?");
+      expect(html).toContain("Works once Pinto Notes is connected to your AI.");
       expect(html).not.toContain("What the prompt does");
       expect(html.indexOf(">Ask your AI<")).toBeGreaterThan(html.indexOf('id="result"'));
     });

@@ -4,6 +4,9 @@ import s from "./templates.module.css";
 
 type Variant = { name: string; prompt: string };
 
+/// The prompt asks the AI to use Pinto Notes' tools, so it only works once that AI is connected.
+const WORKS = "Works once Pinto Notes is connected to your AI.";
+
 /// The full prompt, folded away behind "Show the prompt": in the page for search and for anyone who
 /// wants to read exactly what their AI is told.
 export function FullPrompt({ variants }: { variants: Variant[] }) {
@@ -11,6 +14,7 @@ export function FullPrompt({ variants }: { variants: Variant[] }) {
     <details className={s.full}>
       <summary className={s.fullToggle}>Show the prompt<Chevron /></summary>
       <div className={s.fullBody}>
+        <p className={s.fullWorks}>{WORKS}</p>
         {variants.map((v) => (
           <div key={v.name} className={s.fullVariant}>
             {variants.length > 1 && <p className={s.fullFor}>For {v.name}</p>}
@@ -34,12 +38,12 @@ export function AskBubbles({ asks, label = "Ask your AI" }: { asks: string[]; la
 }
 
 /// On a template with an app, the prompt is the second way in: one quiet line under Use, for people
-/// who only use ChatGPT or Claude, and the full text folded away under it.
+/// who would rather have their AI set it up, and the full text folded away under it.
 export function PromptLine({ variants }: { variants: Variant[] }) {
   return (
     <div className={s.promptLine} id="prompt">
       <p className={s.promptAsk}>
-        Only using ChatGPT or Claude?{" "}
+        Rather ask your AI to set it up?{" "}
         <CopyButton text={variants[0].prompt} label="Copy the prompt" className={s.inlineCopy} event="copy_prompt_clicked" />
       </p>
       <FullPrompt variants={variants} />
@@ -53,7 +57,8 @@ export default function Instructions({ title, folder, variants, asks }: { title:
   return (
     <section className={s.promptCompact} id="prompt" aria-label="The prompt">
       <p className={s.promptOne}>
-        Paste the prompt once into ChatGPT, Claude or Claude Code. It makes the <b>&ldquo;{title}&rdquo;</b> note in your {folder} folder, then keeps it.
+        Paste the prompt once into ChatGPT, Claude or Claude Code. It makes the <b>&ldquo;{title}&rdquo;</b> note in your {folder} folder, then keeps it.{" "}
+        <span className={s.promptWorks}>{WORKS}</span>
       </p>
       <PromptCopy variants={variants} className={s.secondary} />
       <AskBubbles asks={asks} label="Then just talk to it" />
