@@ -275,7 +275,7 @@ struct NoteDetailView: View {
     }
 
     /// Collaboration (prototype): the open shared note's session, when there is one.
-    private var collab: CollabSession? { CollabStore.shared?.session(for: note.id) }
+    private var collab: CollabSession? { CollabStore.shared?.session(for: note) }
 
     #if os(iOS)
     /// On iPhone the note's tips sit just above the toolbar: a popover from a toolbar button
@@ -912,6 +912,9 @@ struct NoteDetailView: View {
             if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }
             return
         }
+        // A shared note whose document isn't open here (not loaded yet, or collaboration is off):
+        // its text can't be written anywhere it would be kept, so nothing typed is taken.
+        if note.isShared { return }
         PaneTips.typed()
         ShareAsk.noteUsed(typing: true)
         let note = self.note
@@ -1329,7 +1332,7 @@ private struct CollabWiring: ViewModifier {
     let controller: EditorController
     @Binding var showPeople: Bool
 
-    private var session: CollabSession? { CollabStore.shared?.session(for: note.id) }
+    private var session: CollabSession? { CollabStore.shared?.session(for: note) }
 
     func body(content: Content) -> some View {
         content

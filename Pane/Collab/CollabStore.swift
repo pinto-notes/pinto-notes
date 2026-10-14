@@ -38,8 +38,12 @@ final class CollabStore {
     /// until someone checks the code (`trust`).
     private(set) var keyChanges: [Collab.KeyChange] = []
     var me: UUID? { transport?.me }
-    /// Open shared notes, by note id.
+    /// Open shared notes, by the id of the note in your library (for someone else's note that
+    /// isn't the shared note's id: SharedNotes.noteID).
     var sessions: [UUID: CollabSession] = [:]
+    /// Shared notes in this device's library: storage, offline edits, catching up, leaving
+    /// (SharedLibrary). Made once the store has a context.
+    @ObservationIgnored private(set) var library: SharedLibrary?
     /// An invitation waiting for an answer.
     var invite: Invite?
     @ObservationIgnored var keys: [UUID: (nk: SymmetricKey, epoch: Int)] = [:]
@@ -50,9 +54,10 @@ final class CollabStore {
     @ObservationIgnored var onLeft: ((UUID) -> Void)?
     /// Why the last link didn't open, shown to the person.
     var joinProblem: String?
-    /// Notes you were removed from: they stay on this device as they were, and stop syncing.
+    /// Notes you left or were removed from (by the id of the note in your library): they're gone
+    /// from your library.
     var removedFrom: Set<UUID> = []
-    @ObservationIgnored var context: ModelContext?
+    @ObservationIgnored var context: ModelContext? { didSet { makeLibrary() } }
     /// Sealed links by note: the link's id and secret (in the product, kept in a synced Keychain
     /// item so every device can republish the copy).
     @ObservationIgnored var links: [UUID: (id: String, secret: Data)] = [:]
@@ -126,6 +131,41 @@ final class CollabStore {
 
     func session(for note: UUID) -> CollabSession? { sessions[note] }
 
+    /// The open session for a shared note. One that isn't open yet is opened (from this device's
+    /// copy, or the server's for a note new here) and shows up here once it is: a view asking
+    /// while it draws doesn't change what it observes as it draws.
+    func session(for note: Note) -> CollabSession? {
+        if let s = sessions[note.id] { return s }
+        guard note.isShared, note.deletedAt == nil, let library else { return nil }
+        Task { @MainActor in
+            if library.session(for: note) == nil { await library.ensureDocument(note) }
+        }
+        return nil
+    }
+
+    private func makeLibrary() {
+        library?.closeAll()
+        guard let context, let transport else { library = nil; return }
+        let library = SharedLibrary(context: context, transport: transport, name: name, dataKey: dataKeySource) { [weak self] row in
+            guard let self else { throw Collab.Failure.notSignedIn }
+            let nk = try await self.openKey(row).nk
+            // A new key for a note you're in: your own copy under your data key, for your other
+            // devices and your AI. (An invitation is accepted only by `accept`.)
+            if row.accepted_at != nil, row.self_wrap == nil, let key = try? self.dataKey(),
+               let wrap = try? CollabCrypto.selfWrap(nk, dataKey: key, note: row.note_id, epoch: row.epoch) {
+                try? await transport.accept(note: row.note_id, selfWrap: wrap)
+            }
+            return nk
+        }
+        library.onOpen = { [weak self] session, note in self?.opened(session, note: note) }
+        library.onClose = { [weak self] noteID in
+            self?.sessions[noteID] = nil
+            self?.removedFrom.insert(noteID)
+        }
+        library.install()
+        self.library = library
+    }
+
     /// The account's data key, or why there isn't one here.
     func dataKey() throws -> SymmetricKey {
         guard let key = dataKeySource() else { throw CollabKeys.Problem.noDataKey }
@@ -160,6 +200,7 @@ final class CollabStore {
         membershipTask = nil
         for s in sessions.values { s.disconnect() }
         sessions = [:]
+        library?.closeAll()
         identityKeys?.reset()
         identity = nil
     }
@@ -198,11 +239,10 @@ final class CollabStore {
         let toSelf = try CollabCrypto.sealNoteKey(nk, from: identity, to: identity.publicRaw, party: .init(note: note.id, epoch: 1, from: me, to: me))
         let head = try CollabCrypto.seal(.head, Data(NoteHead.of(note.body).json.utf8), nk: nk, note: note.id, epoch: 1)
         try await transport.share(note: note.id, keyWrap: toSelf, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: dataKey, note: note.id, epoch: 1), head: head)
-        let session = try CollabSession.create(note: note.id, epoch: 1, nk: nk, initial: note.body, transport: transport, me: me, name: name)
-        try await transport.send(snapshot: try session.sealedSnapshot(upto: 0), note: note.id, upto: 0, epoch: 1)
-        keys[note.id] = (nk, 1)
-        openSession(session, note: note)
-        return session
+        guard let library else { throw Collab.Failure.notSignedIn }
+        // The note becomes the shared document (its text, links and files kept), and its notes
+        // row a pointer: from here its text goes only through the document.
+        return try await library.becomeShared(note, nk: nk)
     }
 
     // MARK: Your memberships
@@ -259,23 +299,13 @@ final class CollabStore {
     func accept(_ invite: Invite) async {
         self.invite = nil
         handled.insert(invite.id)
-        guard let transport, let me, let context,
+        guard let transport, let library,
               let row = (try? await transport.memberships())?.first(where: { $0.note_id == invite.id }) else { return }
         do {
             let opened = try await openKey(row)
             try await transport.accept(note: row.note_id, selfWrap: try CollabCrypto.selfWrap(opened.nk, dataKey: try dataKey(), note: row.note_id, epoch: row.epoch))
-            let session = try await CollabSession.load(note: row.note_id, epoch: row.epoch, nk: opened.nk, transport: transport, me: me, name: name)
-            keys[row.note_id] = (opened.nk, row.epoch)
-            let note = context.note(row.note_id) ?? {
-                let n = Note(body: session.text)
-                n.id = row.note_id
-                context.insert(n)
-                return n
-            }()
-            note.body = session.text
-            note.updatedAt = .now
-            try? context.save()
-            openSession(session, note: note)
+            // A note of your own for it, in "Shared with me" (never the owner's note id).
+            let note = try await library.adopt(shared: row.note_id, nk: opened.nk, epoch: row.epoch, role: row.role)
             NoteOpener.shared.open(note.id)
         } catch {
             log.error("accepting failed: \(String(describing: error), privacy: .public)")
@@ -287,15 +317,11 @@ final class CollabStore {
         handled.insert(invite.id)
     }
 
-    func openSession(_ session: CollabSession, note: Note) {
+    /// A session the library opened: listed here for the views, with the store's own hooks. The
+    /// library mirrors its text into the note and follows its key.
+    private func opened(_ session: CollabSession, note: Note) {
         sessions[note.id] = session
-        session.onSettled = { [weak note] text in
-            guard let note, note.body != text else { return }
-            note.body = text
-            note.updatedAt = .now
-        }
+        keys[session.noteID] = (session.noteKey, session.epoch)
         session.onMembers = { [weak self] members in self?.checkKeys(members) }
-        session.onKeyChanged = { [weak self] in Task { await self?.checkInvites() } }
-        session.connect()
     }
 }
