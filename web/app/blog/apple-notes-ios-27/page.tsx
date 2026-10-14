@@ -81,8 +81,8 @@ export default function Page() {
       <h2 id="paste-markdown">Paste Markdown and it formats itself</h2>
       <PostFigure src="/blog/macos27/notes27-paste-as-markdown" width={1328} height={400} maxWidth={700}
         phone={{ src: "/blog/macos27/notes27-paste-as-markdown-phone", width: 640, height: 830 }}
-        alt="The same packing list pasted into Apple Notes on macOS 27 two ways. On the left, pasted with Edit, Paste, it keeps the hash marks and asterisks as text. On the right, pasted with Edit, Paste as Markdown, it has a heading, a bulleted list and bold text."
-        caption="Left: a plain paste keeps the Markdown symbols. Right: Paste as Markdown turns them into formatting." />
+        alt="The same packing list pasted into Apple Notes on macOS 27 two ways. Pasted with Edit, Paste, it keeps the hash marks and asterisks as text. Pasted with Edit, Paste as Markdown, it has a heading, a bulleted list and bold text."
+        caption="A plain paste keeps the Markdown symbols. Paste as Markdown turns them into formatting." />
       <MenuPaths rows={[{ on: "Mac", steps: ["Edit", "Paste as Markdown"] }]} />
       <p>
         Paste a ChatGPT or Claude answer into a note and you used to get <code>##</code> and <code>**</code> everywhere. Now Notes turns
