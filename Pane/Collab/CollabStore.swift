@@ -38,10 +38,10 @@ final class CollabStore {
     var invite: Invite?
     @ObservationIgnored var keys: [UUID: (nk: SymmetricKey, epoch: Int)] = [:]
     @ObservationIgnored var handled: Set<UUID> = []
-    /// Notes whose link lets people edit (Share › People with the link: Can edit).
-    var editable: Set<UUID> = []
-    /// Notes whose link was turned off in Share.
-    var linkOff: Set<UUID> = []
+    /// What each note's link lets people do (Share › People with the link). No entry: the link is off.
+    var linkAccess: [UUID: ShareState.Access] = [:]
+    /// You left a note: the library takes it out of your notes.
+    @ObservationIgnored var onLeft: ((UUID) -> Void)?
     /// Why the last link didn't open, shown to the person.
     var joinProblem: String?
     /// Notes you were removed from: they stay on this device as they were, and stop syncing.

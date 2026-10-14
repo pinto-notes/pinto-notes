@@ -255,7 +255,10 @@ struct NoteDetailView: View {
     private func withCollab(_ content: some View) -> some View {
         content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
-            .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, store: store) } }
+            #if os(iOS)
+            // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
+            .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
+            #endif
             .sheet(isPresented: $showTemplateShare) { if let store = CollabStore.shared { TemplateShareSheet(note: note, store: store) } }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.closeShare)) { _ in showPeople = false }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.showShare)) { n in
@@ -1163,10 +1166,10 @@ struct NoteDetailView: View {
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
     private var shareItems: some View {
-        if let store = CollabStore.shared, store.isReady {
+        if CollabFeature.isOn, CollabStore.shared != nil, !note.isLocked {
             Section {
-                // One Share: a link anyone can View or Edit with, the people in the note, and Share as Template.
-                Button("Share…", systemImage: "person.crop.circle.badge.plus") { showPeople = true }
+                // People in the note, one link they can edit or view with, Verify, Remove and Leave.
+                Button("Collaborate…", systemImage: "person.crop.circle.badge.plus") { showPeople = true }
                     .accessibilityIdentifier("collab.share")
             }
         }
@@ -1179,7 +1182,7 @@ struct NoteDetailView: View {
     #if os(macOS)
     /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        ShareButton(note: note, store: shareLinks, people: CollabStore.shared?.isReady == true ? { showPeople = true } : nil)
+        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople)
             // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
             .disabled(note.isLocked || trashed)
             .paneTip(ShareLinkTip(), arrowEdge: .top)

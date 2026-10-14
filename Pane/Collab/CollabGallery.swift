@@ -183,3 +183,45 @@ struct EmailStill: View {
             }
     }
 }
+
+/// Share with sample people and no server, for the gallery, pictures and tests. Each action
+/// changes the sample state as the live store would, after `delay`, or fails when `fails` is set.
+@MainActor
+final class SampleShare: ShareBackend {
+    var state: ShareState
+    var delay: Duration = .zero
+    var fails = false
+    /// What was asked of it, in order ("access Can edit", "remove <id>", "leave").
+    private(set) var calls: [String] = []
+
+    init(_ state: ShareState) { self.state = state }
+
+    struct Failed: Error {}
+
+    private func step(_ call: String) async throws {
+        calls.append(call)
+        if delay > .zero { try await Task.sleep(for: delay) }
+        if fails { throw Failed() }
+    }
+
+    func shareState(for note: Note) -> ShareState { state }
+
+    func setAccess(_ access: ShareState.Access, for note: Note) async throws {
+        try await step("access \(access.rawValue)")
+        state.access = access
+        state.link = access == .off ? nil
+            : state.link ?? URL(string: "https://pintonotes.com/s/sEbHaDgYXLDfpSMmrziRgA#gIfSqgKHVsQcWBm2RTA0aw")
+    }
+
+    func remove(_ user: UUID, from note: Note) async throws {
+        try await step("remove \(user.uuidString)")
+        state.people.removeAll { $0.id == user }
+        // A new key, and a new link if one was on.
+        if state.link != nil { state.link = URL(string: "https://pintonotes.com/s/Nw8kQe0rTzYxUv2aBcDeFg#hJkLmNoPqRsTuVwXyZ0123") }
+    }
+
+    func leave(_ note: Note) async throws {
+        try await step("leave")
+        state.people.removeAll { !$0.isMe }
+    }
+}
