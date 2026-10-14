@@ -184,6 +184,7 @@ final class CollabSession {
         record.tail = Data()
         record.tailChanges = 0
         record.cursor = last
+        record.snapshotUpto = pull.snapshot?.upto ?? 0
         record.sinceSnapshot = pull.updates.count
         let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
         s.applied = Set(pull.updates.map(\.id))
@@ -322,7 +323,7 @@ final class CollabSession {
 
     private func pull() async {
         guard !isClosed else { return }
-        let after = record.cursor > 0 ? max(0, record.cursor - Self.rewind) : 0
+        let after = record.cursor > 0 ? max(record.snapshotUpto, record.cursor - Self.rewind, 0) : 0
         let pull: Collab.Pull
         do {
             pull = try await transport.pull(note: noteID, after: after)
@@ -340,6 +341,7 @@ final class CollabSession {
                     changed = true
                 }
                 record.cursor = max(record.cursor, s.upto)
+                record.snapshotUpto = max(record.snapshotUpto, s.upto)
                 record.sinceSnapshot = 0
             } else {
                 log.error("a snapshot didn't open here")
@@ -633,6 +635,7 @@ final class CollabSession {
         do {
             try await transport.send(snapshot: ct, note: noteID, upto: upto, epoch: epoch)
             guard !isClosed else { return }
+            record.snapshotUpto = max(record.snapshotUpto, upto)
             record.sinceSnapshot = 0
             needsSnapshot = false
             compact()

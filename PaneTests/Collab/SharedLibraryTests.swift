@@ -428,6 +428,25 @@ extension NetworkFaults {
         #expect(mine.body == "Log\n1\n2\n3\n4\n5\nlast")
     }
 
+    /// Catching up after a snapshot asks from after it: the snapshot (megabytes, for a long note)
+    /// isn't sent again every 20 seconds.
+    @Test func catchingUpDoesntFetchTheSameSnapshotAgain() async throws {
+        CollabSession.snapshotEvery = 3
+        CollabSession.snapshotQuiet = 0.05
+        let emil = try device(owner)
+        let (note, session) = try await shared("Notes", on: emil)
+        for i in 1...4 {
+            type("\n\(i)", in: session)
+            await waitUntil { session.isSent }
+        }
+        await waitUntil { server.snapshots(of: note.id).count >= 2 }
+        await session.catchUp().value
+        let sent = server.snapshotsSent
+        for _ in 0..<3 { await session.catchUp().value }
+        #expect(server.snapshotsSent == sent)
+        #expect(note.sharedDocument!.snapshotUpto == server.snapshots(of: note.id).map(\.upto).max())
+    }
+
     /// On the device: changes pile up in the stored tail, and once there are many the document is
     /// saved whole again and the tail starts over. It opens the same either way.
     @Test func theDeviceCompactsItsStoredDocument() async throws {

@@ -154,6 +154,7 @@ final class SharedLibrary {
             note = existing
             note.deletedAt = nil
             note.trashedAt = nil
+            if note.folder == nil || note.folder?.deletedAt != nil { note.folder = SharedNotes.sharedWithMe(context, user: me) }
         } else {
             note = Note(body: session.text, folder: SharedNotes.sharedWithMe(context, user: me))
             note.id = noteID

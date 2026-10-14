@@ -32,6 +32,9 @@ final class SharedDocument {
     var cursor: Int64
     /// Server changes taken in since the newest snapshot this device knows of.
     var sinceSnapshot: Int
+    /// The newest snapshot this device has (its `upto`): catching up never asks from before it,
+    /// or the server would send that whole snapshot again.
+    var snapshotUpto: Int64 = 0
     /// The note keys this device has had, each sealed under your data key (`setKey`).
     var keyBoxes: Data = Data()
 

@@ -63,10 +63,14 @@ final class FakeCollabServer {
         updates.removeAll { $0.note_id == note && $0.id <= upto }
     }
 
+    /// Snapshots handed out by pulls (they can be megabytes each).
+    private(set) var snapshotsSent = 0
+
     func pull(note: UUID, user: UUID, after: Int64) -> Collab.Pull {
         guard role(note, user) != nil else { return .init(snapshot: nil, updates: []) }
         let newest = snapshots.filter { $0.note_id == note }.max { ($0.upto, $0.epoch) < ($1.upto, $1.epoch) }
         let use = newest.map { after == 0 || after < $0.upto } ?? false
+        if use { snapshotsSent += 1 }
         let from = use ? newest!.upto : after
         return .init(snapshot: use ? newest : nil, updates: updates.filter { $0.note_id == note && $0.id > from && !inFlight.contains($0.id) })
     }
