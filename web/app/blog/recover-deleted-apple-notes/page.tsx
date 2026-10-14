@@ -6,7 +6,7 @@ import { RecoverChooser } from "@/lib/RecoverChooser";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("recover-deleted-apple-notes", { title: "How to recover deleted Apple Notes · Pinto Notes" });
+export const metadata = postMetadata("recover-deleted-apple-notes", { title: "Recover deleted Apple Notes: within 30 days, and after" });
 
 const FAQ = [
   { q: "How long does Apple Notes keep deleted notes?", a: [

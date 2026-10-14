@@ -5,7 +5,7 @@ import { Answer, Checklist, Paths, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("move-apple-notes-to-icloud", { title: "Move Apple Notes from On My iPhone or Gmail to iCloud" });
+export const metadata = postMetadata("move-apple-notes-to-icloud", { title: "Move Apple Notes to iCloud from On My iPhone or Gmail" });
 
 // Checked on 2 October 2026 against Apple's iPhone User Guide (iOS 26 and 27: accounts in Notes, folders,
 // Notes settings, locking), the Notes User Guide for Mac (macOS 26 and 27: accounts and folders, adding

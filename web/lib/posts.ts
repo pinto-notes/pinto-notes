@@ -227,8 +227,8 @@ export const posts: Post[] = [
   },
   {
     slug: "apple-notes-not-syncing",
-    title: "Apple Notes not syncing between iPhone and Mac: how to fix it",
-    description: "Why Apple Notes stops syncing between iPhone and Mac, and the fixes in order: iCloud settings, Apple Account, note account, storage, iOS 27 updates.",
+    title: "Apple Notes not syncing between iPhone and Mac? 6 checks",
+    description: "Find which device is at fault in a minute, then six checks in order, including the iOS 27 message that looks like a sync failure but isn't one.",
     excerpt: "A note from your iPhone isn't on your Mac. Three questions find the cause, then six checks in order, plus shared notes that won't update.",
     category: "Apple Notes",
     date: "2026-10-05",
@@ -263,8 +263,8 @@ export const posts: Post[] = [
   },
   {
     slug: "move-apple-notes-to-icloud",
-    title: "How to move Apple Notes from On My iPhone or Gmail to iCloud",
-    description: "Move notes from On My iPhone or Gmail into iCloud on iPhone or Mac, and what to check first for locked notes and Gmail notes.",
+    title: "Move Apple Notes to iCloud from On My iPhone or Gmail",
+    description: "Notes under On My iPhone or Gmail never reach your Mac. How to move them into iCloud on iPhone or Mac, and what to check first for locked notes.",
     excerpt: "Notes in On My iPhone or Gmail stay put until you move them. The taps on iPhone, the drag on a Mac, what can get lost on the way, and a checklist for afterwards.",
     category: "Apple Notes",
     date: "2026-10-02",
@@ -287,8 +287,8 @@ export const posts: Post[] = [
   },
   {
     slug: "recover-deleted-apple-notes",
-    title: "How to recover deleted Apple Notes, including after 30 days",
-    description: "Get back deleted Apple Notes from Recently Deleted on iPhone, Mac and iCloud.com, what works after 30 days, and why Gmail notes and locked notes are different.",
+    title: "Recover deleted Apple Notes: within 30 days, and after",
+    description: "Within 30 days it's in Recently Deleted on any device or iCloud.com. After that, the few cases that still work, and which recovery apps to avoid.",
     excerpt: "Within 30 days it's almost always in Recently Deleted. After that, what still works, what doesn't, and what recovery apps won't tell you.",
     category: "Apple Notes",
     date: "2026-10-01",
@@ -299,8 +299,8 @@ export const posts: Post[] = [
   },
   {
     slug: "forgot-apple-notes-password",
-    title: "Forgot your Apple Notes password? What works, and what doesn't",
-    description: "What to try before you reset a forgotten Apple Notes password, how to reset it on iPhone and Mac, and why Apple and unlock tools can't open old locked notes.",
+    title: "Forgot your Apple Notes password? 5 things to try first",
+    description: "A reset won't unlock your old locked notes, which most guides skip. Five things that can still get you in on iPhone and Mac, then how to reset safely.",
     excerpt: "Try these first, then reset. Resetting lets you lock new notes, but it never opens the old ones. Nobody can, and here's why.",
     category: "Apple Notes",
     date: "2026-10-01",

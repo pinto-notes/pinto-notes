@@ -6,7 +6,7 @@ import { ResetChooser } from "@/lib/ResetChooser";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("forgot-apple-notes-password", { title: "Forgot your Apple Notes password? What works" });
+export const metadata = postMetadata("forgot-apple-notes-password", { title: "Forgot your Apple Notes password? 5 things to try first" });
 
 const FAQ = [
   { q: "Can Apple recover my locked notes if I forget the password?", a: [

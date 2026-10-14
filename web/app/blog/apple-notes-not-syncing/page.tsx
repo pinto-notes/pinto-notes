@@ -4,7 +4,7 @@ import { Answer, Paths, Steps } from "@/lib/PostParts";
 import { SyncChooser } from "@/lib/SyncChooser";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("apple-notes-not-syncing", { title: "Apple Notes not syncing between iPhone and Mac? Fixes" });
+export const metadata = postMetadata("apple-notes-not-syncing", { title: "Apple Notes not syncing between iPhone and Mac? 6 checks" });
 
 // Checked on 5 October 2026 against Apple Support 121669 (If you don't see your iCloud notes, published
 // 21 March 2025), 108922 (Manage your iCloud storage, published 14 September 2026) and 102462 (If you
