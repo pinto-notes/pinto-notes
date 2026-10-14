@@ -1,12 +1,11 @@
-/// Which site pages are cream and which are leaf brown. The changelog and Privacy & Security are cream
-/// since the site audit of 13 October 2026, so the dark closing band at their end is the one brown
-/// moment on them. Help stays leaf brown (Emil, 14 October 2026: it looked better that way), with the
-/// privacy policy and terms. Shared notes and the report form have no
+/// Which site pages are cream and which are leaf brown: the rule is in docs/DESIGN.md (Colour, Page
+/// grounds). Help, support and the changelog are leaf brown top to bottom, with the privacy policy and
+/// terms; everything else is cream, Privacy & Security included. Shared notes and the report form have no
 /// fixed theme: they follow the visitor's system (app/site.css), cream in light and leaf brown in dark.
 /// Any other address is a site page, so an address the site doesn't have gets the site's own 404.
 export function themeFor(path: string): "cream" | "leaf" | null {
   if (/^\/(n|s|t|report)(\/|$)/.test(path)) return null;
-  if (/^\/(support|help|privacy|terms)(\/|$)/.test(path)) return "leaf";
+  if (/^\/(changelog|support|help|privacy|terms)(\/|$)/.test(path)) return "leaf";
   // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in
   // dark. The home page studies (/lab/home-d, -e, -f, -g) are cream like the home page: the home page is never dark.
   if (/^\/lab(\/|$)/.test(path) && !/^\/lab\/home-[defg](\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
@@ -31,4 +30,4 @@ export function ownTopBar(path: string, copyIds: readonly string[] = []): boolea
 
 /// Runs in <head> before first paint, so a page never flashes the wrong theme. The consent page's
 /// CSP allows it by its hash (middleware.ts), so change it only here.
-export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/home-[defg](\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
+export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/home-[defg](\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;

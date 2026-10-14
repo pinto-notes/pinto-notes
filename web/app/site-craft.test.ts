@@ -84,9 +84,13 @@ describe("the site's controls", () => {
     for (const g of ["Getting started", "Connecting an AI", "Your notes and account", "Sharing"]) expect(help).toContain(`title: "${g}"`);
     expect(help).not.toContain("WHAT_IT_IS");
     const log = css("changelog/page.tsx");
-    expect(log).toContain("r.highlights");
-    expect(log).toMatch(/All \{all\.length\} changes/);
+    // Emil, 14 October 2026: less per release, the rest and the patch releases under Read more, no pictures.
+    expect(log).toContain("w.highlights");
+    expect(log).toContain(">Read more<");
+    expect(log).toContain("w.patches");
+    expect(log).not.toMatch(/<img/);
     expect(log).not.toMatch(/updates itself/);
+    expect(css("changelog/changelog.module.css")).toMatch(/\.more summary:focus \{ outline: none; \}/);
     const privacy = css("privacy-security/page.tsx");
     expect(privacy).toContain("f.short");
     // Every log stays on the page (a transparency promise), folded away at the end of the long text.

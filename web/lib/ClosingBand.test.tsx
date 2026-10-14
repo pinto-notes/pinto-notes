@@ -31,7 +31,7 @@ describe("the closing band", () => {
   });
 
   it("is on every page the audit listed", () => {
-    const pages = ["download/page.tsx", "changelog/page.tsx", "privacy-security/page.tsx", "amber-notes/page.tsx", "templates/page.tsx"];
+    const pages = ["download/page.tsx", "privacy-security/page.tsx", "amber-notes/page.tsx", "templates/page.tsx"];
     for (const p of pages) expect(readFileSync(join(process.cwd(), "app", p), "utf8"), p).toContain("<ClosingBand");
     expect(readFileSync(join(process.cwd(), "lib/Landing.tsx"), "utf8")).toContain("<ClosingBand");
   });
