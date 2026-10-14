@@ -176,14 +176,14 @@ export default function Page() {
       </p>
       <p>
         Apple Notes has no plugin and no API, so on a Mac computer use is the only way Astra can work in it. It can open Notes and
-        type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">ChatGPT
-        memory or your notes</a> covers why the notes themselves are the better place for things you want an AI to remember.
+        type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">AI memory
+        vs notes it can edit</a> covers why the notes themselves are the better place for things you want an AI to remember.
       </p>
       <p>
         One use case for a direct connection is Pinto Notes, the notes app for iPhone and Mac that I make. ChatGPT, Claude, Claude
         Code and Codex can read and edit it over MCP once you approve them on your iPhone or Mac. With Codex, it&apos;s one line:
       </p>
-      <pre><code>{`codex mcp add amber_notes --url ${MCP_URL}`}</code></pre>
+      <pre><code>{`codex mcp add pinto-notes --url ${MCP_URL}`}</code></pre>
       <p>
         Then choose Astra with <code>/model</code> and ask it to keep a note, such as a running log of what it built today.
         In ChatGPT on the web, the steps are in <a href="/blog/connect-chatgpt-to-your-notes">how to connect ChatGPT to your
