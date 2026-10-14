@@ -81,6 +81,44 @@ struct ShareNotePopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // With people sharing, the note's own title is all the naming it needs: not repeated here.
+            if !collaborating { header }
+
+            if canLink || collaborating {
+                Picker("", selection: Binding(get: { chosen }, set: { way = $0 })) {
+                    ForEach(ways) { Text($0.label(collaborating: collaborating)).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 14)
+                .padding(.top, collaborating ? 14 : 0)
+                .accessibilityIdentifier("share.way")
+            }
+            if chosen != .people {
+                Text(ShareWays.line(chosen, shared: shared, trashed: trashed))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                Divider().padding(.horizontal, 12)
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                switch chosen {
+                case .people: if let share { CollaborateRows(share: share, startingPage: collaboratePage) }
+                case .link: linkRows
+                case .copy: copyRows
+                }
+            }
+            .padding(6)
+        }
+        .frame(width: collaborating ? Self.collaborateWidth : Self.width)
+        .accessibilityIdentifier("share.popover")
+    }
+
+    private var header: some View {
             HStack(spacing: 10) {
                 AppMark(size: 34)
                 VStack(alignment: .leading, spacing: 1) {
@@ -92,36 +130,6 @@ struct ShareNotePopover: View {
             .padding(.horizontal, 14)
             .padding(.top, 14)
             .padding(.bottom, 10)
-
-            if canLink || collaborating {
-                Picker("", selection: Binding(get: { chosen }, set: { way = $0 })) {
-                    ForEach(ways) { Text($0.label(collaborating: collaborating)).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 14)
-                .accessibilityIdentifier("share.way")
-            }
-            Text(ShareWays.line(chosen, shared: shared, trashed: trashed))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-            Divider().padding(.horizontal, 12)
-
-            VStack(alignment: .leading, spacing: 0) {
-                switch chosen {
-                case .people: if let share { CollaborateRows(share: share, title: title, startingPage: collaboratePage) }
-                case .link: linkRows
-                case .copy: copyRows
-                }
-            }
-            .padding(6)
-        }
-        .frame(width: collaborating ? Self.collaborateWidth : Self.width)
-        .accessibilityIdentifier("share.popover")
     }
 
     @ViewBuilder private var linkRows: some View {
@@ -263,106 +271,86 @@ private struct SharePopoverLive: View {
 }
 
 /// Collaborate, in the popover: the people in the note (Verify on click, Remove on right-click),
-/// Share Link and what the link lets people do, or Leave for someone else's note. Remove and
-/// Leave ask inside the popover, which stays open while they happen.
+/// then Share Link and what the link lets people do, or Leave for someone else's note. Remove and
+/// Leave ask inside the popover, which stays open while they happen; each says when it's done.
 struct CollaborateRows: View {
     @Bindable var share: ShareController
-    let title: String
-    /// Captures: open on a person's safety code, or on a question.
+    /// Captures: open on a person's safety code.
     var startingPage: Page?
 
-    enum Page: Equatable { case people, verify(UUID), confirmRemove(UUID), confirmLeave }
+    enum Page: Equatable { case people, verify(UUID) }
     @State private var page: Page?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var shown: Page {
-        if let p = share.confirmingRemove { return .confirmRemove(p.id) }
-        if share.confirmingLeave { return .confirmLeave }
-        return page ?? startingPage ?? .people
-    }
+    private var shown: Page { page ?? startingPage ?? .people }
 
     var body: some View {
-        switch shown {
-        case .people: people
-        case .verify(let id): if let p = share.state.people.first(where: { $0.id == id }) { verify(p) } else { people }
-        case .confirmRemove(let id):
-            if let p = share.state.people.first(where: { $0.id == id }) {
+        Group {
+            if let p = share.confirmingRemove {
                 confirm(ShareCopy.removeTitle(p), ShareCopy.removeMessage(p), action: "Remove", id: "share.confirmRemove",
-                        cancel: { share.confirmingRemove = nil; page = .people }) { page = .people; Task { await share.confirmRemove() } }
+                        cancel: { share.confirmingRemove = nil }) { page = .people; Task { await share.confirmRemove() } }
+            } else if share.confirmingLeave {
+                confirm(ShareCopy.leaveTitle, ShareCopy.leaveMessage, action: "Leave", id: "share.confirmLeave",
+                        cancel: { share.confirmingLeave = false }) { Task { await share.confirmLeave() } }
+            } else if case .verify(let id) = shown, let p = share.state.people.first(where: { $0.id == id }) {
+                verify(p)
+            } else {
+                people
             }
-        case .confirmLeave:
-            confirm(ShareCopy.leaveTitle(title), ShareCopy.leaveMessage, action: "Leave", id: "share.confirmLeave",
-                    cancel: { share.confirmingLeave = false }) { Task { await share.confirmLeave() } }
         }
+        .padding(8)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: share.done)
     }
 
     @ViewBuilder private var people: some View {
-        ForEach(share.state.people) { p in
-            Button { if !p.isMe, p.safetyCode != nil { page = .verify(p.id) } } label: {
-                PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                    .font(.system(size: 13))
-                    .padding(.horizontal, 8)
-                    .frame(height: 32)
-                    .contentShape(Rectangle())
-                    .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(share.state.people) { p in
+                    Button { if !p.isMe, p.safetyCode != nil { page = .verify(p.id) } } label: {
+                        PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
+                            .font(.system(size: 13))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu { if share.isOwner, !p.isMe { Button("Remove from Note", role: .destructive) { share.askRemove(p) } } }
+                    .accessibilityIdentifier("share.person")
+                }
             }
-            .buttonStyle(.plain)
-            .contextMenu { if share.isOwner, !p.isMe { Button("Remove from Note", role: .destructive) { share.askRemove(p) } } }
-            .accessibilityIdentifier("share.person")
-        }
-        Divider().padding(.horizontal, 6).padding(.vertical, 4)
-        if share.isOwner {
-            Button { Task { await share.shareLink() } } label: {
+            if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text).font(.system(size: 11)) }
+            line(ShareCopy.privacy, problem: false)
+            if share.isOwner {
                 HStack(spacing: 8) {
-                    if share.working == .link { ProgressView().controlSize(.small).frame(width: 18) }
-                    else { Image(systemName: "square.and.arrow.up").font(.system(size: 13)).frame(width: 18) }
-                    Text(share.working == .link ? ShareCopy.working(.link) : "Share Link").font(.system(size: 13))
+                    Text("People with the link").font(.system(size: 13))
                     Spacer(minLength: 0)
+                    Picker("People with the link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                        ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .disabled(share.working != nil)
+                    .accessibilityIdentifier("share.access")
                 }
-                .padding(.horizontal, 8)
-                .frame(height: 26)
-                .contentShape(Rectangle())
-                .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(share.working != nil)
-            .background(SharePickerAnchor(url: $share.sharing))
-            .accessibilityIdentifier("share.link")
-            HStack(spacing: 8) {
-                Image(systemName: "link").font(.system(size: 13)).frame(width: 18)
-                Text("People with the link").font(.system(size: 13))
-                Spacer(minLength: 0)
-                if share.working == .access { ProgressView().controlSize(.small) }
-                Picker("People with the link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                    ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                if let problem = share.state.problem { line(problem, problem: true) }
+                else if share.done == .linkChanged { DoneLine(text: ShareController.Done.linkChanged.text).font(.system(size: 11)) }
+                else { line(ShareCopy.link(share.state), problem: false) }
+                Button { Task { await share.shareLink() } } label: {
+                    if case .shared = share.done { Label(share.done?.text ?? "", systemImage: "checkmark") }
+                    else { Label("Share Link", systemImage: "square.and.arrow.up") }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
+                .buttonStyle(.amberProminent(.regular, wide: true))
+                .amberBusy(share.working == .link)
                 .disabled(share.working != nil)
-                .accessibilityIdentifier("share.access")
+                .background(SharePickerAnchor(url: $share.sharing) { sent, copied in share.shareFinished(sent: sent, copied: copied) })
+                .accessibilityIdentifier("share.link")
+            } else {
+                if let problem = share.state.problem { line(problem, problem: true) }
+                Button(role: .destructive) { share.askLeave() } label: { Text("Leave Note").foregroundStyle(.red) }
+                    .buttonStyle(.quiet)
+                    .amberBusy(share.working == .leave)
+                    .disabled(share.working != nil)
+                    .accessibilityIdentifier("share.leave")
             }
-            .padding(.leading, 8)
-            .padding(.trailing, 2)
-            .frame(height: 30)
-            line(share.state.problem ?? ShareCopy.link(share.state), problem: share.state.problem != nil)
-        } else {
-            Button { share.askLeave() } label: {
-                HStack(spacing: 8) {
-                    if share.working == .leave { ProgressView().controlSize(.small).frame(width: 18) }
-                    else { Image(systemName: "rectangle.portrait.and.arrow.right").font(.system(size: 13)).frame(width: 18) }
-                    Text(share.working == .leave ? ShareCopy.working(.leave) : "Leave Note").font(.system(size: 13))
-                    Spacer(minLength: 0)
-                }
-                .foregroundStyle(.red)
-                .padding(.horizontal, 8)
-                .frame(height: 26)
-                .contentShape(Rectangle())
-                .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(share.working != nil)
-            .accessibilityIdentifier("share.leave")
-            if let problem = share.state.problem { line(problem, problem: true) }
         }
     }
 
@@ -371,20 +359,15 @@ struct CollaborateRows: View {
             .font(.system(size: 11))
             .foregroundStyle(problem ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 10)
-            .padding(.top, 2)
-            .padding(.bottom, 4)
-            .accessibilityIdentifier(problem ? "share.problem" : "share.linkLine")
+            .accessibilityIdentifier(problem ? "share.problem" : "share.line")
     }
 
     private func verify(_ p: ShareState.Person) -> some View {
         let first = ShareCopy.first(p.name)
-        return VStack(alignment: .leading, spacing: 10) {
-            Button { page = .people } label: {
-                Label("People", systemImage: "chevron.left").font(.system(size: 13))
-            }
-            .buttonStyle(.hoverLink)
-            .accessibilityIdentifier("share.back")
+        return VStack(alignment: .leading, spacing: 12) {
+            Button { page = .people } label: { Label("People", systemImage: "chevron.left") }
+                .buttonStyle(.quiet)
+                .accessibilityIdentifier("share.back")
             HStack(spacing: 10) {
                 PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: 36, photo: p.photo, ring: .clear)
                 VStack(alignment: .leading, spacing: 1) {
@@ -393,34 +376,36 @@ struct CollaborateRows: View {
                 }
             }
             if let code = p.safetyCode {
-                Text("Verify \(first)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                 SafetyCode(code: code)
-                Text(ShareCopy.verify(first)).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                line(p.keyChanged ?? ShareCopy.verify(first), problem: false)
+                if p.verified && p.keyChanged == nil || share.done == .verified(p.id) {
+                    DoneLine(text: ShareCopy.verifiedLine(first)).font(.system(size: 11))
+                } else {
+                    Button("They Match") { share.verify(p) }
+                        .buttonStyle(.amberProminent(.regular, wide: true))
+                        .accessibilityIdentifier("share.verify")
+                }
             }
             if share.isOwner {
-                Button("Remove from Note", role: .destructive) { share.askRemove(p) }
-                    .buttonStyle(.hoverLink)
-                    .foregroundStyle(.red)
+                Button(role: .destructive) { share.askRemove(p) } label: { Text("Remove from Note").foregroundStyle(.red) }
+                    .buttonStyle(.quiet)
                     .accessibilityIdentifier("share.person.remove")
             }
         }
-        .padding(8)
     }
 
+    /// A question asked in place: the destructive answer is the one primary, in red.
     private func confirm(_ title: String, _ message: String, action: String, id: String, cancel: @escaping () -> Void, go: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.system(size: 13, weight: .semibold))
             Text(message).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("Cancel", action: cancel).buttonStyle(.secondary).keyboardShortcut(.cancelAction)
-                Button(role: .destructive, action: go) { Text(action).foregroundStyle(.red) }
-                    .buttonStyle(.secondary)
-                    .accessibilityIdentifier(id)
+                Button("Cancel", action: cancel).buttonStyle(.quiet).keyboardShortcut(.cancelAction)
+                Button(action, role: .destructive, action: go).buttonStyle(.amberProminent).accessibilityIdentifier(id)
             }
             .padding(.top, 4)
         }
-        .padding(8)
     }
 }
 #endif

@@ -184,7 +184,7 @@ struct PaneApp: App {
                 } else if ProcessInfo.processInfo.arguments.contains("-template") {
                     CollabGallery.templateSheet().tint(Color(PColor.paneAccent))
                 } else if ProcessInfo.processInfo.arguments.contains("-share") {
-                    NavigationStack { ShareForm(title: "Team offsite", share: ShareController(note: Note(body: "Team offsite"), backend: SampleShare(CollabGallery.shareWithPhoto))) }.tint(Color(PColor.paneAccent))
+                    NavigationStack { ShareForm(share: ShareController(note: Note(body: "Team offsite"), backend: SampleShare(CollabGallery.shareWithPhoto))) }.tint(Color(PColor.paneAccent))
                 } else {
                     CollabGallery().tint(Color(PColor.paneAccent))
                 }

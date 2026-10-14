@@ -47,6 +47,7 @@ struct PersonAvatar: View {
     /// Draws only the badge, in the same place (the stack puts every badge on its own top layer).
     var badgeOnly = false
     var pencilStyle: PencilStyle = .current
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The ring's width: 2 pt at toolbar size, a clean cut between overlapping avatars.
     static func ringWidth(_ size: CGFloat) -> CGFloat { max(2, (size / 14).rounded()) }
@@ -77,7 +78,7 @@ struct PersonAvatar: View {
             if badgeOnly || !roomForBadge { badgeView.position(g.center) }
         }
         .frame(width: room ? g.frame.width : g.outer, height: room ? g.frame.height : g.outer, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.35), value: badge)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: badge)
         .accessibilityHidden(true)
     }
 
@@ -147,12 +148,14 @@ struct PresenceAvatars: View {
     var size: CGFloat = 28
     var option: BadgeOption = .current
     var pencilStyle: PencilStyle = .current
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         row(badges: false)
             // Every badge on a layer of its own above all the circles, so the next avatar never covers one.
             .overlay(alignment: .leading) { row(badges: true) }
-        .animation(.snappy(duration: 0.3), value: people.map(\.id))
+        // One move per change: someone arriving or leaving fades, nothing scales or bounces.
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: people.map(\.id))
         // Flattened into one opaque picture before the toolbar's glass gets it. Without this the
         // glass blends each circle with what's behind it, the previous avatar included, so the
         // white cut between them showed a tint of the avatar underneath (seen zoomed at 3x;
@@ -172,7 +175,7 @@ struct PresenceAvatars: View {
                     // where the badge ends, so a badge never sits on the next person.
                     .padding(.trailing, i < shown.count - 1 || people.count > 3
                              ? (badge == .none ? g.outer - size * 0.22 : g.badgeRight + 0.5) - g.frame.width : 0)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .transition(.opacity)
             }
             if people.count > 3 {
                 Text("+\(people.count - 3)")

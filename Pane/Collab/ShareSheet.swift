@@ -27,6 +27,10 @@ struct ShareState: Equatable {
         var role: String
         var safetyCode: String?
         var photo: PImage? = nil
+        /// You checked their safety code and it matched.
+        var verified = false
+        /// Their key isn't the one first seen for them: what to say (Collab.KeyChange.message).
+        var keyChanged: String? = nil
     }
     var link: URL?
     var access: Access = .off
@@ -37,12 +41,13 @@ struct ShareState: Equatable {
     var myRole: String { people.first(where: \.isMe)?.role ?? "owner" }
 }
 
-/// The sheet's content: People, the link, Leave. On iPhone in a sheet; the Mac shows the same
-/// controller in the toolbar's popover (ShareNotePopover).
+/// The sheet's content on iPhone: People, then Share Link and what the link lets people do, or
+/// Leave for someone else's note. The Mac shows the same controller in the toolbar's popover
+/// (ShareNotePopover). The note's title isn't repeated: the note above says it.
 struct ShareForm: View {
-    let title: String
     @Bindable var share: ShareController
     var done: () -> Void = {}
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var state: ShareState { share.state }
 
@@ -60,12 +65,19 @@ struct ShareForm: View {
                     .contextMenu { if share.isOwner, !p.isMe { Button("Remove from Note", systemImage: "person.badge.minus", role: .destructive) { share.askRemove(p) } } }
                 }
             } footer: {
-                Text(ShareCopy.privacy)
+                VStack(alignment: .leading, spacing: 6) {
+                    if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text) }
+                    Text(ShareCopy.privacy)
+                }
             }
 
             if share.isOwner {
                 Section {
                     shareButton
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+                Section {
                     Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
                         ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
                     } label: {
@@ -75,69 +87,88 @@ struct ShareForm: View {
                     .disabled(share.working != nil)
                     .accessibilityIdentifier("share.access")
                 } footer: {
-                    footer(ShareCopy.link(state))
+                    footer(share.done == .linkChanged ? nil : ShareCopy.link(state), done: share.done == .linkChanged)
                 }
             } else {
                 Section {
                     Button(role: .destructive) { share.askLeave() } label: {
-                        if share.working == .leave { WorkingLabel(ShareCopy.working(.leave)) } else { Text("Leave Note") }
+                        Text("Leave Note").foregroundStyle(.red)
                     }
+                    .buttonStyle(.quiet)
+                    .amberBusy(share.working == .leave)
                     .disabled(share.working != nil)
+                    .listRowBackground(Color.clear)
                     .accessibilityIdentifier("share.leave")
                 } footer: {
-                    footer(nil)
+                    footer(nil, done: false)
                 }
             }
         }
         .formStyle(.grouped)
-        #if os(macOS)
-        .buttonStyle(.borderless)
-        #endif
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: share.done)
         .navigationTitle("Share")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: done) } }
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: done).buttonStyle(.quiet) } }
         .navigationDestination(for: UUID.self) { id in
-            if let p = state.people.first(where: { $0.id == id }) { PersonDetail(person: p, canRemove: share.isOwner, remove: { share.askRemove(p) }) }
+            if let p = state.people.first(where: { $0.id == id }) {
+                PersonDetail(person: p, canRemove: share.isOwner, justVerified: share.done == .verified(p.id),
+                             verify: { share.verify(p) }, remove: { share.askRemove(p) })
+            }
         }
-        .modifier(ShareConfirmations(share: share, title: title))
+        .modifier(ShareConfirmations(share: share))
     }
 
     @ViewBuilder
-    private func footer(_ line: String?) -> some View {
+    private func footer(_ line: String?, done: Bool) -> some View {
         if let problem = state.problem {
             Text(problem).foregroundStyle(.red).accessibilityIdentifier("share.problem")
+        } else if done {
+            DoneLine(text: ShareController.Done.linkChanged.text)
         } else if let line {
             Text(line)
         }
     }
 
-    /// One button. The system share sheet (iPhone) or menu (Mac) has Copy and every app to send it with.
+    /// The one primary button. The system share sheet has Copy and every app to send it with.
     private var shareButton: some View {
         Button {
             Task { await share.shareLink() }
         } label: {
-            if share.working == .link { WorkingLabel(ShareCopy.working(.link)) } else { Label("Share Link", systemImage: "square.and.arrow.up") }
+            if case .shared = share.done { Label(share.done?.text ?? "", systemImage: "checkmark") }
+            else { Label("Share Link", systemImage: "square.and.arrow.up") }
         }
+        .buttonStyle(.amberProminent(.big, wide: true))
+        .amberBusy(share.working == .link)
         .disabled(share.working != nil)
         #if os(macOS)
-        .background(SharePickerAnchor(url: $share.sharing))
+        .background(SharePickerAnchor(url: $share.sharing) { sent, copied in share.shareFinished(sent: sent, copied: copied) })
         #else
         .onChange(of: share.sharing) { _, url in
             guard let url else { return }
             share.sharing = nil
-            SystemShare.present(url)
+            ShareLinkSheet.present(url) { sent, copied in share.shareFinished(sent: sent, copied: copied) }
         }
         #endif
         .accessibilityIdentifier("share.link")
     }
 }
 
+/// "Removed", "Saved", "Copied": what just got done, with a tick, for a moment.
+struct DoneLine: View {
+    let text: String
+    var body: some View {
+        Label(text, systemImage: "checkmark")
+            .foregroundStyle(.secondary)
+            .transition(.opacity)
+            .accessibilityIdentifier("share.done")
+    }
+}
+
 /// Remove and Leave ask first, with what happens in plain words.
 struct ShareConfirmations: ViewModifier {
     @Bindable var share: ShareController
-    let title: String
 
     func body(content: Content) -> some View {
         content
@@ -148,25 +179,12 @@ struct ShareConfirmations: ViewModifier {
             } message: {
                 Text(share.confirmingRemove.map(ShareCopy.removeMessage) ?? "")
             }
-            .alert(ShareCopy.leaveTitle(title), isPresented: $share.confirmingLeave) {
+            .alert(ShareCopy.leaveTitle, isPresented: $share.confirmingLeave) {
                 Button("Cancel", role: .cancel) {}
                 Button("Leave", role: .destructive) { Task { await share.confirmLeave() } }
             } message: {
                 Text(ShareCopy.leaveMessage)
             }
-    }
-}
-
-/// A short progress line on the button that started it.
-struct WorkingLabel: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small)
-            Text(text).foregroundStyle(.secondary)
-        }
     }
 }
 
@@ -180,9 +198,20 @@ struct PersonRow: View {
             // On its own in a row, an avatar needs no ring.
             PersonAvatar(name: person.name, color: person.isMe ? Color(PColor.paneAccent) : CollabSession.color(for: person.id), size: size,
                          photo: person.photo, ring: .clear, ink: person.isMe ? .avatarOnAmber : .white)
-            Text(person.isMe ? "\(person.name) (you)" : person.name)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Text(person.isMe ? "\(person.name) (you)" : person.name)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if person.verified, person.keyChanged == nil {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.secondary).font(.caption)
+                            .accessibilityLabel("Verified")
+                    }
+                }
+                if person.keyChanged != nil {
+                    Text(ShareCopy.keyChangedRow).font(.caption).foregroundStyle(Color(Palette.amber))
+                }
+            }
             Spacer(minLength: 4)
             if removing {
                 ProgressView().controlSize(.small)
@@ -195,10 +224,13 @@ struct PersonRow: View {
     }
 }
 
-/// A person, opened: their safety code for anyone who wants to check, and Remove.
+/// A person, opened: their safety code, calmly, for anyone who wants to check, "They match", and
+/// Remove for the owner. A changed key says so in one line, and "They match" trusts the new one.
 struct PersonDetail: View {
     let person: ShareState.Person
     var canRemove = true
+    var justVerified = false
+    var verify: () -> Void = {}
     let remove: () -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -221,45 +253,100 @@ struct PersonDetail: View {
                 } header: {
                     Text("Verify \(first)")
                 } footer: {
-                    Text(ShareCopy.verify(first))
+                    Text(person.keyChanged ?? ShareCopy.verify(first))
                 }
+                Section {
+                    if person.verified && person.keyChanged == nil || justVerified {
+                        DoneLine(text: ShareCopy.verifiedLine(first))
+                    } else {
+                        Button("They Match", action: verify)
+                            .buttonStyle(.amberProminent(.big, wide: true))
+                            .accessibilityIdentifier("share.verify")
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
             if canRemove {
                 Section {
-                    Button("Remove from Note", role: .destructive) { dismiss(); remove() }
+                    Button(role: .destructive) { dismiss(); remove() } label: { Text("Remove from Note").foregroundStyle(.red) }
+                        .buttonStyle(.quiet)
                         .accessibilityIdentifier("share.person.remove")
                 }
+                .listRowBackground(Color.clear)
             }
         }
         .formStyle(.grouped)
         .navigationTitle(first)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }
 
-/// Twelve digits in three groups, large enough to read out.
+/// The twelve digits as three groups side by side, solid and large enough to read out.
 struct SafetyCode: View {
     let code: String
     var body: some View {
-        Text(code).font(.title2.monospacedDigit()).frame(maxWidth: .infinity, alignment: .center).textSelection(.enabled)
-            .accessibilityIdentifier("share.safetyCode")
+        HStack(spacing: 8) {
+            ForEach(Array(code.split(separator: " ").enumerated()), id: \.offset) { _, group in
+                Text(group)
+                    .font(.title3.monospacedDigit().weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(Palette.soft), in: .rect(cornerRadius: 8))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .textSelection(.enabled)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(code)
+        .accessibilityIdentifier("share.safetyCode")
     }
 }
 
 #if os(macOS)
 /// Opens the system share menu (Messages, Mail, AirDrop, Copy Link…) from the view it sits
-/// behind, as soon as there's a link to share.
+/// behind, as soon as there's a link to share, and says whether it went somewhere.
 struct SharePickerAnchor: NSViewRepresentable {
     @Binding var url: URL?
+    var finished: (_ sent: Bool, _ copied: Bool) -> Void = { _, _ in }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject, NSSharingServicePickerDelegate {
+        var finished: (Bool, Bool) -> Void = { _, _ in }
+        func sharingServicePicker(_ picker: NSSharingServicePicker, didChoose service: NSSharingService?) {
+            let copied = service?.title.lowercased().contains("copy") ?? false
+            finished(service != nil, copied)
+        }
+    }
 
     func makeNSView(context: Context) -> NSView { NSView() }
 
     func updateNSView(_ view: NSView, context: Context) {
+        context.coordinator.finished = finished
         guard let url else { return }
         DispatchQueue.main.async {
             self.url = nil
             guard view.window != nil else { return }
-            NSSharingServicePicker(items: [url]).show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            let picker = NSSharingServicePicker(items: [url])
+            picker.delegate = context.coordinator
+            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
         }
+    }
+}
+#else
+/// The system share sheet for a note's link, saying when it went somewhere and whether it was Copy.
+enum ShareLinkSheet {
+    @MainActor static func present(_ url: URL, finished: @escaping (_ sent: Bool, _ copied: Bool) -> Void) {
+        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first,
+              var top = scene.keyWindow?.rootViewController else { return }
+        while let next = top.presentedViewController { top = next }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = top.view
+        sheet.completionWithItemsHandler = { type, completed, _, _ in finished(completed, type == .copyToPasteboard) }
+        top.present(sheet, animated: true)
     }
 }
 #endif
@@ -277,7 +364,7 @@ struct ShareSheet: View {
 
     var body: some View {
         NavigationStack {
-            ShareForm(title: note.title, share: share, done: { dismiss() })
+            ShareForm(share: share, done: { dismiss() })
         }
         .task {
             // People come and go: keep the list current while the sheet is open.
