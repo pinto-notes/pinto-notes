@@ -8,6 +8,8 @@ const AIS = {
   claude: { name: "Claude", glyph: "claude", color: "#d97757" },
   "claude-code": { name: "Claude Code", glyph: "claude", color: "#d97757" },
   codex: { name: "Codex", glyph: "openai", color: "#0d0d0d" },
+  grok: { name: "Grok", glyph: "grok", color: "#0d0d0d" },
+  gemini: { name: "Gemini", glyph: "gemini", color: "#3b7cf0" },
 } as const;
 export type ConnectAI = keyof typeof AIS;
 
