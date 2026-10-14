@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { G } from "../copy";
 import { Switcher, type VersionInfo } from "./Switcher";
 import { V1 } from "./v1/V1";
+import { V2 } from "./v2/V2";
 
 export const metadata: Metadata = { title: G.title, description: G.description };
 
@@ -17,6 +18,12 @@ const VERSIONS: (VersionInfo & { render: (p: Record<string, string | undefined>)
     take: "Clear and honest, a benefit per section. Calm rather than spectacular.",
     parts: [{ key: "hero", label: "Hero", options: [{ id: "story", label: "Story, then try it" }, { id: "window", label: "The real app window" }] }],
     render: (p) => <V1 hero={p.hero} />,
+  },
+  {
+    id: "week", name: "The week",
+    idea: "The whole product as one scrolled film: Monday ChatGPT writes your plan, Wednesday Claude reads it, Friday it moves what you missed, Sunday you tick the last run.",
+    take: "The most cinematic. Scroll slowly through the middle.",
+    render: () => <V2 />,
   },
 ];
 

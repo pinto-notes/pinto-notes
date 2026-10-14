@@ -13,8 +13,8 @@ export function Switcher({ versions }: { versions: VersionInfo[] }) {
   const path = usePathname();
   const q = useSearchParams();
   const v = versions.find((x) => x.id === q.get("v")) ?? versions[0];
-  const [open, setOpen] = useState(true);
-  useEffect(() => { try { if (localStorage.getItem("labSwitcher") === "closed") setOpen(false); } catch {} }, []);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { try { if (localStorage.getItem("labSwitcher") === "open") setOpen(true); } catch {} }, []);
   const toggle = () => { setOpen(!open); try { localStorage.setItem("labSwitcher", open ? "closed" : "open"); } catch {} };
   const go = (next: Record<string, string | null>) => {
     const p = new URLSearchParams(q.toString());

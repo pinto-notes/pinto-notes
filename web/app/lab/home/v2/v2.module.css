@@ -1,0 +1,6 @@
+.main { gap: 120px; }
+.hero { display: grid; gap: 18px; justify-items: center; text-align: center; padding-top: 48px; }
+.h1 { max-width: 13ch; }
+.lede { max-width: 32em; text-wrap: balance; }
+.cta.cta { justify-items: center; }
+.cta p { text-align: center; }
