@@ -1334,7 +1334,9 @@ private struct CollabWiring: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task(id: session.map { ObjectIdentifier($0) }) {
-                guard let session else { controller.remoteCarets = []; return }
+                guard let session else { controller.remoteCarets = []; controller.ownUndo = nil; return }
+                // Undo takes back only what you typed, not what the others did.
+                controller.ownUndo = OwnUndo()
                 session.onRemoteText = { [weak controller] text in controller?.target?.syncExternal(text) }
                 // Carets go straight to the text view, not through SwiftUI's next update, so they move
                 // in the same frame as the text.

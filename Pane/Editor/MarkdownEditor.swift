@@ -894,6 +894,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.stop()
         core.restyle(textStorage, selection: editingSelection, force: true)
         typingAttributes = core.styler.typingAttributes
+        recordOwnEdit()
         lastReported = text
         remember(text)
         core.onChange(text)
@@ -977,12 +978,37 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let keep = selectedRange
         let offset = contentOffset
         textStorage.replaceCharacters(in: edit.range, with: edit.replacement)
-        // Undo steps recorded against the old text would land in the wrong place now.
-        undoManager?.removeAllActions()
+        // Undo steps recorded against the old text would land in the wrong place now. In a shared
+        // note your own steps move with the change instead (OwnUndo).
+        if let own = controller?.ownUndo { own.transform(through: edit) } else { undoManager?.removeAllActions() }
         selectedRange = TextDiff.map(keep, through: edit)
         core.restyle(textStorage, selection: editingSelection, force: true)
         settleOverlays(after: NSMaxRange(edit.range) + (edit.replacement as NSString).length)
         setContentOffset(offset, animated: false)
+    }
+
+    // MARK: Undo in a shared note: only your own edits (OwnUndo)
+
+    private lazy var ownUndoManager = OwnUndoManager(view: self)
+    override var undoManager: UndoManager? { controller?.ownUndo != nil ? ownUndoManager : super.undoManager }
+    private var applyingOwnUndo = false
+
+    /// Your edit, for undo, unless it's an undo itself.
+    private func recordOwnEdit() {
+        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: lastReported, to: text) else { return }
+        own.record(e, in: lastReported)
+    }
+
+    /// Undo or Redo of your own last step, through the text system so it's saved and sent like typing.
+    func ownUndoStep(redo: Bool) {
+        guard let own = controller?.ownUndo, let e = redo ? own.redo(in: text) : own.undo(in: text),
+              let start = position(from: beginningOfDocument, offset: e.range.location),
+              let end = position(from: beginningOfDocument, offset: NSMaxRange(e.range)),
+              let range = textRange(from: start, to: end) else { return }
+        applyingOwnUndo = true
+        defer { applyingOwnUndo = false }
+        replace(range, withText: e.replacement)
+        selectedRange = NSRange(location: e.range.location + (e.replacement as NSString).length, length: 0)
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
@@ -1167,6 +1193,24 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 }
 
+/// The text view's undo in a shared note: Undo and Redo (Shake, the keyboard's, Command-Z) take
+/// your own steps from OwnUndo; what UIKit registers itself is ignored.
+final class OwnUndoManager: UndoManager {
+    weak var view: PaneTextView?
+
+    init(view: PaneTextView) {
+        self.view = view
+        super.init()
+        disableUndoRegistration()
+    }
+
+    override var canUndo: Bool { view?.controller?.ownUndo?.canUndo ?? false }
+    override var canRedo: Bool { view?.controller?.ownUndo?.canRedo ?? false }
+    override func undo() { view?.ownUndoStep(redo: false) }
+    override func redo() { view?.ownUndoStep(redo: true) }
+    override var undoActionName: String { "" }
+    override var redoActionName: String { "" }
+}
 #else
 import AppKit
 import UniformTypeIdentifiers
@@ -1209,7 +1253,10 @@ private struct PlatformEditor: NSViewRepresentable {
         if controller.target !== view { controller.target = view }
         view.setWiki(controller.wiki)
         view.setImages(controller.imagesArrived)
-        // Recently Deleted: shown, selectable to copy, never changed.
+        view.showRemoteCarets(controller.remoteCarets)
+        // A shared note keeps its own undo (only your edits); the system's would undo everyone's.
+        if view.allowsUndo != (controller.ownUndo == nil) { view.allowsUndo = controller.ownUndo == nil }
+        // Recently Deleted and Can view: shown, selectable to copy, never changed.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
     }
 }
@@ -1298,7 +1345,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         // Straight to their new places: while the width changes (the sidebar sliding, the window
         // being resized) the cards follow the text instead of gliding after it.
-        DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false) }
+        DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false); self?.layoutRemoteCarets() }
     }
 
     /// What each live view last showed, so one whose content is the same isn't given it again.
@@ -1513,6 +1560,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.layoutDelegate.tint.stop()
         core.restyle(textStorage!, selection: editingSelection, force: true)
         typingAttributes = core.styler.typingAttributes
+        recordOwnEdit()
         lastReported = string
         remember(string)
         core.onChange(string)
@@ -1565,8 +1613,170 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         layoutCards()
     }
 
-    /// Other people's carets aren't drawn on the Mac yet (collaboration prototype).
-    func showRemoteCarets(_ carets: [RemoteCaret]) {}
+    // MARK: Undo in a shared note: only your own edits (OwnUndo)
+
+    private var applyingOwnUndo = false
+
+    /// Your edit, for undo, unless it's an undo itself.
+    private func recordOwnEdit() {
+        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: lastReported, to: string) else { return }
+        own.record(e, in: lastReported)
+    }
+
+    /// Edit › Undo reaches the text view first: in a shared note it undoes your own last step.
+    @objc func undo(_ sender: Any?) {
+        guard controller?.ownUndo != nil else { undoManager?.undo(); return }
+        ownUndoStep(redo: false)
+    }
+
+    @objc func redo(_ sender: Any?) {
+        guard controller?.ownUndo != nil else { undoManager?.redo(); return }
+        ownUndoStep(redo: true)
+    }
+
+    /// Undo or Redo of your own last step, through the text system so it's saved and sent like typing.
+    func ownUndoStep(redo: Bool) {
+        guard let own = controller?.ownUndo, let e = redo ? own.redo(in: string) : own.undo(in: string),
+              shouldChangeText(in: e.range, replacementString: e.replacement) else { return }
+        applyingOwnUndo = true
+        defer { applyingOwnUndo = false }
+        textStorage?.replaceCharacters(in: e.range, with: e.replacement)
+        didChangeText()
+        setSelectedRange(NSRange(location: e.range.location + (e.replacement as NSString).length, length: 0))
+    }
+
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if let own = controller?.ownUndo {
+            if item.action == #selector(undo(_:)) { return own.canUndo && isEditable }
+            if item.action == #selector(redo(_:)) { return own.canRedo && isEditable }
+        } else if item.action == #selector(undo(_:)) || item.action == #selector(redo(_:)) {
+            return (item.action == #selector(undo(_:)) ? undoManager?.canUndo : undoManager?.canRedo) ?? false
+        }
+        return super.validateUserInterfaceItem(item)
+    }
+
+    // MARK: Other people's carets
+
+    private var remoteCarets: [RemoteCaret] = []
+    private(set) var caretViews: [UUID: (bar: NSView, flag: NSTextField)] = [:]
+    /// Their selections, in view coordinates, with the solid tint each is drawn in (behind the text).
+    private(set) var remoteSelections: [(rects: [CGRect], color: NSColor)] = []
+
+    /// `amount` of `color` over `ground`, as one opaque colour.
+    static func mix(_ color: NSColor, into ground: NSColor, amount: CGFloat) -> NSColor {
+        let a = color.usingColorSpace(.sRGB) ?? color, b = ground.usingColorSpace(.sRGB) ?? ground
+        return NSColor(srgbRed: b.redComponent + (a.redComponent - b.redComponent) * amount,
+                       green: b.greenComponent + (a.greenComponent - b.greenComponent) * amount,
+                       blue: b.blueComponent + (a.blueComponent - b.blueComponent) * amount, alpha: 1)
+    }
+
+    func showRemoteCarets(_ carets: [RemoteCaret]) {
+        guard carets != remoteCarets else { return }
+        remoteCarets = carets
+        layoutRemoteCarets()
+    }
+
+    /// Where a remote caret is drawn: a bar exactly the line's height at the character's left edge.
+    func remoteCaretRect(at offset: Int) -> CGRect? {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return nil }
+        let length = (string as NSString).length
+        guard let loc = tcm.location(tcm.documentRange.location, offsetBy: min(max(offset, 0), length)) else { return nil }
+        var caret: CGRect?
+        tlm.enumerateTextSegments(in: NSTextRange(location: loc), type: .standard, options: []) { _, r, _, _ in caret = r; return false }
+        return caret?.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+    }
+
+    /// The rectangles a range covers, line by line, in view coordinates.
+    func remoteRangeRects(_ range: NSRange) -> [CGRect] {
+        guard range.length > 0, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return [] }
+        let length = (string as NSString).length
+        guard let a = tcm.location(tcm.documentRange.location, offsetBy: min(range.location, length)),
+              let b = tcm.location(tcm.documentRange.location, offsetBy: min(NSMaxRange(range), length)),
+              let r = NSTextRange(location: a, end: b) else { return [] }
+        var rects: [CGRect] = []
+        tlm.enumerateTextSegments(in: r, type: .selection, options: []) { _, rect, _, _ in
+            if rect.width > 0 { rects.append(rect.offsetBy(dx: self.textContainerOrigin.x, dy: self.textContainerOrigin.y)) }
+            return true
+        }
+        return rects
+    }
+
+    /// As on iPhone: a bar in the person's colour where their caret is, exactly the line's height,
+    /// and a solid tint behind what they've selected. Their first name sits on a small flag above
+    /// the line when the line above is empty (or there is none), below it otherwise, so it hides no
+    /// text it can avoid; it shows while they type or just after their caret moves, then fades.
+    /// Clicks go through them to the text.
+    func layoutRemoteCarets() {
+        let live = Set(remoteCarets.map(\.id))
+        for (id, v) in caretViews where !live.contains(id) {
+            v.bar.removeFromSuperview(); v.flag.removeFromSuperview()
+            caretViews[id] = nil
+        }
+        let ns = string as NSString
+        let page: NSColor = Palette.page
+        var selections: [(rects: [CGRect], color: NSColor)] = []
+        for c in remoteCarets {
+            let color = NSColor(c.color)
+            let v = caretViews[c.id] ?? {
+                let bar = PassThroughView()
+                bar.wantsLayer = true
+                bar.layer?.cornerRadius = 1
+                let flag = PassThroughLabel(labelWithString: "")
+                flag.font = .systemFont(ofSize: 10, weight: .semibold)
+                flag.textColor = .white
+                flag.wantsLayer = true
+                flag.drawsBackground = true
+                flag.isBordered = false
+                flag.alignment = .center
+                flag.layer?.cornerRadius = 3
+                flag.layer?.masksToBounds = true
+                addSubview(bar); addSubview(flag)
+                let made = (bar as NSView, flag as NSTextField)
+                caretViews[c.id] = made
+                return made
+            }()
+            v.bar.layer?.backgroundColor = color.cgColor
+            v.flag.backgroundColor = color
+            v.flag.stringValue = c.name
+            let loc = min(c.range.location, ns.length)
+            guard let rect = remoteCaretRect(at: loc) else { continue }
+            let line = ns.lineRange(for: NSRange(location: loc, length: 0))
+            let roomAbove = line.location == 0
+                || ns.substring(with: ns.lineRange(for: NSRange(location: line.location - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let size = NSSize(width: v.flag.intrinsicContentSize.width + 8, height: 14)
+            // The caret jumps with its character, in the same pass as the text: it never glides.
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0
+                ctx.allowsImplicitAnimation = false
+                v.bar.frame = CGRect(x: rect.minX - 1, y: rect.minY, width: 2, height: rect.height)
+                v.flag.frame = CGRect(x: min(rect.minX - 1, bounds.width - size.width - 4), y: roomAbove ? rect.minY - size.height - 1 : rect.maxY + 1,
+                                      width: size.width, height: size.height)
+            }
+            // Only the flag fades, a moment after they stop.
+            let alpha: CGFloat = c.showsName ? 1 : 0
+            if v.flag.alphaValue != alpha {
+                if alpha == 1 { v.flag.alphaValue = 1 } else { NSAnimationContext.runAnimationGroup { $0.duration = 0.6; v.flag.animator().alphaValue = 0 } }
+            }
+            let rects = remoteRangeRects(NSRange(location: loc, length: max(0, min(NSMaxRange(c.range), ns.length) - loc)))
+            if !rects.isEmpty {
+                var tint = color
+                effectiveAppearance.performAsCurrentDrawingAppearance { tint = Self.mix(color, into: page, amount: 0.2) }
+                selections.append((rects, tint))
+            }
+        }
+        let changed = selections.map(\.rects) != remoteSelections.map(\.rects)
+        remoteSelections = selections
+        if changed { needsDisplay = true }
+    }
+
+    /// Other people's selections, solid, behind the text (your own selection draws over them).
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        for s in remoteSelections {
+            s.color.setFill()
+            for r in s.rects where r.intersects(rect) { r.fill() }
+        }
+    }
 
     func syncExternal(_ new: String) {
         guard new != lastReported else { return }
@@ -1599,13 +1809,15 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange()
         storage.replaceCharacters(in: edit.range, with: edit.replacement)
-        // Undo steps recorded against the old text would land in the wrong place now.
-        undoManager?.removeAllActions()
+        // Undo steps recorded against the old text would land in the wrong place now. In a shared
+        // note your own steps move with the change instead (OwnUndo).
+        if let own = controller?.ownUndo { own.transform(through: edit) } else { undoManager?.removeAllActions() }
         setSelectedRange(TextDiff.map(keep, through: edit))
         core.restyle(storage, selection: editingSelection, force: true)
         // Tables and cards below the change moved: lay the text out down to them before placing them,
         // or they're placed by estimate (a new table row pushed the grid over its heading).
         settleOverlays(after: NSMaxRange(edit.range) + (edit.replacement as NSString).length)
+        layoutRemoteCarets()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
@@ -1801,5 +2013,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             CGRect(x: 0, y: y, width: bounds.width, height: i + 1 < tops.count ? tops[i + 1] - y : max(pitch, lastFrag.layoutFragmentFrame.height))
         }
     }
+}
+
+/// A caret's bar and name flag: drawn over the text, never in the way of a click.
+private final class PassThroughView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+private final class PassThroughLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 #endif
