@@ -51,14 +51,14 @@ import UIKit
 
     enum Moment { case rest, making, confirmRemove, confirmLeave, failed }
 
-    /// name, state, moment, and on the Mac the page Collaborate opens on.
-    static let states: [(String, ShareState, Moment, CollaborateRows.Page?)] = [
+    /// name, state, moment, and the person whose safety code shows.
+    static let states: [(String, ShareState, Moment, UUID?)] = [
         ("1-not-shared", alone, .rest, nil),
         ("2-making-link", alone, .making, nil),
         ("3-can-edit", owner(.edit), .rest, nil),
         ("4-can-view", owner(.view), .rest, nil),
         ("5-link-off", owner(.off), .rest, nil),
-        ("6-verify", owner(.edit), .rest, .verify(sara)),
+        ("6-verify", owner(.edit), .rest, sara),
         ("7-confirm-remove", owner(.edit), .confirmRemove, nil),
         ("8-failed", owner(.edit), .failed, nil),
         ("9-member", member, .rest, nil),
@@ -70,13 +70,43 @@ import UIKit
         guard let dir = Self.dir else { return }
         let store = ShareLinkStore(state: ShareLinkState(phase: .notShared))
         for dark in [false, true] {
-            for (name, state, moment, page) in Self.states {
+            for (name, state, moment, verify) in Self.states {
                 let share = await Self.controller(state, moment)
                 let view = ShareNotePopover(title: "Team offsite", text: "Team offsite", store: store, linkAvailable: true, share: share,
-                                            startingWay: .people, collaboratePage: page, close: {})
+                                            startingWay: .people, collaboratePage: verify.map { .verify($0) }, close: {})
                     .tint(Color(PColor.paneAccent))
                 try await AppSnapshotTests.render(view, name: "mac-\(dark ? "dark" : "light")-\(name)", dark: dark)
             }
+        }
+    }
+
+    /// Sara typing in the note and Jonas's selection, as the Mac editor draws them, with the
+    /// toolbar's avatars above.
+    @Test func macEditor() async throws {
+        guard let dir = Self.dir else { return }
+        let text = "Team offsite, 14 November\n\n## Agenda\n- 09:00 Coffee and goals for Q1\n- 10:30 Roadmap review\n- 12:30 Lunch at Tranan\n\n## Bring\n- [ ] Laptop and charger\n- [ ] Printed customer quotes\n"
+        for dark in [false, true] {
+            let h = await EditorHarness(text, width: 640, height: 420, dark: dark, focus: false)
+            let ns = text as NSString
+            let sara = ns.range(of: "Roadmap review")
+            let jonas = ns.range(of: "Printed customer quotes")
+            h.view.showRemoteCarets([
+                RemoteCaret(id: Self.sara, name: "Sara", color: CollabSession.color(for: Self.sara), range: NSRange(location: NSMaxRange(sara), length: 0)),
+                RemoteCaret(id: Self.jonas, name: "Jonas", color: CollabSession.color(for: Self.jonas), range: jonas, showsName: false),
+            ])
+            await h.settle(0.4)
+            let rep = try #require(h.scroll.bitmapImageRepForCachingDisplay(in: h.scroll.bounds))
+            h.scroll.cacheDisplay(in: h.scroll.bounds, to: rep)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-\(dark ? "dark" : "light")-editor-carets.png"))
+            h.window.close()
+
+            let avatars = HStack(spacing: 10) {
+                PresenceAvatars(people: [.init(id: Self.sara, name: "Sara Lind", typing: true), .init(id: Self.jonas, name: "Jonas Berg", canEdit: false)])
+                Image(systemName: "square.and.arrow.up").font(.system(size: 15))
+            }
+            .padding(12)
+            try await AppSnapshotTests.render(avatars.tint(Color(PColor.paneAccent)), name: "mac-\(dark ? "dark" : "light")-toolbar-avatars", dark: dark)
         }
     }
     #endif
@@ -86,10 +116,10 @@ import UIKit
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         for dark in [false, true] {
-            for (name, state, moment, page) in Self.states where moment != .confirmRemove && moment != .confirmLeave {
+            for (name, state, moment, verify) in Self.states where moment != .confirmRemove && moment != .confirmLeave {
                 let share = await Self.controller(state, moment)
                 let sheet: AnyView
-                if case .verify(let id) = page, let p = state.people.first(where: { $0.id == id }) {
+                if let id = verify, let p = state.people.first(where: { $0.id == id }) {
                     sheet = AnyView(NavigationStack { PersonDetail(person: p, remove: {}) })
                 } else {
                     sheet = AnyView(NavigationStack { ShareForm(title: "Team offsite", share: share) })
