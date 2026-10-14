@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { Answer, MenuPaths, PostFigure } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("export-apple-notes-to-markdown");
@@ -26,15 +27,29 @@ export default function Page() {
     <PostPage
       slug="export-apple-notes-to-markdown"
       intro={<>Apple Notes can finally export Markdown on its own, which is good news if you want your notes in Obsidian, in a git repository or in a chat with ChatGPT. Here&apos;s how it works on a Mac and an iPhone, what to check in the file, and what to use when you want every note, not just one.</>}
+      answer={
+        <Answer jump={[
+          { href: "#mac", label: "On a Mac" },
+          { href: "#iphone", label: "On iPhone" },
+          { href: "#check", label: "What to check" },
+          { href: "#all", label: "Every note at once" },
+        ]}>
+          <p>
+            On macOS 26 and iOS 26 or later, Apple Notes exports a note as a Markdown file: File, Export To, Markdown on a Mac (Export as
+            in macOS 26), and Share, Export as Markdown on iPhone. It works one note at a time. For a whole library you need a free exporter.
+          </p>
+        </Answer>
+      }
+      hero={<PostFigure priority src="/blog/macos27/notes27-export-to" width={1138} height={855} maxWidth={569}
+        alt="The File menu of Apple Notes on macOS 27 with Export To open, offering PDF and Markdown. Markdown is highlighted. Behind the menu, a Day hike packing list note."
+        caption="File, Export To, Markdown, in Apple Notes on macOS 27." />}
       faq={FAQ}
     >
-      <h2>The short answer</h2>
-      <p>
-        On macOS 26 and iOS 26 or later, Apple Notes exports a note as a Markdown file: File, Export as, Markdown on a Mac, and Share, Export
-        as Markdown on iPhone. It works one note at a time. On older versions, and for a whole library, you need an exporter.
-      </p>
-
-      <h2>Export a note on a Mac</h2>
+      <h2 id="mac">Export a note on a Mac</h2>
+      <MenuPaths rows={[
+        { on: "macOS 27", steps: ["File", "Export To", "Markdown"] },
+        { on: "macOS 26", steps: ["File", "Export as", "Markdown"] },
+      ]} />
       <ol>
         <li>Open Notes and click the note you want to export.</li>
         <li>Choose File, Export as, Markdown. In macOS 27, the menu is File, Export To, then Markdown.</li>
@@ -47,7 +62,7 @@ export default function Page() {
         lists. <a href="/blog/apple-notes-ios-27">What else is new in Apple Notes in iOS 27</a> covers the rest. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
       </p>
 
-      <h2>Export a note on iPhone</h2>
+      <h2 id="iphone">Export a note on iPhone</h2>
       <ol>
         <li>Open the note in Notes.</li>
         <li>Tap the Share button, then tap Export as Markdown. If you don&apos;t see it, tap the View More button first.</li>
@@ -57,7 +72,7 @@ export default function Page() {
         Apple describes this in <a href="https://support.apple.com/guide/iphone/export-or-print-notes-iphdf551cfa2/ios" rel="noopener">Export or print notes on iPhone</a>.
       </p>
 
-      <h2>What to check in the file</h2>
+      <h2 id="check">What to check in the file</h2>
       <p>
         Apple doesn&apos;t list what survives the trip, so export one note that has everything you use, and open the file in a text editor
         before you move a hundred of them. The things worth a look:
@@ -78,7 +93,7 @@ export default function Page() {
         </table>
       </div>
 
-      <h2>Export every note at once</h2>
+      <h2 id="all">Export every note at once</h2>
       <p>
         Apple&apos;s guides only describe exporting the note in front of you. For a folder or a whole library, the usual route is a free
         exporter that runs on your Mac and reads the Notes app for you:
@@ -101,8 +116,8 @@ export default function Page() {
 
       <h2>If you&apos;re moving somewhere, not making a backup</h2>
       <p>
-        An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/alternatives/obsidian">Apple
-        Notes vs Obsidian</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
+        An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/blog/move-apple-notes-to-obsidian-notion-keep">Moving
+        Apple Notes to Obsidian, Notion or Keep</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
         Notes, that&apos;s why I made Pinto Notes: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
       </p>
       <p>
