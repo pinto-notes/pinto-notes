@@ -126,6 +126,8 @@ struct PaneApp: App {
         NoteVault.shared = inMemory ? NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)
             : NoteVault(keyStore: KeychainKeyStore(), drivesSync: true)
         Capture.lockedNotesFromArguments(container.mainContext)
+        // Amber Notes Beta only: the two-device check of shared notes, from a local steps file.
+        CollabScript.runIfRequested(context: container.mainContext) { email, password in try await backend.signIn(email: email, password: password) }
         // "Did you know" tips; their counts go to the server when signed in.
         TipLog.client = backend.client
         FeatureUse.client = backend.client
