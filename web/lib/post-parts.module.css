@@ -21,8 +21,9 @@
 .step { display: inline-flex; align-items: center; gap: 6px; }
 /* The › closes each step but the last, so a wrapped path never starts a line with one. */
 .step:not(:last-child)::after { content: "›"; color: var(--muted); font-weight: 600; }
-.step > span { padding: 4px 9px; border-radius: 8px; background: var(--card); font-weight: 600; box-shadow: 0 0 0 1px var(--line), 0 1px 0 var(--line); }
-.path kbd { margin-left: 4px; padding: 3px 8px; border-radius: 7px; font: 600 14px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line), 0 1px 0 var(--line); }
+/* Quiet chips: a soft fill, no border, the system font. */
+.step > span { padding: 4px 10px; border-radius: 8px; background: var(--soft); font-weight: 600; }
+.path kbd { margin-left: 4px; padding: 4px 8px; border-radius: 8px; font: inherit; font-weight: 600; color: var(--muted); background: color-mix(in srgb, var(--soft) 55%, transparent); }
 .paths { display: grid; gap: 4px 16px; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; margin: 0 0 18px; }
 .paths > dt { font-size: 14px; font-weight: 700; color: var(--muted); }
 .paths > dd { margin: 0; }
@@ -136,12 +137,19 @@
 .dashes > li { position: relative; padding-left: 32px; line-height: 1.45; }
 .dashes > li::before { content: ""; position: absolute; left: 6px; top: 0.72em; width: 8px; height: 1.5px; background: var(--muted); }
 
-/* ── A real capture of Apple's apps: the window or dialog itself on the page, with a soft shadow ── */
-.capture { margin: 12px 0 30px; }
+/* ── A post's figure (lib/PostParts.tsx PostFigure): the screenshot as the hero of its section ── */
+.capture { margin: 20px 0 24px; }
 .capture picture { display: block; width: min(100%, var(--w)); margin: 0 auto; }
 @media (max-width: 600px) { .capture picture { width: min(100%, var(--pw, var(--w))); } }
-.capture img {
-  display: block; width: 100%; height: auto; border-radius: 6px;
-  filter: drop-shadow(0 14px 22px rgba(60, 25, 0, 0.22)) drop-shadow(0 1px 2px rgba(60, 25, 0, 0.18));
-}
+.capture img { display: block; width: 100%; height: auto; }
+/* A cutout window or dialog: its own edges, a shadow that follows them. */
+.capture[data-kind="cutout"] img { border-radius: 6px; filter: drop-shadow(0 14px 22px rgba(60, 25, 0, 0.22)) drop-shadow(0 1px 2px rgba(60, 25, 0, 0.18)); }
+/* A crop of the screen: soft corners, a hairline and a soft brown shadow, no frame around it. */
+.capture[data-kind="crop"] img, .pair img { border-radius: 14px; box-shadow: 0 0 0 1px var(--line), 0 2px 4px rgba(60, 25, 0, 0.06), 0 24px 48px -28px rgba(60, 25, 0, 0.4); }
+/* A big crop breaks out of the 720 px column to about 860 px on wide screens. */
+@media (min-width: 960px) { .wide { margin-inline: min(0px, calc((100% - 860px) / 2)); } }
 .captureCaption { margin-top: 12px; color: var(--muted); font-size: 14px; line-height: 1.45; text-align: center; text-wrap: balance; }
+.pair { margin: 20px 0 24px; }
+.pairRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 600px) { .pairRow { grid-template-columns: minmax(0, 1fr); } }
+.pair picture, .pair img { display: block; width: 100%; height: auto; }

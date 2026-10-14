@@ -109,24 +109,29 @@ import Testing
         let title = Self.lineHeight(RowMetrics.title), detail = Self.lineHeight(RowMetrics.detail)
         // All Notes: each row also names its folder. Inside a folder it doesn't. The title's letters
         // start where Apple's do (11 and 14.5 pt down); the date line follows 19 pt below them in
-        // both, Apple's gap in a row with a folder line.
-        for (scope, height, titleTop) in [(Scope.all, 68.0, 8.0), (.folder(ideas.id), 56.0, 11.0)] {
+        // both, Apple's gap in a row with a folder line. The shipped look (D, DesignLook.calmList)
+        // trades the hairlines for air: `calmAir` above and below each row, a folder line a size
+        // smaller (one point less), and a 36 pt heading row for its smaller, quieter heading.
+        let air = RowMetrics.calmAir, calm = DesignLook.calmList
+        let headingRow: CGFloat = calm ? 36 : 40
+        for (scope, height, titleTop) in [(Scope.all, 68.0 + 2 * air - (calm ? 1 : 0), 8.0 + air), (.folder(ideas.id), 56.0 + 2 * air, 11.0 + air)] {
             let h = await Host(c, scope: scope)
             defer { h.close() }
             let table = try #require(h.table)
             let headings = (0..<table.numberOfRows).filter { table.isHeadingRow($0) }
             let notes = (0..<table.numberOfRows).filter { !table.isHeadingRow($0) }
             try #require(headings.count >= 2 && !notes.isEmpty)
-            for r in headings { #expect(abs(table.rect(ofRow: r).height - 40) < 0.5, "heading row \(r): \(table.rect(ofRow: r).height)") }
+            for r in headings { #expect(abs(table.rect(ofRow: r).height - headingRow) < 0.5, "heading row \(r): \(table.rect(ofRow: r).height)") }
             for r in notes {
                 #expect(abs(table.rect(ofRow: r).height - height) < 0.5, "note row \(r) in \(scope): \(table.rect(ofRow: r).height)")
                 let box = try #require(Self.content(table, r))
                 #expect(abs(box.minX + RowMetrics.leading - 34) < 0.5)
-                let top = box.minY + RowMetrics.top(folderLine: height == 68)
+                let folderLine = scope == .all
+                let top = box.minY + RowMetrics.top(folderLine: folderLine) + air
                 #expect(abs(top - titleTop) <= 0.5, "title line at \(top)")
                 let detailTop = top + title + RowMetrics.spacing
                 #expect(abs(detailTop - (titleTop + 19)) <= 0.5, "date line at \(detailTop), the title \(title) tall")
-                if height == 68 { #expect(abs(detailTop + detail + RowMetrics.spacing - 45) <= 0.5, "folder line") }
+                if folderLine { #expect(abs(detailTop + detail + RowMetrics.spacing - (45 + air)) <= 0.5, "folder line") }
             }
         }
     }

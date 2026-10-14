@@ -92,12 +92,24 @@ export function Checklist({ title, items, note }: { title: string; items: string
 type Img = { src: string; width: number; height: number };
 const PHONE = "(max-width: 600px)";
 
-export function Capture({ src, alt, width, height, caption, priority = false, maxWidth, phone }: Img & {
-  alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img;
+export function Capture(props: Img & { alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img }) {
+  return <PostFigure {...props} kind="cutout" />;
+}
+
+/// The image-led post format (one section per feature: an H2, then a real screenshot of exactly that
+/// feature, then a few short lines and its menu path). PostFigure is that screenshot, the hero of its
+/// section. `kind`: a "crop" of the screen (a rectangle: soft corners, a hairline and a soft shadow,
+/// breaking out to about 860 px on wide screens when it is big enough to use the room) or a "cutout"
+/// window or dialog with its own transparent edges (no frame, a drop shadow that follows its shape).
+/// A short muted caption sits under it.
+export function PostFigure({ src, alt, width, height, caption, priority = false, maxWidth, phone, kind = "crop" }: Img & {
+  alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img; kind?: "crop" | "cutout";
 }) {
-  const style = { "--w": `${maxWidth ?? width / 2}px`, "--pw": phone ? `${phone.width / 2}px` : undefined } as React.CSSProperties;
+  const w = maxWidth ?? width / 2;
+  const wide = kind === "crop" && w >= 640;
+  const style = { "--w": `${wide ? 860 : w}px`, "--pw": phone ? `${phone.width / 2}px` : undefined } as React.CSSProperties;
   return (
-    <figure className={s.capture} style={style}>
+    <figure className={`${s.capture} ${wide ? s.wide : ""}`.trim()} data-kind={kind} style={style}>
       <picture>
         {phone && <source media={PHONE} type="image/avif" srcSet={`${phone.src}.avif`} width={phone.width} height={phone.height} />}
         {phone && <source media={PHONE} type="image/webp" srcSet={`${phone.src}.webp`} width={phone.width} height={phone.height} />}
@@ -108,3 +120,25 @@ export function Capture({ src, alt, width, height, caption, priority = false, ma
     </figure>
   );
 }
+
+/// Two screenshots side by side (before and after, Mac and iPhone), with one caption under both.
+/// They stack on phones.
+export function FigurePair({ items, caption }: { items: (Img & { alt: string })[]; caption: string }) {
+  return (
+    <figure className={s.pair}>
+      <div className={s.pairRow}>
+        {items.map((it) => (
+          <picture key={it.src}>
+            <source type="image/avif" srcSet={`${it.src}.avif`} />
+            <img src={`${it.src}.webp`} alt={it.alt} width={it.width} height={it.height} loading="lazy" decoding="async" />
+          </picture>
+        ))}
+      </div>
+      <figcaption className={s.captureCaption}>{caption}</figcaption>
+    </figure>
+  );
+}
+
+/// The menu path of the format: "Notes › View › Show Tables" as quiet chips. Paths is the same for
+/// more than one device; both are MenuPath.
+export { Path as MenuPath, Paths as MenuPaths };

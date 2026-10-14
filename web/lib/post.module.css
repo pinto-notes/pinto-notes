@@ -70,6 +70,10 @@
 .body li::marker { color: var(--muted); }
 .body a:not([class]) { text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); }
 @media (hover: hover) { .body a:not([class]):hover { text-decoration-color: var(--amber); } }
+/* The image-led format reads as a sequence of features: generous room before each section's title,
+   its screenshot close under it. */
+.rest h2 { margin-top: 88px; }
+@media (max-width: 700px) { .rest h2 { margin-top: 64px; } }
 /* A short post doesn't need a list of where to jump to. */
 .body[data-short] :global(.post-jump) { display: none; }
 /* Captures read at the column's width: at least about three quarters of it, and edge to edge on a phone. */
