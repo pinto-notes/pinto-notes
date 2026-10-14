@@ -101,7 +101,7 @@ export default function Page() {
 
       <h2>If you&apos;re moving somewhere, not making a backup</h2>
       <p>
-        An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/blog/apple-notes-vs-obsidian">Apple
+        An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/alternatives/obsidian">Apple
         Notes vs Obsidian</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
         Notes, that&apos;s why I made Pinto Notes: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
       </p>

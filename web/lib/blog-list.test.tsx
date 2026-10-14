@@ -19,7 +19,7 @@ describe("the blog's lists", () => {
       expect(isBlogList(base), base).toBe(true);
       expect(isBlogList(pagePath(base, 2)), base).toBe(true);
     }
-    for (const path of ["/", "/blog/apple-notes-mcp", "/templates", "/blog/category", "/blogs", "/blog/page/x"]) expect(isBlogList(path), path).toBe(false);
+    for (const path of ["/", "/blog/apple-notes-api", "/templates", "/blog/category", "/blogs", "/blog/page/x"]) expect(isBlogList(path), path).toBe(false);
   });
 
   it("rise on a first visit, and hold still when one list replaces another", async () => {

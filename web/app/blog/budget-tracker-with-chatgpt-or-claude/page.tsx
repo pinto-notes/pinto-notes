@@ -152,7 +152,7 @@ export default function Page() {
         The iPhone app isn&apos;t on the App Store yet, so the budget app opens on a Mac with macOS 26 or later. ChatGPT and Claude
         can still log expenses from your phone, because they reach the note through the connection, not the app. Notes, and the
         app&apos;s data with them, are end-to-end encrypted on your devices; see <a href="/blog/encrypted-notes-app-for-ai">what an
-        AI can read</a> while it works. For bills to pay and other money errands, <a href="/blog/chatgpt-to-do-list-on-iphone">a
+        AI can read</a> while it works. For bills to pay and other money errands, <a href="/for/chatgpt">a
         ChatGPT to-do list</a> works the same way.
       </p>
       <PostCta slug="budget-tracker-with-chatgpt-or-claude" position="how-amber-helps" title="Try the budget template on your Mac">

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { OLD_DMG_NAMES } from "./lib/downloads";
 import { posthogSettings } from "./lib/posthog";
+import { REMOVED_POSTS } from "./lib/removed-posts";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -59,10 +60,11 @@ const config: NextConfig = {
       // browser that visits one goes to that page, which tries the app as it loads.
       { source: "/open/template/:slug", destination: "/templates/:slug?open=1", permanent: true },
       { source: "/open/copy/:slug", destination: "/n/:slug?open=1", permanent: true },
-      // A guessed address for the Obsidian MCP post (one visit on 5 October, no link of ours).
-      { source: "/blog/obsidian-mcp-servers-compared", destination: "/blog/obsidian-mcp", permanent: true },
-      // The comparison took the app's new name (October 2026); its old address keeps working.
-      { source: "/blog/amber-notes-vs-apple-notes", destination: "/blog/pinto-notes-vs-apple-notes", permanent: true },
+      // The comparison took the app's new name (October 2026), then became the Apple Notes page.
+      { source: "/blog/amber-notes-vs-apple-notes", destination: "/alternatives/apple-notes", permanent: true },
+      // Posts removed on 14 October 2026 (fewer, better posts) go to the page that covers them now,
+      // with the guessed Obsidian MCP address (one visit on 5 October, no link of ours).
+      ...Object.entries(REMOVED_POSTS).map(([slug, destination]) => ({ source: `/blog/${slug}`, destination, permanent: true })),
       // A short address for ChatGPT ads and links: the ChatGPT landing page.
       { source: "/chatgpt", destination: "/for/chatgpt", permanent: true },
       // The old name, typed as an address, lands on the page that says what it's called now.

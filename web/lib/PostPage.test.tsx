@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import Post from "../app/blog/connect-chatgpt-to-your-notes/page";
-import Short from "../app/blog/apple-notes-vs-notion/page";
+import Short from "../app/blog/apple-notes-tables/page";
 import { CATEGORY_COVERS, categories } from "./posts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";

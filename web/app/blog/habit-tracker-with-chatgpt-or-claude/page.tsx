@@ -162,7 +162,7 @@ export default function Page() {
         The iPhone app isn&apos;t on the App Store yet, so today the tracker opens on a Mac (macOS 26 or later). ChatGPT and Claude
         can still log days from your phone, since they reach the note through the connection, not the app. To let ChatGPT edit
         it, you need a plan with custom apps (Plus, Pro, Business, Enterprise or Edu). If you want a few words about the day next to the ticks,
-        see <a href="/blog/journal-with-chatgpt-or-claude">journaling with ChatGPT or Claude</a>, and the <a href="/blog/weekly-review-with-chatgpt-or-claude">weekly
+        see <a href="/blog/journal-with-chatgpt-or-claude">journaling with ChatGPT or Claude</a>, and the <a href="/templates/weekly-review">weekly
         review</a> post for a longer Sunday check-in.
       </p>
       <PostCta slug="habit-tracker-with-chatgpt-or-claude" position="how-amber-helps" title="Try the habit tracker on your Mac">

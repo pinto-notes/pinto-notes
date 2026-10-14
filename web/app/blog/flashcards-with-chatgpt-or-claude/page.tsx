@@ -139,8 +139,8 @@ export default function Page() {
       <p>
         Your AI can change the app itself too. It&apos;s a small React project in the note: ask for a &ldquo;reverse the cards&rdquo;
         button and check the result. Pinto Notes runs the app&apos;s tests on every save and only shows a version that passes. If you
-        keep your lecture notes in another app, <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with
-        ChatGPT</a> compares the ones your AI can read.
+        keep your lecture notes in another app, <a href="/blog/notes-apps-with-mcp">notes apps with an MCP
+        server, compared</a> covers the ones your AI can read.
       </p>
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>

@@ -253,10 +253,10 @@ export default function Page() {
           : "The Mac app is out now; the iPhone app is coming soon to the App Store."}
       </p>
       <p>
-        <a href="/blog/apple-notes-vs-obsidian">Apple Notes vs Obsidian</a> compares Obsidian with the simplest option. The{" "}
+        <a href="/alternatives/obsidian">Apple Notes vs Obsidian</a> compares Obsidian with the simplest option. The{" "}
         <a href="/blog/mcp-server">MCP server page</a> lists every Pinto Notes tool. For other notes apps with a server of their own, see{" "}
         <a href="/blog/notes-apps-with-mcp">notes apps with an MCP server, compared</a>, and for the same question about Apple&apos;s
-        app, <a href="/blog/apple-notes-mcp">Apple Notes MCP servers compared</a>.
+        app, <a href="/blog/apple-notes-api">Apple Notes MCP servers compared</a>.
       </p>
     </PostPage>
   );

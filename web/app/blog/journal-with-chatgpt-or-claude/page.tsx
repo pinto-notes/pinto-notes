@@ -117,7 +117,7 @@ export default function Page() {
       <Keep title="Four more journal prompts" text={MORE} />
       <p>
         The last one needs the entries in front of the AI. If they live in a chat or in Apple Notes, paste them in first. For a
-        longer look back once a week, there&apos;s <a href="/blog/weekly-review-with-chatgpt-or-claude">a weekly review prompt</a>{" "}
+        longer look back once a week, there&apos;s <a href="/templates/weekly-review">a weekly review prompt</a>{" "}
         that works the same way.
       </p>
 

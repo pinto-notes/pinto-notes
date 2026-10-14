@@ -160,7 +160,7 @@ export default function Page() {
         Pinto Notes names ChatGPT and Claude on that sheet. Any other app, Grok included, gets a warning that Pinto Notes
         doesn&apos;t recognize it, so allow it only if you just started connecting it yourself. After that, every change Grok makes is
         tinted in the note with an Undo, and the version before it is kept. If you try it before I do, I&apos;d like to hear how it
-        went. <a href="/blog/mcp-server">The Pinto Notes MCP server</a> lists every tool, and <a href="/blog/connect-notes-to-gemini">connect
+        went. <a href="/blog/mcp-server">The Pinto Notes MCP server</a> lists every tool, and <a href="/blog/mcp-server">connect
         your notes to Gemini</a> covers the same setup for Google&apos;s apps.
       </p>
       <Keep title="A first request once it's connected" text={ASK}
