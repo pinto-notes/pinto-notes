@@ -239,9 +239,9 @@ export const posts: Post[] = [
   },
   {
     slug: "apple-notes-tables",
-    title: "Apple Notes tables: add rows, sum a column, sort and resize",
-    description: "How to make a table in Apple Notes, add rows and columns, sum a column, sort, resize, turn it into text and copy it to Numbers. Tried on macOS 27.",
-    excerpt: "I tried every table action in Apple Notes on macOS 27. The menu for each one, with screenshots, and the three things it can't do: sums, sorting and column widths.",
+    title: "Apple Notes tables: sums, sorting and the trick for totals",
+    description: "Apple Notes can't sum a table column, but there's a trick that gets you a total anyway. Plus rows, sorting and widths, tested on macOS 27.",
+    excerpt: "I planned a move in an Apple Notes table and hit the wall at the total. Every table action with screenshots, the trick that adds it up anyway, and where Notes runs out.",
     category: "Apple Notes",
     date: "2026-10-04",
     updated: "2026-10-14",
