@@ -46,6 +46,10 @@ function Frame({ p }: { p: number }) {
   const cur = mj(span(p, 0.72, 0.77)), tickSun = span(p, 0.78, 0.8), curOut = mj(span(p, 0.8, 0.83));
   // Beat 5: pull out to the desk.
   const pull = mj(span(p, 0.83, 0.96));
+  // The camera: the note leans away from whichever AI is talking, and pushes in a touch while it changes.
+  const camX = 34 * gIn * (1 - gOut) - 34 * cIn * (1 - cOut);
+  const busy = Math.max(Math.sin(Math.PI * span(p, 0.11, 0.26)), Math.sin(Math.PI * span(p, 0.52, 0.69)), Math.sin(Math.PI * span(p, 0.72, 0.81)));
+  const camZ = 1 + 0.045 * busy;
   const cap = CAPTIONS.find((c) => p >= c.at[0] && p < c.at[1]) ?? CAPTIONS[CAPTIONS.length - 1];
   const capIdx = CAPTIONS.indexOf(cap);
   const capIn = Math.min(mj(span(p, cap.at[0], cap.at[0] + 0.025)), capIdx === 0 ? 1 : 1);
@@ -53,7 +57,8 @@ function Frame({ p }: { p: number }) {
   // Slots: Thursday (slot 2) and Saturday (slot 3) trade places as Thursday becomes Sunday.
   const slot = (i: number) => (i === 2 ? lerp(2, 3, move) : i === 3 ? lerp(3, 2, move) : i);
   const ticks = [tickMon, tickWed, tickSun, 0];
-  const tinted = (i: number) => (i < 4 && gMark > 0.01 && p < 0.47 ? gMark : i === 2 ? cMark : 0);
+  const gFade = gMark * (1 - mj(span(p, 0.44, 0.5)));
+  const tinted = (i: number) => (i === 2 ? Math.max(gFade, cMark) : gFade);
 
   return (
     <div className={f.stage}>
@@ -65,7 +70,7 @@ function Frame({ p }: { p: number }) {
 
       <p key={capIdx} className={f.caption} style={{ opacity: capIn }}>{cap.text}</p>
 
-      <div className={f.noteWrap} style={{ transform: `translate(-50%, -50%) scale(${lerp(1, 0.78, pull).toFixed(3)}) rotate(${lerp(0, -2.5, pull).toFixed(2)}deg)` }}>
+      <div className={f.noteWrap} style={{ transform: `translate(calc(-50% + ${camX.toFixed(1)}px), -50%) scale(${(camZ * lerp(1, 0.78, pull)).toFixed(3)}) rotate(${lerp(0, -2.5, pull).toFixed(2)}deg)` }}>
         <figure className={f.note}>
           <div className={f.bar}><span className={f.lights}><i /><i /><i /></span><span className={f.folder}>Health</span></div>
           <div className={f.paper}>
