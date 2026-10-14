@@ -13,31 +13,29 @@
 .heroCta p { text-align: center; }
 .stage { position: relative; width: min(1240px, calc(100vw - 2 * var(--gutter))); justify-self: center; padding: clamp(28px, 5vw, 64px) clamp(16px, 5vw, 70px) 0; box-sizing: border-box;
   border-radius: 32px 32px 0 0; overflow: hidden; isolation: isolate; background: #f7e2c7; }
-.stageArt { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.stageArt { will-change: transform; position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
 .window { position: relative; margin: 0; border-radius: 14px 14px 0 0; overflow: hidden; background: #fbf7f2;
   box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.25), 0 30px 70px -20px rgba(60, 30, 5, 0.45); }
 .window > img:first-child { display: block; width: 100%; height: auto; aspect-ratio: 2560 / 1280; object-fit: cover; object-position: top; }
 /* The line ChatGPT just added, tinted the way the app tints an AI's change. */
 .added { position: absolute; left: calc(var(--l) * 100%); width: calc(var(--w) * 100%); top: calc(var(--t) * 100%); height: calc(var(--h) * 100%); border-radius: 5px;
-  transition: left .28s ease-out, top .28s ease-out, width .28s ease-out; background: rgba(240, 144, 26, 0.16); mix-blend-mode: multiply; }
+  background: rgba(240, 144, 26, 0.18); mix-blend-mode: multiply; transform-origin: left center; }
 /* Who wrote the added line: the app's small author mark, at the end of the line. */
-.byline { position: absolute; left: calc(var(--m) * 100%); top: calc((var(--t) + var(--h) / 2) * 100%); transform: translateY(-50%); animation: fadeIn .28s ease-out; display: inline-flex; align-items: center; gap: 4px;
+.byline { position: absolute; left: calc(var(--m) * 100%); top: calc((var(--t) + var(--h) / 2) * 100%); transform: translateY(-50%);  display: inline-flex; align-items: center; gap: 4px;
   height: 18px; padding: 0 7px; border-radius: 9px; background: #fff3e2; color: #a85700; font-size: 10.5px; font-weight: 650;
   box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; }
 /* "every AI": the site's marker, low behind the words, never split. */
 .mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
 /* The ask, in ChatGPT, over the window's sidebar: you ask there, it lands here. */
 .asks { position: absolute; left: clamp(8px, 2.5vw, 40px); top: clamp(120px, 14vw, 200px); width: min(330px, 34%); z-index: 2; display: grid; }
-.ask { grid-area: 1 / 1; opacity: 0; transform: translateY(8px); transition: opacity .28s ease-out, transform .28s ease-out; pointer-events: none;
-  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.2), 0 30px 60px -24px rgba(60, 30, 5, 0.55); }
-.ask.on { opacity: 1; transform: none; pointer-events: auto; }
+.ask { grid-area: 1 / 1; will-change: transform, opacity; }
+.ask > figure { box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.2), 0 30px 60px -24px rgba(60, 30, 5, 0.55); }
+.threads { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 1; }
+.threads path { fill: none; stroke: #d98a2b; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1 1; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 /* The window stays put while you scroll through three AIs. */
-.scroller { height: 230vh; }
+.scroller { height: 260vh; }
 .sticky { position: sticky; top: 100px; display: grid; gap: 18px; }
-.steps { display: flex; justify-content: center; gap: 22px; margin: 0; padding: 0; list-style: none; font-size: 14px; font-weight: 600; color: var(--muted); }
-.steps li { transition: color .2s ease-out; }
-.steps li.on { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .ask, .added, .byline { transition: none; animation: none; } }
 @media (max-width: 700px) {
   .hero { gap: 28px; padding-top: 20px; }
@@ -96,4 +94,4 @@
   .feelPhone { width: 56%; justify-self: center; border-radius: 22px; box-shadow: 0 0 0 5px #1b1b1d, 0 0 0 6px #3a3a3c, 0 24px 50px -20px rgba(40, 15, 0, 0.5); }
 }
 
-@media (max-width: 900px) { .scroller { height: auto; } .sticky { position: static; } .steps { display: none; } }
+@media (max-width: 900px) { .scroller { height: auto; } .sticky { position: static; } }
