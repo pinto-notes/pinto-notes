@@ -162,6 +162,7 @@ final class CollabStore {
             self?.sessions[noteID] = nil
             self?.removedFrom.insert(noteID)
         }
+        library.onSessionClosed = { [weak self] noteID in self?.sessions[noteID] = nil }
         library.install()
         self.library = library
     }

@@ -108,6 +108,7 @@ final class CollabSession {
     @ObservationIgnored private var joining = false
     @ObservationIgnored private var sending = false
     @ObservationIgnored private var pulling: Task<Void, Never>?
+    @ObservationIgnored private var pullAgain = false
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private var retryDelay: Duration = .seconds(2)
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?
@@ -183,6 +184,7 @@ final class CollabSession {
         record.tail = Data()
         record.tailChanges = 0
         record.cursor = last
+        record.snapshotUpto = pull.snapshot?.upto ?? 0
         record.sinceSnapshot = pull.updates.count
         let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
         s.applied = Set(pull.updates.map(\.id))
@@ -305,10 +307,14 @@ final class CollabSession {
     /// it's behind the newest one). One at a time; asked again while running, it runs once more.
     @discardableResult
     func catchUp() -> Task<Void, Never> {
-        if let pulling { return pulling }
+        if let pulling { pullAgain = true; return pulling }
         let task = Task { [weak self] in
             guard let self else { return }
-            await pull()
+            // Awaiting it means a pull that started after you asked.
+            repeat {
+                pullAgain = false
+                await pull()
+            } while pullAgain && !isClosed
             pulling = nil
         }
         pulling = task
@@ -317,7 +323,7 @@ final class CollabSession {
 
     private func pull() async {
         guard !isClosed else { return }
-        let after = record.cursor > 0 ? max(0, record.cursor - Self.rewind) : 0
+        let after = record.cursor > 0 ? max(record.snapshotUpto, record.cursor - Self.rewind, 0) : 0
         let pull: Collab.Pull
         do {
             pull = try await transport.pull(note: noteID, after: after)
@@ -327,6 +333,8 @@ final class CollabSession {
         }
         guard !isClosed else { return }
         var changed = false
+        // One this device is already past is known from here on, so it isn't asked for again.
+        if let s = pull.snapshot, s.upto <= record.cursor { record.snapshotUpto = max(record.snapshotUpto, s.upto) }
         // A snapshot this device is already past (asked a little before its cursor) has nothing new.
         if let s = pull.snapshot, s.upto > record.cursor {
             if let k = keys[s.epoch], let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: k, note: noteID, extra: String(s.upto)) {
@@ -335,6 +343,7 @@ final class CollabSession {
                     changed = true
                 }
                 record.cursor = max(record.cursor, s.upto)
+                record.snapshotUpto = max(record.snapshotUpto, s.upto)
                 record.sinceSnapshot = 0
             } else {
                 log.error("a snapshot didn't open here")
@@ -628,6 +637,7 @@ final class CollabSession {
         do {
             try await transport.send(snapshot: ct, note: noteID, upto: upto, epoch: epoch)
             guard !isClosed else { return }
+            record.snapshotUpto = max(record.snapshotUpto, upto)
             record.sinceSnapshot = 0
             needsSnapshot = false
             compact()

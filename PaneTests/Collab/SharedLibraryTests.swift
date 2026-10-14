@@ -210,6 +210,50 @@ extension NetworkFaults {
         await eb.stop()
     }
 
+    /// The owner stopped sharing (collab_unshare, from their AI or another device): the server
+    /// puts the merged text back in their row and drops the pointer. Their other devices take it
+    /// as an ordinary note again and let go of the document; the members' pointers come back
+    /// deleted and their documents go.
+    @Test func whenTheOwnerStopsSharingTheNoteIsTheirsAgainAndGoesFromOthers() async throws {
+        let a = try device(member), b = try device(member)
+        let ea = engine(for: a), eb = engine(for: b)
+        b.library.install()
+        let note = a.context.createNote(in: .all, body: "Menu\nSoup")
+        try await a.transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        _ = try await a.library.becomeShared(note, nk: nk)
+        await ea.sync()
+        await eb.sync()
+        let onB = try #require(b.context.note(note.id))
+        await waitUntil { onB.sharedDocument != nil }
+        #expect(onB.isShared && onB.sharedDocument != nil)
+
+        // What collab_unshare leaves in the owner's row: the text, and no pointer.
+        StubSupabase.update("notes", id: note.id) { row in
+            row["body_ct"] = try! Wire.seal("Menu\nSoup\nBread", E2EE.body(note.id))
+            row["shared_note_id"] = NSNull()
+        }
+        await eb.sync()
+        #expect(!onB.isShared)
+        #expect(onB.body == "Menu\nSoup\nBread")
+        #expect(onB.sharedDocument == nil && b.library.sessions[onB.id] == nil)
+        #expect(try b.context.fetchCount(FetchDescriptor<SharedDocument>()) == 0)
+        await ea.stop()
+        await eb.stop()
+    }
+
+    /// Your own note whose shared note is gone (nobody's in it anymore) stays yours, with its text.
+    @Test func yourOwnNoteNeverLeavesYourLibrary() async throws {
+        let emil = try device(owner)
+        let (note, session) = try await shared("Garden", on: emil)
+        type("\nTomatoes", in: session)
+        await waitUntil { note.body == "Garden\nTomatoes" }
+        server.members[note.id] = nil
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(note.deletedAt == nil && !note.isShared)
+        #expect(note.body == "Garden\nTomatoes")
+        #expect(note.sharedDocument == nil)
+    }
+
     // MARK: Becoming shared
 
     /// Sharing keeps everything: the whole text with its links and files, the note's id (so its
@@ -384,6 +428,36 @@ extension NetworkFaults {
         #expect(mine.body == "Log\n1\n2\n3\n4\n5\nlast")
     }
 
+    /// Catching up after a snapshot asks from after it: the snapshot (megabytes, for a long note)
+    /// isn't sent again every 20 seconds.
+    @Test func catchingUpDoesntFetchTheSameSnapshotAgain() async throws {
+        CollabSession.snapshotEvery = 3
+        CollabSession.snapshotQuiet = 0.05
+        let emil = try device(owner)
+        let (note, session) = try await shared("Notes", on: emil)
+        for i in 1...4 {
+            type("\n\(i)", in: session)
+            await waitUntil { session.isSent }
+        }
+        await waitUntil { server.snapshots(of: note.id).count >= 2 }
+        await session.catchUp().value
+        let sent = server.snapshotsSent
+        for _ in 0..<3 { await session.catchUp().value }
+        #expect(server.snapshotsSent == sent)
+        #expect(note.sharedDocument!.snapshotUpto == server.snapshots(of: note.id).map(\.upto).max())
+
+        // Someone else's device that's already past the snapshot when it learns of it.
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let theirs = try #require(sara.library.session(for: mine))
+        mine.sharedDocument!.snapshotUpto = 0
+        await theirs.catchUp().value
+        let before = server.snapshotsSent
+        for _ in 0..<3 { await theirs.catchUp().value }
+        #expect(server.snapshotsSent == before)
+    }
+
     /// On the device: changes pile up in the stored tail, and once there are many the document is
     /// saved whole again and the tail starts over. It opens the same either way.
     @Test func theDeviceCompactsItsStoredDocument() async throws {
@@ -443,6 +517,34 @@ extension NetworkFaults {
         #expect(mine.deletedAt != nil && mine.sharedDocument == nil)
         // The owner can't leave their own note.
         await #expect(throws: Collab.Failure.notOwner) { try await emil.library.leave(note) }
+    }
+
+    /// Deleting someone else's shared note for good leaves it, as in Apple Notes; offline, the
+    /// next look at your memberships does. One you joined again since isn't left.
+    @Test func deletingAMembersNoteForGoodLeavesIt() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Reading list", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        sara.library.install()
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        sara.context.trash(mine)
+        #expect(server.role(note.id, member) != nil, "in Recently Deleted you're still in it")
+        sara.transport.offline = true
+        sara.context.purge(mine)
+        await waitUntil(1) { false }
+        #expect(server.role(note.id, member) != nil)
+        #expect(mine.sharedDocument == nil)
+        sara.transport.offline = false
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(server.role(note.id, member) == nil)
+
+        // Joined again later: the old deletion doesn't make you leave.
+        server.add(member, to: note.id)
+        _ = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(server.role(note.id, member) != nil)
+        #expect(mine.deletedAt == nil)
     }
 
     /// A new key after someone else was removed: what's waiting is sealed with it and goes up.

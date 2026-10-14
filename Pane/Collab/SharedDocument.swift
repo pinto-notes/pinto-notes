@@ -32,6 +32,9 @@ final class SharedDocument {
     var cursor: Int64
     /// Server changes taken in since the newest snapshot this device knows of.
     var sinceSnapshot: Int
+    /// The newest snapshot this device has (its `upto`): catching up never asks from before it,
+    /// or the server would send that whole snapshot again.
+    var snapshotUpto: Int64 = 0
     /// The note keys this device has had, each sealed under your data key (`setKey`).
     var keyBoxes: Data = Data()
 
@@ -129,6 +132,11 @@ enum SharedNotes {
     /// A shared note's pointer came in by sync (from another of your devices, or the first time
     /// here): SharedLibrary gets its document.
     @MainActor static var pointerArrived: ((Note) -> Void)?
+    /// A shared note came back by sync as an ordinary note (its owner stopped sharing it):
+    /// SharedLibrary lets go of its document.
+    @MainActor static var unshared: ((Note) -> Void)?
+    /// A shared note was deleted for good here (Recently Deleted emptied, or 30 days passed).
+    @MainActor static var purged: ((Note) -> Void)?
 
     private static func derived(_ s: String) -> UUID {
         var b = Array(SHA256.hash(data: Data(s.utf8)).prefix(16))

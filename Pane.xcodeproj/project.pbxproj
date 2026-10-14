@@ -483,6 +483,7 @@
 		99D859E0B79454748AE31CBB /* AccountSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978E50D544DB24F72EA59957 /* AccountSwitchTests.swift */; };
 		99F02185BA07B1CE0C09D5F2 /* EmailSignInFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8960C267A4A73E8377D155D6 /* EmailSignInFlow.swift */; };
 		9A4C902422F875CEC5697BA5 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B20F92D2A50287948FFA111 /* Push.swift */; };
+		9A61B81732F692C5CBFE89FF /* LibraryUpgradeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E85EFEB025E3665D0A85909C /* LibraryUpgradeTests.swift */; };
 		9A931A983A0828FAF1A3E667 /* TableGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C50C228D538B5E390EF49D /* TableGrid.swift */; };
 		9AC61EA2CCEC618177AB5F99 /* SeedOnceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BCBAB1EBC8999FBAD18CAC /* SeedOnceTests.swift */; };
 		9AD15C7651C3548622FF3F58 /* Model in Resources */ = {isa = PBXBuildFile; fileRef = 56BA16A2B5C7881A05F21723 /* Model */; };
@@ -1244,6 +1245,7 @@
 		E5A1AE108885E3A9E3B3583A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E5FF211616E406434EE7DC37 /* SyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncTests.swift; sourceTree = "<group>"; };
 		E64B3C5141EE3AF3984622FC /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		E85EFEB025E3665D0A85909C /* LibraryUpgradeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryUpgradeTests.swift; sourceTree = "<group>"; };
 		E8FEA213572C6D1C3F514576 /* PaneShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PaneShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileViewerSnapshots.swift; sourceTree = "<group>"; };
 		E9B8C69CC99B48440E21655A /* HoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverTests.swift; sourceTree = "<group>"; };
@@ -1909,6 +1911,7 @@
 				9C107AD7821265E04B828E68 /* CollabLiveTests.swift */,
 				B7EF24AE2E626C3818961777 /* CollabTwoPeopleTests.swift */,
 				DCDC0B8634142001E310B8EE /* FakeCollabTransport.swift */,
+				E85EFEB025E3665D0A85909C /* LibraryUpgradeTests.swift */,
 				90D1AB85C70555A16131836E /* LinkStateTests.swift */,
 				F31B34B51B88407DD35D083F /* MemoryCollabServer.swift */,
 				2EFA5CCD5CFCA8C224C2A102 /* SharedLibraryTests.swift */,
@@ -2556,6 +2559,7 @@
 				B3F002E30EABB6099A2A950A /* LayoutHangTests.swift in Sources */,
 				0A86AB7D095A52739A9CD44B /* LegalLinksTests.swift in Sources */,
 				FFCAF6FD05D62F0A79C4EB00 /* LibraryNotesTests.swift in Sources */,
+				9A61B81732F692C5CBFE89FF /* LibraryUpgradeTests.swift in Sources */,
 				03F5BCF7991B8B61B6D03286 /* LineStyleTests.swift in Sources */,
 				1E19B6337684163C3FE00914 /* LinkDeviceFunnelTests.swift in Sources */,
 				E795903ACDE819E7CC521941 /* LinkPolicyTests.swift in Sources */,

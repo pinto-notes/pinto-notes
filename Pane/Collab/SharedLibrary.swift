@@ -36,6 +36,9 @@ final class SharedLibrary {
     var onOpen: ((CollabSession, Note) -> Void)?
     /// Called with a note's id when it leaves your library (you left, or were removed).
     var onClose: ((UUID) -> Void)?
+    /// Called with a note's id when its session closed for good (it left your library, or isn't
+    /// shared anymore).
+    var onSessionClosed: ((UUID) -> Void)?
     /// Notes being loaded from the server, so a pointer arriving twice loads once.
     private var loading: [UUID: Task<CollabSession?, Never>] = [:]
 
@@ -64,8 +67,16 @@ final class SharedLibrary {
     /// devices gets its document.
     func install() {
         SharedNotes.pointerArrived = { [weak self] note in
-            guard let self, note.deletedAt == nil, note.sharedDocument == nil else { return }
+            guard let self else { return }
+            // Deleted on another of your devices (you left there), or by the owner stopping sharing.
+            if note.deletedAt != nil { self.forget(note); return }
+            guard note.sharedDocument == nil else { return }
             Task { await self.ensureDocument(note) }
+        }
+        SharedNotes.unshared = { [weak self] note in self?.forget(note) }
+        SharedNotes.purged = { [weak self] note in
+            guard let self else { return }
+            Task { await self.deleted(note) }
         }
     }
 
@@ -143,6 +154,7 @@ final class SharedLibrary {
             note = existing
             note.deletedAt = nil
             note.trashedAt = nil
+            if note.folder == nil || note.folder?.deletedAt != nil { note.folder = SharedNotes.sharedWithMe(context, user: me) }
         } else {
             note = Note(body: session.text, folder: SharedNotes.sharedWithMe(context, user: me))
             note.id = noteID
@@ -289,7 +301,14 @@ final class SharedLibrary {
         // come with their own pointer (their id is the shared note's).
         for row in rows where row.role != "owner" && row.accepted_at != nil {
             let id = SharedNotes.noteID(for: row.note_id, user: me)
-            guard context.note(id) == nil else { continue }
+            if let local = context.note(id) {
+                // Deleted for good after you joined (here or on another device) while offline:
+                // you leave it now. Joined again since, it stays.
+                if let gone = local.deletedAt, let joined = Self.date(row.accepted_at), gone > joined {
+                    try? await transport.leave(note: row.note_id)
+                }
+                continue
+            }
             guard let nk = try? await key(for: row) else { continue }
             _ = try? await adopt(shared: row.note_id, nk: nk, epoch: row.epoch, role: row.role, announce: false)
         }
@@ -309,6 +328,21 @@ final class SharedLibrary {
         }
         guard row.epoch >= session.epoch, let nk = try? await key(for: row) else { return }
         session.reseal(nk: nk, epoch: row.epoch)
+    }
+
+    /// Someone else's shared note you deleted for good: its document goes, and you leave it (as
+    /// in Apple Notes). Offline, the next look at your memberships leaves it (`reconcile`). Your own
+    /// note's document just goes; the others keep the note.
+    func deleted(_ note: Note) async {
+        guard let shared = note.sharedNoteID else { return }
+        forget(note)
+        guard shared != note.id else { return }
+        try? await transport.leave(note: shared)
+    }
+
+    nonisolated static func date(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        return (try? Date(s, strategy: .iso8601)) ?? (try? Date(s, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
     }
 
     /// Whether you're still in a note, asked of the note itself: its member list is empty to
@@ -332,15 +366,33 @@ final class SharedLibrary {
 
     /// You're not in the note anymore (you left, or were removed): the note goes from this
     /// device and, through its pointer's deletion, from your others. Its document goes with it.
+    /// Your own note never goes this way: if its shared note is gone, it's yours again, with the
+    /// text it had.
     func removeLocally(_ note: Note) {
-        if let session = sessions.removeValue(forKey: note.id) { session.close() }
-        if let record = note.sharedDocument { context.delete(record) }
-        note.sharedDocument = nil
+        if note.sharedNoteID == note.id {
+            forget(note)
+            note.sharedNoteID = nil
+            note.touch()
+            context.saveOrReport()
+            return
+        }
+        forget(note)
         note.body = ""
         note.deletedAt = .now
         note.touch()
         context.saveOrReport()
         onClose?(note.id)
+    }
+
+    /// The note's document and session go from this device; the note itself is left as it is
+    /// (sync already deleted it, or made it an ordinary note again).
+    func forget(_ note: Note) {
+        if let session = sessions.removeValue(forKey: note.id) {
+            session.close()
+            onSessionClosed?(note.id)
+        }
+        if let record = note.sharedDocument ?? note.sharedNoteID.flatMap({ context.sharedDocument($0) }) { context.delete(record) }
+        note.sharedDocument = nil
     }
 
     /// Closes every open session for good (signing out, or the library replaced): what's stored
