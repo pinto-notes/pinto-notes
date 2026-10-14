@@ -28,11 +28,11 @@ export function FullPrompt({ variants }: { variants: Variant[] }) {
 }
 
 /// What to say to your AI once it keeps the note: the template's example asks, as chat bubbles.
-export function AskBubbles({ asks, label = "Ask your AI" }: { asks: string[]; label?: string }) {
+export function AskBubbles({ asks, label = "Ask your AI", max = 3 }: { asks: string[]; label?: string; max?: number }) {
   return (
     <div className={s.asks}>
       <p className={s.asksLabel}>{label}</p>
-      <ul>{asks.slice(0, 3).map((a) => <li key={a}>{a}</li>)}</ul>
+      <ul>{asks.slice(0, max).map((a) => <li key={a}>{a}</li>)}</ul>
     </div>
   );
 }

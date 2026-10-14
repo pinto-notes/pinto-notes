@@ -16,6 +16,10 @@ export type TemplateSeo = {
   /// What the person does in the app, without their AI: a short title and at most about eight words
   /// each, shown beside the app's capture (Emil, 14 October 2026: the longer lines were too much text).
   can: { name: string; text: string }[];
+  /// Things to say to your AI to change the app itself (its data or its code: the app is a small React
+  /// project the AI edits through Pinto Notes). Only changes it can make; several fill a known gap from
+  /// the app's docs/README.md.
+  make: string[];
   faq: { q: string; a: string[] }[];
   /// The how-to post for "make a <thing> with ChatGPT or Claude".
   post: { slug: string; title: string };
@@ -29,6 +33,7 @@ const AI_SAME_DATA = { name: "Your AI sees the same data", text: "Do it yourself
 export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   "habit-tracker": {
     h1: "Habit tracker template with its own app",
+    make: ["Add stretching, on weekdays only.", "Make water count to 10 glasses.", "Show a year view for each habit.", "Let me add a short note to each day."],
     can: [
       { name: "Tick today in one tap", text: "A tick, or plus and minus for counts." },
       { name: "Set how often", text: "Every day, some weekdays, or times a week." },
@@ -48,6 +53,7 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   },
   "budget-log": {
     h1: "Budget and expense tracker template",
+    make: ["Add a Kids category with 1,000 kr.", "Switch the currency to euros.", "Add rent as a monthly bill on the 25th.", "Show my spending by week."],
     can: [
       { name: "See what's left this month", text: "What's left, by category and by day." },
       { name: "Add an expense in a few taps", text: "Type the amount, pick a category, done." },
@@ -68,6 +74,7 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   },
   "trip-plan": {
     h1: "Trip planner and itinerary template",
+    make: ["Add a day for Sintra.", "Add a Beach group to the packing list.", "Show a cost for each booking.", "Add our flight home on Sunday."],
     can: [
       { name: "Count down and see what's open", text: "Days left, bookings paid, items packed." },
       { name: "See each day as a timeline", text: "Each day's plan and bookings in time order." },
@@ -87,6 +94,7 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   },
   "study-flashcards": {
     h1: "Flashcard maker and study app",
+    make: ["Add ten cards on Spanish verbs.", "Add a reverse mode, answer to question.", "Cap new cards at 20 a day.", "Let me type the answer before it shows."],
     can: [
       { name: "Study what's due", text: "One card at a time, Again to Easy." },
       { name: "Spaced repetition", text: "Cards you know come back later and later." },

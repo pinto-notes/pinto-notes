@@ -151,36 +151,36 @@ describe("a template's page", () => {
 
   it("opens on the filled example, with the AI's lines tinted", async () => {
     const html = await page("meeting-notes");
-    const hero = html.slice(0, html.indexOf('id="prompt"'));
+    const hero = html.slice(0, html.indexOf('id="result"'));
     expect(hero).toContain("30 September 2026");
     expect(hero).toContain('class="changed"');
   });
 
-  it("has one Copy the prompt button and keeps every prompt in the page, folded away", async () => {
+  // Emil, 14 October 2026: Use template installs the note (and its app), so the prompt left the pages.
+  // It stays in the template's data (/templates/<slug>.json) for the apps and AIs that use it.
+  it.runIf(APP_TEMPLATES.live)("shows no prompt: no Copy the prompt, no Show the prompt, no paste step", async () => {
     for (const t of templates()) {
       const html = await page(t.slug);
-      expect(html.match(/>Copy the prompt</g), t.slug).toHaveLength(1);
-      expect(html).toContain("Show the prompt");
-      expect(html).not.toContain(">Tell your AI</h2>");
-      const text = html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-      for (const i of instructions(t)) expect(text, `${t.slug} ${i.client}`).toContain(i.prompt.slice(0, i.prompt.indexOf("```")).trimEnd());
+      expect(html, t.slug).not.toContain("Copy the prompt");
+      expect(html, t.slug).not.toContain("Show the prompt");
+      expect(html, t.slug).not.toContain('id="prompt"');
+      expect(html, t.slug).not.toMatch(/Paste the prompt|Give your AI the prompt/);
     }
   });
 
-  it("offers a choice of AI only where Claude Code gets its own prompt", async () => {
-    expect(await page("meeting-notes")).not.toContain('role="radiogroup"');
-    const standup = await page("daily-standup");
-    expect(standup).toContain('role="radiogroup"');
-    expect(standup).toContain(">ChatGPT or Claude<");
+  it("keeps every prompt in the template's data", async () => {
+    for (const t of templates()) {
+      const res = await GET(new Request("http://x"), params(t.slug));
+      expect(JSON.stringify(await res.json()), t.slug).toContain(JSON.stringify(t.prompt.default).slice(1, 40));
+    }
   });
 });
 
 describe("once the app opens template links (APP_TEMPLATES)", () => {
-  it.runIf(APP_TEMPLATES.live)("leads a template's page with Use template, then Copy the prompt", async () => {
+  it.runIf(APP_TEMPLATES.live)("leads a template's page with Use template", async () => {
     const html = renderToStaticMarkup(await TemplatePage(params("habit-tracker")));
-    const use = html.indexOf('href="/open/template/habit-tracker"'), copy = html.indexOf(">Copy the prompt<");
+    const use = html.indexOf('href="/open/template/habit-tracker"');
     expect(use).toBeGreaterThan(0);
-    expect(copy).toBeGreaterThan(use);
     expect(html).toContain("Start tracking</span>"); // the Mac's words; the iPhone's are beside them
     expect(html).toContain("Use template</span></a>");
   });

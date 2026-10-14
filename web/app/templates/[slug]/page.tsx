@@ -8,7 +8,7 @@ import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, sea
 import Card from "../Card";
 import OpenInApp from "../../OpenInApp";
 import CopyButton from "../CopyButton";
-import Instructions, { AskBubbles, PromptLine } from "../Instructions";
+import Instructions, { AskBubbles } from "../Instructions";
 import PromptCopy from "../PromptCopy";
 import NoteWindow from "../NoteWindow";
 import AppWindow from "../AppWindow";
@@ -36,7 +36,7 @@ const steps = (t: Template) => APP_TEMPLATES.live
   ? [
       { name: "Add the template to Pinto Notes", text: `Choose Use template. Pinto Notes opens and adds the "${noteTitle(t)}" note${t.app ? " with its app" : ""} to the folder you pick.` },
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can fill in the note." },
-      { name: "Give your AI the prompt", text: "Copy the prompt for your AI and paste it into a chat. Then tell it what happened, in your own words." },
+      { name: "Talk to your AI", text: "Tell it what happened, in your own words. It finds the note and fills it in, and you see every change in Pinto Notes." },
     ]
   : [
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can write the note." },
@@ -75,7 +75,7 @@ export default async function Page({ params }: Props) {
         <div className={s.canApp}><AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} /></div>
         <div className={s.canSide}>
           <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
-          <AskBubbles asks={t.asks} />
+          <AskBubbles asks={seo.make} label="Ask your AI to change the app." max={4} />
         </div>
       </div>
     </section>
@@ -126,7 +126,6 @@ export default async function Page({ params }: Props) {
               )}
             </div>
             <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes for Mac</a>.</p>
-            {APP_TEMPLATES.live && t.app && <div className="rise" style={at(3)}><PromptLine variants={vs} /></div>}
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
             {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
@@ -145,14 +144,14 @@ export default async function Page({ params }: Props) {
 
       {seo && appSection}
 
-      {!(APP_TEMPLATES.live && t.app) && <Instructions title={noteTitle(t)} folder={t.folder} variants={vs} asks={t.asks} />}
+      {!APP_TEMPLATES.live && <Instructions title={noteTitle(t)} folder={t.folder} variants={vs} asks={t.asks} />}
 
       {t.app ? (seo ? null : appSection) : (
       <section className={s.section} aria-labelledby="result">
         <div className={s.sectionHead}>
           <h2 id="result" className={s.h2}>The note you start with</h2>
           <p className={s.sectionLede}>
-            This is what the prompt creates in Pinto Notes: an ordinary note with the headings{t.note.includes("|") ? " and the table" : ""} ready.
+            This is what {APP_TEMPLATES.live ? <UseLabel t={t} /> : "the prompt"} {APP_TEMPLATES.live ? "adds to" : "creates in"} Pinto Notes: an ordinary note with the headings{t.note.includes("|") ? " and the table" : ""} ready.
             Your AI fills it in from there, and you can still edit every line yourself.
           </p>
         </div>

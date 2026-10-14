@@ -188,7 +188,7 @@ export default function Page() {
         journal in order to write in it. The AI sees the title of a note you lock in Pinto Notes and nothing else, so a locked journal
         is one you write yourself. You need ChatGPT on a plan that allows custom apps, or Claude;{" "}
         <a href="/blog/connect-chatgpt-to-your-notes">connecting ChatGPT</a> takes a few minutes. The free{" "}
-        <a href="/templates/daily-journal">Daily journal template</a> has the note and the prompt that goes with it, and the{" "}
+        <a href="/templates/daily-journal">Daily journal template</a> is the note to start from, and the{" "}
         <a href="/templates/mood-energy-log">Mood and energy log</a> is the table.
       </p>
       <PostCta slug="journal-with-chatgpt-or-claude" position="how-amber-helps" title="Try Pinto Notes on your Mac">
