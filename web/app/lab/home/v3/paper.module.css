@@ -61,5 +61,6 @@
 @media (max-width: 760px) {
   .words h1 { font-size: 40px; }
   .words h2 { font-size: 32px; }
-  .chip { white-space: normal; height: auto; min-height: 38px; padding: 8px 14px; max-width: 100%; }
+  .chip { display: block; white-space: normal; height: auto; min-height: 38px; padding: 9px 14px; max-width: 100%; line-height: 1.4; }
+  .chip svg { display: inline-block; vertical-align: -2px; margin-right: 6px; }
 }

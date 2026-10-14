@@ -28,7 +28,7 @@ const CAPTIONS = [
   { at: [0.81, 1.01], day: 6, text: "The notebook you and your AI share." },
 ];
 
-function Frame({ p }: { p: number }) {
+function Frame({ p, lean = 34 }: { p: number; lean?: number }) {
   // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
   const gIn = 1, gOut = mj(span(p, 0.28, 0.33));
   const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
@@ -47,7 +47,7 @@ function Frame({ p }: { p: number }) {
   // Beat 5: pull out to the desk.
   const pull = mj(span(p, 0.83, 0.96));
   // The camera: the note leans away from whichever AI is talking, and pushes in a touch while it changes.
-  const camX = 34 * gIn * (1 - gOut) - 34 * cIn * (1 - cOut);
+  const camX = lean * gIn * (1 - gOut) - lean * cIn * (1 - cOut);
   const busy = Math.max(Math.sin(Math.PI * span(p, 0.11, 0.26)), Math.sin(Math.PI * span(p, 0.52, 0.69)), Math.sin(Math.PI * span(p, 0.72, 0.81)));
   const camZ = 1 + 0.045 * busy;
   const cap = CAPTIONS.find((c) => p >= c.at[0] && p < c.at[1]) ?? CAPTIONS[CAPTIONS.length - 1];
@@ -167,7 +167,7 @@ export function Film() {
   }, []);
   return (
     <div ref={box} className={f.film} data-pinned={pinned || undefined}>
-      <div className={f.pin}><Frame p={p} /></div>
+      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} /></div>
     </div>
   );
 }
