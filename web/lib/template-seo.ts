@@ -24,7 +24,7 @@ export type TemplateSeo = {
 const IPHONE =
   "The Mac app is a free download now, for macOS 26 or later. The iPhone app isn't on the App Store yet, so for now the app runs on your Mac and your AI can update it from any device where you use ChatGPT or Claude.";
 
-const AI_SAME_DATA = { name: "Your AI sees the same data", text: "Your AI reads and changes it when asked." };
+const AI_SAME_DATA = { name: "Your AI sees the same data", text: "Do it yourself, or ask your AI to." };
 
 export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   "habit-tracker": {
@@ -33,7 +33,7 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { name: "Tick today in one tap", text: "A tick, or plus and minus for counts." },
       { name: "Set how often", text: "Every day, some weekdays, or times a week." },
       { name: "Skip a day without losing the streak", text: "A skipped day never breaks a streak." },
-      { name: "See the month", text: "A calendar for each habit. Tap a day." },
+      { name: "See the month", text: "A calendar per habit. Tap any day to tick it." },
       { name: "Add, rename, reorder and remove habits", text: "All on the Habits tab, with Undo." },
       AI_SAME_DATA,
     ],
@@ -50,7 +50,7 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
     h1: "Budget and expense tracker template",
     can: [
       { name: "See what's left this month", text: "What's left, by category and by day." },
-      { name: "Add an expense in a few taps", text: "Starts on the amount. Edit or undo later." },
+      { name: "Add an expense in a few taps", text: "Type the amount, pick a category, done." },
       { name: "Set your own budget", text: "Your categories, budgets and currency." },
       { name: "Add bills once", text: "Monthly bills add themselves on their day." },
       { name: "Roll over what's left", text: "What's left or over carries into next month." },
@@ -91,7 +91,7 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { name: "Study what's due", text: "One card at a time, Again to Easy." },
       { name: "Spaced repetition", text: "Cards you know come back later and later." },
       { name: "Keep a streak", text: "Days in a row, and what's due next." },
-      { name: "Add cards fast", text: "Return for the next. Paste many at once." },
+      { name: "Add cards fast", text: "Paste a list, get a stack of cards." },
       AI_SAME_DATA,
     ],
     faq: [
