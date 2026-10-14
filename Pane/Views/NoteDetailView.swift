@@ -909,6 +909,9 @@ struct NoteDetailView: View {
             collab.local(text, selection: controller.target?.currentSelection)
             return
         }
+        // A shared note whose document isn't open here (not loaded yet, or collaboration is off):
+        // its text can't be written anywhere it would be kept, so nothing typed is taken.
+        if note.isShared { return }
         PaneTips.typed()
         ShareAsk.noteUsed(typing: true)
         let note = self.note

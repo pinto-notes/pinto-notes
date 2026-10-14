@@ -103,6 +103,7 @@ extension ModelContext {
             for m in (try? fetch(FetchDescriptor<T>())) ?? [] { delete(m) }
         }
         erase(Attachment.self)
+        erase(SharedDocument.self)
         erase(Note.self)
         erase(Folder.self)
         try? save()
