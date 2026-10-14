@@ -107,7 +107,8 @@ import UIKit
             let jonas = ns.range(of: "Printed customer quotes")
             h.view.showRemoteCarets([
                 RemoteCaret(id: Self.sara, name: "Sara", color: CollabSession.color(for: Self.sara), range: NSRange(location: NSMaxRange(sara), length: 0)),
-                RemoteCaret(id: Self.jonas, name: "Jonas", color: CollabSession.color(for: Self.jonas), range: jonas),
+                // Jonas has been still for a while: his flag has gone, his caret and selection stay.
+                RemoteCaret(id: Self.jonas, name: "Jonas", color: CollabSession.color(for: Self.jonas), range: jonas, showsName: false),
             ])
             await h.settle(0.4)
             let rep = try #require(h.scroll.bitmapImageRepForCachingDisplay(in: h.scroll.bounds))
