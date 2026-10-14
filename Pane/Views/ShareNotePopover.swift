@@ -355,6 +355,8 @@ struct CollaborateRows: View {
                     .buttonStyle(.quiet)
                     .amberBusy(share.working == .leave)
                     .disabled(share.working != nil)
+                    // The word lines up with the names above it.
+                    .padding(.leading, -QuietButtonStyle.inset)
                     .accessibilityIdentifier("share.leave")
             }
         }
@@ -373,6 +375,7 @@ struct CollaborateRows: View {
         return VStack(alignment: .leading, spacing: 12) {
             Button { page = .people } label: { Label("People", systemImage: "chevron.left") }
                 .buttonStyle(.quiet)
+                .padding(.leading, -QuietButtonStyle.inset)
                 .accessibilityIdentifier("share.back")
             HStack(spacing: 10) {
                 PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: 36, photo: p.photo, ring: .clear)
@@ -395,6 +398,7 @@ struct CollaborateRows: View {
             if share.isOwner {
                 Button(role: .destructive) { share.askRemove(p) } label: { Text("Remove from Note").foregroundStyle(.red) }
                     .buttonStyle(.quiet)
+                    .padding(.leading, -QuietButtonStyle.inset)
                     .accessibilityIdentifier("share.person.remove")
             }
         }

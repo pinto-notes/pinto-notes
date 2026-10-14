@@ -107,7 +107,7 @@ import UIKit
             let jonas = ns.range(of: "Printed customer quotes")
             h.view.showRemoteCarets([
                 RemoteCaret(id: Self.sara, name: "Sara", color: CollabSession.color(for: Self.sara), range: NSRange(location: NSMaxRange(sara), length: 0)),
-                RemoteCaret(id: Self.jonas, name: "Jonas", color: CollabSession.color(for: Self.jonas), range: jonas, showsName: false),
+                RemoteCaret(id: Self.jonas, name: "Jonas", color: CollabSession.color(for: Self.jonas), range: jonas),
             ])
             await h.settle(0.4)
             let rep = try #require(h.scroll.bitmapImageRepForCachingDisplay(in: h.scroll.bounds))
@@ -117,7 +117,8 @@ import UIKit
             h.window.close()
 
             let avatars = HStack(spacing: 10) {
-                PresenceAvatars(people: [.init(id: Self.sara, name: "Sara Lind", typing: true), .init(id: Self.jonas, name: "Jonas Berg", canEdit: false)])
+                PresenceAvatars(people: [.init(id: Self.sara, name: "Sara Lind", typing: true), .init(id: Self.jonas, name: "Jonas Berg", canEdit: false)],
+                                option: PresenceStack.badges)
                 Image(systemName: "square.and.arrow.up").font(.system(size: 15))
             }
             .padding(12)
@@ -134,11 +135,8 @@ import UIKit
             for (name, state, moment, verify) in Self.states where moment != .confirmRemove && moment != .confirmLeave {
                 let share = await Self.controller(state, moment)
                 let sheet: AnyView
-                if let id = verify, let p = state.people.first(where: { $0.id == id }) {
-                    sheet = AnyView(NavigationStack { PersonDetail(person: p, remove: {}) })
-                } else {
-                    sheet = AnyView(NavigationStack { ShareForm(share: share) })
-                }
+                // Verify is pushed inside Share, as tapping a person does: "‹ Share" and Done above it.
+                sheet = AnyView(NavigationStack(path: .constant(verify.map { [$0] } ?? [])) { ShareForm(share: share, done: {}) })
                 try await ImportGuideSnapshots.shoot(sheet.tint(Color(PColor.paneAccent)), to: dir.appending(path: "iphone-\(dark ? "dark" : "light")-\(name).png"),
                                                      dark: dark, scene: scene)
             }
