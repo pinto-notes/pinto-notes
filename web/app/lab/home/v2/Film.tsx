@@ -30,7 +30,7 @@ const CAPTIONS = [
 
 function Frame({ p }: { p: number }) {
   // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
-  const gIn = mj(span(p, 0.05, 0.11)), gOut = mj(span(p, 0.28, 0.33));
+  const gIn = 1, gOut = mj(span(p, 0.28, 0.33));
   const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
   const gMark = over(span(p, 0.22, 0.26));
   // Beat 2, Wednesday: Claude in, the thread from the Wednesday line, the answer.
@@ -52,7 +52,7 @@ function Frame({ p }: { p: number }) {
   const camZ = 1 + 0.045 * busy;
   const cap = CAPTIONS.find((c) => p >= c.at[0] && p < c.at[1]) ?? CAPTIONS[CAPTIONS.length - 1];
   const capIdx = CAPTIONS.indexOf(cap);
-  const capIn = Math.min(mj(span(p, cap.at[0], cap.at[0] + 0.025)), capIdx === 0 ? 1 : 1);
+  const capIn = capIdx === 0 ? 1 : mj(span(p, cap.at[0], cap.at[0] + 0.025));
 
   // Slots: Thursday (slot 2) and Saturday (slot 3) trade places as Thursday becomes Sunday.
   const slot = (i: number) => (i === 2 ? lerp(2, 3, move) : i === 3 ? lerp(3, 2, move) : i);
