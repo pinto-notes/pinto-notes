@@ -23,7 +23,7 @@ enum SharedDelete {
         if notes.count == 1, let n = shared.first {
             if isYours(n) {
                 let names = others(n)
-                let who = list(names).map { "\($0) \(names.count == 1 ? "loses" : "lose") it too." } ?? "The people in it lose it too."
+                let who = list(names).map { "\($0) \(names.count == 1 ? "loses" : "lose") it too." } ?? "Everyone in it loses it too."
                 return Ask(title: "Delete \u{201C}\(n.title)\u{201D} for everyone?",
                            message: "\(who) It stays in your Recently Deleted for 30 days, no longer shared.", button: "Delete")
             }

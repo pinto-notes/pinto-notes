@@ -21,7 +21,7 @@ import Testing
         #expect(SharedDelete.ask([n]) { _ in ["Sara", "Jonas", "Emma", "Li", "Ana"] }?.message
                 == "Sara, Jonas and 3 others lose it too. It stays in your Recently Deleted for 30 days, no longer shared.")
         // Nobody known here yet (its document isn't open).
-        #expect(SharedDelete.ask([n]) { _ in [] }?.message.hasPrefix("The people in it lose it too.") == true)
+        #expect(SharedDelete.ask([n]) { _ in [] }?.message.hasPrefix("Everyone in it loses it too.") == true)
     }
 
     @Test func oneSharedWithYouIsLeft() throws {
