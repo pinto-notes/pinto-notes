@@ -54,7 +54,7 @@ export default function Page() {
   --header "Authorization: Bearer pane_…"`}</code></pre>
       <p>
         Rather sign in than paste a token? Install the Pinto Notes plugin, then run <code>/mcp</code> in Claude Code, pick{" "}
-        <code>pinto-notes</code> and sign in. The plugin also teaches Claude how your notes are laid out.
+        <code>amber-notes</code> and sign in. The plugin also teaches Claude how your notes are laid out.
       </p>
       <pre><code>{`claude plugin marketplace add pinto-notes/pinto-notes
 claude plugin install amber-notes`}</code></pre>

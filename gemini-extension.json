@@ -1,9 +1,9 @@
 {
   "name": "amber-notes",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "Pinto Notes (pintonotes.com, formerly Amber Notes): search, read and edit your notes, checklists and tables from Gemini CLI.",
   "mcpServers": {
-    "pinto-notes": {
+    "amber-notes": {
       "httpUrl": "https://mcp.ambernotes.app",
       "oauth": { "enabled": true }
     }

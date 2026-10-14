@@ -7,11 +7,14 @@ import { MCP_URL } from "./facts";
 /// cursor:// redirect, which the server doesn't accept. Goose, Zed and Windsurf weren't checked.
 /// The commands give mcp.pintonotes.com since 2026-10-09 (the same server; sign-in checked at that
 /// address). The Claude Code plugin and the Gemini CLI extension still carry mcp.ambernotes.app.
-/// The server is named pinto-notes everywhere, as the app adds it (ConnectSnippets.serverName);
-/// the plugin and extension ids stay amber-notes, which installs depend on.
+/// A command names the server pinto-notes, as the app adds it (ConnectSnippets.serverName). The
+/// plugin and the extension keep amber-notes, ids and server name alike: renaming the server would
+/// make everyone who installed them sign in again.
 
 /// The name each tool shows for the server.
 export const SERVER_NAME = "pinto-notes";
+/// The name the Claude Code plugin and the Gemini CLI extension give it.
+export const PLUGIN_SERVER_NAME = "amber-notes";
 
 export type AgentInstall = {
   tool: string;
@@ -30,7 +33,7 @@ export const AGENT_INSTALLS: AgentInstall[] = [
     tool: "Claude Code",
     code: `claude plugin marketplace add pinto-notes/pinto-notes
 claude plugin install amber-notes`,
-    signIn: `The plugin adds the server and a skill that tells Claude how your notes are laid out. Then run /mcp in Claude Code, pick ${SERVER_NAME} and sign in.`,
+    signIn: `The plugin adds the server and a skill that tells Claude how your notes are laid out. Then run /mcp in Claude Code, pick ${PLUGIN_SERVER_NAME} and sign in.`,
     alt: { text: "Or add only the server, for every project:", code: `claude mcp add --scope user --transport http ${SERVER_NAME} ${MCP_URL}` },
   },
   {
@@ -41,7 +44,7 @@ claude plugin install amber-notes`,
   {
     tool: "Gemini CLI",
     code: `gemini extensions install https://github.com/pinto-notes/pinto-notes`,
-    signIn: `Then run /mcp auth ${SERVER_NAME} in Gemini CLI to sign in.`,
+    signIn: `Then run /mcp auth ${PLUGIN_SERVER_NAME} in Gemini CLI to sign in.`,
   },
   {
     tool: "VS Code",
