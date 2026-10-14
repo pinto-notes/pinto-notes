@@ -307,9 +307,15 @@ struct CollaborateRows: View {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(share.state.people) { p in
                     Button { if !p.isMe, p.safetyCode != nil { page = .verify(p.id) } } label: {
-                        PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                            .font(.system(size: 13))
-                            .contentShape(Rectangle())
+                        HStack(spacing: 6) {
+                            PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
+                            // Opens their safety code, as the iPhone's row does.
+                            if !p.isMe, p.safetyCode != nil {
+                                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+                            }
+                        }
+                        .font(.system(size: 13))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .contextMenu { if share.isOwner, !p.isMe { Button("Remove from Note", role: .destructive) { share.askRemove(p) } } }
@@ -349,6 +355,8 @@ struct CollaborateRows: View {
                     .buttonStyle(.quiet)
                     .amberBusy(share.working == .leave)
                     .disabled(share.working != nil)
+                    // The word lines up with the names above it.
+                    .padding(.leading, -QuietButtonStyle.inset)
                     .accessibilityIdentifier("share.leave")
             }
         }
@@ -367,6 +375,7 @@ struct CollaborateRows: View {
         return VStack(alignment: .leading, spacing: 12) {
             Button { page = .people } label: { Label("People", systemImage: "chevron.left") }
                 .buttonStyle(.quiet)
+                .padding(.leading, -QuietButtonStyle.inset)
                 .accessibilityIdentifier("share.back")
             HStack(spacing: 10) {
                 PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: 36, photo: p.photo, ring: .clear)
@@ -376,7 +385,7 @@ struct CollaborateRows: View {
                 }
             }
             if let code = p.safetyCode {
-                SafetyCode(code: code)
+                SafetyCode(code: code, alignment: .leading)
                 line(p.keyChanged ?? ShareCopy.verify(first), problem: false)
                 if p.verified && p.keyChanged == nil || share.done == .verified(p.id) {
                     DoneLine(text: ShareCopy.verifiedLine(first)).font(.system(size: 11))
@@ -389,6 +398,7 @@ struct CollaborateRows: View {
             if share.isOwner {
                 Button(role: .destructive) { share.askRemove(p) } label: { Text("Remove from Note").foregroundStyle(.red) }
                     .buttonStyle(.quiet)
+                    .padding(.leading, -QuietButtonStyle.inset)
                     .accessibilityIdentifier("share.person.remove")
             }
         }

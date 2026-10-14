@@ -6,7 +6,8 @@ import Security
 /// through iCloud Keychain to your other devices (they can share the same link), never on our server.
 protocol LinkVault {
     func load(_ note: UUID) -> LinkVaultEntry?
-    func save(_ entry: LinkVaultEntry, for note: UUID)
+    /// False when it couldn't be kept (no Keychain access).
+    @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool
     func remove(_ note: UUID)
 }
 
@@ -37,15 +38,15 @@ struct KeychainLinkVault: LinkVault {
         return try? JSONDecoder().decode(LinkVaultEntry.self, from: data)
     }
 
-    func save(_ entry: LinkVaultEntry, for note: UUID) {
-        guard let data = try? JSONEncoder().encode(entry) else { return }
+    @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool {
+        guard let data = try? JSONEncoder().encode(entry) else { return false }
         let q = query(note)
-        if SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecItemNotFound {
-            var add = q
-            add[kSecValueData as String] = data
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(add as CFDictionary, nil)
-        }
+        let updated = SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        guard updated == errSecItemNotFound else { return updated == errSecSuccess }
+        var add = q
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
     func remove(_ note: UUID) { SecItemDelete(query(note) as CFDictionary) }
@@ -55,7 +56,7 @@ struct KeychainLinkVault: LinkVault {
 final class MemoryLinkVault: LinkVault {
     private var entries: [UUID: LinkVaultEntry] = [:]
     func load(_ note: UUID) -> LinkVaultEntry? { entries[note] }
-    func save(_ entry: LinkVaultEntry, for note: UUID) { entries[note] = entry }
+    @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool { entries[note] = entry; return true }
     func remove(_ note: UUID) { entries[note] = nil }
 }
 

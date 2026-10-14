@@ -208,9 +208,9 @@ final class ShareController {
 
 /// The words Share uses, in one place so tests can check them.
 enum ShareCopy {
-    /// Under People. True whether or not the server keeps a copy of your key: only the people in
-    /// the note can open it, and an AI request is the one time the server reads it.
-    static let privacy = "Only people in this note can read it. When one of them asks their AI about it, the server reads the note for that request."
+    /// Under People. True whether or not the server keeps a copy of your key. The detail (an AI
+    /// request is the one time the server reads the note) is in Help, on the privacy page.
+    static let privacy = "Only people in this note can read it. Their AI reads it only when they ask."
 
     static func link(_ access: ShareState.Access) -> String {
         switch access {

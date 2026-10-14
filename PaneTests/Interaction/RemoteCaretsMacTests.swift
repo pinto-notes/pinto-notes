@@ -20,8 +20,8 @@ import Testing
         #expect(abs(v.bar.frame.minX - (rect.minX - 1)) < 0.5 && v.bar.frame.width == 2)
         #expect(v.bar.frame.height > 10 && abs(v.bar.frame.height - rect.height) < 0.5)
         #expect(v.flag.stringValue == "Sara" && v.flag.alphaValue == 1)
-        // The line above has text: the flag goes below the line, not over it.
-        #expect(v.flag.frame.minY >= v.bar.frame.maxY)
+        // The flag sits on the caret's top, its left edge on the caret: it labels this line.
+        #expect(abs(v.flag.frame.maxY - v.bar.frame.minY) < 0.5 && abs(v.flag.frame.minX - v.bar.frame.minX) < 0.5)
         // Her selection ("snacks") is tinted, solid.
         #expect(h.view.remoteSelections.count == 1 && !(h.view.remoteSelections.first?.rects.isEmpty ?? true))
         #expect(h.view.remoteSelections.first?.color.alphaComponent == 1)
@@ -42,7 +42,7 @@ import Testing
         #expect(h.view.caretViews.isEmpty && v.bar.superview == nil)
     }
 
-    /// On the first line there's no text above: the flag sits above the line.
+    /// On the first line too, the flag sits above the caret.
     @Test func onTheFirstLineTheFlagIsAbove() async throws {
         let h = await EditorHarness("Team offsite\nAgenda\n")
         h.view.showRemoteCarets([RemoteCaret(id: Self.sara, name: "Sara", color: CollabSession.color(for: Self.sara), range: NSRange(location: 4, length: 0))])

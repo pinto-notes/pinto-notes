@@ -35,6 +35,12 @@ final class MemoryCollabServer {
     /// while a channel was still joining).
     var dropRelays = false
 
+    /// Every row the server holds, as text: for tests that check what never reaches it.
+    var everythingStored: String {
+        [String(describing: identities), String(describing: notes), String(describing: members), String(describing: updates),
+         String(describing: snapshots), String(describing: links)].joined(separator: "\n")
+    }
+
     func account(_ name: String, id: UUID = UUID()) -> UUID {
         people[id] = Person(name: name)
         return id
