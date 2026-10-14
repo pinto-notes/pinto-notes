@@ -51,8 +51,9 @@ function Line({ text, typed, done, tick, who, credit, insert, id }: {
 
 /// The note at time `t`. Rendered twice: once at the end state, hidden, to hold the final size and
 /// to place each ask beside its line; once live, on top, so nothing on the page shifts as lines arrive.
-function Note({ t }: { t: number }) {
-  const b = BEATS.map((beat) => { const l = t - beat.at; return { edit: seg(l, 0.7, 0.9), credit: minJerk(seg(l, 1.5, 0.4)) }; });
+function Note({ t, only }: { t: number; only?: number }) {
+  const tt = (i: number) => (only !== undefined && only !== i ? END : t);
+  const b = BEATS.map((beat, i) => { const l = tt(i) - beat.at; return { edit: seg(l, 0.7, 0.9), credit: minJerk(seg(l, 1.5, 0.4)) }; });
   return (
     <figure className={s.note} aria-label="A note called Lisbon that ChatGPT, Claude and Codex each edit, every change labelled with the AI that made it">
         <div className={s.bar}><span className={s.lights}><i /><i /><i /></span><span className={s.folder}>Travel</span></div>
@@ -63,22 +64,22 @@ function Note({ t }: { t: number }) {
           <h4 className={s.h}>Plan</h4>
           <ul className={s.list}>
             <Line text="Tram 28 early, before the crowds" done={false} />
-            <Line text="Day trip to Sintra" done={false} typed={minJerk(b[0].edit)} insert={minJerk(seg(t - BEATS[0].at, 0.55, 0.3))} who="chatgpt" credit={b[0].credit} id="chatgpt" />
+            <Line text="Day trip to Sintra" done={false} typed={minJerk(b[0].edit)} insert={minJerk(seg(tt(0) - BEATS[0].at, 0.55, 0.3))} who="chatgpt" credit={b[0].credit} id="chatgpt" />
             <Line text="Book flights" done />
-            <Line text="Hotel in Príncipe Real" done={false} tick={minJerk(seg(t - BEATS[1].at, 0.8, 0.5))} who="claude" credit={b[1].credit} id="claude" />
+            <Line text="Hotel in Príncipe Real" done={false} tick={minJerk(seg(tt(1) - BEATS[1].at, 0.8, 0.5))} who="claude" credit={b[1].credit} id="claude" />
           </ul>
           <h4 className={s.h}>Places</h4>
           <ul className={s.list}>
             <Line text="Time Out Market" />
             <Line text="Miradouro da Senhora do Monte" />
-            <Line text="LX Factory on Sunday" typed={minJerk(b[2].edit)} insert={minJerk(seg(t - BEATS[2].at, 0.55, 0.3))} who="codex" credit={b[2].credit} id="codex" />
+            <Line text="LX Factory on Sunday" typed={minJerk(b[2].edit)} insert={minJerk(seg(tt(2) - BEATS[2].at, 0.55, 0.3))} who="codex" credit={b[2].credit} id="codex" />
           </ul>
         </div>
       </figure>
   );
 }
 
-export function Story({ t }: { t: number }) {
+export function Story({ t, only }: { t: number; only?: number }) {
   const scene = useRef<HTMLDivElement>(null);
   const [ys, setYs] = useState<Record<string, number>>({});
   useLayoutEffect(() => {
@@ -88,15 +89,15 @@ export function Story({ t }: { t: number }) {
     el.querySelectorAll<HTMLElement>(`.${s.sizer} [data-line]`).forEach((li) => { const r = li.getBoundingClientRect(); next[li.dataset.line!] = r.top - top + r.height / 2; });
     if (BEATS.some((x) => Math.abs((next[x.who] ?? 0) - (ys[x.who] ?? 0)) > 0.5)) setYs(next);
   });
-  const b = BEATS.map((beat) => {
-    const l = t - beat.at;
+  const b = BEATS.map((beat, i) => {
+    const l = (only !== undefined && only !== i ? END : t) - beat.at;
     return { ask: minJerk(seg(l, 0, 0.45)) * (1 - minJerk(seg(l, 2.6, 0.35))), edit: seg(l, 0.7, 0.9), credit: minJerk(seg(l, 1.5, 0.4)) };
   });
   const active = b.findIndex((x) => x.ask > 0.01);
   return (
     <div ref={scene} className={s.scene}>
       <div className={s.sizer} aria-hidden="true"><Note t={END} /></div>
-      <div className={s.live}><Note t={t} /></div>
+      <div className={s.live}><Note t={t} only={only} /></div>
       <div className={s.asks} aria-hidden="true">
         {BEATS.map((beat, i) => (
           <div key={beat.who} className={s.ask} data-who={beat.who}
@@ -166,6 +167,51 @@ export function Tried() {
       <div className={s.tries}>
         {BEATS.map((b, i) => (
           <button key={b.who} type="button" className={s.try} data-state={i < next ? "done" : i === next ? "next" : "later"} disabled={i !== next} onClick={() => play(i)}>
+            <AIGlyph name={GLYPH[b.who]} size={14} />{label[i]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/// Plays once by itself when in view, then offers the same three asks to replay yourself: you see
+/// what it does without doing anything, and you find out you can.
+export function PlayedThenTry() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [t, setT] = useState(0);
+  const [mode, setMode] = useState<"auto" | "try">("auto");
+  const [next, setNext] = useState(0);
+  const [only, setOnly] = useState<number | undefined>(undefined);
+  const raf = useRef(0);
+  useEffect(() => {
+    const q = new URLSearchParams(location.search).get("t");
+    (window as unknown as { __setT?: (v: number) => void }).__setT = setT;
+    if (q !== null) { setT(Number(q)); return; }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setT(END); setMode("try"); setNext(3); return; }
+    let start = 0;
+    const tick = (now: number) => { if (!start) start = now; const v = (now - start) / 1000; setT(Math.min(END, v)); if (v < END) raf.current = requestAnimationFrame(tick); else { setMode("try"); setNext(3); } };
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !start) { raf.current = requestAnimationFrame(tick); io.disconnect(); } }, { threshold: 0.5 });
+    if (ref.current) io.observe(ref.current);
+    return () => { io.disconnect(); cancelAnimationFrame(raf.current); };
+  }, []);
+  const play = (i: number) => {
+    cancelAnimationFrame(raf.current);
+    const from = BEATS[i].at - 0.05, to = BEATS[i].at + 2.95;
+    // Replaying a beat: rewind to just before it, so its line arrives again.
+    let start = 0;
+    const tick = (now: number) => { if (!start) start = now; const v = from + (now - start) / 1000; setT(Math.min(to, v)); if (v < to) raf.current = requestAnimationFrame(tick); else { setT(END); setOnly(undefined); } };
+    setOnly(i);
+    raf.current = requestAnimationFrame(tick);
+    setNext(i);
+  };
+  const label = ["Add a day trip", "The hotel is booked", "Add Sunday"];
+  return (
+    <div ref={ref} className={s.tried}>
+      <Story t={t} only={only} />
+      <div className={s.tries} data-shown={mode === "try" || undefined}>
+        {BEATS.map((b, i) => (
+          <button key={b.who} type="button" className={s.try} data-state={mode === "try" && i === next ? "next" : "done"} tabIndex={mode === "try" ? 0 : -1} onClick={() => play(i)}>
             <AIGlyph name={GLYPH[b.who]} size={14} />{label[i]}
           </button>
         ))}

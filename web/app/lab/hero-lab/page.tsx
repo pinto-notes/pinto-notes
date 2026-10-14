@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Played, Scrubbed, Tried } from "./Story";
+import { Played, PlayedThenTry, Scrubbed, Tried } from "./Story";
 import { Download } from "../kit";
 import l from "../lab.module.css";
 import h from "../home-h/h.module.css";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Hero lab" };
 // Hero motion lab. ?v=played (default): the story plays once beside the headline when in view.
 // ?v=scrubbed: the same story pinned and scrubbed by scroll. ?t= freezes the played story.
 export default async function HeroLab({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
-  const { v = "played" } = await searchParams;
+  const { v = "both" } = await searchParams;
   return (
     <div className={`${l.main} ${h.main}`} data-quiet-nav="">
       <section className={s.hero}>
@@ -19,7 +19,7 @@ export default async function HeroLab({ searchParams }: { searchParams: Promise<
           <p className={l.lede} style={{ maxWidth: "30em" }}>ChatGPT, Claude, Claude Code and Codex read and edit your notes, with your OK.</p>
           <Download quiet="Free for Mac. Brings your Apple Notes over." />
         </div>
-        {v === "scrubbed" ? <Scrubbed /> : v === "try" ? <Tried /> : <Played />}
+        {v === "scrubbed" ? <Scrubbed /> : v === "try" ? <Tried /> : v === "played" ? <Played /> : <PlayedThenTry />}
       </section>
       <div style={{ height: "80vh" }} />
     </div>
