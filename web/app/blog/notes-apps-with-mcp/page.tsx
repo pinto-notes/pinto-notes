@@ -109,7 +109,7 @@ export default function Page() {
       <p className="label"><strong>Apple Notes</strong></p>
       <p>
         Apple doesn&apos;t offer an API or an MCP server. On a Mac, Anthropic&apos;s Read and Write Apple Notes extension lets the Claude
-        desktop app read, add and update notes, and community servers do the same through AppleScript, on that Mac only. <a href="/blog/apple-notes-api">Apple Notes MCP servers, compared</a>.
+        desktop app read, add and update notes, and community servers do the same through AppleScript, on that Mac only. <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers each route.
       </p>
     </PostPage>
   );

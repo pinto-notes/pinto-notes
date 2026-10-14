@@ -98,10 +98,10 @@ http_headers = { "Authorization" = "Bearer pane_…" }`}</code></pre>
       </ul>
       <p>
         The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call, and{" "}
-        <a href="/for/claude-code">keep a work log with Claude Code</a> puts it to daily use.
+        <a href="/for/claude-code">memory for Claude Code and Codex</a> puts it to daily use.
       </p>
       <p>
-        Using Gemini CLI instead? <a href="/blog/mcp-server">Connect your notes to Gemini</a> has the one command it takes.
+        Using Gemini CLI instead? The <a href="/blog/mcp-server#install">install steps</a> have the one command it takes.
       </p>
     </PostPage>
   );
