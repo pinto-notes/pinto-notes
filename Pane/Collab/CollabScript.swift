@@ -239,7 +239,9 @@ enum CollabScript {
                 out["link"] = s.link != nil
                 out["people"] = s.people.map { ["name": $0.name, "role": $0.role, "me": $0.isMe, "verified": $0.verified] }
                 if let account = AccountCrypto.shared.account, let shared = current.sharedNoteID ?? (s.link != nil ? current.id : nil) {
-                    out["linkSaved"] = KeychainLinkVault(account: account).load(shared) != nil
+                    let vault = KeychainLinkVault(account: account)
+                    out["linkSaved"] = vault.load(shared) != nil
+                    out["linkInFile"] = vault.usesFallback
                 }
             }
         }
