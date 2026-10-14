@@ -220,7 +220,7 @@ export const posts: Post[] = [
     excerpt: "Memory is Claude's own summary of you. Notes are your words, on your phone and computer. What each is for, and how to use both.",
     category: "Comparisons",
     date: "2026-10-07",
-    updated: "2026-10-07",
+    updated: "2026-10-14",
     image: { src: "/blog/amber-notes-claude-edit-lisbon.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac, with the line Claude just added tinted and a bar saying Claude changed 1 line, with Undo.", width: 1500, height: 748, window: false, title: "Lisbon" },
     thumb: thumb("slate", "thumb-lisbon-claude", 900, 555, "A Lisbon plan checklist with the line Claude added tinted, and Claude changed 1 line, Undo"),
     draft: false,
