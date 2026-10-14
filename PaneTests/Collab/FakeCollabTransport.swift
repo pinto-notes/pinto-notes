@@ -131,6 +131,7 @@ final class FakeCollabTransport: CollabTransport {
     func stopSealedLink(note: UUID) async throws { try call("stopSealedLink") }
     func publishTemplate(id: String, note: UUID, name: String, json: String) async throws { try call("publishTemplate") }
     func stopTemplate(note: UUID) async throws { try call("stopTemplate") }
+    func sharedTemplate(id: String) async throws -> Data? { try call("sharedTemplate"); return nil }
 
     func leave(note: UUID) async throws {
         try call("leave")

@@ -552,7 +552,8 @@ final class CollabSession {
                 try? await Task.sleep(for: .seconds(Self.snapshotQuiet))
                 if Date.now.timeIntervalSince(lastArrival) >= Self.snapshotQuiet { break }
             }
-            guard !Task.isCancelled else { return }
+            // Still due: one written meanwhile (when sharing, say) made this one unnecessary.
+            guard !Task.isCancelled, needsSnapshot || record.sinceSnapshot >= Self.snapshotEvery else { return }
             await writeSnapshot()
         }
     }

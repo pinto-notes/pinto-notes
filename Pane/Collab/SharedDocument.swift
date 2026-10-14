@@ -43,7 +43,6 @@ final class SharedDocument {
         tail = Data()
         tailChanges = 0
         outbox = Data()
-        cursor = 0
         sinceSnapshot = 0
         keyBoxes = Data()
         self.cursor = cursor

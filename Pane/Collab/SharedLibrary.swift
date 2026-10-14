@@ -222,7 +222,7 @@ final class SharedLibrary {
             guard let self, let note else { return }
             self.mirror(text, into: note)
         }
-        session.onStaleKey = { [weak self, weak session] in
+        session.onKeyChanged = { [weak self, weak session] in
             guard let self, let session else { return }
             Task { await self.refreshKey(session) }
         }

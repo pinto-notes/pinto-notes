@@ -272,13 +272,16 @@ extension NetworkFaults {
         sara.library.closeAll()
 
         for line in ["\none", "\ntwo", "\nthree"] { type(line, in: emilSession) }
-        await waitUntil { server.updates(of: note.id).count == 3 }
+        // Typed while one is in flight, the rest go up together.
+        await waitUntil { emilSession.isSent }
+        #expect(server.updates(of: note.id).count == 2)
         #expect(mine.body == "Notes", "nothing arrives while the note is closed")
 
         let session = try #require(sara.library.session(for: mine))
         await session.catchUp().value
         #expect(session.text == "Notes\none\ntwo\nthree")
         #expect(mine.sharedDocument!.cursor == server.updates(of: note.id).map(\.id).max())
+        #expect(server.snapshots(of: note.id).count == 1, "no snapshot that wasn't due")
         #expect(mine.sharedDocument!.cursor > cursorBefore)
         await waitUntil { mine.body == "Notes\none\ntwo\nthree" }
         #expect(mine.body == "Notes\none\ntwo\nthree")
@@ -316,7 +319,10 @@ extension NetworkFaults {
         CollabSession.snapshotQuiet = 0.05
         let emil = try device(owner)
         let (note, emilSession) = try await shared("Log", on: emil)
-        for i in 1...5 { type("\n\(i)", in: emilSession) }
+        for i in 1...5 {
+            type("\n\(i)", in: emilSession)
+            await waitUntil { emilSession.isSent }
+        }
         await waitUntil { server.snapshots(of: note.id).count >= 2 }
         let snaps = server.snapshots(of: note.id)
         #expect(snaps.count >= 2, "the first when shared, then one after enough changes")
@@ -350,7 +356,8 @@ extension NetworkFaults {
 
         emil.library.closeAll()
         let again = try device(owner, container: emil.container)
-        let reopened = try #require(again.library.session(for: try #require(again.context.note(note.id))))
+        let stored = try #require(again.context.note(note.id))
+        let reopened = try #require(again.library.session(for: stored))
         #expect(reopened.text == "Diary\nMon\nTue\nWed\nThu")
     }
 
