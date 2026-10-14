@@ -294,7 +294,8 @@ enum CollabScript {
     /// Types a character at a time through the text view's own input path, as the keyboard does;
     /// Return asks the editor first, so lists continue.
     private static func type(_ text: String, after anchor: String?) async throws {
-        try await until(30, "the editor") { editor() != nil }
+        // A shared note is read-only until its document has opened.
+        try await until(60, "the editor to take typing") { editor()?.isEditable == true }
         let view = editor()!
         #if os(iOS)
         if !view.isFirstResponder { view.becomeFirstResponder(); try await Task.sleep(for: .seconds(0.5)) }
