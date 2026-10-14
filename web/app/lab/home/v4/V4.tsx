@@ -23,12 +23,15 @@ export function V4() {
         <Forget />
       </section>
 
-      <section className={r.row} aria-labelledby="once">
+      <section className={r.row} aria-labelledby="relay">
         <div>
-          <h2 id="once" className={r.statement}>Tell it once.</h2>
-          <p className={r.say}>Whatever you tell one AI goes in your notebook. The next one already knows.</p>
+          <h2 id="relay" className={r.statement}>Start in one AI. Finish in another.</h2>
+          <p className={r.say}>No copying between chats. Whatever one AI started is in your notebook, and the next one picks it up there.</p>
         </div>
-        <Bubble app="claude" day="Today" me="Plan dinners for this week" ai="Five vegetarian dinners, no mushrooms, and pasta the night before your long run." />
+        <div className={r.relay}>
+          <Bubble app="chatgpt" day="Tuesday" me="Start a packing list for Lisbon." tool="Used Pinto Notes · Lisbon" ai="Started it in your Lisbon note: nine things, grouped by bag." />
+          <Bubble app="claude" day="Thursday" me="What's left to pack for Lisbon?" tool="Used Pinto Notes · Lisbon" ai="Three things: the adapter, sunscreen and your tram card. The rest is ticked." />
+        </div>
       </section>
 
       <section className={`${d.band} ${i.plansBand}`} aria-labelledby="going" data-dark-band="">

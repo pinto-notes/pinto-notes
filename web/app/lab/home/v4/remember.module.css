@@ -57,3 +57,7 @@
 .say { margin: 18px 0 0; max-width: 30em; font-size: 19px; line-height: 1.45; color: #6b5a48; }
 @media (max-width: 900px) { .row { grid-template-columns: minmax(0, 1fr); gap: 32px; } .row[data-flip] > :first-child { order: 0; } }
 @media (max-width: 600px) { .by { height: 19px; font-size: 10.5px; } .lines li { gap: 6px 8px; } }
+/* Two chats days apart, one picking up where the other stopped. */
+.relay { display: grid; gap: 14px; }
+.relay > :first-child { justify-self: start; width: min(400px, 92%); transform: rotate(-1.2deg); }
+.relay > :last-child { justify-self: end; width: min(420px, 92%); transform: rotate(0.8deg); }
