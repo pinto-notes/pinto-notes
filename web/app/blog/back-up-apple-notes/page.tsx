@@ -1,4 +1,7 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { Figure } from "@/lib/blog";
+import { SHOTS } from "@/lib/posts";
+import { Answer, Capture } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("back-up-apple-notes");
@@ -27,16 +30,26 @@ export default function Page() {
     <PostPage
       slug="back-up-apple-notes"
       intro={<>It&apos;s easy to assume iCloud backs up your notes. iCloud keeps them in sync, which protects you from losing a phone and not much else: delete a note or overwrite a paragraph, and the change reaches every device. This guide covers what actually keeps a copy of your Apple Notes, and the routine I&apos;d use.</>}
+      answer={
+        <Answer jump={[
+          { href: "#icloud", label: "What iCloud covers" },
+          { href: "#options", label: "Your options" },
+          { href: "#routine", label: "A routine" },
+          { href: "#versions", label: "Versions" },
+        ]}>
+          <p>
+            Export your notes to files and keep those files somewhere other than your iCloud account. On a Mac, a free exporter writes every
+            note to Markdown in one go; Apple Notes itself exports one note at a time. Turn on Time Machine as well, and unlock any locked
+            note you want in the copy.
+          </p>
+        </Answer>
+      }
+      hero={<Capture priority src="/blog/macos27/notes27-first-delete-30-days-dialog" width={1336} height={880} maxWidth={560}
+        alt="Apple Notes on macOS 27: Deleted notes are moved to the Recently Deleted folder. You can recover or remove from Recently Deleted within 30 days. OK."
+        caption="The only safety net Apple Notes has: 30 days in Recently Deleted. After that, and for any paragraph you overwrite, there's nothing." />}
       faq={FAQ}
     >
-      <h2>The short answer</h2>
-      <p>
-        Export your notes to files and keep those files somewhere other than your iCloud account. On a Mac, an exporter can write every
-        note to Markdown in one go; Apple Notes itself exports one note at a time. Turn on Time Machine as well, and unlock any locked note
-        you want in the copy.
-      </p>
-
-      <h2>What iCloud protects you from</h2>
+      <h2 id="icloud">What iCloud protects you from</h2>
       <p>
         With iCloud, every device signed in to your Apple Account has the same notes, so losing a phone doesn&apos;t lose them.
         A mistake travels the same way, though. A deleted note leaves every device and waits in Recently Deleted for 30 days, then it&apos;s
@@ -46,7 +59,7 @@ export default function Page() {
         Apple Notes</a> covers what can still be done.
       </p>
 
-      <h2>Your options</h2>
+      <h2 id="options">Your options</h2>
       <div className="tableWrap">
         <table>
           <thead>
@@ -61,7 +74,7 @@ export default function Page() {
         </table>
       </div>
 
-      <h2>A routine that works</h2>
+      <h2 id="routine">A routine that works</h2>
       <ol>
         <li>
           Once a month, export everything with an exporter such as <a href="https://github.com/kzaremski/apple-notes-exporter" rel="noopener">Apple
@@ -84,13 +97,14 @@ export default function Page() {
         can open those notes again</a>.
       </p>
 
-      <h2>A notes app that keeps versions</h2>
+      <h2 id="versions">A notes app that keeps versions</h2>
+      <Figure shot={SHOTS.history} caption="Version history in Pinto Notes: every earlier version, who made it, and Restore This Version." />
       <p>
         Version history is what helps on an ordinary day, when you or an app changes a note and removes the part you needed, and Apple
-        Notes has none. Pinto Notes, the notes app for iPhone and Mac that I make, keeps up to
-        100 earlier versions of every note, including the ones from before ChatGPT or Claude edited it, and File, Show Version History puts
-        any of them back. Deleted notes stay in Recently Deleted for 30 days, as in Apple Notes. When you want your own copy, Settings,
-        Privacy &amp; Security, Export Your Notes saves every note as Markdown in its folder, with its files.
+        Notes has none. Pinto Notes, the notes app for iPhone and Mac that I make, keeps earlier
+        versions of every note, including the ones from before ChatGPT or Claude edited it, and File, Show Version History puts
+        any of them back. Deleted notes stay in Recently Deleted for 30 days, as in Apple Notes. When you want your own copy, Export Your
+        Notes in Settings saves every note as Markdown in its folder, with its files.
       </p>
       <p>
         <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> takes one import on your Mac and leaves Apple Notes as it was.

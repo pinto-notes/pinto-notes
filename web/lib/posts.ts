@@ -280,7 +280,7 @@ export const posts: Post[] = [
     excerpt: "iCloud keeps your notes in sync, which isn't the same as a copy you can go back to. What actually backs up Apple Notes, and a routine to follow.",
     category: "Apple Notes",
     date: "2026-10-02",
-    updated: "2026-10-02",
+    updated: "2026-10-14",
     image: SHOTS.notesExportMenu,
     thumb: thumb("mint", "thumb-notes-export-menu", 800, 528, "The Apple Notes File menu open at Export as, with Markdown selected"),
     draft: false,
