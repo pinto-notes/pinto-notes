@@ -1504,9 +1504,17 @@ final class SyncEngine {
         remember(r)
         // A shared note's row is a pointer: its text is the shared document's (SharedNotes). The
         // note keeps its copy of that text; until this device has the document, the placeholder.
-        // A pointer is never turned back into a note from here: leaving a note is SharedLibrary's.
-        if let shared = r.shared_note_id, n.sharedNoteID == nil { n.sharedNoteID = shared }
+        // A pointer that comes back without its shared note (the owner stopped sharing,
+        // collab_unshare) is an ordinary note again, with the text the server now holds.
+        var unshared = false
+        if let shared = r.shared_note_id {
+            if n.sharedNoteID == nil { n.sharedNoteID = shared }
+        } else if n.sharedNoteID != nil, r.deleted_at == nil {
+            n.sharedNoteID = nil
+            unshared = true
+        }
         if n.sharedNoteID == nil || n.sharedDocument == nil { n.body = r.body }
+        if unshared { SharedNotes.unshared?(n) }
         n.lockedBody = r.locked_body
         n.parentID = r.parent_id
         n.isPinned = r.is_pinned

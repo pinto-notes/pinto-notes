@@ -129,6 +129,9 @@ enum SharedNotes {
     /// A shared note's pointer came in by sync (from another of your devices, or the first time
     /// here): SharedLibrary gets its document.
     @MainActor static var pointerArrived: ((Note) -> Void)?
+    /// A shared note came back by sync as an ordinary note (its owner stopped sharing it):
+    /// SharedLibrary lets go of its document.
+    @MainActor static var unshared: ((Note) -> Void)?
 
     private static func derived(_ s: String) -> UUID {
         var b = Array(SHA256.hash(data: Data(s.utf8)).prefix(16))
