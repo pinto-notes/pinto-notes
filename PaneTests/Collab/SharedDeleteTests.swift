@@ -15,12 +15,13 @@ import Testing
         let n = Self.note("Team offsite", shared: nil)
         n.sharedNoteID = n.id
         let two = try #require(SharedDelete.ask([n]) { _ in ["Sara", "Jonas"] })
-        #expect(two.title == "Delete \u{201C}Team offsite\u{201D}?" && two.button == "Delete")
-        #expect(two.message == "It stops being shared, and it\u{2019}s removed for Sara and Jonas.")
-        #expect(SharedDelete.ask([n]) { _ in ["Sara"] }?.message == "It stops being shared, and it\u{2019}s removed for Sara.")
-        #expect(SharedDelete.ask([n]) { _ in ["Sara", "Jonas", "Emma", "Li"] }?.message == "It stops being shared, and it\u{2019}s removed for Sara and 3 others.")
+        #expect(two.title == "Delete \u{201C}Team offsite\u{201D} for everyone?" && two.button == "Delete")
+        #expect(two.message == "Sara and Jonas lose it too. It stays in your Recently Deleted for 30 days, no longer shared.")
+        #expect(SharedDelete.ask([n]) { _ in ["Sara"] }?.message.hasPrefix("Sara loses it too.") == true)
+        #expect(SharedDelete.ask([n]) { _ in ["Sara", "Jonas", "Emma", "Li", "Ana"] }?.message
+                == "Sara, Jonas and 3 others lose it too. It stays in your Recently Deleted for 30 days, no longer shared.")
         // Nobody known here yet (its document isn't open).
-        #expect(SharedDelete.ask([n]) { _ in [] }?.message == "It stops being shared, and it\u{2019}s removed for everyone in it.")
+        #expect(SharedDelete.ask([n]) { _ in [] }?.message.hasPrefix("The people in it lose it too.") == true)
     }
 
     @Test func oneSharedWithYouIsLeft() throws {

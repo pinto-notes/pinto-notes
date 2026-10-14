@@ -21,12 +21,13 @@ enum SharedDelete {
         let shared = notes.filter { $0.isShared && $0.trashedAt == nil }
         guard !shared.isEmpty else { return nil }
         if notes.count == 1, let n = shared.first {
-            let title = "Delete \u{201C}\(n.title)\u{201D}?"
             if isYours(n) {
-                let names = list(others(n))
-                return Ask(title: title, message: names.map { "It stops being shared, and it\u{2019}s removed for \($0)." }
-                    ?? "It stops being shared, and it\u{2019}s removed for everyone in it.", button: "Delete")
+                let names = others(n)
+                let who = list(names).map { "\($0) \(names.count == 1 ? "loses" : "lose") it too." } ?? "The people in it lose it too."
+                return Ask(title: "Delete \u{201C}\(n.title)\u{201D} for everyone?",
+                           message: "\(who) It stays in your Recently Deleted for 30 days, no longer shared.", button: "Delete")
             }
+            let title = "Delete \u{201C}\(n.title)\u{201D}?"
             return Ask(title: title, message: "You\u{2019}ll leave it. It stays for the others.", button: "Delete")
         }
         return Ask(title: "Delete \(notes.count) notes?",
@@ -34,13 +35,13 @@ enum SharedDelete {
                    button: "Delete")
     }
 
-    /// "Sara", "Sara and Jonas", "Sara and 3 others"; nil for nobody.
+    /// "Sara", "Sara and Jonas", "Sara, Jonas and 3 others"; nil for nobody.
     static func list(_ names: [String]) -> String? {
         switch names.count {
         case 0: nil
         case 1: names[0]
         case 2: "\(names[0]) and \(names[1])"
-        default: "\(names[0]) and \(names.count - 1) others"
+        default: "\(names[0]), \(names[1]) and \(names.count - 2) others"
         }
     }
 
@@ -59,7 +60,9 @@ struct SharedDeleteConfirmation: ViewModifier {
     func body(content: Content) -> some View {
         let ask = pending.flatMap { SharedDelete.ask($0) }
         content.alert(ask?.title ?? "", isPresented: Binding(get: { ask != nil }, set: { if !$0 { pending = nil } })) {
+            // Cancel is the default: Return and Esc both cancel.
             Button("Cancel", role: .cancel) { pending = nil }
+                .keyboardShortcut(.defaultAction)
             Button(ask?.button ?? "Delete", role: .destructive) {
                 if let notes = pending { perform(notes) }
                 pending = nil
