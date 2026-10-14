@@ -140,8 +140,8 @@ export default function Page() {
         </li>
       </Steps>
       <PostFigure src="/blog/macos27/notes27-note-context-move-to-submenu" width={1416} height={960} maxWidth={600}
-        alt="Apple Notes on macOS 27: Control-click a note, Move to, and a list of folders. With iCloud on, the folders are grouped under iCloud and On My Mac in this menu."
-        caption="No dragging needed: Control-click a note and choose Move to. With iCloud on, its folders are listed under iCloud here." />
+        alt="Apple Notes on macOS 27: Control-click a note, Move to, and the list of folders to move it to."
+        caption="No dragging needed: Control-click a note, choose Move to, then the folder." />
       <p>
         On My Mac is the Mac&apos;s own local account, like On My iPhone. Once it&apos;s empty you can turn it off by clearing Enable
         the On My Mac account in Notes, Settings. Notes won&apos;t turn it off while it still holds notes, and asks you to move or
