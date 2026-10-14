@@ -22,7 +22,6 @@ const r = (i: number) => ({ "--i": i }) as React.CSSProperties;
 const GITHUB = "https://github.com/pinto-notes/pinto-notes";
 
 const SECTIONS = [
-  { id: "logs", title: "Every log, and how long it's kept" },
   { id: "what-we-store", title: "What we store, and where" },
   { id: "encryption", title: "What's encrypted" },
   { id: "readable", title: "What stays readable to us" },
@@ -56,29 +55,6 @@ export default function PrivacySecurity() {
         {CAVEAT.text} <a href={CAVEAT.href}>{CAVEAT.link}</a>
       </p>
     </div>
-
-    <section className={s.logsBand} aria-labelledby="logs">
-      <div className={`${legal.article} ${s.logsInner}`}>
-        <SectionHeading id="logs">{"Every log, and how long it's kept"}</SectionHeading>
-        <p>
-          We don&apos;t write the text of your notes, email addresses, access tokens or IP addresses into any log of our own. Our hosts log
-          the requests that reach them; we can&apos;t turn that off, but they keep it briefly.
-        </p>
-        <div className="tableWrap"><table className={s.logs}>
-          <thead><tr><th>Log</th><th>What&apos;s in it</th><th>Kept</th></tr></thead>
-          <tbody>
-            {LOGS.map((l) => (
-              <tr key={l.name}><td>{l.name}</td><td>{l.what}</td><td className={s.kept}>{l.kept}</td></tr>
-            ))}
-          </tbody>
-        </table></div>
-        <p>
-          Our hosting plan keeps no backups of the database, so what you delete is gone. If that changes, a backup would hold only the
-          encrypted copies and the locked copies of your key, for as long as this page and the privacy policy say.
-        </p>
-
-      </div>
-    </section>
 
     <LongPage
       bare
@@ -170,6 +146,28 @@ export default function PrivacySecurity() {
             not a public issue.
           </p>
           <p>The legal details are in the <a href="/privacy">privacy policy</a>.</p>
+
+          <details className={s.logsFold} id="logs">
+            <summary>Every log, and how long it&apos;s kept<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5.5 7 9.5l4-4" /></svg></summary>
+            <div className={s.logsBody}>
+            <p>
+              We don&apos;t write the text of your notes, email addresses, access tokens or IP addresses into any log of our own. Our hosts log
+              the requests that reach them; we can&apos;t turn that off, but they keep it briefly.
+            </p>
+            <div className="tableWrap"><table className={s.logs}>
+              <thead><tr><th>Log</th><th>What&apos;s in it</th><th>Kept</th></tr></thead>
+              <tbody>
+                {LOGS.map((l) => (
+                  <tr key={l.name}><td>{l.name}</td><td>{l.what}</td><td className={s.kept}>{l.kept}</td></tr>
+                ))}
+              </tbody>
+            </table></div>
+            <p>
+              Our hosting plan keeps no backups of the database, so what you delete is gone. If that changes, a backup would hold only the
+              encrypted copies and the locked copies of your key, for as long as this page and the privacy policy say.
+            </p>
+            </div>
+          </details>
         </article>
     </LongPage>
     <ClosingBand

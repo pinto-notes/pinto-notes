@@ -14,12 +14,20 @@
 @media (hover: hover) { .caveat a:hover { text-decoration-color: var(--amber); } }
 .caveat a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
-/* Every log: the page's strongest proof, on its own soft band right after the promises. */
-.logsBand { margin-top: 96px; padding: 88px var(--gutter); background: var(--soft); }
-@media (max-width: 600px) { .logsBand { margin-top: 64px; padding: 56px var(--gutter); } }
-.logsInner { max-width: 900px; margin: 0 auto; }
-.logsInner h2 { margin-top: 0; font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -0.03em; }
-.logsInner :global(.tableWrap) { background: var(--card); border-radius: 16px; }
+/* Every log: kept on the page, folded away at the end of the long text behind one quiet row. */
+.logsFold { margin-top: 48px; border-radius: 18px; background: var(--soft); }
+.logsFold summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 0 20px; border-radius: 18px;
+  font-size: 17px; font-weight: 700; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent;
+}
+.logsFold summary::-webkit-details-marker { display: none; }
+.logsFold summary svg { flex: none; color: var(--muted); }
+.logsFold[open] summary svg { transform: rotate(180deg); }
+@media (hover: hover) { .logsFold summary:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
+.logsFold summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .logsFold summary svg { transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); } }
+.logsBody { padding: 0 20px 8px; }
+.logsBody :global(.tableWrap) { background: var(--card); border-radius: 14px; }
 
 .kept { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 
