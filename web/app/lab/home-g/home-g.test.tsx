@@ -113,3 +113,25 @@ describe("home study G's first screen", () => {
     expect(css).toMatch(/\.noteFirst > :first-child \{ order: 2;/);
   });
 });
+
+describe("home study G, round 3: every frame finished", async () => {
+  const html = await render();
+  it("draws the hero whole at first paint: no entrance on the headline, the line, the button or the desk", () => {
+    const hero = html.slice(0, html.indexOf('aria-labelledby="one-notebook"'));
+    expect(hero).not.toMatch(/class="[^"]*\brise(-soft)?\b/);
+  });
+  it("names the current change's author in the margin", () => {
+    expect(html).toMatch(/data-who="chatgpt"[^>]*>.*?ChatGPT<\/span>/); // the resting step: ChatGPT added a line
+  });
+  it("shows the import's final numbers from the first frame", () => {
+    const five = text(html.slice(html.indexOf('aria-labelledby="feel"'), html.indexOf('aria-labelledby="control"')));
+    expect(five).toContain("1,284 notes");
+    expect(five).toMatch(/Notes 612 .*Pinned 12/);
+  });
+  it("marks both dark bands so the header turns dark over them", () => {
+    expect(html.match(/data-dark-band=""/g)).toHaveLength(2);
+    const site = readFileSync(resolve(__dirname, "../../site.css"), "utf8");
+    expect(site).toMatch(/\.site-header\[data-over-dark\] \{[^}]*--bg: #2e180a/);
+    expect(readFileSync(resolve(__dirname, "../../SiteChrome.tsx"), "utf8")).toContain('toggleAttribute("data-over-dark"');
+  });
+});

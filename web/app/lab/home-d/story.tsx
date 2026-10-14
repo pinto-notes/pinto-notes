@@ -6,7 +6,7 @@
 // picked. With Reduce Motion, or before the page's script runs, it rests on the last step.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WhoMark, type Who } from "../kit";
+import { WHO, WhoMark, type Who } from "../kit";
 import s from "./d.module.css";
 
 export function useStory<T extends HTMLElement>(count: number, stepMs: number) {
@@ -61,14 +61,18 @@ export type Row = { key: string; k: "p" | "h" | "todo" | "done" | "bullet"; text
 /// A note's lines as the app draws them. Lines not written yet keep their place (the note never
 /// changes height); a line arrives with one blur-in; only the change being told is tinted, and the
 /// margin marks who wrote each run, the current one full strength and the earlier ones faded.
-export function Lines({ rows, marks = false }: { rows: Row[]; marks?: boolean }) {
+/// `label` (home-g): the row where the current change starts shows its author as a named chip in the
+/// margin; the other runs keep their icon, quieter.
+export function Lines({ rows, marks = false, label }: { rows: Row[]; marks?: boolean; label?: { key: string; who: Who } }) {
   return (
     <div className={s.lines} data-marks={marks || undefined}>
       {rows.map((r, i) => {
         const first = r.by && rows[i - 1]?.by !== r.by;
         return (
           <div key={r.key} className={s.row} data-k={r.k} data-in={r.in || undefined} data-tint={r.tint || undefined}>
-            {marks && <span className={s.mark} data-now={r.now || undefined}>{first && r.by ? <WhoMark who={r.by} size={11} /> : null}</span>}
+            {marks && (label?.key === r.key
+              ? <span className={s.markLabel} data-who={label.who}><WhoMark who={label.who} size={11} />{WHO[label.who].short}</span>
+              : <span className={s.mark} data-now={r.now || undefined} data-labelled={label ? "" : undefined}>{first && r.by ? <WhoMark who={r.by} size={11} /> : null}</span>)}
             {r.k === "bullet" && <span className={s.dash} aria-hidden="true">–</span>}
             {(r.k === "todo" || r.k === "done") && <span className={s.circle} data-done={r.k === "done" || undefined} aria-hidden="true">{r.k === "done" && <Check />}</span>}
             <span className={s.rowText}>{r.text}</span>

@@ -305,7 +305,7 @@ const Apple = () => <svg width="14" height="17" viewBox="0 0 15 18" aria-hidden=
 
 export function Closing() {
   return (
-    <section className={a.band} aria-labelledby="closing">
+    <section className={a.band} aria-labelledby="closing" data-dark-band="">
       <div className={a.bandInner}>
         <img src="/mark-256.png" alt="" width={96} height={96} className={a.bandIcon} />
         <h2 id="closing" className={a.bandTitle}>Start with the notes you already have.</h2>

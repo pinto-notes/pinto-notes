@@ -39,7 +39,7 @@ export default function Control() {
         <span className={s.deny} aria-hidden="true">{SHEET.deny}</span>
       </figure>
       <span className={s.then} aria-hidden="true">
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 14h16M16 8l6 6-6 6" /></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h16M14 6l6 6-6 6" /></svg>
       </span>
       <figure className={`${d.window} ${s.note}`} aria-label="Then, in a note called Sunday dinner, ChatGPT added a line, Book the table at Trindade for 19:00, tinted, with Undo.">
         <div className={d.windowBar} aria-hidden="true"><span className={d.lights}><i /><i /><i /></span><span>Home</span></div>

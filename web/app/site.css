@@ -75,7 +75,16 @@ html[data-theme] { scroll-padding-top: 100px; }
   background-color: color-mix(in srgb, var(--bg) 76%, transparent); box-shadow: 0 1px 0 var(--line);
   -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px);
 }
-@media (prefers-reduced-motion: no-preference) { .site-header { transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out; } }
+/* Over a dark band (SiteChrome sets data-over-dark): leaf brown frost, cream words, the cream button. */
+.site-header[data-over-dark] {
+  --bg: #2e180a; --ink: #fbeedd; --muted: #d9bf9f; --soft: #40240f; --line: rgba(255, 220, 170, 0.14); --cta-bg: #fbeedd; --cta-ink: #2e180a;
+  color: var(--ink);
+}
+.site-header[data-over-dark][data-scrolled] { background-color: color-mix(in srgb, #2e180a 80%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .site-header { transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out; }
+  .site-header .site-brand, .site-header .site-nav a, .site-header .site-menu-button { transition: color 0.2s ease-out, background-color 0.2s ease-out, transform 0.12s ease-out; }
+}
 .site-brand { display: inline-flex; align-items: center; gap: 11px; min-height: 44px; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 19px; letter-spacing: -0.01em; white-space: nowrap; }
 .site-brand img { border-radius: 8px; box-shadow: 0 0 0 0.5px var(--line); }
 /* The logo is the way home: it lifts on hover, dims its name, and presses in. */

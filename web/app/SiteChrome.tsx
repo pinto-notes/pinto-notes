@@ -52,6 +52,27 @@ export default function SiteChrome({ version, stars, children }: { version: stri
     return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
   }, [site]);
 
+  // Over a dark band ([data-dark-band]) the header turns to a dark frost with cream words (site.css),
+  // so cream glass never sits muddy on brown. Watched in the header's own strip at the top of the window.
+  useEffect(() => {
+    const h = header.current;
+    if (!h || typeof IntersectionObserver === "undefined") return;
+    let io: IntersectionObserver | null = null;
+    const over = new Set<Element>();
+    const watch = () => {
+      io?.disconnect(); over.clear();
+      const strip = Math.max(0, window.innerHeight - h.offsetHeight);
+      io = new IntersectionObserver((entries) => {
+        for (const e of entries) e.isIntersecting ? over.add(e.target) : over.delete(e.target);
+        h.toggleAttribute("data-over-dark", over.size > 0);
+      }, { rootMargin: `0px 0px -${strip}px 0px` });
+      document.querySelectorAll("[data-dark-band]").forEach((el) => io!.observe(el));
+    };
+    watch();
+    window.addEventListener("resize", watch);
+    return () => { io?.disconnect(); window.removeEventListener("resize", watch); h.removeAttribute("data-over-dark"); };
+  }, [path, site]);
+
   // Same-site links between site pages navigate inside a view transition.
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

@@ -41,6 +41,9 @@ export function rowsComplete(step: number): Row[] {
   ];
 }
 
+/// Where each step's author label sits in the complete note: the line the change is on.
+const LABEL_AT = ["goal", "h", "hours", "special"];
+
 /// `icons`: the steps under the note as the four marks alone (each still named for a screen reader);
 /// the step's words are in the note's chip.
 export default function Notebook({ icons = false, complete = false }: { icons?: boolean; complete?: boolean } = {}) {
@@ -52,14 +55,15 @@ export default function Notebook({ icons = false, complete = false }: { icons?: 
         <div className={s.windowBar} aria-hidden="true"><span className={s.lights}><i /><i /><i /></span><span>Work</span></div>
         <div className={s.windowPaper} aria-hidden="true">
           <p className={s.windowTitle}>Bakery website</p>
-          <Lines rows={complete ? rowsComplete(step) : rowsAt(step)} marks />
+          <Lines rows={complete ? rowsComplete(step) : rowsAt(step)} marks
+            label={complete ? { key: LABEL_AT[step], who: STEPS[step].who } : undefined} />
           <div className={s.creditRow}><Credit key={step} who={now.who} text={now.credit} undo={now.undo} /></div>
         </div>
       </figure>
       <div className={s.steps} role="group" aria-label="Steps">
         {STEPS.map((t, k) => (
           <button key={k} type="button" className={s.stepButton} data-icon={icons || undefined} aria-pressed={k === step} aria-label={icons ? `Step ${k + 1}: ${t.credit}` : undefined} onClick={() => jump(k)}>
-            <WhoMark who={t.who} size={icons ? 13 : 11} />{!icons && t.label}
+            <WhoMark who={t.who} size={icons ? 20 : 11} />{!icons && t.label}
           </button>
         ))}
       </div>

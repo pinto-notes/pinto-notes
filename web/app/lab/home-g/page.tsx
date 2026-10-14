@@ -17,7 +17,6 @@ import s from "./g.module.css";
 export const metadata: Metadata = { title: G.title, description: G.description };
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
-const rise = (i: number) => ({ style: { "--i": i } as React.CSSProperties });
 
 /** The three control facts under the approval story, each with its paper icon and its moment. */
 const CONTROL_FACTS = [
@@ -26,6 +25,7 @@ const CONTROL_FACTS = [
   { key: "box", line: "Open source, so anyone can check." },
 ];
 
+// The hero is whole at first paint: no entrance on the headline, the line, the button or the desk.
 // Study G, the joint homepage: D's sections and stories with growth's words, a story of the approval
 // sheet, and a closing in three steps. Cream, cream, dark, cream, tint, cream, dark.
 export default async function HomeG({ searchParams }: { searchParams: Promise<{ alt?: string }> }) {
@@ -38,11 +38,11 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
       {/* 1. What it is, and the plan getting done. */}
       <section className={`${d.hero} ${s.heroFold}`}>
         <div className={d.heroText}>
-          <h1 className={`${l.h1} ${d.h1} rise`}>{G.h1}</h1>
-          <p className={`${l.lede} rise`} {...rise(1)}>{G.lede}</p>
-          <div className="rise" {...rise(2)}><Download quiet={G.quiet} /></div>
+          <h1 className={`${l.h1} ${d.h1}`}>{G.h1}</h1>
+          <p className={l.lede}>{G.lede}</p>
+          <Download quiet={G.quiet} />
         </div>
-        <div className={`${d.desk} rise-soft`} {...rise(2)}>
+        <div className={d.desk}>
           <img className={d.deskArt} src="/home-d/desk.webp" srcSet="/home-d/desk-700.webp 700w, /home-d/desk.webp 1254w" sizes="(min-width: 1000px) 640px, 92vw"
             width={1254} height={1254} alt="" fetchPriority="high" />
           <HeroNote order="ai-last" />
@@ -60,7 +60,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
       </section>
 
       {/* 3. Plans keep moving: the first dark band. */}
-      <section className={`${d.band} ${s.planBand}`} aria-labelledby="plans">
+      <section className={`${d.band} ${s.planBand}`} aria-labelledby="plans" data-dark-band="">
         <div className={s.planRow}>
           <div className={s.planText}>
             <h2 id="plans" className={d.statement}>{G.plans.title}</h2>
@@ -76,7 +76,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
           <h2 id="wait" className={d.title}>{G.apps.title}</h2>
           <p className={d.lede}>{G.apps.lede} <a className={d.inline} href="/templates">{G.apps.all}</a></p>
         </div>
-        <ul className={`${d.fan} ${s.fanWrap}`}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} /></li>)}</ul>
+        <ul className={`${d.fan} ${s.fanWrap}`}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} eager /></li>)}</ul>
       </section>
 
       {/* 5. It feels like the notes app you know, and yours come along: on a soft tint. */}
@@ -85,7 +85,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
           <div className={d.feel}>
             <div className={d.feelArt}>
               <img src="/home-d/bring.webp" srcSet="/home-d/bring-600.webp 600w, /home-d/bring.webp 1086w" sizes="(min-width: 960px) 560px, 92vw" width={1086} height={1448}
-                alt="Paper-cut notes in a folder, tied with an orange ribbon, beside an olive sprig" loading="lazy" decoding="async" />
+                alt="Paper-cut notes in a folder, tied with an orange ribbon, beside an olive sprig" loading="eager" decoding="async" />
               <ImportCard />
             </div>
             <div className={d.feelText}>
@@ -102,7 +102,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
                 </Phone>
                 <figcaption className={d.soon}>{G.feel.soon}</figcaption>
               </figure>
-              <div className={s.feelImport}><ImportCard /></div>
+              <div className={s.feelImport}><ImportCard settled /></div>
             </div>
             <div className={d.feelText}>
               <h2 id="feel" className={d.title}>{G.feel.title}</h2>
@@ -120,7 +120,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
       </section>
 
       {/* 7. The one thing to do, in three steps, on leaf brown. */}
-      <section className={`${d.band} ${d.closing}`} aria-labelledby="closing">
+      <section className={`${d.band} ${d.closing}`} aria-labelledby="closing" data-dark-band="">
         <div className={d.bandInner}>
           <img src="/mark-256.png" alt="" width={104} height={104} className={d.closingIcon} />
           <h2 id="closing" className={d.closingTitle}>{G.closing.title}</h2>

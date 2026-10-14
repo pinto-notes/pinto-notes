@@ -112,6 +112,18 @@
 .mark { position: absolute; left: -44px; top: 5px; opacity: 0.4; }
 .row[data-k="h"] .mark { top: 13px; }
 .mark[data-now] { opacity: 1; }
+/* A complete note's margin (home-g): the current author named in a chip, the others' icons quieter. */
+.story[data-complete] .windowPaper { padding-left: 132px; }
+.mark[data-labelled] { left: -48px; opacity: 0.6; }
+.markLabel { position: absolute; left: -120px; top: 2px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 3px; border-radius: 13px;
+  background: #fdf0dc; color: #8a4a1c; font-size: 13px; font-weight: 650; white-space: nowrap; box-shadow: 0 0 0 1px #f0d2a8; }
+.row[data-k="h"] .markLabel { top: 10px; }
+@media (max-width: 600px) {
+  .story[data-complete] .windowPaper { padding-left: 52px; }
+  .markLabel { left: -46px; padding: 0 3px; font-size: 0; gap: 0; }
+  .mark[data-labelled] { left: -40px; }
+}
+@media (prefers-reduced-motion: no-preference) { .markLabel { animation: chipFade 0.3s ease-out both; } }
 @media (max-width: 600px) { .mark { left: -36px; } .lines { font-size: 15.5px; } }
 .circle { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; margin-top: 0.1em; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #c7c7cc; color: #fff; }
 .circle svg { width: 0.75em; height: 0.75em; }
@@ -139,7 +151,7 @@
 .steps { display: flex; flex-wrap: wrap; gap: 6px; }
 .stepButton { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px 0 6px; border: 0; border-radius: 18px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .stepButton[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
-.stepButton[data-icon] { width: 40px; min-height: 40px; padding: 0; justify-content: center; border-radius: 20px; }
+.stepButton[data-icon] { width: 44px; min-height: 44px; padding: 0; justify-content: center; border-radius: 20px; }
 .steps:has([data-icon]) { gap: 4px; }
 .stepButton:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 @media (hover: hover) { .stepButton:not([aria-pressed="true"]):hover { color: var(--ink); background: color-mix(in srgb, var(--soft) 60%, transparent); } }

@@ -12,12 +12,13 @@ import s from "./templates.module.css";
 /// card), except "Use template", its own link that opens Pinto Notes from the gallery, and a community template's
 /// "by @handle", a link to its author on GitHub. No link sits inside another.
 /// `tagline` replaces the template's own line where a page needs it shorter (the home page studies).
-export default function Card({ t, heading = "h2", tagline }: { t: Template; heading?: "h2" | "h3"; tagline?: string }) {
+/// `eager`: the cover loads with the page (a few cards a fast scroll can land on, home-g).
+export default function Card({ t, heading = "h2", tagline, eager = false }: { t: Template; heading?: "h2" | "h3"; tagline?: string; eager?: boolean }) {
   const H = heading;
   const cover = COVERS[t.slug];
   return (
     <article className={s.card} data-ink={inkOn(cover.ground)} style={{ "--ground": cover.ground } as React.CSSProperties}>
-      <span className={s.cover}><img src={coverPath(t.slug)} alt={cover.alt} width={800} height={800} loading="lazy" decoding="async" /></span>
+      <span className={s.cover}><img src={coverPath(t.slug)} alt={cover.alt} width={800} height={800} loading={eager ? "eager" : "lazy"} decoding="async" /></span>
       <span className={s.cardText}>
         <H className={s.cardTitle}><a className={s.cardLink} href={templatePath(t.slug)}>{t.title}</a></H>
         <span className={s.cardLine}>{tagline ?? t.tagline}</span>
