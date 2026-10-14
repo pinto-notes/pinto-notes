@@ -83,7 +83,7 @@ export function LandingPage({ x }: { x: Landing }) {
     <div className={l.main}>
       <JsonLd graph={graph} />
       <section className={l.hero}>
-        <h1 className={`${l.h1} rise`} {...rise(0)}><Headline text={x.h1} mark={x.mark} /></h1>
+        <h1 className={`${l.h1} rise`} {...rise(0)}><Headline text={x.h1} mark={x.mark} path={path} /></h1>
         <p className={`${l.lede} rise`} {...rise(1)}>{x.lede}</p>
         <div className={`${l.ctas} rise pi-apple pi-not-ios`} {...rise(2)}>
           <DownloadLink className={l.primary} data-hero-download="">Download for Mac, free</DownloadLink>
@@ -155,9 +155,34 @@ export function LandingPage({ x }: { x: Landing }) {
   );
 }
 
-/// The headline with its marked words, which never split across lines.
-function Headline({ text, mark }: { text: string; mark?: string }) {
-  if (!mark || !text.includes(mark)) return <>{text}</>;
+/// The AI a /for page is about: its mark goes in the headline, before its name.
+const HEAD_MARKS: Record<string, { name: string; glyph: "openai" | "claude"; tile: string }> = {
+  "/for/chatgpt": { name: "ChatGPT", glyph: "openai", tile: "#000" },
+  "/for/claude": { name: "Claude", glyph: "claude", tile: "#d97757" },
+  "/for/claude-code": { name: "Claude Code", glyph: "claude", tile: "#d97757" },
+};
+
+/// The AI's name with its mark in a rounded tile the height of the capitals; the two never part.
+function Named({ name, glyph, tile }: { name: string; glyph: "openai" | "claude"; tile: string }) {
+  return (
+    <span className={l.named}>
+      <span className={l.tile} style={{ background: tile }} aria-hidden="true"><AIGlyph name={glyph} color="#fff" /></span>
+      {name}
+    </span>
+  );
+}
+
+/// Text with the AI's name drawn with its mark, the first time it appears.
+function withMark(text: string, m?: { name: string; glyph: "openai" | "claude"; tile: string }): React.ReactNode {
+  if (!m || !text.includes(m.name)) return text;
+  const at = text.indexOf(m.name);
+  return <>{text.slice(0, at)}<Named {...m} />{text.slice(at + m.name.length)}</>;
+}
+
+/// The headline with its marked words, which never split across lines, and on a /for page the AI's mark.
+function Headline({ text, mark, path }: { text: string; mark?: string; path: string }) {
+  const m = HEAD_MARKS[path];
+  if (!mark || !text.includes(mark)) return <>{withMark(text, m)}</>;
   const [before, after] = text.split(mark);
-  return <>{before}<mark className={l.mark}>{mark}</mark>{after}</>;
+  return <>{withMark(before, m)}<mark className={l.mark}>{mark}</mark>{withMark(after, before.includes(m?.name ?? "\u0000") ? undefined : m)}</>;
 }
