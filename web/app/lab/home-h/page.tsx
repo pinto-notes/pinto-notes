@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Card from "../../templates/Card";
 import { templates } from "@/lib/templates";
 import { G, H } from "../copy";
-import { Chat, Download } from "../kit";
-import { AIGlyph } from "@/lib/ai-glyphs";
+import { Download } from "../kit";
+import { HeroStage } from "./HeroStage";
 import l from "../lab.module.css";
 import Week from "../home-d/Week";
 import d from "../home-d/d.module.css";
@@ -35,17 +35,7 @@ export default function HomeH() {
           <p className={`${l.lede} ${s.lede}`}>{G.lede}</p>
           <Download className={s.heroCta} quiet={G.quiet} />
         </div>
-        <div className={s.stage}>
-          <img className={s.stageArt} src="/home-d/desk.webp" alt="" width={1254} height={1254} fetchPriority="high" />
-          <figure className={s.window}>
-            <img src="/home-h/window-lisbon.webp" srcSet="/home-h/window-lisbon-1100.webp 1100w, /home-h/window-lisbon.webp 2200w" sizes="(min-width: 1240px) 1100px, 92vw" width={2200} height={1375}
-              alt="Pinto Notes on a Mac: folders on the left, the note list, and a note called Lisbon with a checklist, places, a hotel booking and a table of food." fetchPriority="high" />
-            <span className={s.added} aria-hidden="true" />
-            <span className={s.byline}><AIGlyph name="openai" size={11} />ChatGPT</span>
-          </figure>
-          <Chat app="chatgpt" className={s.ask} label="ChatGPT, asked to add a day trip to the Lisbon note"
-            turns={[{ me: "Add a day trip to Sintra to my Lisbon note", tool: "Used Pinto Notes", ai: "Added it under Plan." }]} />
-        </div>
+        <HeroStage />
       </section>
 
       {/* 2. Every AI writes in the same notes, and the app says who: one real capture, the version history. */}
