@@ -124,7 +124,7 @@ export const posts: Post[] = [
     excerpt: "Your AI can turn a chapter into cards in a minute. The prompt that keeps them short, and where to study them so the hard ones come back.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.flashcardsApp,
     thumb: thumb("orchid", "thumb-app-study-flashcards", 1180, 748, "A flashcards app in Pinto Notes on a Mac: 8 cards due today and what's coming up"),
     draft: false,
