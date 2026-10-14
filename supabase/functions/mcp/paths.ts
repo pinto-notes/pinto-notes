@@ -52,7 +52,7 @@ export class Paths {
 
   static async load(tx: Tx, c: Call): Promise<Paths> {
     const t0 = performance.now();
-    const [rows, frows, apps, stored, fileRows] = await Promise.all([
+    const [rows, frows, apps, stored, fileRows, shared] = await Promise.all([
       tx<Light[]>`select id, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, version, locked_body is not null as locked, shared_note_id
         from public.notes where deleted_at is null`,
       tx<{ id: string; name_ct: string; parent_id: string | null; sort_index: number; created_at: Date }[]>`
@@ -60,6 +60,8 @@ export class Paths {
       tx<{ note_id: string }[]>`select note_id from public.note_pages where page_ct is not null or draft_ct is not null`,
       tx<{ index_ct: string }[]>`select index_ct from public.mcp_title_index`,
       folderFileRows(tx),
+      // Notes shared with this account: their titles are sealed with each note's own key.
+      sharedNotes(tx, c),
     ]);
     const dbMs = performance.now() - t0;
     const t1 = performance.now();
@@ -114,8 +116,6 @@ export class Paths {
       await tx`insert into public.mcp_title_index (index_ct) values (${sealed})
         on conflict (user_id) do update set index_ct = excluded.index_ct, updated_at = now()`;
     }
-    // Notes shared with this account: their titles are sealed with each note's own key.
-    const shared = await sharedNotes(tx, c);
     const openMs = performance.now() - t1;
     const t2 = performance.now();
     const hasApp = new Set(apps.map((a) => a.note_id));
