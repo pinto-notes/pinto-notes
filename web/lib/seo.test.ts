@@ -9,7 +9,7 @@ import { DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
 import { feedXml } from "./feed";
 import { llmsFullTxt, llmsTxt } from "./llms";
 import { REMOVED_POSTS } from "./removed-posts";
-import { FIRST_PAGE, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
+import { FIRST_PAGE, FOLD, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
 
 const INDEX_FOLDERS = ["page", "category", "feed.xml"];
 
@@ -175,15 +175,24 @@ describe("blog pages", () => {
     expect(shown.sort()).toEqual(published().map((p) => p.slug).sort());
   });
 
-  it("fills every page but the last, and never makes an empty one", () => {
+  it("fills every page but the last, never makes an empty one, and folds a stray post or two into the page before", () => {
+    // Page 1 has one more: its newest post is a wide card above a full grid (FIRST_PAGE). A last page
+    // of FOLD posts or fewer joins the one before it.
     const n = pageCount(all);
-    // Page 1 has one more: its newest post is a wide card above a full grid (FIRST_PAGE).
-    expect(n).toBe(1 + Math.ceil(Math.max(0, all.length - FIRST_PAGE) / PER_PAGE));
-    expect(pageOf(all, 1)).toHaveLength(Math.min(FIRST_PAGE, all.length));
+    expect(pageOf(all, 1).length).toBeGreaterThanOrEqual(Math.min(FIRST_PAGE, all.length));
     for (let i = 2; i < n; i++) expect(pageOf(all, i)).toHaveLength(PER_PAGE);
-    expect(pageOf(all, n).length).toBeGreaterThan(0);
+    if (n > 1) expect(pageOf(all, n).length).toBeGreaterThan(FOLD);
     expect(pageOf(all, n + 1)).toHaveLength(0);
     expect(pageCount([])).toBe(1);
+    const fake = (k: number) => all.slice(0, 1).flatMap(() => Array.from({ length: k }, () => all[0]));
+    expect(pageCount(fake(FIRST_PAGE + FOLD))).toBe(1);
+    expect(pageOf(fake(FIRST_PAGE + FOLD), 1)).toHaveLength(FIRST_PAGE + FOLD);
+    expect(pageCount(fake(FIRST_PAGE + FOLD + 1))).toBe(2);
+    expect(pageCount(fake(FIRST_PAGE + PER_PAGE + 1))).toBe(2);
+    for (const c of categories()) {
+      const list = all.filter((p) => p.category === c);
+      for (let i = 2; i <= pageCount(list); i++) expect(pageOf(list, i).length, c).toBeGreaterThan(FOLD);
+    }
   });
 
   it("keeps page 1 at the list's own address", () => {

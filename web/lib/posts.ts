@@ -496,11 +496,26 @@ export function newestFirst(list: Post[] = published()): Post[] {
 /// other pages, so its grid of three across ends on a full row.
 export const FIRST_PAGE = PER_PAGE + 1;
 
-export const pageCount = (list: Post[]) => Math.max(1, 1 + Math.ceil(Math.max(0, list.length - FIRST_PAGE) / PER_PAGE));
+/// A last page of this many posts or fewer joins the page before it, so no page holds a stray card or two.
+export const FOLD = 2;
+
+/// Where each page of a list starts, and the end: page 1 holds FIRST_PAGE, the rest PER_PAGE, and a
+/// small remainder (FOLD or fewer) stays on the page before it.
+function bounds(length: number): number[] {
+  const b = [0];
+  let at = Math.min(FIRST_PAGE, length);
+  while (at < length) { b.push(at); at = Math.min(at + PER_PAGE, length); }
+  if (b.length > 1 && length - b[b.length - 1] <= FOLD) b.pop();
+  return [...b, length];
+}
+
+export const pageCount = (list: Post[]) => Math.max(1, bounds(list.length).length - 1);
 
 /// Page `n` (from 1) of a list.
-export const pageOf = (list: Post[], n: number) =>
-  n === 1 ? list.slice(0, FIRST_PAGE) : list.slice(FIRST_PAGE + (n - 2) * PER_PAGE, FIRST_PAGE + (n - 1) * PER_PAGE);
+export const pageOf = (list: Post[], n: number) => {
+  const b = bounds(list.length);
+  return n < 1 || n >= b.length ? [] : list.slice(b[n - 1], b[n]);
+};
 
 /// Where page `n` of a list lives: the list's own address for page 1, then <base>/page/<n>.
 export const pagePath = (base: string, n: number) => (n === 1 ? base : `${base}/page/${n}`);
