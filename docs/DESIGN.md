@@ -32,6 +32,7 @@ The website's and the app's colours come from the same family. Names differ by p
 
 - **One orange thing per view.** The accent marks the single thing to do, the current selection or an AI's work. If two things on screen are orange, one of them is wrong.
 - **Dark mode is warm, never neutral grey.** Lean 2–3% toward the brown on the app's surfaces. The website can go fully brown (`#2e180a`); the app stays a warm grey beside other Mac apps.
+- **Page grounds.** Marketing pages are cream, with dark brown (`#2e180a`) bands for contrast: the home page, `/for/*`, `/alternatives/*`, `/templates` and every template, `/blog` and every post, `/download`, and also `/privacy-security`. A few reference pages are leaf brown top to bottom: `/help`, `/support` and `/changelog`, with the fine print at `/privacy` and `/terms`. The owner likes them as a strong contrast with the rest of the site, so keep them dark; a dark page ends without the closing band, which would vanish on it. Shared notes (`/n`, `/s`, `/t`) and the report form follow the visitor's system. The map is `themeFor` in `web/lib/theme.ts`, pinned by `theme.test.ts`.
 - **Solid, not see-through.** Use system materials (sidebar, toolbar glass) as the platform draws them. Never add your own translucent layers, rings or badges.
 - Contrast is AA at least: 4.5:1 for body text, 3:1 for bold labels of 17 pt and up.
 
