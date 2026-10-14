@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -152,7 +153,7 @@ import Testing
     @Test func theCopyIsPlainAndTrue() {
         let privacy = ShareCopy.privacy.lowercased()
         #expect(privacy.contains("only people in this note can read it"))
-        #expect(privacy.contains("ai") && privacy.contains("for that request"))
+        #expect(privacy.contains("their ai reads it only when they ask"))
         for line in [ShareCopy.privacy, ShareCopy.leaveMessage] + ShareState.Access.allCases.map(ShareCopy.link) {
             let l = line.lowercased()
             // Nothing the key copy could make untrue, and no hype.
@@ -237,6 +238,20 @@ import Testing
         #expect(state.link?.absoluteString.contains("/s/sEbHaDgYXLDfpSMmrziRgA#") == true)
         // Off isn't kept.
         vault.save(LinkVaultEntry(id: "x", secret: Data(), access: "Off"), for: UUID())
+    }
+
+    /// One colour per person: Sara is the same colour in Emil's view and in her own, and her
+    /// avatar matches her caret. Nobody gets the app's accent for being "you".
+    @Test func aPersonHasOneColourWhoeverLooks() {
+        let inEmils = Self.owner().people.first { $0.id == Self.sara }!
+        let inHers = Self.member().people.first { $0.id == Self.sara }!
+        #expect(!inEmils.isMe && inHers.isMe)
+        #expect(PersonRow.color(inEmils) == PersonRow.color(inHers))
+        #expect(PersonRow.color(inHers) == CollabSession.color(for: Self.sara))
+        let caret = RemoteCaret(id: Self.sara, name: "Sara", color: CollabSession.color(for: Self.sara), range: NSRange(location: 0, length: 0))
+        #expect(caret.color == PersonRow.color(inHers))
+        let emilMe = Self.owner().people.first { $0.isMe }!
+        #expect(PersonRow.color(emilMe) != Color(PColor.paneAccent))
     }
 }
 

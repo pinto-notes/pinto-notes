@@ -108,6 +108,7 @@ final class CollabSession {
     @ObservationIgnored private var joining = false
     @ObservationIgnored private var sending = false
     @ObservationIgnored private var pulling: Task<Void, Never>?
+    @ObservationIgnored private var pullAgain = false
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private var retryDelay: Duration = .seconds(2)
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?
@@ -305,10 +306,14 @@ final class CollabSession {
     /// it's behind the newest one). One at a time; asked again while running, it runs once more.
     @discardableResult
     func catchUp() -> Task<Void, Never> {
-        if let pulling { return pulling }
+        if let pulling { pullAgain = true; return pulling }
         let task = Task { [weak self] in
             guard let self else { return }
-            await pull()
+            // Awaiting it means a pull that started after you asked.
+            repeat {
+                pullAgain = false
+                await pull()
+            } while pullAgain && !isClosed
             pulling = nil
         }
         pulling = task

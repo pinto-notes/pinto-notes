@@ -1495,6 +1495,8 @@ final class AccountCrypto {
                 defaults.set(true, forKey: Self.startedFreshHereKey(account))
                 // What this device holds goes up again under the new key (SyncEngine.adoptKeyIfChanged).
                 defaults.set(true, forKey: SyncEngine.uploadAgainKey(account))
+                // Shared notes' links were made with keys that are gone now.
+                KeychainLinkVault.removeAll(account: account)
                 await removeAccountFiles?(account)
             }
         }

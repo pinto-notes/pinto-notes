@@ -114,7 +114,7 @@ struct ShareForm: View {
         .navigationDestination(for: UUID.self) { id in
             if let p = state.people.first(where: { $0.id == id }) {
                 PersonDetail(person: p, canRemove: share.isOwner, justVerified: share.done == .verified(p.id),
-                             verify: { share.verify(p) }, remove: { share.askRemove(p) })
+                             verify: { share.verify(p) }, done: done, remove: { share.askRemove(p) })
             }
         }
         .modifier(ShareConfirmations(share: share))
@@ -196,8 +196,7 @@ struct PersonRow: View {
     var body: some View {
         HStack(spacing: size > 28 ? 12 : 8) {
             // On its own in a row, an avatar needs no ring.
-            PersonAvatar(name: person.name, color: person.isMe ? Color(PColor.paneAccent) : CollabSession.color(for: person.id), size: size,
-                         photo: person.photo, ring: .clear, ink: person.isMe ? .avatarOnAmber : .white)
+            PersonAvatar(name: person.name, color: Self.color(person), size: size, photo: person.photo, ring: .clear)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 4) {
                     Text(person.isMe ? "\(person.name) (you)" : person.name)
@@ -222,6 +221,10 @@ struct PersonRow: View {
         }
         .accessibilityElement(children: .combine)
     }
+
+    /// One colour per person, from their account id: the same in everyone's view (yours too), and
+    /// the same as their caret. Never the app's accent.
+    static func color(_ person: ShareState.Person) -> Color { CollabSession.color(for: person.id) }
 }
 
 /// A person, opened: their safety code, calmly, for anyone who wants to check, "They match", and
@@ -231,6 +234,8 @@ struct PersonDetail: View {
     var canRemove = true
     var justVerified = false
     var verify: () -> Void = {}
+    /// Closes the whole sheet (the Back button goes back to Share).
+    var done: (() -> Void)?
     let remove: () -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -281,23 +286,25 @@ struct PersonDetail: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar { if let done { ToolbarItem(placement: .confirmationAction) { Button("Done", action: done).buttonStyle(.quiet) } } }
     }
 }
 
 /// The twelve digits as three groups side by side, solid and large enough to read out.
 struct SafetyCode: View {
     let code: String
+    var alignment: Alignment = .center
     var body: some View {
         HStack(spacing: 8) {
             ForEach(Array(code.split(separator: " ").enumerated()), id: \.offset) { _, group in
                 Text(group)
-                    .font(.title3.monospacedDigit().weight(.semibold))
+                    .font(.system(size: 20, weight: .semibold).monospacedDigit())
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Color(Palette.soft), in: .rect(cornerRadius: 8))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: alignment)
         .textSelection(.enabled)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(code)

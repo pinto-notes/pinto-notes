@@ -6,7 +6,8 @@ import Security
 /// through iCloud Keychain to your other devices (they can share the same link), never on our server.
 protocol LinkVault {
     func load(_ note: UUID) -> LinkVaultEntry?
-    func save(_ entry: LinkVaultEntry, for note: UUID)
+    /// False when it couldn't be kept (no Keychain access).
+    @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool
     func remove(_ note: UUID)
 }
 
@@ -18,14 +19,23 @@ struct LinkVaultEntry: Codable, Equatable {
 }
 
 struct KeychainLinkVault: LinkVault {
-    static let service = AppIdentity.keychainPrefix + ".note-links"
-    /// The account the links belong to: another account on the same device has its own.
+    /// One service per account: another account on the same device has its own, and Start fresh
+    /// removes all of one account's at once.
+    static func service(_ account: UUID) -> String { AppIdentity.keychainPrefix + ".note-links." + account.uuidString.lowercased() }
     let account: UUID
 
+    /// Keyed by the shared note's id: the same on every device, and what the server and the link use.
     private func query(_ note: UUID) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service,
-         kSecAttrAccount as String: "\(account.uuidString.lowercased()):\(note.uuidString.lowercased())",
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service(account),
+         kSecAttrAccount as String: note.uuidString.lowercased(),
          kSecAttrSynchronizable as String: true, kSecUseDataProtectionKeychain as String: true]
+    }
+
+    /// Start fresh: the account's note keys are gone, so its links are too, on every device.
+    static func removeAll(account: UUID) {
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service(account),
+                                kSecAttrSynchronizable as String: true, kSecUseDataProtectionKeychain as String: true]
+        SecItemDelete(q as CFDictionary)
     }
 
     func load(_ note: UUID) -> LinkVaultEntry? {
@@ -37,15 +47,15 @@ struct KeychainLinkVault: LinkVault {
         return try? JSONDecoder().decode(LinkVaultEntry.self, from: data)
     }
 
-    func save(_ entry: LinkVaultEntry, for note: UUID) {
-        guard let data = try? JSONEncoder().encode(entry) else { return }
+    @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool {
+        guard let data = try? JSONEncoder().encode(entry) else { return false }
         let q = query(note)
-        if SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecItemNotFound {
-            var add = q
-            add[kSecValueData as String] = data
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(add as CFDictionary, nil)
-        }
+        let updated = SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        guard updated == errSecItemNotFound else { return updated == errSecSuccess }
+        var add = q
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
     func remove(_ note: UUID) { SecItemDelete(query(note) as CFDictionary) }
@@ -55,7 +65,7 @@ struct KeychainLinkVault: LinkVault {
 final class MemoryLinkVault: LinkVault {
     private var entries: [UUID: LinkVaultEntry] = [:]
     func load(_ note: UUID) -> LinkVaultEntry? { entries[note] }
-    func save(_ entry: LinkVaultEntry, for note: UUID) { entries[note] = entry }
+    @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool { entries[note] = entry; return true }
     func remove(_ note: UUID) { entries[note] = nil }
 }
 

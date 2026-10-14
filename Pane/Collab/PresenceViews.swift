@@ -13,6 +13,9 @@ enum BadgeOption: String, CaseIterable, Identifiable {
     case b = "B"
     /// A live dot while they're here, the pencil instead while they type.
     case c = "C"
+    /// No badge. The Mac's toolbar: at its size the pencil was about 6 pixels on a 1x screen and
+    /// read as a smudge, and the caret in the note already shows who is editing.
+    case off = "off"
     var id: String { rawValue }
 
     func badge(typing: Bool, canEdit: Bool) -> AvatarBadge {
@@ -20,6 +23,7 @@ enum BadgeOption: String, CaseIterable, Identifiable {
         case .a: typing ? .pencil : .none
         case .b: canEdit ? .pencil : .none
         case .c: typing ? .pencil : .dot
+        case .off: .none
         }
     }
 
@@ -249,11 +253,13 @@ struct PresenceStack: View {
                     PresenceAvatars(people: here.map { p in
                         .init(id: p.id, name: p.name, photo: CollabStore.shared?.photos[p.id], typing: p.isTyping,
                               canEdit: session.members.first { $0.id == p.id }?.role != "viewer")
-                    })
+                    }, option: Self.badges)
                 }
                 .padding(.horizontal, 2)
             }
     }
+
+    static let badges = BadgeOption.current
 
     private var accessibilityText: String {
         let viewOnly = session.isViewOnly ? "View only. " : ""

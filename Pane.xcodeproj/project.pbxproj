@@ -617,6 +617,7 @@
 		CDB3416573535BFCAD1C622E /* DebouncedSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301899D6EDE0A22460BBE357 /* DebouncedSave.swift */; };
 		CE1DB02087AE2B23511AF3ED /* libraries.json in Resources */ = {isa = PBXBuildFile; fileRef = 31EE3E7E16D9DA7C161252EE /* libraries.json */; };
 		CE83A43DEE7F67D56C93CA98 /* RichPaste.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550E4D52A7E05ECB1417CCD0 /* RichPaste.swift */; };
+		CE968367B330EB7E3E5C6101 /* LinkStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D1AB85C70555A16131836E /* LinkStateTests.swift */; };
 		CEE103D86E05BE4F1A2F656D /* OwnUndo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5ED823CB6B7989C40B29580 /* OwnUndo.swift */; };
 		CF31FBFA1BCF098AD1F6E2BA /* ImageViewerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22F6BD45D6468F3787B5F0F /* ImageViewerTests.swift */; };
 		CF611A26FB8F6D838C70CB29 /* EditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BF2077E54147D5949A2E4B /* EditorController.swift */; };
@@ -1070,6 +1071,7 @@
 		9060604CABB2AA90D8EC1B77 /* NetworkPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkPath.swift; sourceTree = "<group>"; };
 		907ECF183AD0A69658A04C3A /* AIMarks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIMarks.swift; sourceTree = "<group>"; };
 		90CC0B378983D3F5A7E49012 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
+		90D1AB85C70555A16131836E /* LinkStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkStateTests.swift; sourceTree = "<group>"; };
 		90E829D2CD7ABD9B9531761D /* LockedNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockedNotes.swift; sourceTree = "<group>"; };
 		910239F87293563BD3F4B048 /* ListLayoutSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListLayoutSnapshots.swift; sourceTree = "<group>"; };
 		915BDB4D777A6AAB79E4F4AA /* Pane-mac-direct.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pane-mac-direct.entitlements"; sourceTree = "<group>"; };
@@ -1905,6 +1907,7 @@
 				9C107AD7821265E04B828E68 /* CollabLiveTests.swift */,
 				B7EF24AE2E626C3818961777 /* CollabTwoPeopleTests.swift */,
 				DCDC0B8634142001E310B8EE /* FakeCollabTransport.swift */,
+				90D1AB85C70555A16131836E /* LinkStateTests.swift */,
 				F31B34B51B88407DD35D083F /* MemoryCollabServer.swift */,
 				2EFA5CCD5CFCA8C224C2A102 /* SharedLibraryTests.swift */,
 				3A89888BA134B0D17719F024 /* SharedNoteEditorTests.swift */,
@@ -2553,6 +2556,7 @@
 				03F5BCF7991B8B61B6D03286 /* LineStyleTests.swift in Sources */,
 				1E19B6337684163C3FE00914 /* LinkDeviceFunnelTests.swift in Sources */,
 				E795903ACDE819E7CC521941 /* LinkPolicyTests.swift in Sources */,
+				CE968367B330EB7E3E5C6101 /* LinkStateTests.swift in Sources */,
 				582627587918D7195B435F61 /* ListEditingTests.swift in Sources */,
 				28428F0BD59F90A9425C853D /* ListLayoutSnapshots.swift in Sources */,
 				7BF82011ED85B9884691E71E /* ListOrderSnapshots.swift in Sources */,
