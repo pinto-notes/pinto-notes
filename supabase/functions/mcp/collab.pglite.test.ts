@@ -251,3 +251,47 @@ Deno.test("collab_role answers only about notes the caller is in", async () => {
   // The one-argument form the policies use still works for members.
   assertEquals((await app(pg, sara.id, `select public.collab_role($1) as role`, [note]))[0].role, "editor");
 });
+
+// 20261014220000_collab_start_fresh.sql: one identity key per account, which only Start fresh changes.
+Deno.test("an identity key never changes, except through Start fresh, which takes the account's sharing with it", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), jonas = await person(pg, "Jonas");
+  // Publishing the same key again (a second device racing the first) is fine; a different one isn't.
+  const [row] = await app(pg, sara.id, `select public_key, private_wrap from public.identity_keys`);
+  await app(pg, sara.id, `select public.collab_publish_identity($1, $2)`, [row.public_key, row.private_wrap]);
+  const other = await newIdentity();
+  const otherWrap = await seal(toBase64(other.d), await aesKey(sara.dk), sara.keyId, identityContext(sara.id));
+  await refused(app(pg, sara.id, `select public.collab_publish_identity($1, $2)`, [toBase64(other.publicRaw), otherWrap]), "different identity key");
+  // Only your own row is readable, with its sealed private half.
+  assertEquals((await app(pg, emil.id, `select * from public.identity_keys`)).map((r: any) => r.user_id), [emil.id]);
+
+  // Sara owns a note Jonas is in, and is in Emil's.
+  const emils = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", emils.note, emils.nk);
+  await accept(pg, sara, emils.note);
+  const saras = await share(pg, sara);
+  await invite(pg, sara, "jonas@example.com", saras.note, saras.nk);
+  await accept(pg, jonas, saras.note);
+  await push(pg, jonas, saras.note, saras.nk, 1, "jonas types");
+
+  const signedIn = { "request.jwt.claims": JSON.stringify({ sub: sara.id, role: "authenticated", amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) - 30 }] }) };
+  assertEquals((await asUser<any>(pg, sara.id, `select public.start_fresh($1) as done`, [sara.keyId], signedIn))[0].done, true);
+
+  // Her identity is gone, so a new one (under her new data key) can be published.
+  assertEquals(await app(pg, sara.id, `select * from public.identity_keys`), []);
+  // Her note went for everyone, as her other notes did; she left Emil's.
+  assertEquals(await app(pg, jonas.id, `select * from public.note_updates where note_id = $1`, [saras.note]), []);
+  assertEquals(await app(pg, jonas.id, `select * from public.note_members where note_id = $1`, [saras.note]), []);
+  assertEquals((await app(pg, emil.id, `select user_id from public.collab_members($1)`, [emils.note])).map((m: any) => m.user_id), [emil.id]);
+  // Emil's note and Jonas's key are untouched.
+  assertEquals((await app(pg, jonas.id, `select count(*)::int n from public.identity_keys`))[0].n, 1);
+
+  const dk = newDataKey(), keyId = await keyIdOf(dk);
+  await app(pg, sara.id, `select * from public.create_account_key($1, $2, $3, 1)`, [keyId, "00".repeat(32), `amb2.${keyId}.${toBase64(crypto.getRandomValues(new Uint8Array(48)))}`]);
+  const fresh = await newIdentity();
+  await app(pg, sara.id, `select public.collab_publish_identity($1, $2)`,
+    [toBase64(fresh.publicRaw), await seal(toBase64(fresh.d), await aesKey(dk), keyId, identityContext(sara.id))]);
+  // Emil sees the new key: different from the one he first saw, which is what the warning is for.
+  const [found] = await app(pg, emil.id, `select * from public.collab_find_person($1)`, ["sara@example.com"]);
+  assert(found.public_key !== row.public_key);
+});
