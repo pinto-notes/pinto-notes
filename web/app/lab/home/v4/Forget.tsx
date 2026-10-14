@@ -22,7 +22,9 @@ const CHATS = [
 
 export function Forget() {
   const box = useRef<HTMLDivElement>(null);
+  const note = useRef<HTMLElement>(null);
   const [p, setP] = useState(0);
+  const [phone, setPhone] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("p");
     let frozen = false;
@@ -32,10 +34,13 @@ export function Forget() {
     const narrow = matchMedia("(max-width: 900px)").matches;
     let raf = 0;
     if (narrow) {
+      setPhone(true);
       let start = 0;
       const tick = (now: number) => { if (frozen) return; if (!start) start = now; const v = (now - start) / 4200; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick); };
-      const t = window.setTimeout(() => { raf = requestAnimationFrame(tick); }, 900);
-      return () => { clearTimeout(t); cancelAnimationFrame(raf); };
+      // On a phone the note sits below the chats, so the story starts when the note is in view.
+      const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { io.disconnect(); raf = requestAnimationFrame(tick); } }, { threshold: 0.6 });
+      if (note.current) io.observe(note.current);
+      return () => { io.disconnect(); cancelAnimationFrame(raf); };
     }
     const read = () => { raf = 0; if (frozen) return; const el = box.current; if (!el) return; const r = el.getBoundingClientRect(); const travel = r.height - innerHeight; setP(clamp(travel > 0 ? -r.top / travel : 0)); };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
@@ -43,7 +48,8 @@ export function Forget() {
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
   }, []);
 
-  const second = mj(span(p, 0.08, 0.3));
+  // On a phone the whole headline is there from the start; the story below plays when the note is in view.
+  const second = phone ? 1 : mj(span(p, 0.08, 0.3));
   return (
     <div ref={box} className={f.scroller}>
       <div className={f.pin}>
@@ -67,7 +73,7 @@ export function Forget() {
                 );
               })}
             </div>
-            <figure className={f.note}>
+            <figure ref={note} className={f.note}>
               <div className={f.bar}><span className={f.lights}><i /><i /><i /></span><span className={f.folder}>Notes</span></div>
               <div className={f.paper}>
                 <h3 className={f.title}>About me</h3>
