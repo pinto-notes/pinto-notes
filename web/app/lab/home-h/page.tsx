@@ -3,7 +3,8 @@ import Card from "../../templates/Card";
 import { templates } from "@/lib/templates";
 import { G, H } from "../copy";
 import { Download } from "../kit";
-import { HeroStage } from "./HeroStage";
+import { PlayedThenTry } from "../hero-lab/Story";
+import st from "../hero-lab/story.module.css";
 import l from "../lab.module.css";
 import Week from "../home-d/Week";
 import d from "../home-d/d.module.css";
@@ -29,13 +30,13 @@ export default function HomeH() {
   return (
     <div className={`${l.main} ${d.main} ${s.main}`} data-quiet-nav="">
       {/* 1. What it is, and the real app. */}
-      <section className={s.hero}>
-        <div className={s.heroText}>
-          <h1 className={`${l.h1} ${s.h1}`}>One notes app for <span className={s.mark}>every AI</span> you use.</h1>
-          <p className={`${l.lede} ${s.lede}`}>{G.lede}</p>
-          <Download className={s.heroCta} quiet={G.quiet} />
+      <section className={st.hero}>
+        <div className={st.words}>
+          <h1 className={l.h1} style={{ maxWidth: "11ch" }}>One notes app for <span className={s.mark}>every AI</span> you use.</h1>
+          <p className={l.lede} style={{ maxWidth: "30em" }}>{G.lede}</p>
+          <Download quiet={G.quiet} />
         </div>
-        <HeroStage />
+        <PlayedThenTry />
       </section>
 
       {/* 2. Every AI writes in the same notes, and the app says who: one real capture, the version history. */}
