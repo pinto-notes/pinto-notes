@@ -396,13 +396,13 @@ export const posts: Post[] = [
   {
     slug: "apple-notes-ios-27",
     title: "What's new in Apple Notes in iOS 27, and how to use it",
-    description: "New in Apple Notes in iOS 27 and macOS 27: divider lines, section links, Markdown copy and paste, and Siri AI that finds, adds to and reformats notes.",
-    excerpt: "Divider lines, section links, Markdown in and out, and a Siri that can find your notes and write into them. What changed, and how to use it.",
+    description: "New in Apple Notes in iOS 27 and macOS 27: divider lines, links to sections, Paste and Copy as Markdown, and Export To. Each one with a screenshot.",
+    excerpt: "Divider lines, links that jump to a heading, and Markdown that pastes in formatted. Each new feature with a screenshot and the menu to find it.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.notesExportMenu,
-    thumb: thumb("wheat", "thumb-lisbon-food", 744, 491, "A table of places to eat in Lisbon, in a note"),
+    updated: "2026-10-14",
+    image: { src: "/blog/macos27/notes27-garden-note.webp", alt: "A Spring garden plan note in Apple Notes on macOS 27, with a link to the Seeds to order section at the top and divider lines between its sections.", width: 1400, height: 993, window: false },
+    thumb: thumb("wheat", "thumb-notes27-garden", 800, 500, "An Apple Notes note on macOS 27 with a section link and a divider line"),
     draft: false,
   },
   {
