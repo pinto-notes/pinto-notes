@@ -290,7 +290,7 @@ struct CollaborateRows: View {
                 confirm(ShareCopy.removeTitle(p), ShareCopy.removeMessage(p), action: "Remove", id: "share.confirmRemove",
                         cancel: { share.confirmingRemove = nil }) { page = .people; Task { await share.confirmRemove() } }
             } else if share.confirmingLeave {
-                confirm(ShareCopy.leaveTitle, ShareCopy.leaveMessage, action: "Leave", id: "share.confirmLeave",
+                confirm(ShareCopy.leaveTitle(share.note.title), ShareCopy.leaveMessage, action: "Leave", id: "share.confirmLeave",
                         cancel: { share.confirmingLeave = false }) { Task { await share.confirmLeave() } }
             } else if case .verify(let id) = shown, let p = share.state.people.first(where: { $0.id == id }) {
                 verify(p)

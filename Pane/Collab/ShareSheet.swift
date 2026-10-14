@@ -177,7 +177,7 @@ struct ShareConfirmations: ViewModifier {
             } message: {
                 Text(share.confirmingRemove.map(ShareCopy.removeMessage) ?? "")
             }
-            .alert(ShareCopy.leaveTitle, isPresented: $share.confirmingLeave) {
+            .alert(ShareCopy.leaveTitle(share.note.title), isPresented: $share.confirmingLeave) {
                 Button("Cancel", role: .cancel) {}
                 Button("Leave", role: .destructive) { Task { await share.confirmLeave() } }
             } message: {

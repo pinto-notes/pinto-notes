@@ -851,7 +851,9 @@ struct NoteDetailView: View {
                     if note.trashedAt != nil { trashBanner }
                 }
             }
-            .onChange(of: note.trashedAt, initial: true) { _, at in controller.readOnly = at != nil }
+            .onChange(of: note.trashedAt, initial: true) { _, at in
+                controller.readOnly = SharedEditing.readOnly(trashed: at != nil, shared: note.isShared, viewOnly: collab?.isViewOnly)
+            }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
             } message: {
@@ -1337,7 +1339,13 @@ private struct CollabWiring: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task(id: session.map { ObjectIdentifier($0) }) {
-                guard let session else { controller.remoteCarets = []; controller.ownUndo = nil; return }
+                guard let session else {
+                    controller.remoteCarets = []
+                    controller.ownUndo = nil
+                    // A shared note whose document isn't open yet takes no typing: it would be lost.
+                    controller.readOnly = SharedEditing.readOnly(trashed: note.trashedAt != nil, shared: note.isShared, viewOnly: nil)
+                    return
+                }
                 // Undo takes back only what you typed, not what the others did.
                 controller.ownUndo = OwnUndo()
                 session.onRemoteText = { [weak controller] text in controller?.target?.syncExternal(text) }
@@ -1347,7 +1355,7 @@ private struct CollabWiring: ViewModifier {
                 // Your caret, a few times a second (it also goes with every keystroke).
                 while !Task.isCancelled {
                     // Can view: the note is shown read-only (Recently Deleted is read-only too).
-                    let readOnly = session.isViewOnly || note.trashedAt != nil
+                    let readOnly = SharedEditing.readOnly(trashed: note.trashedAt != nil, shared: true, viewOnly: session.isViewOnly)
                     if controller.readOnly != readOnly { controller.readOnly = readOnly }
                     session.selectionChanged(controller.isEditing ? controller.target?.currentSelection : nil)
                     controller.remoteCarets = session.remoteCarets
@@ -1356,6 +1364,15 @@ private struct CollabWiring: ViewModifier {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.invite)) { _ in showPeople = true }
+    }
+}
+
+/// When the note's editor takes no typing: in Recently Deleted; a shared note until its document
+/// is open on this device; and a shared note you can only view.
+enum SharedEditing {
+    /// `viewOnly` nil: no document open for it here.
+    static func readOnly(trashed: Bool, shared: Bool, viewOnly: Bool?) -> Bool {
+        trashed || (shared && (viewOnly ?? true))
     }
 }
 
