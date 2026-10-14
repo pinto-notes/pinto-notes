@@ -13,13 +13,14 @@ import AppKit
 ///
 ///   "Amber Notes Beta" -collabScript /path/to/steps.json
 ///
-/// Only Amber Notes Beta (bundle id dev.emilwagman.pane.beta) honours it: Pinto Notes ignores the
+/// Only Amber Notes Beta (bundle id dev.emilwagman.pane.beta, or .beta.<name>) honours it: Pinto Notes ignores the
 /// argument (`requested`), so it can't run in a release. Only a local file is read. Steps are one key
 /// each, played in order; names of files (`copyLink`, `waitFile`, `dump`, …) are in the app's temporary
 /// directory (in the sandbox container on the Mac), where a test script puts and collects them:
 ///
 ///   {"signIn": {"email": "…", "password": "…"}}   unless signed in already
 ///   {"waitReady": 60}                              until sharing has started (seconds)
+///   {"skipIntro": 6}                               past "Your notes are encrypted" and the first-run steps
 ///   {"create": "Offsite plan\n\n- [ ] Venue\n"}    a new note, opened
 ///   {"open": "Offsite plan"}                       a note by title, opened
 ///   {"showShare": true} / {"closeShare": true}     the Share sheet or popover, as the Share button does
@@ -39,7 +40,10 @@ enum CollabScript {
 
     /// The steps file, when this app is Amber Notes Beta and was opened with `-collabScript <path>`.
     nonisolated static func requested(arguments: [String], bundleID: String?) -> URL? {
-        guard bundleID == betaBundleID, let i = arguments.firstIndex(of: "-collabScript"), i + 1 < arguments.count else { return nil }
+        // The Beta, or a copy of it with an id of its own (`dev.emilwagman.pane.beta.<name>`: its own
+        // container and Keychain items on a machine where the Beta is signed in to someone else).
+        guard let bundleID, bundleID == betaBundleID || bundleID.hasPrefix(betaBundleID + "."),
+              let i = arguments.firstIndex(of: "-collabScript"), i + 1 < arguments.count else { return nil }
         let path = arguments[i + 1]
         // A path on this machine, never an address.
         guard path.hasPrefix("/"), !path.contains("://") else { return nil }
@@ -48,18 +52,20 @@ enum CollabScript {
 
     private static var running = false
     private static var signIn: ((String, String) async throws -> Void)?
+    private static var skipIntro: (() -> Void)?
     private static var context: ModelContext?
     private static var current: Note?
     private static let dir = URL(fileURLWithPath: NSTemporaryDirectory())
 
     /// Plays the steps file, if there is one. Called once the app has started.
-    static func runIfRequested(context: ModelContext, signIn: @escaping (String, String) async throws -> Void) {
+    static func runIfRequested(context: ModelContext, signIn: @escaping (String, String) async throws -> Void, skipIntro: @escaping () -> Void) {
         guard !running, let file = requested(arguments: ProcessInfo.processInfo.arguments, bundleID: Bundle.main.bundleIdentifier),
               let data = try? Data(contentsOf: file),
               let steps = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
         running = true
         self.context = context
         self.signIn = signIn
+        self.skipIntro = skipIntro
         Task { @MainActor in
             log("start \(steps.count) steps")
             for (n, step) in steps.enumerated() {
@@ -88,6 +94,11 @@ enum CollabScript {
             try await signIn?(v["email"] ?? "", v["password"] ?? "")
         case "waitReady":
             try await until(value as? Double ?? 60, "sharing to start") { CollabStore.shared?.isReady == true && AccountCrypto.shared.dataKey != nil }
+        case "skipIntro":
+            // "Your notes are encrypted" and the first-run steps, as Continue and Skip end them; the
+            // first-run flow can start after the first sync, so a few times over `value` seconds.
+            let end = Date.now.addingTimeInterval(value as? Double ?? 6)
+            while Date.now < end { skipIntro?(); try await Task.sleep(for: .seconds(1)) }
         case "create":
             guard let context else { throw Failed(description: "no store") }
             let note = Note(body: value as? String ?? "")

@@ -11,6 +11,10 @@ struct CollabScriptTests {
         #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.beta")?.path == "/tmp/steps.json")
         #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane") == nil)
         #expect(CollabScript.requested(arguments: args, bundleID: nil) == nil)
+        // A copy of the Beta with its own id reads one; nothing else that starts the same way does.
+        #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.beta.proof") != nil)
+        #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.betax") == nil)
+        #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.PaneShare") == nil)
     }
 
     @Test func theReleaseIdentityIgnoresIt() {

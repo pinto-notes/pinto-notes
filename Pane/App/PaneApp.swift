@@ -127,7 +127,12 @@ struct PaneApp: App {
             : NoteVault(keyStore: KeychainKeyStore(), drivesSync: true)
         Capture.lockedNotesFromArguments(container.mainContext)
         // Amber Notes Beta only: the two-device check of shared notes, from a local steps file.
-        CollabScript.runIfRequested(context: container.mainContext) { email, password in try await backend.signIn(email: email, password: password) }
+        CollabScript.runIfRequested(context: container.mainContext, signIn: { email, password in try await backend.signIn(email: email, password: password) },
+                                    skipIntro: {
+            if AccountCrypto.shared.needsWelcome { AccountCrypto.shared.welcomeShown() }
+            if session.onboarding.phase != .off { session.onboarding.finish(landing: nil) }
+            if session.heardFrom.visible { session.heardFrom.skip() }
+        })
         // "Did you know" tips; their counts go to the server when signed in.
         TipLog.client = backend.client
         FeatureUse.client = backend.client
