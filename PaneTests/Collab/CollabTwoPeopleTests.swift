@@ -93,14 +93,22 @@ import Testing
     @Test func aRemovedPersonGetsNoNewTextAndCantWrite() async throws {
         let (emil, sara, note, ids) = try await shared("Plan\n")
         let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        // Emil's last change is stored but his live channel hasn't counted it as seen.
+        mine.local("Plan\n- book flights\n", selection: nil)
+        await server.eventually { mine.unsent == 0 && theirs.text == mine.text }
         try await emil.store.remove(ids.1, from: note)
         await server.eventually { mine.epoch == 2 }
         #expect(mine.epoch == 2)
-        mine.local("Plan\nsecret after removal\n", selection: nil)
+        // A device starting now has only the new key: the snapshot under it holds everything.
+        let row = try #require(try await server.transport(for: ids.0).memberships().first { $0.note_id == note.id })
+        let fresh = try await CollabSession.load(note: note.id, epoch: 2, nk: try await emil.store.openKey(row).nk,
+                                                 transport: server.transport(for: ids.0), me: ids.0, name: "Emil")
+        #expect(fresh.text == "Plan\n- book flights\n")
+        mine.local("Plan\n- book flights\nsecret after removal\n", selection: nil)
         await server.settle()
         #expect(!theirs.text.contains("secret"))
         // Her device still holds the old key: the server refuses what she sends.
-        theirs.local("Plan\nstill here\n", selection: nil)
+        theirs.local(theirs.text + "still here\n", selection: nil)
         await server.eventually { theirs.unsent == 1 && server.calls.filter { $0 == "update" }.count >= 2 }
         #expect(theirs.unsent == 1)
         #expect(!(server.updates[note.id] ?? []).contains { $0.author_id == ids.1 && $0.epoch == 2 })

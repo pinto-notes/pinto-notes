@@ -102,6 +102,9 @@ final class CollabSession {
             last = s.upto
         }
         for u in pull.updates {
+            // A change sealed under an earlier key that the snapshot already holds (it was made just
+            // before a removal) can't be opened with this one, and doesn't need to be.
+            guard u.epoch == epoch else { last = max(last, u.id); continue }
             try CollabText.absorb(try CollabCrypto.open(.update, u.ct, nk: nk, note: note, extra: u.author_id.uuidString), into: doc)
             last = max(last, u.id)
         }
@@ -187,7 +190,10 @@ final class CollabSession {
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
     }
 
-    private func catchUp() async {
+    /// Takes everything the server has after `lastSeen`. The server hands back every stored change
+    /// after it, in order, so once they're in, `lastSeen` can move past your own too (which the live
+    /// channel alone never moves it past, see `applied`); a snapshot's `upto` is taken from here.
+    func catchUp() async {
         guard let pull = try? await transport.pull(note: noteID, after: lastSeen) else { return }
         if let s = pull.snapshot, let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: nk, note: noteID, extra: String(s.upto)) {
             // Behind the newest snapshot (the changes before it are gone from the server): merge it.
@@ -196,6 +202,7 @@ final class CollabSession {
             textChanged()
         }
         for u in pull.updates { apply(u) }
+        if let last = pull.updates.last { lastSeen = max(lastSeen, last.id) }
     }
 
     private func receive(_ event: Collab.Event) {

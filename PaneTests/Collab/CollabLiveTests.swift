@@ -6,7 +6,7 @@ import Testing
 @testable import Pane
 
 /// Shared notes against a real backend: the local stack or staging, never production. Runs only when
-/// TEST_RUNNER_COLLAB_LIVE names a JSON file `{url, anon_key, users: [{email, password} ×3]}` (made
+/// TEST_RUNNER_COLLAB_LIVE names a JSON file `{url, anon_key, users: [{email, password, data_key} ×3]}` (made
 /// by scripts/collab-live-accounts.ts, which refuses production's project). Three accounts: Emil
 /// shares a note with an Edit link, Sara joins through it, both type and converge over the private
 /// Realtime channel; Eve, outside the note, is refused by row-level security and by the channel's
@@ -28,7 +28,7 @@ struct CollabLiveTests {
         let client = SupabaseClient(supabaseURL: c.url, supabaseKey: c.anon_key,
                                     options: SupabaseClientOptions(auth: .init(storage: GoogleSignInTests.MemoryStorage(), autoRefreshToken: false)))
         let session = try await client.auth.signIn(email: c.users[i].email, password: c.users[i].password)
-        let dataKey = SymmetricKey(size: .bits256)
+        let dataKey = SymmetricKey(data: try #require(Data(base64Encoded: c.users[i].data_key)))
         let store = CollabStore(name: name, transport: SupabaseCollabTransport(client: client, me: session.user.id), dataKey: { dataKey },
                                 book: CollabKeyBook(account: session.user.id, defaults: TestDefaults()))
         let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
@@ -66,9 +66,11 @@ struct CollabLiveTests {
         #expect(mine.text == "Offsite plan (Lisbon)\n\nAgenda\n- Budget\n")
         #expect(theirs.text == mine.text)
 
-        // Presence over the private channel: Sara's caret reaches Emil.
+        // Presence over the private channel: Sara's caret reaches Emil (a caret move right after
+        // typing waits for the typing to pause).
+        try await Task.sleep(for: .seconds(0.8))
         theirs.selectionChanged(NSRange(location: 5, length: 0))
-        await until { mine.peers[sara.id]?.selection != nil }
+        await until { mine.peers[sara.id]?.selection == NSRange(location: 5, length: 0) }
         #expect(mine.peers[sara.id]?.selection == NSRange(location: 5, length: 0))
 
         // Eve is outside the note: nothing to read, nothing to write, no channel.
@@ -106,7 +108,7 @@ struct CollabLiveTests {
 /// Where the live test runs, from TEST_RUNNER_COLLAB_LIVE.
 enum CollabLive {
     struct Config: Decodable, Sendable {
-        struct User: Decodable, Sendable { let email: String; let password: String }
+        struct User: Decodable, Sendable { let email: String; let password: String; let data_key: String }
         let url: URL
         let anon_key: String
         let users: [User]

@@ -217,7 +217,14 @@ final class SupabaseCollabTransport: CollabTransport {
         let devices = channel.presenceChange()
         let status = channel.statusChange
         do {
-            try await channel.subscribeWithError()
+            // Refused (not a member) shows as retries until the client gives up, about a minute;
+            // a member joins in well under a second, so ten seconds is the answer either way.
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await channel.subscribeWithError() }
+                group.addTask { try await Task.sleep(for: Self.joinTimeout); throw Collab.Failure.notMember }
+                defer { group.cancelAll() }
+                try await group.next()
+            }
         } catch {
             await client.realtimeV2.removeChannel(channel)
             log.error("collab channel refused: \(String(describing: error), privacy: .public)")
@@ -262,6 +269,8 @@ final class SupabaseCollabTransport: CollabTransport {
     }
 
     private struct Here: Codable { let user: String }
+
+    nonisolated static let joinTimeout: Duration = .seconds(10)
 
     /// The sealed presence in a broadcast: `{user, ct}`, inside the message's payload.
     nonisolated static func presence(_ message: JSONObject) -> (user: UUID, ct: String)? {

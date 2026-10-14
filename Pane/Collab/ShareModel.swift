@@ -80,6 +80,9 @@ extension CollabStore {
     private func rotate(_ note: Note, removing user: UUID?) async throws {
         guard let transport, let me, let session = sessions[note.id], let old = keys[note.id] else { return }
         let identity = try await ensureIdentity()
+        // Everything stored so far goes into the snapshot sealed under the new key below, so a device
+        // that starts from it never needs a change sealed under the old one.
+        await session.catchUp()
         let members = try await transport.members(of: note.id)
         checkKeys(members)
         let epoch = old.epoch + 1

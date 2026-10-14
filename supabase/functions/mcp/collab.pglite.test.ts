@@ -295,3 +295,29 @@ Deno.test("an identity key never changes, except through Start fresh, which take
   const [found] = await app(pg, emil.id, `select * from public.collab_find_person($1)`, ["sara@example.com"]);
   assert(found.public_key !== row.public_key);
 });
+
+// 20261014221000_collab_stale_key_answers.sql: a stale key answers PT409, which PostgREST doesn't
+// retry (it retried 40001 without end), and someone outside the note is refused before the key check.
+Deno.test("an old key and a stranger get answers PostgREST passes straight back", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), eve = await person(pg, "Eve");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  await accept(pg, sara, note);
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, $2, 2, $3)`, [note, sara.id, JSON.stringify(wraps)]);
+
+  const code = async (p: Promise<unknown>) => {
+    const e = await assertRejects(() => p) as { code?: string; hint?: string };
+    return `${e.code} ${e.hint}`;
+  };
+  assertEquals(await code(push(pg, emil, note, nk, 1, "old key")), "PT409 stale_epoch");
+  assertEquals(await code(push(pg, sara, note, nk, 1, "removed")), "42501 not_member");
+  assertEquals(await code(push(pg, eve, note, nk, 1, "stranger")), "42501 not_member");
+  assertEquals(await code(app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)])), "PT409 stale_epoch");
+  assertEquals(await code(app(pg, emil.id, `select public.collab_invite($1, $2, 'editor', $3, 1)`, [note, eve.id, wraps[0].key_wrap])), "PT409 stale_epoch");
+  // Nothing anywhere in the collaboration functions answers 40001 any more.
+  const [{ n }] = await pg.query<{ n: number }>(`select count(*)::int n from pg_proc where proname like 'collab%' and prosrc like '%40001%'`).then((r) => r.rows);
+  assertEquals(n, 0);
+});

@@ -195,6 +195,7 @@ enum Collab {
             case "read_only": .readOnly
             case "not_owner": .notOwner
             case "wraps_incomplete": .wrapsIncomplete
+            case "not_member": .notMember
             default: .server(message)
             }
         }

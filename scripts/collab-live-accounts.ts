@@ -22,7 +22,10 @@ for (const name of ["emil", "sara", "eve"]) {
     body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { collab_live_test: true } }),
   });
   if (!res.ok) throw new Error(`Making ${name} failed: ${res.status} ${await res.text()}`);
-  users.push({ email, password });
+  // Each account's data key, as AccountCrypto would hold it: the identity key is sealed under it, so
+  // runs after the first open the same identity.
+  const dataKey = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+  users.push({ email, password, data_key: dataKey });
 }
 await Deno.writeTextFile(out, JSON.stringify({ url, anon_key: anon, users }), { mode: 0o600 });
 console.log(`Three accounts (collab-live-${run}-*) written to ${out}`);
