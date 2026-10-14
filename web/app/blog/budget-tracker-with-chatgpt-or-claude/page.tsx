@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, FigurePair, Keep, PostFigure } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -101,12 +101,12 @@ export default function Page() {
         note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect
         ChatGPT</a> or Claude once.
       </p>
-      <FigurePair items={[
-        { src: "/blog/pinto/budget-log-expenses-mac-light", width: 1280, height: 900,
-          alt: "The Expenses list of the budget app on a Mac for October: each expense by day with its category and amount, and a delete button." },
-        { src: "/blog/pinto/budget-log-budget-phone-light", width: 780, height: 1688,
-          alt: "The Budget screen on a phone: each category with its monthly budget, which you can change, and monthly bills." },
-      ]} caption="Every expense, and your categories and budgets, all editable in the app." />
+      <PostFigure src="/blog/pinto/budget-log-expenses-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Expenses list of the budget app on a Mac for October: each expense by day with its category and amount, and a delete button."
+        caption="Every expense this month, on a Mac. Edit or delete any of them." />
+      <PostFigure src="/blog/pinto/budget-log-budget-phone-light" width={780} height={1688} maxWidth={320}
+        alt="The Budget screen on a phone: each category with its monthly budget, which you can change, and monthly bills."
+        caption="Your categories and budgets, on a phone. Change any of them yourself." />
       <p>
         You stay in charge: add, edit and delete expenses, rename categories and change their budgets, add rent once as a monthly bill,
         and turn on roll-over if you want what&apos;s left to carry into next month.

@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, FigurePair, Keep, PostFigure } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -97,12 +97,12 @@ export default function Page() {
         allow them. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
         tracking, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT</a> or Claude once.
       </p>
-      <FigurePair items={[
-        { src: "/blog/pinto/habit-tracker-month-mac-light", width: 1280, height: 900,
-          alt: "The Month view of the habit tracker on a Mac: a calendar per habit for October with the done days filled in." },
-        { src: "/blog/pinto/habit-tracker-habit-phone-light", width: 780, height: 1688,
-          alt: "A habit's own page on a phone: Gym, 3 times a week, 9 weeks in a row, best run 9, 56 percent this month, and a calendar where you tap a day to tick it, again to skip it." },
-      ]} caption="A calendar per habit, and each habit's own page: its streak, its best run, and a skip that keeps the streak." />
+      <PostFigure src="/blog/pinto/habit-tracker-month-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Month view of the habit tracker on a Mac: a calendar per habit for October with the done days filled in."
+        caption="Month: a calendar per habit, on a Mac." />
+      <PostFigure src="/blog/pinto/habit-tracker-habit-phone-light" width={780} height={1688} maxWidth={320}
+        alt="A habit's own page on a phone: Gym, 3 times a week, 9 weeks in a row, best run 9, 56 percent this month, and a calendar where you tap a day to tick it, again to skip it."
+        caption="A habit's own page on a phone: its streak, best run, and a skip that keeps the streak." />
       <p>
         You stay in charge of it. Add, rename, reorder and remove habits yourself, and set each one to every day, some weekdays, or a
         number of times a week. Tap a day to fix the Tuesday you forgot. A sick day can be skipped without losing three weeks of walks.

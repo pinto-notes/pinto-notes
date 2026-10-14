@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, FigurePair, Keep, PostFigure, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("plan-a-trip-with-chatgpt-or-claude", { title: "Plan a trip with ChatGPT or Claude, and keep the itinerary" });
@@ -131,12 +131,12 @@ export default function Page() {
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>
-      <FigurePair items={[
-        { src: "/blog/pinto/trip-plan-days-mac-light", width: 1280, height: 900,
-          alt: "The Days tab of the trip plan app on a Mac: each day as a timeline, with timed plans and bookings in order and a Share button per day." },
-        { src: "/blog/pinto/trip-plan-packing-phone-light", width: 780, height: 1688,
-          alt: "The Packing tab on a phone: a grouped packing list with documents, clothes and toiletries, ticked items lower down." },
-      ]} caption="Each day as a timeline you can share, and a packing list that stays for the next trip." />
+      <PostFigure src="/blog/pinto/trip-plan-days-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Days tab of the trip plan app on a Mac: each day as a timeline, with timed plans and bookings in order and a Share button per day."
+        caption="Each day as a timeline, with Share for sending a day as text." />
+      <PostFigure src="/blog/pinto/trip-plan-packing-phone-light" width={780} height={1688} maxWidth={320}
+        alt="The Packing tab on a phone: a grouped packing list with documents, clothes and toiletries, ticked items lower down."
+        caption="The packing list on a phone. It stays for the next trip." />
       <p>
         Everything is yours to change in the app. Days puts each day&apos;s plan and bookings in time order, so the 06:55 flight sits above
         lunch, and Share sends a day as text to the friend who asks &ldquo;so what are we doing Thursday?&rdquo;. Tick bookings once
