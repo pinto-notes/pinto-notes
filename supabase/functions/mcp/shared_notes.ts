@@ -158,6 +158,7 @@ export async function writeDoc(tx: Tx, c: Call, s: Shared, at: Loaded, text: str
     id = Number(row.id);
   } catch (e) {
     const hint = (e as { hint?: string }).hint;
+    if (hint === "not_member") throw new ToolError(`This person isn't in "${s.title}" anymore, so it can't be changed here.`);
     if (hint === "read_only") throw new ToolError(`"${s.title}" is view only for this person now, so it can't be changed here.`);
     if (hint === "stale_epoch") throw new ToolError(`Someone was removed from "${s.title}" and it has a new key. Open it once in Pinto Notes, then try again.`);
     throw e;
