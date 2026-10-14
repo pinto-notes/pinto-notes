@@ -60,6 +60,7 @@ This is enforced by the types, not by care at each call:
 | `device_class` | `iphone`, `ipad`, `mac` (never the model) |
 | `channel` | `release`, `beta` (`debug` builds never send) |
 | `distribution` | `app_store` (App Store and TestFlight), `direct` (the Mac download) |
+| `internal` | `true` on a Pinto Notes team member's own device, so their tests are left out of the numbers. Everyone else's events don't carry it. Set by `scripts/install-mac.sh` and `scripts/install-phone.sh` (the `PintoInternal` default) |
 
 ## Product events
 

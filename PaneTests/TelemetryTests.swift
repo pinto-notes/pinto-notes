@@ -166,6 +166,36 @@ private func names(_ events: [[String: Any]]) -> [String] { events.compactMap { 
         let all = TelemetryWords.all.union(TelemetryProperty.allCases.map(\.rawValue)).union(TelemetryContext.Key.allCases.map(\.rawValue)).subtracting(ranged)
         for word in all.sorted() { #expect(page.contains("`\(word)`"), "docs/Technical/app-telemetry.md doesn't mention `\(word)`") }
     }
+
+    /// The team's own devices say `internal: true` so their tests stay out of the funnels; everyone
+    /// else's events don't carry the property at all.
+    @Test func aTeamDeviceSaysInternalAndNoOtherDoes() async throws {
+        let plain = TestDefaults()
+        #expect(!TelemetryContext.isInternal(plain, arguments: ["Pane"]))
+        let marked = TestDefaults()
+        marked.set(true, forKey: TelemetryContext.internalKey)
+        #expect(TelemetryContext.isInternal(marked, arguments: ["Pane"]))
+        // install-phone.sh launches once with the argument; the default outlives that launch.
+        let phone = TestDefaults()
+        #expect(TelemetryContext.isInternal(phone, arguments: ["Pane", "-PintoInternal", "YES"]))
+        #expect(TelemetryContext.isInternal(phone, arguments: ["Pane"]))
+        #expect(!TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane", "-PintoInternal", "NO"]))
+
+        for internal in [false, true] {
+            var context = testContext
+            context.isInternal = internal
+            let transport = StubTransport()
+            let telemetry = Telemetry(config: TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost, context: context),
+                                      transport: transport, store: MemoryTelemetryQueue(), defaults: TestDefaults())
+            for event in TelemetryEvent.samples { telemetry.record(event) }
+            await telemetry.flush()
+            #expect(!transport.events.isEmpty)
+            for e in transport.events {
+                let p = try #require(e["properties"] as? [String: Any])
+                if internal { #expect(p["internal"] as? Bool == true) } else { #expect(p["internal"] == nil) }
+            }
+        }
+    }
 }
 
 private final class TelemetryDocToken {}
