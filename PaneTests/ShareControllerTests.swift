@@ -180,4 +180,73 @@ import Testing
         #expect(ShareWays.Way.link.label(collaborating: true) == "Web Page")
     }
     #endif
+
+    /// Every action says when it's done, for a moment: Removed, Saved, Copied or Sent, Verified.
+    @Test func eachActionSaysWhenItsDone() async throws {
+        let (share, _) = Self.controller(Self.owner(link: .edit))
+        share.doneFor = .milliseconds(200)
+        share.askRemove(share.state.people[1])
+        await share.confirmRemove()
+        #expect(share.done == .removed(Self.sara) && share.done?.text == "Removed")
+        await share.setAccess(.view)
+        #expect(share.done == .linkChanged)
+        share.shareFinished(sent: true, copied: true)
+        #expect(share.done?.text == "Copied")
+        share.shareFinished(sent: true, copied: false)
+        #expect(share.done?.text == "Sent")
+        // Closed without sending: nothing claims it was sent.
+        share.shareFinished(sent: false, copied: false)
+        #expect(share.done?.text == "Sent")
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(share.done == nil)
+    }
+
+    /// "They match" marks the person checked, and says so.
+    @Test func theyMatchMarksThemChecked() throws {
+        var state = Self.owner()
+        state.people[1].keyChanged = "Sara's key changed."
+        let (share, backend) = Self.controller(state)
+        let sara = share.state.people[1]
+        share.verify(sara)
+        #expect(backend.calls == ["verified \(Self.sara.uuidString)"])
+        #expect(share.state.people[1].verified && share.state.people[1].keyChanged == nil)
+        #expect(share.done == .verified(Self.sara))
+    }
+
+    /// Someone's key changed, so the server refuses a new key without them: Remove says whose code to check.
+    @Test func aChangedKeySaysWhoseCodeToCheck() async {
+        var state = Self.owner(link: .edit)
+        state.people.append(.init(id: CollabGallery.jonas, name: "Jonas Berg", role: "viewer", safetyCode: "1", keyChanged: "Jonas's key changed."))
+        let backend = RefusingShare(state)
+        let share = ShareController(note: Note(body: "x"), backend: backend)
+        share.askRemove(share.state.people[1])
+        await share.confirmRemove()
+        #expect(share.state.problem == "Check Jonas's code first.")
+        #expect(share.done == nil)
+    }
+
+    /// A note's link outlives a relaunch: kept in the vault (the Keychain in the app), never on the server.
+    @Test func theLinkIsKeptBetweenLaunches() {
+        let store = CollabStore(name: "Emil Wagman")
+        let vault = MemoryLinkVault()
+        store.linkVault = vault
+        let note = Note(body: "Team offsite")
+        vault.save(LinkVaultEntry(id: "sEbHaDgYXLDfpSMmrziRgA", secret: Data(repeating: 7, count: 16), access: "Can view"), for: note.id)
+        let state = store.shareState(for: note)
+        #expect(state.access == .view)
+        #expect(state.link?.absoluteString.contains("/s/sEbHaDgYXLDfpSMmrziRgA#") == true)
+        // Off isn't kept.
+        vault.save(LinkVaultEntry(id: "x", secret: Data(), access: "Off"), for: UUID())
+    }
+}
+
+/// A backend whose Remove the server refuses because someone's key changed.
+@MainActor final class RefusingShare: ShareBackend {
+    var state: ShareState
+    init(_ state: ShareState) { self.state = state }
+    func shareState(for note: Note) -> ShareState { state }
+    func setAccess(_ access: ShareState.Access, for note: Note) async throws {}
+    func remove(_ user: UUID, from note: Note) async throws { throw Collab.Failure.wrapsIncomplete }
+    func leave(_ note: Note) async throws {}
+    func markVerified(_ user: UUID, in note: Note) {}
 }
