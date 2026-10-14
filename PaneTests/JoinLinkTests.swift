@@ -29,7 +29,7 @@ import Testing
         for _ in 0..<100 where busy() || c.phase == .joining || c.pending != nil { try? await Task.sleep(for: .milliseconds(30)) }
     }
 
-    init() { CollabFeature.isOn = true }
+    init() { CollabFeature.forced = true }
 
     /// The link's forms: the site's, and the app's own scheme from the link's web page. Other links aren't joined.
     @Test func whatCountsAsANoteLink() {
@@ -80,8 +80,8 @@ import Testing
 
     /// With sharing off, links do nothing (the release that doesn't have it).
     @Test func offTheLinkIsIgnored() async {
-        CollabFeature.isOn = false
-        defer { CollabFeature.isOn = true }
+        CollabFeature.forced = false
+        defer { CollabFeature.forced = true }
         let (c, joined) = Self.center()
         c.open(Self.link)
         try? await Task.sleep(for: .milliseconds(100))

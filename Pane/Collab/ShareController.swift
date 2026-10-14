@@ -1,10 +1,14 @@
 import Foundation
 import Observation
 
-/// Sharing a note with people: on in a release only when this is on. One switch, in code, so the
-/// lead can turn it on for everyone when a release is ready. Tests and captures set it themselves.
+/// Sharing a note with people. One switch in code: `released` turns it on for everyone in a
+/// release. Before that, the `collabEnabled` default turns it on for one Mac or iPhone (the
+/// two-device check on staging: `defaults write <bundle id> collabEnabled -bool YES`), and tests
+/// set `forced`.
 enum CollabFeature {
-    nonisolated(unsafe) static var isOn = false
+    static let released = false
+    nonisolated(unsafe) static var forced: Bool?
+    static var isOn: Bool { forced ?? (released || UserDefaults.standard.bool(forKey: "collabEnabled")) }
 }
 
 /// What Share does with a note, whoever does it: the live store (CollabStore), or a stand-in in
