@@ -345,3 +345,22 @@ Deno.test("leaving: a member goes at once and reads nothing new; the owner can't
   await app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)]);
   await push(pg, emil, note, nk2, 2, "after");
 });
+
+// 20261015050000_collab_rekey_after_leave.sql: a leave asks the owner's devices for a new key.
+Deno.test("leaving marks the note for a new key, and the owner's new key clears it", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  await accept(pg, sara, note);
+  const mark = async () => (await app(pg, emil.id, `select rekey_after from public.shared_notes where id = $1`, [note]))[0].rekey_after;
+  assertEquals(await mark(), null);
+
+  await app(pg, sara.id, `select public.collab_leave($1)`, [note]);
+  assert(await mark() !== null);
+  // Members can't clear it themselves; only a new key does.
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)]);
+  assertEquals(await mark(), null);
+});

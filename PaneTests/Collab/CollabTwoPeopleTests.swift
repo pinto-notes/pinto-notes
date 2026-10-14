@@ -171,4 +171,27 @@ import Testing
         await server.eventually { theirs.text == mine.text }
         #expect(theirs.text == "Ideas\n- one\n- two\n")
     }
+
+    @Test func afterSomeoneLeavesTheOwnersDeviceRenewsTheKeyAndTheLinkKeepsWorking() async throws {
+        let (emil, sara, note, ids) = try await shared("Trip\n")
+        let mine = try #require(emil.store.session(for: note.id))
+        let url = try #require(emil.store.linkURL(note))
+        let oldKey = try #require(emil.store.keys[note.id]?.nk)
+        try await sara.store.leave(note)
+        // Emil's device sees it with his memberships and renews the key, without anyone removed.
+        await emil.store.checkInvites()
+        await server.eventually { mine.epoch == 2 }
+        #expect(mine.epoch == 2)
+        #expect(try await server.transport(for: ids.0).memberships().first?.rekey_after == nil)
+        // New text is sealed with a key Sara never had.
+        mine.local("Trip\n- after Sara left\n", selection: nil)
+        await server.eventually { (server.updates[note.id] ?? []).contains { $0.epoch == 2 } }
+        let sealed = try #require((server.updates[note.id] ?? []).last { $0.epoch == 2 })
+        #expect(throws: (any Error).self) { try CollabCrypto.open(.update, sealed.ct, nk: oldKey, note: note.id, extra: ids.0.uuidString) }
+        // The same link still lets someone join, under the new key.
+        let jonas = try device(server.account("Jonas"), name: "Jonas")
+        #expect(await jonas.store.join(url))
+        await server.eventually { jonas.store.session(for: note.id)?.text == mine.text }
+        #expect(jonas.store.session(for: note.id)?.text == "Trip\n- after Sara left\n")
+    }
 }

@@ -14,7 +14,7 @@ final class MemoryCollabServer {
     struct Person { var name: String; var avatar: String? = nil }
     private struct MemberRow { var role: String; var epoch: Int; var keyWrap: String; var wrappedBy: UUID; var selfWrap: String?; var invitedBy: UUID?; var acceptedAt: String?; var order: Int }
     private struct LinkRow { var note: UUID; var role: String; var epoch: Int; var answerHash: String; var keyWrap: String; var createdBy: UUID }
-    private struct Shared { var owner: UUID; var epoch: Int; var head: String? }
+    private struct Shared { var owner: UUID; var epoch: Int; var head: String?; var rekeyAfter: Date? = nil }
 
     var people: [UUID: Person] = [:]
     private(set) var identities: [UUID: Collab.IdentityRow] = [:]
@@ -82,7 +82,8 @@ final class MemoryCollabServer {
         members.compactMap { note, rows -> Collab.Membership? in
             guard let r = rows[user], let n = notes[note] else { return nil }
             return Collab.Membership(note_id: note, role: r.role, epoch: r.epoch, key_wrap: r.keyWrap, wrapped_by: r.wrappedBy, self_wrap: r.selfWrap,
-                                     invited_by: r.invitedBy, accepted_at: r.acceptedAt, head_ct: n.head, owner_id: n.owner)
+                                     invited_by: r.invitedBy, accepted_at: r.acceptedAt, head_ct: n.head, owner_id: n.owner,
+                                     rekey_after: n.rekeyAfter.map { ISO8601DateFormatter().string(from: $0) })
         }
     }
 
@@ -135,6 +136,7 @@ final class MemoryCollabServer {
             members[note]?[w.user_id]?.epoch = epoch
         }
         notes[note]?.epoch = epoch
+        notes[note]?.rekeyAfter = nil
         // A removed person's open channel is cut, as the realtime policy refuses them from now on.
         if let user { for c in channels[note] ?? [] where c.user == user { c.cut() } }
         return epoch
@@ -155,6 +157,7 @@ final class MemoryCollabServer {
         guard let r = role(note, user) else { throw Collab.Failure.notMember }
         guard r != "owner" else { throw Collab.Failure.server("The owner can't leave their own note.") }
         members[note]?[user] = nil
+        if notes[note]?.rekeyAfter == nil { notes[note]?.rekeyAfter = .now }
         for c in channels[note] ?? [] where c.user == user { c.cut() }
     }
 

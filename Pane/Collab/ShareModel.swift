@@ -1,6 +1,9 @@
 import CryptoKit
 import Foundation
 import SwiftData
+import os
+
+private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 
 /// Share: one link per note, Can edit, Can view or Off (ShareSheet, ShareController).
 ///
@@ -43,7 +46,7 @@ extension CollabStore: ShareBackend {
         case .view, .edit:
             if sessions[note.id] == nil { try await share(note) }
             let link = links[note.id] ?? (SealedLink.randomID(bytes: 16), E2EE.randomBytes(16))
-            try await publishInviteLink(note, link: link, role: access == .edit ? "editor" : "viewer")
+            try await publishInviteLink(note.id, link: link, role: access == .edit ? "editor" : "viewer")
             links[note.id] = link
             linkAccess[note.id] = access
             linkVault?.save(LinkVaultEntry(id: link.id, secret: link.secret, access: access.rawValue), for: note.id)
@@ -53,17 +56,17 @@ extension CollabStore: ShareBackend {
 
     /// The link's join row: the hash of what proves you hold the link, and the note key sealed
     /// under the link's own key. Neither the link nor its secret reaches the server.
-    private func publishInviteLink(_ note: Note, link: (id: String, secret: Data), role: String) async throws {
-        guard let transport, let k = keys[note.id] else { throw Collab.Failure.notSignedIn }
+    private func publishInviteLink(_ note: UUID, link: (id: String, secret: Data), role: String) async throws {
+        guard let transport, let k = keys[note] else { throw Collab.Failure.notSignedIn }
         let lk = Self.linkKeys(link.secret, link: link.id)
         let wrap = try NoteCrypto.seal(E2EE.bytes(k.nk).base64EncodedString(), key: lk.key, keyID: E2EE.keyID(of: k.nk), context: "invite:\(link.id.lowercased())")
-        try await transport.createLink(id: link.id, note: note.id, role: role, epoch: k.epoch, answerHash: lk.answerHash, keyWrap: wrap)
+        try await transport.createLink(id: link.id, note: note, role: role, epoch: k.epoch, answerHash: lk.answerHash, keyWrap: wrap)
     }
 
     /// Removes someone: quietly, a new key for everyone else and a new link (the old one would let
     /// them back in). The new link reaches people when it's shared again.
     func remove(_ user: UUID, from note: Note) async throws {
-        try await rotate(note, removing: user)
+        try await rotate(note.id, removing: user)
         // The server dropped the old link with the old key.
         links[note.id] = nil
         if let access = linkAccess[note.id] {
@@ -112,13 +115,13 @@ extension CollabStore: ShareBackend {
 
     /// A new note key, sealed from this device to every member who stays, in one call; then the
     /// document re-sealed under it, so devices that join later start from there.
-    private func rotate(_ note: Note, removing user: UUID?) async throws {
-        guard let transport, let me, let session = sessions[note.id], let old = keys[note.id] else { return }
+    private func rotate(_ id: UUID, removing user: UUID?, session given: CollabSession? = nil) async throws {
+        guard let transport, let me, let session = given ?? sessions[id], let old = keys[id] else { return }
         let identity = try await ensureIdentity()
         // Everything stored so far goes into the snapshot sealed under the new key below, so a device
         // that starts from it never needs a change sealed under the old one.
         await session.catchUp()
-        let members = try await transport.members(of: note.id)
+        let members = try await transport.members(of: id)
         checkKeys(members)
         let epoch = old.epoch + 1
         let nk = SymmetricKey(size: .bits256)
@@ -127,16 +130,16 @@ extension CollabStore: ShareBackend {
             // Sealed only to the key first seen for each person: a changed key gets nothing until
             // someone checks the code, and the server then refuses the incomplete set.
             guard let key = identityKeys?.trustedKey(of: m) else { continue }
-            wraps.append(Collab.Wrap(user_id: m.user_id, key_wrap: try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: note.id, epoch: epoch, from: me, to: m.user_id))))
+            wraps.append(Collab.Wrap(user_id: m.user_id, key_wrap: try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: id, epoch: epoch, from: me, to: m.user_id))))
         }
-        try await transport.remove(note: note.id, user: user, epoch: epoch, wraps: wraps)
+        try await transport.remove(note: id, user: user, epoch: epoch, wraps: wraps)
         // The removal waited for changes in flight under the old key (20261015020000): take them
         // now, still with the old key, so the snapshot sealed under the new one holds them.
         await session.catchUp()
-        try await transport.accept(note: note.id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: note.id, epoch: epoch))
-        keys[note.id] = (nk, epoch)
+        try await transport.accept(note: id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: id, epoch: epoch))
+        keys[id] = (nk, epoch)
         session.reseal(nk: nk, epoch: epoch)
-        try? await transport.send(snapshot: try session.sealedSnapshot(upto: session.lastSeen), note: note.id, upto: session.lastSeen, epoch: epoch)
+        try? await transport.send(snapshot: try session.sealedSnapshot(upto: session.lastSeen), note: id, upto: session.lastSeen, epoch: epoch)
         await session.refreshMembers()
     }
 
@@ -243,6 +246,38 @@ extension CollabStore: ShareBackend {
             }
             keys[id] = (opened.nk, row.epoch)
             session.reseal(nk: opened.nk, epoch: row.epoch)
+        }
+        for row in rows where row.role == "owner" && row.rekey_after != nil {
+            await renewKeyAfterLeave(row)
+        }
+    }
+
+    /// Someone left one of your notes: a new key for everyone who stays, from the first of your
+    /// devices to see it, as after a removal but with no one removed. The link stays the same (the
+    /// person who left could join again with it, as anyone holding it can); its join row is made
+    /// again under the new key. Another of your devices getting there first is fine: the server
+    /// refuses the second new key as stale, and this device then takes the first.
+    func renewKeyAfterLeave(_ row: Collab.Membership) async {
+        let id = row.note_id
+        do {
+            var session = sessions[id]
+            if session == nil || keys[id] == nil {
+                // The note isn't open here: open it just for this.
+                guard let transport, let me else { return }
+                let opened = try await openKey(row)
+                keys[id] = (opened.nk, row.epoch)
+                if session == nil { session = try await CollabSession.load(note: id, epoch: row.epoch, nk: opened.nk, transport: transport, me: me, name: name) }
+            }
+            guard let session else { return }
+            try await rotate(id, removing: nil, session: session)
+            restoreLink(id)
+            if let link = links[id], let access = linkAccess[id], access != .off {
+                try await publishInviteLink(id, link: link, role: access == .edit ? "editor" : "viewer")
+            }
+        } catch Collab.Failure.staleEpoch {
+            return
+        } catch {
+            log.error("renewing a note's key after someone left failed: \(String(describing: error), privacy: .public)")
         }
     }
 }
