@@ -267,7 +267,7 @@ export const landings: Landing[] = [
     story: {
       title: "Set it up in two commands",
       paras: [
-        "Codex: run codex mcp add amber_notes --url https://mcp.pintonotes.com and sign in in your browser. Claude Code: in Pinto Notes, open Settings, Connect an AI, Claude Code, and choose Add to Claude Code, or install the plugin and sign in from /mcp.",
+        "Codex: run codex mcp add pinto-notes --url https://mcp.pintonotes.com and sign in in your browser. Claude Code: in Pinto Notes, open Settings, Connect an AI, Claude Code, and choose Add to Claude Code, or install the plugin and sign in from /mcp.",
         "Give each agent its own access token and its name goes on every edit. Make a token read only for an agent that should only look things up.",
       ],
     },
