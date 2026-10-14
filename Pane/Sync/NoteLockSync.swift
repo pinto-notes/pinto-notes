@@ -39,10 +39,18 @@ struct SupabaseLockRemote: NoteLockRemote {
             let changed: Changed = try await client.rpc("change_notes_password", params: Change(p_settings: settings, p_expected_key_id: keyID, p_notes: notes))
                 .execute().value
             return Dictionary(changed.notes.map { ($0.id, $0.version) }, uniquingKeysWith: { _, b in b })
-        } catch let e as PostgrestError where e.code == "PT409" {
-            throw NoteLockError.changedElsewhere
-        } catch let e as PostgrestError where e.code == "40001" {
-            throw NoteLockError.notesChanged
+        } catch let e as PostgrestError {
+            throw Self.refusal(e) ?? e
+        }
+    }
+
+    /// The server's refusals of a password change. "Notes changed" was 40001 until 20261015010000,
+    /// which PostgREST retried without end; it's PT409 with hint `notes_changed` now. Both count.
+    static func refusal(_ e: PostgrestError) -> NoteLockError? {
+        switch e.code {
+        case "PT409" where e.hint == "notes_changed", "40001": .notesChanged
+        case "PT409": .changedElsewhere
+        default: nil
         }
     }
 }

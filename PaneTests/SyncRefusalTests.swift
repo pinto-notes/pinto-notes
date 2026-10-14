@@ -21,6 +21,15 @@ import Testing
         #expect(SyncEngine.refusal(StorageError(statusCode: "503", message: "unavailable")) == nil)
     }
 
+    /// "Your notes changed" comes as PT409 with hint notes_changed (40001 looped in PostgREST),
+    /// and an older server's 40001 still counts. Any other PT409 is a password changed elsewhere.
+    @Test func aPasswordChangeRefusalReachesTheApp() {
+        #expect(SupabaseLockRemote.refusal(PostgrestError(hint: "notes_changed", code: "PT409", message: "Your notes changed on another device.")) == .notesChanged)
+        #expect(SupabaseLockRemote.refusal(PostgrestError(hint: "notes_changed", code: "40001", message: "Your notes changed on another device.")) == .notesChanged)
+        #expect(SupabaseLockRemote.refusal(PostgrestError(hint: "changed_elsewhere", code: "PT409", message: "Your notes password was changed on another device.")) == .changedElsewhere)
+        #expect(SupabaseLockRemote.refusal(PostgrestError(code: "42501", message: "not signed in")) == nil)
+    }
+
     /// A file's place in Storage names only whose it is and which file: never its name.
     @Test func aStoragePathSaysNothingAboutTheFile() {
         let user = UUID(), id = UUID()
