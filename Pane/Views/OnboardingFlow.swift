@@ -75,6 +75,10 @@ struct OnboardingFlow: View {
         screen
             .animation(reduceMotion ? .easeOut(duration: 0.2 * Self.stepPace) : .smooth(duration: 0.45 * Self.stepPace), value: step)
             .task { await loadAccount() }
+            #if os(macOS)
+            // The pictures either side of this step, decoded before a crossfade needs them.
+            .task(id: step) { OnboardingArt.prefetch(around: step) }
+            #endif
             // The Try it step watches the trial note until the AI's line is in it.
             .task(id: step) { if step == .tryIt, preview == nil { await watchToDo() } }
             // The cursor in the name field as the step opens, so typing goes there. A moment after
@@ -214,10 +218,23 @@ struct OnboardingFlow: View {
     /// and a little air.
     static let backRoom: CGFloat = 56
 
+    /// The step's picture in its band, placed on the step's new object (OnboardingArt.focus).
     private var phoneArt: some View {
-        Color.clear
+        let moment = OnboardingArt.moment(step)
+        return Color.clear
             .containerRelativeFrame(.vertical) { height, _ in height * Self.artShare(accessibilitySize: typeSize.isAccessibilitySize) }
-            .overlay { WelcomeFlow.picture }
+            .overlay {
+                GeometryReader { band in
+                    // The picture at the band's width, 3:4, moved so the focus sits mid-band.
+                    let height = band.size.width * 4 / 3
+                    Image(OnboardingArt.name(moment))
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: band.size.width, height: height)
+                        .offset(y: OnboardingArt.offset(focus: OnboardingArt.focus(moment, in: OnboardingArt.set()), height: height, band: band.size.height))
+                        .accessibilityHidden(true)
+                }
+            }
             .clipped()
     }
 

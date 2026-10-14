@@ -48,3 +48,19 @@ describe("a blog post", () => {
     expect(css).toMatch(/\.col > \.coverRow \{ order: 1; \}/);
   });
 });
+
+describe("the image-led post format's parts", () => {
+  it("draws a crop as a framed figure that may break out wide, a cutout without a frame, and menu paths as quiet chips", async () => {
+    const { PostFigure, FigurePair, MenuPath } = await import("./PostParts");
+    const crop = doc(<PostFigure src="/x" width={1400} height={800} alt="a" caption="c" />);
+    expect(crop.querySelector("figure")?.getAttribute("data-kind")).toBe("crop");
+    expect(crop.querySelector("figure")?.className).toMatch(/wide/);
+    const cut = doc(<PostFigure src="/x" width={500} height={300} alt="a" caption="c" kind="cutout" />);
+    expect(cut.querySelector("figure")?.className).not.toMatch(/wide/);
+    expect(doc(<FigurePair items={[{ src: "/a", width: 10, height: 10, alt: "a" }, { src: "/b", width: 10, height: 10, alt: "b" }]} caption="c" />).querySelectorAll("img").length).toBe(2);
+    expect(doc(<MenuPath steps={["Notes", "View", "Show Tables"]} />).querySelector('[role="group"]')?.getAttribute("aria-label")).toBe("Notes, then View, then Show Tables");
+    const css = readFileSync(join(process.cwd(), "lib/post-parts.module.css"), "utf8");
+    expect(css).not.toMatch(/\.step > span \{[^}]*box-shadow/);
+    expect(css).not.toMatch(/\.path kbd \{[^}]*monospace/);
+  });
+});

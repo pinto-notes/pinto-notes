@@ -273,6 +273,9 @@ enum HoverProbe {
         setters[id] = set
     }
 
+    /// The rows registered so far (for a test's message).
+    static var ids: [String] { setters.keys.sorted() }
+
     static func hover(_ id: String, _ over: Bool) -> Bool {
         guard let set = setters[id] else { return false }
         set(over)

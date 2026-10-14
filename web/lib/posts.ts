@@ -29,7 +29,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -69,6 +69,18 @@ export const SHOTS = {
 } satisfies Record<string, Shot>;
 
 export const posts: Post[] = [
+  {
+    slug: "siri-ai-apple-notes",
+    title: "Siri AI and Apple Notes: what it can do with your notes",
+    description: "What Siri AI can do with Apple Notes: find, make, proofread and summarize notes, which devices have it, Apple TV and HomeView, and where ChatGPT fits.",
+    excerpt: "Siri AI can find your notes and tidy the one you have open. What else it does, where you get it, and what Apple hasn't said yet.",
+    category: "Apple Notes",
+    date: "2026-10-14",
+    updated: "2026-10-14",
+    image: SHOTS.notesDefaultAccount,
+    thumb: thumb("cherry", "thumb-notes-list-templates", 766, 760, "Apple Notes on a Mac with a Templates folder of five notes in the list"),
+    draft: false,
+  },
   {
     slug: "habit-tracker-with-chatgpt-or-claude",
     title: "How to make a habit tracker with ChatGPT or Claude (that you can still edit yourself)",
@@ -136,7 +148,7 @@ export const posts: Post[] = [
     excerpt: "Muse connects to other apps through connectors Meta reviews. How to add one, what the approvals mean, and where MCP fits.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.consent,
     thumb: thumb("lilac", "thumb-consent-icons", 780, 524, "Pinto Notes asking to allow an AI to use your notes, with Read and Edit or Read Only"),
     draft: false,
@@ -312,13 +324,13 @@ export const posts: Post[] = [
   {
     slug: "apple-notes-ios-27",
     title: "What's new in Apple Notes in iOS 27, and how to use it",
-    description: "New in Apple Notes in iOS 27 and macOS 27: divider lines, section links, Markdown copy and paste, and Siri AI that finds, adds to and reformats notes.",
-    excerpt: "Divider lines, section links, Markdown in and out, and a Siri that can find your notes and write into them. What changed, and how to use it.",
+    description: "New in Apple Notes in iOS 27 and macOS 27: divider lines, links to sections, Paste and Copy as Markdown, and Export To. Each one with a screenshot.",
+    excerpt: "Divider lines, links that jump to a heading, and Markdown that pastes in formatted. Each new feature with a screenshot and the menu to find it.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.notesExportMenu,
-    thumb: thumb("wheat", "thumb-lisbon-food", 744, 491, "A table of places to eat in Lisbon, in a note"),
+    updated: "2026-10-14",
+    image: { src: "/blog/macos27/notes27-garden-note.webp", alt: "A Spring garden plan note in Apple Notes on macOS 27, with a link to the Seeds to order section at the top and divider lines between its sections.", width: 1400, height: 993, window: false },
+    thumb: thumb("wheat", "thumb-notes27-garden", 800, 500, "An Apple Notes note on macOS 27 with a section link and a divider line"),
     draft: false,
   },
   {

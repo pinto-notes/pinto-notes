@@ -1694,7 +1694,7 @@ struct ConnectAISection: View {
 @MainActor
 @Observable
 final class ConnectGuideRoute {
-    /// Incredible's own guide (the only AI that still has one).
+    /// The guide on screen: Incredible's, ChatGPT's, or Another AI's page.
     var guide: ConnectAISection.Guide?
     /// Having trouble?
     var help: HelpTopic?
@@ -1726,8 +1726,10 @@ struct ConnectGuides: ViewModifier {
             .environment(route)
             .onChange(of: route.guide) { _, g in if let g { route.guideOpened(g) } }
             .sheet(item: Binding(get: { client == nil ? nil : route.guide }, set: { route.guide = $0 }),
-                   onDismiss: { route.guideClosed() }) { _ in
-                if let client { IncredibleSheet(client: client) }
+                   onDismiss: { route.guideClosed() }) { g in
+                if let client {
+                    if ConnectWebGuide.opensSheet(g) { ConnectWebGuideSheet(ai: g, client: client) } else { IncredibleSheet(client: client) }
+                }
             }
             .sheet(item: Binding(get: { client == nil ? nil : route.help }, set: { route.help = $0 }),
                    onDismiss: { route.guideClosed() }) { topic in
