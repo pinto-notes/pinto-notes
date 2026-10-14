@@ -21,6 +21,8 @@ protocol ShareBackend: AnyObject {
     func remove(_ user: UUID, from note: Note) async throws
     /// You leave someone else's note: it goes from your notes, and from their People.
     func leave(_ note: Note) async throws
+    /// "They match": you checked someone's safety code (a changed key is trusted from here on).
+    func markVerified(_ user: UUID, in note: Note)
 }
 
 /// The Share sheet's state and what its buttons do, on Mac and iPhone (ShareForm,
@@ -42,6 +44,22 @@ final class ShareController {
     var sharing: URL?
     /// You left the note: the sheet closes.
     private(set) var left = false
+    /// What just got done, said for a moment where it was pressed ("Removed", "Copied").
+    private(set) var done: Done?
+    @ObservationIgnored var doneFor: Duration = .seconds(2)
+    @ObservationIgnored private var doneTask: Task<Void, Never>?
+
+    enum Done: Equatable {
+        case shared(copied: Bool), linkChanged, removed(UUID), verified(UUID)
+        var text: String {
+            switch self {
+            case .shared(let copied): copied ? "Copied" : "Sent"
+            case .linkChanged: "Saved"
+            case .removed: "Removed"
+            case .verified: "Verified"
+            }
+        }
+    }
     @ObservationIgnored var timeout: Duration = .seconds(20)
 
     enum Work: Equatable { case link, access, remove(UUID), leave }
@@ -75,6 +93,29 @@ final class ShareController {
     func setAccess(_ access: ShareState.Access) async {
         guard isOwner, access != state.access else { return }
         await run(.access) { try await self.backend.setAccess(access, for: self.note) }
+        if state.problem == nil { finished(.linkChanged) }
+    }
+
+    /// The share sheet or menu closed: it was sent somewhere (or copied), or not.
+    func shareFinished(sent: Bool, copied: Bool) {
+        if sent { finished(.shared(copied: copied)) }
+    }
+
+    /// "They match" on someone's safety code.
+    func verify(_ person: ShareState.Person) {
+        backend.markVerified(person.id, in: note)
+        refresh()
+        finished(.verified(person.id))
+    }
+
+    private func finished(_ d: Done) {
+        done = d
+        doneTask?.cancel()
+        doneTask = Task { [weak self, doneFor] in
+            try? await Task.sleep(for: doneFor)
+            guard !Task.isCancelled else { return }
+            self?.done = nil
+        }
     }
 
     func askRemove(_ person: ShareState.Person) {
@@ -86,6 +127,7 @@ final class ShareController {
         guard let person = confirmingRemove else { return }
         confirmingRemove = nil
         await run(.remove(person.id)) { try await self.backend.remove(person.id, from: self.note) }
+        if state.problem == nil { finished(.removed(person.id)) }
     }
 
     func askLeave() {
@@ -106,6 +148,10 @@ final class ShareController {
             try await Self.within(timeout, step)
         } catch is TimedOut {
             state.problem = Self.timedOut(work)
+        } catch Collab.Failure.wrapsIncomplete {
+            // Someone's key changed: nobody gets the new key until their code is checked.
+            let first = state.people.first { $0.keyChanged != nil }.map { ShareCopy.first($0.name) }
+            state.problem = first.map(ShareCopy.checkCodeFirst) ?? Self.failed(work)
         } catch {
             state.problem = Self.failed(work)
         }
@@ -188,15 +234,19 @@ enum ShareCopy {
     static func first(_ name: String) -> String { name.split(separator: " ").first.map(String.init) ?? name }
 
     static func verify(_ first: String) -> String {
-        "Compare this code with \(first), in person or on a call. If it's the same on both screens, you're sharing with the real \(first)."
+        "Compare this with the code on \(first)'s screen, in person or on a call."
     }
+
+    static func checkCodeFirst(_ first: String) -> String { "Check \(first)'s code first." }
+    static func verifiedLine(_ first: String) -> String { "You checked \(first)'s code" }
+    static let keyChangedRow = "Key changed. Check the code."
 
     static func removeTitle(_ person: ShareState.Person) -> String { "Remove \(first(person.name))?" }
     static func removeMessage(_ person: ShareState.Person) -> String {
         "\(first(person.name)) can't open this note anymore. What they've already seen stays with them. The link changes, so the old one stops working."
     }
 
-    static func leaveTitle(_ title: String) -> String { "Leave \u{201C}\(title)\u{201D}?" }
+    static let leaveTitle = "Leave this note?"
     static let leaveMessage = "It's removed from your notes. To join again, you need a new link."
 
     static func working(_ work: ShareController.Work) -> String {

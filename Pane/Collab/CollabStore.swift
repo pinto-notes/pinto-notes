@@ -56,6 +56,10 @@ final class CollabStore {
     /// Sealed links by note: the link's id and secret (in the product, kept in a synced Keychain
     /// item so every device can republish the copy).
     @ObservationIgnored var links: [UUID: (id: String, secret: Data)] = [:]
+    /// Where links are kept between launches (the Keychain, synced); nil keeps them in memory only.
+    @ObservationIgnored var linkVault: LinkVault?
+    /// People whose safety code you checked ("They match"), by the key you checked it for.
+    @ObservationIgnored var verified = VerifiedPeople(account: nil)
     /// Shared templates by note.
     @ObservationIgnored var templates: [UUID: String] = [:]
     /// Note pages by note: a stand-in for NotePageStore on the note-pages branch.
@@ -81,7 +85,10 @@ final class CollabStore {
     /// The signed-in account's store, over the real backend.
     static func live(client: SupabaseClient, account: UUID, name: String, crypto: AccountCrypto = .shared) -> CollabStore {
         let transport = SupabaseCollabTransport(client: client, me: account)
-        return CollabStore(name: name, transport: transport, dataKey: { crypto.dataKey })
+        let store = CollabStore(name: name, transport: transport, dataKey: { crypto.dataKey })
+        store.linkVault = KeychainLinkVault(account: account)
+        store.verified = VerifiedPeople(account: account)
+        return store
     }
 
     /// Whether shared notes are on in this build (CollabFeature).
