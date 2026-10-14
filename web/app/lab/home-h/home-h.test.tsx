@@ -37,6 +37,29 @@ describe("home study H, the real app", () => {
     }
   });
 
+  const section = (id: string) => html.slice(html.indexOf(`aria-labelledby="${id}"`), html.indexOf("</section>", html.indexOf(`aria-labelledby="${id}"`)));
+  const srcs = (part: string) => [...part.matchAll(/<img [^>]*src="([^"]+)"/g)].map((m) => m[1]);
+
+  it("shows one big capture beside 'one notebook': the version history, no phone", () => {
+    expect(srcs(section("one-notebook")).filter((s) => s.startsWith("/home-h/"))).toEqual(["/home-h/history.webp"]);
+  });
+
+  it("proves 'feels like Apple Notes' with the iPhone and the finished import, not the import sheet", () => {
+    const feel = srcs(section("feel"));
+    expect(feel).toEqual(["/home-h/iphone-notes.webp", "/home-h/import-done.webp"]);
+    expect(html).not.toContain("/home-h/import.webp");
+    expect(section("feel")).toContain("iPhone app coming soon");
+  });
+
+  it("never crops the divider's table: the picture is as tall as the strip, not cover-fitted", () => {
+    const css = readFileSync(resolve(__dirname, "h.module.css"), "utf8");
+    const rule = css.slice(css.indexOf(".divider img"), css.indexOf("}", css.indexOf(".divider img")));
+    expect(rule).toContain("height: 100%");
+    expect(rule).toContain("width: auto");
+    expect(rule).not.toContain("object-fit");
+    expect(html).toContain('src="/home-h/divider-table.webp"');
+  });
+
   it("enters nothing from nothing: no entrance classes on the page", () => {
     expect(html).not.toMatch(/class="[^"]*\brise(-soft)?\b/);
   });

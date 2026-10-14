@@ -37,7 +37,7 @@ export default function HomeH() {
         </div>
       </section>
 
-      {/* 2. Every AI writes in the same notes, and the app says who: the real history and the real list. */}
+      {/* 2. Every AI writes in the same notes, and the app says who: one real capture, the version history. */}
       <section className={s.split} aria-labelledby="one-notebook">
         <div className={s.text}>
           <h2 id="one-notebook" className={d.title}>{H.notebook.title}</h2>
@@ -46,16 +46,14 @@ export default function HomeH() {
             {H.trust.map((t) => <li key={t.key}>{TRUST_ICON[t.key] ? <img src={TRUST_ICON[t.key]} alt="" width={40} height={40} /> : <Approve />}{t.line}</li>)}
           </ul>
         </div>
-        <div className={s.pairShots}>
-          <img className={s.mac} src="/home-h/history.webp" width={1800} height={1200} loading="eager"
-            alt="Version history of the Groceries note: the current version from you on iPhone, a version from ChatGPT at 4:35, one from Claude Code, each kept and restorable." />
-          <img className={s.phone} src="/home-h/iphone-edited.webp" width={1206} height={2622} loading="eager"
-            alt="The note list on iPhone: Groceries edited by ChatGPT, Standup notes edited by Claude Code, Lisbon edited by Claude." />
-        </div>
+        <figure className={s.historyShot}>
+          <img src="/home-h/history.webp" width={1800} height={1200} loading="eager"
+            alt="Version history of the Groceries note on a Mac: ChatGPT's version from 4:35 picked in the list, beside that version of the note with the two lines it added, Eggs and Spinach, marked." />
+        </figure>
       </section>
 
       {/* The paper-craft signature, once more, between the stories. */}
-      <div className={s.divider} aria-hidden="true"><img src="/home-h/divider.webp" alt="" width={1600} height={1600} loading="eager" /></div>
+      <div className={s.divider} aria-hidden="true"><img src="/home-h/divider-table.webp" alt="" width={1600} height={980} loading="eager" /></div>
 
       {/* 3. Plans keep moving: G's band. */}
       <section className={`${d.band} ${g.planBand}`} aria-labelledby="plans" data-dark-band="">
@@ -82,17 +80,19 @@ export default function HomeH() {
         </div>
       </section>
 
-      {/* 5. It feels like Apple Notes, and yours come along: the real import and the real iPhone. */}
+      {/* 5. It feels like Apple Notes, and yours come along: the real iPhone and the finished import. */}
       <section className={`${g.tint} ${s.feelBand}`} aria-labelledby="feel">
-        <div className={s.split}>
-          <div className={s.feelShots}>
-            <img className={s.mac} src="/home-h/import.webp" width={1980} height={1800} loading="eager"
-              alt="Import from Apple Notes in Pinto Notes on a Mac: the notes to bring over, each ticked, Keep Apple Notes folders on, and Import 1,284 Notes." />
-          </div>
+        <div className={s.feel}>
           <div className={s.text}>
             <h2 id="feel" className={d.title}>{H.feel.title}</h2>
             <p className={d.lede}>{H.feel.lede}</p>
             <p className={s.soon}>{H.feel.soon}</p>
+          </div>
+          <div className={s.feelShots}>
+            <img className={s.feelPhone} src="/home-h/iphone-notes.webp" width={1206} height={2622} loading="eager"
+              alt="Pinto Notes on iPhone: All Notes, with Evening tracker and Groceries pinned, then today's notes, each with its time, first line and folder." />
+            <img className={s.mac} src="/home-h/import-done.webp" width={2560} height={1600} loading="eager"
+              alt="Pinto Notes on a Mac after importing from Apple Notes: 1,284 notes in their own folders, Notes, Recipes, Work, Travel and Home, with a recipe open." />
           </div>
         </div>
       </section>
