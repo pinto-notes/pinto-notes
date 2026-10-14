@@ -25,7 +25,7 @@
 }
 .primary { background: var(--cta-bg); color: var(--cta-ink); box-shadow: 0 10px 22px -12px rgba(60, 30, 5, 0.6); }
 .secondary { background: var(--soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
-.primary:disabled, .secondary:disabled { cursor: default; opacity: 0.6; }
+.primary:disabled, .secondary:disabled { cursor: default; }
 @media (hover: hover) {
   .primary:not(:disabled):hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); }
   .secondary:not(:disabled):hover { background: color-mix(in srgb, var(--soft) 80%, var(--amber)); }
@@ -96,7 +96,7 @@
 .hint { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
 /* The code and its one line, kept together wherever the screen puts them. */
 .scan { display: grid; justify-items: center; gap: 12px; }
-.primary[aria-disabled="true"] { cursor: default; opacity: 0.6; }
+.primary[aria-disabled="true"] { cursor: default; }
 
 /* The small ways out at the bottom of a screen. */
 .links { display: grid; justify-items: center; margin-top: 4px; }
@@ -192,12 +192,10 @@
    plus two of its own. */
 .page {
   --field: var(--bg, #fff4e6); --field-line: rgba(80, 45, 10, 0.24); --danger: #a3261d; --apple-bg: #000; --apple-ink: #fff;
-  --google-bg: #fff; --google-line: #747775; --google-ink: #1f1f1f;
   grid-template-columns: minmax(0, 460px); padding: 32px 16px 28px;
 }
 :global([data-theme="leaf"]) .page {
   --field: #2e180a; --field-line: rgba(255, 220, 170, 0.28); --danger: #ffb4a8; --apple-bg: #fff; --apple-ink: #000;
-  --google-bg: #131314; --google-line: #8e918f; --google-ink: #e3e3e3;
 }
 .shell { width: 100%; display: grid; justify-items: center; }
 .card { width: 100%; gap: 18px; padding: 36px 32px 28px; border-radius: 32px; }
@@ -214,24 +212,29 @@
 .request b { color: var(--ink); }
 .requestName { display: block; margin-top: 2px; font-size: 13px; }
 
-/* Buttons: 50 high, one filled per screen. The second way in is an outline, not a beige slab. */
+/* Buttons: 50 high, one primary per screen. Every other button is a soft fill, never a stroke
+   (docs/DESIGN.md). Disabled is a quiet warm grey with muted text, never a faded button. */
 .primary, .secondary, .apple, .google { min-height: 50px; border-radius: 14px; font-size: 16px; }
-.secondary { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 70%, transparent); }
-@media (hover: hover) { .secondary:not(:disabled):hover { background: var(--soft); } }
-.primary:disabled, .secondary:disabled, .apple:disabled, .google:disabled { opacity: 0.55; }
+.secondary { background: color-mix(in srgb, var(--soft), var(--ink) 5%); color: var(--ink); box-shadow: none; }
+@media (hover: hover) { .secondary:not(:disabled):hover { background: color-mix(in srgb, var(--soft) 82%, var(--amber)); } }
+.primary:disabled, .secondary:disabled, .google:disabled, .primary[aria-disabled="true"] {
+  opacity: 1; background: color-mix(in srgb, var(--soft), var(--muted) 14%); color: var(--muted); box-shadow: none;
+}
+.apple:disabled { opacity: 0.55; }
 /* Sign in with Apple, filled: black on the cream theme, white on the dark one (Apple's two solid styles). */
 .apple { background: var(--apple-bg); color: var(--apple-ink); box-shadow: none; font-weight: 600; font-size: 17px; gap: 7px; }
 .apple svg { margin-top: -2px; }
-/* Sign in with Google, to Google's branding: white with a grey line on the cream theme, Google's
-   near-black on the dark one, the full-colour G at 18 px, 12 px to the words. Same size as Apple's. */
+/* Sign in with Google: a secondary fill with the full-colour G at 18 px, 12 px to the words, the same
+   size as Apple's. No grey line: a button is a fill, never a stroke (docs/DESIGN.md names this one). */
 .google {
   display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 0 20px; box-sizing: border-box;
-  border: 0; background: var(--google-bg); color: var(--google-ink); box-shadow: inset 0 0 0 1px var(--google-line);
+  border: 0; background: color-mix(in srgb, var(--soft), var(--ink) 5%); color: var(--ink); box-shadow: none;
   font: inherit; font-weight: 600; font-size: 17px; cursor: pointer;
 }
 .google svg { flex: none; }
+@media (hover: hover) { .google:not(:disabled):hover { background: color-mix(in srgb, var(--soft) 82%, var(--amber)); } }
 @media (prefers-reduced-motion: no-preference) {
-  .google { transition: transform 0.12s ease-out; }
+  .google { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
   .google:not(:disabled):active { transform: scale(0.97); }
 }
 .google:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
@@ -394,3 +397,6 @@
   .signInLive[data-ways="all"] > * { animation: reveal 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
   @keyframes settle { from { opacity: 0; transform: translateY(8px); } }
 }
+
+/* The paper-cut picture on the request panel: cropped to the knot in the middle, with the card's corners. */
+.sideArt { height: auto; aspect-ratio: 1672 / 941; object-fit: cover; border-radius: 20px; }

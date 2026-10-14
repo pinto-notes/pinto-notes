@@ -35,8 +35,14 @@ describe("the page theme", () => {
     expect(themeFor("/notes")).toBe("cream"); // starts with "n", isn't a shared note
   });
 
-  it("keeps help, support and the changelog leaf brown", () => {
-    for (const p of ["/help", "/support", "/changelog"]) expect(themeFor(p)).toBe("leaf");
+  // docs/DESIGN.md, Colour, Page grounds: the owner likes these reference pages dark, as a strong
+  // contrast with the rest of the site. Keep them dark.
+  it("keeps help, support, the changelog, the privacy policy and terms leaf brown", () => {
+    for (const p of ["/help", "/support", "/changelog", "/privacy", "/terms"]) expect(themeFor(p)).toBe("leaf");
+  });
+
+  it("keeps the marketing pages and Privacy & Security cream", () => {
+    for (const p of ["/", "/for/chatgpt", "/alternatives/notion", "/templates", "/templates/trip-plan", "/blog", "/blog/mcp-server", "/download", "/privacy-security"]) expect(themeFor(p)).toBe("cream");
   });
 });
 

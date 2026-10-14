@@ -7,7 +7,7 @@ export default function OpenGraphImage() {
   return renderCard({
     theme: "cream",
     title: "Templates [your AI] fills in.",
-    sub: "Habit trackers, meeting notes, standups, meal plans and more, each with the prompt for ChatGPT, Claude and Claude Code.",
+    sub: "Habit trackers, meeting notes, standups, meal plans and more, for ChatGPT, Claude and Claude Code to fill in.",
     chips: ["Free", "ChatGPT", "Claude", "Claude Code"],
     art: "icon",
     titleSize: 84,

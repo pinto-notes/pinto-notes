@@ -148,7 +148,7 @@ export function breadcrumbs(steps: { name: string; path: string }[]): Thing {
   };
 }
 
-/// A template: a note structure and the prompt that fills it in, free to use, made by the maker.
+/// A template: a note structure an AI fills in, free to use, made by the maker.
 export function templateWork(t: { slug: string; title: string; description: string; category: string; audience: string; updated: string; note: string; author?: string }): Thing {
   const url = `${SITE_URL}/templates/${t.slug}`;
   return {
@@ -173,7 +173,7 @@ export function templateWork(t: { slug: string; title: string; description: stri
   };
 }
 
-/// How to use a template: add it, copy the prompt, talk to your AI.
+/// How to use a template: add it with Use template, connect your AI, talk to it.
 export function templateHowTo(t: { slug: string; title: string }, steps: { name: string; text: string }[]): Thing {
   const url = `${SITE_URL}/templates/${t.slug}`;
   return {

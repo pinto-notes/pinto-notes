@@ -8,10 +8,9 @@ import s from "./post-parts.module.css";
 export function Answer({ children, jump = [] }: { children: React.ReactNode; jump?: { href: string; label: string }[] }) {
   return (
     <aside className={s.answer} aria-label="The short answer">
-      <p className={s.answerLabel}><Leaf />The short answer</p>
       {children}
       {jump.length ? (
-        <p className={s.jump}>
+        <p className={`${s.jump} post-jump`}>
           Jump to{" "}
           {jump.map((j, i) => <span key={j.href} className={s.jumpItem}><a href={j.href}>{j.label}</a>{i < jump.length - 1 ? <span className={s.jumpDot} aria-hidden="true">·</span> : null}</span>)}
         </p>
@@ -40,7 +39,7 @@ export function Paths({ rows }: { rows: { on: string; steps: string[]; keys?: st
   );
 }
 
-/// Numbered steps, each with its number in an amber circle.
+/// Numbered steps, each with its number in a soft circle.
 export function Steps({ children }: { children: React.ReactNode }) {
   return <ol className={s.steps}>{children}</ol>;
 }
@@ -74,15 +73,6 @@ export function Keep({ title, note, text, code = false, children }: { title: str
   );
 }
 
-/// The leaf from the app icon, small, beside a label.
-function Leaf() {
-  return (
-    <svg className={s.leaf} width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M13.5 2.5C7 2.5 2.5 6 2.5 11c0 1 .2 1.8.5 2.5C4 9.5 7 7 10.5 6 7.5 7.5 5 10 4 13.6c.8.3 1.6.4 2.5.4 4.6 0 7-4.4 7-11.5Z" fill="currentColor" />
-    </svg>
-  );
-}
-
 /// A checklist to keep: drawn with the round boxes Notes uses, and copied as plain lines (title first)
 /// that become a checklist in Notes with one tap of the checklist button.
 export function Checklist({ title, items, note }: { title: string; items: string[]; note?: React.ReactNode }) {
@@ -102,12 +92,24 @@ export function Checklist({ title, items, note }: { title: string; items: string
 type Img = { src: string; width: number; height: number };
 const PHONE = "(max-width: 600px)";
 
-export function Capture({ src, alt, width, height, caption, priority = false, maxWidth, phone }: Img & {
-  alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img;
+export function Capture(props: Img & { alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img }) {
+  return <PostFigure {...props} kind="cutout" />;
+}
+
+/// The image-led post format (one section per feature: an H2, then a real screenshot of exactly that
+/// feature, then a few short lines and its menu path). PostFigure is that screenshot, the hero of its
+/// section. `kind`: a "crop" of the screen (a rectangle: soft corners, a hairline and a soft shadow,
+/// breaking out to about 860 px on wide screens when it is big enough to use the room) or a "cutout"
+/// window or dialog with its own transparent edges (no frame, a drop shadow that follows its shape).
+/// A short muted caption sits under it.
+export function PostFigure({ src, alt, width, height, caption, priority = false, maxWidth, phone, kind = "crop" }: Img & {
+  alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img; kind?: "crop" | "cutout";
 }) {
-  const style = { "--w": `${maxWidth ?? width / 2}px`, "--pw": phone ? `${phone.width / 2}px` : undefined } as React.CSSProperties;
+  const w = maxWidth ?? width / 2;
+  const wide = kind === "crop" && w >= 640;
+  const style = { "--w": `${wide ? 860 : w}px`, "--pw": phone ? `${phone.width / 2}px` : undefined } as React.CSSProperties;
   return (
-    <figure className={s.capture} style={style}>
+    <figure className={`${s.capture} ${wide ? s.wide : ""}`.trim()} data-kind={kind} style={style}>
       <picture>
         {phone && <source media={PHONE} type="image/avif" srcSet={`${phone.src}.avif`} width={phone.width} height={phone.height} />}
         {phone && <source media={PHONE} type="image/webp" srcSet={`${phone.src}.webp`} width={phone.width} height={phone.height} />}
@@ -118,3 +120,25 @@ export function Capture({ src, alt, width, height, caption, priority = false, ma
     </figure>
   );
 }
+
+/// Two screenshots side by side (before and after, Mac and iPhone), with one caption under both.
+/// They stack on phones.
+export function FigurePair({ items, caption }: { items: (Img & { alt: string })[]; caption: string }) {
+  return (
+    <figure className={s.pair}>
+      <div className={s.pairRow}>
+        {items.map((it) => (
+          <picture key={it.src}>
+            <source type="image/avif" srcSet={`${it.src}.avif`} />
+            <img src={`${it.src}.webp`} alt={it.alt} width={it.width} height={it.height} loading="lazy" decoding="async" />
+          </picture>
+        ))}
+      </div>
+      <figcaption className={s.captureCaption}>{caption}</figcaption>
+    </figure>
+  );
+}
+
+/// The menu path of the format: "Notes › View › Show Tables" as quiet chips. Paths is the same for
+/// more than one device; both are MenuPath.
+export { Path as MenuPath, Paths as MenuPaths };

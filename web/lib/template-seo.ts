@@ -13,8 +13,13 @@
 
 export type TemplateSeo = {
   h1: string;
-  /// What the person does in the app, without their AI: one line each.
+  /// What the person does in the app, without their AI: a short title and at most about eight words
+  /// each, shown beside the app's capture (Emil, 14 October 2026: the longer lines were too much text).
   can: { name: string; text: string }[];
+  /// Things to say to your AI to change the app itself (its data or its code: the app is a small React
+  /// project the AI edits through Pinto Notes). Only changes it can make; several fill a known gap from
+  /// the app's docs/README.md.
+  make: string[];
   faq: { q: string; a: string[] }[];
   /// The how-to post for "make a <thing> with ChatGPT or Claude".
   post: { slug: string; title: string };
@@ -23,17 +28,18 @@ export type TemplateSeo = {
 const IPHONE =
   "The Mac app is a free download now, for macOS 26 or later. The iPhone app isn't on the App Store yet, so for now the app runs on your Mac and your AI can update it from any device where you use ChatGPT or Claude.";
 
-const AI_SAME_DATA = { name: "Your AI sees the same data", text: "The app keeps its data with the note. ChatGPT, Claude or Claude Code reads and changes that data when you ask, and the app shows the change." };
+const AI_SAME_DATA = { name: "Your AI sees the same data", text: "Do it yourself, or ask your AI to." };
 
 export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   "habit-tracker": {
     h1: "Habit tracker template with its own app",
+    make: ["Add stretching, on weekdays only.", "Make water count to 10 glasses.", "Show a year view for each habit.", "Let me add a short note to each day."],
     can: [
-      { name: "Tick today in one tap", text: "Each habit has a tick, or minus and plus buttons for a counted one like 8 glasses of water. Streaks and this week's ring update as you go." },
-      { name: "Set how often", text: "A habit can be for every day, for some weekdays, or a number of times a week, like the gym three times. Habits that aren't for today wait under Not today." },
-      { name: "Skip a day without losing the streak", text: "Ill or travelling? Skip today on the habit's page. A skipped day, or a day the habit isn't for, doesn't break its streak." },
-      { name: "See the month", text: "The Month tab shows a calendar for each habit. Tap a day to tick it, again to skip it, again to clear it." },
-      { name: "Add, rename, reorder and remove habits", text: "On the Habits tab. Removing a habit shows Undo, and its days stay in the data, so Undo brings the history back." },
+      { name: "Tick today in one tap", text: "A tick, or plus and minus for counts." },
+      { name: "Set how often", text: "Every day, some weekdays, or times a week." },
+      { name: "Skip a day without losing the streak", text: "A skipped day never breaks a streak." },
+      { name: "See the month", text: "A calendar per habit. Tap any day to tick it." },
+      { name: "Add, rename, reorder and remove habits", text: "All on the Habits tab, with Undo." },
       AI_SAME_DATA,
     ],
     faq: [
@@ -47,13 +53,14 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   },
   "budget-log": {
     h1: "Budget and expense tracker template",
+    make: ["Add a Kids category with 1,000 kr.", "Switch the currency to euros.", "Add rent as a monthly bill on the 25th.", "Show my spending by week."],
     can: [
-      { name: "See what's left this month", text: "The first screen shows what's left as a number and a bar, each category against its budget, and about how much a day you can spend." },
-      { name: "Add an expense in a few taps", text: "Add expense starts on the amount. Tap any expense later to change it, or delete it, with Undo." },
-      { name: "Set your own budget", text: "Add, rename and remove categories, change each monthly budget, and pick the currency, on the Budget tab." },
-      { name: "Add bills once", text: "Rent and subscriptions go in as monthly bills. The app adds each one's expense on its day, and the first screen shows what's left after the bills still to come." },
-      { name: "Roll over what's left", text: "Turn on roll-over and what's left in a category, or what went over, carries into the next month." },
-      { name: "Compare with last month", text: "A chart of the last six months, and how this month compares with last month by the same day." },
+      { name: "See what's left this month", text: "What's left, by category and by day." },
+      { name: "Add an expense in a few taps", text: "Type the amount, pick a category, done." },
+      { name: "Set your own budget", text: "Your categories, budgets and currency." },
+      { name: "Add bills once", text: "Monthly bills add themselves on their day." },
+      { name: "Roll over what's left", text: "What's left or over carries into next month." },
+      { name: "Compare with last month", text: "A six-month chart, and this month against last." },
       AI_SAME_DATA,
     ],
     faq: [
@@ -67,12 +74,13 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   },
   "trip-plan": {
     h1: "Trip planner and itinerary template",
+    make: ["Add a day for Sintra.", "Add a Beach group to the packing list.", "Show a cost for each booking.", "Add our flight home on Sunday."],
     can: [
-      { name: "Count down and see what's open", text: "The Trip tab shows how many days are left, bookings paid and items packed. During the trip it says which day it is." },
-      { name: "See each day as a timeline", text: "The Days tab puts each day's plan and its bookings in time order. Start a line with a time, like 09:30, to place it." },
-      { name: "Share a day", text: "Share sends one day, or the whole trip, as text to a travel partner or a group chat." },
-      { name: "Keep bookings and packing in one place", text: "Tick a booking once it's paid and an item once it's packed. The packing list is grouped. Add, edit or delete either, with Undo after a delete." },
-      { name: "Pack from last time", text: "Start a new trip and the packing list stays, unpacked, ready for the next one." },
+      { name: "Count down and see what's open", text: "Days left, bookings paid, items packed." },
+      { name: "See each day as a timeline", text: "Each day's plan and bookings in time order." },
+      { name: "Share a day", text: "Send a day or the trip as text." },
+      { name: "Keep bookings and packing in one place", text: "Tick bookings paid and items packed." },
+      { name: "Pack from last time", text: "The packing list stays for the next trip." },
       AI_SAME_DATA,
     ],
     faq: [
@@ -86,11 +94,12 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
   },
   "study-flashcards": {
     h1: "Flashcard maker and study app",
+    make: ["Add ten cards on Spanish verbs.", "Add a reverse mode, answer to question.", "Cap new cards at 20 a day.", "Let me type the answer before it shows."],
     can: [
-      { name: "Study what's due", text: "Study now asks one card at a time: the question, Show answer, then Again, Hard, Good or Easy. Each button shows when the card comes back. Topic pills narrow it to one subject." },
-      { name: "Spaced repetition", text: "Cards you know come back later and later, from a day to weeks and months. Again brings a card back at the end of the session and tomorrow." },
-      { name: "Keep a streak", text: "The streak counts days in a row you studied, with a calendar of the last 12 weeks and what's due in the next seven days." },
-      { name: "Add cards fast", text: "Return adds a card and starts the next. Paste many turns lines like \"question - answer\" into cards at once. Tap a card to edit it; a delete shows Undo." },
+      { name: "Study what's due", text: "One card at a time, Again to Easy." },
+      { name: "Spaced repetition", text: "Cards you know come back later and later." },
+      { name: "Keep a streak", text: "Days in a row, and what's due next." },
+      { name: "Add cards fast", text: "Paste a list, get a stack of cards." },
       AI_SAME_DATA,
     ],
     faq: [

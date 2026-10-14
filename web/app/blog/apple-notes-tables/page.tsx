@@ -1,213 +1,178 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Keep, Paths, Steps } from "@/lib/PostParts";
+import { Answer, FigurePair, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes tables: column width, sums and formulas" });
+export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes tables: add rows, sum a column, sort and resize" });
 
-// Checked on 4 October 2026 against Apple's pages: Add a table in Notes on Mac (macOS 27 and 26), Create
-// and format notes on iPhone (iOS 27), and Solve math in Notes on Mac. Menu names read from Notes on
-// macOS 26.5: MainMenu.nib (Format, Table, Option-Command-T; Convert to Text; Format, Math Results) and the
-// app's Shortcuts actions (Add Table to Note, which takes comma-separated values). Pinto Notes' side
-// checked in Pane/Editor/TableGrid.swift and the read_table and log_table_row tools in
-// supabase/functions/mcp/tools.ts. Updated 12 October 2026: tables are plain to edit, with no column
-// types to set; a Yes/No column from a template keeps its tick.
-// Rewritten answer first on 11 October: same facts, no new claims about Apple Notes.
-// Tested the same day in Notes on macOS 27.0 in a throwaway VM with no Apple Account (deleted afterwards):
-// Format, Table (Option-Command-T), Convert to Text and Format, Math Results (Insert Results, Suggest
-// Results, Off) are in the menu; the column handle's menu has Add Column Before, Add Column After and
-// Delete Column and nothing for width; a sum typed in a cell gets no result, and the same sum with
-// names under the table gets one. The two captures in public/blog/macos27/notes-table-* are from
-// that VM.
+// Rebuilt image-led on 14 October 2026, in the format of the iOS 27 post: one section per thing people
+// search for, each with a real capture of that action. Every picture in public/blog/macos27/notes27-table-*
+// was taken that day in Notes on macOS 27, in a throwaway VM with no Apple Account (deleted afterwards),
+// light mode, in a "Pinto blog demo" folder. Tried there: Format, Table; tab-separated lines plus the
+// Table button make a table; Tab in the last cell adds a row; the row and column menus (add and delete
+// only); dragging a column edge selects cells and doesn't resize; a sum in a cell gets no result and Math
+// Results is greyed out in a table; the same sum under the table gets 505; Table Actions has only Convert
+// to Text; a whole table selected and copied pastes into TextEdit as a table, and Copy as Markdown is
+// greyed out for it. Not tried: Numbers (not on the test Mac), iPhone, dragging rows.
+// Pinto Notes' side checked in Pane/Views/RootView.swift (Format, Table, Option-Command-T),
+// Pane/Editor/TableGrid.swift (row and column menus; no sort, no sums; widths fit the text) and the
+// read_table and log_table_row tools in supabase/functions/mcp/tools.ts.
 
 const FAQ = [
-  { q: "Can you change the column width of a table in Apple Notes?", a: [
-    "No. Apple Notes sets column widths itself. Neither the Format menu, the column's own menu nor Apple's guide has a way to drag or set them, on macOS 27 as before. Shorter header text, and longer text moved below the table, are the only levers.",
-  ] },
   { q: "Can Apple Notes add up a column in a table?", a: [
-    "No. Tables in Apple Notes have no formulas and no sum. Math Results, which solves sums like 120+45= as you type, works in the body of a note and not in table cells: on macOS 27 a sum typed in a cell stays as typed. Write the total as a sum under the table, or move the data to Numbers.",
+    "No. A table in Apple Notes holds text, with no formulas and no sum, and Math Results is greyed out while you're in a table. Type the sum under the table instead, where Math Results answers it, or copy the table into Numbers.",
+  ] },
+  { q: "Can you sort a table in Apple Notes?", a: [
+    "No. There's no sort command in the Format menu, the Table Actions button or a row's or column's menu, on macOS 27 as before. Copy the table into Numbers to sort it.",
+  ] },
+  { q: "Can you change the column width of a table in Apple Notes?", a: [
+    "No. Notes sets column widths itself, and dragging the line between two columns only selects cells. Shorter headers, and long text kept under the table, are the only levers.",
   ] },
   { q: "How do I add a row or column to an Apple Notes table?", a: [
-    "On a Mac, click the table, click the handle to the left of a row or above a column, then click its down arrow and choose to add or remove. Pressing Tab or Return in the last cell adds a row at the bottom.",
-  ] },
-  { q: "How do I turn a table back into text in Apple Notes?", a: [
-    "Click anywhere in the table, click the Table Actions button and choose Convert to Text. On a Mac, Format, Convert to Text does the same.",
+    "On a Mac, press Tab in the last cell to add a row at the bottom. Anywhere else, click the handle beside a row or above a column, click its arrow, then choose Add Row Above, Add Row Below, Add Column Before or Add Column After.",
   ] },
 ];
 
-const TOTAL = `Flights = 420
-Hotel = 610
-Food = 250
-Flights + Hotel + Food =
+const TOTAL = `Boxes = 85
+Van = 240
+Cleaning = 180
+Boxes + Van + Cleaning =
 `;
 
 export default function Page() {
   return (
     <PostPage
       slug="apple-notes-tables"
-      intro={<>Apple Notes tables are simple on purpose. If you came here to make a column wider or add one up, the answer is short, and there are workarounds that hold.</>}
+      intro={<>I made a reading list and a moving budget in Apple Notes on macOS 27 and tried every table action I could find. Here&apos;s each one with its menu, and what a table in Notes can&apos;t do.</>}
       answer={
         <Answer jump={[
-          { href: "#can-and-cant", label: "What tables can and can't do" },
-          { href: "#add", label: "Add a table" },
+          { href: "#make", label: "Make a table" },
           { href: "#rows-columns", label: "Rows and columns" },
-          { href: "#width", label: "Column width" },
-          { href: "#sums", label: "Sums" },
-          { href: "#import", label: "Data from a spreadsheet" },
+          { href: "#sum", label: "Sum a column" },
+          { href: "#sort", label: "Sort" },
+          { href: "#column-width", label: "Column width" },
+          { href: "#convert", label: "Convert to text" },
+          { href: "#numbers", label: "Copy to Numbers" },
         ]}>
           <p>
-            You can&apos;t set a column&apos;s width in Apple Notes, and a table can&apos;t add up a column: there are no formulas
-            and no sorting. You can add, delete and move rows and columns, paste into cells, and turn a table back into text. For a
-            total, type the sum under the table and Math Results solves it. For real formulas, the table belongs in Numbers.
+            Choose Format, Table (Option-Command-T). Press Tab in the last cell for a new row, and use the handle beside a row or
+            above a column to add or delete one. Apple Notes can&apos;t sum a column, sort a table or set a column&apos;s width. For a
+            total, type the sum under the table and Math Results answers it. To sort or use formulas, copy the table into Numbers.
           </p>
         </Answer>
       }
-      // Nothing above the intro, so the short answer is on the first screen. The captures sit in the
-      // sections that use them.
-      hero={<></>}
+      hero={<PostFigure priority src="/blog/macos27/notes27-table-reading-list" width={1400} height={554} maxWidth={700}
+        phone={{ src: "/blog/macos27/notes27-table-reading-list-phone", width: 1098, height: 492 }}
+        alt="A note called Reading list in Apple Notes on macOS 27, with a table of three columns, Book, Author and Started, and four books. Long titles wrap inside their cells."
+        caption="A table in Apple Notes on macOS 27. Notes picks the column widths, so long titles wrap." />}
       faq={FAQ}
     >
-      <h2 id="can-and-cant">What tables can and can&apos;t do</h2>
-      <div className="tableWrap">
-        <table>
-          <thead>
-            <tr><th scope="col">You want to</th><th scope="col">In Apple Notes</th><th scope="col">What to do</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">Add or delete a row or column</th><td>Yes</td><td>The handle beside the row or above the column</td></tr>
-            <tr><th scope="row">Move a row or column</th><td>Yes</td><td>Select it, hold until it lifts, then drag</td></tr>
-            <tr><th scope="row">Turn text into a table, or back</th><td>Yes</td><td>The Table button, or Convert to Text</td></tr>
-            <tr><th scope="row">Set a column&apos;s width</th><td>No</td><td>Shorter headers, long text under the table</td></tr>
-            <tr><th scope="row">Add up a column</th><td>No</td><td>A sum under the table, solved by Math Results</td></tr>
-            <tr><th scope="row">Sort, or use formulas</th><td>No</td><td>Move the table to Numbers</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h2 id="add">Add a table</h2>
-      <p>On a Mac, click where the table should go, then:</p>
-      <Paths rows={[
+      <h2 id="make">Make a table</h2>
+      <PostFigure src="/blog/macos27/notes27-table-format-menu" width={1280} height={1116} maxWidth={640}
+        phone={{ src: "/blog/macos27/notes27-table-format-menu-phone", width: 500, height: 1116 }}
+        alt="The Format menu of Apple Notes on macOS 27 with Table highlighted and its shortcut, Option-Command-T. Convert to Text is greyed out below it. Behind the menu, a Moving budget note with a table."
+        caption="Format, Table. Convert to Text, just under it, only works when you're in a table." />
+      <MenuPaths rows={[
         { on: "Mac", steps: ["Format", "Table"], keys: "⌥⌘T" },
+        { on: "iPhone", steps: ["Table button"] },
       ]} />
       <p>
-        Notes adds an empty table with two rows and two columns, and the Table button in the toolbar does the same. On iPhone,
-        tap the Add Table button while you write. To turn
-        text you&apos;ve already written into a table, select the paragraphs first and then click the Table button. To go the
-        other way, click in the table, click the Table Actions button and choose Convert to Text. Apple&apos;s steps are in{" "}
-        <a href="https://support.apple.com/guide/notes/add-a-table-apd0a136b9cc/mac" rel="noopener">Add a table in Notes on Mac</a>.
+        You get an empty table with two rows and two columns, and the caret in the first cell. The Table button in the toolbar does
+        the same. If you already have the text, put a tab between the columns, select the lines and click the Table button. I typed
+        the reading list that way and every tab became a column.
       </p>
 
-      <h2 id="rows-columns">Rows and columns</h2>
-      <p>On a Mac:</p>
-      <Steps>
-        <li>
-          <strong>Add a row at the bottom</strong>
-          Press Tab or Return in the last cell. Tab and the arrow keys also move between cells.
-        </li>
-        <li>
-          <strong>Add or delete anywhere else</strong>
-          Click the table, click the handle to the left of the row or above the column, then click its down arrow and choose.
-        </li>
-        <li>
-          <strong>Move a row or column</strong>
-          Select it, click and hold until it lifts off the table, and drag.
-        </li>
-        <li>
-          <strong>Clear or remove one</strong>
-          Select it and press Delete to empty it. If it&apos;s already empty, Delete removes it.
-        </li>
-      </Steps>
-      <Capture src="/blog/macos27/notes-table-column-menu" width={560} height={264} maxWidth={320}
-        alt="A table in Apple Notes on a Mac with its Cost column selected. The menu from the column's handle lists Add Column Before, Add Column After and Delete Column."
-        caption="The whole menu for a column, in Notes on macOS 27. Nothing in it sets a width." />
+      <h2 id="rows-columns">Add rows and columns</h2>
+      <PostFigure src="/blog/macos27/notes27-table-row-menu" width={768} height={327} maxWidth={384}
+        alt="A table in Apple Notes on macOS 27 with the row Van for half a day selected and its menu open: Add Row Above, Add Row Below and Delete Row."
+        caption="The menu from a row's handle. A column's handle has the same three, for columns." />
+      <MenuPaths rows={[
+        { on: "Mac", steps: ["Click a cell", "Row or column handle", "Arrow"] },
+      ]} />
       <p>
-        On iPhone, tap a cell, then tap the handle above its column or beside its row for the same options: add one before or after,
-        or delete it.
-      </p>
-      <p>
-        Pasting into a cell drops named styles such as Monostyled and Subheading. You can also copy a whole table out of Safari or
-        Pages and paste it into a note, though Apple warns that some formatting won&apos;t come along.
+        For a new row at the bottom, press Tab in the last cell. Anywhere else, click a cell, click the small handle beside its row or
+        above its column, then the arrow on it, and choose Add Row Above, Add Row Below or Delete Row (or the column versions). Apple
+        says you can drag a selected row or column to move it, and
+        its <a href="https://support.apple.com/guide/notes/add-a-table-apd0a136b9cc/mac" rel="noopener">guide to tables on Mac</a> has the iPhone taps too.
       </p>
 
-      <h2 id="width">Column width: you can&apos;t change it</h2>
+      <h2 id="sum">Sum a column</h2>
+      <PostFigure src="/blog/macos27/notes27-table-sum" width={768} height={430} maxWidth={384}
+        alt="A moving budget table in Apple Notes on macOS 27. The Total row's cell reads 85+240+180= with no answer. Under the table, three lines name Boxes, Van and Cleaning with their costs, and the line Boxes + Van + Cleaning = shows 505 in yellow."
+        caption="The sum in the Total cell stays as typed. The same sum under the table gets its answer, 505." />
+      <MenuPaths rows={[{ on: "Mac", steps: ["Format", "Math Results"] }]} />
       <p>
-        This is the most common complaint, and there&apos;s no setting for it. Notes decides how wide each column is. There&apos;s no
-        edge to drag, and neither the Format menu, the column&apos;s menu above nor Apple&apos;s guide has anything for width. What helps:
+        This is what most people come for, and Notes can&apos;t do it. A table holds text, with no formulas, and Math Results is greyed
+        out while the caret is in a table. What works is the sum under the table: give each number a name, and the total updates when
+        you change one. Format, Math Results sets whether Notes suggests the answer, inserts it or stays out of it.
       </p>
+      <Keep title="A total to keep under a table" text={TOTAL}
+        note="Type these lines under the table, not in a cell. Notes offers the answer after the last equals sign; press Return to keep it." />
+
+      <h2 id="sort">Sort a table</h2>
+      <PostFigure src="/blog/macos27/notes27-table-format-in-table" width={1280} height={1126} maxWidth={640}
+        alt="The Format menu of Apple Notes on macOS 27 opened from inside a table. Most styles and Math Results are greyed out, Convert to Text is available, and there is no sort command."
+        caption="The Format menu from inside a table. No sort, and Math Results is greyed out." />
+      <p>
+        There&apos;s no sort anywhere: not in the Format menu, the Table Actions button or the row and column menus. In a short table,
+        drag the rows into order by hand. For anything longer, copy the table into Numbers, sort it there and paste it back.
+      </p>
+
+      <h2 id="column-width">Resize a column</h2>
+      <PostFigure src="/blog/macos27/notes27-table-column-menu" width={1055} height={317} maxWidth={528}
+        alt="A table in Apple Notes on macOS 27 with the Cost column selected and its menu open: Add Column Before, Add Column After and Delete Column."
+        caption="The whole menu for a column. Nothing in it sets a width." />
+      <p>
+        You can&apos;t. Notes sets the widths, and when I dragged the line between two columns it selected cells instead. Short headers
+        help (&ldquo;Qty&rdquo; rather than &ldquo;Quantity needed&rdquo;), and so does keeping long text under the table.
+      </p>
+
+      <h2 id="convert">Turn a table into text</h2>
+      <FigurePair items={[
+        { src: "/blog/macos27/notes27-table-convert-menu", width: 1096, height: 512,
+          alt: "The Reading list table in Apple Notes on macOS 27 with the Table Actions button's menu open, showing one item, Convert to Text." },
+        { src: "/blog/macos27/notes27-table-converted", width: 1096, height: 512,
+          alt: "The same reading list after Convert to Text: five highlighted lines of text, with tabs between the book, the author and the month." },
+      ]} caption="Table Actions has one item, Convert to Text. Each row becomes a line, with tabs between the cells." />
+      <MenuPaths rows={[
+        { on: "Mac", steps: ["Click in the table", "Table Actions", "Convert to Text"] },
+        { on: "Or", steps: ["Format", "Convert to Text"] },
+      ]} />
+      <p>Click the Table button with the lines still selected and it&apos;s a table again.</p>
+
+      <h2 id="numbers">Copy a table into Numbers</h2>
+      <PostFigure src="/blog/macos27/notes27-table-copy" width={1362} height={676} maxWidth={681}
+        alt="Apple Notes on macOS 27 with a whole table selected, outlined in yellow, and the Edit menu open at Copy. Copy as Markdown is greyed out."
+        caption="Drag across the table to select every cell, then Edit, Copy. Copy as Markdown is greyed out for a table." />
+      <MenuPaths rows={[{ on: "Mac", steps: ["Drag across the cells", "Edit", "Copy"] }]} />
+      <p>
+        Drag from the first cell to the last; Select All only selects the text in one cell. Pasted into TextEdit, the copy came out as a
+        table with the same rows and columns, so a spreadsheet gets the cells too. My test Mac has no Numbers, so I couldn&apos;t try that
+        last step there.
+      </p>
+
+      <h2 id="limits">What Apple Notes tables can&apos;t do</h2>
       <ul>
-        <li>Keep headers short. &ldquo;Qty&rdquo; leaves more room for the column next to it than &ldquo;Quantity needed&rdquo;.</li>
-        <li>Keep long text out of the table. Put a short label in the cell and the paragraph under the table.</li>
-        <li>Split a wide table into two narrower ones. A table with eight columns is cramped on an iPhone whatever you do.</li>
+        <li>Add up, count or average a column, or use any formula. Math Results is off inside tables.</li>
+        <li>Sort rows, or filter them.</li>
+        <li>Set a column&apos;s width or a row&apos;s height.</li>
+        <li>Merge cells. The row and column menus only add and delete.</li>
+        <li>Copy a whole table as Markdown. <a href="/blog/apple-notes-ios-27">Copy as Markdown</a> is new in macOS 27, but it&apos;s greyed out for a table.</li>
       </ul>
 
-      <h2 id="sums">Sums and formulas: there aren&apos;t any</h2>
+      <h2 id="pinto-notes">If you want your AI to do the sums</h2>
+      <Figure shot={SHOTS.tracker} caption="An Evening tracker in Pinto Notes on a Mac. A wide table scrolls sideways instead of squeezing its columns." />
       <p>
-        A table in Apple Notes holds text. It can&apos;t total a column, count rows or refer to another cell. I typed{" "}
-        <code>420+610+250=</code> into a cell on macOS 27 and nothing happened. What Notes does have is Math Results, which solves
-        the same sum the moment you type it under the table, in the body of the note. It works with names too, so the total
-        updates when you change a number.
+        I make Pinto Notes, a notes app for Mac and iPhone that works like Apple Notes. Its tables are just as plain: Format, Table
+        (Option-Command-T), the same row and column menus, and no sums or sorting either. The difference is that ChatGPT or Claude can
+        read the table and add a row for today. Ask &ldquo;what did the move cost?&rdquo; and they do the sum for you; <a href="/blog/budget-tracker-with-chatgpt-or-claude">a budget tracker with ChatGPT or Claude</a> shows how that goes.
+        {APP_STORE_LIVE
+          ? <> The Mac and iPhone apps are both out.</>
+          : <> The Mac app is out, and the iPhone app is coming soon.</>}{" "}
+        <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> brings your tables across in one import.
       </p>
-      <Capture src="/blog/macos27/notes-table-math" width={480} height={264} maxWidth={320}
-        alt="A Trip budget note in Apple Notes on a Mac. In the table, the Total row's cell reads 420+610+250= with no result. Under the table, three lines name Flights, Hotel and Food, and a fourth, Flights + Hotel + Food =, is followed by 1,280 in yellow."
-        caption="Notes on macOS 27. The sum in the Total cell stays as typed. The same sum under the table gets its answer, 1,280." />
-      <Keep title="A total to keep under a table" text={TOTAL}
-        note="Type these lines under the table, in the note itself and not in a cell. Notes offers the result after the last equals sign." />
-      <p>
-        Apple documents this for iCloud notes and notes kept on your Mac. Whether Notes offers the result, puts it in for you or
-        leaves sums alone is a setting, with Insert Results, Suggest Results or Off:
-      </p>
-      <Paths rows={[
-        { on: "Mac", steps: ["Format", "Math Results"] },
-      ]} />
-      <p>
-        Apple&apos;s steps are in <a href="https://support.apple.com/guide/notes/solve-math-apda85974595/mac" rel="noopener">Solve
-        math in Notes on Mac</a>. So for a budget or a tally, the pattern that holds is the table for the items and those lines
-        under it for the total. If you need real formulas, sorting or charts, the table has outgrown Notes, and Numbers is the
-        place for it.
-      </p>
-
-      <h2 id="import">Getting data in from a spreadsheet</h2>
-      <p>
-        On macOS 26, Notes gives the Shortcuts app an Add Table to Note action that takes comma-separated values. Export a sheet from
-        Numbers as CSV, pass the text to that action, and the rows arrive as a table in the note you pick.
-      </p>
-      <p>
-        Getting tables out is less certain. Before you rely on the Markdown export for tables, try it on one note and check the file; <a href="/blog/export-apple-notes-to-markdown">how
-        to export Apple Notes to Markdown</a> covers what to look for, and <a href="/blog/back-up-apple-notes">how to back up Apple Notes</a> covers
-        keeping a copy.
-      </p>
-
-      <h2 id="pinto-notes">When you want a table that does more</h2>
-      <p>
-        Pinto Notes, the notes app for iPhone and Mac that I make, keeps tables just as plain to edit. On a Mac it&apos;s Format, Table
-        (Option-Command-T), or the Table button, and the caret lands in the first cell. Every cell is text you type in. A tracker made
-        from a template keeps a tick you click for its yes-or-no columns. It doesn&apos;t do sums or formulas either, and you can&apos;t set
-        column widths, which fit the text. A table too wide for the window scrolls sideways instead of squeezing every column.
-      </p>
-      <Figure shot={SHOTS.tracker} caption="An Evening tracker in Pinto Notes on a Mac: number columns, and Yes/No columns you tick." />
-      <p>
-        One thing Apple Notes can&apos;t do: ChatGPT or Claude can work with the table:
-        they read its rows, add a row for today, and answer questions such as &ldquo;what did I spend on food this
-        month?&rdquo; by doing the sum themselves. The table stays markdown underneath, so any editor can open it.
-      </p>
-      {APP_STORE_LIVE ? (
-        <p>
-          The iPhone app has the same tables, with the Table button in the format bar. <a href="/blog/move-from-apple-notes">Moving
-          from Apple Notes</a> brings your existing tables across in one import on your Mac.
-        </p>
-      ) : (
-        <p>
-          The iPhone app is coming soon to the App Store, with the same tables. <a href="/blog/move-from-apple-notes">Moving from
-          Apple Notes</a> brings your existing tables across in one import on your Mac, and <a href="/blog/pinto-notes-vs-apple-notes">Pinto
-          Notes vs Apple Notes</a> compares the rest.
-        </p>
-      )}
-      <PostCta slug="apple-notes-tables" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Tables with typed columns, which ChatGPT and Claude can read and add rows to.</p>
-      </PostCta>
     </PostPage>
   );
 }

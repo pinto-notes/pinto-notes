@@ -19,6 +19,7 @@ export default async function OpenConnect({ searchParams }: { searchParams: Prom
       <ConnectCard>
         <h1 className={styles.title}>This link isn't complete</h1>
         <p className={styles.lede}>{problemText(undefined)}</p>
+        <a className={styles.secondary} href="/open/connect-ai">How to connect your AI</a>
       </ConnectCard>
     );
   }

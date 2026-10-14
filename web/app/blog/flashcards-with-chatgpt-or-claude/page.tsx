@@ -111,9 +111,9 @@ export default function Page() {
           plan; Claude connects from its connector directory.
         </li>
         <li>
-          <strong>Paste the template&apos;s prompt, then your notes</strong>
-          &ldquo;Here are my notes on cell respiration&rdquo;, and the lecture notes after it. The AI makes five to ten cards under
-          that topic, all starting in box 1.
+          <strong>Give your AI your notes</strong>
+          &ldquo;Make cards from my notes on cell respiration&rdquo;, with the lecture notes after it. It finds the note, reads the
+          app&apos;s own notes on how cards are kept, and adds them under that topic as new cards.
         </li>
       </Steps>
       <p>
@@ -123,9 +123,9 @@ export default function Page() {
         The cards you know least come first. On a Mac, Space shows the answer and 1 to 4 grade it, so a session goes fast.
       </p>
       <p>
-        You can also say &ldquo;quiz me on biology, ten cards&rdquo; in the chat. The AI asks one card at a time without showing the
-        answer, tells you whether you were right, and moves each card the same way the app does. &ldquo;Which cards do I keep
-        missing?&rdquo; gets an answer from the boxes. No Mac nearby? Copy the template&apos;s prompt instead, and your AI creates the note with its app from any device once Pinto Notes is connected.
+        Away from the app, ask in the chat: &ldquo;Which cards do I keep missing?&rdquo; reads the same cards and grades you see.
+        To change the app itself, ask for that too: &ldquo;Add a reverse mode, answer to question&rdquo; or &ldquo;Let me type
+        the answer before it shows.&rdquo; Your AI edits the app, and the new version shows up in the note.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>
@@ -139,8 +139,8 @@ export default function Page() {
       <p>
         Your AI can change the app itself too. It&apos;s a small React project in the note: ask for a &ldquo;reverse the cards&rdquo;
         button and check the result. Pinto Notes runs the app&apos;s tests on every save and only shows a version that passes. If you
-        keep your lecture notes in another app, <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with
-        ChatGPT</a> compares the ones your AI can read.
+        keep your lecture notes in another app, <a href="/blog/notes-apps-with-mcp">notes apps with an MCP
+        server, compared</a> covers the ones your AI can read.
       </p>
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>

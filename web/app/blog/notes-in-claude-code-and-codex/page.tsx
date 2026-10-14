@@ -34,7 +34,7 @@ export default function Page() {
       </ul>
       <p>
         The <a href="/templates/daily-standup">standup</a>, <a href="/templates/bug-triage">bug triage</a> and{" "}
-        <a href="/templates/decision-log">decision log</a> templates come with a prompt written for Claude Code.
+        <a href="/templates/decision-log">decision log</a> templates are made for this kind of work.
       </p>
       <p>
         Pinto Notes is a free notes app for iPhone and Mac with an MCP server built in, so your agent writes into the same notes you read
@@ -98,10 +98,10 @@ http_headers = { "Authorization" = "Bearer pane_…" }`}</code></pre>
       </ul>
       <p>
         The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call, and{" "}
-        <a href="/blog/work-log-with-claude-code">keep a work log with Claude Code</a> puts it to daily use.
+        <a href="/for/claude-code">keep a work log with Claude Code</a> puts it to daily use.
       </p>
       <p>
-        Using Gemini CLI instead? <a href="/blog/connect-notes-to-gemini">Connect your notes to Gemini</a> has the one command it takes.
+        Using Gemini CLI instead? <a href="/blog/mcp-server">Connect your notes to Gemini</a> has the one command it takes.
       </p>
     </PostPage>
   );

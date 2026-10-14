@@ -7,10 +7,11 @@ import { latestVersion } from "@/lib/changelog";
 import { JsonLd, app, breadcrumbs, incredible, maker, organization } from "@/lib/structured-data";
 import PlatformNote from "../PlatformNote";
 import styles from "./download.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 export const metadata: Metadata = pageMetadata({
   title: "Download Pinto Notes for Mac",
-  description: "Download Pinto Notes, the free notes app for Mac that ChatGPT and Claude can read and edit. Needs macOS 26 or later. Updates install themselves.",
+  description: "Download Pinto Notes, the free notes app for Mac that ChatGPT and Claude can read and edit. Needs macOS 26 or later.",
   path: "/download",
   image: { url: "/download/opengraph-image", alt: "Download Pinto Notes for Mac. Free, for macOS 26 or later." },
 });
@@ -44,7 +45,7 @@ export default function Download() {
             <p className={`${styles.meta} rise`} style={r(2)}>
               Version {release.version} · {size} · {date}
             </p>
-            <a className={`${styles.button} rise pi-apple`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file}>
+            <a className={`${styles.button} rise pi-apple`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file} data-hero-download="">
               <Apple /> Download for Mac
             </a>
             <PlatformNote place="download" className="rise" style={r(3)} />
@@ -82,10 +83,13 @@ export default function Download() {
       </section>
 
       <section className={`${styles.more} rise`} style={r(8)}>
-        <p><strong>Updates install themselves.</strong> Pinto Notes checks once a day, or choose Check for Updates… in the app menu</p>
-        <p><strong>Syncs with your iPhone.</strong> Your notes live in the cloud and sync with the iPhone app, coming soon to the App Store.</p>
         <p><a href="/changelog">See what's new in each version</a></p>
       </section>
+
+      <ClosingBand
+        title="Your notes, and the AIs you already use."
+        secondary={{ href: "/blog/connect-chatgpt-to-your-notes", label: "Connect ChatGPT" }}
+      />
     </div>
   );
 }

@@ -85,8 +85,7 @@ export default function Page() {
       </div>
       <p>
         Apple Notes can&apos;t be connected this way. On a Mac, ChatGPT can look at a note you have open, but it can&apos;t search your
-        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it,
-        and <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with ChatGPT</a> compares the alternatives.
+        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it.
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
@@ -217,13 +216,13 @@ export default function Page() {
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
       <Keep title="Five first things to ask" text={PROMPTS}
-        note={<>For a to-do list you tick on your phone, see <a href="/blog/chatgpt-to-do-list-on-iphone">how to use ChatGPT as a to-do list</a>.</>}>
+        note={<>For a to-do list you tick on your phone, see <a href="/for/chatgpt">how to use ChatGPT as a to-do list</a>.</>}>
         <ul>
           {PROMPTS.split("\n").map((p) => <li key={p}>&ldquo;{p}&rdquo;</li>)}
         </ul>
       </Keep>
       <p>
-        Or start from a <a href="/templates">template</a>: a note with the prompt that tells ChatGPT or Claude how to fill it in, like
+        Or start from a <a href="/templates">template</a>: a ready note, some with their own app, that ChatGPT or Claude can fill in, like
         the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.{" "}
         <a href="/for/chatgpt">Pinto Notes for ChatGPT</a> has three more ideas, from a running plan to a note that becomes a tracker.
       </p>

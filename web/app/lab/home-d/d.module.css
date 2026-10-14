@@ -135,6 +135,8 @@
 .steps { display: flex; flex-wrap: wrap; gap: 6px; }
 .stepButton { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px 0 6px; border: 0; border-radius: 18px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .stepButton[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
+.stepButton[data-icon] { width: 40px; min-height: 40px; padding: 0; justify-content: center; border-radius: 20px; }
+.steps:has([data-icon]) { gap: 4px; }
 .stepButton:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 @media (hover: hover) { .stepButton:not([aria-pressed="true"]):hover { color: var(--ink); background: color-mix(in srgb, var(--soft) 60%, transparent); } }
 @media (prefers-reduced-motion: no-preference) { .stepButton { transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.12s ease-out; } .stepButton:active { transform: scale(0.97); } }
@@ -224,6 +226,13 @@
 
 .facts { list-style: none; margin: 56px 0 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 900px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* On cream (home-g's control facts): three across, a soft fill, ink words, no titles. */
+.facts[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; }
+@media (max-width: 700px) { .facts[data-count="3"] { grid-template-columns: 1fr; } }
+.facts[data-light] .fact { background: none; padding: 8px 12px; }
+.facts[data-light] .factLine { color: var(--ink); font-size: 15.5px; font-weight: 600; }
+.facts[data-light] .word::after { color: var(--muted); }
+.facts[data-light] .strike i { color: #2e180a; }
 .fact { display: grid; justify-items: center; align-content: start; gap: 6px; padding: 22px 16px 24px; border-radius: 20px; background: #3a2010; text-align: center; }
 .fact b { margin-top: 6px; font-size: 17px; font-weight: 700; color: #fbeedd; }
 .factLine { color: #d9bf9f; font-size: 15px; line-height: 1.4; text-wrap: balance; }

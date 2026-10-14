@@ -41,8 +41,8 @@ export function Window({ shot, priority = false }: { shot: Shot; priority?: bool
 /// A capture on a ground: the post's own at the top, a soft one further down.
 export function Figure({ shot, caption, priority, ground = "soft" }: { shot: Shot; caption?: string; priority?: boolean; ground?: Ground }) {
   return (
-    <figure className={b.figure}>
-      <div className={`${b.stage} ${b.ground}`} data-ground={ground}><Window shot={shot} priority={priority} /></div>
+    <figure className={`${b.figure} post-figure`}>
+      <div className={`${b.stage} ${b.ground} post-stage`} data-ground={ground}><Window shot={shot} priority={priority} /></div>
       {caption && <figcaption className={b.caption}>{caption}</figcaption>}
     </figure>
   );

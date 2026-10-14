@@ -2,7 +2,8 @@
    help page's soft cards, and real captures on a ground of the site's palette. */
 
 /* ── A capture in a window ── */
-.window, .captured { width: min(100%, var(--w, 100%)); margin: 0 auto; }
+/* At least about three quarters of the column, so the app's text reads; never wider than the column. */
+.window, .captured { width: min(100%, max(var(--w, 100%), 74%)); margin: 0 auto; }
 .window {
   display: grid; overflow: hidden; border-radius: 12px; background: #fff;
   box-shadow: 0 0 0 0.5px rgba(60, 20, 0, 0.22), 0 18px 36px -12px rgba(60, 20, 0, 0.32), 0 2px 6px rgba(60, 20, 0, 0.12);
@@ -69,7 +70,7 @@
 
 /* ── A figure in a post: the capture centred on its ground ── */
 .figure { margin: 8px 0 28px; }
-.stage { display: grid; place-items: center; padding: clamp(20px, 5vw, 44px); border-radius: 20px; overflow: hidden; }
+.stage { display: grid; place-items: center; padding: clamp(16px, 4vw, 36px); border-radius: 20px; overflow: hidden; }
 .caption { margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.45; text-align: center; text-wrap: balance; }
 
 /* ── A card's picture: one capture on the post's ground, edge to edge under the card's corners ── */
@@ -149,22 +150,25 @@
   color: var(--ink); text-decoration: none; background: var(--soft);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .card { transition: box-shadow 0.15s ease-out, transform 0.12s ease-out; }
+  .card { transition: background-color 0.15s ease-out, transform 0.12s ease-out; }
   .card:active { transform: scale(0.98); }
 }
-@media (hover: hover) { .card:hover { box-shadow: 0 0 0 1.5px var(--amber); } }
+@media (hover: hover) { .card:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
 .card:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
 /* Cards in a row are equally tall; the text fills the card and the spare room goes above the
    byline, so every card's author and date sit on the same line at its foot. */
 .cardText { display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; padding: 0 20px; }
-.label { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--link); }
+.label { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 /* Titles fill the first line and never leave one word alone on the last. Balancing them into two
    equal halves split names across lines ("Claude / Cowork", "to- / do list"). */
-.cardTitle { margin: 0; font-size: 19px; line-height: 1.2; font-weight: 750; letter-spacing: -0.015em; text-wrap: pretty; }
+.cardTitle {
+  margin: 0; font-size: 19px; line-height: 1.2; font-weight: 750; letter-spacing: -0.015em; text-wrap: pretty;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
 .excerpt {
   color: var(--muted); font-size: 15px; line-height: 1.45;
-  align-self: start; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+  align-self: start; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
-/* One card to a row on phones, so nothing has to line up: the excerpt shows whole. */
-@media (max-width: 620px) { .excerpt { display: block; -webkit-line-clamp: none; line-clamp: none; } }
+/* At most two lines of description and three of title on every card (Emil, 14 October 2026: "too
+   much text"), so cards in a row stay even. The full description is in the post's meta. */
 .card .byline { margin-top: 6px; }

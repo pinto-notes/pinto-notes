@@ -1,0 +1,58 @@
+/* Study G: home-d's sections (home-d/d.module.css) plus what's new here: the soft tint band, the
+   approval story and the closing's three steps. */
+
+/* ── 5. A soft tint band, the --soft family, full width inside the cream page ── */
+.tint { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 112px var(--gutter); background: #f7e5cc; }
+.tint > div { max-width: 1200px; margin: 0 auto; }
+@media (max-width: 700px) { .tint { padding: 72px var(--gutter); } }
+
+/* ── 6. You decide: centred, one stage that is the sheet, then the note ── */
+.control { width: 100%; max-width: 760px; justify-self: center; display: grid; gap: 28px; justify-items: center; text-align: center; }
+.controlTitle { max-width: 18ch; }
+.center { justify-content: center; }
+.stage { position: relative; width: 100%; display: grid; min-height: 430px; text-align: left; }
+.stage > figure { grid-area: 1 / 1; align-self: center; }
+@media (max-width: 600px) { .stage { min-height: 470px; } }
+
+/* The app's approval sheet, as the Mac app draws it: a card of its paper, the AI's mark, the title in
+   display type, the access choice as a segmented control, Allow in amber (the view's one orange thing). */
+.sheet {
+  justify-self: center; width: min(420px, 100%); box-sizing: border-box; margin: 0; padding: 28px 28px 18px; border-radius: 20px; display: grid; justify-items: center; text-align: center;
+  background: #fdfbf8; color: #1d1d1f; box-shadow: 0 0 0 0.5px rgba(var(--shade), 0.22), 0 34px 70px -34px rgba(var(--shade), 0.55), 0 8px 18px -10px rgba(var(--shade), 0.22);
+}
+.sheetIcon { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 16px; border-radius: 14px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.14), 0 4px 10px -4px rgba(0, 0, 0, 0.2); color: #0d0d0d; }
+.sheetTitle { margin: 0 0 8px; font-size: 22px; line-height: 1.15; font-weight: 800; letter-spacing: -0.03em; text-wrap: balance; }
+.sheetDetail { margin: 0; color: #86868b; font-size: 14px; line-height: 1.4; text-wrap: balance; }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; width: min(260px, 100%); margin-top: 20px; padding: 2px; border-radius: 8px; background: #ecebe8; font-size: 13px; font-weight: 500; }
+.segmented i { font-style: normal; padding: 4px 8px; border-radius: 6px; color: #3a3a3c; }
+.segmented i[data-on] { background: #fff; color: #1d1d1f; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06); }
+.sheetLine { margin: 8px 0 0; min-height: 2.8em; color: #86868b; font-size: 12.5px; line-height: 1.4; text-wrap: balance; }
+.allow { display: grid; place-items: center; width: min(320px, 100%); height: 40px; margin-top: 18px; border-radius: 14px; background: #e8820e; color: #fff; font-size: 15px; font-weight: 700; }
+.allow[data-pressed] { transform: scale(0.97); background: #d27406; }
+.deny { margin-top: 6px; min-height: 34px; display: grid; place-items: center; color: #86868b; font-size: 13px; font-weight: 500; }
+@media (prefers-reduced-motion: no-preference) {
+  .segmented i { transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out; }
+  .allow { transition: transform 0.12s ease-out 0.5s, background-color 0.12s ease-out 0.5s; }
+}
+
+/* Sheet out, note in: one motion (the sheet leaves faster than the note arrives). */
+.note { width: 100%; }
+.stage .sheet, .stage .note { transition: none; }
+.stage[data-scene="sheet"] .note, .stage[data-scene="note"] .sheet { opacity: 0; visibility: hidden; }
+.stage[data-scene="note"] .sheet { transform: scale(0.97); }
+.stage[data-scene="sheet"] .note { filter: blur(8px); transform: translateY(10px); }
+@media (prefers-reduced-motion: no-preference) {
+  .stage .sheet { transition: opacity 0.22s ease-in, transform 0.22s ease-in, visibility 0s linear 0.22s; }
+  .stage[data-scene="sheet"] .sheet { transition: opacity 0.4s ease-out, transform 0.4s ease-out, visibility 0s; }
+  .stage .note { transition: opacity 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) 0.12s, filter 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) 0.12s, transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) 0.12s, visibility 0s; }
+  .stage[data-scene="sheet"] .note { transition: opacity 0.2s ease-in, filter 0.2s ease-in, transform 0.2s ease-in, visibility 0s linear 0.2s; }
+}
+
+/* ── 7. The closing's three steps: numbered, because they are a sequence ── */
+.stepsRow { list-style: none; margin: 22px 0 10px; padding: 0; width: 100%; max-width: 940px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 36px; text-align: left; }
+@media (max-width: 860px) { .stepsRow { grid-template-columns: 1fr; max-width: 440px; } }
+.stepsRow li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; }
+.num { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(251, 238, 221, 0.14); color: #fbeedd; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stepsRow b { display: block; color: #fbeedd; font-size: 17px; font-weight: 700; line-height: 30px; }
+.stepRest { display: block; margin-top: 2px; color: #d9bf9f; font-size: 14.5px; line-height: 1.45; text-wrap: pretty; }
+.proof { margin: 6px 0 0; color: #b89c7c; font-size: 14px; font-weight: 600; }

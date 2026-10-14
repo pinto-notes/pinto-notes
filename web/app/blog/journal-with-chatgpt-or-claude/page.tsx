@@ -117,7 +117,7 @@ export default function Page() {
       <Keep title="Four more journal prompts" text={MORE} />
       <p>
         The last one needs the entries in front of the AI. If they live in a chat or in Apple Notes, paste them in first. For a
-        longer look back once a week, there&apos;s <a href="/blog/weekly-review-with-chatgpt-or-claude">a weekly review prompt</a>{" "}
+        longer look back once a week, there&apos;s <a href="/templates/weekly-review">a weekly review prompt</a>{" "}
         that works the same way.
       </p>
 
@@ -188,7 +188,7 @@ export default function Page() {
         journal in order to write in it. The AI sees the title of a note you lock in Pinto Notes and nothing else, so a locked journal
         is one you write yourself. You need ChatGPT on a plan that allows custom apps, or Claude;{" "}
         <a href="/blog/connect-chatgpt-to-your-notes">connecting ChatGPT</a> takes a few minutes. The free{" "}
-        <a href="/templates/daily-journal">Daily journal template</a> has the note and the prompt that goes with it, and the{" "}
+        <a href="/templates/daily-journal">Daily journal template</a> adds the journal note to Pinto Notes in one click, and the{" "}
         <a href="/templates/mood-energy-log">Mood and energy log</a> is the table.
       </p>
       <PostCta slug="journal-with-chatgpt-or-claude" position="how-amber-helps" title="Try Pinto Notes on your Mac">

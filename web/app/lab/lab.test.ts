@@ -8,9 +8,9 @@ import { quietHeader, themeFor, themeScript } from "@/lib/theme";
 import { metadata } from "./layout";
 
 // The home page studies (/lab/*) are for the team: kept out of search, the sitemap and the site's links.
-const STUDIES = ["/lab/home-a", "/lab/home-b", "/lab/home-c", "/lab/home-d", "/lab/home-e", "/lab/home-f"];
+const STUDIES = ["/lab/home-a", "/lab/home-b", "/lab/home-c", "/lab/home-d", "/lab/home-e", "/lab/home-f", "/lab/home-g"];
 /** The home page candidates: cream in light and dark, like the home page. */
-const HOME_CANDIDATES = ["/lab/home-d", "/lab/home-e", "/lab/home-f"];
+const HOME_CANDIDATES = ["/lab/home-d", "/lab/home-e", "/lab/home-f", "/lab/home-g"];
 const APP = fileURLToPath(new URL("..", import.meta.url));
 
 function sources(dir: string): string[] {
@@ -56,13 +56,13 @@ describe("the /lab design studies", () => {
     expect(themeFor("/labrador")).toBe("cream");
   });
 
-  it("keep the home page candidates (D, E and F) cream in a dark system too, like the home page", () => {
+  it("keep the home page candidates (D, E, F and G) cream in a dark system too, like the home page", () => {
     for (const p of HOME_CANDIDATES) {
       expect(themeIn(p, false), p).toBe("cream");
       expect(themeIn(p, true), p).toBe("cream");
     }
     expect(themeIn("/", true)).toBe("cream");
-    expect(themeIn("/lab/home-g", true)).toBe("leaf");
+    expect(themeIn("/lab/home-h", true)).toBe("leaf"); // only the candidates: another study follows the system
     const g = globalThis as { matchMedia?: unknown };
     const before = g.matchMedia;
     g.matchMedia = () => ({ matches: true });

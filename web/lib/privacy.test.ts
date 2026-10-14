@@ -9,7 +9,7 @@ const policy = readFileSync(join(__dirname, "../content/privacy-policy.md"), "ut
 const docsPolicy = readFileSync(join(__dirname, "../../docs/privacy-policy.md"), "utf8");
 const items = [...ENCRYPTION.items, ...WHO_CAN_SEE, ...AI_ACCESS, ...LIMITS];
 const copy = [
-  ...FACTS.flatMap((f) => [f.title, f.text]), CAVEAT.text, CAVEAT.link, ...LOGS.flatMap((l) => [l.name, l.what, l.kept]), ...COUNTS, ...READABLE,
+  ...FACTS.flatMap((f) => [f.title, f.text, f.short]), CAVEAT.text, CAVEAT.link, ...LOGS.flatMap((l) => [l.name, l.what, l.kept]), ...COUNTS, ...READABLE,
   ...items.flatMap((i) => [i.label, i.text]), ENCRYPTION.note, page, policy,
   ...Object.values(HOME_PRIVACY),
 ];
@@ -117,7 +117,7 @@ describe("privacy copy", () => {
     expect(policy).toMatch(/\| Consent, which you can withdraw at any time with Cookie settings \|/);
   });
 
-  it("is a dark leaf page like the other fine print (Terms, Privacy & Security, Help)", () => {
-    expect(themeFor(PRIVACY_PATH)).toBe("leaf");
+  it("is a cream page that ends in the dark band, like Help and the changelog (site audit, 13 October 2026)", () => {
+    expect(themeFor(PRIVACY_PATH)).toBe("cream");
   });
 });

@@ -45,7 +45,7 @@ function summary(): string[] {
     "",
     "## Templates",
     "",
-    "Note templates with the prompt that lets an AI fill them in through the MCP tools. Each page has the note, the prompt for ChatGPT, Claude and Claude Code, and a filled-in example; the same data is at /templates/<slug>.json.",
+    "Note templates an AI fills in through the MCP tools. Each page adds the note (and its app, for some) to Pinto Notes with Use template, and shows a filled-in example; the note, its prompt for ChatGPT, Claude and Claude Code, and the example are at /templates/<slug>.json.",
     "",
     `- [All templates](${SITE_URL}/templates)`,
     ...templates().map((t) => `- [${searchTitle(t)}](${SITE_URL}/templates/${t.slug}): ${t.description}`),
