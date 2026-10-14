@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 /// Deleting a shared note asks first, as Notes does, and says what happens: yours stops being
 /// shared and the people in it lose it; one shared with you leaves your notes. The library does
@@ -57,12 +60,26 @@ struct SharedDeleteConfirmation: ViewModifier {
     @Binding var pending: [Note]?
     let perform: ([Note]) -> Void
 
+    #if os(macOS)
+    /// On the Mac the question is a small sheet of our own, as Remove and Leave are in Share:
+    /// Cancel is the default (Return) and takes Esc, and only a click on Delete deletes for
+    /// everyone. SwiftUI's alert makes the destructive button the one Return presses.
+    func body(content: Content) -> some View {
+        let ask = pending.flatMap { SharedDelete.ask($0) }
+        content.sheet(isPresented: Binding(get: { ask != nil }, set: { if !$0 { pending = nil } })) {
+            if let ask {
+                SharedDeleteQuestion(ask: ask, cancel: { pending = nil }) {
+                    if let notes = pending { perform(notes) }
+                    pending = nil
+                }
+            }
+        }
+    }
+    #else
     func body(content: Content) -> some View {
         let ask = pending.flatMap { SharedDelete.ask($0) }
         content.alert(ask?.title ?? "", isPresented: Binding(get: { ask != nil }, set: { if !$0 { pending = nil } })) {
-            // Cancel is the default: Return and Esc both cancel.
             Button("Cancel", role: .cancel) { pending = nil }
-                .keyboardShortcut(.defaultAction)
             Button(ask?.button ?? "Delete", role: .destructive) {
                 if let notes = pending { perform(notes) }
                 pending = nil
@@ -72,7 +89,40 @@ struct SharedDeleteConfirmation: ViewModifier {
             Text(ask?.message ?? "")
         }
     }
+    #endif
 }
+
+#if os(macOS)
+/// The Mac's question before a shared note goes: the title, one line, then Delete in plain red
+/// (the destructive role, no fill) and Cancel, the default, answering Return and Esc.
+struct SharedDeleteQuestion: View {
+    let ask: SharedDelete.Ask
+    let cancel: () -> Void
+    let delete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(ask.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            Text(ask.message).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button(role: .destructive, action: delete) { Text(ask.button).foregroundStyle(.red) }
+                    .buttonStyle(.quiet)
+                    .accessibilityIdentifier("sharedDelete.confirm")
+                Button("Cancel", action: cancel)
+                    .buttonStyle(.amberProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("sharedDelete.cancel")
+                // Esc cancels too.
+                Button("", action: cancel).keyboardShortcut(.cancelAction).hidden().frame(width: 0, height: 0)
+            }
+            .padding(.top, 6)
+        }
+        .padding(20)
+        .frame(width: 360)
+    }
+}
+#endif
 
 extension View {
     func sharedDeleteConfirmation(_ pending: Binding<[Note]?>, perform: @escaping ([Note]) -> Void) -> some View {
