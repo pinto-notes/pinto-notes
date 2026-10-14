@@ -321,3 +321,27 @@ Deno.test("an old key and a stranger get answers PostgREST passes straight back"
   const [{ n }] = await pg.query<{ n: number }>(`select count(*)::int n from pg_proc where proname like 'collab%' and prosrc like '%40001%'`).then((r) => r.rows);
   assertEquals(n, 0);
 });
+
+Deno.test("leaving: a member goes at once and reads nothing new; the owner can't leave", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), jonas = await person(pg, "Jonas");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk, "editor");
+  await accept(pg, sara, note);
+  await push(pg, emil, note, nk, 1, "before");
+  assertEquals((await app(pg, sara.id, `select * from public.note_updates`)).length, 1);
+
+  await refused(app(pg, emil.id, `select public.collab_leave($1)`, [note]), "owner can't leave");
+  await refused(app(pg, jonas.id, `select public.collab_leave($1)`, [note]), "not in this note");
+  await app(pg, sara.id, `select public.collab_leave($1)`, [note]);
+
+  assertEquals(await app(pg, sara.id, `select * from public.note_updates`), []);
+  await refused(push(pg, sara, note, nk, 1, "still here?"), "");
+  const members = await app(pg, emil.id, `select * from public.collab_members($1)`, [note]);
+  assertEquals(members.map((m: any) => m.user_id), [emil.id]);
+  // The owner's device renews the key with only themselves in it.
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)]);
+  await push(pg, emil, note, nk2, 2, "after");
+});

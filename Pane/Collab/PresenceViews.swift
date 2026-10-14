@@ -221,6 +221,23 @@ struct PresenceStack: View {
 
     var body: some View {
         Button(action: action) {
+            HStack(spacing: 6) {
+                // Can view: said once, beside the people, so a tap that types nothing isn't a mystery.
+                if session.isViewOnly {
+                    Text("View Only")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("collab.viewOnly")
+                }
+                avatars
+            }
+        }
+        .buttonStyle(.quietIcon)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityIdentifier("collab.people")
+    }
+
+    @ViewBuilder private var avatars: some View {
             if here.isEmpty {
                 Label("People", systemImage: "person.2")
             } else {
@@ -233,14 +250,11 @@ struct PresenceStack: View {
                 }
                 .padding(.horizontal, 2)
             }
-        }
-        .buttonStyle(.quietIcon)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityIdentifier("collab.people")
     }
 
     private var accessibilityText: String {
-        guard !here.isEmpty else { return "People" }
-        return "In this note: " + here.map(\.name).joined(separator: ", ")
+        let viewOnly = session.isViewOnly ? "View only. " : ""
+        guard !here.isEmpty else { return viewOnly + "People" }
+        return viewOnly + "In this note: " + here.map(\.name).joined(separator: ", ")
     }
 }

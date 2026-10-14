@@ -45,6 +45,10 @@ final class CollabSession {
     }
 
     let noteID: UUID
+    /// Your role in the note, once the members have loaded: owner, editor or viewer.
+    var myRole: String? { members.first { $0.id == me }?.role }
+    /// A viewer reads; the server refuses their changes, so the editor doesn't take any.
+    var isViewOnly: Bool { myRole == "viewer" }
     private(set) var epoch: Int
     let me: UUID
     let myName: String

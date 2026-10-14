@@ -184,13 +184,15 @@ struct PaneApp: App {
                 } else if ProcessInfo.processInfo.arguments.contains("-template") {
                     CollabGallery.templateSheet().tint(Color(PColor.paneAccent))
                 } else if ProcessInfo.processInfo.arguments.contains("-share") {
-                    NavigationStack { ShareForm(title: "Team offsite", state: CollabGallery.shareWithPhoto) }.tint(Color(PColor.paneAccent))
+                    NavigationStack { ShareForm(title: "Team offsite", share: ShareController(note: Note(body: "Team offsite"), backend: SampleShare(CollabGallery.shareWithPhoto))) }.tint(Color(PColor.paneAccent))
                 } else {
                     CollabGallery().tint(Color(PColor.paneAccent))
                 }
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
+                    // A note's link opened in the app joins the note (after sign-in, if need be).
+                    .joinLinkHandler()
                     .tint(Color(PColor.paneAccent))
                     .preferredColorScheme(Self.testScheme)
             }
