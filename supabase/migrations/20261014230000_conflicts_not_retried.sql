@@ -20,7 +20,7 @@ begin
   if uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
   select coalesce((select r.generation from public.account_key_resets r where r.user_id = uid), 0) into current_generation;
   if coalesce(p_generation, -1) < current_generation then
-    raise exception 'Your notes were reset on another device. Open Amber Notes again.' using errcode = 'PT409', hint = 'stale_generation';
+    raise exception 'Your notes were reset on another device. Open Pinto Notes again.' using errcode = 'PT409', hint = 'stale_generation';
   end if;
   insert into public.account_keys as k (user_id, key_id, verifier, recovery_wrap)
   values (uid, p_key_id, p_verifier, p_recovery_wrap)
@@ -84,7 +84,7 @@ declare
 begin
   if v_user is null then raise exception 'not signed in' using errcode = '42501'; end if;
   if p_tag is null or p_tag !~ '^[0-9a-f]{64}$' or p_slug is null or p_slug !~ '^[A-Za-z0-9_-]{24,64}$' then
-    raise exception 'Update Amber Notes to share this note.' using errcode = '22023', hint = 'update_app';
+    raise exception 'Update Pinto Notes to share this note.' using errcode = '22023', hint = 'update_app';
   end if;
   if not exists (select 1 from public.notes n
                  where n.id = p_note and n.user_id = v_user and n.deleted_at is null and n.trashed_at is null) then
