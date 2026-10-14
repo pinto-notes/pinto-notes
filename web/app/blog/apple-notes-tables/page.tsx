@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, FigurePair, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
+import { Answer, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -132,12 +132,12 @@ export default function Page() {
       </p>
 
       <h2 id="convert">Turn a table back into text</h2>
-      <FigurePair items={[
-        { src: "/blog/macos27/notes27-table-convert-menu", width: 1096, height: 512,
-          alt: "The Reading list table in Apple Notes on macOS 27 with the Table Actions button's menu open, showing one item, Convert to Text." },
-        { src: "/blog/macos27/notes27-table-converted", width: 1096, height: 512,
-          alt: "The same reading list after Convert to Text: highlighted lines of text, with tabs between the book, the author and the month." },
-      ]} caption="Convert to Text turns each row into a line, with tabs between the cells." />
+      <PostFigure src="/blog/macos27/notes27-table-convert-menu-v2" width={1140} height={870} maxWidth={570}
+        alt="A Reading list table in Apple Notes on macOS 27 with the Table Actions button's menu open, showing its only item, Convert to Text."
+        caption="Table Actions has one item: Convert to Text." />
+      <PostFigure src="/blog/macos27/notes27-table-converted-v2" width={1140} height={600} maxWidth={570}
+        alt="The same reading list after Convert to Text: plain lines, with tabs between the book, the author and the month."
+        caption="Each row becomes a line, with tabs between the cells." />
       <MenuPaths rows={[
         { on: "Mac", steps: ["Click in the table", "Table Actions", "Convert to Text"] },
       ]} />

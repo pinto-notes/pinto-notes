@@ -340,7 +340,7 @@ export const posts: Post[] = [
     excerpt: "Apple Notes exports Markdown on its own now, one note at a time. The steps on Mac and iPhone, what to check, and what to use for all of them.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-09-30",
+    updated: "2026-10-14",
     image: SHOTS.welcome,
     thumb: thumb("blush", "thumb-markdown-title", 714, 471, "The Welcome to Pinto Notes note, written in Markdown"),
     draft: false,

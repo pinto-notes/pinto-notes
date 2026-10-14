@@ -12,7 +12,9 @@ export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes AP
 // for "apple notes api": Apple's developer forum (thread 813810, January 2026, where Quinn of Apple DTS answers
 // "No."), an older forum thread, and MCP server listings. None of them say plainly what each route can and can't
 // do for an ordinary person, or what to do if what you wanted was ChatGPT or Claude on your phone. This post does.
-// The forum picture is a capture of the public thread, 14 Oct. The macOS prompt is Pinto's existing capture.
+// The forum picture is a capture of the public thread, 14 Oct. Script Editor, Terminal and Shortcuts pictures: macOS 27
+// throwaway VM, On My Mac, 14 Oct (captures/mac/api/CAPTURES.md lists all 24 Notes actions; no edit action;
+// Script Editor ran without a prompt, osascript in Terminal asked). The Claude prompt is Pinto's existing capture.
 // Facts: AppleScript on macOS only (Apple DTS); Shortcuts on iOS can't drive Notes from another app (Apple DTS);
 // Notes' own Shortcuts actions run on the device; community MCP servers and Claude's Apple Notes extension drive
 // the Notes app on a Mac with AppleScript; Pinto Notes' MCP server: supabase/functions/mcp (search, fetch, edit,
@@ -84,20 +86,37 @@ export default function Page() {
       <p>So everything that follows goes through the Notes app itself, on a device that&apos;s switched on.</p>
 
       <h2 id="applescript">AppleScript, on a Mac</h2>
+      <PostFigure src="/blog/macos27/notes27-api-script-editor-names" width={1400} height={592} maxWidth={700}
+        alt="Script Editor on macOS 27 running: tell application Notes to get name of every note. The Result pane lists Reading list, Daily log, Book club picks, Packing list for Lisbon and Weekly groceries."
+        caption="One line of AppleScript in Script Editor, and Notes lists every note it has. Tested on macOS 27." />
       <p>
-        This is the closest thing to an API. The Notes app answers AppleScript: list every note, read one (its body comes back as HTML),
-        or make a new one. The first time, macOS asks whether your terminal may control Notes.
+        This is the closest thing to an API. The Notes app answers AppleScript: list every note, read one (its body comes back as HTML,
+        or as plain text if you ask for its <code>plaintext</code>), or make a new one. Script Editor is in Applications, Utilities.
       </p>
       <Keep title="Read and write notes with AppleScript" text={APPLESCRIPT} code
         note="Run it in Script Editor, or with osascript in Terminal. Locked notes stay closed." />
       <p>Python has no Notes library; it runs the same script through <code>osascript</code>:</p>
       <Keep title="The same from Python" text={PYTHON} code />
+      <PostFigure src="/blog/macos27/notes27-api-terminal-control-prompt" width={1752} height={800} maxWidth={700}
+        alt="Terminal on macOS 27 running osascript with the Notes script. A dialog says: Terminal wants access to control Notes. Allowing control will provide access to documents and data in Notes, and to perform actions within that app. Don't Allow or Allow."
+        caption="Run from Terminal, macOS asks once whether Terminal may control Notes." />
+      <p>
+        Run from Terminal or Python, macOS asks once whether that app may control Notes, and the answer covers everything in it. In my
+        test, Script Editor didn&apos;t ask at all.
+      </p>
 
       <h2 id="shortcuts">Shortcuts, on iPhone and Mac</h2>
+      <PostFigure src="/blog/macos27/notes27-api-shortcut-append" width={2048} height={980} maxWidth={700}
+        alt="A shortcut called Log a run in Shortcuts on macOS 27 with one action: Append Tue: ran 6 km to Daily log. The action list on the right is filtered to Notes actions."
+        caption="A one-action shortcut: append a line to the Daily log note." />
+      <PostFigure src="/blog/macos27/notes27-api-note-after-append" width={2000} height={640} maxWidth={700}
+        alt="The Daily log note in Apple Notes after the shortcut ran: Mon: ran 5 km, then the new line Tue: ran 6 km at the end."
+        caption="After it ran: the new line lands at the end of the note." />
       <p>
-        Notes gives Shortcuts its own actions: create a note, append to one, add a checklist item, move or pin notes. That&apos;s enough
-        for a button on your Home Screen that adds a line to your work log. What Shortcuts can&apos;t do is let another app read your
-        notes, which is the part of the API people usually want.
+        Notes gives Shortcuts 24 actions on macOS 27: create, find, open, pin, move and delete notes, append to one, add a checklist item,
+        tag them, and manage folders. That&apos;s enough for a button on your Home Screen that adds a line to your work log, like the one
+        above. There&apos;s no action to edit a note, though: Append to Note only adds at the end. And Shortcuts can&apos;t let another
+        app read your notes, which is the part of the API people usually want.
       </p>
 
       <h2 id="claude-mac">Claude on a Mac</h2>

@@ -128,7 +128,7 @@ export default function Page() {
       </p>
       <p>
         If you&apos;re here because you want to script Apple Notes, <a href="/blog/apple-notes-api">what exists instead of an Apple Notes
-        API</a> covers AppleScript, Shortcuts (which now has Create Note from Markdown and Append Markdown to Note actions) and their limits.
+        API</a> covers AppleScript, Shortcuts and their limits.
       </p>
     </PostPage>
   );
