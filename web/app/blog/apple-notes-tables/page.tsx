@@ -85,7 +85,7 @@ export default function Page() {
       </p>
 
       <h2 id="rows-columns">Add rows and columns</h2>
-      <PostFigure src="/blog/macos27/notes27-table-row-menu" width={768} height={327} maxWidth={384}
+      <PostFigure src="/blog/macos27/notes27-table-row-menu-v2" width={1168} height={860} maxWidth={584}
         alt="A table in Apple Notes on macOS 27 with the row Van for half a day selected and its menu open: Add Row Above, Add Row Below and Delete Row."
         caption="A row's menu: add above, add below, delete. Columns get the same three." />
       <MenuPaths rows={[
@@ -98,8 +98,8 @@ export default function Page() {
       </p>
 
       <h2 id="sum">Add it up: the trick for totals</h2>
-      <PostFigure src="/blog/macos27/notes27-table-sum" width={768} height={430} maxWidth={384}
-        alt="A moving budget table in Apple Notes on macOS 27. The Total row's cell reads 85+240+180= with no answer. Under the table, three lines name Boxes, Van and Cleaning with their costs, and the line Boxes + Van + Cleaning = shows 505 in yellow."
+      <PostFigure src="/blog/macos27/notes27-table-sum-named-lines-v2" width={1168} height={860} maxWidth={584}
+        alt="A Moving budget table in Apple Notes on macOS 27. The Total cell reads 85+240+180= with no answer. Under the table, Boxes = 85, Van = 240 and Cleaning = 180 are named, and Boxes + Van + Cleaning = shows 505 as Notes' suggestion."
         caption="In the table, the sum just sits there. Under it, Notes answers: 505." />
       <MenuPaths rows={[{ on: "Mac", steps: ["Format", "Math Results"] }]} />
       <p>
@@ -123,7 +123,7 @@ export default function Page() {
       </p>
 
       <h2 id="column-width">Resize a column</h2>
-      <PostFigure src="/blog/macos27/notes27-table-column-menu" width={1055} height={317} maxWidth={528}
+      <PostFigure src="/blog/macos27/notes27-table-column-menu-v2" width={1168} height={860} maxWidth={584}
         alt="A table in Apple Notes on macOS 27 with the Cost column selected and its menu open: Add Column Before, Add Column After and Delete Column."
         caption="A column's whole menu. Nothing about width." />
       <p>
