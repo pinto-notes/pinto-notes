@@ -364,7 +364,7 @@ export const posts: Post[] = [
     excerpt: "On a Mac, yes. On iPhone and in the browser, no. Why it depends on where you use Claude, and what each option can and can't do.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-02",
+    updated: "2026-10-14",
     image: SHOTS.connectClaude,
     thumb: thumb("leaf", "thumb-connect-claude", 704, 451, "The steps to connect Claude in Pinto Notes"),
     draft: false,
