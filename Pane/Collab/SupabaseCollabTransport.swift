@@ -87,10 +87,6 @@ final class SupabaseCollabTransport: CollabTransport {
         try await call("accept") { try await client.rpc("collab_accept", params: ["p_note": Self.id(note), "p_self_wrap": selfWrap]).execute() }
     }
 
-    func leave(note: UUID) async throws {
-        try await call("leave") { try await client.rpc("collab_leave", params: ["p_note": Self.id(note)]).execute() }
-    }
-
     @discardableResult
     func remove(note: UUID, user: UUID?, epoch: Int, wraps: [Collab.Wrap]) async throws -> Int {
         struct Params: Encodable { let p_note: String; let p_user: String?; let p_epoch: Int; let p_wraps: [Collab.Wrap] }

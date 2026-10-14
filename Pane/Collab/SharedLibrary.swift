@@ -86,8 +86,14 @@ final class SharedLibrary {
         record.setKey(try CollabCrypto.selfWrap(nk, dataKey: dk, note: note.id, epoch: 1), epoch: 1)
         // Due at once: the first snapshot is how the text reaches everyone (it may be bigger than a change).
         record.sinceSnapshot = CollabSession.snapshotEvery
-        let session = try CollabSession.create(record: record, nk: nk, initial: note.body, transport: transport, me: me, name: name)
         context.insert(record)
+        let session: CollabSession
+        do {
+            session = try CollabSession.create(record: record, nk: nk, initial: note.body, transport: transport, me: me, name: name)
+        } catch {
+            context.delete(record)
+            throw error
+        }
         note.sharedDocument = record
         note.sharedNoteID = note.id
         // The notes row becomes the pointer (placeholder text) on the next push.
@@ -273,7 +279,7 @@ final class SharedLibrary {
                 continue
             }
             if let session = sessions[note.id] {
-                if row.role != session.record.role { session.record.role = row.role }
+                session.setRole(row.role)
                 if row.epoch > session.epoch { await refreshKey(session, row: row) }
             } else if note.sharedDocument == nil {
                 await ensureDocument(note)
@@ -327,7 +333,7 @@ final class SharedLibrary {
     /// You're not in the note anymore (you left, or were removed): the note goes from this
     /// device and, through its pointer's deletion, from your others. Its document goes with it.
     func removeLocally(_ note: Note) {
-        if let session = sessions.removeValue(forKey: note.id) { session.disconnect() }
+        if let session = sessions.removeValue(forKey: note.id) { session.close() }
         if let record = note.sharedDocument { context.delete(record) }
         note.sharedDocument = nil
         note.body = ""
@@ -337,9 +343,10 @@ final class SharedLibrary {
         onClose?(note.id)
     }
 
-    /// Closes every open session (signing out).
+    /// Closes every open session for good (signing out, or the library replaced): what's stored
+    /// stays, and opens again with the next library.
     func closeAll() {
-        for s in sessions.values { s.disconnect() }
+        for s in sessions.values { s.close() }
         sessions = [:]
     }
 }

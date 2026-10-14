@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Observation
+import SwiftData
 import SwiftUI
 import os
 
@@ -50,7 +51,16 @@ final class CollabSession {
     /// Your role in the note, once the members have loaded: owner, editor or viewer.
     var myRole: String? { members.first { $0.id == me }?.role }
     /// A viewer reads; the server refuses their changes, so the editor doesn't take any.
-    var isViewOnly: Bool { (myRole ?? record.role) == "viewer" }
+    var isViewOnly: Bool { (myRole ?? role) == "viewer" }
+    /// Your role as this device last knew it (`SharedDocument.role`).
+    private(set) var role: String
+    /// Closed for good (you left the note, or were removed, or signed out), or its storage went
+    /// away with its library: nothing more is read, written or sent. A stored document can't be
+    /// touched once its context is gone, and tasks still running (a send, a save) may outlive it.
+    var isClosed: Bool { closed || (isStored && storage == nil) }
+    @ObservationIgnored private var closed = false
+    @ObservationIgnored private weak var storage: ModelContext?
+    @ObservationIgnored private let isStored: Bool
     private(set) var epoch: Int
     let me: UUID
     let myName: String
@@ -74,7 +84,7 @@ final class CollabSession {
     /// Whether the server has your changes: false while some wait to go up (offline, say).
     private(set) var isSent = true
     /// The newest server change this document holds (`SharedDocument.cursor`).
-    var lastSeen: Int64 { record.cursor }
+    var lastSeen: Int64 { isClosed ? 0 : record.cursor }
     /// Updates already in the document. Ids don't arrive in order (your own come back from the
     /// server before someone else's earlier one reaches you), so this, not `lastSeen`, decides.
     @ObservationIgnored private var applied: Set<Int64> = []
@@ -184,6 +194,9 @@ final class CollabSession {
         epoch = record.epoch
         self.keys = keys
         self.record = record
+        storage = record.modelContext
+        isStored = record.modelContext != nil
+        role = record.role
         self.doc = doc
         self.body = body
         self.transport = transport
@@ -193,9 +206,27 @@ final class CollabSession {
         isSent = record.outbox.isEmpty
     }
 
+    /// Your role changed (the server said so).
+    func setRole(_ r: String) {
+        guard !isClosed, r != role else { return }
+        role = r
+        record.role = r
+        saveSoon()
+    }
+
+    /// For good: the session stops, before its storage is deleted.
+    func close() {
+        guard !isClosed else { return }
+        disconnect()
+        closed = true
+        pulling?.cancel()
+        settleTask?.cancel()
+    }
+
     /// The note has a new key (someone was removed, or left): everything from here on is
     /// sealed with it. The document itself doesn't change. Changes waiting to go up go now.
     func reseal(nk: SymmetricKey, epoch: Int) {
+        guard !isClosed else { return }
         keys[epoch] = nk
         self.epoch = epoch
         record.epoch = epoch
@@ -254,11 +285,12 @@ final class CollabSession {
         retryTask?.cancel()
         retryTask = nil
         snapshotTask?.cancel()
+        saveTask?.cancel()
         channel?.close()
         channel = nil
         peers = [:]
+        guard !isClosed else { return }
         compact()
-        saveTask?.cancel()
         record.modelContext?.saveSoon()
     }
 
@@ -284,6 +316,7 @@ final class CollabSession {
     }
 
     private func pull() async {
+        guard !isClosed else { return }
         let after = record.cursor > 0 ? max(0, record.cursor - Self.rewind) : 0
         let pull: Collab.Pull
         do {
@@ -292,6 +325,7 @@ final class CollabSession {
             if (error as? Collab.Failure) == .notMember { onRemoved?() }
             return
         }
+        guard !isClosed else { return }
         var changed = false
         // A snapshot this device is already past (asked a little before its cursor) has nothing new.
         if let s = pull.snapshot, s.upto > record.cursor {
@@ -319,6 +353,7 @@ final class CollabSession {
     }
 
     private func receive(_ event: Collab.Event) {
+        guard !isClosed else { return }
         switch event {
         case .update(let u):
             if take(u) { textChanged() }
@@ -385,7 +420,7 @@ final class CollabSession {
     /// The editor's text after a keystroke: the difference goes into the document and up.
     func local(_ new: String, selection: NSRange?) {
         // Can view: the server would refuse it, so it isn't taken; the editor shows the note's text again.
-        guard record.canEdit, !isViewOnly else { if new != text { onRemoteText?(text) }; return }
+        guard !isClosed, record.canEdit, !isViewOnly else { if new != text { onRemoteText?(text) }; return }
         guard let edit = TextDiff.edit(from: text, to: new) else { if let selection { mySelection = selection }; return }
         // Your caret is right after what you typed. The text view's own selection can still be the
         // one from before the keystroke at this point, which would put your caret a character
@@ -431,7 +466,7 @@ final class CollabSession {
     /// Sends the changes waiting to go up, oldest first, one at a time. Offline (or any failure
     /// that may pass), they stay, saved, and go when the server answers again.
     func flush() {
-        guard !sending, !record.outbox.isEmpty else { isSent = record.outbox.isEmpty; return }
+        guard !isClosed, !sending, !record.outbox.isEmpty else { isSent = record.outbox.isEmpty; return }
         guard record.canEdit else {
             // A viewer's edits are refused by the server: they stay on this device only until
             // the document is opened again.
@@ -444,6 +479,7 @@ final class CollabSession {
             guard let self else { return }
             let outcome = await sendPending()
             sending = false
+            guard !isClosed else { return }
             isSent = record.pending.isEmpty
             saveSoon()
             switch outcome {
@@ -459,7 +495,7 @@ final class CollabSession {
     }
 
     /// Changes made here that the server doesn't have yet.
-    var unsent: Int { record.pending.count }
+    var unsent: Int { isClosed ? 0 : record.pending.count }
 
     private enum SendOutcome { case done, later, stop }
 
@@ -480,6 +516,7 @@ final class CollabSession {
             }
             do {
                 let row = try await transport.send(update: ct, note: noteID, epoch: epoch)
+                guard !isClosed else { return .stop }
                 applied.insert(row.id)
                 record.sinceSnapshot += 1
                 // Typing may have added more meanwhile; this one is the first still.
@@ -491,7 +528,7 @@ final class CollabSession {
                     onKeyChanged?()
                     return .stop
                 case .readOnly:
-                    record.role = "viewer"
+                    setRole("viewer")
                     record.pending = []
                     return .stop
                 case .notMember:
@@ -545,7 +582,7 @@ final class CollabSession {
     /// The document saved whole again, and the changes piled up since dropped: the device's own
     /// compaction, as snapshots are the server's.
     func compact() {
-        guard record.tailChanges > 0 else { return }
+        guard !isClosed, record.tailChanges > 0 else { return }
         record.saved = doc.save()
         record.tail = Data()
         record.tailChanges = 0
@@ -557,7 +594,7 @@ final class CollabSession {
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(DebouncedSave.delay))
-            guard let self, !Task.isCancelled else { return }
+            guard let self, !Task.isCancelled, !isClosed else { return }
             record.modelContext?.saveSoon()
         }
     }
@@ -565,7 +602,7 @@ final class CollabSession {
     /// A snapshot once enough changes piled up on the server (or one is needed to carry a change
     /// too big to send), after a quiet moment.
     private func scheduleSnapshot() {
-        guard record.canEdit, needsSnapshot || record.sinceSnapshot >= Self.snapshotEvery, snapshotTask == nil else { return }
+        guard !isClosed, record.canEdit, needsSnapshot || record.sinceSnapshot >= Self.snapshotEvery, snapshotTask == nil else { return }
         snapshotTask = Task { [weak self] in
             guard let self else { return }
             defer { snapshotTask = nil }
@@ -574,7 +611,7 @@ final class CollabSession {
                 if Date.now.timeIntervalSince(lastArrival) >= Self.snapshotQuiet { break }
             }
             // Still due: one written meanwhile (when sharing, say) made this one unnecessary.
-            guard !Task.isCancelled, needsSnapshot || record.sinceSnapshot >= Self.snapshotEvery else { return }
+            guard !Task.isCancelled, !isClosed, needsSnapshot || record.sinceSnapshot >= Self.snapshotEvery else { return }
             await writeSnapshot()
         }
     }
@@ -583,13 +620,14 @@ final class CollabSession {
     /// drops the changes up to there. Only with everything up to that point in it: it pulls first,
     /// and doesn't write one while a change from the server didn't open here.
     func writeSnapshot() async {
-        guard record.canEdit else { return }
+        guard !isClosed, record.canEdit else { return }
         await catchUp().value
-        guard !missing, record.pending.isEmpty else { return }
+        guard !isClosed, !missing, record.pending.isEmpty else { return }
         let upto = record.cursor
         guard let ct = try? sealedSnapshot(upto: upto), ct.utf8.count <= Self.maxSnapshot else { return }
         do {
             try await transport.send(snapshot: ct, note: noteID, upto: upto, epoch: epoch)
+            guard !isClosed else { return }
             record.sinceSnapshot = 0
             needsSnapshot = false
             compact()
