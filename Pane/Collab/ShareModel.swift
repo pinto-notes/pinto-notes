@@ -77,12 +77,13 @@ extension CollabStore: ShareBackend {
 
     /// You leave someone else's note. The server takes you out of it; the owner's next device
     /// gives the note a new key without you.
+    /// The note goes from your library on all your devices, as in Apple Notes (SharedLibrary.leave).
     func leave(_ note: Note) async throws {
-        guard let transport else { throw Collab.Failure.notSignedIn }
-        try await transport.leave(note: note.id)
-        sessions[note.id]?.disconnect()
+        guard let library else { throw Collab.Failure.notSignedIn }
+        let shared = note.sharedNoteID ?? note.id
+        try await library.leave(note)
         sessions[note.id] = nil
-        keys[note.id] = nil
+        keys[shared] = nil
         onLeft?(note.id)
     }
 
@@ -120,7 +121,7 @@ extension CollabStore: ShareBackend {
         let identity = try await ensureIdentity()
         // Everything stored so far goes into the snapshot sealed under the new key below, so a device
         // that starts from it never needs a change sealed under the old one.
-        await session.catchUp()
+        await session.catchUp().value
         let members = try await transport.members(of: id)
         checkKeys(members)
         let epoch = old.epoch + 1
@@ -135,7 +136,7 @@ extension CollabStore: ShareBackend {
         try await transport.remove(note: id, user: user, epoch: epoch, wraps: wraps)
         // The removal waited for changes in flight under the old key (20261015020000): take them
         // now, still with the old key, so the snapshot sealed under the new one holds them.
-        await session.catchUp()
+        await session.catchUp().value
         try await transport.accept(note: id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: id, epoch: epoch))
         keys[id] = (nk, epoch)
         session.reseal(nk: nk, epoch: epoch)
@@ -191,7 +192,7 @@ extension CollabStore: ShareBackend {
     /// opens it. A link that was turned off or changed says so.
     @discardableResult
     func join(_ url: URL) async -> Bool {
-        guard let transport, let me, let context, let (id, secret) = Self.parseLink(url) else { return false }
+        guard let transport, let me, let library, let (id, secret) = Self.parseLink(url) else { return false }
         let lk = Self.linkKeys(secret, link: id)
         guard let opened = try? await transport.openLink(id: id, answer: lk.answer) else {
             joinProblem = "This link was turned off or changed. Ask for a new one."
@@ -210,18 +211,8 @@ extension CollabStore: ShareBackend {
             let toSelf = try CollabCrypto.sealNoteKey(nk, from: identity, to: identity.publicRaw, party: .init(note: opened.note_id, epoch: opened.epoch, from: me, to: me))
             try await transport.joinLink(id: id, answer: lk.answer, keyWrap: toSelf, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: opened.note_id, epoch: opened.epoch))
             handled.insert(opened.note_id)
-            let session = try await CollabSession.load(note: opened.note_id, epoch: opened.epoch, nk: nk, transport: transport, me: me, name: name)
-            keys[opened.note_id] = (nk, opened.epoch)
-            let note = context.note(opened.note_id) ?? {
-                let n = Note(body: session.text)
-                n.id = opened.note_id
-                context.insert(n)
-                return n
-            }()
-            note.body = session.text
-            note.updatedAt = .now
-            try? context.save()
-            openSession(session, note: note)
+            // A note of your own for it, in "Shared with me" (never the owner's note id).
+            let note = try await library.adopt(shared: opened.note_id, nk: nk, epoch: opened.epoch, role: opened.role)
             NoteOpener.shared.open(note.id)
             return true
         } catch {
@@ -231,22 +222,11 @@ extension CollabStore: ShareBackend {
     }
 
     /// Your memberships, checked now and then: a new key (someone was removed, or the link was
-    /// reset) is opened and taken; a note you were removed from stops syncing.
+    /// reset) is opened and taken; a note you joined on another device gets its document here; a
+    /// note you left or were removed from goes from your library (SharedLibrary.reconcile).
     func followKeys(_ rows: [Collab.Membership]) async {
-        for (id, session) in sessions {
-            guard let row = rows.first(where: { $0.note_id == id }) else {
-                session.disconnect()
-                sessions[id] = nil
-                removedFrom.insert(id)
-                continue
-            }
-            guard row.epoch > session.epoch, let opened = try? await openKey(row) else { continue }
-            if row.self_wrap == nil, let key = try? dataKey(), let wrap = try? CollabCrypto.selfWrap(opened.nk, dataKey: key, note: id, epoch: row.epoch) {
-                try? await transport?.accept(note: id, selfWrap: wrap)
-            }
-            keys[id] = (opened.nk, row.epoch)
-            session.reseal(nk: opened.nk, epoch: row.epoch)
-        }
+        await library?.reconcile(rows)
+        for session in sessions.values { keys[session.noteID] = (session.noteKey, session.epoch) }
         for row in rows where row.role == "owner" && row.rekey_after != nil {
             await renewKeyAfterLeave(row)
         }
@@ -258,17 +238,11 @@ extension CollabStore: ShareBackend {
     /// again under the new key. Another of your devices getting there first is fine: the server
     /// refuses the second new key as stale, and this device then takes the first.
     func renewKeyAfterLeave(_ row: Collab.Membership) async {
+        // Your own note's id is the shared note's.
         let id = row.note_id
+        guard let context, let note = context.note(id), let session = await library?.ensureDocument(note) else { return }
+        keys[id] = (session.noteKey, session.epoch)
         do {
-            var session = sessions[id]
-            if session == nil || keys[id] == nil {
-                // The note isn't open here: open it just for this.
-                guard let transport, let me else { return }
-                let opened = try await openKey(row)
-                keys[id] = (opened.nk, row.epoch)
-                if session == nil { session = try await CollabSession.load(note: id, epoch: row.epoch, nk: opened.nk, transport: transport, me: me, name: name) }
-            }
-            guard let session else { return }
             try await rotate(id, removing: nil, session: session)
             restoreLink(id)
             if let link = links[id], let access = linkAccess[id], access != .off {
