@@ -159,11 +159,14 @@
 .label { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 /* Titles fill the first line and never leave one word alone on the last. Balancing them into two
    equal halves split names across lines ("Claude / Cowork", "to- / do list"). */
-.cardTitle { margin: 0; font-size: 19px; line-height: 1.2; font-weight: 750; letter-spacing: -0.015em; text-wrap: pretty; }
+.cardTitle {
+  margin: 0; font-size: 19px; line-height: 1.2; font-weight: 750; letter-spacing: -0.015em; text-wrap: pretty;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
 .excerpt {
   color: var(--muted); font-size: 15px; line-height: 1.45;
-  align-self: start; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+  align-self: start; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
-/* One card to a row on phones, so nothing has to line up: the excerpt shows whole. */
-@media (max-width: 620px) { .excerpt { display: block; -webkit-line-clamp: none; line-clamp: none; } }
+/* At most two lines of description and three of title on every card (Emil, 14 October 2026: "too
+   much text"), so cards in a row stay even. The full description is in the post's meta. */
 .card .byline { margin-top: 6px; }

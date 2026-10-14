@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMetadata({
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 const longDate = (iso: string) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
-/// The changelog: leaf brown like Help, in Help's centred column. Each minor version, as text: its
+/// The changelog: leaf brown like Help, one centred 880 px column with the title centred in it. Each minor version, as text: its
 /// number and date, its name, three short highlights, and under Read more every change in one line
 /// and the patch releases that followed it.
 export default function Changelog() {
@@ -24,8 +24,8 @@ export default function Changelog() {
   const live = publicVersion();
   return (
     <div className={styles.main}>
-      <section className={styles.log}>
-        <div className={styles.logHead}>
+      <section className={c.page}>
+        <div className={c.head}>
           <h1 className={`${styles.h2} rise`} style={rise(0)}>Changelog</h1>
           <p className={`${styles.lede} rise`} style={rise(1)}>What&apos;s new in each version.</p>
         </div>
@@ -37,6 +37,7 @@ export default function Changelog() {
                 <a className={c.version} href={`#v${r.version}`} aria-label={`Version ${r.version}`}>{r.version}</a>
                 <time dateTime={r.date}>{longDate(r.date)}</time>
               </p>
+              <div className={c.body}>
               <h2 className={c.name}>{r.title}</h2>
               <ul className={c.top}>{w.highlights.map((h) => <li key={h}>{h}</li>)}</ul>
               <details className={c.more}>
@@ -62,6 +63,7 @@ export default function Changelog() {
                   )}
                 </div>
               </details>
+              </div>
             </article>
           );
         })}

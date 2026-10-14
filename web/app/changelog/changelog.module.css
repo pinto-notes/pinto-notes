@@ -1,9 +1,18 @@
 /* The changelog, in Help's centred column on leaf brown (app/home.module.css .log), text only. Each
    version is its number and date, its name and three short highlights; the rest waits under Read
    more. Lines are kept to a reading length. */
-.entry { display: grid; gap: 12px; padding-top: 48px; box-shadow: inset 0 1px 0 var(--line); scroll-margin-top: 100px; max-width: 70ch; }
+.page { width: 100%; max-width: 880px; margin: 0 auto; padding-top: 40px; display: grid; gap: 56px; }
+.head { display: grid; gap: 12px; justify-items: center; text-align: center; }
+/* Each release as a timeline row: a 180 px rail with the version and date, which stays in view while
+   you read that release, and the release itself beside it. Stacked on phones. */
+.entry { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 32px; padding-top: 48px; box-shadow: inset 0 1px 0 var(--line); scroll-margin-top: 100px; }
 .entry:first-of-type { padding-top: 8px; box-shadow: none; }
-@media (max-width: 600px) { .entry { padding-top: 40px; } }
+.entry > .meta { position: sticky; top: 108px; align-self: start; flex-direction: column; align-items: flex-start; gap: 8px; }
+.body { display: grid; gap: 12px; min-width: 0; max-width: 70ch; }
+@media (max-width: 720px) {
+  .entry { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 40px; }
+  .entry > .meta { position: static; flex-direction: row; align-items: baseline; gap: 12px; }
+}
 .meta { margin: 0; display: flex; align-items: baseline; gap: 12px; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
 .version { display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px; border-radius: 10px; background: var(--soft); color: var(--ink); font-weight: 800; font-size: 15px; text-decoration: none; }
 @media (hover: hover) { .version:hover { background: color-mix(in srgb, var(--soft) 82%, var(--amber)); } }
