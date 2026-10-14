@@ -2,7 +2,7 @@
 
 Adds the [Pinto Notes](https://pintonotes.com) MCP server (`https://mcp.ambernotes.app`) to Claude Code, with a skill that tells Claude how the notes are laid out and how to edit them safely.
 
-Pinto Notes was called Amber Notes until October 2026. The plugin, the marketplace and the server keep the name `amber-notes`, and the server keeps its address, so nothing you installed stops working.
+Pinto Notes was called Amber Notes until October 2026. The plugin and the marketplace keep the id `amber-notes`, and the server keeps its address, so nothing you installed stops working. The plugin lists the server as `amber-notes`; the Pinto Notes app adds it as `pinto-notes`. Either works.
 
 ```sh
 claude plugin marketplace add pinto-notes/pinto-notes

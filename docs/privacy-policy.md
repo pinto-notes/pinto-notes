@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 11 October 2026
+Last updated: 14 October 2026
 
 ## The short version
 
@@ -39,7 +39,7 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 
 **Your notes, encrypted**
 
-- Your notes, folders, checklists, tables, and the images and files you add, and earlier versions of each note, so a change can be undone: up to 100 per note. We receive them only encrypted (see End-to-end encryption below). Each version records whether it came from the app, an AI connection, an import or a restore.
+- Your notes, folders, checklists, tables, and the images and files you add, and earlier versions of each note, so a change can be undone: up to 500 per note. We receive them only encrypted (see End-to-end encryption below). Each version records whether it came from the app, an AI connection, an import or a restore.
 - With each note, file and version we also store, readable: its size and dates, its folder, its parent note if it's a sub-note, whether it's pinned or locked, and which device or AI app wrote it.
 
 **Your encryption key, locked**
@@ -235,7 +235,7 @@ Rate limits on sign-in and connection requests count a one-way hash of the IP ad
 ## How long we keep it
 
 - **Notes you delete** stay in Recently Deleted for 30 days, then they're deleted for good, together with their earlier versions and share links. This happens on our server even if you never open the app again.
-- **Earlier versions** of a note: up to 100 per note, thinned out as they get older (all from the last day, one an hour for a week, one a day for 90 days, and every AI change for 90 days).
+- **Earlier versions** of a note: every version from the last 24 hours, then the last one of each hour for 7 days, the last one of each day for 90 days, and every AI change for 90 days. Older versions are deleted. A note keeps at most 500 versions and 10 MB of them; past that, the oldest go first.
 - **Files** you add stay until you delete them or your account.
 - **Your account** is kept until you delete it. **Settings → Delete Account** removes your account, notes, files, profile photo, versions, AI connections, share links, notes password settings, usage counts, the record of emails we sent you, sign-in records and reports about your shared pages straight away.
 - **Usage counts** (AI changes per day, days of use, tips, app installations): 12 months.
