@@ -73,10 +73,6 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
       <JsonLd graph={[breadcrumbs(crumbs), organization, maker, incredible]} />
       <BlogList className={s.index}>
         <div className={s.hero}>
-          {/* The four categories' paper-cut covers, fanned beside the title (the current one on top). */}
-          <span className={s.fan} aria-hidden="true">
-            {categories().filter((c) => c !== category).concat(category ? [category] : []).map((c) => <img key={c} src={CATEGORY_COVERS[c].src} alt="" width={CATEGORY_COVERS[c].width} height={CATEGORY_COVERS[c].height} />)}
-          </span>
           <div className={s.heroText}>
             <h1 className={`${s.h1} rise`} style={{ "--i": 0 } as React.CSSProperties}>
               {category ?? "The Pinto Notes blog"}{page > 1 && <span className={s.pageNote}>, page {page}</span>}

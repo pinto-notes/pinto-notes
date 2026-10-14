@@ -7,8 +7,7 @@
    copy of the longest ones (from data-a and data-b, drawn by CSS so it's never page text). The cell
    is as tall as the tallest list's, the real text sits at its foot, and the chips stay put. */
 .hero { position: relative; display: grid; padding-top: 48px; }
-.heroText, .heroFit { max-width: 760px; }
-@media (min-width: 961px) { .heroText, .heroFit { max-width: min(760px, calc(100% - 440px)); } }
+.heroText, .heroFit { max-width: 820px; }
 .heroText, .heroFit { grid-area: 1 / 1; display: grid; gap: 16px; justify-items: start; align-content: end; }
 @media (max-width: 600px) { .hero { padding-top: 28px; } .heroText, .heroFit { gap: 14px; } }
 .heroFit { visibility: hidden; pointer-events: none; user-select: none; }
@@ -90,16 +89,7 @@
   .featured:active { transform: scale(0.99); }
 }
 
-/* The four categories' covers fanned beside the title, as the templates gallery fans its covers. */
-.fan { display: none; }
-@media (min-width: 961px) {
-  .fan { display: block; position: absolute; right: 8px; top: 36px; width: 400px; height: 230px; pointer-events: none; }
-  .fan img { position: absolute; width: 210px; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: 0 18px 30px -18px rgba(60, 30, 5, 0.55), 0 0 0 1px rgba(60, 30, 5, 0.08); }
-  .fan img:nth-child(1) { left: 0; top: 56px; transform: rotate(-8deg); }
-  .fan img:nth-child(2) { left: 60px; top: 10px; transform: rotate(-2deg); }
-  .fan img:nth-child(3) { left: 130px; top: 30px; transform: rotate(5deg); }
-  .fan img:nth-child(4) { left: 190px; top: 84px; transform: rotate(10deg); }
-}
+
 .pageNote { color: var(--muted); font-weight: inherit; }
 
 /* Switching between the blog's lists is the site's filter motion (lib/filter-transition.ts): the
