@@ -111,7 +111,7 @@ export default function Page() {
           plan; Claude connects from its connector directory.
         </li>
         <li>
-          <strong>Give your AI your notes</strong>
+          <strong>Paste the template&apos;s prompt, then your notes</strong>
           &ldquo;Here are my notes on cell respiration&rdquo;, and the lecture notes after it. The AI makes five to ten cards under
           that topic, all starting in box 1.
         </li>
@@ -125,7 +125,7 @@ export default function Page() {
       <p>
         You can also say &ldquo;quiz me on biology, ten cards&rdquo; in the chat. The AI asks one card at a time without showing the
         answer, tells you whether you were right, and moves each card the same way the app does. &ldquo;Which cards do I keep
-        missing?&rdquo; gets an answer from the boxes.
+        missing?&rdquo; gets an answer from the boxes. No Mac nearby? Copy the template&apos;s prompt instead, and your AI creates the note with its app from any device once Pinto Notes is connected.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>

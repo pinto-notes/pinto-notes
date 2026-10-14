@@ -101,7 +101,7 @@ export default function Page() {
           With Read and Edit. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT</a> needs Developer mode on a paid plan.
         </li>
         <li>
-          <strong>Tell your AI about the trip</strong>
+          <strong>Paste the template&apos;s prompt, then your trip</strong>
           &ldquo;Lisbon, 4 days in May. I like food, views and walking. Not museums.&rdquo; The AI sets the trip and its dates, writes
           one day at a time with three to five things each, and adds what the trip needs to the packing list.
         </li>
@@ -111,6 +111,10 @@ export default function Page() {
         AI adds a booking with what it is, when, and its reference, marked not paid. Ask &ldquo;What do I still need to book?&rdquo;
         and it reads the same list you see. If you already have a plan in a chat, paste it in and ask the AI to put it into the trip
         plan; that&apos;s quicker than retyping it.
+      </p>
+      <p>
+        No Mac nearby? The template page has the prompt to copy, which asks your AI to create the note with its app. It works from
+        ChatGPT or Claude on any device once Pinto Notes is connected.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>

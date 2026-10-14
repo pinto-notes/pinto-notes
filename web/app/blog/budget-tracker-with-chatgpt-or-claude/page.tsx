@@ -105,9 +105,9 @@ export default function Page() {
           plan; Claude connects from its connector directory.
         </li>
         <li>
-          <strong>Tell your AI what you spent</strong>
-          It reads the app&apos;s own notes on where the expenses are kept, and gives every expense a date, what it was, a category
-          from your list, and an amount.
+          <strong>Paste the template&apos;s prompt into a chat</strong>
+          It tells the AI where the expenses are kept and that every expense needs a date, what it was, a category from your list,
+          and an amount.
         </li>
       </Steps>
       <p>
@@ -115,6 +115,10 @@ export default function Page() {
         adds two expenses, and the Month screen shows the new total. &ldquo;How am I doing against the budget this month?&rdquo; gets
         you an answer from the same numbers the app shows. At the end of the month it compares each category with its budget
         and gives one suggestion. The prompt tells it not to give financial advice beyond that.
+      </p>
+      <p>
+        No Mac nearby? The template page also has the prompt to copy. It asks your AI to create the note with its app, so it works
+        from ChatGPT or Claude on any device once Pinto Notes is connected.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>
