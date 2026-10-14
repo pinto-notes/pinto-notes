@@ -68,17 +68,27 @@ export default function Page() {
         A deleted note moves to Recently Deleted on all your devices and on iCloud.com, and stays there for 30 days. The folder only shows
         up when it has something in it. The first time you delete a note on a Mac, Notes says so itself:
       </p>
-      <Capture src="/blog/macos27/notes-deleted-dialog" width={520} height={326} maxWidth={260}
+      <Capture src="/blog/macos27/notes27-first-delete-30-days-dialog" width={1336} height={880} maxWidth={560}
         alt="Apple Notes on macOS 27: Deleted notes are moved to the Recently Deleted folder. You can recover or remove from Recently Deleted within 30 days. OK."
         caption="Notes on macOS 27, the first time you delete a note." />
+      <p>
+        If you&apos;ve only just deleted it, there&apos;s a faster way than any folder: Edit, Undo Trash Note, or Command-Z on a Mac.
+        It puts the note straight back where it was.
+      </p>
+      <Capture src="/blog/macos27/notes27-edit-undo-trash-note" width={1376} height={840} maxWidth={560}
+        alt="The Edit menu in Apple Notes on macOS 27 right after deleting a note, with Undo Trash Note at the top."
+        caption="Right after a delete, Edit, Undo Trash Note brings it back." />
       <p className="label"><strong>On a Mac</strong></p>
       <Steps>
         <li>In Notes, click Recently Deleted in the sidebar.</li>
         <li>Control-click the note, choose Move to, then pick a folder. Dragging it onto a folder in the sidebar works too.</li>
       </Steps>
-      <Capture src="/blog/macos27/notes-move-to-menu" width={490} height={304} maxWidth={245}
-        alt="The menu for a note in Recently Deleted on macOS 27: New Note, Move to and Delete. Move to is open, listing Quick Notes, Math Notes, Call Recordings and Notes, with Notes highlighted."
-        caption="Control-click a note in Recently Deleted on macOS 27. Choosing Notes put it straight back." />
+      <Capture src="/blog/macos27/notes27-deleted-note-move-to-submenu" width={1376} height={1000} maxWidth={560}
+        alt="The menu for a note in Recently Deleted on macOS 27: Move to is open, listing Quick Notes, Math Notes, Call Recordings, Notes and a demo folder."
+        caption="There's no Recover on a Mac: Move to a folder is how a note comes back." />
+      <p>
+        There&apos;s no Recover or Recover All on a Mac. To bring back several at once, Shift-click or Command-click them, then Move to.
+      </p>
       <p className="label"><strong>On iPhone</strong></p>
       <Steps>
         <li>In Notes, go back to the folder list and tap Recently Deleted.</li>
