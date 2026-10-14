@@ -12,6 +12,7 @@ import Testing
     let server = MemoryCollabServer()
 
     struct Device {
+        let id: UUID
         let store: CollabStore
         let context: ModelContext
         let container: ModelContainer
@@ -21,7 +22,7 @@ import Testing
         let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let store = CollabStore(name: name, transport: server.transport(for: user), dataKey: { dataKey }, book: CollabKeyBook(account: user, defaults: TestDefaults()))
         store.context = container.mainContext
-        return Device(store: store, context: container.mainContext, container: container)
+        return Device(id: user, store: store, context: container.mainContext, container: container)
     }
 
     /// Emil shares a note with an Edit link; Sara opens the link and joins.
@@ -40,7 +41,7 @@ import Testing
 
     @Test func twoPeopleTypeAtOnceAndBothSeeTheSameText() async throws {
         let (emil, sara, note, _) = try await shared("Offsite plan\n\nAgenda\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         #expect(theirs.text == "Offsite plan\n\nAgenda\n")
 
         // Both type before either has seen the other's change.
@@ -59,7 +60,7 @@ import Testing
 
     @Test func someoneWhoJoinsLaterGetsEverythingFromTheServer() async throws {
         let (emil, sara, note, ids) = try await shared("Groceries\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         mine.local("Groceries\n- milk\n", selection: nil)
         await server.eventually { theirs.text == "Groceries\n- milk\n" }
         theirs.local(theirs.text + "- eggs\n", selection: nil)
@@ -70,13 +71,13 @@ import Testing
         let row = try #require(rows.first { $0.note_id == note.id })
         #expect(row.self_wrap != nil)
         let opened = try await sara.store.openKey(row)
-        let session = try await CollabSession.load(note: note.id, epoch: row.epoch, nk: opened.nk, transport: server.transport(for: ids.1), me: ids.1, name: "Sara")
+        let session = try await CollabSession.load(record: SharedDocument(id: note.id, epoch: row.epoch, role: "editor", saved: Data()), nk: opened.nk, transport: server.transport(for: ids.1), me: ids.1, name: "Sara")
         #expect(session.text == "Groceries\n- milk\n- eggs\n")
     }
 
     @Test func aChangeTheServerDidntTakeIsSentAgainInOrder() async throws {
         let (emil, sara, note, _) = try await shared("Notes\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         server.offline = true
         mine.local("Notes\none\n", selection: nil)
         mine.local("Notes\none\ntwo\n", selection: nil)
@@ -92,7 +93,7 @@ import Testing
 
     @Test func aRemovedPersonGetsNoNewTextAndCantWrite() async throws {
         let (emil, sara, note, ids) = try await shared("Plan\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         // Emil's last change is stored but his live channel hasn't counted it as seen.
         mine.local("Plan\n- book flights\n", selection: nil)
         await server.eventually { mine.unsent == 0 && theirs.text == mine.text }
@@ -101,26 +102,28 @@ import Testing
         #expect(mine.epoch == 2)
         // A device starting now has only the new key: the snapshot under it holds everything.
         let row = try #require(try await server.transport(for: ids.0).memberships().first { $0.note_id == note.id })
-        let fresh = try await CollabSession.load(note: note.id, epoch: 2, nk: try await emil.store.openKey(row).nk,
+        let fresh = try await CollabSession.load(record: SharedDocument(id: note.id, epoch: 2, role: "editor", saved: Data()), nk: try await emil.store.openKey(row).nk,
                                                  transport: server.transport(for: ids.0), me: ids.0, name: "Emil")
         #expect(fresh.text == "Plan\n- book flights\n")
         mine.local("Plan\n- book flights\nsecret after removal\n", selection: nil)
         await server.settle()
         #expect(!theirs.text.contains("secret"))
-        // Her device still holds the old key: the server refuses what she sends.
+        // Her device still holds the old key: the server refuses what she sends, and her device
+        // doesn't keep trying.
         theirs.local(theirs.text + "still here\n", selection: nil)
-        await server.eventually { theirs.unsent == 1 && server.calls.filter { $0 == "update" }.count >= 2 }
-        #expect(theirs.unsent == 1)
+        await server.eventually { theirs.unsent == 0 && server.calls.filter { $0 == "update" }.count >= 2 }
         #expect(!(server.updates[note.id] ?? []).contains { $0.author_id == ids.1 && $0.epoch == 2 })
-        // And her memberships say she's out: the note stops syncing on her device.
+        // And her memberships say she's out: the note goes from her library, as in Apple Notes.
         await sara.store.checkInvites()
-        #expect(sara.store.removedFrom.contains(note.id))
-        #expect(sara.store.session(for: note.id) == nil)
+        let hers = SharedNotes.noteID(for: note.id, user: ids.1)
+        #expect(sara.store.removedFrom.contains(hers))
+        #expect(sara.store.session(for: hers) == nil)
+        #expect(sara.context.note(hers)?.deletedAt != nil)
     }
 
     @Test func presenceReachesTheOtherPersonAndLeavingIsSeen() async throws {
         let (emil, sara, note, ids) = try await shared("Hello\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         theirs.selectionChanged(NSRange(location: 3, length: 0))
         await server.settle()
         await server.eventually { mine.peers[ids.1]?.selection != nil }
@@ -138,14 +141,13 @@ import Testing
         let note = Note(body: "Packing\n")
         mac.context.insert(note)
         let onMac = try await mac.store.share(note)
-        // The phone opens the note from the account's own copy of its key.
-        let row = try #require(try await server.transport(for: emilID).memberships().first)
-        let opened = try await phone.store.openKey(row)
-        let onPhone = try await CollabSession.load(note: note.id, epoch: row.epoch, nk: opened.nk, transport: server.transport(for: emilID), me: emilID, name: "Emil")
-        let copy = Note(body: onPhone.text)
+        // The note's pointer reaches the phone by sync; the phone opens the note from the account's
+        // own copy of its key.
+        let copy = Note(body: SharedNotes.placeholder(title: "Packing"))
         copy.id = note.id
+        copy.sharedNoteID = note.id
         phone.context.insert(copy)
-        phone.store.openSession(onPhone, note: copy)
+        let onPhone = try #require(await phone.store.library?.ensureDocument(copy))
         await server.eventually { server.channelCount(note.id) == 2 }
 
         onMac.local("Packing\n- passport\n", selection: nil)
@@ -158,7 +160,7 @@ import Testing
 
     @Test func aChangeThatWasntRelayedArrivesWhenTheChannelRejoins() async throws {
         let (emil, sara, note, _) = try await shared("Ideas\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         server.dropRelays = true
         mine.local("Ideas\n- one\n", selection: nil)
         await server.eventually { (server.updates[note.id] ?? []).count == 1 }
@@ -177,7 +179,8 @@ import Testing
         let mine = try #require(emil.store.session(for: note.id))
         let url = try #require(emil.store.linkURL(note))
         let oldKey = try #require(emil.store.keys[note.id]?.nk)
-        try await sara.store.leave(note)
+        let hers = try #require(sara.context.note(SharedNotes.noteID(for: note.id, user: ids.1)))
+        try await sara.store.leave(hers)
         // Emil's device sees it with his memberships and renews the key, without anyone removed.
         await emil.store.checkInvites()
         await server.eventually { mine.epoch == 2 }
@@ -189,9 +192,11 @@ import Testing
         let sealed = try #require((server.updates[note.id] ?? []).last { $0.epoch == 2 })
         #expect(throws: (any Error).self) { try CollabCrypto.open(.update, sealed.ct, nk: oldKey, note: note.id, extra: ids.0.uuidString) }
         // The same link still lets someone join, under the new key.
-        let jonas = try device(server.account("Jonas"), name: "Jonas")
+        let jonasID = server.account("Jonas")
+        let jonas = try device(jonasID, name: "Jonas")
         #expect(await jonas.store.join(url))
-        await server.eventually { jonas.store.session(for: note.id)?.text == mine.text }
-        #expect(jonas.store.session(for: note.id)?.text == "Trip\n- after Sara left\n")
+        let his = SharedNotes.noteID(for: note.id, user: jonasID)
+        await server.eventually { jonas.store.session(for: his)?.text == mine.text }
+        #expect(jonas.store.session(for: his)?.text == "Trip\n- after Sara left\n")
     }
 }

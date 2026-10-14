@@ -53,7 +53,7 @@ struct CollabLiveTests {
         #expect(published.first?.public_key == emil.store.identity?.publicBase64)
         let url = try #require(emil.store.linkURL(note))
         #expect(await sara.store.join(url))
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
         #expect(theirs.text == "Offsite plan\n\nAgenda\n")
         let members = try await emil.store.transport!.members(of: note.id)
         #expect(Set(members.map(\.user_id)) == [emil.id, sara.id])
@@ -97,7 +97,7 @@ struct CollabLiveTests {
         // Emil reads it all back from the server alone, as a new device would.
         await until { mine.unsent == 0 }
         let row = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
-        let fresh = try await CollabSession.load(note: note.id, epoch: row.epoch, nk: try await emil.store.openKey(row).nk,
+        let fresh = try await CollabSession.load(record: SharedDocument(id: note.id, epoch: row.epoch, role: "owner", saved: Data()), nk: try await emil.store.openKey(row).nk,
                                                  transport: emil.store.transport!, me: emil.id, name: "Emil")
         #expect(fresh.text == mine.text)
 
