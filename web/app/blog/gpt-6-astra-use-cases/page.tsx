@@ -177,7 +177,7 @@ export default function Page() {
       </p>
       <p>
         Apple Notes has no plugin and no API, so on a Mac computer use is the only way Astra can work in it. It can open Notes and
-        type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/chatgpt-memory-vs-notes">ChatGPT
+        type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">ChatGPT
         memory or your notes</a> covers why the notes themselves are the better place for things you want an AI to remember.
       </p>
       <p>
@@ -193,7 +193,7 @@ export default function Page() {
       <p>
         Whatever the AI changes, Pinto Notes tints the lines and shows a bar with Undo, and the version before is kept in the
         note&apos;s history. You want that record more from an agent that works for 40 minutes than from a chat you watch. For the other
-        options, see <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with ChatGPT</a>.
+        options, see <a href="/blog/connect-chatgpt-to-your-notes">notes apps that work with ChatGPT</a>.
       </p>
 
       <h2 id="limits">What GPT-6 Astra still gets wrong</h2>

@@ -165,7 +165,7 @@ export default function Page() {
         Claude Code or Codex memory notes and MCP servers, and <code>muse skills import --from claude</code> brings skills across.
         Muse Code keeps project memory in <code>.agents/memory/</code> in the repo, with a <code>MEMORY.md</code> index. That&apos;s
         three agents with three memories of the same project, which is why I keep the plan in a note all of them can
-        read. <a href="/blog/shared-memory-for-coding-agents">Shared memory for coding agents</a> covers how, and
+        read. <a href="/for/claude-code">Shared memory for coding agents</a> covers how, and
         the <a href="/for/claude-code">Claude Code page</a> shows Pinto Notes doing it.
       </p>
 
@@ -173,7 +173,7 @@ export default function Page() {
       <p>
         Meta says Muse remembers what matters to you and can act on something you mentioned once. You can tell it to forget
         specific things, but the announcement doesn&apos;t describe a page where you read or edit everything it remembers. If a plan
-        matters, keep the plan itself somewhere you can open without asking Muse. <a href="/blog/chatgpt-memory-vs-notes">ChatGPT memory
+        matters, keep the plan itself somewhere you can open without asking Muse. <a href="/blog/claude-memory-vs-notes">ChatGPT memory
         or your notes</a> makes the same case for ChatGPT.
       </p>
       <p>

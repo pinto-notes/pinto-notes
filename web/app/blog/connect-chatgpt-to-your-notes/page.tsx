@@ -85,8 +85,7 @@ export default function Page() {
       </div>
       <p>
         Apple Notes can&apos;t be connected this way. On a Mac, ChatGPT can look at a note you have open, but it can&apos;t search your
-        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it,
-        and <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with ChatGPT</a> compares the alternatives.
+        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it.
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
@@ -217,7 +216,7 @@ export default function Page() {
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
       <Keep title="Five first things to ask" text={PROMPTS}
-        note={<>For a to-do list you tick on your phone, see <a href="/blog/chatgpt-to-do-list-on-iphone">how to use ChatGPT as a to-do list</a>.</>}>
+        note={<>For a to-do list you tick on your phone, see <a href="/for/chatgpt">how to use ChatGPT as a to-do list</a>.</>}>
         <ul>
           {PROMPTS.split("\n").map((p) => <li key={p}>&ldquo;{p}&rdquo;</li>)}
         </ul>

@@ -74,9 +74,8 @@ export default function Page() {
       </div>
       <p>
         So memory suits things like your job, the tone you like and the tools you use: context you&apos;d otherwise repeat. Notes suit trip
-        plans, shopping lists, meeting notes and drafts: things you&apos;ll read again yourself, often on your phone. If you also use ChatGPT,{" "}
-        <a href="/blog/chatgpt-memory-vs-notes">ChatGPT memory vs notes</a> is the same comparison for its memory, and the notes are the one
-        place both can read.
+        plans, shopping lists, meeting notes and drafts: things you&apos;ll read again yourself, often on your phone. If you also use ChatGPT,
+        the same holds for its memory, and the notes are the one place both can read.
       </p>
 
       <h2 id="use-both">Use both</h2>

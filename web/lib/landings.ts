@@ -125,8 +125,8 @@ export const landings: Landing[] = [
     ],
     read: [
       { href: "/blog/connect-chatgpt-to-your-notes", label: "How to connect ChatGPT to your notes, step by step" },
-      { href: "/blog/chatgpt-memory-vs-notes", label: "ChatGPT memory vs a notes app ChatGPT can read" },
-      { href: "/blog/chatgpt-to-do-list-on-iphone", label: "Use ChatGPT as a to-do list that syncs to your iPhone" },
+      { href: "/blog/claude-memory-vs-notes", label: "AI memory vs notes your AI can read and write" },
+      { href: "/blog/encrypted-notes-app-for-ai", label: "An encrypted notes app that ChatGPT and Claude can use" },
       { href: "/templates", label: "Note templates with a prompt for ChatGPT" },
     ],
     closing: {
@@ -198,7 +198,7 @@ export const landings: Landing[] = [
     ],
     read: [
       { href: "/blog/claude-memory-vs-notes", label: "Claude memory vs notes Claude can read and write" },
-      { href: "/blog/weekly-review-with-chatgpt-or-claude", label: "A weekly review with ChatGPT or Claude" },
+      { href: "/templates/weekly-review", label: "A weekly review template Claude can fill in" },
       { href: "/blog/claude-and-apple-notes", label: "Can Claude read your Apple Notes?" },
       { href: "/blog/mcp-server", label: "Every tool the Pinto Notes MCP server gives Claude" },
     ],
@@ -283,9 +283,9 @@ export const landings: Landing[] = [
       ] },
     ],
     read: [
-      { href: "/blog/shared-memory-for-coding-agents", label: "One memory for Claude Code, Codex and your other agents" },
+      { href: "/blog/best-notes-app-for-ai-agents", label: "The best notes app for AI agents" },
       { href: "/blog/notes-in-claude-code-and-codex", label: "Use your notes from Claude Code and Codex: every setup" },
-      { href: "/blog/work-log-with-claude-code", label: "Keep a work log with Claude Code" },
+      { href: "/templates/meeting-notes", label: "A meeting notes template with action items" },
       { href: "/blog/mcp-server", label: "The Pinto Notes MCP server and its tools" },
     ],
     closing: {
@@ -363,10 +363,10 @@ export const landings: Landing[] = [
       ] },
     ],
     read: [
-      { href: "/blog/pinto-notes-vs-apple-notes", label: "Pinto Notes vs Apple Notes, row by row" },
+      { href: "/blog/apple-notes-ios-27", label: "What's new in Apple Notes in iOS 27" },
       { href: "/blog/move-from-apple-notes", label: "How to move from Apple Notes to Pinto Notes" },
       { href: "/blog/claude-and-apple-notes", label: "Can Claude read your Apple Notes?" },
-      { href: "/blog/apple-notes-mcp", label: "Apple Notes MCP servers compared" },
+      { href: "/blog/apple-notes-api", label: "Apple Notes API: what exists and what to use instead" },
     ],
     closing: {
       title: "Keep how Apple Notes feels, and let your AI in.",
@@ -443,7 +443,7 @@ export const landings: Landing[] = [
       ] },
     ],
     read: [
-      { href: "/blog/apple-notes-vs-notion", label: "Apple Notes vs Notion for everyday notes" },
+      { href: "/blog/move-apple-notes-to-obsidian-notion-keep", label: "How to move Apple Notes to Obsidian, Notion or Google Keep" },
       { href: "/blog/notes-apps-with-mcp", label: "Notes apps with an MCP server, compared" },
       { href: "/blog/apple-notes-tables", label: "Tables in Apple Notes, and where they stop" },
       { href: "/templates", label: "Templates for trackers, plans and logs" },
@@ -523,7 +523,7 @@ export const landings: Landing[] = [
       ] },
     ],
     read: [
-      { href: "/blog/apple-notes-vs-obsidian", label: "Apple Notes vs Obsidian" },
+      { href: "/alternatives/notion", label: "Pinto Notes vs Notion" },
       { href: "/blog/obsidian-mcp", label: "Obsidian MCP servers compared" },
       { href: "/blog/export-apple-notes-to-markdown", label: "How to export Apple Notes to Markdown" },
       { href: "/blog/best-notes-app-for-ai-agents", label: "The best notes app for AI agents" },

@@ -166,7 +166,7 @@ export default function Page() {
       </p>
       <p>
         So the plan itself, the checklist and the decisions, belongs somewhere you can open without asking the dot, like a document or a note it updates through a plugin.
-        Then you can read it on your phone and keep it if you cancel Pro. <a href="/blog/chatgpt-memory-vs-notes">ChatGPT memory or your notes</a> goes into that difference in more
+        Then you can read it on your phone and keep it if you cancel Pro. <a href="/blog/claude-memory-vs-notes">ChatGPT memory or your notes</a> goes into that difference in more
         detail.
       </p>
       <p>

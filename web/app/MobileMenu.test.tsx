@@ -39,7 +39,7 @@ describe("what the phone menu holds", () => {
   it("marks the current page, on the pages under it too", () => {
     const current = (path: string) => [...menu(false, path).split('<nav class="site-sheet-rows" aria-label="Site menu">')[1].split("</nav>")[0].matchAll(/href="([^"]+)" aria-current="page"/g)].map((m) => m[1]);
     expect(current("/templates")).toEqual(["/templates"]);
-    expect(current("/blog/apple-notes-mcp")).toEqual(["/blog"]);
+    expect(current("/blog/apple-notes-api")).toEqual(["/blog"]);
     expect(current("/support")).toEqual(["/help"]);
     expect(current("/")).toEqual([]);
   });

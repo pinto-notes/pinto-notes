@@ -56,7 +56,7 @@ export default function Page() {
       </div>
 
       <p>
-        If ChatGPT is the one you care about, <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with ChatGPT</a> compares
+        If ChatGPT is the one you care about, <a href="/blog/connect-chatgpt-to-your-notes">notes apps that work with ChatGPT</a> compares
         the apps it can reach, including ones without MCP. For agents that write, see{" "}
         <a href="/blog/best-notes-app-for-ai-agents">the best notes app for AI agents</a>.
       </p>
@@ -109,7 +109,7 @@ export default function Page() {
       <p className="label"><strong>Apple Notes</strong></p>
       <p>
         Apple doesn&apos;t offer an API or an MCP server. On a Mac, Anthropic&apos;s Read and Write Apple Notes extension lets the Claude
-        desktop app read, add and update notes, and community servers do the same through AppleScript, on that Mac only. <a href="/blog/apple-notes-mcp">Apple Notes MCP servers, compared</a>.
+        desktop app read, add and update notes, and community servers do the same through AppleScript, on that Mac only. <a href="/blog/apple-notes-api">Apple Notes MCP servers, compared</a>.
       </p>
     </PostPage>
   );
