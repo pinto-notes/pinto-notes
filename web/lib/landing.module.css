@@ -18,8 +18,9 @@
 /* The AI's mark before its name in a /for headline: a rounded tile the height of the capitals,
    centred on them, a small gap to the name; the two always wrap together. */
 .named { white-space: nowrap; }
-.tile { display: inline-grid; place-items: center; width: 0.8em; height: 0.8em; margin-right: 0.18em; border-radius: 0.2em; vertical-align: -0.06em; }
-.tile svg { width: 0.52em; height: 0.52em; }
+.tile { display: inline-block; position: relative; width: 0.8em; height: 0.8em; margin-right: 0.18em; border-radius: 0.2em; vertical-align: -0.04em; }
+/* The glyph is laid out of flow, so the tile's baseline is its bottom edge and it sits on the capitals. */
+.tile svg { position: absolute; inset: 0; margin: auto; width: 0.52em; height: 0.52em; }
 .lede { margin: 0; max-width: 36em; font-size: clamp(17px, 1.8vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: balance; }
 .ctas { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 10px; }
 .primary, .secondary {

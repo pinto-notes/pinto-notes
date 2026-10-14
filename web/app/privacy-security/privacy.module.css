@@ -15,7 +15,7 @@
 .caveat a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
 /* Every log: kept on the page, folded away at the end of the long text behind one quiet row. */
-.logsFold { margin-top: 48px; border-radius: 18px; background: var(--soft); }
+.logsFold { margin: 48px 0 96px; border-radius: 18px; background: var(--soft); }
 .logsFold summary {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 0 20px; border-radius: 18px;
   font-size: 17px; font-weight: 700; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent;
