@@ -1,21 +1,34 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Keep } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
+import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes API: what exists and what to use instead" });
+export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes API: Apple says no. Here's what works instead" });
+
+// Rewritten by hand on 14 October 2026 to the blog bar (amber-site/BLOG-BAR.md) and Emil's recipe. What ranks
+// for "apple notes api": Apple's developer forum (thread 813810, January 2026, where Quinn of Apple DTS answers
+// "No."), an older forum thread, and MCP server listings. None of them say plainly what each route can and can't
+// do for an ordinary person, or what to do if what you wanted was ChatGPT or Claude on your phone. This post does.
+// The forum picture is a capture of the public thread, 14 Oct. The macOS prompt is Pinto's existing capture.
+// Facts: AppleScript on macOS only (Apple DTS); Shortcuts on iOS can't drive Notes from another app (Apple DTS);
+// Notes' own Shortcuts actions run on the device; community MCP servers and Claude's Apple Notes extension drive
+// the Notes app on a Mac with AppleScript; Pinto Notes' MCP server: supabase/functions/mcp (search, fetch, edit,
+// create, write ...; OAuth with approval in the app; access tokens for Claude Code and Codex).
 
 const FAQ = [
   { q: "Does Apple Notes have an API?", a: [
-    "No. Apple doesn't offer a public web or cloud API for Notes, and outside services can't reach your notes in iCloud. On a Mac you can script the Notes app with AppleScript, and on iPhone and Mac you can use its Shortcuts actions, but both run on your own device.",
+    "No. An Apple engineer answered exactly that on Apple's developer forum in January 2026: \"No.\" There's no web or cloud API, and nothing outside your devices can read your notes in iCloud. On a Mac you can script the Notes app with AppleScript, and Notes' own Shortcuts actions run on your iPhone or Mac.",
   ] },
   { q: "Can I read Apple Notes from Python?", a: [
-    "On a Mac, yes: Python can run an AppleScript through the osascript command, and the Notes app answers with each note's title, dates and body as HTML. It needs the Notes app on that Mac and your permission under Privacy & Security, Automation.",
+    "On a Mac, yes: Python runs an AppleScript through the osascript command, and Notes answers with each note's title, dates and body as HTML. macOS asks once whether your terminal may control Notes.",
   ] },
-  { q: "Can an AI use Apple Notes through an API?", a: [
-    "Only on a Mac, through community MCP servers or Claude's desktop extension, which drive the Notes app with AppleScript. Nothing in the cloud can reach Apple Notes, so ChatGPT or Claude on the web and on iPhone can't.",
+  { q: "Can ChatGPT or Claude read my Apple Notes?", a: [
+    "Only Claude on a Mac, through its Apple Notes extension or a community MCP server, and only while that Mac is on. ChatGPT, and Claude on the web or your iPhone, can't reach Apple Notes at all.",
+  ] },
+  { q: "Will Apple add a Notes API?", a: [
+    "Apple hasn't said. Its engineer's advice in January 2026 was to file an enhancement request for one, like the APIs Calendar and Contacts already have.",
   ] },
 ];
 
@@ -31,123 +44,94 @@ script = 'tell application "Notes" to get name of every note'
 out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
 print(out.stdout)`;
 
-const PROMPT = `Write an AppleScript for the Notes app on macOS that [what you want, for example: appends today's date and a line of text to the note called "Work log"]. Notes stores note bodies as HTML, so read and write the body as HTML. Then show me how to run it from Terminal with osascript.`;
-
 export default function Page() {
   return (
     <PostPage
       slug="apple-notes-api"
-      intro={<>People ask me whether Apple Notes has an API. It doesn&apos;t, not in the way Notion or Evernote do. Here&apos;s what does exist on a Mac and an iPhone, what each can and can&apos;t do, and what to use when you need more.</>}
+      intro={<>
+        If you searched this, you probably wanted something else to get at your notes: a script, an app, or most likely ChatGPT or
+        Claude. I went looking for the official answer and found it, straight from Apple. Here it is, every way around it that works
+        today, and the one thing none of them can do.
+      </>}
       answer={
         <Answer jump={[
-          { href: "#which-to-use", label: "Which to use" },
-          { href: "#what-exists", label: "What exists" },
-          { href: "#applescript", label: "AppleScript and Python" },
-          { href: "#real-api", label: "A real API" },
+          { href: "#apple", label: "Apple's answer" },
+          { href: "#applescript", label: "AppleScript" },
+          { href: "#shortcuts", label: "Shortcuts" },
+          { href: "#claude-mac", label: "Claude on a Mac" },
+          { href: "#missing", label: "What none of them do" },
         ]}>
           <p>
-            No. Apple doesn&apos;t publish an API for Notes: there&apos;s no web endpoint, and nothing outside your devices can read your notes in
-            iCloud. What works goes through the Notes app on your own device, so it runs only while that device is on:
+            No. Apple has no Notes API, and an Apple engineer said so in January 2026. What works runs through the Notes app on your own
+            device: AppleScript on a Mac, Notes&apos; Shortcuts actions on iPhone and Mac, and Claude&apos;s Apple Notes extension on a
+            Mac. Nothing in the cloud, so ChatGPT and Claude on your phone can&apos;t reach your notes.
           </p>
-          <ul>
-            <li><strong>AppleScript</strong> on a Mac reads and writes notes, as HTML.</li>
-            <li><strong>Shortcuts</strong> on iPhone and Mac can create notes, append to them and tick checklist items.</li>
-            <li>For ChatGPT on your phone, a server or a coding agent, the notes need to live in an app that has an API of its own.</li>
-          </ul>
         </Answer>
       }
-      art="/blog/art/apple-notes-api"
+      hero={<PostFigure priority src="/blog/apple/apple-dts-notes-api-answer" width={1176} height={720} maxWidth={588}
+        alt="Apple's developer forum, January 2026. Asked whether there is an API for Apple Notes, an Apple DTS Engineer answers No. Asked whether it's possible through AppleScript on a Mac, the answer is Correct. The asker then says the app should also run on iOS."
+        caption="Apple's developer forum, January 2026. The accepted answer, from Apple's Developer Technical Support." />}
       faq={FAQ}
     >
-      <h2 id="which-to-use">Which one should I use?</h2>
-      <p>Find what you want to do, and the right column is your answer.</p>
-      <div className="tableWrap">
-        <table>
-          <thead>
-            <tr><th scope="col">If you want to</th><th scope="col">Use</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">Read every note from a script on your Mac</th><td>AppleScript, or Python running it through <code>osascript</code></td></tr>
-            <tr><th scope="row">Add to a note from your iPhone, by tapping or on a schedule</th><td>Shortcuts: Append to Note, or Append Checklist Item</td></tr>
-            <tr><th scope="row">Take a copy of one note</th><td>Export, as Markdown on iOS 26 and macOS 26</td></tr>
-            <tr><th scope="row">Let Claude on your Mac search and edit notes</th><td>Claude&apos;s Apple Notes extension, or a community MCP server</td></tr>
-            <tr><th scope="row">Let ChatGPT or Claude on the web or iPhone use your notes</th><td>Not possible with Apple Notes; use a notes app with an API</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h2 id="what-exists">What exists</h2>
-      <div className="tableWrap">
-        <table>
-          <thead>
-            <tr><th scope="col"></th><th scope="col">What it can do</th><th scope="col">Limits</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">AppleScript (and JavaScript for Automation), on a Mac</th><td>List folders and notes, read a note&apos;s title, dates and body, create notes and change their body</td><td>Bodies are HTML; locked notes can&apos;t be read; needs your Automation permission</td></tr>
-            <tr><th scope="row">Shortcuts, on iPhone and Mac</th><td>Actions such as Create Note, Append to Note, Append Checklist Item, Set Checklist Items Checked, Move Notes to Folder, Pin or Unpin Notes and Delete Notes</td><td>Runs on the device, when you or an automation start it</td></tr>
-            <tr><th scope="row">Export, on Mac and iPhone</th><td>Export a note, including as markdown on macOS 26 and iOS 26</td><td>One note at a time; a copy, not a live connection</td></tr>
-            <tr><th scope="row">The Notes database, on a Mac</th><td>Read what the app stores, in an undocumented format</td><td>Protected by Full Disk Access; the format can change with any update; read-only in practice</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h2 id="apple">Apple&apos;s answer: no</h2>
       <p>
-        The action names above are the ones the Notes app offers Shortcuts on macOS 26.5, read from the app itself; Apple describes
-        Shortcuts&apos; recent additions in <a href="https://support.apple.com/en-us/125148" rel="noopener">What&apos;s new in Shortcuts</a>. On
-        devices with Apple Intelligence, the Use Model action can put a model, including ChatGPT, between those actions: for example, ask it
-        to summarize some text and append the result to a note.
+        The thread is short. Someone asks whether Apple Notes has an API. Quinn, from Apple&apos;s Developer Technical Support, answers
+        with one word: &ldquo;No.&rdquo; AppleScript on a Mac? &ldquo;Correct.&rdquo; And on iPhone? Shortcuts can&apos;t fill the gap,
+        because a shortcut can call your app but can&apos;t drive Notes for you. His advice is to <a href="https://developer.apple.com/forums/thread/813810" rel="noopener">file
+        an enhancement request</a>, like the ones that gave Calendar and Contacts their APIs.
+      </p>
+      <p>So everything that follows goes through the Notes app itself, on a device that&apos;s switched on.</p>
+
+      <h2 id="applescript">AppleScript, on a Mac</h2>
+      <p>
+        This is the closest thing to an API. The Notes app answers AppleScript: list every note, read one (its body comes back as HTML),
+        or make a new one. The first time, macOS asks whether your terminal may control Notes.
+      </p>
+      <Keep title="Read and write notes with AppleScript" text={APPLESCRIPT} code
+        note="Run it in Script Editor, or with osascript in Terminal. Locked notes stay closed." />
+      <p>Python has no Notes library; it runs the same script through <code>osascript</code>:</p>
+      <Keep title="The same from Python" text={PYTHON} code />
+
+      <h2 id="shortcuts">Shortcuts, on iPhone and Mac</h2>
+      <p>
+        Notes gives Shortcuts its own actions: create a note, append to one, add a checklist item, move or pin notes. That&apos;s enough
+        for a button on your Home Screen that adds a line to your work log. What Shortcuts can&apos;t do is let another app read your
+        notes, which is the part of the API people usually want.
       </p>
 
-      <Capture src="/blog/macos27/notes-export-to" width={770} height={795} maxWidth={385}
-        alt="The File menu of Apple Notes on macOS 27, open at Export To, with PDF and Markdown, and Import Markdown above it."
-        caption="Export To and Import Markdown in Notes on macOS 27: one note at a time, a copy rather than a connection." />
-
-      <h2 id="applescript">AppleScript, and Python on top of it</h2>
+      <h2 id="claude-mac">Claude on a Mac</h2>
+      <Figure shot={SHOTS.coworkAllow} caption="The prompt macOS shows the first time Claude uses its Apple Notes extension." />
       <p>
-        On a Mac, the Notes app answers AppleScript. This lists every note&apos;s title, reads the first note&apos;s body (it comes back as
-        HTML) and makes a new note in the Notes folder:
-      </p>
-      <Keep title="AppleScript: list, read and make notes" text={APPLESCRIPT} code note="Run it in Script Editor, or save it and run osascript notes.applescript in Terminal." />
-      <p>
-        Python has no Notes library of its own; it runs the same script through <code>osascript</code>. The first time, macOS asks whether
-        your terminal may control Notes, under Privacy &amp; Security, Automation.
-      </p>
-      <Keep title="Python: every note's title" text={PYTHON} code />
-      <p>
-        Locked notes don&apos;t open this way, and the script runs only on a Mac that&apos;s on and signed in.
-      </p>
-      <Keep title="Or ask an AI to write the script" text={PROMPT}
-        note="Fill in the brackets and paste it into ChatGPT, Claude or Gemini. Read the script before you run it: it can change your notes." />
-
-      <h2 id="what-people-build">What people build on it</h2>
-      <p>
-        Most &ldquo;Apple Notes API&rdquo; projects on GitHub are MCP servers that drive the Notes app with AppleScript, so Claude Desktop or
-        Claude Code can search and edit notes on that Mac. <a href="/blog/claude-and-apple-notes">Can Claude read your Apple Notes?</a> goes
-        through those options and their limits. Exporters that turn every note into markdown files are the other common kind; <a href="/blog/export-apple-notes-to-markdown">exporting Apple Notes to Markdown</a> covers those and the built-in export.
-      </p>
-      <p>
-        Pinto Notes uses the same two doors when it imports: AppleScript to read your notes, and, if you ask it to keep your pins, the notes
-        database, which is why that option asks for Full Disk Access. It only reads; nothing in Apple Notes changes.
+        Claude&apos;s desktop app has an Apple Notes extension, and there are community MCP servers that do the same for Claude Code. They
+        all drive the Notes app with AppleScript, so Claude can search and edit your notes, on that Mac, while it&apos;s awake.
+        <a href="/blog/claude-and-apple-notes"> Claude and Apple Notes</a> walks through the setup.
       </p>
 
-      <h2 id="real-api">What to use when you need a real API</h2>
+      <h2 id="missing">What none of them can do</h2>
       <p>
-        If you want something outside your Mac to read and write your notes, whether that&apos;s ChatGPT on your phone, a script on a server
-        or a coding agent, the notes need to live in an app that has an API of its own. Notion and Evernote have one. Pinto Notes, the notes app
-        for iPhone and Mac that I make, has an MCP server built in, which is the kind of API AI apps speak:
+        Every route above needs your Mac on and the Notes app open behind it. None of them reach your notes from anywhere else. Ask
+        ChatGPT on your phone to add milk to your groceries note and it can&apos;t. Tell Claude in the browser about your trip on Monday,
+        and on Wednesday it has no idea where you wrote it down.
       </p>
-      <ul>
-        <li>Tools to search, read, create and edit notes, with precise edits (<code>edit</code> replaces exact text, after <code>fetch</code> reads the note) instead of rewriting a whole note.</li>
-        <li>Sign-in with OAuth and your approval in the app, read only or read and edit, or an access token for scripts, Claude Code and Codex.</li>
-        <li>Every change keeps the previous version, so a bad edit can be put back.</li>
-      </ul>
-      <Figure shot={SHOTS.connectList} caption="Settings, Connect an AI, in Pinto Notes on a Mac: a guided setup for each app, and everything that's connected." />
       <p>
-        ChatGPT, Claude, Claude Code, Codex and Incredible can all use it. The <a href="/blog/mcp-server">Pinto Notes MCP server</a> page has
-        the address and every tool, and <a href="/blog/move-from-apple-notes">moving from Apple Notes</a> takes one import on your Mac.
+        That&apos;s the real problem behind &ldquo;Apple Notes API&rdquo;: the AIs you talk to all day can&apos;t see the notes you keep,
+        so you keep pasting things in and explaining yourself again.
       </p>
-      <PostCta slug="apple-notes-api" position="how-amber-helps" title="Notes with an API ChatGPT and Claude can use">
-        <p>Pinto Notes works like Apple Notes, imports your notes from it, and has the MCP server built in.</p>
-      </PostCta>
+
+      <h2 id="pinto-notes">Notes your AIs can actually use</h2>
+      <PostFigure src="/blog/chatgpt/chatgpt-checks-off-lisbon" width={700} height={300} maxWidth={700}
+        alt="ChatGPT on the web. The request reads: In my Lisbon note, check off Tram 28 early. ChatGPT answers that it checked off Tram 28 early, before the crowds, in the Lisbon in May note in Pinto Notes, and shows the checklist with three of four items done."
+        caption="ChatGPT ticking off an item in a Pinto Notes note, from an ordinary chat." />
+      <p>
+        That&apos;s why I made Pinto Notes. It looks and feels like Apple Notes, brings your notes over in <a href="/blog/move-from-apple-notes">one
+        import</a>, and has the API Apple Notes doesn&apos;t: a server that ChatGPT, Claude, Claude Code and Codex connect to, with your
+        OK in the app, read only or read and edit. Then they share one notebook. Tell ChatGPT on Monday, and Claude can read it on
+        Wednesday. For developers, the <a href="/blog/mcp-server">MCP server page</a> has the address, the tools and access tokens for
+        scripts.
+        {APP_STORE_LIVE
+          ? <> It&apos;s free on Mac and iPhone.</>
+          : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}
+      </p>
     </PostPage>
   );
 }
