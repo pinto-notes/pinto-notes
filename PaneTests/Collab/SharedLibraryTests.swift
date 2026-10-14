@@ -489,6 +489,34 @@ extension NetworkFaults {
         await #expect(throws: Collab.Failure.notOwner) { try await emil.library.leave(note) }
     }
 
+    /// Deleting someone else's shared note for good leaves it, as in Apple Notes; offline, the
+    /// next look at your memberships does. One you joined again since isn't left.
+    @Test func deletingAMembersNoteForGoodLeavesIt() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Reading list", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        sara.library.install()
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        sara.context.trash(mine)
+        #expect(server.role(note.id, member) != nil, "in Recently Deleted you're still in it")
+        sara.transport.offline = true
+        sara.context.purge(mine)
+        await waitUntil(1) { false }
+        #expect(server.role(note.id, member) != nil)
+        #expect(mine.sharedDocument == nil)
+        sara.transport.offline = false
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(server.role(note.id, member) == nil)
+
+        // Joined again later: the old deletion doesn't make you leave.
+        server.add(member, to: note.id)
+        _ = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(server.role(note.id, member) != nil)
+        #expect(mine.deletedAt == nil)
+    }
+
     /// A new key after someone else was removed: what's waiting is sealed with it and goes up.
     @Test func aNewKeyIsTakenAndWaitingEditsGoWithIt() async throws {
         let emil = try device(owner)

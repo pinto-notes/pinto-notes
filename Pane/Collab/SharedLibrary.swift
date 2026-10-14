@@ -74,6 +74,10 @@ final class SharedLibrary {
             Task { await self.ensureDocument(note) }
         }
         SharedNotes.unshared = { [weak self] note in self?.forget(note) }
+        SharedNotes.purged = { [weak self] note in
+            guard let self else { return }
+            Task { await self.deleted(note) }
+        }
     }
 
     // MARK: Sharing your note
@@ -296,7 +300,14 @@ final class SharedLibrary {
         // come with their own pointer (their id is the shared note's).
         for row in rows where row.role != "owner" && row.accepted_at != nil {
             let id = SharedNotes.noteID(for: row.note_id, user: me)
-            guard context.note(id) == nil else { continue }
+            if let local = context.note(id) {
+                // Deleted for good after you joined (here or on another device) while offline:
+                // you leave it now. Joined again since, it stays.
+                if let gone = local.deletedAt, let joined = Self.date(row.accepted_at), gone > joined {
+                    try? await transport.leave(note: row.note_id)
+                }
+                continue
+            }
             guard let nk = try? await key(for: row) else { continue }
             _ = try? await adopt(shared: row.note_id, nk: nk, epoch: row.epoch, role: row.role, announce: false)
         }
@@ -316,6 +327,21 @@ final class SharedLibrary {
         }
         guard row.epoch >= session.epoch, let nk = try? await key(for: row) else { return }
         session.reseal(nk: nk, epoch: row.epoch)
+    }
+
+    /// Someone else's shared note you deleted for good: its document goes, and you leave it (as
+    /// in Apple Notes). Offline, the next look at your memberships leaves it (`reconcile`). Your own
+    /// note's document just goes; the others keep the note.
+    func deleted(_ note: Note) async {
+        guard let shared = note.sharedNoteID else { return }
+        forget(note)
+        guard shared != note.id else { return }
+        try? await transport.leave(note: shared)
+    }
+
+    nonisolated static func date(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        return (try? Date(s, strategy: .iso8601)) ?? (try? Date(s, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
     }
 
     /// Whether you're still in a note, asked of the note itself: its member list is empty to

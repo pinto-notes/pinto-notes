@@ -10,7 +10,7 @@ import Foundation
 /// `FakeCollabTransport`, which can go offline.
 @MainActor
 final class FakeCollabServer {
-    struct Member { var role: String; var epoch: Int; var accepted = true }
+    struct Member { var role: String; var epoch: Int; var accepted = true; var acceptedAt = Date.now }
 
     private(set) var updates: [Collab.Update] = []
     private(set) var snapshots: [Collab.Snapshot] = []
@@ -104,7 +104,7 @@ final class FakeCollabTransport: CollabTransport {
         return server.members.compactMap { note, people in
             guard let m = people[me] else { return nil }
             return Collab.Membership(note_id: note, role: m.role, epoch: m.epoch, key_wrap: "amb3k.AA==", wrapped_by: server.owners[note] ?? me,
-                                     self_wrap: nil, invited_by: server.owners[note], accepted_at: m.accepted ? "2026-10-14T21:00:00Z" : nil,
+                                     self_wrap: nil, invited_by: server.owners[note], accepted_at: m.accepted ? m.acceptedAt.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)) : nil,
                                      head_ct: nil, owner_id: server.owners[note] ?? me)
         }
     }

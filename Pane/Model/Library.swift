@@ -328,6 +328,8 @@ extension ModelContext {
         note.lockedBody = nil
         note.touch()
         saveOrReport()
+        // Someone else's shared note deleted for good: you leave it, as in Apple Notes.
+        if note.isShared { SharedNotes.purged?(note) }
     }
 
     /// Deletes several notes the way one is deleted: live notes go to Recently Deleted
