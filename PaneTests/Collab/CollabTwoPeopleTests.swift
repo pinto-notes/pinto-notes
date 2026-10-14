@@ -179,7 +179,8 @@ import Testing
         let mine = try #require(emil.store.session(for: note.id))
         let url = try #require(emil.store.linkURL(note))
         let oldKey = try #require(emil.store.keys[note.id]?.nk)
-        try await sara.store.leave(note)
+        // Sara leaves her note (her own id for it).
+        try await sara.store.leave(try #require(sara.context.note(SharedNotes.noteID(for: note.id, user: ids.1))))
         // Emil's device sees it with his memberships and renews the key, without anyone removed.
         await emil.store.checkInvites()
         await server.eventually { mine.epoch == 2 }
@@ -193,7 +194,8 @@ import Testing
         // The same link still lets someone join, under the new key.
         let jonas = try device(server.account("Jonas"), name: "Jonas")
         #expect(await jonas.store.join(url))
-        await server.eventually { jonas.store.session(for: note.id)?.text == mine.text }
-        #expect(jonas.store.session(for: note.id)?.text == "Trip\n- after Sara left\n")
+        let his = SharedNotes.noteID(for: note.id, user: jonas.id)
+        await server.eventually { jonas.store.session(for: his)?.text == mine.text }
+        #expect(jonas.store.session(for: his)?.text == "Trip\n- after Sara left\n")
     }
 }
