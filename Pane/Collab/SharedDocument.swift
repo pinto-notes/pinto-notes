@@ -137,6 +137,11 @@ enum SharedNotes {
     @MainActor static var unshared: ((Note) -> Void)?
     /// A shared note was deleted for good here (Recently Deleted emptied, or 30 days passed).
     @MainActor static var purged: ((Note) -> Void)?
+    /// A shared note was moved to Recently Deleted here.
+    @MainActor static var trashed: ((Note) -> Void)?
+    /// Your notes whose sharing is being stopped right now: sync leaves their rows alone until
+    /// the server has done it, so a pointer can't go back up over the unshared row.
+    @MainActor static var unsharing: Set<UUID> = []
 
     private static func derived(_ s: String) -> UUID {
         var b = Array(SHA256.hash(data: Data(s.utf8)).prefix(16))

@@ -167,6 +167,17 @@ final class MemoryCollabServer {
         for c in channels[note] ?? [] where c.user == user { c.cut() }
     }
 
+    /// collab_unshare: the shared note and everything of it go (the notes rows aren't kept here).
+    func unshare(_ user: UUID, note: UUID) throws {
+        guard role(note, user) == "owner" else { throw Collab.Failure.notOwner }
+        for c in channels[note] ?? [] { c.cut() }
+        notes[note] = nil
+        members[note] = nil
+        updates[note] = nil
+        snapshots[note] = nil
+        links = links.filter { $0.value.note != note }
+    }
+
     func stopLink(_ user: UUID, note: UUID) throws {
         guard role(note, user) == "owner" else { throw Collab.Failure.notOwner }
         links = links.filter { $0.value.note != note }
@@ -322,6 +333,7 @@ final class MemoryCollabTransport: CollabTransport {
         try server.createLink(me, id: id, note: note, role: role, epoch: epoch, answerHash: answerHash, keyWrap: keyWrap)
     }
     func leave(note: UUID) async throws { try server.check("leave"); try server.leave(me, note: note) }
+    func unshare(note: UUID, body: String, head: String) async throws { try server.check("unshare"); try server.unshare(me, note: note) }
     func stopLink(note: UUID) async throws { try server.check("stop_link"); try server.stopLink(me, note: note) }
     func openLink(id: String, answer: String) async throws -> Collab.OpenedLink? { try server.check("open_link"); return server.openLink(id: id, answer: answer) }
     func joinLink(id: String, answer: String, keyWrap: String, selfWrap: String) async throws {

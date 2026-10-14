@@ -74,6 +74,10 @@ final class SharedLibrary {
             Task { await self.ensureDocument(note) }
         }
         SharedNotes.unshared = { [weak self] note in self?.forget(note) }
+        SharedNotes.trashed = { [weak self] note in
+            guard let self else { return }
+            Task { await self.trashed(note) }
+        }
         SharedNotes.purged = { [weak self] note in
             guard let self else { return }
             Task { await self.deleted(note) }
@@ -290,6 +294,11 @@ final class SharedLibrary {
                 if await isMember(shared) == false { removeLocally(note) }
                 continue
             }
+            if note.trashedAt != nil {
+                // Deleted while offline: finish it now (stop sharing yours, leave someone else's).
+                await trashed(note)
+                continue
+            }
             if let session = sessions[note.id] {
                 session.setRole(row.role)
                 if row.epoch > session.epoch { await refreshKey(session, row: row) }
@@ -330,13 +339,53 @@ final class SharedLibrary {
         session.reseal(nk: nk, epoch: row.epoch)
     }
 
+    /// A shared note moved to Recently Deleted (Apple Notes): yours stops being shared for
+    /// everyone and stays in your Recently Deleted with its text (restoring brings it back, not
+    /// shared); someone else's you leave, and it goes from your library. Offline, the next look
+    /// at your memberships finishes it (`reconcile`).
+    func trashed(_ note: Note) async {
+        guard let shared = note.sharedNoteID else { return }
+        if shared == note.id {
+            try? await unshare(note)
+        } else {
+            try? await leave(note)
+        }
+    }
+
+    /// Your note stops being shared: its text (the document's, merged) goes back into your notes
+    /// row on the server, which stops being a pointer; the shared note goes, and every member's
+    /// copy with it (`collab_unshare`). Here it's an ordinary note again.
+    func unshare(_ note: Note) async throws {
+        guard let shared = note.sharedNoteID, shared == note.id else { throw Problem.notShared }
+        let text = sessions[note.id]?.text ?? note.body
+        SharedNotes.unsharing.insert(note.id)
+        defer { SharedNotes.unsharing.remove(note.id) }
+        let body = try Wire.seal(text, E2EE.body(note.id))
+        let head = try Wire.seal(head: Wire.head(body: text, locked: false), note.id)
+        try await transport.unshare(note: shared, body: body, head: head)
+        forget(note)
+        note.sharedNoteID = nil
+        note.body = text
+        note.touch()
+        context.saveOrReport()
+    }
+
     /// Someone else's shared note you deleted for good: its document goes, and you leave it (as
     /// in Apple Notes). Offline, the next look at your memberships leaves it (`reconcile`). Your own
     /// note's document just goes; the others keep the note.
     func deleted(_ note: Note) async {
         guard let shared = note.sharedNoteID else { return }
         forget(note)
-        guard shared != note.id else { return }
+        if shared == note.id {
+            // Yours, deleted for good while still shared (sharing couldn't be stopped when it went
+            // to Recently Deleted): it stops now. The row is deleted, so the text isn't needed.
+            SharedNotes.unsharing.insert(note.id)
+            defer { SharedNotes.unsharing.remove(note.id) }
+            if let body = try? Wire.seal("", E2EE.body(note.id)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), note.id) {
+                try? await transport.unshare(note: shared, body: body, head: head)
+            }
+            return
+        }
         try? await transport.leave(note: shared)
     }
 

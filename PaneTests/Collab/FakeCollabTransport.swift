@@ -143,6 +143,16 @@ final class FakeCollabTransport: CollabTransport {
         server.members[note]?[me] = nil
     }
 
+    /// What collab_unshare was sent: the owner's text, sealed under their data key.
+    private(set) var unshared: [UUID: String] = [:]
+
+    func unshare(note: UUID, body: String, head: String) async throws {
+        try call("unshare")
+        guard server.role(note, me) == "owner" else { throw Collab.Failure.notOwner }
+        server.members[note] = nil
+        unshared[note] = body
+    }
+
     func pull(note: UUID, after: Int64) async throws -> Collab.Pull {
         try call("pull")
         return server.pull(note: note, user: me, after: after)

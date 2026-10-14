@@ -114,6 +114,12 @@ final class SupabaseCollabTransport: CollabTransport {
         try await call("leave") { try await client.rpc("collab_leave", params: ["p_note": Self.id(note)]).execute() }
     }
 
+    func unshare(note: UUID, body: String, head: String) async throws {
+        try await call("unshare") {
+            try await client.rpc("collab_unshare", params: ["p_note": Self.id(note), "p_body_ct": body, "p_head_ct": head]).execute()
+        }
+    }
+
     func stopLink(note: UUID) async throws {
         try await call("stop link") { try await client.rpc("collab_stop_link", params: ["p_note": Self.id(note)]).execute() }
     }
