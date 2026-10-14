@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { OLD_DMG_NAMES } from "./lib/downloads";
 import { posthogSettings } from "./lib/posthog";
 import { REMOVED_POSTS } from "./lib/removed-posts";
+import { pastLastPageRedirects } from "./lib/posts";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -65,6 +66,9 @@ const config: NextConfig = {
       // Posts removed on 14 October 2026 (fewer, better posts) go to the page that covers them now,
       // with the guessed Obsidian MCP address (one visit on 5 October, no link of ours).
       ...Object.entries(REMOVED_POSTS).map(([slug, destination]) => ({ source: `/blog/${slug}`, destination, permanent: true })),
+      // A blog list's page numbers past its last page (it shrank, or its short last page was folded
+      // into the one before) go to its last page, so no address that was live becomes a 404.
+      ...pastLastPageRedirects(),
       // A short address for ChatGPT ads and links: the ChatGPT landing page.
       { source: "/chatgpt", destination: "/for/chatgpt", permanent: true },
       // The old name, typed as an address, lands on the page that says what it's called now.

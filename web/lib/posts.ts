@@ -520,6 +520,22 @@ export const pageOf = (list: Post[], n: number) => {
 /// Where page `n` of a list lives: the list's own address for page 1, then <base>/page/<n>.
 export const pagePath = (base: string, n: number) => (n === 1 ? base : `${base}/page/${n}`);
 
+/// The highest page number the blog has ever had, generously: pages past a list's last page, up to
+/// here, redirect to its last page (next.config.ts), so an address that was live and indexed before
+/// a list shrank (posts removed, or a short last page folded) never turns into a 404.
+export const MAX_PAGE_EVER = 12;
+
+/// One permanent redirect for every page number past each list's last page: to that last page, or
+/// to the list itself when it has one page.
+export function pastLastPageRedirects(): { source: string; destination: string; permanent: true }[] {
+  const all = newestFirst();
+  const lists = [{ base: "/blog", posts: all }, ...categories().map((c) => ({ base: categoryPath(c), posts: all.filter((p) => p.category === c) }))];
+  return lists.flatMap(({ base, posts }) => {
+    const last = pageCount(posts);
+    return Array.from({ length: Math.max(0, MAX_PAGE_EVER - last) }, (_, i) => ({ source: `${base}/page/${last + 1 + i}`, destination: pagePath(base, last), permanent: true as const }));
+  });
+}
+
 /// Two other published posts to read next: the same category first, then the rest, in list order.
 export function morePosts(slug: string, n = 2): Post[] {
   const me = post(slug);

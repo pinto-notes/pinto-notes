@@ -195,6 +195,17 @@ describe("blog pages", () => {
     }
   });
 
+  it("sends a page number past a list's last page to its last page (308), never a 404", async () => {
+    const redirects = await nextConfig.redirects!();
+    const apple = categoryPath("Apple Notes");
+    const appleLast = pageCount(all.filter((p) => p.category === "Apple Notes"));
+    expect(redirects).toContainEqual({ source: `${apple}/page/${appleLast + 1}`, destination: pagePath(apple, appleLast), permanent: true });
+    const last = pageCount(all);
+    expect(redirects).toContainEqual({ source: `/blog/page/${last + 1}`, destination: pagePath("/blog", last), permanent: true });
+    // Never a live page.
+    for (let n = 2; n <= last; n++) expect(redirects.some((r) => r.source === `/blog/page/${n}`)).toBe(false);
+  });
+
   it("keeps page 1 at the list's own address", () => {
     expect(pagePath("/blog", 1)).toBe("/blog");
     expect(pagePath("/blog", 2)).toBe("/blog/page/2");
