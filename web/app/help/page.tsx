@@ -7,7 +7,6 @@ import Faq from "./Faq";
 import { FAQ } from "./questions";
 import { GITHUB_URL } from "@/lib/github";
 import { JsonLd, faqPage } from "@/lib/structured-data";
-import { ClosingBand } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
@@ -36,9 +35,9 @@ export default function Help() {
   return (
     <div className={styles.main}>
       <JsonLd graph={[faqPage(FAQ, "/help")]} />
-      <section className={`${styles.log} ${f.page}`}>
+      <section className={styles.log}>
         <div className={styles.logHead}>
-          <h1 className={`${f.title} rise`} style={{ "--i": 0 } as React.CSSProperties}>Help</h1>
+          <h1 className={`${styles.h2} rise`} style={{ "--i": 0 } as React.CSSProperties}>Help</h1>
           <p className={`${styles.lede} rise`} style={{ "--i": 1 } as React.CSSProperties}>Answers, and how to reach me.</p>
           <p className={`${f.reach} rise`} style={{ "--i": 1 } as React.CSSProperties}>
             Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. More under <a href="#contact">Contact and your account</a>.
@@ -75,13 +74,20 @@ export default function Help() {
             </div>
           </dl>
         </div>
+        <div {...rise(7)}>
+          <h2 className={f.h3}>Still stuck?</h2>
+          <div className={f.contact}>
+            <a href={`mailto:${SUPPORT_EMAIL}`}>
+              <strong>Write to me</strong>
+              <span>{SUPPORT_EMAIL}. I read every email.</span>
+            </a>
+            <a href="https://x.com/EmilWagman" target="_blank" rel="noopener noreferrer">
+              <strong>Message me on X</strong>
+              <span>@EmilWagman. I usually answer within a day.</span>
+            </a>
+          </div>
+        </div>
       </section>
-      <ClosingBand
-        title="Still stuck? Write to me."
-        primary={{ href: `mailto:${SUPPORT_EMAIL}`, label: `Email ${SUPPORT_EMAIL}` }}
-        secondary={{ href: "https://x.com/EmilWagman", label: "Message me on X", external: true }}
-        fine="I read every email and usually answer within a day."
-      />
     </div>
   );
 }

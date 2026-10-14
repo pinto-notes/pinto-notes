@@ -47,9 +47,5 @@
 .facts dd { margin: 0; font-size: 17px; line-height: 1.55; color: var(--muted); }
 .address { color: var(--ink); font-weight: 600; user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; }
 
-/* The page (since the site audit of 13 October 2026): cream, the title at the reading pages' size,
-   the questions in four groups, and the dark band at the end. */
-.page { gap: 48px; }
-.title { margin: 0; font-size: clamp(40px, 5vw, 64px); line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+/* The questions in four groups, each under the page's small uppercase label. */
 .group { display: grid; gap: 4px; }
-@media (hover: hover) { .reach a:hover, .facts a:hover { text-decoration-color: var(--amber); } }

@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/site";
 import { changelog, latestVersion } from "@/lib/changelog";
@@ -16,11 +14,15 @@ export const metadata: Metadata = pageMetadata({
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 const longDate = (iso: string) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
-/// A version's paper-craft picture, cut from the changelog drawing (public/art/changelog-<version>.webp):
-/// the first notebook, the padlocked one, the new leaf label. A version without one has none.
-const picture = (version: string) => fs.existsSync(path.join(process.cwd(), "public/art", `changelog-${version}.webp`)) ? `/art/changelog-${version}.webp` : null;
+/// A real capture of a version's headline feature, small, where one exists (public/blog): no picture
+/// otherwise. Emil, 14 October 2026: decorative pictures here "don't tell me anything".
+const CAPTURES: Record<string, { src: string; alt: string; width: number; height: number }> = {
+  "1.2": { src: "/blog/thumb-iphone-files.webp", alt: "A note on iPhone holding a PDF and a CSV file, in dark mode", width: 1238, height: 831 },
+  "1.1": { src: "/blog/thumb-consent-e2ee.webp", alt: "Pinto Notes asking to let ChatGPT use your notes", width: 826, height: 545 },
+  "1.0": { src: "/blog/thumb-checklist-ticked.webp", alt: "A checklist in Pinto Notes with three of its items ticked", width: 700, height: 462 },
+};
 
-/// Each version: its picture, its name and date, the few changes that matter (the release's own
+/// Each version: its capture, its name and date, the few changes that matter (the release's own
 /// highlights, the ones the app shows after updating), and every change behind "All n changes".
 export default function Changelog() {
   const releases = changelog();
@@ -31,12 +33,12 @@ export default function Changelog() {
         <p className={`${c.lede} rise`} style={rise(1)}>What&apos;s new in each version.</p>
       </header>
       {releases.map((r, n) => {
-        const art = picture(r.version);
+        const art = CAPTURES[r.version];
         const top = r.highlights?.length ? r.highlights : r.items;
         const all = r.highlights?.length ? r.items : [];
         return (
           <article key={r.version} id={`v${r.version}`} className={`${c.entry} rise`} style={rise(2 + n)} data-art={art ? "" : undefined}>
-            {art && <img className={c.art} src={art} alt="" width={440} height={560} loading={n ? "lazy" : "eager"} decoding="async" />}
+            {art && <img className={c.art} src={art.src} alt={art.alt} width={art.width / 2} height={art.height / 2} loading={n ? "lazy" : "eager"} decoding="async" />}
             <div className={c.body}>
               <p className={c.meta}>
                 <a className={c.version} href={`#v${r.version}`} aria-label={`Version ${r.version}`}>{r.version}</a>

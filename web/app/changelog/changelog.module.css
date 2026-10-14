@@ -7,10 +7,11 @@
 .lede { margin: 0; font-size: clamp(18px, 2vw, 21px); line-height: 1.45; color: var(--muted); }
 
 .entry { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; scroll-margin-top: 100px; }
-.entry[data-art] { grid-template-columns: 200px minmax(0, 1fr); gap: 40px; align-items: start; }
-@media (max-width: 640px) { .entry[data-art] { grid-template-columns: 112px minmax(0, 1fr); gap: 20px; } }
-.art { display: block; width: 100%; height: auto; border-radius: 20px; }
-@media (max-width: 640px) { .art { border-radius: 14px; } }
+.entry[data-art] { grid-template-columns: 220px minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 640px) { .entry[data-art] { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+/* A real capture, small, on its own soft ground, the way the blog's cards show theirs. */
+.art { display: block; width: 100%; height: auto; padding: 14px; box-sizing: border-box; border-radius: 20px; background: var(--soft); object-fit: contain; }
+@media (max-width: 640px) { .art { max-width: 260px; } }
 .body { display: grid; gap: 12px; min-width: 0; }
 .meta { margin: 0; display: flex; align-items: baseline; gap: 12px; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
 .version { display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px; border-radius: 10px; background: var(--soft); color: var(--ink); font-weight: 800; font-size: 15px; text-decoration: none; }

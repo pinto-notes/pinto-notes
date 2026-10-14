@@ -35,12 +35,12 @@ describe("the page theme", () => {
     expect(themeFor("/notes")).toBe("cream"); // starts with "n", isn't a shared note
   });
 
-  it("makes help, support, the changelog and Privacy & Security cream, so the closing band is their one dark moment", () => {
-    for (const p of ["/help", "/support", "/changelog", "/privacy-security"]) expect(themeFor(p)).toBe("cream");
+  it("makes the changelog and Privacy & Security cream, so the closing band is their one dark moment", () => {
+    for (const p of ["/changelog", "/privacy-security"]) expect(themeFor(p)).toBe("cream");
   });
 
-  it("keeps the privacy policy and terms leaf brown", () => {
-    for (const p of ["/privacy", "/terms"]) expect(themeFor(p)).toBe("leaf");
+  it("keeps help, support, the privacy policy and terms leaf brown", () => {
+    for (const p of ["/help", "/support", "/privacy", "/terms"]) expect(themeFor(p)).toBe("leaf");
   });
 });
 

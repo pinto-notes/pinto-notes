@@ -71,11 +71,12 @@ describe("the site's controls", () => {
     expect(css("templates/templates.module.css")).toMatch(/\.filterRow \{\s*flex-wrap: nowrap; overflow-x: auto/);
   });
 
-  it("plays the download page's install as one story, and drops the lines under it", () => {
+  it("keeps the download page plain: the three steps as they were, no lines under them, and the band", () => {
+    // Emil, 14 October 2026: the scene and the story made it less clear than the plain steps.
     const page = css("download/page.tsx");
-    expect(page).toContain("<StoryPlayer");
+    expect(page).not.toContain("<StoryPlayer");
     expect(page).not.toMatch(/Updates install themselves|Syncs with your iPhone/);
-    expect(page).toContain("/art/download.webp");
+    expect(page).toContain("<ClosingBand");
   });
 
   it("groups help's questions, leads each version of the changelog with its highlights, and opens privacy with the promises", () => {
@@ -88,7 +89,10 @@ describe("the site's controls", () => {
     expect(log).not.toMatch(/updates itself/);
     const privacy = css("privacy-security/page.tsx");
     expect(privacy).toContain("f.short");
-    expect(privacy.indexOf('id="logs"')).toBeLessThan(privacy.indexOf("<LongPage"));
+    // Every log stays on the page (a transparency promise), folded away at the end of the long text.
+    expect(privacy).toMatch(/<details className=\{s\.logsFold\} id="logs">/);
+    expect(privacy.indexOf('id="logs"')).toBeGreaterThan(privacy.indexOf("<LongPage"));
+    expect(privacy).toContain("LOGS.map");
   });
 
   it("gives the connect pages' broken-link state a way forward", () => {
