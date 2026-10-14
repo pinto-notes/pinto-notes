@@ -1,15 +1,17 @@
 // End-to-end: a shared note through the running MCP server, with row-level security live through
 // PostgREST. Emil shares a note and types on his "Mac" (Automerge here, sealed as the app seals it);
 // Sara joins; her AI lists, reads and edits it over MCP; Emil's Mac merges the AI's change. LOCAL
-// stack only:
+// stack only. It makes its own accounts; it needs PANE_API, PANE_ANON, PANE_DB_URL and PANE_MCP_URL
+// (scripts/mcp-e2e.sh exports them):
 //   scripts/mcp-e2e.sh shared_notes.e2e.test.ts
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import postgres from "npm:postgres@3.4.5";
 import { aesKey, keyIdOf, newDataKey, recoveryKEK, seal, toBase64, tokenKey, verifierOf, wrap } from "../_shared/e2ee.ts";
 import { bytes, identityContext, newIdentity, noteKeyContext, open3, seal3, sealNoteKey } from "../_shared/collab.ts";
 import { loadAutomerge } from "./shared_notes.ts";
 
 const api = Deno.env.get("PANE_API"), anon = Deno.env.get("PANE_ANON"), url = Deno.env.get("PANE_MCP_URL");
-const enabled = Boolean(api && anon && url && /^http:\/\/127\.0\.0\.1:/.test(api ?? ""));
+const enabled = Boolean(api && anon && url && Deno.env.get("PANE_DB_URL") && /^http:\/\/127\.0\.0\.1:/.test(api ?? ""));
 
 async function rest(jwt: string, path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) {
   const res = await fetch(`${api}/rest/v1/${path}`, {
@@ -23,21 +25,14 @@ async function rest(jwt: string, path: string, init: { method?: string; body?: u
 }
 const rpc = (jwt: string, fn: string, args: Record<string, unknown>) => rest(jwt, `rpc/${fn}`, { method: "POST", body: args });
 
-/** The local stack's service key, as scripts/dev-user.ts reads it. */
-async function serviceKey(): Promise<string> {
-  const out = new TextDecoder().decode((await new Deno.Command("supabase", { args: ["status", "-o", "env"], stderr: "null" }).output()).stdout);
-  return /^SERVICE_ROLE_KEY="?([^"\n]+)"?$/m.exec(out)![1];
-}
-
-/** A fresh account as the app makes it: signed in, a data key, a profile name, an identity key. */
+/** A fresh account as the app makes it: signed up, a data key, a profile name, an identity key. */
 async function person(name: string) {
   const email = `${name.toLowerCase()}-collab-e2e-${crypto.randomUUID().slice(0, 8)}@pane.local`, password = "pane-dev-password-1";
-  const service = await serviceKey();
-  await fetch(`${api}/rest/v1/signup_allowlist`, { method: "POST", headers: { authorization: `Bearer ${service}`, apikey: service, "content-type": "application/json" }, body: JSON.stringify({ email }) }).then((r) => r.body?.cancel());
-  const made = await fetch(`${api}/auth/v1/admin/users`, { method: "POST", headers: { authorization: `Bearer ${service}`, apikey: service, "content-type": "application/json" }, body: JSON.stringify({ email, password, email_confirm: true }) }).then((r) => r.json());
-  if (!made.id) throw new Error(`no account for ${email}: ${JSON.stringify(made)}`);
-  const login = await fetch(`${api}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: anon!, "content-type": "application/json" }, body: JSON.stringify({ email, password }) }).then((r) => r.json());
-  const jwt = login.access_token as string, id = made.id as string;
+  const db = postgres(Deno.env.get("PANE_DB_URL")!, { max: 1, prepare: false });
+  try { await db`insert into public.signup_allowlist (email) values (${email}) on conflict do nothing`; } finally { await db.end(); }
+  const login = await fetch(`${api}/auth/v1/signup`, { method: "POST", headers: { apikey: anon!, "content-type": "application/json" }, body: JSON.stringify({ email, password }) }).then((r) => r.json());
+  if (!login.access_token) throw new Error(`no session for ${email}: ${JSON.stringify(login)}`);
+  const jwt = login.access_token as string, id = login.user.id as string;
   const dk = newDataKey(), keyId = await keyIdOf(dk);
   await rpc(jwt, "create_account_key", { p_key_id: keyId, p_verifier: await verifierOf(dk, id), p_recovery_wrap: await wrap(dk, await recoveryKEK(crypto.getRandomValues(new Uint8Array(16)), id), "recovery", id), p_generation: 0 });
   await rest(jwt, "profiles", { method: "POST", body: { display_name: `${name} Lind` } });
@@ -111,7 +106,7 @@ Deno.test({ name: "shared notes: a member's AI reads and edits a shared note on 
   await push((d) => A.splice(d, ["body"], d.body!.length, 0, "- [ ] Order lunch\n"));
   const edited = await call("edit", { path: "Shared with me/Offsite plan.md", old_string: "- [ ] Pick dates", new_string: "- [x] Pick dates: 3-4 November" });
   assert(!edited.error, edited.text);
-  console.log(`list ${listed.ms} ms (first shared-note call: Automerge loads), fetch ${read.ms} ms, edit ${edited.ms} ms`);
+  console.log(`list ${listed.ms} ms, fetch ${read.ms} ms (the first read: Automerge loads), edit ${edited.ms} ms`);
 
   // Emil's Mac pulls everything through PostgREST as Emil and merges.
   const rows = await rest(emil.jwt, `note_updates?note_id=eq.${id}&order=id`);
