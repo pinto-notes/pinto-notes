@@ -16,7 +16,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const LINES = [
   { id: "mon", text: "Mon · 5 km easy" },
   { id: "wed", text: "Wed · Intervals, 6 × 400 m" },
-  { id: "thu", text: "Thu · 5 km easy", moved: "Sun · 5 km easy, moved from Thursday" },
+  { id: "thu", text: "Thu · 5 km easy", moved: "Sun · 5 km easy" },
   { id: "sat", text: "Sat · Long run, 12 km" },
 ];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -86,8 +86,8 @@ function Frame({ p }: { p: number }) {
                         <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
                       </span>
                       <span className={f.text} data-done={t > 0.5 || undefined}>{shown}{w > 0 && w < 1 && <i className={f.caret} />}</span>
-                      {i === 0 && <span className={f.by} style={{ opacity: gMark, transform: `scale(${(0.8 + 0.2 * gMark).toFixed(3)})` }}><AIGlyph name="openai" size={11} />ChatGPT wrote these</span>}
-                      {i === 2 && <span className={f.by} style={{ opacity: cMark, transform: `scale(${(0.8 + 0.2 * cMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Claude</span>}
+                      {i === 0 && <span className={f.by} style={{ opacity: gMark, transform: `scale(${(0.8 + 0.2 * gMark).toFixed(3)})` }}><AIGlyph name="openai" size={11} />ChatGPT<span className={f.long}> wrote these</span></span>}
+                      {i === 2 && <span className={f.by} style={{ opacity: cMark, transform: `scale(${(0.8 + 0.2 * cMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Claude<span className={f.long}> moved it from Thursday</span></span>}
                     </span>
                   </li>
                 );
@@ -141,7 +141,8 @@ export function Film() {
   const [pinned, setPinned] = useState(true);
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("p");
-    (window as unknown as { __setP?: (v: number) => void }).__setP = setP;
+    let frozen = false;
+    (window as unknown as { __setP?: (v: number) => void }).__setP = (v) => { frozen = true; setP(v); };
     if (q !== null) { setP(Number(q)); return; }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setPinned(false); setP(1); return; }
     const narrow = matchMedia("(max-width: 900px)");
@@ -149,12 +150,12 @@ export function Film() {
     if (narrow.matches) {
       setPinned(false);
       let start = 0;
-      const tick = (now: number) => { if (!start) start = now; const v = (now - start) / 16000; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick); };
+      const tick = (now: number) => { if (frozen) return; if (!start) start = now; const v = (now - start) / 16000; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick); };
       const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !start) { raf = requestAnimationFrame(tick); io.disconnect(); } }, { threshold: 0.4 });
       if (box.current) io.observe(box.current);
       return () => { io.disconnect(); cancelAnimationFrame(raf); };
     }
-    const read = () => { raf = 0; const el = box.current; if (!el) return; const r = el.getBoundingClientRect(); const travel = r.height - innerHeight; setP(clamp(travel > 0 ? -r.top / travel : 0)); };
+    const read = () => { raf = 0; if (frozen) return; const el = box.current; if (!el) return; const r = el.getBoundingClientRect(); const travel = r.height - innerHeight; setP(clamp(travel > 0 ? -r.top / travel : 0)); };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
     read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };

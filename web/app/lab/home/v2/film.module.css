@@ -63,11 +63,16 @@
 .thread path { fill: none; stroke: #e08a24; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1 1; vector-effect: non-scaling-stroke; }
 
 @media (max-width: 900px) {
-  .pin { height: 780px; }
-  .noteWrap { width: 88%; top: 52%; }
-  .chat { width: 82%; top: auto; bottom: 90px; }
+  .pin { height: 800px; }
+  .noteWrap { width: 92%; top: 64%; }
+  .paper { padding: 16px 16px 20px 20px; }
+  .title { font-size: 26px; }
+  .sub { font-size: 14px; }
+  .long { display: none; }
+  .row { gap: 9px; padding: 5px 8px 5px 8px; }
+  .chat { width: 86%; top: 205px; }
   .left { left: 6%; } .right { right: 6%; }
-  .row { font-size: 16px; }
+  .row { font-size: 15.5px; white-space: nowrap; }
   .days li { min-width: 34px; font-size: 12px; }
   .caption { bottom: 24px; font-size: 24px; }
   .thread { display: none; }
