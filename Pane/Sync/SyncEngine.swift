@@ -1086,6 +1086,15 @@ final class SyncEngine {
                 SharedNotes.pointerArrived?(n)
                 return server
             }
+            if s.shared_note_id == nil {
+                // Edited elsewhere as an ordinary note just before it was shared here: that text
+                // may not be in the document, so it's kept as a conflicted copy, and the row
+                // becomes the pointer.
+                if s.body != n.body, s.body != SharedNotes.placeholder(title: NoteText.title(of: s.body)) {
+                    insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
+                }
+                return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+            }
             if s.updated_at > n.updatedAt { apply(s, to: n); return server }
             return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
         }

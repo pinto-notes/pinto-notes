@@ -182,6 +182,34 @@ extension NetworkFaults {
         #expect(try mac.context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID != nil })) == 1)
     }
 
+    /// Shared on one device a moment after another of yours typed in it as an ordinary note:
+    /// that typing isn't lost (a conflicted copy, as for any conflict) and the row ends up the
+    /// pointer on both, so the two devices never keep editing the note down two paths.
+    @Test func sharedJustAfterAnEditElsewhereKeepsTheEdit() async throws {
+        let a = try device(member), b = try device(member)
+        let ea = engine(for: a), eb = engine(for: b)
+        let note = a.context.createNote(in: .all, body: "Packing\nPassport")
+        await ea.sync()
+        await eb.sync()
+        let onB = try #require(b.context.note(note.id))
+        onB.body = "Packing\nPassport\nCharger from B"
+        onB.touch()
+        await eb.sync()
+
+        try await a.transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        _ = try await a.library.becomeShared(note, nk: nk)
+        await ea.sync()
+        #expect(StubSupabase.body(note.id) == SharedNotes.placeholder(title: "Packing"))
+        let copies = try a.context.fetch(FetchDescriptor<Note>()).filter { $0.body.contains("(conflicted copy)") }
+        #expect(copies.map(\.body) == ["Packing (conflicted copy)\nPassport\nCharger from B"])
+
+        await eb.sync()
+        #expect(onB.isShared, "B takes the pointer")
+        #expect(!(StubSupabase.body(note.id) ?? "").contains("Charger"))
+        await ea.stop()
+        await eb.stop()
+    }
+
     // MARK: Becoming shared
 
     /// Sharing keeps everything: the whole text with its links and files, the note's id (so its

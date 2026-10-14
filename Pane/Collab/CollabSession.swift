@@ -108,6 +108,7 @@ final class CollabSession {
     @ObservationIgnored private var typingAt = Date.distantPast
     @ObservationIgnored private var presenceTask: Task<Void, Never>?
     @ObservationIgnored private var settleTask: Task<Void, Never>?
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     /// How many server changes make a snapshot due, and how quiet the note must be first. The
     /// quiet makes sure no change before the snapshot's point is still on its way in.
@@ -245,7 +246,8 @@ final class CollabSession {
         channel = nil
         peers = [:]
         compact()
-        saveSoon()
+        saveTask?.cancel()
+        record.modelContext?.saveSoon()
     }
 
     func refreshMembers() async {
@@ -417,7 +419,7 @@ final class CollabSession {
     /// Sends the changes waiting to go up, oldest first, one at a time. Offline (or any failure
     /// that may pass), they stay, saved, and go when the server answers again.
     func flush() {
-        guard !sending, !record.pending.isEmpty else { isSent = record.pending.isEmpty; return }
+        guard !sending, !record.outbox.isEmpty else { isSent = record.outbox.isEmpty; return }
         guard record.canEdit else {
             // A viewer's edits are refused by the server: they stay on this device only until
             // the document is opened again.
@@ -537,8 +539,15 @@ final class CollabSession {
         record.tailChanges = 0
     }
 
+    /// Stored a moment after the last change, as the editor saves a note: once per pause in
+    /// typing, not once per keystroke (the stored document can be large). Closing saves at once.
     private func saveSoon() {
-        record.modelContext?.saveSoon()
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(DebouncedSave.delay))
+            guard let self, !Task.isCancelled else { return }
+            record.modelContext?.saveSoon()
+        }
     }
 
     /// A snapshot once enough changes piled up on the server (or one is needed to carry a change
