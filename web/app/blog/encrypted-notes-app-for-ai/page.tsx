@@ -1,4 +1,7 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { Figure } from "@/lib/blog";
+import { SHOTS } from "@/lib/posts";
+import { Answer } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 import { PRIVACY_PATH, READABLE } from "@/lib/privacy";
 
@@ -28,9 +31,23 @@ export default function Page() {
     <PostPage
       slug="encrypted-notes-app-for-ai"
       intro={<>Pinto Notes now encrypts every note end to end, on your iPhone or Mac, and ChatGPT and Claude can still read and edit them once you approve. Those two things pull against each other, so here&apos;s exactly how it works, what it doesn&apos;t protect, and how other notes apps handle the same trade-off.</>}
+      answer={
+        <Answer jump={[
+          { href: "#encrypted", label: "What's encrypted" },
+          { href: "#ai", label: "How an AI reads them" },
+          { href: "#limits", label: "The limits" },
+          { href: "#others", label: "Other apps" },
+        ]}>
+          <p>
+            Every note is encrypted on your iPhone or Mac before it syncs, and we can&apos;t read it at rest. When you approve ChatGPT or
+            Claude, that connection gets its own locked copy of the key, which our server opens in memory only during the AI&apos;s
+            requests. Locked notes stay out of reach of every AI. Disconnecting deletes the AI&apos;s copy at once.
+          </p>
+        </Answer>
+      }
       faq={FAQ}
     >
-      <h2>What&apos;s encrypted</h2>
+      <h2 id="encrypted">What&apos;s encrypted</h2>
       <p>
         Your notes, their titles, folder names, file names and files, and every earlier version are encrypted on your device before
         they&apos;re uploaded. The key is made on your first device. iCloud Keychain carries it to your other iPhone and Mac, and Apple
@@ -42,7 +59,8 @@ export default function Page() {
         <li><strong>Signing in</strong>, with Apple or a password, only says who you are. Your password has nothing to do with your notes&apos; key.</li>
       </ul>
 
-      <h2>How an AI reads encrypted notes</h2>
+      <h2 id="ai">How an AI reads encrypted notes</h2>
+      <Figure shot={SHOTS.consentE2ee} caption="What you see when you approve ChatGPT: read and edit or read only, and a reminder that locked notes stay closed to it." />
       <p>
         ChatGPT and Claude run in the cloud, so something has to open your notes for them. Here&apos;s how it goes:
       </p>
@@ -59,7 +77,7 @@ export default function Page() {
         sheet says so before you allow anything.
       </p>
 
-      <h2>The limits</h2>
+      <h2 id="limits">The limits</h2>
       <ul>
         <li><strong>AI requests.</strong> While an AI works, our server handles the text it asks for, and our hosts (Vercel and Supabase) carry that text on its way. Neither stores it, but a changed server could copy it. Disconnecting ends this at once.</li>
         <li><strong>The recovery key in the browser.</strong> Approving on pintonotes.com with your recovery key runs our code in your browser. It never stores or sends the key, but a changed page could read it. Approve from your iPhone or Mac when you can.</li>
@@ -76,7 +94,7 @@ export default function Page() {
         open source.
       </p>
 
-      <h2>How other notes apps handle it</h2>
+      <h2 id="others">How other notes apps handle it</h2>
       <p>
         End-to-end encryption and a cloud AI want opposite things: the first keeps the server blind, and the second needs someone to
         read the text. Every app picks a side, or finds a way round it on your own computer.
@@ -104,7 +122,7 @@ export default function Page() {
       </p>
       <p>
         <a href="/blog/notes-apps-with-mcp">Notes apps with an MCP server, compared</a> covers the AI side in more depth, and <a href="/blog/apple-notes-api">Apple
-        Notes MCP servers compared</a> covers the Mac-only route for Apple Notes.
+        Notes has no API</a> covers the Mac-only route for Apple Notes.
       </p>
 
       <h2>Try it</h2>
