@@ -17,11 +17,12 @@
 .window { position: relative; margin: 0; border-radius: 14px 14px 0 0; overflow: hidden; background: #fbf7f2;
   box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.25), 0 30px 70px -20px rgba(60, 30, 5, 0.45); }
 .window > img:first-child { display: block; width: 100%; height: auto; aspect-ratio: 2560 / 1280; object-fit: cover; object-position: top; }
-/* The app's own receipt, as captured, where the app puts it: centred under the open note. */
-.receipt { position: absolute; left: 66%; top: 42.8%; transform: translateY(-50%); }
-.receipt > span { height: 34px; font-size: 13.5px; padding: 0 13px; }
 /* The line ChatGPT just added, tinted the way the app tints an AI's change. */
-.added { position: absolute; left: 44.6%; width: 20.4%; top: 40.6%; height: 4.4%; border-radius: 6px; background: rgba(240, 144, 26, 0.16); mix-blend-mode: multiply; }
+.added { position: absolute; left: 44.2%; width: 19.6%; top: 39.6%; height: 3.9%; border-radius: 5px; background: rgba(240, 144, 26, 0.16); mix-blend-mode: multiply; }
+/* Who wrote the added line: the app's small author mark, at the end of the line. */
+.byline { position: absolute; left: 55.2%; top: 41.55%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 4px;
+  height: 18px; padding: 0 7px; border-radius: 9px; background: #fff3e2; color: #a85700; font-size: 10.5px; font-weight: 650;
+  box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; }
 /* "every AI": the site's marker, low behind the words, never split. */
 .mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
 /* The ask, in ChatGPT, over the window's sidebar: you ask there, it lands here. */
@@ -31,10 +32,9 @@
   .hero { gap: 28px; padding-top: 20px; }
   .stage { border-radius: 22px 22px 0 0; }
   .window > img:first-child { aspect-ratio: 2560 / 1600; object-position: 66% top; object-fit: cover; }
-  .receipt { left: 50%; top: auto; bottom: 5%; }
+  .byline { display: none; }
   .added { display: none; }
   .ask { position: relative; left: auto; top: auto; width: 100%; margin-bottom: 16px; }
-  .receipt > span { height: 34px; font-size: 13px; padding: 0 12px; }
 }
 
 /* ── 2: words and a real capture side by side; the capture leads on phones ── */
