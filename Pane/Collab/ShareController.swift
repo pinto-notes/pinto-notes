@@ -70,6 +70,10 @@ final class ShareController {
         state = backend.shareState(for: note)
     }
 
+    /// The Share sheet or popover open now, if one is: for the test script (`-uitest -collabScript`),
+    /// which drives the same controller the buttons do.
+    static weak var current: ShareController?
+
     var isOwner: Bool { state.myRole == "owner" }
 
     func refresh() {
