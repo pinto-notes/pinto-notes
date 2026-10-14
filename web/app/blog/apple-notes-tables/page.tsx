@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, FigurePair, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -174,9 +173,6 @@ export default function Page() {
           : <> The Mac app is out, and the iPhone app is coming soon.</>}{" "}
         <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> brings your tables across in one import.
       </p>
-      <PostCta slug="apple-notes-tables" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Tables that ChatGPT and Claude can read, add rows to and total for you.</p>
-      </PostCta>
     </PostPage>
   );
 }

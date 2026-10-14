@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -122,9 +121,6 @@ export default function Page() {
         folders included. The Mac app is out now, and the iPhone app is coming soon.
         See <a href="/blog/connect-chatgpt-to-your-notes">how to connect ChatGPT to your notes</a>.
       </p>
-      <PostCta slug="apple-notes-ios-27" position="how-amber-helps" title="Notes ChatGPT and Claude can work in">
-        <p>Pinto Notes works like Apple Notes, and imports your notes from it on the Mac.</p>
-      </PostCta>
     </PostPage>
   );
 }

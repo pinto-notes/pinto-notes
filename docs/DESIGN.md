@@ -120,6 +120,8 @@ Sentence case, short sentences, no hype. Buttons say what happens ("Import my no
 
 Every line earns its place: if a first-time reader doesn't need it at that moment, cut it.
 
+- **Blog posts (image-led format):** every screenshot source is at least 1120 px wide, so it shows at 560 px or more. A post ends with one honest paragraph about Pinto Notes, then the dark band. No extra "Try Pinto Notes" box.
+
 ## How design decisions get made
 
 1. Name the screen's one focus. Cut what competes with it.
