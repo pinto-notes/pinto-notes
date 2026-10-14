@@ -2,9 +2,9 @@
 .scene { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); width: min(620px, 100%); }
 .sizer, .live { grid-area: 1 / 1; display: grid; }
 .sizer { visibility: hidden; }
-.note { margin: 0; border-radius: 16px; overflow: hidden; background: #fbf1e2; color: #1d1b19;
+.note { margin: 0; border-radius: 16px; overflow: hidden; background: #fffdf9; color: #1d1b19;
   box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 2px 4px rgba(60, 30, 5, 0.06), 0 40px 80px -36px rgba(60, 30, 5, 0.5); }
-.bar { display: flex; align-items: center; height: 44px; padding: 0 16px; background: #f3e4cf; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); position: relative; }
+.bar { display: flex; align-items: center; height: 44px; padding: 0 16px; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); position: relative; }
 .lights { display: flex; gap: 8px; }
 .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
 .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
