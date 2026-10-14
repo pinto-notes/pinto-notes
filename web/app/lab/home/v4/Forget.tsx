@@ -76,9 +76,12 @@ export function Forget() {
                   {CHATS.map((c, i) => {
                     const land = mj(span(p, 0.36 + i * 0.1, 0.56 + i * 0.1));
                     return (
-                      <li key={c.app} style={{ opacity: land, transform: `translateX(${((1 - land) * -40).toFixed(1)}px)` }}>
+                      <li key={c.app}>
+                        <span className={f.ghost} style={{ opacity: 1 - land, width: `${[62, 74, 68][i]}%` }} aria-hidden="true" />
+                        <span className={f.landed} style={{ opacity: land, transform: `translateX(${((1 - land) * -40).toFixed(1)}px)` }}>
                         <span className={f.dash}>–</span>{c.line}
                         <span className={f.by}>{c.app === "chatgpt" ? <AIGlyph name="openai" size={11} /> : <AIGlyph name="claude" size={11} />}{c.name}</span>
+                        </span>
                       </li>
                     );
                   })}

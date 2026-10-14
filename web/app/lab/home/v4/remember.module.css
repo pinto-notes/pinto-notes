@@ -34,7 +34,10 @@
 .title { margin: 0 0 4px; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
 .sub { margin: 0 0 14px; font-size: 15.5px; color: #8a7a68; }
 .lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; min-height: calc(3 * 40px); }
-.lines li { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 19px; will-change: transform, opacity; }
+.lines li { position: relative; display: flex; align-items: center; min-height: 36px; font-size: 19px; }
+.landed { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; will-change: transform, opacity; }
+/* Before a line lands, its place is a faint pencil rule, so the empty note still looks drawn on purpose. */
+.ghost { position: absolute; left: 28px; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: rgba(120, 90, 60, 0.09); }
 .dash { width: 18px; text-align: center; color: #6b5f53; }
 .by { display: inline-flex; align-items: center; gap: 4px; height: 21px; padding: 0 8px; border-radius: 10px; background: #fff1de; color: #a85700; font-size: 11.5px; font-weight: 650;
   box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; }
@@ -56,7 +59,7 @@
 .statement { margin: 0; font-size: clamp(42px, 5.4vw, 80px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; text-wrap: balance; }
 .say { margin: 18px 0 0; max-width: 30em; font-size: 19px; line-height: 1.45; color: #6b5a48; }
 @media (max-width: 900px) { .row { grid-template-columns: minmax(0, 1fr); gap: 32px; } .row[data-flip] > :first-child { order: 0; } }
-@media (max-width: 600px) { .by { height: 19px; font-size: 10.5px; } .lines li { gap: 6px 8px; } }
+@media (max-width: 600px) { .by { height: 19px; font-size: 10.5px; } .landed { gap: 6px 8px; } }
 /* Two chats days apart, one picking up where the other stopped. */
 .relay { display: grid; gap: 14px; }
 .relay > :first-child { justify-self: start; width: min(400px, 92%); transform: rotate(-1.2deg); }
