@@ -16,6 +16,8 @@ export const metadata = postMetadata("meta-muse-connectors", { title: "Meta Muse
 // and /configuration: mcp_servers in ~/.config/muse/settings.json, streamable_http, muse mcp login, /migrate). Meta's
 // pages give no full connector list and no way for a user to paste their own MCP address into Muse, and the text says
 // so. Pinto Notes is not in the Muse directory and hasn't been tested with Muse or Muse Code.
+// Muse Wonder checked 14 October against Meta's post (research.meta.ai/blog/muse-wonder, 12 October): Model API and
+// Muse Code now, Muse Wonder Full for Muse Code subscribers, "will soon power experiences in Muse", subscribers first.
 
 const FAQ = [
   { q: "What are connectors in Meta Muse?", a: [
@@ -152,6 +154,11 @@ export default function Page() {
         the <code>streamable_http</code> transport. If it signs in with OAuth, as Pinto Notes does, you run{" "}
         <code>muse mcp login</code> with the server&apos;s name and Muse Code keeps the tokens. Run <code>/mcp</code> in a session to see what
         connected.
+      </p>
+      <p>
+        On 12 October Meta <a href="https://research.meta.ai/blog/muse-wonder" rel="noopener">released Muse Wonder</a>, which it
+        calls its most capable model. You can use it in Muse Code and through Meta&apos;s Model API now, and Muse Code subscribers
+        also get Muse Wonder Full. Meta says Muse Wonder will soon power Muse itself, starting with subscribers.
       </p>
       <Keep title="An MCP server in Muse Code's settings" code text={MUSE_CODE}
         note={<>Then run <code>muse mcp login notes</code>. These are Meta&apos;s documented steps for any remote server. I haven&apos;t tested Pinto Notes with Muse Code yet.</>} />

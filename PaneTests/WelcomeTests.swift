@@ -36,8 +36,9 @@ import AppKit
 /// picture then sat in a band of empty background. The card holds its size now, and the picture
 /// is cut for exactly its half.
 @MainActor @Suite struct WelcomeWindowTests {
-    @Test func thePictureIsCutForItsHalf() throws {
-        let picture = try #require(NSImage(named: "Welcome"))
+    @Test(arguments: OnboardingArt.Set.allCases)
+    func thePictureIsCutForItsHalf(_ set: OnboardingArt.Set) throws {
+        let picture = try #require(NSImage(named: OnboardingArt.name(.signin, in: set)))
         let half = CGSize(width: WelcomeFlow.size.width / 2, height: WelcomeFlow.size.height)
         #expect(abs(picture.size.width / picture.size.height - half.width / half.height) < 0.01)
     }
