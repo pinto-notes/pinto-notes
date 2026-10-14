@@ -16,7 +16,7 @@ const VERSIONS: (VersionInfo & { render: (p: Record<string, string | undefined>)
     id: "notebook", name: "The notebook",
     idea: "The notebook you and your AI share. One running story: Monday you tell ChatGPT, Wednesday Claude knows, Friday it moves what you missed.",
     take: "Clear and honest, a benefit per section. Calm rather than spectacular.",
-    parts: [{ key: "hero", label: "Hero", options: [{ id: "story", label: "Story, then try it" }, { id: "window", label: "The real app window" }] }],
+    parts: [{ key: "hero", label: "Hero", options: [{ id: "story", label: "Story, then try it" }, { id: "play", label: "Playground" }, { id: "window", label: "The real app window" }] }],
     render: (p) => <V1 hero={p.hero} />,
   },
   {

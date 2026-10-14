@@ -9,6 +9,8 @@ import h from "../../home-h/h.module.css";
 import st from "../../hero-lab/story.module.css";
 import { PlayedThenTry } from "../../hero-lab/Story";
 import { HeroWindow } from "./HeroWindow";
+import { Playground } from "./Playground";
+import pg from "./playground.module.css";
 import { Bubble, MadeFor, NoteCard } from "../../home-i/Parts";
 import s from "../../home-i/i.module.css";
 
@@ -30,13 +32,13 @@ export function V1({ hero = "story" }: { hero?: string }) {
   return (
     <div className={`${l.main} ${d.main} ${s.main}`} data-quiet-nav="">
       {/* 1. What it is: the notebook you and your AI share, with three AIs writing in it. */}
-      <section className={st.hero}>
+      <section className={hero === "play" ? pg.stacked : st.hero}>
         <div className={st.words}>
           <h1 className={l.h1} style={{ maxWidth: "11ch" }}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
           <p className={l.lede} style={{ maxWidth: "30em" }}>ChatGPT, Claude, Claude Code and Codex read and write in it, with your OK. It looks and feels like Apple Notes.</p>
           <Download quiet={G.quiet} />
         </div>
-        {hero === "window" ? <HeroWindow /> : <PlayedThenTry />}
+        {hero === "window" ? <HeroWindow /> : hero === "play" ? <Playground /> : <PlayedThenTry />}
       </section>
 
       {/* 2. Benefit: your AIs stop forgetting. Monday in ChatGPT, the note, Tuesday in Claude. */}
