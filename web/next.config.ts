@@ -7,7 +7,7 @@ import { posthogSettings } from "./lib/posthog";
 // no plugins, no <base> tricks, no forms posting anywhere, no framing.
 const csp = (connect: string) => [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   // Local development serves storage over http from the local Supabase stack.
   `img-src 'self' https: data:${process.env.NODE_ENV === "production" ? "" : " http://127.0.0.1:*"}`,
