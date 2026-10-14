@@ -68,7 +68,7 @@ import Testing
 
         let change = try #require(book.see(sara, key: second, name: "Sara Lind"))
         #expect(change.was == first && change.now == second)
-        #expect(change.message == "Sara Lind\u{2019}s key changed. If they didn\u{2019}t start fresh, don\u{2019}t share with them until you\u{2019}ve checked the code.")
+        #expect(change.message == "Sara\u{2019}s key changed. That usually means a new device. Check the code with Sara before you share more.")
         // Remembered across launches, and the first key stays the trusted one.
         let again = CollabKeyBook(account: me, defaults: defaults)
         #expect(again.changes == [change])

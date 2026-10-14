@@ -19,14 +19,23 @@ struct LinkVaultEntry: Codable, Equatable {
 }
 
 struct KeychainLinkVault: LinkVault {
-    static let service = AppIdentity.keychainPrefix + ".note-links"
-    /// The account the links belong to: another account on the same device has its own.
+    /// One service per account: another account on the same device has its own, and Start fresh
+    /// removes all of one account's at once.
+    static func service(_ account: UUID) -> String { AppIdentity.keychainPrefix + ".note-links." + account.uuidString.lowercased() }
     let account: UUID
 
+    /// Keyed by the shared note's id: the same on every device, and what the server and the link use.
     private func query(_ note: UUID) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service,
-         kSecAttrAccount as String: "\(account.uuidString.lowercased()):\(note.uuidString.lowercased())",
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service(account),
+         kSecAttrAccount as String: note.uuidString.lowercased(),
          kSecAttrSynchronizable as String: true, kSecUseDataProtectionKeychain as String: true]
+    }
+
+    /// Start fresh: the account's note keys are gone, so its links are too, on every device.
+    static func removeAll(account: UUID) {
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service(account),
+                                kSecAttrSynchronizable as String: true, kSecUseDataProtectionKeychain as String: true]
+        SecItemDelete(q as CFDictionary)
     }
 
     func load(_ note: UUID) -> LinkVaultEntry? {

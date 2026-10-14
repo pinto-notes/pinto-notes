@@ -259,11 +259,7 @@ struct PresenceStack: View {
             }
     }
 
-    #if os(macOS)
-    static let badges = BadgeOption.off
-    #else
     static let badges = BadgeOption.current
-    #endif
 
     private var accessibilityText: String {
         let viewOnly = session.isViewOnly ? "View only. " : ""

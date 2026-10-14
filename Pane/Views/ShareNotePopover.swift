@@ -390,9 +390,13 @@ struct CollaborateRows: View {
                 if p.verified && p.keyChanged == nil || share.done == .verified(p.id) {
                     DoneLine(text: ShareCopy.verifiedLine(first)).font(.system(size: 11))
                 } else {
-                    Button("They Match") { share.verify(p) }
-                        .buttonStyle(.amberProminent(.regular, wide: true))
-                        .accessibilityIdentifier("share.verify")
+                    HStack {
+                        Spacer()
+                        // A regular push button on the Mac; full width only on iPhone.
+                        Button("They Match") { share.verify(p) }
+                            .buttonStyle(.amberProminent)
+                            .accessibilityIdentifier("share.verify")
+                    }
                 }
             }
             if share.isOwner {
@@ -404,15 +408,23 @@ struct CollaborateRows: View {
         }
     }
 
-    /// A question asked in place: the destructive answer is the one primary, in red.
+    /// A question asked in place, as an alert would: Cancel is the default (Return and Esc), and the
+    /// destructive answer is a plain button in red, never a red fill (HIG).
     private func confirm(_ title: String, _ message: String, action: String, id: String, cancel: @escaping () -> Void, go: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.system(size: 13, weight: .semibold))
             Text(message).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("Cancel", action: cancel).buttonStyle(.quiet).keyboardShortcut(.cancelAction)
-                Button(action, role: .destructive, action: go).buttonStyle(.amberProminent).accessibilityIdentifier(id)
+                Button(role: .destructive, action: go) { Text(action).foregroundStyle(.red) }
+                    .buttonStyle(.quiet)
+                    .accessibilityIdentifier(id)
+                Button("Cancel", action: cancel)
+                    .buttonStyle(.amberProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("share.cancel")
+                // Esc cancels too.
+                Button("", action: cancel).keyboardShortcut(.cancelAction).hidden().frame(width: 0, height: 0)
             }
             .padding(.top, 4)
         }

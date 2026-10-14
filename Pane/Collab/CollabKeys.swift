@@ -137,7 +137,8 @@ extension Collab {
         let now: String
 
         var message: String {
-            "\(name)\u{2019}s key changed. If they didn\u{2019}t start fresh, don\u{2019}t share with them until you\u{2019}ve checked the code."
+            let first = name.split(separator: " ").first.map(String.init) ?? name
+            return "\(first)\u{2019}s key changed. That usually means a new device. Check the code with \(first) before you share more."
         }
     }
 }
