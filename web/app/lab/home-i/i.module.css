@@ -1,0 +1,107 @@
+/* Study I: the notebook you and your AI share. Every section one felt benefit, shown finished. */
+.main { gap: 136px; }
+@media (max-width: 700px) { .main { gap: 88px; } }
+.head { display: grid; gap: 14px; justify-items: center; text-align: center; max-width: 720px; margin: 0 auto; }
+
+/* ── A note card, in the app's look ── */
+.note { margin: 0; border-radius: 14px; overflow: hidden; background: #fffdf9; color: #1d1b19; text-align: left;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 2px 4px rgba(60, 30, 5, 0.06), 0 34px 64px -32px rgba(60, 30, 5, 0.5); }
+.noteBar { position: relative; display: flex; align-items: center; height: 36px; padding: 0 14px; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); }
+.lights { display: flex; gap: 7px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.folder { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; color: #8a7a68; }
+.paper { padding: 18px 22px 22px 26px; font-size: 16px; line-height: 1.45; }
+.noteTitle { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.noteSub { margin: 0 0 10px; font-size: 14px; color: #8a7a68; }
+.rows { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.rows li { display: flex; align-items: center; gap: 10px; margin-left: -8px; padding: 3px 8px; border-radius: 7px; }
+.rows li[data-tint] { background: rgba(240, 144, 26, 0.15); }
+.box { flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #c9bcae; }
+.box[data-on] { background: #d97a17; box-shadow: none; }
+.box svg { width: 12px; height: 12px; }
+.box path { fill: none; stroke: transparent; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.box[data-on] path { stroke: #fff; }
+.dash { flex: none; width: 18px; text-align: center; color: #6b5f53; }
+.rowText[data-done] { color: #8f8478; }
+.by { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 10px; background: #fff1de; color: #a85700;
+  font-size: 11.5px; font-weight: 650; box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; }
+
+/* ── A chat ── */
+.bubble { margin: 0; display: grid; gap: 8px; padding: 14px 16px 16px; border-radius: 18px; background: #fff; color: #0d0d0d; text-align: left;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.16), 0 26px 50px -26px rgba(60, 30, 5, 0.5); font-size: 15.5px; line-height: 1.4; }
+.bubble[data-app="claude"] { background: #faf9f5; }
+.bubbleTop { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 650; color: #6b5f53; }
+.bubbleApp { display: inline-flex; align-items: center; gap: 6px; }
+.bubble[data-app="claude"] .bubbleApp svg { color: #d97757; }
+.day { font-weight: 600; color: #9a8b7a; }
+.me { justify-self: end; max-width: 88%; margin: 0; padding: 8px 13px; border-radius: 16px; background: #f1f1f1; }
+.bubble[data-app="claude"] .me { background: #f0eee6; border-radius: 12px; }
+.tool { margin: 0; font-size: 12px; color: #8e8e93; }
+.ai { margin: 0; }
+
+/* ── 2. Memory: Monday in ChatGPT → the note → Wednesday in Claude ── */
+.memory { display: grid; gap: 48px; }
+.memoryRow { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1.05fr) 40px minmax(0, 1fr); align-items: center; gap: 14px; max-width: 1180px; margin: 0 auto; width: 100%; }
+.arrow svg { width: 40px; height: 16px; display: block; }
+.arrow path { fill: none; stroke: #d98a2b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mLeft { transform: rotate(-1.5deg); }
+.mRight { transform: rotate(1.5deg); }
+@media (max-width: 960px) {
+  .memoryRow { grid-template-columns: minmax(0, 1fr); max-width: 460px; gap: 10px; }
+  .arrow { justify-self: center; transform: rotate(90deg); }
+  .mLeft, .mRight { transform: none; }
+}
+
+/* ── 3. Plans: the dark band, the check-in beside the plan ── */
+.plansBand.plansBand { padding-top: 104px; padding-bottom: 112px; }
+.plansRow { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+.plansText { display: grid; gap: 22px; }
+.plansText h2 { font-size: clamp(40px, 4.6vw, 64px); }
+.notHere { color: #f5a53a; }
+.checkin { display: grid; gap: 18px; }
+.checkin > :first-child { justify-self: start; max-width: 430px; transform: rotate(-1deg); }
+.checkin > :last-child { justify-self: end; width: min(460px, 100%); }
+@media (max-width: 960px) { .plansRow { grid-template-columns: minmax(0, 1fr); gap: 40px; } }
+
+/* ── 5. Made for ── */
+.forWho { display: grid; gap: 36px; }
+.made { display: grid; gap: 32px; max-width: 1040px; margin: 0 auto; width: 100%; }
+.tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.tab { height: 44px; padding: 0 18px; border: 0; border-radius: 22px; font: inherit; font-size: 15px; font-weight: 650; background: #f3e3cc; color: #5a4430; cursor: pointer;
+  transition: background-color .15s ease-out, color .15s ease-out, transform .12s ease-out; }
+.tab:hover { background: #ecd6b6; }
+.tab:active { transform: scale(0.97); }
+.tab[aria-selected="true"] { background: #2a1d10; color: #fff4e6; }
+.tab:focus-visible { outline: 2px solid #f0901a; outline-offset: 2px; }
+.madeBody { display: grid; gap: 28px; animation: madeIn .28s ease-out; }
+@keyframes madeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .madeBody { animation: none; } }
+.madeLine { margin: 0 auto; max-width: 40em; text-align: center; font-size: 19px; line-height: 1.45; color: var(--ink); text-wrap: balance; }
+.madePics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: center; max-width: 900px; margin: 0 auto; width: 100%; }
+@media (max-width: 760px) { .madePics { grid-template-columns: minmax(0, 1fr); } }
+.term { margin: 0; border-radius: 14px; overflow: hidden; background: #1d1b19; color: #f3eee8; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px; line-height: 1.5;
+  box-shadow: 0 30px 60px -28px rgba(30, 15, 5, 0.6); padding-bottom: 16px; }
+.termBar { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; background: #2a2724; color: #9b9086; font-size: 12px; }
+.prompt, .call, .out { margin: 10px 16px 0; }
+.prompt b { color: #d97757; margin-right: 6px; }
+.call { color: #b9ad9f; }
+.call span { color: #6fcf7a; }
+
+/* ── 6. Feels like Apple Notes ── */
+.home.home { padding-top: 88px; padding-bottom: 96px; }
+.homeRow { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 56px; align-items: center; }
+.homeText { display: grid; gap: 16px; }
+.trust { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+.trust li { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 600; }
+.trust img { flex: none; width: 36px; height: 36px; }
+.homeShot { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 30px 60px -28px rgba(60, 30, 5, 0.5); }
+@media (max-width: 960px) { .homeRow { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+
+.homeFig { position: relative; margin: 0; }
+.homeFig .homeShot { border-radius: 16px; }
+.imported { position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px;
+  border-radius: 20px; background: #1d1b19; color: #fff4e6; font-size: 14.5px; font-weight: 650; white-space: nowrap; box-shadow: 0 14px 30px -12px rgba(30, 15, 5, 0.6); }
+.imported svg { width: 16px; height: 16px; }
+.imported path { fill: none; stroke: #f5a53a; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 480px) { .imported { font-size: 12.5px; height: 34px; padding: 0 12px; } }

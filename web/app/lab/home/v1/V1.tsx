@@ -98,8 +98,11 @@ export function V1({ hero = "story" }: { hero?: string }) {
             <p className={d.lede}>Import every note in one go, folders and checklists included. Apple Notes stays as it is.</p>
             <ul className={s.trust}>{TRUST.map((t) => <li key={t.line}><img src={t.icon} alt="" width={36} height={36} />{t.line}</li>)}</ul>
           </div>
-          <img className={s.homeShot} src="/home-h/import-done.webp" width={2560} height={1600} loading="lazy"
-            alt="Pinto Notes on a Mac after importing from Apple Notes: 1,284 notes in their own folders, with a recipe open." />
+          <figure className={s.homeFig}>
+            <img className={s.homeShot} src="/home-h/import-near.webp" width={1500} height={1100} loading="lazy"
+              alt="Pinto Notes on a Mac right after importing from Apple Notes: All Notes 1,284, with folders Notes, Recipes, Work, Travel and Home, and the note list beside them." />
+            <span className={s.imported}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>1,284 notes brought over from Apple Notes</span>
+          </figure>
         </div>
       </section>
 
