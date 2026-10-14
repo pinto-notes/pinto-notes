@@ -37,6 +37,7 @@ const security = [
 const connectSecurity = security.filter((h) => h.key !== "Content-Security-Policy");
 
 const config: NextConfig = {
+  devIndicators: false, // the lab switcher lives in the lower-left
   // The blog reads each post's source for its reading time (lib/blog.tsx). A server render (crawlers
   // get one) must find those files in the function bundle, or the post fails with ENOENT.
   outputFileTracingIncludes: { "/blog/*": ["./app/blog/**/page.tsx"] },

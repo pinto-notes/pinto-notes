@@ -1,0 +1,21 @@
+/* The version switcher: a small dark panel in the lower-left, above everything, never in the way. */
+.box { position: fixed; left: 16px; bottom: 16px; z-index: 1000; display: grid; gap: 8px; justify-items: start; max-width: min(360px, calc(100vw - 32px));
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #f6efe7; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: #1d1b19; color: #f6efe7;
+  font: inherit; font-weight: 650; cursor: pointer; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #f5a53a; }
+.panel { order: -1; display: grid; gap: 12px; padding: 14px; border-radius: 16px; background: #1d1b19; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6); max-height: 70vh; overflow: auto; }
+.versions { display: grid; gap: 4px; }
+.v { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 10px; border: 0; border-radius: 9px; background: transparent; color: #cfc4b8; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.v b { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 6px; background: #2e2a26; color: #f6efe7; font-size: 12px; }
+.v:hover { background: #2a2622; color: #fff; }
+.v[aria-checked="true"] { background: #3a2a18; color: #fff; }
+.v[aria-checked="true"] b { background: #f5a53a; color: #1d1b19; }
+.idea { margin: 0; color: #f6efe7; font-weight: 600; }
+.take { margin: 0; color: #a99d90; }
+.part { display: grid; gap: 6px; }
+.part > span { color: #a99d90; font-weight: 600; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button { height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: #2a2622; color: #cfc4b8; font: inherit; font-weight: 600; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: #f6efe7; color: #1d1b19; }
+.v:focus-visible, .seg button:focus-visible, .pill:focus-visible { outline: 2px solid #f5a53a; outline-offset: 2px; }
