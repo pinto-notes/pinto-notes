@@ -39,12 +39,14 @@ extension CollabStore: ShareBackend {
             if sessions[note.id] != nil { try await transport.stopLink(note: note.id) }
             links[note.id] = nil
             linkAccess[note.id] = nil
+            linkVault?.remove(note.id)
         case .view, .edit:
             if sessions[note.id] == nil { try await share(note) }
             let link = links[note.id] ?? (SealedLink.randomID(bytes: 16), E2EE.randomBytes(16))
             try await publishInviteLink(note, link: link, role: access == .edit ? "editor" : "viewer")
             links[note.id] = link
             linkAccess[note.id] = access
+            linkVault?.save(LinkVaultEntry(id: link.id, secret: link.secret, access: access.rawValue), for: note.id)
         }
         CollabDemo.wrote(access == .edit ? "edit-link" : "link", linkURL(note) ?? URL(fileURLWithPath: "/"))
     }
@@ -82,8 +84,23 @@ extension CollabStore: ShareBackend {
         onLeft?(note.id)
     }
 
+    /// The note's link as this device or your others kept it, after a relaunch.
+    func restoreLink(_ note: UUID) {
+        guard links[note] == nil, let e = linkVault?.load(note), let access = ShareState.Access(rawValue: e.access), access != .off else { return }
+        links[note] = (e.id, e.secret)
+        linkAccess[note] = access
+    }
+
+    /// "They match": you checked this person's safety code. A changed key you checked is trusted.
+    func markVerified(_ user: UUID, in note: Note) {
+        if let change = keyChanges.first(where: { $0.user == user }) { trust(change) }
+        guard let key = sessions[note.id]?.members.first(where: { $0.id == user })?.publicKey else { return }
+        verified.mark(user, key: key)
+    }
+
     /// Share's state for a note: the link, and everyone in it (just you before anyone joins).
     func shareState(for note: Note) -> ShareState {
+        restoreLink(note.id)
         let list = people(in: note)
         let me = self.me ?? UUID()
         let people = (list.isEmpty ? [.init(id: me, name: name, isMe: true, role: "owner")] : list).map { p in
@@ -126,7 +143,9 @@ extension CollabStore: ShareBackend {
         guard let session = sessions[note.id] else { return [] }
         return session.members.map { m in
             ShareState.Person(id: m.id, name: m.name, isMe: m.id == session.me, role: m.role,
-                              safetyCode: m.id == session.me ? nil : identity.flatMap { id in m.publicKey.map { CollabCrypto.safetyCode(id.publicRaw, $0) } })
+                              safetyCode: m.id == session.me ? nil : identity.flatMap { id in m.publicKey.map { CollabCrypto.safetyCode(id.publicRaw, $0) } },
+                              verified: m.publicKey.map { verified.isVerified(m.id, key: $0) } ?? false,
+                              keyChanged: keyChanges.first { $0.user == m.id }?.message)
         }.sorted { ($0.isMe ? 0 : 1, $0.role == "owner" ? 0 : 1) < ($1.isMe ? 0 : 1, $1.role == "owner" ? 0 : 1) }
     }
 
