@@ -68,7 +68,7 @@ export default function HomeC() {
           <h2 id="plan" className={l.h2}>{C.plan.title}</h2>
           <p className={l.lede}>{C.plan.lede}</p>
         </div>
-        <Term app="claude-code" className={s.term} ask="What did I say I'd do before the release?" call="amber-notes · search “before the release”"
+        <Term app="claude-code" className={s.term} ask="What did I say I'd do before the release?" call="pinto-notes · search “before the release”"
           out={["Standup notes, 3 open items:", "○ Ship the import fix", "○ Check the share link on iPhone", "○ Write the release notes"]}
           label="Claude Code searched Pinto Notes for what you said you'd do before the release, and found three open items in Standup notes." />
       </section>

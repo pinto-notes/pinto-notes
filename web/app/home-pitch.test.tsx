@@ -21,7 +21,7 @@ describe("the home page pitch", () => {
     const ai = text(renderToStaticMarkup(<AiSection />));
     for (const job of ["Turns a messy note into next steps", "Checks in on the plan when you ask", "Remembers what you said you'd do"]) expect(ai, job).toContain(job);
     // Claude Code shows the server's real name and a real tool.
-    expect(ai).toContain("amber-notes · search");
+    expect(ai).toContain("pinto-notes · search");
   });
 
   it("says once, in the Apple Notes section, that the iPhone app is coming, and never says iPad", () => {

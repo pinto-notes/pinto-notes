@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AI_ACCESS, CAVEAT, COUNTS, ENCRYPTION, FACTS, HOME_PRIVACY, LIMITS, LOGS, PRIVACY_PATH, READABLE, WHO_CAN_SEE } from "./privacy";
@@ -65,6 +65,19 @@ describe("privacy copy", () => {
 
   it("keeps the two policy files the same", () => {
     expect(policy).toBe(docsPolicy);
+  });
+
+  it("states the server's version limit and thinning, not an old one", () => {
+    // The newest migration that sets pane_limit('revisions') and the newest that defines the thinning.
+    const dir = join(__dirname, "../../supabase/migrations");
+    const sql = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort().map((f) => readFileSync(join(dir, f), "utf8"));
+    const limit = sql.flatMap((s) => [...s.matchAll(/when 'revisions'\s+then (\d+)/g)].map((m) => m[1])).at(-1);
+    const thin = sql.filter((s) => s.includes("function public.pane_thin_revisions")).at(-1)!;
+    for (const kept of ["interval '24 hours'", "interval '7 days' and in_hour = 1", "interval '90 days' and (in_day = 1 or ai)"]) expect(thin).toContain(kept);
+    expect(limit).toBe("500");
+    expect(policy).toContain(`up to ${limit} per note`);
+    expect(policy).toContain(`every version from the last 24 hours, then the last one of each hour for 7 days, the last one of each day for 90 days, and every AI change for 90 days. Older versions are deleted. A note keeps at most ${limit} versions and 10 MB of them`);
+    expect(policy).not.toMatch(/up to 100 per note/);
   });
 
   it("lists the same log retention as the privacy policy", () => {
