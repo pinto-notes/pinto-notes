@@ -101,13 +101,14 @@ export default function Page() {
           ChatGPT</a> takes a few minutes in Developer mode, on a paid plan.
         </li>
         <li>
-          <strong>Paste the template&apos;s prompt into a chat</strong>
-          It tells the AI where the habits and days are kept and how to log a day. You paste it once per chat.
+          <strong>Tell your AI what you did</strong>
+          Say &ldquo;Log today: walked, read 20 pages, six glasses of water.&rdquo; It finds the note, reads the app&apos;s own
+          notes on how the habits are kept, and ticks them off. Open the app and they&apos;re there.
         </li>
       </Steps>
       <p>
-        No Mac nearby? Copy the prompt on the template page instead. It asks your AI to create the note with its app for you, so it
-        works from ChatGPT or Claude on any device once Pinto Notes is connected.
+        To change the app itself, ask for that too: &ldquo;Add stretching, on weekdays only&rdquo; or &ldquo;Let me add a short
+        note to each day.&rdquo; Your AI edits the app, and the new version shows up in the note.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>

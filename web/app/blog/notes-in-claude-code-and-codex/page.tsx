@@ -34,7 +34,7 @@ export default function Page() {
       </ul>
       <p>
         The <a href="/templates/daily-standup">standup</a>, <a href="/templates/bug-triage">bug triage</a> and{" "}
-        <a href="/templates/decision-log">decision log</a> templates come with a prompt written for Claude Code.
+        <a href="/templates/decision-log">decision log</a> templates are made for this kind of work.
       </p>
       <p>
         Pinto Notes is a free notes app for iPhone and Mac with an MCP server built in, so your agent writes into the same notes you read
