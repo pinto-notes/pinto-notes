@@ -11,7 +11,7 @@ const FAQ = [
     "Yes. Add Pinto Notes as an MCP server with an access token, and Claude Code can search, read, create and edit your notes, or only read them if you make the token read only.",
   ] },
   { q: "How do I add a notes MCP server to Codex?", a: [
-    `Run codex mcp add amber_notes --url ${MCP_URL}. Codex opens your browser to sign in, and you approve it on your iPhone or Mac. If you'd rather use a token, Pinto Notes, Settings, Connect an AI, Codex shows a few lines for ~/.codex/config.toml with the token in an Authorization header.`,
+    `Run codex mcp add pinto-notes --url ${MCP_URL}. Codex opens your browser to sign in, and you approve it on your iPhone or Mac. If you'd rather use a token, Pinto Notes, Settings, Connect an AI, Codex shows a few lines for ~/.codex/config.toml with the token in an Authorization header.`,
   ] },
   { q: "Where is the access token stored?", a: [
     "In your Claude Code or Codex configuration on your computer. Pinto Notes shows it once. Anyone with the token can use your notes, so keep it private, and disconnect it in Pinto Notes if it leaks.",
@@ -49,12 +49,12 @@ export default function Page() {
         <li>Choose Add to Claude Code. Pinto Notes creates an access token and runs <code>claude mcp add</code> for you, for every project.</li>
         <li>Or choose Create Access Token and run the command it shows in a terminal. It looks like this:</li>
       </ol>
-      <pre><code>{`claude mcp add --scope user --transport http amber-notes \\
+      <pre><code>{`claude mcp add --scope user --transport http pinto-notes \\
   ${MCP_URL} \\
   --header "Authorization: Bearer pane_…"`}</code></pre>
       <p>
         Rather sign in than paste a token? Install the Pinto Notes plugin, then run <code>/mcp</code> in Claude Code, pick{" "}
-        <code>amber-notes</code> and sign in. The plugin also teaches Claude how your notes are laid out.
+        <code>pinto-notes</code> and sign in. The plugin also teaches Claude how your notes are laid out.
       </p>
       <pre><code>{`claude plugin marketplace add pinto-notes/pinto-notes
 claude plugin install amber-notes`}</code></pre>
@@ -65,17 +65,17 @@ claude plugin install amber-notes`}</code></pre>
 
       <h2>Codex</h2>
       <p>One command adds the server:</p>
-      <pre><code>{`codex mcp add amber_notes --url ${MCP_URL}`}</code></pre>
+      <pre><code>{`codex mcp add pinto-notes --url ${MCP_URL}`}</code></pre>
       <p>
         Codex starts the sign-in straight away: your browser opens pintonotes.com, and you approve it on your iPhone or Mac by typing the
-        number the page shows. To sign in again later, run <code>codex mcp login amber_notes</code>.
+        number the page shows. To sign in again later, run <code>codex mcp login pinto-notes</code>.
       </p>
       <p>Rather use a token, for a machine with no browser? In Pinto Notes, open Settings and, under Connect an AI, choose Codex:</p>
       <ol>
         <li>Turn on Read only if you like, then choose Create Access Token.</li>
         <li>Copy the lines it shows into <code>~/.codex/config.toml</code>:</li>
       </ol>
-      <pre><code>{`[mcp_servers.amber_notes]
+      <pre><code>{`[mcp_servers.pinto_notes]
 url = "${MCP_URL}"
 http_headers = { "Authorization" = "Bearer pane_…" }`}</code></pre>
       <p>

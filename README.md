@@ -45,7 +45,7 @@ Your notes, your iPhone and Mac, and every AI you use, all working on the same n
 
    **Claude Code:**
    ```sh
-   claude mcp add --scope user --transport http amber-notes https://mcp.pintonotes.com
+   claude mcp add --scope user --transport http pinto-notes https://mcp.pintonotes.com
    ```
    Or install the plugin, which adds a skill that tells Claude how your notes are laid out:
    ```sh
@@ -55,7 +55,7 @@ Your notes, your iPhone and Mac, and every AI you use, all working on the same n
 
    **Codex:**
    ```sh
-   codex mcp add amber_notes --url https://mcp.pintonotes.com
+   codex mcp add pinto-notes --url https://mcp.pintonotes.com
    ```
 
    **Gemini CLI:**
@@ -64,7 +64,7 @@ Your notes, your iPhone and Mac, and every AI you use, all working on the same n
    ```
 3. Approve it in Pinto Notes on your iPhone or Mac, and choose read only or read and edit.
 
-Then try "find my Lisbon note and add a day in Sintra". The server name still says `amber-notes` because renaming it would break existing installs.
+Then try "find my Lisbon note and add a day in Sintra". The plugin keeps its old id, `amber-notes`, because renaming it would break existing installs.
 
 ## What it does
 

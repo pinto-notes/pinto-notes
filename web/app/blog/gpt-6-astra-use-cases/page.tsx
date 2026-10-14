@@ -184,7 +184,7 @@ export default function Page() {
         One use case for a direct connection is Pinto Notes, the notes app for iPhone and Mac that I make. ChatGPT, Claude, Claude
         Code and Codex can read and edit it over MCP once you approve them on your iPhone or Mac. With Codex, it&apos;s one line:
       </p>
-      <pre><code>{`codex mcp add amber_notes --url ${MCP_URL}`}</code></pre>
+      <pre><code>{`codex mcp add pinto-notes --url ${MCP_URL}`}</code></pre>
       <p>
         Then choose Astra with <code>/model</code> and ask it to keep a note, such as a running log of what it built today.
         In ChatGPT on the web, the steps are in <a href="/blog/connect-chatgpt-to-your-notes">how to connect ChatGPT to your

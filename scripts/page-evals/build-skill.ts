@@ -80,7 +80,7 @@ const { AMBER_BASE_CSS } = await import(new URL("supabase/functions/mcp/amber-ba
 await write(new URL("references/amber-base.css", skill), AMBER_BASE_CSS);
 
 // The Claude skill: when to use it, the rules every client gets from the server, and the guide.
-const description = "Build, change, check and fill the apps in Pinto Notes notes (a note's App side: habit trackers, budgets, reading or workout logs, CRMs, trip plans, flashcards, dashboards) through the amber-notes MCP server, and put data into them: rows, records, settings, files. Use when the person asks to make a note an app, change or fix a note's app, add or import data to it, or set up an API key for one.";
+const description = "Build, change, check and fill the apps in Pinto Notes notes (a note's App side: habit trackers, budgets, reading or workout logs, CRMs, trip plans, flashcards, dashboards) through the pinto-notes MCP server, and put data into them: rows, records, settings, files. Use when the person asks to make a note an app, change or fix a note's app, add or import data to it, or set up an API key for one.";
 await write(new URL("SKILL.md", skill), `---
 name: note-pages
 description: ${description}
@@ -101,7 +101,7 @@ await write(new URL("plugins/amber-notes/AGENTS.md", root), `${stamp}
 
 # Pinto Notes apps (for AGENTS.md)
 
-Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
+Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.pintonotes.com) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
 
 ${FILE_APP_INSTRUCTIONS}
 

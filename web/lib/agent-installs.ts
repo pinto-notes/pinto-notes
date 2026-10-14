@@ -7,9 +7,11 @@ import { MCP_URL } from "./facts";
 /// cursor:// redirect, which the server doesn't accept. Goose, Zed and Windsurf weren't checked.
 /// The commands give mcp.pintonotes.com since 2026-10-09 (the same server; sign-in checked at that
 /// address). The Claude Code plugin and the Gemini CLI extension still carry mcp.ambernotes.app.
+/// The server is named pinto-notes everywhere, as the app adds it (ConnectSnippets.serverName);
+/// the plugin and extension ids stay amber-notes, which installs depend on.
 
 /// The name each tool shows for the server.
-export const SERVER_NAME = "amber-notes";
+export const SERVER_NAME = "pinto-notes";
 
 export type AgentInstall = {
   tool: string;
@@ -28,18 +30,18 @@ export const AGENT_INSTALLS: AgentInstall[] = [
     tool: "Claude Code",
     code: `claude plugin marketplace add pinto-notes/pinto-notes
 claude plugin install amber-notes`,
-    signIn: "The plugin adds the server and a skill that tells Claude how your notes are laid out. Then run /mcp in Claude Code, pick amber-notes and sign in.",
+    signIn: `The plugin adds the server and a skill that tells Claude how your notes are laid out. Then run /mcp in Claude Code, pick ${SERVER_NAME} and sign in.`,
     alt: { text: "Or add only the server, for every project:", code: `claude mcp add --scope user --transport http ${SERVER_NAME} ${MCP_URL}` },
   },
   {
     tool: "Codex",
-    code: `codex mcp add amber_notes --url ${MCP_URL}`,
-    signIn: "Codex starts the sign-in straight away. To sign in again later, run codex mcp login amber_notes.",
+    code: `codex mcp add ${SERVER_NAME} --url ${MCP_URL}`,
+    signIn: `Codex starts the sign-in straight away. To sign in again later, run codex mcp login ${SERVER_NAME}.`,
   },
   {
     tool: "Gemini CLI",
     code: `gemini extensions install https://github.com/pinto-notes/pinto-notes`,
-    signIn: "Then run /mcp auth amber-notes in Gemini CLI to sign in.",
+    signIn: `Then run /mcp auth ${SERVER_NAME} in Gemini CLI to sign in.`,
   },
   {
     tool: "VS Code",

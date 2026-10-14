@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "amber-notes": {
+    "pinto-notes": {
       "type": "http",
       "url": "https://mcp.ambernotes.app"
     }
