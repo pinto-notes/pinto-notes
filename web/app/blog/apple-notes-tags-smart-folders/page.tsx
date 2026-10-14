@@ -1,4 +1,7 @@
+import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { Answer } from "@/lib/PostParts";
+import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -31,10 +34,26 @@ export default function Page() {
   return (
     <PostPage
       slug="apple-notes-tags-smart-folders"
-      intro={<>In Apple Notes, a tag is a word after a # anywhere in a note, like #taxes. A Smart Folder is a saved filter: it lists notes from all your folders that match its rules, such as a tag or an edit date, and never holds notes itself. When a tag won&apos;t form, the cause is usually one of four things: a space in the tag, a note that isn&apos;t in iCloud, a locked note, or Auto Convert to Tag turned off on iPhone.</>}
+      intro={<>
+        Tags in Apple Notes look simple, a word after a #, until one refuses to turn yellow. Here&apos;s how tags and Smart Folders work on
+        iPhone and Mac, the four reasons a tag won&apos;t form, and when tags are worth it over plain folders.
+      </>}
+      answer={
+        <Answer jump={[
+          { href: "#tags", label: "How tags work" },
+          { href: "#smart-folders", label: "Smart Folders" },
+          { href: "#not-working", label: "When tags don't work" },
+        ]}>
+          <p>
+            A tag is a word after a # anywhere in a note, like #taxes. A Smart Folder is a saved filter that lists notes from every folder
+            matching its rules, such as a tag or an edit date. When a tag won&apos;t form, it&apos;s almost always a space in the tag, a
+            note that isn&apos;t in iCloud, a locked note, or Auto Convert to Tag turned off on iPhone.
+          </p>
+        </Answer>
+      }
       faq={FAQ}
     >
-      <h2>How tags work</h2>
+      <h2 id="tags">How tags work</h2>
       <p>
         Type # and a word in any note, then a space or Return. The word changes color once it&apos;s a tag. Since iOS 15 a tag can go
         anywhere, the title included. It has to be one continuous word, but hyphens, numbers and underscores are fine, so #gardening-supplies
@@ -52,7 +71,8 @@ export default function Page() {
         Smart Folder that uses it.
       </p>
 
-      <h2>How Smart Folders work</h2>
+      <h2 id="smart-folders">How Smart Folders work</h2>
+      <Figure shot={SHOTS.notesSmartFolderFilters} caption="A Smart Folder rule on a Mac: Tags, dates, checklists and more." />
       <p>
         A Smart Folder shows notes that match rules you set. The notes stay in their own folders, so deleting a Smart Folder deletes no
         notes.
@@ -90,7 +110,7 @@ export default function Page() {
         how the lock itself works.
       </p>
 
-      <h2>When tags don&apos;t work</h2>
+      <h2 id="not-working">When tags don&apos;t work</h2>
       <h3>The # stays plain text</h3>
       <p>
         On iPhone, open Settings, tap Apps, then Notes, and check that Auto Convert to Tag is on. Then check the tag itself: a space ends it,
