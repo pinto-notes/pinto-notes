@@ -32,7 +32,7 @@ extension CollabStore {
     }
 
     func setAccess(_ access: ShareState.Access, for note: Note) async throws {
-        guard let relay else { throw CollabRelay.Problem(message: "Not connected") }
+        guard let transport else { throw Collab.Failure.notSignedIn }
         switch access {
         case .off:
             // The link stops working at once. Turning it on again makes a new one.
@@ -41,7 +41,7 @@ extension CollabStore {
         case .view:
             linkOff.remove(note.id)
             if links[note.id] == nil { _ = try await publishLink(note) }
-            if sessions[note.id] != nil, editable.contains(note.id) { try await relay.rpc("collab_stop_link", [note.id.uuidString.lowercased()]) }
+            if sessions[note.id] != nil, editable.contains(note.id) { try await transport.stopLink(note: note.id) }
             editable.remove(note.id)
         case .edit:
             linkOff.remove(note.id)
@@ -54,10 +54,10 @@ extension CollabStore {
     }
 
     private func publishEditLink(_ note: Note) async throws {
-        guard let relay, let l = links[note.id], let k = keys[note.id] else { return }
+        guard let transport, let l = links[note.id], let k = keys[note.id] else { return }
         let lk = Self.linkKeys(l.secret, link: l.id)
         let wrap = try NoteCrypto.seal(E2EE.bytes(k.nk).base64EncodedString(), key: lk.key, keyID: E2EE.keyID(of: k.nk), context: "invite:\(l.id.lowercased())")
-        try await relay.rpc("collab_create_link", [l.id, note.id.uuidString.lowercased(), "editor", k.epoch, lk.answerHash, wrap])
+        try await transport.createLink(id: l.id, note: note.id, role: "editor", epoch: k.epoch, answerHash: lk.answerHash, keyWrap: wrap)
     }
 
     /// Removes someone: quietly, a new key for everyone else and a new link (the old one would let
@@ -71,30 +71,34 @@ extension CollabStore {
 
     func stopSharing(_ note: Note) async throws {
         try await stopLink(note)
-        if sessions[note.id] != nil { try? await relay?.rpc("collab_stop_link", [note.id.uuidString.lowercased()]) }
+        if sessions[note.id] != nil { try? await transport?.stopLink(note: note.id) }
         editable.remove(note.id)
     }
 
     /// A new note key, sealed from this device to every member who stays, in one call; then the
     /// document re-sealed under it, so devices that join later start from there.
     private func rotate(_ note: Note, removing user: UUID?) async throws {
-        guard let relay, let me, let session = sessions[note.id], let old = keys[note.id] else { return }
-        let members = try await relay.rpc("collab_members", [note.id.uuidString.lowercased()], as: [CollabRelay.Member].self)
+        guard let transport, let me, let session = sessions[note.id], let old = keys[note.id] else { return }
+        let identity = try await ensureIdentity()
+        // Everything stored so far goes into the snapshot sealed under the new key below, so a device
+        // that starts from it never needs a change sealed under the old one.
+        await session.catchUp()
+        let members = try await transport.members(of: note.id)
+        checkKeys(members)
         let epoch = old.epoch + 1
         let nk = SymmetricKey(size: .bits256)
-        var wraps: [[String: String]] = []
+        var wraps: [Collab.Wrap] = []
         for m in members where m.user_id != user {
-            guard let key = m.public_key.flatMap({ Data(base64Encoded: $0) }) else { continue }
-            wraps.append(["user_id": m.user_id.uuidString.lowercased(),
-                          "key_wrap": try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: note.id, epoch: epoch, from: me, to: m.user_id))])
+            // Sealed only to the key first seen for each person: a changed key gets nothing until
+            // someone checks the code, and the server then refuses the incomplete set.
+            guard let key = identityKeys?.trustedKey(of: m) else { continue }
+            wraps.append(Collab.Wrap(user_id: m.user_id, key_wrap: try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: note.id, epoch: epoch, from: me, to: m.user_id))))
         }
-        let json = String(decoding: try JSONSerialization.data(withJSONObject: wraps), as: UTF8.self)
-        try await relay.rpc("collab_remove", [note.id.uuidString.lowercased(), user.map { $0.uuidString.lowercased() } ?? NSNull(), epoch, json])
-        try await relay.rpc("collab_accept", [note.id.uuidString.lowercased(), try CollabCrypto.selfWrap(nk, dataKey: dataKey.key, note: note.id, epoch: epoch)])
+        try await transport.remove(note: note.id, user: user, epoch: epoch, wraps: wraps)
+        try await transport.accept(note: note.id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: note.id, epoch: epoch))
         keys[note.id] = (nk, epoch)
         session.reseal(nk: nk, epoch: epoch)
-        _ = try? await relay.post("snapshots", ["note_id": note.id.uuidString.lowercased(), "upto": session.lastSeen, "epoch": epoch,
-                                                "ct": try session.sealedSnapshot(upto: session.lastSeen)], as: CollabRelay.AnyRow.self)
+        try? await transport.send(snapshot: try session.sealedSnapshot(upto: session.lastSeen), note: note.id, upto: session.lastSeen, epoch: epoch)
         await session.refreshMembers()
     }
 
@@ -103,7 +107,7 @@ extension CollabStore {
         guard let session = sessions[note.id] else { return [] }
         return session.members.map { m in
             ShareState.Person(id: m.id, name: m.name, isMe: m.id == session.me, role: m.role,
-                              safetyCode: m.id == session.me ? nil : m.publicKey.map { CollabCrypto.safetyCode(identity.publicRaw, $0) })
+                              safetyCode: m.id == session.me ? nil : identity.flatMap { id in m.publicKey.map { CollabCrypto.safetyCode(id.publicRaw, $0) } })
         }.sorted { ($0.isMe ? 0 : 1, $0.role == "owner" ? 0 : 1) < ($1.isMe ? 0 : 1, $1.role == "owner" ? 0 : 1) }
     }
 
@@ -144,10 +148,9 @@ extension CollabStore {
     /// whose Edit was turned off) says so; the product would open its read-only copy here too.
     @discardableResult
     func join(_ url: URL) async -> Bool {
-        guard let relay, let me, let context, let (id, secret) = Self.parseLink(url) else { return false }
+        guard let transport, let me, let context, let (id, secret) = Self.parseLink(url) else { return false }
         let lk = Self.linkKeys(secret, link: id)
-        struct Opened: Decodable { let note_id: UUID; let role: String; let epoch: Int; let key_wrap: String }
-        guard let opened = (try? await relay.rpc("collab_open_link", [id, lk.answer], as: [Opened].self))?.first else {
+        guard let opened = try? await transport.openLink(id: id, answer: lk.answer) else {
             joinProblem = "This link is view only. Ask for a link that lets you edit."
             return false
         }
@@ -155,10 +158,11 @@ extension CollabStore {
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32 else { throw CollabCrypto.Failure.wrongKey }
             let nk = SymmetricKey(data: raw)
+            let identity = try await ensureIdentity()
             let toSelf = try CollabCrypto.sealNoteKey(nk, from: identity, to: identity.publicRaw, party: .init(note: opened.note_id, epoch: opened.epoch, from: me, to: me))
-            try await relay.rpc("collab_join_link", [id, lk.answer, toSelf, try CollabCrypto.selfWrap(nk, dataKey: dataKey.key, note: opened.note_id, epoch: opened.epoch)])
+            try await transport.joinLink(id: id, answer: lk.answer, keyWrap: toSelf, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: opened.note_id, epoch: opened.epoch))
             handled.insert(opened.note_id)
-            let session = try await CollabSession.load(note: opened.note_id, epoch: opened.epoch, nk: nk, relay: relay, me: me, name: name)
+            let session = try await CollabSession.load(note: opened.note_id, epoch: opened.epoch, nk: nk, transport: transport, me: me, name: name)
             keys[opened.note_id] = (nk, opened.epoch)
             let note = context.note(opened.note_id) ?? {
                 let n = Note(body: session.text)
@@ -180,7 +184,7 @@ extension CollabStore {
 
     /// Your memberships, checked now and then: a new key (someone was removed, or the link was
     /// reset) is opened and taken; a note you were removed from stops syncing.
-    func followKeys(_ rows: [CollabRelay.Membership]) async {
+    func followKeys(_ rows: [Collab.Membership]) async {
         for (id, session) in sessions {
             guard let row = rows.first(where: { $0.note_id == id }) else {
                 session.disconnect()
@@ -189,7 +193,9 @@ extension CollabStore {
                 continue
             }
             guard row.epoch > session.epoch, let opened = try? await openKey(row) else { continue }
-            try? await relay?.rpc("collab_accept", [id.uuidString.lowercased(), try CollabCrypto.selfWrap(opened.nk, dataKey: dataKey.key, note: id, epoch: row.epoch)])
+            if row.self_wrap == nil, let key = try? dataKey(), let wrap = try? CollabCrypto.selfWrap(opened.nk, dataKey: key, note: id, epoch: row.epoch) {
+                try? await transport?.accept(note: id, selfWrap: wrap)
+            }
             keys[id] = (opened.nk, row.epoch)
             session.reseal(nk: opened.nk, epoch: row.epoch)
         }

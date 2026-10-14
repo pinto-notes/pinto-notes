@@ -23,7 +23,7 @@ The sheet, top to bottom (iPhone and Mac):
 
 There is no Reset Link in the UI. Removing someone quietly makes a new note key and a new link (the old link would let them back in). If a link goes further than meant, Off and then on again gives a new link; anyone who already joined through it is listed in People and can be removed. Explanatory text: none, beyond the labels.
 
-**In the app today (2026-10-08):** the app doesn't link Automerge, which was 4.6 MB of each architecture for a prototype no release runs. The Automerge parts live in `Pane/Collab/CollabText.swift`; the app builds them against stand-ins that throw, and the test target links Automerge and builds the same file for real, so `CollabCryptoTests` still run in CI. `-collab` and `scripts/collab-demo.sh` don't work in the app until it's put back: add `- package: Automerge` to the app targets in `project.yml`, add `COLLAB_AUTOMERGE` to their `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, and delete the stand-ins in `CollabText`.
+**In the app today (2026-10-14):** the app links Automerge again (`project.yml`: the `Automerge` package and `COLLAB_AUTOMERGE` on both app targets). It costs about 3.8 MB of the iPhone app's stripped arm64 binary (16.2 to 19.9 MB) and 1.7 MB of the zipped app (21.1 to 22.8 MB), measured on a Release build. The device talks to the real backend through `CollabTransport` (`Pane/Collab/CollabTransport.swift`): `SupabaseCollabTransport` calls the `collab_*` functions and tables as the signed-in account and joins a private Realtime channel `note:<id>` per open note (new changes as Postgres inserts, presence as a sealed broadcast, devices through Realtime presence). The identity key comes from the account's real data key (`CollabKeys`). Shared notes start only when signed in and `-collab` or the `collabEnabled` default is set, until the two-device test passes on staging. The local relay and its demos are gone; tests use an in-memory server with the same rules (`PaneTests/Collab/MemoryCollabServer.swift`), and `PaneTests/Collab/CollabLiveTests.swift` runs three accounts against the local stack or staging (`scripts/collab-live-accounts.ts`).
 
 ## The short version
 
@@ -46,7 +46,7 @@ Each account has one identity key pair, P-256 (the curve the app already uses fo
 
 - The private half is the 32-byte scalar, sealed under the data key as an ordinary `amb2` box with context `identity:<user id>`, stored in `identity_keys.private_wrap`. Any device that holds the data key (iCloud Keychain, Add a device, the recovery key) can open it. So recovery for sharing is the same as recovery for the notes: nothing new to back up.
 - The public half (`identity_keys.public_key`) is readable through `collab_find_person` and `collab_members`.
-- It is made once, on the first device that shares or is shared with, and never changes. `collab_publish_identity` refuses a different key for an account that has one. Start fresh deletes it with everything else, and that is the one way an identity key changes.
+- It is made once, on the first device that shares or is shared with, and never changes. `collab_publish_identity` refuses a different key for an account that has one; two devices publishing at once both end with the first. Start fresh deletes it with the account's shared notes and memberships (`20261014220000_collab_start_fresh.sql`), and that is the one way an identity key changes.
 
 ### The note key
 
@@ -89,7 +89,7 @@ A link makes a member of whoever holds it, as "anyone with the link" does everyw
 The weak point of any server-run key directory is that the server could hand out its own public key for someone and read what's shared. Two defenses:
 
 - **Safety code.** On a person's row in People ("Verify Sara"), out of the main flow, a 12-digit code made from both public keys. Read it out in person or on a call; if it matches, the server gave each of you the other's real key. This is optional, like Signal's safety numbers. Most people won't, and that's fine for a notes app.
-- **Key change warnings.** The app remembers each person's public key the first time it sees it (trust on first use). Since identity keys never change except through Start fresh, a different key for the same person is shown plainly: "Sara's key changed. If she didn't start fresh, don't share with her until you've checked the code."
+- **Key change warnings.** The app remembers each person's public key the first time it sees it (trust on first use, `CollabKeyBook`, per account on each device). Since identity keys never change except through Start fresh, a different key for the same person is shown plainly: "Sara's key changed. If they didn't start fresh, don't share with them until you've checked the code." Until someone checks the code (`CollabStore.trust`), a wrap from the new key is refused and nothing new is sealed to it.
 
 Key transparency (a public log of identity keys) would close the gap entirely. It is not worth it before there are users who need it.
 

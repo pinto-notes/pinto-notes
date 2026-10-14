@@ -142,13 +142,6 @@ struct PaneApp: App {
         #endif
         // Note pages: compile the sandbox's rules and start a web view now, not when a page opens.
         if NoteApps.enabled, !PaneApp.isUnitTestHost, !ProcessInfo.processInfo.arguments.contains("-noPagePrewarm") { NotePageSandbox.prewarm() }
-        // Collaboration (prototype): `-collab <name>` against the local relay (scripts/collab-demo.sh).
-        if let collab = CollabStore.fromArguments() {
-            collab.context = container.mainContext
-            CollabStore.shared = collab
-            Task { @MainActor in await collab.start() }
-            CollabDemo.run(container.mainContext, store: collab)
-        }
         #if os(macOS)
         Capture.demoSequenceFromArguments(container.mainContext)
         Capture.importSequenceFromArguments()
@@ -727,6 +720,7 @@ final class AppSession {
             heardFrom.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
             AccountCrypto.shared.signedOut()
+            CollabStore.detach()
             KeyDevices.shared.attach(account: nil, server: nil)
             PushRegistration.shared.detach()
             await sync.stop()
@@ -829,6 +823,7 @@ final class AppSession {
             Task { await n.start() }
         }
         await sync.start()
+        if let user = backend.userID { await CollabStore.attach(client: client, account: user, context: context) }
         await firstPullAnswered()
         await setup.refresh(force: true)
         // Tips wait for this: never a tip for something this account has used anywhere.
