@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
@@ -54,6 +54,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/news/xai-grok-gmail-connector" width={1600} height={900} maxWidth={800}
+        alt="Grok on the web, dark theme. A message with the Gmail connector asks: what are my most pressing emails today? Grok answers with a numbered list: an overdue task, a rescheduled meeting and a design office follow-up."
+        caption="Grok answering from Gmail through one of its built-in connectors. Image: xAI." />}
       faq={FAQ}
     >
       <h2 id="connectors">What Grok connectors are</h2>

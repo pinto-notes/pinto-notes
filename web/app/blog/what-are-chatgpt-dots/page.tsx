@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("what-are-chatgpt-dots", { title: "What are ChatGPT dots, and what to give yours" });
@@ -52,6 +52,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/news/openai-dots-slides" width={1600} height={900} maxWidth={800}
+        alt="A ChatGPT dot called Felipe, a blue plush character, in a chat beside a Google Slides deck. It offers two layouts for slide 5 of a launch deck and saves both to the library."
+        caption="A dot at work: it updates a launch deck in Google Slides and shows the options in its chat. Image: OpenAI." />}
       faq={FAQ}
     >
       <h2 id="what-it-is">What a dot is</h2>
@@ -120,6 +123,9 @@ export default function Page() {
         note="Based on OpenAI's own offsite example. Swap the renovation for whatever you're chasing by email this month." />
 
       <h2 id="use-cases">What to give a dot</h2>
+      <PostFigure src="/blog/news/openai-dots-gmail-draft" width={1600} height={900} maxWidth={800}
+        alt="A ChatGPT dot called Todd, a green plush frog, in a chat beside Gmail. It updated a study with new results, then drafted an email to Diana with the findings, a chart and a link."
+        caption="Another dot updates a study, then drafts the email about it in Gmail. Image: OpenAI." />
       <p>
         A good dot job is something you keep checking: an inbox thread or a list that changes. One-off questions are
         better in Chat. Six ideas for a personal account:

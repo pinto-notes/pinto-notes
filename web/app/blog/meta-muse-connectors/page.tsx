@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
@@ -64,6 +64,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/news/meta-muse-connectors" width={1344} height={1000} maxWidth={560}
+        alt="A grid of app icons that can connect with Meta's Muse, including Facebook, Instagram, Gmail, Google Drive, Google Docs, Google Calendar, Shopify and Apple Health. The outer icons are blurred."
+        caption="Some of the apps Muse can connect to. Image: Meta." />}
       faq={FAQ}
     >
       <h2 id="what">What a Muse connector is</h2>
