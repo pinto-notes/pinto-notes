@@ -57,10 +57,15 @@ final class KeychainLinkVault: LinkVault {
     /// The Keychain refused for want of an entitlement once: from then on, the fallback.
     private(set) var usesFallback = false
 
-    init(account: UUID, items: LinkSecItems = SystemLinkSecItems(), fallback: SessionStorage = SessionStorage()) {
+    /// `keychainWorks`: whether this build can write synced Keychain items. Decided up front, as the
+    /// account key store decides it (a probe write): a build without the entitlement still reads
+    /// "not found" rather than refusing, so a read alone can't tell.
+    init(account: UUID, items: LinkSecItems = SystemLinkSecItems(), fallback: SessionStorage = SessionStorage(),
+         keychainWorks: Bool = KeychainAccountKeyStore.dataProtectionAvailable) {
         self.account = account
         self.items = items
         self.fallback = fallback
+        usesFallback = !keychainWorks
     }
 
     /// Keyed by the shared note's id: the same on every device, and what the server and the link use.
@@ -91,7 +96,8 @@ final class KeychainLinkVault: LinkVault {
             let (status, out) = items.copy(query(note))
             if !refused(status) { data = out }
         }
-        if usesFallback { data = (try? fallback.retrieve(key: fallbackKey(note))).flatMap { $0 } }
+        // Not in the Keychain (or no Keychain): a link kept in the app's own storage still counts.
+        if data == nil { data = (try? fallback.retrieve(key: fallbackKey(note))).flatMap { $0 } }
         return data.flatMap { try? JSONDecoder().decode(LinkVaultEntry.self, from: $0) }
     }
 
@@ -115,7 +121,8 @@ final class KeychainLinkVault: LinkVault {
     }
 
     func remove(_ note: UUID) {
-        if !usesFallback, !refused(items.delete(query(note))) { return }
+        if !usesFallback { _ = refused(items.delete(query(note))) }
+        // Both places: a copy in the app's own storage mustn't bring the link back.
         try? fallback.remove(key: fallbackKey(note))
         index.removeAll { $0 == note }
     }
@@ -123,7 +130,7 @@ final class KeychainLinkVault: LinkVault {
     /// Start fresh: the account's note keys are gone, so its links are too (on every device, where
     /// the Keychain syncs them).
     func removeAll() {
-        if !usesFallback, !refused(items.delete(query(nil))) { return }
+        if !usesFallback { _ = refused(items.delete(query(nil))) }
         for note in index { try? fallback.remove(key: fallbackKey(note)) }
         try? fallback.remove(key: indexKey)
     }
