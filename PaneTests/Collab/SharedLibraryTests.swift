@@ -164,6 +164,24 @@ extension NetworkFaults {
         await eb.stop()
     }
 
+    /// Joined on another of your devices, whose pointer hasn't come by sync yet: the next look at
+    /// your memberships brings the note here too, with the same id, without sending a pointer of
+    /// its own (the other device's says where you put it).
+    @Test func aNoteJoinedOnAnotherDeviceArrivesHere() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Recipes", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member), mac = try device(member)
+        let mine = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        await mac.library.reconcile(try await mac.transport.memberships())
+        let there = try #require(mac.context.note(mine.id))
+        #expect(there.body == "Recipes" && there.sharedNoteID == note.id)
+        #expect(!there.dirty)
+        // Asked again, nothing is made twice.
+        await mac.library.reconcile(try await mac.transport.memberships())
+        #expect(try mac.context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID != nil })) == 1)
+    }
+
     // MARK: Becoming shared
 
     /// Sharing keeps everything: the whole text with its links and files, the note's id (so its

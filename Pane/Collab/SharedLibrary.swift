@@ -104,8 +104,12 @@ final class SharedLibrary {
     /// opened): the document from the server, and a note for it in "Shared with me". Its id is
     /// yours, never the owner's (`notes.id` is unique across accounts), and the same on each of
     /// your devices.
+    ///
+    /// `announce`: the note's pointer goes to your other devices. False for a note found joined on
+    /// another device: that device sent its pointer, and this one's would put the note back in
+    /// "Shared with me" if you'd moved it there; the pointer arriving puts it in its place.
     @discardableResult
-    func adopt(shared: UUID, nk: SymmetricKey, epoch: Int, role: String) async throws -> Note {
+    func adopt(shared: UUID, nk: SymmetricKey, epoch: Int, role: String, announce: Bool = true) async throws -> Note {
         let noteID = SharedNotes.noteID(for: shared, user: me)
         if let s = sessions[noteID], let note = context.note(noteID), note.deletedAt == nil {
             if epoch > s.epoch { s.reseal(nk: nk, epoch: epoch) }
@@ -141,7 +145,7 @@ final class SharedLibrary {
         note.sharedNoteID = shared
         note.sharedDocument = record
         note.body = session.text
-        note.touch()
+        if announce { note.touch() } else { note.dirty = false }
         context.saveOrReport()
         open(session, note: note)
         return note
@@ -281,7 +285,7 @@ final class SharedLibrary {
             let id = SharedNotes.noteID(for: row.note_id, user: me)
             guard context.note(id) == nil else { continue }
             guard let nk = try? await key(for: row) else { continue }
-            _ = try? await adopt(shared: row.note_id, nk: nk, epoch: row.epoch, role: row.role)
+            _ = try? await adopt(shared: row.note_id, nk: nk, epoch: row.epoch, role: row.role, announce: false)
         }
     }
 
