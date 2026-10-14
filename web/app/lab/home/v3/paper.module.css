@@ -1,0 +1,60 @@
+/* Version 3, paper: full-width cut-paper scenes, words in the calm left third, one real proof each. */
+.page { display: grid; gap: 28px; padding-top: 12px; }
+.scene { position: relative; width: min(1320px, calc(100vw - 2 * var(--gutter))); margin: 0 auto; aspect-ratio: 16 / 8.4; border-radius: 32px; overflow: hidden; isolation: isolate;
+  background: var(--ground, #fce3b8); box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.1); }
+.art { position: absolute; top: 0; bottom: 0; right: 0; width: 72%; z-index: -1; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%); mask-image: linear-gradient(90deg, transparent 0%, #000 22%); }
+.art img { width: 100%; height: 100%; object-fit: cover; object-position: 62% center; will-change: transform; display: block; }
+.words { position: absolute; left: clamp(28px, 5.5%, 76px); top: 50%; transform: translateY(-50%); width: min(470px, 38%); display: grid; gap: 16px; color: #2a1d10; }
+.scene[data-dark] .words { color: #fff4e6; }
+.words h1, .words h2 { margin: 0; font-weight: 800; letter-spacing: -0.035em; line-height: 0.98; text-wrap: balance; }
+.words h1 { font-size: clamp(44px, 5.6vw, 82px); }
+.words h2 { font-size: clamp(36px, 4.4vw, 62px); }
+.words p { margin: 0; font-size: clamp(17px, 1.45vw, 20px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.scene[data-dark] .words p { color: #e8d6c0; }
+.mark { white-space: nowrap; background: linear-gradient(transparent 62%, rgba(240, 144, 26, 0.38) 62%, rgba(240, 144, 26, 0.38) 92%, transparent 92%); }
+
+/* The proof: a small real piece of the app, settling into the art when the scene is in view. */
+.proof { position: absolute; right: clamp(24px, 6%, 90px); bottom: clamp(24px, 9%, 80px); display: grid; gap: 8px; justify-items: end;
+  transform: translateY(14px); opacity: 0.001; transition: transform .42s cubic-bezier(.34,1.56,.64,1), opacity .3s ease-out; }
+.proof[data-seen] { transform: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .proof { transform: none; opacity: 1; transition: none; } }
+.chip { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 19px; background: #fffaf3; color: #2a1d10; font-size: 14.5px; font-weight: 650;
+  white-space: nowrap; box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.18), 0 14px 30px -14px rgba(60, 30, 5, 0.5); }
+.chip b { color: #a85700; font-weight: 700; }
+.chip svg.ok { width: 16px; height: 16px; }
+.chip svg.ok path { fill: none; stroke: #d97a17; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.card { width: 320px; padding: 14px 16px 16px; border-radius: 18px; background: #faf9f5; color: #141413; display: grid; gap: 8px; font-size: 15px; line-height: 1.4;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.16), 0 26px 50px -24px rgba(60, 30, 5, 0.55); }
+.cardTop { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650; color: #c15f3c; }
+.cardMe { justify-self: end; margin: 0; padding: 7px 12px; border-radius: 12px; background: #f0eee6; }
+.cardTool { margin: 0; font-size: 12px; color: #8e8e93; }
+.cardAi { margin: 0; }
+.cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 6px; }
+.fine { font-size: 13.5px; color: #8a7a68; }
+
+@media (max-width: 760px) {
+  .scene { aspect-ratio: auto; border-radius: 22px; display: grid; }
+  .art { position: relative; width: 100%; aspect-ratio: 16 / 9; z-index: 0; -webkit-mask-image: none; mask-image: none; }
+  .art img { object-position: 70% center; }
+  .scene[data-dark] { background: #2e180a; }
+.scene[data-dark] .art { width: 100%; -webkit-mask-image: none; mask-image: none; }
+.scene[data-dark] .art img { object-position: center; }
+  .scene[data-dark] .art::after { background: none; }
+  .words { position: relative; left: auto; top: auto; transform: none; width: auto; padding: 22px 22px 26px; }
+  .proof { position: relative; right: auto; bottom: auto; justify-items: start; padding: 0 22px 24px; }
+  .card { width: 100%; }
+}
+
+/* Flipped scenes: the art on the left, the words on the right, so the page alternates. */
+.scene[data-flip] .art { right: auto; left: 0; -webkit-mask-image: linear-gradient(270deg, transparent 0%, #000 22%); mask-image: linear-gradient(270deg, transparent 0%, #000 22%); }
+.scene[data-flip] .words { left: auto; right: clamp(28px, 5.5%, 76px); }
+.scene[data-flip] .proof { right: auto; left: clamp(24px, 6%, 90px); justify-items: start; }
+/* The dark scene: its own evening art on the leaf brown. */
+.scene[data-dark] { background: #2e180a; }
+.scene[data-dark] .art { width: 100%; -webkit-mask-image: none; mask-image: none; }
+.scene[data-dark] .art img { object-position: center; }
+@media (max-width: 760px) { .scene[data-flip] .art { -webkit-mask-image: none; mask-image: none; } .scene[data-flip] .proof { left: auto; } .scene[data-flip] .words { right: auto; } }
+/* Words always sit on calm ground: the dark scene darkens its left side a little behind them. */
+.scene[data-dark] .art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(40, 20, 8, 0.82) 0%, rgba(40, 20, 8, 0.55) 30%, transparent 48%); }
+.words { width: min(440px, 34%); }
+@media (max-width: 760px) { .scene[data-dark] .art::after { background: none; } .words { width: auto; } }

@@ -4,6 +4,7 @@ import { G } from "../copy";
 import { Switcher, type VersionInfo } from "./Switcher";
 import { V1 } from "./v1/V1";
 import { V2 } from "./v2/V2";
+import { V3 } from "./v3/V3";
 
 export const metadata: Metadata = { title: G.title, description: G.description };
 
@@ -24,6 +25,12 @@ const VERSIONS: (VersionInfo & { render: (p: Record<string, string | undefined>)
     idea: "The whole product as one scrolled film: Monday ChatGPT writes your plan, Wednesday Claude reads it, Friday it moves what you missed, Sunday you tick the last run.",
     take: "The most cinematic. Scroll slowly through the middle.",
     render: () => <V2 />,
+  },
+  {
+    id: "paper", name: "Paper",
+    idea: "The picture book: each benefit is one cut-paper scene drawn for it, with one real piece of the app laid in as proof.",
+    take: "The warmest and most ours. Lighter on demonstration than the others.",
+    render: () => <V3 />,
   },
 ];
 
