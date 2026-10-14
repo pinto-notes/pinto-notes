@@ -519,9 +519,10 @@ extension NetworkFaults {
         await #expect(throws: Collab.Failure.notOwner) { try await emil.library.leave(note) }
     }
 
-    /// Deleting someone else's shared note for good leaves it, as in Apple Notes; offline, the
-    /// next look at your memberships does. One you joined again since isn't left.
-    @Test func deletingAMembersNoteForGoodLeavesIt() async throws {
+    /// Deleting someone else's shared note leaves it, as in Apple Notes: it goes from your library
+    /// (no Recently Deleted). Offline, it waits in Recently Deleted and the next look at your
+    /// memberships leaves it. One you joined again since isn't left.
+    @Test func deletingSomeoneElsesSharedNoteLeavesIt() async throws {
         let emil = try device(owner)
         let (note, _) = try await shared("Reading list", on: emil)
         server.add(member, to: note.id)
@@ -529,15 +530,22 @@ extension NetworkFaults {
         sara.library.install()
         let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
         sara.context.trash(mine)
-        #expect(server.role(note.id, member) != nil, "in Recently Deleted you're still in it")
+        await waitUntil { mine.deletedAt != nil }
+        #expect(server.role(note.id, member) == nil)
+        #expect(mine.deletedAt != nil && mine.sharedDocument == nil)
+
+        // Offline: it waits, then leaves once the server answers.
+        server.add(member, to: note.id)
+        let again = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        #expect(again.id == mine.id && again.deletedAt == nil)
         sara.transport.offline = true
-        sara.context.purge(mine)
+        sara.context.trash(again)
         await waitUntil(1) { false }
-        #expect(server.role(note.id, member) != nil)
-        #expect(mine.sharedDocument == nil)
+        #expect(server.role(note.id, member) != nil && again.trashedAt != nil)
         sara.transport.offline = false
         await sara.library.reconcile(try await sara.transport.memberships())
         #expect(server.role(note.id, member) == nil)
+        #expect(again.deletedAt != nil)
 
         // Joined again later: the old deletion doesn't make you leave.
         server.add(member, to: note.id)
@@ -545,6 +553,76 @@ extension NetworkFaults {
         await sara.library.reconcile(try await sara.transport.memberships())
         #expect(server.role(note.id, member) != nil)
         #expect(mine.deletedAt == nil)
+    }
+
+    /// The owner deleting their shared note (Apple Notes): sharing stops for everyone through
+    /// collab_unshare, with the merged text sent back for their own row; the note is in their
+    /// Recently Deleted with that text, an ordinary note, and restoring it brings it back unshared.
+    /// Its pointer never goes up over the unshared row.
+    @Test func theOwnerDeletingASharedNoteStopsSharingForEveryone() async throws {
+        let emil = try device(owner)
+        let (note, session) = try await shared("Party plan", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let theirs = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let saraSession = try #require(sara.library.session(for: theirs))
+        type("\nCake", in: saraSession)
+        await waitUntil { session.text == "Party plan\nCake" }
+
+        emil.library.install()
+        emil.context.trash(note)
+        await waitUntil { !note.isShared }
+        #expect(!note.isShared && note.trashedAt != nil && note.deletedAt == nil)
+        #expect(note.body == "Party plan\nCake", "Recently Deleted holds the merged text")
+        #expect(note.sharedDocument == nil && emil.library.sessions[note.id] == nil)
+        let sent = try #require(emil.transport.unshared[note.id])
+        #expect(Wire.sealer?.open(sent, context: E2EE.body(note.id)) == "Party plan\nCake")
+        #expect(server.members[note.id] == nil, "nobody is in it anymore")
+        // The members' pointers are deleted by the server; theirs goes when it comes by sync,
+        // or at the next look at memberships.
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(theirs.deletedAt != nil)
+
+        emil.context.restore(note)
+        #expect(note.trashedAt == nil && !note.isShared && note.body == "Party plan\nCake")
+    }
+
+    /// While sharing is being stopped, sync doesn't push the note's pointer: it would put the
+    /// pointer back over the row collab_unshare just wrote. Once done, it goes up as an ordinary note.
+    @Test func syncHoldsANoteWhileItsSharingStops() async throws {
+        let sara = try device(member)
+        let engine = engine(for: sara)
+        let note = sara.context.createNote(in: .all, body: "Plans")
+        try await sara.transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        _ = try await sara.library.becomeShared(note, nk: nk)
+        await engine.sync()
+        let version = StubSupabase.note(note.id)?["version"] as? Int
+        SharedNotes.unsharing.insert(note.id)
+        note.isPinned = true
+        note.touch()
+        await engine.sync()
+        #expect(StubSupabase.note(note.id)?["version"] as? Int == version)
+        #expect(note.dirty)
+        SharedNotes.unsharing.remove(note.id)
+        await engine.sync()
+        #expect(!note.dirty)
+        await engine.stop()
+    }
+
+    /// Offline, the owner's delete waits in Recently Deleted, still shared, and stops sharing once
+    /// the server answers.
+    @Test func theOwnersDeleteOfflineStopsSharingLater() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Budget", on: emil)
+        emil.library.install()
+        emil.transport.offline = true
+        emil.context.trash(note)
+        await waitUntil(1) { false }
+        #expect(note.isShared && note.trashedAt != nil)
+        emil.transport.offline = false
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(!note.isShared && note.body == "Budget")
+        #expect(emil.transport.unshared[note.id] != nil)
     }
 
     /// A new key after someone else was removed: what's waiting is sealed with it and goes up.

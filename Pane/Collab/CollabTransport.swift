@@ -38,6 +38,10 @@ protocol CollabTransport: AnyObject {
     /// You leave someone else's note (refused for the owner). The owner's next device gives the
     /// note a new key without you (`remove` with `user` nil).
     func leave(note: UUID) async throws
+    /// The owner stops sharing (deleting the note, as in Apple Notes; `collab_unshare`): the
+    /// merged text goes back into the owner's notes row (sealed under their data key, `body` and
+    /// `head`), the shared note and everything of it goes, and every member's pointer is deleted.
+    func unshare(note: UUID, body: String, head: String) async throws
     /// The note's sealed title and preview (`amb3h`), for lists.
     func updateHead(note: UUID, head: String) async throws
 

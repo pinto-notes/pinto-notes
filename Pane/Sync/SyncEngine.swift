@@ -657,7 +657,7 @@ final class SyncEngine {
         // A sub-note made offline under a note made offline goes up after it.
         let notes = Self.parentsFirst((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.dirty }))) ?? [])
         var pushedNotes: [UUID] = []
-        for n in notes where !isRefused(n.id, n.updatedAt) {
+        for n in notes where !isRefused(n.id, n.updatedAt) && !SharedNotes.unsharing.contains(n.id) {
             let sentAt = n.updatedAt
             let row = NoteDTO(n)
             var saved: [NoteDTO]

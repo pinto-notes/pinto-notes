@@ -312,6 +312,9 @@ extension ModelContext {
         // A parent takes its sub-notes with it.
         for child in subNotes(of: note) where child.trashedAt == nil { trash(child) }
         saveOrReport()
+        // A shared note deleted, as in Apple Notes: yours stops being shared (and goes to Recently
+        // Deleted, as now); someone else's you leave.
+        if note.isShared { SharedNotes.trashed?(note) }
     }
 
     func restore(_ note: Note) {
