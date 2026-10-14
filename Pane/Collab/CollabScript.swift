@@ -31,6 +31,8 @@ import AppKit
 ///   {"waitText": "…"}                              until the open note shows it (60 s)
 ///   {"verify": {"name": "Sara", "file": "code.txt"}}   their safety code written, then "They match"
 ///   {"leave": true}                                Leave Note
+///   {"delete": true}                               Delete the open note (the owner's stops sharing)
+///   {"waitGone": 90}                               until the open shared note is taken away
 ///   {"startFresh": true}                           Start fresh (the account's notes and links go)
 ///   {"dump": "state.json"}                         the open note's text, its share state and saved link
 ///   {"wait": 2}, {"quit": true}
@@ -160,6 +162,18 @@ enum CollabScript {
             await share.confirmLeave()
             if let problem = share.state.problem { throw Failed(description: problem) }
             NotificationCenter.default.post(name: CollabDemo.closeShare, object: nil)
+        case "delete":
+            // As Delete in the note's menu: yours stops being shared, someone else's you leave.
+            guard let context, let current else { throw Failed(description: "no note open") }
+            context.trash(current)
+        case "waitGone":
+            // The note this device has open was taken away (its owner deleted it, or stopped sharing).
+            guard let current else { throw Failed(description: "no note open") }
+            let id = current.id
+            try await until(value as? Double ?? 90, "the shared note to go") {
+                guard let n = notes().first(where: { $0.id == id }) else { return true }
+                return n.deletedAt != nil || n.trashedAt != nil || n.sharedNoteID == nil
+            }
         case "startFresh":
             try await AccountCrypto.shared.startFresh(confirmation: AccountCrypto.startFreshPhrase)
         case "dump":
@@ -232,7 +246,8 @@ enum CollabScript {
             out["title"] = current.title
             out["text"] = editorText() ?? current.body
             out["sharedNoteID"] = current.sharedNoteID?.uuidString ?? NSNull()
-            out["deleted"] = current.deletedAt != nil || current.trashedAt != nil
+            out["deleted"] = current.deletedAt != nil
+            out["inRecentlyDeleted"] = current.trashedAt != nil && current.deletedAt == nil
             if let store = CollabStore.shared {
                 let s = ShareController(note: current, backend: store).state
                 out["access"] = s.access.rawValue
