@@ -66,21 +66,32 @@ export default async function Page({ params }: Props) {
   const vs = variants(t);
   // The templates with an app also answer their search: what you can do in the app, questions, the how-to post.
   const seo = templateSeo(t.slug);
-  const appSection = t.app && (
+  const appSection = t.app && (seo ? (
+    // What you can do in the app: the app itself, with its features as short labels beside it.
     <section className={s.section} aria-labelledby="result">
       <div className={s.sectionHead}>
-        <h2 id="result" className={s.h2}>{seo ? "What you can do in the app" : "The app you start with"}</h2>
+        <h2 id="result" className={s.h2}>What you can do in the app</h2>
+        <p className={s.sectionLede}><UseLabel t={t} /> adds this app with sample data, in light and dark, and it all works without your AI.</p>
+      </div>
+      <div className={s.canRow}>
+        <div className={s.canApp}><AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} /></div>
+        <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
+      </div>
+    </section>
+  ) : (
+    <section className={s.section} aria-labelledby="result">
+      <div className={s.sectionHead}>
+        <h2 id="result" className={s.h2}>The app you start with</h2>
         <p className={s.sectionLede}>
-          <UseLabel t={t} /> adds the note with this app and its sample data in Pinto Notes on your Mac. It follows your Mac in light and dark{seo ? ", and everything in it works without your AI" : ""}.
+          <UseLabel t={t} /> adds the note with this app and its sample data in Pinto Notes on your Mac. It follows your Mac in light and dark.
         </p>
       </div>
-      {seo && <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>}
       <div className={`${s.result} ${s.appPair}`}>
         <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} app in light mode`} />
         <AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} />
       </div>
     </section>
-  );
+  ));
   return (
     <div className={s.main}>
       <JsonLd graph={[
