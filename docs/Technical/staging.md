@@ -80,8 +80,8 @@ it won't replace a copy that's running. TestFlight may later install a newer Tes
 ## What staging leaves out
 
 - Push for AI connection asks (no APNs key). Connect with the QR code or the number instead.
-- Live collaboration. In the app and on the site's `/s` and `/t` pages it's still a prototype that
-  talks only to the local relay (`scripts/collab-relay.ts`), not to Supabase.
+- The site's `/s` and `/t` pages (sealed links and templates) still read the old local relay.
+  Live co-editing in the app talks to the backend the build points at (`SupabaseCollabTransport`).
 - Website analytics and the `mcp.` alias.
 
 Emails from staging come from the production senders (hello@ for sign-in, emil@ for the onboarding

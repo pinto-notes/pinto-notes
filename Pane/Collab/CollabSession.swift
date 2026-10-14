@@ -6,7 +6,7 @@ import os
 
 private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 
-/// Collaboration (prototype): one shared note while it's open on this device.
+/// Collaboration: one shared note while it's open on this device.
 ///
 /// The note's text is an Automerge document (UTF-16 offsets, so they match the editor's NSString
 /// ranges). Your typing becomes splices into it; each splice goes up as a sealed change and comes
@@ -16,7 +16,6 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 @MainActor
 @Observable
 final class CollabSession {
-    // The app doesn't link Automerge (see CollabText.swift for why, and how to put it back).
     typealias Document = CollabText.Document
     typealias ObjId = CollabText.ObjId
     typealias Anchor = CollabText.Anchor
@@ -50,7 +49,7 @@ final class CollabSession {
     let me: UUID
     let myName: String
     private var nk: SymmetricKey
-    private let relay: CollabRelay
+    private let transport: CollabTransport
     private let doc: Document
     private let body: ObjId
     /// The document's text as last given to (or taken from) the editor.
@@ -69,7 +68,12 @@ final class CollabSession {
     @ObservationIgnored var onCarets: (([RemoteCaret]) -> Void)?
     /// Mirrors the text into the note (list title, search) once it settles.
     @ObservationIgnored var onSettled: ((String) -> Void)?
-    @ObservationIgnored private var channel: CollabRelay.Channel?
+    /// The note's members as last read, for the key-change check (CollabStore.checkKeys).
+    @ObservationIgnored var onMembers: (([Collab.Member]) -> Void)?
+    /// The server refused a change for an old key: the store looks for the new one.
+    @ObservationIgnored var onKeyChanged: (() -> Void)?
+    @ObservationIgnored private var channel: CollabChannel?
+    @ObservationIgnored private var joining: Task<Void, Never>?
     @ObservationIgnored private var outbox: [Data] = []
     @ObservationIgnored private var sending = false
     @ObservationIgnored private var mySelection: NSRange?
@@ -78,16 +82,16 @@ final class CollabSession {
     @ObservationIgnored private var settleTask: Task<Void, Never>?
 
     /// A new shared document holding `initial` (the owner, when sharing).
-    static func create(note: UUID, epoch: Int, nk: SymmetricKey, initial: String, relay: CollabRelay, me: UUID, name: String) throws -> CollabSession {
+    static func create(note: UUID, epoch: Int, nk: SymmetricKey, initial: String, transport: CollabTransport, me: UUID, name: String) throws -> CollabSession {
         let doc = Document(textEncoding: .utf16)
         let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
         try doc.spliceText(obj: body, start: 0, delete: 0, value: initial)
-        return CollabSession(note: note, epoch: epoch, nk: nk, doc: doc, body: body, relay: relay, me: me, name: name)
+        return CollabSession(note: note, epoch: epoch, nk: nk, doc: doc, body: body, transport: transport, me: me, name: name)
     }
 
     /// The document as the server has it: the newest snapshot, then the changes after it.
-    static func load(note: UUID, epoch: Int, nk: SymmetricKey, relay: CollabRelay, me: UUID, name: String) async throws -> CollabSession {
-        let pull = try await relay.get("updates", query: ["note": note.uuidString.lowercased(), "after": "0"], as: CollabRelay.Pull.self)
+    static func load(note: UUID, epoch: Int, nk: SymmetricKey, transport: CollabTransport, me: UUID, name: String) async throws -> CollabSession {
+        let pull = try await transport.pull(note: note, after: 0)
         let doc = Document(textEncoding: .utf16)
         var last: Int64 = 0
         if let s = pull.snapshot {
@@ -101,19 +105,19 @@ final class CollabSession {
         }
         let loaded = Set(pull.updates.map(\.id))
         guard case .Object(let body, .Text)? = try doc.get(obj: .ROOT, key: "body") else { throw CollabCrypto.Failure.malformed }
-        let s = CollabSession(note: note, epoch: epoch, nk: nk, doc: doc, body: body, relay: relay, me: me, name: name)
+        let s = CollabSession(note: note, epoch: epoch, nk: nk, doc: doc, body: body, transport: transport, me: me, name: name)
         s.lastSeen = last
         s.applied = loaded
         return s
     }
 
-    private init(note: UUID, epoch: Int, nk: SymmetricKey, doc: Document, body: ObjId, relay: CollabRelay, me: UUID, name: String) {
+    private init(note: UUID, epoch: Int, nk: SymmetricKey, doc: Document, body: ObjId, transport: CollabTransport, me: UUID, name: String) {
         noteID = note
         self.epoch = epoch
         self.nk = nk
         self.doc = doc
         self.body = body
-        self.relay = relay
+        self.transport = transport
         self.me = me
         myName = name
         text = (try? doc.text(obj: body)) ?? ""
@@ -125,6 +129,7 @@ final class CollabSession {
         self.nk = nk
         self.epoch = epoch
         sendPresence()
+        flush()
     }
 
     /// The whole document sealed, for the server to hand to devices starting out.
@@ -135,12 +140,24 @@ final class CollabSession {
     // MARK: Live
 
     func connect() {
-        guard channel == nil else { return }
-        channel = relay.join(note: noteID) { [weak self] event in self?.receive(event) }
+        guard channel == nil, joining == nil else { return }
+        joining = Task { [weak self, transport, noteID] in
+            do {
+                let channel = try await transport.join(note: noteID) { [weak self] event in self?.receive(event) }
+                guard let self, !Task.isCancelled else { channel.close(); return }
+                self.channel = channel
+                self.joining = nil
+                // Catch up on anything that landed between loading and joining.
+                await self.catchUp()
+                self.sendPresence()
+            } catch {
+                log.error("joining the note's channel failed: \(String(describing: error), privacy: .public)")
+                self?.joining = nil
+                // Refused: most likely removed, or a new key. The store checks memberships.
+                self?.onKeyChanged?()
+            }
+        }
         Task { await refreshMembers() }
-        // Catch up on anything that landed between loading and joining.
-        Task { await catchUp() }
-        sendPresence()
         // Presence is re-sent now and then, so someone who joins later sees you without waiting.
         presenceTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -151,6 +168,8 @@ final class CollabSession {
     }
 
     func disconnect() {
+        joining?.cancel()
+        joining = nil
         presenceTask?.cancel()
         channel?.close()
         channel = nil
@@ -158,18 +177,28 @@ final class CollabSession {
     }
 
     func refreshMembers() async {
-        guard let rows = try? await relay.rpc("collab_members", [noteID.uuidString.lowercased()], as: [CollabRelay.Member].self) else { return }
+        guard let rows = try? await transport.members(of: noteID) else { return }
+        onMembers?(rows)
         members = rows.map { Member(id: $0.user_id, name: $0.display_name ?? "Someone", role: $0.role,
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
     }
 
     private func catchUp() async {
-        guard let pull = try? await relay.get("updates", query: ["note": noteID.uuidString.lowercased(), "after": String(lastSeen)], as: CollabRelay.Pull.self) else { return }
+        guard let pull = try? await transport.pull(note: noteID, after: lastSeen) else { return }
+        if let s = pull.snapshot, let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: nk, note: noteID, extra: String(s.upto)) {
+            // Behind the newest snapshot (the changes before it are gone from the server): merge it.
+            try? CollabText.absorb(saved, into: doc)
+            lastSeen = max(lastSeen, s.upto)
+            textChanged()
+        }
         for u in pull.updates { apply(u) }
     }
 
-    private func receive(_ event: CollabRelay.Event) {
+    private func receive(_ event: Collab.Event) {
         switch event {
+        case .reconnected:
+            Task { await catchUp() }
+            flush()
         case .update(let u):
             apply(u)
         case .presence(let user, let ct):
@@ -190,7 +219,7 @@ final class CollabSession {
         }
     }
 
-    private func apply(_ u: CollabRelay.Update) {
+    private func apply(_ u: Collab.Update) {
         guard u.note_id == noteID, !applied.contains(u.id) else { return }
         applied.insert(u.id)
         lastSeen = max(lastSeen, u.id)
@@ -202,6 +231,11 @@ final class CollabSession {
             log.error("a change didn't open or apply: \(String(describing: error), privacy: .public)")
             return
         }
+        textChanged()
+    }
+
+    /// After something from elsewhere went into the document: the editor gets the merged text.
+    private func textChanged() {
         let merged = (try? doc.text(obj: body)) ?? text
         guard merged != text else { resolvePeers(); return }
         text = merged
@@ -247,25 +281,36 @@ final class CollabSession {
         sendPresence()
     }
 
+    /// Sends what's waiting, one change at a time and in order. A change the server didn't take
+    /// stays at the front of the queue with everything after it, and goes again on the next edit,
+    /// when the channel reconnects, or once the note's new key is here (it's sealed as it's sent).
     private func flush() {
         guard !sending, !outbox.isEmpty else { return }
         sending = true
         let batch = outbox
         outbox = []
         Task {
-            for change in batch where !change.isEmpty {
+            var failed = false
+            for (i, change) in batch.enumerated() where !change.isEmpty {
                 do {
                     let ct = try CollabCrypto.seal(.update, change, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString)
-                    let row = try await relay.post("updates", ["note_id": noteID.uuidString.lowercased(), "epoch": epoch, "ct": ct], as: CollabRelay.Update.self)
+                    let row = try await transport.send(update: ct, note: noteID, epoch: epoch)
                     applied.insert(row.id)
                 } catch {
+                    if case Collab.Failure.staleEpoch = error { onKeyChanged?() }
                     log.error("sending a change failed: \(String(describing: error), privacy: .public)")
+                    outbox.insert(contentsOf: batch[i...], at: 0)
+                    failed = true
+                    break
                 }
             }
             sending = false
-            flush()
+            if !failed { flush() }
         }
     }
+
+    /// Changes made here that the server doesn't have yet.
+    var unsent: Int { outbox.count }
 
     private func settle() {
         settleTask?.cancel()
