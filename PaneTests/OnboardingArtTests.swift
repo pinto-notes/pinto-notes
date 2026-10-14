@@ -61,15 +61,37 @@ import Testing
         #expect(!names.contains(OnboardingArt.name(.signin, in: .still)))
     }
 
-    /// The pictures live in their own catalog, which the share extension doesn't list and the
-    /// iPhone app doesn't get.
+    /// A band a third of a picture's height, centred on the focus, stays inside the picture and
+    /// holds the focus; every step of both sets has its own focus between the edges.
+    @Test func theBandSitsOnTheFocus() {
+        let height: CGFloat = 536, band: CGFloat = 175
+        for set in OnboardingArt.Set.allCases {
+            for moment in OnboardingArt.Moment.allCases {
+                let f = OnboardingArt.focus(moment, in: set)
+                #expect(f > 0.2 && f < 0.8, "\(set) \(moment)")
+                let y = OnboardingArt.offset(focus: f, height: height, band: band)
+                #expect(y <= 0 && y >= band - height, "the band stays inside the picture")
+                let shown = (-y)...(-y + band)
+                #expect(shown.contains(f * height), "\(set) \(moment): the focus is in the band")
+            }
+        }
+        // At the edges it stops at the picture's top and foot instead of showing past them.
+        #expect(OnboardingArt.offset(focus: 0, height: height, band: band) == 0)
+        #expect(OnboardingArt.offset(focus: 1, height: height, band: band) == band - height)
+    }
+
+    /// The pictures live in their own catalog, which comes with the app's folder (the Mac and the
+    /// iPhone app) and which the share extension, listing its own sources, never gets.
     @Test func theShareExtensionDoesntCarryThem() throws {
         let project = try String(contentsOf: TestFiles.url("project.yml"), encoding: .utf8)
         let share = try #require(project.components(separatedBy: "\n  PaneShare:\n").last?.components(separatedBy: "\n  Pane").first)
         #expect(share.contains("Assets.xcassets"))
         #expect(!share.contains("Onboarding.xcassets"))
-        #expect(project.contains("excludes: [\"Resources/Onboarding.xcassets\"]"))
-        #expect(project.contains("- path: Pane/Resources/Onboarding.xcassets\n        destinationFilters: [macOS]"))
+        #expect(!share.contains("      - Pane\n"), "the share extension lists files, never the whole app folder")
+        // Both apps: the folder whole, with no filter or exclusion keeping the pictures from iPhone.
+        #expect(project.contains("sources: &appSources\n      - Pane\n"))
+        #expect(!project.contains("excludes: [\"Resources/Onboarding.xcassets\"]"))
+        #expect(!project.contains("Onboarding.xcassets\n        destinationFilters"))
     }
 }
 #endif

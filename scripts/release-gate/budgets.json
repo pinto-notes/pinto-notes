@@ -267,12 +267,144 @@
   "max": 135000,
   "floor": 2000
  },
+ "perf.10000.launchToWindowMs": {
+  "max": 2000,
+  "floor": 150
+ },
+ "perf.10000.launchToSyncedMs": {
+  "max": 3610,
+  "floor": 500
+ },
+ "perf.10000.idle.cpuPercent": {
+  "max": 2,
+  "floor": 1
+ },
+ "perf.10000.idle.layouts": {
+  "max": 0,
+  "regression": false
+ },
+ "perf.10000.idle.wakeupsPerSecond": {
+  "max": 10,
+  "floor": 5
+ },
+ "perf.10000.memoryEndMB": {
+  "max": 190,
+  "floor": 20
+ },
+ "perf.10000.sidebar hide.longestFrameMs": {
+  "max": 80,
+  "floor": 34
+ },
+ "perf.10000.sidebar hide.layouts": {
+  "max": 5450,
+  "regression": false
+ },
+ "perf.10000.sidebar hide.hitches": {
+  "max": 5,
+  "regression": false
+ },
+ "perf.10000.sidebar show.longestFrameMs": {
+  "max": 80,
+  "floor": 34
+ },
+ "perf.10000.sidebar show.layouts": {
+  "max": 5850,
+  "regression": false
+ },
+ "perf.10000.sidebar show.hitches": {
+  "max": 4,
+  "regression": false
+ },
+ "perf.10000.open a short note.longestFrameMs": {
+  "max": 190,
+  "floor": 34
+ },
+ "perf.10000.open a short note.layouts": {
+  "max": 680,
+  "regression": false
+ },
+ "perf.10000.open a short note.hitches": {
+  "max": 5,
+  "regression": false
+ },
+ "perf.10000.open the 5,000-line note.longestFrameMs": {
+  "max": 235,
+  "floor": 34
+ },
+ "perf.10000.open the 5,000-line note.layouts": {
+  "max": 1040,
+  "regression": false
+ },
+ "perf.10000.open the 5,000-line note.hitches": {
+  "max": 7,
+  "regression": false
+ },
+ "perf.10000.typing and saving.longestFrameMs": {
+  "max": 145,
+  "floor": 34
+ },
+ "perf.10000.typing and saving.layouts": {
+  "max": 10130,
+  "regression": false
+ },
+ "perf.10000.typing and saving.hitches": {
+  "max": 50,
+  "regression": false
+ },
+ "perf.10000.typing and saving.keyMaxMs": {
+  "max": 16,
+  "regression": false
+ },
+ "perf.10000.folder switch.longestFrameMs": {
+  "max": 315,
+  "floor": 34
+ },
+ "perf.10000.folder switch.layouts": {
+  "max": 2520,
+  "regression": false
+ },
+ "perf.10000.folder switch.hitches": {
+  "max": 5,
+  "regression": false
+ },
+ "perf.10000.a note arrives by sync.longestFrameMs": {
+  "max": 140,
+  "floor": 34
+ },
+ "perf.10000.a note arrives by sync.layouts": {
+  "max": 945,
+  "regression": false
+ },
+ "perf.10000.a note arrives by sync.hitches": {
+  "max": 5,
+  "regression": false
+ },
+ "perf.10000.hangs.launch.count": {
+  "max": 1,
+  "floor": 1
+ },
+ "perf.10000.hangs.launch.longestMs": {
+  "max": 1900,
+  "floor": 150
+ },
+ "perf.10000.hangs.flows.count": {
+  "max": 1,
+  "floor": 1
+ },
+ "perf.10000.hangs.flows.longestMs": {
+  "max": 400,
+  "floor": 150
+ },
+ "perf.10000.firstSyncMs": {
+  "max": 50000,
+  "floor": 2000
+ },
  "perf.20000.launchToWindowMs": {
-  "max": 6100,
+  "max": 2650,
   "floor": 150
  },
  "perf.20000.launchToSyncedMs": {
-  "max": 21000,
+  "max": 4250,
   "floor": 500
  },
  "perf.20000.idle.cpuPercent": {
@@ -316,7 +448,7 @@
   "regression": false
  },
  "perf.20000.open a short note.longestFrameMs": {
-  "max": 1550,
+  "max": 270,
   "floor": 34
  },
  "perf.20000.open a short note.layouts": {
@@ -328,7 +460,7 @@
   "regression": false
  },
  "perf.20000.open the 5,000-line note.longestFrameMs": {
-  "max": 1650,
+  "max": 310,
   "floor": 34
  },
  "perf.20000.open the 5,000-line note.layouts": {
@@ -340,7 +472,7 @@
   "regression": false
  },
  "perf.20000.typing and saving.longestFrameMs": {
-  "max": 1620,
+  "max": 250,
   "floor": 34
  },
  "perf.20000.typing and saving.layouts": {
@@ -368,7 +500,7 @@
   "regression": false
  },
  "perf.20000.a note arrives by sync.longestFrameMs": {
-  "max": 460,
+  "max": 225,
   "floor": 34
  },
  "perf.20000.a note arrives by sync.layouts": {
@@ -380,23 +512,23 @@
   "regression": false
  },
  "perf.20000.hangs.launch.count": {
-  "max": 8,
+  "max": 1,
   "floor": 1
  },
  "perf.20000.hangs.launch.longestMs": {
-  "max": 3600,
+  "max": 2300,
   "floor": 150
  },
  "perf.20000.hangs.flows.count": {
-  "max": 23,
+  "max": 3,
   "floor": 1
  },
  "perf.20000.hangs.flows.longestMs": {
-  "max": 1550,
+  "max": 840,
   "floor": 150
  },
  "perf.20000.firstSyncMs": {
-  "max": 206000,
+  "max": 101000,
   "floor": 2000
  },
  "security.advisors.security.warnings": {

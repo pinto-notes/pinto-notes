@@ -50,13 +50,10 @@ targets:
   Pane:
     type: application
     supportedDestinations: [iOS, macOS]
+    # Pane/Resources/Onboarding.xcassets (the sign-in and first-run pictures) comes in with the
+    # folder, for the Mac and iPhone apps; the share extension lists its own sources and never it.
     sources: &appSources
-      - path: Pane
-        excludes: ["Resources/Onboarding.xcassets"]
-      # The sign-in and first-run pictures (OnboardingArt): the Mac's card window only. Not in
-      # the iPhone app, and never in the share extension (its own sources list below).
-      - path: Pane/Resources/Onboarding.xcassets
-        destinationFilters: [macOS]
+      - Pane
     configFiles:
       Debug: Config/Backend.xcconfig
       Release: Config/Backend.xcconfig

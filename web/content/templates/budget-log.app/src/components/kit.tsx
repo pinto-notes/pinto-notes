@@ -175,3 +175,16 @@ export function Title({ title, subtitle, action }: { title: string; subtitle?: s
     </header>
   )
 }
+
+/** An on/off row, like a Settings switch. */
+export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+      className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-card px-4 py-2.5 text-left">
+      <span className="min-w-0 flex-1 font-medium">{label}</span>
+      <span className={cn("relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 motion-reduce:transition-none", checked ? "bg-[var(--amber-accent)]" : "bg-[var(--amber-field-border)]")}>
+        <span className={cn("absolute top-[2px] size-[27px] rounded-full bg-white shadow transition-[left] duration-200 motion-reduce:transition-none", checked ? "left-[22px]" : "left-[2px]")} />
+      </span>
+    </button>
+  )
+}

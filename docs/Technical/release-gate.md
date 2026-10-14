@@ -44,7 +44,7 @@ never posts input events: it acts the way the app's own controls do (the sidebar
 ### Performance (on fleet-air)
 
 The app is copied to the Mac and opened there the way Finder opens it. For each staging bench account
-(1, 2,000 and 20,000 notes, each with the gate's short, typing and 5,000-line notes) it signs in, opens
+(1, 2,000, 10,000 and 20,000 notes, each with the gate's short, typing and 5,000-line notes) it signs in, opens
 the account's key with the recovery key and waits for the first full sync, then cold-launches the app
 three times and plays the flows. Numbers are the median of the three runs.
 
@@ -85,7 +85,9 @@ median and slowest are held to budgets like every other line.
 
 Each bench account is put in the same settled state before every run (`staging.ts ensure`), the state
 of someone who has used the app for a while: the first-run setup card dismissed, "How did you hear
-about us?" skipped, the share ask dismissed, and no account notices waiting. Without that the app
+about us?" skipped, the share ask dismissed, the key protection question answered (keep the key on
+devices only; from 2026-10-13 an account from before key copies is asked in a sheet at launch), and
+no account notices waiting. Without that the app
 opens a sheet or an alert over the notes window at launch, and the gate measures a dimmed window
 with a disabled toolbar. That happened on 2026-10-08: checks run against the bench accounts had left
 1, 5 and 6 "an AI was connected" notices on them, and the 2,000-note run laid out thousands of views
@@ -101,6 +103,11 @@ Idle is measured from 15 seconds after launch at the earliest, for every account
 account is synced two seconds after launch, and the window's last settling pass (six layouts, once)
 then fell inside its idle window; it was never a loop (a second idle window right after it counts 0).
 
+`AMBER_GATE_PROFILE=1` samples each measured run whole, every millisecond, instead of sampling hangs
+(`build/release-gate/out/<sha>/profiles/`): where the main thread's time went, for performance work.
+Sampling slows the app, so those runs' numbers aren't the gate's. `scripts/release-gate/profile.py
+<dSYM> <reports...> [--match LibraryNotes.load] [--exclude scrollTo]` adds reports up (a profile, or
+the kept hang samples) and names the app's functions with the most samples.
 `AMBER_GATE_KEEP_SAMPLES=1` keeps each hang's whole `sample` report in `build/release-gate/out/<sha>/samples/`;
 `AMBER_GATE_IDLE_TWICE=1` measures a second idle window after the first (`idleAgain` in the raw run).
 
@@ -175,6 +182,19 @@ Changed since, each in its own commit:
   memory 134 MB against 128 to 132 without hover); reviewed by the lead. Set at measured + 15%,
   tighter than the rule above on purpose: 1.5 × would hide a second change the size of hover. The 1 and 20,000-note lines were not measured with hover
   and are unchanged. One pointer tracker per list instead of one per row would win these back.
+
+- 2026-10-13, large libraries (perf/large-library, measured on 33a9be44 against dev 8e787416 on
+  fleet-air, medians of three): 10,000-note lines added and 10,000 added to the default sizes, set
+  by the rules above from 33a9be44 and held to the targets set for large libraries: launch to a
+  usable window under 2 s at 10,000 notes, and no frame over 250 ms while typing at 20,000. The
+  20,000-note lines that got better were tightened by the same rules: launch to window 6,100 to
+  2,650 ms, open a short note 1,550 to 270, the 5,000-line note 1,650 to 310, typing 1,620 to 250
+  (the target; 1.5 times the measured 203 would be 304), a note arriving 460 to 225, launch hangs
+  8 to 1 a run and 3,600 to 2,300 ms, hangs in the flows 23 to 3 a run and 1,550 to 840 ms, launch
+  to synced 21,000 to 4,250 ms, first sync 206,000 to 101,000 ms. Still over budget there, and
+  not loosened: a folder switch at 20,000 notes, 632 ms (490); the list is built new, and SwiftUI
+  builds an entry for every one of its rows. The views laid out in a folder switch (350) were
+  already over on dev (1,456 at 2,000 notes).
 
 These are ceilings on today's dev, not targets: dev still has hangs of over a second, a first sync
 of minutes, and a folder push the server refuses about 1,500 times a launch (see the report). Tighten a budget in its own commit when the code

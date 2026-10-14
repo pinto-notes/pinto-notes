@@ -81,7 +81,7 @@ final class ImportWriter {
 
     init(context: ModelContext) {
         self.context = context
-        let live = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil }
+        let live = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
         for n in live { existing[Self.key(title: n.title, created: n.createdAt), default: 0] += 1 }
     }
 

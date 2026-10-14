@@ -167,13 +167,18 @@ import Testing
         #expect(Self.contrast(Self.resolved(Palette.disabledButtonLabel, appearance), soft) >= 3)
     }
 
-    /// The candidates are for choosing, not shipping: without PINTO_LOOK the app draws today's window.
-    @Test func theDefaultLooksAreTodays() {
+    /// D, the reading page, is the window that ships: without PINTO_LOOK the app draws it, with its
+    /// calm list (DesignLook.shipped; release builds read nothing else).
+    @Test func theShippedLookIsTheReadingPage() {
+        #expect(DesignLook.shipped == .reading)
         let env = ProcessInfo.processInfo.environment
         if env["PINTO_LOOK"] == nil && UserDefaults.standard.string(forKey: "PintoLook") == nil {
-            #expect(DesignLook.current == .control)
-            #expect(!DesignLook.isCandidate && !DesignLook.calmList && !DesignLook.readingPage)
+            #expect(DesignLook.current == .reading)
+            #expect(DesignLook.isCandidate && DesignLook.calmList && DesignLook.readingPage)
         }
+        // Release builds have no switch at all: the look is the shipped one.
+        let src = try? String(contentsOf: TestFiles.url("Editor").appendingPathComponent("Palette.swift"), encoding: .utf8)
+        #expect(src?.contains("#else\n        return shipped\n        #endif") == true)
     }
 }
 #endif

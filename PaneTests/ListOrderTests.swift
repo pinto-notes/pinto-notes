@@ -45,7 +45,7 @@ import Testing
     /// The list as the view builds it: the library's entries in order, the scope's notes, sections.
     private func listed(_ order: ListOrder, in library: LibraryNotes = LibraryNotes()) -> [(String, [String])] {
         let scoped = NoteListView.scoped(library.entries(in: context, order: order), to: .all, context: context)
-        return DateBucket.sections(ordered: scoped, by: order, now: now, calendar: calendar).map { ($0.0, $0.1.map { $0.note.title }) }
+        return DateBucket.sections(ordered: scoped, by: order, now: now, calendar: calendar).map { ($0.0, $0.1.map { $0.note(in: context)?.title ?? "" }) }
     }
 
     private func titles(_ order: ListOrder) -> [String] { listed(order).flatMap(\.1) }
@@ -159,9 +159,10 @@ import Testing
         let library = LibraryNotes()
         let byTitle = ListOrder(key: .title)
         #expect(listed(byTitle, in: library).flatMap(\.1) == ["Zebra", "apple", "Banana", "Cherry 2", "Cherry 10"])
-        // Renamed: it moves, with no fetch of the library.
+        // Renamed: it moves with its save, with no fetch of the library.
         notes[1].body = "Dragonfruit\nbody"
         notes[1].updatedAt = now
+        try context.save()
         for _ in 0..<20 { await Task.yield() }
         try await Task.sleep(for: .milliseconds(50))
         #expect(listed(byTitle, in: library).flatMap(\.1) == ["Zebra", "Banana", "Cherry 2", "Cherry 10", "Dragonfruit"])
@@ -174,6 +175,7 @@ import Testing
         let before = listed(byCreated, in: library).flatMap(\.1)
         notes[2].body = "Cherry 10\nedited again"
         notes[2].updatedAt = now.addingTimeInterval(1)
+        try context.save()
         for _ in 0..<20 { await Task.yield() }
         try await Task.sleep(for: .milliseconds(50))
         #expect(listed(byCreated, in: library).flatMap(\.1) == before)
@@ -202,7 +204,7 @@ import Testing
         _ = try library()
         for order in [ListOrder.standard, ListOrder(key: .title), ListOrder(key: .created, reversed: true)] {
             let all = LibraryNotes().entries(in: context, order: order)
-            let found = NoteListView.found("Cherry", in: all, listedBy: order).map { $0.note.title }
+            let found = NoteListView.found("Cherry", in: all, listedBy: order, context: context).compactMap { $0.note(in: context)?.title }
             #expect(found == ["Cherry 2", "Cherry 10"], "\(order)")
         }
     }

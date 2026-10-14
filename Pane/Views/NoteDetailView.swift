@@ -139,6 +139,8 @@ struct NoteDetailView: View {
                 WikiDirectory.take(saved)
                 refreshLinks(after: saved)
             }
+            // The library's titles and links were read off the main thread: links and "Linked from" follow.
+            .onReceive(NotificationCenter.default.publisher(for: WikiDirectory.didRead, object: context)) { _ in refreshLinks() }
             .shareLinkChrome(shareLinks, note: note)
     }
 

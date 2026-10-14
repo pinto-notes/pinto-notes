@@ -5,10 +5,10 @@ Flashcards in five boxes: study what is due today, a card at a time, and the one
 **Read docs/ first.** It's this app's memory: what it's for, the shape of its data, the decisions made and why, and what's missing. Keep it current whenever you change the app.
 
 ## Screens
-- Study (src/screens/study.tsx): how many cards are due, topic pills, Study now, and the cards per box. Studying is on the same screen: the question, Show answer, then Didn't know or Knew it.
-- Cards (src/screens/cards.tsx): every card by topic with its box; add, edit or delete one (with Undo).
+- Study (src/screens/study.tsx): how many cards are due, topic pills, Study now, the streak and a 12-week calendar, what's coming up this week, and the cards per box. Studying is on the same screen: the question, Show answer, then Again, Hard, Good or Easy with when it comes back (keys on a Mac: Space, 1 to 4).
+- Cards (src/screens/cards.tsx): a quick add form (Return adds and starts the next), Paste many, search, and every card by topic with its box and when it is due; edit or delete one (with Undo).
 
-The data and the box rules are in src/lib/cards.ts; the shared pieces (sections, rows, bar, sheet, pills) in src/components/kit.tsx.
+The data and the scheduling rules (next(), streak, parseLines) are in src/lib/cards.ts; the shared pieces (sections, rows, bar, sheet, pills) in src/components/kit.tsx.
 
 ## Tests
 `npm test` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers; `amber` (from "amber") shows what was saved. A test can start over a sample of the app's data, so each test here sets the data it needs first (beforeEach). Pinto Notes runs them, and a quick check that the app opens and its buttons work, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.

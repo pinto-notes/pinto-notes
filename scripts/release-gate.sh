@@ -4,7 +4,7 @@
 # repository (docs/Technical/release-gate.md).
 #
 #   scripts/release-gate.sh <candidate ref> [--baseline <last release ref>]
-#       [--sizes 1,2000,20000] [--runs 3] [--only perf,security,storage,network] [--rebuild] [--host fleet-air]
+#       [--sizes 1,2000,10000,20000] [--runs 3] [--only perf,security,storage,network] [--rebuild] [--host fleet-air]
 #       [--reuse-perf] [--rescore <report.json>]
 #
 # Exits 0 when it passes. Needs: Xcode with the team's Apple ID, .secrets/staging.env, a

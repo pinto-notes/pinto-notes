@@ -570,7 +570,7 @@ final class NoteVault {
     }
 
     static func lockedNotes(in context: ModelContext) -> [Note] {
-        ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.lockedBody != nil && $0.deletedAt == nil }
+        (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.lockedBody != nil && $0.deletedAt == nil }))) ?? []
     }
 }
 

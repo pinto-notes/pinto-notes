@@ -1,59 +1,72 @@
-import { Section, Title } from "@/components/kit"
-import { addDays, iso, streak, today, weekStart, useHabits } from "@/lib/habits"
+import { useState } from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Ring, Section } from "@/components/kit"
+import { MonthGrid } from "@/components/month-grid"
+import { addDays, best, done, iso, month, scheduled, skipped, streak, today, useHabits } from "@/lib/habits"
 import { cn } from "@/lib/utils"
 
-const WEEKS = 5
-const LETTERS = ["M", "T", "W", "T", "F", "S", "S"]
-
-// The last five weeks of each habit, a square a day, with how often it was done.
+// A month at a time: a calendar per habit (tap a day to tick it, again to skip it, again to clear
+// it), how often each was done, and the month as a whole. Two or three calendars side by side on a
+// wide note.
 export default function History() {
-  const { habits, days, set } = useHabits()
-  const now = today(), day = iso(now)
-  const first = addDays(weekStart(now), -7 * (WEEKS - 1))
-  const cells = Array.from({ length: WEEKS * 7 }, (_, i) => iso(addDays(first, i)))
-  const past = cells.filter((d) => d <= day)
+  const { habits, days, skips, cycle } = useHabits()
+  const now = today()
+  const [first, setFirst] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1, 12))
+  const current = first.getMonth() === now.getMonth() && first.getFullYear() === now.getFullYear()
+  const shift = (by: number) => setFirst(new Date(first.getFullYear(), first.getMonth() + by, 1, 12))
+  const stats = habits.map((h) => month(days, skips, h, first, now))
+  const got = stats.reduce((t, s) => t + s.got, 0), of = stats.reduce((t, s) => t + s.of, 0)
+  // A perfect day: every habit that was due that day was done (or skipped on purpose).
+  let perfect = 0
+  for (let d = first; d.getMonth() === first.getMonth() && iso(d) < iso(now); d = addDays(d, 1)) {
+    const k = iso(d), due = habits.filter((h) => !h.perWeek && scheduled(h, d) && !skipped(skips, h, k))
+    if (due.length && due.every((h) => done(days, h, k))) perfect++
+  }
 
   return (
     <>
-      <Title subtitle="Last five weeks" title="History" />
-      <p className="-mt-3 mb-4 px-1 text-[0.875rem] text-muted-foreground">Tap a day to tick it or untick it.</p>
+      <header className="flex items-center gap-1 pb-4 pt-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">Month</p>
+          <h1 className="text-[2rem] font-bold leading-tight tracking-tight">{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</h1>
+        </div>
+        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-11 place-items-center rounded-full text-primary"><ChevronLeft className="size-6" /></button>
+        <button type="button" aria-label="Next month" disabled={current} onClick={() => shift(1)} className="grid size-11 place-items-center rounded-full text-primary disabled:opacity-30"><ChevronRight className="size-6" /></button>
+      </header>
       {habits.length === 0 && <p className="px-1 text-muted-foreground">Nothing to show yet. Add a habit in the Habits tab.</p>}
-      <div className="grid gap-x-6 min-[700px]:grid-cols-2">
-        {habits.map((h) => {
-          const got = past.filter((d) => (days[d]?.[h.id] ?? 0) >= h.target).length
-          const best = longest(past.map((d) => (days[d]?.[h.id] ?? 0) >= h.target))
+      {habits.length > 0 && (
+        <Section>
+          <div className="flex items-center gap-4 p-4">
+            <Ring value={of ? got / of : 0} size={64} stroke={8} label={`${first.toLocaleDateString("en-GB", { month: "long" })} ${of ? Math.round((got / of) * 100) : 0}%`}>
+              <span className="text-[0.9375rem] font-bold tabular-nums">{of ? Math.round((got / of) * 100) : 0}%</span>
+            </Ring>
+            <div className="min-w-0">
+              <p className="font-semibold tabular-nums" data-testid="month-line">{got} of {of} done{current ? " so far" : ""}</p>
+              <p className="text-[0.875rem] text-muted-foreground tabular-nums">{perfect} perfect {perfect === 1 ? "day" : "days"} · skipped days don't count against you</p>
+            </div>
+          </div>
+        </Section>
+      )}
+      <div className="grid gap-x-5 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3">
+        {habits.map((h, i) => {
+          const s = stats[i]
           return (
             <Section key={h.id}>
-              <div className="p-4" aria-label={`${h.name}: ${got} of ${past.length} days`}>
-                <div className="mb-3 flex items-baseline justify-between gap-3">
+              <div className="p-4" aria-label={`${h.name}: ${s.got} of ${s.of}`}>
+                <div className="mb-2 flex items-baseline justify-between gap-3">
                   <h2 className="text-[1.0625rem] font-semibold">{h.name}</h2>
-                  <span className="text-[0.9375rem] font-semibold tabular-nums text-primary">{Math.round((got / Math.max(1, past.length)) * 100)}%</span>
+                  <span className={cn("text-[0.9375rem] font-semibold tabular-nums", s.of ? "text-primary" : "text-muted-foreground")}>{s.of ? `${Math.round((s.got / s.of) * 100)}%` : "–"}</span>
                 </div>
-                <div className="grid max-w-[360px] grid-cols-7">
-                  {LETTERS.map((l, i) => <span key={"h" + i} className="text-center text-[0.75rem] font-semibold text-muted-foreground">{l}</span>)}
-                  {cells.map((d) => {
-                    const v = days[d]?.[h.id] ?? 0, full = v >= h.target
-                    const label = new Date(d + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
-                    return (
-                      <button key={d} type="button" disabled={d > day} aria-pressed={full} aria-label={`${h.name}, ${label}`} onClick={() => set(h, full ? 0 : h.target, d)}
-                        className="grid aspect-square min-h-11 place-items-center">
-                        <span className={cn("grid size-[34px] place-items-center rounded-full text-[0.8125rem] font-medium tabular-nums",
-                          d > day ? "text-muted-foreground/50" : full ? "bg-primary font-semibold text-primary-foreground" : v > 0 ? "bg-[var(--amber-accent-soft)] text-primary" : "bg-muted text-muted-foreground",
-                          d === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{Number(d.slice(8))}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <p className="mt-3 text-[0.875rem] text-muted-foreground tabular-nums">
-                  {got} of {past.length} days · now {streak(days, h, now)} in a row · best {best}
+                <MonthGrid habit={h} days={days} skips={skips} first={first} onTap={(k) => cycle(h, k)} />
+                <p className="mt-2 text-[0.875rem] text-muted-foreground tabular-nums">
+                  {s.got} of {s.of} · now {streak(days, skips, h, now)} in a row · best {best(days, skips, h, now)}
                 </p>
               </div>
             </Section>
           )
         })}
       </div>
+      {habits.length > 0 && <p className="px-1 pb-6 text-[0.8125rem] text-muted-foreground">Tap a day to tick it, again to skip it (it keeps your streak), again to clear it.</p>}
     </>
   )
 }
-
-const longest = (xs: boolean[]) => { let best = 0, run = 0; for (const x of xs) { run = x ? run + 1 : 0; best = Math.max(best, run) } return best }

@@ -144,11 +144,11 @@ enum Palette {
     }
 }
 
-/// The main window's look while the owner chooses between candidates (DESIGN.md, "How design
-/// decisions get made"): today's (`control`), A (`warm`: warmer neutrals, lighter icons, display
-/// title) and B (`paper`: A on a cream page with the website's type voice in the note). Release
-/// builds always draw `control`; a debug build reads `PINTO_LOOK=warm|paper` or the `PintoLook`
-/// default. Captures set `current` directly.
+/// The main window's look. D (`reading`) ships; the others stay for comparison in debug builds:
+/// the old look (`control`), A (`warm`: warmer neutrals, lighter icons, display title), B (`paper`:
+/// A on a cream page with the website's type voice in the note), C (`calm`: A with the calm list).
+/// A debug build reads `PINTO_LOOK=control|warm|paper|calm|reading` or the `PintoLook` default.
+/// Captures set `current` directly.
 enum DesignLook: String, CaseIterable, Sendable {
     case control, warm, paper
     /// C: A with a calm list (no brand mark in the sidebar, two-line rows without hairlines, a
@@ -167,12 +167,16 @@ enum DesignLook: String, CaseIterable, Sendable {
     /// D: the reading page.
     static var readingPage: Bool { current == .reading }
 
+    /// What ships: D, the reading page (Emil, 2026-10-13: "get this all out"). A debug build can
+    /// still show any look for comparison.
+    static let shipped = DesignLook.reading
+
     private static var initial: DesignLook {
         #if DEBUG
         let raw = ProcessInfo.processInfo.environment["PINTO_LOOK"] ?? UserDefaults.standard.string(forKey: "PintoLook")
-        return raw.flatMap(DesignLook.init(rawValue:)) ?? .control
+        return raw.flatMap(DesignLook.init(rawValue:)) ?? shipped
         #else
-        return .control
+        return shipped
         #endif
     }
 }
