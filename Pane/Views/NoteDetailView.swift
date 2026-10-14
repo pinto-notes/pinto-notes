@@ -86,6 +86,7 @@ struct NoteDetailView: View {
     /// Collaboration (prototype): the people sheet.
     /// Collaboration and sharing (prototype): the one Share sheet, and Share as Template on its own (demo).
     @State private var showPeople = false
+    @State private var confirmingSharedDelete: [Note]?
     @State private var showTemplateShare = false
     @Bindable var note: Note
     let controller: EditorController
@@ -255,6 +256,7 @@ struct NoteDetailView: View {
     private func withCollab(_ content: some View) -> some View {
         content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
+            .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
             #if os(iOS)
             // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
@@ -749,7 +751,9 @@ struct NoteDetailView: View {
                     .accessibilityIdentifier("editor.deleteNow")
             } else {
                 Button("Delete Note", systemImage: "trash", role: .destructive) {
-                    withAnimation(.snappy) { context.trash(note) }
+                    // A shared note asks first: people lose it, or it leaves your notes.
+                    if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
+                    else { withAnimation(.snappy) { context.trash(note) } }
                 }
             }
         }

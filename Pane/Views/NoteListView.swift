@@ -41,6 +41,7 @@ struct NoteListView: View {
     @State private var collapsed: Set<String> = []
     /// Notes waiting for "Delete Forever" to be confirmed.
     @State private var pendingForever: Set<UUID>?
+    @State private var pendingShared: [Note]?
     @Environment(\.importActions) private var imports
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(Backend.self) private var backend: Backend?
@@ -380,6 +381,7 @@ struct NoteListView: View {
         } message: {
             Text("The ending (.\(((renamingFile?.filename ?? "") as NSString).pathExtension)) stays.")
         }
+        .sharedDeleteConfirmation($pendingShared) { notes in performRemove(Set(notes.map(\.id))) }
         .confirmationDialog(foreverTitle, isPresented: Binding(get: { pendingForever != nil }, set: { if !$0 { pendingForever = nil } }), titleVisibility: .visible) {
             Button("Delete Forever", role: .destructive) {
                 if let ids = pendingForever { performRemove(ids) }
@@ -818,7 +820,10 @@ struct NoteListView: View {
     private func remove(_ ids: Set<UUID>) {
         let forever = ids.compactMap { context.note($0) }.contains { $0.trashedAt != nil }
             || ids.compactMap { context.attachment($0) }.contains { $0.trashedAt != nil }
-        if forever { pendingForever = ids } else { performRemove(ids) }
+        if forever { pendingForever = ids }
+        // A shared note asks first: people lose it, or it leaves your notes.
+        else if SharedDelete.ask(ids.compactMap { context.note($0) }) != nil { pendingShared = ids.compactMap { context.note($0) } }
+        else { performRemove(ids) }
     }
 
     private var foreverTitle: String {
