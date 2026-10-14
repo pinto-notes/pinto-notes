@@ -112,7 +112,7 @@ export const posts: Post[] = [
     excerpt: "Getting an itinerary out of ChatGPT is easy. Keeping it, with the bookings and the packing list, is the part this post is about.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.tripApp,
     thumb: thumb("harbor", "thumb-app-trip-plan", 1180, 748, "A trip plan app in Pinto Notes on a Mac: Lisbon, 9 days to go, and the first day as a timeline"),
     draft: false,
