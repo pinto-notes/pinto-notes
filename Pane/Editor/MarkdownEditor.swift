@@ -613,9 +613,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                 bar.isUserInteractionEnabled = false
                 bar.layer.cornerRadius = 1
                 flag.isUserInteractionEnabled = false
-                flag.font = .systemFont(ofSize: 10, weight: .semibold)
+                flag.font = .systemFont(ofSize: RemoteCaret.flagFontSize, weight: .semibold)
                 flag.textColor = .white
-                flag.layer.cornerRadius = 3
+                flag.layer.cornerRadius = RemoteCaret.flagRadius
                 flag.layer.masksToBounds = true
                 addSubview(bar); addSubview(flag)
                 return (bar, flag as UILabel, [])
@@ -626,7 +626,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             let loc = min(c.range.location, length), end = min(NSMaxRange(c.range), length)
             guard let pos = position(from: beginningOfDocument, offset: loc) else { continue }
             let rect = caretRect(for: pos)
-            let size = v.flag.intrinsicContentSize
+            let size = CGSize(width: v.flag.intrinsicContentSize.width, height: RemoteCaret.flagHeight)
             // Above the caret, its bottom-left corner on the caret's top, as Notes and Figma do: it
             // labels the line the caret is on.
             let flagY = max(rect.minY - size.height, 0)
@@ -639,7 +639,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             // Only the flag fades, a moment after they stop.
             let alpha: CGFloat = c.showsName ? 1 : 0
             if v.flag.alpha != alpha {
-                if alpha == 1 { v.flag.alpha = 1 } else { UIView.animate(withDuration: 0.6) { v.flag.alpha = 0 } }
+                UIView.animate(withDuration: alpha == 1 ? RemoteCaret.flagIn : RemoteCaret.flagOut) { v.flag.alpha = alpha }
             }
             v.selection.forEach { $0.removeFromSuperview() }
             v.selection = []
@@ -1720,13 +1720,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 bar.wantsLayer = true
                 bar.layer?.cornerRadius = 1
                 let flag = PassThroughLabel(labelWithString: "")
-                flag.font = .systemFont(ofSize: 10, weight: .semibold)
+                flag.font = .systemFont(ofSize: RemoteCaret.flagFontSize, weight: .semibold)
                 flag.textColor = .white
                 flag.wantsLayer = true
                 flag.drawsBackground = true
                 flag.isBordered = false
                 flag.alignment = .center
-                flag.layer?.cornerRadius = 3
+                flag.layer?.cornerRadius = RemoteCaret.flagRadius
                 flag.layer?.masksToBounds = true
                 addSubview(bar); addSubview(flag)
                 let made = (bar as NSView, flag as NSTextField)
@@ -1738,7 +1738,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             v.flag.stringValue = c.name
             let loc = min(c.range.location, ns.length)
             guard let rect = remoteCaretRect(at: loc) else { continue }
-            let size = NSSize(width: v.flag.intrinsicContentSize.width + 8, height: 14)
+            let size = NSSize(width: v.flag.intrinsicContentSize.width + 8, height: RemoteCaret.flagHeight)
             // The caret jumps with its character, in the same pass as the text: it never glides.
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0
@@ -1750,9 +1750,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                                       width: size.width, height: size.height)
             }
             // Only the flag fades, a moment after they stop.
-            let alpha: CGFloat = c.showsName ? 1 : 0
+            // Also while the pointer is over their caret.
+            let alpha: CGFloat = c.showsName || hoveredCaret == c.id ? 1 : 0
             if v.flag.alphaValue != alpha {
-                if alpha == 1 { v.flag.alphaValue = 1 } else { NSAnimationContext.runAnimationGroup { $0.duration = 0.6; v.flag.animator().alphaValue = 0 } }
+                NSAnimationContext.runAnimationGroup { $0.duration = alpha == 1 ? RemoteCaret.flagIn : RemoteCaret.flagOut; v.flag.animator().alphaValue = alpha }
             }
             let rects = remoteRangeRects(NSRange(location: loc, length: max(0, min(NSMaxRange(c.range), ns.length) - loc)))
             if !rects.isEmpty {
@@ -1764,6 +1765,31 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let changed = selections.map(\.rects) != remoteSelections.map(\.rects)
         remoteSelections = selections
         if changed { needsDisplay = true }
+    }
+
+    /// The caret the pointer is over: its name shows while it's there.
+    private(set) var hoveredCaret: UUID?
+    private var caretHoverArea: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let caretHoverArea { removeTrackingArea(caretHoverArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        caretHoverArea = area
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        hoverCaret(at: nil)
+    }
+
+    /// Shows the name of the caret under `point` (a few points either side of the bar count).
+    func hoverCaret(at point: CGPoint?) {
+        let over = point.flatMap { p in caretViews.first { $0.value.bar.frame.insetBy(dx: -4, dy: 0).contains(p) }?.key }
+        guard over != hoveredCaret else { return }
+        hoveredCaret = over
+        layoutRemoteCarets()
     }
 
     /// Other people's selections, solid, behind the text (your own selection draws over them).
@@ -1949,6 +1975,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// Over a checkbox the pointer is an arrow, not the text I-beam, like Notes.
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        // Over someone's caret, their name shows.
+        if !caretViews.isEmpty || hoveredCaret != nil { hoverCaret(at: p) }
         if card(at: p) != nil { return }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
         if core.checkboxLine(at: point, layout: textLayoutManager) != nil {
@@ -2019,5 +2047,18 @@ private final class PassThroughView: NSView {
 
 private final class PassThroughLabel: NSTextField {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override class var cellClass: AnyClass? {
+        get { CentredCell.self }
+        set {}
+    }
+}
+
+/// A name flag's text, centred top to bottom in the flag.
+private final class CentredCell: NSTextFieldCell {
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        let r = super.drawingRect(forBounds: rect)
+        let h = cellSize(forBounds: rect).height
+        return NSRect(x: r.minX, y: rect.minY + (rect.height - h) / 2, width: r.width, height: h)
+    }
 }
 #endif
