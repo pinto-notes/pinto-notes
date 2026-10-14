@@ -31,6 +31,9 @@ final class MemoryCollabServer {
     private(set) var calls: [String] = []
     /// While true every call fails as if offline.
     var offline = false
+    /// While true, stored changes aren't relayed on the channels (a dropped socket, a change stored
+    /// while a channel was still joining).
+    var dropRelays = false
 
     func account(_ name: String, id: UUID = UUID()) -> UUID {
         people[id] = Person(name: name)
@@ -186,7 +189,7 @@ final class MemoryCollabServer {
         nextID += 1
         let u = Collab.Update(id: nextID, note_id: note, author_id: user, epoch: epoch, ct: ct, client: nil)
         updates[note, default: []].append(u)
-        for c in channels[note] ?? [] { deliver(c, .update(u)) }
+        if !dropRelays { for c in channels[note] ?? [] { deliver(c, .update(u)) } }
         return u
     }
 
@@ -207,6 +210,11 @@ final class MemoryCollabServer {
     }
 
     func channelCount(_ note: UUID) -> Int { channels[note]?.count ?? 0 }
+
+    /// Every channel on the note rejoins (Realtime says it relays changes again).
+    func rejoin(_ note: UUID) {
+        for c in channels[note] ?? [] { deliver(c, .reconnected) }
+    }
 
     func presence(from c: MemoryChannel, ct: String) {
         for other in channels[c.note] ?? [] where other !== c && other.user != c.user { deliver(other, .presence(user: c.user, ct: ct)) }

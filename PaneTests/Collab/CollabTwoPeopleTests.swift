@@ -155,4 +155,20 @@ import Testing
         await server.eventually { onMac.text == onPhone.text }
         #expect(onMac.text == "Packing\n- passport\n- charger\n")
     }
+
+    @Test func aChangeThatWasntRelayedArrivesWhenTheChannelRejoins() async throws {
+        let (emil, sara, note, _) = try await shared("Ideas\n")
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: note.id))
+        server.dropRelays = true
+        mine.local("Ideas\n- one\n", selection: nil)
+        await server.eventually { (server.updates[note.id] ?? []).count == 1 }
+        server.dropRelays = false
+        // A later change can't be shown before the one it builds on.
+        mine.local("Ideas\n- one\n- two\n", selection: nil)
+        await server.settle()
+        #expect(theirs.text == "Ideas\n")
+        server.rejoin(note.id)
+        await server.eventually { theirs.text == mine.text }
+        #expect(theirs.text == "Ideas\n- one\n- two\n")
+    }
 }

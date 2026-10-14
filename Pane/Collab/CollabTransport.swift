@@ -157,7 +157,8 @@ enum Collab {
         case presence(user: UUID, ct: String)
         /// Someone closed the note on their last device, or lost their connection.
         case leave(UUID)
-        /// The channel dropped and joined again: changes may have been missed, so pull.
+        /// The channel (re)joined and changes are being relayed from now on: anything stored before
+        /// may have been missed, so pull.
         case reconnected
     }
 

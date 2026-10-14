@@ -170,10 +170,16 @@ final class CollabSession {
         }
         Task { await refreshMembers() }
         // Presence is re-sent now and then, so someone who joins later sees you without waiting.
+        // A pull every 20 seconds too: a relayed change can be lost (a dropped socket, a change
+        // stored while the channel was joining), and Automerge holds every later one back until the
+        // missing one arrives. An empty pull is one small request.
         presenceTask = Task { [weak self] in
+            var ticks = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2))
                 self?.sendPresence()
+                ticks += 1
+                if ticks % 10 == 0 { await self?.catchUp() }
             }
         }
     }
@@ -194,9 +200,11 @@ final class CollabSession {
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
     }
 
-    /// Takes everything the server has after `lastSeen`. The server hands back every stored change
-    /// after it, in order, so once they're in, `lastSeen` can move past your own too (which the live
-    /// channel alone never moves it past, see `applied`); a snapshot's `upto` is taken from here.
+    /// Takes everything the server has after `lastSeen`. Only a pull moves `lastSeen`: the server
+    /// hands back every stored change after it, in order, so everything up to the last one is in the
+    /// document then. A change relayed live doesn't move it, since one before it may have been lost
+    /// on the way (ids also have gaps, so a missing one can't be told from a gap). A snapshot's
+    /// `upto` is taken from here.
     func catchUp() async {
         guard let pull = try? await transport.pull(note: noteID, after: lastSeen) else { return }
         if let s = pull.snapshot, let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: nk, note: noteID, extra: String(s.upto)) {
@@ -237,7 +245,6 @@ final class CollabSession {
     private func apply(_ u: Collab.Update) {
         guard u.note_id == noteID, !applied.contains(u.id) else { return }
         applied.insert(u.id)
-        lastSeen = max(lastSeen, u.id)
         // Your own changes come back too: from this device they're already in the document (Automerge
         // takes a change it has as a no-op), from your other devices they're new here.
         guard let key = u.epoch == epoch ? nk : earlierKeys[u.epoch] else {
