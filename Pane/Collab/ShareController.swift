@@ -70,6 +70,10 @@ final class ShareController {
         state = backend.shareState(for: note)
     }
 
+    /// The Share sheet or popover open now, if one is: for the test script (`-uitest -collabScript`),
+    /// which drives the same controller the buttons do.
+    static weak var current: ShareController?
+
     var isOwner: Bool { state.myRole == "owner" }
 
     func refresh() {
@@ -246,7 +250,8 @@ enum ShareCopy {
         "\(first(person.name)) can't open this note anymore. What they've already seen stays with them. The link changes, so the old one stops working."
     }
 
-    static let leaveTitle = "Leave this note?"
+    /// Names the note, as Notes' own question does.
+    static func leaveTitle(_ title: String) -> String { "Leave \u{201C}\(title)\u{201D}?" }
     static let leaveMessage = "It's removed from your notes. To join again, you need a new link."
 
     static func working(_ work: ShareController.Work) -> String {

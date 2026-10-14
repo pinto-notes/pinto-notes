@@ -2,7 +2,7 @@
 
 # Pinto Notes apps (for AGENTS.md)
 
-Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
+Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.pintonotes.com) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
 
 A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. The person stays in control inside the app, as in any real app, not only through their AI: whatever the app keeps, they can add, edit, rename, reorder and remove themselves (a habit tracker lets them manage its habits), settings are changed in the app, deletes can be undone, and everything is saved in data.json.
 

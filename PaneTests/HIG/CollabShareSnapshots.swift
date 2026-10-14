@@ -70,7 +70,7 @@ import UIKit
 
     static var keyChanged: ShareState {
         var s = owner(.edit)
-        s.people[2].keyChanged = "Jonas\u{2019}s key changed. That usually means a new device. Check the code with Jonas before you share more."
+        s.people[2].keyChanged = "Jonas\u{2019}s key changed. That happens when Jonas starts fresh, or when someone pretends to be Jonas. Check the code with Jonas before you share more."
         return s
     }
 

@@ -138,7 +138,9 @@ extension Collab {
 
         var message: String {
             let first = name.split(separator: " ").first.map(String.init) ?? name
-            return "\(first)\u{2019}s key changed. That usually means a new device. Check the code with \(first) before you share more."
+            // The identity key is one per account and never changes with a new device: only Start
+            // fresh changes it, or a server handing out a key that isn't theirs.
+            return "\(first)\u{2019}s key changed. That happens when \(first) starts fresh, or when someone pretends to be \(first). Check the code with \(first) before you share more."
         }
     }
 }

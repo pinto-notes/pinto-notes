@@ -177,7 +177,7 @@ struct ShareConfirmations: ViewModifier {
             } message: {
                 Text(share.confirmingRemove.map(ShareCopy.removeMessage) ?? "")
             }
-            .alert(ShareCopy.leaveTitle, isPresented: $share.confirmingLeave) {
+            .alert(ShareCopy.leaveTitle(share.note.title), isPresented: $share.confirmingLeave) {
                 Button("Cancel", role: .cancel) {}
                 Button("Leave", role: .destructive) { Task { await share.confirmLeave() } }
             } message: {
@@ -371,6 +371,7 @@ struct ShareSheet: View {
             ShareForm(share: share, done: { dismiss() })
         }
         .task {
+            ShareController.current = share
             // People come and go: keep the list current while the sheet is open.
             while !Task.isCancelled {
                 share.refresh()

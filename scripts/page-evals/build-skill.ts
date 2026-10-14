@@ -101,7 +101,7 @@ await write(new URL("plugins/amber-notes/AGENTS.md", root), `${stamp}
 
 # Pinto Notes apps (for AGENTS.md)
 
-Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.ambernotes.app) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
+Paste this into a project's AGENTS.md (Codex, Cursor and other agents read it) when you use the Pinto Notes MCP server (https://mcp.pintonotes.com) there. The server already teaches all of this through its instructions and every new app's README.md; this keeps it in front of agents that skim server instructions.
 
 ${FILE_APP_INSTRUCTIONS}
 
