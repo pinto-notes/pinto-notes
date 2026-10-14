@@ -1,4 +1,5 @@
 import { Figure } from "@/lib/blog";
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Path, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -97,6 +98,7 @@ export default function Page() {
         What you actually want is one notebook that ChatGPT can read and write, that you can open on your phone like any note, and that
         Claude sees too. That&apos;s what the setup below gives you.
       </p>
+      <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
 
       <h2 id="which">Which AI, and what you need</h2>
       <p>

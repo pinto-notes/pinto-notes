@@ -1,4 +1,5 @@
 import { Figure } from "@/lib/blog";
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -119,9 +120,7 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">Notes your AIs can actually use</h2>
-      <PostFigure src="/blog/chatgpt/chatgpt-checks-off-lisbon" width={700} height={300} maxWidth={700}
-        alt="ChatGPT on the web. The request reads: In my Lisbon note, check off Tram 28 early. ChatGPT answers that it checked off Tram 28 early, before the crowds, in the Lisbon in May note in Pinto Notes, and shows the checklist with three of four items done."
-        caption="ChatGPT ticking off an item in a Pinto Notes note, from an ordinary chat." />
+      <AIConnect ais={["chatgpt", "claude", "claude-code", "codex"]} caption="One notebook that ChatGPT, Claude, Claude Code and Codex all read and write." />
       <p>
         That&apos;s why I made Pinto Notes. It looks and feels like Apple Notes, brings your notes over in <a href="/blog/move-from-apple-notes">one
         import</a>, and has the API Apple Notes doesn&apos;t: a server that ChatGPT, Claude, Claude Code and Codex connect to, with your

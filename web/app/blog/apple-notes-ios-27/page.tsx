@@ -1,3 +1,4 @@
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, MenuPaths, PostFigure } from "@/lib/PostParts";
 
@@ -112,9 +113,7 @@ export default function Page() {
       </p>
 
       <h2 id="ai">Want ChatGPT or Claude to edit these notes too?</h2>
-      <PostFigure src="/blog/chatgpt/chatgpt-checks-off-lisbon" width={700} height={300} maxWidth={700} kind="crop"
-        alt="ChatGPT on the web. The request reads: In my Lisbon note, check off Tram 28 early. ChatGPT answers that it checked off Tram 28 early, before the crowds, in the Lisbon in May note in Pinto Notes, and shows the checklist with three of four items done."
-        caption="ChatGPT ticking off an item in a Pinto Notes note, from a normal chat." />
+      <AIConnect caption="ChatGPT and Claude, working in the same notes in Pinto Notes." />
       <p>
         Apple Notes still has no way for ChatGPT or Claude to read or edit your notes from the web or your phone. I made Pinto Notes for that: a
         notes app that works like Apple Notes, which ChatGPT and Claude can search and edit once you allow them. It imports your Apple Notes,
