@@ -122,42 +122,41 @@ extension CollabStore {
     /// Seals the note (and its page) for a new link. A new link replaces the old one, which stops
     /// working at once (rotation); publishing again keeps the link and updates the copy.
     func publishLink(_ note: Note, rotate: Bool = false) async throws -> URL {
-        guard let relay else { throw CollabRelay.Problem(message: "Not connected") }
+        guard let transport else { throw Collab.Failure.notSignedIn }
         let link = rotate ? nil : links[note.id]
         let id = link?.id ?? SealedLink.randomID(bytes: 16)
         let secret = link?.secret ?? E2EE.randomBytes(16)
         let copy = SealedLink.Copy(title: note.title, body: note.body, page: pages[note.id], data: nil,
                                    shared_by: .init(name: name), updated_at: ISO8601DateFormatter().string(from: note.updatedAt))
-        try await relay.rpc("publish_sealed_link", [id, note.id.uuidString.lowercased(), try SealedLink.seal(copy, id: id, secret: secret)])
+        try await transport.publishSealedLink(id: id, note: note.id, ct: try SealedLink.seal(copy, id: id, secret: secret))
         links[note.id] = (id, secret)
         return URL(string: "\(Self.site)/s/\(id)#\(SealedLink.base64url(secret))")!
     }
 
     func stopLink(_ note: Note) async throws {
-        try await relay?.rpc("stop_sealed_link", [note.id.uuidString.lowercased()])
+        try await transport?.stopSealedLink(note: note.id)
         links[note.id] = nil
     }
 
     func publishTemplate(_ note: Note) async throws -> URL {
-        guard let relay else { throw CollabRelay.Problem(message: "Not connected") }
+        guard let transport else { throw Collab.Failure.notSignedIn }
         let id = templates[note.id] ?? SealedLink.randomID(bytes: 12)
         let t = SharedTemplate.make(from: note.body, page: pages[note.id])
         let json = String(decoding: try JSONEncoder().encode(t), as: UTF8.self)
-        try await relay.rpc("publish_template", [id, note.id.uuidString.lowercased(), name, json])
+        try await transport.publishTemplate(id: id, note: note.id, name: name, json: json)
         templates[note.id] = id
         return URL(string: "\(Self.site)/t/\(id)")!
     }
 
     func stopTemplate(_ note: Note) async throws {
-        try await relay?.rpc("stop_template", [note.id.uuidString.lowercased()])
+        try await transport?.stopTemplate(note: note.id)
         templates[note.id] = nil
     }
 
     /// "Use template": a fresh note from a shared template, with its page. Its page starts with no
     /// network; hosts and keys wait for the new owner to allow them.
     func useTemplate(_ id: String) async -> Note? {
-        guard let context, let url = URL(string: "\(relayURLString)/public/template/\(id)"),
-              let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+        guard let context, let data = try? await transport?.sharedTemplate(id: id) else { return nil }
         struct Row: Decodable { let maker: String?; let template: SharedTemplate }
         guard let row = try? JSONDecoder().decode(Row.self, from: data) else { return nil }
         let note = context.createNote(in: .all, body: row.template.note)

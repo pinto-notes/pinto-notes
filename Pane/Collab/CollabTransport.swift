@@ -55,6 +55,8 @@ protocol CollabTransport: AnyObject {
     func stopSealedLink(note: UUID) async throws
     func publishTemplate(id: String, note: UUID, name: String, json: String) async throws
     func stopTemplate(note: UUID) async throws
+    /// A shared template as the public page reads it: `{maker, template}` JSON, or nil when it isn't shared.
+    func sharedTemplate(id: String) async throws -> Data?
 
     // MARK: The document
 

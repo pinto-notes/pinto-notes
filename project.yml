@@ -15,7 +15,7 @@ packages:
   Markdown:
     url: https://github.com/swiftlang/swift-markdown
     from: 0.6.0
-  # Collaboration prototype: the text CRDT behind shared notes (docs/Technical/collaboration-design.md).
+  # Collaboration: the text CRDT behind shared notes (docs/Technical/collaboration-design.md).
   Automerge:
     # 0.7.2 with a public Cursor initializer (Vendor/README.md).
     path: Vendor/automerge-swift
@@ -61,6 +61,7 @@ targets:
       - package: Markdown
       - package: Supabase
       - package: ZIPFoundation
+      - package: Automerge
       - target: PaneShare
         platformFilter: iOS
     # SwiftPM resource bundles (ZIPFoundation's and swift-crypto's privacy manifests, and any
@@ -148,6 +149,8 @@ targets:
         PANE_PRODUCT_NAME: Pane
         PRODUCT_NAME: $(PANE_PRODUCT_NAME)
         PRODUCT_MODULE_NAME: Pane
+        # COLLAB_AUTOMERGE: shared notes' text CRDT (Pane/Collab/CollabText.swift).
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -173,6 +176,7 @@ targets:
       - package: Markdown
       - package: Supabase
       - package: ZIPFoundation
+      - package: Automerge
       - package: Sparkle
     info:
       path: Pane/Resources/Info-Direct.plist
@@ -193,7 +197,7 @@ targets:
         PANE_PRODUCT_NAME: Pinto Notes
         PANE_MAC_ENTITLEMENTS: Pane-mac-direct.entitlements
         # SPARKLE: updates; DIRECT: Sign in with Apple through the web (no entitlement in Developer ID).
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SPARKLE DIRECT
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE SPARKLE DIRECT
         # Sparkle's EdDSA public key; the private half is in the login Keychain (and .secrets/).
         SPARKLE_PUBLIC_KEY: teSFUYF3dK744mGRKD/3wqWEt7hBH4+J5DINTeFq5r4=
   PaneShare:
@@ -312,15 +316,10 @@ targets:
       # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md
         buildPhase: resources
-      # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
-      # link it (see Pane/Collab/CollabText.swift).
-      - path: Pane/Collab/CollabText.swift
     dependencies:
       - target: Pane
-      - package: Automerge
     settings:
       base:
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE
         GENERATE_INFOPLIST_FILE: YES
         "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
   PaneUITests:

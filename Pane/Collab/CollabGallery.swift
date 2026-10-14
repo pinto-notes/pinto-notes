@@ -34,7 +34,7 @@ struct CollabGallery: View {
 
     /// Share as Template with a habit tracker and its app, for screenshots (`-collabGallery -template`).
     static func templateSheet() -> some View {
-        let store = CollabStore(name: "Emil Wagman", email: "emil@example.com", relay: URL(string: "http://127.0.0.1:1")!)
+        let store = CollabStore(name: "Emil Wagman")
         let note = Note(body: CollabDemo.habitNote())
         store.pages[note.id] = "<!doctype html><title>Habit tracker</title>"
         return NavigationStack { TemplateForm(note: note, store: store) }

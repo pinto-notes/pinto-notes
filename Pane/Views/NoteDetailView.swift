@@ -272,7 +272,7 @@ struct NoteDetailView: View {
     }
 
     /// Collaboration (prototype): the open shared note's session, when there is one.
-    private var collab: CollabSession? { CollabStore.shared?.session(for: note.id) }
+    private var collab: CollabSession? { CollabStore.shared?.session(for: note) }
 
     #if os(iOS)
     /// On iPhone the note's tips sit just above the toolbar: a popover from a toolbar button
@@ -1329,7 +1329,7 @@ private struct CollabWiring: ViewModifier {
     let controller: EditorController
     @Binding var showPeople: Bool
 
-    private var session: CollabSession? { CollabStore.shared?.session(for: note.id) }
+    private var session: CollabSession? { CollabStore.shared?.session(for: note) }
 
     func body(content: Content) -> some View {
         content

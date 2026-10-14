@@ -6,7 +6,7 @@ import os
 
 private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 
-/// Collaboration (prototype): one shared note while it's open on this device.
+/// Collaboration: one shared note while it's open on this device.
 ///
 /// The note's text is an Automerge document (UTF-16 offsets, so they match the editor's NSString
 /// ranges). Your typing becomes splices into it; each splice goes up as a sealed change and comes
@@ -16,7 +16,6 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 @MainActor
 @Observable
 final class CollabSession {
-    // The app doesn't link Automerge (see CollabText.swift for why, and how to put it back).
     typealias Document = CollabText.Document
     typealias ObjId = CollabText.ObjId
     typealias Anchor = CollabText.Anchor
@@ -55,6 +54,8 @@ final class CollabSession {
     /// still open with the one they were sealed with.
     @ObservationIgnored private var keys: [Int: SymmetricKey]
     private var nk: SymmetricKey { keys[epoch]! }
+    /// The note key in use now (the owner's Share sheet seals links and new keys with it).
+    var noteKey: SymmetricKey { nk }
     private let transport: any CollabTransport
     private let doc: Document
     private let body: ObjId
@@ -80,8 +81,13 @@ final class CollabSession {
     @ObservationIgnored var onCarets: (([RemoteCaret]) -> Void)?
     /// Mirrors the text into the note (list title, search, links) once it settles.
     @ObservationIgnored var onSettled: ((String) -> Void)?
-    /// The server refused a change for an old key: the library opens the new one (`reseal`).
-    @ObservationIgnored var onStaleKey: (() -> Void)?
+    /// The note's members as last read, for the key-change check (CollabStore.checkKeys).
+    @ObservationIgnored var onMembers: (([Collab.Member]) -> Void)?
+    /// The server refused a change for an old key (or the channel refused you): the library
+    /// looks for the new key (`reseal`), or finds you were removed.
+    @ObservationIgnored var onKeyChanged: (() -> Void)?
+    /// A new key was taken (`reseal`): the library keeps it, sealed under your data key.
+    @ObservationIgnored var onResealed: ((SymmetricKey, Int) -> Void)?
     /// The server says you aren't in the note anymore.
     @ObservationIgnored var onRemoved: (() -> Void)?
     @ObservationIgnored private var channel: CollabChannel?
@@ -186,6 +192,7 @@ final class CollabSession {
         keys[epoch] = nk
         self.epoch = epoch
         record.epoch = epoch
+        onResealed?(nk, epoch)
         saveSoon()
         sendPresence()
         flush()
@@ -210,8 +217,9 @@ final class CollabSession {
                 sendPresence()
             } catch {
                 joining = false
-                if (error as? Collab.Failure) == .notMember { onRemoved?(); return }
                 log.error("joining the note's channel failed: \(String(describing: error), privacy: .public)")
+                // Refused: most likely removed, or a new key. Offline: nothing to decide yet.
+                if error is Collab.Failure { onKeyChanged?() }
             }
         }
         Task { await refreshMembers() }
@@ -242,6 +250,7 @@ final class CollabSession {
 
     func refreshMembers() async {
         guard let rows = try? await transport.members(of: noteID) else { return }
+        onMembers?(rows)
         members = rows.map { Member(id: $0.user_id, name: $0.display_name ?? "Someone", role: $0.role,
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
     }
@@ -435,6 +444,9 @@ final class CollabSession {
         }
     }
 
+    /// Changes made here that the server doesn't have yet.
+    var unsent: Int { record.pending.count }
+
     private enum SendOutcome { case done, later, stop }
 
     private func sendPending() async -> SendOutcome {
@@ -462,7 +474,7 @@ final class CollabSession {
                 switch failure {
                 case .staleEpoch:
                     // Kept, and sent again sealed with the new key once the library has it.
-                    onStaleKey?()
+                    onKeyChanged?()
                     return .stop
                 case .readOnly:
                     record.role = "viewer"
@@ -472,7 +484,9 @@ final class CollabSession {
                     onRemoved?()
                     return .stop
                 default:
+                    // Refused for a reason that may mean you're no longer in the note: the library checks.
                     log.error("sending a change failed: \(String(describing: failure), privacy: .public)")
+                    onKeyChanged?()
                     return .later
                 }
             } catch {

@@ -34,6 +34,8 @@ final class SharedLibrary {
     private(set) var sessions: [UUID: CollabSession] = [:]
     /// Called with a session as it opens, to hook it up further (the store's members, photos).
     var onOpen: ((CollabSession, Note) -> Void)?
+    /// Called with a note's id when it leaves your library (you left, or were removed).
+    var onClose: ((UUID) -> Void)?
     /// Notes being loaded from the server, so a pointer arriving twice loads once.
     private var loading: [UUID: Task<CollabSession?, Never>] = [:]
 
@@ -224,6 +226,11 @@ final class SharedLibrary {
             guard let self, let session else { return }
             Task { await self.refreshKey(session) }
         }
+        session.onResealed = { [weak self, weak session] nk, epoch in
+            guard let self, let session, let dk = dataKey(),
+                  let box = try? CollabCrypto.selfWrap(nk, dataKey: dk, note: session.noteID, epoch: epoch) else { return }
+            session.record.setKey(box, epoch: epoch)
+        }
         session.onRemoved = { [weak self, weak note] in
             guard let self, let note else { return }
             self.removeLocally(note)
@@ -291,9 +298,6 @@ final class SharedLibrary {
             return
         }
         guard row.epoch >= session.epoch, let nk = try? await key(for: row) else { return }
-        if let dk = dataKey(), let box = try? CollabCrypto.selfWrap(nk, dataKey: dk, note: row.note_id, epoch: row.epoch) {
-            session.record.setKey(box, epoch: row.epoch)
-        }
         session.reseal(nk: nk, epoch: row.epoch)
     }
 
@@ -326,6 +330,7 @@ final class SharedLibrary {
         note.deletedAt = .now
         note.touch()
         context.saveOrReport()
+        onClose?(note.id)
     }
 
     /// Closes every open session (signing out).
