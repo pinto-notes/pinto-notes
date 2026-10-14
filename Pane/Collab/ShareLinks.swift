@@ -114,9 +114,12 @@ struct SharedTemplate: Codable, Equatable {
 }
 
 extension CollabStore {
-    /// Where shared pages open (`-shareSite`), ambernotes.app in the product.
+    /// The site a note's link is on: the build's share site (pintonotes.com, or staging's), or
+    /// `-shareSite` for the local demo.
     static var site: String {
-        Capture.argument("-shareSite") ?? "http://localhost:5230"
+        if let s = Capture.argument("-shareSite") { return s }
+        guard let base = ShareLinkConfig.baseURL, let scheme = base.scheme, let host = base.host else { return "https://pintonotes.com" }
+        return "\(scheme)://\(host)\(base.port.map { ":\($0)" } ?? "")"
     }
 
     /// Seals the note (and its page) for a new link. A new link replaces the old one, which stops

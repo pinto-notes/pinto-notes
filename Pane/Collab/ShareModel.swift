@@ -169,6 +169,11 @@ extension CollabStore: ShareBackend {
             joinProblem = "This link was turned off or changed. Ask for a new one."
             return false
         }
+        // Already in the note on this device (your own link, or one you joined before): open it.
+        if sessions[opened.note_id] != nil {
+            NoteOpener.shared.open(opened.note_id)
+            return true
+        }
         do {
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32 else { throw CollabCrypto.Failure.wrongKey }

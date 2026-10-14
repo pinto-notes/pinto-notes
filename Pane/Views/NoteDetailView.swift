@@ -909,7 +909,7 @@ struct NoteDetailView: View {
         guard !trashed else { return }
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
-            collab.local(text, selection: controller.target?.currentSelection)
+            if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }
             return
         }
         PaneTips.typed()
@@ -1341,6 +1341,9 @@ private struct CollabWiring: ViewModifier {
                 session.onCarets = { [weak controller] carets in controller?.target?.showRemoteCarets(carets) }
                 // Your caret, a few times a second (it also goes with every keystroke).
                 while !Task.isCancelled {
+                    // Can view: the note is shown read-only (Recently Deleted is read-only too).
+                    let readOnly = session.isViewOnly || note.trashedAt != nil
+                    if controller.readOnly != readOnly { controller.readOnly = readOnly }
                     session.selectionChanged(controller.isEditing ? controller.target?.currentSelection : nil)
                     controller.remoteCarets = session.remoteCarets
                     CollabStore.shared?.loadPhotos(session)

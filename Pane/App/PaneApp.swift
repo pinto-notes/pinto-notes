@@ -198,6 +198,8 @@ struct PaneApp: App {
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
+                    // A note's link opened in the app joins the note (after sign-in, if need be).
+                    .joinLinkHandler()
                     .tint(Color(PColor.paneAccent))
                     .preferredColorScheme(Self.testScheme)
             }

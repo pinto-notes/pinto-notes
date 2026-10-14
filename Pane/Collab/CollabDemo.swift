@@ -206,8 +206,8 @@ struct CollabInviteAlert: ViewModifier {
             content
             // "Use template" on a shared template's page (ambernotes://shared-template/<id>).
             .onOpenURL { url in
-                // A share link (…/s/<id>#<secret>): with Edit on, opening it joins the note.
-                if CollabStore.parseLink(url) != nil { Task { await store.join(url) }; return }
+                // A note's link (…/s/<id>#<secret>) is JoinLinkHandler's.
+                if CollabStore.parseLink(url) != nil { return }
                 guard url.scheme == "ambernotes" else { return }
                 if url.host == "shared-template", let id = url.pathComponents.dropFirst().first { Task { _ = await store.useTemplate(id) } }
                 // scripts/share-demo.sh: Stop Sharing on the demo note, as its sheet would.
