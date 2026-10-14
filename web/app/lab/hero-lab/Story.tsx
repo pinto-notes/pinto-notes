@@ -15,15 +15,15 @@ const minJerk = (v: number) => { const x = clamp(v); return x * x * x * (10 - 15
 const over = (v: number) => { const x = clamp(v); const c1 = 1.56, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const seg = (t: number, a: number, d: number) => clamp((t - a) / d);
 
-type AI = "chatgpt" | "claude" | "codex";
-const NAME: Record<AI, string> = { chatgpt: "ChatGPT", claude: "Claude", codex: "Codex" };
-const GLYPH: Record<AI, "openai" | "claude"> = { chatgpt: "openai", claude: "claude", codex: "openai" };
+type AI = "chatgpt" | "claude" | "claude-code";
+const NAME: Record<AI, string> = { chatgpt: "ChatGPT", claude: "Claude", "claude-code": "Claude Code" };
+const GLYPH: Record<AI, "openai" | "claude"> = { chatgpt: "openai", claude: "claude", "claude-code": "claude" };
 
 /// The beats: when each starts, the ask, and what it does.
 const BEATS: { who: AI; at: number; ask: string }[] = [
   { who: "chatgpt", at: 0.6, ask: "Add a day trip to Sintra to my Lisbon note" },
   { who: "claude", at: 3.8, ask: "I booked the hotel. Tick it off." },
-  { who: "codex", at: 7.0, ask: "add LX Factory on Sunday to Lisbon" },
+  { who: "claude-code", at: 7.0, ask: "add LX Factory on Sunday to Lisbon" },
 ];
 // Within a beat: ask arrives 0–0.45 s, the edit runs 0.7–1.6 s, the name lands 1.5–1.9 s, the ask leaves 2.6–2.95 s.
 
@@ -72,7 +72,7 @@ function Note({ t, only }: { t: number; only?: number }) {
           <ul className={s.list}>
             <Line text="Time Out Market" />
             <Line text="Miradouro da Senhora do Monte" />
-            <Line text="LX Factory on Sunday" typed={minJerk(b[2].edit)} insert={minJerk(seg(tt(2) - BEATS[2].at, 0.55, 0.3))} who="codex" credit={b[2].credit} id="codex" />
+            <Line text="LX Factory on Sunday" typed={minJerk(b[2].edit)} insert={minJerk(seg(tt(2) - BEATS[2].at, 0.55, 0.3))} who="claude-code" credit={b[2].credit} id="claude-code" />
           </ul>
         </div>
       </figure>

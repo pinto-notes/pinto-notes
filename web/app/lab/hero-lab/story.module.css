@@ -34,9 +34,9 @@
 .ask p { margin: 0; font-size: 16px; line-height: 1.35; color: #1d1b19; }
 .askWho { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650; color: #6b5f53; }
 .ask[data-who="claude"] .askWho { color: #c15f3c; }
-.ask[data-who="codex"] { background: #1d1b19; }
-.ask[data-who="codex"] p { color: #f3eee8; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14.5px; }
-.ask[data-who="codex"] .askWho { color: #b9ad9f; }
+.ask[data-who="claude-code"] { background: #1d1b19; }
+.ask[data-who="claude-code"] p { color: #f3eee8; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14.5px; }
+.ask[data-who="claude-code"] .askWho { color: #b9ad9f; }
 
 .scrub { height: 300vh; }
 .pin { position: sticky; top: 120px; }
