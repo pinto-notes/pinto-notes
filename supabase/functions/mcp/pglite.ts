@@ -5,7 +5,7 @@ import { PGlite, type Transaction } from "npm:@electric-sql/pglite@0.2.17";
 import { pg_trgm } from "npm:@electric-sql/pglite@0.2.17/contrib/pg_trgm";
 import type { Sql } from "npm:postgres@3.4.5";
 
-const stubs = `
+export const stubs = `
   create role anon; create role authenticated; create role service_role;
   create role supabase_auth_admin; create role supabase_storage_admin;
   create schema auth; create schema extensions; create schema storage;
