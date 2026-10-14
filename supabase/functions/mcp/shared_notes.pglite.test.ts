@@ -160,20 +160,18 @@ Deno.test("the owner's AI reads and writes the document at the note's own path, 
   assertStringIncludes(await mac.pull() ?? "", "(Fäviken?)");
   // The row itself is untouched: one note, one sync engine.
   assertStringIncludes((await opened(pg, emil.a, id)).body!, "old text");
-  // Deleting, restoring, apps and sub-notes are for Pinto Notes, for now.
-  assertStringIncludes(await fails(tool(pg, emil, "delete", { path: "Offsite plan.md" })), "take it from them too");
+  // Restoring a version, apps and sub-notes are for Pinto Notes, for now.
   assertStringIncludes(await fails(tool(pg, emil, "restore", { path: "Offsite plan.md", version: 1 })), "can't be restored yet");
   assertStringIncludes(await fails(tool(pg, emil, "create", { path: "Offsite plan/Agenda.md", content: "Agenda" })), "can't have sub-notes");
   assertStringIncludes(await fails(tool(pg, emil, "create", { type: "app", path: "Offsite plan.md" })), "can't have apps");
   assertStringIncludes(await fails(tool(pg, emil, "move", { path: "Offsite plan.md", to: "Offsite.md" })), "first line");
 });
 
-Deno.test("Shared with me/ takes nothing new, and leaving is done in the app", async () => {
+Deno.test("Shared with me/ takes nothing new", async () => {
   const pg = await schemaDB();
   const { sara } = await shared(pg);
   assertStringIncludes(await fails(tool(pg, sara, "create", { path: "Shared with me/Mine.md", content: "Mine" })), "nothing new can be made");
   assertStringIncludes(await fails(tool(pg, sara, "move", { path: "Shared with me/Offsite plan.md", to: "Work/" })), "once Pinto Notes has opened it");
-  assertStringIncludes(await fails(tool(pg, sara, "delete", { path: "Shared with me/Offsite plan.md" })), "Leave");
   assertStringIncludes(await fails(tool(pg, sara, "pin", { path: "Shared with me/Offsite plan.md", pinned: true })), "once Pinto Notes has opened it");
   // Her own notes are as they were.
   await note(pg, sara.a, "Groceries\n\n- [ ] Milk\n");
@@ -255,4 +253,60 @@ Deno.test("a member's pointer row places the note; its placeholder body is never
   assertStringIncludes((await opened(pg, sara.a, pointer)).body!, "This note is shared");
   // Pinning is the pointer's, like any note.
   assertEquals((await tool(pg, sara, "pin", { path: "Work/Offsite plan.md", pinned: true })).pinned, true);
+});
+
+Deno.test("a member's delete leaves the note: it goes from their notes, and the others keep it", async () => {
+  const pg = await schemaDB();
+  const { emil, sara, eve, id, mac } = await shared(pg);
+  // Sara's iPhone had placed it in her library.
+  const pointer = await note(pg, sara.a, "Offsite plan\n\nThis note is shared.\n");
+  await app(pg, sara.id, `update public.notes set shared_note_id = $2 where id = $1`, [pointer, id]);
+  const out = await tool(pg, sara, "delete", { path: "Shared with me/Offsite plan.md" });
+  assertEquals(out.left, "Shared with me/Offsite plan.md");
+  assert(!(await tool(pg, sara, "list")).entries.some((e: { path: string }) => e.path === "Shared with me/"));
+  assert(!(await tool(pg, sara, "list", { path: "Recently Deleted/" })).entries.length);
+  assertEquals((await pg.query(`select 1 from public.note_members where note_id = $1 and user_id = $2`, [id, sara.id])).rows.length, 0);
+  const [row] = (await pg.query<{ deleted_at: Date | null }>(`select deleted_at from public.notes where id = $1`, [pointer])).rows;
+  assert(row.deleted_at);
+  // Her AI can't write to it any more; Emil and Eve still have it.
+  const e = await app(pg, sara.id, `insert into public.note_updates (note_id, epoch, ct) values ($1, 1, $2)`, [id, await seal3("u", bytes("x"), mac.nk, id, 1, sara.id)]).then(() => null, (e) => e);
+  assert(e);
+  assertStringIncludes((await tool(pg, emil, "fetch", { id: "Offsite plan.md" })).text, "Book the venue");
+  assertEquals((await tool(pg, eve, "list", { path: "Shared with me/" })).entries.length, 1);
+  // A viewer leaves the same way.
+  assertEquals((await tool(pg, eve, "delete", { path: "Shared with me/Offsite plan.md" })).left, "Shared with me/Offsite plan.md");
+});
+
+Deno.test("the owner's delete stops sharing for everyone, keeps the text in Recently Deleted, and restores unshared", async () => {
+  const pg = await schemaDB();
+  const { emil, sara, id, mac } = await shared(pg);
+  const pointer = await note(pg, sara.a, "Offsite plan\n\nThis note is shared.\n");
+  await app(pg, sara.id, `update public.notes set shared_note_id = $2 where id = $1`, [pointer, id]);
+  await mac.type((d) => A.splice(d, ["body"], d.body!.length, 0, "- [ ] Order lunch\n"));
+  const out = await tool(pg, emil, "delete", { path: "Offsite plan.md" });
+  assertEquals([out.deleted, out.now_at], ["Offsite plan.md", "Recently Deleted/Offsite plan.md"]);
+  // Nobody else has it: the shared document, its members and changes are gone, Sara's pointer too.
+  assertEquals((await pg.query(`select 1 from public.shared_notes where id = $1`, [id])).rows.length, 0);
+  assertEquals((await pg.query(`select 1 from public.note_updates where note_id = $1`, [id])).rows.length, 0);
+  assert(!(await tool(pg, sara, "list")).entries.some((e: { path: string }) => e.path === "Shared with me/"));
+  const [sp] = (await pg.query<{ deleted_at: Date | null }>(`select deleted_at from public.notes where id = $1`, [pointer])).rows;
+  assert(sp.deleted_at);
+  // Emil's row holds the merged text, as his own note again.
+  const own = await opened(pg, emil.a, id);
+  assertEquals(own.body, "Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n- [ ] Order lunch\n");
+  const [r] = (await pg.query<{ shared_note_id: string | null }>(`select shared_note_id from public.notes where id = $1`, [id])).rows;
+  assertEquals(r.shared_note_id, null);
+  // Restore brings it back for him only, unshared, and it's an ordinary note.
+  // (A note restored from outside any folder goes to Notes, as for any note.)
+  assertEquals((await tool(pg, emil, "restore", { path: "Recently Deleted/Offsite plan.md" })).restored, "Notes/Offsite plan.md");
+  const back = await tool(pg, emil, "list", { path: "Notes/" });
+  const e = back.entries.find((x: { path: string }) => x.path === "Notes/Offsite plan.md");
+  assertEquals(e.shared, undefined);
+  await tool(pg, emil, "fetch", { id: "Notes/Offsite plan.md" });
+  assertEquals((await tool(pg, emil, "edit", { path: "Notes/Offsite plan.md", old_string: "Order lunch", new_string: "Order lunch for 8" })).checks, "ok");
+  assertStringIncludes((await opened(pg, emil.a, id)).body!, "Order lunch for 8");
+  // Only the owner can stop sharing.
+  const { sara: s2, id: id2 } = await shared(pg);
+  const refused = await app(pg, s2.id, `select public.collab_unshare($1, 'x', 'y')`, [id2]).then(() => null, (e) => e);
+  assertStringIncludes(String(refused?.message), "Only the owner");
 });
