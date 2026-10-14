@@ -261,6 +261,7 @@ private struct SharePopoverLive: View {
         ShareNotePopover(title: note.title, text: note.body, store: store, trashed: note.trashedAt != nil, share: share, close: close)
             .task {
                 guard let share else { return }
+                ShareController.current = share
                 while !Task.isCancelled {
                     share.refresh()
                     try? await Task.sleep(for: .seconds(0.5))

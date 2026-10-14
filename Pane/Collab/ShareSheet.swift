@@ -371,6 +371,7 @@ struct ShareSheet: View {
             ShareForm(share: share, done: { dismiss() })
         }
         .task {
+            ShareController.current = share
             // People come and go: keep the list current while the sheet is open.
             while !Task.isCancelled {
                 share.refresh()
