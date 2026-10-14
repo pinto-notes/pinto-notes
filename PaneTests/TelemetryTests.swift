@@ -181,9 +181,9 @@ private func names(_ events: [[String: Any]]) -> [String] { events.compactMap { 
         #expect(TelemetryContext.isInternal(phone, arguments: ["Pane"]))
         #expect(!TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane", "-PintoInternal", "NO"]))
 
-        for internal in [false, true] {
+        for team in [false, true] {
             var context = testContext
-            context.isInternal = internal
+            context.isInternal = team
             let transport = StubTransport()
             let telemetry = Telemetry(config: TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost, context: context),
                                       transport: transport, store: MemoryTelemetryQueue(), defaults: TestDefaults())
@@ -192,7 +192,7 @@ private func names(_ events: [[String: Any]]) -> [String] { events.compactMap { 
             #expect(!transport.events.isEmpty)
             for e in transport.events {
                 let p = try #require(e["properties"] as? [String: Any])
-                if internal { #expect(p["internal"] as? Bool == true) } else { #expect(p["internal"] == nil) }
+                if team { #expect(p["internal"] as? Bool == true) } else { #expect(p["internal"] == nil) }
             }
         }
     }
