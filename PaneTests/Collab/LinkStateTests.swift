@@ -63,10 +63,12 @@ import Testing
     /// The real Keychain item: synced, one per account and note. Skipped where the test host has no
     /// Keychain entitlement (CI's unsigned host).
     @Test func theKeychainItemRoundTrips() throws {
-        let vault = KeychainLinkVault(account: UUID())
+        let (storage, dir) = try Self.tempStorage()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let vault = KeychainLinkVault(account: UUID(), fallback: storage)
         let note = UUID()
         let entry = LinkVaultEntry(id: "sEbHaDgYXLDfpSMmrziRgA", secret: Data(repeating: 9, count: 16), access: "Can edit")
-        guard vault.save(entry, for: note) else { print("KEYCHAIN not available in this test host: skipped"); return }
+        guard vault.save(entry, for: note), !vault.usesFallback else { print("KEYCHAIN not available in this test host: skipped"); return }
         defer { vault.remove(note) }
         #expect(vault.load(note) == entry)
         var changed = entry
@@ -75,5 +77,59 @@ import Testing
         #expect(vault.load(note)?.access == "Can view")
         vault.remove(note)
         #expect(vault.load(note) == nil)
+    }
+
+    /// A Keychain that refuses every call for want of an entitlement (the Mac download, the Beta).
+    struct RefusingItems: LinkSecItems {
+        func copy(_ query: [String: Any]) -> (OSStatus, Data?) { (errSecMissingEntitlement, nil) }
+        func update(_ query: [String: Any], data: Data) -> OSStatus { errSecMissingEntitlement }
+        func add(_ query: [String: Any]) -> OSStatus { errSecMissingEntitlement }
+        func delete(_ query: [String: Any]) -> OSStatus { errSecMissingEntitlement }
+    }
+
+    static func tempStorage() throws -> (SessionStorage, URL) {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "linkvault-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return (SessionStorage(keychain: nil, directory: dir), dir)
+    }
+
+    /// Without the Keychain the link is kept in the app's own storage: it survives a relaunch on
+    /// this Mac, Off removes it, and Start fresh removes all of the account's.
+    @Test func withoutTheKeychainLinksAreKeptOnThisMac() throws {
+        let (storage, dir) = try Self.tempStorage()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let account = UUID(), a = UUID(), b = UUID()
+        let vault = KeychainLinkVault(account: account, items: RefusingItems(), fallback: storage)
+        let entry = LinkVaultEntry(id: "sEbHaDgYXLDfpSMmrziRgA", secret: Data(repeating: 3, count: 16), access: "Can edit")
+        #expect(vault.save(entry, for: a))
+        #expect(vault.usesFallback)
+        #expect(vault.save(LinkVaultEntry(id: "Nw8kQe0rTzYxUv2aBcDeFg", secret: Data(repeating: 4, count: 16), access: "Can view"), for: b))
+
+        // A relaunch: a new vault over the same storage finds them.
+        let again = KeychainLinkVault(account: account, items: RefusingItems(), fallback: storage)
+        #expect(again.load(a) == entry)
+        again.remove(a)
+        #expect(again.load(a) == nil && again.load(b)?.access == "Can view")
+        // Another account on this Mac has its own.
+        #expect(KeychainLinkVault(account: UUID(), items: RefusingItems(), fallback: storage).load(b) == nil)
+        // Start fresh.
+        again.removeAll()
+        #expect(KeychainLinkVault(account: account, items: RefusingItems(), fallback: storage).load(b) == nil)
+    }
+
+    /// Through the store: Share on the Mac download shows the link as it is after a relaunch.
+    @Test func theMacDownloadShowsTheLinkAfterARelaunch() async throws {
+        let (storage, dir) = try Self.tempStorage()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let emil = server.account("Emil"), key = SymmetricKey(size: .bits256)
+        let (mac, context, container) = try device(emil, vault: KeychainLinkVault(account: emil, items: RefusingItems(), fallback: storage), dataKey: key)
+        let note = Note(body: "Team offsite\n")
+        context.insert(note)
+        try await mac.setAccess(.edit, for: note)
+        let link = try #require(mac.linkURL(note))
+        let (relaunched, _, c2) = try device(emil, vault: KeychainLinkVault(account: emil, items: RefusingItems(), fallback: storage), dataKey: key)
+        let state = relaunched.shareState(for: note)
+        #expect(state.access == .edit && state.link == link)
+        _ = (container, c2)
     }
 }
