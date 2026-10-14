@@ -160,6 +160,9 @@ import Testing
         }
         #expect(ShareCopy.link(.edit).contains("edit") && ShareCopy.link(.view).contains("read"))
         #expect(ShareCopy.link(.off).contains("new one"))
+        // Before the note is shared, the line says what Share Link will do, not that a link is off.
+        #expect(ShareCopy.link(ShareState(people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")])) == ShareCopy.notSharedYet)
+        #expect(ShareCopy.link(Self.owner(link: .off)) == ShareCopy.link(.off))
         #expect(ShareCopy.removeMessage(Self.owner().people[1]).hasPrefix("Sara can't open this note anymore."))
     }
 

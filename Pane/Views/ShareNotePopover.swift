@@ -60,8 +60,9 @@ struct ShareNotePopover: View {
     var linkAvailable: Bool?
     /// Sharing with people (CollabFeature): who's in the note, its link, Leave.
     var share: ShareController?
-    /// Captures: the way it opens on.
+    /// Captures: the way it opens on, and the page Collaborate opens on.
     var startingWay: ShareWays.Way?
+    var collaboratePage: CollaborateRows.Page?
     let close: () -> Void
 
     @State private var way: ShareWays.Way?
@@ -112,7 +113,7 @@ struct ShareNotePopover: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 switch chosen {
-                case .people: if let share { CollaborateRows(share: share, title: title) }
+                case .people: if let share { CollaborateRows(share: share, title: title, startingPage: collaboratePage) }
                 case .link: linkRows
                 case .copy: copyRows
                 }
@@ -327,6 +328,7 @@ struct CollaborateRows: View {
             .background(SharePickerAnchor(url: $share.sharing))
             .accessibilityIdentifier("share.link")
             HStack(spacing: 8) {
+                Image(systemName: "link").font(.system(size: 13)).frame(width: 18)
                 Text("People with the link").font(.system(size: 13))
                 Spacer(minLength: 0)
                 if share.working == .access { ProgressView().controlSize(.small) }
@@ -342,7 +344,7 @@ struct CollaborateRows: View {
             .padding(.leading, 8)
             .padding(.trailing, 2)
             .frame(height: 30)
-            line(share.state.problem ?? ShareCopy.link(share.state.access), problem: share.state.problem != nil)
+            line(share.state.problem ?? ShareCopy.link(share.state), problem: share.state.problem != nil)
         } else {
             Button { share.askLeave() } label: {
                 HStack(spacing: 8) {
@@ -412,7 +414,9 @@ struct CollaborateRows: View {
             HStack {
                 Spacer()
                 Button("Cancel", action: cancel).buttonStyle(.secondary).keyboardShortcut(.cancelAction)
-                Button(action, role: .destructive, action: go).buttonStyle(.secondary).foregroundStyle(.red).accessibilityIdentifier(id)
+                Button(role: .destructive, action: go) { Text(action).foregroundStyle(.red) }
+                    .buttonStyle(.secondary)
+                    .accessibilityIdentifier(id)
             }
             .padding(.top, 4)
         }

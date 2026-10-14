@@ -174,6 +174,13 @@ enum ShareCopy {
         }
     }
 
+    /// Under the link: what it does now, or, before the note is shared, what Share Link will do.
+    static func link(_ state: ShareState) -> String {
+        state.access == .off && state.people.count <= 1 ? notSharedYet : link(state.access)
+    }
+
+    static let notSharedYet = "Share Link makes a link anyone can join with and edit, in Pinto Notes."
+
     static func role(_ role: String) -> String {
         role == "owner" ? "Owner" : role == "editor" ? "Can edit" : "Can view"
     }

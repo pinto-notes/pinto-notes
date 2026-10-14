@@ -75,7 +75,7 @@ struct ShareForm: View {
                     .disabled(share.working != nil)
                     .accessibilityIdentifier("share.access")
                 } footer: {
-                    footer(ShareCopy.link(state.access))
+                    footer(ShareCopy.link(state))
                 }
             } else {
                 Section {
