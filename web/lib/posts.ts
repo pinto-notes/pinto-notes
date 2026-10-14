@@ -208,7 +208,7 @@ export const posts: Post[] = [
     excerpt: "No templates button, but a folder of notes does the job. How to set it up, and five templates that paste in with real headings and checklists.",
     category: "Apple Notes",
     date: "2026-10-08",
-    updated: "2026-10-08",
+    updated: "2026-10-14",
     image: { src: "/blog/macos27/notes-templates-window.webp", alt: "Apple Notes on macOS 27 with a Templates folder of five notes, and a Packing list open with three checklists.", width: 1538, height: 984, window: true },
     thumb: thumb("olive", "thumb-notes-templates", 660, 730, "A Packing list note in Apple Notes with Documents, Clothes and Bag checklists"),
     draft: false,
