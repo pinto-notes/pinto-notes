@@ -117,6 +117,10 @@
 .circle svg { width: 0.75em; height: 0.75em; }
 .circle[data-done] { background: var(--n-tick, #e8820e); box-shadow: none; }
 .rowText { min-width: 0; }
+.dash { flex: none; width: 1.2em; text-align: center; }
+/* A complete note (home-g): nothing arrives from blur; the chip changes with a plain fade. */
+.story[data-complete] .credit { animation-name: chipFade; }
+@keyframes chipFade { from { opacity: 0; } }
 @media (prefers-reduced-motion: no-preference) {
   .row { transition: opacity 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.5s ease-out; }
   .mark { transition: opacity 0.3s ease-out; }

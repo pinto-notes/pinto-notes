@@ -168,14 +168,7 @@ export const G = {
   },
   closing: {
     title: "Start with the notes you already have.",
-    steps: [
-      { title: "Download for Mac", line: "Free, macOS 26." },
-      { title: "Import your Apple Notes", line: "Folders, checklists and tables come along." },
-      { title: "Connect your AI", line: "One press for Claude Code and Codex." },
-    ],
-    works: "Works with ChatGPT, Claude, Incredible and any MCP app.",
-    fine: "iPhone app coming soon.",
-    /** Each one checked before printing: MIT in LICENSE; listed in jaywcjlove/awesome-mac (as Amber Notes, the old name), 13 October 2026. */
-    proof: ["Open source (MIT)", "Listed in awesome-mac"],
+    /** Emil, 14 October: the closing works as D round 2 had it; no steps, no extra lines. */
+    fine: "Requires macOS 26. iPhone app coming soon.",
   },
 };

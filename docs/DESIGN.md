@@ -98,6 +98,7 @@ In code: `AmberProminentButtonStyle` (primary), a secondary style and a quiet st
 - Things that leave go faster than things that arrive.
 - Filters and lists never go blank: cards settle into place.
 - **Website only:** story sections show one thing and play the story over time, one change at a time, instead of showing every state at once.
+- **Website only:** people scroll fast. Every frame of a story must look finished. A story never shows blurred, empty or half-built placeholders, and the first frame a visitor sees must already make sense without waiting.
 - Respect Reduce Motion everywhere: cut to the end state.
 
 ## States

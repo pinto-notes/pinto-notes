@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/lab/home-g", useRouter: () => ({ push: () => {} }) }));
 import HomeG, { metadata } from "./page";
-import { noteAt, SHEET, STEPS } from "./Control";
+import { NOTE, SHEET } from "./Control";
+import { rowsComplete, STEPS as NB } from "../home-d/Notebook";
 import { G } from "../copy";
 import { themeFor } from "@/lib/theme";
 
@@ -18,9 +19,8 @@ describe("home study G, the joint homepage", async () => {
   const html = await render();
   const page = text(html);
 
-  it("keeps what must survive: with your OK, the three connect steps, and the four control facts", () => {
+  it("keeps what must survive: with your OK and the four control facts (the connect steps went at Emil's call)", () => {
     expect(page).toContain("with your OK");
-    for (const s of ["Download for Mac", "Import your Apple Notes", "Connect your AI", "One press for Claude Code and Codex.", "Works with ChatGPT, Claude, Incredible and any MCP app."]) expect(page, s).toContain(s);
     expect(page).toContain(SHEET.title); // you approve each AI
     expect(page).toMatch(/Undo takes it back/);
     expect(page).toContain("Encrypted on your Mac before it syncs.");
@@ -36,24 +36,40 @@ describe("home study G, the joint homepage", async () => {
     expect(readFileSync(resolve(__dirname, "g.module.css"), "utf8")).toMatch(/\.tint \{[^}]*background: #f7e5cc/);
   });
 
-  it("drops the facts tiles and the Free tag, and only prints proof it checked", () => {
+  it("drops the facts tiles and the Free tag", () => {
     expect(html).not.toContain("/home-d/facts/tag.webp");
     expect(page).not.toMatch(/connector directory/i);
-    expect(readFileSync(resolve(ROOT, "LICENSE"), "utf8")).toMatch(/^MIT License/);
-    expect(G.closing.proof).toEqual(["Open source (MIT)", "Listed in awesome-mac"]);
   });
 
   it("takes the sheet's words from the app", () => {
     const swift = readFileSync(resolve(ROOT, "Pane/Views/ConnectAI.swift"), "utf8");
     expect(swift).toContain('"Allow \\(r.who) to use your notes?"');
-    for (const w of [SHEET.edit, SHEET.read, SHEET.editLine, SHEET.readLine, "Locked notes stay private.", "Don\\u{2019}t Allow"]) expect(swift, w).toContain(w);
+    for (const w of [SHEET.edit, SHEET.read, SHEET.editLine, "Locked notes stay private.", "Don\\u{2019}t Allow"]) expect(swift, w).toContain(w);
   });
 
-  it("tells the approval in four steps, tinting only ChatGPT's line and taking it back", () => {
-    expect(STEPS.map((s) => s.credit)).toEqual(["ChatGPT asks first", "You allow Read and edit", "ChatGPT added 1 line", "Undo took it back"]);
-    expect(noteAt(2).filter((r) => r.tint && r.in)).toHaveLength(1);
-    expect(noteAt(3).some((r) => r.in && r.text.startsWith("Book the table"))).toBe(false);
-    for (let k = 0; k < STEPS.length; k++) expect(noteAt(k)).toHaveLength(4); // the note keeps its height
+  it("shows the approval as one still picture: the sheet with Read and edit chosen, then the note with ChatGPT's line tinted and Undo", () => {
+    const six = html.slice(html.indexOf('aria-labelledby="control"'), html.indexOf('aria-labelledby="closing"'));
+    expect(text(six)).toContain(SHEET.title);
+    expect(six).toMatch(/<i data-on="">Read and edit<\/i>/);
+    expect(NOTE.filter((r) => r.tint).map((r) => r.text)).toEqual(["Book the table at Trindade for 19:00"]);
+    expect(text(six)).toContain("ChatGPT added 1 line");
+    expect(six).not.toContain('role="group"'); // no scrubber
+  });
+
+  it("keeps the notebook complete at every step: only the tint, the marks and the chip move", () => {
+    for (let k = 0; k < NB.length; k++) {
+      const rows = rowsComplete(k);
+      expect(rows.every((r) => r.in), `step ${k}`).toBe(true);
+      expect(rows.map((r) => r.text)).toEqual(rowsComplete(0).map((r) => r.text));
+    }
+    expect(rowsComplete(3).filter((r) => r.tint).map((r) => r.text)).toEqual(["Sunday special at the top"]);
+    expect(rowsComplete(1).filter((r) => r.tint).map((r) => r.key)).toEqual(["h", "hours", "orders"]);
+  });
+
+  it("closes as D round 2 did: the icon, the line, Download and one line of small print", () => {
+    const seven = text(html.slice(html.indexOf('aria-labelledby="closing"')));
+    expect(seven).toContain("Requires macOS 26. iPhone app coming soon.");
+    for (const gone of ["Import your Apple Notes", "Works with ChatGPT", "awesome-mac", "Open source (MIT)"]) expect(seven, gone).not.toContain(gone);
   });
 
   it("is cream in light and dark, quiet in its header, and has the title and description", () => {
@@ -79,10 +95,6 @@ describe("home study G, the final changes", async () => {
   });
   it("gives the fanned cards short lines", () => {
     for (const l of ["Days, bookings, packing.", "Spending against your budget.", "A few small habits, on your schedule."]) expect(text(html)).toContain(l);
-  });
-  it("puts macOS 26 in step 1, not in the small print, and keeps iPhone coming soon", () => {
-    expect(text(html)).toContain("Free, macOS 26.");
-    expect(text(html)).not.toContain("Requires macOS 26");
   });
   it("ends the hero on the AI: you tick first, ChatGPT last, and it rests on ChatGPT's chip", async () => {
     const { linesAt, chipAt, STEPS: H } = await import("../home-d/HeroNote");

@@ -56,14 +56,16 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
           <h2 id="one-notebook" className={d.title}>{G.notebook.title}</h2>
           <p className={d.lede}>{G.notebook.lede}</p>
         </div>
-        <Notebook icons />
+        <Notebook icons complete />
       </section>
 
       {/* 3. Plans keep moving: the first dark band. */}
-      <section className={d.band} aria-labelledby="plans">
-        <div className={d.bandInner}>
-          <h2 id="plans" className={d.statement}>{G.plans.title}</h2>
-          <p className={d.bandLede}>{G.plans.lede}</p>
+      <section className={`${d.band} ${s.planBand}`} aria-labelledby="plans">
+        <div className={s.planRow}>
+          <div className={s.planText}>
+            <h2 id="plans" className={d.statement}>{G.plans.title}</h2>
+            <p className={d.bandLede}>{G.plans.lede}</p>
+          </div>
           <Week />
         </div>
       </section>
@@ -122,14 +124,7 @@ export default async function HomeG({ searchParams }: { searchParams: Promise<{ 
         <div className={d.bandInner}>
           <img src="/mark-256.png" alt="" width={104} height={104} className={d.closingIcon} />
           <h2 id="closing" className={d.closingTitle}>{G.closing.title}</h2>
-          <ol className={s.stepsRow}>
-            {G.closing.steps.map((t, k) => (
-              <li key={k}><span className={s.num}>{k + 1}</span><span><b>{t.title}</b><span className={s.stepRest}>{t.line}</span></span></li>
-            ))}
-          </ol>
-          <Download className={d.closingCta} />
-          <div className={s.after}><p className={s.works}>{G.closing.works}</p><p className={s.fine}>{G.closing.fine}</p></div>
-          <p className={s.proof}>{G.closing.proof.join(" · ")}</p>
+          <Download className={`${d.closingCta} ${s.ctaCenter}`} quiet={G.closing.fine} />
         </div>
       </section>
     </div>

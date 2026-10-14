@@ -26,18 +26,33 @@ export function rowsAt(step: number): Row[] {
   ];
 }
 
+/// The whole note at every step (home-g): nothing waits to arrive, so any frame a fast scroll catches
+/// is a finished note. The story only moves the tint, the margin's marks and the chip.
+export function rowsComplete(step: number): Row[] {
+  const by = (who: Who, at: number) => ({ by: who, in: true, tint: step === at && who !== "you", now: step === at });
+  return [
+    { key: "goal", k: "p", text: "Get the site up before the spring market: menu, opening hours, preorders.", ...by("you", 0) },
+    { key: "h", k: "h", text: "Next steps", ...by("claude", 1) },
+    { key: "hours", k: step >= 2 ? "done" : "todo", text: "Opening hours in the footer", ...by("claude", 1), now: step === 1 || step === 2 },
+    { key: "orders", k: "todo", text: "Take preorders by email", ...by("claude", 1) },
+    { key: "ideas", k: "h", text: "Ideas", by: "you", in: true },
+    { key: "photo", k: "bullet", text: "A photo of the sourdough on the front page", by: "you", in: true },
+    { key: "special", k: "bullet", text: "Sunday special at the top", ...by("chatgpt", 3) },
+  ];
+}
+
 /// `icons`: the steps under the note as the four marks alone (each still named for a screen reader);
 /// the step's words are in the note's chip.
-export default function Notebook({ icons = false }: { icons?: boolean } = {}) {
+export default function Notebook({ icons = false, complete = false }: { icons?: boolean; complete?: boolean } = {}) {
   const { ref, step, jump } = useStory<HTMLDivElement>(STEPS.length, 1900);
   const now = STEPS[step];
   return (
-    <div ref={ref} className={s.story}>
+    <div ref={ref} className={s.story} data-complete={complete || undefined}>
       <figure className={s.window} aria-label="A note called Bakery website. You wrote the goal, Claude added two next steps, you ticked one, and ChatGPT added Sunday special at the top.">
         <div className={s.windowBar} aria-hidden="true"><span className={s.lights}><i /><i /><i /></span><span>Work</span></div>
         <div className={s.windowPaper} aria-hidden="true">
           <p className={s.windowTitle}>Bakery website</p>
-          <Lines rows={rowsAt(step)} marks />
+          <Lines rows={complete ? rowsComplete(step) : rowsAt(step)} marks />
           <div className={s.creditRow}><Credit key={step} who={now.who} text={now.credit} undo={now.undo} /></div>
         </div>
       </figure>

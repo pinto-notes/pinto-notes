@@ -56,7 +56,7 @@ export function useStory<T extends HTMLElement>(count: number, stepMs: number) {
   return { ref, step, jump };
 }
 
-export type Row = { key: string; k: "p" | "h" | "todo" | "done"; text: string; by?: Who; in: boolean; tint?: boolean; now?: boolean };
+export type Row = { key: string; k: "p" | "h" | "todo" | "done" | "bullet"; text: string; by?: Who; in: boolean; tint?: boolean; now?: boolean };
 
 /// A note's lines as the app draws them. Lines not written yet keep their place (the note never
 /// changes height); a line arrives with one blur-in; only the change being told is tinted, and the
@@ -69,6 +69,7 @@ export function Lines({ rows, marks = false }: { rows: Row[]; marks?: boolean })
         return (
           <div key={r.key} className={s.row} data-k={r.k} data-in={r.in || undefined} data-tint={r.tint || undefined}>
             {marks && <span className={s.mark} data-now={r.now || undefined}>{first && r.by ? <WhoMark who={r.by} size={11} /> : null}</span>}
+            {r.k === "bullet" && <span className={s.dash} aria-hidden="true">–</span>}
             {(r.k === "todo" || r.k === "done") && <span className={s.circle} data-done={r.k === "done" || undefined} aria-hidden="true">{r.k === "done" && <Check />}</span>}
             <span className={s.rowText}>{r.text}</span>
           </div>
