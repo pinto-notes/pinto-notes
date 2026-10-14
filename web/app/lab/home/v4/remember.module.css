@@ -1,0 +1,58 @@
+/* Version 4, "It remembers": problem first, huge type, one proof each. */
+.scroller { height: 210vh; }
+.pin { position: sticky; top: 84px; height: calc(100vh - 84px); display: grid; align-items: center; }
+.hero { display: grid; gap: clamp(22px, 3.4vh, 40px); justify-items: start; width: min(1240px, 100%); margin: 0 auto; }
+.h1 { margin: 0; display: grid; gap: 4px; font-size: clamp(44px, 6.2vw, 92px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; }
+.l1 { display: block; }
+.l2 { display: block; will-change: transform, opacity, filter; }
+.mark { background: linear-gradient(transparent 62%, rgba(240, 144, 26, 0.38) 62%, rgba(240, 144, 26, 0.38) 92%, transparent 92%); }
+.stage { width: 100%; display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: 44px; align-items: center; }
+.chats { display: grid; gap: 12px; }
+.chat { margin: 0; display: grid; gap: 7px; padding: 12px 15px 14px; border-radius: 16px; background: #fff; color: #0d0d0d; font-size: 15px; line-height: 1.4;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.16), 0 18px 36px -22px rgba(60, 30, 5, 0.45); will-change: filter, opacity; }
+.chat[data-app="claude"] { background: #faf9f5; }
+.chat[data-app="code"] { background: #1d1b19; color: #f3eee8; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px; }
+.top { display: flex; justify-content: space-between; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; font-size: 12.5px; font-weight: 650; color: #6b5f53; }
+.chat[data-app="code"] .top { color: #b9ad9f; }
+.top span { display: inline-flex; align-items: center; gap: 6px; }
+.chat[data-app="claude"] .top svg, .chat[data-app="code"] .top svg { color: #d97757; }
+.top em { font-style: normal; color: #9a8b7a; }
+.me { justify-self: end; max-width: 92%; margin: 0; padding: 7px 12px; border-radius: 14px; background: #f1f1f1; }
+.chat[data-app="claude"] .me { background: #f0eee6; border-radius: 11px; }
+.chat[data-app="code"] .me { justify-self: start; background: transparent; padding: 0; }
+.chat[data-app="code"] .me::before { content: "› "; color: #d97757; }
+.gone { margin: 0; font-size: 12.5px; color: #9a8b7a; font-style: italic; }
+
+.note { margin: 0; border-radius: 18px; overflow: hidden; background: #fffdf9; color: #1d1b19;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 2px 4px rgba(60, 30, 5, 0.06), 0 46px 90px -40px rgba(60, 30, 5, 0.55); }
+.bar { position: relative; display: flex; align-items: center; height: 40px; padding: 0 16px; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.folder { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12.5px; font-weight: 600; color: #8a7a68; }
+.paper { padding: 22px 30px 28px 34px; }
+.title { margin: 0 0 4px; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+.sub { margin: 0 0 14px; font-size: 15.5px; color: #8a7a68; }
+.lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; min-height: calc(3 * 40px); }
+.lines li { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 19px; will-change: transform, opacity; }
+.dash { width: 18px; text-align: center; color: #6b5f53; }
+.by { display: inline-flex; align-items: center; gap: 4px; height: 21px; padding: 0 8px; border-radius: 10px; background: #fff1de; color: #a85700; font-size: 11.5px; font-weight: 650;
+  box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; }
+.foot { margin: 14px 0 0; font-size: 14.5px; color: #8a7a68; }
+
+@media (max-width: 900px) {
+  .scroller { height: auto; }
+  .pin { position: static; height: auto; padding: 24px 0 0; }
+  .stage { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .lines li { font-size: 16px; flex-wrap: wrap; }
+  .paper { padding: 18px 20px 22px 22px; }
+}
+
+/* ── The rest of the page: big statements, one proof each ── */
+.page { display: grid; gap: 150px; }
+@media (max-width: 700px) { .page { gap: 96px; } }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; align-items: center; width: min(1200px, 100%); margin: 0 auto; }
+.row[data-flip] > :first-child { order: 2; }
+.statement { margin: 0; font-size: clamp(42px, 5.4vw, 80px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; text-wrap: balance; }
+.say { margin: 18px 0 0; max-width: 30em; font-size: 19px; line-height: 1.45; color: #6b5a48; }
+@media (max-width: 900px) { .row { grid-template-columns: minmax(0, 1fr); gap: 32px; } .row[data-flip] > :first-child { order: 0; } }
