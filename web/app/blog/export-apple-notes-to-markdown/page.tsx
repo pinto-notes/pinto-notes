@@ -12,7 +12,7 @@ const FAQ = [
     "Not with a documented Apple feature. Apple's guides describe exporting the note you have open. To export a folder or your whole library, use a free exporter on your Mac, such as Apple Notes Exporter or notes-exporter on GitHub.",
   ] },
   { q: "Does the Markdown export keep images and attachments?", a: [
-    "Apple's guide doesn't say what happens to them. Markdown is plain text, so a picture can only come along as a separate file that the text links to. Export one note that has a picture and a table, and open the file before you rely on it.",
+    "Pictures, yes: in my test on macOS 27 they were copied into an Attachments folder next to the Markdown file and linked from the text. Links to other notes and web links were dropped, and a table cell with two lines broke its row.",
   ] },
   { q: "Can I export a locked note?", a: [
     "Unlock it first. Apple's iPhone guide says a locked note must be unlocked before you export it to Pages, and it doesn't describe a way around that for Markdown.",
@@ -72,26 +72,38 @@ export default function Page() {
         Apple describes this in <a href="https://support.apple.com/guide/iphone/export-or-print-notes-iphdf551cfa2/ios" rel="noopener">Export or print notes on iPhone</a>.
       </p>
 
-      <h2 id="check">What to check in the file</h2>
+      <h2 id="check">What survives the export</h2>
       <p>
-        Apple doesn&apos;t list what survives the trip, so export one note that has everything you use, and open the file in a text editor
-        before you move a hundred of them. The things worth a look:
+        Apple doesn&apos;t list what comes across, so I tested it on macOS 27 with one note that has everything: a checklist, a table with
+        a two-line cell, a tag, a link to another note and a picture.
       </p>
+      <PostFigure src="/blog/macos27/notes27-smart-folder-open-todos" width={2000} height={900} maxWidth={700}
+        alt="The test note in Apple Notes on macOS 27: a Plan for Saturday heading, a bulleted list, a checklist with Book the ferry ticked and Pack snacks open, the tag #weekend, a table with Item, Who and Cost where one cell reads Leo and And Sam on two lines, See also Groceries as a link to another note, and a picture."
+        caption="The test note in Notes on macOS 27." />
+      <PostFigure src="/blog/macos27/notes27-export-markdown-textedit" width={1800} height={500} maxWidth={700}
+        alt="The exported Markdown in TextEdit: - [x] Book the ferry, - [ ] Pack snacks, #weekend, a pipe table whose second row is broken across two lines at Leo / And Sam, the plain text See also Groceries, and an image link to a file in an Attachments folder."
+        caption="The same note as Markdown. The ticks survive; the two-line cell breaks the table, and the link to Groceries is gone." />
       <div className="tableWrap">
         <table>
           <thead>
-            <tr><th scope="col">In your note</th><th scope="col">What to look for in the Markdown</th></tr>
+            <tr><th scope="col">In your note</th><th scope="col">In the Markdown file</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Headings, bold, lists, links</th><td>These are what Markdown is for, and should come out as <code>#</code>, <code>**</code>, <code>-</code> and <code>[text](link)</code>.</td></tr>
-            <tr><th scope="row">Checklists</th><td>Whether each item is a <code>- [ ]</code> or <code>- [x]</code> line, with its ticked state kept.</td></tr>
-            <tr><th scope="row">Tables</th><td>Whether you get a pipe table, and whether cells with line breaks survive.</td></tr>
-            <tr><th scope="row">Pictures, scans and files</th><td>Markdown can only link to them, so check that the files were saved and that the links point at them.</td></tr>
-            <tr><th scope="row">Drawings, tags and links to other notes</th><td>Apple Notes features with no Markdown equivalent. Expect them to be flattened or dropped.</td></tr>
-            <tr><th scope="row">Locked notes</th><td>Unlock the note before you export it.</td></tr>
+            <tr><th scope="row">Title, headings</th><td>Kept: <code>#</code>, <code>##</code> and <code>###</code></td></tr>
+            <tr><th scope="row">Bold, lists</th><td>Kept: <code>**bold**</code>, <code>*</code> bullets, <code>1.</code> numbered lists</td></tr>
+            <tr><th scope="row">Checklists</th><td>Kept, ticks included: <code>- [x]</code> and <code>- [ ]</code></td></tr>
+            <tr><th scope="row">Tables</th><td>A pipe table with a header row. A cell with two lines breaks the row, so fix those by hand</td></tr>
+            <tr><th scope="row">Pictures</th><td>Copied into an Attachments folder next to the file, and linked from the text</td></tr>
+            <tr><th scope="row">Tags</th><td>Kept as plain text, like <code>#weekend</code></td></tr>
+            <tr><th scope="row">Links to other notes and web links</th><td>Dropped. Only the words are left</td></tr>
+            <tr><th scope="row">Locked notes</th><td>Unlock the note before you export it</td></tr>
           </tbody>
         </table>
       </div>
+      <p>
+        Two more things. Export writes a folder, not a lone file: the folder takes the name you type, and the Markdown file inside keeps
+        the note&apos;s title. And every line ends in two spaces, which Markdown reads as a line break. Most apps don&apos;t mind.
+      </p>
 
       <h2 id="all">Export every note at once</h2>
       <p>

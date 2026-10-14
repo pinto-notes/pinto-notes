@@ -1,12 +1,11 @@
-import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer } from "@/lib/PostParts";
-import { SHOTS } from "@/lib/posts";
+import { Answer, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("apple-notes-tags-smart-folders", { title: "Apple Notes tags and Smart Folders not working? Fixes" });
 
+// 14 Oct: tags and Smart Folders tested in a macOS 27 VM with On My Mac only: tags work there (captures/mac/tags).
 // Checked on 4 October 2026 against Apple Support 102288 (tags and Smart Folders on iPhone, published
 // 22 May 2026) and the Notes User Guide for Mac (Use tags, Use Smart Folders; macOS 27 back to 15). The
 // Mac app's own messages (tags need iCloud, IMAP and Exchange refuse them, tagged notes can't be locked,
@@ -17,7 +16,7 @@ export const metadata = postMetadata("apple-notes-tags-smart-folders", { title: 
 
 const FAQ = [
   { q: "Why won't my hashtag turn into a tag in Apple Notes?", a: [
-    "Check four things. The tag has to be one word: letters, numbers, hyphens and underscores, with no spaces. The note has to be in iCloud, not in Gmail, another IMAP account or Exchange. The note can't be locked. And on iPhone, Auto Convert to Tag has to be on in Settings, Apps, Notes.",
+    "Check four things. The tag has to be one word: letters, numbers, hyphens and underscores, with no spaces. The note has to be in iCloud or On My Mac, not in Gmail, another IMAP account or Exchange. The note can't be locked. And on iPhone, Auto Convert to Tag has to be on in Settings, Apps, Notes.",
   ] },
   { q: "Can I put a note in a Smart Folder?", a: [
     "No. A Smart Folder only shows notes that match its rules, and the notes stay in their own folders. To get a note into a Smart Folder that filters by a tag, add that tag to the note.",
@@ -47,13 +46,16 @@ export default function Page() {
           <p>
             A tag is a word after a # anywhere in a note, like #taxes. A Smart Folder is a saved filter that lists notes from every folder
             matching its rules, such as a tag or an edit date. When a tag won&apos;t form, it&apos;s almost always a space in the tag, a
-            note that isn&apos;t in iCloud, a locked note, or Auto Convert to Tag turned off on iPhone.
+            note in Gmail or another mail account, a locked note, or Auto Convert to Tag turned off on iPhone.
           </p>
         </Answer>
       }
       faq={FAQ}
     >
       <h2 id="tags">How tags work</h2>
+      <PostFigure src="/blog/macos27/notes27-tag-on-my-mac" width={2000} height={900} maxWidth={700}
+        alt="Apple Notes on macOS 27 with a note reading Receipts #taxes 2026. The tag #taxes is orange, and the sidebar shows Tags with All Tags, #taxes and #weekend."
+        caption="Type #taxes and a space: the word turns orange and the tag appears in the sidebar. This note is in On My Mac, not iCloud." />
       <p>
         Type # and a word in any note, then a space or Return. The word changes color once it&apos;s a tag. Since iOS 15 a tag can go
         anywhere, the title included. It has to be one continuous word, but hyphens, numbers and underscores are fine, so #gardening-supplies
@@ -72,7 +74,9 @@ export default function Page() {
       </p>
 
       <h2 id="smart-folders">How Smart Folders work</h2>
-      <Figure shot={SHOTS.notesSmartFolderFilters} caption="A Smart Folder rule on a Mac: Tags, dates, checklists and more." />
+      <PostFigure src="/blog/macos27/notes27-smart-folder-checklists-unchecked" width={1400} height={700} maxWidth={700}
+        alt="The New Smart Folder dialog in Apple Notes on macOS 27, named Open to-dos, with one rule: Checklists, Unchecked."
+        caption="A Smart Folder for every note with an unticked item: Checklists, Unchecked. Tested on macOS 27, On My Mac." />
       <p>
         A Smart Folder shows notes that match rules you set. The notes stay in their own folders, so deleting a Smart Folder deletes no
         notes.
@@ -118,8 +122,8 @@ export default function Page() {
       </p>
       <h3>The note won&apos;t take a tag at all</h3>
       <p>
-        Tags need iCloud. On a Mac, Notes says so outright when you try to tag a note in Gmail, another IMAP account or Exchange: tags
-        aren&apos;t supported there. Move the note into an iCloud folder first, which <a href="/blog/move-apple-notes-to-icloud">how to move
+        Tags don&apos;t work in Gmail, another IMAP account or Exchange, and on a Mac Notes says so when you try. They do work in iCloud
+        and, in my test on macOS 27, in On My Mac. Move the note into one of those first, which <a href="/blog/move-apple-notes-to-icloud">how to move
         Apple Notes to iCloud</a> walks through. A locked note refuses tags too, until you remove the lock.
       </p>
       <h3>Tags show up as plain text on another device</h3>
