@@ -255,7 +255,10 @@ struct NoteDetailView: View {
     private func withCollab(_ content: some View) -> some View {
         content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
-            .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, store: store) } }
+            #if os(iOS)
+            // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
+            .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
+            #endif
             .sheet(isPresented: $showTemplateShare) { if let store = CollabStore.shared { TemplateShareSheet(note: note, store: store) } }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.closeShare)) { _ in showPeople = false }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.showShare)) { n in
@@ -906,7 +909,7 @@ struct NoteDetailView: View {
         guard !trashed else { return }
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
-            collab.local(text, selection: controller.target?.currentSelection)
+            if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }
             return
         }
         // A shared note whose document isn't open here (not loaded yet, or collaboration is off):
@@ -1166,10 +1169,10 @@ struct NoteDetailView: View {
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
     private var shareItems: some View {
-        if let store = CollabStore.shared, store.isReady {
+        if CollabFeature.isOn, CollabStore.shared != nil, !note.isLocked {
             Section {
-                // One Share: a link anyone can View or Edit with, the people in the note, and Share as Template.
-                Button("Share…", systemImage: "person.crop.circle.badge.plus") { showPeople = true }
+                // People in the note, one link they can edit or view with, Verify, Remove and Leave.
+                Button("Collaborate…", systemImage: "person.crop.circle.badge.plus") { showPeople = true }
                     .accessibilityIdentifier("collab.share")
             }
         }
@@ -1182,7 +1185,7 @@ struct NoteDetailView: View {
     #if os(macOS)
     /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        ShareButton(note: note, store: shareLinks, people: CollabStore.shared?.isReady == true ? { showPeople = true } : nil)
+        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople)
             // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
             .disabled(note.isLocked || trashed)
             .paneTip(ShareLinkTip(), arrowEdge: .top)
@@ -1334,13 +1337,18 @@ private struct CollabWiring: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task(id: session.map { ObjectIdentifier($0) }) {
-                guard let session else { controller.remoteCarets = []; return }
+                guard let session else { controller.remoteCarets = []; controller.ownUndo = nil; return }
+                // Undo takes back only what you typed, not what the others did.
+                controller.ownUndo = OwnUndo()
                 session.onRemoteText = { [weak controller] text in controller?.target?.syncExternal(text) }
                 // Carets go straight to the text view, not through SwiftUI's next update, so they move
                 // in the same frame as the text.
                 session.onCarets = { [weak controller] carets in controller?.target?.showRemoteCarets(carets) }
                 // Your caret, a few times a second (it also goes with every keystroke).
                 while !Task.isCancelled {
+                    // Can view: the note is shown read-only (Recently Deleted is read-only too).
+                    let readOnly = session.isViewOnly || note.trashedAt != nil
+                    if controller.readOnly != readOnly { controller.readOnly = readOnly }
                     session.selectionChanged(controller.isEditing ? controller.target?.currentSelection : nil)
                     controller.remoteCarets = session.remoteCarets
                     CollabStore.shared?.loadPhotos(session)

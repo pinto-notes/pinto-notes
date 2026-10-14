@@ -1,30 +1,21 @@
 import type { Metadata } from "next";
-import { sealedLink } from "@/lib/collab-relay";
-import { EmptyState, Stage } from "@/lib/ui";
-import SealedNote from "./SealedNote";
+import { notFound } from "next/navigation";
+import NoteLink from "./NoteLink";
 
-// A sealed link (prototype): https://ambernotes.app/s/<id>#<secret>. This server has only the sealed
-// copy; the browser opens it with the secret from the fragment. Read on every visit, so Stop Sharing
-// and a new link take this one down at once.
-export const dynamic = "force-dynamic";
-// The title isn't known here (it's sealed), so link previews say only this much.
+// A note's link, https://pintonotes.com/s/<id>#<secret>. Pinto Notes claims these links (the
+// apple-app-site-association), so with the app installed they open the app, which joins the note.
+// A browser that lands here tries the app by its own scheme, then says how to get it. The secret
+// is in the fragment: it never reaches this server, and PostHog never loads here (lib/posthog.ts).
+export const dynamic = "force-static";
+export const dynamicParams = true;
 export const metadata: Metadata = { title: "A shared note · Pinto Notes", robots: { index: false, follow: false } };
+
+export const NOTE_LINK_ID = /^[A-Za-z0-9_-]{22}$/;
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  const copy = await sealedLink(id);
-  if (!copy) return <Gone />;
-  return <SealedNote id={id} ct={copy.ct} editable={copy.editable === true} />;
-}
-
-function Gone() {
-  return (
-    <Stage>
-      <EmptyState title="This note isn't shared anymore">
-        Its owner stopped sharing it or made a new link. Ask them for the new one.
-      </EmptyState>
-    </Stage>
-  );
+  if (!NOTE_LINK_ID.test(id)) notFound();
+  return <NoteLink id={id} />;
 }

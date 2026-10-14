@@ -19,7 +19,7 @@ import Testing
         #expect(ShareWays.line(.link, shared: true).contains("Stop sharing"))
         #expect(ShareWays.line(.link, shared: true, trashed: true).contains("Recently Deleted"))
         #expect(ShareWays.line(.copy, shared: false).contains("as it is now"))
-        for way in ShareWays.Way.allCases {
+        for way in ShareWays.ways(collaborating: false) {
             for shared in [false, true] {
                 let line = ShareWays.line(way, shared: shared).lowercased()
                 #expect(!line.contains("collaborat") && !line.contains("together") && !line.contains("edit"))

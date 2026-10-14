@@ -35,8 +35,8 @@ protocol CollabTransport: AnyObject {
     /// remaining member's wrap must be in `wraps`, the owner's included. Returns the new epoch.
     @discardableResult
     func remove(note: UUID, user: UUID?, epoch: Int, wraps: [Collab.Wrap]) async throws -> Int
-    /// Leaves a note you were invited to (`collab_leave`; refused for the owner with `.notOwner`).
-    /// The owner's next device renews the key.
+    /// You leave someone else's note (refused for the owner). The owner's next device gives the
+    /// note a new key without you (`remove` with `user` nil).
     func leave(note: UUID) async throws
     /// The note's sealed title and preview (`amb3h`), for lists.
     func updateHead(note: UUID, head: String) async throws
@@ -157,7 +157,8 @@ enum Collab {
         case presence(user: UUID, ct: String)
         /// Someone closed the note on their last device, or lost their connection.
         case leave(UUID)
-        /// The channel dropped and joined again: changes may have been missed, so pull.
+        /// The channel (re)joined and changes are being relayed from now on: anything stored before
+        /// may have been missed, so pull.
         case reconnected
     }
 
@@ -198,6 +199,7 @@ enum Collab {
             case "read_only": .readOnly
             case "not_owner": .notOwner
             case "wraps_incomplete": .wrapsIncomplete
+            case "not_member": .notMember
             default: .server(message)
             }
         }

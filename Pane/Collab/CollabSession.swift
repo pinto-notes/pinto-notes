@@ -47,6 +47,10 @@ final class CollabSession {
     /// The shared note (`shared_notes.id`): what's sealed and sent. Not always the id of the note
     /// in your library (SharedNotes.noteID).
     let noteID: UUID
+    /// Your role in the note, once the members have loaded: owner, editor or viewer.
+    var myRole: String? { members.first { $0.id == me }?.role }
+    /// A viewer reads; the server refuses their changes, so the editor doesn't take any.
+    var isViewOnly: Bool { (myRole ?? record.role) == "viewer" }
     private(set) var epoch: Int
     let me: UUID
     let myName: String
@@ -158,7 +162,9 @@ final class CollabSession {
             last = s.upto
         }
         for u in pull.updates {
-            guard let k = keys[u.epoch] else { continue }
+            // A change sealed under an earlier key that the snapshot already holds (it was made just
+            // before a removal) can't be opened with this one, and doesn't need to be.
+            guard let k = keys[u.epoch] else { last = max(last, u.id); continue }
             try CollabText.absorb(try CollabCrypto.open(.update, u.ct, nk: k, note: record.id, extra: u.author_id.uuidString), into: doc)
             last = max(last, u.id)
         }
@@ -228,11 +234,17 @@ final class CollabSession {
         catchUp()
         flush()
         // Presence is re-sent now and then, so someone who joins later sees you without waiting.
+        // A pull every 20 seconds too: a relayed change can be lost (a dropped socket, a change
+        // stored while the channel was joining), and Automerge holds every later one back until the
+        // missing one arrives. An empty pull is one small request.
         presenceTask?.cancel()
         presenceTask = Task { [weak self] in
+            var ticks = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2))
                 self?.sendPresence()
+                ticks += 1
+                if ticks % 10 == 0 { self?.catchUp() }
             }
         }
     }
@@ -373,7 +385,7 @@ final class CollabSession {
     /// The editor's text after a keystroke: the difference goes into the document and up.
     func local(_ new: String, selection: NSRange?) {
         // Can view: the server would refuse it, so it isn't taken; the editor shows the note's text again.
-        guard record.canEdit else { if new != text { onRemoteText?(text) }; return }
+        guard record.canEdit, !isViewOnly else { if new != text { onRemoteText?(text) }; return }
         guard let edit = TextDiff.edit(from: text, to: new) else { if let selection { mySelection = selection }; return }
         // Your caret is right after what you typed. The text view's own selection can still be the
         // one from before the keystroke at this point, which would put your caret a character

@@ -18,8 +18,10 @@
 
 import { type FolderRow, type Note, type NoteRow, type Tx, type Call, ToolError } from "./tools.ts";
 import { type FolderFile, folderFileRows, type FolderFileRow } from "./folder_files.ts";
+import { SHARED_DIR, sharedNotes } from "./shared_notes.ts";
 
 export const DELETED = "Recently Deleted/";
+export { SHARED_DIR };
 
 export type Entry =
   | { kind: "folder"; path: string; folder: FolderRow }
@@ -50,14 +52,16 @@ export class Paths {
 
   static async load(tx: Tx, c: Call): Promise<Paths> {
     const t0 = performance.now();
-    const [rows, frows, apps, stored, fileRows] = await Promise.all([
-      tx<Light[]>`select id, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, version, locked_body is not null as locked
+    const [rows, frows, apps, stored, fileRows, shared] = await Promise.all([
+      tx<Light[]>`select id, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, version, locked_body is not null as locked, shared_note_id
         from public.notes where deleted_at is null`,
       tx<{ id: string; name_ct: string; parent_id: string | null; sort_index: number; created_at: Date }[]>`
         select id, name_ct, parent_id, sort_index, created_at from public.folders where deleted_at is null`,
       tx<{ note_id: string }[]>`select note_id from public.note_pages where page_ct is not null or draft_ct is not null`,
       tx<{ index_ct: string }[]>`select index_ct from public.mcp_title_index`,
       folderFileRows(tx),
+      // Notes shared with this account: their titles are sealed with each note's own key.
+      sharedNotes(tx, c),
     ]);
     const dbMs = performance.now() - t0;
     const t1 = performance.now();
@@ -116,14 +120,33 @@ export class Paths {
     const t2 = performance.now();
     const hasApp = new Set(apps.map((a) => a.note_id));
     const notes: Note[] = rows.map(({ locked, ...r }) => ({ ...r, head_ct: "", locked_body: locked ? "locked" : null, version: String(r.version), title: index.notes[r.id]?.[1] ?? UNREADABLE }));
+    // A shared note's row here is a pointer (shared_note_id; the owner's is the note they shared):
+    // it says where the note sits, its text is the document's. Someone else's pointer outside any
+    // folder, and a membership no device has placed yet, are in "Shared with me/".
+    const byShared = new Map(shared.map((s) => [s.id, s]));
+    const placed = new Set<string>();
+    const elsewhere = new Set<string>();
+    for (const n of notes) {
+      const s = byShared.get(n.shared_note_id ?? n.id);
+      if (!s || (n.shared_note_id && n.shared_note_id !== s.id)) continue;
+      Object.assign(n, { shared: s, title: s.title, locked_body: null });
+      placed.add(s.id);
+      if (s.role !== "owner" && !n.folder_id && !n.parent_id && !n.trashed_at) elsewhere.add(n.id);
+    }
+    for (const s of shared) {
+      if (placed.has(s.id)) continue;
+      elsewhere.add(s.id);
+      notes.push({ id: s.id, head_ct: "", locked_body: null, folder_id: null, parent_id: null, is_pinned: false, created_at: s.created_at, updated_at: s.updated_at,
+        trashed_at: null, version: "shared", title: s.title, ...(s.preview !== undefined ? { preview: s.preview } : {}), shared: s, virtual: true });
+    }
     const created = new Map(frows.map((f) => [f.id, +new Date(f.created_at)]));
     const p = new Paths({ rows: rows.length, opened, dbMs: Math.round(dbMs), openMs: Math.round(openMs), buildMs: 0, cached });
-    p.build(folders, notes, hasApp, created, files);
+    p.build(folders, notes, hasApp, created, files, elsewhere);
     p.timing.buildMs = Math.round(performance.now() - t2);
     return p;
   }
 
-  private build(folders: FolderRow[], notes: Note[], hasApp: Set<string>, folderCreated: Map<string, number>, files: FolderFile[] = []) {
+  private build(folders: FolderRow[], notes: Note[], hasApp: Set<string>, folderCreated: Map<string, number>, files: FolderFile[] = [], sharedWithMe = new Set<string>()) {
     const byId = new Map(notes.map((n) => [n.id, n]));
     const folderById = new Map(folders.map((f) => [f.id, f]));
     // Where each note lives: a live sub-note in its live parent's folder; everything else in its folder.
@@ -138,7 +161,7 @@ export class Paths {
     for (const f of folders) push(f.parent_id && folderById.has(f.parent_id) ? `f:${f.parent_id}` : "root", { kind: "folder", f, created: folderCreated.get(f.id) ?? 0 });
     for (const n of notes) {
       const p = parentOf(n);
-      const k = p ? `n:${p.id}` : n.trashed_at ? "trash" : n.folder_id && folderById.has(n.folder_id) ? `f:${n.folder_id}` : "root";
+      const k = sharedWithMe.has(n.id) ? "shared" : p ? `n:${p.id}` : n.trashed_at ? "trash" : n.folder_id && folderById.has(n.folder_id) ? `f:${n.folder_id}` : "root";
       push(k, { kind: "note", n, created: +new Date(n.created_at) });
     }
     // Files kept in folders, by container, oldest first (who keeps the plain name).
@@ -213,6 +236,7 @@ export class Paths {
     };
     walk(["root"], "", 0);
     walk(["trash"], DELETED, 0);
+    walk(["shared"], SHARED_DIR, 0);
   }
 
   /** The entry at a path ("Work/", "Work/Acme.md"), or undefined. */
@@ -234,7 +258,7 @@ export class Paths {
   /** A directory's entries: a folder's, a note's sub-notes, or the top ("" ). */
   children(dir: string): Entry[] { return this.dirs.get(lower(dir.replace(/^\/+/, ""))) ?? []; }
   /** Whether a directory exists (a folder, or a note's folder with something in it). */
-  isDir(dir: string): boolean { return dir === "" || lower(dir) === lower(DELETED) || this.dirs.has(lower(dir)) || this.at(dir)?.kind === "folder"; }
+  isDir(dir: string): boolean { return dir === "" || lower(dir) === lower(DELETED) || lower(dir) === lower(SHARED_DIR) || this.dirs.has(lower(dir)) || this.at(dir)?.kind === "folder"; }
   /** Every entry: folders, notes and files kept in folders. */
   all(): Entry[] { return [...this.byPath.values()]; }
   /** The note whose folder this directory is ("Work/Acme/" → "Work/Acme.md"), if any. */

@@ -4,9 +4,12 @@
     "details": [
       {
         "appIDs": ["4UM3XVUN9Y.dev.emilwagman.pane"],
-        "components": [{ "/": "/open/*", "comment": "Opens Amber Notes, e.g. /open/connect?request=<id> for approving an AI connection" }],
+        "components": [
+          { "/": "/open/*", "comment": "Opens Amber Notes, e.g. /open/connect?request=<id> for approving an AI connection" },
+          { "/": "/s/*", "#": "??????????????????????", "comment": "A note's link, /s/<id>#<secret>: opens Pinto Notes and joins the note" }
+        ],
         "appID": "4UM3XVUN9Y.dev.emilwagman.pane",
-        "paths": ["/open/*"]
+        "paths": ["/open/*", "/s/*"]
       }
     ]
   }

@@ -17,6 +17,8 @@ final class EditorController {
     var bottomReserve: CGFloat = 0
     /// Collaboration (prototype): other people's carets in a shared note, drawn over the text.
     var remoteCarets: [RemoteCaret] = []
+    /// In a shared note, Undo takes back only your own edits.
+    var ownUndo: OwnUndo?
     /// The file being shown in Quick Look.
     var previewURL: URL?
     /// Files being fetched from the server.

@@ -113,6 +113,10 @@ final class SupabaseCollabTransport: CollabTransport {
         }
     }
 
+    func leave(note: UUID) async throws {
+        try await call("leave") { try await client.rpc("collab_leave", params: ["p_note": Self.id(note)]).execute() }
+    }
+
     func stopLink(note: UUID) async throws {
         try await call("stop link") { try await client.rpc("collab_stop_link", params: ["p_note": Self.id(note)]).execute() }
     }
@@ -220,8 +224,16 @@ final class SupabaseCollabTransport: CollabTransport {
         let presence = channel.broadcastStream(event: "presence")
         let devices = channel.presenceChange()
         let status = channel.statusChange
+        let system = channel.system()
         do {
-            try await channel.subscribeWithError()
+            // Refused (not a member) shows as retries until the client gives up, about a minute;
+            // a member joins in well under a second, so ten seconds is the answer either way.
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await channel.subscribeWithError() }
+                group.addTask { try await Task.sleep(for: Self.joinTimeout); throw Collab.Failure.notMember }
+                defer { group.cancelAll() }
+                try await group.next()
+            }
         } catch {
             await client.realtimeV2.removeChannel(channel)
             log.error("collab channel refused: \(String(describing: error), privacy: .public)")
@@ -232,7 +244,10 @@ final class SupabaseCollabTransport: CollabTransport {
         live.tasks = [
             Task { @MainActor in
                 for await insert in inserts {
-                    guard let u = try? insert.decodeRecord(as: Collab.Update.self, decoder: JSONDecoder()) else { continue }
+                    guard let u = try? insert.decodeRecord(as: Collab.Update.self, decoder: JSONDecoder()) else {
+                        log.error("a change from the channel didn't decode")
+                        continue
+                    }
                     onEvent(.update(u))
                 }
             },
@@ -252,6 +267,15 @@ final class SupabaseCollabTransport: CollabTransport {
                     }
                 }
             },
+            // Changes are only relayed once Realtime has subscribed to them, which it says a moment
+            // after the channel itself is joined (on staging, sometimes seconds). Whatever was stored
+            // in between is fetched then.
+            Task { @MainActor in
+                for await message in system {
+                    guard message.payload["extension"]?.stringValue == "postgres_changes", message.payload["status"]?.stringValue == "ok" else { continue }
+                    onEvent(.reconnected)
+                }
+            },
             Task { @MainActor in
                 var joined = false
                 for await s in status {
@@ -266,6 +290,8 @@ final class SupabaseCollabTransport: CollabTransport {
     }
 
     private struct Here: Codable { let user: String }
+
+    nonisolated static let joinTimeout: Duration = .seconds(10)
 
     /// The sealed presence in a broadcast: `{user, ct}`, inside the message's payload.
     nonisolated static func presence(_ message: JSONObject) -> (user: UUID, ct: String)? {

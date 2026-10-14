@@ -22,7 +22,8 @@ import {
   type Note, type NoteRow, quote, refuseLocked, runIn, save, Scan, type Tool, type ToolContext, ToolError, type Tx, type Call, UUID,
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
-import { DELETED, type Entry, Paths, safeName } from "./paths.ts";
+import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
+import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNotes, writeDoc } from "./shared_notes.ts";
 import { needles, WordIndex } from "./words.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
@@ -278,6 +279,8 @@ async function full(tx: Tx, c: Call, id: string, trashed = false): Promise<Note>
   const rows = await tx<NoteRow[]>`select * from public.notes where id = ${id}::uuid and deleted_at is null for update`;
   if (!rows.length) throw new ToolError("That note was just deleted.");
   const n = await withHead(c.v, rows[0]);
+  const shared = (await sharedNotes(tx, c)).find((s) => s.id === (n.shared_note_id ?? n.id));
+  if (shared) Object.assign(n, { shared, title: shared.title });
   if (n.trashed_at && !trashed) throw new ToolError(`"${n.title}" is in Recently Deleted. Bring it back with restore first.`);
   return n;
 }
@@ -360,7 +363,7 @@ type NoteFile = { path: string; id: string; name: string; type: string; bytes: n
 
 /** The files a note embeds (![name](pane-file:<id>)), named in its folder. */
 async function noteFiles(tx: Tx, c: Call, P: Paths, n: Note, body?: string): Promise<NoteFile[]> {
-  if (n.locked_body) return [];
+  if (n.locked_body || n.shared) return [];
   const text = body ?? await bodyOf(c.v, await full(tx, c, n.id, true));
   const ids = [...new Set([...text.matchAll(/pane-file:([0-9a-f-]{36})/gi)].map((m) => m[1].toLowerCase()))];
   if (!ids.length) return [];
@@ -400,6 +403,66 @@ function unpresent(text: string, P: Paths, files: NoteFile[]): string {
     const e = P.at(target);
     return e?.kind === "note" ? `](pane-note:${e.note.id})` : m;
   });
+}
+
+// MARK: Shared notes
+
+const sharedItem = (id: string) => `shared:${id}`;
+const sharedLine = (s: Shared) => s.role === "owner" ? "Shared by this person with others: edits merge with what they type."
+  : s.role === "editor" ? "Shared with this person, who can edit it: edits merge with what others type."
+  : "Shared with this person as view only: it can be read here, not changed.";
+
+/** A shared note's text, from its document. */
+async function fetchShared(tx: Tx, a: Args, c: Call, s: Shared, path: string) {
+  const at = await loadDoc(tx, s);
+  const shown = numberedLines(at.text, a.offset, a.limit);
+  await markRead(tx, c, sharedItem(s.id), await hash(c, at.text));
+  return {
+    id: path, title: s.title, text: shown.text, url: `ambernotes://note/${s.id}`,
+    metadata: {
+      path, lines: shown.lines, updated: iso(s.updated_at), today: today(), shared: sharedLine(s), ...(s.role === "viewer" ? { read_only: true } : {}),
+      ...(wikiLinks(at.text).length ? { links: wikiLinks(at.text) } : {}), ...(shown.truncated ? { truncated: shown.truncated } : {}),
+    },
+  };
+}
+
+/** edit on a shared note works on its text now: people may have typed since it was read, and the
+ *  change merges with that. It still has to have been read in this session. */
+async function mustHaveReadShared(tx: Tx, c: Call, s: Shared, path: string) {
+  const [r] = await tx<{ stamp: string }[]>`select stamp from public.mcp_reads where session = ${sessionOf(c)} and item = ${sharedItem(s.id)} and read_at > now() - interval '1 day'`;
+  if (!r) throw new ToolError(`Read ${path} with fetch before changing it.`);
+}
+
+async function saveShared(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<typeof loadDoc>>, text: string, path: string, verb: "edited" | "written") {
+  const w = await writeDoc(tx, c, s, at, text);
+  if (!w.changed) return { path, unchanged: true };
+  await markRead(tx, c, sharedItem(s.id), await hash(c, text));
+  const checks = noteChecks(at.text, text, today());
+  const now = (await pathsOf(tx, c, true)).pathOf(s.id) ?? path;
+  return { [verb]: now, ...(now !== path ? { renamed_from: path } : {}), checks: checks.length ? checks : "ok", shared: "One change, merged with what others type. It shows as this person's AI." };
+}
+
+/** delete on a shared note, as Apple Notes does it. Someone else's: they leave it, and it goes from
+ *  their notes. The owner's: sharing stops for everyone (collab_unshare, with the text back in their
+ *  own row) and the note goes to their Recently Deleted; restore brings it back unshared. */
+async function deleteShared(tx: Tx, c: Call, n: Note, path: string) {
+  const s = n.shared!;
+  if (s.role !== "owner") {
+    await tx`select public.collab_leave(${s.id}::uuid)`;
+    if (!n.virtual) await tx`update public.notes set deleted_at = now(), body_ct = null, head_ct = null, locked_body = null where id = ${n.id}`;
+    forgetShared(c);
+    return { left: path, shared: "This person left the shared note: it's gone from their notes, and the others keep it." };
+  }
+  if (n.virtual) throw new ToolError(`"${path}" can be deleted once Pinto Notes has opened it on one of this person's devices.`);
+  const at = await loadDoc(tx, s);
+  const body = at.text.trim() ? at.text : `${s.title}\n`;
+  await tx`select public.collab_unshare(${s.id}::uuid, ${await c.v.sealBody(n.id, body)}, ${await c.v.sealHead(n.id, { title: titleOf(body), preview: previewOf(body) })})`;
+  forgetShared(c);
+  const d = await classic.delete_note(tx, { id: n.id }, c) as { sub_notes_moved: number };
+  return {
+    deleted: path, ...(d.sub_notes_moved ? { with_sub_notes: d.sub_notes_moved } : {}), now_at: (await pathsOf(tx, c, true)).pathOf(n.id), restore_with: "restore",
+    shared: "Sharing stopped: the note is gone from everyone else's notes. Restoring it brings it back to this person only, not shared.",
+  };
 }
 
 // MARK: Lines
@@ -486,7 +549,9 @@ async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folde
   if (!dir) return { folder: null };
   const real = P.at(dir + "/");
   if (real?.kind === "folder") return { folder: real.folder.id };
+  if ((dir + "/").toLowerCase().startsWith(SHARED_DIR.toLowerCase())) throw new ToolError(`"${SHARED_DIR}" holds notes other people shared with this person; nothing new can be made or moved there.`);
   const owner = P.noteOfDir(dir + "/");
+  if (owner?.shared) throw new ToolError(`"${P.pathOf(owner.id)}" is shared with other people, and shared notes can't have sub-notes or files yet.`);
   if (owner) return { folder: owner.folder_id, parent: owner };
   if (dir.toLowerCase().startsWith(DELETED.toLowerCase().slice(0, -1))) throw new ToolError("Nothing can be made in Recently Deleted.");
   return { folder: (await findFolder(tx, c.v, dir, true)).id };
@@ -524,7 +589,7 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
 const entryOut = (e: Entry, extra: Record<string, unknown> = {}) => e.kind === "folder"
   ? { path: e.path, type: "folder", ...extra }
   : e.kind === "file" ? fileOut(e.path, e.file)
-  : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
+  : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.shared ? { shared: e.note.shared.role === "owner" ? "owner" : e.note.shared.role === "editor" ? "can edit" : "view only" } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
 const updatedOf = (e: Entry) => e.kind === "note" ? +new Date(e.note.updated_at) : e.kind === "file" ? +new Date(e.file.updated_at) : 0;
 const newest = (a: Entry, b: Entry) => (a.kind === "folder" ? 0 : 1) - (b.kind === "folder" ? 0 : 1) || updatedOf(b) - updatedOf(a) || a.path.localeCompare(b.path);
 
@@ -605,7 +670,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     // version) are opened, newest first, within the scan's time, and indexed as they're opened.
     const scan = await Scan.start(tx, c);
     const W = await WordIndex.load(tx, c);
-    const readable = notes.filter((e) => !e.note.locked_body && a.title_only !== true);
+    const readable = notes.filter((e) => !e.note.locked_body && !e.note.shared && a.title_only !== true);
     const plain = pattern && !/[\\^$.|?*+()[\]{}]/.test(source);
     const ns = output === "ranked" ? needles(query.replace(/(^|\s)-\S+/g, " ").replace(/\bOR\b/g, " ")) : plain ? needles(source) : [];
     const unseen = readable.filter((e) => !W.get(e.note.id, e.note.version));
@@ -639,6 +704,14 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     }
     W.keep(new Set(P.all().flatMap((e) => e.kind === "note" ? [e.note.id] : [])));
     await W.save(tx, c);
+    // Shared notes: their documents, read each time (they're few, and kept out of the word index).
+    if (a.title_only !== true) {
+      for (const e of notes) {
+        if (!e.note.shared) continue;
+        const text = await loadDoc(tx, e.note.shared).then((d) => d.text).catch(() => null);
+        if (text !== null) bodies.set(e.note.id, text);
+      }
+    }
     const looked = Math.min(ids.length, scan.seen);
     const skipped = ids.length - looked + notIndexed;
     const searched = skipped > 0 ? { searched: `${looked.toLocaleString("en-US")} of the ${(ids.length + notIndexed).toLocaleString("en-US")} notes that could match; ${skipped.toLocaleString("en-US")} not yet (the search index is still filling: search again to finish, or narrow with path, type or modified_after)` } : {};
@@ -710,7 +783,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const W = await WordIndex.load(tx, c);
       if (!/\.(md|app\/?)$|\/$/i.test(a.pattern.trim())) {
         const scan = await Scan.start(tx, c);
-        const unseen = P.all().flatMap((e) => e.kind === "note" && !e.note.locked_body && !W.get(e.note.id, e.note.version) ? [e.note] : []);
+        const unseen = P.all().flatMap((e) => e.kind === "note" && !e.note.locked_body && !e.note.shared && !W.get(e.note.id, e.note.version) ? [e.note] : []);
         const bodies = new Map<string, string>();
         for (let i = 0; i < unseen.length && !scan.over; i += 500) {
           const rows = await tx<{ id: string; body_ct: string | null }[]>`select id, body_ct from public.notes where id = any(${unseen.slice(i, i + 500).map((n) => n.id)}::uuid[])`;
@@ -740,8 +813,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     }
     const kids = P.children(dir).sort(newest);
     const owner = P.noteOfDir(dir);
-    const files = owner ? await noteFiles(tx, c, P, owner).catch(() => []) : [];
+    const files = owner && !owner.shared ? await noteFiles(tx, c, P, owner).catch(() => []) : [];
+    const sharedHere = dir === "" ? P.children(SHARED_DIR).length : 0;
     const entries = [
+      ...(sharedHere ? [{ path: SHARED_DIR, type: "folder", items: sharedHere, about: "Notes other people shared with this person." }] : []),
       ...kids.map((e) => e.kind === "folder" ? entryOut(e, { items: P.children(e.path).length }) : entryOut(e, e.kind === "note" && e.app ? { app: e.path.replace(/\.md$/, ".app/") } : {})),
       ...files.map((f) => ({ path: f.path, type: "file", kind: f.type, bytes: f.bytes })),
     ];
@@ -761,6 +836,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const listing = await fileHandlers.list(tx, { path: r.dir }, c);
       return { id: r.dir || "/", title: r.dir || "Notes", text: JSON.stringify(listing, null, 2), url: "ambernotes://notes", metadata: { type: "folder" } };
     }
+    if (r.kind === "note" && r.note.shared) return await fetchShared(tx, a, c, r.note.shared, r.path);
     if (r.kind === "note") {
       const n = await full(tx, c, r.note.id, true);
       if (n.locked_body) return { id: r.path, title: n.title, text: LOCKED, url: `ambernotes://note/${n.id}`, metadata: { path: r.path, locked: true } };
@@ -833,6 +909,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
         const made = await newNote(tx, c, path.replace(/\.app\/?$/i, "").replace(/\.md$/i, "") + ".md", "");
         n = (await pathsOf(tx, c)).noteAt(made.path)!;
       }
+      if (n.shared) throw new ToolError(`"${n.title}" is shared with other people, and shared notes can't have apps yet.`);
       if ((await pathsOf(tx, c)).hasApp(n.id)) throw new ToolError(`"${(await pathsOf(tx, c)).pathOf(n.id)}" already has an app. Change its files with edit and write.`);
       const proj = await withFiles({ amberApp: 1, files: {}, compiled: {} }, await scaffold(n.title));
       const result = await saveProject(tx, c, await full(tx, c, n.id), proj, "a new React project", a) as Record<string, unknown>;
@@ -855,6 +932,14 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (typeof a.old_string !== "string" || typeof a.new_string !== "string") throw new ToolError("edit takes path, old_string and new_string (one change per call).");
     const r = await resolve(tx, c, a.path);
     const all = a.replace_all === true;
+    if (r.kind === "note" && r.note.shared) {
+      const sh = r.note.shared;
+      refuseViewer(sh);
+      await mustHaveReadShared(tx, c, sh, r.path);
+      const at = await loadDoc(tx, sh);
+      const text = replaceIn(at.text, a.old_string, a.new_string, all, r.path);
+      return await saveShared(tx, c, sh, at, text, r.path, "edited");
+    }
     if (r.kind === "note") {
       const n = await full(tx, c, r.note.id);
       refuseLocked(n);
@@ -917,6 +1002,15 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       throw e;
     }
     const P = await pathsOf(tx, c);
+    if (r.kind === "note" && r.note.shared) {
+      const sh = r.note.shared;
+      if (!content.trim()) throw new ToolError("content is empty. A shared note can't be emptied here.");
+      refuseViewer(sh);
+      const at = await loadDoc(tx, sh);
+      // A whole new text replaces what was read: refused when people typed since (edit merges instead).
+      await mustHaveRead(tx, c, sharedItem(sh.id), await hash(c, at.text), r.path);
+      return await saveShared(tx, c, sh, at, content, r.path, "written");
+    }
     if (r.kind === "note") {
       if (!content.trim()) throw new ToolError("content is empty. To remove the note, use delete.");
       checkSize(content);
@@ -955,6 +1049,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const r = await resolve(tx, c, a.path);
     const to = clean(a.to);
     if (!to) throw new ToolError("to is where it goes.");
+    if (r.kind === "note" && r.note.shared) {
+      if (r.note.virtual) throw new ToolError(`"${r.path}" can be moved once Pinto Notes has opened it on one of this person's devices.`);
+      if (/\.md$/i.test(to)) throw new ToolError(`"${r.path}" is shared: rename it by changing its first line with edit.`);
+    }
     if (r.kind === "note") {
       let n = await full(tx, c, r.note.id);
       const rename = /\.md$/i.test(to);
@@ -1023,6 +1121,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   async delete(tx, a, c) {
     const P = await pathsOf(tx, c);
     const r = await resolve(tx, c, a.path);
+    if (r.kind === "note" && r.note.shared) return await deleteShared(tx, c, r.note, r.path);
     if (r.kind === "note") {
       const d = await classic.delete_note(tx, { id: r.note.id }, c) as { sub_notes_moved: number };
       return { deleted: r.path, ...(d.sub_notes_moved ? { with_sub_notes: d.sub_notes_moved } : {}), now_at: (await pathsOf(tx, c, true)).pathOf(r.note.id), restore_with: "restore" };
@@ -1057,6 +1156,9 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   async history(tx, a, c) {
     const r = await resolve(tx, c, a.path, { trashed: true });
     const limit = Math.max(1, Math.min(50, Number(a.limit) || 10));
+    if (r.kind === "note" && r.note.shared) {
+      return { path: r.path, changes: await changesOf(tx, r.note.shared, limit), shared: "Who changed this shared note lately, newest first. Earlier versions of a shared note can't be restored yet." };
+    }
     if (r.kind === "note") {
       const h = await classic.note_history(tx, { id: r.note.id, limit }, c) as { revisions: Record<string, unknown>[] };
       return { path: r.path, versions: h.revisions.map(({ revision_id, version: _n, ...rest }: Record<string, unknown>) => ({ version: revision_id, ...rest })) };
@@ -1072,6 +1174,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
 
   async restore(tx, a, c) {
     const r = await resolve(tx, c, a.path, { trashed: true });
+    if (r.kind === "note" && r.note.shared) throw new ToolError(`"${r.path}" is shared: earlier versions of a shared note can't be restored yet. To undo a change, edit the text back.`);
     if (r.kind === "note") {
       if (a.version === undefined || a.version === null) {
         await classic.restore_note(tx, { id: r.note.id }, c);
@@ -1103,6 +1206,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   async pin(tx, a, c) {
     const r = await resolve(tx, c, a.path);
     if (r.kind !== "note") throw new ToolError("pin takes a note.");
+    if (r.note.virtual) throw new ToolError(`"${r.path}" can be pinned once Pinto Notes has opened it on one of this person's devices.`);
     await classic.pin_note(tx, { id: r.note.id, pinned: a.pinned === true }, c);
     return { path: r.path, pinned: a.pinned === true };
   },
@@ -1110,6 +1214,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   async see_app(tx, a, c) {
     const r = await resolve(tx, c, a.path);
     if (r.kind !== "note" && r.kind !== "app") throw new ToolError("see_app takes an app (\"Work/Habits.app\") or its note.");
+    if (r.note.shared) throw new ToolError(`"${r.note.title}" is shared, and shared notes don't have apps yet.`);
     const failure = await loadFailure(tx, r.note.id);
     const seen = Array.isArray(a.steps) && a.steps.length && tryOn()
       ? await appHandlers.try_app(tx, { id: r.note.id, steps: a.steps, data: a.data, screenshots: "last" }, c)
