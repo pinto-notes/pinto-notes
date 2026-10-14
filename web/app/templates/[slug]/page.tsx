@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AIGlyph } from "@/lib/ai-glyphs";
-import { CLAUDE_DIRECTORY_URL } from "@/lib/facts";
 import { APP_TEMPLATES, pageMetadata } from "@/lib/site";
 import { JsonLd, breadcrumbs, faqPage, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
 import { templateSeo } from "@/lib/template-seo";
@@ -10,12 +8,13 @@ import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, sea
 import Card from "../Card";
 import OpenInApp from "../../OpenInApp";
 import CopyButton from "../CopyButton";
-import Instructions from "../Instructions";
+import Instructions, { AskBubbles } from "../Instructions";
 import PromptCopy from "../PromptCopy";
 import NoteWindow from "../NoteWindow";
 import AppWindow from "../AppWindow";
 import s from "../templates.module.css";
 import UseLabel from "../UseLabel";
+import { ClosingBand, bandButton } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -37,7 +36,7 @@ const steps = (t: Template) => APP_TEMPLATES.live
   ? [
       { name: "Add the template to Pinto Notes", text: `Choose Use template. Pinto Notes opens and adds the "${noteTitle(t)}" note${t.app ? " with its app" : ""} to the folder you pick.` },
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can fill in the note." },
-      { name: "Give your AI the prompt", text: "Copy the prompt for your AI and paste it into a chat. Then tell it what happened, in your own words." },
+      { name: "Talk to your AI", text: "Tell it what happened, in your own words. It finds the note and fills it in, and you see every change in Pinto Notes." },
     ]
   : [
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can write the note." },
@@ -54,8 +53,6 @@ function variants(t: Template) {
   return [...byPrompt].map(([prompt, names]) => ({ name: names.join(" or ").replace(/ or (?=.* or )/g, ", "), prompt }));
 }
 
-/// The note's own first line under its title: what the note is for, in its own words.
-const intro = (t: Template) => t.note.split("\n").slice(1).find((l) => l.trim() && !l.startsWith("#") && !l.startsWith("<!--"))?.trim() ?? "";
 
 export default async function Page({ params }: Props) {
   const t = template((await params).slug);
@@ -67,21 +64,35 @@ export default async function Page({ params }: Props) {
   const vs = variants(t);
   // The templates with an app also answer their search: what you can do in the app, questions, the how-to post.
   const seo = templateSeo(t.slug);
-  const appSection = t.app && (
+  const appSection = t.app && (seo ? (
+    // What you can do in the app: the app itself, with its features as short labels beside it.
     <section className={s.section} aria-labelledby="result">
       <div className={s.sectionHead}>
-        <h2 id="result" className={s.h2}>{seo ? "What you can do in the app" : "The app you start with"}</h2>
+        <h2 id="result" className={s.h2}>What you can do in the app</h2>
+        <p className={s.sectionLede}><UseLabel t={t} /> adds this app with sample data, in light and dark, and it all works without your AI.</p>
+      </div>
+      <div className={s.canRow}>
+        <div className={s.canApp}><AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} /></div>
+        <div className={s.canSide}>
+          <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
+          <AskBubbles asks={seo.make} label="Ask your AI to change the app." max={4} />
+        </div>
+      </div>
+    </section>
+  ) : (
+    <section className={s.section} aria-labelledby="result">
+      <div className={s.sectionHead}>
+        <h2 id="result" className={s.h2}>The app you start with</h2>
         <p className={s.sectionLede}>
-          <UseLabel t={t} /> adds the note with this app and its sample data in Pinto Notes on your Mac. It follows your Mac in light and dark{seo ? ", and everything in it works without your AI" : ""}.
+          <UseLabel t={t} /> adds the note with this app and its sample data in Pinto Notes on your Mac. It follows your Mac in light and dark.
         </p>
       </div>
-      {seo && <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>}
       <div className={`${s.result} ${s.appPair}`}>
         <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} app in light mode`} />
         <AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} />
       </div>
     </section>
-  );
+  ));
   return (
     <div className={s.main}>
       <JsonLd graph={[
@@ -106,7 +117,6 @@ export default async function Page({ params }: Props) {
               {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> <UseLabel t={t} /></OpenInApp>}
               {APP_TEMPLATES.live ? (
                 <>
-                  <PromptCopy variants={vs} className={s.secondary} />
                   {!t.app && <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />}
                 </>
               ) : (
@@ -115,9 +125,7 @@ export default async function Page({ params }: Props) {
                 </PromptCopy>
               )}
             </div>
-            <p className={`${s.fine} rise`} style={at(3)}>
-              Free. {APP_TEMPLATES.live && <><UseLabel t={t} /> opens Pinto Notes and adds the note{t.app && " and its app"}. </>}No Pinto Notes yet? <a href="/download">Download it for Mac</a>.
-            </p>
+            <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes for Mac</a>.</p>
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
             {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
@@ -130,26 +138,20 @@ export default async function Page({ params }: Props) {
                   : <NoteWindow markdown={t.example} before={t.note} folder={t.folder} date="30 September 2026" label={`The ${t.title.toLowerCase()} template filled in by an AI`} />}
               </div>
             </div>
-            <p className={s.caption}>
-              {t.app
-                ? <>The note is an app. It keeps its data with the note, and your AI reads and changes that data, or the app itself, when you ask.</>
-                : <>The note after a few days of talking to your AI. Tinted lines are what it added, the way Pinto Notes shows an AI&apos;s changes, with
-                  Undo and the earlier version kept in the note&apos;s history.</>}
-            </p>
           </div>
         </div>
       </div>
 
       {seo && appSection}
 
-      <Instructions title={noteTitle(t)} folder={t.folder} intro={intro(t)} variants={vs} asks={t.asks} />
+      {!APP_TEMPLATES.live && <Instructions title={noteTitle(t)} folder={t.folder} variants={vs} asks={t.asks} />}
 
       {t.app ? (seo ? null : appSection) : (
       <section className={s.section} aria-labelledby="result">
         <div className={s.sectionHead}>
           <h2 id="result" className={s.h2}>The note you start with</h2>
           <p className={s.sectionLede}>
-            This is what the prompt creates in Pinto Notes: an ordinary note with the headings{t.note.includes("|") ? " and the table" : ""} ready.
+            This is what {APP_TEMPLATES.live ? <UseLabel t={t} /> : "the prompt"} {APP_TEMPLATES.live ? "adds to" : "creates in"} Pinto Notes: an ordinary note with the headings{t.note.includes("|") ? " and the table" : ""} ready.
             Your AI fills it in from there, and you can still edit every line yourself.
           </p>
         </div>
@@ -166,11 +168,7 @@ export default async function Page({ params }: Props) {
         <ol className={s.steps}>
           {steps(t).map((st, i) => <li key={st.name} id={`step-${i + 1}`}><b>{st.name}</b><span>{st.text}</span></li>)}
         </ol>
-        <ul className={s.connect}>
-          <li><a href="/blog/connect-chatgpt-to-your-notes"><b><AIGlyph name="openai" size={18} />ChatGPT</b><span>Plus, Pro, Business, Enterprise or Edu, on the web. A few minutes in Developer mode.</span><em>Connect ChatGPT</em></a></li>
-          <li><a href={CLAUDE_DIRECTORY_URL} rel="noopener"><b><AIGlyph name="claude" size={18} />Claude</b><span>Open Pinto Notes in Claude&apos;s connector directory, choose Connect to Claude, then Allow.</span><em>Connect Claude</em></a></li>
-          <li><a href="/blog/notes-in-claude-code-and-codex"><b><AIGlyph name="claude" size={18} />Claude Code</b><span>One command in your terminal, or the button in Pinto Notes on a Mac.</span><em>Connect Claude Code</em></a></li>
-        </ul>
+        <p className={s.connectOne}><a href="/open/connect-ai">Connect ChatGPT, Claude or Claude Code</a></p>
       </section>
 
       {seo && (
@@ -193,6 +191,15 @@ export default async function Page({ params }: Props) {
           <ul className={s.grid}>{related.map((r) => <li key={r.slug}><Card t={r} heading="h3" /></li>)}</ul>
         </section>
       )}
+
+      <ClosingBand
+        title={`Start your ${t.title.toLowerCase()} today.`}
+        text="Your AI keeps it, and you see every line it changes."
+        actions={APP_TEMPLATES.live
+          ? <OpenInApp className={bandButton.primary} href={usePath(t.slug)} app={appLink(t.slug)}><UseLabel t={t} /></OpenInApp>
+          : undefined}
+        fine={APP_TEMPLATES.live ? <>Free. Needs Pinto Notes for Mac.</> : undefined}
+      />
     </div>
   );
 }

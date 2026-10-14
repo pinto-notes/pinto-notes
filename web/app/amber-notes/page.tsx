@@ -4,6 +4,7 @@ import { OLD_NAME, SITE_NAME, pageMetadata } from "@/lib/site";
 import { JsonLd, breadcrumbs, renamed } from "@/lib/structured-data";
 import styles from "../home.module.css";
 import s from "./renamed.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 // Where a search for the old name lands: Amber Notes is Pinto Notes now, and what that means for
 // someone who already uses it. ambernotes.app/amber-notes and /ambernotes arrive here too.
@@ -46,6 +47,7 @@ export default function Renamed() {
           </section>
         </div>
       </section>
+      <ClosingBand title="Same notes, new name." />
     </div>
   );
 }

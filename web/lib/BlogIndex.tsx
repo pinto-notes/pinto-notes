@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { PostCard } from "./blog";
-import { categories, categoryPath, newestFirst, pageCount, pageOf, pagePath, published, type Category, type Ground } from "./posts";
+import { Avatar, PostCard, longDate } from "./blog";
+import { ClosingBand } from "./ClosingBand";
+import { CATEGORY_COVERS, AUTHOR, categories, categoryPath, newestFirst, pageCount, pageOf, pagePath, published, type Category } from "./posts";
 import { pageMetadata } from "./site";
 import BlogList from "./BlogList";
 import { FILTER_AFTER, FILTER_GRID } from "./filter-transition";
@@ -28,21 +29,6 @@ const ABOUT: Record<Category, string> = {
 const fit = (texts: string[]) => [...texts].sort((a, b) => b.length - a.length);
 const FIT_TITLE = () => fit(["The Pinto Notes blog", ...categories()]);
 const FIT_LEDE = () => fit(["Guides to connecting ChatGPT, Claude and Codex to your notes, Apple Notes how-tos, and fair comparisons. Written by the person building Pinto Notes.", ...categories().map((c) => ABOUT[c])]);
-
-/// Each post's ground as a dot on its category's chip: the ground's own hue, deepened so it reads at
-/// 12 px on the cream page the way the templates' cover colours do (the card tints are too pale).
-const DOT: Record<Ground, string> = {
-  paper: "#cfae7c", soft: "#e6b678", tint: "#eeb05f", amber: "#e8891e", leaf: "#3e200b", dark: "#3a3a3c", dunes: "#eea24e",
-  ink: "#3a2716", peach: "#f0a46a", cream: "#e2c79f", sand: "#d9b98a", clay: "#d98a5c", mist: "#b5aa9d", honey: "#edb544",
-  sage: "#a6b47e", heather: "#b597ad", blush: "#df9a88", wheat: "#d6b468", fog: "#9fb0a9", dusk: "#a493bf", pearl: "#c2b49c",
-  linen: "#bc9a68", night: "#2c2a33", rose: "#d996a8", mint: "#86bf9f", sky: "#8eaed6", lemon: "#d4c443", coral: "#e88468",
-  lagoon: "#5fa9a9", denim: "#6e84c6", slate: "#7d8798", olive: "#8f9a55", plum: "#a26f97", teal: "#4f9c88", berry: "#b0456b", rust: "#b4532a",
-  apricot: "#e8964f", ice: "#6fa3b8", lilac: "#9d8fd6", pistachio: "#94b866",
-  fern: "#7fb36f", butter: "#d9b84a", harbor: "#6f97c9", orchid: "#c27fb0", cherry: "#d0525e",
-};
-
-/// The first three distinct dots of a category's newest posts, as the templates chips show theirs.
-const swatch = (c: Category) => [...new Set(newestFirst().filter((p) => p.category === c).map((p) => DOT[p.thumb.ground]))].slice(0, 3);
 
 type List = { category: Category | null; base: string; posts: ReturnType<typeof published> };
 
@@ -75,7 +61,10 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
   const crumbs = [{ name: "Blog", path: "/blog" }];
   if (category) crumbs.push({ name: category, path: l.base });
   if (page > 1) crumbs.push({ name: `Page ${page}`, path: pagePath(l.base, page) });
-  const counts = categories().map((c) => ({ c, n: published().filter((p) => p.category === c).length, dots: swatch(c) }));
+  const counts = categories().map((c) => ({ c, n: published().filter((p) => p.category === c).length }));
+  // The newest post of the list leads its first page, wide, on its category's cover.
+  const featured = page === 1 ? posts[0] : undefined;
+  const rest = featured ? posts.slice(1) : posts;
 
   return (
     <div className={home.main}>
@@ -86,7 +75,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
         <div className={s.hero}>
           <div className={s.heroText}>
             <h1 className={`${s.h1} rise`} style={{ "--i": 0 } as React.CSSProperties}>
-              {category ?? <>The Pinto Notes <mark className={home.mark}>blog</mark></>}{page > 1 && <span className={s.pageNote}>, page {page}</span>}
+              {category ?? "The Pinto Notes blog"}{page > 1 && <span className={s.pageNote}>, page {page}</span>}
             </h1>
             <p className={`${s.lede} rise`} style={{ "--i": 1 } as React.CSSProperties}>{category ? ABOUT[category] : LEDE}</p>
           </div>
@@ -98,22 +87,39 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
         <div className={`${s.library} rise`} style={{ "--i": 2 } as React.CSSProperties}>
           <nav className={s.filters} aria-label="Categories" data-blog-chips="">
             <a href="/blog" aria-current={category === null ? "page" : undefined}><span className={s.text}>All posts<span className={s.count}>{published().length}</span></span></a>
-            {counts.map(({ c, n, dots }) => (
+            {counts.map(({ c, n }) => (
               <a key={c} href={categoryPath(c)} aria-current={category === c ? "page" : undefined}>
-                <span className={s.swatch} aria-hidden="true">{dots.map((g) => <i key={g} style={{ background: g }} />)}</span>
                 <span className={s.text}>{c}<span className={s.count}>{n}</span></span>
               </a>
             ))}
           </nav>
           <ul className={`${s.grid} ${FILTER_GRID}`}>
-            {posts.map((p) => (
+            {featured && <li className={s.featuredItem} data-key={featured.slug}><Featured post={featured} /></li>}
+            {rest.map((p) => (
               <li key={p.slug} data-key={p.slug}><PostCard post={p} /></li>
             ))}
           </ul>
         </div>
         {pages > 1 && <Pagination base={l.base} page={page} pages={pages} />}
       </BlogList>
+      <ClosingBand title="Notes your AI can read and write." text="Pinto Notes works like Apple Notes, and ChatGPT, Claude and Claude Code can use it, with an Undo on every change." />
     </div>
+  );
+}
+
+/// The newest post, wide: its category's cover on the left, the title and its excerpt on the right.
+function Featured({ post }: { post: ReturnType<typeof published>[number] }) {
+  const c = CATEGORY_COVERS[post.category];
+  return (
+    <a className={s.featured} href={`/blog/${post.slug}`}>
+      <img className={s.featuredArt} src={c.src} alt="" width={c.width} height={c.height} decoding="async" />
+      <span className={s.featuredText}>
+        <span className={s.featuredLabel}>{post.category} · Newest</span>
+        <h2 className={s.featuredTitle}>{post.title}</h2>
+        <span className={s.featuredExcerpt}>{post.excerpt}</span>
+        <span className={s.featuredBy}><Avatar size={22} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
+      </span>
+    </a>
   );
 }
 

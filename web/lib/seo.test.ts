@@ -8,7 +8,8 @@ import { postShots } from "./post-images";
 import { DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
 import { feedXml } from "./feed";
 import { llmsFullTxt, llmsTxt } from "./llms";
-import { PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
+import { REMOVED_POSTS } from "./removed-posts";
+import { FIRST_PAGE, FOLD, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
 
 const INDEX_FOLDERS = ["page", "category", "feed.xml"];
 
@@ -174,13 +175,35 @@ describe("blog pages", () => {
     expect(shown.sort()).toEqual(published().map((p) => p.slug).sort());
   });
 
-  it("fills every page but the last, and never makes an empty one", () => {
+  it("fills every page but the last, never makes an empty one, and folds a stray post or two into the page before", () => {
+    // Page 1 has one more: its newest post is a wide card above a full grid (FIRST_PAGE). A last page
+    // of FOLD posts or fewer joins the one before it.
     const n = pageCount(all);
-    expect(n).toBe(Math.ceil(all.length / PER_PAGE));
-    for (let i = 1; i < n; i++) expect(pageOf(all, i)).toHaveLength(PER_PAGE);
-    expect(pageOf(all, n).length).toBeGreaterThan(0);
+    expect(pageOf(all, 1).length).toBeGreaterThanOrEqual(Math.min(FIRST_PAGE, all.length));
+    for (let i = 2; i < n; i++) expect(pageOf(all, i)).toHaveLength(PER_PAGE);
+    if (n > 1) expect(pageOf(all, n).length).toBeGreaterThan(FOLD);
     expect(pageOf(all, n + 1)).toHaveLength(0);
     expect(pageCount([])).toBe(1);
+    const fake = (k: number) => all.slice(0, 1).flatMap(() => Array.from({ length: k }, () => all[0]));
+    expect(pageCount(fake(FIRST_PAGE + FOLD))).toBe(1);
+    expect(pageOf(fake(FIRST_PAGE + FOLD), 1)).toHaveLength(FIRST_PAGE + FOLD);
+    expect(pageCount(fake(FIRST_PAGE + FOLD + 1))).toBe(2);
+    expect(pageCount(fake(FIRST_PAGE + PER_PAGE + 1))).toBe(2);
+    for (const c of categories()) {
+      const list = all.filter((p) => p.category === c);
+      for (let i = 2; i <= pageCount(list); i++) expect(pageOf(list, i).length, c).toBeGreaterThan(FOLD);
+    }
+  });
+
+  it("sends a page number past a list's last page to its last page (308), never a 404", async () => {
+    const redirects = await nextConfig.redirects!();
+    const apple = categoryPath("Apple Notes");
+    const appleLast = pageCount(all.filter((p) => p.category === "Apple Notes"));
+    expect(redirects).toContainEqual({ source: `${apple}/page/${appleLast + 1}`, destination: pagePath(apple, appleLast), permanent: true });
+    const last = pageCount(all);
+    expect(redirects).toContainEqual({ source: `/blog/page/${last + 1}`, destination: pagePath("/blog", last), permanent: true });
+    // Never a live page.
+    for (let n = 2; n <= last; n++) expect(redirects.some((r) => r.source === `/blog/page/${n}`)).toBe(false);
   });
 
   it("keeps page 1 at the list's own address", () => {
@@ -216,10 +239,9 @@ describe("blog pages", () => {
 });
 
 describe("the rename from Amber Notes", () => {
-  it("keeps the comparison's old address working, and links only to the new one", async () => {
+  it("keeps the comparison's old address working, straight to the Apple Notes page, and links only to that", async () => {
     const redirects = await nextConfig.redirects!();
-    expect(redirects).toContainEqual({ source: "/blog/amber-notes-vs-apple-notes", destination: "/blog/pinto-notes-vs-apple-notes", permanent: true });
-    expect(posts.some((p) => p.slug === "pinto-notes-vs-apple-notes")).toBe(true);
+    expect(redirects).toContainEqual({ source: "/blog/amber-notes-vs-apple-notes", destination: "/alternatives/apple-notes", permanent: true });
     for (const p of posts) expect(postSource(p.slug), p.slug).not.toContain("/blog/amber-notes-vs-apple-notes");
   });
 
@@ -298,4 +320,47 @@ describe("site copy", () => {
   const texts = [llmsFullTxt(), ...posts.map((p) => postSource(p.slug)), JSON.stringify(posts)];
   it("uses no em dashes", () => { for (const t of texts) expect(t).not.toContain("—"); });
   it("names only the devices the app runs on", () => { for (const t of texts) expect(t).not.toMatch(/ipad/i); });
+});
+
+describe("the posts removed on 14 October 2026", () => {
+  // Every source file of the site, apart from the list of removed posts and the redirects that read it.
+  const sources = (dir: URL): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+      const url = new URL(d.isDirectory() ? `${d.name}/` : d.name, dir);
+      return d.isDirectory() ? sources(url) : /\.(tsx?|md|txt|json|xml)$/.test(d.name) ? [url.pathname] : [];
+    });
+  const removed = Object.keys(REMOVED_POSTS);
+
+  it("answers each removed address with a 308 straight to the page that replaced it", async () => {
+    const compiled = "next/dist/compiled/path-to-regexp";
+    const { pathToRegexp } = (await import(compiled)) as { pathToRegexp: (source: string, keys: unknown[]) => RegExp };
+    const redirects = await nextConfig.redirects!();
+    const target = (path: string) => redirects.find((r) => pathToRegexp(r.source, []).test(path));
+    for (const [slug, destination] of Object.entries(REMOVED_POSTS)) {
+      const r = target(`/blog/${slug}`);
+      // permanent: true is how Next.js answers 308.
+      expect(r, slug).toEqual({ source: `/blog/${slug}`, destination, permanent: true });
+      // No chains: the target is a page, not another redirect.
+      expect(target(destination), destination).toBeUndefined();
+    }
+    expect(target("/blog/amber-notes-vs-apple-notes")?.destination).toBe("/alternatives/apple-notes");
+  });
+
+  it("sends each one to a page that exists", () => {
+    const live = new Set([...sitemap().map((e) => new URL(e.url).pathname)]);
+    for (const destination of Object.values(REMOVED_POSTS)) expect(live.has(destination), destination).toBe(true);
+  });
+
+  it("has no folder, no entry and no internal link left", () => {
+    for (const slug of removed) {
+      expect(posts.some((p) => p.slug === slug), slug).toBe(false);
+      expect(existsSync(new URL(`../app/blog/${slug}`, import.meta.url)), slug).toBe(false);
+    }
+    const files = [...sources(new URL("../app/", import.meta.url)), ...sources(new URL("./", import.meta.url))].filter(
+      (f) => !f.endsWith("/lib/removed-posts.ts") && !f.endsWith("/lib/seo.test.ts"),
+    );
+    const linked = new RegExp(`/blog/(${removed.join("|")})(?![\\w-])`);
+    for (const f of files) expect(readFileSync(f, "utf8").match(linked)?.[0], f).toBeUndefined();
+    expect(llmsTxt() + llmsFullTxt() + feedXml()).not.toMatch(linked);
+  });
 });

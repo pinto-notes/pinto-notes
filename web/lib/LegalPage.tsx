@@ -92,8 +92,11 @@ export function SectionHeading({ id, children }: { id: string; children: string 
 /// The long text pages' layout: the contents in the left margin on wide screens (the blog's share
 /// rail is in the same place), the readable column, and on narrower screens the contents as one
 /// row above the text. `lead` is what sits between the title and the text.
-export function LongPage({ title, sub, lead, sections, other, children }: {
-  title: string; sub?: React.ReactNode; lead?: React.ReactNode; sections: Section[]; other?: { href: string; label: string }; children: React.ReactNode;
+export function LongPage({ title, sub, lead, sections, other, bare = false, children }: {
+  title: string; sub?: React.ReactNode; lead?: React.ReactNode; sections: Section[]; other?: { href: string; label: string };
+  /// The page draws its own hero above, so the column starts with the contents.
+  bare?: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <div className={styles.grid}>
@@ -101,10 +104,12 @@ export function LongPage({ title, sub, lead, sections, other, children }: {
         <div className={styles.railInner}><LegalToc sections={sections} other={other} place="rail" /></div>
       </aside>
       <div className={styles.gridCol}>
-        <div className={`${styles.head} rise`} style={{ "--i": 0 } as React.CSSProperties}>
-          <h1 className={styles.title}>{title}</h1>
-          {sub && <p className={styles.updated}>{sub}</p>}
-        </div>
+        {!bare && (
+          <div className={`${styles.head} rise`} style={{ "--i": 0 } as React.CSSProperties}>
+            <h1 className={styles.title}>{title}</h1>
+            {sub && <p className={styles.updated}>{sub}</p>}
+          </div>
+        )}
         {lead}
         <div className={`${styles.foldRow} rise`} style={{ "--i": 2 } as React.CSSProperties}>
           <LegalToc sections={sections} other={other} place="fold" />

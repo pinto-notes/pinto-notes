@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Import your Apple Notes · Pinto Not
 export default function Page() {
   return (
     <PlaceCard
+      art="/email/hero-import.jpg"
       href={appURL("import")}
       title="Bring your Apple Notes over"
       lede="On a Mac, Pinto Notes opens Import from Apple Notes. Your notes come over with their folders, and Apple Notes stays as it is."

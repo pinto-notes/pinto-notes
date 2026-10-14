@@ -6,6 +6,7 @@ import Card from "./Card";
 import Library, { APPS } from "./Library";
 import { COVERS, coverPath } from "@/lib/template-covers";
 import s from "./templates.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
@@ -33,7 +34,7 @@ export default function Page() {
           <h1 className={`${s.h1} rise`} style={at(0)}>Templates <mark className={s.mark}>your AI</mark> fills in.</h1>
           <p className={`${s.lede} rise`} style={at(1)}>
             {APP_TEMPLATES.live
-              ? <>Open a template to add the note to Pinto Notes and copy its prompt. From then on, <b>ChatGPT, Claude or Claude Code</b> fills it in for you.</>
+              ? <>Open a template to add the note to Pinto Notes. From then on, <b>ChatGPT, Claude or Claude Code</b> fills it in for you.</>
               : <>Open a template to get the note and its prompt, ready to copy. Paste it once, and <b>ChatGPT, Claude or Claude Code</b> fills the note in for you.</>}
           </p>
         </section>
@@ -73,6 +74,8 @@ export default function Page() {
           <p className={s.loopLine}>Shared by Maja</p>
         </div>
       </section>}
+
+      <ClosingBand title="Pick one template, and let your AI keep it." text="Templates need Pinto Notes on your Mac, and an AI you connect once." />
     </div>
   );
 }

@@ -26,7 +26,9 @@ export function rowsAt(step: number): Row[] {
   ];
 }
 
-export default function Notebook() {
+/// `icons`: the steps under the note as the four marks alone (each still named for a screen reader);
+/// the step's words are in the note's chip.
+export default function Notebook({ icons = false }: { icons?: boolean } = {}) {
   const { ref, step, jump } = useStory<HTMLDivElement>(STEPS.length, 1900);
   const now = STEPS[step];
   return (
@@ -41,8 +43,8 @@ export default function Notebook() {
       </figure>
       <div className={s.steps} role="group" aria-label="Steps">
         {STEPS.map((t, k) => (
-          <button key={k} type="button" className={s.stepButton} aria-pressed={k === step} onClick={() => jump(k)}>
-            <WhoMark who={t.who} size={11} />{t.label}
+          <button key={k} type="button" className={s.stepButton} data-icon={icons || undefined} aria-pressed={k === step} aria-label={icons ? `Step ${k + 1}: ${t.credit}` : undefined} onClick={() => jump(k)}>
+            <WhoMark who={t.who} size={icons ? 13 : 11} />{!icons && t.label}
           </button>
         ))}
       </div>

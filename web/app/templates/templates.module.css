@@ -21,8 +21,9 @@
 /* Three steps in one row, on a template's page: connect, paste, talk. */
 .steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; counter-reset: step; }
 @media (max-width: 760px) { .steps { grid-template-columns: 1fr; gap: 8px; } }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 12px; align-items: start; padding: 14px 16px; border-radius: 16px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
-.steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--amber); color: #fff; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* A fill, no ring: three soft steps, each numbered in ink on the card colour. */
+.steps li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 12px; align-items: start; padding: 18px 20px; border-radius: 20px; background: var(--soft); }
+.steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--card); color: var(--ink); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
 .steps b { font-size: 16px; font-weight: 700; line-height: 28px; }
 .steps span { color: var(--muted); font-size: 14.5px; line-height: 1.4; }
 
@@ -31,6 +32,16 @@
 /* One row: the category chips, and how many templates show at its end. */
 .filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .filterRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* On phones the chips are one row that scrolls sideways, edge to edge, instead of three rows. */
+@media (max-width: 600px) {
+  .filters { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .filterRow {
+    flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter);
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .filterRow::-webkit-scrollbar { display: none; }
+  .filterRow .chip { flex: none; }
+}
 .chip {
   display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px;
   position: relative; isolation: isolate;
@@ -299,19 +310,22 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .promptHead .sectionLede b { color: var(--ink); font-weight: 650; }
 .promptWhere { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
 .asks { display: grid; gap: 10px; align-content: start; }
-.asksLabel { margin: 0; color: var(--link); font-weight: 700; font-size: 14px; }
+.asksLabel { margin: 0; color: var(--muted); font-weight: 700; font-size: 14px; }
 .asks ul { list-style: none; margin: 0; padding: 0; display: grid; justify-items: start; gap: 8px; }
 .asks li { padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: var(--soft); color: var(--ink); font-size: 16px; line-height: 1.35; }
 
-.full { grid-column: 1 / -1; border-radius: 18px; box-shadow: inset 0 0 0 1px var(--line); }
+.full { grid-column: 1 / -1; border-radius: 18px; }
+/* Quiet until opened: a small link-like row; open, the prompt sits on a soft fill. No ring. */
 .fullToggle {
-  display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px; border-radius: 18px; list-style: none; cursor: pointer;
-  color: var(--ink); font-weight: 650; font-size: 15.5px;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; margin-left: -10px; border-radius: 10px; list-style: none; cursor: pointer;
+  color: var(--muted); font-weight: 600; font-size: 14.5px;
 }
+.full[open] { background: var(--soft); padding: 4px 0 0; }
+.full[open] .fullToggle { margin-left: 8px; color: var(--ink); }
 .fullToggle::-webkit-details-marker { display: none; }
 .fullToggle:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .full[open] .fullToggle svg { transform: rotate(180deg); }
-@media (hover: hover) { .fullToggle:hover { color: var(--link); } }
+@media (hover: hover) { .fullToggle:hover { color: var(--ink); background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
 @media (prefers-reduced-motion: no-preference) { .fullToggle svg { transition: transform 0.2s ease-out; } .fullToggle { transition: color 0.15s ease-out; } }
 .fullBody { display: grid; gap: 18px; padding: 0 18px 18px; }
 .fullVariant { display: grid; gap: 10px; }
@@ -326,7 +340,15 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .result { display: grid; padding: clamp(18px, 4vw, 48px); border-radius: 30px; background: linear-gradient(180deg, #fbe7c9, #f6d3a4); }
 .result .window { width: min(100%, 820px); justify-self: center; }
 
-/* How to connect: one card per AI, each to its guide. */
+/* How to connect: one quiet link to the guided page that covers every AI. */
+.connectOne { margin: 0; }
+.connectOne a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; margin-left: -14px; border-radius: 12px;
+  color: var(--ink); font-weight: 600; font-size: 16px; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 4px;
+}
+@media (hover: hover) { .connectOne a:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
+.connectOne a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+/* How to connect, as cards (no longer on the template pages; kept for the guided pages' use). */
 .connect { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 760px) { .connect { grid-template-columns: 1fr; } }
 .connect a {
@@ -393,13 +415,45 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 :global(:root[data-platform="ios"]) .labelIos { display: inline; }
 
 /* An app template's own controls, a card each, above the app; then its questions. */
-.can { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 760px) { .can { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
-.can li { display: grid; align-content: start; gap: 4px; padding: 16px 18px; border-radius: 16px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
-.can b { font-size: 16.5px; font-weight: 700; line-height: 1.3; }
-.can span { color: var(--muted); font-size: 15px; line-height: 1.45; }
+/* What you can do in the app: the app on its ground, and beside it the features as short labels,
+   a title and a few words each. No cards, no borders. */
+.canRow { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+@media (max-width: 900px) { .canRow { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+.canApp { display: grid; padding: clamp(18px, 4vw, 40px); border-radius: 30px; background: linear-gradient(180deg, #fbe7c9, #f6d3a4); }
+.can { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+@media (max-width: 900px) { .can { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; } }
+@media (max-width: 520px) { .can { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
+.can li { display: grid; gap: 2px; }
+.can b { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.can span { color: var(--muted); font-size: 15.5px; line-height: 1.4; }
 .faq { margin: 0; display: grid; gap: 0; max-width: 760px; }
 .faq > div { padding: 18px 0; border-top: 1px solid var(--line); }
 .faq > div:last-child { border-bottom: 1px solid var(--line); }
 .faq dt { font-weight: 700; font-size: 17.5px; line-height: 1.35; }
 .faq dd { margin: 6px 0 0; color: var(--muted); font-size: 16px; line-height: 1.5; }
+
+/* The prompt as the second way in, under Use on a template with an app: one quiet line, then the
+   full text folded away. */
+.promptLine { display: grid; gap: 2px; justify-items: start; margin-top: 4px; }
+.promptAsk { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--muted); font-size: 14.5px; }
+.inlineCopy {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px;
+  background: none; color: var(--ink); font: inherit; font-weight: 650; cursor: pointer; text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 3px;
+}
+.inlineCopy[data-done] { text-decoration: none; background: var(--soft); }
+@media (hover: hover) { .inlineCopy:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
+.inlineCopy:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .inlineCopy { transition: background-color 0.15s ease-out, transform 0.12s ease-out; } .inlineCopy:active { transform: scale(0.97); } }
+
+/* The features and what to ask, beside the app. */
+.canSide { display: grid; gap: 32px; align-content: center; }
+
+/* On a template without an app, the prompt is the way in: one line, the copy button, what to say,
+   the full text folded away. No card. */
+.promptCompact { display: grid; gap: 18px; justify-items: start; max-width: 760px; }
+.promptOne { margin: 0; font-size: clamp(17px, 1.8vw, 19px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.promptOne b { color: var(--ink); font-weight: 650; }
+.promptCompact .full { width: 100%; }
+.fullWorks { margin: 0; color: var(--muted); font-size: 14px; font-weight: 600; }
+.promptWorks { color: var(--muted); }

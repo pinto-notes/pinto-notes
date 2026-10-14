@@ -11,6 +11,7 @@ export const metadata: Metadata = { title: "Connect your AI · Pinto Notes", rob
 export default function Page() {
   return (
     <PlaceCard
+      art="/email/hero-connect.jpg"
       href={appURL("connect-ai")}
       title="Connect your AI"
       lede="Pinto Notes opens Settings at Connect an AI. On another device, here's how it goes."

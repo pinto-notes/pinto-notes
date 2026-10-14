@@ -125,7 +125,7 @@ export default function Page() {
       </ul>
       <p>
         Choosing a notes app for an agent? <a href="/blog/best-notes-app-for-ai-agents">The best notes app for AI agents</a> sets out the
-        criteria. Coming from Apple Notes? <a href="/blog/apple-notes-mcp">Apple Notes MCP servers compared</a> covers the local servers
+        criteria. Coming from Apple Notes? <a href="/blog/apple-notes-api">Apple Notes MCP servers compared</a> covers the local servers
         for Notes on a Mac, and how they differ from this one. <a href="/blog/obsidian-mcp">Obsidian MCP servers compared</a> does the
         same for Obsidian vaults.
       </p>

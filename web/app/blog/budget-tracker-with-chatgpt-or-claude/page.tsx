@@ -105,20 +105,20 @@ export default function Page() {
           plan; Claude connects from its connector directory.
         </li>
         <li>
-          <strong>Paste the template&apos;s prompt into a chat</strong>
-          It tells the AI where the expenses are kept and that every expense needs a date, what it was, a category from your list,
-          and an amount.
+          <strong>Tell your AI what you spent</strong>
+          It finds the note and reads the app&apos;s own notes on how expenses are kept: a date, what it was, a category from
+          your list and an amount.
         </li>
       </Steps>
       <p>
         Then talk to it the way you&apos;d text a partner: &ldquo;Spent 412 on groceries and 85 on the bus card today.&rdquo; The AI
         adds two expenses, and the Month screen shows the new total. &ldquo;How am I doing against the budget this month?&rdquo; gets
-        you an answer from the same numbers the app shows. At the end of the month it compares each category with its budget
-        and gives one suggestion. The prompt tells it not to give financial advice beyond that.
+        you an answer from the same numbers the app shows. At the end of the month, ask how each category did against its
+        budget.
       </p>
       <p>
-        No Mac nearby? The template page also has the prompt to copy. It asks your AI to create the note with its app, so it works
-        from ChatGPT or Claude on any device once Pinto Notes is connected.
+        To change the app itself, ask for that too: &ldquo;Add rent as a monthly bill on the 25th&rdquo; or &ldquo;Show my
+        spending by week.&rdquo; Your AI edits the app, and the new version shows up in the note.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>
@@ -152,7 +152,7 @@ export default function Page() {
         The iPhone app isn&apos;t on the App Store yet, so the budget app opens on a Mac with macOS 26 or later. ChatGPT and Claude
         can still log expenses from your phone, because they reach the note through the connection, not the app. Notes, and the
         app&apos;s data with them, are end-to-end encrypted on your devices; see <a href="/blog/encrypted-notes-app-for-ai">what an
-        AI can read</a> while it works. For bills to pay and other money errands, <a href="/blog/chatgpt-to-do-list-on-iphone">a
+        AI can read</a> while it works. For bills to pay and other money errands, <a href="/for/chatgpt">a
         ChatGPT to-do list</a> works the same way.
       </p>
       <PostCta slug="budget-tracker-with-chatgpt-or-claude" position="how-amber-helps" title="Try the budget template on your Mac">

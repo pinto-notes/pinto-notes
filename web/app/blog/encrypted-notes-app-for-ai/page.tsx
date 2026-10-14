@@ -103,7 +103,7 @@ export default function Page() {
         answer is: only for an AI you approved on your own device, only during its requests, never for locked notes, and never at rest.
       </p>
       <p>
-        <a href="/blog/notes-apps-with-mcp">Notes apps with an MCP server, compared</a> covers the AI side in more depth, and <a href="/blog/apple-notes-mcp">Apple
+        <a href="/blog/notes-apps-with-mcp">Notes apps with an MCP server, compared</a> covers the AI side in more depth, and <a href="/blog/apple-notes-api">Apple
         Notes MCP servers compared</a> covers the Mac-only route for Apple Notes.
       </p>
 

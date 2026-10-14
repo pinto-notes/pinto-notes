@@ -32,6 +32,7 @@ export default async function Connect({ searchParams }: { searchParams: Promise<
       <ConnectCard>
         <h1 className={styles.title}>{problem ? "Couldn't connect" : "This link isn't complete"}</h1>
         <p className={styles.lede}>{problemText(problem)}</p>
+        <a className={styles.secondary} href="/open/connect-ai">How to connect your AI</a>
       </ConnectCard>
     );
   }

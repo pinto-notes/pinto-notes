@@ -151,7 +151,7 @@ describe("heatmaps, rage clicks and dead clicks", () => {
   const point = (type: string) => ({ x: 10, y: 20, target_fixed: false, type });
 
   it("are kept on the marketing pages only", () => {
-    for (const path of ["/", "/download", "/templates", "/templates/trip-plan", "/blog", "/blog/apple-notes-mcp", "/blog/category/guides", "/help", "/changelog", "/privacy-security"]) {
+    for (const path of ["/", "/download", "/templates", "/templates/trip-plan", "/blog", "/blog/apple-notes-api", "/blog/category/guides", "/help", "/changelog", "/privacy-security"]) {
       expect(heatmapsAllowed(path), path).toBe(true);
     }
     for (const path of ["/n/abc", "/connect", "/open/template/x", "/report/abc", "/reset-password", "/download/mac", "/privacy", "/terms", "/support", "/templates/x/y", "/nothing"]) {

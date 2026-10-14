@@ -1,0 +1,55 @@
+/* The changelog, in Help's centred column on leaf brown (app/home.module.css .log), text only. Each
+   version is its number and date, its name and three short highlights; the rest waits under Read
+   more. Lines are kept to a reading length. */
+.page { width: 100%; max-width: 880px; margin: 0 auto; padding-top: 40px; display: grid; gap: 56px; }
+.head { display: grid; gap: 12px; justify-items: center; text-align: center; }
+/* Each release as a timeline row: a 180 px rail with the version and date, which stays in view while
+   you read that release, and the release itself beside it. Stacked on phones. */
+.entry { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 32px; padding-top: 48px; box-shadow: inset 0 1px 0 var(--line); scroll-margin-top: 100px; }
+.entry:first-of-type { padding-top: 8px; box-shadow: none; }
+.entry > .meta { position: sticky; top: 108px; align-self: start; flex-direction: column; align-items: flex-start; gap: 8px; }
+.body { display: grid; gap: 12px; min-width: 0; max-width: 70ch; }
+@media (max-width: 720px) {
+  .entry { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 40px; }
+  .entry > .meta { position: static; flex-direction: row; align-items: baseline; gap: 12px; }
+}
+.meta { margin: 0; display: flex; align-items: baseline; gap: 12px; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+.version { display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px; border-radius: 10px; background: var(--soft); color: var(--ink); font-weight: 800; font-size: 15px; text-decoration: none; }
+@media (hover: hover) { .version:hover { background: color-mix(in srgb, var(--soft) 82%, var(--amber)); } }
+.version:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.name { margin: 0; font-size: clamp(24px, 2.8vw, 30px); line-height: 1.12; font-weight: 800; letter-spacing: -0.02em; }
+.top { margin: 2px 0 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 17px; line-height: 1.5; }
+.top li::marker, .all li::marker { color: var(--muted); }
+
+/* Read more: quiet until opened. A ring only for keyboard focus, never after a click. */
+.more { margin-top: 2px; }
+.more summary {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; margin-left: -12px; border-radius: 12px;
+  color: var(--muted); font-weight: 600; font-size: 15px; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent;
+}
+.more summary::-webkit-details-marker { display: none; }
+.more summary:focus { outline: none; }
+.more summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.more[open] summary { color: var(--ink); }
+.more[open] summary svg { transform: rotate(180deg); }
+@media (hover: hover) { .more summary:hover { color: var(--ink); background: var(--soft); } }
+@media (prefers-reduced-motion: no-preference) {
+  .more summary { transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.12s ease-out; }
+  .more summary:active { transform: scale(0.97); }
+  .more summary svg { transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+.moreBody { display: grid; gap: 10px; padding: 12px 0 4px; }
+.label { margin: 10px 0 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.all { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 16px; line-height: 1.5; color: var(--muted); }
+.all a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; border-radius: 3px; }
+@media (hover: hover) { .all a:hover { text-decoration-color: var(--amber); } }
+.all a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+/* The patch releases: one compact row each, the version and date, and its note when it has one. */
+.patches { list-style: none; margin: 0; padding: 0; display: grid; }
+.patches li {
+  display: grid; grid-template-columns: 4.5em 9.5em minmax(0, 1fr); gap: 2px 12px; align-items: baseline; padding: 7px 0;
+  box-shadow: inset 0 -1px 0 var(--line); font-size: 15px; line-height: 1.4; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+@media (max-width: 520px) { .patches li { grid-template-columns: 4.5em minmax(0, 1fr); } .patchNote { grid-column: 1 / -1; } }
+.patchVersion { color: var(--ink); font-weight: 700; }
+.patchNote { color: var(--ink); }
