@@ -1,36 +1,63 @@
+import CopyButton from "./CopyButton";
+import PromptCopy from "./PromptCopy";
 import s from "./templates.module.css";
 
 type Variant = { name: string; prompt: string };
 
-/// What pasting the prompt does, in plain words, and what to say after. The full prompt stays on
-/// the page, folded away, for anyone who wants to read exactly what their AI is told.
-export default function Instructions({ title, folder, intro, variants, asks }: { title: string; folder: string; intro: string; variants: Variant[]; asks: string[] }) {
+/// The full prompt, folded away behind "Show the prompt": in the page for search and for anyone who
+/// wants to read exactly what their AI is told.
+export function FullPrompt({ variants }: { variants: Variant[] }) {
   return (
-    <section className={s.prompt} aria-labelledby="prompt">
-      <div className={s.promptHead}>
-        <h2 id="prompt" className={s.h2}>What the prompt does</h2>
-        <p className={s.sectionLede}>
-          Your AI creates a note called <b>&ldquo;{title}&rdquo;</b> in your {folder} folder, or finds the one you already have, and learns how to
-          keep it. {intro}
-        </p>
-        <p className={s.promptWhere}>Paste it once into a chat in ChatGPT or Claude with Pinto Notes turned on, or into Claude Code.</p>
+    <details className={s.full}>
+      <summary className={s.fullToggle}>Show the prompt<Chevron /></summary>
+      <div className={s.fullBody}>
+        {variants.map((v) => (
+          <div key={v.name} className={s.fullVariant}>
+            {variants.length > 1 && <p className={s.fullFor}>For {v.name}</p>}
+            <p className={s.promptText}>{highlight(v.prompt.slice(0, v.prompt.indexOf("```")).trimEnd())}</p>
+            <pre className={s.promptMd} aria-label="The note's markdown, part of the prompt">{v.prompt.slice(v.prompt.indexOf("```"))}</pre>
+          </div>
+        ))}
       </div>
-      <div className={s.asks}>
-        <p className={s.asksLabel}>Then just talk to it</p>
-        <ul>{asks.map((a) => <li key={a}>{a}</li>)}</ul>
-      </div>
-      <details className={s.full}>
-        <summary className={s.fullToggle}>Show the full prompt<Chevron /></summary>
-        <div className={s.fullBody}>
-          {variants.map((v) => (
-            <div key={v.name} className={s.fullVariant}>
-              {variants.length > 1 && <p className={s.fullFor}>For {v.name}</p>}
-              <p className={s.promptText}>{highlight(v.prompt.slice(0, v.prompt.indexOf("```")).trimEnd())}</p>
-              <pre className={s.promptMd} aria-label="The note's markdown, part of the prompt">{v.prompt.slice(v.prompt.indexOf("```"))}</pre>
-            </div>
-          ))}
-        </div>
-      </details>
+    </details>
+  );
+}
+
+/// What to say to your AI once it keeps the note: the template's example asks, as chat bubbles.
+export function AskBubbles({ asks, label = "Ask your AI" }: { asks: string[]; label?: string }) {
+  return (
+    <div className={s.asks}>
+      <p className={s.asksLabel}>{label}</p>
+      <ul>{asks.slice(0, 3).map((a) => <li key={a}>{a}</li>)}</ul>
+    </div>
+  );
+}
+
+/// On a template with an app, the prompt is the second way in: one quiet line under Use, for people
+/// who only use ChatGPT or Claude, and the full text folded away under it.
+export function PromptLine({ variants }: { variants: Variant[] }) {
+  return (
+    <div className={s.promptLine} id="prompt">
+      <p className={s.promptAsk}>
+        Only using ChatGPT or Claude?{" "}
+        <CopyButton text={variants[0].prompt} label="Copy the prompt" className={s.inlineCopy} event="copy_prompt_clicked" />
+      </p>
+      <FullPrompt variants={variants} />
+    </div>
+  );
+}
+
+/// On a template without an app, the prompt is the way in, said in one line: the copy button, what to
+/// say afterwards, and the full text folded away. No card around it.
+export default function Instructions({ title, folder, variants, asks }: { title: string; folder: string; variants: Variant[]; asks: string[] }) {
+  return (
+    <section className={s.promptCompact} id="prompt" aria-label="The prompt">
+      <p className={s.promptOne}>
+        Paste the prompt once into ChatGPT, Claude or Claude Code. It makes the <b>&ldquo;{title}&rdquo;</b> note in your {folder} folder, then keeps it.
+      </p>
+      <PromptCopy variants={variants} className={s.secondary} />
+      <AskBubbles asks={asks} label="Then just talk to it" />
+      <FullPrompt variants={variants} />
     </section>
   );
 }

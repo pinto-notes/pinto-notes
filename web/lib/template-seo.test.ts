@@ -33,8 +33,12 @@ describe("the app templates' search copy", () => {
       expect(seo.faq.length).toBeGreaterThanOrEqual(3);
       expect(html).toContain('"@type":"FAQPage"');
       expect(html).toContain(`href="/blog/${seo.post.slug}"`);
-      // The app comes before the prompt.
-      expect(html.indexOf('id="result"')).toBeLessThan(html.indexOf('id="prompt"'));
+      // Use installs the app, so the prompt is the second way in: one quiet line under Use, and what
+      // to ask your AI sits beside the app (Emil, 14 October 2026: no "What the prompt does" section).
+      expect(html.indexOf('href="/open/template/')).toBeLessThan(html.indexOf('id="prompt"'));
+      expect(html).toContain("Only using ChatGPT or Claude?");
+      expect(html).not.toContain("What the prompt does");
+      expect(html.indexOf(">Ask your AI<")).toBeGreaterThan(html.indexOf('id="result"'));
     });
 
     it(`${t.slug}: its how-to post is published and links back to the template`, () => {

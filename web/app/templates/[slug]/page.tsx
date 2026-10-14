@@ -8,7 +8,7 @@ import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, sea
 import Card from "../Card";
 import OpenInApp from "../../OpenInApp";
 import CopyButton from "../CopyButton";
-import Instructions from "../Instructions";
+import Instructions, { AskBubbles, PromptLine } from "../Instructions";
 import PromptCopy from "../PromptCopy";
 import NoteWindow from "../NoteWindow";
 import AppWindow from "../AppWindow";
@@ -53,8 +53,6 @@ function variants(t: Template) {
   return [...byPrompt].map(([prompt, names]) => ({ name: names.join(" or ").replace(/ or (?=.* or )/g, ", "), prompt }));
 }
 
-/// The note's own first line under its title: what the note is for, in its own words.
-const intro = (t: Template) => t.note.split("\n").slice(1).find((l) => l.trim() && !l.startsWith("#") && !l.startsWith("<!--"))?.trim() ?? "";
 
 export default async function Page({ params }: Props) {
   const t = template((await params).slug);
@@ -75,7 +73,10 @@ export default async function Page({ params }: Props) {
       </div>
       <div className={s.canRow}>
         <div className={s.canApp}><AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} /></div>
-        <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
+        <div className={s.canSide}>
+          <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
+          <AskBubbles asks={t.asks} />
+        </div>
       </div>
     </section>
   ) : (
@@ -116,7 +117,6 @@ export default async function Page({ params }: Props) {
               {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> <UseLabel t={t} /></OpenInApp>}
               {APP_TEMPLATES.live ? (
                 <>
-                  <PromptCopy variants={vs} className={s.secondary} />
                   {!t.app && <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />}
                 </>
               ) : (
@@ -126,6 +126,7 @@ export default async function Page({ params }: Props) {
               )}
             </div>
             <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes for Mac</a>.</p>
+            {APP_TEMPLATES.live && t.app && <div className="rise" style={at(3)}><PromptLine variants={vs} /></div>}
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
             {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
@@ -144,7 +145,7 @@ export default async function Page({ params }: Props) {
 
       {seo && appSection}
 
-      <Instructions title={noteTitle(t)} folder={t.folder} intro={intro(t)} variants={vs} asks={t.asks} />
+      {!(APP_TEMPLATES.live && t.app) && <Instructions title={noteTitle(t)} folder={t.folder} variants={vs} asks={t.asks} />}
 
       {t.app ? (seo ? null : appSection) : (
       <section className={s.section} aria-labelledby="result">

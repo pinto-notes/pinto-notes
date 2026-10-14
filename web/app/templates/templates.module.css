@@ -310,19 +310,22 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .promptHead .sectionLede b { color: var(--ink); font-weight: 650; }
 .promptWhere { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
 .asks { display: grid; gap: 10px; align-content: start; }
-.asksLabel { margin: 0; color: var(--link); font-weight: 700; font-size: 14px; }
+.asksLabel { margin: 0; color: var(--muted); font-weight: 700; font-size: 14px; }
 .asks ul { list-style: none; margin: 0; padding: 0; display: grid; justify-items: start; gap: 8px; }
 .asks li { padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: var(--soft); color: var(--ink); font-size: 16px; line-height: 1.35; }
 
-.full { grid-column: 1 / -1; border-radius: 18px; box-shadow: inset 0 0 0 1px var(--line); }
+.full { grid-column: 1 / -1; border-radius: 18px; }
+/* Quiet until opened: a small link-like row; open, the prompt sits on a soft fill. No ring. */
 .fullToggle {
-  display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px; border-radius: 18px; list-style: none; cursor: pointer;
-  color: var(--ink); font-weight: 650; font-size: 15.5px;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; margin-left: -10px; border-radius: 10px; list-style: none; cursor: pointer;
+  color: var(--muted); font-weight: 600; font-size: 14.5px;
 }
+.full[open] { background: var(--soft); padding: 4px 0 0; }
+.full[open] .fullToggle { margin-left: 8px; color: var(--ink); }
 .fullToggle::-webkit-details-marker { display: none; }
 .fullToggle:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .full[open] .fullToggle svg { transform: rotate(180deg); }
-@media (hover: hover) { .fullToggle:hover { color: var(--link); } }
+@media (hover: hover) { .fullToggle:hover { color: var(--ink); background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
 @media (prefers-reduced-motion: no-preference) { .fullToggle svg { transition: transform 0.2s ease-out; } .fullToggle { transition: color 0.15s ease-out; } }
 .fullBody { display: grid; gap: 18px; padding: 0 18px 18px; }
 .fullVariant { display: grid; gap: 10px; }
@@ -428,3 +431,27 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .faq > div:last-child { border-bottom: 1px solid var(--line); }
 .faq dt { font-weight: 700; font-size: 17.5px; line-height: 1.35; }
 .faq dd { margin: 6px 0 0; color: var(--muted); font-size: 16px; line-height: 1.5; }
+
+/* The prompt as the second way in, under Use on a template with an app: one quiet line, then the
+   full text folded away. */
+.promptLine { display: grid; gap: 2px; justify-items: start; margin-top: 4px; }
+.promptAsk { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--muted); font-size: 14.5px; }
+.inlineCopy {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px;
+  background: none; color: var(--ink); font: inherit; font-weight: 650; cursor: pointer; text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 3px;
+}
+.inlineCopy[data-done] { text-decoration: none; background: var(--soft); }
+@media (hover: hover) { .inlineCopy:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
+.inlineCopy:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .inlineCopy { transition: background-color 0.15s ease-out, transform 0.12s ease-out; } .inlineCopy:active { transform: scale(0.97); } }
+
+/* The features and what to ask, beside the app. */
+.canSide { display: grid; gap: 32px; align-content: center; }
+
+/* On a template without an app, the prompt is the way in: one line, the copy button, what to say,
+   the full text folded away. No card. */
+.promptCompact { display: grid; gap: 18px; justify-items: start; max-width: 760px; }
+.promptOne { margin: 0; font-size: clamp(17px, 1.8vw, 19px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.promptOne b { color: var(--ink); font-weight: 650; }
+.promptCompact .full { width: 100%; }

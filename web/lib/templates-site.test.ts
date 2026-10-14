@@ -160,7 +160,7 @@ describe("a template's page", () => {
     for (const t of templates()) {
       const html = await page(t.slug);
       expect(html.match(/>Copy the prompt</g), t.slug).toHaveLength(1);
-      expect(html).toContain("Show the full prompt");
+      expect(html).toContain("Show the prompt");
       expect(html).not.toContain(">Tell your AI</h2>");
       const text = html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
       for (const i of instructions(t)) expect(text, `${t.slug} ${i.client}`).toContain(i.prompt.slice(0, i.prompt.indexOf("```")).trimEnd());
