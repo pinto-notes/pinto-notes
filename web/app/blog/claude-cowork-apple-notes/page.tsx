@@ -104,8 +104,7 @@ export default function Page() {
         back. Checklists stay checklists. The catch is that your notes have to move: Pinto Notes imports them from Apple Notes on your Mac,
         with their folders, tables and pictures, but other attachments and locked notes stay behind.{" "}
         <a href="/blog/move-from-apple-notes">How to move from Apple Notes</a> walks through it, and Apple Notes stays untouched, so you can
-        try it and go back. To give Cowork something to fill in from day one, the <a href="/templates">note templates</a> have a prompt for
-        each.
+        try it and go back. To give Cowork something to fill in from day one, start from one of the <a href="/templates">note templates</a>.
       </p>
 
       <h2>If it doesn&apos;t work</h2>

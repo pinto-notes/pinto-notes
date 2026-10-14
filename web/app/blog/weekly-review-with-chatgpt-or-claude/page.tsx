@@ -167,7 +167,7 @@ export default function Page() {
       <p>
         What it doesn&apos;t do: it sends no reminders, so the fixed time is still yours to keep. You need ChatGPT on a plan that
         allows custom apps, or Claude; <a href="/blog/connect-chatgpt-to-your-notes">connecting ChatGPT</a> takes a few minutes. The
-        free <a href="/templates/weekly-review">Weekly review template</a> has the note and the prompt that goes with it, and there
+        free <a href="/templates/weekly-review">Weekly review template</a> adds the note to Pinto Notes in one click, and there
         are ones for a <a href="/templates/habit-tracker">habit tracker</a> and a <a href="/templates/daily-journal">daily
         journal</a> too.
       </p>

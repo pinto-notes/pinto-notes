@@ -43,8 +43,7 @@ export default function Page() {
         In Pinto Notes the new lines are tinted, and the bar at the bottom says what Claude Code changed, with Undo, like the picture at the top.
       </p>
       <p>
-        To skip the setup, add the <a href="/templates/daily-standup">standup notes template</a>: the note and the prompt for Claude Code,
-        ready to paste into <code>CLAUDE.md</code>.
+        To skip the setup, add the <a href="/templates/daily-standup">standup notes template</a>: it adds the note to Pinto Notes in one click.
       </p>
 
       <h2>A daily log</h2>

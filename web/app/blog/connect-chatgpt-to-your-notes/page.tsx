@@ -223,7 +223,7 @@ export default function Page() {
         </ul>
       </Keep>
       <p>
-        Or start from a <a href="/templates">template</a>: a note with the prompt that tells ChatGPT or Claude how to fill it in, like
+        Or start from a <a href="/templates">template</a>: a ready note, some with their own app, that ChatGPT or Claude can fill in, like
         the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.{" "}
         <a href="/for/chatgpt">Pinto Notes for ChatGPT</a> has three more ideas, from a running plan to a note that becomes a tracker.
       </p>

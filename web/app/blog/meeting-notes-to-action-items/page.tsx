@@ -154,8 +154,8 @@ export default function Page() {
       <p>
         What it doesn&apos;t do: it doesn&apos;t record or transcribe meetings, and it won&apos;t remind anyone of anything. You need
         ChatGPT on a plan that allows custom apps, or Claude; <a href="/blog/connect-chatgpt-to-your-notes">connecting ChatGPT</a> takes
-        a few minutes. The free <a href="/templates/meeting-notes">Meeting notes template</a> has the note and the prompt that goes
-        with it, and there&apos;s one for <a href="/templates/one-on-one-notes">one-on-ones</a> too.
+        a few minutes. The free <a href="/templates/meeting-notes">Meeting notes template</a> adds the note to Pinto Notes in one click,
+        and there&apos;s one for <a href="/templates/one-on-one-notes">one-on-ones</a> too.
       </p>
       <PostCta slug="meeting-notes-to-action-items" position="how-amber-helps" title="Try Pinto Notes on your Mac">
         <p>One note for every meeting&apos;s decisions and action items, written by your AI and ticked off by you.</p>
