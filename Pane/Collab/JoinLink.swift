@@ -76,6 +76,7 @@ enum JoinCopy {
 /// line while it joins, and says plainly when a link doesn't open.
 struct JoinLinkHandler: ViewModifier {
     @State private var center = JoinCenter.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
@@ -87,7 +88,7 @@ struct JoinLinkHandler: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.2), value: center.phase)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: center.phase)
             .alert(JoinCopy.failedTitle, isPresented: Binding(get: { if case .failed = center.phase { true } else { false } },
                                                               set: { if !$0 { center.dismissProblem() } })) {
                 Button("OK", role: .cancel) { center.dismissProblem() }

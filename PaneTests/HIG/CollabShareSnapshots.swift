@@ -63,7 +63,22 @@ import UIKit
         ("8-failed", owner(.edit), .failed, nil),
         ("9-member", member, .rest, nil),
         ("10-confirm-leave", member, .confirmLeave, nil),
+        ("11-key-changed", keyChanged, .rest, nil),
+        ("12-key-changed-verify", keyChanged, .rest, jonas),
+        ("13-verified", verified, .rest, nil),
     ]
+
+    static var keyChanged: ShareState {
+        var s = owner(.edit)
+        s.people[2].keyChanged = "Jonas\u{2019}s key changed. If they didn\u{2019}t start fresh, don\u{2019}t share with them until you\u{2019}ve checked the code."
+        return s
+    }
+
+    static var verified: ShareState {
+        var s = owner(.edit)
+        s.people[1].verified = true
+        return s
+    }
 
     #if os(macOS)
     @Test func macPopover() async throws {
@@ -122,7 +137,7 @@ import UIKit
                 if let id = verify, let p = state.people.first(where: { $0.id == id }) {
                     sheet = AnyView(NavigationStack { PersonDetail(person: p, remove: {}) })
                 } else {
-                    sheet = AnyView(NavigationStack { ShareForm(title: "Team offsite", share: share) })
+                    sheet = AnyView(NavigationStack { ShareForm(share: share) })
                 }
                 try await ImportGuideSnapshots.shoot(sheet.tint(Color(PColor.paneAccent)), to: dir.appending(path: "iphone-\(dark ? "dark" : "light")-\(name).png"),
                                                      dark: dark, scene: scene)
