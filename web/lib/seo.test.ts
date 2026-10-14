@@ -9,7 +9,7 @@ import { DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
 import { feedXml } from "./feed";
 import { llmsFullTxt, llmsTxt } from "./llms";
 import { REMOVED_POSTS } from "./removed-posts";
-import { PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
+import { FIRST_PAGE, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
 
 const INDEX_FOLDERS = ["page", "category", "feed.xml"];
 
@@ -177,8 +177,10 @@ describe("blog pages", () => {
 
   it("fills every page but the last, and never makes an empty one", () => {
     const n = pageCount(all);
-    expect(n).toBe(Math.ceil(all.length / PER_PAGE));
-    for (let i = 1; i < n; i++) expect(pageOf(all, i)).toHaveLength(PER_PAGE);
+    // Page 1 has one more: its newest post is a wide card above a full grid (FIRST_PAGE).
+    expect(n).toBe(1 + Math.ceil(Math.max(0, all.length - FIRST_PAGE) / PER_PAGE));
+    expect(pageOf(all, 1)).toHaveLength(Math.min(FIRST_PAGE, all.length));
+    for (let i = 2; i < n; i++) expect(pageOf(all, i)).toHaveLength(PER_PAGE);
     expect(pageOf(all, n).length).toBeGreaterThan(0);
     expect(pageOf(all, n + 1)).toHaveLength(0);
     expect(pageCount([])).toBe(1);

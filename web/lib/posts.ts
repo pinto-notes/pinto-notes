@@ -492,10 +492,15 @@ export function newestFirst(list: Post[] = published()): Post[] {
   return list.map((p, i) => [p, i] as const).sort((a, b) => b[0].date.localeCompare(a[0].date) || a[1] - b[1]).map(([p]) => p);
 }
 
-export const pageCount = (list: Post[]) => Math.max(1, Math.ceil(list.length / PER_PAGE));
+/// Page 1 leads with its newest post as one wide card, then a full grid: one more post than the
+/// other pages, so its grid of three across ends on a full row.
+export const FIRST_PAGE = PER_PAGE + 1;
+
+export const pageCount = (list: Post[]) => Math.max(1, 1 + Math.ceil(Math.max(0, list.length - FIRST_PAGE) / PER_PAGE));
 
 /// Page `n` (from 1) of a list.
-export const pageOf = (list: Post[], n: number) => list.slice((n - 1) * PER_PAGE, n * PER_PAGE);
+export const pageOf = (list: Post[], n: number) =>
+  n === 1 ? list.slice(0, FIRST_PAGE) : list.slice(FIRST_PAGE + (n - 2) * PER_PAGE, FIRST_PAGE + (n - 1) * PER_PAGE);
 
 /// Where page `n` of a list lives: the list's own address for page 1, then <base>/page/<n>.
 export const pagePath = (base: string, n: number) => (n === 1 ? base : `${base}/page/${n}`);
