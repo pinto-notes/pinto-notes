@@ -1,4 +1,6 @@
 import { Figure } from "@/lib/blog";
+import NoteWindow from "@/app/templates/NoteWindow";
+import JOURNAL from "@/content/templates/daily-journal.json";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -63,6 +65,8 @@ const FAQ = [
   ] },
 ];
 
+const JOURNAL_BEFORE = JOURNAL.example.replace(/### Friday 2 October\n(?:- .*\n)+/, "");
+
 export default function Page() {
   return (
     <PostPage
@@ -84,9 +88,13 @@ export default function Page() {
           </p>
         </Answer>
       }
-      // Nothing above the intro: there's no capture of a Daily journal note yet, and the tracker one
-      // belongs further down, in the Pinto Notes section, captioned as what it is.
-      hero={<></>}
+      // The Daily journal template drawn the way the template pages draw it (NoteWindow), with Friday's
+      // entry tinted as the app tints what an AI just added. Not a screenshot; captioned as the template.
+      hero={<figure className="post-figure" style={{ maxWidth: 640, margin: "0 auto" }}>
+        <NoteWindow markdown={JOURNAL.example} before={JOURNAL_BEFORE} folder="Journal" date="Friday 2 October 2026 at 21:40"
+          label="A Daily journal note in Pinto Notes. Under Entries, Friday's four lines (Today, Energy, Remember, Tomorrow) are tinted as just added by the AI, above Thursday's entry." />
+        <figcaption>The Daily journal template in Pinto Notes, just after ChatGPT added Friday&apos;s entry. Example data.</figcaption>
+      </figure>}
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
