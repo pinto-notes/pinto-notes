@@ -333,6 +333,8 @@ final class CollabSession {
         }
         guard !isClosed else { return }
         var changed = false
+        // One this device is already past is known from here on, so it isn't asked for again.
+        if let s = pull.snapshot, s.upto <= record.cursor { record.snapshotUpto = max(record.snapshotUpto, s.upto) }
         // A snapshot this device is already past (asked a little before its cursor) has nothing new.
         if let s = pull.snapshot, s.upto > record.cursor {
             if let k = keys[s.epoch], let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: k, note: noteID, extra: String(s.upto)) {

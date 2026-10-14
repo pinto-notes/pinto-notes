@@ -445,6 +445,17 @@ extension NetworkFaults {
         for _ in 0..<3 { await session.catchUp().value }
         #expect(server.snapshotsSent == sent)
         #expect(note.sharedDocument!.snapshotUpto == server.snapshots(of: note.id).map(\.upto).max())
+
+        // Someone else's device that's already past the snapshot when it learns of it.
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let theirs = try #require(sara.library.session(for: mine))
+        mine.sharedDocument!.snapshotUpto = 0
+        await theirs.catchUp().value
+        let before = server.snapshotsSent
+        for _ in 0..<3 { await theirs.catchUp().value }
+        #expect(server.snapshotsSent == before)
     }
 
     /// On the device: changes pile up in the stored tail, and once there are many the document is
