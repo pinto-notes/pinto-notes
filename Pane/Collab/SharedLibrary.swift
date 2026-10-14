@@ -433,6 +433,13 @@ final class SharedLibrary {
         onClose?(note.id)
     }
 
+    /// Start fresh: the server deleted the account's shared notes and memberships with its keys.
+    /// Every shared note goes from this device now, not on the next look at memberships.
+    func startedFresh() {
+        let shared = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID != nil && $0.deletedAt == nil }))) ?? []
+        for note in shared { removeLocally(note) }
+    }
+
     /// The note's document and session go from this device; the note itself is left as it is
     /// (sync already deleted it, or made it an ordinary note again).
     func forget(_ note: Note) {

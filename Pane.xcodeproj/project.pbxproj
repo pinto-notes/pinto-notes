@@ -11,6 +11,7 @@
 		0035E9C0C51B49FAF2F34D95 /* CodexConnectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EC731CAF256A4640C5F718E /* CodexConnectTests.swift */; };
 		005CA83D3102FABCDD0EA094 /* MacImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBAD3D7E5ED5CA9C34129EE /* MacImportTests.swift */; };
 		006F71C4EE202E9444573F3C /* preact-jsx-runtime.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 977A543BBB6A9AE0D3019BBE /* preact-jsx-runtime.module.js */; };
+		010CCD929EF0815F619AC5F7 /* ShareTruthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53107B88B5ADEA8C20B7E671 /* ShareTruthTests.swift */; };
 		012ED6D0B71B789A7B996EB9 /* guide-bear-export.png in Resources */ = {isa = PBXBuildFile; fileRef = 79BB6E16D644B368ADE2FE15 /* guide-bear-export.png */; };
 		01F8A032F59404B7F22B1A3F /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43C8835EE05529FC6C66B17 /* LegalLinks.swift */; };
 		026084E1D300F5B1897A4489 /* AddDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB90883FB5418E63A15FD23 /* AddDevice.swift */; };
@@ -963,6 +964,7 @@
 		52C244999D8DFA81130C0CCD /* KeyFault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyFault.swift; sourceTree = "<group>"; };
 		52D415B84CA735B3B8845F5E /* preact-hooks.module.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "preact-hooks.module.js"; sourceTree = "<group>"; };
 		52D997E7DDEDD95A01EC24BA /* Backend.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Backend.xcconfig; sourceTree = "<group>"; };
+		53107B88B5ADEA8C20B7E671 /* ShareTruthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTruthTests.swift; sourceTree = "<group>"; };
 		5332127DF1E521C349721FC0 /* HTMLPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLPreviewTests.swift; sourceTree = "<group>"; };
 		533FEF595166704617E0EA6B /* preact.module.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = preact.module.js; sourceTree = "<group>"; };
 		54785B843656F68AE620E39F /* TestDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDefaults.swift; sourceTree = "<group>"; };
@@ -1924,6 +1926,7 @@
 				2EFA5CCD5CFCA8C224C2A102 /* SharedLibraryTests.swift */,
 				3A89888BA134B0D17719F024 /* SharedNoteEditorTests.swift */,
 				D153F3DF953FD381EF5E60EE /* SharedReadOnlyTests.swift */,
+				53107B88B5ADEA8C20B7E671 /* ShareTruthTests.swift */,
 			);
 			path = Collab;
 			sourceTree = "<group>";
@@ -2637,6 +2640,7 @@
 				F9055A0B96CF713A8EAA5481 /* ShareControllerTests.swift in Sources */,
 				7DF4FFFA243AA929AED30850 /* ShareLinkTests.swift in Sources */,
 				B237718862CAC6006FF8A62D /* ShareNotePopoverTests.swift in Sources */,
+				010CCD929EF0815F619AC5F7 /* ShareTruthTests.swift in Sources */,
 				ED9FFFE44B9CA18CE34D9BDA /* SharedDeleteTests.swift in Sources */,
 				96B237B90524B4A6B154FB93 /* SharedItemTests.swift in Sources */,
 				06BA806E2F4127776ACE7AD1 /* SharedLibraryTests.swift in Sources */,
