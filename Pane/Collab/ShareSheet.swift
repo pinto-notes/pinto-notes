@@ -94,10 +94,8 @@ struct ShareForm: View {
                     Button(role: .destructive) { share.askLeave() } label: {
                         Text("Leave Note").foregroundStyle(.red)
                     }
-                    .buttonStyle(.quiet)
                     .amberBusy(share.working == .leave)
                     .disabled(share.working != nil)
-                    .listRowBackground(Color.clear)
                     .accessibilityIdentifier("share.leave")
                 } footer: {
                     footer(nil, done: false)
@@ -274,11 +272,10 @@ struct PersonDetail: View {
             }
             if canRemove {
                 Section {
+                    // Its own inset row, as Leave Note is.
                     Button(role: .destructive) { dismiss(); remove() } label: { Text("Remove from Note").foregroundStyle(.red) }
-                        .buttonStyle(.quiet)
                         .accessibilityIdentifier("share.person.remove")
                 }
-                .listRowBackground(Color.clear)
             }
         }
         .formStyle(.grouped)

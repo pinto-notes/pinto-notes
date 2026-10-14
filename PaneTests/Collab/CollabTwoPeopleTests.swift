@@ -179,8 +179,8 @@ import Testing
         let mine = try #require(emil.store.session(for: note.id))
         let url = try #require(emil.store.linkURL(note))
         let oldKey = try #require(emil.store.keys[note.id]?.nk)
-        // Sara leaves her note (her own id for it).
-        try await sara.store.leave(try #require(sara.context.note(SharedNotes.noteID(for: note.id, user: ids.1))))
+        let hers = try #require(sara.context.note(SharedNotes.noteID(for: note.id, user: ids.1)))
+        try await sara.store.leave(hers)
         // Emil's device sees it with his memberships and renews the key, without anyone removed.
         await emil.store.checkInvites()
         await server.eventually { mine.epoch == 2 }
@@ -192,9 +192,10 @@ import Testing
         let sealed = try #require((server.updates[note.id] ?? []).last { $0.epoch == 2 })
         #expect(throws: (any Error).self) { try CollabCrypto.open(.update, sealed.ct, nk: oldKey, note: note.id, extra: ids.0.uuidString) }
         // The same link still lets someone join, under the new key.
-        let jonas = try device(server.account("Jonas"), name: "Jonas")
+        let jonasID = server.account("Jonas")
+        let jonas = try device(jonasID, name: "Jonas")
         #expect(await jonas.store.join(url))
-        let his = SharedNotes.noteID(for: note.id, user: jonas.id)
+        let his = SharedNotes.noteID(for: note.id, user: jonasID)
         await server.eventually { jonas.store.session(for: his)?.text == mine.text }
         #expect(jonas.store.session(for: his)?.text == "Trip\n- after Sara left\n")
     }

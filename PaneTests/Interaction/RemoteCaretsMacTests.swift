@@ -59,5 +59,23 @@ import Testing
         let v = try #require(h.view.caretViews[Self.sara])
         #expect(v.flag.alphaValue < 0.05 && v.bar.superview != nil)
     }
+
+    /// The flag is small (16 pt, 11 pt type, 4 pt corners), gone once they've been still a moment,
+    /// and back while the pointer is over their caret.
+    @Test func theFlagIsSmallAndShowsOnHover() async throws {
+        let h = await EditorHarness("Team offsite\nAgenda\nBring snacks\n")
+        let caret = RemoteCaret(id: Self.sara, name: "Sara", color: CollabSession.color(for: Self.sara), range: NSRange(location: 16, length: 0), showsName: false)
+        h.view.showRemoteCarets([caret])
+        try? await Task.sleep(for: .seconds(0.4))
+        let v = try #require(h.view.caretViews[Self.sara])
+        #expect(v.flag.frame.height == 16 && v.flag.font?.pointSize == 11 && v.flag.layer?.cornerRadius == 4)
+        #expect(v.flag.alphaValue < 0.05)
+        h.view.hoverCaret(at: CGPoint(x: v.bar.frame.midX + 2, y: v.bar.frame.midY))
+        try? await Task.sleep(for: .seconds(0.4))
+        #expect(h.view.hoveredCaret == Self.sara && v.flag.alphaValue > 0.95)
+        h.view.hoverCaret(at: nil)
+        try? await Task.sleep(for: .seconds(0.4))
+        #expect(v.flag.alphaValue < 0.05)
+    }
 }
 #endif

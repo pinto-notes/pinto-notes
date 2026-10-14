@@ -238,16 +238,11 @@ extension CollabStore: ShareBackend {
     /// again under the new key. Another of your devices getting there first is fine: the server
     /// refuses the second new key as stale, and this device then takes the first.
     func renewKeyAfterLeave(_ row: Collab.Membership) async {
+        // Your own note's id is the shared note's.
         let id = row.note_id
+        guard let context, let note = context.note(id), let session = await library?.ensureDocument(note) else { return }
+        keys[id] = (session.noteKey, session.epoch)
         do {
-            var session = sessions[id]
-            if session == nil || keys[id] == nil {
-                // The note isn't open here: open it just for this (your note's id is the shared note's).
-                let opened = try await openKey(row)
-                keys[id] = (opened.nk, row.epoch)
-                if session == nil, let note = context?.note(id) { session = await library?.ensureDocument(note) }
-            }
-            guard let session else { return }
             try await rotate(id, removing: nil, session: session)
             restoreLink(id)
             if let link = links[id], let access = linkAccess[id], access != .off {

@@ -704,7 +704,7 @@ final class CollabSession {
         peers.values.compactMap { p in
             guard let s = p.selection else { return nil }
             return RemoteCaret(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: Self.color(for: p.id), range: s,
-                               showsName: Date.now.timeIntervalSince(p.movedAt) < 2.5)
+                               showsName: Date.now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
         }.sorted { $0.id.uuidString < $1.id.uuidString }
     }
 }
@@ -715,6 +715,15 @@ struct RemoteCaret: Equatable, Identifiable {
     let name: String
     let color: Color
     let range: NSRange
-    /// The name flag shows while they type or just after their caret moves, then fades.
+    /// The name flag shows while they type or just after their caret moves, then fades, so it
+    /// doesn't sit over the line above for long.
     var showsName = true
+    /// How long a flag stays after they last typed or moved.
+    static let flagFor: TimeInterval = 3
+    /// The flag: 16 pt tall, 11 pt semibold, corners of 4 pt; in 150 ms, out 200 ms, never sliding.
+    static let flagHeight: CGFloat = 16
+    static let flagFontSize: CGFloat = 11
+    static let flagRadius: CGFloat = 4
+    static let flagIn: TimeInterval = 0.15
+    static let flagOut: TimeInterval = 0.2
 }
