@@ -78,8 +78,12 @@
 @keyframes madeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .madeBody { animation: none; } }
 .madeLine { margin: 0 auto; max-width: 40em; text-align: center; font-size: 19px; line-height: 1.45; color: var(--ink); text-wrap: balance; }
-.madePics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: center; max-width: 900px; margin: 0 auto; width: 100%; }
-@media (max-width: 760px) { .madePics { grid-template-columns: minmax(0, 1fr); } }
+.madePics { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); align-items: start; max-width: 980px; margin: 0 auto; width: 100%; box-sizing: border-box;
+  padding: 44px 48px 56px; border-radius: 28px; background: #fbeedd; box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.1); }
+/* The note and the ask overlap, like two windows on one desk: the ask sits over the note's corner. */
+.madePics > :first-child { transform: rotate(-0.8deg); }
+.madePics > :last-child { position: relative; z-index: 1; margin: 112px 0 0 -22px; transform: rotate(0.9deg); }
+@media (max-width: 760px) { .madePics { grid-template-columns: minmax(0, 1fr); padding: 22px 16px 26px; gap: 0; } .madePics > :last-child { margin: -6px 0 0 14px; } }
 .term { margin: 0; border-radius: 14px; overflow: hidden; background: #1d1b19; color: #f3eee8; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px; line-height: 1.5;
   box-shadow: 0 30px 60px -28px rgba(30, 15, 5, 0.6); padding-bottom: 16px; }
 .termBar { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; background: #2a2724; color: #9b9086; font-size: 12px; }
