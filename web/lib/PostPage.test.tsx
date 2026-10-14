@@ -41,7 +41,7 @@ describe("a blog post", () => {
 
   it("keeps the intro and the short answer together, before the rest of the text, so they stay on the first screen", () => {
     const top = d.querySelector("[data-short], article > div:nth-of-type(2)");
-    expect(top?.textContent).toContain("ChatGPT can't edit Apple Notes");
+    expect(top?.textContent).toContain("It depends on where your notes live");
     const css = readFileSync(join(process.cwd(), "lib/post.module.css"), "utf8");
     // Wide screens: the cover beside the title block. Phones: the cover after the short answer.
     expect(css).toMatch(/\.col > \.coverRow \{ grid-column: 2; grid-row: 1;/);
