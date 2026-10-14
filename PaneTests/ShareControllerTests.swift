@@ -152,7 +152,7 @@ import Testing
     @Test func theCopyIsPlainAndTrue() {
         let privacy = ShareCopy.privacy.lowercased()
         #expect(privacy.contains("only people in this note can read it"))
-        #expect(privacy.contains("ai") && privacy.contains("for that request"))
+        #expect(privacy.contains("their ai reads it only when they ask"))
         for line in [ShareCopy.privacy, ShareCopy.leaveMessage] + ShareState.Access.allCases.map(ShareCopy.link) {
             let l = line.lowercased()
             // Nothing the key copy could make untrue, and no hype.

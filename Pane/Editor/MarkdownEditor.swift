@@ -626,11 +626,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             let loc = min(c.range.location, length), end = min(NSMaxRange(c.range), length)
             guard let pos = position(from: beginningOfDocument, offset: loc) else { continue }
             let rect = caretRect(for: pos)
-            let line = ns.lineRange(for: NSRange(location: loc, length: 0))
-            let roomAbove = line.location == 0
-                || ns.substring(with: ns.lineRange(for: NSRange(location: line.location - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             let size = v.flag.intrinsicContentSize
-            let flagY = roomAbove ? rect.minY - size.height - 1 : rect.maxY + 1
+            // Above the caret, its bottom-left corner on the caret's top, as Notes and Figma do: it
+            // labels the line the caret is on.
+            let flagY = max(rect.minY - size.height, 0)
             // The caret and its flag jump to where the character is, in the same pass as the text
             // change: a caret is tied to a character, so it never glides.
             UIView.performWithoutAnimation {
@@ -1702,9 +1701,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     /// As on iPhone: a bar in the person's colour where their caret is, exactly the line's height,
-    /// and a solid tint behind what they've selected. Their first name sits on a small flag above
-    /// the line when the line above is empty (or there is none), below it otherwise, so it hides no
-    /// text it can avoid; it shows while they type or just after their caret moves, then fades.
+    /// and a solid tint behind what they've selected. Their first name sits on a small flag just
+    /// above the caret; it shows while they type or just after their caret moves, then fades.
     /// Clicks go through them to the text.
     func layoutRemoteCarets() {
         let live = Set(remoteCarets.map(\.id))
@@ -1740,16 +1738,15 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             v.flag.stringValue = c.name
             let loc = min(c.range.location, ns.length)
             guard let rect = remoteCaretRect(at: loc) else { continue }
-            let line = ns.lineRange(for: NSRange(location: loc, length: 0))
-            let roomAbove = line.location == 0
-                || ns.substring(with: ns.lineRange(for: NSRange(location: line.location - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             let size = NSSize(width: v.flag.intrinsicContentSize.width + 8, height: 14)
             // The caret jumps with its character, in the same pass as the text: it never glides.
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0
                 ctx.allowsImplicitAnimation = false
                 v.bar.frame = CGRect(x: rect.minX - 1, y: rect.minY, width: 2, height: rect.height)
-                v.flag.frame = CGRect(x: min(rect.minX - 1, bounds.width - size.width - 4), y: roomAbove ? rect.minY - size.height - 1 : rect.maxY + 1,
+                // Above the caret, its bottom-left corner on the caret's top, as Notes and Figma do: it
+                // labels the line the caret is on.
+                v.flag.frame = CGRect(x: min(rect.minX - 1, bounds.width - size.width - 4), y: max(rect.minY - size.height, 0),
                                       width: size.width, height: size.height)
             }
             // Only the flag fades, a moment after they stop.

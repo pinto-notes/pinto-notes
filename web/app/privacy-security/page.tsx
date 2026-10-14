@@ -95,6 +95,7 @@ export default function PrivacySecurity() {
             <li>Every change an AI makes keeps the previous version, so you can see what changed and restore it.</li>
             <li>Disconnect any AI app in <strong>Settings → Connect an AI</strong>. It loses access at once.</li>
             <li>What an AI app reads becomes part of your conversation with it, and the company behind it handles that under its own privacy policy.</li>
+            <li>In a note shared with other people, each of them can connect their own AI. When one of them asks their AI about the note, our server reads the shared note for that request, as it does for your own notes, and keeps nothing of it.</li>
           </ul>
 
           <SectionHeading id="limits">Limits</SectionHeading>
