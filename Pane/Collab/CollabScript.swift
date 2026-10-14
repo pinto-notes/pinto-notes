@@ -263,6 +263,8 @@ enum CollabScript {
             out["title"] = current.title
             out["text"] = editorText() ?? current.body
             out["sharedNoteID"] = current.sharedNoteID?.uuidString ?? NSNull()
+            out["editable"] = editor()?.isEditable ?? NSNull()
+            out["documentOpen"] = CollabStore.shared?.session(for: current.id) != nil
             out["deleted"] = current.deletedAt != nil
             out["inRecentlyDeleted"] = current.trashedAt != nil && current.deletedAt == nil
             if let store = CollabStore.shared {
