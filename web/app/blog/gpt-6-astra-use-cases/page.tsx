@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -210,9 +209,6 @@ export default function Page() {
         My rule is the one OpenAI suggests: one app and one clear outcome per task, and a sentence that says where to stop.
       </p>
 
-      <PostCta slug="gpt-6-astra-use-cases" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Notes that ChatGPT, Claude and Codex can read and edit directly, with every change tinted and Undo one click away.</p>
-      </PostCta>
     </PostPage>
   );
 }

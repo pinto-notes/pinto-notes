@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -183,9 +182,6 @@ export default function Page() {
         the rest of this year&apos;s update.
       </p>
 
-      <PostCta slug="siri-ai-apple-notes" position="how-amber-helps" title="Notes ChatGPT and Claude can edit">
-        <p>Pinto Notes works like Apple Notes, imports your notes on the Mac, and lets the AIs you approve search and edit them.</p>
-      </PostCta>
     </PostPage>
   );
 }

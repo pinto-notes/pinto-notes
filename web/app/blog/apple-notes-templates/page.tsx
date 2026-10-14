@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, Steps } from "@/lib/PostParts";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
@@ -95,9 +94,6 @@ export default function Page() {
         Apple Notes isn&apos;t changed.
       </p>
       <Figure shot={SHOTS.lisbon} caption="A trip note in Pinto Notes on a Mac: a plan checklist, places to see, a linked booking and a table of where to eat." />
-      <PostCta slug="apple-notes-templates" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Free templates that ChatGPT and Claude fill in for you, with every change marked and undoable.</p>
-      </PostCta>
     </PostPage>
   );
 }

@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -191,9 +190,6 @@ export default function Page() {
         <a href="/templates/daily-journal">Daily journal template</a> adds the journal note to Pinto Notes in one click, and the{" "}
         <a href="/templates/mood-energy-log">Mood and energy log</a> is the table.
       </p>
-      <PostCta slug="journal-with-chatgpt-or-claude" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>One note for every day&apos;s entry, written down by your AI and read back by you.</p>
-      </PostCta>
     </PostPage>
   );
 }

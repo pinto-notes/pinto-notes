@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, Keep, Steps } from "@/lib/PostParts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
@@ -119,9 +118,6 @@ export default function Page() {
         your own words. <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> is one import on your Mac, and{" "}
         <a href="/for/claude">Pinto Notes for Claude</a> shows what to ask once it&apos;s connected.
       </p>
-      <PostCta slug="claude-memory-vs-notes" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Notes Claude can read and add to when you allow it, with every change marked and undoable.</p>
-      </PostCta>
     </PostPage>
   );
 }

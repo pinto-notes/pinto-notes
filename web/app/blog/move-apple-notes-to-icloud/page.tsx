@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Checklist, Paths, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -193,9 +192,6 @@ export default function Page() {
         It won&apos;t tidy up Apple Notes for you, and it has no Windows, Android or web version. <a
         href="/blog/move-from-apple-notes">Moving from Apple Notes</a> takes one import on your Mac and leaves Apple Notes as it was.
       </p>
-      <PostCta slug="move-apple-notes-to-icloud" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>One sign-in, and every note is on every device you use.</p>
-      </PostCta>
     </PostPage>
   );
 }

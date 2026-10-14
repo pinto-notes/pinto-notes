@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Paths, Steps } from "@/lib/PostParts";
+import { Answer, Paths, PostFigure, Steps } from "@/lib/PostParts";
 import { SyncChooser } from "@/lib/SyncChooser";
 
 export const dynamic = "force-static";
@@ -59,9 +58,12 @@ export default function Page() {
       <SyncChooser />
 
       <h2 id="where-notes-live">Which notes sync, and where to</h2>
+      <PostFigure src="/blog/macos27/notes27-sidebar-on-my-mac-only" width={1336} height={720} maxWidth={600}
+        alt="The Apple Notes sidebar on macOS 27 with only an On My Mac section: All on My Mac, Notes, a folder and Recently Deleted. No iCloud section."
+        caption="If your notes sit under On My Mac (or On My iPhone on a phone), they never leave that device. This is the first thing to look for." />
       <p>
         Notes groups folders by account, and the heading a note sits under decides where it goes. In Notes on a Mac, Default account
-        under Notes, Settings is where new notes land (the picture above). On iPhone it&apos;s Default Account in Settings, Apps,
+        under Notes, Settings is where new notes land (Notes, Settings). On iPhone it&apos;s Default Account in Settings, Apps,
         Notes. Set it to iCloud, or the next note Siri makes may end up in the wrong place again.
       </p>
       <div className="tableWrap">
@@ -80,6 +82,9 @@ export default function Page() {
       </div>
 
       <h2 id="checks">The checks, in order</h2>
+      <PostFigure src="/blog/macos27/notes27-turn-on-icloud-prompt" width={1336} height={1080} maxWidth={560}
+        alt="Apple Notes on macOS 27 without iCloud: Turn On iCloud. To access your notes from all your devices, turn on iCloud for Notes. System Settings and Cancel."
+        caption="What Notes shows on a Mac where iCloud is off for Notes. There's no sync status anywhere else in macOS 27 Notes; I looked." />
       <Steps>
         <li id="icloud-on">
           <strong>Notes is turned on for iCloud, on both devices</strong>
@@ -158,9 +163,6 @@ export default function Page() {
         It won&apos;t fix Apple Notes for you, and it has no Windows, Android or web version. <a href="/blog/move-from-apple-notes">Moving
         from Apple Notes</a> takes one import on your Mac and leaves Apple Notes as it was.
       </p>
-      <PostCta slug="apple-notes-not-syncing" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>You can see when your notes last synced, and press Sync Now when you want to be sure.</p>
-      </PostCta>
     </PostPage>
   );
 }

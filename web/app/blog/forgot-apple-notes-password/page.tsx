@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, FigurePair, Steps } from "@/lib/PostParts";
 import { ResetChooser } from "@/lib/ResetChooser";
@@ -187,9 +186,6 @@ export default function Page() {
         use your other notes once you approve them; <a href="/blog/encrypted-notes-app-for-ai">how that works</a> has the details.
       </p>
       <Figure shot={SHOTS.notesPassword} caption="Setting a notes password in Pinto Notes on a Mac. Like Apple's, it can't be recovered if you forget it." />
-      <PostCta slug="forgot-apple-notes-password" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Locked notes for what&apos;s private, end-to-end encryption for everything else, and notes ChatGPT and Claude can use when you allow it.</p>
-      </PostCta>
     </PostPage>
   );
 }

@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 
@@ -195,9 +194,6 @@ export default function Page() {
         data only once you&apos;ve seen a few weeks of its work.
       </p>
 
-      <PostCta slug="what-are-chatgpt-dots" position="how-amber-helps" title="Keep the plan where you can read it">
-        <p>Pinto Notes is a notes app for iPhone and Mac that ChatGPT and Claude can edit, with every change kept.</p>
-      </PostCta>
     </PostPage>
   );
 }

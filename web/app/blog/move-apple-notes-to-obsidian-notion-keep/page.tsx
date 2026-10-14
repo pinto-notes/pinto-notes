@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, Checklist, Paths, Steps } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -214,9 +213,6 @@ export default function Page() {
           : <>The iPhone app is coming soon to the App Store. </>}
         <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> walks through the import.
       </p>
-      <PostCta slug="move-apple-notes-to-obsidian-notion-keep" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Every Apple Notes folder in one import, and notes ChatGPT and Claude can work with.</p>
-      </PostCta>
     </PostPage>
   );
 }

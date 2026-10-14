@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -177,9 +176,6 @@ export default function Page() {
         your notes. I&apos;d put &ldquo;in my notes&rdquo; in the request until you know how it behaves.
       </p>
 
-      <PostCta slug="connect-notes-to-grok" position="how-amber-helps" title="Notes every AI you use can work in">
-        <p>Pinto Notes is a notes app for iPhone and Mac with a hosted MCP server, and every change an AI makes is kept.</p>
-      </PostCta>
     </PostPage>
   );
 }

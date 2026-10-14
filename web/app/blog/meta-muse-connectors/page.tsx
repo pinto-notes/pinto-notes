@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -189,9 +188,6 @@ export default function Page() {
         money or place trades aren&apos;t currently accepted.
       </p>
 
-      <PostCta slug="meta-muse-connectors" position="how-amber-helps" title="Keep the plan in a note your AIs share">
-        <p>Pinto Notes is a notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can edit, with every change kept.</p>
-      </PostCta>
     </PostPage>
   );
 }

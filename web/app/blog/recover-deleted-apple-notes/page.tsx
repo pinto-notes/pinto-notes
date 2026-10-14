@@ -1,5 +1,4 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, Steps } from "@/lib/PostParts";
 import { RecoverChooser } from "@/lib/RecoverChooser";
@@ -148,9 +147,6 @@ export default function Page() {
         Notes; <a href="/blog/move-from-apple-notes">moving from Apple Notes</a> is one import on your Mac, and Apple Notes stays as it is.
       </p>
       <Figure shot={SHOTS.history} caption="Version history in Pinto Notes on a Mac: each earlier version, who made it, and Restore This Version." />
-      <PostCta slug="recover-deleted-apple-notes" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Recently Deleted for 30 days, earlier versions of every note, and notes ChatGPT and Claude can use when you allow it.</p>
-      </PostCta>
     </PostPage>
   );
 }
