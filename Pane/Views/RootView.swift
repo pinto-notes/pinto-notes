@@ -37,6 +37,7 @@ struct RootView: View {
     #endif
     /// The import sheet showing (Evernote, Markdown…).
     @State private var importing: ImportKind?
+    @State private var pendingSharedDelete: [Note]?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
     @State private var importFiles: [URL] = []
     @AppStorage("lastScope") private var lastScopeData: Data = Data()
@@ -84,6 +85,7 @@ struct RootView: View {
             }
             // Collaboration (prototype): an invitation to someone else's note.
             .modifier(CollabInviteAlert())
+            .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
                 Button("OK") {}
@@ -308,6 +310,12 @@ struct RootView: View {
     /// Edit › Delete: every selected note goes to Recently Deleted (or, there, is deleted for good).
     private func deleteSelected() {
         let notes = selection.compactMap { context.note($0) }
+        // A shared note asks first: people lose it, or it leaves your notes.
+        if SharedDelete.ask(notes) != nil { pendingSharedDelete = notes; return }
+        removeNow(notes)
+    }
+
+    private func removeNow(_ notes: [Note]) {
         withAnimation(.snappy(duration: 0.25)) {
             context.remove(notes)
             selection = []
