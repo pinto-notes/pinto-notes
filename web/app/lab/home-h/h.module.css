@@ -27,13 +27,10 @@
   .receipt > span { height: 34px; font-size: 13px; padding: 0 12px; }
 }
 
-/* ── 2, 4, 5: words and real captures side by side; the captures lead on phones ── */
+/* ── 2: words and a real capture side by side; the capture leads on phones ── */
 .split { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; align-items: center; }
-.split[data-flip] { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); }
-.split[data-flip] > .text { order: 2; }
 @media (max-width: 960px) {
-  .split, .split[data-flip] { grid-template-columns: 1fr; gap: 32px; }
-  .split[data-flip] > .text { order: 0; }
+  .split { grid-template-columns: 1fr; gap: 32px; }
 }
 .text { display: grid; gap: 16px; justify-items: start; }
 
@@ -62,13 +59,6 @@
 .divider img { height: 100%; width: auto; max-width: none; flex: none; display: block;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
 @media (max-width: 700px) { .divider { margin-bottom: -80px; } }
-
-/* ── 4. Two real apps on iPhone screens, side by side, the second a step lower ── */
-.phones { display: grid; grid-template-columns: repeat(2, minmax(0, 300px)); gap: 28px; justify-content: center; align-items: start; }
-.screen { display: block; width: 100%; height: auto; aspect-ratio: 780 / 1300; object-fit: cover; object-position: top; border-radius: 34px;
-  box-shadow: 0 0 0 8px #1b1b1d, 0 0 0 9px #3a3a3c, 0 34px 70px -24px rgba(40, 15, 0, 0.5); }
-.screen + .screen { margin-top: 56px; }
-@media (max-width: 600px) { .phones { gap: 18px; } .screen { border-radius: 22px; box-shadow: 0 0 0 5px #1b1b1d, 0 0 0 6px #3a3a3c, 0 24px 50px -20px rgba(40, 15, 0, 0.5); } .screen + .screen { margin-top: 32px; } }
 
 /* ── 5 on the soft tint: the words, then the iPhone and the finished import, side by side at one height ── */
 .feelBand.feelBand { padding-top: 88px; padding-bottom: 96px; }

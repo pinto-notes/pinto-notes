@@ -30,7 +30,7 @@ describe("home study H, the real app", () => {
 
   it("is built around real captures that exist, each described", () => {
     const shots = [...html.matchAll(/<img [^>]*src="(\/home-h\/[^"]+)"[^>]*>/g)];
-    expect(shots.length).toBeGreaterThanOrEqual(6);
+    expect(shots.length).toBeGreaterThanOrEqual(5);
     for (const [tag, src] of shots) {
       expect(existsSync(pub(src)), src).toBe(true);
       if (!src.includes("divider")) expect(tag, src).toMatch(/alt="[^"]{12,}"/);
@@ -49,6 +49,13 @@ describe("home study H, the real app", () => {
     expect(feel).toEqual(["/home-h/iphone-notes.webp", "/home-h/import-done.webp"]);
     expect(html).not.toContain("/home-h/import.webp");
     expect(section("feel")).toContain("iPhone app coming soon");
+  });
+
+  it("brings back G's fanned template cards for 'Wait, it can do that?', with See all templates", () => {
+    const wait = section("wait");
+    for (const slug of ["habit-tracker", "trip-plan", "budget-log"]) expect(wait, slug).toContain(`/templates/${slug}`);
+    expect(wait).toContain('href="/templates"');
+    expect(wait).not.toContain("/home-h/");
   });
 
   it("never crops the divider's table: the picture is as tall as the strip, not cover-fitted", () => {

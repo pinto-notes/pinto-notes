@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Card from "../../templates/Card";
+import { templates } from "@/lib/templates";
 import { G, H } from "../copy";
 import { Download, Receipt } from "../kit";
 import l from "../lab.module.css";
@@ -17,7 +19,12 @@ const Approve = () => <svg width="40" height="40" viewBox="0 0 40 40" aria-hidde
 // Study H, the bolder rethink: the real app, big, on the paper desk; then four sections, each built
 // around a real capture (no HTML replicas), the paper-craft art returning once mid-page, and G's ending.
 // Every frame is finished: nothing on this page enters from nothing.
+/** G's three template cards, in G's order. */
+const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
+
 export default function HomeH() {
+  const all = templates();
+  const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${s.main}`} data-quiet-nav="">
       {/* 1. What it is, and the real app. */}
@@ -66,18 +73,13 @@ export default function HomeH() {
         </div>
       </section>
 
-      {/* 4. A note can be an app: the real habit tracker and budget on iPhone. */}
-      <section className={s.split} aria-labelledby="wait" data-flip="">
-        <div className={s.text}>
+      {/* 4. A note can be an app: G's fanned template cards, each resting on its app. */}
+      <section className={d.wait} aria-labelledby="wait">
+        <div className={d.centerHead}>
           <h2 id="wait" className={d.title}>{H.apps.title}</h2>
           <p className={d.lede}>{H.apps.lede} <a className={d.inline} href="/templates">{H.apps.all}</a></p>
         </div>
-        <div className={s.phones}>
-          <img className={s.screen} src="/home-h/habit-tracker-main-phone-light.webp" width={780} height={1688} loading="eager"
-            alt="The habit tracker app on iPhone: 62% this week, 2 of 6 done today, Walk and Read ticked with their streaks." />
-          <img className={s.screen} src="/home-h/budget-log-main-phone-light.webp" width={780} height={1688} loading="eager"
-            alt="The budget app on iPhone: 8,205 kr left this month, Add expense, and each category's spending against its budget." />
-        </div>
+        <ul className={`${d.fan} ${g.fanWrap}`}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} eager /></li>)}</ul>
       </section>
 
       {/* 5. It feels like Apple Notes, and yours come along: the real iPhone and the finished import. */}
