@@ -285,7 +285,7 @@ It deletes the template at once (the page and its Use template link say it isn't
 - `identity_keys`: public key, sealed private key.
 - `shared_notes`: owner, epoch, sealed head and page.
 - `note_members`: role, epoch, `key_wrap`, `wrapped_by`, `self_wrap`, invited by, accepted.
-- `note_updates`, `note_snapshots`: sealed changes and snapshots, refused for stale epochs and for viewers; a snapshot drops the changes it covers.
+- `note_updates`, `note_snapshots`: sealed changes and snapshots, refused for stale epochs and for viewers; a snapshot drops the changes it covers. A change takes its id only once it holds the note's row (`20261015020000_collab_ordered_changes.sql`), so ids on a note follow commit order: a pull's newest id covers everything before it, and nothing commits behind a cursor or under a snapshot.
 - `note_invite_links`: the Edit side of a note's link (the same id as its sealed link), with the hashed answer and NK sealed under the link's key.
 - Functions: `collab_publish_identity`, `collab_find_person`, `collab_members`, `collab_share`, `collab_invite` (kept for a later email invite), `collab_accept`, `collab_remove` (with no one removed it only renews the key), `collab_create_link`, `collab_stop_link`, `collab_open_link`, `collab_join_link`, `collab_role`.
 - Realtime: `note_updates` and `note_members` published; RLS policies for the private `note:<id>` channels.
