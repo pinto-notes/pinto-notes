@@ -172,3 +172,26 @@ export const G = {
     fine: "Requires macOS 26. iPhone app coming soon.",
   },
 };
+
+/** H: the bolder rethink. The real app, big; four sections, each around a real capture. */
+export const H = {
+  notebook: {
+    title: "Every AI you use, one notebook.",
+    lede: "ChatGPT on your phone, Claude at your desk, Claude Code in your terminal. Every change says who made it, and every version is kept.",
+  },
+  trust: [
+    { key: "approve", line: "You approve each AI." },
+    { key: "undo", line: "Undo any change." },
+    { key: "lock", line: "Encrypted before it syncs." },
+  ],
+  apps: {
+    title: "Wait, it can do that?",
+    lede: "A note can be an app: a habit tracker, a budget, a trip plan. Change it yourself, or ask your AI.",
+    all: "See all templates",
+  },
+  feel: {
+    title: "Feels like Apple Notes. Brings yours over.",
+    lede: "Import Apple Notes in one go. Folders, checklists and tables come along, and Apple Notes stays as it is.",
+    soon: "iPhone app coming soon",
+  },
+};

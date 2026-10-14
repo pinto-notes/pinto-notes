@@ -1,0 +1,66 @@
+/* Study H: the real app, big. Captures are pictures of the shipped app, framed as the system frames
+   them (a window's corner and shadow, a phone screen's corner), never redrawn in HTML. */
+
+.main { gap: 128px; }
+@media (max-width: 700px) { .main { gap: 80px; } }
+
+/* ── 1. The words centred, then the real window on the paper desk, nearly the page's width ── */
+.hero { display: grid; gap: 40px; padding-top: 40px; }
+.heroText { display: grid; gap: 18px; justify-items: center; text-align: center; }
+.h1 { max-width: 16ch; }
+.lede { text-wrap: balance; max-width: 30em; }
+.heroCta.heroCta { justify-items: center; }
+.heroCta p { text-align: center; }
+.stage { position: relative; width: min(1240px, calc(100vw - 2 * var(--gutter))); justify-self: center; padding: clamp(28px, 5vw, 64px) clamp(16px, 5vw, 70px) 0; box-sizing: border-box;
+  border-radius: 32px 32px 0 0; overflow: hidden; isolation: isolate; background: #f7e2c7; }
+.stageArt { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.window { position: relative; margin: 0; border-radius: 14px 14px 0 0; overflow: hidden; background: #fbf7f2;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.25), 0 30px 70px -20px rgba(60, 30, 5, 0.45); }
+.window > img:first-child { display: block; width: 100%; height: auto; aspect-ratio: 2560 / 1280; object-fit: cover; object-position: top; }
+/* The app's own receipt, as captured, where the app puts it: centred under the open note. */
+.receipt { position: absolute; left: 71%; bottom: 7%; transform: translateX(-50%); }
+@media (max-width: 700px) {
+  .hero { gap: 28px; padding-top: 20px; }
+  .stage { border-radius: 22px 22px 0 0; }
+  .window > img:first-child { aspect-ratio: 2560 / 1600; object-position: 66% top; object-fit: cover; }
+  .receipt { left: 50%; bottom: 5%; }
+  .receipt > span { height: 34px; font-size: 13px; padding: 0 12px; }
+}
+
+/* ── 2, 4, 5: words and real captures side by side; the captures lead on phones ── */
+.split { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; align-items: center; }
+.split[data-flip] { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); }
+.split[data-flip] > .text { order: 2; }
+@media (max-width: 960px) {
+  .split, .split[data-flip] { grid-template-columns: 1fr; gap: 32px; }
+  .split[data-flip] > .text { order: 0; }
+}
+.text { display: grid; gap: 16px; justify-items: start; }
+
+/* A Mac capture with a phone capture standing in front of it. */
+.pairShots, .feelShots { position: relative; }
+.mac { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 30px 60px -28px rgba(60, 30, 5, 0.5); }
+.pairShots .mac { width: 88%; }
+.phone { position: absolute; right: 0; bottom: -40px; width: 30%; height: auto; border-radius: 26px; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3c, 0 30px 60px -20px rgba(40, 15, 0, 0.55); }
+@media (max-width: 600px) { .phone { border-radius: 18px; box-shadow: 0 0 0 4px #1b1b1d, 0 0 0 5px #3a3a3c, 0 20px 40px -16px rgba(40, 15, 0, 0.55); } }
+
+/* The three facts, one short line each, with their paper icons. */
+.trust { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.trust li { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 650; }
+.trust img { flex: none; width: 40px; height: 40px; }
+
+/* ── The paper-craft art between the stories: a wide, quiet strip ── */
+.divider { width: 100vw; margin: 0 0 -128px calc(50% - 50vw); height: clamp(160px, 18vw, 240px); overflow: hidden; }
+.divider img { width: 100%; height: 100%; object-fit: cover; object-position: center 38%; display: block; }
+@media (max-width: 700px) { .divider { margin-bottom: -80px; } }
+
+/* ── 4. Two real apps on iPhone screens, side by side, the second a step lower ── */
+.phones { display: grid; grid-template-columns: repeat(2, minmax(0, 300px)); gap: 28px; justify-content: center; align-items: start; }
+.screen { display: block; width: 100%; height: auto; aspect-ratio: 780 / 1300; object-fit: cover; object-position: top; border-radius: 34px;
+  box-shadow: 0 0 0 8px #1b1b1d, 0 0 0 9px #3a3a3c, 0 34px 70px -24px rgba(40, 15, 0, 0.5); }
+.screen + .screen { margin-top: 56px; }
+@media (max-width: 600px) { .phones { gap: 18px; } .screen { border-radius: 22px; box-shadow: 0 0 0 5px #1b1b1d, 0 0 0 6px #3a3a3c, 0 24px 50px -20px rgba(40, 15, 0, 0.5); } .screen + .screen { margin-top: 32px; } }
+
+/* ── 5 on the soft tint ── */
+.feelBand > div { max-width: 1200px; margin: 0 auto; }
+.soon { margin: 4px 0 0; padding: 7px 14px; border-radius: 99px; background: #fff4e6; font-size: 14px; font-weight: 650; }
