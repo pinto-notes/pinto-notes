@@ -49,6 +49,8 @@ final class CollabSession {
     let me: UUID
     let myName: String
     private var nk: SymmetricKey
+    /// The note's keys before the current one, by epoch, for changes made before a removal.
+    @ObservationIgnored private var earlierKeys: [Int: SymmetricKey] = [:]
     private let transport: CollabTransport
     private let doc: Document
     private let body: ObjId
@@ -126,6 +128,8 @@ final class CollabSession {
     /// The note has a new key (someone was removed): everything from here on is
     /// sealed with it. The document itself doesn't change.
     func reseal(nk: SymmetricKey, epoch: Int) {
+        // Changes sealed just before the new key can still arrive after it.
+        earlierKeys[self.epoch] = self.nk
         self.nk = nk
         self.epoch = epoch
         sendPresence()
@@ -223,9 +227,14 @@ final class CollabSession {
         guard u.note_id == noteID, !applied.contains(u.id) else { return }
         applied.insert(u.id)
         lastSeen = max(lastSeen, u.id)
-        guard u.author_id != me else { return }
+        // Your own changes come back too: from this device they're already in the document (Automerge
+        // takes a change it has as a no-op), from your other devices they're new here.
+        guard let key = u.epoch == epoch ? nk : earlierKeys[u.epoch] else {
+            log.error("a change for a key this device doesn't have (epoch \(u.epoch, privacy: .public))")
+            return
+        }
         do {
-            let change = try CollabCrypto.open(.update, u.ct, nk: nk, note: noteID, extra: u.author_id.uuidString)
+            let change = try CollabCrypto.open(.update, u.ct, nk: key, note: noteID, extra: u.author_id.uuidString)
             try CollabText.absorb(change, into: doc)
         } catch {
             log.error("a change didn't open or apply: \(String(describing: error), privacy: .public)")

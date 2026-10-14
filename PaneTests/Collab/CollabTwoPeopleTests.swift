@@ -122,4 +122,29 @@ import Testing
         await server.eventually { mine.peers[ids.1] == nil }
         #expect(mine.peers[ids.1] == nil)
     }
+
+    @Test func yourOtherDeviceSeesYourTypingLive() async throws {
+        let emilID = server.account("Emil")
+        let dataKey = SymmetricKey(size: .bits256)
+        let mac = try device(emilID, name: "Emil", dataKey: dataKey), phone = try device(emilID, name: "Emil", dataKey: dataKey)
+        let note = Note(body: "Packing\n")
+        mac.context.insert(note)
+        let onMac = try await mac.store.share(note)
+        // The phone opens the note from the account's own copy of its key.
+        let row = try #require(try await server.transport(for: emilID).memberships().first)
+        let opened = try await phone.store.openKey(row)
+        let onPhone = try await CollabSession.load(note: note.id, epoch: row.epoch, nk: opened.nk, transport: server.transport(for: emilID), me: emilID, name: "Emil")
+        let copy = Note(body: onPhone.text)
+        copy.id = note.id
+        phone.context.insert(copy)
+        phone.store.openSession(onPhone, note: copy)
+        await server.eventually { server.channelCount(note.id) == 2 }
+
+        onMac.local("Packing\n- passport\n", selection: nil)
+        await server.eventually { onPhone.text == onMac.text }
+        #expect(onPhone.text == "Packing\n- passport\n")
+        onPhone.local(onPhone.text + "- charger\n", selection: nil)
+        await server.eventually { onMac.text == onPhone.text }
+        #expect(onMac.text == "Packing\n- passport\n- charger\n")
+    }
 }
