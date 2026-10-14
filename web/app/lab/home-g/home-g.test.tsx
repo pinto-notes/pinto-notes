@@ -90,7 +90,8 @@ describe("home study G, the final changes", async () => {
     expect(text(five(alt))).toContain("Mac today, iPhone app coming soon.");
     expect(five(alt)).not.toContain("Groceries");
     // Only section 5 differs.
-    const rest = (h: string) => h.replace(/aria-labelledby="feel"[\s\S]*?aria-labelledby="control"/, "");
+    // (The picture's preload link in the head is part of section 5 too.)
+    const rest = (h: string) => h.replace(/aria-labelledby="feel"[\s\S]*?aria-labelledby="control"/, "").replace(/<link rel="preload" as="image"[^>]*bring[^>]*\/>/, "");
     expect(rest(alt)).toBe(rest(html));
   });
   it("gives the fanned cards short lines", () => {
