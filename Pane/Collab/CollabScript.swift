@@ -32,6 +32,7 @@ import AppKit
 ///   {"verify": {"name": "Sara", "file": "code.txt"}}   their safety code written, then "They match"
 ///   {"leave": true}                                Leave Note
 ///   {"delete": true}                               Delete the open note (the owner's stops sharing)
+///   {"askDelete": {"file": "asked.txt", "fallback": "press-failed.txt"}}   its question, for a press from outside
 ///   {"waitGone": 90}                               until the open shared note is taken away
 ///   {"startFresh": true}                           Start fresh (the account's notes and links go)
 ///   {"dump": "state.json"}                         the open note's text, its share state and saved link
@@ -39,6 +40,8 @@ import AppKit
 @MainActor
 enum CollabScript {
     nonisolated static let betaBundleID = "dev.emilwagman.pane.beta"
+    /// Asks the open note's Delete question, as Delete Note in its menu does (NoteDetailView).
+    static let askDelete = Notification.Name("pane.collabScriptAskDelete")
 
     /// The steps file, when this app is Amber Notes Beta and was opened with `-collabScript <path>`.
     nonisolated static func requested(arguments: [String], bundleID: String?) -> URL? {
@@ -166,6 +169,20 @@ enum CollabScript {
             // As Delete in the note's menu: yours stops being shared, someone else's you leave.
             guard let context, let current else { throw Failed(description: "no note open") }
             context.trash(current)
+        case "askDelete":
+            // Delete Note's question on screen; the test presses its Delete from outside (an
+            // accessibility press on that button) and writes `fallback` if it can't, which deletes directly.
+            guard let context, let current else { throw Failed(description: "no note open") }
+            let v = value as? [String: Any] ?? [:]
+            NotificationCenter.default.post(name: askDelete, object: nil)
+            try await Task.sleep(for: .seconds(1))
+            try write("asked", to: v["file"] as? String ?? "asked.txt")
+            let fallback = dir.appending(path: v["fallback"] as? String ?? "press-failed.txt")
+            try await until(v["timeout"] as? Double ?? 90, "Delete to be pressed") {
+                current.trashedAt != nil || FileManager.default.fileExists(atPath: fallback.path)
+            }
+            if current.trashedAt == nil { log("Delete wasn't pressed: deleting directly"); context.trash(current) }
+            else { log("Delete pressed in the question") }
         case "waitGone":
             // The note this device has open was taken away (its owner deleted it, or stopped sharing).
             guard let current else { throw Failed(description: "no note open") }
