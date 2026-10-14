@@ -7,10 +7,11 @@
 // change's author is the person (note_updates.author_id, also in the seal's AAD), its client the AI
 // (pane_writer(), set from pane.client), and its message says both: "Sara's Claude".
 //
-// Automerge is WebAssembly (3.6 MB, 4.9 MB as the base64 module it loads from). It's imported the
-// first time a call touches a shared note, as esbuild is for apps, so calls that don't pay nothing.
+// Automerge is WebAssembly (3.6 MB), in automerge.gen.js as base64 with its JavaScript (4.9 MB; from
+// npm the bundle carried the whole 45 MB package). It's imported the first time a call touches a
+// shared note, as esbuild is for apps, so calls that don't pay nothing.
 
-import type * as AM from "npm:@automerge/automerge@3.5.0/slim";
+import type * as AM from "./automerge.gen.d.ts";
 import { importIdentity, open3, openNoteKey as openWrap, seal3 } from "../_shared/collab.ts";
 import { type Bytes, fromBase64, OpenError } from "../_shared/e2ee.ts";
 import { previewOf, titleOf } from "./notes.ts";
@@ -32,16 +33,14 @@ export const SNAPSHOT_EVERY = 200;
 let automerge: Promise<typeof AM> | null = null;
 /** Automerge, loaded and its WebAssembly compiled once per isolate. */
 export function loadAutomerge(): Promise<typeof AM> {
-  automerge ??= (async () => {
-    const [A, { automergeWasmBase64 }] = await Promise.all([
-      import("npm:@automerge/automerge@3.5.0/slim"),
-      import("npm:@automerge/automerge@3.5.0/automerge.wasm.base64"),
-    ]);
-    await A.initializeBase64Wasm(automergeWasmBase64);
+  if (automerge) return automerge;
+  const loading = (async () => {
+    const A = await import("./automerge.gen.js");
+    await A.initializeBase64Wasm(A.automergeWasmBase64);
     return A;
   })();
-  automerge.catch(() => { automerge = null; });
-  return automerge;
+  loading.catch(() => { automerge = null; });
+  return automerge = loading;
 }
 
 type Row = {
