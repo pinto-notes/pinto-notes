@@ -71,8 +71,8 @@ export const SHOTS = {
 export const posts: Post[] = [
   {
     slug: "siri-ai-apple-notes",
-    title: "Siri AI and Apple Notes: what it can do with your notes",
-    description: "What Siri AI can do with Apple Notes: find, make, proofread and summarize notes, which devices have it, Apple TV and HomeView, and where ChatGPT fits.",
+    title: "Siri AI and Apple Notes: what it can do, and what it can't",
+    description: "Siri AI finds, rewrites and makes notes. What it can do in Apple Notes, what Apple doesn't say, and the one thing it can't: let ChatGPT or Claude in.",
     excerpt: "Siri AI can find your notes and tidy the one you have open. What else it does, where you get it, and what Apple hasn't said yet.",
     category: "Apple Notes",
     date: "2026-10-14",
