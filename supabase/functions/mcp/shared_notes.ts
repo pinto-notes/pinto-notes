@@ -49,6 +49,8 @@ type Row = {
 };
 
 const opened = new WeakMap<Call, Shared[]>();
+/** After this call left or stopped sharing a note: the next look reads memberships again. */
+export const forgetShared = (c: Call) => opened.delete(c);
 /** The shared notes this account is in and can open, once per call. A note whose key won't open
  *  here (a new key no device of theirs has opened yet, and no identity key to open it with) is left out. */
 export async function sharedNotes(tx: Tx, c: Call, fresh = false): Promise<Shared[]> {

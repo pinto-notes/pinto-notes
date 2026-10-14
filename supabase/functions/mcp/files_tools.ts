@@ -23,7 +23,7 @@ import {
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
-import { changesOf, loadDoc, refuseViewer, type Shared, sharedNotes, writeDoc } from "./shared_notes.ts";
+import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNotes, writeDoc } from "./shared_notes.ts";
 import { needles, WordIndex } from "./words.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
@@ -440,6 +440,29 @@ async function saveShared(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<typ
   const checks = noteChecks(at.text, text, today());
   const now = (await pathsOf(tx, c, true)).pathOf(s.id) ?? path;
   return { [verb]: now, ...(now !== path ? { renamed_from: path } : {}), checks: checks.length ? checks : "ok", shared: "One change, merged with what others type. It shows as this person's AI." };
+}
+
+/** delete on a shared note, as Apple Notes does it. Someone else's: they leave it, and it goes from
+ *  their notes. The owner's: sharing stops for everyone (collab_unshare, with the text back in their
+ *  own row) and the note goes to their Recently Deleted; restore brings it back unshared. */
+async function deleteShared(tx: Tx, c: Call, n: Note, path: string) {
+  const s = n.shared!;
+  if (s.role !== "owner") {
+    await tx`select public.collab_leave(${s.id}::uuid)`;
+    if (!n.virtual) await tx`update public.notes set deleted_at = now(), body_ct = null, head_ct = null, locked_body = null where id = ${n.id}`;
+    forgetShared(c);
+    return { left: path, shared: "This person left the shared note: it's gone from their notes, and the others keep it." };
+  }
+  if (n.virtual) throw new ToolError(`"${path}" can be deleted once Pinto Notes has opened it on one of this person's devices.`);
+  const at = await loadDoc(tx, s);
+  const body = at.text.trim() ? at.text : `${s.title}\n`;
+  await tx`select public.collab_unshare(${s.id}::uuid, ${await c.v.sealBody(n.id, body)}, ${await c.v.sealHead(n.id, { title: titleOf(body), preview: previewOf(body) })})`;
+  forgetShared(c);
+  const d = await classic.delete_note(tx, { id: n.id }, c) as { sub_notes_moved: number };
+  return {
+    deleted: path, ...(d.sub_notes_moved ? { with_sub_notes: d.sub_notes_moved } : {}), now_at: (await pathsOf(tx, c, true)).pathOf(n.id), restore_with: "restore",
+    shared: "Sharing stopped: the note is gone from everyone else's notes. Restoring it brings it back to this person only, not shared.",
+  };
 }
 
 // MARK: Lines
@@ -1098,11 +1121,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   async delete(tx, a, c) {
     const P = await pathsOf(tx, c);
     const r = await resolve(tx, c, a.path);
-    if (r.kind === "note" && r.note.shared) {
-      throw new ToolError(r.note.shared.role === "owner"
-        ? `"${r.path}" is shared with other people. Deleting it would take it from them too, so that's done in Pinto Notes.`
-        : `"${r.path}" was shared with this person. To leave it, they use Leave in Pinto Notes (Share › Leave).`);
-    }
+    if (r.kind === "note" && r.note.shared) return await deleteShared(tx, c, r.note, r.path);
     if (r.kind === "note") {
       const d = await classic.delete_note(tx, { id: r.note.id }, c) as { sub_notes_moved: number };
       return { deleted: r.path, ...(d.sub_notes_moved ? { with_sub_notes: d.sub_notes_moved } : {}), now_at: (await pathsOf(tx, c, true)).pathOf(r.note.id), restore_with: "restore" };
