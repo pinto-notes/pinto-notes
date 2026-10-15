@@ -200,3 +200,13 @@
   .shoulder .momentFit { transform: translateX(-64%); height: 440px; justify-self: start; }
 }
 @media (max-width: 900px) { .shoulder .momentWords { padding: 0 var(--gutter, 20px); } }
+
+/* The original picture, whole, covering the screen: a 16:9 box centred on the hero that is always at
+   least as wide and as tall as the hero (like object-fit: cover), so her phone stays aligned. */
+@media (min-width: 901px) {
+  .shoulder .momentFit { top: 50%; left: 50%; right: auto; bottom: auto; height: auto; transform: translate(-50%, -50%);
+    width: max(100%, 100% * 0 + var(--hh) * 16 / 9); aspect-ratio: 1672 / 941; }
+  .shoulder { --hh: min(100vh, 940px); }
+  .shoulder::after { width: 46%; background: linear-gradient(90deg, rgba(12, 10, 24, 0.55) 0%, rgba(12, 10, 24, 0.25) 60%, transparent 100%); }
+  .shoulder .saidBox { left: 69.5%; top: 31%; width: 11%; z-index: 3; }
+}
