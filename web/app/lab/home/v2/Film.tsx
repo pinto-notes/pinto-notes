@@ -39,12 +39,14 @@ const CAPTIONS: Caption[] = [
   { at: [0.81, 1.01], day: 6, text: "The notebook you and your AI share." },
 ];
 
-function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Caption[], stopAt = 1 }: { p: number; lean?: number; heroOn?: boolean; captions?: Caption[]; stopAt?: number }) {
+function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Caption[], stopAt = 1, newNote = false }: { p: number; lean?: number; heroOn?: boolean; captions?: Caption[]; stopAt?: number; newNote?: boolean }) {
   // With a hero, the first few percent belong to it: the hero scrolls away while the note slides from
   // the right to the middle, the day strip arrives and ChatGPT asks. The week then plays as before.
   const h = heroOn ? mj(span(p0, 0.03, 0.075)) : 1;
   // `stopAt` ends the week early (version 5 stops on Sunday's tick, before the desk pull-out).
   const p = (heroOn ? span(p0, 0.07, 1) : p0) * stopAt;
+  const tType = newNote ? span(p, 0.02, 0.07) : 1;
+  const subIn = newNote ? mj(span(p, 0.07, 0.1)) : 1;
   // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
   const gIn = heroOn ? mj(span(p0, 0.04, 0.09)) : 1, gOut = mj(span(p, 0.28, 0.33));
   const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
@@ -104,8 +106,11 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
         <figure className={f.note}>
           <div className={f.bar}><span className={f.lights}><i /><i /><i /></span><span className={f.folder}>Health</span></div>
           <div className={f.paper}>
-            <h3 className={f.title}>Running plan</h3>
-            <p className={f.sub}>Half marathon on 30 November. Four runs a week.</p>
+            {/* With `newNote`, the film opens on a blank new note: the title is typed, then the line under it. */}
+            <h3 className={f.title}>{newNote && tType <= 0
+              ? <span className={f.placeholder}>New note<i className={f.caret} /></span>
+              : <>{"Running plan".slice(0, Math.round(12 * tType))}{tType < 1 && <i className={f.caret} />}</>}</h3>
+            <p className={f.sub} style={{ opacity: subIn }}>Half marathon on 30 November. Four runs a week.</p>
             <ul className={f.lines}>
               {LINES.map((l, i) => {
                 const w = write[i];
@@ -116,7 +121,7 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
                 return (
                   <li key={l.id} style={{ transform: `translateY(${(slot(i) * 50).toFixed(1)}px)`, zIndex: i === 2 ? 2 : 1 }}
                     data-lift={i === 2 && move > 0 && move < 1 || undefined}>
-                    {w < 1 && <span className={f.ghost} style={{ opacity: 1 - clamp(w * 2.5), width: `${[52, 66, 48, 58][i]}%` }} aria-hidden="true" />}
+                    {w < 1 && <span className={f.ghost} style={{ opacity: (1 - clamp(w * 2.5)) * subIn, width: `${[52, 66, 48, 58][i]}%` }} aria-hidden="true" />}
                     <span className={f.row} style={{ opacity: w > 0 ? 1 : 0, background: `rgba(240, 144, 26, ${(0.16 * tint).toFixed(3)})` }}>
                       <span className={f.box} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
                         <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
@@ -174,7 +179,7 @@ const heroFade = (p: number): React.CSSProperties => { const o = mj(span(p, 0.00
 
 /// Pinned and scrubbed by scroll on wide screens; played on time on phones, with Reduce Motion
 /// showing the last frame. `?t=0..1` freezes progress for review.
-export function Film({ hero, captions, stopAt }: { hero?: React.ReactNode; captions?: Caption[]; stopAt?: number } = {}) {
+export function Film({ hero, captions, stopAt, newNote }: { hero?: React.ReactNode; captions?: Caption[]; stopAt?: number; newNote?: boolean } = {}) {
   const box = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
   const [pinned, setPinned] = useState(true);
@@ -202,7 +207,7 @@ export function Film({ hero, captions, stopAt }: { hero?: React.ReactNode; capti
   return (
     <div ref={box} className={f.film} data-pinned={pinned || undefined} data-hero={hero ? "" : undefined}>
       {hero && <div className={f.heroLayer} style={pinned ? heroFade(p) : undefined}>{hero}</div>}
-      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} heroOn={!!hero && pinned} captions={captions} stopAt={stopAt} /></div>
+      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} heroOn={!!hero && pinned} captions={captions} stopAt={stopAt} newNote={newNote} /></div>
     </div>
   );
 }
