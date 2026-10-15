@@ -78,15 +78,18 @@ struct SharedDeleteConfirmation: ViewModifier {
     #else
     func body(content: Content) -> some View {
         let ask = pending.flatMap { SharedDelete.ask($0) }
-        content.alert(ask?.title ?? "", isPresented: Binding(get: { ask != nil }, set: { if !$0 { pending = nil } })) {
-            Button("Cancel", role: .cancel) { pending = nil }
-            Button(ask?.button ?? "Delete", role: .destructive) {
-                if let notes = pending { perform(notes) }
-                pending = nil
+        content.background {
+            Color.clear.alert(ask?.title ?? "", isPresented: Binding(get: { ask != nil }, set: { if !$0 { pending = nil } })) {
+                Button("Cancel", role: .cancel) { pending = nil }
+                Button(ask?.button ?? "Delete", role: .destructive) {
+                    if let notes = pending { perform(notes) }
+                    pending = nil
+                }
+                .accessibilityIdentifier("sharedDelete.confirm")
+            } message: {
+                Text(ask?.message ?? "")
             }
-            .accessibilityIdentifier("sharedDelete.confirm")
-        } message: {
-            Text(ask?.message ?? "")
+            .systemAlertColours()
         }
     }
     #endif

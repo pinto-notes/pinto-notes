@@ -139,7 +139,7 @@ enum JoinCopy {
 /// Listens for note links wherever the app is (signed in or not), shows the short "Opening…"
 /// line while it joins, and says plainly when a link doesn't open.
 struct JoinLinkHandler: ViewModifier {
-    @State private var center = JoinCenter.shared
+    @State var center = JoinCenter.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var asking: JoinPreview? { if case .asking(let p) = center.phase { p } else { nil } }
@@ -155,12 +155,18 @@ struct JoinLinkHandler: ViewModifier {
                 }
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: center.phase)
+            .background { questions }
+    }
+
+    /// On a carrier of their own, in the system's colours (systemAlertColours).
+    private var questions: some View {
+        Color.clear
             .alert(asking.map(JoinCopy.askTitle) ?? "", isPresented: Binding(get: { asking != nil }, set: { if !$0 { center.decline() } })) {
                 Button("Not Now", role: .cancel) { center.decline() }
                 Button("Join") { center.accept() }
                     #if os(macOS)
-                    // Return joins on the Mac. Not on iPhone: there the default action turns the
-                    // button the system's blue, with the app's amber text on it.
+                    // Return joins on the Mac. On iPhone no button is filled: the filled one drew
+                    // its label in a colour of its own (amber, then black) on the system's blue.
                     .keyboardShortcut(.defaultAction)
                     #endif
                     .accessibilityIdentifier("collab.join")
@@ -173,6 +179,7 @@ struct JoinLinkHandler: ViewModifier {
             } message: {
                 if case .failed(let why) = center.phase { Text(why) }
             }
+            .systemAlertColours()
     }
 }
 
