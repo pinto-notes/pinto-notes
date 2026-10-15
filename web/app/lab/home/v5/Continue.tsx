@@ -58,8 +58,9 @@ function Check({ t }: { t: number }) {
   );
 }
 
+let chipFade = 1;
 const Chip = ({ ai, v = 1, label }: { ai: "openai" | "claude" | "you" | "missed"; v?: number; label?: string }) => (
-  <em data-ai={ai} style={{ opacity: v }}>
+  <em data-ai={ai} style={{ opacity: ai === "openai" ? v * chipFade : v, display: ai === "openai" && chipFade < 0.02 ? "none" : undefined }}>
     {ai === "openai" || ai === "claude" ? <AIGlyph name={ai} size={8} color={ai === "claude" ? "#d97757" : undefined} /> : null}
     {label ?? (ai === "claude" ? "Claude" : ai === "openai" ? "ChatGPT" : ai === "you" ? "You" : "Missed")}
   </em>
@@ -67,6 +68,7 @@ const Chip = ({ ai, v = 1, label }: { ai: "openai" | "claude" | "you" | "missed"
 
 /// Her week: the plan she made on the walk; then the week happens to it.
 function Note({ p, f }: { p: number; f: number }) {
+  chipFade = 1 - mj(span(p, 0.2, 0.26));
   // Mon and Wed are already ticked by you when the note lands (the stage says "This week").
   const done = mj(span(p, 0.23, 0.27));
   // Tuesday: Claude books the dentist (tick, time).
@@ -92,7 +94,7 @@ function Note({ p, f }: { p: number; f: number }) {
         <li data-row="mon" style={row("mon")}><Check t={done} /><span data-done={done > 0.5 || undefined}>Mon · Run, 5 km</span><Chip ai="openai" /></li>
         <li data-row="wed" style={row("wed")}><Check t={done} /><span data-done={done > 0.5 || undefined}>Wed · Intervals</span><Chip ai="openai" /></li>
         <li data-row="thu" style={{ ...row("thu"), opacity: 1 - 0.45 * missed * (1 - moved) }}>
-          <Check t={0} /><span style={{ textDecoration: missed > 0.5 && moved < 0.5 ? "line-through" : undefined, textDecorationColor: "rgba(190,70,40,0.6)" }}>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
+          <Check t={0} /><span data-missed={missed > 0.5 && moved < 0.5 || undefined}>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
           {moved > 0.5 ? <Chip ai="claude" v={mMark} label="Claude moved it" /> : missed > 0.5 ? <Chip ai="missed" v={missed} /> : <Chip ai="openai" />}
         </li>
       </ul>
