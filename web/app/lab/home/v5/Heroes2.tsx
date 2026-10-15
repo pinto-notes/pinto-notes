@@ -229,7 +229,7 @@ export function PhoneMomentHero() {
     <section className={x.editorial}>
       <div className={x.edWords}>
         <h1 className={x.edH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
-        <p className={x.edLede}>ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes.</p>
+        <p className={x.edLede}>A notes app that you, ChatGPT, Claude and Muse read and write in. It looks and feels like Apple Notes.</p>
         <div className={x.edCtas}>
           <Download />
           <span className={x.soonBtn} aria-disabled="true">
