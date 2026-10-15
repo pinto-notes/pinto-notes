@@ -30,9 +30,9 @@ const EXTRAS = [
 const FEATURES = [
   { id: "voice", Scene: Walk, kicker: "Voice", title: "Just say it.",
     say: "Talk to your AI. It writes it down." },
-  { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI ticks it off.",
+  { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI\nticks it off.",
     say: "Tell it what you did. Your trackers update themselves." },
-  { id: "agents", Scene: Agents, kicker: "Agents", title: "Your agents share one brain.",
+  { id: "agents", Scene: Agents, kicker: "Agents", title: "Your agents\nshare one brain.",
     say: "Every session starts where the last one stopped." },
 ];
 
@@ -74,11 +74,15 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
       )}
 
       <section className={`${v.moments} ${v.featBand}`} data-band={band} data-dark-band={band} aria-labelledby="moments">
+        <div className={v.bandHead}>
+          <h2 id="moments" className={v.big}>People are already living like this.</h2>
+          <p className={v.say}>Small habits that only work when your AI can write in your notes.</p>
+        </div>
         {FEATURES.map((x, i) => (
           <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
             <div className={v.words}>
               <p className={v.kicker}>{x.kicker}</p>
-              <h2 id={i === 0 ? "moments" : undefined} className={v.rowTitle}>{x.title}</h2>
+              <h3 className={v.rowTitle}>{x.title}</h3>
               <p className={v.say}>{x.say}</p>
             </div>
             <x.Scene />

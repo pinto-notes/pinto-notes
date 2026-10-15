@@ -122,3 +122,20 @@
 /* Short headlines get to be big. */
 .featBand .rowTitle { font-size: clamp(40px, 4.4vw, 64px); letter-spacing: -0.04em; line-height: 1; }
 .featBand .say { font-size: clamp(18px, 1.5vw, 21px); max-width: 24em; }
+
+/* The band's intro: the FOMO line, centred, before the three features. */
+.bandHead { display: grid; justify-items: center; text-align: center; padding: 100px 0 10px; }
+.featBand .bandHead .big { color: #fff6ea; max-width: 14em; }
+.featBand .bandHead .say { margin-left: auto; margin-right: auto; max-width: 30em; }
+@media (max-width: 700px) { .bandHead { padding: 56px 0 0; } }
+/* Balance: the words sit against the scene (not out at the page edge) and carry real weight. */
+@media (min-width: 901px) {
+  .featBand .row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 64px; }
+  .featBand .row[data-flip] { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .featBand .row .words { justify-self: end; max-width: 540px; }
+  .featBand .row[data-flip] .words { justify-self: start; }
+}
+.featBand .rowTitle { font-size: clamp(46px, 5vw, 76px); letter-spacing: -0.045em; line-height: 0.95; }
+.featBand .kicker { font-size: 15px; letter-spacing: 0.02em; }
+.featBand .say { font-size: clamp(19px, 1.6vw, 23px); margin-top: 18px; }
+.featBand .rowTitle { white-space: pre-line; }
