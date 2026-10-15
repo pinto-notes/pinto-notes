@@ -41,6 +41,10 @@ final class SharedLibrary {
     var onSessionClosed: ((UUID) -> Void)?
     /// Notes being loaded from the server, so a pointer arriving twice loads once.
     private var loading: [UUID: Task<CollabSession?, Never>] = [:]
+    /// The last look found no memberships and no shared notes in the library.
+    private var nothingShared = false
+    /// How many times reconcile went through the library's notes (for tests).
+    private(set) var libraryScans = 0
 
     enum Problem: LocalizedError {
         case locked, noDataKey, notShared, notUpToDate
@@ -69,6 +73,8 @@ final class SharedLibrary {
     func install() {
         SharedNotes.pointerArrived = { [weak self] note in
             guard let self else { return }
+            // The library has a shared note now: the next look goes through it.
+            self.nothingShared = false
             // Deleted on another of your devices (you left there), or by the owner stopping sharing.
             if note.deletedAt != nil { self.forget(note); return }
             guard note.sharedDocument == nil else { return }
@@ -93,6 +99,7 @@ final class SharedLibrary {
     /// history stay where they are. From here its text goes only through the document.
     @discardableResult
     func becomeShared(_ note: Note, nk: SymmetricKey) async throws -> CollabSession {
+        nothingShared = false
         if let s = sessions[note.id] { return s }
         guard !note.isLocked else { throw Problem.locked }
         guard let dk = dataKey() else { throw Problem.noDataKey }
@@ -133,6 +140,7 @@ final class SharedLibrary {
     /// "Shared with me" if you'd moved it there; the pointer arriving puts it in its place.
     @discardableResult
     func adopt(shared: UUID, nk: SymmetricKey, epoch: Int, role: String, announce: Bool = true) async throws -> Note {
+        nothingShared = false
         guard let dk = dataKey() else { throw Problem.noDataKey }
         // The pointer this account has already (from another device, or from before you left),
         // else the id your data key gives it.
@@ -294,8 +302,15 @@ final class SharedLibrary {
     /// After each look at your memberships (the store's): new keys taken, notes you joined on
     /// another device given their document here, and notes you're no longer in taken out.
     func reconcile(_ rows: [Collab.Membership]) async {
+        // Still no memberships, and the last look found no shared notes here: there's nothing to
+        // reconcile, so the library isn't gone through again. That's a scan of every note on the
+        // main thread every half minute, for an account that shares nothing.
+        if rows.isEmpty, nothingShared { return }
         let byNote = Dictionary(rows.map { ($0.note_id, $0) }, uniquingKeysWith: { a, _ in a })
-        for note in context.sharedNotes() {
+        libraryScans += 1
+        let local = context.sharedNotes()
+        nothingShared = rows.isEmpty && local.isEmpty
+        for note in local {
             guard let shared = note.sharedNoteID else { continue }
             guard let row = byNote[shared] else {
                 // Not listed: checked with the note itself before anything is taken away, so a

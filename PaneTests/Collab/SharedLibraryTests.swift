@@ -529,6 +529,28 @@ extension NetworkFaults {
         #expect(reopened.text == "Diary\nMon\nTue\nWed\nThu")
     }
 
+    // MARK: Looking at memberships
+
+    /// An account that shares nothing: the library is gone through once, not on every look at the
+    /// memberships (every half minute, on the main thread, over every note). A note shared later,
+    /// or one joined, is looked at again.
+    @Test func anAccountThatSharesNothingIsNotScannedOnEveryLook() async throws {
+        let emil = try device(owner)
+        emil.context.insert(Note(body: "Groceries"))
+        await emil.library.reconcile([])
+        await emil.library.reconcile([])
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(emil.library.libraryScans == 1)
+
+        _ = try await shared("Trip plan", on: emil)
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(emil.library.libraryScans == 2)
+        // Shared notes here: an empty list is checked, never taken as nothing shared.
+        await emil.library.reconcile([])
+        await emil.library.reconcile([])
+        #expect(emil.library.libraryScans == 4)
+    }
+
     // MARK: Leaving and being removed
 
     /// Removed by the owner: the note goes from the member's library (Apple Notes does the same),
