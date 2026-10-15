@@ -89,7 +89,8 @@ const By = ({ app, label, v = 1 }: { app: "openai" | "claude"; label: string; v?
 // never jumps.
 const spoken = (text: string, k: number) => {
   const words = text.split(" "); const n = Math.ceil(words.length * clamp(k));
-  return <span className={m.line}>{words.map((w, i) => <span key={i} className={m.word} data-said={i < n || undefined}>{w}{i < words.length - 1 ? " " : ""}</span>)}</span>;
+  // Only the words said so far; the caption box has a fixed height, so nothing jumps.
+  return <span className={m.line}>{words.slice(0, n).join(" ")}</span>;
 };
 
 /// 1. The evening walk: you think out loud to ChatGPT's voice mode, and tomorrow fills in. The phone is
@@ -114,18 +115,18 @@ export function Walk() {
           <p className={m.status}><b>21:14</b><span className={m.bars}><i /><i /><i /><i /></span></p>
           <span className={m.tune}><svg viewBox="0 0 16 16"><path d="M2 5h7M12 5h2M2 11h2M7 11h7" /><circle cx="10.5" cy="5" r="1.6" /><circle cx="5.5" cy="11" r="1.6" /></svg></span>
           <span className={m.orb} data-speaking={speaking || undefined}><i /><i /></span>
+      <div className={m.spokenIn} aria-hidden="true">
+              {TALK.map((t, i) => {
+                // One line at a time: the old one leaves first, then the new one arrives.
+                const v = i === 0 ? mj(span(p, t.at, t.at + 0.05)) : mj(span(p, t.at + 0.04, t.at + 0.09));
+                const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.035)) : 0;
+                return <p key={i} className={m.said} data-who={t.who} style={{ opacity: v * (1 - gone), transform: `translateY(${((1 - v) * 10 - gone * 10).toFixed(1)}px)` }}>
+                  <span>{t.who === "you" ? "You" : <><AIGlyph name="openai" size={11} />ChatGPT</>}</span>{spoken(t.text, span(p, t.at + 0.03, t.at + 0.15))}</p>;
+              })}
+            </div>
           <span className={m.mic}><svg viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5" /><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V15" /></svg></span>
           <span className={m.close}><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg></span>
         </div>
-      </div>
-      <div className={m.spoken} aria-hidden="true">
-        {TALK.map((t, i) => {
-          // One line at a time: the old one leaves first, then the new one arrives.
-          const v = i === 0 ? mj(span(p, t.at, t.at + 0.05)) : mj(span(p, t.at + 0.04, t.at + 0.09));
-          const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.035)) : 0;
-          return <p key={i} className={m.said} data-who={t.who} style={{ opacity: v * (1 - gone), transform: `translateY(${((1 - v) * 10 - gone * 10).toFixed(1)}px)` }}>
-            <span>{t.who === "you" ? "You" : <><AIGlyph name="openai" size={11} />ChatGPT</>}</span>{spoken(t.text, span(p, t.at + 0.03, t.at + 0.15))}</p>;
-        })}
       </div>
       <figure className={`${m.note} ${m.walkNote}`}>
         <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Plans</span></div>
@@ -133,7 +134,7 @@ export function Walk() {
           <h3 className={m.title}>Tomorrow</h3>
           <ul className={m.list}>
             <li><Check on={false} /><span>Pick up the dry cleaning</span></li>
-            <li style={{ ...rise(line1), background: `rgba(240,144,26,${(0.14 * line1).toFixed(3)})` }}><Check on={false} /><span>Run before work, 5 km easy</span><By app="openai" label="ChatGPT" v={line1} /></li>
+            <li style={{ ...rise(line1), background: `rgba(240,144,26,${(0.14 * line1).toFixed(3)})` }}><Check on={false} /><span>Run, 5 km easy</span><By app="openai" label="ChatGPT" v={line1} /></li>
             <li style={{ ...rise(line2), background: `rgba(240,144,26,${(0.14 * line2).toFixed(3)})` }}><Check on={false} /><span>Call the dentist</span><By app="openai" label="ChatGPT" v={line2} /></li>
           </ul>
         </div>

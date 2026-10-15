@@ -237,3 +237,20 @@
 /* ChatGPT's voice orb: a small piece of cloudy sky. */
 .orb { background: url(/home-v5/voice-orb.webp) center / cover no-repeat; }
 .orb i { display: none; }
+
+/* Live captions inside voice mode, under the orb: what you said in grey, ChatGPT's reply in black. */
+.spokenIn { position: absolute; left: 14px; right: 14px; top: 64%; height: 84px; }
+.spokenIn .said { left: 0; right: 0; max-width: none; padding: 0; background: none; box-shadow: none; text-align: center; font-size: 15px; font-weight: 500; line-height: 1.35; color: #1d1b19; justify-items: center; }
+.spokenIn .said[data-who="you"] { color: #8e8e93; }
+.spokenIn .said { gap: 5px; }
+.spokenIn .said > span:first-child { display: inline-flex; justify-content: center; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; color: #8e8e93; }
+.spokenIn .said[data-who="ai"] > span:first-child { color: #1d1b19; }
+.orb { top: 40%; }
+/* The note's credited rows never run past its edge. */
+.walkNote .list li { white-space: nowrap; overflow: hidden; }
+.walkNote .list li > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
+.walkNote { right: 4%; width: min(380px, 50%); }
+/* The orb is still while you talk, and only moves while ChatGPT speaks. */
+.orb { animation: none; transition: transform .3s ease-out; }
+.orb[data-speaking] { animation: speak 0.9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .orb[data-speaking] { animation: none; } }
