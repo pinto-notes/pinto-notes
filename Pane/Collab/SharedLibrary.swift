@@ -203,7 +203,10 @@ final class SharedLibrary {
     @discardableResult
     func ensureDocument(_ note: Note) async -> CollabSession? {
         if let s = session(for: note) { return s }
-        guard let shared = note.sharedNoteID else { return nil }
+        guard let shared = note.sharedNoteID else {
+            log.error("\(note.id, privacy: .public) has no shared document: it isn't a shared note here")
+            return nil
+        }
         if let running = loading[shared] { return await running.value }
         let task = Task<CollabSession?, Never> { [weak self] in
             guard let self else { return nil }
