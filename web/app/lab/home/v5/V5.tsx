@@ -7,10 +7,11 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { PaperStill, RealApp } from "./Moments";
+import { PaperStill } from "./Moments";
 import { AliveHero, TypeHero, WorldHero } from "./Heroes";
 import { AskHero, FieldHero, HandsHero, PageHero, PhoneMomentHero, ProductHero, ThreadsHero } from "./Heroes2";
 import { ScrollVar } from "./ScrollVar";
+import { ContinueOrFallback } from "./Continue";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
@@ -41,12 +42,31 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "moment", band = "sage" }: { hero?: string; band?: string }) {
+/// Version 2's bridge from the hero to the film: a plain section title, so the film is explained.
+function HowItWorks() {
+  return (
+    <div className={v.how}>
+      <p className={v.howKicker}>How it works</p>
+      <h2 className={v.howTitle}>One note. Every AI. Your whole week.</h2>
+      <p className={v.say}>Watch a week in one notebook: ChatGPT plans it, Claude checks in, and you tick things off.</p>
+    </div>
+  );
+}
+
+export function V5({ hero = "continue", band = "sage" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
-      {(["moment", "threads", "product", "hands", "field", "page", "ask"] as const).includes(hero as never) ? (
+      {hero === "continue" ? (
+        <ContinueOrFallback captions={CAPTIONS} fallback={<div className={v.top}><PhoneMomentHero /><HowItWorks /><Film captions={CAPTIONS} stopAt={0.83} /></div>} />
+      ) : hero === "how" ? (
+        <div className={v.top}>
+          <PhoneMomentHero />
+          <HowItWorks />
+          <ScrollVar className={v.filmIn} from={1} to={0.35}><Film captions={CAPTIONS} stopAt={0.83} /></ScrollVar>
+        </div>
+      ) : (["moment", "threads", "product", "hands", "field", "page", "ask"] as const).includes(hero as never) ? (
         <div className={v.top}>
           {hero === "moment" ? <PhoneMomentHero /> : hero === "threads" ? <ThreadsHero /> : hero === "product" ? <ProductHero /> : hero === "hands" ? <HandsHero /> : hero === "field" ? <FieldHero /> : hero === "page" ? <PageHero /> : <AskHero />}
           <ScrollVar className={v.filmIn} from={1} to={0.35}><Film captions={CAPTIONS} stopAt={0.83} /></ScrollVar>
@@ -102,14 +122,6 @@ export function V5({ hero = "moment", band = "sage" }: { hero?: string; band?: s
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
             me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
         </div>
-      </section>
-
-      <section className={v.real} aria-labelledby="real">
-        <div className={v.frontierHead}>
-          <h2 id="real" className={v.big}>Feels like Apple Notes. Bring yours over.</h2>
-          <p className={v.say}>Folders, checklists, tables and links between notes. Every note from Apple Notes comes over in one go.</p>
-        </div>
-        <RealApp />
       </section>
 
       <section className={d.wait} aria-labelledby="wait">

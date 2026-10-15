@@ -164,3 +164,9 @@
    inside it follows a beat later. */
 .filmIn [class*="film_stage"] { opacity: calc(0.25 + 0.75 * var(--s)); transform: translateY(calc((1 - var(--s)) * 80px)) scale(calc(0.92 + 0.08 * var(--s))); transform-origin: center top; }
 .filmIn [class*="film_noteWrap"] > figure { opacity: clamp(0, calc(var(--s) * 1.6 - 0.4), 1); }
+
+/* "How it works": a quiet section title over the film. */
+.how { display: grid; justify-items: center; text-align: center; gap: 0; padding: 120px 0 36px; }
+.howKicker { margin: 0 0 12px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #c0660f; }
+.howTitle { margin: 0; font-size: clamp(36px, 4.2vw, 60px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.02; color: #2a1d10; max-width: 14em; text-wrap: balance; }
+.how .say { margin-left: auto; margin-right: auto; }
