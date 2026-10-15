@@ -216,7 +216,10 @@ extension CollabStore: ShareBackend {
     func preview(_ url: URL) async -> JoinPreview? {
         guard let transport, let (id, secret) = Self.parseLink(url) else { return nil }
         let lk = Self.linkKeys(secret, link: id)
-        guard let opened = try? await transport.openLink(id: id, answer: lk.answer) else {
+        let opened: Collab.OpenedLink?
+        do { opened = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
+        catch { joinProblem = Self.joinFailure(error); return nil }
+        guard let opened else {
             joinProblem = "This link was turned off or changed. Ask for a new one."
             return nil
         }
@@ -235,7 +238,10 @@ extension CollabStore: ShareBackend {
     func join(_ url: URL) async -> Bool {
         guard let transport, let me, let library, let (id, secret) = Self.parseLink(url) else { return false }
         let lk = Self.linkKeys(secret, link: id)
-        guard let opened = try? await transport.openLink(id: id, answer: lk.answer) else {
+        let found: Collab.OpenedLink?
+        do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
+        catch { joinProblem = Self.joinFailure(error); return false }
+        guard let opened = found else {
             joinProblem = "This link was turned off or changed. Ask for a new one."
             return false
         }
@@ -250,16 +256,35 @@ extension CollabStore: ShareBackend {
             let nk = SymmetricKey(data: raw)
             let identity = try await ensureIdentity()
             let toSelf = try CollabCrypto.sealNoteKey(nk, from: identity, to: identity.publicRaw, party: .init(note: opened.note_id, epoch: opened.epoch, from: me, to: me))
-            try await transport.joinLink(id: id, answer: lk.answer, keyWrap: toSelf, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: opened.note_id, epoch: opened.epoch))
+            let selfWrap = try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: opened.note_id, epoch: opened.epoch)
+            // Joining twice is harmless (the server keeps the first), so a dropped request is sent again.
+            try await Self.retryingOnce { try await transport.joinLink(id: id, answer: lk.answer, keyWrap: toSelf, selfWrap: selfWrap) }
             handled.insert(opened.note_id)
             // A note of your own for it, in "Shared with me" (never the owner's note id).
             let note = try await library.adopt(shared: opened.note_id, nk: nk, epoch: opened.epoch, role: opened.role)
             NoteOpener.shared.open(note.id)
             return true
         } catch {
-            joinProblem = "This link didn't open. Ask for a new one."
+            joinProblem = Self.isDropped(error) ? Self.joinFailure(error) : "This link didn't open. Ask for a new one."
             return false
         }
+    }
+
+    /// A request that died on the way (a reused connection the server had closed: NSURLError
+    /// -1005, or a time-out, -1001) is sent once more. Only for calls that are safe to repeat.
+    static func retryingOnce<T>(_ step: () async throws -> T) async throws -> T {
+        do { return try await step() } catch where isDropped(error) { return try await step() }
+    }
+
+    nonisolated static func isDropped(_ error: Error) -> Bool {
+        let e = error as NSError
+        return e.domain == NSURLErrorDomain && (e.code == NSURLErrorNetworkConnectionLost || e.code == NSURLErrorTimedOut)
+    }
+
+    /// What to say when a link couldn't be read: the connection, or the link itself.
+    static func joinFailure(_ error: Error) -> String {
+        (error as NSError).domain == NSURLErrorDomain ? "Pinto Notes couldn't be reached. Check your connection and open the link again."
+            : "This link didn't open. Ask for a new one."
     }
 
     /// Your memberships, checked now and then: a new key (someone was removed, or the link was
