@@ -178,7 +178,7 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
           <div className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly) / sc,
             boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * fly).toFixed(2)}), 0 ${(40 * fly).toFixed(0)}px ${(80 * fly).toFixed(0)}px -36px rgba(60,30,5,${(0.5 * fly).toFixed(2)})` }}>
             <Note p={p} f={fly} />
-            <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true" style={{ opacity: cur, transform: `translate(${lerp(420, 150, cur).toFixed(0)}%, ${lerp(1100, 790, cur).toFixed(0)}%) scale(${span(p, 0.36, 0.38) > 0 && span(p, 0.36, 0.4) < 1 ? 0.86 : 1})` }}>
+            <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true" style={{ opacity: cur, transform: `translate(${lerp(380, 108, cur).toFixed(0)}%, ${lerp(1080, 792, cur).toFixed(0)}%) scale(${span(p, 0.36, 0.38) > 0 && span(p, 0.36, 0.4) < 1 ? 0.86 : 1})` }}>
               <path d="M4 2l15 9-7 1.5L8.5 20z" />
             </svg>
           </div>
