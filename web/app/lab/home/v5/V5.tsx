@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Builder, Optimiser, Pin, Walker } from "./Moments";
+import { Builder, MayaPhoto, Optimiser, Pin, Walker } from "./Moments";
 import { ScrollVar } from "./ScrollVar";
 import { Week } from "./Week";
 import v from "./v5.module.css";
@@ -28,7 +28,7 @@ const EXTRAS = [
 
 // Three features, each named plainly, with one real-life example under it.
 const FEATURES = [
-  { id: "walk", Scene: Walker, kicker: "Every evening", title: "Maya plans\ntomorrow on a walk.",
+  { id: "walk", Scene: MayaPhoto, kicker: "Every evening", title: "Maya plans\ntomorrow on a walk.",
     say: "She talks through her day with ChatGPT. What got done, what's next. It's in her notes before she's home." },
   { id: "agents", Scene: Builder, kicker: "All day", title: "Jonas runs his agents\non one notebook.",
     say: "Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project." },

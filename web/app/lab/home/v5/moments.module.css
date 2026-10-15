@@ -352,3 +352,13 @@
 .lifts li b { flex: 1; }
 .lifts li em { order: 1; }
 .lifts li .liftVal { order: 2; min-width: 64px; text-align: right; }
+
+/* Photo scenes: the photo fills the stage; a soft shade keeps bubbles readable; the place in a quiet label. */
+.photo { background: #1a1612; }
+.photoImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photoShade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 8, 6, 0.0) 40%, rgba(10, 8, 6, 0.45) 100%); }
+.where { position: absolute; left: 18px; bottom: 16px; z-index: 3; font-size: 13px; font-weight: 600; color: rgba(255, 248, 238, 0.92); letter-spacing: 0.01em; }
+.photoSays { position: absolute; right: 5%; top: 9%; width: min(330px, 48%); display: grid; gap: 8px; z-index: 4; }
+.photoSays .say { box-shadow: 0 16px 34px -14px rgba(0, 0, 0, 0.6); }
+.photoSays .say[data-who="me"] { background: rgba(28, 22, 16, 0.86); backdrop-filter: blur(10px); }
+.photoSays .say[data-who="ai"] { background: rgba(255, 255, 255, 0.94); }

@@ -541,3 +541,37 @@ export function Optimiser() {
     </div>
   );
 }
+
+// ── Frontier, photo version: a real-looking moment, with only what's said floating over it. The film
+// already showed notes being edited; here the life is the point. Only Sara's app is shown, because the
+// app is the new idea. ──
+function Photo({ src, alt, where, children, className }: { src: string; alt: string; where: string; children?: React.ReactNode; className?: string }) {
+  return (
+    <>
+      <img className={m.photoImg} src={src} alt={alt} loading="lazy" />
+      <span className={m.photoShade} aria-hidden="true" />
+      <span className={m.where}>{where}</span>
+      <div className={`${m.photoSays} ${className ?? ""}`}>{children}</div>
+    </>
+  );
+}
+export function MayaPhoto() {
+  const [ref, p, replay] = useSceneProgress();
+  const lines = [
+    { who: "me" as const, text: "Did my run. Skipped the reading again.", at: 0.06 },
+    { who: "ai" as const, text: "Third time this week. Move it to the mornings?", at: 0.26 },
+    { who: "me" as const, text: "Yes. Ten pages before work. And call the dentist.", at: 0.48 },
+    { who: "ai" as const, text: "Done. Tomorrow's set.", at: 0.68 },
+  ];
+  return (
+    <div ref={ref} className={`${m.stage} ${m.photo}`}>
+      <Replay p={p} onClick={replay} />
+      <Photo src="/home-v5/frontier/maya.webp" alt="A woman walking along the top of Dolores Park at dusk, talking to her phone, the San Francisco skyline behind her." where="Maya · Dolores Park, 21:40">
+        {lines.map((l, i) => {
+          const v = mj(span(p, l.at, l.at + 0.06)) * (i < lines.length - 2 ? 1 - mj(span(p, lines[i + 2].at, lines[i + 2].at + 0.05)) : 1);
+          return <Say key={i} who={l.who} ai="openai" text={l.text} v={v} />;
+        })}
+      </Photo>
+    </div>
+  );
+}
