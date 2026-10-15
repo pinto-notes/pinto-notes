@@ -14,7 +14,7 @@ const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
 
 const SOURCES = [
   { name: "Apple Notes", icon: "/apple-notes.webp" }, { name: "Obsidian", icon: "/home-v5/import/obsidian.webp" }, { name: "Bear", icon: "/home-v5/import/bear.webp" },
-  { name: "Evernote", icon: "/home-v5/import/evernote.webp" }, { name: "Google Keep", icon: "/home-v5/import/keep.webp" }, { name: "Markdown files", icon: "" },
+  { name: "Evernote", icon: "/home-v5/import/evernote.webp" }, { name: "Google Keep", icon: "/home-v5/import/keep.webp" }, { name: "Markdown", icon: "" },
 ];
 
 // The moments: things people at the front already do. Concrete, present tense, a little enviable.
