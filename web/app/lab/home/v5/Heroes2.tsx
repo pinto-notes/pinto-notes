@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { G } from "../../copy";
 import { Download } from "../../kit";
+import h from "../../home-h/h.module.css";
 import x from "./heroes2.module.css";
 
 // Hero round 2: six visual ideas with the same headline. Each is the first screen only.
@@ -227,7 +228,7 @@ export function PhoneMomentHero() {
   return (
     <section className={x.editorial}>
       <div className={x.edWords}>
-        <Title className={x.edH1} />
+        <h1 className={x.edH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
         <p className={x.edLede}>ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes.</p>
         <div className={x.edCtas}>
           <Download />
