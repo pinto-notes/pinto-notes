@@ -340,3 +340,12 @@
 .zoomBox[data-on] { height: calc(100vh + 100vh); margin-bottom: -70vh; }
 .zoomBox[data-on] + * { position: relative; z-index: 6; }
 .zoomBox[data-on] { margin-bottom: -28vh; }
+
+/* The notebook list behind her note, shown once the note has lifted off. */
+.scBehind { position: absolute; inset: 0; box-sizing: border-box; padding: 6cqw 6cqw 5cqw; visibility: hidden; opacity: 0; transition: opacity .3s ease-out; }
+[data-away] .scBehind { visibility: visible; opacity: 1; }
+.scNotes { margin: 0; padding: 0; list-style: none; border-radius: 3cqw; background: #f1ece5; overflow: hidden; }
+.scNotes li { display: grid; gap: 0.6cqw; padding: 2.6cqw 3.4cqw; border-top: 0.5px solid rgba(60, 30, 5, 0.1); }
+.scNotes li:first-child { border-top: 0; }
+.scNotes b { font-size: 4.6cqw; font-weight: 700; color: #1d1b19; }
+.scNotes span { font-size: 3.6cqw; color: #8a7a68; }

@@ -30,6 +30,8 @@ const ORBIT: { name: string; glyph: "openai" | "claude" | null; path: string; co
   { name: "Muse", glyph: null, path: META, color: "#0866ff", x: 55, y: 85, tx: 62, ty: 68 },
 ];
 
+const GPT_MSG = "I'm running a half marathon on 30 November. Plan four runs a week in my notes.";
+
 export type Caption = { at: number[]; day: number; text: string };
 const CAPTIONS: Caption[] = [
   { at: [0, 0.27], day: 0, text: "Tell one AI." },
@@ -45,8 +47,10 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
   const h = heroOn ? mj(span(p0, 0.03, 0.075)) : 1;
   // `stopAt` ends the week early (version 5 stops on Sunday's tick, before the desk pull-out).
   const p = (heroOn ? span(p0, 0.07, 1) : p0) * stopAt;
-  const tType = newNote ? span(p, 0.02, 0.07) : 1;
-  const subIn = newNote ? mj(span(p, 0.07, 0.1)) : 1;
+  // New note: you type the message and send it, ChatGPT uses Pinto, then the title is typed into the note.
+  const typedMsg = span(p, 0.0, 0.05), sent = mj(span(p, 0.055, 0.075)), usedIn = mj(span(p, 0.08, 0.09));
+  const tType = newNote ? span(p, 0.09, 0.11) : 1;
+  const subIn = newNote ? mj(span(p, 0.11, 0.12)) : 1;
   // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
   const gIn = heroOn ? mj(span(p0, 0.04, 0.09)) : 1, gOut = mj(span(p, 0.28, 0.33));
   const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
@@ -145,8 +149,15 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
       {/* ChatGPT, Monday */}
       <figure className={`${f.chat} ${f.left}`} data-app="chatgpt" style={{ opacity: gIn * (1 - gOut), transform: `translate(${lerp(-60, 0, gIn) - 60 * gOut}px, -50%)` }}>
         <div className={f.chatTop}><span><AIGlyph name="openai" size={14} />ChatGPT</span><em>Monday</em></div>
-        <p className={f.me}>I'm running a half marathon on 30 November. Plan four runs a week in my notes.</p>
-        <p className={f.tool}>Used Pinto Notes</p>
+        {newNote ? <>
+          {/* Typed into the box, then sent: the bubble rises out of the box. */}
+          <p className={f.me} style={{ opacity: sent, transform: `translateY(${((1 - sent) * 26).toFixed(1)}px) scale(${(0.94 + 0.06 * sent).toFixed(3)})`, transformOrigin: "right bottom" }}>{GPT_MSG}</p>
+          <p className={f.tool} style={{ opacity: usedIn }}>Used Pinto Notes</p>
+          <div className={f.compose}><span>{sent > 0.05 ? <em>Message ChatGPT</em> : <>{GPT_MSG.slice(0, Math.round(GPT_MSG.length * typedMsg))}<i className={f.caret} /></>}</span><b data-ready={typedMsg >= 1 && sent < 0.05 || undefined}>↑</b></div>
+        </> : <>
+          <p className={f.me}>{GPT_MSG}</p>
+          <p className={f.tool}>Used Pinto Notes</p>
+        </>}
         <p className={f.ai} style={{ opacity: mj(span(p, 0.2, 0.24)) }}>Done. It's in Running plan.</p>
       </figure>
 

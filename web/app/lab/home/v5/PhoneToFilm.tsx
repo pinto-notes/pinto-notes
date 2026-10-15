@@ -35,13 +35,14 @@ export function PhoneToFilm() {
       const a = pe.getBoundingClientRect(), b = ff.getBoundingClientRect();
       // Take the copies while nothing has moved yet.
       if (!snap.current || q === 0) {
-        snap.current = { phone: pe.innerHTML.replace(/visibility: hidden;?/g, ""), phoneClass: pe.className,
+        snap.current = { phone: (pe.firstElementChild?.outerHTML ?? "").replace(/visibility: hidden;?/g, ""), phoneClass: pe.className,
           shoulder: [...(pe.closest('[class*="shoulder"]')?.classList ?? [])].find((c) => c.includes("shoulder")) ?? "", pw: pe.offsetWidth || a.width, ph: pe.offsetHeight || a.height,
           film: ff.outerHTML, fw: ff.offsetWidth, fh: ff.offsetHeight };
       }
       (ff.parentElement as HTMLElement).style.opacity = q >= 1 ? "" : "0";
       // The phone keeps its blank screen; only its note leaves.
       (pe.firstElementChild as HTMLElement | null)?.style.setProperty("visibility", q > 0 ? "hidden" : "visible");
+      pe.toggleAttribute("data-away", q > 0);
       root.toggleAttribute("data-note-flying", q < 1);
       setSt(q > 0 && q < 1 ? { k: mj(q), ph: { x: a.left, y: a.top, w: a.width, h: a.height }, fm: { x: b.left, y: b.top, w: b.width, h: b.height } } : null);
     };

@@ -315,6 +315,14 @@ export function PhoneMomentHero() {
             <li><i />Call mum</li>
           </ul>
         </div>
+          {/* Left behind when her note lifts off: the notebook's list of notes. */}
+          <div className={x.scBehind} aria-hidden="true">
+            <p className={x.scStatus}><b>21:40</b><span /></p>
+            <h3 className={x.scTitle}>My notebook</h3>
+            <ul className={x.scNotes}>
+              {[["Tomorrow", "21:38"], ["Groceries", "Yesterday"], ["Lisbon trip", "Monday"], ["Habit tracker", "Sunday"], ["Gift ideas", "Last week"]].map(([n, d]) => <li key={n}><b>{n}</b><span>{d}</span></li>)}
+            </ul>
+          </div>
         </div>
         <div className={x.saidBox} style={z.on ? { opacity: bubbles } : undefined}>
           <p className={x.saidMe} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
