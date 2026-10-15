@@ -53,13 +53,18 @@ function HowItWorks() {
   );
 }
 
-export function V5({ hero = "continue", band = "sage" }: { hero?: string; band?: string }) {
+export function V5({ hero = "fresh", band = "sage" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
       {hero === "continue" ? (
         <ContinueOrFallback captions={CAPTIONS} fallback={<div className={v.top}><PhoneMomentHero /><HowItWorks /><Film captions={CAPTIONS} stopAt={0.83} /></div>} />
+      ) : hero === "fresh" ? (
+        <div className={v.top}>
+          <PhoneMomentHero />
+          <ScrollVar className={v.filmIn} from={1} to={0.35}><Film captions={CAPTIONS} stopAt={0.83} /></ScrollVar>
+        </div>
       ) : hero === "how" ? (
         <div className={v.top}>
           <PhoneMomentHero />
