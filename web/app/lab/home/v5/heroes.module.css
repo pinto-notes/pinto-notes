@@ -88,3 +88,20 @@
 .orbit li:nth-child(2) { left: 46%; top: -10px; }
 .orbit li:nth-child(3) { right: -10px; top: 20%; left: auto; bottom: auto; }
 .orbit li:nth-child(4) { right: -10px; bottom: 6%; }
+
+/* Night: the CTA is the cream button, the fine print sits on calm ground. */
+.world[data-art="night"] [class*="kit_primary"] { background: #fbeedd; color: #2a1d10; box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.55); }
+.world[data-art="night"] [class*="kit_ctaQuiet"] { color: rgba(255, 246, 234, 0.8); }
+.world[data-art="night"]::after { background: linear-gradient(100deg, rgba(8, 10, 24, 0.72) 0%, rgba(8, 10, 24, 0.45) 38%, transparent 58%); }
+.world[data-art="day"] [class*="kit_ctaQuiet"] { color: #4a3826; }
+
+/* The note sits on the desk, centred in the right half, with the AIs in a calm row above it. */
+.worldNote { right: 7%; bottom: 11%; width: min(440px, 36%); transform: rotate(-1deg); }
+.orbit { position: absolute; inset: auto 0 calc(100% + 18px) 0; display: flex; justify-content: space-between; padding: 0 10px; }
+.orbit li, .orbit li:nth-child(n) { position: static; }
+.disc { width: 44px; height: 44px; }
+.orbit li { padding: 6px 10px 6px 6px; border-radius: 30px; background: rgba(255, 250, 243, 0.92); color: #3e2e1e !important; grid-auto-flow: column; align-items: center; gap: 7px;
+  box-shadow: 0 10px 22px -12px rgba(30, 15, 0, 0.5); }
+.orbit .disc { width: 28px; height: 28px; box-shadow: none; background: transparent; }
+.orbit .disc svg { width: 18px; height: 18px; }
+.orbit { inset: auto 0 calc(100% + 14px) 0; justify-content: flex-start; gap: 8px; padding: 0; flex-wrap: wrap; }
