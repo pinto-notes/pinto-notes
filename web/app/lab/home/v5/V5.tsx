@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { PaperStill } from "./Moments";
+import { PaperStill, RealApp } from "./Moments";
 import { AliveHero, TypeHero, WorldHero } from "./Heroes";
 import { AskHero, FieldHero, HandsHero, PageHero, ProductHero, ThreadsHero } from "./Heroes2";
 import { ScrollVar } from "./ScrollVar";
@@ -102,6 +102,14 @@ export function V5({ hero = "hands", band = "sage" }: { hero?: string; band?: st
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
             me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
         </div>
+      </section>
+
+      <section className={v.real} aria-labelledby="real">
+        <div className={v.frontierHead}>
+          <h2 id="real" className={v.big}>Feels like Apple Notes. Bring yours over.</h2>
+          <p className={v.say}>Folders, checklists, tables and links between notes. Every note from Apple Notes comes over in one go.</p>
+        </div>
+        <RealApp />
       </section>
 
       <section className={d.wait} aria-labelledby="wait">

@@ -158,3 +158,4 @@
 @media (min-width: 901px) { .frontier .row[data-flip] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.72fr); } }
 .frontier { gap: 120px; }
 .frontier .rowTitle { white-space: normal; text-wrap: balance; }
+.real { display: grid; gap: 0; }

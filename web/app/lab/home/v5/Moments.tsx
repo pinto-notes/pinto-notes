@@ -682,3 +682,24 @@ export function BudgetCard() {
     </figure>
   );
 }
+
+/// The real app, in someone's evening: the actual Pinto window on the laptop in a paper living room,
+/// and the actual iPhone app in someone's hands. Screens measured from the art, in % of the image.
+export function RealApp() {
+  return (
+    <div className={m.realPair}>
+      <figure className={m.realScene}>
+        <img className={m.realArt} src="/home-v5/hero/mac-home.webp" alt="" />
+        <img className={m.realMac} src="/home-h/window-lisbon.webp" alt="Pinto Notes on a Mac: the Lisbon trip note with a checklist, places and a table." />
+        <figcaption>On your Mac</figcaption>
+      </figure>
+      <figure className={m.realScene}>
+        <div className={m.realFit}>
+          <img className={m.realArt} src="/home-v5/hero/phone-close.webp" alt="" />
+          <img className={m.realPhone} src="/home-h/iphone-notes.webp" alt="Pinto Notes on an iPhone: All Notes, with pinned notes." />
+        </div>
+        <figcaption>And in your pocket</figcaption>
+      </figure>
+    </div>
+  );
+}

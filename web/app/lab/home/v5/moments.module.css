@@ -454,3 +454,18 @@
 /* The exchange arrives after the art: your line, then the AI's. */
 .quote .qMe { opacity: var(--q1, 1); transform: translateY(calc((1 - var(--q1, 1)) * 14px)); }
 .quote .qAi, .quote > figure { opacity: var(--q2, 1); transform: translateY(calc((1 - var(--q2, 1)) * 14px)); }
+
+/* The real app inside the paper scenes. */
+.realPair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; }
+.realScene { position: relative; margin: 0; aspect-ratio: 1672 / 941; border-radius: 26px; overflow: hidden; box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.12), 0 40px 80px -46px rgba(60, 30, 5, 0.55); }
+.realScene:nth-child(2) { aspect-ratio: auto; }
+.realArt { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.realMac { position: absolute; left: 33.79%; top: 29.54%; width: 32.6%; height: 33.26%; object-fit: cover; object-position: left top; border-radius: 2px; }
+/* The phone scene is cropped around the phone: keep the image's own ratio in a box and place by %. */
+.realScene:nth-child(2) .realArt { object-fit: cover; object-position: 50% 50%; }
+.realPhone { position: absolute; left: 41.33%; top: 14.88%; width: 17.22%; height: 65.78%; object-fit: cover; object-position: top; border-radius: 6% / 3%; }
+.realScene figcaption { position: absolute; left: 16px; bottom: 14px; padding: 5px 12px; border-radius: 12px; background: rgba(255, 250, 243, 0.92); font-size: 13px; font-weight: 650; color: #3e2e1e; }
+@media (max-width: 900px) { .realPair { grid-template-columns: minmax(0, 1fr); } }
+/* The phone art keeps its own shape inside the cropped panel, so the screen lines up. */
+.realFit { position: absolute; top: 0; bottom: 0; left: 50%; aspect-ratio: 1672 / 941; transform: translateX(-50%); }
+.realFit .realArt { object-fit: fill; }
