@@ -79,17 +79,17 @@ function LiveNote({ t, big = false }: { t: number; big?: boolean }) {
 
 /// A. A paper world: the first screen is one of our cut-paper scenes, a desk by a window. The headline
 /// sits in the calm sky; the live note lies on the desk with every AI threaded to it.
-export function WorldHero({ art }: { art: "day" | "night" }) {
+export function WorldHero({ art, calm = false }: { art: "day" | "night"; calm?: boolean }) {
   const t = useClock();
   return (
-    <section className={x.world} data-art={art}>
+    <section className={x.world} data-art={art} data-calm={calm || undefined}>
       <img className={x.worldArt} src={art === "day" ? "/home-v5/hero/desk-day.webp" : "/home-v5/hero/desk-night.webp"} alt="" />
       <div className={x.worldWords}>
         <Title className={x.worldH1} />
-        <p className={x.worldLede}>{LEDE}</p>
+        <p className={x.worldLede}>{calm ? "ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes." : LEDE}</p>
         <Download quiet={G.quiet} />
       </div>
-      <div className={x.worldNote}>
+      {!calm && <div className={x.worldNote}>
         <LiveNote t={t} />
         <ul className={x.orbit} aria-label="Works with ChatGPT, Claude, Muse and Claude Code">
           {AIS.map((a, i) => (
@@ -98,7 +98,7 @@ export function WorldHero({ art }: { art: "day" | "night" }) {
             </li>
           ))}
         </ul>
-      </div>
+      </div>}
     </section>
   );
 }

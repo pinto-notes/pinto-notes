@@ -450,3 +450,7 @@
 .gymMini .budgetBig { margin: 0 2px 8px; font-size: 24px; font-weight: 800; color: #2a1d10; }
 .gymMini .budgetBig small { font-size: 12.5px; }
 .quote[data-at="right"] ~ .paperWhere { right: auto; left: 18px; }
+
+/* The exchange arrives after the art: your line, then the AI's. */
+.quote .qMe { opacity: var(--q1, 1); transform: translateY(calc((1 - var(--q1, 1)) * 14px)); }
+.quote .qAi, .quote > figure { opacity: var(--q2, 1); transform: translateY(calc((1 - var(--q2, 1)) * 14px)); }

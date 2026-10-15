@@ -637,12 +637,30 @@ export function PaperScene({ src, alt, where, lines, says = "right", gym = false
 }
 
 /// The scene, still: the art, and one exchange set large like a pull quote. No motion to decode.
+/// A soft rise as it comes into view: the art scales down to rest, the exchange lifts in after it.
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    if (new URLSearchParams(location.search).has("m") || matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(1); return; }
+    let raf = 0;
+    const read = () => { raf = 0; const r = el.getBoundingClientRect(); setV(clamp((innerHeight - r.top) / (innerHeight * 0.55))); };
+    const on = () => { if (!raf) raf = requestAnimationFrame(read); };
+    read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
+    return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
+  }, []);
+  return [ref, v] as const;
+}
+
 export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", gym = false, budget = false, voice = false }:
   { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; gym?: boolean; budget?: boolean; voice?: boolean }) {
+  const [ref, v] = useReveal();
+  const art = mj(v), q1 = mj(span(v, 0.35, 0.75)), q2 = mj(span(v, 0.5, 0.95));
   return (
-    <div className={m.paperScene}>
-      <img src={src} alt={alt} />
-      <figure className={m.quote} data-at={at} data-voice={voice || undefined}>
+    <div ref={ref} className={m.paperScene} style={{ opacity: 0.2 + 0.8 * art, transform: `translateY(${((1 - art) * 40).toFixed(1)}px)` }}>
+      <img src={src} alt={alt} style={{ transform: `scale(${(1.08 - 0.08 * art).toFixed(4)})` }} />
+      <figure className={m.quote} data-at={at} data-voice={voice || undefined} style={{ "--q1": q1, "--q2": q2 } as React.CSSProperties}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
         <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} color={aiGlyph === "meta" ? "#0866ff" : undefined} />{aiName}</span>{ai}</p>
         {gym && <GymCard p={1} />}

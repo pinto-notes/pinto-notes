@@ -40,12 +40,14 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: string }) {
+export function V5({ hero = "calm", band = "sage" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
-      {hero === "world-day" || hero === "world-night" ? (
+      {hero === "calm" ? (
+        <div className={v.top}><WorldHero art="night" calm /><Film captions={CAPTIONS} stopAt={0.83} /></div>
+      ) : hero === "world-day" || hero === "world-night" ? (
         <div className={v.top}><WorldHero art={hero === "world-day" ? "day" : "night"} /><Film captions={CAPTIONS} stopAt={0.83} /></div>
       ) : hero === "type" ? (
         <div className={v.top}><TypeHero /><Film captions={CAPTIONS} stopAt={0.83} /></div>
