@@ -193,47 +193,81 @@ export function Agents() {
   );
 }
 
-/// 5. Together: one shared note, two people, and each of them brings their own AI. Matches the
-/// collaboration design: a person's colour is their caret, their name flag and their avatar.
+/// 5. Together: people, not an app. Three people around one small shared note, each with their own
+/// AI beside them. What each person (or their AI) does travels along a thread into the note.
+const PEOPLE_BASE = [
+  { id: "sara", name: "Sara", ai: "openai" as const, aiName: "ChatGPT", color: "#75703c", x: 15, y: 40, img: "/home-v5/people/sara.webp" },
+  { id: "jonas", name: "Jonas", ai: "claude" as const, aiName: "Claude", color: "#5f7a5c", x: 85, y: 40, img: "/home-v5/people/jonas.webp" },
+  { id: "you", name: "You", ai: "claude" as const, aiName: "Claude", color: "#c8692a", x: 50, y: 72, img: "/home-v5/people/you.webp" },
+];
+const NOTE_WIDE = { x: 50, y: 31 };
+const EVENTS = [
+  { who: 0, ai: false, said: "Dinner on Friday? I know a place.", line: "Fri · Dinner at Taberna", at: 0.04 },
+  { who: 0, ai: true, said: "Added a day trip to Sintra on Thursday.", line: "Thu · Day trip to Sintra", at: 0.22 },
+  { who: 1, ai: false, said: "I'll take the museum.", line: "Mon · Gulbenkian Museum", at: 0.4 },
+  { who: 1, ai: true, said: "It's closed Mondays. Moved it to Friday morning.", line: "Fri · Gulbenkian, 10:00", at: 0.58 },
+  { who: 2, ai: false, said: "Flights are booked.", line: "Flights booked", at: 0.76 },
+];
+// On a phone the people sit under the note instead of around it.
+const PHONE_SPOTS = [{ x: 24, y: 60 }, { x: 76, y: 60 }, { x: 50, y: 84 }];
+const PHONE_NOTE = { x: 50, y: 24 };
 export function Together() {
   const [ref, p] = useSceneProgress();
-  const SARA = "Dinner at Taberna da Rua das Flores";
-  const typed = span(p, 0.08, 0.3);
-  const flag = p < 0.36 ? 1 : 1 - mj(span(p, 0.36, 0.4));
-  const saraDone = typed >= 1;
-  const gpt = over(span(p, 0.42, 0.5));
-  const move = mj(span(p, 0.6, 0.7)), claudeMark = over(span(p, 0.68, 0.76));
-  const youTick = span(p, 0.82, 0.88);
-  const tint = (v: number) => ({ background: `rgba(240, 144, 26, ${(0.14 * v).toFixed(3)})` });
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => { const q = matchMedia("(max-width: 760px)"); const on = () => setNarrow(q.matches); on(); q.addEventListener("change", on); return () => q.removeEventListener("change", on); }, []);
+  const NOTE = narrow ? PHONE_NOTE : NOTE_WIDE;
+  const PEOPLE = PEOPLE_BASE.map((pp, i) => (narrow ? { ...pp, ...PHONE_SPOTS[i] } : pp));
   return (
     <div ref={ref} className={m.together}>
-      <figure className={m.shared}>
-        <div className={m.sharedBar}>
-          <span className={m.lights}><i /><i /><i /></span>
-          <span className={m.sharedFolder}>Travel</span>
-          <span className={m.people}><b className={m.av} data-who="sara">SL</b><b className={m.av} data-who="you">EW</b><span className={m.shareIcon}><svg viewBox="0 0 16 16"><path d="M8 10V2M5 4.5 8 1.5l3 3M3.5 7v6.5h9V7" /></svg></span></span>
-        </div>
-        <div className={m.sharedPaper}>
-          <h3 className={m.sharedTitle}>Lisbon, 14–18 May</h3>
-          <p className={m.sharedSub}>Shared with Sara</p>
-          <ul className={m.sharedList}>
-            <li><span className={m.box} data-on=""><svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 0 }} /></svg></span><span data-done="">Flights booked</span></li>
-            <li>
-              <span className={m.box} data-on={youTick > 0.5 || undefined} style={{ transform: `scale(${youTick > 0 && youTick < 1 ? (0.85 + 0.15 * over(youTick)).toFixed(3) : 1})` }}><svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(youTick * 1.4) }} /></svg></span>
-              <span className={m.saraText} data-done={youTick > 0.5 || undefined}>{SARA.slice(0, Math.round(SARA.length * typed))}
-                {!saraDone || flag > 0 ? <i className={m.saraCaret} style={{ opacity: saraDone ? flag : 1 }}><em style={{ opacity: flag }}>Sara</em></i> : null}
-              </span>
-            </li>
-            <li style={{ ...tint(claudeMark * (1 - span(p, 0.9, 1) * 0.6)) }}>
-              <span className={m.box} /><span>{move > 0.5 ? "Friday: Gulbenkian Museum" : "Monday: Gulbenkian Museum"}</span>
-              <span className={m.by} style={{ opacity: claudeMark, transform: `scale(${(0.8 + 0.2 * claudeMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Your Claude: closed Mondays</span>
-            </li>
-            <li style={{ opacity: gpt, transform: `translateY(${((1 - gpt) * 10).toFixed(1)}px)`, ...tint(gpt * (1 - span(p, 0.56, 0.62))) }}>
-              <span className={m.box} /><span>Thursday: day trip to Sintra</span><span className={m.by}><AIGlyph name="openai" size={11} />Sara's ChatGPT</span>
-            </li>
-          </ul>
-        </div>
+      <svg className={m.threads} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {PEOPLE.map((pp, i) => {
+          const draw = mj(span(p, 0.0 + i * 0.03, 0.12 + i * 0.03));
+          const midX = (pp.x + NOTE.x) / 2, midY = Math.min(pp.y, NOTE.y) - 6;
+          return <path key={pp.id} d={`M ${pp.x} ${pp.y} Q ${midX} ${midY} ${NOTE.x} ${NOTE.y}`} style={{ opacity: 0.6 * draw, stroke: pp.color }} />;
+        })}
+      </svg>
+
+      <figure className={m.tinyNote} style={{ left: `${NOTE.x}%`, top: `${NOTE.y}%` }}>
+        <p className={m.tinyTitle}>Lisbon, 14–18 May</p>
+        <ul>
+          {EVENTS.map((e, i) => {
+            const land = over(span(p, e.at + 0.1, e.at + 0.15));
+            const moved = i === 2 && p >= EVENTS[3].at + 0.12;
+            return <li key={i} style={{ opacity: moved ? 0.35 : land, transform: `translateY(${((1 - land) * 8).toFixed(1)}px)`, textDecoration: moved ? "line-through" : undefined }}>
+              <i style={{ background: PEOPLE[e.who].color }} />{e.line}{e.ai && <AIGlyph name={PEOPLE[e.who].ai} size={10} />}</li>;
+          })}
+        </ul>
       </figure>
+
+      {EVENTS.map((e, i) => {
+        // The change travels from the person (or their AI) to the note.
+        const t = mj(span(p, e.at + 0.04, e.at + 0.12));
+        const pp = PEOPLE[e.who];
+        const fx = pp.x + (e.ai ? (pp.x < 50 ? 4 : pp.x > 50 ? -4 : 6) : 0), fy = pp.y - (e.ai ? 9 : 0);
+        const midX = (fx + NOTE.x) / 2, midY = Math.min(fy, NOTE.y) - 6;
+        const x = (1 - t) * (1 - t) * fx + 2 * (1 - t) * t * midX + t * t * NOTE.x;
+        const y = (1 - t) * (1 - t) * fy + 2 * (1 - t) * t * midY + t * t * NOTE.y;
+        const v = t > 0 && t < 1 ? 1 : 0;
+        return <span key={i} className={m.spark} style={{ left: `${x}%`, top: `${y}%`, opacity: v, background: pp.color }} />;
+      })}
+
+      {PEOPLE.map((pp, i) => {
+        const now = [...EVENTS].reverse().find((e) => p >= e.at && p < e.at + 0.17);
+        const talking = now && now.who === i;
+        const bubble = talking ? mj(span(p, now.at, now.at + 0.03)) * (1 - mj(span(p, now.at + 0.14, now.at + 0.17))) : 0;
+        const appear = over(span(p, 0.0 + i * 0.04, 0.08 + i * 0.04));
+        return (
+          <div key={pp.id} className={m.person} data-side={pp.x < 50 ? "l" : pp.x > 50 ? "r" : "c"} style={{ left: `${pp.x}%`, top: `${pp.y}%`, opacity: appear, transform: `translate(-50%, -50%) scale(${(0.85 + 0.15 * appear).toFixed(3)})` }}>
+            <span className={m.face} data-talking={(talking && !now.ai) || undefined}>
+              <img src={pp.img} alt="" onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = "none"; }} /><b>{pp.name[0]}</b>
+            </span>
+            <span className={m.aiDot} data-talking={(talking && now.ai) || undefined}><AIGlyph name={pp.ai} size={16} color={pp.ai === "claude" ? "#d97757" : "#0d0d0d"} /></span>
+            <span className={m.who}>{pp.name}<em> · {pp.aiName}</em></span>
+            {talking && <p className={m.bubble} data-ai={now.ai || undefined} style={{ opacity: bubble, transform: `translateY(${((1 - bubble) * 8).toFixed(1)}px)` }}>
+              {now.ai && <span><AIGlyph name={pp.ai} size={11} />{pp.name === "You" ? "Your" : `${pp.name}'s`} {pp.aiName}</span>}{now.said}</p>}
+          </div>
+        );
+      })}
     </div>
   );
 }
