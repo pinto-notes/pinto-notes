@@ -216,3 +216,19 @@
   .shoulder::after { width: 62%; background: linear-gradient(90deg, rgba(16, 14, 40, 0.86) 0%, rgba(16, 14, 40, 0.74) 38%, rgba(16, 14, 40, 0.35) 70%, transparent 100%); }
 }
 .shoulder .h1Light, .shoulder .ledeLight, .shoulder [class*="kit_ctaQuiet"] { text-shadow: 0 2px 24px rgba(10, 8, 30, 0.55); }
+
+/* ── Split hero: words on the cream page, then the scene at full brightness, full width, below. ── */
+.split { display: grid; gap: 44px; }
+.splitWords { display: grid; justify-items: center; text-align: center; gap: 20px; max-width: 860px; margin: 0 auto; padding-top: 28px; }
+.splitH1 { margin: 0; font-size: clamp(46px, 6.2vw, 96px); font-weight: 800; letter-spacing: -0.05em; line-height: 0.95; color: #2a1d10; text-wrap: balance; }
+.splitWords .lede { margin: 0 auto; }
+.splitScene.splitScene { margin-top: 0; height: auto; min-height: 0; aspect-ratio: 1672 / 941; max-height: 900px; }
+.splitScene::after { display: none !important; }
+@media (min-width: 901px) {
+  .splitScene .momentFit { top: 0; left: 50%; transform: translateX(-50%); width: max(100%, 900px * 1672 / 941); height: auto; aspect-ratio: 1672 / 941; }
+}
+.splitScene .saidBox { left: 69.5%; top: 31%; width: 11%; }
+@media (max-width: 900px) {
+  .splitScene.splitScene { aspect-ratio: auto; height: 520px; padding: 0; display: block; }
+  .splitScene .momentFit { position: absolute; top: 0; bottom: 0; height: 100%; left: 50%; right: auto; transform: translateX(-62%); width: auto; margin: 0; }
+}

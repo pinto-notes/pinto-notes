@@ -225,7 +225,13 @@ export function PhoneMomentHero() {
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
   return (
-    <section className={`${x.moment} ${x.shoulder}`} data-dark-band="">
+    <section className={x.split}>
+      <div className={x.splitWords}>
+        <Title className={x.splitH1} />
+        <p className={x.lede}>ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes.</p>
+        <Download quiet={G.quiet} />
+      </div>
+      <div className={`${x.moment} ${x.shoulder} ${x.splitScene}`}>
       <div className={x.momentFit}>
         <img className={x.momentArt} src="/home-v5/hero/phone-shoulder.webp" alt="" />
         <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
@@ -261,10 +267,6 @@ export function PhoneMomentHero() {
           </p>
         </div>
       </div>
-      <div className={x.momentWords}>
-        <Title className={x.h1Light} />
-        <p className={x.ledeLight}>ChatGPT, Claude and Muse read and write in it, with your OK.</p>
-        <Download quiet={G.quiet} />
       </div>
     </section>
   );
