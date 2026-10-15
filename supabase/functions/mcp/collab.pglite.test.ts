@@ -365,32 +365,8 @@ Deno.test("leaving marks the note for a new key, and the owner's new key clears 
   assertEquals(await mark(), null);
 });
 
-Deno.test("opening a link shows who shared which note before joining, and only to the link's holder", async () => {
-  const pg = await schemaDB();
-  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
-  const { note, nk } = await share(pg, emil);
-  const link = "Cd".repeat(11), secret = crypto.getRandomValues(new Uint8Array(16));
-  const { answer, key } = await linkKeys(secret, link);
-  const answerHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(answer.match(/../g)!, (h) => parseInt(h, 16)))));
-  await app(pg, emil.id, `select public.collab_create_link($1, $2, 'editor', 1, $3, $4)`, [link, note, answerHash, await seal(toBase64(nk), key, await keyIdOf(nk), `invite:${link}`)]);
-
-  const [opened] = await app(pg, sara.id, `select * from public.collab_open_link($1, $2)`, [link, answer]);
-  assertEquals(opened.owner_name, "Emil");
-  // The head opens with the note key the link carries: the title, before joining.
-  const head = JSON.parse(text(await open3("h", opened.head_ct, nk, note)));
-  assertEquals(head.title, "Offsite plan");
-  // Opening is not joining.
-  assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 1);
-  await refused(app(pg, sara.id, `select * from public.collab_open_link($1, $2)`, [link, "ab".repeat(32)]), "expired");
-  // Joining still works through it.
-  const toSelf = await sealNoteKey(nk, sara.identity, sara.identity.publicRaw, { note, epoch: 1, from: sara.id, to: sara.id });
-  await app(pg, sara.id, `select public.collab_join_link($1, $2, $3, $4)`, [link, answer, toSelf, await selfWrap(sara, nk, note, 1)]);
-  assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 2);
-});
-
 // 20261015060000_collab_review_fixes.sql: a snapshot can't claim changes that don't exist, and a
 // member who starts fresh makes the owner renew the key.
-
 Deno.test("a snapshot past the newest change is refused, so no editor can wipe a note's changes", async () => {
   const pg = await schemaDB();
   const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
@@ -419,4 +395,27 @@ Deno.test("a member who starts fresh makes the owner renew the key", async () =>
   assertEquals((await asUser<any>(pg, sara.id, `select public.start_fresh($1) as done`, [sara.keyId], signedIn))[0].done, true);
   const [n] = await app(pg, emil.id, `select rekey_after from public.shared_notes where id = $1`, [note]);
   assert(n.rekey_after !== null);
+});
+
+Deno.test("opening a link shows who shared which note before joining, and only to the link's holder", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  const link = "Cd".repeat(11), secret = crypto.getRandomValues(new Uint8Array(16));
+  const { answer, key } = await linkKeys(secret, link);
+  const answerHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(answer.match(/../g)!, (h) => parseInt(h, 16)))));
+  await app(pg, emil.id, `select public.collab_create_link($1, $2, 'editor', 1, $3, $4)`, [link, note, answerHash, await seal(toBase64(nk), key, await keyIdOf(nk), `invite:${link}`)]);
+
+  const [opened] = await app(pg, sara.id, `select * from public.collab_open_link($1, $2)`, [link, answer]);
+  assertEquals(opened.owner_name, "Emil");
+  // The head opens with the note key the link carries: the title, before joining.
+  const head = JSON.parse(text(await open3("h", opened.head_ct, nk, note)));
+  assertEquals(head.title, "Offsite plan");
+  // Opening is not joining.
+  assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 1);
+  await refused(app(pg, sara.id, `select * from public.collab_open_link($1, $2)`, [link, "ab".repeat(32)]), "expired");
+  // Joining still works through it.
+  const toSelf = await sealNoteKey(nk, sara.identity, sara.identity.publicRaw, { note, epoch: 1, from: sara.id, to: sara.id });
+  await app(pg, sara.id, `select public.collab_join_link($1, $2, $3, $4)`, [link, answer, toSelf, await selfWrap(sara, nk, note, 1)]);
+  assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 2);
 });

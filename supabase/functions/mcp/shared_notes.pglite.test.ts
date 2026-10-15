@@ -5,7 +5,7 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
 import { schemaDB } from "./pglite.ts";
-import { type Account, account, app, note, opened, toolContext } from "./sealed.ts";
+import { type Account, account, app, edit, note, opened, toolContext } from "./sealed.ts";
 import { ToolError } from "./tools.ts";
 import { runFileTool } from "./files_tools.ts";
 import { loadAutomerge, SNAPSHOT_EVERY } from "./shared_notes.ts";
@@ -53,7 +53,8 @@ class Device {
 async function shared(pg: PGlite) {
   const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), eve = await person(pg, "Eve");
   const body = "Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n";
-  const id = await note(pg, emil.a, "Offsite plan\n\n(old text from before it was shared)\n");
+  const id = await note(pg, emil.a, "Offsite plan\n\n(older text)\n");
+  await edit(pg, emil.a, id, "Offsite plan\n\n(old text from before it was shared)\n");
   const nk = newDataKey();
   const toSelf = await sealNoteKey(nk, emil.identity, emil.identity.publicRaw, { note: id, epoch: 1, from: emil.id, to: emil.id });
   const head = await seal3("h", bytes(JSON.stringify({ title: "Offsite plan" })), nk, id, 1);
@@ -164,6 +165,12 @@ Deno.test("the owner's AI reads and writes the document at the note's own path, 
   assertStringIncludes((await opened(pg, emil.a, id)).body!, "old text");
   // Restoring a version, apps and sub-notes are for Pinto Notes, for now.
   assertStringIncludes(await fails(tool(pg, emil, "restore", { path: "Offsite plan.md", version: 1 })), "can't be restored yet");
+  // The classic tools can't write a version into the pointer either.
+  const { runTool } = await import("./tools.ts");
+  const [rev] = (await pg.query<{ id: string }>(`select id from public.note_revisions where note_id = $1 order by id limit 1`, [id])).rows;
+  assert(rev, "the row had a version before it was shared");
+  const e = await runTool("restore_revision", { id, revision_id: Number(rev.id) }, await toolContext(pg, emil.a)).then(() => null, (e) => e);
+  assertStringIncludes(String(e?.message), "shared with other people");
   assertStringIncludes(await fails(tool(pg, emil, "create", { path: "Offsite plan/Agenda.md", content: "Agenda" })), "can't have sub-notes");
   assertStringIncludes(await fails(tool(pg, emil, "create", { type: "app", path: "Offsite plan.md" })), "can't have apps");
   assertStringIncludes(await fails(tool(pg, emil, "move", { path: "Offsite plan.md", to: "Offsite.md" })), "first line");
