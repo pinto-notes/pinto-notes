@@ -168,10 +168,14 @@ export async function writeDoc(tx: Tx, c: Call, s: Shared, at: Loaded, text: str
   // The list's title and preview, sealed with NK as devices write them.
   const head = { title: titleOf(text), preview: previewOf(text) };
   await tx`update public.shared_notes set head_ct = ${await seal3("h", new TextEncoder().encode(JSON.stringify(head)) as Bytes, s.nk, s.id, s.epoch)} where id = ${s.id}::uuid`;
-  if (at.since + 1 >= SNAPSHOT_EVERY) {
+  // A snapshot covers what was loaded (`at.last`), never more: a change someone else committed
+  // after the load has a smaller id than this one, isn't in this document, and compaction would
+  // delete it. This change stays a change after the snapshot too; loading it twice changes nothing.
+  if (at.since + 1 >= SNAPSHOT_EVERY && at.last > 0) {
     const saved = A.save(next);
     await tx`insert into public.note_snapshots (note_id, upto, epoch, ct)
-      values (${s.id}::uuid, ${id}, ${s.epoch}, ${await seal3("s", saved as Bytes, s.nk, s.id, s.epoch, String(id))})`;
+      values (${s.id}::uuid, ${at.last}, ${s.epoch}, ${await seal3("s", saved as Bytes, s.nk, s.id, s.epoch, String(at.last))})
+      on conflict (note_id, upto, epoch) do nothing`;
   }
   s.title = head.title;
   s.preview = head.preview;
