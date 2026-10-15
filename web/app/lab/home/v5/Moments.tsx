@@ -93,11 +93,50 @@ const spoken = (text: string, k: number) => {
   return <span className={m.line}>{words.slice(0, n).join(" ")}</span>;
 };
 
+/// Voice mode's two states, driven by one smooth voice-like level (a few slow sines, never random
+/// jumps). You talking: five soft bars under a still orb. ChatGPT talking: the orb swells and glows
+/// with the level. Each state fades in and out over about 250 ms so they hand over smoothly.
+function Voice({ you, ai }: { you: boolean; ai: boolean }) {
+  const [t, setT] = useState(0);
+  const mix = useRef({ you: 0, ai: 0 });
+  const [m2, setM2] = useState({ you: 0, ai: 0 });
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setM2({ you: you ? 1 : 0, ai: ai ? 1 : 0 }); return; }
+    let raf = 0, last = 0;
+    const tick = (now: number) => {
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0; last = now;
+      const k = 1 - Math.exp(-dt / 0.09);
+      mix.current.you += ((you ? 1 : 0) - mix.current.you) * k;
+      mix.current.ai += ((ai ? 1 : 0) - mix.current.ai) * k;
+      setM2({ ...mix.current }); setT(now / 1000);
+      const settled = Math.abs(mix.current.you - (you ? 1 : 0)) < 0.002 && Math.abs(mix.current.ai - (ai ? 1 : 0)) < 0.002;
+      if (!(settled && !you && !ai)) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [you, ai]);
+  // A voice-like level: syllables (fast) riding on phrases (slow), 0..1.
+  const level = (off: number) => clamp(0.5 + 0.28 * Math.sin(t * 7.3 + off) + 0.16 * Math.sin(t * 13.1 + off * 2.1) + 0.12 * Math.sin(t * 2.2 + off * 0.7));
+  const orbAmp = level(0) * m2.ai;
+  return (
+    <>
+      <span className={m.orb} style={{ transform: `scale(${(1 + 0.14 * orbAmp).toFixed(4)})`, boxShadow: `0 ${(8 + 10 * orbAmp).toFixed(1)}px ${(24 + 26 * orbAmp).toFixed(1)}px -6px rgba(50, 120, 235, ${(0.18 + 0.3 * orbAmp).toFixed(3)})` }} />
+      <span className={m.wave} style={{ opacity: m2.you }} aria-hidden="true">
+        {[0, 1, 2, 3, 4].map((i) => {
+          const shape = [0.55, 0.85, 1, 0.85, 0.55][i];
+          const h = 6 + 24 * shape * level(i * 1.7) * m2.you;
+          return <i key={i} style={{ height: `${h.toFixed(1)}px` }} />;
+        })}
+      </span>
+    </>
+  );
+}
+
 /// 1. The evening walk: you think out loud to ChatGPT's voice mode, and tomorrow fills in. The phone is
 /// voice mode as it really looks (white, the cloudy orb, mic and close); what's said floats beside it.
 const TALK = [
   { who: "you", text: "Tomorrow I want to run before work.", at: 0.04 },
-  { who: "ai", text: "Five easy kilometres before work. It's on tomorrow's list.", at: 0.24 },
+  { who: "ai", text: "Five easy kilometres. It's on the list.", at: 0.24 },
   { who: "you", text: "And remind me to call the dentist.", at: 0.46 },
   { who: "ai", text: "Added, after the run.", at: 0.66 },
 ];
@@ -117,8 +156,7 @@ export function Walk() {
           <span className={m.island} />
           <p className={m.status}><b>21:14</b><span className={m.bars}><i /><i /><i /><i /></span></p>
           <span className={m.tune}><svg viewBox="0 0 16 16"><path d="M2 5h7M12 5h2M2 11h2M7 11h7" /><circle cx="10.5" cy="5" r="1.6" /><circle cx="5.5" cy="11" r="1.6" /></svg></span>
-          <span className={m.orb} data-speaking={speaking || undefined}><i /><i /></span>
-          <span className={m.wave} data-on={listening || undefined} aria-hidden="true">{Array.from({ length: 13 }, (_, i) => <i key={i} style={{ animationDelay: `${(i * 0.137) % 0.9}s` }} />)}</span>
+          <Voice you={!!listening} ai={!!speaking} />
       <div className={m.spokenIn} aria-hidden="true">
               {TALK.map((t, i) => {
                 // One line at a time: the old one leaves first, then the new one arrives.

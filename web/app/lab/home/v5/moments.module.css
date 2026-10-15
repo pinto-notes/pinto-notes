@@ -276,3 +276,9 @@
 @keyframes wave { 0%, 100% { transform: scaleY(0.18); } 30% { transform: scaleY(0.9); } 55% { transform: scaleY(0.4); } 75% { transform: scaleY(0.7); } }
 @media (prefers-reduced-motion: reduce) { .wave[data-on] i { animation: none; transform: scaleY(0.5); } }
 .spokenIn { top: 68%; }
+
+/* Rebuilt voice states (the level is driven in JS; no keyframes). */
+.orb, .orb[data-speaking] { animation: none !important; box-shadow: none; transition: none; background-size: cover; }
+.wave { position: absolute; left: 50%; top: calc(40% + 74px); transform: translateX(-50%); display: flex; align-items: center; gap: 5px; height: 32px; opacity: 0; transition: none; }
+.wave i, .wave[data-on] i { width: 7px; border-radius: 4px; background: linear-gradient(180deg, #6aa7f5, #2f6fe0); transform: none; animation: none; }
+.spokenIn { top: 69%; }
