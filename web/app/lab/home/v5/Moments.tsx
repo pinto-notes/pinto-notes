@@ -193,78 +193,59 @@ export function Agents() {
   );
 }
 
-/// 5. Together: people, not an app. Three people around one small shared note, each with their own
-/// AI beside them. What each person (or their AI) does travels along a thread into the note.
-const PEOPLE_BASE = [
-  { id: "sara", name: "Sara", ai: "openai" as const, aiName: "ChatGPT", color: "#75703c", x: 15, y: 40, img: "/home-v5/people/sara.webp" },
-  { id: "jonas", name: "Jonas", ai: "claude" as const, aiName: "Claude", color: "#5f7a5c", x: 85, y: 40, img: "/home-v5/people/jonas.webp" },
-  { id: "you", name: "You", ai: "claude" as const, aiName: "Claude", color: "#c8692a", x: 50, y: 72, img: "/home-v5/people/you.webp" },
+/// 5. Together: a shared shopping list. You at home, Sara at the shop; each change shows up for the
+/// other the moment it's made. People and the list, nothing else.
+const DUO = [
+  { id: "you", name: "You", where: "at home", color: "#c8692a", img: "/home-v5/people/you.webp", side: "l" },
+  { id: "sara", name: "Sara", where: "at the shop", color: "#75703c", img: "/home-v5/people/sara.webp", side: "r" },
 ];
-const NOTE_WIDE = { x: 50, y: 31 };
-const EVENTS = [
-  { who: 0, ai: false, said: "Dinner on Friday? I know a place.", line: "Fri · Dinner at Taberna", at: 0.04 },
-  { who: 0, ai: true, said: "Added a day trip to Sintra on Thursday.", line: "Thu · Day trip to Sintra", at: 0.22 },
-  { who: 1, ai: false, said: "I'll take the museum.", line: "Mon · Gulbenkian Museum", at: 0.4 },
-  { who: 1, ai: true, said: "It's closed Mondays. Moved it to Friday morning.", line: "Fri · Gulbenkian, 10:00", at: 0.58 },
-  { who: 2, ai: false, said: "Flights are booked.", line: "Flights booked", at: 0.76 },
+const ITEMS = [
+  { text: "Bread", by: 1, add: -1, tick: 0.3 },
+  { text: "Eggs", by: 0, add: -1, tick: 0.38 },
+  { text: "Oat milk", by: 0, add: 0.06, tick: 0.45 },
+  { text: "Lemons", by: 0, add: 0.2, tick: 0.84 },
+  { text: "Ice cream", by: 1, add: 0.64, tick: -1 },
 ];
-// On a phone the people sit under the note instead of around it.
-const PHONE_SPOTS = [{ x: 24, y: 60 }, { x: 76, y: 60 }, { x: 50, y: 84 }];
-const PHONE_NOTE = { x: 50, y: 24 };
+const SAID = [
+  { who: 0, text: "We're out of oat milk.", at: 0.02 },
+  { who: 0, text: "And lemons, if they have them.", at: 0.17 },
+  { who: 1, text: "Got it.", at: 0.48 },
+  { who: 1, text: "Something for tonight.", at: 0.6 },
+];
 export function Together() {
   const [ref, p] = useSceneProgress();
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => { const q = matchMedia("(max-width: 760px)"); const on = () => setNarrow(q.matches); on(); q.addEventListener("change", on); return () => q.removeEventListener("change", on); }, []);
-  const NOTE = narrow ? PHONE_NOTE : NOTE_WIDE;
-  const PEOPLE = PEOPLE_BASE.map((pp, i) => (narrow ? { ...pp, ...PHONE_SPOTS[i] } : pp));
   return (
     <div ref={ref} className={m.together}>
-      <svg className={m.threads} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        {PEOPLE.map((pp, i) => {
-          const draw = mj(span(p, 0.0 + i * 0.03, 0.12 + i * 0.03));
-          const midX = (pp.x + NOTE.x) / 2, midY = Math.min(pp.y, NOTE.y) - 6;
-          return <path key={pp.id} d={`M ${pp.x} ${pp.y} Q ${midX} ${midY} ${NOTE.x} ${NOTE.y}`} style={{ opacity: 0.6 * draw, stroke: pp.color }} />;
-        })}
-      </svg>
-
-      <figure className={m.tinyNote} style={{ left: `${NOTE.x}%`, top: `${NOTE.y}%` }}>
-        <p className={m.tinyTitle}>Lisbon, 14–18 May</p>
+      <figure className={m.shopList}>
+        <p className={m.listTitle}>Groceries</p>
+        <p className={m.listSub}><b style={{ background: DUO[0].color }} /><b style={{ background: DUO[1].color }} />Shared with Sara</p>
         <ul>
-          {EVENTS.map((e, i) => {
-            const land = over(span(p, e.at + 0.1, e.at + 0.15));
-            const moved = i === 2 && p >= EVENTS[3].at + 0.12;
-            return <li key={i} style={{ opacity: moved ? 0.35 : land, transform: `translateY(${((1 - land) * 8).toFixed(1)}px)`, textDecoration: moved ? "line-through" : undefined }}>
-              <i style={{ background: PEOPLE[e.who].color }} />{e.line}{e.ai && <AIGlyph name={PEOPLE[e.who].ai} size={10} />}</li>;
+          {ITEMS.map((it, i) => {
+            const land = it.add < 0 ? 1 : over(span(p, it.add + 0.04, it.add + 0.1));
+            const t = it.tick < 0 ? 0 : span(p, it.tick, it.tick + 0.05);
+            const fresh = it.add < 0 ? 0 : land * (1 - span(p, it.add + 0.14, it.add + 0.22));
+            return (
+              <li key={it.text} style={{ opacity: land, transform: `translateY(${((1 - land) * 10).toFixed(1)}px)`, background: `rgba(240,144,26,${(0.16 * fresh).toFixed(3)})` }}>
+                <span className={m.box} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})`, ...(t > 0.5 ? { background: DUO[1].color } : {}) }}>
+                  <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
+                </span>
+                <span className={m.itemText} data-done={t > 0.5 || undefined}>{it.text}</span>
+                <img className={m.mini} src={DUO[it.by].img} alt="" />
+              </li>
+            );
           })}
         </ul>
       </figure>
 
-      {EVENTS.map((e, i) => {
-        // The change travels from the person (or their AI) to the note.
-        const t = mj(span(p, e.at + 0.04, e.at + 0.12));
-        const pp = PEOPLE[e.who];
-        const fx = pp.x + (e.ai ? (pp.x < 50 ? 4 : pp.x > 50 ? -4 : 6) : 0), fy = pp.y - (e.ai ? 9 : 0);
-        const midX = (fx + NOTE.x) / 2, midY = Math.min(fy, NOTE.y) - 6;
-        const x = (1 - t) * (1 - t) * fx + 2 * (1 - t) * t * midX + t * t * NOTE.x;
-        const y = (1 - t) * (1 - t) * fy + 2 * (1 - t) * t * midY + t * t * NOTE.y;
-        const v = t > 0 && t < 1 ? 1 : 0;
-        return <span key={i} className={m.spark} style={{ left: `${x}%`, top: `${y}%`, opacity: v, background: pp.color }} />;
-      })}
-
-      {PEOPLE.map((pp, i) => {
-        const now = [...EVENTS].reverse().find((e) => p >= e.at && p < e.at + 0.17);
+      {DUO.map((d, i) => {
+        const now = [...SAID].reverse().find((x) => p >= x.at && p < x.at + 0.13);
         const talking = now && now.who === i;
-        const bubble = talking ? mj(span(p, now.at, now.at + 0.03)) * (1 - mj(span(p, now.at + 0.14, now.at + 0.17))) : 0;
-        const appear = over(span(p, 0.0 + i * 0.04, 0.08 + i * 0.04));
+        const b = talking ? mj(span(p, now.at, now.at + 0.03)) * (1 - mj(span(p, now.at + 0.1, now.at + 0.13))) : 0;
         return (
-          <div key={pp.id} className={m.person} data-side={pp.x < 50 ? "l" : pp.x > 50 ? "r" : "c"} style={{ left: `${pp.x}%`, top: `${pp.y}%`, opacity: appear, transform: `translate(-50%, -50%) scale(${(0.85 + 0.15 * appear).toFixed(3)})` }}>
-            <span className={m.face} data-talking={(talking && !now.ai) || undefined}>
-              <img src={pp.img} alt="" onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = "none"; }} /><b>{pp.name[0]}</b>
-            </span>
-            <span className={m.aiDot} data-talking={(talking && now.ai) || undefined}><AIGlyph name={pp.ai} size={16} color={pp.ai === "claude" ? "#d97757" : "#0d0d0d"} /></span>
-            <span className={m.who}>{pp.name}<em> · {pp.aiName}</em></span>
-            {talking && <p className={m.bubble} data-ai={now.ai || undefined} style={{ opacity: bubble, transform: `translateY(${((1 - bubble) * 8).toFixed(1)}px)` }}>
-              {now.ai && <span><AIGlyph name={pp.ai} size={11} />{pp.name === "You" ? "Your" : `${pp.name}'s`} {pp.aiName}</span>}{now.said}</p>}
+          <div key={d.id} className={m.person} data-side={d.side}>
+            {talking && <p className={m.bubble} style={{ opacity: b, transform: `translateY(${((1 - b) * 8).toFixed(1)}px)` }}>{now.text}</p>}
+            <span className={m.face} data-talking={talking || undefined}><img src={d.img} alt="" /></span>
+            <span className={m.who}>{d.name}<em> · {d.where}</em></span>
           </div>
         );
       })}
