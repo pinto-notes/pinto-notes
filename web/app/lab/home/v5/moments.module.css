@@ -227,3 +227,13 @@
 .ringWrap { position: relative; display: grid; place-items: center; width: 72px; height: 72px; flex: none; }
 .ringWrap .ring { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ringWrap b { position: relative; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; color: #2a1d10; }
+
+/* A real iPhone edge: a slim black border inside a thin titanium rim, side buttons. */
+.phone { padding: 6px; background: #0c0c0c; box-shadow: 0 0 0 1.5px #a19d97, 0 0 0 2.5px #5d5a56, 0 40px 70px -30px rgba(40, 20, 5, 0.55); z-index: 3; }
+.phone::before, .phone::after { content: ""; position: absolute; width: 3px; border-radius: 2px; background: #8d8984; }
+.phone::before { left: -4px; top: 22%; height: 9%; box-shadow: 0 34px 0 #8d8984; }
+.phone::after { right: -4px; top: 28%; height: 14%; }
+.screen { border-radius: 36px; }
+/* ChatGPT's voice orb: a small piece of cloudy sky. */
+.orb { background: url(/home-v5/voice-orb.webp) center / cover no-repeat; }
+.orb i { display: none; }

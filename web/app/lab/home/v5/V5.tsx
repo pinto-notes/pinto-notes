@@ -28,12 +28,12 @@ const EXTRAS = [
 
 // Three features, each named plainly, with one real-life example under it.
 const FEATURES = [
-  { id: "voice", Scene: Walk, kicker: "Voice", title: "Talk to your notes, wherever you are.",
-    say: "Open your AI's voice mode and just say it. It lands in your notes.", example: "Plan tomorrow out loud on an evening walk. It's written down before you're home." },
-  { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI keeps your trackers up to date.",
-    say: "Habits, budgets, workouts. Tell your AI what you did, and it ticks it off for you.", example: "\u201cDid the gym this morning.\u201d Ticked, and the streak goes up." },
-  { id: "agents", Scene: Agents, kicker: "Agents", title: "One notebook for all your agents.",
-    say: "Claude Code and Codex read and write the same project notes.", example: "Tomorrow's session starts where today's stopped, and every change says which agent made it." },
+  { id: "voice", Scene: Walk, kicker: "Voice", title: "Just say it.",
+    say: "Talk to your AI. It writes it down." },
+  { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI ticks it off.",
+    say: "Tell it what you did. Your trackers update themselves." },
+  { id: "agents", Scene: Agents, kicker: "Agents", title: "Your agents share one brain.",
+    say: "Every session starts where the last one stopped." },
 ];
 
 
@@ -80,7 +80,6 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
               <p className={v.kicker}>{x.kicker}</p>
               <h2 id={i === 0 ? "moments" : undefined} className={v.rowTitle}>{x.title}</h2>
               <p className={v.say}>{x.say}</p>
-              <p className={v.example}><span>For example</span>{x.example}</p>
             </div>
             <x.Scene />
           </div></Pin>

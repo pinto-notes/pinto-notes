@@ -119,3 +119,6 @@
 /* More air between the templates and the grid. */
 .extras { margin-top: 120px; margin-bottom: 100px; }
 @media (max-width: 700px) { .extras { margin-top: 48px; margin-bottom: 40px; } }
+/* Short headlines get to be big. */
+.featBand .rowTitle { font-size: clamp(40px, 4.4vw, 64px); letter-spacing: -0.04em; line-height: 1; }
+.featBand .say { font-size: clamp(18px, 1.5vw, 21px); max-width: 24em; }
