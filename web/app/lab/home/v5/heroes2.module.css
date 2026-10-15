@@ -210,3 +210,9 @@
   .shoulder::after { width: 46%; background: linear-gradient(90deg, rgba(12, 10, 24, 0.55) 0%, rgba(12, 10, 24, 0.25) 60%, transparent 100%); }
   .shoulder .saidBox { left: 69.5%; top: 31%; width: 11%; z-index: 3; }
 }
+/* Readability: a deep dusk wash over the left side, strongest behind the words and fading out before
+   the phone, plus a soft shadow under the type. */
+@media (min-width: 901px) {
+  .shoulder::after { width: 62%; background: linear-gradient(90deg, rgba(16, 14, 40, 0.86) 0%, rgba(16, 14, 40, 0.74) 38%, rgba(16, 14, 40, 0.35) 70%, transparent 100%); }
+}
+.shoulder .h1Light, .shoulder .ledeLight, .shoulder [class*="kit_ctaQuiet"] { text-shadow: 0 2px 24px rgba(10, 8, 30, 0.55); }
