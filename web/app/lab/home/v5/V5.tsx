@@ -49,7 +49,7 @@ export function V5({ hero = "moment", band = "sage" }: { hero?: string; band?: s
       {(["moment", "threads", "product", "hands", "field", "page", "ask"] as const).includes(hero as never) ? (
         <div className={v.top}>
           {hero === "moment" ? <PhoneMomentHero /> : hero === "threads" ? <ThreadsHero /> : hero === "product" ? <ProductHero /> : hero === "hands" ? <HandsHero /> : hero === "field" ? <FieldHero /> : hero === "page" ? <PageHero /> : <AskHero />}
-          <Film captions={CAPTIONS} stopAt={0.83} />
+          <ScrollVar className={v.filmIn} from={1} to={0.35}><Film captions={CAPTIONS} stopAt={0.83} /></ScrollVar>
         </div>
       ) : hero === "calm" ? (
         <div className={v.top}><WorldHero art="night" calm /><Film captions={CAPTIONS} stopAt={0.83} /></div>

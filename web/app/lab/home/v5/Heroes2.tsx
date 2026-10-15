@@ -229,7 +229,8 @@ function useZoom() {
   const card = useRef<HTMLDivElement>(null);
   const [z, setZ] = useState({ p: 0, on: false, ox: 0, oy: 0, dx: 0, dy: 0, s: 1 });
   useEffect(() => {
-    if (!matchMedia("(min-width: 901px)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // The push-in is parked: it didn't land. The hero stays still.
+    if (true) return;
     let raf = 0, base: { ox: number; oy: number; dx: number; dy: number; s: number } | null = null;
     const measure = () => {
       const c = card.current?.getBoundingClientRect(), sc = screen.current?.getBoundingClientRect(); if (!c || !sc) return null;

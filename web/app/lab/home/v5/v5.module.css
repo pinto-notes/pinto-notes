@@ -159,3 +159,8 @@
 .frontier { gap: 120px; }
 .frontier .rowTitle { white-space: normal; text-wrap: balance; }
 .real { display: grid; gap: 0; }
+
+/* The film arrives: as it comes into view its stage rises, grows to size and fades up, and the note
+   inside it follows a beat later. */
+.filmIn [class*="film_stage"] { opacity: calc(0.25 + 0.75 * var(--s)); transform: translateY(calc((1 - var(--s)) * 80px)) scale(calc(0.92 + 0.08 * var(--s))); transform-origin: center top; }
+.filmIn [class*="film_noteWrap"] > figure { opacity: clamp(0, calc(var(--s) * 1.6 - 0.4), 1); }
