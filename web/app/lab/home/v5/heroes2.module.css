@@ -200,3 +200,27 @@
   .shoulder .momentFit { transform: translateX(-64%); height: 440px; justify-self: start; }
 }
 @media (max-width: 900px) { .shoulder .momentWords { padding: 0 var(--gutter, 20px); } }
+
+/* Cover the full width at any size: the art box is never narrower than the hero, and is anchored so the
+   phone stays right of centre. */
+@media (min-width: 901px) {
+  .shoulder .momentFit { top: 0; bottom: auto; right: auto; left: 50%; height: auto; width: max(100%, calc(100vh * 1672 / 941), 1700px); transform: translate(-44%, 0); aspect-ratio: 1672 / 941; }
+  .shoulder { min-height: 0; height: min(100vh, 940px); }
+}
+/* Bubbles above everything in the art (her hair, shoulder). */
+.saidBox { z-index: 3; }
+.shoulder .momentWords { gap: 26px; }
+@media (min-width: 901px) {
+  /* Width = enough to cover; phone (at 64% of the art) sits at 62% of the screen. */
+  .shoulder .momentFit { --w: max(100vw * 1.6, 100vh * 1.778 * 1.05, 1700px); width: var(--w); left: calc(62vw - var(--w) * 0.64); transform: none; }
+  .shoulder .saidBox { left: auto; right: auto; left: 71%; }
+}
+@media (min-width: 901px) and (max-width: 1400px) {
+  .shoulder .saidBox { left: 69.2%; width: 12%; }
+}
+@media (min-width: 901px) {
+  /* Just enough to cover: the art must reach from the left edge to past the right, and fill the height.
+     Phone (x 64%, y 50% of the art) anchored at 62% across, middle down. */
+  .shoulder .momentFit { --w: max(100vw * 1.12, 100vh * 1.778 * 1.04); width: var(--w); left: calc(62vw - var(--w) * 0.64); top: calc(50% - var(--w) * 0.5625 * 0.5); bottom: auto; }
+  .shoulder .saidBox { left: 70.6%; width: 11.5%; }
+}

@@ -263,8 +263,7 @@ export function PhoneMomentHero() {
       </div>
       <div className={x.momentWords}>
         <Title className={x.h1Light} />
-        <p className={x.ledeLight}>ChatGPT, Claude and Muse read and write in it, with your OK.</p>
-        <Download quiet={G.quiet} />
+        <Download />
       </div>
     </section>
   );
