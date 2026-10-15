@@ -164,37 +164,12 @@ struct DoneLine: View {
     }
 }
 
-extension View {
-    /// System alerts keep the system's own colours. The app's amber tint reached the alert's
-    /// buttons, and on iPhone the highlighted one became amber text on the system's blue fill.
-    /// Put alerts on a carrier with this, not on the screen, so the screen keeps its tint:
-    /// `content.background { Color.clear.alert(…).systemAlertColours() }`.
-    @ViewBuilder func systemAlertColours() -> some View {
-        #if os(iOS)
-        tint(Color(uiColor: SystemAlert.tint))
-        #else
-        self
-        #endif
-    }
-}
-
-enum SystemAlert {
-    #if os(iOS)
-    /// What an alert's buttons are drawn in: the system's own blue, as in an app with no tint.
-    static let tint = UIColor.systemBlue
-    #endif
-}
-
 /// Remove and Leave ask first, with what happens in plain words.
 struct ShareConfirmations: ViewModifier {
     @Bindable var share: ShareController
 
     func body(content: Content) -> some View {
-        content.background { questions }
-    }
-
-    private var questions: some View {
-        Color.clear
+        content
             .alert(share.confirmingRemove.map(ShareCopy.removeTitle) ?? "",
                    isPresented: Binding(get: { share.confirmingRemove != nil }, set: { if !$0 { share.confirmingRemove = nil } })) {
                 Button("Cancel", role: .cancel) { share.confirmingRemove = nil }
@@ -208,7 +183,6 @@ struct ShareConfirmations: ViewModifier {
             } message: {
                 Text(ShareCopy.leaveMessage)
             }
-            .systemAlertColours()
     }
 }
 

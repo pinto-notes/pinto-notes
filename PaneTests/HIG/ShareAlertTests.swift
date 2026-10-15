@@ -5,11 +5,11 @@ import Testing
 import UIKit
 #endif
 
-/// Share's questions on iPhone (Join, Remove, Leave, Delete) are system alerts in the system's own
-/// colours: the app's amber tint doesn't reach their buttons, so the highlighted button is never
-/// amber on blue. Presented for real in a window of the test host on the simulator; with
+/// Share's questions on iPhone (Join, Remove, Leave, Delete), presented for real in a window of the
+/// test host on the simulator: no button is filled (a filled Join drew amber text on the system's
+/// blue), and Remove, Leave and Delete are destructive with a Cancel beside them. With
 /// AMBER_HIG_SHOTS set, each is also photographed.
-@MainActor @Suite(.serialized) struct SystemAlertColourTests {
+@MainActor @Suite(.serialized) struct ShareAlertTests {
     /// Both platforms: the questions' words, as the alerts show them.
     @Test func theQuestionsWords() {
         #expect(JoinCopy.askTitle(JoinPreview(title: "Team offsite", owner: "Emil Wagman", canEdit: true)) == "Join \u{201C}Team offsite\u{201D}?")
@@ -47,15 +47,7 @@ import UIKit
         return found
     }
 
-    /// The alert's buttons take the alert view's tint: it's the system's, not the app's amber.
-    static func expectSystemColours(_ alert: UIAlertController, _ name: String) {
-        let tint = alert.view.tintColor.resolvedColor(with: alert.traitCollection)
-        let amber = UIColor(Color(PColor.paneAccent)).resolvedColor(with: alert.traitCollection)
-        #expect(tint == SystemAlert.tint.resolvedColor(with: alert.traitCollection), "\(name): \(tint)")
-        #expect(tint != amber, "\(name)")
-    }
-
-    @Test func joinIsInTheSystemsColours() async throws {
+    @Test func joinHasNoFilledButton() async throws {
         let center = JoinCenter()
         center.ready = { true }
         center.preview = { _ in JoinPreview(title: "Team offsite", owner: "Emil Wagman", canEdit: true) }
@@ -69,23 +61,22 @@ import UIKit
         let alert = try await Self.present(Host(center: center), name: "join")
         #expect(alert.title == "Join \u{201C}Team offsite\u{201D}?")
         #expect(Set(alert.actions.compactMap(\.title)) == ["Not Now", "Join"])
-        // No filled button: both read in the system's colours.
+        // No filled button.
         #expect(alert.preferredAction == nil)
-        Self.expectSystemColours(alert, "join")
     }
 
-    @Test func removeAndLeaveAreInTheSystemsColours() async throws {
+    @Test func removeAndLeaveAreDestructiveWithCancel() async throws {
         for leaving in [false, true] {
             let state = leaving ? ShareControllerTests.member() : ShareControllerTests.owner(link: .edit)
             let share = ShareController(note: Note(body: "Team offsite"), backend: SampleShare(state))
             if leaving { share.askLeave() } else { share.askRemove(state.people[1]) }
             let alert = try await Self.present(Color.white.modifier(ShareConfirmations(share: share)), name: leaving ? "leave" : "remove")
             #expect(alert.actions.contains { $0.style == .destructive && $0.title == (leaving ? "Leave" : "Remove") })
-            Self.expectSystemColours(alert, leaving ? "leave" : "remove")
+            #expect(alert.actions.contains { $0.style == .cancel && $0.title == "Cancel" })
         }
     }
 
-    @Test func deleteIsInTheSystemsColours() async throws {
+    @Test func deleteIsDestructiveWithCancel() async throws {
         let note = Note(body: "Team offsite\n")
         note.sharedNoteID = note.id
         struct Host: View {
@@ -95,7 +86,7 @@ import UIKit
         let alert = try await Self.present(Host(pending: [note]), name: "delete")
         #expect(alert.title == "Delete \u{201C}Team offsite\u{201D} for everyone?")
         #expect(alert.actions.contains { $0.style == .destructive && $0.title == "Delete" })
-        Self.expectSystemColours(alert, "delete")
+        #expect(alert.actions.contains { $0.style == .cancel && $0.title == "Cancel" })
     }
     #endif
 }

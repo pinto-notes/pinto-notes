@@ -155,18 +155,12 @@ struct JoinLinkHandler: ViewModifier {
                 }
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: center.phase)
-            .background { questions }
-    }
-
-    /// On a carrier of their own, in the system's colours (systemAlertColours).
-    private var questions: some View {
-        Color.clear
             .alert(asking.map(JoinCopy.askTitle) ?? "", isPresented: Binding(get: { asking != nil }, set: { if !$0 { center.decline() } })) {
                 Button("Not Now", role: .cancel) { center.decline() }
                 Button("Join") { center.accept() }
                     #if os(macOS)
-                    // Return joins on the Mac. On iPhone no button is filled: the filled one drew
-                    // its label in a colour of its own (amber, then black) on the system's blue.
+                    // Return joins on the Mac. Not on iPhone: there the default action turns the
+                    // button the system's blue, with the app's amber text on it.
                     .keyboardShortcut(.defaultAction)
                     #endif
                     .accessibilityIdentifier("collab.join")
@@ -179,7 +173,6 @@ struct JoinLinkHandler: ViewModifier {
             } message: {
                 if case .failed(let why) = center.phase { Text(why) }
             }
-            .systemAlertColours()
     }
 }
 
