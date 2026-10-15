@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Builder, MayaPhoto, Optimiser, Pin, Walker } from "./Moments";
+import { FullPhoto, Pin } from "./Moments";
 import { ScrollVar } from "./ScrollVar";
 import { Week } from "./Week";
 import v from "./v5.module.css";
@@ -26,15 +26,6 @@ const EXTRAS = [
   { icon: "/home-v5/icons/people.webp", title: "Share with people", say: "Plan together in one note, live.", soon: true },
 ];
 
-// Three features, each named plainly, with one real-life example under it.
-const FEATURES = [
-  { id: "walk", Scene: MayaPhoto, kicker: "Every evening", title: "Maya plans\ntomorrow on a walk.",
-    say: "She talks through her day with ChatGPT. What got done, what's next. It's in her notes before she's home." },
-  { id: "agents", Scene: Builder, kicker: "All day", title: "Jonas runs his agents\non one notebook.",
-    say: "Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project." },
-  { id: "gym", Scene: Optimiser, kicker: "Every morning", title: "Sara built\nher own gym log.",
-    say: "She asked for it, and it appeared in her notes. She logs her sets in it, and her AI plans the next session from them." },
-];
 
 
 
@@ -73,21 +64,31 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
         </div>
       )}
 
-      <section className={`${v.moments} ${v.featBand}`} data-band={band} data-dark-band={band} aria-labelledby="moments">
-        <div className={v.bandHead}>
+      <section className={v.frontier} aria-labelledby="moments">
+        <div className={v.frontierHead}>
           <h2 id="moments" className={v.big}>People are already living like this.</h2>
           <p className={v.say}>Three small systems. They compound.</p>
         </div>
-        {FEATURES.map((x, i) => (
-          <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
-            <div className={v.words}>
-              <p className={v.kicker}>{x.kicker}</p>
-              <h3 className={v.rowTitle}>{x.title}</h3>
-              <p className={v.say}>{x.say}</p>
-            </div>
-            <x.Scene />
-          </div></Pin>
-        ))}
+        <Pin length={130}><FullPhoto src="/home-v5/frontier/maya.webp" focus="30% 50%" side="right" where="Maya · Dolores Park, 21:40"
+          alt="A woman walking along the top of Dolores Park at dusk, talking to her phone, the San Francisco skyline behind her."
+          kicker="Every evening" title={"Maya plans\ntomorrow on a walk."} say="She talks her day through with ChatGPT. It's planned before she's home."
+          lines={[{ who: "me", text: "Did my run. Skipped the reading again.", at: 0.06 },
+            { who: "ai", ai: "openai", text: "Third time this week. Move it to the mornings?", at: 0.28 },
+            { who: "me", text: "Yes. Ten pages before work.", at: 0.5 },
+            { who: "ai", ai: "openai", text: "Done. Tomorrow's set.", at: 0.7 }]} /></Pin>
+        <Pin length={130}><FullPhoto src="/home-v5/frontier/jonas.webp" focus="70% 50%" side="left" where="Jonas · Russian Hill, 01:10"
+          alt="A man at a desk late at night, a terminal open on his laptop, the San Francisco skyline in fog outside the window."
+          kicker="All night" title={"Jonas runs his agents\non one notebook."} say="Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project."
+          lines={[{ who: "me", text: "Pick up the sync rewrite. It's all in my notes.", at: 0.06 },
+            { who: "ai", ai: "claude", text: "Read the plan. Retry with backoff is done.", at: 0.28 },
+            { who: "ai", ai: "openai", text: "Offline edits replay in order now.", at: 0.5 },
+            { who: "ai", ai: "claude", text: "12 tests pass. Logged it in your notes.", at: 0.7 }]} /></Pin>
+        <Pin length={130}><FullPhoto src="/home-v5/frontier/sara.webp" focus="30% 50%" side="right" where="Sara · North Beach, 07:20"
+          alt="A woman sitting on a gym bench between sets, looking at her phone, the Bay Bridge and the city through big windows."
+          kicker="Every morning" title={"Sara built\nher own gym log."} say="She asked for an app, and it appeared in her notes. Her AI plans the next session from it."
+          lines={[{ who: "me", text: "What should I do next push day?", at: 0.42 },
+            { who: "ai", ai: "openai", text: "Bench 65 kg. You've hit 62.5 three sessions running.", at: 0.6 }]}
+          gym /></Pin>
       </section>
 
       <section className={d.wait} aria-labelledby="wait">

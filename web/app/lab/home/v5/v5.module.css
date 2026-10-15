@@ -147,3 +147,8 @@
 }
 .featBand .rowTitle { font-size: clamp(36px, 3.4vw, 54px); line-height: 1.02; }
 .featBand .say { font-size: clamp(17px, 1.3vw, 19px); }
+
+/* The frontier section: a short cream intro, then full-bleed people. */
+.frontier { display: grid; gap: 0; }
+.frontierHead { display: grid; justify-items: center; text-align: center; padding: 0 0 72px; }
+.frontierHead .say { margin-left: auto; margin-right: auto; }

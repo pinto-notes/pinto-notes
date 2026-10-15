@@ -575,3 +575,43 @@ export function MayaPhoto() {
     </div>
   );
 }
+
+// ── Frontier, full-bleed: each person fills the screen. Words lie over the dark side of the photo; what
+// they and their AI say floats on the other side. Pinned rows hand down scroll progress. ──
+type Line = { who: "me" | "ai"; ai?: "openai" | "claude"; text: string; at: number };
+export function FullPhoto({ src, alt, where, kicker, title, say, lines, side = "left", focus = "center", gym = false }:
+  { src: string; alt: string; where: string; kicker: string; title: string; say: string; lines: Line[]; side?: "left" | "right"; focus?: string; gym?: boolean }) {
+  const [ref, p] = useSceneProgress();
+  return (
+    <div ref={ref} className={m.full} data-side={side} data-dark-band="">
+      <img className={m.fullImg} src={src} alt={alt} style={{ objectPosition: focus, transform: `scale(${(1.06 - 0.06 * p).toFixed(4)})` }} />
+      <span className={m.fullShade} aria-hidden="true" />
+      <div className={m.fullWords}>
+        <p className={m.fullKicker}>{kicker}</p>
+        <h3 className={m.fullTitle}>{title}</h3>
+        <p className={m.fullSay}>{say}</p>
+      </div>
+      <div className={m.fullSays}>
+        {lines.map((l, i) => {
+          const v = mj(span(p, l.at, l.at + 0.06)) * (i < lines.length - 2 ? 1 - mj(span(p, lines[i + 2].at, lines[i + 2].at + 0.05)) : 1);
+          return <Say key={i} who={l.who} ai={l.ai} text={l.text} v={v} />;
+        })}
+        {gym && <GymCard p={p} />}
+      </div>
+      <span className={m.fullWhere}>{where}</span>
+    </div>
+  );
+}
+/// Sara's gym app, small, as the one piece of product in the section.
+export function GymCard({ p }: { p: number }) {
+  const v = mj(span(p, 0.06, 0.16));
+  const LIFT = [{ n: "Bench press", w: "62.5 kg", b: true, at: 0.12 }, { n: "Overhead press", w: "40 kg", b: false, at: 0.2 }, { n: "Pull-ups", w: "3 × 7", b: true, at: 0.28 }];
+  return (
+    <figure className={m.gymMini} style={{ opacity: v, transform: `translateY(${((1 - v) * 16).toFixed(1)}px)` }}>
+      <div className={m.gymMiniHead}><span>Gym log</span><em>Push day · week 6</em></div>
+      <ul>{LIFT.map((l) => { const t = span(p, l.at, l.at + 0.05); return (
+        <li key={l.n}><b>{l.n}</b>{l.b && <i style={{ opacity: t }}>New best</i>}<span data-empty={t < 0.5 || undefined}>{t < 0.5 ? "Add" : l.w}</span></li>); })}</ul>
+      <p>Her own app. Built from one ask.</p>
+    </figure>
+  );
+}
