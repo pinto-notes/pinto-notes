@@ -174,3 +174,9 @@
 /* While the note is flying, the film's stage keeps quiet: just the panel and the note's slot. */
 :global(html[data-note-flying]) .filmIn [class*="film_chat"], :global(html[data-note-flying]) .filmIn [class*="film_caption"], :global(html[data-note-flying]) .filmIn [class*="film_days"], :global(html[data-note-flying]) .filmIn [class*="film_thread"] { opacity: 0 !important; }
 .filmIn [class*="film_chat"], .filmIn [class*="film_caption"], .filmIn [class*="film_days"] { transition: opacity .4s ease-out; }
+
+/* V3: the film's panel isn't there until the note lands; then it appears around it, like V1. */
+.filmQuiet [class*="film_stage"] { transition: background-color .45s ease-out, box-shadow .45s ease-out; }
+.filmQuiet [class*="film_chat"], .filmQuiet [class*="film_caption"], .filmQuiet [class*="film_days"] { transition: opacity .45s ease-out; }
+:global(html[data-note-flying]) .filmQuiet [class*="film_stage"] { background-color: transparent !important; box-shadow: none !important; }
+:global(html[data-note-flying]) .filmQuiet [class*="film_chat"], :global(html[data-note-flying]) .filmQuiet [class*="film_caption"], :global(html[data-note-flying]) .filmQuiet [class*="film_days"], :global(html[data-note-flying]) .filmQuiet [class*="film_thread"] { opacity: 0 !important; }

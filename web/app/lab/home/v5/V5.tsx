@@ -65,7 +65,7 @@ export function V5({ hero = "fresh", band = "sage" }: { hero?: string; band?: st
         <div className={v.top}>
           <PhoneMomentHero />
           <PhoneToFilm />
-          <ScrollVar className={v.filmIn} from={1} to={0.35}><Film captions={CAPTIONS} stopAt={0.83} /></ScrollVar>
+          <div className={v.filmQuiet}><Film captions={CAPTIONS} stopAt={0.83} /></div>
         </div>
       ) : hero === "how" ? (
         <div className={v.top}>

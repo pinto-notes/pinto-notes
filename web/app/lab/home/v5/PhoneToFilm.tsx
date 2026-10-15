@@ -36,10 +36,10 @@ export function PhoneToFilm() {
       const a = pe.getBoundingClientRect(), b = ff.getBoundingClientRect();
       const s = b.width / ff.offsetWidth;
       const wrap = ff.parentElement as HTMLElement;
-      const flying = q > 0.28 && q < 1;
+      const flying = q > 0.05 && q < 1;
       wrap.style.opacity = q >= 1 ? "" : "0";
       // Her phone's note stays as it is until the lift; then it fades to a blank screen under the flying note.
-      (pe.firstElementChild as HTMLElement | null)?.style.setProperty("opacity", String(1 - mj(span(q, 0.28, 0.36))));
+      (pe.firstElementChild as HTMLElement | null)?.style.setProperty("opacity", String(1 - mj(span(q, 0.05, 0.12))));
       root.toggleAttribute("data-note-flying", q < 1);
       setSt(flying ? { q, ph: { x: a.left, y: a.top, w: a.width, h: a.height }, fm: { x: b.left, y: b.top, w: b.width, h: b.height }, s } : null);
     };
@@ -57,9 +57,9 @@ export function PhoneToFilm() {
 
   const { q, ph, fm, s } = st;
   // 1. Nothing happens to her note at first. Then (q 0.28 .. 0.36) it fades to a blank note with a skeleton.
-  const appear = mj(span(q, 0.28, 0.36));
+  const appear = mj(span(q, 0.05, 0.12));
   // 2. The blank note lifts and grows into the film's window (q 0.36 .. 1).
-  const k = mj(span(q, 0.36, 1));
+  const k = mj(span(q, 0.12, 1));
   // 3. As it lands, the skeleton title becomes the real one.
   const real = mj(span(k, 0.8, 1));
   const pw = ph.w;
