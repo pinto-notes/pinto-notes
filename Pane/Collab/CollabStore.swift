@@ -265,7 +265,14 @@ final class CollabStore {
     }
 
     func checkInvites() async {
-        guard let transport, let rows = try? await transport.memberships() else { return }
+        guard let transport else { return }
+        let rows: [Collab.Membership]
+        do {
+            rows = try await transport.memberships()
+        } catch {
+            log.error("checking memberships failed: \(String(describing: error), privacy: .public)")
+            return
+        }
         await followKeys(rows)
         guard invite == nil, identity != nil else { return }
         for row in rows where row.accepted_at == nil && !handled.contains(row.note_id) {
