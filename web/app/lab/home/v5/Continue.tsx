@@ -67,8 +67,10 @@ function Note({ p, f }: { p: number; f: number }) {
   return (
     <div className={c.scIn}>
       <p className={c.status} style={{ opacity: 1 - mj(span(f, 0, 0.6)), maxHeight: `${(1 - f) * 12}cqw`, marginBottom: `${(1 - f) * 6}cqw`, overflow: "hidden" }}><b>21:40</b><span /></p>
-      <p className={c.back}>‹ My notebook</p>
+      <p className={c.back} style={{ opacity: 1 - f, maxHeight: `${(1 - f) * 8}cqw`, marginBottom: `${(1 - f) * 2}cqw`, overflow: "hidden" }}>‹ My notebook</p>
       <h3 className={c.title}>This week</h3>
+      <p className={c.sub}>Half marathon in six weeks. Lisbon on the 18th, so keep the evenings light.</p>
+      <p className={c.section}>Training</p>
       <ul className={c.list}>
         <li><Check t={tickMon} cur={curMon} press={tickMon > 0 && tickMon < 1} /><span data-done={tickMon > 0.5 || undefined}>Mon · Run, 5 km</span><Chip ai="openai" /></li>
         <li><Check t={tickWed} cur={curWed} press={tickWed > 0 && tickWed < 1} /><span data-done={tickWed > 0.5 || undefined}>Wed · Intervals</span><Chip ai="openai" /></li>
@@ -76,16 +78,14 @@ function Note({ p, f }: { p: number; f: number }) {
           <Check t={0} /><span>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
           {moved > 0.5 ? <Chip ai="claude" v={mMark} /> : <Chip ai="openai" />}
         </li>
+      </ul>
+      <p className={c.section}>To do</p>
+      <ul className={c.list}>
         <li style={tint(dMark * (1 - span(p, 0.55, 0.62)))}>
           <Check t={dentist} /><span data-done={dentist > 0.5 || undefined}>{dentist > 0.5 ? "Dentist · Thu 10:00" : "Call the dentist"}</span>
           {dentist > 0.5 ? <Chip ai="claude" v={dMark} /> : <Chip ai="openai" />}
         </li>
         <li style={tint(flag)}><Check t={0} /><span>Book Lisbon flights · by Fri</span><Chip ai="openai" /></li>
-      </ul>
-      <p className={c.section}>Every day</p>
-      <ul className={c.list}>
-        <li><Check t={1} /><span data-done="">Read 20 pages</span></li>
-        <li><Check t={0} />Call mum</li>
       </ul>
     </div>
   );
@@ -195,6 +195,9 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
         {noteBox && (
           <div className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly) / sc,
             boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * fly).toFixed(2)}), 0 ${(40 * fly).toFixed(0)}px ${(80 * fly).toFixed(0)}px -36px rgba(60,30,5,${(0.5 * fly).toFixed(2)})` }}>
+            <div className={c.winBar} style={{ height: `${(fly * 9).toFixed(2)}cqw`, opacity: mj(span(fly, 0.4, 1)) }}>
+              <span className={c.lights}><i /><i /><i /></span><span className={c.folder}>Plans</span>
+            </div>
             <Note p={p} f={fly} />
 
           </div>

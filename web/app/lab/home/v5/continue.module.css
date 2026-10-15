@@ -64,3 +64,14 @@
 .bAi { background: #fff; color: #1d1b19; display: grid; gap: 4px; border-bottom-left-radius: 6px; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.12), 0 16px 32px -16px rgba(40, 20, 5, 0.4); }
 .bAi::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff; clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
 .bAi span { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: #6b5f53; }
+
+/* Once it lands, the note becomes a Mac note window: a title bar grows in as the phone status folds away. */
+.note { display: flex; flex-direction: column; }
+.note > .scIn { flex: 1; height: auto; min-height: 0; }
+.winBar { position: relative; flex: none; display: flex; align-items: center; padding: 0 3.5cqw; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); overflow: hidden; }
+.lights { display: flex; gap: 1.8cqw; }
+.lights i { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.folder { position: absolute; left: 50%; transform: translateX(-50%); font-size: 3cqw; font-weight: 600; color: #8a7a68; }
+.sub { margin: -2cqw 0 4cqw; font-size: 3.9cqw; line-height: 1.4; color: #8a7a68; }
+.note .section { margin: 3cqw 0 1.5cqw; }
