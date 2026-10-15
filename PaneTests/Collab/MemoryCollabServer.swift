@@ -71,9 +71,13 @@ final class MemoryCollabServer {
 
     struct Offline: Error {}
 
+    /// Calls whose next request dies the way a reused connection does (NSURLError -1005), once each.
+    var dropOnce: Set<String> = []
+
     func check(_ name: String) throws {
         calls.append(name)
         if offline { throw Offline() }
+        if dropOnce.remove(name) != nil { throw URLError(.networkConnectionLost) }
     }
 
     func role(_ note: UUID, _ user: UUID) -> String? { members[note]?[user]?.role }
