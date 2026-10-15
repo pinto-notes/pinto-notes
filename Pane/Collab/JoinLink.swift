@@ -158,7 +158,11 @@ struct JoinLinkHandler: ViewModifier {
             .alert(asking.map(JoinCopy.askTitle) ?? "", isPresented: Binding(get: { asking != nil }, set: { if !$0 { center.decline() } })) {
                 Button("Not Now", role: .cancel) { center.decline() }
                 Button("Join") { center.accept() }
+                    #if os(macOS)
+                    // Return joins on the Mac. Not on iPhone: there the default action turns the
+                    // button the system's blue, with the app's amber text on it.
                     .keyboardShortcut(.defaultAction)
+                    #endif
                     .accessibilityIdentifier("collab.join")
             } message: {
                 if let asking { Text(JoinCopy.askMessage(asking)) }
