@@ -1,20 +1,7 @@
-/* The flying note: drawn like the film's note window, with every measure set from JS. */
-.fly { position: fixed; z-index: 60; overflow: hidden; pointer-events: none; background: #fffdf9; color: #1d1b19; display: flex; flex-direction: column; will-change: left, top, width, height; }
-.bar { position: relative; flex: none; display: flex; align-items: center; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); overflow: hidden; }
-.lights { display: flex; }
-.lights i { border-radius: 50%; background: #ff5f57; }
-.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
-.folder { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 600; color: #8a7a68; }
-.paper { flex: 1; min-height: 0; overflow: hidden; }
-.status, .back { margin: 0; overflow: hidden; white-space: nowrap; }
-.back { font-weight: 600; color: #d97a17; }
-.title { margin: 0; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
-.caret { display: inline-block; width: 2px; height: 0.9em; margin-left: 1px; vertical-align: -0.1em; background: #d97a17; }
-.sub { margin-top: 0; color: #8a7a68; white-space: nowrap; }
-.rows { position: relative; }
-.old { margin: 0; overflow: hidden; white-space: nowrap; color: #1d1b19; }
-.row { position: relative; }
-.ghost { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(120, 90, 60, 0.09); }
-.head { position: relative; flex: none; }
-.head .title, .head .sub { position: absolute; left: 0; top: 0; margin: 0; }
-.skel { position: absolute; left: 0; top: 0; border-radius: 6px; background: rgba(120, 90, 60, 0.12); }
+/* The moving card: her phone note's copy and the film note's copy, each at its own natural size and
+   scaled to the card. */
+.fly { position: fixed; z-index: 60; overflow: hidden; pointer-events: none; background: #fbfaf7; }
+.copy.copy { position: absolute !important; left: 0 !important; top: 0 !important; right: auto !important; bottom: auto !important; transform-origin: 0 0; border-radius: 0 !important; visibility: visible !important; margin: 0 !important; }
+.copy > figure { margin: 0; box-shadow: none !important; border-radius: 0 !important; height: 100%; }
+.scope.scope { position: absolute !important; inset: 0 !important; width: auto !important; height: auto !important; margin: 0 !important; background: none !important; overflow: visible !important; }
+.scope.scope::after, .scope.scope::before { content: none !important; display: none !important; }
