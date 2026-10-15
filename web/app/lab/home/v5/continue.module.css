@@ -10,7 +10,7 @@
 .stage { position: absolute; left: max(32px, calc(50vw - 640px)); right: max(32px, calc(50vw - 640px)); top: 96px; bottom: 24px; border-radius: 28px; background: #fbeedd; z-index: 0;
   box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.1); transform-origin: center; }
 .slots { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; margin: 0; padding: 6px; list-style: none; border-radius: 18px; background: rgba(255, 250, 243, 0.9); box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.12); }
-.slots li { min-width: 76px; height: 30px; display: grid; place-items: center; border-radius: 12px; font-size: 13.5px; font-weight: 650; color: #a99682; transition: background-color .25s ease-out, color .25s ease-out; }
+.slots li { min-width: 54px; height: 30px; display: grid; place-items: center; border-radius: 12px; font-size: 13.5px; font-weight: 650; color: #a99682; transition: background-color .25s ease-out, color .25s ease-out; }
 .slots li[data-past] { color: #6b5a48; }
 .slots li[data-on] { background: #2a1d10; color: #fff4e6; }
 .caption { position: absolute; left: 0; right: 0; bottom: 30px; margin: 0; text-align: center; font-size: clamp(24px, 2.8vw, 38px); font-weight: 800; letter-spacing: -0.03em; color: #2a1d10; }
@@ -33,7 +33,9 @@
 .note .chk[data-on] { background: #d97a17; box-shadow: none; }
 .note .chk svg { width: 70%; height: 70%; }
 .note .chk path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; }
-.cursor { position: absolute; left: 0; top: 0; width: 6cqw; height: 6cqw; z-index: 2; pointer-events: none; }
+.note .chk { position: relative; }
+/* The pointer's tip (at 4,2 of 24) sits on the checkbox centre. */
+.cursor { position: absolute; left: calc(50% - 1.4cqw); top: calc(50% - 0.7cqw); width: 8.5cqw; height: 8.5cqw; z-index: 3; pointer-events: none; overflow: visible; }
 .cursor path { fill: #1d1b19; stroke: #fff; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* Chats beside the note. */
@@ -50,3 +52,6 @@
 .chatTop { font-size: 14px; }
 .tool { font-size: 13.5px; }
 .chat { padding: 18px 20px 20px; gap: 10px; border-radius: 22px; }
+.note .chk svg.cursor { width: 8.5cqw; height: 8.5cqw; }
+.note .chk .cursor path { fill: #1d1b19; stroke: #fff; stroke-width: 1.5; stroke-dasharray: none; stroke-linejoin: round; }
+.note .chk svg.cursor { transform-origin: 16.7% 8.3%; }

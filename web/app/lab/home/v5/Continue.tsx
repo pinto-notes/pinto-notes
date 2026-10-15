@@ -23,47 +23,67 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const FLY = [0.02, 0.2];   // the note leaves the phone and settles in the middle
 const STAGE = [0.2, 0.27]; // then the stage appears around it
 const BEATS = [
-  { at: 0.27, slot: 0, text: "Tick things off yourself." },
-  { at: 0.46, slot: 1, text: "Every AI reads the same note." },
-  { at: 0.66, slot: 2, text: "Ask it anything about your plans." },
-  { at: 0.86, slot: 2, text: "Your notes. Every AI you use." },
+  { at: 0.27, slot: 0, text: "You tick things off." },
+  { at: 0.4, slot: 1, text: "Your AI keeps it up to date." },
+  { at: 0.52, slot: 2, text: "You tick things off." },
+  { at: 0.61, slot: 3, text: "Life happens." },
+  { at: 0.71, slot: 4, text: "Ask how your week went." },
+  { at: 0.93, slot: 4, text: "The notebook you and your AI share." },
 ];
-const SLOTS = ["Morning", "Lunch", "Evening"];
+const SLOTS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
-function Check({ t }: { t: number }) {
+/// A checkbox; `cur` (0..1) brings your pointer in to it, tip exactly on its centre, and `t` ticks it.
+function Check({ t, cur = 0, press = false }: { t: number; cur?: number; press?: boolean }) {
   return (
     <i className={c.chk} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
       <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
+      {cur > 0 && (
+        <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true"
+          style={{ opacity: Math.min(1, cur * 3), transform: `translate(${((1 - mj(cur)) * 260).toFixed(1)}%, ${((1 - mj(cur)) * 180).toFixed(1)}%) scale(${press ? 0.86 : 1})` }}>
+          <path d="M4 2l15 9-7 1.5L8.5 20z" />
+        </svg>
+      )}
     </i>
   );
 }
 
-/// Her note: the same lines as on her phone, then the next day happens to it.
+const Chip = ({ ai, v = 1 }: { ai: "openai" | "claude"; v?: number }) => (
+  <em data-ai={ai === "claude" ? "claude" : undefined} style={{ opacity: v }}>
+    <AIGlyph name={ai} size={8} color={ai === "claude" ? "#d97757" : undefined} />{ai === "claude" ? "Claude" : "ChatGPT"}
+  </em>
+);
+
+/// Her week: the plan she made on the walk, then the week happens to it, and on Friday she asks.
 function Note({ p, f }: { p: number; f: number }) {
-  const tickRun = span(p, 0.36, 0.4);
-  const dentist = mj(span(p, 0.58, 0.63)), claudeMark = over(span(p, 0.6, 0.65));
-  const tickFlights = span(p, 0.8, 0.84), museMark = over(span(p, 0.8, 0.85));
-  const tint = (v: number) => ({ background: `rgba(240,144,26,${(0.16 * v).toFixed(3)})` });
+  // Mon: you tick the run. Tue: Claude books the dentist. Wed: you tick the run. Thu: the run slips.
+  // Fri: Claude moves Thursday's run to Sunday and flags the flights.
+  const curMon = span(p, 0.29, 0.35) * (1 - span(p, 0.39, 0.41)), tickMon = span(p, 0.35, 0.38);
+  const dentist = mj(span(p, 0.44, 0.48)), dMark = over(span(p, 0.45, 0.5));
+  const curWed = span(p, 0.53, 0.57) * (1 - span(p, 0.6, 0.62)), tickWed = span(p, 0.57, 0.6);
+  const slip = mj(span(p, 0.63, 0.67)) * (1 - mj(span(p, 0.84, 0.88)));
+  const moved = mj(span(p, 0.84, 0.88)), mMark = over(span(p, 0.85, 0.9));
+  const flag = Math.sin(Math.PI * span(p, 0.87, 0.97));
+  const tint = (v: number, rgb = "240,144,26") => ({ background: `rgba(${rgb},${(0.16 * v).toFixed(3)})` });
   return (
     <div className={c.scIn}>
       <p className={c.status} style={{ opacity: 1 - mj(span(f, 0, 0.6)), maxHeight: `${(1 - f) * 12}cqw`, marginBottom: `${(1 - f) * 6}cqw`, overflow: "hidden" }}><b>21:40</b><span /></p>
       <p className={c.back}>‹ My notebook</p>
-      <h3 className={c.title}>Tomorrow</h3>
+      <h3 className={c.title}>This week</h3>
       <ul className={c.list}>
-        <li><Check t={0} />Pick up the dry cleaning</li>
-        <li><Check t={tickRun} /><span data-done={tickRun > 0.5 || undefined}>Run, 5 km</span><em><AIGlyph name="openai" size={8} />ChatGPT</em></li>
-        <li style={tint(claudeMark * (1 - span(p, 0.7, 0.78)))}>
-          <Check t={0} /><span>{dentist > 0.5 ? "Call the dentist · 15:00" : "Call the dentist"}</span>
-          {dentist > 0.5 ? <em data-ai="claude" style={{ opacity: claudeMark }}><AIGlyph name="claude" size={8} color="#d97757" />Claude</em> : <em><AIGlyph name="openai" size={8} />ChatGPT</em>}
+        <li><Check t={tickMon} cur={curMon} press={tickMon > 0 && tickMon < 1} /><span data-done={tickMon > 0.5 || undefined}>Mon · Run, 5 km</span><Chip ai="openai" /></li>
+        <li><Check t={tickWed} cur={curWed} press={tickWed > 0 && tickWed < 1} /><span data-done={tickWed > 0.5 || undefined}>Wed · Intervals</span><Chip ai="openai" /></li>
+        <li style={tint(Math.max(slip, moved * (1 - span(p, 0.95, 1))), moved > 0.5 ? "240,144,26" : "200,90,60")}>
+          <Check t={0} /><span>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
+          {moved > 0.5 ? <Chip ai="claude" v={mMark} /> : <Chip ai="openai" />}
         </li>
-        <li style={tint(museMark * (1 - span(p, 0.9, 0.98)))}>
-          <Check t={tickFlights} /><span data-done={tickFlights > 0.5 || undefined}>Book Lisbon flights</span>
-          {tickFlights > 0.5 ? <em data-ai="meta" style={{ opacity: museMark }}><AIGlyph name="meta" size={8} color="#0866ff" />Muse</em> : <em><AIGlyph name="openai" size={8} />ChatGPT</em>}
+        <li style={tint(dMark * (1 - span(p, 0.55, 0.62)))}>
+          <Check t={dentist} /><span data-done={dentist > 0.5 || undefined}>{dentist > 0.5 ? "Dentist · Thu 10:00" : "Call the dentist"}</span>
+          {dentist > 0.5 ? <Chip ai="claude" v={dMark} /> : <Chip ai="openai" />}
         </li>
+        <li style={tint(flag)}><Check t={0} /><span>Book Lisbon flights · by Fri</span><Chip ai="openai" /></li>
       </ul>
-      <p className={c.section}>This week</p>
+      <p className={c.section}>Every day</p>
       <ul className={c.list}>
-        <li><Check t={1} /><span data-done="">Long run, 12 km</span></li>
         <li><Check t={1} /><span data-done="">Read 20 pages</span></li>
         <li><Check t={0} />Call mum</li>
       </ul>
@@ -101,7 +121,7 @@ function useScreenRect(pin: React.RefObject<HTMLDivElement | null>, screen: Reac
   return r;
 }
 
-const HERO_SAID = "Plan tomorrow. Run before work, and the dentist.";
+const HERO_SAID = "Plan my week. Three runs, the dentist, and the Lisbon flights.";
 
 export function ContinueHero({ captions }: { captions: Caption[] }) {
   const { box, p, mode } = useProgress();
@@ -131,12 +151,10 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
     transform: `translate(${lerp(r.x - tx, 0, fly).toFixed(2)}px, ${lerp(r.y - ty, 0, fly).toFixed(2)}px) scale(${sc.toFixed(5)})` } : null;
 
   // Chats around the note.
-  const claudeIn = mj(span(p, 0.48, 0.52)) * (1 - mj(span(p, 0.66, 0.7)));
-  const claudeAns = mj(span(p, 0.54, 0.58));
-  const museIn = mj(span(p, 0.68, 0.72)) * (1 - mj(span(p, 0.9, 0.95)));
-  const museAns = mj(span(p, 0.74, 0.78));
-  // Your cursor ticks the run in the morning.
-  const cur = mj(span(p, 0.29, 0.35)) * (1 - mj(span(p, 0.41, 0.45)));
+  const claudeIn = mj(span(p, 0.4, 0.43)) * (1 - mj(span(p, 0.5, 0.53)));
+  const claudeAns = mj(span(p, 0.42, 0.45));
+  const museIn = mj(span(p, 0.71, 0.75));
+  const museAns = mj(span(p, 0.78, 0.84));
 
   return (
     <div ref={box} className={c.box}>
@@ -167,7 +185,7 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
               <div ref={screen} className={`${x.screen} ${c.screenSlot}`} />
               <div className={x.saidBox}>
                 <p className={x.saidMe}><span className={x.scWave} aria-hidden="true"><i /><i /><i /><i /></span>{HERO_SAID}</p>
-                <p className={x.saidAi}><span><AIGlyph name="openai" size={12} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.</p>
+                <p className={x.saidAi}><span><AIGlyph name="openai" size={12} />ChatGPT</span>Done, it's in your notes. The flights need booking by Friday, so I flagged them.</p>
               </div>
             </div>
           </div>
@@ -178,25 +196,23 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
           <div className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly) / sc,
             boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * fly).toFixed(2)}), 0 ${(40 * fly).toFixed(0)}px ${(80 * fly).toFixed(0)}px -36px rgba(60,30,5,${(0.5 * fly).toFixed(2)})` }}>
             <Note p={p} f={fly} />
-            <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true" style={{ opacity: cur, transform: `translate(${lerp(380, 108, cur).toFixed(0)}%, ${lerp(1080, 792, cur).toFixed(0)}%) scale(${span(p, 0.36, 0.38) > 0 && span(p, 0.36, 0.4) < 1 ? 0.86 : 1})` }}>
-              <path d="M4 2l15 9-7 1.5L8.5 20z" />
-            </svg>
+
           </div>
         )}
 
         {/* Lunch: Claude, on her Mac. Evening: Muse. */}
         {noteBox && <>
           <figure className={c.chat} data-side="l" style={{ opacity: claudeIn, transform: `translate(${((1 - claudeIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 22}px)` }}>
-            <div className={c.chatTop}><span><AIGlyph name="claude" size={14} color="#d97757" />Claude</span><em>Lunch</em></div>
-            <p className={c.me}>Did I call the dentist yet?</p>
-            <p className={c.tool}>Read Tomorrow</p>
-            <p className={c.ai} style={{ opacity: claudeAns }}>Not yet. You're free at 15:00, so I put it there.</p>
+            <div className={c.chatTop}><span><AIGlyph name="claude" size={14} color="#d97757" />Claude</span><em>Tuesday</em></div>
+            <p className={c.me}>Booked the dentist, Thursday at 10.</p>
+            <p className={c.tool}>Updated This week</p>
+            <p className={c.ai} style={{ opacity: claudeAns }}>Ticked it off and added the time.</p>
           </figure>
           <figure className={c.chat} data-side="r" style={{ opacity: museIn, transform: `translate(${((1 - museIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 22}px)` }}>
-            <div className={c.chatTop}><span><AIGlyph name="meta" size={14} color="#0866ff" />Muse</span><em>Evening</em></div>
-            <p className={c.me}>Can I afford the Lisbon flights?</p>
-            <p className={c.tool}>Read Budget · Tomorrow</p>
-            <p className={c.ai} style={{ opacity: museAns }}>Yes, you're 410 kr under on groceries. Booked and ticked off.</p>
+            <div className={c.chatTop}><span><AIGlyph name="claude" size={14} color="#d97757" />Claude</span><em>Friday</em></div>
+            <p className={c.me}>How did my week go?</p>
+            <p className={c.tool}>Read This week</p>
+            <p className={c.ai} style={{ opacity: museAns }}>Two of three runs, and the dentist is done. You missed Thursday, so I moved it to Sunday. The Lisbon flights are due today.</p>
           </figure>
         </>}
       </div>
