@@ -61,8 +61,8 @@ export function PhoneToFilm() {
   const { k, ph, fm } = st;
   const box = { left: lerp(ph.x, fm.x, k), top: lerp(ph.y, fm.y, k), width: lerp(ph.w, fm.w, k), height: lerp(ph.h, fm.h, k) };
   // One after the other: her note's content leaves, then the running plan arrives.
-  const phoneO = 1 - mj(span(k, 0.12, 0.45));
-  const filmO = mj(span(k, 0.5, 0.85));
+  const phoneO = 1 - mj(span(k, 0.03, 0.22));
+  const filmO = mj(span(k, 0.24, 0.55));
   const sp = box.width / sn.pw;
   const startR = (ph.w / sn.pw) * sn.pw * 0.11, endR = 16 * (fm.w / sn.fw);
   return (
