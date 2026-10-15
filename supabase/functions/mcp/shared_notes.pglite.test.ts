@@ -58,6 +58,8 @@ async function shared(pg: PGlite) {
   const toSelf = await sealNoteKey(nk, emil.identity, emil.identity.publicRaw, { note: id, epoch: 1, from: emil.id, to: emil.id });
   const head = await seal3("h", bytes(JSON.stringify({ title: "Offsite plan" })), nk, id, 1);
   await app(pg, emil.id, `select public.collab_share($1, $2, $3, $4)`, [id, toSelf, await selfWrap(emil, nk, id, 1), head]);
+  // His row becomes the pointer, as the app makes it (SharedLibrary): found by shared_note_id.
+  await pg.query(`update public.notes set shared_note_id = $1 where id = $1`, [id]);
   const mac = new Device(pg, emil, id, nk);
   await mac.type((d) => { d.body = body; });
   for (const [p, role] of [[sara, "editor"], [eve, "viewer"]] as const) {
@@ -308,6 +310,6 @@ Deno.test("the owner's delete stops sharing for everyone, keeps the text in Rece
   assertStringIncludes((await opened(pg, emil.a, id)).body!, "Order lunch for 8");
   // Only the owner can stop sharing.
   const { sara: s2, id: id2 } = await shared(pg);
-  const refused = await app(pg, s2.id, `select public.collab_unshare($1, 'x', 'y')`, [id2]).then(() => null, (e) => e);
+  const refused = await app(pg, s2.id, `select public.collab_unshare($1, 'x', 'y', 0)`, [id2]).then(() => null, (e) => e);
   assertStringIncludes(String(refused?.message), "Only the owner");
 });

@@ -226,7 +226,7 @@ Deno.test({ name: "the owner's delete is refused when a change committed after t
     const loaded = await write(emil, "amb3u.1.ZW1pbA==");
     // ... and Sara's change commits before the delete reaches the server.
     await write(sara, "amb3u.1.c2FyYQ==");
-    assertEquals(await unshare(loaded), "refused: changed");
+    assertEquals(await unshare(loaded), "refused: newer_changes");
     const [{ n }] = await db<{ n: number }[]>`select count(*)::int as n from public.note_updates where note_id = ${note}`;
     assertEquals(n, 2, "a refused delete keeps everything");
     // Loaded again, with Sara's change in it: now it goes.
