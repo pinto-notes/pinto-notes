@@ -415,3 +415,5 @@
 @media (max-width: 760px) { .paperSays { position: relative; top: auto; left: auto; right: auto; width: auto; padding: 14px; } .paperScene { aspect-ratio: auto; } .paperScene img { position: relative; height: 230px; } }
 .paperSays { grid-template-rows: auto auto; align-items: start; }
 .paperSays[data-at="left"] { left: 4%; top: 6%; }
+/* Sara: her app and the conversation sit on the right, over the window light. */
+.paperSays .gymMini { width: 300px; }
