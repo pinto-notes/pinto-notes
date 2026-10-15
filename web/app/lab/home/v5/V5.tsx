@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { PaperScene, Pin } from "./Moments";
+import { PaperStill } from "./Moments";
 import { ScrollVar } from "./ScrollVar";
 import { Week } from "./Week";
 import v from "./v5.module.css";
@@ -69,43 +69,36 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
           <h2 id="moments" className={v.big}>People are already living like this.</h2>
           <p className={v.say}>Three small systems. They compound.</p>
         </div>
-        <Pin length={110}><div className={v.row}>
+        <div className={v.row}>
           <div className={v.words}>
             <p className={v.kicker}>Every evening</p>
             <h3 className={v.rowTitle}>{"Maya plans\ntomorrow on a walk."}</h3>
             <p className={v.say}>She talks her day through with ChatGPT. It's planned before she's home.</p>
           </div>
-          <PaperScene says="left" src="/home-v5/frontier/maya-paper.webp" where="Maya · Dolores Park, 21:40"
-            alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline and the Bay Bridge lit up."
-            lines={[{ who: "me", text: "Did my run. Skipped the reading again.", at: 0.06 },
-              { who: "ai", ai: "openai", text: "Third time this week. Move it to the mornings?", at: 0.28 },
-              { who: "me", text: "Yes. Ten pages before work.", at: 0.5 },
-              { who: "ai", ai: "openai", text: "Done. Tomorrow's set.", at: 0.7 }]} />
-        </div></Pin>
-        <Pin length={110}><div className={v.row} data-flip="">
+          <PaperStill at="left" src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
+            alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline lit up."
+            me="Skipped the reading again." aiName="ChatGPT" aiGlyph="openai" ai="Third time this week. Want to move it to the mornings, before work?" />
+        </div>
+        <div className={v.row} data-flip="">
           <div className={v.words}>
             <p className={v.kicker}>All night</p>
             <h3 className={v.rowTitle}>{"Jonas runs his agents\non one notebook."}</h3>
             <p className={v.say}>Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project.</p>
           </div>
-          <PaperScene says="left" src="/home-v5/frontier/jonas-paper.webp" where="Jonas · Russian Hill, 01:10"
-            alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, the San Francisco skyline and the Bay Bridge through the window."
-            lines={[{ who: "me", text: "Pick up the sync rewrite. It's all in my notes.", at: 0.06 },
-              { who: "ai", ai: "claude", text: "Read the plan. Retry with backoff is done.", at: 0.28 },
-              { who: "ai", ai: "openai", text: "Offline edits replay in order now.", at: 0.5 },
-              { who: "ai", ai: "claude", text: "12 tests pass. Logged it in your notes.", at: 0.7 }]} />
-        </div></Pin>
-        <Pin length={110}><div className={v.row}>
+          <PaperStill at="left" src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
+            alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, Lisbon's rooftops and the river through tall open windows."
+            me="Pick up the sync rewrite." aiName="Claude Code" aiGlyph="claude" ai="Read your plan and yesterday's log. Starting where Codex stopped: the offline queue." />
+        </div>
+        <div className={v.row}>
           <div className={v.words}>
             <p className={v.kicker}>Every morning</p>
             <h3 className={v.rowTitle}>{"Sara built\nher own gym log."}</h3>
             <p className={v.say}>She asked for an app, and it appeared in her notes. Her AI plans the next session from it.</p>
           </div>
-          <PaperScene says="right" gym src="/home-v5/frontier/sara-paper.webp" where="Sara · North Beach, 07:20"
-            alt="A cut-paper scene of a woman on a gym bench at sunrise looking at her phone, the San Francisco skyline and the Bay Bridge through tall windows."
-            lines={[{ who: "me", text: "What should I do next push day?", at: 0.42 },
-              { who: "ai", ai: "openai", text: "Bench 65 kg. You've hit 62.5 three sessions running.", at: 0.6 }]} />
-        </div></Pin>
+          <PaperStill gym at="right" src="/home-v5/frontier/sara-stockholm.webp" where="Sara · Stockholm, 07:20"
+            alt="A cut-paper scene of a woman on a gym bench at sunrise looking at her phone, Stockholm's waterfront through big windows."
+            me="What should I do next push day?" aiName="ChatGPT" aiGlyph="openai" ai="Bench 65 kg. You've hit 62.5 three sessions running." />
+        </div>
       </section>
 
       <section className={d.wait} aria-labelledby="wait">

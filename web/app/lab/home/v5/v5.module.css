@@ -156,4 +156,4 @@
 @media (min-width: 901px) { .frontier .row { grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.5fr); gap: 56px; } }
 .frontier .rowTitle { white-space: pre-line; font-size: clamp(34px, 3.2vw, 50px); line-height: 1.02; }
 @media (min-width: 901px) { .frontier .row[data-flip] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.72fr); } }
-.frontier { gap: 0; }
+.frontier { gap: 120px; }
