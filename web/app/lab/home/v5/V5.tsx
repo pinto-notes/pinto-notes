@@ -67,12 +67,12 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
       <section className={v.frontier} aria-labelledby="moments">
         <div className={v.frontierHead}>
           <h2 id="moments" className={v.big}>People are already living like this.</h2>
-          <p className={v.say}>Three small systems. They compound.</p>
+          <p className={v.say}>Ordinary people. An unfair advantage.</p>
         </div>
         <div className={v.row}>
           <div className={v.words}>
-            <p className={v.kicker}>Every evening</p>
-            <h3 className={v.rowTitle}>{"Maya plans\ntomorrow on a walk."}</h3>
+            <p className={v.kicker}>Every evening, on a walk</p>
+            <h3 className={v.rowTitle}>Maya plans tomorrow out loud.</h3>
             <p className={v.say}>She talks her day through out loud with ChatGPT voice. It's planned before she's home.</p>
           </div>
           <PaperStill voice at="left" src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
@@ -82,7 +82,7 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
         <div className={v.row} data-flip="">
           <div className={v.words}>
             <p className={v.kicker}>All night</p>
-            <h3 className={v.rowTitle}>{"Jonas runs his agents\non one notebook."}</h3>
+            <h3 className={v.rowTitle}>Jonas&apos;s agents never start from zero.</h3>
             <p className={v.say}>Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project.</p>
           </div>
           <PaperStill at="left" src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
