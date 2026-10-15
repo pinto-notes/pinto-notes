@@ -232,3 +232,36 @@
   .splitScene.splitScene { aspect-ratio: auto; height: 520px; padding: 0; display: block; }
   .splitScene .momentFit { position: absolute; top: 0; bottom: 0; height: 100%; left: 50%; right: auto; transform: translateX(-62%); width: auto; margin: 0; }
 }
+
+/* ── Editorial hero: huge left-aligned title and one button on cream; the scene at full height on the
+   right, its left edge cut like paper where it meets the page. ── */
+.editorial { position: relative; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr); align-items: center;
+  width: 100vw; margin-left: calc(50% - 50vw); margin-top: -100px; min-height: min(100vh, 960px); }
+.edWords { position: relative; z-index: 2; display: grid; gap: 34px; justify-items: start; padding: 120px 0 60px max(var(--gutter), calc(50vw - 600px)); }
+.edH1 { margin: 0; font-size: clamp(54px, 6.4vw, 108px); font-weight: 800; letter-spacing: -0.055em; line-height: 0.92; color: #2a1d10; }
+.editorial .splitScene.splitScene { position: absolute; top: 0; right: 0; bottom: 0; width: 58%; height: auto; aspect-ratio: auto; max-height: none; margin: 0; border-radius: 0;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M9 0 C 3 8, 12 16, 6 26 S 11 44, 4 55 S 12 72, 5 83 S 9 95, 3 100 L 100 100 L 100 0 Z' fill='%23000'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M9 0 C 3 8, 12 16, 6 26 S 11 44, 4 55 S 12 72, 5 83 S 9 95, 3 100 L 100 100 L 100 0 Z' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; filter: drop-shadow(-10px 0 18px rgba(80, 45, 10, 0.25)); }
+/* The art fills the scene panel (cover), anchored so her and the phone stay in view. */
+.editorial .splitScene .momentFit { top: 0; bottom: 0; height: 100%; width: auto; aspect-ratio: 1672 / 941; left: auto; right: -2%; transform: none; }
+.editorial .splitScene .saidBox { left: 69.5%; top: 31%; width: 11%; }
+@media (max-width: 900px) {
+  .editorial { grid-template-columns: minmax(0, 1fr); margin-top: -84px; min-height: 0; }
+  .edWords { padding: 110px var(--gutter) 28px; gap: 22px; }
+  .edH1 { font-size: 46px; }
+  .editorial .splitScene.splitScene { position: relative; width: 100%; height: 520px; -webkit-mask-image: none; mask-image: none; filter: none; }
+  .editorial .splitScene .momentFit { right: auto; left: 50%; transform: translateX(-62%); }
+}
+@media (min-width: 901px) {
+  .editorial .splitScene.splitScene { top: 100px; width: 52%; }
+  .edWords { padding-right: 24px; max-width: calc(48vw - 24px); box-sizing: border-box; }
+  .edH1 { font-size: clamp(54px, 5.6vw, 104px); }
+}
+@media (min-width: 901px) {
+  .editorial { display: block; }
+  .edWords { position: absolute; top: 50%; transform: translateY(-40%); left: max(var(--gutter), calc(50vw - 600px)); padding: 0;
+    width: calc(50vw - max(var(--gutter), calc(50vw - 600px)) - 40px); max-width: none; }
+  .edH1 { font-size: min(5.4vw, 92px); }
+  .editorial .splitScene.splitScene { width: 50%; }
+}

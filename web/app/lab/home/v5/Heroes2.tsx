@@ -225,11 +225,10 @@ export function PhoneMomentHero() {
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
   return (
-    <section className={x.split}>
-      <div className={x.splitWords}>
-        <Title className={x.splitH1} />
-        <p className={x.lede}>ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes.</p>
-        <Download quiet={G.quiet} />
+    <section className={x.editorial}>
+      <div className={x.edWords}>
+        <Title className={x.edH1} />
+        <Download />
       </div>
       <div className={`${x.moment} ${x.shoulder} ${x.splitScene}`}>
       <div className={x.momentFit}>
