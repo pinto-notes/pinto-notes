@@ -615,3 +615,23 @@ export function GymCard({ p }: { p: number }) {
     </figure>
   );
 }
+
+/// The frontier scene in our paper art: a rounded panel on the cream page, the conversation floating
+/// near the person. Words sit beside it on the page (the row does that).
+export function PaperScene({ src, alt, where, lines, says = "right", gym = false }:
+  { src: string; alt: string; where: string; lines: Line[]; says?: "left" | "right"; gym?: boolean }) {
+  const [ref, p] = useSceneProgress();
+  return (
+    <div ref={ref} className={m.paperScene}>
+      <img src={src} alt={alt} style={{ transform: `scale(${(1.05 - 0.05 * p).toFixed(4)})` }} />
+      <div className={m.paperSays} data-at={says}>
+        {lines.map((l, i) => {
+          const v = mj(span(p, l.at, l.at + 0.06)) * (i < lines.length - 2 ? 1 - mj(span(p, lines[i + 2].at, lines[i + 2].at + 0.05)) : 1);
+          return <div key={i} style={{ gridRow: (i % 2) + 1, gridColumn: 1 }}><Say who={l.who} ai={l.ai} text={l.text} v={v} /></div>;
+        })}
+        {gym && <GymCard p={p} />}
+      </div>
+      <span className={m.paperWhere}>{where}</span>
+    </div>
+  );
+}

@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { FullPhoto, Pin } from "./Moments";
+import { FullPhoto, PaperScene, Pin } from "./Moments";
 import { ScrollVar } from "./ScrollVar";
 import { Week } from "./Week";
 import v from "./v5.module.css";
@@ -69,13 +69,19 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
           <h2 id="moments" className={v.big}>People are already living like this.</h2>
           <p className={v.say}>Three small systems. They compound.</p>
         </div>
-        <Pin length={130}><FullPhoto src="/home-v5/frontier/maya.webp" focus="30% 50%" side="right" where="Maya · Dolores Park, 21:40"
-          alt="A woman walking along the top of Dolores Park at dusk, talking to her phone, the San Francisco skyline behind her."
-          kicker="Every evening" title={"Maya plans\ntomorrow on a walk."} say="She talks her day through with ChatGPT. It's planned before she's home."
-          lines={[{ who: "me", text: "Did my run. Skipped the reading again.", at: 0.06 },
-            { who: "ai", ai: "openai", text: "Third time this week. Move it to the mornings?", at: 0.28 },
-            { who: "me", text: "Yes. Ten pages before work.", at: 0.5 },
-            { who: "ai", ai: "openai", text: "Done. Tomorrow's set.", at: 0.7 }]} /></Pin>
+        <Pin length={110}><div className={v.row}>
+          <div className={v.words}>
+            <p className={v.kicker}>Every evening</p>
+            <h3 className={v.rowTitle}>{"Maya plans\ntomorrow on a walk."}</h3>
+            <p className={v.say}>She talks her day through with ChatGPT. It's planned before she's home.</p>
+          </div>
+          <PaperScene says="left" src="/home-v5/frontier/maya-paper.webp" where="Maya · Dolores Park, 21:40"
+            alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline and the Bay Bridge lit up."
+            lines={[{ who: "me", text: "Did my run. Skipped the reading again.", at: 0.06 },
+              { who: "ai", ai: "openai", text: "Third time this week. Move it to the mornings?", at: 0.28 },
+              { who: "me", text: "Yes. Ten pages before work.", at: 0.5 },
+              { who: "ai", ai: "openai", text: "Done. Tomorrow's set.", at: 0.7 }]} />
+        </div></Pin>
         <Pin length={130}><FullPhoto src="/home-v5/frontier/jonas.webp" focus="70% 50%" side="left" where="Jonas · Russian Hill, 01:10"
           alt="A man at a desk late at night, a terminal open on his laptop, the San Francisco skyline in fog outside the window."
           kicker="All night" title={"Jonas runs his agents\non one notebook."} say="Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project."
