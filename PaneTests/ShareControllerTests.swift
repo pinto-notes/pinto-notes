@@ -232,6 +232,8 @@ import Testing
         let vault = MemoryLinkVault()
         store.linkVault = vault
         let note = Note(body: "Team offsite")
+        // A link belongs to a shared note (yours: its shared id is its own).
+        note.sharedNoteID = note.id
         vault.save(LinkVaultEntry(id: "sEbHaDgYXLDfpSMmrziRgA", secret: Data(repeating: 7, count: 16), access: "Can view"), for: note.id)
         let state = store.shareState(for: note)
         #expect(state.access == .view)
