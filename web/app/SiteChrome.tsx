@@ -64,7 +64,9 @@ export default function SiteChrome({ version, stars, children }: { version: stri
       const strip = Math.max(0, window.innerHeight - h.offsetHeight);
       io = new IntersectionObserver((entries) => {
         for (const e of entries) e.isIntersecting ? over.add(e.target) : over.delete(e.target);
-        h.toggleAttribute("data-over-dark", over.size > 0);
+        // The band can name its colour (data-dark-band="sage"); the header frosts in that colour.
+        const tone = [...over].map((el) => el.getAttribute("data-dark-band")).find((v) => v) ?? "";
+        if (over.size > 0) h.setAttribute("data-over-dark", tone); else h.removeAttribute("data-over-dark");
       }, { rootMargin: `0px 0px -${strip}px 0px` });
       document.querySelectorAll("[data-dark-band]").forEach((el) => io!.observe(el));
     };

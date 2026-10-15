@@ -87,11 +87,11 @@
 .featBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 40px var(--gutter) 40px; background: #f3dfc2; }
 .featBand > * { width: min(1240px, 100%); margin: 0 auto; }
 /* On the band, each scene's stage is lighter than the ground. */
-.featBand [class*="moments-module"][class*="stage"] { background: #fbefdf; }
+.featBand [class*="moments_stage"] { background: #fbefdf; }
 .featBand .example { background: #fbefdf; }
 /* The icon art has wide transparent margins; show it larger inside a fixed spot. */
-.icon { display: block; width: 72px; height: 72px; margin: -8px 0 8px -10px; }
-.icon img { width: 100%; height: 100%; margin: 0; scale: 1.55; }
+.icon { display: block; width: 60px; height: 60px; margin: 0 0 12px; }
+.icon img { width: 100%; height: 100%; margin: 0; object-fit: contain; }
 
 /* The features band in three colours with character. Words go light on all three; scene stages stay
    cream so they pop; the example box becomes a soft glass panel. */
@@ -100,8 +100,8 @@
 .featBand[data-band] .say { color: rgba(255, 244, 230, 0.82); }
 .featBand[data-band] .example { background: rgba(255, 250, 240, 0.1); color: #fff4e6; box-shadow: inset 0 0 0 0.5px rgba(255, 240, 220, 0.22); }
 .featBand[data-band] .example span { color: #ffc27a; }
-.featBand[data-band] [class*="moments-module"][class*="stage"] { background: #fbeedd; box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.5); }
-.featBand[data-band] [class*="moments-module"][class*="dusk"] { background: linear-gradient(170deg, #f8dcc0 0%, #efc9b4 55%, #d9b3b0 100%); }
+.featBand[data-band] [class*="moments_stage"] { background: #fbeedd; box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.5); }
+.featBand[data-band] [class*="moments_dusk"] { background: linear-gradient(170deg, #f8dcc0 0%, #efc9b4 55%, #d9b3b0 100%); }
 .featBand[data-band="leaf"] { background: radial-gradient(ellipse 70% 50% at 80% 20%, rgba(214, 120, 40, 0.28), transparent 70%), radial-gradient(ellipse 60% 40% at 10% 85%, rgba(214, 120, 40, 0.18), transparent 70%), #2a170b; }
 .featBand[data-band="amber"] { background: radial-gradient(ellipse 80% 60% at 75% 15%, #f19a3e 0%, transparent 70%), linear-gradient(170deg, #e07a22 0%, #c95f17 100%); }
 .featBand[data-band="amber"] .kicker, .featBand[data-band="amber"] .example span { color: #2a170b; }

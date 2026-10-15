@@ -439,3 +439,8 @@ html:has([data-quiet-nav]) .site-badge, html:has([data-quiet-nav]) .site-stars {
 .open-sheet a:focus-visible, .open-sheet button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 /* The button while the browser hands the link to Pinto Notes. */
 [data-opening] { opacity: 0.72; cursor: progress; }
+/* A band that names its colour frosts the header in it. */
+.site-header[data-over-dark="sage"] { --bg: #47552f; --soft: #56663b; --muted: #d6dcc0; }
+.site-header[data-over-dark="sage"], .site-header[data-over-dark="sage"][data-scrolled] { background-color: color-mix(in srgb, #47552f 82%, transparent); }
+.site-header[data-over-dark="amber"] { --bg: #b5541a; --soft: #c9661f; --muted: #ffe0c0; }
+.site-header[data-over-dark="amber"], .site-header[data-over-dark="amber"][data-scrolled] { background-color: color-mix(in srgb, #b5541a 82%, transparent); }

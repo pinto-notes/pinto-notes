@@ -39,11 +39,12 @@ const CAPTIONS: Caption[] = [
   { at: [0.81, 1.01], day: 6, text: "The notebook you and your AI share." },
 ];
 
-function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Caption[] }: { p: number; lean?: number; heroOn?: boolean; captions?: Caption[] }) {
+function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Caption[], stopAt = 1 }: { p: number; lean?: number; heroOn?: boolean; captions?: Caption[]; stopAt?: number }) {
   // With a hero, the first few percent belong to it: the hero scrolls away while the note slides from
   // the right to the middle, the day strip arrives and ChatGPT asks. The week then plays as before.
   const h = heroOn ? mj(span(p0, 0.03, 0.075)) : 1;
-  const p = heroOn ? span(p0, 0.07, 1) : p0;
+  // `stopAt` ends the week early (version 5 stops on Sunday's tick, before the desk pull-out).
+  const p = (heroOn ? span(p0, 0.07, 1) : p0) * stopAt;
   // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
   const gIn = heroOn ? mj(span(p0, 0.04, 0.09)) : 1, gOut = mj(span(p, 0.28, 0.33));
   const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
@@ -173,7 +174,7 @@ const heroFade = (p: number): React.CSSProperties => { const o = mj(span(p, 0.00
 
 /// Pinned and scrubbed by scroll on wide screens; played on time on phones, with Reduce Motion
 /// showing the last frame. `?t=0..1` freezes progress for review.
-export function Film({ hero, captions }: { hero?: React.ReactNode; captions?: Caption[] } = {}) {
+export function Film({ hero, captions, stopAt }: { hero?: React.ReactNode; captions?: Caption[]; stopAt?: number } = {}) {
   const box = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
   const [pinned, setPinned] = useState(true);
@@ -201,7 +202,7 @@ export function Film({ hero, captions }: { hero?: React.ReactNode; captions?: Ca
   return (
     <div ref={box} className={f.film} data-pinned={pinned || undefined} data-hero={hero ? "" : undefined}>
       {hero && <div className={f.heroLayer} style={pinned ? heroFade(p) : undefined}>{hero}</div>}
-      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} heroOn={!!hero && pinned} captions={captions} /></div>
+      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} heroOn={!!hero && pinned} captions={captions} stopAt={stopAt} /></div>
     </div>
   );
 }

@@ -85,6 +85,13 @@ const By = ({ app, label, v = 1 }: { app: "openai" | "claude"; label: string; v?
   <span className={m.by} style={{ opacity: v, transform: `scale(${(0.8 + 0.2 * v).toFixed(3)})` }}><AIGlyph name={app} size={11} />{label}</span>
 );
 
+// Live captions: the words arrive as they're said; the ones not yet said hold their space, so the box
+// never jumps.
+const spoken = (text: string, k: number) => {
+  const words = text.split(" "); const n = Math.ceil(words.length * clamp(k));
+  return <span className={m.line}>{words.map((w, i) => <span key={i} className={m.word} data-said={i < n || undefined}>{w}{i < words.length - 1 ? " " : ""}</span>)}</span>;
+};
+
 /// 1. The evening walk: you think out loud to ChatGPT's voice mode, and tomorrow fills in. The phone is
 /// voice mode as it really looks (white, the cloudy orb, mic and close); what's said floats beside it.
 const TALK = [
@@ -117,7 +124,7 @@ export function Walk() {
           const v = i === 0 ? mj(span(p, t.at, t.at + 0.05)) : mj(span(p, t.at + 0.04, t.at + 0.09));
           const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.035)) : 0;
           return <p key={i} className={m.said} data-who={t.who} style={{ opacity: v * (1 - gone), transform: `translateY(${((1 - v) * 10 - gone * 10).toFixed(1)}px)` }}>
-            <span>{t.who === "you" ? "You" : <><AIGlyph name="openai" size={11} />ChatGPT</>}</span>{t.text}</p>;
+            <span>{t.who === "you" ? "You" : <><AIGlyph name="openai" size={11} />ChatGPT</>}</span>{spoken(t.text, span(p, t.at + 0.03, t.at + 0.15))}</p>;
         })}
       </div>
       <figure className={`${m.note} ${m.walkNote}`}>
@@ -225,7 +232,8 @@ export function Agents() {
         <div className={m.termBar}><span className={m.lights}><i /><i /><i /></span><span>{run?.app === "Codex" ? "codex" : "claude"}</span></div>
         <p className={m.prompt}><b>›</b> pick up the sync rewrite</p>
         <p className={m.call}><span>⏺</span> pinto.read Work/Sync rewrite.md</p>
-        {LOG.map((l, i) => { const v = mj(span(p, l.at - 0.1, l.at - 0.02)); return <p key={i} className={m.out} style={rise(v, 6)}>{l.app}: {l.text}</p>; })}
+        {LOG.map((l, i) => { const line = `${l.app}: ${l.text}`; const k = span(p, l.at - 0.12, l.at - 0.01); const n = Math.round(line.length * k);
+          return <p key={i} className={m.out} style={{ opacity: k > 0 ? 1 : 0 }}>{line.slice(0, n)}{k > 0 && k < 1 && <i className={m.tcaret} />}</p>; })}
       </figure>
       <figure className={`${m.note} ${m.agentNote}`}>
         <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Work</span></div>
@@ -331,7 +339,7 @@ export function Habits() {
         <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Habit tracker</span></div>
         <div className={m.habitBody}>
           <div className={m.ringRow}>
-            <svg viewBox="0 0 80 80" className={m.ring}><circle cx="40" cy="40" r="34" /><circle cx="40" cy="40" r="34" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - ringTo) }} /></svg>
+            <span className={m.ringWrap}><svg viewBox="0 0 80 80" className={m.ring}><circle cx="40" cy="40" r="34" /><circle cx="40" cy="40" r="34" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - ringTo) }} /></svg><b>{Math.round(ringTo * 100)}%</b></span>
             <div><p className={m.ringBig}>{done} of 5 done today</p><p className={m.ringSmall}>Tuesday</p></div>
           </div>
           <ul className={m.habitList}>

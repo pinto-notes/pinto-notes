@@ -17,12 +17,12 @@ const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
 // The small things, eight tiles. Only what's true today; collaboration says so until it ships.
 const EXTRAS = [
   { icon: "/home-v5/icons/envelope.webp", title: "Private", say: "Encrypted on your device before it syncs." },
-  { icon: "/home-d/facts/undo.webp", title: "Every change says who", say: "You or which AI. Undo takes it back." },
-  { icon: "/home-d/facts/lock.webp", title: "Lock a note", say: "A separate password for the private ones." },
+  { icon: "/home-v5/icons/undo.webp", title: "Every change says who", say: "You or which AI. Undo takes it back." },
+  { icon: "/home-v5/icons/lock.webp", title: "Lock a note", say: "A separate password for the private ones." },
   { icon: "/home-v5/icons/devices.webp", title: "Mac and iPhone", say: "Always in sync, and works offline." },
   { icon: "/home-v5/icons/bring.webp", title: "Bring your notes", say: "From Apple Notes, Obsidian, Bear, Evernote and Keep." },
   { icon: "/home-v5/icons/notepad.webp", title: "Feels like Apple Notes", say: "Checklists, tables, folders, links between notes." },
-  { icon: "/home-d/facts/box.webp", title: "Open source", say: "Anyone can check the code." },
+  { icon: "/home-v5/icons/box.webp", title: "Open source", say: "Anyone can check the code." },
   { icon: "/home-v5/icons/people.webp", title: "Share with people", say: "Plan together in one note, live.", soon: true },
 ];
 
@@ -43,20 +43,19 @@ const CAPTIONS: Caption[] = [
   { at: [0, 0.27], day: 0, text: "Plan it with ChatGPT." },
   { at: [0.27, 0.47], day: 2, text: "Claude reads the same note." },
   { at: [0.47, 0.69], day: 4, text: "Ask how your week went." },
-  { at: [0.69, 0.81], day: 6, text: "You tick the rest." },
-  { at: [0.81, 1.01], day: 6, text: "The notebook you and your AI share." },
+  { at: [0.69, 1.01], day: 6, text: "You tick the rest." },
 ];
 
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "side", band = "leaf" }: { hero?: string; band?: string }) {
+export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
       {hero === "side" ? (
-        <Film captions={CAPTIONS} hero={<>
+        <Film captions={CAPTIONS} stopAt={0.83} hero={<>
         <h1 className={v.h1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
         <p className={v.lede}>Plan with ChatGPT, check in with Claude, tick things off yourself. It all lands in one notebook that looks and feels like Apple Notes.</p>
         <Download quiet={G.quiet} />
@@ -74,7 +73,7 @@ export function V5({ hero = "side", band = "leaf" }: { hero?: string; band?: str
         </div>
       )}
 
-      <section className={`${v.moments} ${v.featBand}`} data-band={band} aria-labelledby="moments">
+      <section className={`${v.moments} ${v.featBand}`} data-band={band} data-dark-band={band} aria-labelledby="moments">
         {FEATURES.map((x, i) => (
           <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
             <div className={v.words}>
