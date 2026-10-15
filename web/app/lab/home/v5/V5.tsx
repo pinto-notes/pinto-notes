@@ -74,7 +74,7 @@ export function V5({ hero = "side" }: { hero?: string }) {
         </div>
       )}
 
-      <section className={v.moments} aria-labelledby="moments">
+      <section className={`${v.moments} ${v.featBand}`} aria-labelledby="moments">
         {FEATURES.map((x, i) => (
           <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
             <div className={v.words}>
@@ -96,7 +96,7 @@ export function V5({ hero = "side" }: { hero?: string }) {
         <ScrollVar as="ul" className={`${d.fan} ${g.fanWrap} ${v.scrollFan}`} from={1} to={0.35}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} eager /></li>)}</ScrollVar>
       </section>
 
-      <section className={`${v.extras} ${v.extrasBand}`} aria-labelledby="extras">
+      <section className={v.extras} aria-labelledby="extras">
         <h2 id="extras" className={v.big}>And everything you'd expect.</h2>
         <ScrollVar as="ul" className={v.grid} from={0.95} to={0.2}>
           {EXTRAS.map((x, i) => (

@@ -84,9 +84,11 @@
 .grid > li { --t: clamp(0, calc(var(--s) * 2.4 - var(--i) * 0.18), 1); opacity: var(--t); translate: 0 calc((1 - var(--t)) * 46px); scale: calc(0.96 + 0.04 * var(--t)); }
 
 /* The grid sits on its own full-width warm band, with lighter tiles, so it reads as its own section. */
-.extrasBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 110px var(--gutter) 120px; background: #f3dfc2; }
-.extrasBand .grid { max-width: 1240px; margin: 0 auto; }
-.extrasBand .grid li { background: #fffaf2; box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.1), 0 18px 34px -26px rgba(80, 45, 10, 0.45); }
+.featBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 40px var(--gutter) 40px; background: #f3dfc2; }
+.featBand > * { width: min(1240px, 100%); margin: 0 auto; }
+/* On the band, each scene's stage is lighter than the ground. */
+.featBand [class*="moments-module"][class*="stage"] { background: #fbefdf; }
+.featBand .example { background: #fbefdf; }
 /* The icon art has wide transparent margins; show it larger inside a fixed spot. */
 .icon { display: block; width: 72px; height: 72px; margin: -8px 0 8px -10px; }
 .icon img { width: 100%; height: 100%; margin: 0; scale: 1.55; }
