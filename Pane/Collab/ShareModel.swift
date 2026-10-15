@@ -211,6 +211,27 @@ extension CollabStore: ShareBackend {
     /// A link opened in the app: joins the note with the link's role (Can edit or Can view) and
     /// opens it. A link that was turned off or changed says so.
     @discardableResult
+    /// What a link leads to, before joining: the note's title and who shared it, opened with the
+    /// link's own key. Nil when the link was turned off or changed (joinProblem says so).
+    func preview(_ url: URL) async -> JoinPreview? {
+        guard let transport, let (id, secret) = Self.parseLink(url) else { return nil }
+        let lk = Self.linkKeys(secret, link: id)
+        guard let opened = try? await transport.openLink(id: id, answer: lk.answer) else {
+            joinProblem = "This link was turned off or changed. Ask for a new one."
+            return nil
+        }
+        let title = opened.head_ct.flatMap { ct -> String? in
+            guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
+                  let raw = Data(base64Encoded: text), raw.count == 32,
+                  let head = try? CollabCrypto.open(.head, ct, nk: SymmetricKey(data: raw), note: opened.note_id) else { return nil }
+            return (try? JSONDecoder().decode(NoteHead.self, from: head))?.title
+        }
+        let shared: UUID? = opened.note_id
+        let inLibrary = (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
+        let already = sessions.values.contains { $0.noteID == opened.note_id } || inLibrary
+        return JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already)
+    }
+
     func join(_ url: URL) async -> Bool {
         guard let transport, let me, let library, let (id, secret) = Self.parseLink(url) else { return false }
         let lk = Self.linkKeys(secret, link: id)
