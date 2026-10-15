@@ -91,13 +91,13 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
         </div>
         <div className={v.row}>
           <div className={v.words}>
-            <p className={v.kicker}>Every morning</p>
-            <h3 className={v.rowTitle}>{"Sara built\nher own gym log."}</h3>
-            <p className={v.say}>She asked for an app, and it appeared in her notes. Muse plans her next session from it.</p>
+            <p className={v.kicker}>Every morning, over coffee</p>
+            <h3 className={v.rowTitle}>Sara built her own budget.</h3>
+            <p className={v.say}>Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions.</p>
           </div>
-          <PaperStill gym at="right" src="/home-v5/frontier/sara-stockholm.webp" where="Sara · Stockholm, 07:20"
-            alt="A cut-paper scene of a woman on a gym bench at sunrise looking at her phone, Stockholm's waterfront through big windows."
-            me="What should I do next push day?" aiName="Muse" aiGlyph="meta" ai="Bench 65 kg. You've hit 62.5 three sessions running." />
+          <PaperStill budget at="right" src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
+            me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
         </div>
       </section>
 

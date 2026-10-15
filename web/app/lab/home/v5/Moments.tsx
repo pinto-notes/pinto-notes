@@ -637,8 +637,8 @@ export function PaperScene({ src, alt, where, lines, says = "right", gym = false
 }
 
 /// The scene, still: the art, and one exchange set large like a pull quote. No motion to decode.
-export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", gym = false, voice = false }:
-  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; gym?: boolean; voice?: boolean }) {
+export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", gym = false, budget = false, voice = false }:
+  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; gym?: boolean; budget?: boolean; voice?: boolean }) {
   return (
     <div className={m.paperScene}>
       <img src={src} alt={alt} />
@@ -646,8 +646,21 @@ export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "lef
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
         <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} color={aiGlyph === "meta" ? "#0866ff" : undefined} />{aiName}</span>{ai}</p>
         {gym && <GymCard p={1} />}
+        {budget && <BudgetCard />}
       </figure>
       <span className={m.paperWhere}>{where}</span>
     </div>
+  );
+}
+
+/// Sara's budget, her own app: what's left this month, by category.
+export function BudgetCard() {
+  const rows = [{ n: "Groceries", left: "410 kr under", ok: true }, { n: "Eating out", left: "2 dinners left", ok: false }];
+  return (
+    <figure className={m.gymMini}>
+      <div className={m.gymMiniHead}><span>Budget</span><em>October</em></div>
+      <p className={m.budgetBig}>8,205 kr <small>left this month</small></p>
+      <ul>{rows.map((r) => <li key={r.n}><b>{r.n}</b><span data-empty={!r.ok || undefined}>{r.left}</span></li>)}</ul>
+    </figure>
   );
 }

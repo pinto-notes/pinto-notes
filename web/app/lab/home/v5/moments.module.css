@@ -444,3 +444,9 @@
 .qWave[data-mini] i { width: 2.5px; background: #1d1b19; }
 .qWave[data-mini] i:nth-child(1) { height: 5px; } .qWave[data-mini] i:nth-child(2) { height: 11px; } .qWave[data-mini] i:nth-child(3) { height: 7px; } .qWave[data-mini] i:nth-child(4) { height: 13px; } .qWave[data-mini] i:nth-child(5) { height: 6px; }
 @media (max-width: 760px) { .paperWhere { top: 192px; bottom: auto; } }
+.budgetBig { margin: 2px 2px 10px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #2a1d10; }
+.budgetBig small { font-size: 13px; font-weight: 600; letter-spacing: 0; color: #8a7a68; }
+.gymMini li span { min-width: 0; }
+.gymMini .budgetBig { margin: 0 2px 8px; font-size: 24px; font-weight: 800; color: #2a1d10; }
+.gymMini .budgetBig small { font-size: 12.5px; }
+.quote[data-at="right"] ~ .paperWhere { right: auto; left: 18px; }
