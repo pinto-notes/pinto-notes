@@ -57,6 +57,17 @@ final class SharedDocument {
 
     var canEdit: Bool { role == "owner" || role == "editor" }
 
+    /// The document's text as stored here, read without opening a session (no key needed: the
+    /// stored document isn't sealed on the device). Nil when there's none or it doesn't read.
+    func storedText() -> String? {
+        guard !saved.isEmpty else { return nil }
+        let doc = CollabText.Document(textEncoding: .utf16)
+        guard (try? CollabText.absorb(saved, into: doc)) != nil else { return nil }
+        if !tail.isEmpty { try? doc.applyEncodedChanges(encoded: tail) }
+        guard case .Object(let body, .Text)? = try? doc.get(obj: .ROOT, key: "body") else { return nil }
+        return try? doc.text(obj: body)
+    }
+
     /// The changes waiting to go up.
     var pending: [Data] {
         get { Self.frames(outbox) }

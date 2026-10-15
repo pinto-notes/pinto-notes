@@ -274,6 +274,21 @@ extension NetworkFaults {
         await eb.stop()
     }
 
+    /// Your own note whose shared note went while it wasn't open here (Start fresh, or sharing
+    /// stopped elsewhere): it keeps the newest text this device stored, not the note's older copy.
+    @Test func yourOwnNoteKeepsTheStoredTextWhenItsSharedNoteGoes() async throws {
+        let emil = try device(owner)
+        let (note, session) = try await shared("Garden", on: emil)
+        type("\nTomatoes", in: session)
+        await waitUntil { session.isSent }
+        emil.library.closeAll()
+        note.body = "Garden"
+        server.members[note.id] = nil
+        emil.library.removeLocally(note)
+        #expect(!note.isShared && note.deletedAt == nil)
+        #expect(note.body == "Garden\nTomatoes")
+    }
+
     /// Your own note whose shared note is gone (nobody's in it anymore) stays yours, with its text.
     @Test func yourOwnNoteNeverLeavesYourLibrary() async throws {
         let emil = try device(owner)
