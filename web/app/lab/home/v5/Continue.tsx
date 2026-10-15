@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { Download } from "../../kit";
 import { Film, type Caption } from "../v2/Film";
@@ -22,48 +22,65 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // Phases of p.
 const FLY = [0.02, 0.2];   // the note leaves the phone and settles in the middle
 const STAGE = [0.2, 0.27]; // then the stage appears around it
+// Three beats, each one big, connected change. The caption carries the day.
 const BEATS = [
-  { at: 0.27, slot: 0, text: "You tick things off." },
-  { at: 0.4, slot: 1, text: "Your AI keeps it up to date." },
-  { at: 0.52, slot: 2, text: "You tick things off." },
-  { at: 0.61, slot: 3, text: "Life happens." },
-  { at: 0.71, slot: 4, text: "Ask how your week went." },
-  { at: 0.93, slot: 4, text: "The notebook you and your AI share." },
+  { at: 0.27, text: "This week, in one note." },
+  { at: 0.31, text: "Tuesday · Your AI keeps it up to date." },
+  { at: 0.5, text: "Thursday · Life happens." },
+  { at: 0.64, text: "Friday · Ask how your week went." },
+  { at: 0.96, text: "The notebook you and your AI share." },
 ];
-const SLOTS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+// Friday's answer, line by line, and the row each line lights up.
+const ANSWER = [
+  { text: "Two of three runs done.", rows: ["mon", "wed"], at: 0.72 },
+  { text: "The dentist is booked.", rows: ["dentist"], at: 0.77 },
+  { text: "You missed Thursday, so I moved it to Sunday.", rows: ["thu"], at: 0.82 },
+  { text: "The Lisbon flights are due today.", rows: ["flights"], at: 0.88 },
+];
+const LIT = (p: number, row: string) => {
+  const a = ANSWER.find((x) => x.rows.includes(row)); if (!a) return 0;
+  return Math.sin(Math.PI * span(p, a.at, a.at + 0.08));
+};
+/// Which row is "active" right now, for the connector line and the row's lift.
+export const activeRow = (p: number): string | null => {
+  if (p >= 0.33 && p < 0.47) return "dentist";
+  if (p >= 0.52 && p < 0.62) return "thu";
+  const a = [...ANSWER].reverse().find((x) => p >= x.at && p < x.at + 0.07);
+  return a ? a.rows[a.rows.length - 1] : null;
+};
 
-/// A checkbox; `cur` (0..1) brings your pointer in to it, tip exactly on its centre, and `t` ticks it.
-function Check({ t, cur = 0, press = false }: { t: number; cur?: number; press?: boolean }) {
+/// A checkbox that ticks.
+function Check({ t }: { t: number }) {
   return (
     <i className={c.chk} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
       <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
-      {cur > 0 && (
-        <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true"
-          style={{ opacity: Math.min(1, cur * 3), transform: `translate(${((1 - mj(cur)) * 260).toFixed(1)}%, ${((1 - mj(cur)) * 180).toFixed(1)}%) scale(${press ? 0.86 : 1})` }}>
-          <path d="M4 2l15 9-7 1.5L8.5 20z" />
-        </svg>
-      )}
     </i>
   );
 }
 
-const Chip = ({ ai, v = 1 }: { ai: "openai" | "claude"; v?: number }) => (
-  <em data-ai={ai === "claude" ? "claude" : undefined} style={{ opacity: v }}>
-    <AIGlyph name={ai} size={8} color={ai === "claude" ? "#d97757" : undefined} />{ai === "claude" ? "Claude" : "ChatGPT"}
+const Chip = ({ ai, v = 1, label }: { ai: "openai" | "claude" | "you" | "missed"; v?: number; label?: string }) => (
+  <em data-ai={ai} style={{ opacity: v }}>
+    {ai === "openai" || ai === "claude" ? <AIGlyph name={ai} size={8} color={ai === "claude" ? "#d97757" : undefined} /> : null}
+    {label ?? (ai === "claude" ? "Claude" : ai === "openai" ? "ChatGPT" : ai === "you" ? "You" : "Missed")}
   </em>
 );
 
-/// Her week: the plan she made on the walk, then the week happens to it, and on Friday she asks.
+/// Her week: the plan she made on the walk; then the week happens to it.
 function Note({ p, f }: { p: number; f: number }) {
-  // Mon: you tick the run. Tue: Claude books the dentist. Wed: you tick the run. Thu: the run slips.
-  // Fri: Claude moves Thursday's run to Sunday and flags the flights.
-  const curMon = span(p, 0.29, 0.35) * (1 - span(p, 0.39, 0.41)), tickMon = span(p, 0.35, 0.38);
-  const dentist = mj(span(p, 0.44, 0.48)), dMark = over(span(p, 0.45, 0.5));
-  const curWed = span(p, 0.53, 0.57) * (1 - span(p, 0.6, 0.62)), tickWed = span(p, 0.57, 0.6);
-  const slip = mj(span(p, 0.63, 0.67)) * (1 - mj(span(p, 0.84, 0.88)));
-  const moved = mj(span(p, 0.84, 0.88)), mMark = over(span(p, 0.85, 0.9));
-  const flag = Math.sin(Math.PI * span(p, 0.87, 0.97));
-  const tint = (v: number, rgb = "240,144,26") => ({ background: `rgba(${rgb},${(0.16 * v).toFixed(3)})` });
+  // Mon and Wed are already ticked by you when the note lands (the stage says "This week").
+  const done = mj(span(p, 0.23, 0.27));
+  // Tuesday: Claude books the dentist (tick, time).
+  const dTick = span(p, 0.38, 0.41), dMark = over(span(p, 0.39, 0.43));
+  // Thursday: the run slips.
+  const missed = mj(span(p, 0.53, 0.57));
+  // Friday: Thursday's run moves to Sunday.
+  const moved = mj(span(p, 0.84, 0.88)), mMark = over(span(p, 0.85, 0.89));
+  const act = activeRow(p);
+  const row = (id: string, extra?: number): React.CSSProperties => {
+    const lit = Math.max(LIT(p, id), extra ?? 0, act === id ? 1 : 0);
+    return { background: `rgba(240,144,26,${(0.18 * lit).toFixed(3)})`, transform: `scale(${(1 + 0.035 * lit).toFixed(4)})`,
+      boxShadow: lit > 0.05 ? `0 ${(10 * lit).toFixed(1)}px ${(22 * lit).toFixed(1)}px -14px rgba(60,30,5,${(0.35 * lit).toFixed(2)})` : undefined };
+  };
   return (
     <div className={c.scIn}>
       <p className={c.status} style={{ opacity: 1 - mj(span(f, 0, 0.6)), maxHeight: `${(1 - f) * 12}cqw`, marginBottom: `${(1 - f) * 6}cqw`, overflow: "hidden" }}><b>21:40</b><span /></p>
@@ -72,20 +89,20 @@ function Note({ p, f }: { p: number; f: number }) {
       <p className={c.sub}>Half marathon in six weeks. Lisbon on the 18th, so keep the evenings light.</p>
       <p className={c.section}>Training</p>
       <ul className={c.list}>
-        <li><Check t={tickMon} cur={curMon} press={tickMon > 0 && tickMon < 1} /><span data-done={tickMon > 0.5 || undefined}>Mon · Run, 5 km</span><Chip ai="openai" /></li>
-        <li><Check t={tickWed} cur={curWed} press={tickWed > 0 && tickWed < 1} /><span data-done={tickWed > 0.5 || undefined}>Wed · Intervals</span><Chip ai="openai" /></li>
-        <li style={tint(Math.max(slip, moved * (1 - span(p, 0.95, 1))), moved > 0.5 ? "240,144,26" : "200,90,60")}>
-          <Check t={0} /><span>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
-          {moved > 0.5 ? <Chip ai="claude" v={mMark} /> : <Chip ai="openai" />}
+        <li data-row="mon" style={row("mon")}><Check t={done} /><span data-done={done > 0.5 || undefined}>Mon · Run, 5 km</span><Chip ai="openai" /></li>
+        <li data-row="wed" style={row("wed")}><Check t={done} /><span data-done={done > 0.5 || undefined}>Wed · Intervals</span><Chip ai="openai" /></li>
+        <li data-row="thu" style={{ ...row("thu"), opacity: 1 - 0.45 * missed * (1 - moved) }}>
+          <Check t={0} /><span style={{ textDecoration: missed > 0.5 && moved < 0.5 ? "line-through" : undefined, textDecorationColor: "rgba(190,70,40,0.6)" }}>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
+          {moved > 0.5 ? <Chip ai="claude" v={mMark} label="Claude moved it" /> : missed > 0.5 ? <Chip ai="missed" v={missed} /> : <Chip ai="openai" />}
         </li>
       </ul>
       <p className={c.section}>To do</p>
       <ul className={c.list}>
-        <li style={tint(dMark * (1 - span(p, 0.55, 0.62)))}>
-          <Check t={dentist} /><span data-done={dentist > 0.5 || undefined}>{dentist > 0.5 ? "Dentist · Thu 10:00" : "Call the dentist"}</span>
-          {dentist > 0.5 ? <Chip ai="claude" v={dMark} /> : <Chip ai="openai" />}
+        <li data-row="dentist" style={row("dentist")}>
+          <Check t={dTick} /><span data-done={dTick > 0.5 || undefined}>{dTick > 0.5 ? "Dentist · Thu 10:00" : "Call the dentist"}</span>
+          {dTick > 0.5 ? <Chip ai="claude" v={dMark} /> : <Chip ai="openai" />}
         </li>
-        <li style={tint(flag)}><Check t={0} /><span>Book Lisbon flights · by Fri</span><Chip ai="openai" /></li>
+        <li data-row="flights" style={row("flights")}><Check t={0} /><span>Book Lisbon flights · by Fri</span><Chip ai="openai" /></li>
       </ul>
     </div>
   );
@@ -128,41 +145,40 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
   const pin = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
   const r = useScreenRect(pin, screen, mode === "live");
-
-  if (mode === "still") {
-    // Phones and Reduce Motion: the still hero, then the film, explained by a title.
-    return null;
-  }
+  const note = useRef<HTMLDivElement>(null);
 
   const fly = mj(span(p, FLY[0], FLY[1]));
   const heroOut = mj(span(p, 0.01, 0.14));
   const stage = mj(span(p, STAGE[0], STAGE[1]));
   const beat = [...BEATS].reverse().find((b) => p >= b.at);
-  const capIn = beat ? mj(span(p, beat.at, beat.at + 0.03)) * stage : 0;
+  const capIn = beat ? mj(span(p, beat.at, beat.at + 0.025)) * stage : 0;
 
-  // Target: the note settles in the middle of the stage, wider and taller, with readable text.
-  const tw = r ? Math.min(460, r.vw * 0.3) : 0, th = tw * 1.35;
-  const tx = r ? r.vw / 2 - tw / 2 : 0, ty = r ? 100 + (r.vh - 100) / 2 - th / 2 - 28 : 0;
-  // The note keeps its final size and is scaled down onto the phone's screen at the start: a pure
-  // transform, so the flight is smooth. Its contents are sized from its width, so it reads the same.
+  // Target: as big as fits under the caption (contents scale with the note's width).
+  const tw = r ? Math.min(560, r.vw * 0.38, (r.vh - 390) / 1.36) : 0, th = tw * 1.36;
+  const tx = r ? r.vw / 2 - tw / 2 : 0, ty = r ? 204 + (r.vh - 204 - 180 - th) / 2 : 0;
   const s0 = r ? r.w / tw : 1, sc = lerp(s0, 1, fly);
-  // Height: on the phone the note fills the whole screen; it eases to its own height as it lands.
   const noteBox = r ? { left: tx, top: ty, width: tw, height: lerp(r.h / s0, th, fly), transformOrigin: "0 0",
     transform: `translate(${lerp(r.x - tx, 0, fly).toFixed(2)}px, ${lerp(r.y - ty, 0, fly).toFixed(2)}px) scale(${sc.toFixed(5)})` } : null;
 
-  // Chats around the note.
-  const claudeIn = mj(span(p, 0.4, 0.43)) * (1 - mj(span(p, 0.5, 0.53)));
-  const claudeAns = mj(span(p, 0.42, 0.45));
-  const museIn = mj(span(p, 0.71, 0.75));
-  const museAns = mj(span(p, 0.78, 0.84));
+  // Chats: Tuesday on the left (Claude), Friday on the right (Claude).
+  const tueIn = mj(span(p, 0.31, 0.34)) * (1 - mj(span(p, 0.47, 0.5)));
+  const tueAns = mj(span(p, 0.36, 0.39));
+  const friIn = mj(span(p, 0.66, 0.69));
+  const said = ANSWER.filter((a2) => p >= a2.at - 0.01);
+
+  // The connector: from the speaking bubble to the row it changes.
+  const act = activeRow(p);
+  const rowY = useRowY(note, act, p);
+  const linkSide = act === "dentist" ? "l" : act && act !== "thu" && p > 0.66 ? "r" : null;
+  const bubbleTop = r ? r.vh * 0.5 : 0;
 
   return (
     <div ref={box} className={c.box}>
       <div ref={pin} className={c.pin}>
         {/* The stage of the film, appearing only once the note is in the middle. */}
         <div className={c.stage} style={{ opacity: stage, transform: `scale(${(0.97 + 0.03 * stage).toFixed(4)})` }} aria-hidden={stage < 0.5}>
-          <ol className={c.slots}>{SLOTS.map((s, i) => <li key={s} data-on={beat?.slot === i || undefined} data-past={beat && i < beat.slot || undefined}>{s}</li>)}</ol>
           <p className={c.caption} style={{ opacity: capIn }}>{beat?.text}</p>
+          <Timeline p={p} />
         </div>
 
         {/* The hero. */}
@@ -193,7 +209,7 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
 
         {/* The one note: on her phone, then in the middle of the screen. */}
         {noteBox && (
-          <div className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly) / sc,
+          <div ref={note} className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly) / sc,
             boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * fly).toFixed(2)}), 0 ${(40 * fly).toFixed(0)}px ${(80 * fly).toFixed(0)}px -36px rgba(60,30,5,${(0.5 * fly).toFixed(2)})` }}>
             <div className={c.winBar} style={{ height: `${(fly * 9).toFixed(2)}cqw`, opacity: mj(span(fly, 0.4, 1)) }}>
               <span className={c.lights}><i /><i /><i /></span><span className={c.folder}>Plans</span>
@@ -203,20 +219,72 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
           </div>
         )}
 
-        {/* Lunch: Claude, on her Mac. Evening: Muse. */}
+        {/* The connector line from the bubble to the row it changes. */}
+        {noteBox && linkSide && rowY !== null && (
+          <svg className={c.link} aria-hidden="true">
+            {linkSide === "l"
+              ? <path d={`M ${tx - 22} ${bubbleTop} C ${tx - 10} ${bubbleTop}, ${tx - 10} ${rowY}, ${tx + 6} ${rowY}`} />
+              : <path d={`M ${tx + tw + 22} ${bubbleTop} C ${tx + tw + 10} ${bubbleTop}, ${tx + tw + 10} ${rowY}, ${tx + tw - 6} ${rowY}`} />}
+          </svg>
+        )}
+
         {noteBox && <>
-          <figure className={c.chat} data-side="l" style={{ opacity: claudeIn, transform: `translate(${((1 - claudeIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 22}px)` }}>
+          <figure className={c.chat} data-side="l" style={{ opacity: tueIn, transform: `translate(${((1 - tueIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 22}px)` }}>
             <p className={c.bMe}>Booked the dentist, Thursday at 10.</p>
-            <p className={c.bAi} style={{ opacity: claudeAns }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>Ticked it off and added the time.</p>
+            <p className={c.bAi} style={{ opacity: tueAns }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>Ticked it off and added the time.</p>
           </figure>
-          <figure className={c.chat} data-side="r" style={{ opacity: museIn, transform: `translate(${((1 - museIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 22}px)` }}>
+          <figure className={c.chat} data-side="r" style={{ opacity: friIn, transform: `translate(${((1 - friIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 22}px)` }}>
             <p className={c.bMe}>How did my week go?</p>
-            <p className={c.bAi} style={{ opacity: museAns }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>Two of three runs, and the dentist is done. You missed Thursday, so I moved it to Sunday. The Lisbon flights are due today.</p>
+            <p className={c.bAi} style={{ opacity: said.length ? 1 : 0 }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>
+              {ANSWER.map((a2, i) => <span key={i} className={c.seg} style={{ opacity: mj(span(p, a2.at - 0.01, a2.at + 0.02)) }}>{a2.text} </span>)}
+            </p>
           </figure>
         </>}
       </div>
     </div>
   );
+}
+
+/// A clear week timeline along the bottom: Mon to Sun on a track that fills as the week goes, the day
+/// you're on large, and what happened marked under its day.
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const EVENTS = [
+  { day: 0, text: "Ran 5 km", at: 0.27 }, { day: 1, text: "Dentist booked", at: 0.38 }, { day: 2, text: "Intervals", at: 0.52 },
+  { day: 3, text: "Missed run", at: 0.54, bad: true }, { day: 4, text: "Check-in", at: 0.68 }, { day: 6, text: "Run moved here", at: 0.86 },
+];
+function Timeline({ p }: { p: number }) {
+  // Progress across the week (0..4 = Mon..Fri), stepping with the beats.
+  const pos = p < 0.31 ? lerp(0, 0.9, mj(span(p, 0.27, 0.31))) : p < 0.5 ? 1 : p < 0.64 ? lerp(1, 3, mj(span(p, 0.5, 0.54))) : lerp(3, 4, mj(span(p, 0.64, 0.68)));
+  const now = Math.round(pos);
+  return (
+    <div className={c.timeline} aria-hidden="true">
+      <div className={c.track}><span className={c.fill} style={{ width: `${((pos / 6) * 100).toFixed(2)}%` }} /></div>
+      {DAYS.map((d, i) => {
+        const ev = EVENTS.find((e) => e.day === i && p >= e.at);
+        return (
+          <div key={d} className={c.day} style={{ left: `${((i / 6) * 100).toFixed(2)}%` }} data-past={i < now || undefined} data-now={i === now || undefined}>
+            <span className={c.dot} />
+            <b>{d}</b>
+            {ev && <em data-bad={ev.bad || undefined} style={{ opacity: mj(span(p, ev.at, ev.at + 0.03)) }}>{ev.text}</em>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/// The vertical centre of a row in the note, relative to the pinned stage (measured after layout).
+function useRowY(note: React.RefObject<HTMLDivElement | null>, row: string | null, p: number) {
+  const [y, setY] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const n = note.current; if (!n || !row) { if (y !== null) setY(null); return; }
+    const li = n.querySelector(`[data-row="${row}"]`) as HTMLElement | null; const pin = n.parentElement;
+    if (!li || !pin) return;
+    const a = li.getBoundingClientRect(), b = pin.getBoundingClientRect();
+    const v = a.top + a.height / 2 - b.top;
+    if (y === null || Math.abs(v - y) > 0.5) setY(v);
+  }, [note, row, p, y]);
+  return row ? y : null;
 }
 
 /// Phones and Reduce Motion get the still hero and the film, as version 2 does.

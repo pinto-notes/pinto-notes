@@ -75,3 +75,28 @@
 .folder { position: absolute; left: 50%; transform: translateX(-50%); font-size: 3cqw; font-weight: 600; color: #8a7a68; }
 .sub { margin: -2cqw 0 4cqw; font-size: 3.9cqw; line-height: 1.4; color: #8a7a68; }
 .note .section { margin: 3cqw 0 1.5cqw; }
+
+/* The caption now sits at the top of the stage and names the day. */
+.caption.caption { top: 34px; bottom: auto; font-size: clamp(26px, 2.6vw, 40px); }
+.list li { transition: none; transform-origin: center; }
+.list li em[data-ai="missed"] { background: #fbe1d8; color: #b0432a; }
+.list li em[data-ai="you"] { background: #efe9e1; color: #6b5a48; }
+.seg { display: inline; font-size: inherit !important; font-weight: 400 !important; color: inherit !important; }
+.bAi .seg { display: inline !important; }
+.link { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; overflow: visible; }
+.link path { fill: none; stroke: #d98a2b; stroke-width: 2; stroke-dasharray: 2 6; stroke-linecap: round; }
+
+/* The week timeline. */
+.timeline { position: absolute; left: 12%; right: 12%; bottom: 96px; height: 2px; }
+.track { position: absolute; inset: 0; border-radius: 2px; background: rgba(80, 45, 10, 0.14); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: #d97a17; }
+.day { position: absolute; top: 0; transform: translateX(-50%); display: grid; justify-items: center; gap: 6px; }
+.dot { width: 12px; height: 12px; margin-top: -5px; border-radius: 50%; background: #fbeedd; box-shadow: inset 0 0 0 2px rgba(80, 45, 10, 0.25); transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
+.day[data-past] .dot { background: #d97a17; box-shadow: none; }
+.day[data-now] .dot { background: #2a1d10; box-shadow: 0 0 0 5px rgba(42, 29, 16, 0.12); transform: scale(1.5); }
+.day b { font-size: 14px; font-weight: 700; color: #a99682; }
+.day[data-past] b { color: #6b5a48; }
+.day[data-now] b { color: #2a1d10; font-size: 16px; }
+.day em { position: absolute; top: 44px; white-space: nowrap; font-style: normal; font-size: 12.5px; font-weight: 650; color: #a85700; padding: 3px 8px; border-radius: 10px; background: #fff1de; }
+.day em[data-bad] { color: #b0432a; background: #fbe1d8; }
+.link path { stroke-width: 2.5; stroke-dasharray: 1 6; }
