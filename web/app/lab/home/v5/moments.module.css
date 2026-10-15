@@ -427,3 +427,15 @@
 .qAi { margin-left: 24px; border-radius: 20px 20px 6px 20px; background: #fff; color: #1d1b19; display: grid; gap: 4px; }
 .qAi span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #6b5f53; }
 @media (max-width: 760px) { .quote { position: relative; top: auto; left: auto !important; right: auto !important; width: auto; padding: 14px; } }
+
+/* Voice: a call pill, your line with a waveform, the reply under the cloud orb. */
+.qCall { justify-self: start; margin: 0; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 6px; border-radius: 17px; background: rgba(255, 255, 255, 0.94);
+  font-size: 13px; font-weight: 650; color: #1d1b19; box-shadow: 0 12px 26px -14px rgba(20, 10, 0, 0.5); }
+.qCall b { font-weight: 600; color: #8e8e93; font-variant-numeric: tabular-nums; }
+.qOrb, .qOrbSm { display: inline-block; flex: none; border-radius: 50%; background: url(/home-v5/voice-orb.webp) center / cover; }
+.qOrb { width: 24px; height: 24px; }
+.qOrbSm { width: 15px; height: 15px; }
+.quote[data-voice] .qMe { display: flex; align-items: center; gap: 10px; }
+.qWave { flex: none; display: inline-flex; align-items: center; gap: 2.5px; height: 20px; }
+.qWave i { width: 3px; border-radius: 2px; background: #f0a040; }
+.qWave i:nth-child(1) { height: 7px; } .qWave i:nth-child(2) { height: 15px; } .qWave i:nth-child(3) { height: 10px; } .qWave i:nth-child(4) { height: 18px; } .qWave i:nth-child(5) { height: 8px; }
