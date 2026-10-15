@@ -84,7 +84,7 @@ export function V5({ hero = "stack" }: { hero?: string }) {
       <section className={v.togetherSec} aria-labelledby="together">
         <div className={v.momentsHead}>
           <h2 id="together" className={v.big}>Share a list. Watch it get ticked off.</h2>
-          <p className={v.say}>Share any note with the people you live and plan with. Every change shows up for everyone, as it happens.</p>
+          <p className={v.say}>Share any note with the people you live and plan with. Everyone sees every change as it happens, and your AI can add to it too.</p>
         </div>
         <Together />
       </section>

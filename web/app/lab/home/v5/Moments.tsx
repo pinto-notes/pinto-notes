@@ -200,17 +200,18 @@ const DUO = [
   { id: "sara", name: "Sara", where: "at the shop", color: "#75703c", img: "/home-v5/people/sara.webp", side: "r" },
 ];
 const ITEMS = [
-  { text: "Bread", by: 1, add: -1, tick: 0.3 },
-  { text: "Eggs", by: 0, add: -1, tick: 0.38 },
-  { text: "Oat milk", by: 0, add: 0.06, tick: 0.45 },
-  { text: "Lemons", by: 0, add: 0.2, tick: 0.84 },
-  { text: "Ice cream", by: 1, add: 0.64, tick: -1 },
+  { text: "Bread", by: 1, ai: false, add: -1, tick: 0.3 },
+  { text: "Oat milk", by: 0, ai: false, add: 0.04, tick: 0.4 },
+  { text: "Tortillas", by: 0, ai: true, add: 0.2, tick: 0.62 },
+  { text: "Avocados", by: 0, ai: true, add: 0.23, tick: 0.7 },
+  { text: "Limes", by: 0, ai: true, add: 0.26, tick: 0.78 },
+  { text: "Ice cream", by: 1, ai: false, add: 0.84, tick: -1 },
 ];
 const SAID = [
-  { who: 0, text: "We're out of oat milk.", at: 0.02 },
-  { who: 0, text: "And lemons, if they have them.", at: 0.17 },
-  { who: 1, text: "Got it.", at: 0.48 },
-  { who: 1, text: "Something for tonight.", at: 0.6 },
+  { who: 0, text: "We're out of oat milk.", at: 0.0 },
+  { who: 0, text: "ChatGPT, add what we need for taco night.", at: 0.15 },
+  { who: 1, text: "Got it.", at: 0.4 },
+  { who: 1, text: "And something for after.", at: 0.82 },
 ];
 export function Together() {
   const [ref, p] = useSceneProgress();
@@ -230,7 +231,7 @@ export function Together() {
                   <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
                 </span>
                 <span className={m.itemText} data-done={t > 0.5 || undefined}>{it.text}</span>
-                <img className={m.mini} src={DUO[it.by].img} alt="" />
+                {it.ai ? <span className={m.aiChip}><AIGlyph name="openai" size={11} />ChatGPT</span> : <img className={m.mini} src={DUO[it.by].img} alt="" />}
               </li>
             );
           })}
