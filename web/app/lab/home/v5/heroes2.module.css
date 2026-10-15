@@ -265,3 +265,9 @@
   .edH1 { font-size: min(5.4vw, 92px); }
   .editorial .splitScene.splitScene { width: 50%; }
 }
+/* Straight edge: the scene is a clean full-height panel on the right, no wave. */
+@media (min-width: 901px) {
+  .editorial .splitScene.splitScene { -webkit-mask-image: none; mask-image: none; filter: none; }
+}
+.edLede { margin: -10px 0 0; max-width: 30em; font-size: clamp(17px, 1.35vw, 20px); line-height: 1.45; color: #6b5a48; }
+.edWords { gap: 28px; }
