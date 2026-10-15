@@ -7,11 +7,24 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Agents, Habits, Pin, Together, Walk } from "./Moments";
+import { Agents, Habits, Pin, Walk } from "./Moments";
+import { ScrollVar } from "./ScrollVar";
 import { Week } from "./Week";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
+
+// The small things, eight tiles. Only what's true today; collaboration says so until it ships.
+const EXTRAS = [
+  { icon: "/home-v5/icons/envelope.webp", title: "Private", say: "Encrypted on your device before it syncs." },
+  { icon: "/home-d/facts/undo.webp", title: "Every change says who", say: "You or which AI. Undo takes it back." },
+  { icon: "/home-d/facts/lock.webp", title: "Lock a note", say: "A separate password for the private ones." },
+  { icon: "/home-v5/icons/devices.webp", title: "Mac and iPhone", say: "Always in sync, and works offline." },
+  { icon: "/home-v5/icons/bring.webp", title: "Bring your notes", say: "From Apple Notes, Obsidian, Bear, Evernote and Keep." },
+  { icon: "/home-v5/icons/notepad.webp", title: "Feels like Apple Notes", say: "Checklists, tables, folders, links between notes." },
+  { icon: "/home-d/facts/box.webp", title: "Open source", say: "Anyone can check the code." },
+  { icon: "/home-v5/icons/people.webp", title: "Share with people", say: "Plan together in one note, live.", soon: true },
+];
 
 // Three features, each named plainly, with one real-life example under it.
 const FEATURES = [
@@ -75,20 +88,25 @@ export function V5({ hero = "side" }: { hero?: string }) {
         ))}
       </section>
 
-      <section className={v.togetherSec} aria-labelledby="together">
-        <div className={v.momentsHead}>
-          <h2 id="together" className={v.big}>Share a list. Watch it get ticked off.</h2>
-          <p className={v.say}>Share any note with the people you live and plan with. Everyone sees every change as it happens, and your AI can add to it too.</p>
-        </div>
-        <Pin length={170}><Together /></Pin>
-      </section>
-
       <section className={d.wait} aria-labelledby="wait">
         <div className={d.centerHead}>
           <h2 id="wait" className={d.title}>Start from a template.</h2>
           <p className={d.lede}>A habit tracker, a budget, a trip plan. Notes that work like small apps. Change them yourself, or ask your AI. <a className={d.inline} href="/templates">See all templates</a></p>
         </div>
-        <ul className={`${d.fan} ${g.fanWrap}`}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} eager /></li>)}</ul>
+        <ScrollVar as="ul" className={`${d.fan} ${g.fanWrap} ${v.scrollFan}`} from={1} to={0.35}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} eager /></li>)}</ScrollVar>
+      </section>
+
+      <section className={`${v.extras} ${v.extrasBand}`} aria-labelledby="extras">
+        <h2 id="extras" className={v.big}>And everything you'd expect.</h2>
+        <ScrollVar as="ul" className={v.grid} from={0.95} to={0.2}>
+          {EXTRAS.map((x, i) => (
+            <li key={x.title} style={{ "--i": i } as React.CSSProperties}>
+              <span className={v.icon}><img src={x.icon} alt="" width={64} height={64} loading="lazy" /></span>
+              <h3>{x.title}{x.soon && <em>Coming soon</em>}</h3>
+              <p>{x.say}</p>
+            </li>
+          ))}
+        </ScrollVar>
       </section>
 
       <section className={`${d.band} ${d.closing}`} aria-labelledby="closing" data-dark-band="">

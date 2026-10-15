@@ -43,30 +43,38 @@ export function Pin({ children, className, length = 150 }: { children: React.Rea
   );
 }
 
+/// Scenes play by themselves: once most of the scene is on screen, it runs once at its own pace
+/// (about five seconds) and rests on its last frame. `replay` plays it again. Pinned rows (if any)
+/// still hand their scroll progress down. `?m=` freezes every scene; Reduce Motion shows the end.
+const PLAY_MS = 5200;
 function useSceneProgress() {
   const pinned = useContext(PinProgress);
   const ref = useRef<HTMLDivElement>(null);
   const [own, setOwn] = useState(0);
+  const [run, setRun] = useState(0);
   useEffect(() => {
     if (pinned !== null) return;
     const q = new URLSearchParams(location.search).get("m");
     if (q !== null) { setOwn(Number(q)); return; }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setOwn(1); return; }
-    let raf = 0;
-    // Unpinned (phones): starts once most of the scene is on screen and takes a long, calm scroll.
-    const read = () => {
-      raf = 0; const el = ref.current; if (!el) return; const r = el.getBoundingClientRect();
-      const start = innerHeight - 0.75 * Math.min(r.height, innerHeight), end = Math.min(80, start - 520);
-      setOwn(clamp((start - r.top) / (start - end)));
-    };
-    const on = () => { if (!raf) raf = requestAnimationFrame(read); };
-    read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
-    return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
-  }, [pinned]);
-  // Pinned: a short hold at each end, so the first and last frames are seen.
+    let raf = 0, start = 0;
+    const tick = (now: number) => { if (!start) start = now; const v = Math.min(1, (now - start) / PLAY_MS); setOwn(v); if (v < 1) raf = requestAnimationFrame(tick); };
+    setOwn(0);
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { io.disconnect(); raf = requestAnimationFrame(tick); } }, { threshold: 0.6 });
+    if (ref.current) io.observe(ref.current);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [pinned, run]);
   const p = pinned !== null ? clamp((pinned - 0.08) / 0.8) : own;
-  return [ref, p] as const;
+  const replay = pinned !== null ? undefined : () => setRun((r) => r + 1);
+  return [ref, p, replay] as const;
 }
+
+/// A small replay button, shown once a scene has finished.
+const Replay = ({ p, onClick }: { p: number; onClick?: () => void }) => !onClick ? null : (
+  <button type="button" className={m.replay} onClick={onClick} style={{ opacity: p >= 1 ? 1 : 0, pointerEvents: p >= 1 ? "auto" : "none" }} aria-label="Play again">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v2.8h2.8" /></svg>Play again
+  </button>
+);
 
 const Check = ({ on, t = on ? 1 : 0 }: { on: boolean; t?: number }) => (
   <span className={m.box} data-on={on || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
@@ -86,12 +94,13 @@ const TALK = [
   { who: "ai", text: "Added, after the run.", at: 0.66 },
 ];
 export function Walk() {
-  const [ref, p] = useSceneProgress();
+  const [ref, p, replay] = useSceneProgress();
   const now = [...TALK].reverse().find((t) => p >= t.at);
   const speaking = now?.who === "ai";
   const line1 = over(span(p, 0.34, 0.42)), line2 = over(span(p, 0.74, 0.82));
   return (
     <div ref={ref} className={`${m.stage} ${m.dusk}`}>
+      <Replay p={p} onClick={replay} />
       <div className={`${m.phone} ${m.voicePhone}`} aria-hidden="true">
         <div className={m.screen} data-voice="">
           <span className={m.island} />
@@ -207,10 +216,11 @@ const LOG = [
   { app: "Claude Code", text: "12 tests for the queue, all pass.", at: 0.74 },
 ];
 export function Agents() {
-  const [ref, p] = useSceneProgress();
+  const [ref, p, replay] = useSceneProgress();
   const run = [...LOG].reverse().find((l) => p >= l.at - 0.12);
   return (
     <div ref={ref} className={m.stage}>
+      <Replay p={p} onClick={replay} />
       <figure className={`${m.term} ${m.agentTerm}`} aria-label="Claude Code working from the project note">
         <div className={m.termBar}><span className={m.lights}><i /><i /><i /></span><span>{run?.app === "Codex" ? "codex" : "claude"}</span></div>
         <p className={m.prompt}><b>›</b> pick up the sync rewrite</p>
@@ -302,14 +312,15 @@ const HABITS_T = [
   { name: "No phone in bed", sub: "It charges in the kitchen", streak: [1, 1], done: false },
 ];
 export function Habits() {
-  const [ref, p] = useSceneProgress();
-  const ask = mj(span(p, 0.06, 0.16)), used = mj(span(p, 0.3, 0.38)), answer = mj(span(p, 0.74, 0.84));
+  const [ref, p, replay] = useSceneProgress();
+  const ask = 1, used = mj(span(p, 0.3, 0.38)), answer = mj(span(p, 0.74, 0.84));
   const ticks = HABITS_T.map((h) => (h.done ? 1 : h.tick ? span(p, h.tick, h.tick + 0.06) : 0));
   const done = ticks.reduce((a, t) => a + (t > 0.5 ? 1 : 0), 0);
   const ringTo = 0.4 + 0.2 * clamp(span(p, 0.5, 0.56)) + 0.2 * clamp(span(p, 0.62, 0.68));
   const C = 2 * Math.PI * 34;
   return (
     <div ref={ref} className={m.stage}>
+      <Replay p={p} onClick={replay} />
       <figure className={`${m.chat} ${m.habitChat}`} data-app="claude">
         <div className={m.chatTop}><span><AIGlyph name="claude" size={14} />Claude</span><em>Tuesday, 19:40</em></div>
         <p className={m.me} style={rise(ask, 8)}>Did the gym this morning, and my Spanish lesson.</p>

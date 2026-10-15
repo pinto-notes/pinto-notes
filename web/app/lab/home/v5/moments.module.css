@@ -209,3 +209,10 @@
   .habitChat { left: 5%; right: 5%; width: auto; top: 16px; }
   .habitApp { left: 6%; right: 6%; width: auto; top: auto; bottom: 16px; }
 }
+
+.replay { position: absolute; left: 14px; bottom: 14px; z-index: 6; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px; border: 0; border-radius: 15px;
+  background: rgba(255, 252, 247, 0.92); color: #5a4430; font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.18), 0 6px 14px -8px rgba(60, 30, 5, 0.4); transition: opacity .3s ease-out, background-color .15s ease-out; }
+.replay:hover { background: #fff; }
+.replay:active { transform: scale(0.96); }
+.replay svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
