@@ -102,6 +102,7 @@ final class SharedLibrary {
         record.setKey(try CollabCrypto.selfWrap(nk, dataKey: dk, note: note.id, epoch: 1), epoch: 1)
         // Due at once: the first snapshot is how the text reaches everyone (it may be bigger than a change).
         record.sinceSnapshot = CollabSession.snapshotEvery
+        record.pointerOnServer = false
         context.insert(record)
         let session: CollabSession
         do {
@@ -168,6 +169,7 @@ final class SharedLibrary {
         note.sharedNoteID = shared
         note.sharedDocument = record
         note.body = session.text
+        record.pointerOnServer = !announce
         if announce { note.touch() } else { note.dirty = false }
         context.saveOrReport()
         open(session, note: note)
@@ -218,6 +220,7 @@ final class SharedLibrary {
                 }()
                 record.epoch = row.epoch
                 record.role = row.role
+                record.pointerOnServer = true
                 record.setKey(try CollabCrypto.selfWrap(nk, dataKey: dk, note: shared, epoch: row.epoch), epoch: row.epoch)
                 let session = try await CollabSession.load(record: record, nk: nk, transport: transport, me: me, name: name)
                 note.sharedDocument = record

@@ -35,6 +35,10 @@ final class SharedDocument {
     /// The newest snapshot this device has (its `upto`): catching up never asks from before it,
     /// or the server would send that whole snapshot again.
     var snapshotUpto: Int64 = 0
+    /// The note's pointer row has reached the server (pushed from here, or pulled). Until then a
+    /// server row without a pointer is the note as it was before it was shared here; after, it
+    /// means sharing was stopped elsewhere (SyncEngine.resolveConflict).
+    var pointerOnServer: Bool = true
     /// The note keys this device has had, each sealed under your data key (`setKey`).
     var keyBoxes: Data = Data()
 

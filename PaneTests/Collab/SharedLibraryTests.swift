@@ -241,6 +241,37 @@ extension NetworkFaults {
         await eb.stop()
     }
 
+    /// Sharing stopped on one device while another had a change to its pointer waiting (moved,
+    /// pinned): that device doesn't push its pointer back over the unshared row; it takes the
+    /// server's row and the note is ordinary there too.
+    @Test func aWaitingPointerDoesntBringSharingBack() async throws {
+        let a = try device(member), b = try device(member)
+        let ea = engine(for: a), eb = engine(for: b)
+        b.library.install()
+        let note = a.context.createNote(in: .all, body: "Menu\nSoup")
+        try await a.transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        _ = try await a.library.becomeShared(note, nk: nk)
+        await ea.sync()
+        await eb.sync()
+        let onB = try #require(b.context.note(note.id))
+        await waitUntil { onB.sharedDocument != nil }
+        onB.isPinned = true
+        onB.touch()
+
+        // collab_unshare from the other device.
+        StubSupabase.update("notes", id: note.id) { row in
+            row["body_ct"] = try! Wire.seal("Menu\nSoup\nBread", E2EE.body(note.id))
+            row["shared_note_id"] = NSNull()
+        }
+        await eb.sync()
+        #expect(!onB.isShared && onB.body == "Menu\nSoup\nBread")
+        let row = try #require(StubSupabase.note(note.id))
+        #expect(row["shared_note_id"] == nil || row["shared_note_id"] is NSNull)
+        #expect(StubSupabase.body(note.id) == "Menu\nSoup\nBread")
+        await ea.stop()
+        await eb.stop()
+    }
+
     /// Your own note whose shared note is gone (nobody's in it anymore) stays yours, with its text.
     @Test func yourOwnNoteNeverLeavesYourLibrary() async throws {
         let emil = try device(owner)
