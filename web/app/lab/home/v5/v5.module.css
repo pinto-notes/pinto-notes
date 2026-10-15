@@ -1,4 +1,34 @@
 /* Version 5, "The week, then real life". */
-.main { padding-top: 0; }
+.main { padding-top: 0; gap: 150px; }
 .h1 { margin: 0; font-size: clamp(42px, 4.6vw, 66px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #2a1d10; text-wrap: balance; }
 .lede { margin: 0; font-size: clamp(17px, 1.4vw, 19.5px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.big { margin: 0; font-size: clamp(38px, 4.6vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: #2a1d10; text-wrap: balance; }
+.say { margin: 14px 0 0; max-width: 34em; font-size: clamp(17px, 1.4vw, 19px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+
+/* The moments: words on one side, the scene on the other, alternating. */
+.moments { display: grid; gap: 64px; }
+.momentsHead { text-align: center; display: grid; justify-items: center; }
+.row { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); gap: 56px; align-items: center; }
+.row[data-flip] { grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr); }
+.row[data-flip] > .words { order: 2; }
+.words { display: grid; align-content: center; }
+.kicker { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: #c0660f; }
+.rowTitle { margin: 0; font-size: clamp(30px, 3vw, 42px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: #2a1d10; text-wrap: balance; }
+@media (max-width: 900px) {
+  .row, .row[data-flip] { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .row[data-flip] > .words { order: 0; }
+  .moments { gap: 56px; }
+}
+
+/* Bring your notes */
+.bring { display: grid; justify-items: center; text-align: center; gap: 0; }
+.sources { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 26px; margin: 34px 0 0; padding: 0; list-style: none; }
+.sources li { display: grid; justify-items: center; gap: 8px; width: 96px; font-size: 13.5px; font-weight: 650; color: #5a4430; }
+.sources img { width: 56px; height: 56px; border-radius: 13px; }
+.md { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 13px; background: #fffdf9; color: #5a4430; font-size: 17px; font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(80, 45, 10, 0.16); }
+.shot { position: relative; margin: 44px 0 0; width: min(900px, 100%); }
+.shot img { display: block; width: 100%; height: auto; border-radius: 14px; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.2), 0 40px 80px -40px rgba(60, 30, 5, 0.5); }
+.imported { position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 19px;
+  background: #2a1d10; color: #fff4e6; font-size: 14px; font-weight: 650; white-space: nowrap; box-shadow: 0 14px 30px -14px rgba(40, 20, 5, 0.6); }
+.imported svg { width: 15px; height: 15px; } .imported path { fill: none; stroke: #f0a040; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
