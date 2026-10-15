@@ -41,7 +41,7 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "threads", band = "sage" }: { hero?: string; band?: string }) {
+export function V5({ hero = "hands", band = "sage" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (

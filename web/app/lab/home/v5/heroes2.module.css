@@ -99,3 +99,8 @@
 .pageLines li { font-size: clamp(13px, 1.35vw, 19px); }
 .iphone { left: auto; right: -4%; bottom: -14%; width: 22%; }
 .mac { transform: rotateY(-8deg) rotateX(2deg); transform-origin: right center; }
+@media (max-width: 900px) {
+  .handsArt { object-position: 72% center; }
+  .hands::after { background: linear-gradient(180deg, rgba(10, 8, 20, 0.7) 0%, rgba(10, 8, 20, 0.35) 45%, transparent 65%); }
+  .hands { min-height: 720px; }
+}
