@@ -279,7 +279,7 @@ async function full(tx: Tx, c: Call, id: string, trashed = false): Promise<Note>
   const rows = await tx<NoteRow[]>`select * from public.notes where id = ${id}::uuid and deleted_at is null for update`;
   if (!rows.length) throw new ToolError("That note was just deleted.");
   const n = await withHead(c.v, rows[0]);
-  const shared = (await sharedNotes(tx, c)).find((s) => s.id === (n.shared_note_id ?? n.id));
+  const shared = n.shared_note_id ? (await sharedNotes(tx, c)).find((s) => s.id === n.shared_note_id) : undefined;
   if (shared) Object.assign(n, { shared, title: shared.title });
   if (n.trashed_at && !trashed) throw new ToolError(`"${n.title}" is in Recently Deleted. Bring it back with restore first.`);
   return n;
@@ -457,11 +457,11 @@ async function deleteShared(tx: Tx, c: Call, n: Note, path: string) {
   const at = await loadDoc(tx, s);
   const body = at.text.trim() ? at.text : `${s.title}\n`;
   // `at.last`: the newest change this text holds. One that commits after it would be lost, so the
-  // server refuses then (PT409 "changed"), and the AI is asked to delete again.
+  // server refuses then (PT409 "newer_changes"), and the AI is asked to delete again.
   try {
     await tx`select public.collab_unshare(${s.id}::uuid, ${await c.v.sealBody(n.id, body)}, ${await c.v.sealHead(n.id, { title: titleOf(body), preview: previewOf(body) })}, ${at.last})`;
   } catch (e) {
-    if ((e as { hint?: string }).hint === "changed") throw new ToolError(`Someone changed "${path}" while it was being deleted, so nothing was deleted. Delete it again.`);
+    if ((e as { hint?: string }).hint === "newer_changes") throw new ToolError(`Someone changed "${path}" while it was being deleted, so nothing was deleted. Delete it again.`);
     throw e;
   }
   forgetShared(c);
