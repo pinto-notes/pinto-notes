@@ -98,7 +98,7 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
         {DAYS.map((d, i) => <li key={d} data-on={i === cap.day || undefined} data-past={i < cap.day || undefined}>{d}</li>)}
       </ol>
 
-      <p key={capIdx} className={f.caption} style={{ opacity: capIn }}>{cap.text}</p>
+      <p className={f.caption} style={{ opacity: capIn }}><span key={capIdx} className={f.capText}>{cap.text}</span></p>
 
       <div className={f.noteWrap} style={{ transform: `translate(calc(-50% + ${((1 - h) * 46).toFixed(1)}% + ${camX.toFixed(1)}px), -50%) scale(${(camZ * lerp(1, 0.78, pull)).toFixed(3)}) rotate(${lerp(0, -2.5, pull).toFixed(2)}deg)` }}>
         <figure className={f.note}>

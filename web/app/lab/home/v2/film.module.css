@@ -13,7 +13,9 @@
 .days li[data-on] { background: #2a1d10; color: #fff4e6; }
 
 .caption { position: absolute; left: 0; right: 0; bottom: 34px; margin: 0; text-align: center; font-size: clamp(26px, 3.2vw, 40px); font-weight: 800; letter-spacing: -0.03em; color: #2a1d10; z-index: 3;
-  animation: capIn .45s cubic-bezier(.34,1.56,.64,1); }
+}
+/* The entrance plays on the inner text, so the caption's own opacity (0 before the week starts) always wins. */
+.capText { display: inline-block; animation: capIn .45s cubic-bezier(.34,1.56,.64,1); }
 @keyframes capIn { from { opacity: 0; transform: translateY(10px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
 
 .noteWrap { position: absolute; left: 50%; top: 50%; width: min(600px, 49%); z-index: 2; transform-origin: center; will-change: transform; }
