@@ -235,7 +235,7 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
 /// you're on large, and what happened marked under its day.
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const EVENTS = [
-  { day: 0, text: "Ran 5 km", at: 0.27 }, { day: 1, text: "Dentist booked", at: 0.38 }, { day: 2, text: "Intervals", at: 0.52 },
+  { day: 1, text: "Dentist booked", at: 0.38 },
   { day: 3, text: "Missed run", at: 0.54, bad: true }, { day: 4, text: "Check-in", at: 0.68 }, { day: 6, text: "Run moved here", at: 0.86 },
 ];
 function Timeline({ p }: { p: number }) {
