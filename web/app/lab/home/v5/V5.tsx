@@ -33,7 +33,7 @@ const FEATURES = [
   { id: "agents", Scene: Builder, kicker: "All day", title: "Jonas runs his agents\non one notebook.",
     say: "Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project." },
   { id: "gym", Scene: Optimiser, kicker: "Every morning", title: "Sara built\nher own gym log.",
-    say: "She asked for it, and it appeared in her notes. Now she just tells ChatGPT what she lifted." },
+    say: "She asked for it, and it appeared in her notes. She logs her sets in it, and her AI plans the next session from them." },
 ];
 
 

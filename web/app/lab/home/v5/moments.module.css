@@ -338,3 +338,17 @@
   .personNote, .gymApp { left: 5%; right: 5%; width: auto; top: auto; bottom: 16px; transform: none; }
   .agents { left: auto; right: 6%; top: 280px; }
 }
+
+/* Sara logs by tapping: a touch dot on the value, the row lit while she's on it. */
+.gymBody { position: relative; }
+.lifts li { grid-template-columns: 1fr auto auto; transition: background-color .2s ease-out; }
+.lifts li[data-active] { background: rgba(240, 144, 26, 0.12); }
+.liftVal[data-empty] { color: #b45f08; font-weight: 650; }
+.tap { position: absolute; right: 30px; top: 104px; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: rgba(30, 20, 10, 0.22);
+  box-shadow: 0 0 0 6px rgba(30, 20, 10, 0.08); transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .2s ease-out; pointer-events: none; }
+.sayTool { margin: 0 0 0 34px; font-size: 12px; color: rgba(255, 246, 234, 0.85); }
+.frontier .sayTool { color: #8a7a68; }
+.lifts li { display: flex; }
+.lifts li b { flex: 1; }
+.lifts li em { order: 1; }
+.lifts li .liftVal { order: 2; min-width: 64px; text-align: right; }

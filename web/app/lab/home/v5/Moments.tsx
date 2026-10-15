@@ -496,38 +496,46 @@ export function Builder() {
   );
 }
 
-/// Sara, every morning: built her own gym log, and just tells ChatGPT what she lifted.
+/// Sara, every morning: built her own gym log. She taps in her sets herself; then her AI, which can
+/// read the log, plans the next session from it.
 const LIFTS = [
-  { name: "Bench press", from: "60 kg", to: "62.5 kg", best: true, at: 0.42 },
-  { name: "Squat", from: "80 kg", to: "80 kg", best: false, at: 0.5 },
-  { name: "Pull-ups", from: "3 × 6", to: "3 × 7", best: true, at: 0.58 },
+  { name: "Bench press", from: "—", to: "62.5 kg", best: true, at: 0.1 },
+  { name: "Overhead press", from: "—", to: "40 kg", best: false, at: 0.2 },
+  { name: "Pull-ups", from: "—", to: "3 × 7", best: true, at: 0.3 },
 ];
 export function Optimiser() {
   const [ref, p, replay] = useSceneProgress();
-  const s1 = mj(span(p, 0.04, 0.1)) * (1 - mj(span(p, 0.7, 0.75))), s2 = mj(span(p, 0.3, 0.36));
+  const ask = mj(span(p, 0.46, 0.52)), tool = mj(span(p, 0.56, 0.6)), answer = mj(span(p, 0.62, 0.7));
   const bars = [0.52, 0.58, 0.6, 0.66, 0.7];
-  const grow = mj(span(p, 0.42, 0.52));
+  const grow = mj(span(p, 0.3, 0.4));
+  // A tap moves down the rows as she logs each set.
+  const row = LIFTS.findIndex((l) => p < l.at + 0.07);
+  const tapOn = p > 0.04 && p < 0.38 ? 1 : 0;
+  const tapRow = row < 0 ? LIFTS.length - 1 : row;
+  const pressing = LIFTS.some((l) => p >= l.at && p < l.at + 0.035);
   return (
     <div ref={ref} className={`${m.stage} ${m.frontier}`}>
       <Replay p={p} onClick={replay} />
       <Portrait src="/home-v5/people/sara.webp" name="Sara" when="after the gym" />
       <div className={m.says}>
-        <Say who="me" text="Bench 62.5 today, pull-ups three sets of seven." v={s1} />
-        <Say who="ai" ai="openai" text="Logged. Two new bests this week." v={s2} />
+        <Say who="me" text="What should I do next push day?" v={ask} />
+        <p className={m.sayTool} style={{ opacity: tool }}>Read Gym log · 6 weeks</p>
+        <Say who="ai" ai="openai" text="Bench 65 kg. You've hit 62.5 three sessions running." v={answer} />
       </div>
       <figure className={m.gymApp}>
         <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Gym log</span></div>
         <div className={m.gymBody}>
           <div className={m.gymHead}><div><p className={m.gymKick}>Push day · week 6</p><h3>Today</h3></div>
-            <div className={m.spark} aria-hidden="true">{bars.map((b, i) => <i key={i} style={{ height: `${((i === bars.length - 1 ? b + 0.18 * grow : b) * 100).toFixed(0)}%` }} />)}</div></div>
+            <div className={m.spark} aria-hidden="true">{bars.map((b, i) => <i key={i} style={{ height: `${((i === bars.length - 1 ? b * grow + 0.04 : b) * 100).toFixed(0)}%` }} />)}</div></div>
           <ul className={m.lifts}>
-            {LIFTS.map((l) => { const v = span(p, l.at, l.at + 0.06); const on = v > 0.5;
-              return <li key={l.name} style={{ background: `rgba(240,144,26,${(0.14 * Math.sin(Math.PI * span(p, l.at, l.at + 0.2))).toFixed(3)})` }}>
-                <b>{l.name}</b><span>{on ? l.to : l.from}</span>
+            {LIFTS.map((l, i) => { const v = span(p, l.at, l.at + 0.06); const on = v > 0.5;
+              return <li key={l.name} data-active={(tapOn && i === tapRow) || undefined}>
+                <b>{l.name}</b><span className={m.liftVal} data-empty={!on || undefined}>{on ? l.to : "Add"}</span>
                 {l.best && <em style={{ opacity: v, transform: `scale(${(0.8 + 0.2 * over(v)).toFixed(3)})` }}>New best</em>}
               </li>; })}
           </ul>
-          <p className={m.gymFoot}>Built from one ask: “make me a gym log”.</p>
+          <span className={m.tap} style={{ opacity: tapOn, transform: `translateY(${(tapRow * 44).toFixed(0)}px) scale(${pressing ? 0.8 : 1})` }} aria-hidden="true" />
+          <p className={m.gymFoot}>Her own app, built from one ask: “make me a gym log”.</p>
         </div>
       </figure>
     </div>
