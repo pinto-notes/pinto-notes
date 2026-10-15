@@ -153,7 +153,7 @@
 /* Over-the-shoulder art: the scene is scaled up so the phone reads; the app is sized from its own
    screen width (the screen is a container), the bubbles in plain px. */
 .shoulder .momentFit { top: -20%; bottom: -20%; right: -30%; }
-.shoulder .screen { left: 58.91%; top: 31.67%; width: 9.93%; height: 37.3%; border-radius: 16% / 7.6%; container-type: inline-size; padding: 6cqw 6cqw 5cqw; }
+.shoulder .screen { left: 58.91%; top: 31.67%; width: 9.93%; height: 37.3%; border-radius: 11% / 5.2%; container-type: inline-size; padding: 6cqw 6cqw 5cqw; }
 .shoulder .scStatus { font-size: 4.4cqw; margin-bottom: 6cqw; padding: 0 3cqw; }
 .shoulder .scBack { font-size: 4.6cqw; margin-bottom: 2cqw; }
 .shoulder .scTitle { font-size: 9cqw; margin-bottom: 4cqw; }
