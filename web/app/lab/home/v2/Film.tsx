@@ -30,6 +30,9 @@ const ORBIT: { name: string; glyph: "openai" | "claude" | null; path: string; co
   { name: "Muse", glyph: null, path: META, color: "#0866ff", x: 55, y: 85, tx: 62, ty: 68 },
 ];
 
+/// ChatGPT's cursor while it writes in the note: its own colour and a name flag, like a collaborator.
+const AiCaret = () => <i className={f.aiCaret} aria-hidden="true"><em><AIGlyph name="openai" size={9} color="#fff" />ChatGPT</em></i>;
+
 const GPT_MSG = "I'm running a half marathon on 30 November. Plan four runs a week in my notes.";
 
 export type Caption = { at: number[]; day: number; text: string };
@@ -112,8 +115,8 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
           <div className={f.paper}>
             {/* With `newNote`, the film opens on a blank new note: the title is typed, then the line under it. */}
             <h3 className={f.title}>{newNote && tType <= 0
-              ? <span className={f.placeholder}><i className={f.caret} style={{ marginLeft: 0, marginRight: 1 }} />New note</span>
-              : <>{"Running plan".slice(0, Math.round(12 * tType))}{tType < 1 && <i className={f.caret} />}</>}</h3>
+              ? <span className={f.placeholder}>New note</span>
+              : <>{"Running plan".slice(0, Math.round(12 * tType))}{tType < 1 && <AiCaret />}</>}</h3>
             <p className={f.sub} style={{ opacity: subIn }}>Half marathon on 30 November. Four runs a week.</p>
             <ul className={f.lines}>
               {LINES.map((l, i) => {
@@ -130,7 +133,7 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
                       <span className={f.box} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
                         <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
                       </span>
-                      <span className={f.text} data-done={t > 0.5 || undefined}>{shown}{w > 0 && w < 1 && <i className={f.caret} />}</span>
+                      <span className={f.text} data-done={t > 0.5 || undefined}>{shown}{w > 0 && w < 1 && (newNote ? <AiCaret /> : <i className={f.caret} />)}</span>
                       {i === 0 && <span className={f.by} style={{ opacity: gMark, transform: `scale(${(0.8 + 0.2 * gMark).toFixed(3)})` }}><AIGlyph name="openai" size={11} />ChatGPT<span className={f.long}> wrote these</span></span>}
                       {i === 2 && <span className={f.by} style={{ opacity: cMark, transform: `scale(${(0.8 + 0.2 * cMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Claude<span className={f.long}> moved it from Thursday</span></span>}
                     </span>
@@ -152,13 +155,13 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
         {newNote ? <>
           {/* Typed into the box, then sent: the bubble rises out of the box. */}
           <p className={f.me} style={{ opacity: sent, transform: `translateY(${((1 - sent) * 26).toFixed(1)}px) scale(${(0.94 + 0.06 * sent).toFixed(3)})`, transformOrigin: "right bottom" }}>{GPT_MSG}</p>
-          <p className={f.tool} style={{ opacity: usedIn }}>Used Pinto Notes</p>
-          <div className={f.compose}><span>{sent > 0.05 ? <em>Message ChatGPT</em> : <>{GPT_MSG.slice(0, Math.round(GPT_MSG.length * typedMsg))}<i className={f.caret} /></>}</span><b data-ready={typedMsg >= 1 && sent < 0.05 || undefined}>↑</b></div>
+          <p className={f.tool} style={{ opacity: usedIn }}>{p < 0.235 ? <>Writing in Pinto Notes<span className={f.dots}><i /><i /><i /></span></> : "Used Pinto Notes"}</p>
         </> : <>
           <p className={f.me}>{GPT_MSG}</p>
           <p className={f.tool}>Used Pinto Notes</p>
         </>}
-        <p className={f.ai} style={{ opacity: mj(span(p, 0.2, 0.24)) }}>Done. It's in Running plan.</p>
+        <p className={`${f.ai} ${newNote ? f.aiReply : ""}`} style={{ opacity: newNote ? mj(span(p, 0.235, 0.255)) : mj(span(p, 0.2, 0.24)), transform: newNote ? `translateY(${((1 - mj(span(p, 0.235, 0.255))) * 8).toFixed(1)}px)` : undefined }}>Done. It's in Running plan: four runs a week, building to 12 km.</p>
+        {newNote && <div className={f.compose}><span>{sent > 0.05 ? <em>Message ChatGPT</em> : <>{GPT_MSG.slice(0, Math.round(GPT_MSG.length * typedMsg))}<i className={f.caret} /></>}</span><b data-ready={typedMsg >= 1 && sent < 0.05 || undefined}>↑</b></div>}
       </figure>
 
       {/* Claude, Wednesday then Friday */}
