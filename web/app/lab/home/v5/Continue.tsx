@@ -39,14 +39,14 @@ function Check({ t }: { t: number }) {
 }
 
 /// Her note: the same lines as on her phone, then the next day happens to it.
-function Note({ p }: { p: number }) {
+function Note({ p, f }: { p: number; f: number }) {
   const tickRun = span(p, 0.36, 0.4);
   const dentist = mj(span(p, 0.58, 0.63)), claudeMark = over(span(p, 0.6, 0.65));
   const tickFlights = span(p, 0.8, 0.84), museMark = over(span(p, 0.8, 0.85));
   const tint = (v: number) => ({ background: `rgba(240,144,26,${(0.16 * v).toFixed(3)})` });
   return (
     <div className={c.scIn}>
-      <p className={c.status}><b>21:40</b><span /></p>
+      <p className={c.status} style={{ opacity: 1 - mj(span(f, 0, 0.6)), maxHeight: `${(1 - f) * 12}cqw`, marginBottom: `${(1 - f) * 6}cqw`, overflow: "hidden" }}><b>21:40</b><span /></p>
       <p className={c.back}>‹ My notebook</p>
       <h3 className={c.title}>Tomorrow</h3>
       <ul className={c.list}>
@@ -121,9 +121,13 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
   const capIn = beat ? mj(span(p, beat.at, beat.at + 0.03)) * stage : 0;
 
   // Target: the note settles in the middle of the stage, wider and taller, with readable text.
-  const tw = r ? Math.min(430, r.vw * 0.3) : 0, th = tw * 1.48;
-  const tx = r ? r.vw / 2 - tw / 2 : 0, ty = r ? 100 + (r.vh - 100) / 2 - th / 2 - 10 : 0;
-  const noteBox = r ? { left: lerp(r.x, tx, fly), top: lerp(r.y, ty, fly), width: lerp(r.w, tw, fly), height: lerp(r.h, th, fly) } : null;
+  const tw = r ? Math.min(460, r.vw * 0.3) : 0, th = tw * 1.35;
+  const tx = r ? r.vw / 2 - tw / 2 : 0, ty = r ? 100 + (r.vh - 100) / 2 - th / 2 - 28 : 0;
+  // The note keeps its final size and is scaled down onto the phone's screen at the start: a pure
+  // transform, so the flight is smooth. Its contents are sized from its width, so it reads the same.
+  const s0 = r ? r.w / tw : 1, sc = lerp(s0, 1, fly);
+  const noteBox = r ? { left: tx, top: ty, width: tw, height: th, transformOrigin: "0 0",
+    transform: `translate(${lerp(r.x - tx, 0, fly).toFixed(2)}px, ${lerp(r.y - ty, 0, fly).toFixed(2)}px) scale(${sc.toFixed(5)})` } : null;
 
   // Chats around the note.
   const claudeIn = mj(span(p, 0.48, 0.52)) * (1 - mj(span(p, 0.66, 0.7)));
@@ -170,10 +174,10 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
 
         {/* The one note: on her phone, then in the middle of the screen. */}
         {noteBox && (
-          <div className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly),
+          <div className={c.note} style={{ ...noteBox, borderRadius: lerp(r!.w * 0.11, 18, fly) / sc,
             boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * fly).toFixed(2)}), 0 ${(40 * fly).toFixed(0)}px ${(80 * fly).toFixed(0)}px -36px rgba(60,30,5,${(0.5 * fly).toFixed(2)})` }}>
-            <Note p={p} />
-            <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true" style={{ opacity: cur, transform: `translate(${lerp(420, 150, cur).toFixed(0)}%, ${lerp(1300, 990, cur).toFixed(0)}%) scale(${span(p, 0.36, 0.38) > 0 && span(p, 0.36, 0.4) < 1 ? 0.86 : 1})` }}>
+            <Note p={p} f={fly} />
+            <svg className={c.cursor} viewBox="0 0 24 24" aria-hidden="true" style={{ opacity: cur, transform: `translate(${lerp(420, 150, cur).toFixed(0)}%, ${lerp(1100, 790, cur).toFixed(0)}%) scale(${span(p, 0.36, 0.38) > 0 && span(p, 0.36, 0.4) < 1 ? 0.86 : 1})` }}>
               <path d="M4 2l15 9-7 1.5L8.5 20z" />
             </svg>
           </div>
@@ -181,13 +185,13 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
 
         {/* Lunch: Claude, on her Mac. Evening: Muse. */}
         {noteBox && <>
-          <figure className={c.chat} data-side="l" style={{ opacity: claudeIn, transform: `translate(${((1 - claudeIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 36}px)` }}>
+          <figure className={c.chat} data-side="l" style={{ opacity: claudeIn, transform: `translate(${((1 - claudeIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 22}px)` }}>
             <div className={c.chatTop}><span><AIGlyph name="claude" size={14} color="#d97757" />Claude</span><em>Lunch</em></div>
             <p className={c.me}>Did I call the dentist yet?</p>
             <p className={c.tool}>Read Tomorrow</p>
             <p className={c.ai} style={{ opacity: claudeAns }}>Not yet. You're free at 15:00, so I put it there.</p>
           </figure>
-          <figure className={c.chat} data-side="r" style={{ opacity: museIn, transform: `translate(${((1 - museIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 36}px)` }}>
+          <figure className={c.chat} data-side="r" style={{ opacity: museIn, transform: `translate(${((1 - museIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 22}px)` }}>
             <div className={c.chatTop}><span><AIGlyph name="meta" size={14} color="#0866ff" />Muse</span><em>Evening</em></div>
             <p className={c.me}>Can I afford the Lisbon flights?</p>
             <p className={c.tool}>Read Budget · Tomorrow</p>

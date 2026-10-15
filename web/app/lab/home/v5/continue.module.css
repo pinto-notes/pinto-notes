@@ -1,5 +1,5 @@
 /* Version 1, the continuation: one pinned scene for the hero and her next day. */
-.box { position: relative; height: 620vh; width: 100vw; margin-left: calc(50% - 50vw); margin-top: -100px; }
+.box { position: relative; height: 470vh; width: 100vw; margin-left: calc(50% - 50vw); margin-top: -100px; }
 .pin { position: sticky; top: 0; height: 100vh; overflow: clip; }
 .pin > section { position: absolute; inset: 0; margin: 0 !important; width: 100% !important; height: 100vh; min-height: 0 !important; will-change: opacity, transform; }
 
@@ -17,7 +17,7 @@
 
 /* The note: one element, from the phone screen to the middle. Its contents are sized from its own
    width (cqw), so it reads exactly like the phone's note and simply grows. */
-.note { position: absolute; z-index: 4; background: #fbfaf7; overflow: hidden; container-type: inline-size; will-change: left, top, width, height; }
+.note { position: absolute; z-index: 4; background: #fbfaf7; overflow: hidden; container-type: inline-size; will-change: transform; }
 .scIn { height: 100%; box-sizing: border-box; padding: 6cqw 6cqw 5cqw; display: flex; flex-direction: column; color: #1d1b19; }
 .status { margin: 0 0 6cqw; display: flex; justify-content: space-between; padding: 0 3cqw; font-size: 4.4cqw; }
 .back { margin: 0 0 2cqw; font-size: 4.6cqw; font-weight: 600; color: #d97a17; }
@@ -37,7 +37,7 @@
 .cursor path { fill: #1d1b19; stroke: #fff; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* Chats beside the note. */
-.chat { position: absolute; top: 52%; z-index: 5; width: 280px; margin: 0; display: grid; gap: 8px; padding: 14px 16px 16px; border-radius: 18px; background: #fff; color: #0d0d0d; font-size: 15px; line-height: 1.4;
+.chat { position: absolute; top: 50%; z-index: 5; width: 320px; margin: 0; display: grid; gap: 8px; padding: 14px 16px 16px; border-radius: 18px; background: #fff; color: #0d0d0d; font-size: 16.5px; line-height: 1.4;
   box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.16), 0 26px 50px -24px rgba(60, 30, 5, 0.5); }
 .chat[data-side="l"] { background: #faf9f5; }
 .chatTop { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 650; color: #6b5f53; }
