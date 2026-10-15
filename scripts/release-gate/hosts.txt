@@ -11,7 +11,7 @@ api.push.apple.com            # APNs, from the functions
 api.sandbox.push.apple.com    # APNs for development builds
 api.resend.com                # email, from the functions
 api.github.com                # the site's star count (web/lib/github.ts)
-eu.i.posthog.com              # site analytics, after consent
+eu.i.posthog.com              # site analytics, after consent; the app's telemetry (Pane/Telemetry/Telemetry.swift)
 cdn.jsdelivr.net              # note pages: npm libraries the app downloads once, checked against their hash
 data.jsdelivr.com             # note pages: the MCP server resolves a library's version and files
 
@@ -57,3 +57,15 @@ www.visitlisboa.com
 www.w3.org
 purl.org                      # the Dublin Core namespace in the site's RSS feed (web/lib/feed.ts)
 x.com
+posthog.com                   # PostHog's API docs, in a comment in the app's telemetry code; nothing is sent there
+takeout.google.com            # the import guide's link to Google Takeout for Keep notes (Pane/Views/ImportGuide.swift)
+mail.google.com               # the import guide's "Open Gmail" button, where Takeout mails its download
+bear.app                      # the import guide's "Open Bear" button, when Bear isn't installed
+x.ai                          # blog links: xAI's Grok connectors news
+docs.x.ai                     # blog links: xAI's connector docs
+openai.com                    # blog links: OpenAI's announcements
+learn.chatgpt.com             # blog links: OpenAI's ChatGPT docs (pricing, dots, computer use)
+about.fb.com                  # blog links: Meta's newsroom (Muse)
+muse.ai                       # blog links: Meta's Muse connector platform and its docs
+dev.meta.ai                   # blog links: Meta's Muse Code docs on MCP
+research.meta.ai              # blog links: Meta's research blog (Muse Wonder)
