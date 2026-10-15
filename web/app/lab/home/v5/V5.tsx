@@ -28,8 +28,8 @@ const EXTRAS = [
 
 // Three features, each named plainly, with one real-life example under it.
 const FEATURES = [
-  { id: "voice", Scene: Walk, kicker: "Voice", title: "Just say it.",
-    say: "Talk to your AI. It writes it down." },
+  { id: "voice", Scene: Walk, kicker: "Every evening", title: "Plan tomorrow\non a walk.",
+    say: "Talk it through with ChatGPT. It's in your notes before you're home." },
   { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI\nticks it off.",
     say: "Tell it what you did. Your trackers update themselves." },
   { id: "agents", Scene: Agents, kicker: "Agents", title: "Your agents\nshare one brain.",
