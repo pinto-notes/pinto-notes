@@ -117,5 +117,5 @@
   .scrollFan.scrollFan > li { flex: 0 0 80%; scroll-snap-align: start; transform: none !important; }
 }
 /* More air between the templates and the grid. */
-.extras { margin-top: 120px; }
-@media (max-width: 700px) { .extras { margin-top: 48px; } }
+.extras { margin-top: 120px; margin-bottom: 100px; }
+@media (max-width: 700px) { .extras { margin-top: 48px; margin-bottom: 40px; } }
