@@ -225,10 +225,9 @@ export function PhoneMomentHero() {
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
   return (
-    <section className={`${x.moment} ${x.layered}`} data-dark-band="">
-      <img className={x.plate} src="/home-v5/hero/plate.webp" alt="" />
-      <div className={x.maya}>
-        <img className={x.mayaArt} src="/home-v5/hero/maya-cut.webp" alt="" />
+    <section className={`${x.moment} ${x.shoulder}`} data-dark-band="">
+      <div className={x.momentFit}>
+        <img className={x.momentArt} src="/home-v5/hero/phone-shoulder.webp" alt="" />
         <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
           <div className={x.scIn}>
           <p className={x.scStatus}><b>21:40</b><span /></p>
