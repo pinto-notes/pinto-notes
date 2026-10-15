@@ -8,6 +8,7 @@ import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
 import { Agents, Dump, Walk } from "./Moments";
+import { Week } from "./Week";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
@@ -39,16 +40,29 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5() {
+export function V5({ hero = "stack" }: { hero?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
-      <Film captions={CAPTIONS} hero={<>
+      {hero === "side" ? (
+        <Film captions={CAPTIONS} hero={<>
         <h1 className={v.h1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
         <p className={v.lede}>Plan with ChatGPT, check in with Claude, tick things off yourself. It all lands in one notebook that looks and feels like Apple Notes.</p>
         <Download quiet={G.quiet} />
       </>} />
+      ) : (
+        <div className={v.top}>
+          <section className={v.band}>
+            <h1 className={v.bandH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
+            <div className={v.bandRow}>
+              <p className={v.lede}>ChatGPT, Claude and Codex read and write in it, with your OK. It looks and feels like Apple Notes.</p>
+              <Download quiet={G.quiet} />
+            </div>
+          </section>
+          {hero === "single" ? <Film captions={CAPTIONS} /> : <Week />}
+        </div>
+      )}
 
       <section className={v.moments} aria-labelledby="moments">
         <div className={v.momentsHead}>

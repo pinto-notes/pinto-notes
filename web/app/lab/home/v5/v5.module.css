@@ -35,3 +35,10 @@
 .imported { position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 19px;
   background: #2a1d10; color: #fff4e6; font-size: 14px; font-weight: 650; white-space: nowrap; box-shadow: 0 14px 30px -14px rgba(40, 20, 5, 0.6); }
 .imported svg { width: 15px; height: 15px; } .imported path { fill: none; stroke: #f0a040; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* The hero band: wide and short, so the film is on the first screen under it. */
+.top { display: grid; gap: 28px; }
+.band { display: grid; gap: 16px; padding-top: 8px; }
+.bandH1 { margin: 0; font-size: clamp(40px, 5vw, 76px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; }
+.bandRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; }
+.bandRow .lede { max-width: 36em; }
