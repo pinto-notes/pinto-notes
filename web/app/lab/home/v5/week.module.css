@@ -70,9 +70,10 @@
 
 @media (max-width: 900px) {
   .pin { height: 760px; }
-  .chat { width: 84%; left: 8%; top: 120px; }
-  .answer { bottom: 70px; width: 92%; font-size: 14px; }
+  .chat { width: 84%; left: 8%; top: 178px; }
+  .world { top: 61%; }
+  .answer { bottom: 104px; width: 92%; font-size: 14px; }
   .voice { top: 70px; width: 84%; font-size: 14px; }
   .days li { min-width: 34px; font-size: 12px; }
-  .caption { bottom: 20px; font-size: 22px; }
+  .caption { bottom: 22px; padding: 0 18px; font-size: 20px; text-wrap: balance; }
 }
