@@ -284,3 +284,4 @@
 .spokenIn { top: 69%; }
 /* Your lines need no label: the waveform already says it's you. */
 .spokenIn .said[data-who="you"] > span:first-child { display: none; }
+.spokenIn .said > span:first-child { display: none !important; }
