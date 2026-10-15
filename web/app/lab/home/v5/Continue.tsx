@@ -203,16 +203,12 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
         {/* Lunch: Claude, on her Mac. Evening: Muse. */}
         {noteBox && <>
           <figure className={c.chat} data-side="l" style={{ opacity: claudeIn, transform: `translate(${((1 - claudeIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 22}px)` }}>
-            <div className={c.chatTop}><span><AIGlyph name="claude" size={14} color="#d97757" />Claude</span><em>Tuesday</em></div>
-            <p className={c.me}>Booked the dentist, Thursday at 10.</p>
-            <p className={c.tool}>Updated This week</p>
-            <p className={c.ai} style={{ opacity: claudeAns }}>Ticked it off and added the time.</p>
+            <p className={c.bMe}>Booked the dentist, Thursday at 10.</p>
+            <p className={c.bAi} style={{ opacity: claudeAns }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>Ticked it off and added the time.</p>
           </figure>
           <figure className={c.chat} data-side="r" style={{ opacity: museIn, transform: `translate(${((1 - museIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 22}px)` }}>
-            <div className={c.chatTop}><span><AIGlyph name="claude" size={14} color="#d97757" />Claude</span><em>Friday</em></div>
-            <p className={c.me}>How did my week go?</p>
-            <p className={c.tool}>Read This week</p>
-            <p className={c.ai} style={{ opacity: museAns }}>Two of three runs, and the dentist is done. You missed Thursday, so I moved it to Sunday. The Lisbon flights are due today.</p>
+            <p className={c.bMe}>How did my week go?</p>
+            <p className={c.bAi} style={{ opacity: museAns }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>Two of three runs, and the dentist is done. You missed Thursday, so I moved it to Sunday. The Lisbon flights are due today.</p>
           </figure>
         </>}
       </div>
