@@ -229,7 +229,14 @@ export function PhoneMomentHero() {
       <div className={x.edWords}>
         <Title className={x.edH1} />
         <p className={x.edLede}>ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes.</p>
-        <Download quiet={<>Free for Mac. Brings your Apple Notes over.<br />iPhone app coming soon.</>} />
+        <div className={x.edCtas}>
+          <Download />
+          <span className={x.soonBtn} aria-disabled="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
+            Coming to iPhone
+          </span>
+        </div>
+        <p className={x.edFine}>Free for Mac. Brings your Apple Notes over.</p>
       </div>
       <div className={`${x.moment} ${x.shoulder} ${x.splitScene}`}>
       <div className={x.momentFit}>
