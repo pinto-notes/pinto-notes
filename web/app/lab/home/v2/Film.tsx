@@ -20,7 +20,8 @@ const LINES = [
   { id: "sat", text: "Sat · Long run, 12 km" },
 ];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const CAPTIONS = [
+export type Caption = { at: number[]; day: number; text: string };
+const CAPTIONS: Caption[] = [
   { at: [0, 0.27], day: 0, text: "Tell one AI." },
   { at: [0.27, 0.47], day: 2, text: "Every AI reads the same notebook." },
   { at: [0.47, 0.69], day: 4, text: "Plans don't die here." },
@@ -28,9 +29,13 @@ const CAPTIONS = [
   { at: [0.81, 1.01], day: 6, text: "The notebook you and your AI share." },
 ];
 
-function Frame({ p, lean = 34 }: { p: number; lean?: number }) {
+function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Caption[] }: { p: number; lean?: number; heroOn?: boolean; captions?: Caption[] }) {
+  // With a hero, the first few percent belong to it: the hero scrolls away while the note slides from
+  // the right to the middle, the day strip arrives and ChatGPT asks. The week then plays as before.
+  const h = heroOn ? mj(span(p0, 0.03, 0.075)) : 1;
+  const p = heroOn ? span(p0, 0.07, 1) : p0;
   // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
-  const gIn = 1, gOut = mj(span(p, 0.28, 0.33));
+  const gIn = heroOn ? mj(span(p0, 0.04, 0.09)) : 1, gOut = mj(span(p, 0.28, 0.33));
   const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
   const gMark = over(span(p, 0.22, 0.26));
   // Beat 2, Wednesday: Claude in, the thread from the Wednesday line, the answer.
@@ -50,9 +55,9 @@ function Frame({ p, lean = 34 }: { p: number; lean?: number }) {
   const camX = lean * gIn * (1 - gOut) - lean * cIn * (1 - cOut);
   const busy = Math.max(Math.sin(Math.PI * span(p, 0.11, 0.26)), Math.sin(Math.PI * span(p, 0.52, 0.69)), Math.sin(Math.PI * span(p, 0.72, 0.81)));
   const camZ = 1 + 0.045 * busy;
-  const cap = CAPTIONS.find((c) => p >= c.at[0] && p < c.at[1]) ?? CAPTIONS[CAPTIONS.length - 1];
-  const capIdx = CAPTIONS.indexOf(cap);
-  const capIn = capIdx === 0 ? 1 : mj(span(p, cap.at[0], cap.at[0] + 0.025));
+  const cap = captions.find((c) => p >= c.at[0] && p < c.at[1]) ?? captions[captions.length - 1];
+  const capIdx = captions.indexOf(cap);
+  const capIn = capIdx === 0 ? (heroOn ? mj(span(p0, 0.05, 0.09)) : 1) : mj(span(p, cap.at[0], cap.at[0] + 0.025));
 
   // Slots: Thursday (slot 2) and Saturday (slot 3) trade places as Thursday becomes Sunday.
   const slot = (i: number) => (i === 2 ? lerp(2, 3, move) : i === 3 ? lerp(3, 2, move) : i);
@@ -64,13 +69,13 @@ function Frame({ p, lean = 34 }: { p: number; lean?: number }) {
     <div className={f.stage}>
       <img className={f.desk} src="/home-d/desk.webp" alt="" style={{ opacity: pull, transform: `scale(${lerp(1.12, 1, pull).toFixed(3)})` }} />
 
-      <ol className={f.days} aria-hidden="true">
+      <ol className={f.days} aria-hidden="true" style={heroOn ? { opacity: h } : undefined}>
         {DAYS.map((d, i) => <li key={d} data-on={i === cap.day || undefined} data-past={i < cap.day || undefined}>{d}</li>)}
       </ol>
 
       <p key={capIdx} className={f.caption} style={{ opacity: capIn }}>{cap.text}</p>
 
-      <div className={f.noteWrap} style={{ transform: `translate(calc(-50% + ${camX.toFixed(1)}px), -50%) scale(${(camZ * lerp(1, 0.78, pull)).toFixed(3)}) rotate(${lerp(0, -2.5, pull).toFixed(2)}deg)` }}>
+      <div className={f.noteWrap} style={{ transform: `translate(calc(-50% + ${((1 - h) * 46).toFixed(1)}% + ${camX.toFixed(1)}px), -50%) scale(${(camZ * lerp(1, 0.78, pull)).toFixed(3)}) rotate(${lerp(0, -2.5, pull).toFixed(2)}deg)` }}>
         <figure className={f.note}>
           <div className={f.bar}><span className={f.lights}><i /><i /><i /></span><span className={f.folder}>Health</span></div>
           <div className={f.paper}>
@@ -84,9 +89,10 @@ function Frame({ p, lean = 34 }: { p: number; lean?: number }) {
                 const t = ticks[i];
                 const tint = tinted(i);
                 return (
-                  <li key={l.id} style={{ transform: `translateY(${(slot(i) * 50).toFixed(1)}px)`, opacity: w > 0 ? 1 : 0, zIndex: i === 2 ? 2 : 1 }}
+                  <li key={l.id} style={{ transform: `translateY(${(slot(i) * 50).toFixed(1)}px)`, zIndex: i === 2 ? 2 : 1 }}
                     data-lift={i === 2 && move > 0 && move < 1 || undefined}>
-                    <span className={f.row} style={{ background: `rgba(240, 144, 26, ${(0.16 * tint).toFixed(3)})` }}>
+                    {w < 1 && <span className={f.ghost} style={{ opacity: 1 - clamp(w * 2.5), width: `${[52, 66, 48, 58][i]}%` }} aria-hidden="true" />}
+                    <span className={f.row} style={{ opacity: w > 0 ? 1 : 0, background: `rgba(240, 144, 26, ${(0.16 * tint).toFixed(3)})` }}>
                       <span className={f.box} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
                         <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
                       </span>
@@ -138,9 +144,12 @@ function Frame({ p, lean = 34 }: { p: number; lean?: number }) {
   );
 }
 
+// The hero leaves as the week starts: it scrolls up for real and fades, before ChatGPT arrives.
+const heroFade = (p: number): React.CSSProperties => { const o = mj(span(p, 0.004, 0.032)); return { opacity: 1 - o, filter: o > 0 ? `blur(${(o * 4).toFixed(1)}px)` : undefined, visibility: o >= 1 ? "hidden" : undefined }; };
+
 /// Pinned and scrubbed by scroll on wide screens; played on time on phones, with Reduce Motion
 /// showing the last frame. `?t=0..1` freezes progress for review.
-export function Film() {
+export function Film({ hero, captions }: { hero?: React.ReactNode; captions?: Caption[] } = {}) {
   const box = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
   const [pinned, setPinned] = useState(true);
@@ -166,8 +175,9 @@ export function Film() {
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
   }, []);
   return (
-    <div ref={box} className={f.film} data-pinned={pinned || undefined}>
-      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} /></div>
+    <div ref={box} className={f.film} data-pinned={pinned || undefined} data-hero={hero ? "" : undefined}>
+      {hero && <div className={f.heroLayer} style={pinned ? heroFade(p) : undefined}>{hero}</div>}
+      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} heroOn={!!hero && pinned} captions={captions} /></div>
     </div>
   );
 }

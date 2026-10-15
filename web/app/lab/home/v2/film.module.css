@@ -77,3 +77,15 @@
   .caption { bottom: 24px; font-size: 24px; }
   .thread { display: none; }
 }
+
+/* A hero over the film's first frame (version 5): on wide screens it sits on the stage's left, beside
+   the note, and scrolls away for real as the week begins. On phones it is a plain block above. */
+.film[data-pinned][data-hero] { height: 700vh; }
+.heroLayer { display: grid; gap: 22px; justify-items: start; padding: 8px 0 28px; }
+@media (min-width: 901px) {
+  .film[data-hero] .heroLayer { position: absolute; top: 0; left: 0; right: 0; z-index: 5; height: min(820px, calc(100vh - 116px)); box-sizing: border-box;
+    padding: 0 0 0 clamp(36px, 5.5%, 72px); align-content: center; pointer-events: none; max-width: 1240px; margin: 0 auto; }
+  .film[data-hero] .heroLayer > * { pointer-events: auto; max-width: min(500px, 42%); }
+}
+/* Before ChatGPT writes a line, its place is a faint pencil rule, so the empty note looks drawn on purpose. */
+.ghost { position: absolute; left: 34px; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: rgba(120, 90, 60, 0.09); }

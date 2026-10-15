@@ -6,6 +6,7 @@ import { V1 } from "./v1/V1";
 import { V2 } from "./v2/V2";
 import { V3 } from "./v3/V3";
 import { V4 } from "./v4/V4";
+import { V5 } from "./v5/V5";
 
 export const metadata: Metadata = { title: G.title, description: G.description };
 
@@ -38,6 +39,12 @@ const VERSIONS: (VersionInfo & { render: (p: Record<string, string | undefined>)
     idea: "Problem first: every AI you use forgets you, your notebook doesn't. Then a few huge statements, each with one real proof.",
     take: "The boldest copy and the fewest words. Scroll the top slowly.",
     render: () => <V4 />,
+  },
+  {
+    id: "life", name: "The week, then real life",
+    idea: "The week film is the hero, its first frame on the first screen. Then three moments people really have: an evening walk by voice, the week's shopping, a brain dump. Then templates and every app you can bring notes from.",
+    take: "Built from your picks: #2's film, real use cases instead of statements.",
+    render: () => <V5 />,
   },
 ];
 
