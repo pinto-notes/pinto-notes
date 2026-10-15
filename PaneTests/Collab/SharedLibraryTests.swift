@@ -625,6 +625,75 @@ extension NetworkFaults {
         #expect(emil.transport.unshared[note.id] != nil)
     }
 
+    /// The owner deletes offline with the note not open here, while a member keeps typing: once
+    /// back online, what's written back as the owner's note is the whole document, the member's
+    /// latest edits included, never the note's older copy.
+    @Test func theOwnersDeleteWithNoSessionKeepsEveryNewerEdit() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Trip", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let theirs = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let saraSession = try #require(sara.library.session(for: theirs))
+        emil.library.closeAll()
+        type("\nTickets booked", in: saraSession)
+        await waitUntil { saraSession.isSent }
+        #expect(note.body == "Trip", "the owner's copy is behind")
+
+        emil.library.install()
+        emil.transport.offline = true
+        emil.context.trash(note)
+        await waitUntil(1) { false }
+        #expect(note.isShared, "not stopped without the newest text")
+        emil.transport.offline = false
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(!note.isShared && note.body == "Trip\nTickets booked")
+        let sent = try #require(emil.transport.unshared[note.id])
+        #expect(Wire.sealer?.open(sent, context: E2EE.body(note.id)) == "Trip\nTickets booked")
+    }
+
+    /// A shared sub-note goes to Recently Deleted with its parent, and a shared note with its
+    /// folder: sharing stops with the document's newest text, as for a delete of the note itself.
+    @Test func aSharedNoteDeletedWithItsParentOrFolderKeepsEveryEdit() async throws {
+        let emil = try device(owner)
+        emil.library.install()
+        let parent = emil.context.createNote(in: .all, body: "Holiday")
+        let (child, _) = try await shared("Packing", on: emil)
+        child.parentID = parent.id
+        parent.body += "\n[Packing](pane-note:\(child.id.uuidString.lowercased()))"
+        let folder = emil.context.createFolder(named: "Work")
+        let (inFolder, _) = try await shared("Agenda", on: emil)
+        inFolder.folder = folder
+        server.add(member, to: child.id)
+        server.add(member, to: inFolder.id)
+        let sara = try device(member)
+        for (n, line) in [(child, "\nSocks"), (inFolder, "\nBudget")] {
+            let theirs = try await sara.library.adopt(shared: n.id, nk: nk, epoch: 1, role: "editor")
+            let s = try #require(sara.library.session(for: theirs))
+            type(line, in: s)
+            await waitUntil { s.isSent }
+        }
+        emil.library.closeAll()
+        emil.library.install()
+
+        emil.context.trash(parent)
+        await waitUntil { !child.isShared }
+        #expect(child.trashedAt != nil && child.body == "Packing\nSocks")
+        emil.context.trash(folder)
+        await waitUntil { !inFolder.isShared }
+        #expect(inFolder.trashedAt != nil && inFolder.body == "Agenda\nBudget")
+    }
+
+    /// The server refuses text that's behind the document (collab_unshare's `upto`).
+    @Test func stoppingSharingWithOldTextIsRefused() async throws {
+        let emil = try device(owner)
+        let (note, session) = try await shared("Notes", on: emil)
+        type("\nmore", in: session)
+        await waitUntil { session.isSent }
+        await #expect(throws: (any Error).self) { try await emil.transport.unshare(note: note.id, body: "", head: "", upto: 0) }
+        #expect(server.role(note.id, owner) == "owner")
+    }
+
     /// A new key after someone else was removed: what's waiting is sealed with it and goes up.
     @Test func aNewKeyIsTakenAndWaitingEditsGoWithIt() async throws {
         let emil = try device(owner)

@@ -109,6 +109,11 @@ final class CollabSession {
     @ObservationIgnored private var sending = false
     @ObservationIgnored private var pulling: Task<Void, Never>?
     @ObservationIgnored private var pullAgain = false
+    /// The last pull reached the server: everything stored up to `lastSeen` is in the document.
+    @ObservationIgnored private var pulled = false
+    /// Everything the server has is in the document as of the last pull, and every change opened:
+    /// its text can stand for the note (stopping sharing writes it back as the owner's own).
+    var isUpToDate: Bool { pulled && !missing && !isClosed }
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private var retryDelay: Duration = .seconds(2)
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?
@@ -328,9 +333,11 @@ final class CollabSession {
         do {
             pull = try await transport.pull(note: noteID, after: after)
         } catch {
+            pulled = false
             if (error as? Collab.Failure) == .notMember { onRemoved?() }
             return
         }
+        pulled = true
         guard !isClosed else { return }
         var changed = false
         // One this device is already past is known from here on, so it isn't asked for again.

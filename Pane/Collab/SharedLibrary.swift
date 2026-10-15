@@ -43,12 +43,13 @@ final class SharedLibrary {
     private var loading: [UUID: Task<CollabSession?, Never>] = [:]
 
     enum Problem: LocalizedError {
-        case locked, noDataKey, notShared
+        case locked, noDataKey, notShared, notUpToDate
         var errorDescription: String? {
             switch self {
             case .locked: "A locked note can't be shared. Unlock it first."
             case .noDataKey: "Open your notes on this device first."
             case .notShared: "This note isn't shared."
+            case .notUpToDate: "The note couldn't be brought up to date. Try again when you're online."
             }
         }
     }
@@ -346,7 +347,11 @@ final class SharedLibrary {
     func trashed(_ note: Note) async {
         guard let shared = note.sharedNoteID else { return }
         if shared == note.id {
-            try? await unshare(note)
+            // A change can land between the pull and the server's check: a few tries, then the
+            // next look at your memberships tries again.
+            for _ in 0..<3 {
+                do { try await unshare(note); return } catch {}
+            }
         } else {
             try? await leave(note)
         }
@@ -355,14 +360,22 @@ final class SharedLibrary {
     /// Your note stops being shared: its text (the document's, merged) goes back into your notes
     /// row on the server, which stops being a pointer; the shared note goes, and every member's
     /// copy with it (`collab_unshare`). Here it's an ordinary note again.
+    ///
+    /// The text is the document's after a fresh pull, never the note's copy (which can be behind:
+    /// the note may not be open, or offline). Without a pull, or with a change that didn't open,
+    /// it's refused and tried again later; the server also refuses if a change came after it.
     func unshare(_ note: Note) async throws {
         guard let shared = note.sharedNoteID, shared == note.id else { throw Problem.notShared }
-        let text = sessions[note.id]?.text ?? note.body
+        guard let session = await ensureDocument(note) else { throw Problem.notUpToDate }
+        await session.catchUp().value
+        guard session.isUpToDate else { throw Problem.notUpToDate }
+        let text = session.text
+        let upto = session.lastSeen
         SharedNotes.unsharing.insert(note.id)
         defer { SharedNotes.unsharing.remove(note.id) }
         let body = try Wire.seal(text, E2EE.body(note.id))
         let head = try Wire.seal(head: Wire.head(body: text, locked: false), note.id)
-        try await transport.unshare(note: shared, body: body, head: head)
+        try await transport.unshare(note: shared, body: body, head: head, upto: upto)
         forget(note)
         note.sharedNoteID = nil
         note.body = text
@@ -382,7 +395,8 @@ final class SharedLibrary {
             SharedNotes.unsharing.insert(note.id)
             defer { SharedNotes.unsharing.remove(note.id) }
             if let body = try? Wire.seal("", E2EE.body(note.id)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), note.id) {
-                try? await transport.unshare(note: shared, body: body, head: head)
+                // Its row is deleted for good, so no text is kept: no change can be lost.
+                try? await transport.unshare(note: shared, body: body, head: head, upto: .max)
             }
             return
         }
