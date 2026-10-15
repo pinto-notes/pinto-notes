@@ -96,4 +96,36 @@ import Testing
         // The owner's own link is a note they're in.
         #expect(await emil.store.preview(link)?.alreadyIn == true)
     }
+
+    /// A request that dies on a reused connection (NSURLError -1005) is sent once more: the
+    /// preview and the join both go through, and Sara is in the note.
+    @Test func aDroppedRequestIsSentOnceMore() async throws {
+        let emilID = server.account("Emil"), saraID = server.account("Sara")
+        let emil = try device(emilID, name: "Emil"), sara = try device(saraID, name: "Sara")
+        let note = Note(body: "Team offsite\n")
+        emil.context.insert(note)
+        try await emil.store.setAccess(.edit, for: note)
+        let link = try #require(emil.store.linkURL(note))
+        server.dropOnce = ["open_link"]
+        #expect(await sara.store.preview(link)?.title == "Team offsite")
+        server.dropOnce = ["open_link", "join_link"]
+        #expect(await sara.store.join(link))
+        #expect(try await server.transport(for: emilID).members(of: note.id).contains { $0.user_id == saraID })
+    }
+
+    /// Twice in a row: it says the connection, not that the link is bad.
+    @Test func aConnectionThatStaysDownSaysSo() async throws {
+        let emilID = server.account("Emil"), saraID = server.account("Sara")
+        let emil = try device(emilID, name: "Emil"), sara = try device(saraID, name: "Sara")
+        let note = Note(body: "Team offsite\n")
+        emil.context.insert(note)
+        try await emil.store.setAccess(.edit, for: note)
+        let link = try #require(emil.store.linkURL(note))
+        server.offline = true
+        #expect(await sara.store.preview(link) == nil)
+        #expect(sara.store.joinProblem == "This link didn't open. Ask for a new one.")
+        server.offline = false
+        // A dropped connection twice over: the connection is named.
+        #expect(CollabStore.joinFailure(URLError(.networkConnectionLost)).contains("couldn't be reached"))
+    }
 }
