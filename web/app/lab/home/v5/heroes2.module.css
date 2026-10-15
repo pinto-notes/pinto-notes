@@ -314,3 +314,6 @@
 .editorial .splitScene .saidBox { width: auto; max-width: 290px; justify-items: start; }
 .editorial .splitScene .saidMe, .editorial .splitScene .saidAi { width: fit-content; max-width: 290px; box-sizing: border-box; }
 .editorial .splitScene .saidAi { margin-left: 18px; }
+/* One picture only: the bubbles sit in the sky left of her head, clear of her. */
+.editorial .splitScene .saidBox { left: 50%; top: 7%; }
+.editorial .splitScene .saidBox { left: 57%; }

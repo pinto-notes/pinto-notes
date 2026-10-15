@@ -229,7 +229,7 @@ export function PhoneMomentHero() {
     <section className={x.editorial}>
       <div className={x.edWords}>
         <h1 className={x.edH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
-        <p className={x.edLede}>A notes app that you, ChatGPT, Claude, Muse and more read and write in. It looks and feels like Apple Notes.</p>
+        <p className={x.edLede}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
         <div className={x.edCtas}>
           <Download />
           <span className={x.soonBtn} aria-disabled="true">
@@ -274,7 +274,6 @@ export function PhoneMomentHero() {
             <span><AIGlyph name="openai" size={12} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
           </p>
         </div>
-        <img className={x.over} src="/home-v5/hero/maya-over.webp" alt="" />
       </div>
       </div>
     </section>
