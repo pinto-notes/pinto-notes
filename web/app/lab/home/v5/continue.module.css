@@ -1,5 +1,5 @@
 /* Version 1, the continuation: one pinned scene for the hero and her next day. */
-.box { position: relative; height: 470vh; width: 100vw; margin-left: calc(50% - 50vw); margin-top: -100px; }
+.box { position: relative; height: 520vh; width: 100vw; margin-left: calc(50% - 50vw); margin-top: -100px; }
 .pin { position: sticky; top: 0; height: 100vh; overflow: clip; }
 .pin > section { position: absolute; inset: 0; margin: 0 !important; width: 100% !important; height: 100vh; min-height: 0 !important; will-change: opacity, transform; }
 

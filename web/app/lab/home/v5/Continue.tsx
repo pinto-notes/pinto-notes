@@ -28,7 +28,8 @@ const BEATS = [
   { at: 0.31, text: "Tuesday · Your AI keeps it up to date." },
   { at: 0.5, text: "Thursday · Life happens." },
   { at: 0.64, text: "Friday · Ask how your week went." },
-  { at: 0.96, text: "The notebook you and your AI share." },
+  { at: 0.925, text: "Sunday · You catch up." },
+  { at: 0.985, text: "The notebook you and your AI share." },
 ];
 // Friday's answer, line by line, and the row each line lights up.
 const ANSWER = [
@@ -45,6 +46,7 @@ const LIT = (p: number, row: string) => {
 export const activeRow = (p: number): string | null => {
   if (p >= 0.33 && p < 0.47) return "dentist";
   if (p >= 0.52 && p < 0.62) return "thu";
+  if (p >= 0.93 && p < 0.985) return "thu";
   const a = [...ANSWER].reverse().find((x) => p >= x.at && p < x.at + 0.07);
   return a ? a.rows[a.rows.length - 1] : null;
 };
@@ -77,9 +79,12 @@ function Note({ p, f }: { p: number; f: number }) {
   const missed = mj(span(p, 0.53, 0.57));
   // Friday: Thursday's run moves to Sunday.
   const moved = mj(span(p, 0.84, 0.88)), mMark = over(span(p, 0.85, 0.89));
+  const tickSun = span(p, 0.95, 0.975);
+  // Reminded on Friday, she books the flights.
+  const tickFlights = span(p, 0.905, 0.925);
   const act = activeRow(p);
   const row = (id: string, extra?: number): React.CSSProperties => {
-    const lit = Math.max(LIT(p, id), extra ?? 0, act === id && p < 0.66 ? 1 : 0);
+    const lit = Math.max(LIT(p, id), extra ?? 0, act === id && (p < 0.66 || p >= 0.93) ? 1 : 0);
     return { background: `rgba(240,144,26,${(0.18 * lit).toFixed(3)})`, 
       boxShadow: lit > 0.05 ? `inset 0 0 0 1.5px rgba(217,122,23,${(0.55 * lit).toFixed(2)})` : undefined };
   };
@@ -94,7 +99,7 @@ function Note({ p, f }: { p: number; f: number }) {
         <li data-row="mon" style={row("mon")}><Check t={done} /><span data-done={done > 0.5 || undefined}>Mon · Run, 5 km</span><Chip ai="openai" /></li>
         <li data-row="wed" style={row("wed")}><Check t={done} /><span data-done={done > 0.5 || undefined}>Wed · Intervals</span><Chip ai="openai" /></li>
         <li data-row="thu" style={{ ...row("thu"), opacity: 1 - 0.45 * missed * (1 - moved) }}>
-          <Check t={0} /><span data-missed={missed > 0.5 && moved < 0.5 || undefined}>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
+          <Check t={tickSun} /><span data-missed={missed > 0.5 && moved < 0.5 || undefined} data-done={tickSun > 0.5 || undefined}>{moved > 0.5 ? "Sun · Run, 5 km" : "Thu · Run, 5 km"}</span>
           {moved > 0.5 ? <Chip ai="claude" v={mMark} label="Claude moved it" /> : missed > 0.5 ? <Chip ai="missed" v={missed} /> : <Chip ai="openai" />}
         </li>
       </ul>
@@ -104,7 +109,7 @@ function Note({ p, f }: { p: number; f: number }) {
           <Check t={dTick} /><span data-done={dTick > 0.5 || undefined}>{dTick > 0.5 ? "Dentist · Thu 10:00" : "Call the dentist"}</span>
           {dTick > 0.5 ? <Chip ai="claude" v={dMark} /> : <Chip ai="openai" />}
         </li>
-        <li data-row="flights" style={row("flights")}><Check t={0} /><span>Book Lisbon flights · by Fri</span><Chip ai="openai" /></li>
+        <li data-row="flights" style={row("flights")}><Check t={tickFlights} /><span data-done={tickFlights > 0.5 || undefined}>Book Lisbon flights · by Fri</span><Chip ai="openai" /></li>
       </ul>
     </div>
   );
@@ -165,7 +170,7 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
   // Chats: Tuesday on the left (Claude), Friday on the right (Claude).
   const tueIn = mj(span(p, 0.31, 0.34)) * (1 - mj(span(p, 0.47, 0.5)));
   const tueAns = mj(span(p, 0.36, 0.39));
-  const friIn = mj(span(p, 0.66, 0.69));
+  const friIn = mj(span(p, 0.66, 0.69)) * (1 - mj(span(p, 0.915, 0.935)));
   const said = ANSWER.filter((a2) => p >= a2.at - 0.01);
 
 
@@ -238,11 +243,11 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const EVENTS = [
   { day: 1, text: "Dentist booked", at: 0.38 },
-  { day: 3, text: "Missed run", at: 0.54, bad: true }, { day: 4, text: "Check-in", at: 0.68 }, { day: 6, text: "Run moved here", at: 0.86 },
+  { day: 3, text: "Missed run", at: 0.54, bad: true }, { day: 4, text: "Check-in", at: 0.68 }, { day: 6, text: "Ran 5 km", at: 0.96 },
 ];
 function Timeline({ p }: { p: number }) {
   // Progress across the week (0..4 = Mon..Fri), stepping with the beats.
-  const pos = p < 0.31 ? lerp(0, 0.9, mj(span(p, 0.27, 0.31))) : p < 0.5 ? 1 : p < 0.64 ? lerp(1, 3, mj(span(p, 0.5, 0.54))) : lerp(3, 4, mj(span(p, 0.64, 0.68)));
+  const pos = p < 0.31 ? lerp(0, 0.9, mj(span(p, 0.27, 0.31))) : p < 0.5 ? 1 : p < 0.64 ? lerp(1, 3, mj(span(p, 0.5, 0.54))) : p < 0.92 ? lerp(3, 4, mj(span(p, 0.64, 0.68))) : lerp(4, 6, mj(span(p, 0.92, 0.95)));
   const now = Math.round(pos);
   return (
     <div className={c.timeline} aria-hidden="true">
