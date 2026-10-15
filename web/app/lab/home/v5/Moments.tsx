@@ -638,13 +638,13 @@ export function PaperScene({ src, alt, where, lines, says = "right", gym = false
 
 /// The scene, still: the art, and one exchange set large like a pull quote. No motion to decode.
 export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", gym = false, voice = false }:
-  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude"; at?: "left" | "right"; gym?: boolean; voice?: boolean }) {
+  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; gym?: boolean; voice?: boolean }) {
   return (
     <div className={m.paperScene}>
       <img src={src} alt={alt} />
       <figure className={m.quote} data-at={at} data-voice={voice || undefined}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
-        <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} />{aiName}</span>{ai}</p>
+        <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} color={aiGlyph === "meta" ? "#0866ff" : undefined} />{aiName}</span>{ai}</p>
         {gym && <GymCard p={1} />}
       </figure>
       <span className={m.paperWhere}>{where}</span>
