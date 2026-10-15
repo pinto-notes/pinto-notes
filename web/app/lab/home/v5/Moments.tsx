@@ -104,8 +104,9 @@ export function Walk() {
       </div>
       <div className={m.spoken} aria-hidden="true">
         {TALK.map((t, i) => {
-          const v = mj(span(p, t.at, t.at + 0.06));
-          const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.05)) : 0;
+          // One line at a time: the old one leaves first, then the new one arrives.
+          const v = i === 0 ? mj(span(p, t.at, t.at + 0.05)) : mj(span(p, t.at + 0.04, t.at + 0.09));
+          const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.035)) : 0;
           return <p key={i} className={m.said} data-who={t.who} style={{ opacity: v * (1 - gone), transform: `translateY(${((1 - v) * 10 - gone * 10).toFixed(1)}px)` }}>
             <span>{t.who === "you" ? "You" : <><AIGlyph name="openai" size={11} />ChatGPT</>}</span>{t.text}</p>;
         })}

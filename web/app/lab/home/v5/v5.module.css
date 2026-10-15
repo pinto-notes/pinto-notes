@@ -44,3 +44,16 @@
 .bandRow .lede { max-width: 36em; }
 .togetherSec { display: grid; gap: 0; }
 .togetherSec .momentsHead { margin-bottom: 0; }
+
+/* The evening walk on the dark band: light words beside the dusk scene. */
+.night { padding-top: 40px; padding-bottom: 40px; margin-bottom: 0; }
+.night .row { width: min(1240px, 100%); margin: 0 auto; }
+.night .kicker { color: #f0a040; }
+.night .rowTitle { color: #fff4e6; }
+.night .say { color: #e8d6c0; }
+/* Agents: a smaller, quieter row near the end. */
+.agents { width: 100%; }
+.agents .rowTitle { font-size: clamp(26px, 2.4vw, 34px); }
+/* On the dark band the walk's stage is an actual evening: deep brown into a low amber glow. */
+.night [class*="dusk"] { background: radial-gradient(ellipse at 78% 110%, #b8692e 0%, rgba(184, 105, 46, 0) 55%), linear-gradient(175deg, #3b2416 0%, #4a2c1b 55%, #6a3d22 100%);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 230, 200, 0.08); }
