@@ -108,7 +108,7 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
           <div className={f.paper}>
             {/* With `newNote`, the film opens on a blank new note: the title is typed, then the line under it. */}
             <h3 className={f.title}>{newNote && tType <= 0
-              ? <span className={f.placeholder}>New note<i className={f.caret} /></span>
+              ? <span className={f.placeholder}><i className={f.caret} style={{ marginLeft: 0, marginRight: 1 }} />New note</span>
               : <>{"Running plan".slice(0, Math.round(12 * tType))}{tType < 1 && <i className={f.caret} />}</>}</h3>
             <p className={f.sub} style={{ opacity: subIn }}>Half marathon on 30 November. Four runs a week.</p>
             <ul className={f.lines}>
