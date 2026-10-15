@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { G } from "../../copy";
 import { Download } from "../../kit";
-import h from "../../home-h/h.module.css";
 import x from "./heroes.module.css";
 
 // Three hero studies for version 5. Each is only the first screen; the week film follows below.
@@ -14,7 +13,7 @@ const mj = (v: number) => { const t = clamp(v); return t * t * t * (10 - 15 * t 
 const span = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
 
 const Title = ({ className }: { className?: string }) => (
-  <h1 className={className}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
+  <h1 className={className}>The notebook you and your AI share.</h1>
 );
 const LEDE = "Plan with ChatGPT, check in with Claude, tick things off yourself. It all lands in one notebook that looks and feels like Apple Notes.";
 

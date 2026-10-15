@@ -104,3 +104,44 @@
   .hands::after { background: linear-gradient(180deg, rgba(10, 8, 20, 0.7) 0%, rgba(10, 8, 20, 0.35) 45%, transparent 65%); }
   .hands { min-height: 720px; }
 }
+
+/* 3b. The moment on the phone */
+.moment { position: relative; height: min(calc(100vh - 120px), 820px); min-height: 620px; border-radius: 32px; overflow: hidden; isolation: isolate; background: #2a2236; }
+.momentFit { position: absolute; top: 0; bottom: 0; right: -30%; aspect-ratio: 1672 / 941; z-index: 0; }
+.momentArt { position: absolute; inset: 0; width: 100%; height: 100%; }
+.moment::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 60%; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(12, 10, 24, 0.85) 0%, rgba(12, 10, 24, 0.6) 50%, transparent 100%); }
+.momentWords { position: absolute; z-index: 2; left: clamp(32px, 5%, 72px); top: 50%; transform: translateY(-50%); width: min(500px, 38%); display: grid; gap: 20px; justify-items: start; }
+.moment [class*="kit_primary"] { background: #fbeedd; color: #2a1d10; }
+.moment [class*="kit_ctaQuiet"] { color: rgba(255, 246, 234, 0.8); }
+/* The phone screen, in % of the art, drawn like the Pinto iPhone app. Sizes follow the art (cqw). */
+.momentFit { container-type: size; }
+.screen { position: absolute; left: 41.33%; top: 14.88%; width: 17.22%; height: 65.78%; border-radius: 16% / 7.4%; background: #fbfaf7; overflow: hidden; box-sizing: border-box;
+  padding: 1.1cqw 1.1cqw 1cqw; display: flex; flex-direction: column; color: #1d1b19; }
+.scStatus { margin: 0 0 1.2cqw; display: flex; justify-content: space-between; padding: 0 0.6cqw; font-size: 0.75cqw; }
+.scBack { margin: 0 0 0.4cqw; font-size: 0.8cqw; font-weight: 600; color: #d97a17; }
+.scTitle { margin: 0 0 0.8cqw; font-size: 1.6cqw; font-weight: 800; letter-spacing: -0.02em; }
+.scList { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.2cqw; }
+.scList li { display: flex; align-items: center; gap: 0.5cqw; padding: 0.45cqw 0.4cqw; border-radius: 0.5cqw; font-size: 0.82cqw; border-bottom: 0.5px solid rgba(60, 30, 5, 0.08); flex-wrap: wrap; }
+.scList li i { flex: none; width: 0.85cqw; height: 0.85cqw; border-radius: 50%; box-shadow: inset 0 0 0 1px #c9bcae; }
+.scList li em { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 0.1cqw 0.4cqw; border-radius: 1cqw; background: #fff1de; color: #a85700; font-style: normal; font-size: 0.6cqw; font-weight: 650; }
+/* What's said, beside the phone. */
+.saidBox { position: absolute; left: 61%; top: 22%; width: 19%; display: grid; gap: 0.6cqw; }
+.saidMe, .saidAi { margin: 0; padding: 0.8cqw 1cqw; border-radius: 1.2cqw; font-size: 0.95cqw; line-height: 1.35; box-shadow: 0 1cqw 2cqw -1cqw rgba(0, 0, 0, 0.5); }
+.saidMe { background: rgba(28, 22, 16, 0.9); color: #fff6ea; display: flex; gap: 0.5cqw; align-items: flex-start; border-bottom-left-radius: 0.3cqw; }
+.saidAi { background: #fff; color: #1d1b19; display: grid; gap: 0.3cqw; border-bottom-right-radius: 0.3cqw; }
+.saidAi span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75cqw; font-weight: 700; color: #6b5f53; }
+.scWave { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 1.2em; }
+.scWave i { width: 2.5px; border-radius: 1px; background: #f0a040; }
+.scWave i:nth-child(1) { height: 40%; } .scWave i:nth-child(2) { height: 90%; } .scWave i:nth-child(3) { height: 60%; } .scWave i:nth-child(4) { height: 100%; }
+@media (max-width: 900px) {
+  .moment { height: auto; min-height: 860px; }
+  .momentFit { top: auto; bottom: 0; height: 56%; right: auto; left: 50%; transform: translateX(-50%); }
+  .moment::after { width: 100%; background: linear-gradient(180deg, rgba(12, 10, 24, 0.9) 0%, rgba(12, 10, 24, 0.6) 42%, transparent 56%); }
+  .momentWords { left: 22px; right: 22px; width: auto; top: 36px; transform: none; }
+  .saidBox { display: none; }
+}
+.momentFit { right: -24%; }
+.scList li { flex-wrap: nowrap; white-space: nowrap; }
+.saidBox { left: 55%; top: 24%; width: 17%; }
+.saidBox { left: 59.6%; top: 22%; width: 15.5%; }
+.moment::after { width: 52%; }

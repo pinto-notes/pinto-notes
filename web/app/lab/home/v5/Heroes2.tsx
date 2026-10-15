@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { G } from "../../copy";
 import { Download } from "../../kit";
-import h from "../../home-h/h.module.css";
 import x from "./heroes2.module.css";
 
 // Hero round 2: six visual ideas with the same headline. Each is the first screen only.
@@ -14,7 +13,7 @@ const mj = (v: number) => { const t = clamp(v); return t * t * t * (10 - 15 * t 
 const span = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
 
 const Title = ({ className }: { className?: string }) => (
-  <h1 className={className}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
+  <h1 className={className}>The notebook you and your AI share.</h1>
 );
 const LEDE = "ChatGPT, Claude and Muse read and write in it, with your OK. It looks and feels like Apple Notes.";
 
@@ -209,6 +208,56 @@ export function AskHero() {
         </div>
       </div>
       <div className={x.askCta}><Download quiet={G.quiet} /></div>
+    </section>
+  );
+}
+
+/// 3b. Hands at dusk, with the moment: she plans tomorrow out loud, and her Pinto note fills in on the
+/// phone in her hands (each line marked ChatGPT). What she says floats beside the phone. Plays once.
+const TOMORROW = [
+  { text: "Run, 5 km", at: 2.2 },
+  { text: "Call the dentist", at: 3.0 },
+  { text: "Book Lisbon flights", at: 5.6 },
+];
+export function PhoneMomentHero() {
+  const t = useClock();
+  const said = "Plan tomorrow. Run before work, and the dentist.";
+  const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
+  const v2 = mj(span(t, 4.2, 4.6));
+  return (
+    <section className={x.moment}>
+      <div className={x.momentFit}>
+        <img className={x.momentArt} src="/home-v5/hero/phone-close.webp" alt="" />
+        <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
+          <p className={x.scStatus}><b>21:40</b><span /></p>
+          <p className={x.scBack}>‹ Plans</p>
+          <h3 className={x.scTitle}>Tomorrow</h3>
+          <ul className={x.scList}>
+            <li><i />Pick up the dry cleaning</li>
+            {TOMORROW.map((l) => {
+              const v = mj(span(t, l.at, l.at + 0.5)), fresh = v * (1 - span(t, l.at + 1.6, l.at + 3));
+              return (
+                <li key={l.text} style={{ opacity: v, transform: `translateY(${((1 - v) * 6).toFixed(1)}px)`, background: `rgba(240,144,26,${(0.16 * fresh).toFixed(3)})` }}>
+                  <i />{l.text}<em><AIGlyph name="openai" size={8} />ChatGPT</em>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className={x.saidBox}>
+          <p className={x.saidMe} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
+            <span className={x.scWave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
+          </p>
+          <p className={x.saidAi} style={{ opacity: v2, transform: `translateY(${((1 - v2) * 8).toFixed(1)}px)` }}>
+            <span><AIGlyph name="openai" size={12} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
+          </p>
+        </div>
+      </div>
+      <div className={x.momentWords}>
+        <Title className={x.h1Light} />
+        <p className={x.ledeLight}>{LEDE}</p>
+        <Download quiet={G.quiet} />
+      </div>
     </section>
   );
 }
