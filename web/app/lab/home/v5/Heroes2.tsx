@@ -274,6 +274,7 @@ export function PhoneMomentHero() {
             <span><AIGlyph name="openai" size={12} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
           </p>
         </div>
+        <img className={x.over} src="/home-v5/hero/maya-over.webp" alt="" />
       </div>
       </div>
     </section>
