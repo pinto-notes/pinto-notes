@@ -135,7 +135,11 @@ extension CollabStore: ShareBackend {
     /// A new note key, sealed from this device to every member who stays, in one call; then the
     /// document re-sealed under it, so devices that join later start from there.
     private func rotate(_ id: UUID, removing user: UUID?, session given: CollabSession? = nil) async throws {
-        guard let transport, let me, let session = given ?? sessions[id], let old = keys[id] else { return }
+        guard let transport, let me else { throw Collab.Failure.notSignedIn }
+        guard let session = given ?? sessions[id], let old = keys[id] else {
+            log.error("can't give \(id, privacy: .public) a new key: it isn't open here")
+            throw Collab.Failure.server("This note isn't open on this device.")
+        }
         let identity = try await ensureIdentity()
         // Everything stored so far goes into the snapshot sealed under the new key below, so a device
         // that starts from it never needs a change sealed under the old one.
@@ -314,16 +318,29 @@ extension CollabStore: ShareBackend {
     func renewKeyAfterLeave(_ row: Collab.Membership) async {
         // Your own note's id is the shared note's.
         let id = row.note_id
-        guard let context, let note = context.note(id), let session = await library?.ensureDocument(note) else { return }
+        log.notice("someone left \(id, privacy: .public): renewing its key")
+        guard let context, let library else {
+            log.error("can't renew \(id, privacy: .public)'s key: the store has no library")
+            return
+        }
+        guard let note = context.note(id) else {
+            log.error("can't renew \(id, privacy: .public)'s key: the note isn't on this device")
+            return
+        }
+        guard let session = await library.ensureDocument(note) else {
+            log.error("can't renew \(id, privacy: .public)'s key: its document didn't open here")
+            return
+        }
         keys[id] = (session.noteKey, session.epoch)
         do {
             try await rotate(id, removing: nil, session: session)
+            log.notice("renewed \(id, privacy: .public)'s key after someone left (epoch \(session.epoch, privacy: .public))")
             restoreLink(id)
             if let link = links[id], let access = linkAccess[id], access != .off {
                 try await publishInviteLink(id, link: link, role: access == .edit ? "editor" : "viewer")
             }
         } catch Collab.Failure.staleEpoch {
-            return
+            log.notice("\(id, privacy: .public)'s key was renewed by another of your devices")
         } catch {
             log.error("renewing a note's key after someone left failed: \(String(describing: error), privacy: .public)")
         }
