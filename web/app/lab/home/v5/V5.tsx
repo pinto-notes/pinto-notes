@@ -97,7 +97,7 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
 
       <section className={v.extras} aria-labelledby="extras">
         <h2 id="extras" className={v.big}>And everything you'd expect.</h2>
-        <ScrollVar as="ul" className={v.grid} from={0.95} to={0.2}>
+        <ScrollVar as="ul" className={v.grid} from={1} to={0.55}>
           {EXTRAS.map((x, i) => (
             <li key={x.title} style={{ "--i": i } as React.CSSProperties}>
               <span className={v.icon}><img src={x.icon} alt="" width={64} height={64} loading="lazy" /></span>

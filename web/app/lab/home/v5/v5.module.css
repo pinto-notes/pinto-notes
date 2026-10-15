@@ -109,3 +109,10 @@
 .featBand[data-band="sage"] { background: radial-gradient(ellipse 70% 55% at 80% 20%, rgba(150, 170, 110, 0.45), transparent 70%), linear-gradient(170deg, #55643e 0%, #3f4b2e 100%); }
 .featBand[data-band="sage"] .kicker, .featBand[data-band="sage"] .example span { color: #f3c98a; }
 .featBand[data-band="amber"] .example { background: rgba(70, 30, 0, 0.16); color: #fffaf2; box-shadow: inset 0 0 0 0.5px rgba(255, 240, 220, 0.3); }
+/* Phones: the templates are a swipeable row instead of three full-width cards stacked. */
+@media (max-width: 700px) {
+  .scrollFan.scrollFan { display: flex; justify-content: flex-start; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin: 0 calc(-1 * var(--gutter)); padding: 8px var(--gutter) 28px;
+    grid-template-columns: none; scrollbar-width: none; }
+  .scrollFan.scrollFan::-webkit-scrollbar { display: none; }
+  .scrollFan.scrollFan > li { flex: 0 0 80%; scroll-snap-align: start; transform: none !important; }
+}
