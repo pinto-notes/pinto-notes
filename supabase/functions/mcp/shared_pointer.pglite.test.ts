@@ -12,6 +12,10 @@ const box = (key: string) => `amb2.${key}.${b64(crypto.getRandomValues(new Uint8
 const app = (pg: PGlite, me: string, sql: string, params: unknown[] = []) =>
   asUser<any>(pg, me, sql, params, { "request.headers": JSON.stringify({ "x-pane-device": "Mac", "x-amber-client": "lock-aware/1 e2ee/1" }) });
 
+/** An app that knows shared notes (20261015060000_collab_review_fixes.sql). */
+const shared1 = (pg: PGlite, me: string, sql: string, params: unknown[] = []) =>
+  asUser<any>(pg, me, sql, params, { "request.headers": JSON.stringify({ "x-pane-device": "Mac", "x-amber-client": "lock-aware/1 e2ee/1 shared/1" }) });
+
 async function account(pg: PGlite) {
   const me = await newUser(pg);
   const key = hex(8);
@@ -37,9 +41,28 @@ Deno.test("every member has a pointer of their own to the same shared note; one 
   // Once hers is deleted (she left), joining again makes a pointer again.
   await app(pg, sara.me, `update public.notes set deleted_at = now(), body_ct = null, head_ct = null where id = $1`, [saras]);
   await pointer(pg, sara, crypto.randomUUID(), shared);
-  // An app from before collaboration still writes a pointer row's placeholder without touching the pointer.
-  await app(pg, emil.me, `update public.notes set body_ct = $2, head_ct = $3 where id = $1`, [shared, box(emil.key), box(emil.key)]);
+  // An app that knows shared notes rewrites the placeholder (the title in it changed) and keeps the pointer.
+  await shared1(pg, emil.me, `update public.notes set body_ct = $2, head_ct = $3 where id = $1`, [shared, box(emil.key), box(emil.key)]);
   const [row] = await app(pg, emil.me, `select shared_note_id from public.notes where id = $1`, [shared]);
   assertEquals(row.shared_note_id, shared);
+  await pg.close();
+});
+
+// 20261015060000_collab_review_fixes.sql: an app from before shared notes can't type into a pointer row.
+Deno.test("an old app's text in a shared note's pointer is refused, and everything else about the pointer still syncs", async () => {
+  const pg = await schemaDB();
+  const emil = await account(pg);
+  const shared = crypto.randomUUID();
+  await pointer(pg, emil, shared, shared);
+  const e = await assertRejects(() => app(pg, emil.me, `update public.notes set body_ct = $2, head_ct = $3 where id = $1`, [shared, box(emil.key), box(emil.key)])) as { code?: string; hint?: string; message: string };
+  assertEquals([e.code, e.hint], ["PT403", "shared_note"]);
+  assertStringIncludes(e.message, "Your edit is kept on this device");
+  // Pinning, trashing and deleting it are fine from any app.
+  await app(pg, emil.me, `update public.notes set is_pinned = true, trashed_at = now() where id = $1`, [shared]);
+  await app(pg, emil.me, `update public.notes set deleted_at = now(), body_ct = null, head_ct = null where id = $1`, [shared]);
+  // An ordinary note is untouched by the rule.
+  const plain = crypto.randomUUID();
+  await app(pg, emil.me, `insert into public.notes (id, head_ct, body_ct) values ($1, $2, $3)`, [plain, box(emil.key), box(emil.key)]);
+  await app(pg, emil.me, `update public.notes set body_ct = $2 where id = $1`, [plain, box(emil.key)]);
   await pg.close();
 });
