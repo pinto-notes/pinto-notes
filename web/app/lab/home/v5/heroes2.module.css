@@ -307,3 +307,6 @@
 .over { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; }
 .splitScene .saidBox { z-index: 3; left: 68.5%; top: 29%; width: 14%; }
 .splitScene .saidMe, .splitScene .saidAi { font-size: 14.5px; }
+/* Bubbles above the phone, in the sky, with room to breathe; the second one tucks behind her hair. */
+.editorial .splitScene .saidBox { left: 56%; top: 7%; width: 22%; }
+.editorial .splitScene .saidMe, .editorial .splitScene .saidAi { font-size: 14.5px; }
