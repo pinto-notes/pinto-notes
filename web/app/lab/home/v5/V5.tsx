@@ -50,7 +50,7 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "side" }: { hero?: string }) {
+export function V5({ hero = "side", band = "leaf" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
@@ -74,7 +74,7 @@ export function V5({ hero = "side" }: { hero?: string }) {
         </div>
       )}
 
-      <section className={`${v.moments} ${v.featBand}`} aria-labelledby="moments">
+      <section className={`${v.moments} ${v.featBand}`} data-band={band} aria-labelledby="moments">
         {FEATURES.map((x, i) => (
           <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
             <div className={v.words}>
