@@ -39,7 +39,7 @@ const ANSWER = [
 ];
 const LIT = (p: number, row: string) => {
   const a = ANSWER.find((x) => x.rows.includes(row)); if (!a) return 0;
-  return Math.sin(Math.PI * span(p, a.at, a.at + 0.08));
+  return Math.sin(Math.PI * span(p, a.at, a.at + 0.05));
 };
 /// Which row is "active" right now, for the connector line and the row's lift.
 export const activeRow = (p: number): string | null => {
@@ -77,9 +77,9 @@ function Note({ p, f }: { p: number; f: number }) {
   const moved = mj(span(p, 0.84, 0.88)), mMark = over(span(p, 0.85, 0.89));
   const act = activeRow(p);
   const row = (id: string, extra?: number): React.CSSProperties => {
-    const lit = Math.max(LIT(p, id), extra ?? 0, act === id ? 1 : 0);
-    return { background: `rgba(240,144,26,${(0.18 * lit).toFixed(3)})`, transform: `scale(${(1 + 0.035 * lit).toFixed(4)})`,
-      boxShadow: lit > 0.05 ? `0 ${(10 * lit).toFixed(1)}px ${(22 * lit).toFixed(1)}px -14px rgba(60,30,5,${(0.35 * lit).toFixed(2)})` : undefined };
+    const lit = Math.max(LIT(p, id), extra ?? 0, act === id && p < 0.66 ? 1 : 0);
+    return { background: `rgba(240,144,26,${(0.18 * lit).toFixed(3)})`, 
+      boxShadow: lit > 0.05 ? `inset 0 0 0 1.5px rgba(217,122,23,${(0.55 * lit).toFixed(2)})` : undefined };
   };
   return (
     <div className={c.scIn}>
@@ -166,11 +166,6 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
   const friIn = mj(span(p, 0.66, 0.69));
   const said = ANSWER.filter((a2) => p >= a2.at - 0.01);
 
-  // The connector: from the speaking bubble to the row it changes.
-  const act = activeRow(p);
-  const rowY = useRowY(note, act, p);
-  const linkSide = act === "dentist" ? "l" : act && act !== "thu" && p > 0.66 ? "r" : null;
-  const bubbleTop = r ? r.vh * 0.5 : 0;
 
   return (
     <div ref={box} className={c.box}>
@@ -219,15 +214,6 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
           </div>
         )}
 
-        {/* The connector line from the bubble to the row it changes. */}
-        {noteBox && linkSide && rowY !== null && (
-          <svg className={c.link} aria-hidden="true">
-            {linkSide === "l"
-              ? <path d={`M ${tx - 22} ${bubbleTop} C ${tx - 10} ${bubbleTop}, ${tx - 10} ${rowY}, ${tx + 6} ${rowY}`} />
-              : <path d={`M ${tx + tw + 22} ${bubbleTop} C ${tx + tw + 10} ${bubbleTop}, ${tx + tw + 10} ${rowY}, ${tx + tw - 6} ${rowY}`} />}
-          </svg>
-        )}
-
         {noteBox && <>
           <figure className={c.chat} data-side="l" style={{ opacity: tueIn, transform: `translate(${((1 - tueIn) * -30).toFixed(1)}px, -50%)`, right: `calc(50% + ${tw / 2 + 22}px)` }}>
             <p className={c.bMe}>Booked the dentist, Thursday at 10.</p>
@@ -236,7 +222,7 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
           <figure className={c.chat} data-side="r" style={{ opacity: friIn, transform: `translate(${((1 - friIn) * 30).toFixed(1)}px, -50%)`, left: `calc(50% + ${tw / 2 + 22}px)` }}>
             <p className={c.bMe}>How did my week go?</p>
             <p className={c.bAi} style={{ opacity: said.length ? 1 : 0 }}><span><AIGlyph name="claude" size={13} color="#d97757" />Claude</span>
-              {ANSWER.map((a2, i) => <span key={i} className={c.seg} style={{ opacity: mj(span(p, a2.at - 0.01, a2.at + 0.02)) }}>{a2.text} </span>)}
+              {said.map((a2, i) => <span key={i} className={c.seg} style={{ opacity: mj(span(p, a2.at - 0.01, a2.at + 0.02)) }}>{a2.text} </span>)}
             </p>
           </figure>
         </>}
