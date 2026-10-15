@@ -1072,8 +1072,10 @@ export const handlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unkn
     const { title } = await withHead(c.v, { ...n, head_ct: r.head_ct });
     await tx`select set_config('pane.source', 'restore', true)`;
     const [done] = await tx<{ version: string; updated_at: Date }[]>`
-      update public.notes set body_ct = ${r.body_ct}, head_ct = ${r.head_ct}, updated_at = now() where id = ${n.id}
+      update public.notes set body_ct = ${r.body_ct}, head_ct = ${r.head_ct}, updated_at = now() where id = ${n.id} and shared_note_id is null
       returning version, updated_at`;
+    // A shared note's row is a pointer: its text is the shared document's, never a version of the row.
+    if (!done) throw new ToolError(SHARED_ROW);
     return { restored: { id: n.id, title, version: Number(done.version), updated: iso(done.updated_at) } };
   },
 
