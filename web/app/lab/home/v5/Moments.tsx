@@ -22,8 +22,13 @@ function useSceneProgress() {
     if (q !== null) { setP(Number(q)); return; }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setP(1); return; }
     let raf = 0;
-    // Starts as the scene's top comes up past the bottom of the screen; done when its top is near the top third.
-    const read = () => { raf = 0; const el = ref.current; if (!el) return; const r = el.getBoundingClientRect(); setP(clamp((innerHeight * 0.95 - r.top) / (innerHeight * 0.72))); };
+    // Starts once about three quarters of the scene is on screen, so you see it begin; done as its top
+    // reaches the header. Always at least 280 px of scroll, so it never rushes on a short screen.
+    const read = () => {
+      raf = 0; const el = ref.current; if (!el) return; const r = el.getBoundingClientRect();
+      const start = innerHeight - 0.75 * Math.min(r.height, innerHeight), end = Math.min(100, start - 280);
+      setP(clamp((start - r.top) / (start - end)));
+    };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
     read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
