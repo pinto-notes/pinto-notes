@@ -126,7 +126,8 @@ export function ContinueHero({ captions }: { captions: Caption[] }) {
   // The note keeps its final size and is scaled down onto the phone's screen at the start: a pure
   // transform, so the flight is smooth. Its contents are sized from its width, so it reads the same.
   const s0 = r ? r.w / tw : 1, sc = lerp(s0, 1, fly);
-  const noteBox = r ? { left: tx, top: ty, width: tw, height: th, transformOrigin: "0 0",
+  // Height: on the phone the note fills the whole screen; it eases to its own height as it lands.
+  const noteBox = r ? { left: tx, top: ty, width: tw, height: lerp(r.h / s0, th, fly), transformOrigin: "0 0",
     transform: `translate(${lerp(r.x - tx, 0, fly).toFixed(2)}px, ${lerp(r.y - ty, 0, fly).toFixed(2)}px) scale(${sc.toFixed(5)})` } : null;
 
   // Chats around the note.
