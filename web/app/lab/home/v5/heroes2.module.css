@@ -255,9 +255,3 @@
   .layered .momentWords::before { content: ""; position: absolute; inset: -14% -22% -18% -30%; z-index: -1; pointer-events: none;
     background: radial-gradient(ellipse 60% 55% at 40% 45%, rgba(20, 22, 52, 0.62) 0%, rgba(20, 22, 52, 0.32) 55%, transparent 100%); }
 }
-/* Taller: full screen height again; the panorama crops at the sides to fill it (cover). */
-@media (min-width: 901px) {
-  .layered { aspect-ratio: auto; height: min(100vh, 960px); min-height: 680px; max-height: none; }
-  .layered .plate { object-position: 46% 100%; }
-}
-@media (min-width: 901px) { .layered .momentWords::before { display: none; } }
