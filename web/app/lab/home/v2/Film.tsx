@@ -20,6 +20,13 @@ const LINES = [
   { id: "sat", text: "Sat · Long run, 12 km" },
 ];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const ORBIT = [
+  { name: "ChatGPT", glyph: "openai" as const, color: "#0d0d0d", x: 54, y: 17, tx: 62, ty: 34 },
+  { name: "Claude", glyph: "claude" as const, color: "#d97757", x: 93, y: 13, tx: 84, ty: 32 },
+  { name: "Claude Code", glyph: "claude" as const, color: "#d97757", x: 95, y: 86, tx: 86, ty: 68 },
+  { name: "Codex", glyph: "openai" as const, color: "#0d0d0d", x: 55, y: 85, tx: 62, ty: 68 },
+];
+
 export type Caption = { at: number[]; day: number; text: string };
 const CAPTIONS: Caption[] = [
   { at: [0, 0.27], day: 0, text: "Tell one AI." },
@@ -68,6 +75,20 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
   return (
     <div className={f.stage}>
       <img className={f.desk} src="/home-d/desk.webp" alt="" style={{ opacity: pull, transform: `scale(${lerp(1.12, 1, pull).toFixed(3)})` }} />
+
+      {heroOn && h < 1 && (
+        // Around the note on the first screen: every AI it works with, each threaded to the note.
+        <div className={f.orbit} aria-hidden="true" style={{ opacity: 1 - h, transform: `scale(${(1 + 0.06 * h).toFixed(3)})` }}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+            {ORBIT.map((o) => <path key={o.name} d={`M ${o.x} ${o.y} Q ${(o.x + o.tx) / 2} ${o.y}, ${o.tx} ${o.ty}`} />)}
+          </svg>
+          {ORBIT.map((o, i) => (
+            <span key={o.name} className={f.disc} style={{ left: `${o.x}%`, top: `${o.y}%`, animationDelay: `${i * -1.3}s` }}>
+              <span className={f.discMark}><AIGlyph name={o.glyph} size={26} color={o.color} /></span>{o.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       <ol className={f.days} aria-hidden="true" style={heroOn ? { opacity: h } : undefined}>
         {DAYS.map((d, i) => <li key={d} data-on={i === cap.day || undefined} data-past={i < cap.day || undefined}>{d}</li>)}

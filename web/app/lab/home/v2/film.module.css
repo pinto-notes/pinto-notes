@@ -89,3 +89,17 @@
 }
 /* Before ChatGPT writes a line, its place is a faint pencil rule, so the empty note looks drawn on purpose. */
 .ghost { position: absolute; left: 34px; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: rgba(120, 90, 60, 0.09); }
+
+/* The hero's orbit: the AIs around the note, on paper discs, threaded to it. */
+.orbit { position: absolute; inset: 0; z-index: 1; pointer-events: none; transform-origin: 72% 50%; }
+.orbit > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.orbit > svg path { fill: none; stroke: #d98a2b; stroke-width: 2; stroke-dasharray: 2 7; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: 0.75;
+  animation: flow 1.6s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -18; } }
+.disc { position: absolute; display: grid; justify-items: center; gap: 7px; transform: translate(-50%, -50%); font-size: 12.5px; font-weight: 650; color: #5a4430; white-space: nowrap;
+  animation: bob 5.2s ease-in-out infinite; }
+@keyframes bob { 50% { translate: 0 -6px; } }
+.discMark { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: #fffdf9;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.18), 0 2px 3px rgba(80, 45, 10, 0.1), 0 14px 26px -12px rgba(80, 45, 10, 0.4); }
+@media (prefers-reduced-motion: reduce) { .orbit > svg path, .disc { animation: none; } }
+@media (max-width: 900px) { .orbit { display: none; } }
