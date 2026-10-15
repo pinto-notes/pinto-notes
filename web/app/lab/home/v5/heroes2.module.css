@@ -310,3 +310,7 @@
 /* Bubbles above the phone, in the sky, with room to breathe; the second one tucks behind her hair. */
 .editorial .splitScene .saidBox { left: 56%; top: 7%; width: 22%; }
 .editorial .splitScene .saidMe, .editorial .splitScene .saidAi { font-size: 14.5px; }
+/* Bubbles hug their text, like real chat bubbles, up to a comfortable width. */
+.editorial .splitScene .saidBox { width: auto; max-width: 290px; justify-items: start; }
+.editorial .splitScene .saidMe, .editorial .splitScene .saidAi { width: fit-content; max-width: 290px; box-sizing: border-box; }
+.editorial .splitScene .saidAi { margin-left: 18px; }
