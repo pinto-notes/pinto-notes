@@ -8,8 +8,8 @@ import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
 import { PaperStill } from "./Moments";
+import { AliveHero, TypeHero, WorldHero } from "./Heroes";
 import { ScrollVar } from "./ScrollVar";
-import { Week } from "./Week";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
@@ -45,23 +45,18 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
-      {hero === "side" ? (
+      {hero === "world-day" || hero === "world-night" ? (
+        <div className={v.top}><WorldHero art={hero === "world-day" ? "day" : "night"} /><Film captions={CAPTIONS} stopAt={0.83} /></div>
+      ) : hero === "type" ? (
+        <div className={v.top}><TypeHero /><Film captions={CAPTIONS} stopAt={0.83} /></div>
+      ) : hero === "alive" ? (
+        <div className={v.top}><AliveHero /><Film captions={CAPTIONS} stopAt={0.83} /></div>
+      ) : (
         <Film captions={CAPTIONS} stopAt={0.83} hero={<>
         <h1 className={v.h1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
         <p className={v.lede}>Plan with ChatGPT, check in with Claude, tick things off yourself. It all lands in one notebook that looks and feels like Apple Notes.</p>
         <Download quiet={G.quiet} />
       </>} />
-      ) : (
-        <div className={v.top}>
-          <section className={v.band}>
-            <h1 className={v.bandH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
-            <div className={v.bandRow}>
-              <p className={v.lede}>ChatGPT, Claude and Codex read and write in it, with your OK. It looks and feels like Apple Notes.</p>
-              <Download quiet={G.quiet} />
-            </div>
-          </section>
-          {hero === "single" ? <Film captions={CAPTIONS} /> : <Week />}
-        </div>
       )}
 
       <section className={v.frontier} aria-labelledby="moments">

@@ -44,7 +44,7 @@ const VERSIONS: (VersionInfo & { render: (p: Record<string, string | undefined>)
     id: "life", name: "The week, then real life",
     idea: "The week film is the hero, its first frame on the first screen. Then three moments people really have: an evening walk by voice, the week's shopping, a brain dump. Then templates and every app you can bring notes from.",
     take: "Built from your picks: #2's film, real use cases instead of statements.",
-    parts: [{ key: "hero", label: "Hero", options: [{ id: "side", label: "Beside the note" }, { id: "stack", label: "Band + stack of notes" }, { id: "single", label: "Band + one note" }] },
+    parts: [{ key: "hero", label: "Hero", options: [{ id: "world-day", label: "A · Paper world, day" }, { id: "world-night", label: "A · Paper world, night" }, { id: "type", label: "B · Big type" }, { id: "alive", label: "C · The note is alive" }, { id: "side", label: "Before: beside the note" }] },
       { key: "band", label: "Features band", options: [{ id: "sage", label: "Sage" }, { id: "leaf", label: "Leaf" }, { id: "amber", label: "Amber" }] }],
     render: (p) => <V5 hero={p.hero} band={p.band} />,
   },
