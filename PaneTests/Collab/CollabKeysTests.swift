@@ -128,4 +128,11 @@ import Testing
         #expect(codeOnEmils != nil && codeOnEmils == codeOnSaras)
         #expect(codeOnEmils?.count == 14)
     }
+
+    @Test func renewingAKeyWithNoOneRemovedSendsAnExplicitNullUser() throws {
+        let params = SupabaseCollabTransport.RemoveParams(p_note: "n", p_user: nil, p_epoch: 2, p_wraps: [])
+        let json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(params)) as? [String: Any])
+        #expect(Set(json.keys) == ["p_note", "p_user", "p_epoch", "p_wraps"])
+        #expect(json["p_user"] is NSNull)
+    }
 }

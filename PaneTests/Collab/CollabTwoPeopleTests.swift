@@ -238,4 +238,26 @@ import Testing
     @Test func thisBuildTellsTheServerItKnowsSharedNotes() {
         #expect(Backend.clientTag.split(separator: " ").contains("shared/1"))
     }
+
+    @Test func afterALeaveTheOwnersRelaunchedAppRenewsTheKey() async throws {
+        let emilID = server.account("Emil"), saraID = server.account("Sara")
+        let emilKey = SymmetricKey(size: .bits256)
+        let emil = try device(emilID, name: "Emil", dataKey: emilKey), sara = try device(saraID, name: "Sara")
+        let note = Note(body: "Plan\n")
+        emil.context.insert(note)
+        try await emil.store.setAccess(.edit, for: note)
+        #expect(await sara.store.join(try #require(emil.store.linkURL(note))))
+        await server.eventually { server.channelCount(note.id) == 2 }
+        try emil.context.save()
+        // Emil quits; Sara leaves meanwhile; Emil's app starts again on the same library.
+        emil.store.stop()
+        try await sara.store.leave(try #require(sara.context.pointer(forShared: note.id)))
+        let relaunched = CollabStore(name: "Emil", transport: server.transport(for: emilID), dataKey: { emilKey },
+                                     book: CollabKeyBook(account: emilID, defaults: TestDefaults()))
+        relaunched.context = emil.context
+        await relaunched.checkInvites()
+        let row = try #require(try await server.transport(for: emilID).memberships().first { $0.note_id == note.id })
+        #expect(row.epoch == 2)
+        #expect(row.rekey_after == nil)
+    }
 }
