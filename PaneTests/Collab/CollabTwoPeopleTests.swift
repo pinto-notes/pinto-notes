@@ -199,4 +199,43 @@ import Testing
         await server.eventually { jonas.store.session(for: his)?.text == mine.text }
         #expect(jonas.store.session(for: his)?.text == "Trip\n- after Sara left\n")
     }
+
+    @Test func theSnapshotUnderANewKeyIsTriedAgainUntilItsIn() async throws {
+        CollabSession.snapshotRetryAfter = .milliseconds(50)
+        defer { CollabSession.snapshotRetryAfter = .seconds(20) }
+        let (emil, _, note, ids) = try await shared("Budget\n")
+        let mine = try #require(emil.store.session(for: note.id))
+        server.failSnapshots = true
+        try await emil.store.remove(ids.1, from: note)
+        #expect(mine.epoch == 2)
+        #expect(!(server.snapshots[note.id] ?? []).contains { $0.epoch == 2 })
+        #expect(mine.owesSnapshot)
+        server.failSnapshots = false
+        await server.eventually { (server.snapshots[note.id] ?? []).contains { $0.epoch == 2 } }
+        #expect((server.snapshots[note.id] ?? []).contains { $0.epoch == 2 })
+        #expect(!mine.owesSnapshot)
+        // A device starting now opens it with the new key alone.
+        let row = try #require(try await server.transport(for: ids.0).memberships().first { $0.note_id == note.id })
+        #expect(row.epoch == 2)
+    }
+
+    @Test func aNoteTooLongToSnapshotIsntShared() async throws {
+        let emilID = server.account("Emil")
+        let emil = try device(emilID, name: "Emil")
+        // Text that doesn't compress, longer than the server takes in one snapshot.
+        var bytes = [UInt8](repeating: 0, count: 4_500_000)
+        for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+        let long = Data(bytes).base64EncodedString()
+        #expect(try CollabText.sealedSnapshotSize(of: long) > CollabSession.maxSnapshot)
+        #expect(try CollabText.sealedSnapshotSize(of: "A short note") < 1000)
+        let note = Note(body: long)
+        emil.context.insert(note)
+        await #expect(throws: Collab.Failure.tooLongToShare) { try await emil.store.share(note) }
+        #expect(!server.calls.contains("share"))
+        #expect(Collab.Failure.tooLongToShare.errorDescription == "This note is too long to share. Split it into smaller notes.")
+    }
+
+    @Test func thisBuildTellsTheServerItKnowsSharedNotes() {
+        #expect(Backend.clientTag.split(separator: " ").contains("shared/1"))
+    }
 }
