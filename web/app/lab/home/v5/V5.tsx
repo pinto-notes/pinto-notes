@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Agents, Dump, Walk } from "./Moments";
+import { Agents, Dump, Together, Walk } from "./Moments";
 import { Week } from "./Week";
 import v from "./v5.module.css";
 
@@ -79,6 +79,14 @@ export function V5({ hero = "stack" }: { hero?: string }) {
             <x.Scene />
           </div>
         ))}
+      </section>
+
+      <section className={v.togetherSec} aria-labelledby="together">
+        <div className={v.momentsHead}>
+          <h2 id="together" className={v.big}>Plan it together. Both your AIs too.</h2>
+          <p className={v.say}>Share a note with someone. You both edit it live, and each of you brings your own AI.</p>
+        </div>
+        <Together />
       </section>
 
       <section className={d.wait} aria-labelledby="wait">

@@ -192,3 +192,48 @@ export function Agents() {
     </div>
   );
 }
+
+/// 5. Together: one shared note, two people, and each of them brings their own AI. Matches the
+/// collaboration design: a person's colour is their caret, their name flag and their avatar.
+export function Together() {
+  const [ref, p] = useSceneProgress();
+  const SARA = "Dinner at Taberna da Rua das Flores";
+  const typed = span(p, 0.08, 0.3);
+  const flag = p < 0.36 ? 1 : 1 - mj(span(p, 0.36, 0.4));
+  const saraDone = typed >= 1;
+  const gpt = over(span(p, 0.42, 0.5));
+  const move = mj(span(p, 0.6, 0.7)), claudeMark = over(span(p, 0.68, 0.76));
+  const youTick = span(p, 0.82, 0.88);
+  const tint = (v: number) => ({ background: `rgba(240, 144, 26, ${(0.14 * v).toFixed(3)})` });
+  return (
+    <div ref={ref} className={m.together}>
+      <figure className={m.shared}>
+        <div className={m.sharedBar}>
+          <span className={m.lights}><i /><i /><i /></span>
+          <span className={m.sharedFolder}>Travel</span>
+          <span className={m.people}><b className={m.av} data-who="sara">SL</b><b className={m.av} data-who="you">EW</b><span className={m.shareIcon}><svg viewBox="0 0 16 16"><path d="M8 10V2M5 4.5 8 1.5l3 3M3.5 7v6.5h9V7" /></svg></span></span>
+        </div>
+        <div className={m.sharedPaper}>
+          <h3 className={m.sharedTitle}>Lisbon, 14–18 May</h3>
+          <p className={m.sharedSub}>Shared with Sara</p>
+          <ul className={m.sharedList}>
+            <li><span className={m.box} data-on=""><svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 0 }} /></svg></span><span data-done="">Flights booked</span></li>
+            <li>
+              <span className={m.box} data-on={youTick > 0.5 || undefined} style={{ transform: `scale(${youTick > 0 && youTick < 1 ? (0.85 + 0.15 * over(youTick)).toFixed(3) : 1})` }}><svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(youTick * 1.4) }} /></svg></span>
+              <span className={m.saraText} data-done={youTick > 0.5 || undefined}>{SARA.slice(0, Math.round(SARA.length * typed))}
+                {!saraDone || flag > 0 ? <i className={m.saraCaret} style={{ opacity: saraDone ? flag : 1 }}><em style={{ opacity: flag }}>Sara</em></i> : null}
+              </span>
+            </li>
+            <li style={{ ...tint(claudeMark * (1 - span(p, 0.9, 1) * 0.6)) }}>
+              <span className={m.box} /><span>{move > 0.5 ? "Friday: Gulbenkian Museum" : "Monday: Gulbenkian Museum"}</span>
+              <span className={m.by} style={{ opacity: claudeMark, transform: `scale(${(0.8 + 0.2 * claudeMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Your Claude: closed Mondays</span>
+            </li>
+            <li style={{ opacity: gpt, transform: `translateY(${((1 - gpt) * 10).toFixed(1)}px)`, ...tint(gpt * (1 - span(p, 0.56, 0.62))) }}>
+              <span className={m.box} /><span>Thursday: day trip to Sintra</span><span className={m.by}><AIGlyph name="openai" size={11} />Sara's ChatGPT</span>
+            </li>
+          </ul>
+        </div>
+      </figure>
+    </div>
+  );
+}

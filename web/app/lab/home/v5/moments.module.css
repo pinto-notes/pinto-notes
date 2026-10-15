@@ -138,3 +138,34 @@
   .agentNote { bottom: 16px; }
   .stage:has(.shopPhone) { height: 720px; }
 }
+
+/* Together: one shared note, centred and large, with the collaboration design's carets and avatars. */
+.together { position: relative; display: grid; place-items: center; padding: 56px 24px 64px; border-radius: 28px; background: linear-gradient(160deg, #fbeedd 0%, #f6e2cb 100%);
+  box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.1); }
+.shared { margin: 0; width: min(640px, 100%); border-radius: 18px; overflow: hidden; background: #fffdf9; color: #1d1b19;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 2px 4px rgba(60, 30, 5, 0.06), 0 50px 100px -44px rgba(60, 30, 5, 0.55); }
+.sharedBar { position: relative; display: flex; align-items: center; height: 44px; padding: 0 14px; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); }
+.sharedFolder { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12.5px; font-weight: 600; color: #8a7a68; }
+.people { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.av { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-size: 10.5px; font-weight: 700; }
+.av[data-who="sara"] { background: #75703c; }
+.av[data-who="you"] { background: #c8692a; }
+.shareIcon { width: 18px; height: 18px; margin-left: 6px; color: #5a4430; }
+.shareIcon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.sharedPaper { padding: 26px 34px 32px; }
+.sharedTitle { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+.sharedSub { margin: 4px 0 16px; font-size: 14px; color: #8a7a68; }
+.sharedList { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.sharedList li { display: flex; align-items: center; gap: 12px; min-height: 42px; margin-left: -10px; padding: 0 10px; border-radius: 10px; font-size: 19px; flex-wrap: wrap; will-change: transform, opacity; }
+.sharedList span[data-done] { color: #8f8478; }
+.sharedList .by { height: 22px; font-size: 11.5px; padding: 0 9px; }
+.saraText { position: relative; }
+/* Sara's caret: her colour, with her name flag sitting on top of it while she types. */
+.saraCaret { position: relative; display: inline-block; width: 2px; height: 1.1em; margin-left: 1px; vertical-align: -0.18em; background: #75703c; font-style: normal; }
+.saraCaret em { position: absolute; left: 0; bottom: 100%; height: 17px; padding: 0 6px; border-radius: 4px 4px 4px 0; background: #75703c; color: #fff; font-size: 11px; font-weight: 650; font-style: normal; line-height: 17px; white-space: nowrap; }
+@media (max-width: 700px) {
+  .together { padding: 28px 12px 34px; }
+  .sharedPaper { padding: 20px 18px 24px; }
+  .sharedTitle { font-size: 26px; }
+  .sharedList li { font-size: 15.5px; gap: 6px 10px; }
+}
