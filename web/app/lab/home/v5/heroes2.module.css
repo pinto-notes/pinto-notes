@@ -317,3 +317,26 @@
 /* One picture only: the bubbles sit in the sky left of her head, clear of her. */
 .editorial .splitScene .saidBox { left: 50%; top: 7%; }
 .editorial .splitScene .saidBox { left: 57%; }
+
+/* ── Iteration: polish ── */
+/* Subtitle a step larger and darker, so the left column isn't top-heavy. */
+.edLede { font-size: clamp(19px, 1.5vw, 23px); color: #4a3826; line-height: 1.4; }
+/* Her line has a tail toward her (right); ChatGPT's toward the phone (left). */
+.editorial .saidMe { position: relative; border-bottom-right-radius: 5px !important; border-bottom-left-radius: 16px !important; }
+.editorial .saidMe::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 14px; height: 14px; background: inherit;
+  clip-path: path("M0 0 C 2 8, 7 12, 14 14 L 0 14 Z"); }
+.editorial .saidAi { position: relative; border-bottom-left-radius: 5px !important; border-bottom-right-radius: 16px !important; }
+.editorial .saidAi::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff;
+  clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
+
+/* ── The push into her phone ── */
+.zoomBox { position: relative; }
+.zoomBox[data-on] { height: calc(100vh + 120vh); margin-top: -100px; }
+.zoomBox[data-on] .zoomPin { position: sticky; top: 0; height: 100vh; overflow: clip; }
+.zoomBox[data-on] .editorial { margin-top: 0; height: 100vh; min-height: 0; }
+.zoomBox[data-on] .splitScene { will-change: transform; z-index: 3; }
+.zoomWash { position: absolute; inset: 0; background: #fbeedd; z-index: 5; pointer-events: none; }
+/* The film comes up right under the end of the push, over the cream wash: no blank gap. */
+.zoomBox[data-on] { height: calc(100vh + 100vh); margin-bottom: -70vh; }
+.zoomBox[data-on] + * { position: relative; z-index: 6; }
+.zoomBox[data-on] { margin-bottom: -28vh; }

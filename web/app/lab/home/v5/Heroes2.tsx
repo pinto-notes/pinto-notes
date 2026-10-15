@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { G } from "../../copy";
 import { Download } from "../../kit";
@@ -220,14 +220,63 @@ const TOMORROW = [
   { text: "Call the dentist", at: 3.0 },
   { text: "Book Lisbon flights", at: 5.6 },
 ];
+/// The hero, then a push into her phone: as you scroll, the camera moves to her phone screen until it
+/// fills the window, and the note on it hands over to the film below. Wide screens only; Reduce Motion
+/// and phones keep the still hero.
+function useZoom() {
+  const box = useRef<HTMLDivElement>(null);
+  const screen = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const [z, setZ] = useState({ p: 0, on: false, ox: 0, oy: 0, dx: 0, dy: 0, s: 1 });
+  useEffect(() => {
+    if (!matchMedia("(min-width: 901px)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, base: { ox: number; oy: number; dx: number; dy: number; s: number } | null = null;
+    const measure = () => {
+      const c = card.current?.getBoundingClientRect(), sc = screen.current?.getBoundingClientRect(); if (!c || !sc) return null;
+      // Untransformed geometry (measured at p = 0): the screen's centre inside the card, and how far and
+      // how much it has to move to fill the window.
+      const cx = sc.left + sc.width / 2, cy = sc.top + sc.height / 2;
+      return { ox: cx - c.left, oy: cy - c.top, dx: innerWidth / 2 - cx, dy: innerHeight / 2 - cy, s: (innerHeight * 1.08) / sc.height };
+    };
+    const read = () => {
+      raf = 0; const el = box.current; if (!el) return;
+      const r = el.getBoundingClientRect(); const travel = r.height - innerHeight;
+      const p = Math.min(1, Math.max(0, travel > 0 ? -r.top / travel : 0));
+      if (!base || p === 0) { const m = measure(); if (m) base = m; }
+      if (base) setZ({ p, on: true, ...base });
+    };
+    const on = () => { if (!raf) raf = requestAnimationFrame(read); };
+    const resize = () => { base = null; on(); };
+    read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", resize);
+    return () => { removeEventListener("scroll", on); removeEventListener("resize", resize); cancelAnimationFrame(raf); };
+  }, []);
+  return { box, screen, card, z };
+}
+
 export function PhoneMomentHero() {
   const t = useClock();
+  const { box, screen, card, z } = useZoom();
   const said = "Plan tomorrow. Run before work, and the dentist.";
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
+  // Zoom: hold a moment, then push in over the middle of the scroll; the words and bubbles leave first,
+  // and the page fades to the film's cream as the screen fills the window.
+  const e = mj(span(z.p, 0.08, 0.62));
+  const words = 1 - mj(span(z.p, 0.02, 0.3));
+  const bubbles = 1 - mj(span(z.p, 0.08, 0.32));
+  const wash = mj(span(z.p, 0.58, 0.74));
+  const cardStyle: React.CSSProperties | undefined = z.on ? {
+    transformOrigin: `${z.ox.toFixed(1)}px ${z.oy.toFixed(1)}px`,
+    transform: `translate(${(z.dx * e).toFixed(1)}px, ${(z.dy * e).toFixed(1)}px) scale(${(1 + (z.s - 1) * e).toFixed(4)})`,
+    // The picture is wider than the card: as the camera pushes in, the clip opens up so it fills the window.
+    overflow: "visible",
+    clipPath: `inset(${(-900 * e).toFixed(0)}px round ${(28 * (1 - e)).toFixed(1)}px)`,
+  } : undefined;
   return (
+    <div ref={box} className={x.zoomBox} data-on={z.on || undefined}>
+    <div className={x.zoomPin}>
     <section className={x.editorial}>
-      <div className={x.edWords}>
+      <div className={x.edWords} style={z.on ? { opacity: words, transform: `translateY(${((1 - words) * -16).toFixed(1)}px)` } : undefined}>
         <h1 className={x.edH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
         <p className={x.edLede}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
         <div className={x.edCtas}>
@@ -239,13 +288,13 @@ export function PhoneMomentHero() {
         </div>
         <p className={x.edFine}>Free for Mac. Brings your Apple Notes over.</p>
       </div>
-      <div className={`${x.moment} ${x.shoulder} ${x.splitScene}`}>
+      <div ref={card} className={`${x.moment} ${x.shoulder} ${x.splitScene}`} style={cardStyle}>
       <div className={x.momentFit}>
         <img className={x.momentArt} src="/home-v5/hero/phone-shoulder.webp" alt="" />
-        <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
+        <div ref={screen} className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
           <div className={x.scIn}>
           <p className={x.scStatus}><b>21:40</b><span /></p>
-          <p className={x.scBack}>‹ Plans</p>
+          <p className={x.scBack}>‹ My notebook</p>
           <h3 className={x.scTitle}>Tomorrow</h3>
           <ul className={x.scList}>
             <li><i />Pick up the dry cleaning</li>
@@ -266,7 +315,7 @@ export function PhoneMomentHero() {
           </ul>
         </div>
         </div>
-        <div className={x.saidBox}>
+        <div className={x.saidBox} style={z.on ? { opacity: bubbles } : undefined}>
           <p className={x.saidMe} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
             <span className={x.scWave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
           </p>
@@ -277,5 +326,8 @@ export function PhoneMomentHero() {
       </div>
       </div>
     </section>
+    {z.on && <span className={x.zoomWash} style={{ opacity: wash }} aria-hidden="true" />}
+    </div>
+    </div>
   );
 }
