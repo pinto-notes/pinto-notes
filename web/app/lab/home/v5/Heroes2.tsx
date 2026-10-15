@@ -225,10 +225,11 @@ export function PhoneMomentHero() {
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
   return (
-    <section className={x.moment}>
+    <section className={`${x.moment} ${x.shoulder}`} data-dark-band="">
       <div className={x.momentFit}>
-        <img className={x.momentArt} src="/home-v5/hero/phone-close.webp" alt="" />
+        <img className={x.momentArt} src="/home-v5/hero/phone-shoulder.webp" alt="" />
         <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
+          <div className={x.scIn}>
           <p className={x.scStatus}><b>21:40</b><span /></p>
           <p className={x.scBack}>‹ Plans</p>
           <h3 className={x.scTitle}>Tomorrow</h3>
@@ -243,6 +244,13 @@ export function PhoneMomentHero() {
               );
             })}
           </ul>
+          <p className={x.scSection}>This week</p>
+          <ul className={x.scList}>
+            <li><i data-on="" />Long run, 12 km</li>
+            <li><i data-on="" />Read 20 pages</li>
+            <li><i />Call mum</li>
+          </ul>
+        </div>
         </div>
         <div className={x.saidBox}>
           <p className={x.saidMe} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
@@ -255,7 +263,7 @@ export function PhoneMomentHero() {
       </div>
       <div className={x.momentWords}>
         <Title className={x.h1Light} />
-        <p className={x.ledeLight}>{LEDE}</p>
+        <p className={x.ledeLight}>ChatGPT, Claude and Muse read and write in it, with your OK.</p>
         <Download quiet={G.quiet} />
       </div>
     </section>

@@ -145,3 +145,58 @@
 .saidBox { left: 55%; top: 24%; width: 17%; }
 .saidBox { left: 59.6%; top: 22%; width: 15.5%; }
 .moment::after { width: 52%; }
+.scSection { margin: 1.2cqw 0 0.4cqw; font-size: 0.75cqw; font-weight: 700; color: #8a7a68; }
+.scList li i[data-on] { background: #d97a17; box-shadow: none; }
+.scList li:has(i[data-on]) { color: #8f8478; text-decoration: line-through; text-decoration-color: rgba(120, 100, 80, 0.5); }
+.saidMe, .saidAi { font-size: 1.05cqw; }
+
+/* Over-the-shoulder art: the scene is scaled up so the phone reads; the app is sized from its own
+   screen width (the screen is a container), the bubbles in plain px. */
+.shoulder .momentFit { top: -20%; bottom: -20%; right: -30%; }
+.shoulder .screen { left: 58.91%; top: 31.67%; width: 9.93%; height: 37.3%; border-radius: 16% / 7.6%; container-type: inline-size; padding: 6cqw 6cqw 5cqw; }
+.shoulder .scStatus { font-size: 4.4cqw; margin-bottom: 6cqw; padding: 0 3cqw; }
+.shoulder .scBack { font-size: 4.6cqw; margin-bottom: 2cqw; }
+.shoulder .scTitle { font-size: 9cqw; margin-bottom: 4cqw; }
+.shoulder .scSection { font-size: 4.2cqw; margin: 5cqw 0 2cqw; }
+.shoulder .scList { gap: 0.6cqw; }
+.shoulder .scList li { font-size: 4.7cqw; gap: 2.6cqw; padding: 2.4cqw 2cqw; border-radius: 2.6cqw; }
+.shoulder .scList li i { width: 4.6cqw; height: 4.6cqw; }
+.shoulder .scList li em { font-size: 3.3cqw; padding: 0.6cqw 2cqw; border-radius: 4cqw; }
+.shoulder .saidBox { left: 69.6%; top: 34%; width: 10.8%; gap: 8px; }
+.shoulder .saidMe, .shoulder .saidAi { font-size: 14px; padding: 10px 13px; border-radius: 16px; }
+.shoulder .saidMe { border-bottom-left-radius: 5px; gap: 7px; }
+.shoulder .saidAi { border-bottom-right-radius: 5px; gap: 4px; }
+.shoulder .saidAi span { font-size: 11.5px; }
+.shoulder .momentWords { top: 14%; transform: none; }
+.shoulder::after { width: 50%; background: linear-gradient(90deg, rgba(12, 10, 24, 0.78) 0%, rgba(12, 10, 24, 0.5) 55%, transparent 100%); }
+@media (max-width: 900px) {
+  .shoulder .momentFit { top: auto; bottom: 0; height: 60%; right: auto; left: 50%; transform: translateX(-62%); }
+}
+.shoulder .screen { padding: 0; }
+.scIn { height: 100%; box-sizing: border-box; padding: 6cqw 6cqw 5cqw; display: flex; flex-direction: column; }
+.shoulder .momentFit { top: -6%; bottom: -6%; right: -16%; }
+.shoulder .saidBox { left: 70.5%; top: 32%; width: 13%; }
+/* Full-bleed: the scene is the top of the page, not a card on it. It runs under the header. */
+.moment { width: 100vw; margin-left: calc(50% - 50vw); margin-top: -100px; border-radius: 0; height: min(100vh, 940px); min-height: 680px; }
+.shoulder .momentWords { left: max(var(--gutter), calc(50vw - 600px)); top: calc(100px + 12%); }
+.shoulder .momentFit { right: calc(50% - 50vw * 0 - 600px - 16%); }
+.shoulder .momentFit { top: -2%; bottom: -2%; right: -6%; }
+@media (max-width: 900px) {
+  .moment { margin-top: -84px; height: auto; min-height: 0; padding-top: 110px; display: grid; }
+  .shoulder .momentWords { position: relative; left: auto; top: auto; transform: none; padding: 0 22px; width: auto; }
+  .shoulder .momentFit { position: relative; top: auto; bottom: auto; left: auto; right: auto; transform: none; width: 230%; height: auto; margin: 10px 0 0 -118%; }
+  .moment::after { display: none; }
+  .moment { background: linear-gradient(180deg, #2b2440 0%, #4a3550 40%, #6b4a4a 100%); }
+}
+@media (max-width: 900px) {
+  .shoulder .momentWords { order: 1; }
+  .shoulder .momentFit { order: 2; width: auto; height: 420px; margin: 24px 0 0; left: 50%; transform: translateX(-62%); aspect-ratio: 1672 / 941; }
+  .moment { overflow: hidden; }
+}
+@media (max-width: 900px) {
+  .moment { grid-template-columns: minmax(0, 1fr); }
+  .shoulder .momentWords { max-width: 100%; box-sizing: border-box; }
+  .shoulder .momentWords h1 { font-size: 42px; }
+  .shoulder .momentFit { transform: translateX(-64%); height: 440px; justify-self: start; }
+}
+@media (max-width: 900px) { .shoulder .momentWords { padding: 0 var(--gutter, 20px); } }
