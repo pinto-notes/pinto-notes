@@ -220,64 +220,63 @@ const TOMORROW = [
   { text: "Call the dentist", at: 3.0 },
   { text: "Book Lisbon flights", at: 5.6 },
 ];
-/// The note lifts out of her phone: as you scroll toward the film, a copy of the phone's note leaves the
-/// screen, glides down and widens into the film's note window, landing exactly on it; then the film's
-/// own note takes over. Both ends are measured live, so it lands wherever the film is. Wide screens only.
-function useLift() {
+/// The hero, then a push into her phone: as you scroll, the camera moves to her phone screen until it
+/// fills the window, and the note on it hands over to the film below. Wide screens only; Reduce Motion
+/// and phones keep the still hero.
+function useZoom() {
+  const box = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
-  const [st, setSt] = useState<null | { x: number; y: number; w: number; h: number; r: number; q: number; pw: number; ph: number; fw: number; fh: number; phone: string; film: string }>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const [z, setZ] = useState({ p: 0, on: false, ox: 0, oy: 0, dx: 0, dy: 0, s: 1 });
   useEffect(() => {
     if (!matchMedia("(min-width: 901px)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0, phone = "", film = "", pw = 0, ph = 0;
-    const fig = () => document.querySelector('[class*="film_noteWrap"] figure') as HTMLElement | null;
+    let raf = 0, base: { ox: number; oy: number; dx: number; dy: number; s: number } | null = null;
+    const measure = () => {
+      const c = card.current?.getBoundingClientRect(), sc = screen.current?.getBoundingClientRect(); if (!c || !sc) return null;
+      // Untransformed geometry (measured at p = 0): the screen's centre inside the card, and how far and
+      // how much it has to move to fill the window.
+      const cx = sc.left + sc.width / 2, cy = sc.top + sc.height / 2;
+      return { ox: cx - c.left, oy: cy - c.top, dx: innerWidth / 2 - cx, dy: innerHeight / 2 - cy, s: (innerHeight * 1.08) / sc.height };
+    };
     const read = () => {
-      raf = 0; const sc = screen.current, f = fig(); if (!sc || !f) return;
-      const filmBox = f.closest('[class*="film_film"]') as HTMLElement | null; if (!filmBox) return;
-      const pinAt = filmBox.getBoundingClientRect().top + scrollY - 100;
-      const q = Math.min(1, Math.max(0, (scrollY - 30) / (pinAt - 30)));
-      const s = sc.getBoundingClientRect(), t = f.getBoundingClientRect();
-      if (q === 0 || !phone) { phone = sc.outerHTML; pw = s.width; ph = s.height; }
-      if (!film) film = f.outerHTML;
-      const wrap = f.parentElement as HTMLElement;
-      sc.style.visibility = q > 0 && q < 1 ? "hidden" : "";
-      wrap.style.opacity = q >= 1 ? "" : "0";
-      const e = mj(q);
-      const L = (a: number, b: number) => a + (b - a) * e;
-      setSt({ x: L(s.left, t.left), y: L(s.top, t.top), w: L(s.width, t.width), h: L(s.height, t.height), r: L(pw * 0.11, 16), q, pw, ph, fw: f.offsetWidth, fh: f.offsetHeight, phone, film });
+      raf = 0; const el = box.current; if (!el) return;
+      const r = el.getBoundingClientRect(); const travel = r.height - innerHeight;
+      const p = Math.min(1, Math.max(0, travel > 0 ? -r.top / travel : 0));
+      if (!base || p === 0) { const m = measure(); if (m) base = m; }
+      if (base) setZ({ p, on: true, ...base });
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
-    const t0 = setTimeout(read, 300);
-    addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
-    return () => { clearTimeout(t0); removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf);
-      const f = fig(); if (f?.parentElement) f.parentElement.style.opacity = ""; if (screen.current) screen.current.style.visibility = ""; };
+    const resize = () => { base = null; on(); };
+    read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", resize);
+    return () => { removeEventListener("scroll", on); removeEventListener("resize", resize); cancelAnimationFrame(raf); };
   }, []);
-  return { screen, st };
-}
-
-function Lift({ st }: { st: NonNullable<ReturnType<typeof useLift>["st"]> }) {
-  if (st.q <= 0 || st.q >= 1) return null;
-  // Cross-fade in the middle of the flight, so there's never a blank card.
-  const filmO = mj(span(st.q, 0.35, 0.65)), phoneO = 1 - mj(span(st.q, 0.45, 0.7));
-  return (
-    <div className={x.lift} style={{ left: st.x, top: st.y, width: st.w, height: st.h, borderRadius: st.r }} aria-hidden="true">
-      <div className={`${x.liftLayer} ${x.liftPhone} ${x.shoulder}`} style={{ width: st.pw, height: st.ph, transform: `scale(${(st.w / st.pw).toFixed(4)})`, opacity: phoneO }}
-        dangerouslySetInnerHTML={{ __html: st.phone }} />
-      <div className={x.liftLayer} style={{ width: st.fw, height: st.fh, transform: `scale(${(st.w / st.fw).toFixed(4)}, ${(st.h / st.fh).toFixed(4)})`, opacity: filmO }}
-        dangerouslySetInnerHTML={{ __html: st.film }} />
-    </div>
-  );
+  return { box, screen, card, z };
 }
 
 export function PhoneMomentHero() {
   const t = useClock();
-  const { screen, st } = useLift();
+  const { box, screen, card, z } = useZoom();
   const said = "Plan tomorrow. Run before work, and the dentist.";
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
+  // Zoom: hold a moment, then push in over the middle of the scroll; the words and bubbles leave first,
+  // and the page fades to the film's cream as the screen fills the window.
+  const e = mj(span(z.p, 0.08, 0.62));
+  const words = 1 - mj(span(z.p, 0.02, 0.3));
+  const bubbles = 1 - mj(span(z.p, 0.08, 0.32));
+  const wash = mj(span(z.p, 0.58, 0.74));
+  const cardStyle: React.CSSProperties | undefined = z.on ? {
+    transformOrigin: `${z.ox.toFixed(1)}px ${z.oy.toFixed(1)}px`,
+    transform: `translate(${(z.dx * e).toFixed(1)}px, ${(z.dy * e).toFixed(1)}px) scale(${(1 + (z.s - 1) * e).toFixed(4)})`,
+    // The picture is wider than the card: as the camera pushes in, the clip opens up so it fills the window.
+    overflow: "visible",
+    clipPath: `inset(${(-900 * e).toFixed(0)}px round ${(28 * (1 - e)).toFixed(1)}px)`,
+  } : undefined;
   return (
-    <>
+    <div ref={box} className={x.zoomBox} data-on={z.on || undefined}>
+    <div className={x.zoomPin}>
     <section className={x.editorial}>
-      <div className={x.edWords}>
+      <div className={x.edWords} style={z.on ? { opacity: words, transform: `translateY(${((1 - words) * -16).toFixed(1)}px)` } : undefined}>
         <h1 className={x.edH1}>The notebook <span className={h.mark}>you and your AI</span> share.</h1>
         <p className={x.edLede}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
         <div className={x.edCtas}>
@@ -289,7 +288,7 @@ export function PhoneMomentHero() {
         </div>
         <p className={x.edFine}>Free for Mac. Brings your Apple Notes over.</p>
       </div>
-      <div className={`${x.moment} ${x.shoulder} ${x.splitScene}`}>
+      <div ref={card} className={`${x.moment} ${x.shoulder} ${x.splitScene}`} style={cardStyle}>
       <div className={x.momentFit}>
         <img className={x.momentArt} src="/home-v5/hero/phone-shoulder.webp" alt="" />
         <div ref={screen} className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
@@ -316,7 +315,7 @@ export function PhoneMomentHero() {
           </ul>
         </div>
         </div>
-        <div className={x.saidBox}>
+        <div className={x.saidBox} style={z.on ? { opacity: bubbles } : undefined}>
           <p className={x.saidMe} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
             <span className={x.scWave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
           </p>
@@ -327,7 +326,8 @@ export function PhoneMomentHero() {
       </div>
       </div>
     </section>
-    {st && <Lift st={st} />}
-    </>
+    {z.on && <span className={x.zoomWash} style={{ opacity: wash }} aria-hidden="true" />}
+    </div>
+    </div>
   );
 }

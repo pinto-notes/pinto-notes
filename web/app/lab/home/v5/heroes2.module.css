@@ -340,11 +340,3 @@
 .zoomBox[data-on] { height: calc(100vh + 100vh); margin-bottom: -70vh; }
 .zoomBox[data-on] + * { position: relative; z-index: 6; }
 .zoomBox[data-on] { margin-bottom: -28vh; }
-
-/* The lifted note: a fixed copy flying from her phone to the film's note. Each layer keeps its own
-   natural size and is scaled by width, so text never squashes. */
-.lift { position: fixed; z-index: 60; overflow: hidden; pointer-events: none; background: #fbfaf7;
-  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 30px 70px -30px rgba(60, 30, 5, 0.55); }
-.liftLayer { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.liftPhone.liftPhone > * { position: absolute !important; inset: 0 !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; visibility: visible !important; border-radius: 0 !important; }
-.liftLayer > figure { margin: 0; box-shadow: none; }
