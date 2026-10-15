@@ -285,3 +285,7 @@
 /* Your lines need no label: the waveform already says it's you. */
 .spokenIn .said[data-who="you"] > span:first-child { display: none; }
 .spokenIn .said > span:first-child { display: none !important; }
+/* The waveform sits right on top of your words, and your words share its blue: one unit. */
+.wave { top: calc(69% - 36px); }
+.orb { top: 36%; }
+.spokenIn .said[data-who="you"] { color: #3f78d8; }
