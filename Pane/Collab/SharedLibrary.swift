@@ -437,6 +437,9 @@ final class SharedLibrary {
     /// text it had.
     func removeLocally(_ note: Note) {
         if note.sharedNoteID == note.id {
+            // The newest text this device has: the open document's, else the stored one's (the
+            // note's own copy can be behind when it wasn't open).
+            if let text = sessions[note.id]?.text ?? note.sharedDocument?.storedText() { note.body = text }
             forget(note)
             note.sharedNoteID = nil
             note.touch()
