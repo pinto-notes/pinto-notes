@@ -34,6 +34,8 @@ final class MemoryCollabServer {
     /// While true, stored changes aren't relayed on the channels (a dropped socket, a change stored
     /// while a channel was still joining).
     var dropRelays = false
+    /// While true, snapshots are refused as if the network dropped them.
+    var failSnapshots = false
 
     /// Every row the server holds, as text: for tests that check what never reaches it.
     var everythingStored: String {
@@ -215,6 +217,7 @@ final class MemoryCollabServer {
     }
 
     func addSnapshot(_ user: UUID, note: UUID, upto: Int64, epoch: Int, ct: String) throws {
+        if failSnapshots { throw Offline() }
         guard ["owner", "editor"].contains(role(note, user) ?? "") else { throw Collab.Failure.readOnly }
         guard notes[note]?.epoch == epoch else { throw Collab.Failure.staleEpoch }
         snapshots[note, default: []].append(Collab.Snapshot(note_id: note, upto: upto, epoch: epoch, ct: ct))
