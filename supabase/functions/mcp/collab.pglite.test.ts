@@ -387,3 +387,36 @@ Deno.test("opening a link shows who shared which note before joining, and only t
   await app(pg, sara.id, `select public.collab_join_link($1, $2, $3, $4)`, [link, answer, toSelf, await selfWrap(sara, nk, note, 1)]);
   assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 2);
 });
+
+// 20261015060000_collab_review_fixes.sql: a snapshot can't claim changes that don't exist, and a
+// member who starts fresh makes the owner renew the key.
+
+Deno.test("a snapshot past the newest change is refused, so no editor can wipe a note's changes", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  const nkSara = await accept(pg, sara, note);
+  const last = await push(pg, emil, note, nk, 1, "emil types");
+  const snap = (upto: string | number) => app(pg, sara.id, `insert into public.note_snapshots (note_id, upto, epoch, ct) values ($1, $2, 1, $3)`,
+    [note, upto, "amb3s.1.AA=="]);
+  const e = await assertRejects(() => snap("9223372036854775000")) as { code?: string; hint?: string };
+  assertEquals([e.code, e.hint], ["22023", "bad_upto"]);
+  assertEquals((await app(pg, emil.id, `select count(*)::int n from public.note_updates where note_id = $1`, [note]))[0].n, 1);
+  // Up to the newest change is fine, and compacts as before.
+  await snap(last);
+  await push(pg, sara, note, nkSara, 1, "after the snapshot");
+  assertEquals((await app(pg, emil.id, `select count(*)::int n from public.note_updates where note_id = $1`, [note]))[0].n, 1);
+});
+
+Deno.test("a member who starts fresh makes the owner renew the key", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  await accept(pg, sara, note);
+  const signedIn = { "request.jwt.claims": JSON.stringify({ sub: sara.id, role: "authenticated", amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) - 30 }] }) };
+  assertEquals((await asUser<any>(pg, sara.id, `select public.start_fresh($1) as done`, [sara.keyId], signedIn))[0].done, true);
+  const [n] = await app(pg, emil.id, `select rekey_after from public.shared_notes where id = $1`, [note]);
+  assert(n.rekey_after !== null);
+});

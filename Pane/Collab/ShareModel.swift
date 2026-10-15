@@ -158,7 +158,9 @@ extension CollabStore: ShareBackend {
         try await transport.accept(note: id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: id, epoch: epoch))
         keys[id] = (nk, epoch)
         session.reseal(nk: nk, epoch: epoch)
-        try? await transport.send(snapshot: try session.sealedSnapshot(upto: session.lastSeen), note: id, upto: session.lastSeen, epoch: epoch)
+        // Under the new key, or nobody who starts from the server could open the note: tried again
+        // until it's in.
+        await session.requireSnapshot()
         await session.refreshMembers()
     }
 

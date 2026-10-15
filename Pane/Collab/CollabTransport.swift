@@ -41,7 +41,9 @@ protocol CollabTransport: AnyObject {
     /// The owner stops sharing (deleting the note, as in Apple Notes; `collab_unshare`): the
     /// merged text goes back into the owner's notes row (sealed under their data key, `body` and
     /// `head`), the shared note and everything of it goes, and every member's pointer is deleted.
-    func unshare(note: UUID, body: String, head: String) async throws
+    /// `upto`: the newest change the text holds; the server refuses when a newer one exists, so
+    /// text that's behind the document never replaces it.
+    func unshare(note: UUID, body: String, head: String, upto: Int64) async throws
     /// The note's sealed title and preview (`amb3h`), for lists.
     func updateHead(note: UUID, head: String) async throws
 
@@ -188,6 +190,8 @@ enum Collab {
         case wrapsIncomplete
         /// The channel refused you: you aren't in the note (any more).
         case notMember
+        /// The note is too long to share: its snapshot would be over the server's limit.
+        case tooLongToShare
         case server(String)
 
         var errorDescription: String? {
@@ -199,6 +203,7 @@ enum Collab {
             case .notOwner: "Only the note's owner can do that."
             case .wrapsIncomplete: "Every remaining person needs the new key."
             case .notMember: "You're not in this note anymore."
+            case .tooLongToShare: "This note is too long to share. Split it into smaller notes."
             case .server(let m): m
             }
         }

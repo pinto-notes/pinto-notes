@@ -34,6 +34,17 @@ enum CollabText {
     /// Takes changes (or a whole saved document) into `doc`. Into an empty document automerge-swift
     /// swaps in a freshly loaded one, which counts text in Unicode scalars instead of UTF-16, and
     /// every splice after that lands in the wrong place next to an emoji. Merging keeps the encoding.
+    /// How big a note's text is as a sealed snapshot, before it's shared: the server takes
+    /// snapshots up to `CollabSession.maxSnapshot`, and a note whose snapshot can't go up can't be
+    /// opened by anyone joining it.
+    static func sealedSnapshotSize(of text: String) throws -> Int {
+        let doc = Document(textEncoding: .utf16)
+        let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
+        try doc.spliceText(obj: body, start: 0, delete: 0, value: text)
+        // amb3s.<epoch>.<base64 of nonce (12) ‖ ciphertext ‖ tag (16)>
+        return 12 + ((doc.save().count + 28 + 2) / 3) * 4
+    }
+
     static func absorb(_ bytes: Data, into doc: Document) throws {
         if doc.heads().isEmpty { try doc.merge(other: try Document(bytes)) } else { try doc.applyEncodedChanges(encoded: bytes) }
     }

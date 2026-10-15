@@ -257,6 +257,10 @@ struct NoteDetailView: View {
         content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
+            // The two-device check (CollabScript, Amber Notes Beta only): Delete Note's question, as the menu asks it.
+            .onReceive(NotificationCenter.default.publisher(for: CollabScript.askDelete)) { _ in
+                if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
+            }
             #if os(iOS)
             // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }

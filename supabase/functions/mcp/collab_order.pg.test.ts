@@ -154,3 +154,87 @@ Deno.test({ name: "a change for the old key can't commit after a removal renewed
     await drop();
   }
 });
+
+Deno.test({ name: "an AI's snapshot never compacts a change that committed after it loaded the note", ignore: !local, sanitizeResources: false, sanitizeOps: false }, async () => {
+  const { loadAutomerge, loadDoc, writeDoc, SNAPSHOT_EVERY } = await import("./shared_notes.ts");
+  const { seal3 } = await import("../_shared/collab.ts");
+  const { newDataKey } = await import("../_shared/e2ee.ts");
+  const A = await loadAutomerge();
+  const { url, drop } = await freshDB();
+  const db = postgres(url, { max: 1, onnotice: () => {} });
+  const [emilID, saraID] = [crypto.randomUUID(), crypto.randomUUID()];
+  await db`insert into auth.users (id, email) values (${emilID}, 'emil@example.com'), (${saraID}, 'sara@example.com')`;
+  const note = crypto.randomUUID(), nk = newDataKey();
+  await db`insert into public.shared_notes (id, owner_id) values (${note}, ${emilID})`;
+  await db`insert into public.note_members (note_id, user_id, role, epoch, key_wrap, wrapped_by) values
+    (${note}, ${emilID}, 'owner', 1, 'amb3k.AA==', ${emilID}), (${note}, ${saraID}, 'editor', 1, 'amb3k.AA==', ${emilID})`;
+  const emil = person(url, emilID), sara = person(url, saraID);
+  // Emil's Mac: the note's first text, then one more line typed while Sara's AI is working.
+  let mac = A.change(A.init<{ body?: string }>(), (d) => { d.body = "Plan\n\n- Venue\n"; });
+  const push = async (change: Uint8Array) => {
+    await emil.sql.begin(async (tx) => {
+      await emil.as(tx);
+      await tx`insert into public.note_updates (note_id, epoch, ct) values (${note}, 1, ${await seal3("u", change as Uint8Array<ArrayBuffer>, nk, note, 1, emilID)})`;
+    });
+  };
+  try {
+    await push(A.getLastLocalChange(mac)!);
+    const shared = { id: note, role: "editor" as const, epoch: 1, title: "Plan", ownerId: emilID, created_at: new Date(), updated_at: new Date(), nk };
+    const call = { v: undefined, ctx: { userId: saraID, client: "Claude", sql: undefined, canWrite: true, vault: undefined }, scanMs: 0 };
+    await sara.sql.begin(async (tx) => {
+      await sara.as(tx);
+      // Sara's AI reads the note (and, as on a busy note, it's time for a snapshot) ...
+      const at = await loadDoc(tx as never, shared);
+      at.since = SNAPSHOT_EVERY - 1;
+      // ... Emil types and his change commits before the AI writes ...
+      mac = A.change(mac, (d) => A.splice(d, ["body"], d.body!.length, 0, "- Lunch\n"));
+      await push(A.getLastLocalChange(mac)!);
+      // ... and the AI's edit goes in, with a snapshot of what it loaded plus its own change.
+      await writeDoc(tx as never, call as never, shared, at, at.text.replace("Venue", "Venue booked"));
+    });
+    // Whatever the server keeps, Emil's line is in it: in the snapshot, or still a change after it.
+    const text = await emil.sql.begin(async (tx) => { await emil.as(tx); return (await loadDoc(tx as never, shared)).text; });
+    assert(text.includes("- Lunch"), `Emil's change was compacted away: ${JSON.stringify(text)}`);
+    assert(text.includes("Venue booked"), text);
+  } finally {
+    await Promise.all([emil.sql.end(), sara.sql.end(), db.end()]);
+    await drop();
+  }
+});
+
+Deno.test({ name: "the owner's delete is refused when a change committed after the text it writes back", ignore: !local, sanitizeResources: false, sanitizeOps: false }, async () => {
+  const { url, drop } = await freshDB();
+  const db = postgres(url, { max: 1, onnotice: () => {} });
+  const [emilID, saraID] = [crypto.randomUUID(), crypto.randomUUID()];
+  await db`insert into auth.users (id, email) values (${emilID}, 'emil@example.com'), (${saraID}, 'sara@example.com')`;
+  const note = crypto.randomUUID();
+  await db`insert into public.shared_notes (id, owner_id) values (${note}, ${emilID})`;
+  await db`insert into public.note_members (note_id, user_id, role, epoch, key_wrap, wrapped_by) values
+    (${note}, ${emilID}, 'owner', 1, 'amb3k.AA==', ${emilID}), (${note}, ${saraID}, 'editor', 1, 'amb3k.AA==', ${emilID})`;
+  const emil = person(url, emilID), sara = person(url, saraID);
+  const write = (p: typeof emil, ct: string) => p.sql.begin(async (tx) => {
+    await p.as(tx);
+    const [r] = await tx<{ id: string }[]>`insert into public.note_updates (note_id, epoch, ct) values (${note}, 1, ${ct}) returning id`;
+    return r.id;
+  });
+  const unshare = (upto: string) => emil.sql.begin(async (tx) => {
+    await emil.as(tx);
+    await tx`select public.collab_unshare(${note}, 'amb2.0000000000000000.AA==', 'amb2.0000000000000000.AA==', ${upto}::bigint)`;
+  }).then(() => "unshared", (e) => `refused: ${(e as { hint?: string }).hint}`);
+  try {
+    // Emil's device has merged up to here when he deletes ...
+    const loaded = await write(emil, "amb3u.1.ZW1pbA==");
+    // ... and Sara's change commits before the delete reaches the server.
+    await write(sara, "amb3u.1.c2FyYQ==");
+    assertEquals(await unshare(loaded), "refused: newer_changes");
+    const [{ n }] = await db<{ n: number }[]>`select count(*)::int as n from public.note_updates where note_id = ${note}`;
+    assertEquals(n, 2, "a refused delete keeps everything");
+    // Loaded again, with Sara's change in it: now it goes.
+    const [{ last }] = await db<{ last: string }[]>`select max(id)::text as last from public.note_updates where note_id = ${note}`;
+    assertEquals(await unshare(last), "unshared");
+    assertEquals((await db`select 1 from public.shared_notes where id = ${note}`).length, 0);
+  } finally {
+    await Promise.all([emil.sql.end(), sara.sql.end(), db.end()]);
+    await drop();
+  }
+});

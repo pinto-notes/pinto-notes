@@ -41,7 +41,7 @@ import Testing
 
     @Test func twoPeopleTypeAtOnceAndBothSeeTheSameText() async throws {
         let (emil, sara, note, _) = try await shared("Offsite plan\n\nAgenda\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
         #expect(theirs.text == "Offsite plan\n\nAgenda\n")
 
         // Both type before either has seen the other's change.
@@ -60,7 +60,7 @@ import Testing
 
     @Test func someoneWhoJoinsLaterGetsEverythingFromTheServer() async throws {
         let (emil, sara, note, ids) = try await shared("Groceries\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
         mine.local("Groceries\n- milk\n", selection: nil)
         await server.eventually { theirs.text == "Groceries\n- milk\n" }
         theirs.local(theirs.text + "- eggs\n", selection: nil)
@@ -77,7 +77,7 @@ import Testing
 
     @Test func aChangeTheServerDidntTakeIsSentAgainInOrder() async throws {
         let (emil, sara, note, _) = try await shared("Notes\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
         server.offline = true
         mine.local("Notes\none\n", selection: nil)
         mine.local("Notes\none\ntwo\n", selection: nil)
@@ -93,7 +93,7 @@ import Testing
 
     @Test func aRemovedPersonGetsNoNewTextAndCantWrite() async throws {
         let (emil, sara, note, ids) = try await shared("Plan\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
         // Emil's last change is stored but his live channel hasn't counted it as seen.
         mine.local("Plan\n- book flights\n", selection: nil)
         await server.eventually { mine.unsent == 0 && theirs.text == mine.text }
@@ -115,7 +115,7 @@ import Testing
         #expect(!(server.updates[note.id] ?? []).contains { $0.author_id == ids.1 && $0.epoch == 2 })
         // And her memberships say she's out: the note goes from her library, as in Apple Notes.
         await sara.store.checkInvites()
-        let hers = SharedNotes.noteID(for: note.id, user: ids.1)
+        let hers = try #require(sara.context.pointer(forShared: note.id)?.id)
         #expect(sara.store.removedFrom.contains(hers))
         #expect(sara.store.session(for: hers) == nil)
         #expect(sara.context.note(hers)?.deletedAt != nil)
@@ -123,7 +123,7 @@ import Testing
 
     @Test func presenceReachesTheOtherPersonAndLeavingIsSeen() async throws {
         let (emil, sara, note, ids) = try await shared("Hello\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
         theirs.selectionChanged(NSRange(location: 3, length: 0))
         await server.settle()
         await server.eventually { mine.peers[ids.1]?.selection != nil }
@@ -160,7 +160,7 @@ import Testing
 
     @Test func aChangeThatWasntRelayedArrivesWhenTheChannelRejoins() async throws {
         let (emil, sara, note, _) = try await shared("Ideas\n")
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
         server.dropRelays = true
         mine.local("Ideas\n- one\n", selection: nil)
         await server.eventually { (server.updates[note.id] ?? []).count == 1 }
@@ -179,7 +179,7 @@ import Testing
         let mine = try #require(emil.store.session(for: note.id))
         let url = try #require(emil.store.linkURL(note))
         let oldKey = try #require(emil.store.keys[note.id]?.nk)
-        let hers = try #require(sara.context.note(SharedNotes.noteID(for: note.id, user: ids.1)))
+        let hers = try #require(sara.context.pointer(forShared: note.id))
         try await sara.store.leave(hers)
         // Emil's device sees it with his memberships and renews the key, without anyone removed.
         await emil.store.checkInvites()
@@ -195,8 +195,47 @@ import Testing
         let jonasID = server.account("Jonas")
         let jonas = try device(jonasID, name: "Jonas")
         #expect(await jonas.store.join(url))
-        let his = SharedNotes.noteID(for: note.id, user: jonasID)
+        let his = jonas.context.pointer(forShared: note.id)?.id ?? UUID()
         await server.eventually { jonas.store.session(for: his)?.text == mine.text }
         #expect(jonas.store.session(for: his)?.text == "Trip\n- after Sara left\n")
+    }
+
+    @Test func theSnapshotUnderANewKeyIsTriedAgainUntilItsIn() async throws {
+        CollabSession.snapshotRetryAfter = .milliseconds(50)
+        defer { CollabSession.snapshotRetryAfter = .seconds(20) }
+        let (emil, _, note, ids) = try await shared("Budget\n")
+        let mine = try #require(emil.store.session(for: note.id))
+        server.failSnapshots = true
+        try await emil.store.remove(ids.1, from: note)
+        #expect(mine.epoch == 2)
+        #expect(!(server.snapshots[note.id] ?? []).contains { $0.epoch == 2 })
+        #expect(mine.owesSnapshot)
+        server.failSnapshots = false
+        await server.eventually { (server.snapshots[note.id] ?? []).contains { $0.epoch == 2 } }
+        #expect((server.snapshots[note.id] ?? []).contains { $0.epoch == 2 })
+        #expect(!mine.owesSnapshot)
+        // A device starting now opens it with the new key alone.
+        let row = try #require(try await server.transport(for: ids.0).memberships().first { $0.note_id == note.id })
+        #expect(row.epoch == 2)
+    }
+
+    @Test func aNoteTooLongToSnapshotIsntShared() async throws {
+        let emilID = server.account("Emil")
+        let emil = try device(emilID, name: "Emil")
+        // Text that doesn't compress, longer than the server takes in one snapshot.
+        var bytes = [UInt8](repeating: 0, count: 4_500_000)
+        for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+        let long = Data(bytes).base64EncodedString()
+        #expect(try CollabText.sealedSnapshotSize(of: long) > CollabSession.maxSnapshot)
+        #expect(try CollabText.sealedSnapshotSize(of: "A short note") < 1000)
+        let note = Note(body: long)
+        emil.context.insert(note)
+        await #expect(throws: Collab.Failure.tooLongToShare) { try await emil.store.share(note) }
+        #expect(!server.calls.contains("share"))
+        #expect(Collab.Failure.tooLongToShare.errorDescription == "This note is too long to share. Split it into smaller notes.")
+    }
+
+    @Test func thisBuildTellsTheServerItKnowsSharedNotes() {
+        #expect(Backend.clientTag.split(separator: " ").contains("shared/1"))
     }
 }

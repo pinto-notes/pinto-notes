@@ -146,9 +146,11 @@ final class FakeCollabTransport: CollabTransport {
     /// What collab_unshare was sent: the owner's text, sealed under their data key.
     private(set) var unshared: [UUID: String] = [:]
 
-    func unshare(note: UUID, body: String, head: String) async throws {
+    func unshare(note: UUID, body: String, head: String, upto: Int64) async throws {
         try call("unshare")
         guard server.role(note, me) == "owner" else { throw Collab.Failure.notOwner }
+        // collab_unshare's guard: text behind the document is refused.
+        guard !server.updates(of: note).contains(where: { $0.id > upto }) else { throw Collab.Failure.server("The note changed meanwhile. Try again.") }
         server.members[note] = nil
         unshared[note] = body
     }

@@ -234,6 +234,9 @@ final class CollabStore {
     func share(_ note: Note) async throws -> CollabSession {
         if let s = sessions[note.id] { return s }
         guard let transport, let me else { throw Collab.Failure.notSignedIn }
+        // Its first snapshot is how the text reaches everyone: one too big for the server would
+        // leave a shared note nobody else can open.
+        guard try CollabText.sealedSnapshotSize(of: note.body) <= CollabSession.maxSnapshot else { throw Collab.Failure.tooLongToShare }
         let identity = try await ensureIdentity()
         let dataKey = try dataKey()
         let nk = SymmetricKey(size: .bits256)

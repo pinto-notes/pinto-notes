@@ -34,6 +34,8 @@ final class MemoryCollabServer {
     /// While true, stored changes aren't relayed on the channels (a dropped socket, a change stored
     /// while a channel was still joining).
     var dropRelays = false
+    /// While true, snapshots are refused as if the network dropped them.
+    var failSnapshots = false
 
     /// Every row the server holds, as text: for tests that check what never reaches it.
     var everythingStored: String {
@@ -168,8 +170,9 @@ final class MemoryCollabServer {
     }
 
     /// collab_unshare: the shared note and everything of it go (the notes rows aren't kept here).
-    func unshare(_ user: UUID, note: UUID) throws {
+    func unshare(_ user: UUID, note: UUID, upto: Int64) throws {
         guard role(note, user) == "owner" else { throw Collab.Failure.notOwner }
+        guard !(updates[note] ?? []).contains(where: { $0.id > upto }) else { throw Collab.Failure.server("The note changed meanwhile. Try again.") }
         for c in channels[note] ?? [] { c.cut() }
         notes[note] = nil
         members[note] = nil
@@ -215,6 +218,7 @@ final class MemoryCollabServer {
     }
 
     func addSnapshot(_ user: UUID, note: UUID, upto: Int64, epoch: Int, ct: String) throws {
+        if failSnapshots { throw Offline() }
         guard ["owner", "editor"].contains(role(note, user) ?? "") else { throw Collab.Failure.readOnly }
         guard notes[note]?.epoch == epoch else { throw Collab.Failure.staleEpoch }
         snapshots[note, default: []].append(Collab.Snapshot(note_id: note, upto: upto, epoch: epoch, ct: ct))
@@ -334,7 +338,7 @@ final class MemoryCollabTransport: CollabTransport {
         try server.createLink(me, id: id, note: note, role: role, epoch: epoch, answerHash: answerHash, keyWrap: keyWrap)
     }
     func leave(note: UUID) async throws { try server.check("leave"); try server.leave(me, note: note) }
-    func unshare(note: UUID, body: String, head: String) async throws { try server.check("unshare"); try server.unshare(me, note: note) }
+    func unshare(note: UUID, body: String, head: String, upto: Int64) async throws { try server.check("unshare"); try server.unshare(me, note: note, upto: upto) }
     func stopLink(note: UUID) async throws { try server.check("stop_link"); try server.stopLink(me, note: note) }
     func openLink(id: String, answer: String) async throws -> Collab.OpenedLink? { try server.check("open_link"); return server.openLink(id: id, answer: answer) }
     func joinLink(id: String, answer: String, keyWrap: String, selfWrap: String) async throws {

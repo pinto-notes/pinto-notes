@@ -171,6 +171,7 @@
 		3056CE51D6D98490DD5B4CD0 /* AIEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25098E4C4EF554486AD7952E /* AIEdit.swift */; };
 		30774C4EC8DA37E08EEA3C3E /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DE44F0B3F6589C674C8638 /* DeviceIdentity.swift */; };
 		30BB1BF0D6B3D1C37961E9DD /* AccessibilityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CDAB47A5DF18E6B8B2E26C1 /* AccessibilityUITests.swift */; };
+		30F5B54F71B24676E554E808 /* CollabScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F18EFC180D18F05B904827 /* CollabScript.swift */; };
 		31275E06CD56C46CB9D7CDD2 /* NoteListGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 088C3E4F5EB9C0F6C0037D85 /* NoteListGeometryTests.swift */; };
 		312E09D4D8448F881D9DF560 /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */; };
 		32082DA9BBA628FAB0F5D8E9 /* Funnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F23D900BF7C689A4C8F231E /* Funnel.swift */; };
@@ -519,6 +520,7 @@
 		A7F71D5F8B7E04C3D472E23E /* ShareAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCC46BAF9DF564799127E10 /* ShareAsk.swift */; };
 		A97A0681910D561142FB118A /* amber.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 97C940F267EB2E717FF9D745 /* amber.module.js */; };
 		A9960857A1051C30FE88A527 /* SettingsHomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BEB6F94667D181986772989 /* SettingsHomeTests.swift */; };
+		A99EC58B27FEB76AFF82BB0E /* CollabScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C1691F01EEFBB17B163761 /* CollabScriptTests.swift */; };
 		A9B486B03ADF66D0605E46FE /* AccountLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359BF7373A9A0550A24620EF /* AccountLibrary.swift */; };
 		A9FA9DE6BBFF0012FCEABF22 /* HeardFrom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025496AD1008785E931A6425 /* HeardFrom.swift */; };
 		AA369763B0C5777AAECE35A1 /* ImportPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF617FC2BCA1C1A89CE29D77 /* ImportPipeline.swift */; };
@@ -709,6 +711,7 @@
 		EE7853D46B5E9CF04434468B /* KeyGateCardSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E30239F17A47DADC020482B /* KeyGateCardSnapshotTests.swift */; };
 		EEE5D6310D591DDA45514520 /* AllowSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43324C7785F4C59035DABD60 /* AllowSheetTests.swift */; };
 		EF5FA3E4964C257EA768A12D /* SidebarCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */; };
+		EFAC942E69893F0E6EA5B5ED /* CollabScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F18EFC180D18F05B904827 /* CollabScript.swift */; };
 		F0D87957CAA84B40A46A334F /* SharedDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D124B8907A00FB061D8E03A /* SharedDelete.swift */; };
 		F0E7D0F93F1EC84D87C81F82 /* WikiLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA346A4AC288B31B07A05AB /* WikiLinks.swift */; };
 		F15F300B7F662D0F7B93BDE4 /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */; };
@@ -830,11 +833,13 @@
 		15D7726410B10FF37FF6EB51 /* KeyCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCopy.swift; sourceTree = "<group>"; };
 		174E44FCB66E4FE8727FD1C0 /* NoteDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDrop.swift; sourceTree = "<group>"; };
 		17A49ECF5C2416ECB7428670 /* StressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StressTests.swift; sourceTree = "<group>"; };
+		17C1691F01EEFBB17B163761 /* CollabScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabScriptTests.swift; sourceTree = "<group>"; };
 		1805E7C32F1491EC4F48472E /* Fixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fixtures.swift; sourceTree = "<group>"; };
 		187BCDDD3155D5979CC60AC7 /* ApplePins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePins.swift; sourceTree = "<group>"; };
 		1936CFFEE4A4126D37AE43CB /* stack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stack.json; sourceTree = "<group>"; };
 		19A3CFE92D58ADD46C8269EB /* AmberButtonDynamicTypeSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmberButtonDynamicTypeSnapshots.swift; sourceTree = "<group>"; };
 		19D80BDF04976B1F5E2449A1 /* preact.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = preact.js; sourceTree = "<group>"; };
+		19F18EFC180D18F05B904827 /* CollabScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabScript.swift; sourceTree = "<group>"; };
 		1A7835B48C799CF04F5FF31C /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		1B4A785E0E10C6BB3865280D /* CodeFileSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeFileSnapshots.swift; sourceTree = "<group>"; };
 		1B6942657FF41A9E90A2C2DA /* topojson.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = topojson.js; sourceTree = "<group>"; };
@@ -1672,6 +1677,7 @@
 				58E462452EB0E75152BD5846 /* CollabDemo.swift */,
 				2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */,
 				1C8E3D18304D08BE3BDF26DA /* CollabKeys.swift */,
+				19F18EFC180D18F05B904827 /* CollabScript.swift */,
 				3C3136DA96503DF8954D6202 /* CollabSession.swift */,
 				930FD737A522ABA46963C7E1 /* CollabStore.swift */,
 				4DC69D91E636A7BD81BB0164 /* CollabText.swift */,
@@ -1917,6 +1923,7 @@
 			children = (
 				B7002D72E6A584279DD6FACF /* CollabKeysTests.swift */,
 				9C107AD7821265E04B828E68 /* CollabLiveTests.swift */,
+				17C1691F01EEFBB17B163761 /* CollabScriptTests.swift */,
 				B7EF24AE2E626C3818961777 /* CollabTwoPeopleTests.swift */,
 				DCDC0B8634142001E310B8EE /* FakeCollabTransport.swift */,
 				E85EFEB025E3665D0A85909C /* LibraryUpgradeTests.swift */,
@@ -2510,6 +2517,7 @@
 				B5EE6072B764FA1B38D1BD3E /* CollabKeysTests.swift in Sources */,
 				15D49FC5F75A05C1459E218E /* CollabLiveTests.swift in Sources */,
 				F2D39BC149CE23319FE4EF4A /* CollabMacShots.swift in Sources */,
+				A99EC58B27FEB76AFF82BB0E /* CollabScriptTests.swift in Sources */,
 				03A9E036E7D5AC78597F75B8 /* CollabShareSnapshots.swift in Sources */,
 				00309BB980A30C94D2975078 /* CollabTwoPeopleTests.swift in Sources */,
 				1CDE672D3CF4CC64C0D79511 /* ConnectAITests.swift in Sources */,
@@ -2711,6 +2719,7 @@
 				2AE7549782184B7FBB04A141 /* CollabDemo.swift in Sources */,
 				908B0F44123BFF045480313F /* CollabGallery.swift in Sources */,
 				3A02B0875470F6F342244643 /* CollabKeys.swift in Sources */,
+				EFAC942E69893F0E6EA5B5ED /* CollabScript.swift in Sources */,
 				BA5EBB2CB956D7B9D0594A07 /* CollabSession.swift in Sources */,
 				3C70CD8C3CF6BE8100A2CC47 /* CollabStore.swift in Sources */,
 				F4352BD154634C08389F7FF1 /* CollabText.swift in Sources */,
@@ -2966,6 +2975,7 @@
 				17B3D5C6ED05EE3B383A60E0 /* CollabDemo.swift in Sources */,
 				8053D090FB2A6F564DBA4479 /* CollabGallery.swift in Sources */,
 				3A0428B9D417AD59AC69F1F7 /* CollabKeys.swift in Sources */,
+				30F5B54F71B24676E554E808 /* CollabScript.swift in Sources */,
 				37C1D212EBEE11126B9718BE /* CollabSession.swift in Sources */,
 				4258B85EEFB5F1B63FCA7D1E /* CollabStore.swift in Sources */,
 				4D84FB7E50EBCB234731F2E7 /* CollabText.swift in Sources */,

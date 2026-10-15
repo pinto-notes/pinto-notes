@@ -689,6 +689,7 @@ final class SyncEngine {
             }
             if let s = saved.first {
                 remember(s)
+                if s.shared_note_id != nil { n.sharedDocument?.pointerOnServer = true }
                 n.serverVersion = s.version ?? n.serverVersion
                 // Stay dirty if you typed more while this was in flight.
                 if n.updatedAt <= sentAt { n.dirty = false }
@@ -1084,6 +1085,14 @@ final class SyncEngine {
                 insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: n.body), folder: n.folder, at: n.updatedAt)
                 apply(s, to: n)
                 SharedNotes.pointerArrived?(n)
+                return server
+            }
+            if s.shared_note_id == nil, n.sharedDocument?.pointerOnServer ?? true {
+                // The pointer was on the server and now isn't: sharing was stopped elsewhere
+                // (collab_unshare). The server's row wins; pushing this pointer would bring the
+                // sharing back over the owner's text.
+                apply(s, to: n)
+                if n.isShared, n.deletedAt != nil { SharedNotes.pointerArrived?(n) }
                 return server
             }
             if s.shared_note_id == nil {
@@ -1509,6 +1518,7 @@ final class SyncEngine {
         var unshared = false
         if let shared = r.shared_note_id {
             if n.sharedNoteID == nil { n.sharedNoteID = shared }
+            n.sharedDocument?.pointerOnServer = true
         } else if n.sharedNoteID != nil, r.deleted_at == nil {
             n.sharedNoteID = nil
             unshared = true

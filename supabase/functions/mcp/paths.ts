@@ -127,8 +127,9 @@ export class Paths {
     const placed = new Set<string>();
     const elsewhere = new Set<string>();
     for (const n of notes) {
-      const s = byShared.get(n.shared_note_id ?? n.id);
-      if (!s || (n.shared_note_id && n.shared_note_id !== s.id)) continue;
+      // Pointers are found by shared_note_id only, never by an id that matches (ids aren't secret).
+      const s = n.shared_note_id ? byShared.get(n.shared_note_id) : undefined;
+      if (!s) continue;
       Object.assign(n, { shared: s, title: s.title, locked_body: null });
       placed.add(s.id);
       if (s.role !== "owner" && !n.folder_id && !n.parent_id && !n.trashed_at) elsewhere.add(n.id);

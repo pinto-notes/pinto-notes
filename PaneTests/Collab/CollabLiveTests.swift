@@ -53,7 +53,7 @@ struct CollabLiveTests {
         #expect(published.first?.public_key == emil.store.identity?.publicBase64)
         let url = try #require(emil.store.linkURL(note))
         #expect(await sara.store.join(url))
-        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: SharedNotes.noteID(for: note.id, user: sara.id)))
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.container.mainContext.pointer(forShared: note.id)?.id ?? UUID()))
         #expect(theirs.text == "Offsite plan\n\nAgenda\n")
         let members = try await emil.store.transport!.members(of: note.id)
         #expect(Set(members.map(\.user_id)) == [emil.id, sara.id])

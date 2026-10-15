@@ -109,9 +109,18 @@ final class CollabSession {
     @ObservationIgnored private var sending = false
     @ObservationIgnored private var pulling: Task<Void, Never>?
     @ObservationIgnored private var pullAgain = false
+    /// The last pull reached the server: everything stored up to `lastSeen` is in the document.
+    @ObservationIgnored private var pulled = false
+    /// Everything the server has is in the document as of the last pull, and every change opened:
+    /// its text can stand for the note (stopping sharing writes it back as the owner's own).
+    var isUpToDate: Bool { pulled && !missing && !isClosed }
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private var retryDelay: Duration = .seconds(2)
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?
+    /// Tries a needed snapshot again later when it didn't go up (offline, a server error).
+    @ObservationIgnored private var snapshotRetry: Task<Void, Never>?
+    /// How long a needed snapshot that failed waits before the next try.
+    static var snapshotRetryAfter: Duration = .seconds(20)
     /// When a change from someone else last arrived: a snapshot waits for a quiet moment.
     @ObservationIgnored private var lastArrival = Date.distantPast
     /// A change too big to send on its own is in the document only: the next snapshot carries it.
@@ -287,6 +296,7 @@ final class CollabSession {
         retryTask?.cancel()
         retryTask = nil
         snapshotTask?.cancel()
+        snapshotRetry?.cancel()
         saveTask?.cancel()
         channel?.close()
         channel = nil
@@ -328,9 +338,11 @@ final class CollabSession {
         do {
             pull = try await transport.pull(note: noteID, after: after)
         } catch {
+            pulled = false
             if (error as? Collab.Failure) == .notMember { onRemoved?() }
             return
         }
+        pulled = true
         guard !isClosed else { return }
         var changed = false
         // One this device is already past is known from here on, so it isn't asked for again.
@@ -634,9 +646,12 @@ final class CollabSession {
     func writeSnapshot() async {
         guard !isClosed, record.canEdit else { return }
         await catchUp().value
-        guard !isClosed, !missing, record.pending.isEmpty else { return }
+        guard !isClosed, !missing, record.pending.isEmpty else { retrySnapshotLater(); return }
         let upto = record.cursor
-        guard let ct = try? sealedSnapshot(upto: upto), ct.utf8.count <= Self.maxSnapshot else { return }
+        guard let ct = try? sealedSnapshot(upto: upto), ct.utf8.count <= Self.maxSnapshot else {
+            log.error("a snapshot is over the server's limit and can't go up")
+            return
+        }
         do {
             try await transport.send(snapshot: ct, note: noteID, upto: upto, epoch: epoch)
             guard !isClosed else { return }
@@ -647,8 +662,31 @@ final class CollabSession {
             saveSoon()
         } catch {
             log.error("writing a snapshot failed: \(String(describing: error), privacy: .public)")
+            retrySnapshotLater()
         }
     }
+
+    /// The note has a new key: a snapshot under it is needed now, because devices that start out
+    /// (and people who join) have only the new key. Written at once, and tried again until it's in.
+    func requireSnapshot() async {
+        needsSnapshot = true
+        await writeSnapshot()
+    }
+
+    /// A needed snapshot that didn't go up goes again a little later, until one does.
+    private func retrySnapshotLater() {
+        guard needsSnapshot, !isClosed, snapshotRetry == nil else { return }
+        snapshotRetry = Task { [weak self] in
+            try? await Task.sleep(for: Self.snapshotRetryAfter)
+            guard let self, !Task.isCancelled else { return }
+            snapshotRetry = nil
+            guard needsSnapshot, !isClosed else { return }
+            await writeSnapshot()
+        }
+    }
+
+    /// A snapshot is still owed (it didn't go up yet).
+    var owesSnapshot: Bool { needsSnapshot }
 
     // MARK: Presence
 
