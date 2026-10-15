@@ -76,7 +76,7 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
   const tinted = (i: number) => (i === 2 ? Math.max(gFade, cMark) : gFade);
 
   return (
-    <div className={f.stage}>
+    <div className={f.stage} style={heroOn ? { backgroundColor: `rgba(251, 238, 221, ${h.toFixed(3)})` } : undefined}>
       <img className={f.desk} src="/home-d/desk.webp" alt="" style={{ opacity: pull, transform: `scale(${lerp(1.12, 1, pull).toFixed(3)})` }} />
 
       {heroOn && h < 1 && (

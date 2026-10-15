@@ -7,16 +7,22 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Agents, Pin, Together, Walk } from "./Moments";
+import { Agents, Habits, Pin, Together, Walk } from "./Moments";
 import { Week } from "./Week";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
 
-const SOURCES = [
-  { name: "Apple Notes", icon: "/apple-notes.webp" }, { name: "Obsidian", icon: "/home-v5/import/obsidian.webp" }, { name: "Bear", icon: "/home-v5/import/bear.webp" },
-  { name: "Evernote", icon: "/home-v5/import/evernote.webp" }, { name: "Google Keep", icon: "/home-v5/import/keep.webp" }, { name: "Markdown", icon: "" },
+// Three features, each named plainly, with one real-life example under it.
+const FEATURES = [
+  { id: "voice", Scene: Walk, kicker: "Voice", title: "Talk to your notes, wherever you are.",
+    say: "Open your AI's voice mode and just say it. It lands in your notes.", example: "Plan tomorrow out loud on an evening walk. It's written down before you're home." },
+  { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI keeps your trackers up to date.",
+    say: "Habits, budgets, workouts. Tell your AI what you did, and it ticks it off for you.", example: "\u201cDid the gym this morning.\u201d Ticked, and the streak goes up." },
+  { id: "agents", Scene: Agents, kicker: "Agents", title: "One notebook for all your agents.",
+    say: "Claude Code and Codex read and write the same project notes.", example: "Tomorrow's session starts where today's stopped, and every change says which agent made it." },
 ];
+
 
 
 // The week, told for "how did my week go?": Friday's check-in is the headline moment.
@@ -55,16 +61,18 @@ export function V5({ hero = "side" }: { hero?: string }) {
         </div>
       )}
 
-      {/* The evening walk: the one dark band, at dusk. */}
-      <section className={`${d.band} ${v.night}`} aria-labelledby="walk" data-dark-band="">
-        <Pin><div className={v.row}>
-          <div className={v.words}>
-            <p className={v.kicker}>Works with voice</p>
-            <h2 id="walk" className={v.rowTitle}>Talk to your notes, wherever you are.</h2>
-            <p className={v.say}>Open your AI's voice mode and just say it. Out on an evening walk, plan tomorrow out loud. It's in your notes before you're home.</p>
-          </div>
-          <Walk />
-        </div></Pin>
+      <section className={v.moments} aria-labelledby="moments">
+        {FEATURES.map((x, i) => (
+          <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
+            <div className={v.words}>
+              <p className={v.kicker}>{x.kicker}</p>
+              <h2 id={i === 0 ? "moments" : undefined} className={v.rowTitle}>{x.title}</h2>
+              <p className={v.say}>{x.say}</p>
+              <p className={v.example}><span>For example</span>{x.example}</p>
+            </div>
+            <x.Scene />
+          </div></Pin>
+        ))}
       </section>
 
       <section className={v.togetherSec} aria-labelledby="together">
@@ -75,34 +83,12 @@ export function V5({ hero = "side" }: { hero?: string }) {
         <Pin length={170}><Together /></Pin>
       </section>
 
-      <section className={v.bring} aria-labelledby="bring">
-        <h2 id="bring" className={v.big}>Feels like Apple Notes. Bring yours over.</h2>
-        <p className={v.say} style={{ margin: "0 auto" }}>Every note comes over in one go, folders and checklists included, so there's nothing new to learn.</p>
-        <ul className={v.sources}>
-          {SOURCES.map((x) => <li key={x.name}>{x.icon ? <img src={x.icon} alt="" width={56} height={56} /> : <span className={v.md} aria-hidden="true">MD</span>}{x.name}</li>)}
-        </ul>
-        <figure className={v.shot}>
-          <img src="/home-h/import-near.webp" width={1500} height={1100} loading="lazy" alt="Pinto Notes on a Mac right after importing from Apple Notes: 1,284 notes in their own folders." />
-          <span className={v.imported}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" /></svg>1,284 notes brought over from Apple Notes</span>
-        </figure>
-      </section>
-
       <section className={d.wait} aria-labelledby="wait">
         <div className={d.centerHead}>
           <h2 id="wait" className={d.title}>Start from a template.</h2>
           <p className={d.lede}>A habit tracker, a budget, a trip plan. Notes that work like small apps. Change them yourself, or ask your AI. <a className={d.inline} href="/templates">See all templates</a></p>
         </div>
         <ul className={`${d.fan} ${g.fanWrap}`}>{picks.map((t) => <li key={t.slug}><Card t={t} heading="h3" tagline={G.apps.taglines[t.slug]} eager /></li>)}</ul>
-      </section>
-
-      {/* For the people it's for: compact, not pinned. */}
-      <section className={`${v.row} ${v.agents}`} data-flip="" aria-labelledby="agents">
-        <div className={v.words}>
-          <p className={v.kicker}>If you build with agents</p>
-          <h2 id="agents" className={v.rowTitle}>One notebook for all your agents.</h2>
-          <p className={v.say}>Claude Code and Codex share your project notes, so every session starts where the last one stopped.</p>
-        </div>
-        <Agents />
       </section>
 
       <section className={`${d.band} ${d.closing}`} aria-labelledby="closing" data-dark-band="">

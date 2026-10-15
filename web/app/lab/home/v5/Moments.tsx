@@ -291,3 +291,56 @@ export function Together() {
     </div>
   );
 }
+
+/// 6. Your AI keeps your trackers up to date: you tell Claude what you did, and the habit tracker
+/// (the real template's Today view) ticks it, the streaks and the ring move.
+const HABITS_T = [
+  { name: "Walk", sub: "30 minutes outside", streak: [11, 11], done: true },
+  { name: "Read", sub: "20 pages", streak: [10, 10], done: true },
+  { name: "Gym", sub: "", streak: [9, 9], done: false, tick: 0.5, subs: ["1 of 3 this week", "2 of 3 this week"], unit: "week" },
+  { name: "Spanish", sub: "One Duolingo lesson", streak: [2, 3], done: false, tick: 0.62 },
+  { name: "No phone in bed", sub: "It charges in the kitchen", streak: [1, 1], done: false },
+];
+export function Habits() {
+  const [ref, p] = useSceneProgress();
+  const ask = mj(span(p, 0.06, 0.16)), used = mj(span(p, 0.3, 0.38)), answer = mj(span(p, 0.74, 0.84));
+  const ticks = HABITS_T.map((h) => (h.done ? 1 : h.tick ? span(p, h.tick, h.tick + 0.06) : 0));
+  const done = ticks.reduce((a, t) => a + (t > 0.5 ? 1 : 0), 0);
+  const ringTo = 0.4 + 0.2 * clamp(span(p, 0.5, 0.56)) + 0.2 * clamp(span(p, 0.62, 0.68));
+  const C = 2 * Math.PI * 34;
+  return (
+    <div ref={ref} className={m.stage}>
+      <figure className={`${m.chat} ${m.habitChat}`} data-app="claude">
+        <div className={m.chatTop}><span><AIGlyph name="claude" size={14} />Claude</span><em>Tuesday, 19:40</em></div>
+        <p className={m.me} style={rise(ask, 8)}>Did the gym this morning, and my Spanish lesson.</p>
+        <p className={m.tool} style={{ opacity: used }}>Used Pinto Notes · Habit tracker</p>
+        <p className={m.ai} style={rise(answer, 8)}>Ticked both. Spanish is on a three-day streak.</p>
+      </figure>
+      <figure className={m.habitApp}>
+        <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Habit tracker</span></div>
+        <div className={m.habitBody}>
+          <div className={m.ringRow}>
+            <svg viewBox="0 0 80 80" className={m.ring}><circle cx="40" cy="40" r="34" /><circle cx="40" cy="40" r="34" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - ringTo) }} /></svg>
+            <div><p className={m.ringBig}>{done} of 5 done today</p><p className={m.ringSmall}>Tuesday</p></div>
+          </div>
+          <ul className={m.habitList}>
+            {HABITS_T.map((h, i) => {
+              const t = ticks[i], on = t > 0.5;
+              const sub = h.subs ? h.subs[on ? 1 : 0] : h.sub;
+              const streak = h.streak[on && !h.done ? 1 : 0];
+              const flash = !h.done && h.tick ? Math.sin(Math.PI * span(p, h.tick, h.tick + 0.16)) : 0;
+              return (
+                <li key={h.name} style={{ background: `rgba(240,144,26,${(0.14 * flash).toFixed(3)})` }}>
+                  <div><b>{h.name}</b><span>{sub} · <em>{streak}-{h.unit ?? "day"} streak</em></span></div>
+                  <span className={m.bigCheck} data-on={on || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
+                    <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </figure>
+    </div>
+  );
+}
