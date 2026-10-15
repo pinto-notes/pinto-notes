@@ -104,7 +104,8 @@ const TALK = [
 export function Walk() {
   const [ref, p, replay] = useSceneProgress();
   const now = [...TALK].reverse().find((t) => p >= t.at);
-  const speaking = now?.who === "ai";
+  // Speaking only while the reply is being said (its words arrive over about 0.12 of the scene).
+  const speaking = now?.who === "ai" && p < now.at + 0.16;
   const line1 = over(span(p, 0.34, 0.42)), line2 = over(span(p, 0.74, 0.82));
   return (
     <div ref={ref} className={`${m.stage} ${m.dusk}`}>
