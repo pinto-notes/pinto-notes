@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Agents, Dump, Shopping, Walk } from "./Moments";
+import { Agents, Dump, Walk } from "./Moments";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
@@ -19,14 +19,12 @@ const SOURCES = [
 
 // The moments: things people at the front already do. Concrete, present tense, a little enviable.
 const MOMENTS = [
-  { id: "walk", Scene: Walk, kicker: "Every evening", title: "Plan tomorrow on a walk, out loud.",
-    say: "Talk it through with ChatGPT's voice mode. By the time you're home, tomorrow is written down: the run, the call you keep forgetting, all of it." },
-  { id: "food", Scene: Shopping, kicker: "Every Sunday", title: "Plan the week's dinners in a chat. Shop from your phone.",
-    say: "Tell ChatGPT what you eat and how busy the week is. The shopping list lands in your notes, and you tick it off in the shop." },
-  { id: "dump", Scene: Dump, kicker: "Every Monday morning", title: "Dump everything in your head. Get it back sorted.",
-    say: "Paste the mess into a chat. Claude sorts it into today, this week and later, right in your to-do note." },
-  { id: "agents", Scene: Agents, kicker: "If you build things", title: "One notebook for all your agents.",
-    say: "Claude Code and Codex read the same project notes, write down what they did, and the next session starts where the last one stopped. Every change says who made it." },
+  { id: "walk", Scene: Walk, kicker: "Every evening", title: "Plan tomorrow on a walk.",
+    say: "Talk it through with ChatGPT. It's in your notes before you're home." },
+  { id: "dump", Scene: Dump, kicker: "Every Monday", title: "Empty your head. Get a plan back.",
+    say: "Paste the mess into Claude. It sorts it into today, this week and later." },
+  { id: "agents", Scene: Agents, kicker: "If you build with agents", title: "One notebook for all your agents.",
+    say: "Claude Code and Codex share your project notes, so every session starts where the last one stopped." },
 ];
 
 // The week, told for "how did my week go?": Friday's check-in is the headline moment.
@@ -55,7 +53,7 @@ export function V5() {
       <section className={v.moments} aria-labelledby="moments">
         <div className={v.momentsHead}>
           <h2 id="moments" className={v.big}>People are already living like this.</h2>
-          <p className={v.say}>Small habits that only work when your AI can write in your notes. Once you try one, you won't go back.</p>
+          <p className={v.say}>Small habits that only work when your AI can write in your notes.</p>
         </div>
         {MOMENTS.map((x, i) => (
           <div key={x.id} className={v.row} data-flip={i % 2 ? "" : undefined}>

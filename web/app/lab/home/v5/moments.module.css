@@ -10,20 +10,35 @@
 .screen[data-dark] { background: #0b0b0c; color: #f2f2f2; align-content: stretch; grid-template-rows: auto 1fr auto auto; padding: 44px 16px 22px; }
 .island { position: absolute; top: 10px; left: 50%; width: 76px; height: 22px; margin-left: -38px; border-radius: 12px; background: #000; }
 
-/* Voice mode */
-.dusk .phone { left: 9%; top: 28px; }
-.voiceTop { margin: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; color: #cfcfd4; }
-.orb { justify-self: center; align-self: center; width: 116px; height: 116px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #cfe3ff 28%, #6aa2ff 62%, #3a6fe0 100%); box-shadow: 0 0 40px rgba(110, 160, 255, 0.35);
-  animation: breathe 3.2s ease-in-out infinite; }
-.orb[data-speaking] { animation: speak 0.9s ease-in-out infinite; }
-@keyframes breathe { 50% { transform: scale(1.04); } }
-@keyframes speak { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.09, 1.06); } 60% { transform: scale(1.03, 1.08); } }
-@media (prefers-reduced-motion: reduce) { .orb, .orb[data-speaking] { animation: none; } }
-.talk { position: relative; height: 92px; margin-bottom: 14px; }
-.said { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; text-align: center; font-size: 14.5px; line-height: 1.38; color: #f2f2f2; text-wrap: balance; }
-.said[data-who="you"] { color: #a9a9b0; }
-.endCall { justify-self: center; height: 34px; padding: 0 22px; display: grid; place-items: center; border-radius: 17px; background: #ff453a; color: #fff; font-size: 13px; font-weight: 650; }
+/* Voice mode, as ChatGPT draws it: a white screen, the cloudy blue orb, mic and close at the bottom. */
+.dusk .phone { left: 8%; top: 28px; }
+.screen[data-voice] { background: #fff; display: block; padding: 0; }
+.status { position: absolute; top: 13px; left: 22px; right: 18px; margin: 0; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: #111; }
+.bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 9px; }
+.bars i { width: 2.5px; background: #111; border-radius: 1px; } .bars i:nth-child(1) { height: 3px; } .bars i:nth-child(2) { height: 5px; } .bars i:nth-child(3) { height: 7px; } .bars i:nth-child(4) { height: 9px; }
+.tune { position: absolute; top: 40px; right: 16px; width: 16px; height: 16px; color: #8e8e93; }
+.tune svg, .mic svg, .close svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.orb { position: absolute; left: 50%; top: 44%; width: 108px; height: 108px; margin: -54px 0 0 -54px; border-radius: 50%; overflow: hidden;
+  background: linear-gradient(200deg, #f2f9ff 0%, #cfe8fb 34%, #8cc3f5 60%, #3f86f2 86%, #2f6fe8 100%);
+  animation: breathe 3.4s ease-in-out infinite; }
+.orb i { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.85); filter: blur(9px); animation: drift 7s ease-in-out infinite alternate; }
+.orb i:nth-child(1) { width: 70px; height: 34px; left: -6px; top: 18px; transform: rotate(-24deg); }
+.orb i:nth-child(2) { width: 60px; height: 26px; right: -10px; top: 44px; background: rgba(230, 244, 255, 0.8); animation-duration: 9s; }
+.orb[data-speaking] { animation: speak 0.95s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.035); } }
+@keyframes speak { 0%, 100% { transform: scale(1); } 35% { transform: scale(1.07); } 65% { transform: scale(1.03); } }
+@keyframes drift { to { translate: 10px 8px; } }
+@media (prefers-reduced-motion: reduce) { .orb, .orb[data-speaking], .orb i { animation: none; } }
+.mic, .close { position: absolute; bottom: 26px; width: 40px; height: 40px; border-radius: 50%; background: #f2f2f4; color: #1c1c1e; display: grid; place-items: center; }
+.mic { left: 18px; } .close { right: 18px; }
+.mic svg, .close svg { width: 16px; height: 16px; }
+.voicePhone { background: #0e0e0e; }
+/* What's said floats beside the phone, one line at a time, like captions. */
+.spoken { position: absolute; left: calc(8% + 236px); right: 6%; top: 46px; height: 64px; }
+.said { position: absolute; left: 0; top: 0; max-width: 340px; margin: 0; display: grid; gap: 3px; padding: 10px 14px 11px; border-radius: 16px; background: rgba(255, 252, 247, 0.92); color: #2a1d10;
+  font-size: 15.5px; line-height: 1.35; box-shadow: 0 14px 30px -18px rgba(60, 30, 5, 0.45); will-change: transform, opacity; }
+.said span { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #9a8b7a; }
+.said[data-who="ai"] span { color: #2a1d10; }
 
 /* Notes */
 .note { position: absolute; margin: 0; border-radius: 16px; overflow: hidden; background: #fffdf9; color: #1d1b19;
@@ -45,7 +60,8 @@
 .box path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; }
 .by { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 10px; background: #fff1de; color: #a85700; font-size: 11px; font-weight: 650; letter-spacing: 0;
   box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; transform-origin: left center; }
-.walkNote { right: 7%; top: 120px; width: min(400px, 52%); transform: rotate(1deg); }
+.walkNote { right: 5%; top: 150px; width: min(430px, 54%); transform: rotate(1deg); }
+.walkNote .list li { white-space: nowrap; }
 
 /* Chats */
 .chat { position: absolute; margin: 0; display: grid; gap: 8px; padding: 14px 16px 16px; border-radius: 18px; background: #fff; color: #0d0d0d; font-size: 15px; line-height: 1.4;
@@ -99,7 +115,6 @@
   .stage { height: 620px; border-radius: 22px; }
   .phone { width: 200px; border-radius: 36px; padding: 8px; }
   .screen { border-radius: 29px; padding: 40px 13px 0; }
-  .orb { width: 92px; height: 92px; }
   .dusk .phone { left: 50%; margin-left: -100px; top: 22px; }
   .walkNote { left: 6%; right: 6%; width: auto; top: auto; bottom: 18px; }
   .shopChat, .dumpChat, .agentTerm { left: 5%; right: 5%; width: auto; top: 18px; }
@@ -111,6 +126,10 @@
 @media (max-width: 760px) {
   .dusk { height: 700px; }
   .dusk .phone { top: 18px; }
+  .dusk { height: 810px; }
+  .spoken { left: 6%; right: 6%; top: 452px; }
+  .walkNote .list li { white-space: normal; }
+  .said { max-width: none; }
   .walkNote { bottom: 20px; }
   .stage:has(.dumpNote) { height: 760px; }
   .dumpChat { top: 16px; }

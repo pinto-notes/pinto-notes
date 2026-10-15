@@ -40,43 +40,47 @@ const By = ({ app, label, v = 1 }: { app: "openai" | "claude"; label: string; v?
   <span className={m.by} style={{ opacity: v, transform: `scale(${(0.8 + 0.2 * v).toFixed(3)})` }}><AIGlyph name={app} size={11} />{label}</span>
 );
 
-/// 1. The evening walk: you think out loud to ChatGPT's voice mode, and tomorrow fills in.
+/// 1. The evening walk: you think out loud to ChatGPT's voice mode, and tomorrow fills in. The phone is
+/// voice mode as it really looks (white, the cloudy orb, mic and close); what's said floats beside it.
 const TALK = [
   { who: "you", text: "Tomorrow I want to run before work.", at: 0.04 },
-  { who: "ai", text: "Seven o'clock, five easy kilometres. It's on tomorrow's list.", at: 0.26 },
-  { who: "you", text: "And remind me to call the dentist.", at: 0.48 },
-  { who: "ai", text: "Added, after the run. Anything else for tomorrow?", at: 0.68 },
+  { who: "ai", text: "Five easy kilometres before work. It's on tomorrow's list.", at: 0.24 },
+  { who: "you", text: "And remind me to call the dentist.", at: 0.46 },
+  { who: "ai", text: "Added, after the run.", at: 0.66 },
 ];
 export function Walk() {
   const [ref, p] = useSceneProgress();
-  const now = [...TALK].reverse().find((t) => p >= t.at) ?? TALK[0];
-  const speaking = now.who === "ai" && p >= now.at;
-  const line1 = over(span(p, 0.36, 0.44)), line2 = over(span(p, 0.78, 0.86));
+  const now = [...TALK].reverse().find((t) => p >= t.at);
+  const speaking = now?.who === "ai";
+  const line1 = over(span(p, 0.34, 0.42)), line2 = over(span(p, 0.74, 0.82));
   return (
     <div ref={ref} className={`${m.stage} ${m.dusk}`}>
-      <div className={m.phone} aria-hidden="true">
-        <div className={m.screen} data-dark="">
+      <div className={`${m.phone} ${m.voicePhone}`} aria-hidden="true">
+        <div className={m.screen} data-voice="">
           <span className={m.island} />
-          <p className={m.voiceTop}><AIGlyph name="openai" size={13} color="#fff" />ChatGPT</p>
-          <span className={m.orb} data-speaking={speaking || undefined} />
-          <div className={m.talk}>
-            {TALK.map((t, i) => {
-              const v = mj(span(p, t.at, t.at + 0.07));
-              const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.05)) : 0;
-              return <p key={i} className={m.said} data-who={t.who} style={{ opacity: v * (1 - gone), transform: `translateY(${((1 - v) * 12 - gone * 12).toFixed(1)}px)` }}>{t.text}</p>;
-            })}
-          </div>
-          <span className={m.endCall}>End</span>
+          <p className={m.status}><b>21:14</b><span className={m.bars}><i /><i /><i /><i /></span></p>
+          <span className={m.tune}><svg viewBox="0 0 16 16"><path d="M2 5h7M12 5h2M2 11h2M7 11h7" /><circle cx="10.5" cy="5" r="1.6" /><circle cx="5.5" cy="11" r="1.6" /></svg></span>
+          <span className={m.orb} data-speaking={speaking || undefined}><i /><i /></span>
+          <span className={m.mic}><svg viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5" /><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V15" /></svg></span>
+          <span className={m.close}><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg></span>
         </div>
+      </div>
+      <div className={m.spoken} aria-hidden="true">
+        {TALK.map((t, i) => {
+          const v = mj(span(p, t.at, t.at + 0.06));
+          const gone = i < TALK.length - 1 ? mj(span(p, TALK[i + 1].at, TALK[i + 1].at + 0.05)) : 0;
+          return <p key={i} className={m.said} data-who={t.who} style={{ opacity: v * (1 - gone), transform: `translateY(${((1 - v) * 10 - gone * 10).toFixed(1)}px)` }}>
+            <span>{t.who === "you" ? "You" : <><AIGlyph name="openai" size={11} />ChatGPT</>}</span>{t.text}</p>;
+        })}
       </div>
       <figure className={`${m.note} ${m.walkNote}`}>
         <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Plans</span></div>
         <div className={m.paper}>
           <h3 className={m.title}>Tomorrow</h3>
           <ul className={m.list}>
-            <li style={{ ...rise(line1), background: `rgba(240,144,26,${(0.14 * line1 * (1 - span(p, 0.92, 1) * 0.5)).toFixed(3)})` }}><Check on={false} /><span>07:00 · Run, 5 km easy</span><By app="openai" label="ChatGPT" v={line1} /></li>
-            <li style={{ ...rise(line2), background: `rgba(240,144,26,${(0.14 * line2).toFixed(3)})` }}><Check on={false} /><span>09:00 · Call the dentist</span><By app="openai" label="ChatGPT" v={line2} /></li>
             <li><Check on={false} /><span>Pick up the dry cleaning</span></li>
+            <li style={{ ...rise(line1), background: `rgba(240,144,26,${(0.14 * line1).toFixed(3)})` }}><Check on={false} /><span>Run before work, 5 km easy</span><By app="openai" label="ChatGPT" v={line1} /></li>
+            <li style={{ ...rise(line2), background: `rgba(240,144,26,${(0.14 * line2).toFixed(3)})` }}><Check on={false} /><span>Call the dentist</span><By app="openai" label="ChatGPT" v={line2} /></li>
           </ul>
         </div>
       </figure>
