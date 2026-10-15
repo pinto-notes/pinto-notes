@@ -215,8 +215,9 @@ Deno.test("a busy note gets a snapshot from the AI, and loads from it", async ()
   await tool(pg, sara, "edit", { path: "Shared with me/Offsite plan.md", old_string: "Book the venue", new_string: "Venue" });
   const snaps = (await pg.query<{ upto: string; author_id: string }>(`select upto, author_id from public.note_snapshots where note_id = $1`, [id])).rows;
   assertEquals(snaps.map((s) => s.author_id), [sara.id]);
-  // Compaction dropped what it covers.
-  assertEquals((await pg.query(`select 1 from public.note_updates where note_id = $1`, [id])).rows.length, 0);
+  // Compaction dropped what it covers: what the AI loaded. Its own change stays after the snapshot.
+  const left = (await pg.query<{ author_id: string }>(`select author_id from public.note_updates where note_id = $1`, [id])).rows;
+  assertEquals(left.map((r) => r.author_id), [sara.id]);
   const read = await tool(pg, sara, "fetch", { id: "Shared with me/Offsite plan.md" });
   assertStringIncludes(read.text, "- [ ] Venue");
 });

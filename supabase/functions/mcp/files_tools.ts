@@ -456,7 +456,14 @@ async function deleteShared(tx: Tx, c: Call, n: Note, path: string) {
   if (n.virtual) throw new ToolError(`"${path}" can be deleted once Pinto Notes has opened it on one of this person's devices.`);
   const at = await loadDoc(tx, s);
   const body = at.text.trim() ? at.text : `${s.title}\n`;
-  await tx`select public.collab_unshare(${s.id}::uuid, ${await c.v.sealBody(n.id, body)}, ${await c.v.sealHead(n.id, { title: titleOf(body), preview: previewOf(body) })})`;
+  // `at.last`: the newest change this text holds. One that commits after it would be lost, so the
+  // server refuses then (PT409 "changed"), and the AI is asked to delete again.
+  try {
+    await tx`select public.collab_unshare(${s.id}::uuid, ${await c.v.sealBody(n.id, body)}, ${await c.v.sealHead(n.id, { title: titleOf(body), preview: previewOf(body) })}, ${at.last})`;
+  } catch (e) {
+    if ((e as { hint?: string }).hint === "changed") throw new ToolError(`Someone changed "${path}" while it was being deleted, so nothing was deleted. Delete it again.`);
+    throw e;
+  }
   forgetShared(c);
   const d = await classic.delete_note(tx, { id: n.id }, c) as { sub_notes_moved: number };
   return {
