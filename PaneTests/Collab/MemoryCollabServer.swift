@@ -185,7 +185,8 @@ final class MemoryCollabServer {
 
     func openLink(id: String, answer: String) -> Collab.OpenedLink? {
         guard let l = links[id], let raw = Self.unhex(answer), E2EE.hex(SHA256.hash(data: raw)) == l.answerHash, notes[l.note]?.epoch == l.epoch else { return nil }
-        return Collab.OpenedLink(note_id: l.note, role: l.role, epoch: l.epoch, key_wrap: l.keyWrap)
+        return Collab.OpenedLink(note_id: l.note, role: l.role, epoch: l.epoch, key_wrap: l.keyWrap,
+                                 owner_name: notes[l.note].flatMap { people[$0.owner]?.name }, head_ct: notes[l.note]?.head)
     }
 
     func joinLink(_ user: UUID, id: String, answer: String, keyWrap: String, selfWrap: String) throws {

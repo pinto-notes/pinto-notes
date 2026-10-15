@@ -78,4 +78,22 @@ import Testing
         #expect(sara.store.shareState(for: mine).link == nil && sara.store.linkVault?.load(mine.id) == nil)
         _ = emil
     }
+
+    /// Before joining, a link says which note and who shared it, and opening it joins no one.
+    @Test func aLinkPreviewsWithoutJoining() async throws {
+        let emilID = server.account("Emil"), saraID = server.account("Sara")
+        let emil = try device(emilID, name: "Emil"), sara = try device(saraID, name: "Sara")
+        let note = Note(body: "Team offsite\n\nAgenda\n")
+        emil.context.insert(note)
+        try await emil.store.setAccess(.edit, for: note)
+        let link = try #require(emil.store.linkURL(note))
+        let preview = try #require(await sara.store.preview(link))
+        #expect(preview.title == "Team offsite" && preview.owner == "Emil" && preview.canEdit && !preview.alreadyIn)
+        #expect(try await server.transport(for: emilID).members(of: note.id).count == 1)
+        // After joining, the same link says she's in.
+        #expect(await sara.store.join(link))
+        #expect(await sara.store.preview(link)?.alreadyIn == true)
+        // The owner's own link is a note they're in.
+        #expect(await emil.store.preview(link)?.alreadyIn == true)
+    }
 }

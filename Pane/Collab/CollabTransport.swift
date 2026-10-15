@@ -154,6 +154,11 @@ enum Collab {
         let role: String
         let epoch: Int
         let key_wrap: String
+        /// The owner's profile name and the note's sealed head (`amb3h`, opened with the link's
+        /// note key), so the app can ask "Join “Team offsite”?" before joining
+        /// (20261015080000_collab_link_preview.sql). Nil from a server without it.
+        var owner_name: String? = nil
+        var head_ct: String? = nil
     }
 
     enum Event: Sendable {
