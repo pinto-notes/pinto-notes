@@ -398,6 +398,9 @@ final class CollabSession {
             if !wasHere { Task { await refreshMembers() }; sendPresence() }
         case .leave(let user):
             peers[user] = nil
+            // They may have left the note itself (Leave), not just closed it: People follows now,
+            // not on the next poll.
+            Task { await refreshMembers() }
         }
     }
 

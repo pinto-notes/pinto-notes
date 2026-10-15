@@ -87,6 +87,22 @@ extension CollabStore: ShareBackend {
         onLeft?(note.id)
     }
 
+    /// The note isn't shared any more: its link is gone here and from the vault.
+    func forgetLink(_ note: UUID) {
+        if links[note] != nil || linkAccess[note] != nil { links[note] = nil; linkAccess[note] = nil }
+        if linkVault?.load(note) != nil { linkVault?.remove(note) }
+    }
+
+    /// Start fresh: the account's shared notes go with its keys, here as on the server, at once.
+    /// Notes others shared with you leave your notes; yours are your ordinary notes again, with
+    /// their text. Every link goes from the vault.
+    func startedFresh() {
+        linkVault?.removeAll()
+        links = [:]
+        linkAccess = [:]
+        library?.startedFresh()
+    }
+
     /// The note's link as this device or your others kept it, after a relaunch.
     func restoreLink(_ note: UUID) {
         guard links[note] == nil, let e = linkVault?.load(note), let access = ShareState.Access(rawValue: e.access), access != .off else { return }
@@ -103,7 +119,9 @@ extension CollabStore: ShareBackend {
 
     /// Share's state for a note: the link, and everyone in it (just you before anyone joins).
     func shareState(for note: Note) -> ShareState {
-        restoreLink(note.id)
+        // A link exists only while the note is shared: once it stops (the owner deleted it, or
+        // it was unshared elsewhere) the server dropped the link, and so does Share, at once.
+        if note.isShared { restoreLink(note.id) } else { forgetLink(note.id) }
         let list = people(in: note)
         let me = self.me ?? UUID()
         let people = (list.isEmpty ? [.init(id: me, name: name, isMe: true, role: "owner")] : list).map { p in

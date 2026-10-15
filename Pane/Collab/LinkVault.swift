@@ -9,6 +9,8 @@ protocol LinkVault {
     /// False when it couldn't be kept (no Keychain access).
     @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool
     func remove(_ note: UUID)
+    /// Every link of the account (Start fresh).
+    func removeAll()
 }
 
 struct LinkVaultEntry: Codable, Equatable {
@@ -144,6 +146,7 @@ final class MemoryLinkVault: LinkVault {
     func load(_ note: UUID) -> LinkVaultEntry? { entries[note] }
     @discardableResult func save(_ entry: LinkVaultEntry, for note: UUID) -> Bool { entries[note] = entry; return true }
     func remove(_ note: UUID) { entries[note] = nil }
+    func removeAll() { entries = [:] }
 }
 
 /// The people whose safety code you checked, with the key you checked it for: a key that changes

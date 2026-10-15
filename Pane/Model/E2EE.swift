@@ -1495,8 +1495,9 @@ final class AccountCrypto {
                 defaults.set(true, forKey: Self.startedFreshHereKey(account))
                 // What this device holds goes up again under the new key (SyncEngine.adoptKeyIfChanged).
                 defaults.set(true, forKey: SyncEngine.uploadAgainKey(account))
-                // Shared notes' links were made with keys that are gone now.
-                KeychainLinkVault.removeAll(account: account)
+                // Shared notes went on the server with the keys: here too, now, and their links.
+                if let store = CollabStore.shared, store.me == account { store.startedFresh() }
+                else { KeychainLinkVault.removeAll(account: account) }
                 await removeAccountFiles?(account)
             }
         }
