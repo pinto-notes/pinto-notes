@@ -87,10 +87,12 @@ extension NetworkFaults {
         server.add(member, to: note.id)
         let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
         #expect(mine.id != note.id)
-        #expect(mine.id == SharedNotes.noteID(for: note.id, user: member))
+        #expect(mine.id == SharedNotes.noteID(for: note.id, dataKey: dataKeys[member]!))
+        // Keyed with Sara's data key: nobody else can work it out and take it first.
+        #expect(mine.id != SharedNotes.noteID(for: note.id, dataKey: dataKeys[owner]!))
         #expect(mine.sharedNoteID == note.id)
         #expect(mine.body == "Trip to Lisbon\nPastéis at 9")
-        #expect(mine.folder?.name == "Shared with me" && mine.folder?.id == SharedNotes.sharedWithMeID(user: member))
+        #expect(mine.folder?.name == "Shared with me" && mine.folder?.id == SharedNotes.sharedWithMeID(dataKey: dataKeys[member]!))
 
         // Through the member's sync: a row with their own id, a pointer to the shared note.
         let engine = engine(for: sara)

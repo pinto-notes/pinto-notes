@@ -133,12 +133,14 @@ final class SharedLibrary {
     /// "Shared with me" if you'd moved it there; the pointer arriving puts it in its place.
     @discardableResult
     func adopt(shared: UUID, nk: SymmetricKey, epoch: Int, role: String, announce: Bool = true) async throws -> Note {
-        let noteID = SharedNotes.noteID(for: shared, user: me)
+        guard let dk = dataKey() else { throw Problem.noDataKey }
+        // The pointer this account has already (from another device, or from before you left),
+        // else the id your data key gives it.
+        let noteID = context.pointer(forShared: shared)?.id ?? SharedNotes.noteID(for: shared, dataKey: dk)
         if let s = sessions[noteID], let note = context.note(noteID), note.deletedAt == nil {
             if epoch > s.epoch { s.reseal(nk: nk, epoch: epoch) }
             return note
         }
-        guard let dk = dataKey() else { throw Problem.noDataKey }
         let record = context.sharedDocument(shared) ?? {
             let r = SharedDocument(id: shared, epoch: epoch, role: role, saved: Data())
             context.insert(r)
@@ -160,9 +162,9 @@ final class SharedLibrary {
             note = existing
             note.deletedAt = nil
             note.trashedAt = nil
-            if note.folder == nil || note.folder?.deletedAt != nil { note.folder = SharedNotes.sharedWithMe(context, user: me) }
+            if note.folder == nil || note.folder?.deletedAt != nil { note.folder = SharedNotes.sharedWithMe(context, dataKey: dk) }
         } else {
-            note = Note(body: session.text, folder: SharedNotes.sharedWithMe(context, user: me))
+            note = Note(body: session.text, folder: SharedNotes.sharedWithMe(context, dataKey: dk))
             note.id = noteID
             context.insert(note)
         }
@@ -313,8 +315,7 @@ final class SharedLibrary {
         // Joined on another device, whose pointer hasn't reached this one yet. Your own notes
         // come with their own pointer (their id is the shared note's).
         for row in rows where row.role != "owner" && row.accepted_at != nil {
-            let id = SharedNotes.noteID(for: row.note_id, user: me)
-            if let local = context.note(id) {
+            if let local = context.pointer(forShared: row.note_id) {
                 // Deleted for good after you joined (here or on another device) while offline:
                 // you leave it now. Joined again since, it stays.
                 if let gone = local.deletedAt, let joined = Self.date(row.accepted_at), gone > joined {

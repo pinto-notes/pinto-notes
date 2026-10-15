@@ -120,15 +120,19 @@ enum SharedNotes {
 
     /// The id of someone else's shared note in your library. Your own id for it, so it never
     /// collides with the owner's note (`notes.id` is unique across accounts), and the same on each
-    /// of your devices, so two of them joining make one note, not two.
-    static func noteID(for shared: UUID, user: UUID) -> UUID {
-        derived("pinto shared note \(shared.uuidString.lowercased()) \(user.uuidString.lowercased())")
+    /// of your devices, so two of them joining make one note, not two. Keyed with your data key:
+    /// from public values (the note's id, yours) a co-member could take the id first and block it.
+    /// HMAC-SHA256(data key, "pinto shared note <id>"), first 16 bytes, as a v5-style UUID (the
+    /// MCP server derives it the same way).
+    static func noteID(for shared: UUID, dataKey: SymmetricKey) -> UUID {
+        derived("pinto shared note \(shared.uuidString.lowercased())", key: dataKey)
     }
 
     /// "Shared with me": where notes others share with you land. One folder per account, with the
-    /// same id on every device. You can move a note out of it; it's an ordinary folder.
-    static func sharedWithMeID(user: UUID) -> UUID {
-        derived("pinto shared with me \(user.uuidString.lowercased())")
+    /// same id on every device (keyed like `noteID`). You can move a note out of it; it's an
+    /// ordinary folder.
+    static func sharedWithMeID(dataKey: SymmetricKey) -> UUID {
+        derived("pinto shared with me", key: dataKey)
     }
 
     static let sharedWithMeName = "Shared with me"
@@ -147,8 +151,8 @@ enum SharedNotes {
     /// the server has done it, so a pointer can't go back up over the unshared row.
     @MainActor static var unsharing: Set<UUID> = []
 
-    private static func derived(_ s: String) -> UUID {
-        var b = Array(SHA256.hash(data: Data(s.utf8)).prefix(16))
+    private static func derived(_ s: String, key: SymmetricKey) -> UUID {
+        var b = Array(HMAC<SHA256>.authenticationCode(for: Data(s.utf8), using: key).prefix(16))
         b[6] = (b[6] & 0x0F) | 0x50 // version 5 (name-based)
         b[8] = (b[8] & 0x3F) | 0x80 // RFC 4122 variant
         return UUID(uuid: (b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]))
@@ -156,8 +160,8 @@ enum SharedNotes {
 
     /// The "Shared with me" folder, made the first time something is shared with you.
     @MainActor
-    static func sharedWithMe(_ context: ModelContext, user: UUID) -> Folder {
-        let id = sharedWithMeID(user: user)
+    static func sharedWithMe(_ context: ModelContext, dataKey: SymmetricKey) -> Folder {
+        let id = sharedWithMeID(dataKey: dataKey)
         if let f = context.folder(id) {
             if f.deletedAt != nil { f.deletedAt = nil; f.touch() }
             return f
@@ -175,6 +179,13 @@ extension ModelContext {
     /// The shared document with this id, if this device has it.
     func sharedDocument(_ id: UUID) -> SharedDocument? {
         try? fetch(FetchDescriptor<SharedDocument>(predicate: #Predicate { $0.id == id })).first
+    }
+
+    /// Your note for someone else's shared note (its pointer), deleted ones too: found by the
+    /// shared note, whatever its id.
+    func pointer(forShared shared: UUID) -> Note? {
+        (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.id != shared })))?
+            .min { ($0.deletedAt == nil ? 0 : 1) < ($1.deletedAt == nil ? 0 : 1) }
     }
 
     /// Notes that are shared (pointers), live or in Recently Deleted.
