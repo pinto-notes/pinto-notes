@@ -59,9 +59,9 @@ export function V5({ hero = "side" }: { hero?: string }) {
       <section className={`${d.band} ${v.night}`} aria-labelledby="walk" data-dark-band="">
         <Pin><div className={v.row}>
           <div className={v.words}>
-            <p className={v.kicker}>Every evening</p>
-            <h2 id="walk" className={v.rowTitle}>Plan tomorrow on a walk.</h2>
-            <p className={v.say}>Talk it through with ChatGPT. It's in your notes before you're home.</p>
+            <p className={v.kicker}>Works with voice</p>
+            <h2 id="walk" className={v.rowTitle}>Talk to your notes, wherever you are.</h2>
+            <p className={v.say}>Open your AI's voice mode and just say it. Out on an evening walk, plan tomorrow out loud. It's in your notes before you're home.</p>
           </div>
           <Walk />
         </div></Pin>
