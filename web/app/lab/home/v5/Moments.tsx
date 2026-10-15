@@ -106,6 +106,8 @@ export function Walk() {
   const now = [...TALK].reverse().find((t) => p >= t.at);
   // Speaking only while the reply is being said (its words arrive over about 0.12 of the scene).
   const speaking = now?.who === "ai" && p < now.at + 0.16;
+  // You talking: a live waveform under the still orb.
+  const listening = now?.who === "you" && p < now.at + 0.16;
   const line1 = over(span(p, 0.34, 0.42)), line2 = over(span(p, 0.74, 0.82));
   return (
     <div ref={ref} className={`${m.stage} ${m.dusk}`}>
@@ -116,6 +118,7 @@ export function Walk() {
           <p className={m.status}><b>21:14</b><span className={m.bars}><i /><i /><i /><i /></span></p>
           <span className={m.tune}><svg viewBox="0 0 16 16"><path d="M2 5h7M12 5h2M2 11h2M7 11h7" /><circle cx="10.5" cy="5" r="1.6" /><circle cx="5.5" cy="11" r="1.6" /></svg></span>
           <span className={m.orb} data-speaking={speaking || undefined}><i /><i /></span>
+          <span className={m.wave} data-on={listening || undefined} aria-hidden="true">{Array.from({ length: 13 }, (_, i) => <i key={i} style={{ animationDelay: `${(i * 0.137) % 0.9}s` }} />)}</span>
       <div className={m.spokenIn} aria-hidden="true">
               {TALK.map((t, i) => {
                 // One line at a time: the old one leaves first, then the new one arrives.

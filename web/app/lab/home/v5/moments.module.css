@@ -267,3 +267,12 @@
   100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(90, 160, 255, 0.0), 0 10px 30px -8px rgba(60, 130, 240, 0.35); }
 }
 @keyframes drift { 0% { background-position: 30% 50%; } 50% { background-position: 70% 45%; } 100% { background-position: 30% 50%; } }
+
+/* Your voice: a waveform under the orb, only while you talk. */
+.wave { position: absolute; left: 50%; top: calc(40% + 72px); transform: translateX(-50%); display: flex; align-items: center; gap: 3px; height: 26px; opacity: 0; transition: opacity .2s ease-out; }
+.wave[data-on] { opacity: 1; }
+.wave i { width: 3px; height: 26px; border-radius: 2px; background: #1d1b19; transform: scaleY(0.2); }
+.wave[data-on] i { animation: wave 0.9s ease-in-out infinite; }
+@keyframes wave { 0%, 100% { transform: scaleY(0.18); } 30% { transform: scaleY(0.9); } 55% { transform: scaleY(0.4); } 75% { transform: scaleY(0.7); } }
+@media (prefers-reduced-motion: reduce) { .wave[data-on] i { animation: none; transform: scaleY(0.5); } }
+.spokenIn { top: 68%; }
