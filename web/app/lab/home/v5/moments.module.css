@@ -1,6 +1,6 @@
 /* Pinned rows: the row sticks under the header, centred in the space left, while the scene plays. */
 .pinBox { position: relative; }
-.pinBox[data-on] .pinInner { position: sticky; top: 100px; min-height: calc(100vh - 100px); display: grid; align-content: center; }
+.pinBox[data-on] .pinInner { position: sticky; top: 100px; min-height: min(calc(100vh - 100px), 760px); display: grid; align-content: center; }
 
 /* Version 5's moments: one scene per row, cream stage, real-looking pieces of the app. */
 .stage { position: relative; height: 520px; border-radius: 28px; background: #fbeedd; overflow: hidden; isolation: isolate;
