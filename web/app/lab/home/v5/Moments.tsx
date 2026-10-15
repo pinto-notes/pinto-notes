@@ -643,9 +643,9 @@ export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "lef
     <div className={m.paperScene}>
       <img src={src} alt={alt} />
       <figure className={m.quote} data-at={at} data-voice={voice || undefined}>
-        {voice && <p className={m.qCall}><i className={m.qOrb} />ChatGPT voice<b>6:42</b></p>}
+        {voice && <p className={m.qCall}><AIGlyph name="openai" size={15} />Voice<span className={m.qWave} data-mini="" aria-hidden="true"><i /><i /><i /><i /><i /></span><b>6:42</b></p>}
         <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
-        <p className={m.qAi}><span>{voice ? <i className={m.qOrbSm} /> : <AIGlyph name={aiGlyph} size={13} />}{aiName}</span>{ai}</p>
+        <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} />{aiName}</span>{ai}</p>
         {gym && <GymCard p={1} />}
       </figure>
       <span className={m.paperWhere}>{where}</span>

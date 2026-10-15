@@ -439,3 +439,7 @@
 .qWave { flex: none; display: inline-flex; align-items: center; gap: 2.5px; height: 20px; }
 .qWave i { width: 3px; border-radius: 2px; background: #f0a040; }
 .qWave i:nth-child(1) { height: 7px; } .qWave i:nth-child(2) { height: 15px; } .qWave i:nth-child(3) { height: 10px; } .qWave i:nth-child(4) { height: 18px; } .qWave i:nth-child(5) { height: 8px; }
+.qCall { padding: 0 14px; }
+.qWave[data-mini] { height: 14px; gap: 2px; }
+.qWave[data-mini] i { width: 2.5px; background: #1d1b19; }
+.qWave[data-mini] i:nth-child(1) { height: 5px; } .qWave[data-mini] i:nth-child(2) { height: 11px; } .qWave[data-mini] i:nth-child(3) { height: 7px; } .qWave[data-mini] i:nth-child(4) { height: 13px; } .qWave[data-mini] i:nth-child(5) { height: 6px; }

@@ -77,7 +77,7 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
           </div>
           <PaperStill voice at="left" src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
             alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline lit up."
-            me="Skipped the reading again." aiName="ChatGPT voice" aiGlyph="openai" ai="Third time this week. Want to move it to the mornings, before work?" />
+            me="Skipped the reading again." aiName="ChatGPT" aiGlyph="openai" ai="Third time this week. Want to move it to the mornings, before work?" />
         </div>
         <div className={v.row} data-flip="">
           <div className={v.words}>
