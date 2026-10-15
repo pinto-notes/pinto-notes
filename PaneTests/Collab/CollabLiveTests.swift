@@ -101,6 +101,19 @@ struct CollabLiveTests {
                                                  transport: emil.store.transport!, me: emil.id, name: "Emil")
         #expect(fresh.text == mine.text)
 
+        // Eve joins through the link (made again under the new key) and leaves: Emil's device
+        // renews the key on its next look at his memberships.
+        let link = try #require(emil.store.linkURL(note))
+        #expect(await eve.store.join(link))
+        let hers = try #require(eve.container.mainContext.pointer(forShared: note.id))
+        try await eve.store.leave(hers)
+        let marked = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
+        #expect(marked.rekey_after != nil)
+        await emil.store.checkInvites()
+        let renewed = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
+        #expect(renewed.epoch == 3)
+        #expect(renewed.rekey_after == nil)
+
         for p in [emil, sara, eve] { p.store.stop() }
     }
 }

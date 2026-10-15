@@ -90,10 +90,29 @@ final class SupabaseCollabTransport: CollabTransport {
 
     @discardableResult
     func remove(note: UUID, user: UUID?, epoch: Int, wraps: [Collab.Wrap]) async throws -> Int {
-        struct Params: Encodable { let p_note: String; let p_user: String?; let p_epoch: Int; let p_wraps: [Collab.Wrap] }
-        return try await call("remove") {
-            try await client.rpc("collab_remove", params: Params(p_note: Self.id(note), p_user: user.map(Self.id), p_epoch: epoch, p_wraps: wraps)).execute().value
+        try await call("remove") {
+            try await client.rpc("collab_remove", params: RemoveParams(p_note: Self.id(note), p_user: user.map(Self.id), p_epoch: epoch, p_wraps: wraps)).execute().value
         }
+    }
+
+    /// `collab_remove`'s arguments. `p_user` goes as an explicit null when no one is removed (a new
+    /// key after someone left): left out, PostgREST looks for a three-argument function, finds none,
+    /// and the key was never renewed.
+    struct RemoveParams: Encodable {
+        let p_note: String
+        let p_user: String?
+        let p_epoch: Int
+        let p_wraps: [Collab.Wrap]
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(p_note, forKey: .p_note)
+            if let p_user { try c.encode(p_user, forKey: .p_user) } else { try c.encodeNil(forKey: .p_user) }
+            try c.encode(p_epoch, forKey: .p_epoch)
+            try c.encode(p_wraps, forKey: .p_wraps)
+        }
+
+        enum CodingKeys: String, CodingKey { case p_note, p_user, p_epoch, p_wraps }
     }
 
     func updateHead(note: UUID, head: String) async throws {
