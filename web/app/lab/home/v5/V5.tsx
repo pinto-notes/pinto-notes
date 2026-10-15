@@ -12,6 +12,7 @@ import { AliveHero, TypeHero, WorldHero } from "./Heroes";
 import { AskHero, FieldHero, HandsHero, PageHero, PhoneMomentHero, ProductHero, ThreadsHero } from "./Heroes2";
 import { ScrollVar } from "./ScrollVar";
 import { ContinueOrFallback } from "./Continue";
+import { PhoneToFilm } from "./PhoneToFilm";
 import v from "./v5.module.css";
 
 const PICKS = ["habit-tracker", "trip-plan", "budget-log"];
@@ -63,6 +64,7 @@ export function V5({ hero = "fresh", band = "sage" }: { hero?: string; band?: st
       ) : hero === "fresh" ? (
         <div className={v.top}>
           <PhoneMomentHero />
+          <PhoneToFilm />
           <ScrollVar className={v.filmIn} from={1} to={0.35}><Film captions={CAPTIONS} stopAt={0.83} /></ScrollVar>
         </div>
       ) : hero === "how" ? (

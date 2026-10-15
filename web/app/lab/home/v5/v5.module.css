@@ -170,3 +170,7 @@
 .howKicker { margin: 0 0 12px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #c0660f; }
 .howTitle { margin: 0; font-size: clamp(36px, 4.2vw, 60px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.02; color: #2a1d10; max-width: 14em; text-wrap: balance; }
 .how .say { margin-left: auto; margin-right: auto; }
+
+/* While the note is flying, the film's stage keeps quiet: just the panel and the note's slot. */
+:global(html[data-note-flying]) .filmIn [class*="film_chat"], :global(html[data-note-flying]) .filmIn [class*="film_caption"], :global(html[data-note-flying]) .filmIn [class*="film_days"], :global(html[data-note-flying]) .filmIn [class*="film_thread"] { opacity: 0 !important; }
+.filmIn [class*="film_chat"], .filmIn [class*="film_caption"], .filmIn [class*="film_days"] { transition: opacity .4s ease-out; }
