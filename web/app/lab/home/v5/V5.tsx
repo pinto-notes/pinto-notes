@@ -9,6 +9,7 @@ import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
 import { PaperStill } from "./Moments";
 import { AliveHero, TypeHero, WorldHero } from "./Heroes";
+import { AskHero, FieldHero, HandsHero, PageHero, ProductHero, ThreadsHero } from "./Heroes2";
 import { ScrollVar } from "./ScrollVar";
 import v from "./v5.module.css";
 
@@ -40,12 +41,17 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "calm", band = "sage" }: { hero?: string; band?: string }) {
+export function V5({ hero = "threads", band = "sage" }: { hero?: string; band?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${l.main} ${d.main} ${v.main}`} data-quiet-nav="">
-      {hero === "calm" ? (
+      {(["threads", "product", "hands", "field", "page", "ask"] as const).includes(hero as never) ? (
+        <div className={v.top}>
+          {hero === "threads" ? <ThreadsHero /> : hero === "product" ? <ProductHero /> : hero === "hands" ? <HandsHero /> : hero === "field" ? <FieldHero /> : hero === "page" ? <PageHero /> : <AskHero />}
+          <Film captions={CAPTIONS} stopAt={0.83} />
+        </div>
+      ) : hero === "calm" ? (
         <div className={v.top}><WorldHero art="night" calm /><Film captions={CAPTIONS} stopAt={0.83} /></div>
       ) : hero === "world-day" || hero === "world-night" ? (
         <div className={v.top}><WorldHero art={hero === "world-day" ? "day" : "night"} /><Film captions={CAPTIONS} stopAt={0.83} /></div>

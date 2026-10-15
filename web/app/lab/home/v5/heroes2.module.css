@@ -1,0 +1,101 @@
+/* Hero round 2. Shared type. */
+.h1 { margin: 0; font-size: clamp(42px, 5vw, 76px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; text-wrap: balance; }
+.h1Light { composes: h1; color: #fff6ea; }
+.lede { margin: 0; max-width: 32em; font-size: clamp(17px, 1.35vw, 20px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.ledeLight { composes: lede; color: rgba(255, 246, 234, 0.85); }
+
+/* 1. Threads */
+.threads { display: grid; justify-items: center; gap: 12px; text-align: center; }
+.threadsHead { display: grid; justify-items: center; gap: 16px; max-width: 760px; }
+.threadsStage { position: relative; width: min(1100px, 100%); aspect-ratio: 16 / 7.6; }
+.nbArt { position: absolute; left: 50%; top: 56%; width: 62%; transform: translate(-50%, -50%); }
+.strings { position: absolute; inset: 0; width: 100%; height: 100%; }
+.strings path { fill: none; stroke: #d98a2b; stroke-width: 2; stroke-dasharray: 2 7; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: 0.6; }
+.spark { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255, 250, 243, 0.85); z-index: 2; }
+.pageLines { position: absolute; left: 50%; top: 56%; width: 22%; transform: translate(-4%, -50%) rotate(-2deg); margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; text-align: left; z-index: 1; }
+.pageLines li { font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive; font-size: clamp(11px, 1.1vw, 15px); white-space: nowrap; }
+.node { position: absolute; display: grid; justify-items: center; gap: 6px; transform: translate(-50%, -50%); font-size: 13px; font-weight: 650; color: #5a4430; z-index: 3; animation: bob 5.4s ease-in-out infinite; white-space: nowrap; }
+.nodeDisc { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: #fffdf9; transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease-out;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.18), 0 2px 3px rgba(80, 45, 10, 0.1), 0 14px 26px -12px rgba(80, 45, 10, 0.45); }
+.node[data-live] .nodeDisc { transform: scale(1.12); box-shadow: 0 0 0 3px rgba(240, 144, 26, 0.5), 0 16px 30px -12px rgba(80, 45, 10, 0.5); }
+@keyframes bob { 50% { translate: 0 -6px; } }
+
+/* 2. Product */
+.product { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); align-items: center; gap: 48px; min-height: min(calc(100vh - 140px), 760px); }
+.productHead { display: grid; gap: 18px; justify-items: start; }
+.productStage { position: relative; perspective: 1600px; }
+.mac { display: block; width: 112%; border-radius: 12px; transform: rotateY(-10deg) rotateX(3deg); transform-origin: left center;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.25), 0 60px 100px -50px rgba(60, 30, 5, 0.6), 0 20px 40px -20px rgba(60, 30, 5, 0.3); }
+.iphone { position: absolute; left: -6%; bottom: -10%; width: 26%; padding: 7px; border-radius: 38px; background: #111;
+  box-shadow: 0 0 0 1.5px #9a958e, 0 40px 70px -30px rgba(30, 15, 0, 0.6); }
+.iphone img { display: block; width: 100%; border-radius: 32px; }
+
+/* 3. Hands */
+.hands { position: relative; height: min(calc(100vh - 120px), 820px); min-height: 600px; border-radius: 32px; overflow: hidden; isolation: isolate; }
+.handsArt { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
+.hands::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(100deg, rgba(10, 8, 20, 0.66) 0%, rgba(10, 8, 20, 0.3) 40%, transparent 60%); }
+.handsWords { position: absolute; left: clamp(32px, 5%, 72px); top: 50%; transform: translateY(-50%); width: min(540px, 44%); display: grid; gap: 20px; justify-items: start; }
+.hands [class*="kit_primary"] { background: #fbeedd; color: #2a1d10; }
+.hands [class*="kit_ctaQuiet"] { color: rgba(255, 246, 234, 0.8); }
+
+/* 4. Field */
+.field { position: relative; min-height: min(calc(100vh - 140px), 760px); display: grid; place-items: center; border-radius: 32px; overflow: hidden;
+  background: radial-gradient(ellipse 70% 60% at 50% 40%, #fff6e8 0%, #f7dfbd 100%); }
+.fieldLines { position: absolute; inset: 0; pointer-events: none; }
+.fieldLines p { position: absolute; margin: 0; font-family: "Bradley Hand", "Segoe Print", cursive; font-size: clamp(20px, 2.2vw, 32px); white-space: nowrap; }
+.fieldWords { position: relative; display: grid; justify-items: center; gap: 20px; text-align: center; max-width: 860px; padding: 40px; }
+.fieldH1 { margin: 0; font-size: clamp(52px, 7.4vw, 120px); font-weight: 800; letter-spacing: -0.05em; line-height: 0.94; color: #2a1d10; }
+
+/* 5. Page */
+.page { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr); align-items: center; gap: 40px; min-height: min(calc(100vh - 140px), 760px); }
+.pageWords { display: grid; gap: 18px; justify-items: start; }
+.pageStage { position: relative; }
+.pageStage img { display: block; width: 140%; margin-left: -20%; }
+.pageBig { position: absolute; left: 50%; top: 50%; width: 30%; transform: translate(-6%, -50%) rotate(-2deg); margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.pageBig li { display: grid; gap: 1px; }
+.pageBig span { font-family: "Bradley Hand", "Segoe Print", cursive; font-size: clamp(14px, 1.5vw, 21px); white-space: nowrap; }
+.pageBig em { display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-size: 10.5px; font-weight: 700; color: #8a7a68; }
+
+/* 6. Ask */
+.ask { display: grid; justify-items: center; gap: 34px; text-align: center; padding-top: 20px; }
+.askH1 { margin: 0; font-size: clamp(44px, 5.6vw, 84px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; max-width: 13em; text-wrap: balance; }
+.askStage { position: relative; width: min(640px, 100%); display: grid; gap: 14px; text-align: left; }
+.askBox { display: grid; gap: 8px; padding: 18px 20px 20px; border-radius: 24px; background: #fff; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.16), 0 30px 60px -30px rgba(60, 30, 5, 0.5); transition: background-color .3s ease-out; }
+.askBox[data-sent] { background: #f7f7f7; }
+.askBox p, .askOther p { margin: 0; font-size: 20px; line-height: 1.4; color: #1d1b19; min-height: 1.4em; }
+.askApp { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #6b5f53; }
+.askCaret { display: inline-block; width: 2px; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; background: #1d1b19; }
+.askSaved { justify-self: center; margin: 0; display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px 0 8px; border-radius: 20px; background: #2a1d10; color: #fff4e6; font-size: 15px; }
+.askSaved b { color: #f5b25c; }
+.askTick { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #d97a17; }
+.askTick svg { width: 14px; height: 14px; } .askTick path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.askOther { display: grid; gap: 8px; padding: 18px 20px 20px; border-radius: 24px; background: #faf9f5; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.16), 0 30px 60px -30px rgba(60, 30, 5, 0.5); }
+.askCta { display: grid; justify-items: center; }
+
+@media (prefers-reduced-motion: reduce) { .node { animation: none; } }
+@media (max-width: 900px) {
+  .product, .page { grid-template-columns: minmax(0, 1fr); }
+  .mac { width: 100%; transform: none; }
+  .hands { height: auto; min-height: 640px; }
+  .handsWords { left: 22px; right: 22px; width: auto; top: 40px; transform: none; }
+  .threadsStage { aspect-ratio: 1 / 1; }
+  .nbArt { width: 90%; }
+  .node { font-size: 11px; } .nodeDisc { width: 44px; height: 44px; }
+}
+/* The notebook art sits on its own cream; fade its edges into the page. */
+.nbArt, .pageStage img { -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 70%, transparent 100%); mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 70%, transparent 100%); }
+.nbArt { width: 52%; }
+.pageLines { width: 18%; left: 52%; }
+/* Fixes: art stays in its own column, the words stay on top. */
+.productHead, .pageWords { position: relative; z-index: 2; }
+.productStage { margin-left: 40px; }
+.mac { width: 100%; }
+.iphone { left: -12%; bottom: -12%; width: 24%; }
+.pageStage img { width: 118%; margin-left: -4%; }
+.pageBig { left: 54%; }
+.nbArt { width: 66%; }
+.threadsStage { aspect-ratio: 16 / 8.6; margin-top: -10px; }
+.pageLines { width: 22%; left: 53%; }
+.pageLines li { font-size: clamp(13px, 1.35vw, 19px); }
+.iphone { left: auto; right: -4%; bottom: -14%; width: 22%; }
+.mac { transform: rotateY(-8deg) rotateX(2deg); transform-origin: right center; }
