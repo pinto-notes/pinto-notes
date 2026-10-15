@@ -270,15 +270,23 @@ extension CollabStore: ShareBackend {
         }
     }
 
-    /// A request that died on the way (a reused connection the server had closed: NSURLError
-    /// -1005, or a time-out, -1001) is sent once more. Only for calls that are safe to repeat.
+    /// A request that died on the way is sent once more: a reused connection the server had
+    /// closed (NSURLError -1005), a time-out (-1001), or another passing network failure. Only for
+    /// calls that are safe to repeat. JoinCenter's time limit covers both tries.
     static func retryingOnce<T>(_ step: () async throws -> T) async throws -> T {
         do { return try await step() } catch where isDropped(error) { return try await step() }
     }
 
+    /// The URL errors that pass: the connection, not the request, failed.
+    nonisolated static let transientURLErrors: Set<Int> = [
+        NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost,
+        NSURLErrorDNSLookupFailed, NSURLErrorNotConnectedToInternet, NSURLErrorSecureConnectionFailed,
+        NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff, NSURLErrorCallIsActive,
+    ]
+
     nonisolated static func isDropped(_ error: Error) -> Bool {
         let e = error as NSError
-        return e.domain == NSURLErrorDomain && (e.code == NSURLErrorNetworkConnectionLost || e.code == NSURLErrorTimedOut)
+        return e.domain == NSURLErrorDomain && transientURLErrors.contains(e.code)
     }
 
     /// What to say when a link couldn't be read: the connection, or the link itself.

@@ -140,4 +140,35 @@ import Testing
         try? await Task.sleep(for: .milliseconds(100))
         #expect(joined.urls.isEmpty && c.pending == nil)
     }
+
+    /// Through JoinCenter, with the live store's retry: a link whose first request drops still
+    /// asks, and joining after a dropped request still joins, within the one time limit.
+    @Test func aDroppedRequestIsTriedAgainWithinTheTimeLimit() async {
+        let (c, joined) = Self.center()
+        var previewTries = 0, joinTries = 0
+        c.preview = { _ in
+            try? await CollabStore.retryingOnce {
+                previewTries += 1
+                if previewTries == 1 { throw URLError(.networkConnectionLost) }
+                return Self.teamOffsite
+            }
+        }
+        c.join = { url in
+            do {
+                try await CollabStore.retryingOnce {
+                    joinTries += 1
+                    if joinTries == 1 { throw URLError(.timedOut) }
+                }
+                joined.urls.append(url)
+                return nil
+            } catch { return "no" }
+        }
+        c.timeout = .seconds(2)
+        c.open(Self.link)
+        await Self.settle(c)
+        #expect(Self.asked(c) == Self.teamOffsite && previewTries == 2)
+        c.accept()
+        await Self.settle(c) { joined.urls.isEmpty }
+        #expect(joined.urls == [Self.link] && joinTries == 2 && c.phase == .idle)
+    }
 }

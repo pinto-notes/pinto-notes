@@ -127,5 +127,10 @@ import Testing
         server.offline = false
         // A dropped connection twice over: the connection is named.
         #expect(CollabStore.joinFailure(URLError(.networkConnectionLost)).contains("couldn't be reached"))
+        // Which failures are tried again: the passing ones, not a refused request.
+        for code: URLError.Code in [.networkConnectionLost, .timedOut, .cannotConnectToHost, .notConnectedToInternet] {
+            #expect(CollabStore.isDropped(URLError(code)), "\(code)")
+        }
+        #expect(!CollabStore.isDropped(URLError(.badServerResponse)) && !CollabStore.isDropped(Collab.Failure.notOwner))
     }
 }
