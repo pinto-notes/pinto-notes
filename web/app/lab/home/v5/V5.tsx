@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Agents, Habits, Pin, Walk } from "./Moments";
+import { Builder, Optimiser, Pin, Walker } from "./Moments";
 import { ScrollVar } from "./ScrollVar";
 import { Week } from "./Week";
 import v from "./v5.module.css";
@@ -28,12 +28,12 @@ const EXTRAS = [
 
 // Three features, each named plainly, with one real-life example under it.
 const FEATURES = [
-  { id: "voice", Scene: Walk, kicker: "Every evening", title: "Plan tomorrow\non a walk.",
-    say: "Talk it through with ChatGPT. It's in your notes before you're home." },
-  { id: "habits", Scene: Habits, kicker: "Trackers", title: "Your AI\nticks it off.",
-    say: "Tell it what you did. Your trackers update themselves." },
-  { id: "agents", Scene: Agents, kicker: "Agents", title: "Your agents\nshare one brain.",
-    say: "Every session starts where the last one stopped." },
+  { id: "walk", Scene: Walker, kicker: "Every evening", title: "Maya plans\ntomorrow on a walk.",
+    say: "She talks through her day with ChatGPT. What got done, what's next. It's in her notes before she's home." },
+  { id: "agents", Scene: Builder, kicker: "All day", title: "Jonas runs his agents\non one notebook.",
+    say: "Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project." },
+  { id: "gym", Scene: Optimiser, kicker: "Every morning", title: "Sara built\nher own gym log.",
+    say: "She asked for it, and it appeared in her notes. Now she just tells ChatGPT what she lifted." },
 ];
 
 
@@ -76,7 +76,7 @@ export function V5({ hero = "side", band = "sage" }: { hero?: string; band?: str
       <section className={`${v.moments} ${v.featBand}`} data-band={band} data-dark-band={band} aria-labelledby="moments">
         <div className={v.bandHead}>
           <h2 id="moments" className={v.big}>People are already living like this.</h2>
-          <p className={v.say}>Small habits that only work when your AI can write in your notes.</p>
+          <p className={v.say}>Three small systems. They compound.</p>
         </div>
         {FEATURES.map((x, i) => (
           <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>

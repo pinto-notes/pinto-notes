@@ -139,3 +139,11 @@
 .featBand .kicker { font-size: 15px; letter-spacing: 0.02em; }
 .featBand .say { font-size: clamp(19px, 1.6vw, 23px); margin-top: 18px; }
 .featBand .rowTitle { white-space: pre-line; }
+/* People rows: the scene gets the room; names-and-moments headlines at a calmer size. */
+@media (min-width: 901px) {
+  .featBand .row { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); gap: 56px; }
+  .featBand .row[data-flip] { grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr); }
+  .featBand .row .words { max-width: 420px; }
+}
+.featBand .rowTitle { font-size: clamp(36px, 3.4vw, 54px); line-height: 1.02; }
+.featBand .say { font-size: clamp(17px, 1.3vw, 19px); }

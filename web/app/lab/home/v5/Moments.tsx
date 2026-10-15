@@ -406,3 +406,130 @@ export function Habits() {
     </div>
   );
 }
+
+// ── People at the front: three people, each in their moment. A portrait, what they say (speech
+// bubbles come out of the person, so it's obvious who talks), and the one note or app it lands in. ──
+
+/// A spoken line: from the person (cream, a tiny waveform mark) or from their AI (white, its logo).
+function Say({ who, ai, text, v, className }: { who: "me" | "ai"; ai?: "openai" | "claude"; text: string; v: number; className?: string }) {
+  return (
+    <p className={`${m.say} ${className ?? ""}`} data-who={who} style={{ opacity: v, transform: `translateY(${((1 - v) * 10).toFixed(1)}px) scale(${(0.96 + 0.04 * v).toFixed(3)})` }}>
+      {who === "ai" && ai ? <span className={m.sayMark}><AIGlyph name={ai} size={11} /></span> : <span className={m.sayWave} aria-hidden="true"><i /><i /><i /><i /></span>}
+      {text}
+    </p>
+  );
+}
+const Portrait = ({ src, name, when }: { src: string; name: string; when: string }) => (
+  <figure className={m.portrait}><img src={src} alt="" /><figcaption><b>{name}</b> · {when}</figcaption></figure>
+);
+
+/// Maya, every evening: plans tomorrow on a walk, out loud with ChatGPT.
+const MAYA = [
+  { who: "me" as const, text: "Did my run. Skipped the reading.", at: 0.04 },
+  { who: "ai" as const, text: "Run ticked. Reading moves to tomorrow.", at: 0.2 },
+  { who: "me" as const, text: "And call the dentist before ten.", at: 0.44 },
+  { who: "ai" as const, text: "Added to tomorrow.", at: 0.6 },
+];
+export function Walker() {
+  const [ref, p, replay] = useSceneProgress();
+  const shown = (i: number) => mj(span(p, MAYA[i].at, MAYA[i].at + 0.06)) * (i < MAYA.length - 2 ? 1 - mj(span(p, MAYA[i + 2].at, MAYA[i + 2].at + 0.05)) : 1);
+  const runTick = span(p, 0.24, 0.3), read = over(span(p, 0.28, 0.36)), dentist = over(span(p, 0.64, 0.72));
+  return (
+    <div ref={ref} className={`${m.stage} ${m.frontier}`}>
+      <Replay p={p} onClick={replay} />
+      <Portrait src="/home-v5/people/you.webp" name="Maya" when="out for a walk" />
+      <div className={m.says}>{MAYA.map((s, i) => <Say key={i} who={s.who} ai="openai" text={s.text} v={shown(i)} />)}</div>
+      <figure className={`${m.note} ${m.personNote}`}>
+        <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Plans</span></div>
+        <div className={m.paper}>
+          <h3 className={m.title}>Today</h3>
+          <ul className={m.list}>
+            <li><Check on={runTick > 0.5} t={runTick} /><span data-done={runTick > 0.5 || undefined}>Run, 5 km</span></li>
+            <li style={{ opacity: 1 - 0.6 * read }}><Check on={false} /><span style={{ textDecoration: read > 0.5 ? "line-through" : undefined }}>Read 20 pages</span></li>
+          </ul>
+          <h3 className={`${m.title} ${m.title2}`}>Tomorrow</h3>
+          <ul className={m.list}>
+            <li style={{ ...rise(read), background: `rgba(240,144,26,${(0.14 * read).toFixed(3)})` }}><Check on={false} /><span>Read 20 pages</span><By app="openai" label="moved" v={read} /></li>
+            <li style={{ ...rise(dentist), background: `rgba(240,144,26,${(0.14 * dentist).toFixed(3)})` }}><Check on={false} /><span>Call the dentist, before 10</span><By app="openai" label="ChatGPT" v={dentist} /></li>
+          </ul>
+        </div>
+      </figure>
+    </div>
+  );
+}
+
+/// Jonas, all day: Claude Code and Codex work from the same project notes and write back to them.
+const JONAS = [
+  { who: "Claude Code", ai: "claude" as const, line: "Retry with backoff", at: 0.18 },
+  { who: "Codex", ai: "openai" as const, line: "Offline edits replay", at: 0.44 },
+  { who: "Claude Code", ai: "claude" as const, line: "12 tests, all pass", at: 0.68 },
+];
+export function Builder() {
+  const [ref, p, replay] = useSceneProgress();
+  const intro = mj(span(p, 0.02, 0.1)) * (1 - mj(span(p, 0.16, 0.2)));
+  const active = JONAS.findIndex((j) => p >= j.at - 0.08 && p < j.at + 0.08);
+  return (
+    <div ref={ref} className={`${m.stage} ${m.frontier}`}>
+      <Replay p={p} onClick={replay} />
+      <Portrait src="/home-v5/people/jonas.webp" name="Jonas" when="building his app" />
+      <div className={m.says}><Say who="me" text="Pick up the sync rewrite. It's all in my notes." v={intro} /></div>
+      <div className={m.agents} aria-hidden="true">
+        {[{ n: "Claude Code", g: "claude" as const, c: "#d97757" }, { n: "Codex", g: "openai" as const, c: "#0d0d0d" }].map((a) => (
+          <span key={a.n} className={m.agent} data-on={(active >= 0 && JONAS[active].who === a.n) || undefined}>
+            <span className={m.agentDisc}><AIGlyph name={a.g} size={20} color={a.c} /></span>{a.n}
+          </span>
+        ))}
+      </div>
+      <figure className={`${m.note} ${m.personNote}`}>
+        <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Work</span></div>
+        <div className={m.paper}>
+          <h3 className={m.title}>Sync rewrite</h3>
+          <p className={m.sub}>Plan · decisions · log</p>
+          <ul className={m.list}>
+            <li><span className={m.dot} />Offline-first. Never lose an edit.</li>
+            {JONAS.map((j, i) => { const v = over(span(p, j.at, j.at + 0.07)); const fresh = v * (1 - span(p, j.at + 0.12, j.at + 0.22));
+              return <li key={i} style={{ ...rise(v), background: `rgba(240,144,26,${(0.14 * fresh).toFixed(3)})` }}><Check on={v > 0.5} t={v} /><span>{j.line}</span><By app={j.ai} label={j.who} v={v} /></li>; })}
+          </ul>
+        </div>
+      </figure>
+    </div>
+  );
+}
+
+/// Sara, every morning: built her own gym log, and just tells ChatGPT what she lifted.
+const LIFTS = [
+  { name: "Bench press", from: "60 kg", to: "62.5 kg", best: true, at: 0.42 },
+  { name: "Squat", from: "80 kg", to: "80 kg", best: false, at: 0.5 },
+  { name: "Pull-ups", from: "3 × 6", to: "3 × 7", best: true, at: 0.58 },
+];
+export function Optimiser() {
+  const [ref, p, replay] = useSceneProgress();
+  const s1 = mj(span(p, 0.04, 0.1)) * (1 - mj(span(p, 0.7, 0.75))), s2 = mj(span(p, 0.3, 0.36));
+  const bars = [0.52, 0.58, 0.6, 0.66, 0.7];
+  const grow = mj(span(p, 0.42, 0.52));
+  return (
+    <div ref={ref} className={`${m.stage} ${m.frontier}`}>
+      <Replay p={p} onClick={replay} />
+      <Portrait src="/home-v5/people/sara.webp" name="Sara" when="after the gym" />
+      <div className={m.says}>
+        <Say who="me" text="Bench 62.5 today, pull-ups three sets of seven." v={s1} />
+        <Say who="ai" ai="openai" text="Logged. Two new bests this week." v={s2} />
+      </div>
+      <figure className={m.gymApp}>
+        <div className={m.bar}><span className={m.lights}><i /><i /><i /></span><span className={m.folder}>Gym log</span></div>
+        <div className={m.gymBody}>
+          <div className={m.gymHead}><div><p className={m.gymKick}>Push day · week 6</p><h3>Today</h3></div>
+            <div className={m.spark} aria-hidden="true">{bars.map((b, i) => <i key={i} style={{ height: `${((i === bars.length - 1 ? b + 0.18 * grow : b) * 100).toFixed(0)}%` }} />)}</div></div>
+          <ul className={m.lifts}>
+            {LIFTS.map((l) => { const v = span(p, l.at, l.at + 0.06); const on = v > 0.5;
+              return <li key={l.name} style={{ background: `rgba(240,144,26,${(0.14 * Math.sin(Math.PI * span(p, l.at, l.at + 0.2))).toFixed(3)})` }}>
+                <b>{l.name}</b><span>{on ? l.to : l.from}</span>
+                {l.best && <em style={{ opacity: v, transform: `scale(${(0.8 + 0.2 * over(v)).toFixed(3)})` }}>New best</em>}
+              </li>; })}
+          </ul>
+          <p className={m.gymFoot}>Built from one ask: “make me a gym log”.</p>
+        </div>
+      </figure>
+    </div>
+  );
+}
