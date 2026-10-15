@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import m from "./moments.module.css";
 
@@ -14,25 +14,57 @@ const over = (v: number) => { const x = clamp(v); const c1 = 1.4, c3 = c1 + 1; r
 const span = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
 const rise = (v: number, px = 14): React.CSSProperties => ({ opacity: v, transform: `translateY(${((1 - v) * px).toFixed(1)}px)` });
 
-function useSceneProgress() {
-  const ref = useRef<HTMLDivElement>(null);
+// A pinned row hands its progress down; scenes outside one (phones, Reduce Motion) measure themselves.
+const PinProgress = createContext<number | null>(null);
+
+/// Holds a row on screen while you scroll through it, like the film: the row sticks under the header
+/// and the extra height is the scene's time. Wide screens only; elsewhere it's a plain block.
+export function Pin({ children, className, length = 150 }: { children: React.ReactNode; className?: string; length?: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [on, setOn] = useState(false);
   const [p, setP] = useState(0);
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("m");
-    if (q !== null) { setP(Number(q)); return; }
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setP(1); return; }
+    const wide = matchMedia("(min-width: 901px)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!wide || q !== null) return;
+    setOn(true);
     let raf = 0;
-    // Starts once about three quarters of the scene is on screen, so you see it begin; done as its top
-    // reaches the header. Always at least 280 px of scroll, so it never rushes on a short screen.
+    const read = () => { raf = 0; const el = box.current; if (!el) return; const r = el.getBoundingClientRect(); const travel = r.height - (innerHeight - 100); setP(clamp(travel > 0 ? (100 - r.top) / travel : 0)); };
+    const go = () => { if (!raf) raf = requestAnimationFrame(read); };
+    read(); addEventListener("scroll", go, { passive: true }); addEventListener("resize", go);
+    return () => { removeEventListener("scroll", go); removeEventListener("resize", go); cancelAnimationFrame(raf); };
+  }, []);
+  return (
+    <div ref={box} className={m.pinBox} data-on={on || undefined} style={on ? { height: `calc(100vh - 100px + ${length}vh)` } : undefined}>
+      <div className={`${m.pinInner} ${className ?? ""}`}>
+        <PinProgress.Provider value={on ? p : null}>{children}</PinProgress.Provider>
+      </div>
+    </div>
+  );
+}
+
+function useSceneProgress() {
+  const pinned = useContext(PinProgress);
+  const ref = useRef<HTMLDivElement>(null);
+  const [own, setOwn] = useState(0);
+  useEffect(() => {
+    if (pinned !== null) return;
+    const q = new URLSearchParams(location.search).get("m");
+    if (q !== null) { setOwn(Number(q)); return; }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setOwn(1); return; }
+    let raf = 0;
+    // Unpinned (phones): starts once most of the scene is on screen and takes a long, calm scroll.
     const read = () => {
       raf = 0; const el = ref.current; if (!el) return; const r = el.getBoundingClientRect();
-      const start = innerHeight - 0.75 * Math.min(r.height, innerHeight), end = Math.min(100, start - 280);
-      setP(clamp((start - r.top) / (start - end)));
+      const start = innerHeight - 0.75 * Math.min(r.height, innerHeight), end = Math.min(80, start - 520);
+      setOwn(clamp((start - r.top) / (start - end)));
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
     read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
-  }, []);
+  }, [pinned]);
+  // Pinned: a short hold at each end, so the first and last frames are seen.
+  const p = pinned !== null ? clamp((pinned - 0.08) / 0.8) : own;
   return [ref, p] as const;
 }
 

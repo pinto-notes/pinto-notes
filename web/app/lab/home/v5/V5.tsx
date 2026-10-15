@@ -7,7 +7,7 @@ import d from "../../home-d/d.module.css";
 import g from "../../home-g/g.module.css";
 import h from "../../home-h/h.module.css";
 import { Film, type Caption } from "../v2/Film";
-import { Agents, Dump, Together, Walk } from "./Moments";
+import { Agents, Dump, Pin, Together, Walk } from "./Moments";
 import { Week } from "./Week";
 import v from "./v5.module.css";
 
@@ -40,7 +40,7 @@ const CAPTIONS: Caption[] = [
 /// Version 5, "The week, then real life": the week film is the hero (its first frame is the first
 /// screen), then three moments people actually have (an evening walk, the week's shopping, a brain
 /// dump), alternating sides, then the templates and every app you can bring notes from.
-export function V5({ hero = "stack" }: { hero?: string }) {
+export function V5({ hero = "side" }: { hero?: string }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
@@ -70,14 +70,14 @@ export function V5({ hero = "stack" }: { hero?: string }) {
           <p className={v.say}>Small habits that only work when your AI can write in your notes.</p>
         </div>
         {MOMENTS.map((x, i) => (
-          <div key={x.id} className={v.row} data-flip={i % 2 ? "" : undefined}>
+          <Pin key={x.id}><div className={v.row} data-flip={i % 2 ? "" : undefined}>
             <div className={v.words}>
               <p className={v.kicker}>{x.kicker}</p>
               <h3 className={v.rowTitle}>{x.title}</h3>
               <p className={v.say}>{x.say}</p>
             </div>
             <x.Scene />
-          </div>
+          </div></Pin>
         ))}
       </section>
 
@@ -86,7 +86,7 @@ export function V5({ hero = "stack" }: { hero?: string }) {
           <h2 id="together" className={v.big}>Share a list. Watch it get ticked off.</h2>
           <p className={v.say}>Share any note with the people you live and plan with. Everyone sees every change as it happens, and your AI can add to it too.</p>
         </div>
-        <Together />
+        <Pin length={170}><Together /></Pin>
       </section>
 
       <section className={d.wait} aria-labelledby="wait">
