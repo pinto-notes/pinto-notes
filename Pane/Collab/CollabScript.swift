@@ -18,7 +18,7 @@ import AppKit
 /// each, played in order; names of files (`copyLink`, `waitFile`, `dump`, …) are in the app's temporary
 /// directory (in the sandbox container on the Mac), where a test script puts and collects them:
 ///
-///   {"signIn": {"email": "…", "password": "…"}}   unless signed in already
+///   {"signIn": {"email": "…", "password": "…"}}   unless signed in already ("again": true signs in anyway)
 ///   {"waitReady": 60}                              until sharing has started (seconds)
 ///   {"skipIntro": 6}                               past "Your notes are encrypted" and the first-run steps
 ///   {"create": "Offsite plan\n\n- [ ] Venue\n"}    a new note, opened
@@ -94,9 +94,10 @@ enum CollabScript {
         case "wait":
             try await Task.sleep(for: .seconds(value as? Double ?? 1))
         case "signIn":
-            guard CollabStore.shared?.isReady != true else { return }
-            let v = value as? [String: String] ?? [:]
-            try await signIn?(v["email"] ?? "", v["password"] ?? "")
+            // "again": signs in even when signed in, as Start fresh asks for a recent sign-in.
+            let v = value as? [String: Any] ?? [:]
+            guard v["again"] as? Bool == true || CollabStore.shared?.isReady != true else { return }
+            try await signIn?(v["email"] as? String ?? "", v["password"] as? String ?? "")
         case "waitReady":
             try await until(value as? Double ?? 60, "sharing to start") { CollabStore.shared?.isReady == true && AccountCrypto.shared.dataKey != nil }
         case "skipIntro":
