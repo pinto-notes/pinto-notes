@@ -138,9 +138,19 @@ function useScreenRect(pin: React.RefObject<HTMLDivElement | null>, screen: Reac
   const [r, setR] = useState<null | { x: number; y: number; w: number; h: number; vw: number; vh: number }>(null);
   useEffect(() => {
     if (!live) return;
-    const m = () => { const a = pin.current?.getBoundingClientRect(), s = screen.current?.getBoundingClientRect(); if (a && s) setR({ x: s.left - a.left, y: s.top - a.top, w: s.width, h: s.height, vw: a.width, vh: a.height }); };
-    const t = setTimeout(m, 60); addEventListener("resize", m);
-    return () => { clearTimeout(t); removeEventListener("resize", m); };
+    // Measured against the hero section, which moves as it fades: subtracting its own position cancels
+    // that movement, so the result is right whatever the scroll position was when the page loaded.
+    // The section sits at the top-left of the pin.
+    const m = () => {
+      const a = pin.current?.getBoundingClientRect(), sc = screen.current, s = sc?.getBoundingClientRect();
+      const sec = sc?.closest("section")?.getBoundingClientRect();
+      if (a && s && sec && s.width > 0) setR({ x: s.left - sec.left, y: s.top - sec.top, w: s.width, h: s.height, vw: a.width, vh: a.height });
+    };
+    const t = setTimeout(m, 60);
+    const ro = new ResizeObserver(m); if (screen.current) ro.observe(screen.current);
+    const img = screen.current?.parentElement?.querySelector("img"); img?.addEventListener("load", m);
+    addEventListener("resize", m);
+    return () => { clearTimeout(t); ro.disconnect(); img?.removeEventListener("load", m); removeEventListener("resize", m); };
   }, [live, pin, screen]);
   return r;
 }
