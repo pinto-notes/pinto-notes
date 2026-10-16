@@ -63,22 +63,15 @@ export function Avatar({ size = 24 }: { size?: number }) {
   return <img className={b.avatar} src={AUTHOR.avatar} alt="" width={size} height={size} />;
 }
 
-/// One post on the index or under "More posts".
+/// One post on the index or under "More posts": its cover and its title, nothing else to read
+/// (Emil, 16 October 2026: "light, easy to digest images, with some titles... just do titles").
 export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" | "h3" }) {
   const H = heading;
   return (
     <a className={b.card} href={`/blog/${post.slug}`} data-category={categoryAnchor(post.category)}>
       <ThumbArt thumb={post.thumb} />
       <span className={b.cardText}>
-        <span className={b.label}>{post.category}</span>
         <H className={b.cardTitle}>{post.title}</H>
-        <span className={b.excerpt}>{post.excerpt}</span>
-        <span className={b.byline}>
-          <Avatar size={20} />
-          <span>{AUTHOR.name}</span>
-          <span aria-hidden="true">·</span>
-          <time dateTime={post.date}>{longDate(post.date)}</time>
-        </span>
       </span>
     </a>
   );

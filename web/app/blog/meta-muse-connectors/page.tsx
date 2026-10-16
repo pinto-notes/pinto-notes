@@ -47,7 +47,6 @@ export default function Page() {
     <PostPage
       slug="meta-muse-connectors"
       intro={<>Meta launched Muse on 8 September and opened it to outside developers ten days later. Since then, most of the questions I see are about connectors: what they are, how to add one, and whether Muse can reach the apps you already use. This guide sticks to what Meta&apos;s own pages say, and points out where they say nothing.</>}
-      caption="The approval sheet in Pinto Notes on a Mac. Muse asks in a similar way before a connector uses a tool: once, always, or not at all."
       answer={
         <Answer jump={[
           { href: "#what", label: "What a connector is" },
@@ -174,16 +173,15 @@ export default function Page() {
         Claude Code or Codex memory notes and MCP servers, and <code>muse skills import --from claude</code> brings skills across.
         Muse Code keeps project memory in <code>.agents/memory/</code> in the repo, with a <code>MEMORY.md</code> index. That&apos;s
         three agents with three memories of the same project, which is why I keep the plan in a note all of them can
-        read. <a href="/for/claude-code">Shared memory for coding agents</a> covers how, and
-        the <a href="/for/claude-code">Claude Code page</a> shows Pinto Notes doing it.
+        read. <a href="/blog/notes-in-claude-code-and-codex">Notes in Claude Code and Codex</a> shows how.
       </p>
 
       <h2 id="limits">What Meta doesn&apos;t say yet</h2>
       <p>
         Meta says Muse remembers what matters to you and can act on something you mentioned once. You can tell it to forget
         specific things, but the announcement doesn&apos;t describe a page where you read or edit everything it remembers. If a plan
-        matters, keep the plan itself somewhere you can open without asking Muse. <a href="/blog/claude-memory-vs-notes">ChatGPT memory
-        or your notes</a> makes the same case for ChatGPT.
+        matters, keep the plan itself somewhere you can open without asking Muse. <a href="/blog/claude-memory-vs-notes">Claude memory
+        vs notes</a> makes the same case for Claude.
       </p>
       <p>
         The connector directory is new and changes week to week, so a connector named in an article (this one included) may not be

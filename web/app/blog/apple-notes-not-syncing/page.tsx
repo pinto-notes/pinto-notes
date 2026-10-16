@@ -62,8 +62,8 @@ export default function Page() {
         alt="The Apple Notes sidebar on macOS 27 with only an On My Mac section: All on My Mac, Notes, a folder and Recently Deleted. No iCloud section."
         caption="If your notes sit under On My Mac (or On My iPhone on a phone), they never leave that device. This is the first thing to look for." />
       <p>
-        Notes groups folders by account, and the heading a note sits under decides where it goes. In Notes on a Mac, Default account
-        under Notes, Settings is where new notes land (Notes, Settings). On iPhone it&apos;s Default Account in Settings, Apps,
+        Notes groups folders by account, and the heading a note sits under decides where it goes. New notes land in the default
+        account: on a Mac it&apos;s Default account in Notes, Settings, and on iPhone it&apos;s Default Account in Settings, Apps,
         Notes. Set it to iCloud, or the next note Siri makes may end up in the wrong place again.
       </p>
       <div className="tableWrap">

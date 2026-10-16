@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
@@ -36,7 +36,6 @@ export default function Page() {
     <PostPage
       slug="gpt-6-astra-use-cases"
       intro={<>OpenAI released GPT-6 Astra on 3 September and called it the best model in the world at using a computer. A month in, here&apos;s what that means for an ordinary week: what it can do, and how to start it.</>}
-      caption="Groceries in Pinto Notes on iPhone, right after ChatGPT added five items. The new lines are tinted, with Undo. Whatever tool an AI uses, this is the part worth checking."
       answer={
         <Answer jump={[
           { href: "#what-it-is", label: "What it is" },
@@ -53,6 +52,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/covers/openai-gpt-6-astra" width={1600} height={900} maxWidth={800}
+        alt="A spiral galaxy of white and amber stars on black, its arms drawn into the shape of a 6."
+        caption="The picture OpenAI launched GPT-6 Astra with. Image: OpenAI." />}
       faq={FAQ}
     >
       <h2 id="what-it-is">What GPT-6 Astra is, and what changed</h2>
@@ -180,8 +182,8 @@ export default function Page() {
         vs notes it can edit</a> covers why the notes themselves are the better place for things you want an AI to remember.
       </p>
       <p>
-        One use case for a direct connection is Pinto Notes, the notes app for iPhone and Mac that I make. ChatGPT, Claude, Claude
-        Code and Codex can read and edit it over MCP once you approve them on your iPhone or Mac. With Codex, it&apos;s one line:
+        That direct connection is what I built Pinto Notes around. It&apos;s a notes app for iPhone and Mac that ChatGPT, Claude,
+        Claude Code and Codex can read and edit over MCP, once you approve each one. With Codex, it&apos;s one line:
       </p>
       <pre><code>{`codex mcp add pinto-notes --url ${MCP_URL}`}</code></pre>
       <p>
@@ -192,7 +194,7 @@ export default function Page() {
       <p>
         Whatever the AI changes, Pinto Notes tints the lines and shows a bar with Undo, and the version before is kept in the
         note&apos;s history. You want that record more from an agent that works for 40 minutes than from a chat you watch. For the other
-        options, see <a href="/blog/connect-chatgpt-to-your-notes">notes apps that work with ChatGPT</a>.
+        options, see <a href="/blog/notes-apps-with-mcp">notes apps an AI can work in</a>.
       </p>
 
       <h2 id="limits">What GPT-6 Astra still gets wrong</h2>
