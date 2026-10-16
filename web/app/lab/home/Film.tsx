@@ -4,138 +4,154 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import f from "./film.module.css";
 
-// "The week": one note, one week, every AI, as a pure function of progress p (0..1). Scroll scrubs it
-// on desktop (pinned); on phones and with ?t= it plays on time. Every p is a finished frame.
+// "The week": one note, one week, two AIs and you, as a pure function of progress p (0..1). Scroll
+// scrubs it on wide screens (pinned); on phones it plays on time once it's in view. `?p=` freezes it.
+//
+// Monday, ChatGPT writes the plan into a new note. Wednesday, your knee is sore: Claude changes the
+// plan in the same note. Friday, ChatGPT reads the week, Claude's change included. Sunday, you tick
+// the long run yourself.
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 const mj = (v: number) => { const x = clamp(v); return x * x * x * (10 - 15 * x + 6 * x * x); };
 const over = (v: number) => { const x = clamp(v); const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const span = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const typed = (s: string, k: number) => s.slice(0, Math.round(s.length * clamp(k)));
+const rise = (v: number, px = 10): React.CSSProperties => ({ opacity: v, transform: `translateY(${((1 - v) * px).toFixed(1)}px)` });
 
-const LINES = [
-  { id: "mon", text: "Mon · 5 km easy" },
-  { id: "wed", text: "Wed · Intervals, 6 × 400 m" },
-  { id: "thu", text: "Thu · 5 km easy", moved: "Sun · 5 km easy" },
-  { id: "sat", text: "Sat · Long run, 12 km" },
+type Who = "chatgpt" | "claude";
+const WHO = { chatgpt: { name: "ChatGPT", glyph: "openai" as const, ink: "#10a37f" }, claude: { name: "Claude", glyph: "claude" as const, ink: "#d97757" } };
+
+const CAPTIONS = [
+  { at: 0, day: 0, text: "Plan it with ChatGPT." },
+  { at: 0.31, day: 2, text: "Claude works in the same note." },
+  { at: 0.58, day: 4, text: "Ask how your week went." },
+  { at: 0.8, day: 6, text: "You tick the rest." },
 ];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-// Marks the shared glyph set doesn't have yet (lab only): Grok, and Meta's mark for Muse.
-const GROK = "M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815";
-const META = "M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113C.704 9.208 0 11.883 0 14.449c0 .706.07 1.369.21 1.973a6.624 6.624 0 0 0 .265.86 5.297 5.297 0 0 0 .371.761c.696 1.159 1.818 1.927 3.593 1.927 1.497 0 2.633-.671 3.965-2.444.76-1.012 1.144-1.626 2.663-4.32l.756-1.339.186-.325c.061.1.121.196.183.3l2.152 3.595c.724 1.21 1.665 2.556 2.47 3.314 1.046.987 1.992 1.22 3.06 1.22 1.075 0 1.876-.355 2.455-.843a3.743 3.743 0 0 0 .81-.973c.542-.939.861-2.127.861-3.745 0-2.72-.681-5.357-2.084-7.45-1.282-1.912-2.957-2.93-4.716-2.93-1.047 0-2.088.467-3.053 1.308-.652.57-1.257 1.29-1.82 2.05-.69-.875-1.335-1.547-1.958-2.056-1.182-.966-2.315-1.303-3.454-1.303zm10.16 2.053c1.147 0 2.188.758 2.992 1.999 1.132 1.748 1.647 4.195 1.647 6.4 0 1.548-.368 2.9-1.839 2.9-.58 0-1.027-.23-1.664-1.004-.496-.601-1.343-1.878-2.832-4.358l-.617-1.028a44.908 44.908 0 0 0-1.255-1.98c.07-.109.141-.224.211-.327 1.12-1.667 2.118-2.602 3.358-2.602zm-10.201.553c1.265 0 2.058.791 2.675 1.446.307.327.737.871 1.234 1.579l-1.02 1.566c-.757 1.163-1.882 3.017-2.837 4.338-1.191 1.649-1.81 1.817-2.486 1.817-.524 0-1.038-.237-1.383-.794-.263-.426-.464-1.13-.464-2.046 0-2.221.63-4.535 1.66-6.088.454-.687.964-1.226 1.533-1.533a2.264 2.264 0 0 1 1.088-.285z";
-const ORBIT: { name: string; glyph: "openai" | "claude" | null; path: string; color: string; x: number; y: number; tx: number; ty: number }[] = [
-  { name: "ChatGPT", glyph: "openai" as const, path: "", color: "#0d0d0d", x: 54, y: 17, tx: 62, ty: 34 },
-  { name: "Claude", glyph: "claude" as const, path: "", color: "#d97757", x: 93, y: 13, tx: 84, ty: 32 },
-  { name: "Grok", glyph: null, path: GROK, color: "#0d0d0d", x: 95, y: 86, tx: 86, ty: 68 },
-  { name: "Muse", glyph: null, path: META, color: "#0866ff", x: 55, y: 85, tx: 62, ty: 68 },
-];
 
-/// ChatGPT's cursor while it writes in the note: its own colour and a name flag, like a collaborator.
-const AiCaret = () => <i className={f.aiCaret} aria-hidden="true"><em><AIGlyph name="openai" size={9} color="#fff" />ChatGPT</em></i>;
+/// An AI's caret while it writes in the note: its own colour and a name flag, like a collaborator.
+const Caret = ({ who }: { who: Who }) => (
+  <i className={f.aiCaret} style={{ background: WHO[who].ink }} aria-hidden="true">
+    <em style={{ background: WHO[who].ink }}><AIGlyph name={WHO[who].glyph} size={9} color="#fff" />{WHO[who].name}</em>
+  </i>
+);
 
-const GPT_MSG = "I'm running a half marathon on 30 November. Plan four runs a week in my notes.";
+/// Your line in a chat: a dark bubble that types out, growing leftward from its tail.
+const Me = ({ text, k }: { text: string; k: number }) => (
+  <p className={f.me} style={rise(mj(k * 6), 8)}>{typed(text, k)}</p>
+);
 
-export type Caption = { at: number[]; day: number; text: string };
-const CAPTIONS: Caption[] = [
-  { at: [0, 0.27], day: 0, text: "Tell one AI." },
-  { at: [0.27, 0.47], day: 2, text: "Every AI reads the same notebook." },
-  { at: [0.47, 0.69], day: 4, text: "Plans don't die here." },
-  { at: [0.69, 0.81], day: 6, text: "You stay in charge." },
-  { at: [0.81, 1.01], day: 6, text: "The notebook you and your AI share." },
-];
+/// The AI's answer: first what it's doing ("Writing in Pinto Notes…"), then the answer in its place.
+function Ai({ who, busy, answer, a, b }: { who: Who; busy: string; answer: string; a: number; b: number }) {
+  const label = <span className={f.who}><AIGlyph name={WHO[who].glyph} size={12} color={who === "claude" ? WHO.claude.ink : undefined} />{WHO[who].name}</span>;
+  return (
+    <div className={f.aiSlot}>
+      {b < 1 && <p className={f.ai} style={{ ...rise(mj(a), 8), opacity: mj(a) * (1 - mj(b * 2)) }}>{label}<span className={f.busy}>{busy}<span className={f.dots}><i /><i /><i /></span></span></p>}
+      {b > 0 && <p className={f.ai} style={rise(mj(b), 8)}>{label}{answer}</p>}
+    </div>
+  );
+}
 
-function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Caption[], stopAt = 1, newNote = false }: { p: number; lean?: number; heroOn?: boolean; captions?: Caption[]; stopAt?: number; newNote?: boolean }) {
-  // With a hero, the first few percent belong to it: the hero scrolls away while the note slides from
-  // the right to the middle, the day strip arrives and ChatGPT asks. The week then plays as before.
-  const h = heroOn ? mj(span(p0, 0.03, 0.075)) : 1;
-  // `stopAt` ends the week early (version 5 stops on Sunday's tick, before the desk pull-out).
-  const p = (heroOn ? span(p0, 0.07, 1) : p0) * stopAt;
-  // New note: you type the message and send it, ChatGPT uses Pinto, then the title is typed into the note.
-  const typedMsg = span(p, 0.0, 0.05), sent = mj(span(p, 0.055, 0.075)), usedIn = mj(span(p, 0.08, 0.09));
-  const tType = newNote ? span(p, 0.09, 0.11) : 1;
-  const subIn = newNote ? mj(span(p, 0.11, 0.12)) : 1;
-  // Beat 1, Monday: ChatGPT in, four lines write, ChatGPT's mark lands.
-  const gIn = heroOn ? mj(span(p0, 0.04, 0.09)) : 1, gOut = mj(span(p, 0.28, 0.33));
-  const write = LINES.map((_, i) => span(p, 0.12 + i * 0.025, 0.12 + i * 0.025 + 0.035));
-  const gMark = over(span(p, 0.22, 0.26));
-  // Beat 2, Wednesday: Claude in, the thread from the Wednesday line, the answer.
-  const cIn = mj(span(p, 0.3, 0.36)), cOut = mj(span(p, 0.7, 0.75));
-  const thread = mj(span(p, 0.37, 0.42)) * (1 - mj(span(p, 0.46, 0.49)));
-  const wedAnswer = mj(span(p, 0.41, 0.45));
-  // Beat 3, Friday: a new ask, Mon and Wed tick, Thursday moves to Sunday, Claude's mark.
-  const friAsk = mj(span(p, 0.48, 0.52));
-  const tickMon = span(p, 0.53, 0.56), tickWed = span(p, 0.56, 0.59);
-  const move = mj(span(p, 0.6, 0.66));
-  const cMark = over(span(p, 0.65, 0.69));
-  // Beat 4, Sunday: your cursor ticks the Sunday run.
-  const cur = mj(span(p, 0.72, 0.77)), tickSun = span(p, 0.78, 0.8), curOut = mj(span(p, 0.8, 0.83));
-  // Beat 5: pull out to the desk.
-  const pull = mj(span(p, 0.83, 0.96));
-  // The camera: the note leans away from whichever AI is talking, and pushes in a touch while it changes.
-  const camX = lean * gIn * (1 - gOut) - lean * cIn * (1 - cOut);
-  const busy = Math.max(Math.sin(Math.PI * span(p, 0.11, 0.26)), Math.sin(Math.PI * span(p, 0.52, 0.69)), Math.sin(Math.PI * span(p, 0.72, 0.81)));
-  const camZ = 1 + 0.045 * busy;
-  const cap = captions.find((c) => p >= c.at[0] && p < c.at[1]) ?? captions[captions.length - 1];
-  const capIdx = captions.indexOf(cap);
-  const capIn = capIdx === 0 ? (heroOn ? mj(span(p0, 0.05, 0.09)) : 1) : mj(span(p, cap.at[0], cap.at[0] + 0.025));
+/// Retype the end of a line after its first `keep` characters: delete, then type the new words.
+function retype(from: string, to: string, keep: number, e: number) {
+  if (e <= 0) return { head: from, tail: "", editing: false };
+  if (e >= 1) return { head: to, tail: "", editing: false };
+  const a = from.slice(keep), b = to.slice(keep), k = from.slice(0, keep);
+  const head = e < 0.45 ? k + a.slice(0, Math.round(a.length * (1 - e / 0.45))) : e < 0.55 ? k : k + b.slice(0, Math.round(b.length * ((e - 0.55) / 0.45)));
+  return { head, tail: "", editing: true };
+}
+/// Retype only the day at the front ("Sat" to "Sun"); the rest of the line stays put after the caret.
+function retypeDay(line: string, to: string, e: number) {
+  const day = line.slice(0, 3), rest = line.slice(3);
+  if (e <= 0) return { head: day, tail: rest, editing: false };
+  if (e >= 1) return { head: to, tail: rest, editing: false };
+  const head = e < 0.45 ? day.slice(0, Math.round(3 * (1 - e / 0.45))) : e < 0.55 ? "" : to.slice(0, Math.round(3 * ((e - 0.55) / 0.45)));
+  return { head, tail: rest, editing: true };
+}
 
-  // Slots: Thursday (slot 2) and Saturday (slot 3) trade places as Thursday becomes Sunday.
-  const slot = (i: number) => (i === 2 ? lerp(2, 3, move) : i === 3 ? lerp(3, 2, move) : i);
-  const ticks = [tickMon, tickWed, tickSun, 0];
-  const gFade = gMark * (1 - mj(span(p, 0.44, 0.5)));
-  const tinted = (i: number) => (i === 2 ? Math.max(gFade, cMark) : gFade);
+function Frame({ p }: { p: number }) {
+  // Monday (ChatGPT, left): you ask, it says it's writing, the note fills in, then it says it's done.
+  const m1 = span(p, 0.02, 0.075);
+  const gBusy = span(p, 0.08, 0.095);
+  const tTitle = span(p, 0.1, 0.122), tSub = mj(span(p, 0.122, 0.132));
+  const write = [0, 1, 2, 3].map((i) => span(p, 0.135 + i * 0.024, 0.135 + i * 0.024 + 0.03));
+  const gMark = over(span(p, 0.235, 0.255));
+  const gDone = span(p, 0.245, 0.262);
+  const gChat = 1 - mj(span(p, 0.3, 0.33));
+  // Wednesday (Claude, right): Monday and Wednesday are ticked; your knee is sore; Claude changes the plan.
+  const tickMon = span(p, 0.315, 0.33), tickWed = span(p, 0.332, 0.347);
+  const cIn = mj(span(p, 0.34, 0.37)), cOut = mj(span(p, 0.56, 0.59));
+  const m2 = span(p, 0.355, 0.4);
+  const cBusy = span(p, 0.405, 0.418);
+  const eThu = span(p, 0.425, 0.465), eSat = span(p, 0.47, 0.495);
+  const cMark = over(span(p, 0.495, 0.515));
+  const cDone = span(p, 0.505, 0.522);
+  // Friday (ChatGPT, left): you did the ride; you ask how the week went; it reads the note, Claude's change and all.
+  const tickThu = span(p, 0.585, 0.6);
+  const fIn = mj(span(p, 0.59, 0.615)), fOut = mj(span(p, 0.78, 0.805));
+  const m3 = span(p, 0.6, 0.625);
+  const fBusy = span(p, 0.63, 0.64);
+  const scan = span(p, 0.645, 0.7);
+  const fDone = span(p, 0.7, 0.717);
+  // Sunday (you): your pointer comes in and ticks the long run.
+  const cur = mj(span(p, 0.82, 0.88)), press = span(p, 0.885, 0.9), tickSun = span(p, 0.895, 0.915), curOut = mj(span(p, 0.95, 0.99));
+  const youMark = over(span(p, 0.915, 0.94));
+
+  const capIdx = CAPTIONS.reduce((n, c, i) => (p >= c.at ? i : n), 0);
+  const cap = CAPTIONS[capIdx];
+
+  const lines = [
+    { id: "mon", head: "Mon · 5 km easy", tail: "", editing: false, tick: tickMon },
+    { id: "wed", head: "Wed · Intervals, 6 × 400 m", tail: "", editing: false, tick: tickWed },
+    { id: "thu", ...retype("Thu · 5 km easy", "Thu · Bike, 30 min easy", 6, eThu), tick: tickThu },
+    { id: "sun", ...retypeDay("Sat · Long run, 12 km", "Sun", eSat), tick: tickSun },
+  ];
+  const gFade = gMark * (1 - mj(span(p, 0.3, 0.34)));
+  const cFade = cMark * (1 - mj(span(p, 0.6, 0.64)));
+  // While ChatGPT reads on Friday, a light passes down the lines it reads.
+  const lit = (i: number) => (scan > 0 && scan < 1 ? Math.max(0, 1 - Math.abs(scan * 5 - i - 0.5) / 0.9) : 0);
 
   return (
-    <div className={f.stage} style={heroOn ? { backgroundColor: `rgba(251, 238, 221, ${h.toFixed(3)})` } : undefined}>
-      <img className={f.desk} src="/home-d/desk.webp" alt="" style={{ opacity: pull, transform: `scale(${lerp(1.12, 1, pull).toFixed(3)})` }} />
-
-      {heroOn && h < 1 && (
-        // Around the note on the first screen: every AI it works with, each threaded to the note.
-        <div className={f.orbit} aria-hidden="true" style={{ opacity: 1 - h, transform: `scale(${(1 + 0.06 * h).toFixed(3)})` }}>
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-            {ORBIT.map((o) => <path key={o.name} d={`M ${o.x} ${o.y} Q ${(o.x + o.tx) / 2} ${o.y}, ${o.tx} ${o.ty}`} />)}
-          </svg>
-          {ORBIT.map((o, i) => (
-            <span key={o.name} className={f.disc} style={{ left: `${o.x}%`, top: `${o.y}%`, animationDelay: `${i * -1.3}s` }}>
-              <span className={f.discMark}>{o.glyph ? <AIGlyph name={o.glyph} size={26} color={o.color} /> : <svg width={26} height={26} viewBox="0 0 24 24" fill={o.color}><path d={o.path} /></svg>}</span>{o.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <ol className={f.days} aria-hidden="true" style={heroOn ? { opacity: h } : undefined}>
+    <div className={f.stage}>
+      <div className={f.layer}>
+      <ol className={f.days} aria-hidden="true">
         {DAYS.map((d, i) => <li key={d} data-on={i === cap.day || undefined} data-past={i < cap.day || undefined}>{d}</li>)}
       </ol>
 
-      <p className={f.caption} style={{ opacity: capIn }}><span key={capIdx} className={f.capText}>{cap.text}</span></p>
+      <p className={f.caption}><span key={capIdx} className={f.capText}>{cap.text}</span></p>
+      </div>
 
-      <div className={f.noteWrap} style={{ transform: `translate(calc(-50% + ${((1 - h) * 46).toFixed(1)}% + ${camX.toFixed(1)}px), -50%) scale(${(camZ * lerp(1, 0.78, pull)).toFixed(3)}) rotate(${lerp(0, -2.5, pull).toFixed(2)}deg)` }}>
+      <div className={f.noteWrap}>
         <figure className={f.note}>
           <div className={f.bar}><span className={f.lights}><i /><i /><i /></span><span className={f.folder}>Health</span></div>
           <div className={f.paper}>
-            {/* With `newNote`, the film opens on a blank new note: the title is typed, then the line under it. */}
-            <h3 className={f.title}>{newNote && tType <= 0
-              ? <span className={f.placeholder}>New note</span>
-              : <>{"Running plan".slice(0, Math.round(12 * tType))}{tType < 1 && <AiCaret />}</>}</h3>
-            <p className={f.sub} style={{ opacity: subIn }}>Half marathon on 30 November. Four runs a week.</p>
+            <h3 className={f.title}>{tTitle <= 0 ? <span className={f.placeholder}>New note</span> : <>{typed("Running plan", tTitle)}{tTitle < 1 && <Caret who="chatgpt" />}</>}</h3>
+            <p className={f.sub} style={{ opacity: tSub }}>Half marathon on 30 November. Four runs a week.</p>
             <ul className={f.lines}>
-              {LINES.map((l, i) => {
+              {lines.map((l, i) => {
                 const w = write[i];
-                const text = l.moved && move > 0.5 ? l.moved : l.text;
-                const shown = w >= 1 ? text : text.slice(0, Math.round(text.length * w));
-                const t = ticks[i];
-                const tint = tinted(i);
+                const done = l.tick > 0.5;
+                const tint = i < 2 ? gFade : Math.max(gFade, cFade);
                 return (
-                  <li key={l.id} style={{ transform: `translateY(${(slot(i) * 50).toFixed(1)}px)`, zIndex: i === 2 ? 2 : 1 }}
-                    data-lift={i === 2 && move > 0 && move < 1 || undefined}>
-                    {w < 1 && <span className={f.ghost} style={{ opacity: (1 - clamp(w * 2.5)) * subIn, width: `${[52, 66, 48, 58][i]}%` }} aria-hidden="true" />}
-                    <span className={f.row} style={{ opacity: w > 0 ? 1 : 0, background: `rgba(240, 144, 26, ${(0.16 * tint).toFixed(3)})` }}>
-                      <span className={f.box} data-on={t > 0.5 || undefined} style={{ transform: `scale(${t > 0 && t < 1 ? (0.85 + 0.15 * over(t)).toFixed(3) : 1})` }}>
-                        <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(t * 1.4) }} /></svg>
+                  <li key={l.id}>
+                    {w < 1 && <span className={f.ghost} style={{ opacity: (1 - clamp(w * 2.5)) * tSub, width: `${[52, 66, 48, 58][i]}%` }} aria-hidden="true" />}
+                    <span className={f.row} style={{ opacity: w > 0 ? 1 : 0, background: `rgba(240, 144, 26, ${(0.16 * tint + 0.14 * lit(i)).toFixed(3)})` }}>
+                      <span className={f.box} data-on={done || undefined} style={{ transform: `scale(${l.tick > 0 && l.tick < 1 ? (0.85 + 0.15 * over(l.tick)).toFixed(3) : 1})` }}>
+                        <svg viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" pathLength={1} style={{ strokeDashoffset: 1 - clamp(l.tick * 1.4) }} /></svg>
+                        {i === 3 && tickSun > 0 && tickSun < 1 && <span className={f.burst} style={{ opacity: 1 - tickSun, transform: `scale(${(0.6 + tickSun * 1.4).toFixed(3)})` }} aria-hidden="true" />}
+                        {i === 3 && (
+                          // Your pointer: its tip on the box, with your name, as the AIs have theirs.
+                          <span className={f.you} style={{ opacity: cur * (1 - curOut), transform: `translate(${((1 - cur) * 160).toFixed(1)}px, ${((1 - cur) * 100).toFixed(1)}px) scale(${press > 0 && press < 1 ? 0.86 : 1})` }} aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M4 2l15 9-7 1.5L8.5 20z" /></svg><em>You</em>
+                          </span>
+                        )}
                       </span>
-                      <span className={f.text} data-done={t > 0.5 || undefined}>{shown}{w > 0 && w < 1 && (newNote ? <AiCaret /> : <i className={f.caret} />)}</span>
+                      <span className={f.text} data-done={done || undefined}>
+                        {w < 1 ? typed(l.head, w) : l.head}{w > 0 && w < 1 && <Caret who="chatgpt" />}{l.editing && <Caret who="claude" />}{w >= 1 && l.tail}
+                      </span>
                       {i === 0 && <span className={f.by} style={{ opacity: gMark, transform: `scale(${(0.8 + 0.2 * gMark).toFixed(3)})` }}><AIGlyph name="openai" size={11} />ChatGPT<span className={f.long}> wrote these</span></span>}
-                      {i === 2 && <span className={f.by} style={{ opacity: cMark, transform: `scale(${(0.8 + 0.2 * cMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Claude<span className={f.long}> moved it from Thursday</span></span>}
+                      {i === 2 && <span className={f.by} style={{ opacity: cMark, transform: `scale(${(0.8 + 0.2 * cMark).toFixed(3)})` }}><AIGlyph name="claude" size={11} />Claude<span className={f.long}> changed it</span></span>}
+                      {i === 3 && <span className={f.by} data-you="" style={{ opacity: youMark, transform: `scale(${(0.8 + 0.2 * youMark).toFixed(3)})` }}>You<span className={f.long}> ticked it</span></span>}
                     </span>
                   </li>
                 );
@@ -143,57 +159,32 @@ function Frame({ p: p0, lean = 34, heroOn = false, captions = CAPTIONS as Captio
             </ul>
           </div>
         </figure>
-        <svg className={f.cursor} viewBox="0 0 24 24" aria-hidden="true"
-          style={{ opacity: cur * (1 - curOut), transform: `translate(${lerp(300, 38, cur).toFixed(1)}px, ${lerp(420, 322, cur).toFixed(1)}px) scale(${tickSun > 0 && tickSun < 1 ? 0.88 : 1})` }}>
-          <path d="M4 2l15 9-7 1.5L8.5 20z" />
-        </svg>
       </div>
 
-      {/* ChatGPT, Monday */}
-      <figure className={`${f.chat} ${f.left}`} data-app="chatgpt" style={{ opacity: gIn * (1 - gOut), transform: `translate(${lerp(-60, 0, gIn) - 60 * gOut}px, -50%)` }}>
-        <div className={f.chatTop}><span><AIGlyph name="openai" size={14} />ChatGPT</span><em>Monday</em></div>
-        {newNote ? <>
-          {/* Typed into the box, then sent: the bubble rises out of the box. */}
-          <p className={f.me} style={{ opacity: sent, transform: `translateY(${((1 - sent) * 26).toFixed(1)}px) scale(${(0.94 + 0.06 * sent).toFixed(3)})`, transformOrigin: "right bottom" }}>{GPT_MSG}</p>
-          <p className={f.tool} style={{ opacity: usedIn }}>{p < 0.235 ? <>Writing in Pinto Notes<span className={f.dots}><i /><i /><i /></span></> : "Used Pinto Notes"}</p>
-        </> : <>
-          <p className={f.me}>{GPT_MSG}</p>
-          <p className={f.tool}>Used Pinto Notes</p>
-        </>}
-        <p className={`${f.ai} ${newNote ? f.aiReply : ""}`} style={{ opacity: newNote ? mj(span(p, 0.235, 0.255)) : mj(span(p, 0.2, 0.24)), transform: newNote ? `translateY(${((1 - mj(span(p, 0.235, 0.255))) * 8).toFixed(1)}px)` : undefined }}>Done. It's in Running plan: four runs a week, building to 12 km.</p>
-        {newNote && <div className={f.compose}><span>{sent > 0.05 ? <em>Message ChatGPT</em> : <>{GPT_MSG.slice(0, Math.round(GPT_MSG.length * typedMsg))}<i className={f.caret} /></>}</span><b data-ready={typedMsg >= 1 && sent < 0.05 || undefined}>↑</b></div>}
-      </figure>
+      <div className={f.layer}>
+      {/* Monday and Friday: ChatGPT, on the left. */}
+      <div className={`${f.chat} ${f.left}`} style={{ opacity: m1 > 0 ? gChat : 0 }}>
+        <Me text="I'm running a half marathon on 30 November. Plan four runs a week in my notes." k={m1} />
+        <Ai who="chatgpt" busy="Writing in Pinto Notes" answer="Done. It's in Running plan: four runs a week, building to 12 km." a={gBusy} b={gDone} />
+      </div>
+      <div className={`${f.chat} ${f.left}`} style={{ opacity: fIn * (1 - fOut), transform: `translateX(${((1 - fIn) * -40 - fOut * 40).toFixed(1)}px)` }}>
+        <Me text="How did my week go?" k={m3} />
+        <Ai who="chatgpt" busy="Reading Running plan" answer="Two runs and a ride. Claude moved your long run to Sunday for the knee, so you're on track." a={fBusy} b={fDone} />
+      </div>
 
-      {/* Claude, Wednesday then Friday */}
-      <figure className={`${f.chat} ${f.right}`} data-app="claude" style={{ opacity: cIn * (1 - cOut), transform: `translate(${lerp(60, 0, cIn) + 60 * cOut}px, -50%)` }}>
-        <div className={f.chatTop}><span><AIGlyph name="claude" size={14} />Claude</span><em>{friAsk > 0.5 ? "Friday" : "Wednesday"}</em></div>
-        <div className={f.swap}>
-          <div style={{ opacity: 1 - friAsk }}>
-            <p className={f.me}>What should I run today?</p>
-            <p className={f.tool}>Used Pinto Notes · Running plan</p>
-            <p className={f.ai} style={{ opacity: wedAnswer }}>Intervals: 6 × 400 m, with a slow lap between each.</p>
-          </div>
-          <div style={{ opacity: friAsk }}>
-            <p className={f.me}>How did my week go?</p>
-            <p className={f.tool}>Used Pinto Notes · Running plan</p>
-            <p className={f.ai} style={{ opacity: mj(span(p, 0.62, 0.67)) }}>Two of four done. I moved Thursday's run to Sunday, so you're still on track.</p>
-          </div>
-        </div>
-      </figure>
-
-      <svg className={f.thread} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M 62 47 C 70 47, 70 45, 74 45" pathLength={1} style={{ strokeDashoffset: 1 - thread, opacity: thread > 0 ? 1 : 0 }} />
-      </svg>
+      {/* Wednesday: Claude, on the right. */}
+      <div className={`${f.chat} ${f.right}`} style={{ opacity: cIn * (1 - cOut), transform: `translateX(${((1 - cIn) * 40 + cOut * 40).toFixed(1)}px)` }}>
+        <Me text="My knee's sore after the intervals." k={m2} />
+        <Ai who="claude" busy="Changing Running plan" answer="Go easy. Thursday is a 30-minute bike ride now, and the long run moves to Sunday." a={cBusy} b={cDone} />
+      </div>
+      </div>
     </div>
   );
 }
 
-// The hero leaves as the week starts: it scrolls up for real and fades, before ChatGPT arrives.
-const heroFade = (p: number): React.CSSProperties => { const o = mj(span(p, 0.004, 0.032)); return { opacity: 1 - o, filter: o > 0 ? `blur(${(o * 4).toFixed(1)}px)` : undefined, visibility: o >= 1 ? "hidden" : undefined }; };
-
 /// Pinned and scrubbed by scroll on wide screens; played on time on phones, with Reduce Motion
-/// showing the last frame. `?t=0..1` freezes progress for review.
-export function Film({ hero, captions, stopAt, newNote }: { hero?: React.ReactNode; captions?: Caption[]; stopAt?: number; newNote?: boolean } = {}) {
+/// showing the last frame. `?p=0..1` freezes progress for review; `window.__setP(p)` does it live.
+export function Film() {
   const box = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
   const [pinned, setPinned] = useState(true);
@@ -203,13 +194,12 @@ export function Film({ hero, captions, stopAt, newNote }: { hero?: React.ReactNo
     (window as unknown as { __setP?: (v: number) => void }).__setP = (v) => { frozen = true; setP(v); };
     if (q !== null) { setP(Number(q)); return; }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setPinned(false); setP(1); return; }
-    const narrow = matchMedia("(max-width: 900px)");
     let raf = 0;
-    if (narrow.matches) {
+    if (matchMedia("(max-width: 900px)").matches) {
       setPinned(false);
       let start = 0;
-      const tick = (now: number) => { if (frozen) return; if (!start) start = now; const v = (now - start) / 16000; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick); };
-      const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !start) { raf = requestAnimationFrame(tick); io.disconnect(); } }, { threshold: 0.4 });
+      const tick = (now: number) => { if (frozen) return; if (!start) start = now; const v = (now - start) / 22000; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick); };
+      const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !start) { raf = requestAnimationFrame(tick); io.disconnect(); } }, { threshold: 0.5 });
       if (box.current) io.observe(box.current);
       return () => { io.disconnect(); cancelAnimationFrame(raf); };
     }
@@ -219,9 +209,8 @@ export function Film({ hero, captions, stopAt, newNote }: { hero?: React.ReactNo
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
   }, []);
   return (
-    <div ref={box} className={f.film} data-pinned={pinned || undefined} data-hero={hero ? "" : undefined}>
-      {hero && <div className={f.heroLayer} style={pinned ? heroFade(p) : undefined}>{hero}</div>}
-      <div className={f.pin}><Frame p={p} lean={pinned ? 34 : 0} heroOn={!!hero && pinned} captions={captions} stopAt={stopAt} newNote={newNote} /></div>
+    <div ref={box} className={f.film} data-pinned={pinned || undefined}>
+      <div className={f.pin}><Frame p={p} /></div>
     </div>
   );
 }

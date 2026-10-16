@@ -1,10 +1,16 @@
-/* "The week": a pinned film stage. Everything moves by transform; nothing reflows. */
+/* "The week": a pinned film stage. The note sits in the middle; chats come in beside it. */
 .film { position: relative; }
-.film[data-pinned] { height: 640vh; }
+.film[data-pinned] { height: 600vh; }
 .pin { position: relative; height: min(820px, calc(100vh - 116px)); }
 .film[data-pinned] .pin { position: sticky; top: 100px; }
-.stage { position: relative; width: 100%; height: 100%; max-width: 1240px; margin: 0 auto; border-radius: 28px; overflow: hidden; background: #fbeedd; isolation: isolate; }
-.desk { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; z-index: -1; will-change: opacity, transform; }
+.stage { position: relative; width: 100%; height: 100%; max-width: 1240px; margin: 0 auto; border-radius: 28px; overflow: hidden; background: #fbeedd; isolation: isolate;
+  transition: background-color .45s ease-out; }
+
+/* While her phone's note flies in from the hero (PhoneToFilm), the stage is bare: only the note. The
+   days, the caption and the chats live on one layer that fades in once it lands. */
+.layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; transition: opacity .45s ease-out; }
+:global(html[data-note-flying]) .stage { background-color: transparent; }
+:global(html[data-note-flying]) .layer { opacity: 0; }
 
 .days { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; margin: 0; padding: 6px; list-style: none; border-radius: 18px; background: rgba(255, 250, 243, 0.86);
   box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.12); z-index: 3; }
@@ -12,13 +18,12 @@
 .days li[data-past] { color: #6b5a48; }
 .days li[data-on] { background: #2a1d10; color: #fff4e6; }
 
-.caption { position: absolute; left: 0; right: 0; bottom: 34px; margin: 0; text-align: center; font-size: clamp(26px, 3.2vw, 40px); font-weight: 800; letter-spacing: -0.03em; color: #2a1d10; z-index: 3;
-}
-/* The entrance plays on the inner text, so the caption's own opacity (0 before the week starts) always wins. */
-.capText { display: inline-block; animation: capIn .45s cubic-bezier(.34,1.56,.64,1); }
+.caption { position: absolute; left: 0; right: 0; bottom: 34px; margin: 0; text-align: center; font-size: clamp(26px, 3.2vw, 40px); font-weight: 800; letter-spacing: -0.03em; color: #2a1d10; z-index: 3; }
+.capText { display: inline-block; animation: capIn .45s cubic-bezier(.34, 1.56, .64, 1); }
 @keyframes capIn { from { opacity: 0; transform: translateY(10px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
 
-.noteWrap { position: absolute; left: 50%; top: 50%; width: min(600px, 49%); z-index: 2; transform-origin: center; will-change: transform; }
+/* ── The note, a Mac note window ── */
+.noteWrap { position: absolute; left: 50%; top: 50%; width: min(580px, 47%); z-index: 2; transform: translate(-50%, -50%); }
 .note { margin: 0; border-radius: 16px; overflow: hidden; background: #fffdf9; color: #1d1b19;
   box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 2px 4px rgba(60, 30, 5, 0.06), 0 44px 90px -40px rgba(60, 30, 5, 0.55); }
 .bar { position: relative; display: flex; align-items: center; height: 40px; padding: 0 16px; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); }
@@ -26,98 +31,73 @@
 .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
 .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
 .folder { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12.5px; font-weight: 600; color: #8a7a68; }
-.paper { padding: 22px 28px 30px 32px; }
+/* Room above the first line for an AI's name flag. */
+.paper { padding: 26px 28px 40px 32px; }
 .title { margin: 0 0 6px; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+.placeholder { color: #c9bcae; }
 .sub { margin: 0 0 16px; font-size: 16px; color: #8a7a68; }
-.lines { position: relative; height: calc(4 * 50px); margin: 0; padding: 0; list-style: none; }
-.lines li { position: absolute; left: 0; right: 0; top: 0; height: 50px; display: flex; align-items: center; will-change: transform; }
-.lines li[data-lift] .row { box-shadow: 0 12px 26px -12px rgba(60, 30, 5, 0.45); background-color: #fffaf3 !important; }
-.row { display: inline-flex; align-items: center; gap: 12px; margin-left: -10px; padding: 6px 12px 6px 10px; border-radius: 10px; font-size: 20px; }
-.box { flex: none; display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px #c9bcae; }
-.box[data-on] { background: #d97a17; box-shadow: none; }
-.box svg { width: 14px; height: 14px; }
-.box path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; }
-.text[data-done] { color: #8f8478; }
-.caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; background: #d97a17; }
-.by { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 11px; background: #fff1de; color: #a85700; font-size: 12px; font-weight: 650;
-  box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; transform-origin: left center; }
-
-.cursor { position: absolute; left: 0; top: 0; width: 26px; height: 26px; z-index: 4; pointer-events: none; will-change: transform, opacity; }
-.cursor path { fill: #1d1b19; stroke: #fff; stroke-width: 1.5; stroke-linejoin: round; }
-
-.chat { position: absolute; top: 50%; width: min(290px, 24%); margin: 0; display: grid; gap: 9px; padding: 15px 17px 17px; border-radius: 20px; background: #fff; color: #0d0d0d; z-index: 3;
-  font-size: 16px; line-height: 1.4; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.16), 0 30px 60px -26px rgba(60, 30, 5, 0.55); will-change: transform, opacity; }
-.chat[data-app="claude"] { background: #faf9f5; }
-.left { left: 1.5%; }
-.right { right: 1.5%; }
-.chatTop { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 650; color: #6b5f53; }
-.chatTop span { display: inline-flex; align-items: center; gap: 6px; }
-.chat[data-app="claude"] .chatTop svg { color: #d97757; }
-.chatTop em { font-style: normal; color: #9a8b7a; }
-.me { justify-self: end; max-width: 90%; margin: 0; padding: 8px 13px; border-radius: 16px; background: #f1f1f1; }
-.chat[data-app="claude"] .me { background: #f0eee6; border-radius: 12px; }
-.tool { margin: 0; font-size: 12px; color: #8e8e93; }
-.ai { margin: 0; }
-.swap { display: grid; }
-.swap > div { grid-area: 1 / 1; display: grid; gap: 9px; }
-
-.thread { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-.thread path { fill: none; stroke: #e08a24; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1 1; vector-effect: non-scaling-stroke; }
-
-@media (max-width: 900px) {
-  .pin { height: 800px; }
-  .noteWrap { width: 92%; top: 64%; }
-  .paper { padding: 16px 16px 20px 20px; }
-  .title { font-size: 26px; }
-  .sub { font-size: 14px; }
-  .long { display: none; }
-  .row { gap: 9px; padding: 5px 8px 5px 8px; }
-  .chat { width: 86%; top: 205px; }
-  .left { left: 6%; } .right { right: 6%; }
-  .row { font-size: 15.5px; white-space: nowrap; }
-  .days li { min-width: 34px; font-size: 12px; }
-  .caption { bottom: 24px; font-size: 24px; }
-  .thread { display: none; }
-}
-
-/* A hero over the film's first frame (version 5): on wide screens it sits on the stage's left, beside
-   the note, and scrolls away for real as the week begins. On phones it is a plain block above. */
-.film[data-pinned][data-hero] { height: 420vh; }
-.heroLayer { display: grid; gap: 22px; justify-items: start; padding: 8px 0 28px; }
-@media (min-width: 901px) {
-  .film[data-hero] .heroLayer { position: absolute; top: 0; left: 0; right: 0; z-index: 5; height: min(820px, calc(100vh - 116px)); box-sizing: border-box;
-    padding: 0 0 0 clamp(36px, 5.5%, 72px); align-content: center; pointer-events: none; max-width: 1240px; margin: 0 auto; }
-  .film[data-hero] .heroLayer > * { pointer-events: auto; max-width: min(500px, 42%); }
-}
+.lines { position: relative; margin: 0; padding: 0; list-style: none; display: grid; }
+.lines li { position: relative; height: 50px; display: flex; align-items: center; }
 /* Before ChatGPT writes a line, its place is a faint pencil rule, so the empty note looks drawn on purpose. */
 .ghost { position: absolute; left: 34px; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: rgba(120, 90, 60, 0.09); }
+.row { display: inline-flex; align-items: center; gap: 12px; margin-left: -10px; padding: 6px 12px 6px 10px; border-radius: 10px; font-size: 20px; white-space: nowrap; }
+.box { position: relative; flex: none; display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px #c9bcae; }
+.box[data-on] { background: #d97a17; box-shadow: none; }
+.box > svg { width: 14px; height: 14px; }
+.box > svg path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; }
+.text[data-done] { color: #8f8478; }
+.by { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 11px; background: #fff1de; color: #a85700; font-size: 12px; font-weight: 650;
+  box-shadow: 0 0 0 0.5px rgba(168, 87, 0, 0.3); white-space: nowrap; transform-origin: left center; }
+.by[data-you] { background: #2a1d10; color: #fff4e6; box-shadow: none; }
 
-/* The hero's orbit: the AIs around the note, on paper discs, threaded to it. */
-.orbit { position: absolute; inset: 0; z-index: 1; pointer-events: none; transform-origin: 72% 50%; }
-.orbit > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.orbit > svg path { fill: none; stroke: #d98a2b; stroke-width: 2; stroke-dasharray: 2 7; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: 0.75;
-  animation: flow 1.6s linear infinite; }
-@keyframes flow { to { stroke-dashoffset: -18; } }
-.disc { position: absolute; display: grid; justify-items: center; gap: 7px; transform: translate(-50%, -50%); font-size: 12.5px; font-weight: 650; color: #5a4430; white-space: nowrap;
-  animation: bob 5.2s ease-in-out infinite; }
-@keyframes bob { 50% { translate: 0 -6px; } }
-.discMark { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: #fffdf9;
-  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.18), 0 2px 3px rgba(80, 45, 10, 0.1), 0 14px 26px -12px rgba(80, 45, 10, 0.4); }
-@media (prefers-reduced-motion: reduce) { .orbit > svg path, .disc { animation: none; } }
-@media (max-width: 900px) { .orbit { display: none; } }
-.placeholder { color: #c9bcae; }
-.compose { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 7px 7px 7px 13px; border-radius: 18px; background: #fff; box-shadow: inset 0 0 0 1px #e3e3e3; font-size: 14px; color: #1d1b19; min-height: 36px; box-sizing: border-box; }
-.compose > span { flex: 1; min-width: 0; line-height: 1.35; }
-.compose em { font-style: normal; color: #a1a1a6; }
-.compose b { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #d4d4d8; color: #fff; font-size: 14px; transition: background-color .2s ease-out; }
-.compose b[data-ready] { background: #0d0d0d; }
-
-/* ChatGPT writing: its own caret and name flag, so it never looks like you're typing. */
-.aiCaret { position: relative; display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; background: #10a37f; font-style: normal; }
-.aiCaret em { position: absolute; left: 0; bottom: 100%; display: inline-flex; align-items: center; gap: 3px; height: 17px; padding: 0 6px; border-radius: 4px 4px 4px 0; background: #10a37f; color: #fff;
+/* An AI's caret: a thin bar in its colour, inline with the text, its name on a flag above. */
+.aiCaret { position: relative; display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; }
+.aiCaret em { position: absolute; left: 0; bottom: 100%; display: inline-flex; align-items: center; gap: 3px; height: 17px; padding: 0 6px; border-radius: 4px 4px 4px 0; color: #fff;
   font-size: 10.5px; font-weight: 650; font-style: normal; line-height: 17px; white-space: nowrap; letter-spacing: 0; }
-.dots { display: inline-flex; gap: 2px; margin-left: 3px; vertical-align: middle; }
-.dots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: dot 1s ease-in-out infinite; }
-.dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+
+/* You: a big pointer, its tip on the checkbox, with your name on a dark flag. */
+.you { position: absolute; left: 50%; top: 50%; z-index: 5; display: block; width: 0; height: 0; pointer-events: none; transform-origin: 0 0; }
+.you svg { position: absolute; left: -4px; top: -2px; width: 34px; height: 34px; overflow: visible; filter: drop-shadow(0 4px 6px rgba(40, 20, 5, 0.3)); }
+.you svg path { fill: #1d1b19; stroke: #fff; stroke-width: 1.5; stroke-linejoin: round; }
+.you em { position: absolute; left: 22px; top: 28px; padding: 3px 9px; border-radius: 10px; background: #2a1d10; color: #fff4e6; font-size: 12.5px; font-weight: 700; font-style: normal; white-space: nowrap; }
+.burst { position: absolute; inset: -9px; border-radius: 50%; box-shadow: 0 0 0 2px #f0901a; pointer-events: none; }
+
+/* ── Chats: the hero's bubbles. You in dark with a tail to the right; the AI in white with its mark
+   and name, tail to the left. No window around them. ── */
+.chat { position: absolute; top: 30%; width: min(290px, 21.5%); display: grid; gap: 8px; z-index: 3; }
+.left { left: 2.5%; }
+.right { right: 2.5%; }
+.me, .ai { position: relative; margin: 0; width: fit-content; max-width: 100%; box-sizing: border-box; padding: 10px 14px 11px; border-radius: 18px; font-size: 16px; line-height: 1.38; }
+.me { justify-self: end; background: rgba(28, 22, 16, 0.92); color: #fff6ea; border-bottom-right-radius: 5px; box-shadow: 0 14px 28px -16px rgba(40, 20, 5, 0.5); }
+.me::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 14px; height: 14px; background: inherit; clip-path: path("M0 0 C 2 8, 7 12, 14 14 L 0 14 Z"); }
+.aiSlot { display: grid; margin-left: 10px; }
+.aiSlot > .ai { grid-area: 1 / 1; align-self: start; }
+.ai { justify-self: start; display: grid; gap: 4px; background: #fff; color: #1d1b19; border-bottom-left-radius: 5px; box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.12), 0 14px 28px -16px rgba(40, 20, 5, 0.45); }
+.ai::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff; clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
+.who { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #6b5f53; }
+.busy { color: #8a7a68; }
+.dots { display: inline-flex; gap: 3px; margin-left: 4px; vertical-align: middle; }
+.dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+@media (prefers-reduced-motion: no-preference) {
+  .dots i { animation: dot 1s ease-in-out infinite; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+}
 @keyframes dot { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
-.aiReply { padding: 9px 12px; border-radius: 14px; background: #f7f7f8; box-shadow: inset 0 0 0 0.5px #e5e5e5; }
+
+/* ── Phones: the chat above the note, the note below, both full width. ── */
+@media (max-width: 900px) {
+  .pin { height: 760px; }
+  .stage { border-radius: 24px; }
+  .days { top: 18px; }
+  .days li { min-width: 34px; font-size: 12px; }
+  .chat { top: 74px; left: 18px; right: 18px; width: auto; }
+  .me, .ai { font-size: 15px; }
+  .noteWrap { width: calc(100% - 28px); top: auto; bottom: 86px; transform: translateX(-50%); }
+  .paper { padding: 22px 16px 34px 20px; }
+  .title { font-size: 26px; }
+  .sub { font-size: 14px; margin-bottom: 10px; }
+  .lines li { height: 44px; }
+  .row { gap: 9px; padding: 5px 8px; font-size: 15.5px; }
+  .long { display: none; }
+  .caption { bottom: 26px; font-size: 24px; }
+}

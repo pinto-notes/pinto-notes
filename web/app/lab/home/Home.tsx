@@ -2,7 +2,7 @@ import Card from "../../templates/Card";
 import { templates } from "@/lib/templates";
 import { G } from "./copy";
 import { Download } from "./Download";
-import { Film, type Caption } from "./Film";
+import { Film } from "./Film";
 import { Hero } from "./Hero";
 import { PhoneToFilm } from "./PhoneToFilm";
 import { PaperStill } from "./Scenes";
@@ -24,14 +24,6 @@ const EXTRAS = [
   { icon: "/home-v5/icons/people.webp", title: "Share with people", say: "Plan together in one note, live.", soon: true },
 ];
 
-// The week, told for "how did my week go?": Friday's check-in is the headline moment.
-const CAPTIONS: Caption[] = [
-  { at: [0, 0.27], day: 0, text: "Plan it with ChatGPT." },
-  { at: [0.27, 0.47], day: 2, text: "Claude reads the same note." },
-  { at: [0.47, 0.69], day: 4, text: "Ask how your week went." },
-  { at: [0.69, 1.01], day: 6, text: "You tick the rest." },
-];
-
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
 export function Home() {
@@ -42,7 +34,7 @@ export function Home() {
       <div className={v.top}>
         <Hero />
         <PhoneToFilm />
-        <div className={v.filmQuiet}><Film captions={CAPTIONS} stopAt={0.83} newNote /></div>
+        <Film />
       </div>
 
       <section className={v.frontier} aria-labelledby="moments">

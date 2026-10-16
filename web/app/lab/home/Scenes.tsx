@@ -12,7 +12,6 @@ const mj = (v: number) => { const x = clamp(v); return x * x * x * (10 - 15 * x 
 const span = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
 
 /// The scene, still: the art, and one exchange set large like a pull quote. No motion to decode.
-/// A soft rise as it comes into view: the art scales down to rest, the exchange lifts in after it.
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
   const [v, setV] = useState(0);
@@ -20,7 +19,7 @@ function useReveal() {
     const el = ref.current; if (!el) return;
     if (new URLSearchParams(location.search).has("m") || matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(1); return; }
     let raf = 0;
-    const read = () => { raf = 0; const r = el.getBoundingClientRect(); setV(clamp((innerHeight - r.top) / (innerHeight * 0.55))); };
+    const read = () => { raf = 0; const r = (el.parentElement ?? el).getBoundingClientRect(); setV(clamp((innerHeight - r.top) / (innerHeight * 0.55))); };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
     read(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); cancelAnimationFrame(raf); };
@@ -31,10 +30,11 @@ function useReveal() {
 export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false }:
   { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean }) {
   const [ref, v] = useReveal();
-  const art = mj(v), q1 = mj(span(v, 0.35, 0.75)), q2 = mj(span(v, 0.5, 0.95));
+  // The same entrance as the cards further down: a quick fade with a short lift, fully there early.
+  const art = mj(clamp(v * 2.2)), q1 = mj(span(v, 0.3, 0.6)), q2 = mj(span(v, 0.42, 0.72));
   return (
-    <div ref={ref} className={m.paperScene} style={{ opacity: 0.2 + 0.8 * art, transform: `translateY(${((1 - art) * 40).toFixed(1)}px)` }}>
-      <img src={src} alt={alt} style={{ transform: `scale(${(1.08 - 0.08 * art).toFixed(4)})` }} />
+    <div ref={ref} className={m.paperScene} style={{ opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) }}>
+      <img src={src} alt={alt} />
       <figure className={m.quote} data-at={at} data-voice={voice || undefined} style={{ "--q1": q1, "--q2": q2 } as React.CSSProperties}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
         <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} color={aiGlyph === "meta" ? "#0866ff" : undefined} />{aiName}</span>{ai}</p>

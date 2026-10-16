@@ -5,8 +5,8 @@ import o from "./phonetofilm.module.css";
 
 // The hand-off from the hero to the week film. Her actual phone note (a copy of its markup, so it looks
 // exactly the same) leaves the phone and grows into the film's note window. On the way, the phone note's
-// content fades out and the film's empty "Running plan" fades in, one after the other, inside the same
-// moving card; it lands exactly on the film's own note. Wide screens only.
+// content fades out and the film's blank new note fades in, one after the other, inside the same moving
+// card; it lands exactly on the film's own note. Wide screens only.
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 const mj = (v: number) => { const t = clamp(v); return t * t * t * (10 - 15 * t + 6 * t * t); };
@@ -15,7 +15,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 type Rect = { x: number; y: number; w: number; h: number };
 type State = { k: number; ph: Rect; fm: Rect };
-type Snap = { phone: string; phoneClass: string; shoulder: string; pw: number; ph: number; film: string; fw: number; fh: number };
+type Snap = { phone: string; phoneClass: string; pw: number; ph: number; film: string; fw: number; fh: number };
 
 export function PhoneToFilm() {
   const [st, setSt] = useState<State | null>(null);
@@ -33,10 +33,10 @@ export function PhoneToFilm() {
       const end = film.getBoundingClientRect().top + scrollY - 100;
       const q = clamp((scrollY - 20) / Math.max(1, end - 20));
       const a = pe.getBoundingClientRect(), b = ff.getBoundingClientRect();
-      // Take the copies while nothing has moved yet.
-      if (!snap.current || q === 0) {
+      // Take the copies while her note is still on the phone, so the copy has every line it has now.
+      if (!snap.current || q === 0 || !pe.hasAttribute("data-away")) {
         snap.current = { phone: (pe.firstElementChild?.outerHTML ?? "").replace(/visibility: hidden;?/g, ""), phoneClass: pe.className,
-          shoulder: [...(pe.closest('[class*="shoulder"]')?.classList ?? [])].find((c) => c.includes("shoulder")) ?? "", pw: pe.offsetWidth || a.width, ph: pe.offsetHeight || a.height,
+          pw: pe.offsetWidth || a.width, ph: pe.offsetHeight || a.height,
           film: ff.outerHTML, fw: ff.offsetWidth, fh: ff.offsetHeight };
       }
       (ff.parentElement as HTMLElement).style.opacity = q >= 1 ? "" : "0";
@@ -69,8 +69,7 @@ export function PhoneToFilm() {
   return (
     <div className={o.fly} style={{ ...box, borderRadius: lerp(startR, endR, k),
       boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * k).toFixed(2)}), 0 ${(30 * k).toFixed(0)}px ${(70 * k).toFixed(0)}px -34px rgba(60,30,5,${(0.5 * k).toFixed(2)})` }} aria-hidden="true">
-      {/* Inside her scene's class, so the phone note's own sizing rules (relative to the screen) apply. */}
-      <div className={`${sn.shoulder} ${o.scope}`}>
+      <div className={o.scope}>
         <div className={`${sn.phoneClass} ${o.copy}`} style={{ width: sn.pw, height: sn.ph, transform: `scale(${sp.toFixed(5)})`, opacity: phoneO }}
           dangerouslySetInnerHTML={{ __html: sn.phone }} />
       </div>

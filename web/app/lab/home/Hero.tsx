@@ -20,12 +20,16 @@ function useClock() {
     if (q !== null) { setT(Number(q)); return; }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setT(99); return; }
     let raf = 0, start = 0;
-    const tick = (now: number) => { if (!start) start = now; setT((now - start) / 1000); raf = requestAnimationFrame(tick); };
+    // Starts as the page has blurred in.
+    const tick = (now: number) => { if (!start) start = now; setT(Math.max(0, (now - start) / 1000 - 0.45)); raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
   return t;
 }
+
+/// The site's entrance (site.css .rise): blur, lift and fade in, in order.
+const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
 const TOMORROW = [
   { text: "Run, 5 km", at: 2.2 },
@@ -38,22 +42,22 @@ export function Hero() {
   const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
   const v2 = mj(span(t, 4.2, 4.6));
   return (
-    <section className={x.editorial}>
-      <div className={x.edWords}>
-        <h1 className={x.edH1}>The notebook <span className={x.mark}>you and your AI</span> share.</h1>
-        <p className={x.edLede}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
-        <div className={x.edCtas}>
+    <section className={x.hero}>
+      <div className={x.words}>
+        <h1 className={`${x.h1} rise`} style={rise(0)}>The notebook <span className={x.mark}>you and your AI</span> share.</h1>
+        <p className={`${x.lede} rise`} style={rise(1)}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
+        <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download />
-          <span className={x.soonBtn} aria-disabled="true">
+          <span className={x.soon} aria-disabled="true">
             <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
             Coming to iPhone
           </span>
         </div>
-        <p className={x.edFine}>Free for Mac. Brings your Apple Notes over.</p>
+        <p className={`${x.fine} rise`} style={rise(3)}>Free for Mac. Brings your Apple Notes over.</p>
       </div>
-      <div className={`${x.moment} ${x.shoulder} ${x.splitScene}`}>
-      <div className={x.momentFit}>
-        <img className={x.momentArt} src="/home-v5/hero/phone-shoulder.webp" alt="" />
+      <div className={`${x.card} rise`} style={rise(1)}>
+      <div className={x.art}>
+        <img className={x.artImg} src="/home-v5/hero/phone-shoulder.webp" alt="" />
         <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
           <div className={x.scIn}>
           <p className={x.scStatus}><b>21:40</b><span /></p>
@@ -86,11 +90,11 @@ export function Hero() {
             </ul>
           </div>
         </div>
-        <div className={x.saidBox}>
-          <p className={x.saidMe} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
-            <span className={x.scWave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
+        <div className={x.said}>
+          <p className={x.me} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
+            <span className={x.wave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
           </p>
-          <p className={x.saidAi} style={{ opacity: v2, transform: `translateY(${((1 - v2) * 8).toFixed(1)}px)` }}>
+          <p className={x.ai} style={{ opacity: v2, transform: `translateY(${((1 - v2) * 8).toFixed(1)}px)` }}>
             <span><AIGlyph name="openai" size={12} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
           </p>
         </div>

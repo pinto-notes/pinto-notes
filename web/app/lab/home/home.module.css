@@ -64,27 +64,3 @@
 @media (min-width: 901px) { .frontier .row[data-flip] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.72fr); } }
 .frontier { gap: 120px; }
 .frontier .rowTitle { white-space: normal; text-wrap: balance; }
-
-/* V3: the film's panel isn't there until the note lands; then it appears around it, like V1. */
-.filmQuiet [class*="film_stage"] { transition: background-color .45s ease-out, box-shadow .45s ease-out; }
-.filmQuiet [class*="film_chat"], .filmQuiet [class*="film_caption"], .filmQuiet [class*="film_days"] { transition: opacity .45s ease-out; }
-:global(html[data-note-flying]) .filmQuiet [class*="film_stage"] { background-color: transparent !important; box-shadow: none !important; }
-:global(html[data-note-flying]) .filmQuiet [class*="film_chat"], :global(html[data-note-flying]) .filmQuiet [class*="film_caption"], :global(html[data-note-flying]) .filmQuiet [class*="film_days"], :global(html[data-note-flying]) .filmQuiet [class*="film_thread"] { opacity: 0 !important; }
-
-/* The film's chats in the hero's bubble style: no card; you in a dark bubble (tail right), the AI in a
-   white bubble with its name (tail left); the day and the tool note as quiet labels. */
-.filmQuiet [class*="film_chat"] { background: none !important; box-shadow: none !important; padding: 0 !important; gap: 8px !important; }
-.filmQuiet [class*="film_chatTop"] { justify-content: flex-start; gap: 8px; font-size: 12px; color: #9a8b7a; }
-.filmQuiet [class*="film_chatTop"] span { display: none; }
-.filmQuiet [class*="film_chatTop"] em::before { content: ""; }
-.filmQuiet [class*="film_me"] { position: relative; justify-self: end; background: rgba(28, 22, 16, 0.92) !important; color: #fff6ea; border-radius: 18px 18px 5px 18px !important;
-  padding: 10px 14px 11px !important; box-shadow: 0 14px 28px -16px rgba(40, 20, 5, 0.5); }
-.filmQuiet [class*="film_me"]::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 14px; height: 14px; background: rgba(28, 22, 16, 0.92); clip-path: path("M0 0 C 2 8, 7 12, 14 14 L 0 14 Z"); }
-.filmQuiet [class*="film_tool"] { padding-left: 4px; }
-.filmQuiet [class*="film_ai"] { position: relative; justify-self: start; display: grid; gap: 4px; background: #fff !important; color: #1d1b19; padding: 10px 14px 11px !important; border-radius: 18px 18px 18px 5px !important;
-  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.12), 0 14px 28px -16px rgba(40, 20, 5, 0.45) !important; }
-.filmQuiet [class*="film_ai"]::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff; clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
-.filmQuiet [data-app="chatgpt"] [class*="film_ai"]::before { content: "ChatGPT"; font-size: 12px; font-weight: 700; color: #6b5f53; }
-.filmQuiet [data-app="claude"] [class*="film_ai"]::before { content: "Claude"; font-size: 12px; font-weight: 700; color: #c15f3c; }
-.filmQuiet [class*="film_compose"] { box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.14), 0 10px 22px -14px rgba(40, 20, 5, 0.4); }
-
