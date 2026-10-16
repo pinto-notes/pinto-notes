@@ -1,0 +1,68 @@
+/* The page frame and the shared sections (templates, the closing band), from the earlier home page studies. */
+/* The studies' shared page frame: the home page's 1200 px column, its type scale and its rhythm
+   (sections 160 px apart, 96 on phones). Each study's own layout lives in its page's module. */
+.main { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter) 0; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 160px; align-content: start; }
+@media (max-width: 700px) { .main { gap: 96px; } }
+/* Study D: the plan that gets done. Cream throughout (lib/theme.ts keeps it cream in dark mode, as
+   the home page is). The hero sets a real note on a paper-cut desk; the sections follow in the order
+   a visitor asks: who, does it stick, does it feel right, what else, can I trust it. */
+
+.main { gap: 144px; }
+@media (max-width: 700px) { .main { gap: 88px; } }
+/* Who ticked: the app's mark and a few words, pinned to the note's top corner. */
+@keyframes chip { from { opacity: 0; filter: blur(6px); transform: translateY(6px); } }
+
+/* ── Type: one display headline (the hero's). Section titles a clear step down (about 58% of it);
+   the dark band's statement is the one big line below the fold. ── */
+.title { margin: 0; font-size: clamp(28px, 3.3vw, 46px); line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; text-wrap: balance; }
+.lede { margin: 0; max-width: 34em; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.inline { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 3px; white-space: nowrap; }
+.inline:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 3px; }
+.centerHead { display: grid; gap: 14px; justify-items: center; text-align: center; }
+
+/* ── 3 and 6. The leaf brown bands: full width inside the cream page ── */
+.band { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 120px var(--gutter) 128px; background: #2e180a; color: #fbeedd;
+  --ink: #fbeedd; --muted: #d9bf9f; --soft: #40240f; --line: rgba(255, 220, 170, 0.14); --cta-bg: #fbeedd; --cta-ink: #2e180a; --amber: #f5a53a; }
+@media (max-width: 700px) { .band { padding: 80px var(--gutter) 88px; } }
+.bandInner { max-width: 1200px; margin: 0 auto; display: grid; justify-items: center; text-align: center; gap: 22px; }
+
+/* ── 5. Wait, it can do that: three template cards fanned like the templates page's covers; hover lifts one ── */
+.wait { display: grid; gap: 56px; }
+.fan { list-style: none; margin: 0 auto; padding: 0; position: relative; display: grid; grid-template-columns: repeat(3, 320px); justify-content: center; }
+.fan > li { display: grid; transform-origin: 50% 90%; }
+.fan > li:nth-child(1) { transform: translate(40px, 24px) rotate(-7deg); z-index: 1; }
+.fan > li:nth-child(2) { transform: translateY(0); z-index: 2; }
+.fan > li:nth-child(3) { transform: translate(-40px, 24px) rotate(7deg); z-index: 1; }
+@media (hover: hover) {
+  .fan > li:hover { z-index: 3; }
+  .fan > li:nth-child(1):hover { transform: translate(40px, 8px) rotate(-5deg); }
+  .fan > li:nth-child(2):hover { transform: translateY(-16px); }
+  .fan > li:nth-child(3):hover { transform: translate(-40px, 8px) rotate(5deg); }
+}
+@media (prefers-reduced-motion: no-preference) { .fan > li { transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); } }
+@media (max-width: 1000px) { .fan { grid-template-columns: repeat(3, 260px); } }
+@media (max-width: 760px) {
+  /* Phones: the cards overlap down the page, each a little turned. */
+  .fan { grid-template-columns: minmax(0, 340px); }
+  .fan > li + li { margin-top: -120px; }
+  .fan > li:nth-child(1) { transform: rotate(-3deg); }
+  .fan > li:nth-child(2) { transform: rotate(2deg); }
+  .fan > li:nth-child(3) { transform: rotate(-1.5deg); }
+}
+
+/* ── 6. The ending on leaf brown: the icon, the line, the one button, then the facts ── */
+.closing { margin-bottom: -56px; }
+.closingIcon { border-radius: 24px; box-shadow: 0 22px 50px -16px rgba(0, 0, 0, 0.6); }
+.closingTitle { margin: 8px 0 0; max-width: 16ch; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.02; font-weight: 800; letter-spacing: -0.04em; text-wrap: balance; }
+.closingCta { justify-items: center; margin-top: 6px; }
+.closingCta p { text-align: center; justify-self: center; }
+/* Undoable: one word struck, ⌘Z, and the word comes back. */
+@media (prefers-reduced-motion: no-preference) {
+}
+
+/* ── 4: the fanned cards' lines wrap rather than clip ── */
+.fanWrap [class*="cardLine"] { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* The closing's button and its line centred: the kit's own rule (start) would win on order alone. */
+.ctaCenter.ctaCenter { justify-items: center; }
+

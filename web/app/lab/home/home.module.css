@@ -1,0 +1,90 @@
+/* Version 5, "The week, then real life". */
+.main.main { padding-top: 0; gap: 140px; }
+@media (max-width: 700px) { .main.main { gap: 130px; } }
+.big { margin: 0; font-size: clamp(38px, 4.6vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: #2a1d10; text-wrap: balance; }
+.say { margin: 14px 0 0; max-width: 34em; font-size: clamp(17px, 1.4vw, 19px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+
+/* The moments: words on one side, the scene on the other, alternating. */
+.row { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); gap: 56px; align-items: center; }
+.row[data-flip] { grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr); }
+.row[data-flip] > .words { order: 2; }
+.words { display: grid; align-content: center; }
+.kicker { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: #c0660f; }
+.rowTitle { margin: 0; font-size: clamp(30px, 3vw, 42px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: #2a1d10; text-wrap: balance; }
+@media (max-width: 900px) {
+  .row, .row[data-flip] { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .row[data-flip] > .words { order: 0; }
+}
+
+/* The hero band: wide and short, so the film is on the first screen under it. */
+.top { display: grid; gap: 28px; }
+
+/* The extras: eight small tiles, icon, title, one line. */
+.extras { display: grid; justify-items: center; gap: 48px; }
+.grid { width: 100%; margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.grid li { display: grid; align-content: start; gap: 6px; padding: 22px 22px 24px; border-radius: 20px; background: #fbeedd; box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.1); }
+
+.grid h3 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 18px; font-weight: 750; letter-spacing: -0.01em; color: #2a1d10; }
+.grid h3 em { font-style: normal; height: 20px; padding: 0 8px; border-radius: 10px; background: #2a1d10; color: #fff4e6; font-size: 11px; font-weight: 650; line-height: 20px; }
+.grid p { margin: 0; font-size: 15px; line-height: 1.4; color: #6b5a48; }
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .grid li { padding: 16px 16px 18px; } .grid h3 { font-size: 16px; } .grid p { font-size: 14px; } }
+
+/* Templates fan out as you scroll: stacked behind the middle card at first, spread at the end.
+   The scroll part uses the separate translate and rotate properties, so the hover lift still works. */
+.scrollFan > li { will-change: translate, rotate; }
+.scrollFan > li:nth-child(1) { translate: calc((1 - var(--s)) * 300px) calc((1 - var(--s)) * 36px); rotate: calc((1 - var(--s)) * 7deg); }
+.scrollFan > li:nth-child(2) { translate: 0 calc((1 - var(--s)) * 70px); }
+.scrollFan > li:nth-child(3) { translate: calc((1 - var(--s)) * -300px) calc((1 - var(--s)) * 36px); rotate: calc((1 - var(--s)) * -7deg); }
+@media (max-width: 1000px) { .scrollFan > li { translate: none !important; rotate: none !important; } }
+
+/* The grid's tiles rise one after another as you scroll. */
+.grid > li { --t: clamp(0, calc(var(--s) * 2.4 - var(--i) * 0.18), 1); opacity: var(--t); translate: 0 calc((1 - var(--t)) * 46px); scale: calc(0.96 + 0.04 * var(--t)); }
+/* The icon art has wide transparent margins; show it larger inside a fixed spot. */
+.icon { display: block; width: 60px; height: 60px; margin: 0 0 12px; }
+.icon img { width: 100%; height: 100%; margin: 0; object-fit: contain; }
+/* Phones: the templates are a swipeable row instead of three full-width cards stacked. */
+@media (max-width: 700px) {
+  .scrollFan.scrollFan { display: flex; justify-content: flex-start; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin: 0 calc(-1 * var(--gutter)); padding: 8px var(--gutter) 28px;
+    grid-template-columns: none; scrollbar-width: none; }
+  .scrollFan.scrollFan::-webkit-scrollbar { display: none; }
+  .scrollFan.scrollFan > li { flex: 0 0 80%; scroll-snap-align: start; transform: none !important; }
+}
+/* More air between the templates and the grid. */
+.extras { margin-top: 120px; margin-bottom: 100px; }
+@media (max-width: 700px) { .extras { margin-top: 48px; margin-bottom: 40px; } }
+
+/* The frontier section: a short cream intro, then full-bleed people. */
+.frontier { display: grid; gap: 0; }
+.frontierHead { display: grid; justify-items: center; text-align: center; padding: 0 0 72px; }
+.frontierHead .say { margin-left: auto; margin-right: auto; }
+
+@media (min-width: 901px) { .frontier .row { grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.5fr); gap: 56px; } }
+.frontier .rowTitle { white-space: pre-line; font-size: clamp(34px, 3.2vw, 50px); line-height: 1.02; }
+@media (min-width: 901px) { .frontier .row[data-flip] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.72fr); } }
+.frontier { gap: 120px; }
+.frontier .rowTitle { white-space: normal; text-wrap: balance; }
+
+/* V3: the film's panel isn't there until the note lands; then it appears around it, like V1. */
+.filmQuiet [class*="film_stage"] { transition: background-color .45s ease-out, box-shadow .45s ease-out; }
+.filmQuiet [class*="film_chat"], .filmQuiet [class*="film_caption"], .filmQuiet [class*="film_days"] { transition: opacity .45s ease-out; }
+:global(html[data-note-flying]) .filmQuiet [class*="film_stage"] { background-color: transparent !important; box-shadow: none !important; }
+:global(html[data-note-flying]) .filmQuiet [class*="film_chat"], :global(html[data-note-flying]) .filmQuiet [class*="film_caption"], :global(html[data-note-flying]) .filmQuiet [class*="film_days"], :global(html[data-note-flying]) .filmQuiet [class*="film_thread"] { opacity: 0 !important; }
+
+/* The film's chats in the hero's bubble style: no card; you in a dark bubble (tail right), the AI in a
+   white bubble with its name (tail left); the day and the tool note as quiet labels. */
+.filmQuiet [class*="film_chat"] { background: none !important; box-shadow: none !important; padding: 0 !important; gap: 8px !important; }
+.filmQuiet [class*="film_chatTop"] { justify-content: flex-start; gap: 8px; font-size: 12px; color: #9a8b7a; }
+.filmQuiet [class*="film_chatTop"] span { display: none; }
+.filmQuiet [class*="film_chatTop"] em::before { content: ""; }
+.filmQuiet [class*="film_me"] { position: relative; justify-self: end; background: rgba(28, 22, 16, 0.92) !important; color: #fff6ea; border-radius: 18px 18px 5px 18px !important;
+  padding: 10px 14px 11px !important; box-shadow: 0 14px 28px -16px rgba(40, 20, 5, 0.5); }
+.filmQuiet [class*="film_me"]::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 14px; height: 14px; background: rgba(28, 22, 16, 0.92); clip-path: path("M0 0 C 2 8, 7 12, 14 14 L 0 14 Z"); }
+.filmQuiet [class*="film_tool"] { padding-left: 4px; }
+.filmQuiet [class*="film_ai"] { position: relative; justify-self: start; display: grid; gap: 4px; background: #fff !important; color: #1d1b19; padding: 10px 14px 11px !important; border-radius: 18px 18px 18px 5px !important;
+  box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.12), 0 14px 28px -16px rgba(40, 20, 5, 0.45) !important; }
+.filmQuiet [class*="film_ai"]::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff; clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
+.filmQuiet [data-app="chatgpt"] [class*="film_ai"]::before { content: "ChatGPT"; font-size: 12px; font-weight: 700; color: #6b5f53; }
+.filmQuiet [data-app="claude"] [class*="film_ai"]::before { content: "Claude"; font-size: 12px; font-weight: 700; color: #c15f3c; }
+.filmQuiet [class*="film_compose"] { box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.14), 0 10px 22px -14px rgba(40, 20, 5, 0.4); }
+
