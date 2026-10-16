@@ -119,8 +119,7 @@ export default function Page() {
         can&apos;t change anything. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
       </p>
       <p>
-        The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call, and{" "}
-        <a href="/for/claude-code">memory for Claude Code and Codex</a> has more ways to use it. Using Gemini CLI? The{" "}
+        The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI? The{" "}
         <a href="/blog/mcp-server#install">install steps</a> have its command.
       </p>
     </PostPage>

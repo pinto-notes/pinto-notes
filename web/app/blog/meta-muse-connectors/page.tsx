@@ -174,8 +174,7 @@ export default function Page() {
         Claude Code or Codex memory notes and MCP servers, and <code>muse skills import --from claude</code> brings skills across.
         Muse Code keeps project memory in <code>.agents/memory/</code> in the repo, with a <code>MEMORY.md</code> index. That&apos;s
         three agents with three memories of the same project, which is why I keep the plan in a note all of them can
-        read. <a href="/for/claude-code">Shared memory for coding agents</a> covers how, and
-        the <a href="/for/claude-code">Claude Code page</a> shows Pinto Notes doing it.
+        read. <a href="/blog/notes-in-claude-code-and-codex">Notes in Claude Code and Codex</a> shows how to set that up.
       </p>
 
       <h2 id="limits">What Meta doesn&apos;t say yet</h2>

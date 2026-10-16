@@ -137,7 +137,7 @@ export default function Page() {
       <p>
         It isn&apos;t a replacement for Claude&apos;s memory, and it doesn&apos;t read it. It&apos;s the place for the things you want to keep in
         your own words. <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> is one import on your Mac, and{" "}
-        <a href="/for/claude">Pinto Notes for Claude</a> shows what to ask once it&apos;s connected.
+        <a href="/blog/connect-chatgpt-to-your-notes">connecting Claude</a> has the first things to ask once it&apos;s connected.
       </p>
     </PostPage>
   );

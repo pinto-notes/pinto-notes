@@ -113,8 +113,8 @@ export default function Page() {
       </Steps>
       <p>
         Obsidian says it handles virtually everything in Apple Notes, including tables, pictures, drawings, scans and PDFs. The plugin&apos;s
-        code puts notes in folders that match yours and turns checklist items into Markdown checkboxes. If you&apos;re still deciding, <a
-        href="/alternatives/obsidian">Apple Notes vs Obsidian</a> covers what you gain and what you give up.
+        code puts notes in folders that match yours and turns checklist items into Markdown checkboxes. If you want an AI to work in
+        the vault too, <a href="/blog/obsidian-mcp">Obsidian MCP servers, compared</a> covers what works.
       </p>
 
       <h2 id="notion">Apple Notes to Notion</h2>
@@ -149,8 +149,7 @@ export default function Page() {
         <a href="/blog/export-apple-notes-to-markdown">How to export Apple Notes to Markdown</a> has the free exporters that do a whole
         library at once, and what to check in the files. On Notion&apos;s side, mind the limits. On the Free plan a single file can be at
         most 5 MB (50 MB on paid plans), and Notion handles about 120 Markdown files every 12 hours. A ZIP can be up to 5 GB, but
-        Notion says one with more than 10,000 files is likely to fail. <a href="/alternatives/notion">Apple Notes vs
-        Notion</a> compares the two apps if you haven&apos;t decided yet.
+        Notion says one with more than 10,000 files is likely to fail.
       </p>
 
       <h2 id="google-keep">Apple Notes to Google Keep</h2>

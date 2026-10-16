@@ -253,15 +253,14 @@ export default function Page() {
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
       <Keep title="Five first things to ask" text={PROMPTS}
-        note={<>For a to-do list you tick on your phone, see <a href="/for/chatgpt">how to use ChatGPT as a to-do list</a>.</>}>
+        note={<>For a to-do list you tick on your phone, ask ChatGPT to keep it as a checklist in one note.</>}>
         <ul>
           {PROMPTS.split("\n").map((p) => <li key={p}>&ldquo;{p}&rdquo;</li>)}
         </ul>
       </Keep>
       <p>
         Or start from a <a href="/templates">template</a>: a ready note, some with their own app, that ChatGPT or Claude can fill in, like
-        the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.{" "}
-        <a href="/for/chatgpt">Pinto Notes for ChatGPT</a> has three more ideas, from a running plan to a note that becomes a tracker.
+        the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.
       </p>
       <p>
         The part I like most comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
