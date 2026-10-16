@@ -33,9 +33,13 @@ export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "du
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
-export type Thumb = { ground: Ground; src: string; width: number; height: number; alt: string };
+export type Thumb = { ground: Ground; src: string; width: number; height: number; alt: string; art?: boolean };
 
 const thumb = (ground: Ground, name: string, width: number, height: number, alt: string): Thumb => ({ ground, src: `/blog/${name}.webp`, width, height, alt });
+
+/// A card cover that fills the whole picture: the topic's own launch picture, or a light drawing of
+/// the apps it's about (public/blog/covers). Never the app's UI.
+const cover = (ground: Ground, name: string, width: number, height: number, alt: string): Thumb => ({ ground, src: `/blog/covers/${name}.webp`, width, height, alt, art: true });
 
 export const AUTHOR = { name: "Emil Wagman", avatar: "/emil-wagman.jpg" };
 
@@ -90,7 +94,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.habitApp,
-    thumb: thumb("fern", "thumb-app-habit-tracker", 1180, 748, "A habit tracker app in Pinto Notes on a Mac: 2 of 6 habits done today, with streaks and the week"),
+    thumb: cover("fern", "habit-tracker", 1600, 1000, "A week of habit circles, five of them ticked"),
     draft: false,
   },
   {
@@ -102,7 +106,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.budgetApp,
-    thumb: thumb("butter", "thumb-app-budget-log", 1180, 748, "A budget app in Pinto Notes on a Mac: 8,205 kr left this month, and the last six months"),
+    thumb: cover("butter", "budget", 1600, 1000, "Three growing stacks of gold coins"),
     draft: false,
   },
   {
@@ -114,7 +118,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.tripApp,
-    thumb: thumb("harbor", "thumb-app-trip-plan", 1180, 748, "A trip plan app in Pinto Notes on a Mac: Lisbon, 9 days to go, and the first day as a timeline"),
+    thumb: cover("harbor", "trip", 1600, 1000, "An orange suitcase and a plane on a dotted flight path"),
     draft: false,
   },
   {
@@ -126,7 +130,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.flashcardsApp,
-    thumb: thumb("orchid", "thumb-app-study-flashcards", 1180, 748, "A flashcards app in Pinto Notes on a Mac: 8 cards due today and what's coming up"),
+    thumb: cover("orchid", "flashcards", 1600, 1000, "A small stack of flashcards with a question mark on the top card"),
     draft: false,
   },
   {
@@ -138,7 +142,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.historyBurst,
-    thumb: thumb("pistachio", "thumb-consent-local", 826, 545, "Pinto Notes asking to allow an app to use your notes, with Read and Edit or Read Only"),
+    thumb: cover("pistachio", "xai-grok-bot", 1600, 840, "The Grok Bot face on an orange background, from xAI"),
     draft: false,
   },
   {
@@ -150,7 +154,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.consent,
-    thumb: thumb("lilac", "thumb-consent-icons", 780, 524, "Pinto Notes asking to allow an AI to use your notes, with Read and Edit or Read Only"),
+    thumb: cover("lilac", "meta-muse-connectors", 1600, 1000, "The Meta logo connected to Gmail, Google Calendar, WhatsApp and Google Drive"),
     draft: false,
   },
   {
@@ -162,7 +166,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.history,
-    thumb: thumb("ice", "thumb-history-chatgpt", 820, 560, "Version history for a Groceries note, with a version by ChatGPT selected"),
+    thumb: cover("ice", "openai-dots", 1600, 900, "The word dots above four plush dot characters, from OpenAI"),
     draft: false,
   },
   {
@@ -174,7 +178,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.iphoneGroceries,
-    thumb: thumb("apricot", "thumb-iphone-chatgpt-undo", 1146, 800, "A checklist on iPhone with the bar ChatGPT changed 5 lines, and Undo"),
+    thumb: cover("apricot", "openai-gpt-6-astra", 1600, 900, "A spiral of stars shaped like a 6, OpenAI's picture for GPT-6 Astra"),
     draft: false,
   },
   {
@@ -186,7 +190,7 @@ export const posts: Post[] = [
     date: "2026-10-12",
     updated: "2026-10-14",
     image: SHOTS.notesExportMenu,
-    thumb: thumb("rust", "thumb-notes-export-to", 800, 528, "The Apple Notes File menu on macOS 27, open at Export To, with Markdown"),
+    thumb: cover("rust", "move-apple-notes", 1600, 1000, "A notes app icon with arrows to Obsidian, Notion and Google Keep"),
     draft: false,
   },
   {
@@ -222,7 +226,7 @@ export const posts: Post[] = [
     date: "2026-10-07",
     updated: "2026-10-14",
     image: { src: "/blog/amber-notes-claude-edit-lisbon.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac, with the line Claude just added tinted and a bar saying Claude changed 1 line, with Undo.", width: 1500, height: 748, window: false, title: "Lisbon" },
-    thumb: thumb("slate", "thumb-lisbon-claude", 900, 555, "A Lisbon plan checklist with the line Claude added tinted, and Claude changed 1 line, Undo"),
+    thumb: cover("slate", "claude-memory", 1600, 1000, "The Claude logo and a note, with an arrow both ways"),
     draft: false,
   },
   {
@@ -510,6 +514,7 @@ export const FEATURED = [
   "what-are-chatgpt-dots",
   "gpt-6-astra-use-cases",
   "claude-memory-vs-notes",
+  "flashcards-with-chatgpt-or-claude",
 ];
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 

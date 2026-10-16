@@ -172,3 +172,7 @@
 /* At most two lines of description and three of title on every card (Emil, 14 October 2026: "too
    much text"), so cards in a row stay even. The full description is in the post's meta. */
 .card .byline { margin-top: 6px; }
+
+/* A cover (the topic's launch picture or a drawing of its apps) fills the whole picture, uncropped by
+   the capture's frame, shadow and fade. */
+.thumb[data-art] img { inset: 0; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; background: none; box-shadow: none; -webkit-mask-image: none; mask-image: none; }

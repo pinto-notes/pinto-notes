@@ -53,7 +53,7 @@ export function Figure({ shot, caption, priority, ground = "soft" }: { shot: Sho
 /// short alt so image search knows what the picture shows.
 export function ThumbArt({ thumb }: { thumb: Thumb }) {
   return (
-    <div className={`${b.thumb} ${b.ground}`} data-ground={thumb.ground}>
+    <div className={`${b.thumb} ${b.ground}`} data-ground={thumb.ground} data-art={thumb.art ? "" : undefined}>
       <img src={thumb.src} alt={thumb.alt} width={thumb.width / 2} height={thumb.height / 2} loading="lazy" decoding="async" />
     </div>
   );
