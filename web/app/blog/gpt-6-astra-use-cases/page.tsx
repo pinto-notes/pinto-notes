@@ -73,6 +73,9 @@ export default function Page() {
         Two cheaper models came after it. GPT-6 Sol and Luna arrived on 22 September, and <a href="https://openai.com/index/introducing-gpt-6-1-sol/" rel="noopener">GPT-6.1
         Sol</a> on 29 September, which OpenAI says nearly matches Astra on computer use and professional work at a fifth of the price.
       </p>
+      <PostFigure src="/blog/news/openai-gpt-6-1-sol" width={1600} height={900} maxWidth={640}
+        alt="The words GPT-6.1 and Sol on either side of a bright yellow sun, on a band of stars against a dark sky."
+        caption="GPT-6.1 Sol, Astra's cheaper sibling, as OpenAI showed it at DevDay. Image: OpenAI." />
       <div className="tableWrap">
         <table>
           <thead>

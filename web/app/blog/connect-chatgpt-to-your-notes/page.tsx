@@ -1,7 +1,7 @@
 import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Path, Steps } from "@/lib/PostParts";
+import { Answer, Keep, Path, PostFigure, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
 
@@ -185,6 +185,9 @@ export default function Page() {
       </p>
 
       <h3 id="devday-2026">What changed at DevDay 2026</h3>
+      <PostFigure src="/blog/news/openai-devday-plugin-sidebar" width={1600} height={900} maxWidth={640}
+        alt="A ChatGPT window with Canva opened from the sidebar as a plugin panel, asking What will you design today? above template cards for a sales presentation and Instagram posts."
+        caption="A plugin opened as a panel beside the chat, one of the DevDay changes. Image: OpenAI." />
       <p>
         At DevDay on 29 September, OpenAI <a href="https://techcrunch.com/2026/09/29/openai-expands-chatgpts-plugins-with-app-like-interfaces-and-automations/" rel="noopener">announced</a> bigger
         plugins: a home in the sidebar, panels next to the chat, a Plugin Creator tool, a new way to submit to the plugin directory,

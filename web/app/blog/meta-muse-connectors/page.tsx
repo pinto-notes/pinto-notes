@@ -147,6 +147,9 @@ export default function Page() {
       </p>
 
       <h2 id="muse-code">Muse Code can use your own MCP servers</h2>
+      <PostFigure src="/blog/news/meta-muse-code" width={1600} height={900} maxWidth={640}
+        alt="Meta's launch card: Introducing Muse Spark 1.2 and Muse Code, above a simple sketch of a Muse Code window reviewing lines of code."
+        caption="Meta's launch card for Muse Code. Image: Meta." />
       <p>
         Muse Code is a separate product: Meta&apos;s coding agent for the terminal on macOS and Windows. Its
         <a href="https://dev.meta.ai/docs/muse-code/extending" rel="noopener"> extending guide</a> covers MCP. You list servers

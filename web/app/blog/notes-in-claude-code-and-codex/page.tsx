@@ -60,6 +60,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="claude-code">Claude Code</h2>
+      <PostFigure src="/blog/news/anthropic-claude-code-terminal" width={920} height={920} maxWidth={420}
+        alt="A terminal window on an orange background showing Welcome to Claude Code!, a short code snippet and the status Simmering, above an empty prompt."
+        caption="Claude Code in a terminal. Image: Anthropic." />
       <p>
         If you&apos;ve connected Pinto Notes to Claude on claude.ai with the same account, Claude Code may already have it as a connector:
         type <code>/mcp</code> and look. If not, run this in Terminal:

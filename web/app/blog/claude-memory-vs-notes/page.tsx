@@ -1,6 +1,6 @@
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Capture, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
@@ -49,6 +49,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="what-it-is">What Claude&apos;s memory is</h2>
+      <PostFigure src="/blog/news/anthropic-claude-memory-settings" width={1600} height={1498} maxWidth={600}
+        alt="Claude's Memory settings: switches for Search and reference chats and Generate memory from chats, an Import memory from other AI providers row, then memory topics such as Marathon Training, Sourdough Baking and Japan Trip, each with the date it was updated."
+        caption="Settings, Memory in Claude: the switches, the import, and the topics Claude wrote. Image: Anthropic." />
       <p>
         According to Anthropic&apos;s <a href="https://support.claude.com/en/articles/11817273-use-claude-s-chat-search-and-memory-to-build-on-previous-context" rel="noopener">help
         page on memory</a>, Claude saves what it learns about you as a set of separate topics while you chat, and you can ask it to remember

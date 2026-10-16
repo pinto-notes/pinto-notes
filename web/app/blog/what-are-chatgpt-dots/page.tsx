@@ -143,6 +143,9 @@ export default function Page() {
         A wedding or a group holiday works the same way.
       </p>
       <h3>Renewals and admin</h3>
+      <PostFigure src="/blog/news/openai-dots-renewal" width={1150} height={1036} maxWidth={575}
+        alt="A dot called Alfred using its own cloud computer: a browser shows the California DMV's Vehicle Registration Online Renewal page, with a bar at the bottom that says Alfred has control and a Take over button."
+        caption="A dot on a car registration renewal, in its own browser. Take over hands it back to you. Image: OpenAI." />
       <p>
         The dots guide shows a dot on a car registration renewal page in its cloud browser. Ask it to track every renewal date it can
         find in your email and prepare each one a week ahead. When a site needs your login, it sends a sign-in request that you fill
