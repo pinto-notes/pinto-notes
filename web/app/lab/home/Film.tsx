@@ -126,7 +126,7 @@ function Frame({ p }: { p: number }) {
         <figure className={f.note}>
           <div className={f.bar}><span className={f.lights}><i /><i /><i /></span><span className={f.folder}>Health</span></div>
           <div className={f.paper}>
-            <h3 className={f.title}>{tTitle <= 0 ? <span className={f.placeholder}>New note</span> : <>{typed("Running plan", tTitle)}{tTitle < 1 && <Caret who="chatgpt" />}</>}</h3>
+            <p className={f.title}>{tTitle <= 0 ? <span className={f.placeholder}>New note</span> : <>{typed("Running plan", tTitle)}{tTitle < 1 && <Caret who="chatgpt" />}</>}</p>
             <p className={f.sub} style={{ opacity: tSub }}>Half marathon on 30 November. Four runs a week.</p>
             <ul className={f.lines}>
               {lines.map((l, i) => {
@@ -239,7 +239,17 @@ export function Film() {
   }, []);
   return (
     <div ref={box} className={f.film} data-pinned={pinned || undefined}>
-      <div className={f.pin}><Frame p={p} /></div>
+      {/* The film is pictures and moving words; this is what it says, for screen readers. */}
+      <div className={f.srOnly}>
+        <h2>A week in one note</h2>
+        <ol>
+          <li>Monday: you ask ChatGPT to plan four runs a week for a half marathon on 30 November. It writes a Running plan note in Pinto Notes.</li>
+          <li>Wednesday: your knee is sore. Claude, working in the same note, makes Thursday a 30-minute bike ride and moves the long run to Sunday.</li>
+          <li>Friday: you ask ChatGPT how the week went. It reads the note, Claude&apos;s change included: two runs and a ride, on track.</li>
+          <li>Sunday: you tick off the long run yourself.</li>
+        </ol>
+      </div>
+      <div className={f.pin} aria-hidden="true"><Frame p={p} /></div>
     </div>
   );
 }

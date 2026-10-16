@@ -55,14 +55,15 @@ export function Hero() {
         </div>
         <p className={`${x.fine} rise`} style={rise(3)}>Free for Mac. Brings your Apple Notes over.</p>
       </div>
-      <div className={`${x.card} rise`} style={rise(1)}>
+      <div className={`${x.card} rise`} style={rise(1)} role="img"
+        aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">
       <div className={x.art}>
         <img className={x.artImg} src="/home-v5/hero/phone-shoulder.webp" alt="" />
         <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
           <div className={x.scIn}>
           <p className={x.scStatus}><b>21:40</b><span /></p>
           <p className={x.scBack}>‹ My notebook</p>
-          <h3 className={x.scTitle}>Tomorrow</h3>
+          <p className={x.scTitle}>Tomorrow</p>
           <ul className={x.scList}>
             <li><i />Pick up the dry cleaning</li>
             {TOMORROW.map((l) => {
@@ -84,7 +85,7 @@ export function Hero() {
           {/* Left behind when her note lifts off: the notebook's list of notes. */}
           <div className={x.scBehind} aria-hidden="true">
             <p className={x.scStatus}><b>21:40</b><span /></p>
-            <h3 className={x.scTitle}>My notebook</h3>
+            <p className={x.scTitle}>My notebook</p>
             <ul className={x.scNotes}>
               {[["Tomorrow", "21:38"], ["Groceries", "Yesterday"], ["Lisbon trip", "Monday"], ["Habit tracker", "Sunday"], ["Gift ideas", "Last week"]].map(([n, d]) => <li key={n}><b>{n}</b><span>{d}</span></li>)}
             </ul>
