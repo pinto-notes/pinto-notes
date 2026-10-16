@@ -87,13 +87,19 @@
   .words { gap: 22px; }
   .h1 { font-size: clamp(40px, 11vw, 64px); line-height: 1; }
   .lede { font-size: 19px; }
-  .card { height: min(140vw, 600px); border-radius: 24px; }
+  .card { height: min(140vw, 600px, calc(100vh - 90px)); min-height: 340px; border-radius: 24px; }
   /* The phone a little left of centre, about a third of the card wide, her ear beside it. */
-  .art { --w: max(100cqh * 1672 / 941, 330cqw); left: clamp(calc(100cqw - var(--w)), calc(42cqw - var(--w) * 0.64), 0px);
+  .art { --w: max(100cqh * 1672 / 941, min(330cqw, 100cqh * 1672 / 941 * 1.9)); left: clamp(calc(100cqw - var(--w)), calc(42cqw - var(--w) * 0.64), 0px);
     top: clamp(calc(100cqh - var(--h)), calc(50cqh - var(--h) * 0.5034 + 60px), 0px); }
-  /* The chat over the phone, centred on it, growing upward from just above it. */
-  .said { --sw: min(270px, 76cqw); width: var(--sw); left: calc(64% - var(--sw) / 2); right: auto; top: auto; bottom: calc(100% - 31.67% + 14px); }
-  .me, .ai { font-size: 14px; }
+  /* A portrait card: the chat over the phone, centred on it, growing upward from just above it. A wide,
+     short card (a zoomed-in window) keeps the chat beside the phone, as above. */
+  @container scene (min-aspect-ratio: 1 / 1) {
+    .art { left: clamp(calc(100cqw - var(--w)), calc(62cqw - var(--w) * 0.5891), 0px); }
+  }
+  @container scene (max-aspect-ratio: 1 / 1) {
+    .said { --sw: min(270px, 76cqw); width: var(--sw); left: calc(64% - var(--sw) / 2); right: auto; top: auto; bottom: calc(100% - 31.67% + 14px); }
+    .me, .ai { font-size: 14px; }
+  }
 }
 
 /* The card blurs in with the page, from 1% rather than 0% opacity: the same to the eye, but the browser
