@@ -82,5 +82,9 @@ export const TOPIC_PICTURES: Record<string, { src: string; width: number; height
   "forgot-apple-notes-password": { src: "/blog/macos27/notes-locked-window", width: 1520, height: 984, alt: "A locked note in Apple Notes on a Mac, asking for its password." },
   "recover-deleted-apple-notes": { src: "/blog/macos27/notes-recently-deleted-window", width: 1520, height: 1003, alt: "The Recently Deleted folder in Apple Notes on a Mac." },
   "apple-notes-tables": { src: "/blog/macos27/notes27-table-reading-list", width: 1400, height: 554, alt: "A reading list table in Apple Notes on macOS 27." },
+  "claude-memory-vs-notes": { src: "/blog/amber-notes-claude-edit-lisbon", width: 1500, height: 748, alt: "A Lisbon trip note in Pinto Notes with the line Claude just added, and Undo." },
+  "habit-tracker-with-chatgpt-or-claude": { src: "/blog/pinto/habit-tracker-main-mac-light", width: 1280, height: 900, alt: "A habit tracker in a Pinto Notes note: this week's ring and today's habits." },
+  "budget-tracker-with-chatgpt-or-claude": { src: "/blog/pinto/budget-log-main-mac-light", width: 1280, height: 900, alt: "A budget in a Pinto Notes note: what's left this month and a six-month chart." },
+  "plan-a-trip-with-chatgpt-or-claude": { src: "/blog/pinto/trip-plan-main-mac-light", width: 1280, height: 900, alt: "A Lisbon trip plan in a Pinto Notes note: days to go, bookings and packing." },
   "connect-chatgpt-to-your-notes": { src: "/blog/amber-notes-allow-chatgpt-access", width: 840, height: 700, alt: "Pinto Notes asking whether ChatGPT may use your notes." },
 };

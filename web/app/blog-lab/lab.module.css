@@ -49,3 +49,23 @@
 .ask a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink); text-decoration: none; font-size: clamp(18px, 1.9vw, 22px); line-height: 1.3; font-weight: 650; letter-spacing: -0.015em; }
 .ask a span { color: var(--muted); font-weight: 500; transition: transform 0.15s ease-out; }
 @media (hover: hover) { .ask a:hover { color: var(--amber); } .ask a:hover span { color: var(--amber); transform: translateX(3px); } }
+
+/* D: one big post, eight two to a row, then the rest as questions. Every picture sits on the same
+   quiet ground, top-aligned, big enough to read. */
+.big { display: grid; gap: 20px; color: var(--ink); text-decoration: none; }
+.bigFrame, .cardFrame { display: block; overflow: hidden; border-radius: 16px; background: var(--soft); }
+.bigFrame { aspect-ratio: 16 / 8; padding: 40px 48px 0; }
+.cardFrame { aspect-ratio: 16 / 10; padding: 28px 32px 0; }
+.bigFrame img, .cardFrame img { width: 100%; height: auto; display: block; border-radius: 10px 10px 0 0; box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 14px 36px -14px rgb(60 30 0 / 0.3); background: #fff; }
+.bigFrame img { max-width: 760px; margin-inline: auto; }
+.bigText { display: grid; gap: 10px; max-width: 46em; }
+.bigText h2 { margin: 0; font-size: clamp(28px, 3.2vw, 42px); line-height: 1.06; letter-spacing: -0.03em; text-wrap: balance; }
+.bigText p, .card p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.5; text-wrap: pretty; }
+.two { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 32px; }
+@media (max-width: 700px) { .two { grid-template-columns: minmax(0, 1fr); gap: 36px; } .bigFrame { padding: 20px 20px 0; } .cardFrame { padding: 18px 20px 0; } }
+.card { display: grid; gap: 10px; align-content: start; color: var(--ink); text-decoration: none; }
+.card h3 { margin: 6px 0 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
+@media (hover: hover) { .big:hover h2, .card:hover h3 { color: var(--amber); } }
+.big:focus-visible, .card:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; border-radius: 16px; }
+.more { display: grid; gap: 36px; padding-top: 40px; border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+.moreTitle { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
