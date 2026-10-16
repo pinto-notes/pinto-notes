@@ -1,11 +1,10 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Checklist, Paths, Steps } from "@/lib/PostParts";
+import { Answer, Checklist, Paths, PostFigure, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("move-apple-notes-to-icloud", { title: "Move Apple Notes from On My iPhone or Gmail to iCloud" });
+export const metadata = postMetadata("move-apple-notes-to-icloud", { title: "Move Apple Notes to iCloud from On My iPhone or Gmail" });
 
 // Checked on 2 October 2026 against Apple's iPhone User Guide (iOS 26 and 27: accounts in Notes, folders,
 // Notes settings, locking), the Notes User Guide for Mac (macOS 26 and 27: accounts and folders, adding
@@ -136,10 +135,13 @@ export default function Page() {
           They can come from On My Mac, Gmail or any other account in the sidebar.
         </li>
         <li>
-          <strong>Drag them onto a folder under iCloud in the sidebar</strong>
+          <strong>Drag them onto a folder under iCloud in the sidebar, or Control-click and choose Move to</strong>
           Hold Option as you drop to get copies and keep the originals.
         </li>
       </Steps>
+      <PostFigure src="/blog/macos27/notes27-note-context-move-to-submenu" width={1416} height={960} maxWidth={600}
+        alt="Apple Notes on macOS 27: Control-click a note, Move to, and the list of folders to move it to."
+        caption="No dragging needed: Control-click a note, choose Move to, then the folder." />
       <p>
         On My Mac is the Mac&apos;s own local account, like On My iPhone. Once it&apos;s empty you can turn it off by clearing Enable
         the On My Mac account in Notes, Settings. Notes won&apos;t turn it off while it still holds notes, and asks you to move or
@@ -193,9 +195,6 @@ export default function Page() {
         It won&apos;t tidy up Apple Notes for you, and it has no Windows, Android or web version. <a
         href="/blog/move-from-apple-notes">Moving from Apple Notes</a> takes one import on your Mac and leaves Apple Notes as it was.
       </p>
-      <PostCta slug="move-apple-notes-to-icloud" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>One sign-in, and every note is on every device you use.</p>
-      </PostCta>
     </PostPage>
   );
 }

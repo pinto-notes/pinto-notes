@@ -1,11 +1,14 @@
-import { PostCta } from "@/lib/PostCta";
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("siri-ai-apple-notes", { title: "Siri AI and Apple Notes: what it can do with your notes" });
+export const metadata = postMetadata("siri-ai-apple-notes", { title: "Siri AI and Apple Notes: what it can do, and what it can't" });
 
+// Rebuilt to Emil's recipe on 14 October 2026 night: show Siri AI at its best, a plain can and can't table, then the
+// gap (only Siri gets into Apple Notes; ChatGPT, Claude and Codex can't), then Pinto once. Hero image: Apple Newsroom,
+// 8 June 2026, credited. Siri AI couldn't be captured first-hand (off on the test Mac, region Sweden).
 // Checked on 14 October 2026 against Apple's own pages: the Siri AI newsroom post (14 September: beta in English,
 // French, Japanese, Korean, Portuguese and Spanish "next month", not initially in the EU on iPhone, Apple's tablets and
 // Apple Watch, built with Google's Gemini models, daily limits), the Apple TV 4K and HomeView newsroom posts (13 October:
@@ -46,146 +49,91 @@ export default function Page() {
   return (
     <PostPage
       slug="siri-ai-apple-notes"
-      intro={<>On 13 October Apple announced a new Apple TV 4K &quot;supercharged by Siri AI&quot;, and HomeView, a home display built around it. The same Siri AI has been on iPhone and Mac since iOS 27 and macOS 27 came out on 14 September. If you keep your life in Apple Notes, the useful question is what it can do with your notes. This guide sticks to Apple&apos;s own pages, and says where they&apos;re silent.</>}
-      caption="Notes settings on a Mac. Default account is where a note goes when Siri makes it. On iPhone it's in Settings, Apps, Notes."
+      intro={<>
+        Siri AI is the biggest thing to happen to Apple Notes in years: for the first time an AI can find a note by what&apos;s in it and
+        rewrite it in place. It came to iPhone and Mac with iOS 27 and macOS 27, and Apple is now putting it on the new Apple TV and
+        HomeView. Here&apos;s what it can do with your notes, what it can&apos;t, and the gap that matters if you use ChatGPT or Claude.
+      </>}
       answer={
         <Answer jump={[
-          { href: "#what", label: "What Siri AI is" },
-          { href: "#turn-on", label: "Turn it on" },
-          { href: "#notes", label: "In Notes" },
-          { href: "#tv-home", label: "Apple TV, HomeView" },
-          { href: "#chatgpt", label: "ChatGPT" },
-          { href: "#limits", label: "Gaps" },
+          { href: "#can", label: "What it can do" },
+          { href: "#table", label: "Can and can't" },
+          { href: "#chatgpt", label: "ChatGPT and other AIs" },
+          { href: "#missing", label: "What's missing" },
         ]}>
           <p>
-            Siri AI can find a note, search inside your notes, make a new note, and proofread, tidy or summarize a note you have
-            open. It&apos;s a beta, in English, on iPhone 15 Pro and later and on Macs with M1 or later, and it isn&apos;t on iPhone in
-            the EU. Apple doesn&apos;t describe ChatGPT or any other AI saving into your notes.
+            Siri AI can find your notes, search inside them, make a new note, and proofread, rewrite or summarize the one you have open.
+            It&apos;s a beta, in English, on iPhone 15 Pro and later and Macs with M1 or later, and not on iPhone in the EU. What it
+            can&apos;t do is let ChatGPT, Claude or any other AI into your notes: Siri is the only one that gets in.
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/apple/apple-siri-ai-app-chat" width={1306} height={1829} maxWidth={360}
+        alt="Siri AI on an iPhone, in the new Siri app: a typed conversation about a park in Mexico City."
+        caption="Siri AI on iPhone, in its new app. Image: Apple." />}
       faq={FAQ}
     >
-      <h2 id="what">What Siri AI is, and where you get it</h2>
+      <h2 id="can">What Siri AI does with your notes</h2>
       <p>
-        Siri AI is Apple&apos;s new version of Siri. Apple&apos;s <a href="https://www.apple.com/newsroom/2026/09/siri-ai-a-profoundly-more-capable-and-personal-assistant-is-here/" rel="noopener">announcement</a> on
-        14 September describes it as more conversational, with personal context, broad world knowledge, awareness of what&apos;s on
-        your screen and more actions in apps. Apple built it in collaboration with Google and its Gemini models. You can type to it
-        as well as talk, and a new Siri app keeps your conversations.
+        <strong>It finds them.</strong> Apple&apos;s own example is &ldquo;What was the note with the cookie recipe?&rdquo;. You no longer
+        need the title you gave a note in 2019, just what&apos;s in it. That alone fixes a real problem.
       </p>
       <p>
-        It&apos;s a beta in iOS 27, macOS 27, watchOS 27 and visionOS 27. Apple&apos;s <a href="https://support.apple.com/en-us/127893" rel="noopener">How to get Siri AI</a> page
-        lists the devices. On iPhone that&apos;s iPhone 15 Pro, iPhone 15 Pro Max, iPhone Air and any iPhone 16 or later; on a Mac, any
-        Mac with M1 or later and the MacBook Neo. Apple TV 4K (2nd generation or later) gets it in tvOS 27.2, and the new
-        Apple TV 4K and HomeView ship with it on 13 November.
+        <strong>It works on the note in front of you.</strong> Select text, tap the Siri AI icon, and ask for a proofread, a rewrite or a
+        summary, or describe the change. After a rewrite you can compare it with the original before you keep it.
       </p>
       <p>
-        Apple said in September that French, Japanese, Korean, Portuguese and Spanish would follow in October. On 14 October its
-        support pages still say English to start. Siri AI isn&apos;t available on iPhone or Apple Watch in the EU, though a Mac in the
-        EU gets it when the Mac and Siri are both set to English. Requests that use Apple&apos;s server models count against a
-        daily limit, and Apple says expanded access will cost a fee later.
+        <strong>It makes new notes.</strong> They go to the Default Account in Notes&apos; settings, so if Siri&apos;s notes land in On My
+        iPhone or an old Gmail account, <a href="/blog/move-apple-notes-to-icloud">change it there</a>.
+      </p>
+      <Keep title="Things to try in Notes" text={ASK} note="All five are Apple's own examples." />
+      <MenuPaths rows={[
+        { on: "iPhone", steps: ["Settings", "Siri", "Try Siri AI (Beta)"] },
+      ]} />
+      <p>Setting up puts you on a waitlist; the download starts on its own when your turn comes.</p>
+
+      <h2 id="table">What it can do, and what it can&apos;t</h2>
+      <div className="tableWrap">
+        <table>
+          <thead><tr><th scope="col">With your notes</th><th scope="col">Siri AI</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Find a note by what&apos;s in it</th><td>Yes</td></tr>
+            <tr><th scope="row">Proofread, rewrite or summarize the note you have open</th><td>Yes</td></tr>
+            <tr><th scope="row">Make a new note</th><td>Yes, in your default account</td></tr>
+            <tr><th scope="row">Open a locked note</th><td>Apple doesn&apos;t say; assume not</td></tr>
+            <tr><th scope="row">Work on your notes from Apple TV or HomeView</th><td>Apple doesn&apos;t say; their pages name Calendar, Messages and Music</td></tr>
+            <tr><th scope="row">Let ChatGPT, Claude or Codex read or edit your notes</th><td>No</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="chatgpt">ChatGPT and other AIs</h2>
+      <p>
+        Siri can hand a question to ChatGPT if you turn on its extension (Settings, Siri, Set Up Extensions, ChatGPT) and ask for ChatGPT
+        by name. Apple&apos;s examples send it a photo or a document. None of its pages show ChatGPT reading your notes or writing an answer
+        back into one. Claude isn&apos;t an option at all, and Apple has <a href="/blog/apple-notes-api">no Notes API</a> anything else
+        could use.
       </p>
 
-      <h2 id="turn-on">How to turn on Siri AI</h2>
-      <Steps>
-        <li>
-          <strong>Update first</strong>
-          Install iOS 27 or macOS 27, and set the device language and Siri&apos;s language to English.
-        </li>
-        <li>
-          <strong>Open Settings, then Siri</strong>
-          Tap Try Siri AI (Beta). If Siri is off, tap Turn on Siri first.
-        </li>
-        <li>
-          <strong>Follow the setup</strong>
-          You pick a voice, train it on your voice and review the privacy settings. That puts you on a waitlist, and the download
-          starts on its own when your turn comes.
-        </li>
-      </Steps>
-
-      <h2 id="notes">What Siri AI can do with Apple Notes</h2>
+      <h2 id="missing">What&apos;s missing</h2>
       <p>
-        Apple spreads this over several pages. Put together, there are four things Siri AI does with your notes.
+        Siri AI is the only AI that gets into Apple Notes, and it only works one note at a time, on that device, when you ask. The ChatGPT
+        you plan your week with can&apos;t see the plan you wrote down. Claude can&apos;t tick off what you finished. Codex can&apos;t add
+        to your work log. You end up copying between them and Notes by hand.
       </p>
       <p>
-        Siri AI can find your notes. <a href="https://support.apple.com/en-us/118442" rel="noopener">Use Notes on your iPhone</a> says
-        that in iOS 27 you can ask Siri AI to search for notes or search within notes, and gives the example &quot;What was the
-        note with the cookie recipe?&quot; Apple&apos;s How to get Siri AI page also lists Notes, with Messages, Mail, Calendar and
-        Reminders, among the apps Siri AI looks through when a question needs your personal context.
+        If that&apos;s you, what you want isn&apos;t a smarter Siri. It&apos;s one notebook every AI you use can work in.
       </p>
+      <AIConnect caption="The AIs you already use, in one notebook." />
       <p>
-        Siri AI can also work on the note in front of you. Apple&apos;s page on <a href="https://support.apple.com/guide/iphone/siri-ai-ask-siri-about-whats-on-your-screen-iphmk4p88mkuky/27/ios/27" rel="noopener">asking
-        Siri about your screen</a> uses &quot;Explain this from my class notes&quot; with a diagram open in Notes.
-        <a href="https://support.apple.com/guide/iphone/siri-ai-write-with-siri-ipho54eqrx4ms3j/27/ios/27" rel="noopener"> Write with Siri</a> lists
-        proofreading, rewriting, feedback and summaries, and its examples could have come from a notes app.
+        That&apos;s why I made Pinto Notes. It works like Apple Notes, brings yours over in{" "}
+        <a href="/blog/move-from-apple-notes">one import</a> on a Mac (Apple Notes stays as it was), and lets ChatGPT, Claude, Claude
+        Code and Codex search, read and edit your notes once you approve them, with every change tinted and undoable.
+        {APP_STORE_LIVE
+          ? <> It&apos;s free on Mac and iPhone.</>
+          : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}
+        For the rest of this year&apos;s Notes update, see <a href="/blog/apple-notes-ios-27">what&apos;s new in Apple Notes in iOS 27</a>.
       </p>
-      <Keep title="Requests from Apple's own pages to try in Notes" text={ASK}
-        note="Open the note first for everything after the first line. Swipe down on Siri's answer to keep going with follow-up requests." />
-      <p>
-        Siri AI can make a new note, too. Apple&apos;s Notes settings page for iOS 27 has a Default Account option for notes created with Siri and the
-        Notes widget. If Siri&apos;s notes keep landing in On My iPhone or an old Gmail account, change it there. <a href="/blog/move-apple-notes-to-icloud">Move
-        Apple Notes to iCloud</a> explains the accounts.
-      </p>
-      <p>
-        And Siri AI can change a note&apos;s text if you select it first. The surest way to edit a note with Siri AI is the one Apple documents step by
-        step. Select the text, tap the Siri AI icon, then describe the change or choose Proofread or Rewrite. After a rewrite you
-        can compare the new version with the original before you keep it.
-      </p>
-
-      <h2 id="tv-home">Siri AI on Apple TV and HomeView</h2>
-      <p>
-        The <a href="https://www.apple.com/newsroom/2026/10/apple-unveils-the-new-apple-tv-4k/" rel="noopener">Apple TV 4K announcement</a> is
-        mostly about finding something to watch, and hands-free control of the home.
-        The <a href="https://www.apple.com/newsroom/2026/10/meet-apple-homeview-a-new-way-to-enjoy-entertainment-and-manage-the-home/" rel="noopener">HomeView announcement</a> describes
-        a 7-inch display for a counter or a wall that recognizes up to six people.
-        Both cost $299 in the US.
-      </p>
-      <p>
-        For anything personal, both need a paired iPhone with Siri AI. The HomeView page names Calendar, Messages and
-        Apple Music as what Siri AI can reach there. Neither page names Notes, so I wouldn&apos;t buy either to read
-        out a shopping list from Apple Notes until Apple says it can. HomeView isn&apos;t sold in the EU at all, because Siri AI
-        isn&apos;t on iPhone there yet.
-      </p>
-
-      <h2 id="chatgpt">Siri AI with ChatGPT and other AIs</h2>
-      <p>
-        Siri AI can still pass a question to ChatGPT. Apple&apos;s <a href="https://support.apple.com/guide/iphone/turn-on-chatgpt-iph00fd3c8c2/27/ios/27" rel="noopener">steps</a>:
-        open Settings, then Siri, tap Set Up Extensions, tap ChatGPT and turn on Use Extension. Signing in to a ChatGPT account is
-        optional, and only matters if you want the requests in your ChatGPT history.
-      </p>
-      <p>
-        With Siri AI, ChatGPT gets nothing until you ask for it by name, as in &quot;ask ChatGPT to summarize this document&quot;, and
-        you can&apos;t turn that check off. Apple&apos;s examples send a photo or a PDF in Files. None of its pages show ChatGPT
-        reading your notes or writing an answer back into one. ChatGPT is the only extension these pages name. Apple built Siri AI
-        with Google&apos;s Gemini models, but it doesn&apos;t offer Gemini as an extension you pick, and Claude isn&apos;t mentioned. <a href="/blog/claude-and-apple-notes">Claude and
-        Apple Notes</a> covers the Mac options for Claude, and the <a href="/blog/apple-notes-api">Apple Notes API</a> post covers
-        what Shortcuts and AppleScript can do.
-      </p>
-
-      <h2 id="limits">What Apple doesn&apos;t say yet</h2>
-      <p>
-        Apple&apos;s Write with Siri examples include &quot;Tidy up the recipe I wrote down from my cooking class&quot;, but the page
-        doesn&apos;t say whether the result replaces the note&apos;s text or appears in Siri&apos;s answer for you to copy. <a href="https://9to5mac.com/2026/09/28/heres-everything-new-for-apple-notes-in-ios-27/" rel="noopener">9to5Mac
-        reported</a> in September that Siri AI can add to an existing note. Apple&apos;s pages don&apos;t spell that out, so check the note
-        afterwards. Apple also doesn&apos;t say whether Siri AI reads locked notes, and I&apos;d assume it doesn&apos;t.
-      </p>
-      <p>
-        I like the search part most. Finding a note by what&apos;s in it, rather than by the title you gave it in 2019, fixes a real
-        problem. The writing part is a better Writing Tools. What Siri AI doesn&apos;t give you is an AI that keeps working on your
-        notes for you, from ChatGPT on the web or from Claude Code in your terminal.
-      </p>
-      <p>
-        That&apos;s the gap I built Pinto Notes for. It&apos;s a notes app that works like Apple Notes, with a server built in that
-        ChatGPT, Claude, Claude Code and Codex can use to search, read and edit your notes once you approve them. Every change an AI
-        makes is tinted with an Undo, and the version before it stays in the history. On a Mac it imports your Apple Notes with
-        their folders and leaves Apple Notes as it was. {APP_STORE_LIVE ? "It's on the Mac and on the App Store." : "The Mac app is out now, and the iPhone app is coming soon to the App Store."} <a href="/blog/move-from-apple-notes">Moving
-        from Apple Notes</a> has the steps, and <a href="/blog/apple-notes-ios-27">what&apos;s new in Apple Notes in iOS 27</a> covers
-        the rest of this year&apos;s update.
-      </p>
-
-      <PostCta slug="siri-ai-apple-notes" position="how-amber-helps" title="Notes ChatGPT and Claude can edit">
-        <p>Pinto Notes works like Apple Notes, imports your notes on the Mac, and lets the AIs you approve search and edit them.</p>
-      </PostCta>
     </PostPage>
   );
 }

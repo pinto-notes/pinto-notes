@@ -1,4 +1,4 @@
-import { PostCta } from "@/lib/PostCta";
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, Keep, Steps } from "@/lib/PostParts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
@@ -8,7 +8,7 @@ export const metadata = postMetadata("claude-memory-vs-notes", { title: "Claude 
 
 const FAQ = [
   { q: "Can ChatGPT or other apps read Claude's memory?", a: [
-    "No. It lives in your Claude account. You can copy it out by asking Claude to write its memories out word for word, which Anthropic documents, but nothing else reads it directly. A note in an app with an MCP server can be read by Claude, ChatGPT, Claude Code and Codex alike.",
+    "No. It lives in your Claude account. Claude can export it as text, and import what ChatGPT or another assistant remembers, but that's a one-time copy, not a shared memory. A note in an app with an MCP server is read by Claude, ChatGPT, Claude Code and Codex alike, and stays the same for all of them.",
   ] },
   { q: "Should I turn Claude's memory off if I keep notes?", a: [
     "Not necessarily. Memory is good for how you like Claude to work with you. Notes are for anything you want to read again word for word, tick off or keep. They work well together.",
@@ -23,10 +23,15 @@ export default function Page() {
   return (
     <PostPage
       slug="claude-memory-vs-notes"
-      intro={<>Claude remembers things about you now, so why connect it to your notes? Because they keep different things. Here&apos;s the difference, and how to use both.</>}
+      intro={<>
+        Claude remembers you now: your job, your projects, how you like answers. So I wondered whether my notes still mattered. They do,
+        because memory and notes keep different things. Here&apos;s what Claude&apos;s memory actually holds, where it stops, and how to use
+        the two together.
+      </>}
       answer={
         <Answer jump={[
           { href: "#side-by-side", label: "Side by side" },
+          { href: "#missing", label: "Where memory stops" },
           { href: "#use-both", label: "Use both" },
           { href: "#connect", label: "Connect Claude" },
         ]}>
@@ -54,6 +59,8 @@ export default function Page() {
         <li><strong>Who has it.</strong> On by default on Free, Pro and Max, on the web, in Claude Desktop and in the iPhone app. On Team and Enterprise, an owner decides.</li>
         <li><strong>Projects.</strong> Each project has its own memory, separate from your other chats.</li>
         <li><strong>What it leaves out.</strong> Incognito chats, and by default sensitive topics such as financial account numbers.</li>
+        <li><strong>Moving it.</strong> Claude can <a href="https://support.claude.com/en/articles/12123587-importing-and-exporting-your-memory-from-claude" rel="noopener">import
+          what another assistant remembers</a>, pasted in as text, and export its own. Anthropic calls this experimental.</li>
       </ul>
 
       <h2 id="side-by-side">Side by side</h2>
@@ -76,6 +83,18 @@ export default function Page() {
         So memory suits things like your job, the tone you like and the tools you use: context you&apos;d otherwise repeat. Notes suit trip
         plans, shopping lists, meeting notes and drafts: things you&apos;ll read again yourself, often on your phone. If you also use ChatGPT,
         the same holds for its memory, and the notes are the one place both can read.
+      </p>
+
+      <h2 id="missing">Where memory stops</h2>
+      <p>
+        Say you plan a trip to Lisbon with Claude. Afterwards its memory might hold &ldquo;planning a Lisbon trip in May&rdquo;. It
+        won&apos;t hold the plan: the hotel, the late checkout you still need to confirm, the list of restaurants your friend sent. Ask on
+        your phone a week later and you&apos;re scrolling through an old chat to find them.
+      </p>
+      <p>
+        And memory belongs to one assistant. Tell ChatGPT the dates, and Claude doesn&apos;t know. Import fixes that once, by copy and paste;
+        the next change goes missing again. What you actually want is the plan itself, in one place every AI you use can read and add to,
+        and that you can open yourself without asking anyone.
       </p>
 
       <h2 id="use-both">Use both</h2>
@@ -108,6 +127,7 @@ export default function Page() {
       </p>
 
       <h2 id="amber-notes">Why I built Pinto Notes this way</h2>
+      <AIConnect ais={["claude", "chatgpt", "claude-code", "codex"]} caption="One set of notes that Claude, ChatGPT, Claude Code and Codex all read and add to." />
       <p>
         I make Pinto Notes, a notes app for iPhone and Mac that Claude, ChatGPT, Claude Code and Codex can use. When Claude adds to a note
         it changes only those lines, the change shows up tinted with Undo, and the version before is kept in the note&apos;s history, with
@@ -119,9 +139,6 @@ export default function Page() {
         your own words. <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> is one import on your Mac, and{" "}
         <a href="/for/claude">Pinto Notes for Claude</a> shows what to ask once it&apos;s connected.
       </p>
-      <PostCta slug="claude-memory-vs-notes" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Notes Claude can read and add to when you allow it, with every change marked and undoable.</p>
-      </PostCta>
     </PostPage>
   );
 }

@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Checklist, Paths, Steps } from "@/lib/PostParts";
+import { Answer, Capture, Checklist, Paths, PostFigure, Steps } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -201,6 +200,14 @@ export default function Page() {
 
       <h2 id="pinto-notes">Or move to a notes app that works like Apple Notes</h2>
       <p>
+        Each of these is a real change of habit. Obsidian is a folder of files you manage, Notion is a workspace built for teams, and
+        Keep has no folders at all. If what you liked about Apple Notes was how quick it is, and what you&apos;re missing is that
+        ChatGPT and Claude can&apos;t see a word of it, there&apos;s a shorter move.
+      </p>
+      <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={460}
+        alt="The Import from Apple Notes sheet in Pinto Notes on a Mac: Copies the notes you pick. Nothing in Apple Notes changes. Every note is listed under its Apple Notes folder, all ticked, with Import 8 Notes."
+        caption="Import from Apple Notes in Pinto Notes: every note under its folder, ticked. Nothing in Apple Notes changes." />
+      <p>
         Pinto Notes, the notes app for iPhone and Mac that I make, looks and works like Apple Notes, keeps every note as Markdown, and
         lets ChatGPT and Claude read and edit your notes once you approve them. On a Mac, File, Import from Apple Notes copies every
         note in every folder, with the folders&apos; names, nesting and order. Pictures come along as files, and importing again skips
@@ -214,9 +221,6 @@ export default function Page() {
           : <>The iPhone app is coming soon to the App Store. </>}
         <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> walks through the import.
       </p>
-      <PostCta slug="move-apple-notes-to-obsidian-notion-keep" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Every Apple Notes folder in one import, and notes ChatGPT and Claude can work with.</p>
-      </PostCta>
     </PostPage>
   );
 }

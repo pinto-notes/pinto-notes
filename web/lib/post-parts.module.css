@@ -151,5 +151,5 @@
 .captureCaption { margin-top: 12px; color: var(--muted); font-size: 14px; line-height: 1.45; text-align: center; text-wrap: balance; }
 .pair { margin: 20px 0 24px; }
 .pairRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-@media (max-width: 600px) { .pairRow { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .pairRow { grid-template-columns: minmax(0, 1fr) !important; } }
 .pair picture, .pair img { display: block; width: 100%; height: auto; }

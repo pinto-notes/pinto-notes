@@ -1,6 +1,6 @@
 /* The site's 404 (lib/NotFoundView.tsx), inside the site's header and footer. */
 
-.home { width: auto; padding: 0 24px; }
+.lost .home { width: auto; justify-self: center; padding: 0 24px; }
 
 .lost { display: grid; justify-items: center; gap: 28px; padding: clamp(16px, 6vh, 72px) var(--gutter) 0; }
 .window { width: min(560px, 100%); }

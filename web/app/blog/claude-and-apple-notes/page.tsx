@@ -1,5 +1,7 @@
 import { Figure } from "@/lib/blog";
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
 
@@ -27,7 +29,14 @@ export default function Page() {
   return (
     <PostPage
       slug="claude-and-apple-notes"
-      intro={<>Short answer: on a Mac, yes. On iPhone and in the browser, no. I get asked this a lot, so here&apos;s why it depends on where you use Claude, and what each option can and can&apos;t do.</>}
+      intro={<>
+        Short answer: on a Mac, yes. On your iPhone and in the browser, no. Anthropic even makes its own Apple Notes extension, and it
+        works well inside its limits. Here&apos;s why it depends on where you use Claude, what each option can do, and the gap none of them
+        close.
+      </>}
+      hero={<PostFigure priority src="/blog/claude/anthropic-apple-notes-connector" width={1568} height={634} maxWidth={700}
+        alt="Claude's marketplace page for the Read and Write Apple Notes connector: read, write, and manage notes in Apple Notes. Made by Anthropic, added August 2025, with an Add to Claude button."
+        caption="Anthropic's own Apple Notes extension, in Claude's directory. It runs in the Claude app on a Mac." />}
       faq={FAQ}
     >
       <h2>Why it depends on where you use Claude</h2>
@@ -84,8 +93,8 @@ export default function Page() {
         Developers have built MCP servers that drive the Notes app with AppleScript. The most actively maintained one in September
         2026 is <a href="https://github.com/sweetrb/apple-notes-mcp" rel="noopener">sweetrb/apple-notes-mcp</a>, which can search,
         create and update notes. Follow its README to add it to Claude Desktop or Claude Code. Expect a macOS prompt asking whether
-        Claude may control Notes. <a href="/blog/apple-notes-api">Apple Notes MCP servers compared</a> sets it next to the other
-        servers, with the setup for Claude Desktop and Claude Code.
+        Claude may control Notes. <a href="/blog/apple-notes-api">Apple Notes has no API</a> explains
+        why every route like this one runs through a Mac.
       </p>
       <p>Things to know:</p>
       <ul>
@@ -111,7 +120,19 @@ export default function Page() {
         and macOS 27</a>.
       </p>
 
+      <h2>What none of these fix</h2>
+      <p>
+        Every option above lives on one Mac. Close the lid and Claude loses your notes. Open Claude on your phone on the way to work and
+        they aren&apos;t there at all. And Claude is only one of the AIs you use: what you planned with ChatGPT yesterday is still stuck in
+        ChatGPT.
+      </p>
+      <p>
+        The real wish behind &ldquo;Claude and Apple Notes&rdquo; is simpler: one notebook that Claude can read and write wherever you open
+        it, that your other AIs share, and that still feels like Apple Notes.
+      </p>
+
       <h2>Option 3: move your notes to an app Claude can reach</h2>
+      <AIConnect caption="Claude and ChatGPT in one notebook, from the web, the desktop app and your phone." />
       <p>
         Pinto Notes is a free, open-source notes app for iPhone and Mac that works like Apple Notes and has an MCP server built in. You
         import your Apple Notes once, on your Mac, then open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a> and
@@ -126,7 +147,8 @@ export default function Page() {
         <li>Pinto Notes is listed in Claude&apos;s connector directory, so there&apos;s no address to paste. If your Claude app doesn&apos;t show the listing, add <code>{MCP_URL}</code> as a custom connector instead; that works on every plan, and the free plan includes one.</li>
       </ul>
       <p>
-        The catch: your notes move to Pinto Notes, so you&apos;d write there instead of in Apple Notes. The import leaves Apple Notes
+        Connect ChatGPT too and they share it: tell ChatGPT on Monday, and Claude knows on Wednesday. The catch: your notes move to Pinto
+        Notes, so you&apos;d write there instead of in Apple Notes. The import leaves Apple Notes
         untouched, so you can try it and go back. <a href="/blog/move-from-apple-notes">How to move from Apple Notes</a>, then{" "}
         <a href="/blog/connect-chatgpt-to-your-notes">connect Claude</a>. For Claude Code, see{" "}
         <a href="/blog/notes-in-claude-code-and-codex">using your notes from Claude Code and Codex</a>.

@@ -1,4 +1,5 @@
 import { Figure } from "@/lib/blog";
+import { Answer } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { SHOTS } from "@/lib/posts";
@@ -89,9 +90,23 @@ export default function Page() {
     <PostPage
       slug="obsidian-mcp"
       intro={<>Search for an Obsidian MCP server and you get a long list of GitHub projects. I went through the main ones in September 2026 and checked each against its own README and release history. Here&apos;s how they work, what each can do, how to set up the best one in Claude, and the limits they share. I make Pinto Notes, a different notes app, so weigh that part with that in mind.</>}
+      answer={
+        <Answer jump={[
+          { href: "#compared", label: "The servers" },
+          { href: "#claude-code", label: "Claude Code" },
+          { href: "#claude-desktop", label: "Claude Desktop" },
+          { href: "#limits", label: "Limits" },
+        ]}>
+          <p>
+            Obsidian makes no MCP server, but since May 2026 the Local REST API plugin has one built in, and it&apos;s the one to use with
+            Obsidian open. With Obsidian closed, mcpvault reads the vault&apos;s files directly. Both run on the computer with the vault,
+            so Claude Code and Claude Desktop can use them; ChatGPT, claude.ai and your phone can&apos;t.
+          </p>
+        </Answer>
+      }
       faq={FAQ}
     >
-      <h2>How Obsidian works with AI</h2>
+      <h2 id="how">How Obsidian works with AI</h2>
       <p>
         An Obsidian vault is a folder of Markdown files on your computer. That&apos;s what makes Obsidian great for local-first power
         users: the notes are plain files you own, any tool can read them, and plugins can add almost anything. It also means an AI app
@@ -113,7 +128,7 @@ export default function Page() {
         its own in version 4.0 in May. Its README now says the separate servers are no longer necessary.
       </p>
 
-      <h2>The servers compared</h2>
+      <h2 id="compared">The servers compared</h2>
       <div className="tableWrap">
         <table>
           <thead>
@@ -170,7 +185,7 @@ export default function Page() {
         2026, so it gets no more fixes. If you use it, move to one of the above.
       </p>
 
-      <h2>Set it up in Claude Code</h2>
+      <h2 id="claude-code">Set it up in Claude Code</h2>
       <ol>
         <li>In Obsidian, open Settings, then Community plugins, then Browse. Search for Local REST API with MCP, install it and turn it on.</li>
         <li>Open Settings, then Local REST API, and copy the API key.</li>
@@ -187,7 +202,7 @@ export default function Page() {
         <code>http://127.0.0.1:27123/mcp/</code> instead.
       </p>
 
-      <h2>Set it up in Claude Desktop</h2>
+      <h2 id="claude-desktop">Set it up in Claude Desktop</h2>
       <p>
         Claude Desktop runs local servers from its config file, so it reaches the plugin through a small bridge called mcp-remote. You need
         Node.js.
@@ -219,7 +234,7 @@ export default function Page() {
         three-line config for Claude Desktop that takes the path to your vault.
       </p>
 
-      <h2>The limits they all share</h2>
+      <h2 id="limits">The limits they all share</h2>
       <ul>
         <li><strong>The computer with the vault must be on.</strong> Every one of these runs on that computer, and the AI app has to run there too. If it&apos;s asleep or shut, nothing can reach your notes. The plugins also need Obsidian open.</li>
         <li><strong>Not from ChatGPT, the web or your phone.</strong> ChatGPT, claude.ai and the Claude and ChatGPT apps on iPhone connect only to servers on the internet. Getting there means putting the server online yourself, through a tunnel with sign-in in front of it, and keeping it running.</li>
@@ -228,7 +243,7 @@ export default function Page() {
         <li><strong>Undo depends on your setup.</strong> Obsidian&apos;s File recovery and Obsidian Sync keep earlier versions, and a vault in Git has its history. Without one of those, a bad rewrite by an AI is hard to take back.</li>
       </ul>
 
-      <h2>If you want your notes from anywhere</h2>
+      <h2 id="pinto-notes">If you want your notes from anywhere</h2>
       <p>
         If those limits are fine, and for many Obsidian users they are, use the Local REST API plugin or mcpvault and keep your vault.
         Obsidian is great at what it does: plain files, links, plugins, and every platform.
@@ -253,10 +268,10 @@ export default function Page() {
           : "The Mac app is out now; the iPhone app is coming soon to the App Store."}
       </p>
       <p>
-        <a href="/alternatives/obsidian">Apple Notes vs Obsidian</a> compares Obsidian with the simplest option. The{" "}
+        <a href="/alternatives/obsidian">Pinto Notes as an Obsidian alternative</a> sets the two side by side. The{" "}
         <a href="/blog/mcp-server">MCP server page</a> lists every Pinto Notes tool. For other notes apps with a server of their own, see{" "}
         <a href="/blog/notes-apps-with-mcp">notes apps with an MCP server, compared</a>, and for the same question about Apple&apos;s
-        app, <a href="/blog/apple-notes-api">Apple Notes MCP servers compared</a>.
+        app, <a href="/blog/apple-notes-api">Apple Notes has no API: what works instead</a>.
       </p>
     </PostPage>
   );

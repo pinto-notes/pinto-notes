@@ -126,7 +126,9 @@ export function PostFigure({ src, alt, width, height, caption, priority = false,
 export function FigurePair({ items, caption }: { items: (Img & { alt: string })[]; caption: string }) {
   return (
     <figure className={s.pair}>
-      <div className={s.pairRow}>
+      {/* Each column is as wide as its picture's shape, so a wide Mac capture and a tall phone capture
+          stand at one height side by side instead of the wide one shrinking to a stamp. */}
+      <div className={s.pairRow} style={{ gridTemplateColumns: items.map((it) => `minmax(0, ${(it.width / it.height).toFixed(3)}fr)`).join(" ") }}>
         {items.map((it) => (
           <picture key={it.src}>
             <source type="image/avif" srcSet={`${it.src}.avif`} />

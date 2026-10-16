@@ -14,7 +14,7 @@ type Row = { app: string; server: string; reach: string; edit: string; open: str
 const ROWS: Row[] = [
   { app: "Pinto Notes", server: "Built in, hosted", reach: "ChatGPT, Claude, Claude Code, Codex, Incredible and other MCP apps, from any device", edit: "Yes, with approval per app, Undo and version history", open: "Yes (MIT)" },
   { app: "Notion", server: "Official, hosted", reach: "Any app that supports remote MCP, from any device", edit: "Yes", open: "No" },
-  { app: "Evernote", server: "Official, hosted (beta)", reach: "Any app that supports remote MCP, from any device", edit: "Read, search and create", open: "No" },
+  { app: "Evernote", server: "Official, hosted, paid plans", reach: "Any app that supports remote MCP, from any device", edit: "Read, search and create", open: "No" },
   { app: "Hjarni", server: "Built in, hosted", reach: "ChatGPT, Claude and other MCP apps, from any device", edit: "Yes", open: "No" },
   { app: "Bear", server: "Official, runs on your Mac (Bear 2.8)", reach: "Claude Desktop, Claude Code and other apps on the same Mac", edit: "Yes", open: "No" },
   { app: "Obsidian", server: "Community plugins", reach: "Apps on the same computer as your vault", edit: "Yes, depending on the plugin", open: "No (plugins often are)" },
@@ -87,8 +87,9 @@ export default function Page() {
       </p>
       <p className="label"><strong>Evernote</strong></p>
       <p>
-        Evernote&apos;s hosted MCP server is in beta. Evernote says it lets AI apps read, search and create notes.{" "}
-        <a href="https://evernote.com/mcp" rel="noopener">Evernote MCP</a>.
+        Evernote&apos;s hosted MCP server is open to every paid plan, with Enterprise to follow. AI apps can read and
+        create notes, but not edit them.{" "}
+        <a href="https://help.evernote.com/hc/en-us/articles/51596325640339-Evernote-MCP-Model-Context-Protocol" rel="noopener">Evernote&apos;s help page</a>.
       </p>
       <p className="label"><strong>Hjarni</strong></p>
       <p>
@@ -109,7 +110,7 @@ export default function Page() {
       <p className="label"><strong>Apple Notes</strong></p>
       <p>
         Apple doesn&apos;t offer an API or an MCP server. On a Mac, Anthropic&apos;s Read and Write Apple Notes extension lets the Claude
-        desktop app read, add and update notes, and community servers do the same through AppleScript, on that Mac only. <a href="/blog/apple-notes-api">Apple Notes MCP servers, compared</a>.
+        desktop app read, add and update notes, and community servers do the same through AppleScript, on that Mac only. <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers each route.
       </p>
     </PostPage>
   );

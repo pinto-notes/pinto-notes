@@ -1,12 +1,11 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Steps } from "@/lib/PostParts";
+import { Answer, Capture, FigurePair, Steps } from "@/lib/PostParts";
 import { ResetChooser } from "@/lib/ResetChooser";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("forgot-apple-notes-password", { title: "Forgot your Apple Notes password? What works" });
+export const metadata = postMetadata("forgot-apple-notes-password", { title: "Forgot your Apple Notes password? 5 things to try first" });
 
 const FAQ = [
   { q: "Can Apple recover my locked notes if I forget the password?", a: [
@@ -126,7 +125,7 @@ export default function Page() {
       <p className="label" id="reset-on-a-mac"><strong>On a Mac</strong></p>
       <Steps>
         <li>In Notes, choose Notes, Settings, then Reset Password, and click OK.</li>
-        <li>For an iCloud account, enter your iCloud password.</li>
+        <li>Enter the password Notes asks for. On my macOS 27 test it was the Mac&apos;s login password; Apple&apos;s guide says an iCloud account may ask for your iCloud password.</li>
         <li>Click Reset Password again, enter the new password twice and a hint, then click Set Password.</li>
       </Steps>
       <p>
@@ -135,9 +134,25 @@ export default function Page() {
         notes</a> on Mac. If you still know the password and just want a new one, choose Change Password instead: that moves every locked
         note to the new password, so you don&apos;t end up with two.
       </p>
-      <Capture src="/blog/macos27/notes-reset-password" width={522} height={366} maxWidth={300}
+      <Capture src="/blog/macos27/notes27-reset-password-confirm" width={1148} height={1420} maxWidth={420}
         alt="Apple Notes on macOS 27 asking Reset Notes Password? This allows you to create a new password for notes you lock from now on. Notes that already have a password aren't affected. Cancel and OK."
         caption="Apple says it plainly when you reset on macOS 27: notes that already have a password aren't affected." />
+
+      <h2 id="tested">I reset it on a test Mac, so you don&apos;t have to</h2>
+      <p>
+        I locked a note with one password, reset it, and set a new one. Then I opened the old note. The new password didn&apos;t work, and
+        the hint it showed was the old one. That hint is your best clue: it&apos;s the hint you wrote for the password you forgot.
+      </p>
+      <FigurePair items={[
+        { src: "/blog/macos27/notes27-after-reset-old-note-rejects-new-password", width: 2000, height: 1320,
+          alt: "A note locked before the reset, in Apple Notes on macOS 27: That's not the correct password for this note. Try a different password. The hint still shows the old hint." },
+        { src: "/blog/macos27/notes27-old-password-update-prompt", width: 2000, height: 1320,
+          alt: "The same note opened with the old password: Update password? This note is using an old password. Would you like to update all notes using this password to use your current password? Update Password and Not Now." },
+      ]} caption="After a reset, the old note refuses the new password and shows its old hint. Type the old one and Notes offers to move every such note to your current password." />
+      <p>
+        So a reset loses nothing. If the old password comes back to you later, Notes offers to update every note that still uses it, in
+        one step.
+      </p>
 
       <h2 id="unlock-apps">About unlock apps</h2>
       <p>
@@ -171,9 +186,6 @@ export default function Page() {
         use your other notes once you approve them; <a href="/blog/encrypted-notes-app-for-ai">how that works</a> has the details.
       </p>
       <Figure shot={SHOTS.notesPassword} caption="Setting a notes password in Pinto Notes on a Mac. Like Apple's, it can't be recovered if you forget it." />
-      <PostCta slug="forgot-apple-notes-password" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Locked notes for what&apos;s private, end-to-end encryption for everything else, and notes ChatGPT and Claude can use when you allow it.</p>
-      </PostCta>
     </PostPage>
   );
 }

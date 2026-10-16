@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -177,8 +176,8 @@ export default function Page() {
       </p>
       <p>
         Apple Notes has no plugin and no API, so on a Mac computer use is the only way Astra can work in it. It can open Notes and
-        type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">ChatGPT
-        memory or your notes</a> covers why the notes themselves are the better place for things you want an AI to remember.
+        type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">AI memory
+        vs notes it can edit</a> covers why the notes themselves are the better place for things you want an AI to remember.
       </p>
       <p>
         One use case for a direct connection is Pinto Notes, the notes app for iPhone and Mac that I make. ChatGPT, Claude, Claude
@@ -210,9 +209,6 @@ export default function Page() {
         My rule is the one OpenAI suggests: one app and one clear outcome per task, and a sentence that says where to stop.
       </p>
 
-      <PostCta slug="gpt-6-astra-use-cases" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Notes that ChatGPT, Claude and Codex can read and edit directly, with every change tinted and Undo one click away.</p>
-      </PostCta>
     </PostPage>
   );
 }

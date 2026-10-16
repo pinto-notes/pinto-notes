@@ -41,7 +41,7 @@ describe("a blog post", () => {
 
   it("keeps the intro and the short answer together, before the rest of the text, so they stay on the first screen", () => {
     const top = d.querySelector("[data-short], article > div:nth-of-type(2)");
-    expect(top?.textContent).toContain("ChatGPT can't edit Apple Notes");
+    expect(top?.textContent).toContain("It depends on where your notes live");
     const css = readFileSync(join(process.cwd(), "lib/post.module.css"), "utf8");
     // Wide screens: the cover beside the title block. Phones: the cover after the short answer.
     expect(css).toMatch(/\.col > \.coverRow \{ grid-column: 2; grid-row: 1;/);
@@ -58,6 +58,9 @@ describe("the image-led post format's parts", () => {
     const cut = doc(<PostFigure src="/x" width={500} height={300} alt="a" caption="c" kind="cutout" />);
     expect(cut.querySelector("figure")?.className).not.toMatch(/wide/);
     expect(doc(<FigurePair items={[{ src: "/a", width: 10, height: 10, alt: "a" }, { src: "/b", width: 10, height: 10, alt: "b" }]} caption="c" />).querySelectorAll("img").length).toBe(2);
+    // A wide capture and a tall one share a height: each column is as wide as its picture's shape.
+    const mixed = doc(<FigurePair items={[{ src: "/mac", width: 1280, height: 900, alt: "a" }, { src: "/phone", width: 780, height: 1688, alt: "b" }]} caption="c" />);
+    expect((mixed.querySelector("figure > div") as HTMLElement).style.gridTemplateColumns).toBe("minmax(0, 1.422fr) minmax(0, 0.462fr)");
     expect(doc(<MenuPath steps={["Notes", "View", "Show Tables"]} />).querySelector('[role="group"]')?.getAttribute("aria-label")).toBe("Notes, then View, then Show Tables");
     const css = readFileSync(join(process.cwd(), "lib/post-parts.module.css"), "utf8");
     expect(css).not.toMatch(/\.step > span \{[^}]*box-shadow/);
