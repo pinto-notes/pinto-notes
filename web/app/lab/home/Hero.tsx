@@ -21,7 +21,7 @@ function useClock() {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setT(99); return; }
     let raf = 0, start = 0;
     // Starts as the page has blurred in.
-    const tick = (now: number) => { if (!start) start = now; setT(Math.max(0, (now - start) / 1000 - 0.45)); raf = requestAnimationFrame(tick); };
+    const tick = (now: number) => { if (!start) start = now; setT(Math.max(0, (now - start) / 1000 - 0.15)); raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -32,15 +32,15 @@ function useClock() {
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
 const TOMORROW = [
-  { text: "Run, 5 km", at: 2.2 },
-  { text: "Call the dentist", at: 3.0 },
-  { text: "Book Lisbon flights", at: 5.6 },
+  { text: "Run, 5 km", at: 1.2 },
+  { text: "Call the dentist", at: 1.6 },
+  { text: "Book Lisbon flights", at: 2.5 },
 ];
 export function Hero() {
   const t = useClock();
   const said = "Plan tomorrow. Run before work, and the dentist.";
-  const k1 = span(t, 0.5, 2.0), v1 = mj(span(t, 0.3, 0.6));
-  const v2 = mj(span(t, 4.2, 4.6));
+  const k1 = span(t, 0.1, 1.1), v1 = mj(span(t, 0, 0.25));
+  const v2 = mj(span(t, 2.0, 2.3));
   return (
     <section className={x.hero}>
       <div className={x.words}>
@@ -66,7 +66,7 @@ export function Hero() {
           <ul className={x.scList}>
             <li><i />Pick up the dry cleaning</li>
             {TOMORROW.map((l) => {
-              const v = mj(span(t, l.at, l.at + 0.5)), fresh = v * (1 - span(t, l.at + 1.6, l.at + 3));
+              const v = mj(span(t, l.at, l.at + 0.4)), fresh = v * (1 - span(t, l.at + 1.4, l.at + 2.6));
               return (
                 <li key={l.text} style={{ opacity: v, transform: `translateY(${((1 - v) * 6).toFixed(1)}px)`, background: `rgba(240,144,26,${(0.16 * fresh).toFixed(3)})` }}>
                   <i />{l.text}<em><AIGlyph name="openai" size={8} />ChatGPT</em>
