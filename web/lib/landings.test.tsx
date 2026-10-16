@@ -60,7 +60,7 @@ describe("landing pages", () => {
         expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(x.faq.map((q) => q.q));
       });
 
-      it("is in the sitemap, /llms.txt and the footer, and isn't sent noindex", async () => {
+      it("is in the sitemap, /llms.txt and the landing list, and isn't sent noindex", async () => {
         expect(sitemap().map((e) => e.url)).toContain(`https://pintonotes.com${path}`);
         expect(llmsTxt()).toContain(`https://pintonotes.com${path})`);
         expect(LANDING_LINKS.map((l) => l.href)).toContain(path);
