@@ -24,9 +24,10 @@
 
 /* ── The note, a Mac note window ── */
 .noteWrap { position: absolute; left: 50%; top: 50%; width: min(580px, 47%); z-index: 2; transform: translate(-50%, -50%); }
-.note { margin: 0; border-radius: 16px; overflow: hidden; background: #fffdf9; color: #1d1b19;
+/* Not clipped, so your pointer and its name can reach past the window's edge; the title bar rounds its own corners. */
+.note { margin: 0; border-radius: 16px; overflow: visible; background: #fffdf9; color: #1d1b19;
   box-shadow: 0 0 0 0.5px rgba(60, 30, 5, 0.22), 0 2px 4px rgba(60, 30, 5, 0.06), 0 44px 90px -40px rgba(60, 30, 5, 0.55); }
-.bar { position: relative; display: flex; align-items: center; height: 40px; padding: 0 16px; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); }
+.bar { position: relative; display: flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 16px 16px 0 0; background: #f4efe8; border-bottom: 0.5px solid rgba(60, 30, 5, 0.12); }
 .lights { display: flex; gap: 8px; }
 .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
 .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
