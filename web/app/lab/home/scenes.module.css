@@ -33,7 +33,6 @@
   box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.12), 0 50px 90px -50px rgba(60, 30, 5, 0.55); }
 .paperScene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
 .paperWhere { position: absolute; right: 18px; bottom: 14px; padding: 5px 11px; border-radius: 11px; background: rgba(255, 250, 243, 0.9); font-size: 12.5px; font-weight: 600; color: #5a4430; }
-@media (max-width: 760px) { .paperScene { aspect-ratio: auto; } .paperScene img { position: relative; height: 230px; } }
 
 /* The still exchange: you in dark, the AI in white, both big enough to read at a glance. */
 .quote { position: absolute; top: 7%; width: min(380px, 50%); margin: 0; display: grid; gap: 10px; }
@@ -46,7 +45,6 @@
 .qAi { position: relative; justify-self: start; margin-right: 24px; margin-left: 7px; border-radius: 20px 20px 20px 6px; background: #fff; color: #1d1b19; display: grid; gap: 4px; }
 .qAi::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff; clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
 .qAi span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #6b5f53; }
-@media (max-width: 760px) { .quote { position: relative; top: auto; left: auto !important; right: auto !important; width: auto; padding: 14px; } }
 
 /* Voice: a call pill, your line with a waveform, the reply under the cloud orb. */
 .quote[data-voice] .qMe { display: flex; align-items: center; gap: 10px; }
@@ -56,7 +54,6 @@
 .qWave[data-mini] { height: 14px; gap: 2px; }
 .qWave[data-mini] i { width: 2.5px; background: #1d1b19; }
 .qWave[data-mini] i:nth-child(1) { height: 5px; } .qWave[data-mini] i:nth-child(2) { height: 11px; } .qWave[data-mini] i:nth-child(3) { height: 7px; } .qWave[data-mini] i:nth-child(4) { height: 13px; } .qWave[data-mini] i:nth-child(5) { height: 6px; }
-@media (max-width: 760px) { .paperWhere { top: 192px; bottom: auto; } }
 .budgetBig { margin: 2px 2px 10px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #2a1d10; }
 .budgetBig small { font-size: 13px; font-weight: 600; letter-spacing: 0; color: #8a7a68; }
 .gymMini li span { min-width: 0; }
@@ -68,3 +65,24 @@
 .quote .qMe { opacity: var(--q1, 1); transform: translateY(calc((1 - var(--q1, 1)) * 14px)); }
 .quote .qAi, .quote > figure { opacity: var(--q2, 1); transform: translateY(calc((1 - var(--q2, 1)) * 14px)); }
 
+/* Phones: the same scene, as a portrait card. The picture is cropped on its person (--fx), and the
+   exchange sits inside it at the hero's bubble size. */
+@media (max-width: 760px) {
+  .paperScene { aspect-ratio: 4 / 5; border-radius: 24px; }
+  .paperScene[data-budget] { aspect-ratio: 4 / 6; }
+  /* Sara's budget sits at the foot of the picture, so she shows between it and the chat. */
+  .paperScene[data-budget] .quote { bottom: 54px; display: flex; flex-direction: column; }
+  .paperScene[data-budget] .qMe { align-self: flex-end; }
+  .paperScene[data-budget] .qAi { align-self: flex-start; }
+  .paperScene[data-budget] .quote > figure { margin-top: auto; }
+  .paperScene img { object-position: var(--fx, 50%) 50%; }
+  .quote { top: 16px; left: 14px !important; right: 14px !important; width: auto; gap: 8px; }
+  .qMe, .qAi { padding: 10px 13px 11px; border-radius: 16px; font-size: 14.5px; line-height: 1.35; }
+  .qMe { border-bottom-right-radius: 5px; max-width: 86%; }
+  .qAi { border-bottom-left-radius: 5px; margin-right: 18px; }
+  .qAi span { font-size: 11.5px; }
+  .qWave { height: 16px; }
+  .gymMini { margin-top: 2px; }
+  .paperWhere { right: 12px; bottom: 12px; font-size: 12px; }
+  .quote[data-at="right"] ~ .paperWhere { left: 12px; }
+}

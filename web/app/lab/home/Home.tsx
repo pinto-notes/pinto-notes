@@ -48,7 +48,7 @@ export function Home() {
             <h3 className={v.rowTitle}>Maya plans tomorrow out loud.</h3>
             <p className={v.say}>She talks her day through out loud with ChatGPT voice. It's planned before she's home.</p>
           </div>
-          <PaperStill voice at="left" src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
+          <PaperStill voice at="left" focus={2} src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
             alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline lit up."
             me="Skipped the reading again." aiName="ChatGPT" aiGlyph="openai" ai="Third time this week. Want to move it to the mornings, before work?" />
         </div>
@@ -58,7 +58,7 @@ export function Home() {
             <h3 className={v.rowTitle}>Jonas&apos;s agents never start from zero.</h3>
             <p className={v.say}>Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project.</p>
           </div>
-          <PaperStill at="left" src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
+          <PaperStill at="left" focus={78} src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
             alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, Lisbon's rooftops and the river through tall open windows."
             me="Pick up the sync rewrite." aiName="Claude Code" aiGlyph="claude" ai="Read your plan and yesterday's log. Starting where Codex stopped: the offline queue." />
         </div>
@@ -68,7 +68,7 @@ export function Home() {
             <h3 className={v.rowTitle}>Sara built her own budget.</h3>
             <p className={v.say}>Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions.</p>
           </div>
-          <PaperStill budget at="right" src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+          <PaperStill budget at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
             me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
         </div>

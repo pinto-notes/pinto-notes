@@ -27,13 +27,14 @@ function useReveal() {
   return [ref, v] as const;
 }
 
-export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false }:
-  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean }) {
+/// `focus` is where the person is across the picture (0 to 100), for the portrait crop on phones.
+export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50 }:
+  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number }) {
   const [ref, v] = useReveal();
   // The same entrance as the cards further down: a quick fade with a short lift, fully there early.
   const art = mj(clamp(v * 2.2)), q1 = mj(span(v, 0.3, 0.6)), q2 = mj(span(v, 0.42, 0.72));
   return (
-    <div ref={ref} className={m.paperScene} style={{ opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) }}>
+    <div ref={ref} className={m.paperScene} data-budget={budget || undefined} style={{ "--fx": `${focus}%`, opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) } as React.CSSProperties}>
       <img src={src} alt={alt} />
       <figure className={m.quote} data-at={at} data-voice={voice || undefined} style={{ "--q1": q1, "--q2": q2 } as React.CSSProperties}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
