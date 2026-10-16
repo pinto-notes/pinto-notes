@@ -1,0 +1,51 @@
+/* Lab only: three calmer blog indexes. Same type and palette as the site; far fewer things. */
+.page { display: grid; gap: 56px; padding-block: 56px 96px; }
+@media (max-width: 600px) { .page { gap: 40px; padding-block: 32px 64px; } }
+.head { display: grid; gap: 12px; max-width: 40em; }
+.h1 { margin: 0; font-size: clamp(36px, 4.4vw, 56px); line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+.lede { margin: 0; font-size: clamp(17px, 1.8vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+
+/* A: shelves. The shelf's name on the left, its posts as plain rows on the right. */
+.shelf { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 32px; padding-top: 28px; border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+@media (max-width: 800px) { .shelf { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
+.shelfName { display: grid; gap: 6px; align-content: start; }
+.shelfName h2 { margin: 0; font-size: 22px; letter-spacing: -0.02em; line-height: 1.2; }
+.shelfName p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; max-width: 22em; }
+.rows { list-style: none; margin: 0; padding: 0; display: grid; }
+.rows a { display: block; padding: 11px 0; color: var(--ink); text-decoration: none; font-size: 18px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; }
+.rows li + li a { border-top: 1px solid color-mix(in srgb, var(--ink) 7%, transparent); }
+@media (hover: hover) { .rows a:hover { color: var(--amber); } }
+.rows a:focus-visible, .ask a:focus-visible, .pick:focus-visible, .lead:focus-visible, .mini a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
+
+/* B: a front page. One lead with its real picture, three picks, then everything as short lists. */
+.lead { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 36px; align-items: center; color: var(--ink); text-decoration: none; }
+@media (max-width: 800px) { .lead { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+.shot { display: block; width: 100%; height: auto; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px -12px rgb(60 30 0 / 0.22); }
+.kicker { font-size: 13px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--amber); }
+.leadText { display: grid; gap: 12px; }
+.leadText h2 { margin: 0; font-size: clamp(28px, 3vw, 40px); line-height: 1.08; letter-spacing: -0.03em; text-wrap: balance; }
+.leadText p, .pick p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.5; }
+.picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+@media (max-width: 800px) { .picks { grid-template-columns: minmax(0, 1fr); } }
+.pick { display: grid; gap: 12px; align-content: start; color: var(--ink); text-decoration: none; }
+.pick .frame { aspect-ratio: 3 / 2; overflow: hidden; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 10px 26px -14px rgb(60 30 0 / 0.25); }
+.pick .frame img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+.pick h3 { margin: 0; font-size: 20px; line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
+@media (hover: hover) { .pick:hover h3, .lead:hover h2 { color: var(--amber); } }
+.minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; padding-top: 28px; border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+@media (max-width: 1000px) { .minis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .minis { grid-template-columns: minmax(0, 1fr); } }
+.mini { display: grid; gap: 10px; align-content: start; }
+.mini h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.mini ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.mini a { color: var(--ink); text-decoration: none; font-size: 15.5px; line-height: 1.35; font-weight: 550; }
+@media (hover: hover) { .mini a:hover { color: var(--amber); } }
+
+/* C: questions. Each post as the question a person types, in two columns per group. */
+.group { display: grid; gap: 16px; }
+.group h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.ask { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; }
+@media (max-width: 700px) { .ask { grid-template-columns: minmax(0, 1fr); } }
+.ask a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink); text-decoration: none; font-size: clamp(18px, 1.9vw, 22px); line-height: 1.3; font-weight: 650; letter-spacing: -0.015em; }
+.ask a span { color: var(--muted); font-weight: 500; transition: transform 0.15s ease-out; }
+@media (hover: hover) { .ask a:hover { color: var(--amber); } .ask a:hover span { color: var(--amber); transform: translateX(3px); } }
