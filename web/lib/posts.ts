@@ -138,7 +138,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-13",
     image: SHOTS.historyBurst,
-    thumb: thumb("pistachio", "thumb-lisbon-window", 1180, 748, "Pinto Notes on a Mac: a Lisbon note with the line Claude added tinted, and Undo"),
+    thumb: thumb("pistachio", "thumb-consent-local", 826, 545, "Pinto Notes asking to allow an app to use your notes, with Read and Edit or Read Only"),
     draft: false,
   },
   {
@@ -496,7 +496,8 @@ export const categoryPath = (c: Category) => `/blog/category/${categoryAnchor(c)
 
 export const categoryFromAnchor = (anchor: string): Category | undefined => categories().find((c) => categoryAnchor(c) === anchor);
 
-/// The posts the blog presents as cards, picked by hand for being worth reading on their own. The
+/// The posts the blog presents as cards: what's new in AI, and what Pinto Notes does. Help with other
+/// apps (an Apple Notes password, a table) is for search and goes under "More answers". The
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
@@ -504,11 +505,11 @@ export const FEATURED = [
   "habit-tracker-with-chatgpt-or-claude",
   "budget-tracker-with-chatgpt-or-claude",
   "plan-a-trip-with-chatgpt-or-claude",
+  "connect-notes-to-grok",
+  "meta-muse-connectors",
+  "what-are-chatgpt-dots",
+  "gpt-6-astra-use-cases",
   "claude-memory-vs-notes",
-  "apple-notes-tables",
-  "forgot-apple-notes-password",
-  "apple-notes-ios-27",
-  "notes-in-claude-code-and-codex",
 ];
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 

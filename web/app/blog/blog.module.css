@@ -65,6 +65,11 @@
 .grid { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 48px 32px; --cols: 2; }
 @media (max-width: 620px) { .grid { --cols: 1; gap: 28px; } }
 .grid > li { display: grid; width: calc((100% - (var(--cols) - 1) * 32px) / var(--cols)); }
+/* Two across, a card's picture would be twice the size it was made for: it gets a shorter ground and a
+   narrower capture, so the picture reads as a glimpse and the title stays in view. */
+.grid > li:not(.featuredItem) [data-ground] { aspect-ratio: 2 / 1; }
+.grid > li:not(.featuredItem) [data-ground] img { left: 18%; width: 64%; top: 18px; mask-size: 100% calc(50cqw - 18px); -webkit-mask-size: 100% calc(50cqw - 18px); }
+@media (max-width: 620px) { .grid > li:not(.featuredItem) [data-ground] img { left: 10%; width: 80%; } }
 
 /* The newest post leads the first page: one wide card, its category's paper-cut cover on the left. */
 .grid > .featuredItem { width: 100%; }
