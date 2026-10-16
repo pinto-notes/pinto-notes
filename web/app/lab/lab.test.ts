@@ -62,7 +62,7 @@ describe("the /lab design studies", () => {
       expect(themeIn(p, true), p).toBe("cream");
     }
     expect(themeIn("/", true)).toBe("cream");
-    expect(themeIn("/lab/home-i", true)).toBe("leaf"); // only the candidates: another study follows the system
+    expect(themeIn("/lab/home-c", true)).toBe("leaf"); // only the candidates: another study follows the system
     const g = globalThis as { matchMedia?: unknown };
     const before = g.matchMedia;
     g.matchMedia = () => ({ matches: true });

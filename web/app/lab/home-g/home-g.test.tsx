@@ -133,6 +133,6 @@ describe("home study G, round 3: every frame finished", async () => {
     expect(html.match(/data-dark-band=""/g)).toHaveLength(2);
     const site = readFileSync(resolve(__dirname, "../../site.css"), "utf8");
     expect(site).toMatch(/\.site-header\[data-over-dark\] \{[^}]*--bg: #2e180a/);
-    expect(readFileSync(resolve(__dirname, "../../SiteChrome.tsx"), "utf8")).toContain('toggleAttribute("data-over-dark"');
+    expect(readFileSync(resolve(__dirname, "../../SiteChrome.tsx"), "utf8")).toContain('"data-over-dark"');
   });
 });

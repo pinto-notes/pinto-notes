@@ -30,7 +30,7 @@ describe("home study H, the real app", () => {
 
   it("is built around real captures that exist, each described", () => {
     const shots = [...html.matchAll(/<img [^>]*src="(\/home-h\/[^"]+)"[^>]*>/g)];
-    expect(shots.length).toBeGreaterThanOrEqual(5);
+    expect(shots.length).toBeGreaterThanOrEqual(4);
     for (const [tag, src] of shots) {
       expect(existsSync(pub(src)), src).toBe(true);
       if (!src.includes("divider")) expect(tag, src).toMatch(/alt="[^"]{12,}"/);

@@ -1,6 +1,5 @@
 import { CLAUDE_DIRECTORY_URL, FACTS, MCP_URL, OLD_MCP_URL_STAYS, WHAT_IT_IS } from "./facts";
 import { GITHUB_URL } from "./github";
-import { landingPath, landings } from "./landings";
 import { published } from "./posts";
 import { searchTitle, templates } from "./templates";
 import { MCP_TOOLS } from "./mcp-tools";
@@ -37,7 +36,6 @@ function summary(): string[] {
     "",
     "## Pinto Notes with your AI, or instead of another notes app",
     "",
-    ...landings.map((x) => `- [${x.shareTitle ?? x.h1}](${SITE_URL}${landingPath(x)}): ${x.description}`),
     "",
     "## Blog posts",
     "",

@@ -55,6 +55,9 @@ const config: NextConfig = {
       { source: "/blog/category/:category/page/1", destination: "/blog/category/:category", permanent: true },
       // A link with "&" where its "?" should be (pintonotes.com/&utm_source=…) lands on /&…, a 404.
       { source: "/:junk(&.*)", destination: "/", permanent: true },
+      // The landing pages (/for/…, /alternatives/…) were removed on 16 October 2026; the home page says it better.
+      { source: "/for/:slug", destination: "/", permanent: true },
+      { source: "/alternatives/:slug", destination: "/", permanent: true },
       // "Use template" and "Use this note" open Pinto Notes from the template's or note's page
       // (lib/open-in-app.ts). Their universal links reach the app directly where it's installed; a
       // browser that visits one goes to that page, which tries the app as it loads.
@@ -64,8 +67,8 @@ const config: NextConfig = {
       { source: "/blog/obsidian-mcp-servers-compared", destination: "/blog/obsidian-mcp", permanent: true },
       // The comparison took the app's new name (October 2026); its old address keeps working.
       { source: "/blog/amber-notes-vs-apple-notes", destination: "/blog/pinto-notes-vs-apple-notes", permanent: true },
-      // A short address for ChatGPT ads and links: the ChatGPT landing page.
-      { source: "/chatgpt", destination: "/for/chatgpt", permanent: true },
+      // A short address for ChatGPT ads and links: the home page.
+      { source: "/chatgpt", destination: "/", permanent: false },
       // The old name, typed as an address, lands on the page that says what it's called now.
       { source: "/ambernotes", destination: "/amber-notes", permanent: true },
     ];
@@ -88,7 +91,7 @@ const config: NextConfig = {
         // robots.txt, the sitemap and llms.txt are for crawlers. So are the templates' pages; their
         // .json data isn't. Blog posts carry their own robots meta
         // (drafts say noindex). A new page for search is added here too.
-        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|for/[^/]+$|alternatives/[^/]+$|templates(?!/[^/]+\\.json$)|connect$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$).+)",
+        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|templates(?!/[^/]+\\.json$)|connect$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$).+)",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, ...security],
       },
       { source: "/connect", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },
@@ -108,9 +111,6 @@ const config: NextConfig = {
       { source: "/support", headers: security },
       { source: "/blog", headers: security },
       { source: "/blog/:slug", headers: security },
-      // The landing pages (lib/landings.ts).
-      { source: "/for/:slug", headers: security },
-      { source: "/alternatives/:slug", headers: security },
       // Sealed links and shared templates (prototype) show a note's page in a frame from the
       // user-content origin, never this one; everything else stays as strict as the rest.
       ...["/s/:id", "/t/:id"].map((source) => ({ source, headers: [...security.filter((h) => h.key !== "Content-Security-Policy"),
