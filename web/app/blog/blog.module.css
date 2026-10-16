@@ -67,6 +67,7 @@
 .grid > li { display: grid; width: calc((100% - (var(--cols) - 1) * 28px) / var(--cols)); }
 /* On the index a card is its picture and its title: no label, description or byline. */
 .grid > li:not(.featuredItem) [class*="excerpt"], .grid > li:not(.featuredItem) [class*="byline"], .grid > li:not(.featuredItem) [class*="label"] { display: none; }
+.grid > li:not(.featuredItem) [class*="cardText"] { grid-template-rows: auto; padding-bottom: 4px; }
 
 /* The newest post leads the first page: one wide card, its category's paper-cut cover on the left. */
 .grid > .featuredItem { width: 100%; }

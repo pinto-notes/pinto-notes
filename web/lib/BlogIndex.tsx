@@ -14,7 +14,7 @@ import s from "../app/blog/blog.module.css";
 /// two to a row), then every other post under "More answers", as the question it answers. The
 /// categories are links to their own pages. Every page is static and one page long.
 
-const LEDE = <>Guides to connecting <b>ChatGPT, Claude and Codex</b> to your notes, Apple Notes how-tos, and fair comparisons. Written by the person building Pinto Notes.</>;
+const LEDE = <>What&apos;s new in <b>ChatGPT, Claude</b> and the rest, and how to put them to work in your notes. Plus straight answers about Apple Notes, each one tried on a real Mac first.</>;
 
 /// What each category's page says under its title (and in search results).
 const ABOUT: Record<Category, string> = {
@@ -29,7 +29,7 @@ const ABOUT: Record<Category, string> = {
 /// block is one height and the chips under it don't move when switching between them.
 const fit = (texts: string[]) => [...texts].sort((a, b) => b.length - a.length);
 const FIT_TITLE = () => fit(["The Pinto Notes blog", ...categories()]);
-const FIT_LEDE = () => fit(["Guides to connecting ChatGPT, Claude and Codex to your notes, Apple Notes how-tos, and fair comparisons. Written by the person building Pinto Notes.", ...categories().map((c) => ABOUT[c])]);
+const FIT_LEDE = () => fit(["What's new in ChatGPT, Claude and the rest, and how to put them to work in your notes. Plus straight answers about Apple Notes, each one tried on a real Mac first.", ...categories().map((c) => ABOUT[c])]);
 
 type List = { category: Category | null; base: string; posts: ReturnType<typeof published> };
 
@@ -46,7 +46,7 @@ export function blogMetadata(category: Category | null, page: number): Metadata 
   const l = list(category);
   const name = category ?? "Blog";
   const suffix = page > 1 ? `, page ${page}` : "";
-  const description = category ? ABOUT[category] : "Guides and comparisons from the maker of Pinto Notes: connecting ChatGPT, Claude and Codex to your notes, Apple Notes how-tos, and more.";
+  const description = category ? ABOUT[category] : "What's new in ChatGPT, Claude and the rest, how to put them to work in your notes, and straight answers about Apple Notes.";
   return pageMetadata({
     title: category ? `${name}${suffix} · Blog · Pinto Notes` : `Blog${suffix} · Pinto Notes`,
     shareTitle: category ? `${name} on the Pinto Notes blog` : "The Pinto Notes blog",
@@ -114,7 +114,8 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
 
 /// The newest post, wide: its category's cover on the left, the title and its excerpt on the right.
 function Featured({ post }: { post: ReturnType<typeof published>[number] }) {
-  const c = CATEGORY_COVERS[post.category];
+  // Its own cover when it has one; otherwise its category's paper-cut cover.
+  const c = post.thumb.art ? post.thumb : CATEGORY_COVERS[post.category];
   return (
     <a className={s.featured} href={`/blog/${post.slug}`}>
       <img className={s.featuredArt} src={c.src} alt="" width={c.width} height={c.height} decoding="async" />

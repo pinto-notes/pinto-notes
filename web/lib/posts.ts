@@ -82,7 +82,7 @@ export const posts: Post[] = [
     date: "2026-10-14",
     updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
-    thumb: thumb("cherry", "thumb-notes-list-templates", 766, 760, "Apple Notes on a Mac with a Templates folder of five notes in the list"),
+    thumb: cover("cherry", "siri-ai", 1600, 1000, "A Siri-style glow beside a notes icon"),
     draft: false,
   },
   {
@@ -202,7 +202,7 @@ export const posts: Post[] = [
     date: "2026-10-11",
     updated: "2026-10-11",
     image: SHOTS.tracker,
-    thumb: thumb("berry", "thumb-tracker-evening", 827, 546, "An Evening tracker note in Pinto Notes: one row a day, with work hours, energy and mood"),
+    thumb: cover("berry", "journal", 1600, 1000, "An open journal with a pencil and a sun"),
     draft: false,
   },
   {
@@ -214,7 +214,7 @@ export const posts: Post[] = [
     date: "2026-10-08",
     updated: "2026-10-14",
     image: { src: "/blog/macos27/notes-templates-window.webp", alt: "Apple Notes on macOS 27 with a Templates folder of five notes, and a Packing list open with three checklists.", width: 1538, height: 984, window: true },
-    thumb: thumb("olive", "thumb-notes-templates", 660, 730, "A Packing list note in Apple Notes with Documents, Clothes and Bag checklists"),
+    thumb: cover("olive", "templates", 1600, 1000, "A stack of notes with a COPY stamp"),
     draft: false,
   },
   {
@@ -238,7 +238,7 @@ export const posts: Post[] = [
     date: "2026-10-05",
     updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
-    thumb: thumb("lagoon", "thumb-notes-sync-default-account", 800, 528, "Apple Notes settings on a Mac with Default account set to iCloud"),
+    thumb: cover("lagoon", "not-syncing", 1600, 1000, "Two notes icons with a cloud between them showing an exclamation mark"),
     draft: false,
   },
   {
@@ -250,7 +250,7 @@ export const posts: Post[] = [
     date: "2026-10-04",
     updated: "2026-10-14",
     image: SHOTS.notesTableMenu,
-    thumb: thumb("lemon", "thumb-notes-format-table-menu", 800, 528, "The Apple Notes Format menu on a Mac, open at Table"),
+    thumb: cover("lemon", "tables", 1600, 1000, "A notes icon beside a small table with a total of 505"),
     draft: false,
   },
   {
@@ -262,7 +262,7 @@ export const posts: Post[] = [
     date: "2026-10-04",
     updated: "2026-10-04",
     image: SHOTS.notesSmartFolderFilters,
-    thumb: thumb("coral", "thumb-notes-smart-folder-filters", 800, 528, "The rule menu of an Apple Notes Smart Folder on a Mac, with Tags checked"),
+    thumb: cover("coral", "tags", 1600, 1000, "A notes icon beside the tags #recipes, #travel and #work"),
     draft: false,
   },
   {
@@ -274,7 +274,7 @@ export const posts: Post[] = [
     date: "2026-10-02",
     updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
-    thumb: thumb("sky", "thumb-notes-default-account", 800, 528, "Apple Notes settings on a Mac with Default account set to iCloud"),
+    thumb: cover("sky", "move-to-icloud", 1600, 1000, "A notes icon with an arrow to iCloud"),
     draft: false,
   },
   {
@@ -286,7 +286,7 @@ export const posts: Post[] = [
     date: "2026-10-02",
     updated: "2026-10-14",
     image: SHOTS.notesExportMenu,
-    thumb: thumb("mint", "thumb-notes-export-menu", 800, 528, "The Apple Notes File menu open at Export as, with Markdown selected"),
+    thumb: cover("mint", "back-up", 1600, 1000, "A notes icon with an arrow to a Notes folder"),
     draft: false,
   },
   {
@@ -298,7 +298,7 @@ export const posts: Post[] = [
     date: "2026-10-01",
     updated: "2026-10-14",
     image: SHOTS.history,
-    thumb: thumb("night", "thumb-restore-dark", 846, 558, "An earlier version of a Groceries note in Pinto Notes, in dark mode"),
+    thumb: cover("night", "recover-deleted", 1600, 1000, "A note lifting back out of a bin, with an arrow"),
     draft: false,
   },
   {
@@ -310,7 +310,7 @@ export const posts: Post[] = [
     date: "2026-10-01",
     updated: "2026-10-14",
     image: SHOTS.notesPassword,
-    thumb: thumb("pearl", "thumb-notes-password", 896, 591, "Pinto Notes asking you to create a password for locked notes"),
+    thumb: cover("pearl", "forgot-password", 1600, 1000, "A notes icon with an orange padlock"),
     draft: false,
   },
   {
@@ -322,7 +322,7 @@ export const posts: Post[] = [
     date: "2026-10-01",
     updated: "2026-10-01",
     image: SHOTS.consentE2ee,
-    thumb: thumb("dusk", "thumb-consent-e2ee", 826, 545, "Pinto Notes asking to let ChatGPT use your notes"),
+    thumb: cover("dusk", "encrypted", 1600, 1000, "A note with a padlock, between the ChatGPT and Claude marks"),
     draft: false,
   },
   {
@@ -334,7 +334,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: { src: "/blog/macos27/notes27-garden-note.webp", alt: "A Spring garden plan note in Apple Notes on macOS 27, with a link to the Seeds to order section at the top and divider lines between its sections.", width: 1400, height: 993, window: false },
-    thumb: thumb("wheat", "thumb-notes27-garden", 800, 500, "An Apple Notes note on macOS 27 with a section link and a divider line"),
+    thumb: cover("wheat", "ios-27", 1600, 1000, "A notes icon beside the number 27"),
     draft: false,
   },
   {
@@ -346,7 +346,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.welcome,
-    thumb: thumb("blush", "thumb-markdown-title", 714, 471, "The Welcome to Pinto Notes note, written in Markdown"),
+    thumb: cover("blush", "export-markdown", 1600, 1000, "A notes icon with an arrow to the Markdown mark"),
     draft: false,
   },
   {
@@ -358,7 +358,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.connectChatGPT,
-    thumb: thumb("paper", "thumb-connect-chatgpt", 704, 572, "The steps to connect ChatGPT in Pinto Notes"),
+    thumb: cover("paper", "connect-chatgpt", 1600, 1000, "The ChatGPT logo and a note, with an arrow both ways"),
     draft: false,
   },
   {
@@ -370,7 +370,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.connectClaude,
-    thumb: thumb("leaf", "thumb-connect-claude", 704, 451, "The steps to connect Claude in Pinto Notes"),
+    thumb: cover("leaf", "claude-apple-notes", 1600, 1000, "The Claude logo linked to a notes icon"),
     draft: false,
   },
   {
@@ -382,7 +382,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.aiEdit,
-    thumb: thumb("dunes", "thumb-ai-rows", 733, 533, "A grocery checklist with the five lines an AI added tinted"),
+    thumb: cover("dunes", "notes-apps-mcp", 1600, 1000, "The MCP mark connected to Notion, Obsidian, Evernote and ChatGPT"),
     draft: false,
   },
   {
@@ -394,7 +394,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-09-30",
     image: SHOTS.lisbon,
-    thumb: thumb("heather", "thumb-lisbon-link", 744, 491, "A Lisbon note linking to a Hotel booking sub-note"),
+    thumb: cover("heather", "obsidian-mcp", 1600, 1000, "The Obsidian logo linked through the MCP mark to Claude"),
     draft: false,
   },
   {
@@ -406,7 +406,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.importSheet,
-    thumb: thumb("soft", "thumb-import", 750, 523, "Notes picked for import from Apple Notes into Pinto Notes"),
+    thumb: cover("soft", "move-from-apple-notes", 1600, 1000, "A notes icon with an arrow to the Pinto Notes icon"),
     draft: false,
   },
   {
@@ -418,7 +418,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.connectList,
-    thumb: thumb("dark", "thumb-connect-list", 704, 566, "Connect an AI in Pinto Notes: ChatGPT, Claude, Claude Code and Codex"),
+    thumb: cover("dark", "claude-code-codex", 1600, 1000, "A terminal with the Claude and OpenAI marks, with an arrow to a note"),
     draft: false,
   },
   {
@@ -430,7 +430,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-02",
     image: SHOTS.consent,
-    thumb: thumb("amber", "thumb-consent", 854, 528, "Pinto Notes asking to let ChatGPT use your notes, with Allow and Don't Allow"),
+    thumb: cover("amber", "mcp-server", 1600, 1000, "ChatGPT and Claude connected through the MCP mark to a note"),
     draft: false,
   },
   {
@@ -442,7 +442,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.connectList,
-    thumb: thumb("ink", "thumb-markdown", 804, 531, "Markdown checklists, bullets and inline code in a note"),
+    thumb: cover("ink", "api", 1600, 1000, "A notes icon beside a code tile with curly brackets"),
     draft: false,
   },
   {
@@ -454,7 +454,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.tracker,
-    thumb: thumb("cream", "thumb-tracker", 708, 749, "An evening tracker table with a row per day"),
+    thumb: cover("cream", "best-for-agents", 1600, 1000, "ChatGPT, Claude, Gemini and Copilot marks all leading into one note"),
     draft: false,
   },
   {
@@ -466,7 +466,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-01",
     image: SHOTS.aiEdit,
-    thumb: thumb("paper", "thumb-ai-rows", 733, 533, "A grocery checklist with the five lines an AI added tinted"),
+    thumb: cover("paper", "chatgpt-apple-notes", 1600, 1000, "The ChatGPT logo linked to a notes icon"),
     draft: true,
   },
 ];

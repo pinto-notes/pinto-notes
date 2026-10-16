@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { isBlogList } from "./blog-list";
 import BlogList from "./BlogList";
 import { BlogIndex } from "./BlogIndex";
-import { FEATURED, categories, categoryPath, pagePath, published } from "./posts";
+import { CATEGORY_COVERS, FEATURED, categories, categoryPath, isFeatured, newestFirst, pagePath, published } from "./posts";
 
 // The lists end in the closing band, whose Mac download reads the route.
 vi.mock("next/navigation", () => ({ usePathname: () => "/blog", useRouter: () => ({ push: () => {} }) }));
@@ -48,7 +48,8 @@ describe("the blog's lists", () => {
   it("lead the first page with the newest featured post, wide, end in the dark band, and drop the chips' coloured dots", () => {
     const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
     const first = doc.querySelector(".filter-grid > li");
-    expect(first?.querySelector('img[src^="/art/blog-"]')).not.toBeNull();
+    const lead = newestFirst().find(isFeatured)!;
+    expect(first?.querySelector(`img[src="${lead.thumb.art ? lead.thumb.src : CATEGORY_COVERS[lead.category].src}"]`)).not.toBeNull();
     expect(doc.querySelector("[data-closing-band]")).not.toBeNull();
     expect(doc.querySelectorAll("[data-blog-chips] i").length).toBe(0);
     expect(doc.querySelector("h1 mark")).toBeNull();
