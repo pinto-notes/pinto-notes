@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import o from "./phonetofilm.module.css";
 
 // The hand-off from the hero to the week film. Her actual phone note (a copy of its markup, so it looks
@@ -44,7 +45,10 @@ export function PhoneToFilm() {
       (pe.firstElementChild as HTMLElement | null)?.style.setProperty("visibility", q > 0 ? "hidden" : "visible");
       pe.toggleAttribute("data-away", q > 0);
       root.toggleAttribute("data-note-flying", q < 1);
-      setSt(q > 0 && q < 1 ? { k: mj(q), ph: { x: a.left, y: a.top, w: a.width, h: a.height }, fm: { x: b.left, y: b.top, w: b.width, h: b.height } } : null);
+      // In page coordinates: both ends hold still on the page during the flight (the film pins only as it
+      // lands), so the card scrolls with the page itself and never trails it by a frame.
+      const sx = scrollX, sy = scrollY;
+      setSt(q > 0 && q < 1 ? { k: mj(q), ph: { x: a.left + sx, y: a.top + sy, w: a.width, h: a.height }, fm: { x: b.left + sx, y: b.top + sy, w: b.width, h: b.height } } : null);
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(read); };
     const t = setTimeout(read, 250);
@@ -66,7 +70,7 @@ export function PhoneToFilm() {
   const filmO = mj(span(k, 0.24, 0.55));
   const sp = box.width / sn.pw;
   const startR = (ph.w / sn.pw) * sn.pw * 0.11, endR = 16 * (fm.w / sn.fw);
-  return (
+  return createPortal(
     <div className={o.fly} style={{ ...box, borderRadius: lerp(startR, endR, k),
       boxShadow: `0 0 0 0.5px rgba(60,30,5,${(0.22 * k).toFixed(2)}), 0 ${(30 * k).toFixed(0)}px ${(70 * k).toFixed(0)}px -34px rgba(60,30,5,${(0.5 * k).toFixed(2)})` }} aria-hidden="true">
       <div className={o.scope}>
@@ -75,6 +79,7 @@ export function PhoneToFilm() {
       </div>
       <div className={o.copy} style={{ width: sn.fw, height: sn.fh, transform: `scale(${(box.width / sn.fw).toFixed(5)}, ${(box.height / sn.fh).toFixed(5)})`, opacity: filmO }}
         dangerouslySetInnerHTML={{ __html: sn.film }} />
-    </div>
+    </div>,
+    document.body,
   );
 }
