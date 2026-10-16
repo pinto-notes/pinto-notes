@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { isBlogList } from "./blog-list";
 import BlogList from "./BlogList";
 import { BlogIndex } from "./BlogIndex";
-import { categories, categoryPath, pagePath } from "./posts";
+import { FEATURED, categories, categoryPath, pagePath, published } from "./posts";
 
 // The lists end in the closing band, whose Mac download reads the route.
 vi.mock("next/navigation", () => ({ usePathname: () => "/blog", useRouter: () => ({ push: () => {} }) }));
@@ -45,14 +45,21 @@ describe("the blog's lists", () => {
     expect(text).not.toContain("The Pinto Notes blog");
   });
 
-  it("lead the first page with the newest post, wide, end in the dark band, and drop the chips' coloured dots", () => {
+  it("lead the first page with the newest featured post, wide, end in the dark band, and drop the chips' coloured dots", () => {
     const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
     const first = doc.querySelector(".filter-grid > li");
     expect(first?.querySelector('img[src^="/art/blog-"]')).not.toBeNull();
     expect(doc.querySelector("[data-closing-band]")).not.toBeNull();
     expect(doc.querySelectorAll("[data-blog-chips] i").length).toBe(0);
     expect(doc.querySelector("h1 mark")).toBeNull();
-    const later = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={2} />), "text/html");
-    expect(later.querySelector(".filter-grid > li")?.querySelector('img[src^="/art/blog-"]')).toBeNull();
+  });
+
+  it("show the featured posts as cards and every other post once under More answers, on one page", () => {
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
+    const cards = [...doc.querySelectorAll(".filter-grid > li")].map((li) => li.getAttribute("data-key"));
+    expect(cards.sort()).toEqual([...FEATURED].sort());
+    const asked = [...doc.querySelectorAll('[aria-labelledby="more-answers"] a')].map((a) => a.getAttribute("href")!.replace("/blog/", ""));
+    expect(asked.sort()).toEqual(published().map((p) => p.slug).filter((x) => !FEATURED.includes(x)).sort());
+    expect(doc.querySelector('[data-blog-pages]')).toBeNull();
   });
 });

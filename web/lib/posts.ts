@@ -496,6 +496,22 @@ export const categoryPath = (c: Category) => `/blog/category/${categoryAnchor(c)
 
 export const categoryFromAnchor = (anchor: string): Category | undefined => categories().find((c) => categoryAnchor(c) === anchor);
 
+/// The posts the blog presents as cards, picked by hand for being worth reading on their own. The
+/// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
+/// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
+export const FEATURED = [
+  "siri-ai-apple-notes",
+  "habit-tracker-with-chatgpt-or-claude",
+  "budget-tracker-with-chatgpt-or-claude",
+  "plan-a-trip-with-chatgpt-or-claude",
+  "claude-memory-vs-notes",
+  "apple-notes-tables",
+  "forgot-apple-notes-password",
+  "apple-notes-ios-27",
+  "notes-in-claude-code-and-codex",
+];
+export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
+
 /// Posts per page on the index and on each category page.
 export const PER_PAGE = 12;
 
@@ -504,9 +520,9 @@ export function newestFirst(list: Post[] = published()): Post[] {
   return list.map((p, i) => [p, i] as const).sort((a, b) => b[0].date.localeCompare(a[0].date) || a[1] - b[1]).map(([p]) => p);
 }
 
-/// Page 1 leads with its newest post as one wide card, then a full grid: one more post than the
-/// other pages, so its grid of three across ends on a full row.
-export const FIRST_PAGE = PER_PAGE + 1;
+/// Since 16 October 2026 every list is one page: the featured cards, then "More answers" with the
+/// rest, so FIRST_PAGE holds any list. Old /page/<n> addresses redirect to the list.
+export const FIRST_PAGE = 1000;
 
 /// A last page of this many posts or fewer joins the page before it, so no page holds a stray card or two.
 export const FOLD = 2;

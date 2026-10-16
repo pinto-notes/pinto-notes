@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Avatar, PostCard, longDate } from "./blog";
 import { ClosingBand } from "./ClosingBand";
-import { CATEGORY_COVERS, AUTHOR, categories, categoryPath, newestFirst, pageCount, pageOf, pagePath, published, type Category } from "./posts";
+import { CATEGORY_COVERS, AUTHOR, categories, categoryPath, isFeatured, newestFirst, pageCount, pageOf, pagePath, published, type Category } from "./posts";
+import { shelves } from "./more-answers";
 import { pageMetadata } from "./site";
 import BlogList from "./BlogList";
 import { FILTER_AFTER, FILTER_GRID } from "./filter-transition";
@@ -9,9 +10,9 @@ import { JsonLd, breadcrumbs, maker, incredible, organization } from "./structur
 import home from "../app/home.module.css";
 import s from "../app/blog/blog.module.css";
 
-/// The blog index and each category's page: newest first, PER_PAGE posts a page, the categories as
-/// links to their own pages, and previous, numbered and next links at the bottom. Every page is
-/// static. Page 1 is the list's own address; later pages are <address>/page/<n>.
+/// The blog index and each category's page: the featured posts as cards (the newest wide, the rest
+/// two to a row), then every other post under "More answers", as the question it answers. The
+/// categories are links to their own pages. Every page is static and one page long.
 
 const LEDE = <>Guides to connecting <b>ChatGPT, Claude and Codex</b> to your notes, Apple Notes how-tos, and fair comparisons. Written by the person building Pinto Notes.</>;
 
@@ -62,9 +63,12 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
   if (category) crumbs.push({ name: category, path: l.base });
   if (page > 1) crumbs.push({ name: `Page ${page}`, path: pagePath(l.base, page) });
   const counts = categories().map((c) => ({ c, n: published().filter((p) => p.category === c).length }));
-  // The newest post of the list leads its first page, wide, on its category's cover.
-  const featured = page === 1 ? posts[0] : undefined;
-  const rest = featured ? posts.slice(1) : posts;
+  // The newest featured post leads, wide, on its category's cover; the other featured posts follow as
+  // cards; the rest of the list is "More answers".
+  const picked = posts.filter(isFeatured);
+  const featured = page === 1 ? picked[0] : undefined;
+  const rest = featured ? picked.slice(1) : picked;
+  const more = shelves(posts.filter((p) => !isFeatured(p)));
 
   return (
     <div className={home.main}>
@@ -100,6 +104,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
             ))}
           </ul>
         </div>
+        {more.length > 0 && <MoreAnswers groups={more} />}
         {pages > 1 && <Pagination base={l.base} page={page} pages={pages} />}
       </BlogList>
       <ClosingBand title="Notes your AI can read and write." text="Pinto Notes works like Apple Notes, and ChatGPT, Claude and Claude Code can use it, with an Undo on every change." />
@@ -120,6 +125,23 @@ function Featured({ post }: { post: ReturnType<typeof published>[number] }) {
         <span className={s.featuredBy}><Avatar size={22} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
       </span>
     </a>
+  );
+}
+
+/// Every post that isn't featured, as the question it answers, under what it's about.
+function MoreAnswers({ groups }: { groups: ReturnType<typeof shelves> }) {
+  return (
+    <section className={`${s.more} ${FILTER_AFTER}`} aria-labelledby="more-answers">
+      <h2 id="more-answers" className={s.moreTitle}>More answers</h2>
+      {groups.map((sh) => (
+        <div key={sh.title} className={s.moreGroup}>
+          <h3>{sh.title}</h3>
+          <ul className={s.ask}>
+            {sh.posts.map((p) => <li key={p.slug}><a href={`/blog/${p.slug}`}>{p.ask}<span aria-hidden="true">→</span></a></li>)}
+          </ul>
+        </div>
+      ))}
+    </section>
   );
 }
 
