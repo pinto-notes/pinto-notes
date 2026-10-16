@@ -99,6 +99,7 @@ export function Home() {
         <div className={d.bandInner}>
           <img src="/mark-256.png" alt="" width={104} height={104} className={d.closingIcon} />
           <h2 id="closing" className={d.closingTitle}>Start your notebook.</h2>
+          <p className={d.closingWorks}>Works with ChatGPT, Claude, Claude Code, Codex and Incredible.</p>
           <Download className={`${d.closingCta} ${d.ctaCenter}`} quiet={G.closing.fine} />
         </div>
       </section>
