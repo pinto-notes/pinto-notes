@@ -66,8 +66,9 @@
 .quote .qAi, .quote > figure { opacity: var(--q2, 1); transform: translateY(calc((1 - var(--q2, 1)) * 14px)); }
 
 /* Phones: the same scene, as a portrait card. The picture is cropped on its person (--fx), and the
-   exchange sits inside it at the hero's bubble size. */
-@media (max-width: 760px) {
+   exchange sits inside it at the hero's bubble size. Wider narrow windows (a zoomed-in laptop) keep
+   the landscape picture. */
+@media (max-width: 560px) {
   .paperScene { aspect-ratio: 4 / 5; border-radius: 24px; }
   .paperScene[data-budget] { aspect-ratio: 4 / 6; }
   /* Sara's budget sits at the foot of the picture, so she shows between it and the chat. */
@@ -85,4 +86,9 @@
   .gymMini { margin-top: 2px; }
   .paperWhere { right: 12px; bottom: 12px; font-size: 12px; }
   .quote[data-at="right"] ~ .paperWhere { left: 12px; }
+}
+@media (min-width: 561px) and (max-width: 900px) {
+  .paperScene { aspect-ratio: 16 / 10; max-height: calc(100vh - 100px); width: 100%; }
+  .quote { width: min(360px, 56%); }
+  .qMe, .qAi { font-size: 15px; padding: 11px 14px 12px; }
 }
