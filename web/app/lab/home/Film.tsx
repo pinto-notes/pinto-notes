@@ -113,6 +113,7 @@ function Frame({ p }: { p: number }) {
 
   return (
     <div className={f.stage}>
+      <div className={f.canvas}>
       <div className={f.layer}>
       <ol className={f.days} aria-hidden="true">
         {DAYS.map((d, i) => <li key={d} data-on={i === cap.day || undefined} data-past={i < cap.day || undefined}>{d}</li>)}
@@ -178,8 +179,35 @@ function Frame({ p }: { p: number }) {
         <Ai who="claude" busy="Changing Running plan" answer="Go easy. Thursday is a 30-minute bike ride now, and the long run moves to Sunday." a={cBusy} b={cDone} />
       </div>
       </div>
+      </div>
     </div>
   );
+}
+
+/// The film is drawn on one canvas of a fixed size and scaled to fit its stage, so nothing overlaps
+/// in a short or zoomed window and it grows on big screens. A wide stage: 1180 × 740, side by side. A
+/// tall one (phones): the stage's width, 760 tall, scaled down only when the window is shorter.
+const CANVAS = { w: 1180, h: 740, phoneH: 760 };
+function useFit(box: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const stage = box.current?.querySelector<HTMLElement>(`.${f.stage}`), canvas = stage?.firstElementChild as HTMLElement | null;
+    if (!stage || !canvas) return;
+    const fit = () => {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      const narrow = w / h < 1.15;
+      stage.toggleAttribute("data-narrow", narrow);
+      if (narrow) {
+        const k = Math.min(1, h / CANVAS.phoneH);
+        canvas.style.width = `${w / k}px`; canvas.style.height = `${CANVAS.phoneH}px`; canvas.style.setProperty("--k", String(k));
+      } else {
+        const k = Math.min(w / CANVAS.w, h / CANVAS.h, 1.3);
+        canvas.style.width = `${CANVAS.w}px`; canvas.style.height = `${CANVAS.h}px`; canvas.style.setProperty("--k", k.toFixed(4));
+      }
+    };
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(stage);
+    return () => ro.disconnect();
+  }, [box]);
 }
 
 /// Pinned and scrubbed by scroll on wide screens; played on time on phones, with Reduce Motion
@@ -188,6 +216,7 @@ export function Film() {
   const box = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
   const [pinned, setPinned] = useState(true);
+  useFit(box);
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("p");
     let frozen = false;

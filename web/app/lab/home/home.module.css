@@ -17,7 +17,7 @@
 }
 
 /* The hero band: wide and short, so the film is on the first screen under it. */
-.top { display: grid; gap: 28px; }
+.top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 
 /* The extras: eight small tiles, icon, title, one line. */
 .extras { display: grid; justify-items: center; gap: 48px; }

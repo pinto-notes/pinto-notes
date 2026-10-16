@@ -3,10 +3,11 @@
    words, then the card under them. */
 
 .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) min(46vw, 660px); column-gap: clamp(32px, 4vw, 64px); align-items: center;
-  width: 100vw; margin: -100px 0 0 calc(50% - 50vw); padding: 112px max(32px, calc(50vw - 600px)) 28px; box-sizing: border-box; min-height: min(100vh, 960px); }
+  width: 100vw; margin: -100px 0 0 calc(50% - 50vw); padding: 112px max(32px, calc(50vw - 600px)) 28px; box-sizing: border-box; min-height: 100vh; }
 
-.words { position: relative; z-index: 2; min-width: 0; display: grid; gap: 28px; justify-items: start; }
-.h1 { margin: 0; font-size: clamp(40px, 4.6vw, 70px); font-weight: 750; letter-spacing: -0.03em; line-height: 1.02; color: #2a1d10; }
+.words { position: relative; z-index: 2; min-width: 0; display: grid; gap: 28px; justify-items: start; container-type: inline-size; }
+/* Grows with the window, never wider than its column ("you and your AI" stays on one line). */
+.h1 { margin: 0; font-size: min(clamp(40px, min(4.6vw, 7.4vh), 84px), 13.6cqi); font-weight: 750; letter-spacing: -0.03em; line-height: 1.02; color: #2a1d10; }
 /* "you and your AI": the site's marker, low behind the words, never split. */
 .mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
 .lede { margin: -10px 0 0; max-width: 30em; font-size: clamp(19px, 1.5vw, 23px); line-height: 1.4; color: #4a3826; }
@@ -18,14 +19,16 @@
 .fine { margin: -14px 0 0; font-size: 13.5px; font-weight: 600; color: #8a7a68; }
 
 /* ── The card ── */
-.card { position: relative; height: min(calc(100vh - 140px), 820px); border-radius: 28px; overflow: hidden; isolation: isolate; background: #2a2236;
+/* The film waits below the fold until her note flies in, so the hero always fills the window. */
+.card { position: relative; height: min(calc(100vh - 140px), 1000px); border-radius: 28px; overflow: hidden; isolation: isolate; background: #2a2236;
   box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.06), 0 40px 80px -36px rgba(60, 30, 5, 0.45);
   container: scene / size; }
 
 /* The picture, 1672 × 941, cropped like object-fit: cover but aimed at her phone and her head, so the
-   crop never drifts to the city: at least as tall as the card, and right-anchored so her head stays in. */
+   crop never drifts to the city: at least as tall as the card, her phone's left edge a fifth of the way
+   in (a tall card trims the back of her head, never the phone). */
 .art { position: absolute; z-index: 0; --w: max(100cqw / 0.98, 100cqh * 1672 / 941); --h: calc(var(--w) * 941 / 1672);
-  width: var(--w); height: var(--h); top: 0; left: min(0px, calc(100cqw - var(--w) * 0.98)); }
+  width: var(--w); height: var(--h); top: 0; left: clamp(calc(100cqw - var(--w)), calc(20cqw - var(--w) * 0.5891), 0px); }
 .artImg { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* Her phone's screen, in % of the picture, drawn like the Pinto iPhone app. Sizes follow the screen
@@ -70,7 +73,7 @@
 
 /* A short card (a short window): no room above the phone. The crop takes in more of the scene beside
    her, the phone is centred in the height, and the chat sits to the left of the phone. */
-@container scene (max-height: 609px) and (min-width: 480px) {
+@container scene (max-height: 609px) and (min-aspect-ratio: 3 / 4) {
   /* Room for the chat left of the phone comes first; past that, the back of her head is cut, never her ear. */
   .art { --w: max(146cqw, 100cqh * 1672 / 941); left: min(0px, max(calc(100cqw - var(--w)), calc(262px - var(--w) * 0.5891)));
     top: clamp(calc(100cqh - var(--h)), calc(50cqh - var(--h) * 0.5034), 0px); }
@@ -89,6 +92,6 @@
   .art { --w: max(100cqh * 1672 / 941, 330cqw); left: clamp(calc(100cqw - var(--w)), calc(42cqw - var(--w) * 0.64), 0px);
     top: clamp(calc(100cqh - var(--h)), calc(50cqh - var(--h) * 0.5034 + 60px), 0px); }
   /* The chat over the phone, centred on it, growing upward from just above it. */
-  .said { --sw: min(270px, 76cqw); width: var(--sw); left: calc(64% - var(--sw) / 2); }
+  .said { --sw: min(270px, 76cqw); width: var(--sw); left: calc(64% - var(--sw) / 2); right: auto; top: auto; bottom: calc(100% - 31.67% + 14px); }
   .me, .ai { font-size: 14px; }
 }
