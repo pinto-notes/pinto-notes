@@ -1,6 +1,7 @@
 import { Figure } from "@/lib/blog";
 import { APP_STORE_LIVE } from "@/lib/site";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
@@ -81,6 +82,9 @@ export default function Page() {
         connecting ChatGPT takes a few minutes.
       </p>
       <p className="label"><strong>Notion</strong></p>
+      <PostFigure src="/blog/news/notion-mcp-cursor-travel-plans" width={1350} height={672} maxWidth={675}
+        alt="From Notion's blog: an AI agent calls MCP tools to search Notion and add blocks, and a Notion page called Travel plans fills with a Tokyo 2-day itinerary."
+        caption="An AI agent writing a Notion page through Notion MCP. Image: Notion." />
       <p>
         Notion runs an official hosted MCP server with OAuth, so it works from any AI app that supports remote servers. A good fit if
         your notes already live in a Notion workspace. <a href="https://developers.notion.com/guides/mcp/overview" rel="noopener">Notion&apos;s MCP docs</a>.
@@ -97,6 +101,9 @@ export default function Page() {
         Its free plan holds 25 notes. <a href="https://hjarni.com/mcp-note-app" rel="noopener">Hjarni</a>.
       </p>
       <p className="label"><strong>Bear</strong></p>
+      <PostFigure src="/blog/news/bear-2-8-claude-connector" width={1600} height={900} maxWidth={675}
+        alt="Bear's announcement image for Bear 2.8: the Bear mascot peeks over a Claude chat window where someone asks what kind of person Claude thinks they are, based on their Bear notes, and Claude searches the notes to answer."
+        caption="Bear's own picture for its Claude connector, which runs on your Mac. Image: Bear." />
       <p>
         Bear 2.8 added an official MCP server and a Claude connector. Both run on your Mac, so they work with Claude Desktop and Claude
         Code there, but not from your phone or the web. <a href="https://blog.bear.app/2026/04/bear-2-8-bearcli-claude-connector-and-mcp-server/" rel="noopener">Bear&apos;s announcement</a>.

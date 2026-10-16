@@ -1,5 +1,5 @@
 import { Figure } from "@/lib/blog";
-import { Answer } from "@/lib/PostParts";
+import { Answer, PostFigure } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { SHOTS } from "@/lib/posts";
@@ -123,6 +123,9 @@ export default function Page() {
         Obsidian 1.12, which lets you control the app from the terminal. A coding agent like Claude Code can run those commands, but
         ChatGPT and Claude on the web or your phone can&apos;t.
       </p>
+      <PostFigure src="/blog/news/obsidian-cli-tasks" width={1396} height={1080} maxWidth={560}
+        alt="Obsidian CLI 1.12 in a terminal, from Obsidian's help page: tasks daily lists two open tasks from the daily note, and typing task shows options such as done, todo, toggle and daily."
+        caption="Obsidian CLI, the official way to drive Obsidian from a terminal. Image: Obsidian." />
       <p>
         One change in 2026 matters most. The Local REST API plugin, which most Obsidian MCP servers were built on, got an MCP server of
         its own in version 4.0 in May. Its README now says the separate servers are no longer necessary.
