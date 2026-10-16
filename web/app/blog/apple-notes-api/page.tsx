@@ -106,6 +106,9 @@ export default function Page() {
       </p>
 
       <h2 id="shortcuts">Shortcuts, on iPhone and Mac</h2>
+      <PostFigure src="/blog/apple/mac-shortcuts-notes-action" width={1960} height={1306} maxWidth={700}
+        alt="Apple's press image for macOS Tahoe 26: a shortcut called Check Notes that transcribes a lecture recording, asks an Apple Intelligence model what the note is missing, and adds the answer to a note open beside it in Notes."
+        caption="Apple's own example: a shortcut that adds to a note. The middle step is Apple Intelligence, not ChatGPT or Claude. Image: Apple." />
       <PostFigure src="/blog/macos27/notes27-api-shortcut-append" width={2048} height={980} maxWidth={700}
         alt="A shortcut called Log a run in Shortcuts on macOS 27 with one action: Append Tue: ran 6 km to Daily log. The action list on the right is filtered to Notes actions."
         caption="A one-action shortcut: append a line to the Daily log note." />

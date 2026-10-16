@@ -110,6 +110,9 @@ export default function Page() {
         The trick is to do the sum just under the table. Give each cost a name, then add the names up. Notes fills in the answer, and when
         the van turns out to be 280, change that one line and the total follows. It&apos;s the closest Apple Notes gets to a spreadsheet.
       </p>
+      <PostFigure src="/blog/apple/iphone-math-notes-named-totals" width={1306} height={1828} maxWidth={300}
+        alt="A note called Sequoia Group Expenses on iPhone: each cost named on its own line, the names added up to $475, and $475 divided by 5 to $95 each."
+        caption="Apple's own example of the same trick, on iPhone: name each cost, then add up the names. Image: Apple." />
       <Keep title="Paste this under your table" text={TOTAL}
         note="Notes offers the answer after the last equals sign; press Return to keep it." />
 

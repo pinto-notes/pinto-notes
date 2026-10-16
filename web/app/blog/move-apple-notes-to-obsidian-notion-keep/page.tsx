@@ -118,6 +118,9 @@ export default function Page() {
       </p>
 
       <h2 id="notion">Apple Notes to Notion</h2>
+      <PostFigure src="/blog/apple/notion-settings-import" width={2136} height={1340} maxWidth={700}
+        alt="Notion's Settings window open at Import: a drop area for ZIP, CSV, PDF, text, Markdown or HTML files up to 5 GB, and tiles for each kind."
+        caption="Notion's Settings, Import, where the ZIP goes. Image: Notion." />
       <p>
         Notion&apos;s import list has Evernote, Trello and Confluence, but not Apple Notes. The way in is Markdown: Notion imports
         Markdown files, and Apple Notes can write them.

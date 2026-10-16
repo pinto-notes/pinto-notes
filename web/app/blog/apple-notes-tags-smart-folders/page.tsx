@@ -73,6 +73,10 @@ export default function Page() {
         Smart Folder that uses it.
       </p>
 
+      <PostFigure src="/blog/apple/iphone-notes-tag-browser-gardening" width={640} height={1324} maxWidth={280}
+        alt="The #Gardening tag open in Notes on iPhone, showing its two notes, Landscaping and DIY Wall Garden, with other tags in a row above."
+        caption="A tag on iPhone: every note that has it, from any folder. Image: Apple." />
+
       <h2 id="smart-folders">How Smart Folders work</h2>
       <PostFigure src="/blog/macos27/notes27-smart-folder-checklists-unchecked" width={1400} height={700} maxWidth={700}
         alt="The New Smart Folder dialog in Apple Notes on macOS 27, named Open to-dos, with one rule: Checklists, Unchecked."
@@ -91,6 +95,9 @@ export default function Page() {
           button, and choose whether a note must match all of the rules or any of them.
         </li>
       </ul>
+      <PostFigure src="/blog/apple/iphone-notes-smart-folder-filters" width={640} height={1324} maxWidth={280}
+        alt="The Filters screen for a new Smart Folder on iPhone: include notes matching all filters, Tags set to Any Selected Tag with #Home and #Projects chosen, plus Pinned Notes, Mentions, Shared, Created and Edited."
+        caption="A Smart Folder's filters on iPhone. Image: Apple." />
       <p>
         On macOS 26 a rule can filter by Tags, Date Created, Date Edited, Shared, Mentions, Checklists, Attachments, Folders, Quick Notes,
         Pinned Notes or Locked Notes. A Tags rule offers Any Tag, All Selected, Any Selected and Untagged Notes Only, and the last one is a

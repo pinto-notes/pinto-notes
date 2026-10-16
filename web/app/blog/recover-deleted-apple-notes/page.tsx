@@ -1,6 +1,6 @@
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Steps } from "@/lib/PostParts";
+import { Answer, Capture, PostFigure, Steps } from "@/lib/PostParts";
 import { RecoverChooser } from "@/lib/RecoverChooser";
 import { SHOTS } from "@/lib/posts";
 
@@ -93,6 +93,9 @@ export default function Page() {
         <li>In Notes, go back to the folder list and tap Recently Deleted.</li>
         <li>Swipe left on the note, tap Move, and choose a folder.</li>
       </Steps>
+      <PostFigure src="/blog/apple/iphone-notes-recently-deleted" width={760} height={894} maxWidth={300}
+        alt="The Recently Deleted folder in Notes on iPhone with four notes, under a line saying deleted notes are removed after 30 days and permanent deletion from iCloud may take up to 40 more days."
+        caption="Recently Deleted on iPhone, with Apple's 30 days and up to 40 more in iCloud. Image: Apple." />
       <p className="label"><strong>On iCloud.com, from any browser</strong></p>
       <Steps>
         <li>Go to icloud.com/notes and sign in.</li>

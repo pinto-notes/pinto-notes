@@ -50,7 +50,9 @@ export default function Page() {
           </p>
         </Answer>
       }
-      caption="Notes, Settings on a Mac running macOS 26. Default account is where new notes land, so it should say iCloud."
+      hero={<PostFigure priority src="/blog/apple/notes-same-note-three-devices" width={814} height={412} maxWidth={600}
+        alt="The same handwritten note, Urban planner, open in Notes on a MacBook, a tablet and an iPhone at once."
+        caption="What it should look like: one note, the same on every device. Image: Apple." />}
       faq={FAQ}
     >
       <h2 id="find-it">Find what&apos;s stopping it</h2>

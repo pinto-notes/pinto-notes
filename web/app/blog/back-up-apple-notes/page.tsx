@@ -1,7 +1,7 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Figure } from "@/lib/blog";
 import { SHOTS } from "@/lib/posts";
-import { Answer, Capture } from "@/lib/PostParts";
+import { Answer, Capture, PostFigure } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("back-up-apple-notes");
@@ -60,6 +60,9 @@ export default function Page() {
       </p>
 
       <h2 id="options">Your options</h2>
+      <PostFigure src="/blog/apple/iphone-settings-icloud-backup" width={760} height={1030} maxWidth={300}
+        alt="The iCloud Backup screen in iPhone Settings on iOS 27, with Back Up This iPhone turned on, a Back Up Now button and the time of the last backup."
+        caption="iCloud Backup on iPhone. It covers notes in On My iPhone, not the ones already in iCloud. Image: Apple." />
       <div className="tableWrap">
         <table>
           <thead>
