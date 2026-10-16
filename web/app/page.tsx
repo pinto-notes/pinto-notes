@@ -6,7 +6,7 @@ import { JsonLd, app, incredible, maker, organization, website } from "@/lib/str
 
 export const metadata: Metadata = pageMetadata({
   title: "Pinto Notes: one notes app for every AI you use",
-  shareTitle: "Write the plan. Your AI helps you follow through.",
+  shareTitle: "The notebook you and your AI share.",
   description:
     "A notes app for iPhone and Mac that feels like Apple Notes. ChatGPT, Claude, Claude Code, Codex and Incredible read and edit the same notes, with your approval, and help you follow through. Imports your Apple Notes. Free.",
   path: "/",
