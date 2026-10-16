@@ -33,8 +33,13 @@ describe("the app templates' search copy", () => {
       expect(seo.faq.length).toBeGreaterThanOrEqual(3);
       expect(html).toContain('"@type":"FAQPage"');
       expect(html).toContain(`href="/blog/${seo.post.slug}"`);
-      // The app comes before the prompt.
-      expect(html.indexOf('id="result"')).toBeLessThan(html.indexOf('id="prompt"'));
+      // Use installs the app; the page shows no prompt, and beside the app, things to ask your AI to
+      // change it (Emil, 14 October 2026).
+      expect(html).not.toContain("What the prompt does");
+      expect(html).not.toContain("Copy the prompt");
+      expect(html.indexOf(">Ask your AI to change the app.<")).toBeGreaterThan(html.indexOf('id="result"'));
+      expect(seo.make.length).toBeGreaterThanOrEqual(4);
+      for (const m of seo.make) expect(html).toContain(m.replace(/'/g, "&#x27;"));
     });
 
     it(`${t.slug}: its how-to post is published and links back to the template`, () => {

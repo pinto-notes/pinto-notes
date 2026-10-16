@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Version history · Pinto Notes", rob
 export default function Page() {
   return (
     <PlaceCard
+      art="/email/hero-undo.jpg"
       href={appURL("history")}
       title="See a note's history"
       lede="Pinto Notes opens the version history of the note your AI changed last. On another device, here's how to get there."

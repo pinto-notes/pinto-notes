@@ -288,7 +288,7 @@ enum TelemetryBody {
 // MARK: The build
 
 /// What every event says about the app and the device: versions, the kind of device, the kind of
-/// build. Not the device's name or model.
+/// build, and whether it's a team member's own device. Not the device's name or model.
 struct TelemetryContext: Equatable, Sendable {
     var appVersion: VersionNumber?
     var appBuild: VersionNumber?
@@ -297,10 +297,25 @@ struct TelemetryContext: Equatable, Sendable {
     var deviceClass: DeviceClass
     var channel: BuildChannel
     var distribution: Distribution
+    /// A Pinto Notes team member's own device (`PintoInternal`, set by the install scripts), so
+    /// their testing can be left out of the numbers. Sent only when true.
+    var isInternal = false
 
     enum Key: String, CaseIterable {
         case appVersion = "app_version", appBuild = "app_build", osVersion = "os_version", platform
-        case deviceClass = "device_class", channel, distribution
+        case deviceClass = "device_class", channel, distribution, isInternal = "internal"
+    }
+
+    static let internalKey = "PintoInternal"
+
+    /// Whether `defaults` marks this device as the team's. `scripts/install-mac.sh` writes the
+    /// default; `scripts/install-phone.sh` launches the app once with `-PintoInternal YES`, which
+    /// only lasts that launch, so it's kept here.
+    static func isInternal(_ defaults: UserDefaults, arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+        if let i = arguments.firstIndex(of: "-" + internalKey), i + 1 < arguments.count, ["YES", "1", "true"].contains(arguments[i + 1]) {
+            defaults.set(true, forKey: internalKey)
+        }
+        return defaults.bool(forKey: internalKey)
     }
 
     var properties: [String: Any] {
@@ -309,6 +324,7 @@ struct TelemetryContext: Equatable, Sendable {
         p[Key.appVersion.rawValue] = appVersion?.text
         p[Key.appBuild.rawValue] = appBuild?.text
         p[Key.osVersion.rawValue] = osVersion?.text
+        if isInternal { p[Key.isInternal.rawValue] = true }
         return p
     }
 
@@ -333,7 +349,8 @@ struct TelemetryContext: Equatable, Sendable {
         return TelemetryContext(appVersion: VersionNumber(info["CFBundleShortVersionString"] as? String),
                                 appBuild: VersionNumber(info["CFBundleVersion"] as? String),
                                 osVersion: VersionNumber("\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"),
-                                platform: platform, deviceClass: device, channel: TelemetryGate.channel, distribution: distribution)
+                                platform: platform, deviceClass: device, channel: TelemetryGate.channel, distribution: distribution,
+                                isInternal: isInternal(.standard))
     }
 }
 

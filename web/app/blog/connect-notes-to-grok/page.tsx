@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
@@ -55,6 +54,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/news/xai-grok-gmail-connector" width={1600} height={900} maxWidth={800}
+        alt="Grok on the web, dark theme. A message with the Gmail connector asks: what are my most pressing emails today? Grok answers with a numbered list: an overdue task, a rescheduled meeting and a design office follow-up."
+        caption="Grok answering from Gmail through one of its built-in connectors. Image: xAI." />}
       faq={FAQ}
     >
       <h2 id="connectors">What Grok connectors are</h2>
@@ -160,8 +162,8 @@ export default function Page() {
         Pinto Notes names ChatGPT and Claude on that sheet. Any other app, Grok included, gets a warning that Pinto Notes
         doesn&apos;t recognize it, so allow it only if you just started connecting it yourself. After that, every change Grok makes is
         tinted in the note with an Undo, and the version before it is kept. If you try it before I do, I&apos;d like to hear how it
-        went. <a href="/blog/mcp-server">The Pinto Notes MCP server</a> lists every tool, and <a href="/blog/connect-notes-to-gemini">connect
-        your notes to Gemini</a> covers the same setup for Google&apos;s apps.
+        went. <a href="/blog/mcp-server">The Pinto Notes MCP server</a> lists every tool, and its <a href="/blog/mcp-server#install">install
+        steps</a> include Gemini CLI.
       </p>
       <Keep title="A first request once it's connected" text={ASK}
         note="Asking which note it changed makes the edit easy to find and check." />
@@ -177,9 +179,6 @@ export default function Page() {
         your notes. I&apos;d put &ldquo;in my notes&rdquo; in the request until you know how it behaves.
       </p>
 
-      <PostCta slug="connect-notes-to-grok" position="how-amber-helps" title="Notes every AI you use can work in">
-        <p>Pinto Notes is a notes app for iPhone and Mac with a hosted MCP server, and every change an AI makes is kept.</p>
-      </PostCta>
     </PostPage>
   );
 }

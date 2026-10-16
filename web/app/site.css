@@ -108,10 +108,13 @@ html[data-theme] { scroll-padding-top: 100px; }
 .site-nav a.site-cta { margin-left: 6px; padding: 0 18px; background: var(--cta-bg); color: var(--cta-ink); border-radius: 13px; }
 .site-nav a.site-gh { color: var(--muted); gap: 6px; font-variant-numeric: tabular-nums; }
 .site-stars { font-size: 15px; }
-/* The current page: its link in full ink; the other text links sit back in muted. */
+/* The current page: its link in full ink; the other text links sit back in muted. The same on every
+   width: no underline, no ring. */
 .site-nav a:not(.site-cta):not(.site-gh) { color: var(--muted); }
 .site-nav a[aria-current="page"]:not(.site-cta):not(.site-gh) { color: var(--ink); }
-.site-nav a.site-cta[aria-current="page"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--amber); }
+/* A page whose hero is the Mac download (/download, the landing pages) marks that button
+   data-hero-download: the header's would be a second primary in the same view, so it steps aside. */
+html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 @media (max-width: 760px) { .site-header { height: 72px; } }
 /* A page marked data-quiet-nav (the home page study, app/lab/home-d): the header carries the page links
    and Download alone; the version is on the changelog, the stars on GitHub. */
@@ -152,15 +155,12 @@ html:has([data-quiet-nav]) .site-badge, html:has([data-quiet-nav]) .site-stars {
   .site-header { gap: 4px; }
   .site-nav { margin-left: auto; }
   .site-nav a:not([href="/templates"]) { display: none; }
-  /* The current page: full ink, and a short amber line under the word. */
-  .site-nav a[aria-current="page"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 7px; height: 2px; border-radius: 1px; background: var(--amber); }
   .site-menu-button { display: inline-flex; }
 }
 /* The narrowest phones (320px): the name and Templates a size smaller, in the sheet too, so the name doesn't shift when it opens. */
 @media (max-width: 359px) {
   .site-brand { font-size: 16px; gap: 8px; }
   .site-nav a { padding: 0 8px; font-size: 15px; letter-spacing: -0.01em; }
-  .site-nav a[aria-current="page"]::after { left: 8px; right: 8px; }
 }
 
 /* The menu button: two lines on a soft tile; in the sheet the same tile, in the same place, closes it. */

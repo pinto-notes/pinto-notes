@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import legal from "./legal.module.css";
 import p from "./post.module.css";
 import { Avatar, Figure, PostCard, longDate, readingMinutes } from "./blog";
-import { Banner } from "./PostParts";
-import { AUTHOR, categories, categoryPath, morePosts, post, published, type Post } from "./posts";
+import { ClosingBand } from "./ClosingBand";
+import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, type Category, type Post } from "./posts";
 import { MAKER_URL, SITE_URL, pageMetadata } from "./site";
 import { JsonLd, article, breadcrumbs, faqPage, incredible, maker, organization } from "./structured-data";
 
@@ -34,57 +34,56 @@ function share(x: Post) {
   ];
 }
 
-function Share({ x, row = false }: { x: Post; row?: boolean }) {
+/// Share, as three quiet icon buttons at the end of the byline.
+function Share({ x }: { x: Post }) {
   return (
-    <div className={row ? p.shareRow : p.share}>
-      <p className={p.shareLabel}>Share this post</p>
-      <ul>
-        {share(x).map((s) => (
-          <li key={s.name}>
-            <a href={s.href} target={s.name === "Email" ? undefined : "_blank"} rel="noopener noreferrer" aria-label={`Share on ${s.name}`}>
-              {s.glyph}<span>{s.name}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
+    <ul className={p.share} aria-label="Share this post">
+      {share(x).map((s) => (
+        <li key={s.name}>
+          <a href={s.href} target={s.name === "Email" ? undefined : "_blank"} rel="noopener noreferrer" aria-label={`Share on ${s.name}`} title={`Share on ${s.name}`}>
+            {s.glyph}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/// The band at the end of a post, written for its category.
+const CLOSING: Record<Category, { title: string; text: string }> = {
+  "Guides": { title: "Let your AI write in your notes.", text: "Pinto Notes works like Apple Notes, and ChatGPT, Claude and Claude Code can read and edit it, with an Undo on every change." },
+  "Apple Notes": { title: "Bring your Apple Notes along.", text: "Pinto Notes imports them on your Mac in one go, and leaves Apple Notes as it was." },
+  "Comparisons": { title: "Try the notes app your AI can use.", text: "Pinto Notes works like Apple Notes, and connects to ChatGPT, Claude and Claude Code." },
+  "Building Pinto Notes": { title: "Read the code, or just use it.", text: "Pinto Notes is open source: the apps, the server and this website." },
+};
+
+/// A post's picture at the top: its own paper-cut banner, or its category's cover.
+function Cover({ x, art }: { x: Post; art?: string }) {
+  if (art) {
+    return (
+      <div className={p.cover} data-shape="banner">
+        <picture>
+          <source type="image/avif" srcSet={`${art}.avif`} />
+          <img src={`${art}.webp`} alt="" width={1200} height={480} decoding="async" fetchPriority="high" />
+        </picture>
+      </div>
+    );
+  }
+  const c = CATEGORY_COVERS[x.category];
+  return (
+    <div className={p.cover}>
+      <img src={c.src} alt="" width={c.width} height={c.height} decoding="async" fetchPriority="high" />
     </div>
   );
 }
 
-/// Every other published post by title, grouped by category once there are more than a few.
-function AllPosts({ slug }: { slug: string }) {
-  const others = published().filter((x) => x.slug !== slug);
-  const grouped = others.length > 6;
-  const list = (items: Post[]) => (
-    <ul>{items.map((x) => <li key={x.slug}><a href={`/blog/${x.slug}`}>{x.title}</a></li>)}</ul>
-  );
-  return (
-    <nav className={p.all} aria-labelledby="all-posts">
-      <h2 id="all-posts" className={p.sectionTitle}>All posts</h2>
-      {grouped ? (
-        <div className={p.allGroups}>
-          {categories().map((c) => {
-            const items = others.filter((x) => x.category === c);
-            return items.length ? (
-              <div key={c}>
-                <h3><a href={categoryPath(c)}>{c}</a></h3>
-                {list(items)}
-              </div>
-            ) : null;
-          })}
-        </div>
-      ) : list(others)}
-    </nav>
-  );
-}
-
-/// A blog post: the date and category, the title, the byline, an intro, a real capture of the app,
-/// then the text in the legal pages' readable column. A how-to post can put its short answer
-/// (PostParts' Answer) right under the intro, and open with a paper-cut banner (`art`) above the
-/// intro in place of the capture (or a real capture, `hero`, which wins over the art), which it then shows further down where it belongs. A share rail on wide screens, and at the end
-/// two more posts and every other post by title. Emits Article, BreadcrumbList and (when the post
-/// has real questions) FAQPage JSON-LD. `caption` goes under the post's own capture, for the OS it
-/// came from.
+/// A blog post: the category, the title, the byline with the share buttons, a paper-cut cover at the
+/// width of the page's column, then the intro, the short answer and the text in one readable column
+/// centred under the header. A how-to post can carry its own banner (`art`) as its cover, and a real
+/// capture (`hero`) in place of the post's own capture after the intro. At the end: the author, three
+/// related posts and a link to the rest, then the dark band written for the post's category. Emits
+/// Article, BreadcrumbList and (when the post has real questions) FAQPage JSON-LD. `caption` goes
+/// under the post's own capture, for the OS it came from.
 export function PostPage({ slug, intro, answer, art, hero, caption, faq, children }: { slug: string; intro: React.ReactNode; answer?: React.ReactNode; art?: string; hero?: React.ReactNode; caption?: string; faq?: QA[]; children: React.ReactNode }) {
   const x = post(slug);
   const path = `/blog/${x.slug}`;
@@ -95,18 +94,12 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
     organization, maker, incredible,
   ];
   if (faq?.length) graph.push(faqPage(faq, path));
-  const more = morePosts(slug);
+  const more = morePosts(slug, 3);
+  const closing = CLOSING[x.category];
 
   return (
     <div className={p.main}>
       <JsonLd graph={graph} />
-      <aside className={p.rail}>
-        <div className={p.railInner}>
-          <a className={p.back} href="/blog"><ArrowGlyph /> All posts</a>
-          <Share x={x} />
-        </div>
-      </aside>
-
       <article className={p.col}>
         <header className={`${p.head} rise`} style={{ "--i": 0 } as React.CSSProperties}>
           <nav className={p.crumbs} aria-label="Breadcrumb">
@@ -115,25 +108,28 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
               <li><a href={categoryPath(x.category)}>{x.category}</a></li>
             </ol>
           </nav>
-          <p className={p.meta}>
-            Published <time dateTime={x.date}>{longDate(x.date)}</time> in{" "}
-            <a href={categoryPath(x.category)}>{x.category}</a>
-          </p>
           <h1 className={p.title}>{x.title}</h1>
           <div className={p.byline}>
-            <Avatar size={28} />
-            <span>By <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a></span>
-            <span aria-hidden="true">·</span>
-            <span>{minutes} min read</span>
+            <Avatar size={32} />
+            <p>
+              <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a>
+              <span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time><span aria-hidden="true"> · </span>{minutes} min read</span>
+            </p>
+            <Share x={x} />
           </div>
-          <Share x={x} row />
         </header>
 
-        <div className={`${legal.article} ${p.body} rise`} style={{ "--i": 1 } as React.CSSProperties}>
-          {hero ?? (art && <Banner src={art} />)}
+        <div className={`${p.coverRow} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}><Cover x={x} art={art} /></div>
+
+        {/* The intro and the short answer: on the first screen on every device (the cover sits beside
+            the title on wide screens, and after this on phones). */}
+        <div className={`${legal.article} ${p.body} ${p.top} rise`} style={{ "--i": 1 } as React.CSSProperties} data-short={minutes < 8 ? "" : undefined}>
           <p className={p.intro}>{intro}</p>
           {answer}
-          {!art && !hero && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />}
+        </div>
+
+        <div className={`${legal.article} ${p.body} ${p.rest} rise`} style={{ "--i": 2 } as React.CSSProperties}>
+          {hero ?? (!art && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />)}
           {children}
           {faq?.length ? (
             <>
@@ -148,23 +144,30 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
           ) : null}
           <p className={p.checked}>Checked against the app on <time dateTime={x.updated}>{longDate(x.updated)}</time>.</p>
         </div>
+
+        <footer className={p.signoff}>
+          <Avatar size={44} />
+          <p><b>Written by <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a></b><span>The maker of Pinto Notes.</span></p>
+        </footer>
       </article>
 
-      <div className={p.end}>
-        {more.length ? (
-          <section aria-labelledby="more-posts">
-            <h2 id="more-posts" className={p.sectionTitle}>More posts</h2>
-            <ul className={p.more}>{more.map((m) => <li key={m.slug}><PostCard post={m} heading="h3" /></li>)}</ul>
-          </section>
-        ) : null}
-        <AllPosts slug={slug} />
-      </div>
+      {more.length ? (
+        <section className={p.end} aria-labelledby="more-posts">
+          <div className={p.endHead}>
+            <h2 id="more-posts" className={p.sectionTitle}>Read next</h2>
+            <a className={p.allLink} href={categoryPath(x.category)}>More in {x.category}<ArrowGlyph /></a>
+          </div>
+          <ul className={p.more}>{more.map((m) => <li key={m.slug}><PostCard post={m} heading="h3" /></li>)}</ul>
+        </section>
+      ) : null}
+
+      <ClosingBand title={closing.title} text={closing.text} />
     </div>
   );
 }
 
 function ArrowGlyph() {
-  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg>;
+  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>;
 }
 function XGlyph() {
   return <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3Z" /></svg>;

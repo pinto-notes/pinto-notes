@@ -1,5 +1,6 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
+import NoteWindow from "@/app/templates/NoteWindow";
+import JOURNAL from "@/content/templates/daily-journal.json";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -64,6 +65,8 @@ const FAQ = [
   ] },
 ];
 
+const JOURNAL_BEFORE = JOURNAL.example.replace(/### Friday 2 October\n(?:- .*\n)+/, "");
+
 export default function Page() {
   return (
     <PostPage
@@ -85,9 +88,13 @@ export default function Page() {
           </p>
         </Answer>
       }
-      // Nothing above the intro: there's no capture of a Daily journal note yet, and the tracker one
-      // belongs further down, in the Pinto Notes section, captioned as what it is.
-      hero={<></>}
+      // The Daily journal template drawn the way the template pages draw it (NoteWindow), with Friday's
+      // entry tinted as the app tints what an AI just added. Not a screenshot; captioned as the template.
+      hero={<figure className="post-figure" style={{ maxWidth: 640, margin: "0 auto" }}>
+        <NoteWindow markdown={JOURNAL.example} before={JOURNAL_BEFORE} folder="Journal" date="Friday 2 October 2026 at 21:40"
+          label="A Daily journal note in Pinto Notes. Under Entries, Friday's four lines (Today, Energy, Remember, Tomorrow) are tinted as just added by the AI, above Thursday's entry." />
+        <figcaption>The Daily journal template in Pinto Notes, just after ChatGPT added Friday&apos;s entry. Example data.</figcaption>
+      </figure>}
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
@@ -117,7 +124,7 @@ export default function Page() {
       <Keep title="Four more journal prompts" text={MORE} />
       <p>
         The last one needs the entries in front of the AI. If they live in a chat or in Apple Notes, paste them in first. For a
-        longer look back once a week, there&apos;s <a href="/blog/weekly-review-with-chatgpt-or-claude">a weekly review prompt</a>{" "}
+        longer look back once a week, there&apos;s <a href="/templates/weekly-review">a weekly review prompt</a>{" "}
         that works the same way.
       </p>
 
@@ -188,12 +195,9 @@ export default function Page() {
         journal in order to write in it. The AI sees the title of a note you lock in Pinto Notes and nothing else, so a locked journal
         is one you write yourself. You need ChatGPT on a plan that allows custom apps, or Claude;{" "}
         <a href="/blog/connect-chatgpt-to-your-notes">connecting ChatGPT</a> takes a few minutes. The free{" "}
-        <a href="/templates/daily-journal">Daily journal template</a> has the note and the prompt that goes with it, and the{" "}
+        <a href="/templates/daily-journal">Daily journal template</a> adds the journal note to Pinto Notes in one click, and the{" "}
         <a href="/templates/mood-energy-log">Mood and energy log</a> is the table.
       </p>
-      <PostCta slug="journal-with-chatgpt-or-claude" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>One note for every day&apos;s entry, written down by your AI and read back by you.</p>
-      </PostCta>
     </PostPage>
   );
 }

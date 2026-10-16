@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Checklist, Paths, Steps } from "@/lib/PostParts";
+import { Answer, Capture, Checklist, Paths, PostFigure, Steps } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -114,8 +113,8 @@ export default function Page() {
       </Steps>
       <p>
         Obsidian says it handles virtually everything in Apple Notes, including tables, pictures, drawings, scans and PDFs. The plugin&apos;s
-        code puts notes in folders that match yours and turns checklist items into Markdown checkboxes. If you&apos;re still deciding, <a
-        href="/blog/apple-notes-vs-obsidian">Apple Notes vs Obsidian</a> covers what you gain and what you give up.
+        code puts notes in folders that match yours and turns checklist items into Markdown checkboxes. If you want an AI to work in
+        the vault too, <a href="/blog/obsidian-mcp">Obsidian MCP servers, compared</a> covers what works.
       </p>
 
       <h2 id="notion">Apple Notes to Notion</h2>
@@ -150,8 +149,7 @@ export default function Page() {
         <a href="/blog/export-apple-notes-to-markdown">How to export Apple Notes to Markdown</a> has the free exporters that do a whole
         library at once, and what to check in the files. On Notion&apos;s side, mind the limits. On the Free plan a single file can be at
         most 5 MB (50 MB on paid plans), and Notion handles about 120 Markdown files every 12 hours. A ZIP can be up to 5 GB, but
-        Notion says one with more than 10,000 files is likely to fail. <a href="/blog/apple-notes-vs-notion">Apple Notes vs
-        Notion</a> compares the two apps if you haven&apos;t decided yet.
+        Notion says one with more than 10,000 files is likely to fail.
       </p>
 
       <h2 id="google-keep">Apple Notes to Google Keep</h2>
@@ -201,6 +199,14 @@ export default function Page() {
 
       <h2 id="pinto-notes">Or move to a notes app that works like Apple Notes</h2>
       <p>
+        Each of these is a real change of habit. Obsidian is a folder of files you manage, Notion is a workspace built for teams, and
+        Keep has no folders at all. If what you liked about Apple Notes was how quick it is, and what you&apos;re missing is that
+        ChatGPT and Claude can&apos;t see a word of it, there&apos;s a shorter move.
+      </p>
+      <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={460}
+        alt="The Import from Apple Notes sheet in Pinto Notes on a Mac: Copies the notes you pick. Nothing in Apple Notes changes. Every note is listed under its Apple Notes folder, all ticked, with Import 8 Notes."
+        caption="Import from Apple Notes in Pinto Notes: every note under its folder, ticked. Nothing in Apple Notes changes." />
+      <p>
         Pinto Notes, the notes app for iPhone and Mac that I make, looks and works like Apple Notes, keeps every note as Markdown, and
         lets ChatGPT and Claude read and edit your notes once you approve them. On a Mac, File, Import from Apple Notes copies every
         note in every folder, with the folders&apos; names, nesting and order. Pictures come along as files, and importing again skips
@@ -214,9 +220,6 @@ export default function Page() {
           : <>The iPhone app is coming soon to the App Store. </>}
         <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> walks through the import.
       </p>
-      <PostCta slug="move-apple-notes-to-obsidian-notion-keep" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Every Apple Notes folder in one import, and notes ChatGPT and Claude can work with.</p>
-      </PostCta>
     </PostPage>
   );
 }

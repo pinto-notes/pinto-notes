@@ -1,10 +1,7 @@
-import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, Steps } from "@/lib/PostParts";
+import { Answer, Capture, PostFigure, Steps } from "@/lib/PostParts";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
 import { TemplatePicker } from "@/lib/TemplatePicker";
-import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("apple-notes-templates", { title: "Apple Notes templates: make your own, plus five to copy" });
@@ -86,18 +83,25 @@ export default function Page() {
         <a href="/blog/apple-notes-ios-27">what&apos;s new in Apple Notes in iOS 27</a>.
       </p>
 
-      <h2 id="amber-notes">Templates that fill themselves in</h2>
+      <h2 id="missing">Where a template in Notes stops</h2>
       <p>
-        A template in Apple Notes stays a blank form you fill in by hand. I make Pinto Notes, a notes app for iPhone and Mac that ChatGPT
-        and Claude can read and write, and its free <a href="/templates">template library</a> works differently. Use template adds the note
-        to Pinto Notes, and each one comes with a prompt, so you tell ChatGPT or Claude what happened and it files it under the right
-        heading, ticking things off as you go. <a href="/blog/move-from-apple-notes">Your Apple Notes come over</a> in one import, and
-        Apple Notes isn&apos;t changed.
+        A template in Apple Notes is a blank form. It&apos;s great for the first day. By the third week of a habit list you&apos;re
+        scrolling through copies of the same checklist, counting ticks by hand to see whether you kept your streak, and nothing ever adds
+        up on its own. And whatever you told ChatGPT about your week stays in the chat; it can&apos;t reach the note.
       </p>
-      <Figure shot={SHOTS.lisbon} caption="A trip note in Pinto Notes on a Mac: a plan checklist, places to see, a linked booking and a table of where to eat." />
-      <PostCta slug="apple-notes-templates" position="how-amber-helps" title="Try Pinto Notes on your Mac">
-        <p>Free templates that ChatGPT and Claude fill in for you, with every change marked and undoable.</p>
-      </PostCta>
+
+      <h2 id="amber-notes">Templates that fill themselves in</h2>
+      <PostFigure src="/blog/pinto/habit-tracker-main-mac-light" width={1280} height={900} maxWidth={640}
+        alt="A habit tracker app in a Pinto Notes note on a Mac: Today, 2 of 6 habits done with a 62 percent ring for the week, a dot grid for this week, and each habit with its streak, including Water at 5 of 8 glasses."
+        caption="The habit tracker template in Pinto Notes: streaks and the week add themselves up. Example data." />
+      <p>
+        That&apos;s why I made Pinto Notes, a notes app for iPhone and Mac that ChatGPT and Claude can read and write. Its free{" "}
+        <a href="/templates">template library</a> goes further than a blank note: some templates are little apps, like the{" "}
+        <a href="/templates/habit-tracker">habit tracker</a> above, which keeps your streaks and the week&apos;s total for you. You tick
+        things off yourself, or tell ChatGPT or Claude what you did and it updates the note. You can still add, rename and remove every
+        habit in the app. <a href="/blog/move-from-apple-notes">Your Apple Notes come over</a> in one import, and Apple Notes isn&apos;t
+        changed.
+      </p>
     </PostPage>
   );
 }

@@ -40,4 +40,66 @@ describe("the site's controls", () => {
   it("draws the cookie banner's buttons as fills", () => {
     expect(rule(css("site.css"), ".consent-button")).toMatch(/border: 0/);
   });
+
+  // The site audit of 13 October 2026, "fix once, lift many pages".
+  it("marks the current page in the header one way on every width: ink, no underline, no ring", () => {
+    const site = css("site.css");
+    expect(site).not.toMatch(/aria-current="page"\]::after/);
+    expect(site).not.toMatch(/site-cta\[aria-current="page"\] \{ box-shadow/);
+  });
+
+  it("steps the header's Download aside on a page whose hero is the download, so one primary is in view", () => {
+    expect(css("site.css")).toContain("html:has([data-hero-download]) .site-nav a.site-cta { display: none; }");
+    expect(css("download/page.tsx")).toContain("data-hero-download");
+  });
+
+  it("gives the download page's button a hover, and help's cards a fill on hover instead of a ring", () => {
+    expect(css("download/download.module.css")).toMatch(/\.button:hover \{ background: color-mix/);
+    const faq = css("help/faq.module.css");
+    expect(faq).not.toMatch(/\.contact a:hover \{ box-shadow/);
+  });
+
+  it("draws Sign in with Google and the connect page's second buttons as fills, and disabled as warm grey", () => {
+    const connect = css("connect/connect.module.css");
+    expect(rule(connect, ".google")).not.toMatch(/inset 0 0 0 1px/);
+    expect(connect).not.toMatch(/\.secondary \{[^}]*inset 0 0 0 1\.5px/);
+    expect(connect).not.toMatch(/\.primary:disabled, \.secondary:disabled \{ cursor: default; opacity/);
+  });
+
+  it("puts the blog's and the templates' chips in one sideways-scrolling row on phones", () => {
+    expect(css("blog/blog.module.css")).toMatch(/@media \(max-width: 600px\) \{\s*\.filters \{\s*flex-wrap: nowrap; overflow-x: auto/);
+    expect(css("templates/templates.module.css")).toMatch(/\.filterRow \{\s*flex-wrap: nowrap; overflow-x: auto/);
+  });
+
+  it("keeps the download page plain: the three steps as they were, no lines under them, and the band", () => {
+    // Emil, 14 October 2026: the scene and the story made it less clear than the plain steps.
+    const page = css("download/page.tsx");
+    expect(page).not.toContain("<StoryPlayer");
+    expect(page).not.toMatch(/Updates install themselves|Syncs with your iPhone/);
+    expect(page).toContain("<ClosingBand");
+  });
+
+  it("groups help's questions, leads each version of the changelog with its highlights, and opens privacy with the promises", () => {
+    const help = css("help/page.tsx");
+    for (const g of ["Getting started", "Connecting an AI", "Your notes and account", "Sharing"]) expect(help).toContain(`title: "${g}"`);
+    expect(help).not.toContain("WHAT_IT_IS");
+    const log = css("changelog/page.tsx");
+    // Emil, 14 October 2026: less per release, the rest and the patch releases under Read more, no pictures.
+    expect(log).toContain("w.highlights");
+    expect(log).toContain(">Read more<");
+    expect(log).toContain("w.patches");
+    expect(log).not.toMatch(/<img/);
+    expect(log).not.toMatch(/updates itself/);
+    expect(css("changelog/changelog.module.css")).toMatch(/\.more summary:focus \{ outline: none; \}/);
+    const privacy = css("privacy-security/page.tsx");
+    expect(privacy).toContain("f.short");
+    // Every log stays on the page (a transparency promise), folded away at the end of the long text.
+    expect(privacy).toMatch(/<details className=\{s\.logsFold\} id="logs">/);
+    expect(privacy.indexOf('id="logs"')).toBeGreaterThan(privacy.indexOf("<LongPage"));
+    expect(privacy).toContain("LOGS.map");
+  });
+
+  it("gives the connect pages' broken-link state a way forward", () => {
+    for (const f of ["connect/page.tsx", "open/connect/page.tsx"]) expect(css(f), f).toContain('href="/open/connect-ai"');
+  });
 });

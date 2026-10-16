@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("plan-a-trip-with-chatgpt-or-claude", { title: "Plan a trip with ChatGPT or Claude, and keep the itinerary" });
@@ -58,6 +57,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/pinto/trip-plan-main-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Trip plan app in a Pinto Notes note on a Mac: Lisbon, 9 days to go, bookings and packing still open, and the first day as a timeline."
+        caption="The trip plan template in Pinto Notes: the countdown, what's still open, and the first day. Example data." />}
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
@@ -84,6 +86,16 @@ export default function Page() {
         checking it is the part the AI can&apos;t do for you.
       </p>
 
+      <h2 id="missing">What&apos;s missing</h2>
+      <p>
+        The plan is good now, and it&apos;s stuck in a chat. The bookings are in your email, the packing list is in your head, and the
+        friend coming with you can&apos;t see any of it. Trip apps help, but they&apos;re another place to retype it all: TripIt reads
+        forwarded emails and Wanderlog has its own assistant, and neither is the ChatGPT or Claude you planned with.
+      </p>
+      <p>
+        What you want is the plan in one place you can tick off on the trip, that the AI you planned with can keep adding to.
+      </p>
+
       <h2 id="keep">Keep the plan where you can edit it</h2>
       <p>
         Once the plan is roughly right, it needs a home where you can change it without asking the AI, tick off what&apos;s paid and
@@ -101,9 +113,10 @@ export default function Page() {
           With Read and Edit. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT</a> needs Developer mode on a paid plan.
         </li>
         <li>
-          <strong>Paste the template&apos;s prompt, then your trip</strong>
-          &ldquo;Lisbon, 4 days in May. I like food, views and walking. Not museums.&rdquo; The AI sets the trip and its dates, writes
-          one day at a time with three to five things each, and adds what the trip needs to the packing list.
+          <strong>Tell your AI about the trip</strong>
+          &ldquo;Lisbon, 4 days in May. I like food, views and walking. Not museums.&rdquo; It finds the note, reads the app&apos;s
+          own notes on how the trip is kept, then sets the dates, fills in the days and adds what you&apos;ll need to the packing
+          list.
         </li>
       </Steps>
       <p>
@@ -113,25 +126,23 @@ export default function Page() {
         plan; that&apos;s quicker than retyping it.
       </p>
       <p>
-        No Mac nearby? The template page has the prompt to copy, which asks your AI to create the note with its app. It works from
-        ChatGPT or Claude on any device once Pinto Notes is connected.
+        To change the app itself, ask for that too: &ldquo;Add a day for Sintra&rdquo; or &ldquo;Show a cost for each
+        booking.&rdquo; Your AI edits the app, and the new version shows up in the note.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>
+      <PostFigure src="/blog/pinto/trip-plan-days-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Days tab of the trip plan app on a Mac: each day as a timeline, with timed plans and bookings in order and a Share button per day."
+        caption="Each day as a timeline, with Share for sending a day as text." />
+      <PostFigure src="/blog/pinto/trip-plan-packing-phone-light" width={780} height={1688} maxWidth={320}
+        alt="The Packing tab on a phone: a grouped packing list with documents, clothes and toiletries, ticked items lower down."
+        caption="The packing list on a phone. It stays for the next trip." />
       <p>
-        The app has four tabs. Trip shows the countdown, bookings paid and items packed, and the next day as a timeline; during the trip
-        the countdown becomes &ldquo;Day 2 of 5&rdquo; and the plan shows today. Edit on that tab changes the trip&apos;s name and dates.
-      </p>
-      <p>
-        Days shows each day as a timeline. A line that starts with a time, like &ldquo;09:30 Tram 28&rdquo;, goes in its place, and a
-        booking with a day and time joins that day, so the 06:55 flight sits above lunch. Share sends one day, or the whole trip, as
-        text: handy for the friend who asks &ldquo;so what are we doing Thursday?&rdquo;. Add a day, edit one, or delete it.
-      </p>
-      <p>
-        Bookings has each booking with its kind, day, time and reference; tap to tick it once it&apos;s paid. Packing is grouped
-        (documents, clothes, toiletries, tech), you tap an item to pack it, and packed items drop to the bottom. You can add, edit or
-        delete bookings and packing items too, and every delete shows Undo at the top of the screen. If you&apos;d rather keep a plain
-        checklist, <a href="/blog/apple-notes-templates">Apple Notes templates</a> has a packing list note to copy.
+        Everything is yours to change in the app. Days puts each day&apos;s plan and bookings in time order, so the 06:55 flight sits above
+        lunch, and Share sends a day as text to the friend who asks &ldquo;so what are we doing Thursday?&rdquo;. Tick bookings once
+        they&apos;re paid and items once they&apos;re packed; add, edit or delete anything, with Undo. During the trip the countdown turns
+        into &ldquo;Day 2 of 5&rdquo;, and you can still ask ChatGPT or Claude on your phone &ldquo;what&apos;s on today?&rdquo;. If
+        you&apos;d rather keep a plain checklist, <a href="/blog/apple-notes-templates">Apple Notes templates</a> has a packing list to copy.
       </p>
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>
@@ -141,14 +152,10 @@ export default function Page() {
         happens on the airline&apos;s or hotel&apos;s own site: the AI records a booking, it doesn&apos;t make one.
       </p>
       <p>
-        The iPhone app isn&apos;t on the App Store yet, so for now the trip plan opens on a Mac with macOS 26 or later. During the
-        trip you can still ask ChatGPT or Claude on your phone &ldquo;what&apos;s on today?&rdquo;, since the AI reads the plan
-        through the connection. When you&apos;re home, Start a new trip in the Edit sheet clears the plan and bookings and keeps the
+        The iPhone app isn&apos;t on the App Store yet, so for now the trip plan opens on a Mac with macOS 26 or later. When you&apos;re
+        home, Start a new trip in the Edit sheet clears the plan and bookings and keeps the
         packing list, unpacked, so the next trip starts from what you took last time.
       </p>
-      <PostCta slug="plan-a-trip-with-chatgpt-or-claude" position="how-amber-helps" title="Try the trip planner on your Mac">
-        <p>The plan, the bookings and the packing list in one note your AI can fill in.</p>
-      </PostCta>
     </PostPage>
   );
 }

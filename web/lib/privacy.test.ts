@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AI_ACCESS, CAVEAT, COUNTS, ENCRYPTION, FACTS, HOME_PRIVACY, LIMITS, LOGS, PRIVACY_PATH, READABLE, WHO_CAN_SEE } from "./privacy";
@@ -9,7 +9,7 @@ const policy = readFileSync(join(__dirname, "../content/privacy-policy.md"), "ut
 const docsPolicy = readFileSync(join(__dirname, "../../docs/privacy-policy.md"), "utf8");
 const items = [...ENCRYPTION.items, ...WHO_CAN_SEE, ...AI_ACCESS, ...LIMITS];
 const copy = [
-  ...FACTS.flatMap((f) => [f.title, f.text]), CAVEAT.text, CAVEAT.link, ...LOGS.flatMap((l) => [l.name, l.what, l.kept]), ...COUNTS, ...READABLE,
+  ...FACTS.flatMap((f) => [f.title, f.text, f.short]), CAVEAT.text, CAVEAT.link, ...LOGS.flatMap((l) => [l.name, l.what, l.kept]), ...COUNTS, ...READABLE,
   ...items.flatMap((i) => [i.label, i.text]), ENCRYPTION.note, page, policy,
   ...Object.values(HOME_PRIVACY),
 ];
@@ -67,6 +67,19 @@ describe("privacy copy", () => {
     expect(policy).toBe(docsPolicy);
   });
 
+  it("states the server's version limit and thinning, not an old one", () => {
+    // The newest migration that sets pane_limit('revisions') and the newest that defines the thinning.
+    const dir = join(__dirname, "../../supabase/migrations");
+    const sql = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort().map((f) => readFileSync(join(dir, f), "utf8"));
+    const limit = sql.flatMap((s) => [...s.matchAll(/when 'revisions'\s+then (\d+)/g)].map((m) => m[1])).at(-1);
+    const thin = sql.filter((s) => s.includes("function public.pane_thin_revisions")).at(-1)!;
+    for (const kept of ["interval '24 hours'", "interval '7 days' and in_hour = 1", "interval '90 days' and (in_day = 1 or ai)"]) expect(thin).toContain(kept);
+    expect(limit).toBe("500");
+    expect(policy).toContain(`up to ${limit} per note`);
+    expect(policy).toContain(`every version from the last 24 hours, then the last one of each hour for 7 days, the last one of each day for 90 days, and every AI change for 90 days. Older versions are deleted. A note keeps at most ${limit} versions and 10 MB of them`);
+    expect(policy).not.toMatch(/up to 100 per note/);
+  });
+
   it("lists the same log retention as the privacy policy", () => {
     for (const l of LOGS) expect(policy.toLowerCase()).toContain(l.kept);
     expect(policy).toContain("no backups");
@@ -117,7 +130,7 @@ describe("privacy copy", () => {
     expect(policy).toMatch(/\| Consent, which you can withdraw at any time with Cookie settings \|/);
   });
 
-  it("is a dark leaf page like the other fine print (Terms, Privacy & Security, Help)", () => {
-    expect(themeFor(PRIVACY_PATH)).toBe("leaf");
+  it("is a cream page that ends in the dark band, like Help and the changelog (site audit, 13 October 2026)", () => {
+    expect(themeFor(PRIVACY_PATH)).toBe("cream");
   });
 });

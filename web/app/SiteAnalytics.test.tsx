@@ -26,7 +26,7 @@ describe("the layout's analytics", () => {
   it("loads PostHog on public pages, on the EU host unless told otherwise", () => {
     vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_test");
     expect(render("/")).toContain('data-posthog="https://eu.i.posthog.com /"');
-    expect(render("/blog/apple-notes-mcp")).toContain("data-posthog");
+    expect(render("/blog/apple-notes-api")).toContain("data-posthog");
     vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://ph.example.com");
     expect(render("/download")).toContain('data-posthog="https://ph.example.com /download"');
   });
@@ -42,13 +42,13 @@ describe("the layout's analytics", () => {
   it("asks about cookies on public pages, and only in a build with PostHog", () => {
     vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_test");
     expect(render("/")).toContain("data-consent");
-    expect(render("/blog/apple-notes-mcp")).toContain("data-consent");
+    expect(render("/blog/apple-notes-api")).toContain("data-consent");
     vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "");
     expect(render("/")).not.toContain("data-consent");
   });
 
   it("loads Vercel Web Analytics on public pages", () => {
-    for (const path of ["/", "/download", "/blog/apple-notes-mcp", "/templates/trip-plan", "/help", "/notes", "/openings"]) {
+    for (const path of ["/", "/download", "/blog/apple-notes-api", "/templates/trip-plan", "/help", "/notes", "/openings"]) {
       expect(render(path), path).toContain("data-vercel");
     }
   });

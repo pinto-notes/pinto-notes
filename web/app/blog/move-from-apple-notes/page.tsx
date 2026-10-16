@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -35,6 +36,9 @@ export default function Page() {
       </ul>
 
       <h2>Import everything on your Mac</h2>
+      <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={460}
+        alt="The Import from Apple Notes sheet in Pinto Notes on a Mac: Copies the notes you pick. Nothing in Apple Notes changes. Every note is listed under its Apple Notes folder, all ticked, with Import 8 Notes."
+        caption="Every note is listed under its folder and ticked. Untick what you don't want, then Import." />
       <ol>
         <li>In Pinto Notes, choose File, then Import from Apple Notes.</li>
         <li>The first time, macOS asks whether Pinto Notes may control Notes. Choose Allow. That&apos;s how it reads your notes. If you chose Don&apos;t Allow by mistake, turn it on in System Settings, Privacy &amp; Security, Automation.</li>
@@ -73,9 +77,8 @@ export default function Page() {
       <ul>
         <li>If you know Apple Notes, you already know Pinto Notes: folders, a note list by date, pins, search and Recently Deleted work the same way.</li>
         <li>Your notes are stored as markdown underneath, formatted on screen.</li>
-        <li>Using Claude Cowork? <a href="/blog/claude-cowork-apple-notes">How to use Claude Cowork with Apple Notes</a> compares staying in Apple Notes with moving.</li>
+        <li>Using Claude? <a href="/blog/claude-and-apple-notes">Can Claude read your Apple Notes?</a> compares staying in Apple Notes with moving.</li>
         <li>Want ChatGPT or Claude to use them? <a href="/blog/connect-chatgpt-to-your-notes">Connect ChatGPT or Claude to your notes</a>. For a coding agent, see <a href="/blog/notes-in-claude-code-and-codex">using your notes from Claude Code and Codex</a>.</li>
-        <li>Still deciding? <a href="/blog/pinto-notes-vs-apple-notes">Pinto Notes vs Apple Notes</a> covers what each one does better.</li>
         <li>Want a copy of your Apple Notes as files too? <a href="/blog/export-apple-notes-to-markdown">Export Apple Notes to Markdown</a> covers the built-in export and tools for every note at once.</li>
       </ul>
     </PostPage>

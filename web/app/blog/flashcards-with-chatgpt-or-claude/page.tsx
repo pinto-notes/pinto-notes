@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("flashcards-with-chatgpt-or-claude", { title: "How to make flashcards with ChatGPT or Claude" });
@@ -65,6 +64,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/pinto/study-flashcards-studying-mac-light" width={1280} height={900} maxWidth={640}
+        alt="A flashcard being studied in the flashcards app in a Pinto Notes note on a Mac: the question, the answer shown, and four buttons, Again, Hard, Good and Easy, each with when the card comes back."
+        caption="Studying in the flashcards template in Pinto Notes. Each grade shows when the card comes back. Example cards." />}
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
@@ -89,15 +91,29 @@ export default function Page() {
       <p>
         Claude has no flashcard view, but it can build a small study app as an artifact in the chat. Ask for &ldquo;a flashcard app
         with these cards: show the question, a button to show the answer, then Knew it and Didn&apos;t know&rdquo;. Before you rely on
-        it, check whether it remembers which cards you missed after you close the chat. The other option in both is a plain table you
-        paste somewhere else, such as Anki.
+        it, check whether it remembers which cards you missed after you close the chat.
+      </p>
+      <p>
+        If you study in Anki, the best route skips copying altogether: <a href="https://ankimcp.ai/" rel="noopener">AnkiMCP</a>, a free,
+        open-source connector, lets ChatGPT or Claude add cards straight into your Anki collection, and{" "}
+        <a href="https://2anki.net/answers/claude-to-anki/" rel="noopener">2anki</a> turns a chat into a deck to import. Both are
+        good, and both put your cards in a separate app from the notes you made them from.
       </p>
 
-      <h2 id="template">Study them in an app your AI can fill</h2>
+      <h2 id="missing">What&apos;s missing</h2>
+      <p>
+        That separation is the part that bugs me. My lecture notes are in one app, the cards in another, and the AI in a third. When I
+        fix a mistake in my notes, the card still says the old thing. When I ask Claude what I keep getting wrong, it can&apos;t see my
+        cards unless I set up yet another connection.
+      </p>
+
+      <h2 id="template">Cards that live next to your notes</h2>
       <p>
         I make Pinto Notes, a notes app for Mac and iPhone that ChatGPT, Claude and Claude Code can read and edit once you allow them.
         A note in it can hold a small app. The <a href="/templates/study-flashcards">Study notes and flashcards template</a> is a note
-        with a flashcard app already built, with sample biology cards to replace.
+        with a flashcard app already built, with sample biology cards to replace. Your lecture notes can sit in the same notebook, so
+        the AI that writes the cards reads the notes they came from, and the one you ask &ldquo;what do I keep getting wrong?&rdquo; sees
+        both, whether that&apos;s ChatGPT or Claude.
       </p>
       <Steps>
         <li>
@@ -111,9 +127,9 @@ export default function Page() {
           plan; Claude connects from its connector directory.
         </li>
         <li>
-          <strong>Paste the template&apos;s prompt, then your notes</strong>
-          &ldquo;Here are my notes on cell respiration&rdquo;, and the lecture notes after it. The AI makes five to ten cards under
-          that topic, all starting in box 1.
+          <strong>Give your AI your notes</strong>
+          &ldquo;Make cards from my notes on cell respiration&rdquo;, with the lecture notes after it. It finds the note, reads the
+          app&apos;s own notes on how cards are kept, and adds them under that topic as new cards.
         </li>
       </Steps>
       <p>
@@ -123,9 +139,9 @@ export default function Page() {
         The cards you know least come first. On a Mac, Space shows the answer and 1 to 4 grade it, so a session goes fast.
       </p>
       <p>
-        You can also say &ldquo;quiz me on biology, ten cards&rdquo; in the chat. The AI asks one card at a time without showing the
-        answer, tells you whether you were right, and moves each card the same way the app does. &ldquo;Which cards do I keep
-        missing?&rdquo; gets an answer from the boxes. No Mac nearby? Copy the template&apos;s prompt instead, and your AI creates the note with its app from any device once Pinto Notes is connected.
+        Away from the app, ask in the chat: &ldquo;Which cards do I keep missing?&rdquo; reads the same cards and grades you see.
+        To change the app itself, ask for that too: &ldquo;Add a reverse mode, answer to question&rdquo; or &ldquo;Let me type
+        the answer before it shows.&rdquo; Your AI edits the app, and the new version shows up in the note.
       </p>
 
       <h2 id="yourself">What you can still do yourself</h2>
@@ -139,8 +155,8 @@ export default function Page() {
       <p>
         Your AI can change the app itself too. It&apos;s a small React project in the note: ask for a &ldquo;reverse the cards&rdquo;
         button and check the result. Pinto Notes runs the app&apos;s tests on every save and only shows a version that passes. If you
-        keep your lecture notes in another app, <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with
-        ChatGPT</a> compares the ones your AI can read.
+        keep your lecture notes in another app, <a href="/blog/notes-apps-with-mcp">notes apps with an MCP
+        server, compared</a> covers the ones your AI can read.
       </p>
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>
@@ -154,9 +170,6 @@ export default function Page() {
         can still say &ldquo;quiz me&rdquo; to ChatGPT or Claude, and it updates the same cards. If you already live in ChatGPT&apos;s
         flashcards or in Anki, that&apos;s fine; the prompt above works with both.
       </p>
-      <PostCta slug="flashcards-with-chatgpt-or-claude" position="how-amber-helps" title="Try the flashcards on your Mac">
-        <p>Paste your notes, let your AI make the cards, and study what&apos;s due.</p>
-      </PostCta>
     </PostPage>
   );
 }

@@ -71,8 +71,8 @@ export const SHOTS = {
 export const posts: Post[] = [
   {
     slug: "siri-ai-apple-notes",
-    title: "Siri AI and Apple Notes: what it can do with your notes",
-    description: "What Siri AI can do with Apple Notes: find, make, proofread and summarize notes, which devices have it, Apple TV and HomeView, and where ChatGPT fits.",
+    title: "Siri AI and Apple Notes: what it can do, and what it can't",
+    description: "Siri AI finds, rewrites and makes notes. What it can do in Apple Notes, what Apple doesn't say, and the one thing it can't: let ChatGPT or Claude in.",
     excerpt: "Siri AI can find your notes and tidy the one you have open. What else it does, where you get it, and what Apple hasn't said yet.",
     category: "Apple Notes",
     date: "2026-10-14",
@@ -83,24 +83,24 @@ export const posts: Post[] = [
   },
   {
     slug: "habit-tracker-with-chatgpt-or-claude",
-    title: "How to make a habit tracker with ChatGPT or Claude (that you can still edit yourself)",
-    description: "Make a habit tracker with ChatGPT or Claude: the prompt for one built in chat, a free template with its own app, and where each one stops working.",
-    excerpt: "Ask your AI to build one in chat, or start from a habit tracker app it can update. The steps for both, and what each can't do.",
+    title: "A habit tracker ChatGPT and Claude can update for you",
+    description: "Habit apps have their own AI coaches, but none let ChatGPT or Claude log your day. A free tracker that does, plus the prompt for one built in chat.",
+    excerpt: "Every habit tracker dies from the ticking. The two ways to let the AI you already talk to fill it in, and the one that keeps working past week three.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.habitApp,
     thumb: thumb("fern", "thumb-app-habit-tracker", 1180, 748, "A habit tracker app in Pinto Notes on a Mac: 2 of 6 habits done today, with streaks and the week"),
     draft: false,
   },
   {
     slug: "budget-tracker-with-chatgpt-or-claude",
-    title: "How to make a budget tracker with ChatGPT or Claude",
-    description: "Make a budget and expense tracker with ChatGPT or Claude: the prompt, a free template with its own app, and what an AI gets wrong about your money.",
-    excerpt: "A budget your AI can add expenses to and you can still edit by hand. The template route, the build-your-own route, and their limits.",
+    title: "A budget ChatGPT and Claude can keep for you",
+    description: "Most budget apps keep their AI to themselves. A free budget ChatGPT and Claude can add your spending to, where the app, not the AI, does the sums.",
+    excerpt: "Budgets fail at writing things down. Tell the AI you already chat with what you spent, and let a real app, not the AI, do the maths.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.budgetApp,
     thumb: thumb("butter", "thumb-app-budget-log", 1180, 748, "A budget app in Pinto Notes on a Mac: 8,205 kr left this month, and the last six months"),
     draft: false,
@@ -112,7 +112,7 @@ export const posts: Post[] = [
     excerpt: "Getting an itinerary out of ChatGPT is easy. Keeping it, with the bookings and the packing list, is the part this post is about.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.tripApp,
     thumb: thumb("harbor", "thumb-app-trip-plan", 1180, 748, "A trip plan app in Pinto Notes on a Mac: Lisbon, 9 days to go, and the first day as a timeline"),
     draft: false,
@@ -124,7 +124,7 @@ export const posts: Post[] = [
     excerpt: "Your AI can turn a chapter into cards in a minute. The prompt that keeps them short, and where to study them so the hard ones come back.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     image: SHOTS.flashcardsApp,
     thumb: thumb("orchid", "thumb-app-study-flashcards", 1180, 748, "A flashcards app in Pinto Notes on a Mac: 8 cards due today and what's coming up"),
     draft: false,
@@ -184,7 +184,7 @@ export const posts: Post[] = [
     excerpt: "Obsidian imports Apple Notes directly, Notion needs a Markdown detour, and Google Keep can't import at all. The steps for each.",
     category: "Apple Notes",
     date: "2026-10-12",
-    updated: "2026-10-12",
+    updated: "2026-10-14",
     image: SHOTS.notesExportMenu,
     thumb: thumb("rust", "thumb-notes-export-to", 800, 528, "The Apple Notes File menu on macOS 27, open at Export To, with Markdown"),
     draft: false,
@@ -202,37 +202,13 @@ export const posts: Post[] = [
     draft: false,
   },
   {
-    slug: "weekly-review-with-chatgpt-or-claude",
-    title: "A weekly review with ChatGPT or Claude: the prompt and five questions",
-    description: "A prompt that makes ChatGPT or Claude run your weekly review: five questions, one at a time, then a short write-up with next week's top three.",
-    excerpt: "The AI asks five questions, you answer, and the week comes back as a few bullets and a top three. One prompt for any AI, and a way to keep every week in one note.",
-    category: "Guides",
-    date: "2026-10-10",
-    updated: "2026-10-10",
-    image: SHOTS.tracker,
-    thumb: thumb("teal", "thumb-tracker-week", 700, 462, "A tracker table in Pinto Notes with mood scores and ticked habits for six days"),
-    draft: false,
-  },
-  {
-    slug: "meeting-notes-to-action-items",
-    title: "Turn meeting notes into action items with ChatGPT or Claude",
-    description: "A prompt that turns rough meeting notes or a transcript into decisions and action items with owners and dates, and how to keep the list ticked off.",
-    excerpt: "Paste rough notes, get decisions and a checklist with an owner and a date on every line. One prompt for any AI, and a way to keep the list alive after the chat.",
-    category: "Guides",
-    date: "2026-10-09",
-    updated: "2026-10-09",
-    image: SHOTS.aiEdit,
-    thumb: thumb("plum", "thumb-checklist-ticked", 700, 462, "A checklist in Pinto Notes with three of its items ticked"),
-    draft: false,
-  },
-  {
     slug: "apple-notes-templates",
     title: "Apple Notes templates: make your own, plus five to copy",
     description: "Apple Notes has no templates, but a folder of notes works. How to set it up on iPhone and Mac, plus five templates that paste in as checklists.",
     excerpt: "No templates button, but a folder of notes does the job. How to set it up, and five templates that paste in with real headings and checklists.",
     category: "Apple Notes",
     date: "2026-10-08",
-    updated: "2026-10-08",
+    updated: "2026-10-14",
     image: { src: "/blog/macos27/notes-templates-window.webp", alt: "Apple Notes on macOS 27 with a Templates folder of five notes, and a Packing list open with three checklists.", width: 1538, height: 984, window: true },
     thumb: thumb("olive", "thumb-notes-templates", 660, 730, "A Packing list note in Apple Notes with Documents, Clothes and Bag checklists"),
     draft: false,
@@ -244,43 +220,31 @@ export const posts: Post[] = [
     excerpt: "Memory is Claude's own summary of you. Notes are your words, on your phone and computer. What each is for, and how to use both.",
     category: "Comparisons",
     date: "2026-10-07",
-    updated: "2026-10-07",
+    updated: "2026-10-14",
     image: { src: "/blog/amber-notes-claude-edit-lisbon.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac, with the line Claude just added tinted and a bar saying Claude changed 1 line, with Undo.", width: 1500, height: 748, window: false, title: "Lisbon" },
     thumb: thumb("slate", "thumb-lisbon-claude", 900, 555, "A Lisbon plan checklist with the line Claude added tinted, and Claude changed 1 line, Undo"),
     draft: false,
   },
   {
-    slug: "shared-memory-for-coding-agents",
-    title: "One memory for Claude Code, Codex and your other agents",
-    description: "Give Claude Code, Codex and other agents one shared memory in a note you can read: connect both, a Project memory note, and who changed what.",
-    excerpt: "A Project memory note that every coding agent reads first and adds to, that you can read too, with each change labelled by the agent that made it.",
-    category: "Guides",
-    date: "2026-10-06",
-    updated: "2026-10-06",
-    image: SHOTS.history,
-    thumb: thumb("denim", "thumb-iphone-agents", 1206, 680, "The note list, with notes edited by Claude Code and by Claude"),
-    draft: false,
-  },
-  {
     slug: "apple-notes-not-syncing",
-    title: "Apple Notes not syncing between iPhone and Mac: how to fix it",
-    description: "Why Apple Notes stops syncing between iPhone and Mac, and the fixes in order: iCloud settings, Apple Account, note account, storage, iOS 27 updates.",
+    title: "Apple Notes not syncing between iPhone and Mac? 6 checks",
+    description: "Find which device is at fault in a minute, then six checks in order, including the iOS 27 message that looks like a sync failure but isn't one.",
     excerpt: "A note from your iPhone isn't on your Mac. Three questions find the cause, then six checks in order, plus shared notes that won't update.",
     category: "Apple Notes",
     date: "2026-10-05",
-    updated: "2026-10-09",
+    updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
     thumb: thumb("lagoon", "thumb-notes-sync-default-account", 800, 528, "Apple Notes settings on a Mac with Default account set to iCloud"),
     draft: false,
   },
   {
     slug: "apple-notes-tables",
-    title: "Tables in Apple Notes: what you can and can't do",
-    description: "How tables work in Apple Notes on iPhone and Mac: adding rows and columns, column width, sums and formulas, and what to do when you need more.",
-    excerpt: "Apple Notes tables are simple on purpose: no column widths, no sums, no formulas. What they do, what they don't, and the workarounds that hold up.",
+    title: "Apple Notes tables: sums, sorting and the trick for totals",
+    description: "Apple Notes can't sum a table column, but there's a trick that gets you a total anyway. Plus rows, sorting and widths, tested on macOS 27.",
+    excerpt: "I planned a move in an Apple Notes table and hit the wall at the total. Every table action with screenshots, the trick that adds it up anyway, and where Notes runs out.",
     category: "Apple Notes",
     date: "2026-10-04",
-    updated: "2026-10-12",
+    updated: "2026-10-14",
     image: SHOTS.notesTableMenu,
     thumb: thumb("lemon", "thumb-notes-format-table-menu", 800, 528, "The Apple Notes Format menu on a Mac, open at Table"),
     draft: false,
@@ -299,12 +263,12 @@ export const posts: Post[] = [
   },
   {
     slug: "move-apple-notes-to-icloud",
-    title: "How to move Apple Notes from On My iPhone or Gmail to iCloud",
-    description: "Move notes from On My iPhone or Gmail into iCloud on iPhone or Mac, and what to check first for locked notes and Gmail notes.",
+    title: "Move Apple Notes to iCloud from On My iPhone or Gmail",
+    description: "Notes under On My iPhone or Gmail never reach your Mac. How to move them into iCloud on iPhone or Mac, and what to check first for locked notes.",
     excerpt: "Notes in On My iPhone or Gmail stay put until you move them. The taps on iPhone, the drag on a Mac, what can get lost on the way, and a checklist for afterwards.",
     category: "Apple Notes",
     date: "2026-10-02",
-    updated: "2026-10-10",
+    updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
     thumb: thumb("sky", "thumb-notes-default-account", 800, 528, "Apple Notes settings on a Mac with Default account set to iCloud"),
     draft: false,
@@ -316,55 +280,31 @@ export const posts: Post[] = [
     excerpt: "iCloud keeps your notes in sync, which isn't the same as a copy you can go back to. What actually backs up Apple Notes, and a routine to follow.",
     category: "Apple Notes",
     date: "2026-10-02",
-    updated: "2026-10-02",
+    updated: "2026-10-14",
     image: SHOTS.notesExportMenu,
     thumb: thumb("mint", "thumb-notes-export-menu", 800, 528, "The Apple Notes File menu open at Export as, with Markdown selected"),
     draft: false,
   },
   {
-    slug: "claude-cowork-apple-notes",
-    title: "How to use Claude Cowork with Apple Notes",
-    description: "How Claude Cowork reaches Apple Notes today: Anthropic's Mac extension, what it can't do from your phone, and a connector that works on every device.",
-    excerpt: "Cowork can use Apple Notes on a Mac, through Anthropic's extension. From your phone it's harder. The options, and when the extension is enough.",
-    category: "Apple Notes",
-    date: "2026-10-01",
-    updated: "2026-10-02",
-    image: SHOTS.coworkAllow,
-    thumb: thumb("rose", "thumb-cowork-apple-notes", 800, 528, "The macOS prompt asking to let Claude control Notes"),
-    draft: false,
-  },
-  {
     slug: "recover-deleted-apple-notes",
-    title: "How to recover deleted Apple Notes, including after 30 days",
-    description: "Get back deleted Apple Notes from Recently Deleted on iPhone, Mac and iCloud.com, what works after 30 days, and why Gmail notes and locked notes are different.",
+    title: "Recover deleted Apple Notes: within 30 days, and after",
+    description: "Within 30 days it's in Recently Deleted on any device or iCloud.com. After that, the few cases that still work, and which recovery apps to avoid.",
     excerpt: "Within 30 days it's almost always in Recently Deleted. After that, what still works, what doesn't, and what recovery apps won't tell you.",
     category: "Apple Notes",
     date: "2026-10-01",
-    updated: "2026-10-07",
+    updated: "2026-10-14",
     image: SHOTS.history,
     thumb: thumb("night", "thumb-restore-dark", 846, 558, "An earlier version of a Groceries note in Pinto Notes, in dark mode"),
     draft: false,
   },
   {
-    slug: "connect-notes-to-gemini",
-    title: "Connect your notes to Gemini with MCP",
-    description: "Use your notes in Gemini CLI with one command and an approval on your iPhone or Mac, and what Google says about adding MCP servers to the Gemini app.",
-    excerpt: "Gemini CLI takes one command. The Gemini app can add MCP servers too, with conditions. Both, and what I could and couldn't check.",
-    category: "Guides",
-    date: "2026-10-01",
-    updated: "2026-10-01",
-    image: SHOTS.connectList,
-    thumb: thumb("linen", "thumb-consent-local", 826, 545, "Pinto Notes asking to let an app on this computer use your notes"),
-    draft: false,
-  },
-  {
     slug: "forgot-apple-notes-password",
-    title: "Forgot your Apple Notes password? What works, and what doesn't",
-    description: "What to try before you reset a forgotten Apple Notes password, how to reset it on iPhone and Mac, and why Apple and unlock tools can't open old locked notes.",
+    title: "Forgot your Apple Notes password? 5 things to try first",
+    description: "A reset won't unlock your old locked notes, which most guides skip. Five things that can still get you in on iPhone and Mac, then how to reset safely.",
     excerpt: "Try these first, then reset. Resetting lets you lock new notes, but it never opens the old ones. Nobody can, and here's why.",
     category: "Apple Notes",
     date: "2026-10-01",
-    updated: "2026-10-01",
+    updated: "2026-10-14",
     image: SHOTS.notesPassword,
     thumb: thumb("pearl", "thumb-notes-password", 896, 591, "Pinto Notes asking you to create a password for locked notes"),
     draft: false,
@@ -382,27 +322,15 @@ export const posts: Post[] = [
     draft: false,
   },
   {
-    slug: "chatgpt-memory-vs-notes",
-    title: "ChatGPT memory vs a notes app ChatGPT can read",
-    description: "What ChatGPT memory keeps, what it doesn't, and when you want notes ChatGPT can read and write instead: exact text, on your phone, with history.",
-    excerpt: "Memory is ChatGPT's own summary of you. Notes are your words, where you can read them. What each is good for, and how to use both.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.historyBurst,
-    thumb: thumb("fog", "thumb-lisbon-chatgpt", 731, 482, "A Lisbon plan checklist with the line ChatGPT added tinted"),
-    draft: false,
-  },
-  {
     slug: "apple-notes-ios-27",
     title: "What's new in Apple Notes in iOS 27, and how to use it",
-    description: "New in Apple Notes in iOS 27 and macOS 27: divider lines, section links, Markdown copy and paste, and Siri AI that finds, adds to and reformats notes.",
-    excerpt: "Divider lines, section links, Markdown in and out, and a Siri that can find your notes and write into them. What changed, and how to use it.",
+    description: "New in Apple Notes in iOS 27 and macOS 27: divider lines, links to sections, Paste and Copy as Markdown, and Export To. Each one with a screenshot.",
+    excerpt: "Divider lines, links that jump to a heading, and Markdown that pastes in formatted. Each new feature with a screenshot and the menu to find it.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.notesExportMenu,
-    thumb: thumb("wheat", "thumb-lisbon-food", 744, 491, "A table of places to eat in Lisbon, in a note"),
+    updated: "2026-10-14",
+    image: { src: "/blog/macos27/notes27-garden-note.webp", alt: "A Spring garden plan note in Apple Notes on macOS 27, with a link to the Seeds to order section at the top and divider lines between its sections.", width: 1400, height: 993, window: false },
+    thumb: thumb("wheat", "thumb-notes27-garden", 800, 500, "An Apple Notes note on macOS 27 with a section link and a divider line"),
     draft: false,
   },
   {
@@ -412,7 +340,7 @@ export const posts: Post[] = [
     excerpt: "Apple Notes exports Markdown on its own now, one note at a time. The steps on Mac and iPhone, what to check, and what to use for all of them.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-09-30",
+    updated: "2026-10-14",
     image: SHOTS.welcome,
     thumb: thumb("blush", "thumb-markdown-title", 714, 471, "The Welcome to Pinto Notes note, written in Markdown"),
     draft: false,
@@ -420,11 +348,11 @@ export const posts: Post[] = [
   {
     slug: "connect-chatgpt-to-your-notes",
     title: "How to connect ChatGPT to your notes",
-    description: "Let ChatGPT or Claude read and update your notes on iPhone and Mac. What you need, the steps, and how you stay in control.",
-    excerpt: "Ask ChatGPT to add to a list or tidy a note, and the change lands in your notes. The steps for ChatGPT and Claude, and how you stay in control.",
+    description: "What ChatGPT can do with Apple Notes, Notion and Google Drive today, where each stops, and how to let it write to your notes from any chat.",
+    excerpt: "Where ChatGPT can reach your notes today (Apple Notes, Notion, Drive), where it stops, and the setup that lets its changes land in your notes.",
     category: "Guides",
     date: "2026-09-30",
-    updated: "2026-10-12",
+    updated: "2026-10-14",
     image: SHOTS.connectChatGPT,
     thumb: thumb("paper", "thumb-connect-chatgpt", 704, 572, "The steps to connect ChatGPT in Pinto Notes"),
     draft: false,
@@ -436,7 +364,7 @@ export const posts: Post[] = [
     excerpt: "On a Mac, yes. On iPhone and in the browser, no. Why it depends on where you use Claude, and what each option can and can't do.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-02",
+    updated: "2026-10-14",
     image: SHOTS.connectClaude,
     thumb: thumb("leaf", "thumb-connect-claude", 704, 451, "The steps to connect Claude in Pinto Notes"),
     draft: false,
@@ -448,21 +376,9 @@ export const posts: Post[] = [
     excerpt: "Notion, Evernote, Bear, Obsidian, Apple Notes and more: which ones your AI can reach from your phone, and what happens when it gets an edit wrong.",
     category: "Comparisons",
     date: "2026-09-30",
-    updated: "2026-10-01",
+    updated: "2026-10-14",
     image: SHOTS.aiEdit,
     thumb: thumb("dunes", "thumb-ai-rows", 733, 533, "A grocery checklist with the five lines an AI added tinted"),
-    draft: false,
-  },
-  {
-    slug: "apple-notes-mcp",
-    title: "Apple Notes MCP servers compared (2026)",
-    description: "There's no official Apple Notes MCP server. Which community one to use, the commands for Claude Code, Codex and Claude, and why none reach iPhone or iCloud.",
-    excerpt: "Apple doesn't make one, so every Apple Notes MCP server is a community project on your Mac. Which to use, the commands, and where none of them reach.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-08",
-    image: SHOTS.history,
-    thumb: thumb("sage", "thumb-history-list", 640, 973, "Version history for a note, listing who made each version"),
     draft: false,
   },
   {
@@ -484,33 +400,21 @@ export const posts: Post[] = [
     excerpt: "Bring every note over in one go on your Mac, folders and pins included. Nothing in Apple Notes changes, so you can take your time.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-12",
+    updated: "2026-10-14",
     image: SHOTS.importSheet,
     thumb: thumb("soft", "thumb-import", 750, 523, "Notes picked for import from Apple Notes into Pinto Notes"),
     draft: false,
   },
   {
     slug: "notes-in-claude-code-and-codex",
-    title: "Use your notes from Claude Code and Codex",
-    description: "Add Pinto Notes to Claude Code or Codex in one step, and let your coding agent read and write your notes.",
-    excerpt: "Let your coding agent write the standup or keep a work log, in the same notes you read on your phone. One command for Claude Code, a few lines for Codex.",
+    title: "Your notes in Claude Code and Codex, in one command",
+    description: "Give Claude Code and Codex your notes with one command, so they write the standup and remember decisions you can read on your phone.",
+    excerpt: "Claude Code starts every session from zero. One command gives it, and Codex, the same notes you read on your phone.",
     category: "Guides",
     date: "2026-09-30",
-    updated: "2026-10-01",
+    updated: "2026-10-14",
     image: SHOTS.connectList,
     thumb: thumb("dark", "thumb-connect-list", 704, 566, "Connect an AI in Pinto Notes: ChatGPT, Claude, Claude Code and Codex"),
-    draft: false,
-  },
-  {
-    slug: "pinto-notes-vs-apple-notes",
-    title: "Pinto Notes vs Apple Notes",
-    description: "What Pinto Notes adds, what Apple Notes still does better, and who each one is for.",
-    excerpt: "Pinto Notes is built to feel like Apple Notes, with a few things it always missed. Where they differ, including what Apple Notes still does better.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.history,
-    thumb: thumb("tint", "thumb-iphone-history", 1313, 956, "Version history on iPhone, with a version by ChatGPT"),
     draft: false,
   },
   {
@@ -527,26 +431,14 @@ export const posts: Post[] = [
   },
   {
     slug: "apple-notes-api",
-    title: "Apple Notes API: what exists and what to use instead",
-    description: "Apple Notes has no public API. What you can use on a Mac and iPhone (AppleScript, Shortcuts, export), what each can do, and when to use a notes app with an API.",
-    excerpt: "Apple Notes has no public API. What you can do with AppleScript and Shortcuts, what you can't, and what to use when you need more.",
+    title: "Apple Notes API: Apple says no. Here's what works instead",
+    description: "Apple confirmed in 2026 that Notes has no API. What works instead (AppleScript, Shortcuts, Claude on a Mac), and how to let ChatGPT and Claude use your notes.",
+    excerpt: "Apple's own answer, in one word, and every way around it that works today: AppleScript, Shortcuts and Claude on a Mac. Plus the one thing none of them can do.",
     category: "Apple Notes",
     date: "2026-09-30",
-    updated: "2026-10-01",
+    updated: "2026-10-14",
     image: SHOTS.connectList,
     thumb: thumb("ink", "thumb-markdown", 804, 531, "Markdown checklists, bullets and inline code in a note"),
-    draft: false,
-  },
-  {
-    slug: "notes-apps-that-work-with-chatgpt",
-    title: "Notes apps that work with ChatGPT",
-    description: "Which notes apps ChatGPT can search and write to in 2026, compared fairly: Notion, OneNote, Evernote, Apple Notes, Google Keep, Pinto Notes and more.",
-    excerpt: "\u201cWorks with ChatGPT\u201d can mean reading the note you have open, or searching and editing all of them. The main notes apps, compared.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.iphoneList,
-    thumb: thumb("peach", "thumb-iphone-chatgpt", 1278, 908, "The note list on iPhone, with Groceries edited by ChatGPT"),
     draft: false,
   },
   {
@@ -556,57 +448,9 @@ export const posts: Post[] = [
     excerpt: "Remote MCP, precise writes, undo, approval and a phone app to read the results: the criteria that matter, and how the options compare.",
     category: "Comparisons",
     date: "2026-09-30",
-    updated: "2026-10-02",
+    updated: "2026-10-14",
     image: SHOTS.tracker,
     thumb: thumb("cream", "thumb-tracker", 708, 749, "An evening tracker table with a row per day"),
-    draft: false,
-  },
-  {
-    slug: "apple-notes-vs-notion",
-    title: "Apple Notes vs Notion for everyday notes (and where AI fits)",
-    description: "Apple Notes and Notion compared for everyday notes: speed, devices, offline, price, built-in AI, and whether ChatGPT and Claude can use them.",
-    excerpt: "One is where a thought goes in two seconds, the other is where a project lives. How they compare, and what changes once you want your AI to use them.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.lisbon,
-    thumb: thumb("sand", "thumb-lisbon", 643, 520, "A Lisbon trip note with a plan checklist"),
-    draft: false,
-  },
-  {
-    slug: "apple-notes-vs-obsidian",
-    title: "Apple Notes vs Obsidian",
-    description: "Apple Notes and Obsidian compared fairly: local markdown files and plugins, iCloud and speed, sync, price, and AI access.",
-    excerpt: "Obsidian gives you markdown files and plugins; Apple Notes gives you speed and iCloud. Where each one wins, and where AI fits.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.iphoneFiles,
-    thumb: thumb("mist", "thumb-iphone-files", 1238, 831, "A note on iPhone holding a PDF and a CSV file, in dark mode"),
-    draft: false,
-  },
-  {
-    slug: "chatgpt-to-do-list-on-iphone",
-    title: "How to use ChatGPT as a to-do list that syncs to your iPhone",
-    description: "Ask ChatGPT to add, tick and tidy your to-dos, and see the checklist on your iPhone and Mac. The setup, the prompts, and how to share a list.",
-    excerpt: "Tell ChatGPT what needs doing and it lands in a checklist you can tick on your phone. The setup, prompts that work, and sharing a list.",
-    category: "Guides",
-    date: "2026-09-30",
-    updated: "2026-10-01",
-    image: SHOTS.iphoneGroceries,
-    thumb: thumb("honey", "thumb-iphone-groceries", 1278, 970, "A Groceries checklist on iPhone with the lines ChatGPT added tinted"),
-    draft: false,
-  },
-  {
-    slug: "work-log-with-claude-code",
-    title: "Keep a work log with Claude Code",
-    description: "Let Claude Code write your standup, keep a daily log and fill in a tracker in your notes, with one instruction and the Pinto Notes MCP server.",
-    excerpt: "Your standup, a daily log and a tracker, written by Claude Code as you work, in notes you can read on your phone.",
-    category: "Guides",
-    date: "2026-09-30",
-    updated: "2026-09-30",
-    image: SHOTS.standup,
-    thumb: thumb("clay", "thumb-standup", 902, 595, "Standup notes with the line Claude Code added tinted"),
     draft: false,
   },
   {
@@ -635,6 +479,16 @@ export const published = () => posts.filter((p) => !p.draft);
 export const categories = (): Category[] =>
   (["Guides", "Apple Notes", "Comparisons", "Building Pinto Notes"] as Category[]).filter((c) => published().some((p) => p.category === c));
 
+/// Each category's paper-craft cover (public/art, 1672 x 941): the top of every post in it that has no
+/// banner of its own, and its cards and chip on the blog's lists, until posts get covers of their own.
+export type Cover = { src: string; alt: string; width: number; height: number };
+export const CATEGORY_COVERS: Record<Category, Cover> = {
+  "Guides": { src: "/art/blog-guides.webp", alt: "A paper-cut chat bubble passing a folded note into an open notebook on a blue desk.", width: 1672, height: 941 },
+  "Comparisons": { src: "/art/blog-comparisons.webp", alt: "Two paper notebooks, one green and one brown, weighed on a paper balance scale in green hills.", width: 1672, height: 941 },
+  "Apple Notes": { src: "/art/blog-applenotes.webp", alt: "A yellow paper notepad with a leaf bookmark beside a cup of tea.", width: 1672, height: 941 },
+  "Building Pinto Notes": { src: "/art/blog-building.webp", alt: "A paper-cut workbench with scissors, glue and a paper leaf being put together.", width: 1672, height: 941 },
+};
+
 export const categoryAnchor = (c: Category) => c.toLowerCase().replace(/\s+/g, "-");
 
 /// The category's own page, which lists its posts (paged like the index).
@@ -650,13 +504,49 @@ export function newestFirst(list: Post[] = published()): Post[] {
   return list.map((p, i) => [p, i] as const).sort((a, b) => b[0].date.localeCompare(a[0].date) || a[1] - b[1]).map(([p]) => p);
 }
 
-export const pageCount = (list: Post[]) => Math.max(1, Math.ceil(list.length / PER_PAGE));
+/// Page 1 leads with its newest post as one wide card, then a full grid: one more post than the
+/// other pages, so its grid of three across ends on a full row.
+export const FIRST_PAGE = PER_PAGE + 1;
+
+/// A last page of this many posts or fewer joins the page before it, so no page holds a stray card or two.
+export const FOLD = 2;
+
+/// Where each page of a list starts, and the end: page 1 holds FIRST_PAGE, the rest PER_PAGE, and a
+/// small remainder (FOLD or fewer) stays on the page before it.
+function bounds(length: number): number[] {
+  const b = [0];
+  let at = Math.min(FIRST_PAGE, length);
+  while (at < length) { b.push(at); at = Math.min(at + PER_PAGE, length); }
+  if (b.length > 1 && length - b[b.length - 1] <= FOLD) b.pop();
+  return [...b, length];
+}
+
+export const pageCount = (list: Post[]) => Math.max(1, bounds(list.length).length - 1);
 
 /// Page `n` (from 1) of a list.
-export const pageOf = (list: Post[], n: number) => list.slice((n - 1) * PER_PAGE, n * PER_PAGE);
+export const pageOf = (list: Post[], n: number) => {
+  const b = bounds(list.length);
+  return n < 1 || n >= b.length ? [] : list.slice(b[n - 1], b[n]);
+};
 
 /// Where page `n` of a list lives: the list's own address for page 1, then <base>/page/<n>.
 export const pagePath = (base: string, n: number) => (n === 1 ? base : `${base}/page/${n}`);
+
+/// The highest page number the blog has ever had, generously: pages past a list's last page, up to
+/// here, redirect to its last page (next.config.ts), so an address that was live and indexed before
+/// a list shrank (posts removed, or a short last page folded) never turns into a 404.
+export const MAX_PAGE_EVER = 12;
+
+/// One permanent redirect for every page number past each list's last page: to that last page, or
+/// to the list itself when it has one page.
+export function pastLastPageRedirects(): { source: string; destination: string; permanent: true }[] {
+  const all = newestFirst();
+  const lists = [{ base: "/blog", posts: all }, ...categories().map((c) => ({ base: categoryPath(c), posts: all.filter((p) => p.category === c) }))];
+  return lists.flatMap(({ base, posts }) => {
+    const last = pageCount(posts);
+    return Array.from({ length: Math.max(0, MAX_PAGE_EVER - last) }, (_, i) => ({ source: `${base}/page/${last + 1 + i}`, destination: pagePath(base, last), permanent: true as const }));
+  });
+}
 
 /// Two other published posts to read next: the same category first, then the rest, in list order.
 export function morePosts(slug: string, n = 2): Post[] {

@@ -35,5 +35,7 @@ for old in "/Applications/Pinto Notes.app" "/Applications/Amber Notes.app"; do
   rm -rf "$old"
 done
 cp -R "$app" "/Applications/Pinto Notes.app"
+# This Mac is the team's: its telemetry says internal: true, so testing stays out of the numbers.
+defaults write "$(defaults read "/Applications/Pinto Notes.app/Contents/Info" CFBundleIdentifier)" PintoInternal -bool YES
 open "/Applications/Pinto Notes.app"
 echo "Installed /Applications/Pinto Notes.app ($(codesign -dv "/Applications/Pinto Notes.app" 2>&1 | grep TeamIdentifier))"

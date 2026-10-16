@@ -1,15 +1,16 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure } from "@/lib/PostParts";
+import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("budget-tracker-with-chatgpt-or-claude", { title: "How to make a budget tracker with ChatGPT or Claude" });
+export const metadata = postMetadata("budget-tracker-with-chatgpt-or-claude", { title: "A budget ChatGPT and Claude can keep for you" });
 
 // Checked on 13 October 2026 against the Budget and expenses template on main (Mac 1.2.26):
 // content/templates/budget-log.json (prompt, asks) and budget-log.app (README.md, docs/README.md: Month,
 // Expenses and Budget screens; add, edit, delete expenses with Undo; add, rename, remove categories; budget
 // per category; currency; monthly bills added on their day; roll-over; a six-month chart; no income,
 // per-month budgets or export; no bank connection). Re-checked on growth/apps-bar for the upgraded app.
+// YNAB checked 14 Oct: no official MCP server or ChatGPT app; community MCP servers with API tokens exist (usecarly, GitHub).
 // The sums are computed by the app (src/lib/budget.ts), not by the AI. The iPhone app isn't on the App Store
 // yet. What ChatGPT and Claude build in a chat is described as what you can check yourself.
 
@@ -45,119 +46,93 @@ export default function Page() {
   return (
     <PostPage
       slug="budget-tracker-with-chatgpt-or-claude"
-      intro={<>A budget only works if logging an expense takes less effort than skipping it. Saying &ldquo;412 on groceries&rdquo; to your AI is about as little effort as it gets, as long as the number lands somewhere that adds up correctly.</>}
-      caption="The budget template's app in Pinto Notes on a Mac. The app does the sums; you or your AI add the expenses."
+      intro={<>
+        Budgets fail at the same step as habit trackers: writing things down. I&apos;d buy coffee, mean to log it, and forget. What finally
+        worked was telling the AI I already chat with, &ldquo;spent 85 on the bus card&rdquo;, and having a real budget update itself. Here&apos;s
+        how to get there, and why I don&apos;t let the AI do the maths.
+      </>}
       answer={
         <Answer jump={[
           { href: "#in-chat", label: "Build one in the chat" },
-          { href: "#sums", label: "Who does the sums" },
-          { href: "#template", label: "Start from the template" },
-          { href: "#yourself", label: "Edit it yourself" },
+          { href: "#missing", label: "What's missing" },
+          { href: "#template", label: "A budget your AI keeps" },
+          { href: "#ai-logs", label: "Talk to it" },
           { href: "#limits", label: "Limits" },
         ]}>
           <p>
-            Paste a prompt with your categories and monthly amounts into ChatGPT or Claude and it builds a small budget tracker, or
-            a spreadsheet. That&apos;s fine for trying a layout. For a budget you keep all year, use one where you can add and fix
-            expenses by hand, your AI can add them when you tell it, and the totals come from the app, not from the AI&apos;s
-            arithmetic. The free Budget and expenses template for Pinto Notes works that way.
+            ChatGPT and Claude can build a budget tracker in one message, but it lives in that chat, and every sum is the AI&apos;s guess.
+            Budgeting apps mostly keep their own AI; YNAB, for one, has no official ChatGPT app, only unofficial bridges developers set
+            up with an API token. A budget in Pinto Notes is built for it: you tell
+            your AI what you spent, it adds the expense, and the app does the sums.
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/pinto/budget-log-main-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Budget and expenses app in a Pinto Notes note on a Mac: what's left this month as one big number with a bar, spending by category against each budget, a six-month chart and the month's bills."
+        caption="The budget template in Pinto Notes. Tell your AI what you spent; the app keeps the totals. Example data." />}
       faq={FAQ}
     >
-      <h2 id="in-chat">Route 1: ask ChatGPT or Claude to build one</h2>
+      <h2 id="in-chat">Ask ChatGPT or Claude to build one</h2>
       <p>
-        Start with the categories you already think in and a monthly amount for each. Five or six categories is plenty; with
-        fifteen you spend the month deciding whether coffee is Eating out or Fun.
+        Give it your categories and monthly amounts and you&apos;ll get a spreadsheet to download or a little app in the chat. It&apos;s a
+        quick way to see a layout.
       </p>
       <Keep title="A budget tracker prompt" text={PROMPT}
-        note="Change the currency, categories and amounts to yours. The amount-first Add button is what makes logging quick." />
+        note="Swap in your own categories and amounts. Fewer categories is easier to keep up." />
       <p>
-        Claude shows the result as an artifact you can click through. ChatGPT gives you code in a canvas, or a spreadsheet if you
-        ask for one, with formulas you can check. Before you trust either, add three expenses, then close the chat and come back.
-        If they&apos;re gone, the tracker keeps nothing between visits. A spreadsheet keeps everything, but it lives in your
-        Downloads folder, and the AI only sees it when you upload it again.
+        Two checks before you trust it. Add an expense, close the chat and come back tomorrow: is it still there? And add up one category
+        by hand. An AI writing numbers into a chat can get a sum wrong without telling you.
       </p>
 
-      <h2 id="sums">Let the app do the sums</h2>
+      <h2 id="missing">What&apos;s missing</h2>
       <p>
-        A language model is good at turning &ldquo;85 on the bus card and a 412 grocery shop&rdquo; into two tidy rows. It&apos;s less
-        reliable at adding forty numbers in its head, and a budget is mostly adding. So whatever you build, I&apos;d keep one rule:
-        the AI writes rows, and code adds them up. In a spreadsheet that means formulas. In an app it means the totals are computed
-        from the expenses every time the screen opens, so a wrong total can only come from a wrong expense, and you can find that
-        one and fix it.
+        The budgeting apps are good at budgets and mostly closed to everything else. Their AI is their own. YNAB has no official ChatGPT
+        app; the unofficial ones need an API token and a developer&apos;s patience. A spreadsheet is open, but the AI only sees it when you
+        upload it again.
+      </p>
+      <p>
+        What I wanted: a budget I can open and change like any app, that does its own arithmetic, and that the AI I&apos;m already talking
+        to can add to from my phone the moment I pay for something.
       </p>
 
-      <h2 id="template">Route 2: start from the budget template</h2>
+      <h2 id="template">A budget your AI keeps</h2>
       <p>
-        I make Pinto Notes, a notes app for Mac and iPhone that ChatGPT, Claude and Claude Code can read and edit once you allow
-        them. A note in it can hold a small app. The <a href="/templates/budget-log">Budget and expenses template</a> is a note
-        with a budget app already built, with sample categories and a month of sample expenses to replace.
+        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for Mac and iPhone. It&apos;s a
+        note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect
+        ChatGPT</a> or Claude once.
       </p>
-      <Steps>
-        <li>
-          <strong>Choose Start budgeting on the template page</strong>
-          On a Mac with Pinto Notes, it opens the app and adds a &ldquo;Budget and expenses&rdquo; note, with its app, to the folder you pick.
-        </li>
-        <li>
-          <strong>Connect ChatGPT or Claude</strong>
-          Once, with Read and Edit. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT</a> needs Developer mode on a paid
-          plan; Claude connects from its connector directory.
-        </li>
-        <li>
-          <strong>Paste the template&apos;s prompt into a chat</strong>
-          It tells the AI where the expenses are kept and that every expense needs a date, what it was, a category from your list,
-          and an amount.
-        </li>
-      </Steps>
+      <PostFigure src="/blog/pinto/budget-log-expenses-mac-light" width={1280} height={900} maxWidth={640}
+        alt="The Expenses list of the budget app on a Mac for October: each expense by day with its category and amount, and a delete button."
+        caption="Every expense this month, on a Mac. Edit or delete any of them." />
+      <PostFigure src="/blog/pinto/budget-log-budget-phone-light" width={780} height={1688} maxWidth={320}
+        alt="The Budget screen on a phone: each category with its monthly budget, which you can change, and monthly bills."
+        caption="Your categories and budgets, on a phone. Change any of them yourself." />
       <p>
-        Then talk to it the way you&apos;d text a partner: &ldquo;Spent 412 on groceries and 85 on the bus card today.&rdquo; The AI
-        adds two expenses, and the Month screen shows the new total. &ldquo;How am I doing against the budget this month?&rdquo; gets
-        you an answer from the same numbers the app shows. At the end of the month it compares each category with its budget
-        and gives one suggestion. The prompt tells it not to give financial advice beyond that.
-      </p>
-      <p>
-        No Mac nearby? The template page also has the prompt to copy. It asks your AI to create the note with its app, so it works
-        from ChatGPT or Claude on any device once Pinto Notes is connected.
+        You stay in charge: add, edit and delete expenses, rename categories and change their budgets, add rent once as a monthly bill,
+        and turn on roll-over if you want what&apos;s left to carry into next month.
       </p>
 
-      <h2 id="yourself">What you can still do yourself</h2>
+      <h2 id="ai-logs">Talk to it</h2>
+      <ul>
+        <li>&ldquo;Spent 412 on groceries and 85 on the bus card.&rdquo;</li>
+        <li>&ldquo;How am I doing on eating out this month?&rdquo;</li>
+        <li>&ldquo;Add rent as a monthly bill on the 25th.&rdquo;</li>
+      </ul>
       <p>
-        Month is the first screen: what&apos;s left as a number and a bar, about how much a day that leaves, and each category against
-        its budget. Next to it, a bar for each of the last six months and a line like &ldquo;600 kr less than September by the
-        13th&rdquo;, which is the comparison that matters halfway through a month. Add expense starts on the amount. On Expenses,
-        every expense of the month is listed by day; tap one to change it, or delete it, and Undo appears at the top of the
-        screen. Earlier months are one tap back.
-      </p>
-      <p>
-        Rent and subscriptions go in once. Turn on Every month when you add one, or add it under Every month on the Budget tab,
-        and the app adds its expense on that day each month. Until then it&apos;s listed as due, and the per-day figure counts it.
-        Roll over what&apos;s left is a single switch: what you didn&apos;t spend in a category carries into next month, and what you
-        overspent comes off it.
-      </p>
-      <p>
-        Budget is also where you add, rename and remove categories, change each monthly amount, and set the currency. A removed category
-        keeps its expenses, so last month&apos;s total doesn&apos;t change under you. If the template&apos;s layout isn&apos;t right,
-        ask your AI to change the app itself: it&apos;s a small React project in the note, and Pinto Notes runs its tests on every save
-        and only shows a version that passes.
+        The AI adds two expenses; the app works out what&apos;s left. That split is the point: the AI understands what you said, and the
+        app does the arithmetic, so the number on the screen is never a guess. Ask Claude next week how the month went, and it reads the
+        same budget ChatGPT filled in.
       </p>
 
-      <h2 id="limits">What it doesn&apos;t do yet</h2>
+      <h2 id="limits">Limits</h2>
       <p>
-        It connects to no bank and imports nothing. Every expense is one you or your AI added. If you want your card spending pulled in automatically, use your bank&apos;s app or a budgeting app
-        for that. There&apos;s no income, no savings goal per category and no budget that changes from month to month,
-        and there&apos;s no CSV export yet. Over budget is shown in red, but nothing alerts you.
+        No bank connection: you, or your AI, add each expense. No income tracking yet. Connecting ChatGPT needs a paid plan with custom apps.
+        {APP_STORE_LIVE
+          ? <> Pinto Notes is free on Mac and iPhone.</>
+          : <> Pinto Notes is free on the Mac today; the iPhone app is coming soon, and ChatGPT and Claude can still add expenses from your phone.</>}{" "}
+        For daily habits, the same idea is <a href="/blog/habit-tracker-with-chatgpt-or-claude">a habit tracker your AI can update</a>, and{" "}
+        <a href="/blog/apple-notes-tables">Apple Notes tables</a> explains why a plain table can&apos;t add up.
       </p>
-      <p>
-        The iPhone app isn&apos;t on the App Store yet, so the budget app opens on a Mac with macOS 26 or later. ChatGPT and Claude
-        can still log expenses from your phone, because they reach the note through the connection, not the app. Notes, and the
-        app&apos;s data with them, are end-to-end encrypted on your devices; see <a href="/blog/encrypted-notes-app-for-ai">what an
-        AI can read</a> while it works. For bills to pay and other money errands, <a href="/blog/chatgpt-to-do-list-on-iphone">a
-        ChatGPT to-do list</a> works the same way.
-      </p>
-      <PostCta slug="budget-tracker-with-chatgpt-or-claude" position="how-amber-helps" title="Try the budget template on your Mac">
-        <p>A budget app in a note: add expenses yourself, or tell your AI what you spent.</p>
-      </PostCta>
     </PostPage>
   );
 }

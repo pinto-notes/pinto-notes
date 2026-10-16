@@ -4,6 +4,8 @@ import { LongPage, SectionHeading } from "@/lib/LegalPage";
 import { pageMetadata, SUPPORT_EMAIL } from "@/lib/site";
 import { AI_ACCESS, CAVEAT, COUNTS, ENCRYPTION, FACTS, LIMITS, LOGS, PRIVACY_PATH, READABLE, WHO_CAN_SEE } from "@/lib/privacy";
 import s from "./privacy.module.css";
+import { ClosingBand } from "@/lib/ClosingBand";
+import { PageHero } from "@/lib/PageHero";
 
 // Privacy & Security for people, not lawyers: what we store, who can see it, which logs exist.
 // The facts live in lib/privacy.ts (shared with the home page); docs/privacy-policy.md is the long form.
@@ -27,37 +29,38 @@ const SECTIONS = [
   { id: "limits", title: "Limits" },
   { id: "who-can-see", title: "Who can see what" },
   { id: "no-tracking", title: "No ads, no tracking in the app" },
-  { id: "logs", title: "Every log, and how long it's kept" },
   { id: "your-data", title: "Your data, your choice" },
   { id: "open-source", title: "Open source, so you can check" },
 ];
 
-const Shield = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
-    <path d="M10 2 3.5 4.5v5c0 4 2.8 7 6.5 8.5 3.7-1.5 6.5-4.5 6.5-8.5v-5Z" /><path d="m7 10 2 2 4-4.5" strokeLinecap="round" />
-  </svg>
-);
-
 export default function PrivacySecurity() {
   return (
+    <>
+    <div className={s.top}>
+      <PageHero
+        align="left"
+        title="Privacy & Security"
+        lede="What we store, who can see it, and every log we keep. In plain words."
+        art={{ src: "/art/privacy.webp", alt: "", width: 1672, height: 941 }}
+      />
+      <ul className={`${s.facts} rise`} style={r(4)}>
+        {FACTS.map((f) => (
+          <li key={f.title} className={s.fact}>
+            <h2>{f.title}</h2>
+            <p>{f.short}</p>
+          </li>
+        ))}
+      </ul>
+      <p className={`${s.caveat} rise`} style={r(5)}>
+        {CAVEAT.text} <a href={CAVEAT.href}>{CAVEAT.link}</a>
+      </p>
+    </div>
+
     <LongPage
+      bare
       title="Privacy & Security"
-      sub="What we store, who can see it, and every log we keep. In plain words."
       sections={SECTIONS}
       other={{ href: "/privacy", label: "Privacy Policy" }}
-      lead={<>
-        <ul className={`${s.facts} rise`} style={r(1)}>
-          {FACTS.map((f) => (
-            <li key={f.title} className={s.fact}>
-              <h2><Shield />{f.title}</h2>
-              <p>{f.text}</p>
-            </li>
-          ))}
-        </ul>
-        <p className={`${s.caveat} rise`} style={r(2)}>
-          {CAVEAT.text} <a href={CAVEAT.href}>{CAVEAT.link}</a>
-        </p>
-      </>}
     >
         <article className={`${legal.article} rise`} style={r(3)}>
           <SectionHeading id="what-we-store">What we store, and where</SectionHeading>
@@ -124,24 +127,6 @@ export default function PrivacySecurity() {
             {COUNTS.map((c) => <li key={c}>{c.charAt(0).toUpperCase() + c.slice(1)}.</li>)}
           </ul>
 
-          <SectionHeading id="logs">{"Every log, and how long it's kept"}</SectionHeading>
-          <p>
-            We don&apos;t write the text of your notes, email addresses, access tokens or IP addresses into any log of our own. Our hosts log
-            the requests that reach them; we can&apos;t turn that off, but they keep it briefly.
-          </p>
-          <div className="tableWrap"><table className={s.logs}>
-            <thead><tr><th>Log</th><th>What&apos;s in it</th><th>Kept</th></tr></thead>
-            <tbody>
-              {LOGS.map((l) => (
-                <tr key={l.name}><td>{l.name}</td><td>{l.what}</td><td className={s.kept}>{l.kept}</td></tr>
-              ))}
-            </tbody>
-          </table></div>
-          <p>
-            Our hosting plan keeps no backups of the database, so what you delete is gone. If that changes, a backup would hold only the
-            encrypted copies and the locked copies of your key, for as long as this page and the privacy policy say.
-          </p>
-
           <SectionHeading id="your-data">Your data, your choice</SectionHeading>
           <ul>
             <li><strong>Export:</strong> Settings → Privacy &amp; Security → Export Your Notes makes a zip on your device with every note as Markdown in its folder, with its files. We can&apos;t read your notes, so the export can only be made there. For everything else we keep about you, write to us.</li>
@@ -161,7 +146,37 @@ export default function PrivacySecurity() {
             not a public issue.
           </p>
           <p>The legal details are in the <a href="/privacy">privacy policy</a>.</p>
+
+          <details className={s.logsFold} id="logs">
+            <summary>Every log, and how long it&apos;s kept<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5.5 7 9.5l4-4" /></svg></summary>
+            <div className={s.logsBody}>
+            <p>
+              We don&apos;t write the text of your notes, email addresses, access tokens or IP addresses into any log of our own. Our hosts log
+              the requests that reach them; we can&apos;t turn that off, but they keep it briefly.
+            </p>
+            <div className="tableWrap"><table className={s.logs}>
+              <thead><tr><th>Log</th><th>What&apos;s in it</th><th>Kept</th></tr></thead>
+              <tbody>
+                {LOGS.map((l) => (
+                  <tr key={l.name}><td>{l.name}</td><td>{l.what}</td><td className={s.kept}>{l.kept}</td></tr>
+                ))}
+              </tbody>
+            </table></div>
+            <p>
+              Our hosting plan keeps no backups of the database, so what you delete is gone. If that changes, a backup would hold only the
+              encrypted copies and the locked copies of your key, for as long as this page and the privacy policy say.
+            </p>
+            </div>
+          </details>
         </article>
     </LongPage>
+    <ClosingBand
+      title="Read the code yourself."
+      text="The apps, the server and this website are open source, so every promise on this page can be checked."
+      primary={{ href: GITHUB, label: "View on GitHub", external: true }}
+      secondary={{ href: "/privacy", label: "Privacy policy" }}
+      fine={null}
+    />
+    </>
   );
 }

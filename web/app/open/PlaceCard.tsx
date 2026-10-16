@@ -6,7 +6,7 @@ import s from "./open.module.css";
 /// Where an onboarding email's button lands when the link stays in the browser (no app here, or
 /// another device). It tries the app at once; if Pinto Notes doesn't open within about 1.5 s, the
 /// card says how to do it by hand, with Open in Pinto Notes and the downloads.
-export default function PlaceCard({ href, title, lede, steps, links }: {
+export default function PlaceCard({ href, title, lede, steps, links, art }: {
   /// The app's link for the place, e.g. ambernotes://connect-ai.
   href: string;
   /// What the place is, for the fallback heading ("Connect your AI").
@@ -14,11 +14,13 @@ export default function PlaceCard({ href, title, lede, steps, links }: {
   lede: React.ReactNode;
   steps: React.ReactNode[];
   links?: { href: string; label: string }[];
+  /// The hero of the email that links here (public/email), so the page looks like the email it came from.
+  art?: string;
 }) {
   return (
     <OpenApp href={href}>
       <Card className={s.anim}>
-        <Mark />
+        {art ? <img className={s.hero} src={art} alt="" width={520} height={312} decoding="async" fetchPriority="high" /> : <Mark />}
         <div className={ui.group}>
           <h1 className={ui.title}>
             <span className={s.whenTrying}>Opening Pinto Notes</span>

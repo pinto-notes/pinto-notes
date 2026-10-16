@@ -125,7 +125,8 @@ describe("the parts every connect screen shares", () => {
     expect(text(local)).toContain("Connect Codex to Pinto Notes? It can read your notes and change them when you ask. This request comes from an app on this computer.");
     const a = renderToStaticMarkup(<ConnectCard label={label}><p>x</p></ConnectCard>);
     expect(a).not.toContain("<aside");
-    for (const html of [a, b]) expect([...html.matchAll(/<img[^>]*src="([^"]+)"/g)].every((m) => m[1] === "/mark-256.png")).toBe(true);
+    // Our logo, and on a request's panel the paper-cut picture drawn for these pages (no app's mark in it).
+    for (const html of [a, b]) expect([...html.matchAll(/<img[^>]*src="([^"]+)"/g)].every((m) => m[1] === "/mark-256.png" || m[1] === "/art/connect.webp")).toBe(true);
   });
 
   it("shows the logo once on every connect page: in the top bar, not on the card or in the picture", () => {
@@ -139,7 +140,10 @@ describe("the parts every connect screen shares", () => {
       const html = renderToStaticMarkup(page);
       // React also writes a preload <link> for the image; count what is drawn.
       expect(html.match(/<(img|image)\b[^>]*mark-256/g)).toHaveLength(1);
-      expect(html.match(/<(img|image)\b/g)).toHaveLength(1);
+      // Besides the logo, only the paper-cut picture, on a page about one request.
+      const art = html.match(/<img\b[^>]*\/art\/connect\.webp/g)?.length ?? 0;
+      expect(art).toBe(html.includes("<aside") ? 1 : 0);
+      expect(html.match(/<(img|image)\b/g)).toHaveLength(1 + art);
       expect(html.match(/<header[^>]*>[\s\S]*?<\/header>/)?.[0]).toContain("mark-256");
     }
   });

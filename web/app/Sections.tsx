@@ -40,7 +40,7 @@ const JOBS: Job[] = [
   { title: "Checks in on the plan when you ask", line: "It reads the plan, counts what you ticked, and moves what's left to next week.",
     app: "Claude", glyph: "claude", kind: "desk", ask: "How did my running plan go this week? Move what I missed.", note: "Running plan", did: "3 of 4 done, 1 moved" },
   { title: "Remembers what you said you'd do", line: "It can search all your notes, so a promise you wrote down in March still comes up.",
-    app: "Claude Code", glyph: "claude", kind: "term", ask: "What did I say I'd do before the release?", note: "Standup notes", did: "3 open items", call: "amber-notes · search" },
+    app: "Claude Code", glyph: "claude", kind: "term", ask: "What did I say I'd do before the release?", note: "Standup notes", did: "3 open items", call: "pinto-notes · search" },
 ];
 
 /// Three things an AI does with your notes, in three apps: each a request and what it did in Pinto Notes.

@@ -1,6 +1,5 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
@@ -65,6 +64,9 @@ export default function Page() {
           </p>
         </Answer>
       }
+      hero={<PostFigure priority src="/blog/news/meta-muse-connectors" width={1344} height={1000} maxWidth={560}
+        alt="A grid of app icons that can connect with Meta's Muse, including Facebook, Instagram, Gmail, Google Drive, Google Docs, Google Calendar, Shopify and Apple Health. The outer icons are blurred."
+        caption="Some of the apps Muse can connect to. Image: Meta." />}
       faq={FAQ}
     >
       <h2 id="what">What a Muse connector is</h2>
@@ -172,15 +174,14 @@ export default function Page() {
         Claude Code or Codex memory notes and MCP servers, and <code>muse skills import --from claude</code> brings skills across.
         Muse Code keeps project memory in <code>.agents/memory/</code> in the repo, with a <code>MEMORY.md</code> index. That&apos;s
         three agents with three memories of the same project, which is why I keep the plan in a note all of them can
-        read. <a href="/blog/shared-memory-for-coding-agents">Shared memory for coding agents</a> covers how, and
-        the <a href="/for/claude-code">Claude Code page</a> shows Pinto Notes doing it.
+        read. <a href="/blog/notes-in-claude-code-and-codex">Notes in Claude Code and Codex</a> shows how to set that up.
       </p>
 
       <h2 id="limits">What Meta doesn&apos;t say yet</h2>
       <p>
         Meta says Muse remembers what matters to you and can act on something you mentioned once. You can tell it to forget
         specific things, but the announcement doesn&apos;t describe a page where you read or edit everything it remembers. If a plan
-        matters, keep the plan itself somewhere you can open without asking Muse. <a href="/blog/chatgpt-memory-vs-notes">ChatGPT memory
+        matters, keep the plan itself somewhere you can open without asking Muse. <a href="/blog/claude-memory-vs-notes">ChatGPT memory
         or your notes</a> makes the same case for ChatGPT.
       </p>
       <p>
@@ -189,9 +190,6 @@ export default function Page() {
         money or place trades aren&apos;t currently accepted.
       </p>
 
-      <PostCta slug="meta-muse-connectors" position="how-amber-helps" title="Keep the plan in a note your AIs share">
-        <p>Pinto Notes is a notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can edit, with every change kept.</p>
-      </PostCta>
     </PostPage>
   );
 }

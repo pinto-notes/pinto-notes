@@ -1,5 +1,5 @@
 import { Figure } from "@/lib/blog";
-import { PostCta } from "@/lib/PostCta";
+import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, Path, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
@@ -45,9 +45,15 @@ export default function Page() {
   return (
     <PostPage
       slug="connect-chatgpt-to-your-notes"
-      intro={<>I wanted ChatGPT&apos;s changes to land in my notes, not in a chat I&apos;d have to copy from. Here&apos;s the setup, and how you stay in control.</>}
+      intro={<>
+        I talk to ChatGPT all day, and for a long time none of it reached my notes. I&apos;d plan a trip in a chat, then copy the
+        good parts into Apple Notes by hand, and the next chat knew nothing about it. Here&apos;s what ChatGPT can do with the notes
+        apps you probably use, where each one stops, and the setup I use now so its changes land in my notes.
+      </>}
       answer={
         <Answer jump={[
+          { href: "#today", label: "What ChatGPT can do today" },
+          { href: "#missing", label: "What's missing" },
           { href: "#which", label: "Which AI, and what you need" },
           { href: "#chatgpt", label: "ChatGPT step by step" },
           { href: "#create-mcp-app-missing", label: "Create MCP App missing" },
@@ -55,14 +61,45 @@ export default function Page() {
           { href: "#control", label: "You stay in control" },
         ]}>
           <p>
-            ChatGPT can&apos;t edit Apple Notes. It can edit Pinto Notes, the notes app for iPhone and Mac that I make. With ChatGPT
-            Plus or higher, on the web: turn on Developer mode, add Pinto Notes in Plugins with Create MCP App, then type the
-            two-digit number on your iPhone or Mac and choose Allow. For Claude, connect from its directory listing.
+            It depends on where your notes live. Apple Notes: ChatGPT can only see the one note you have open on a Mac, and can&apos;t
+            save to it. Notion and Google Drive: ChatGPT&apos;s connectors can search them, with editing depending on your plan. To
+            have ChatGPT search, write and edit your notes from any chat, they need an app that connects to it, like Pinto Notes:
+            turn on Developer mode at chatgpt.com, add Pinto Notes with Create MCP App, then choose Allow on your iPhone or Mac.
           </p>
         </Answer>
       }
       faq={FAQ}
     >
+      <h2 id="today">What ChatGPT can do with your notes today</h2>
+      <div className="tableWrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Where your notes are</th><th scope="col">What ChatGPT can do</th><th scope="col">Where it stops</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Apple Notes</th><td>On a Mac, look at the note you have open. With Apple Intelligence, rewrite text you select in a note.</td><td>Can&apos;t search your notes, save a change, or reach them from your phone or the web</td></tr>
+            <tr><th scope="row">Notion</th><td>Search and read pages through ChatGPT&apos;s Notion connector</td><td>What it can change depends on your plan and workspace</td></tr>
+            <tr><th scope="row">Google Docs and Drive</th><td>Search and read files through the Google Drive connector</td><td>Editing depends on your plan and how your admin set it up</td></tr>
+            <tr><th scope="row">Pinto Notes</th><td>Search, read, write and edit your notes from any chat, with your OK</td><td>Needs ChatGPT Plus or higher, set up on the web once</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Apple Notes is the one most people have, and it&apos;s the most closed: Apple has no API for it, so nothing outside your Mac can
+        get in. <a href="/blog/apple-notes-api">Apple confirmed it this year</a>.
+      </p>
+
+      <h2 id="missing">What&apos;s missing</h2>
+      <p>
+        Even where ChatGPT can read your notes, it mostly reads. The plan you made together stays in the chat. Next week you open a new
+        chat and explain it all again, and if you switch to Claude, it starts from zero.
+      </p>
+      <p>
+        What you actually want is one notebook that ChatGPT can read and write, that you can open on your phone like any note, and that
+        Claude sees too. That&apos;s what the setup below gives you.
+      </p>
+      <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
+
       <h2 id="which">Which AI, and what you need</h2>
       <p>
         MCP (Model Context Protocol) is an open standard that lets an assistant find, read and change things in another app. Once
@@ -85,8 +122,7 @@ export default function Page() {
       </div>
       <p>
         Apple Notes can&apos;t be connected this way. On a Mac, ChatGPT can look at a note you have open, but it can&apos;t search your
-        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it,
-        and <a href="/blog/notes-apps-that-work-with-chatgpt">notes apps that work with ChatGPT</a> compares the alternatives.
+        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it.
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
@@ -217,19 +253,19 @@ export default function Page() {
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
       <Keep title="Five first things to ask" text={PROMPTS}
-        note={<>For a to-do list you tick on your phone, see <a href="/blog/chatgpt-to-do-list-on-iphone">how to use ChatGPT as a to-do list</a>.</>}>
+        note={<>For a to-do list you tick on your phone, ask ChatGPT to keep it as a checklist in one note.</>}>
         <ul>
           {PROMPTS.split("\n").map((p) => <li key={p}>&ldquo;{p}&rdquo;</li>)}
         </ul>
       </Keep>
       <p>
-        Or start from a <a href="/templates">template</a>: a note with the prompt that tells ChatGPT or Claude how to fill it in, like
-        the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.{" "}
-        <a href="/for/chatgpt">Pinto Notes for ChatGPT</a> has three more ideas, from a running plan to a note that becomes a tracker.
+        Or start from a <a href="/templates">template</a>: a ready note, some with their own app, that ChatGPT or Claude can fill in, like
+        the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.
       </p>
-      <PostCta slug="connect-chatgpt-to-your-notes" position="how-amber-helps" title="Get Pinto Notes on your Mac">
-        <p>Free, with the MCP server built in. Connect ChatGPT or Claude from Settings, and every change they make can be undone.</p>
-      </PostCta>
+      <p>
+        The part I like most comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
+        Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat.
+      </p>
     </PostPage>
   );
 }

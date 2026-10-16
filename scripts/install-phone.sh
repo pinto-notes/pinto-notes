@@ -38,4 +38,9 @@ xcodebuild -project Pane.xcodeproj -scheme Pane -configuration Release \
 
 [[ -d $app ]] || { echo "Build failed." >&2; exit 1; }
 xcrun devicectl device install app --device "$device" "$app"
+# This phone is the team's: one launch with -PintoInternal YES keeps the PintoInternal default, so
+# its telemetry says internal: true and testing stays out of the numbers.
+bundle=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Info.plist")
+xcrun devicectl device process launch --device "$device" --terminate-existing "$bundle" -PintoInternal YES >/dev/null 2>&1 ||
+  echo "Couldn't open the app to mark this phone as the team's. Unlock it and run the script again." >&2
 echo "Installed. First launch: Settings → General → VPN & Device Management → trust your Apple ID."
