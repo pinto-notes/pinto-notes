@@ -16,8 +16,8 @@ const doc = (el: React.ReactElement) => new DOMParser().parseFromString(`<!docty
 describe("a blog post", () => {
   const d = doc(<Post />);
 
-  it("opens with its category's cover under the title and byline, and shares from the byline", () => {
-    const cover = d.querySelector('img[src^="/art/blog-"]');
+  it("opens with its own cover (or its category's) under the title and byline, and shares from the byline", () => {
+    const cover = d.querySelector('img[src^="/blog/covers/"], img[src^="/art/blog-"]');
     expect(cover).not.toBeNull();
     expect(d.querySelectorAll('[aria-label="Share this post"] a').length).toBe(3);
     expect(d.body.textContent).not.toContain("Share this post");
