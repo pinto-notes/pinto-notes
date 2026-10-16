@@ -1,4 +1,4 @@
-import Card from "../../templates/Card";
+import Card from "../templates/Card";
 import { templates } from "@/lib/templates";
 import { G } from "./copy";
 import { Download } from "./Download";

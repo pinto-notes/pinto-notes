@@ -94,8 +94,8 @@ function themeIn(pathname: string, dark: boolean) {
 
 describe("the home page in progress", () => {
   it("has no em or en dashes in its words", () => {
-    for (const f of readdirSync(join(APP, "lab", "home")).filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f))) {
-      expect(readFileSync(join(APP, "lab", "home", f), "utf8"), f).not.toMatch(/[–—]/);
+    for (const f of readdirSync(join(APP, "_home")).filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f))) {
+      expect(readFileSync(join(APP, "_home", f), "utf8"), f).not.toMatch(/[–—]/);
     }
   });
 });

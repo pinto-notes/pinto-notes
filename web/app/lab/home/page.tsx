@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { G } from "./copy";
-import { Home } from "./Home";
+import { G } from "../../_home/copy";
+import { Home } from "../../_home/Home";
 
 export const metadata: Metadata = { title: G.title, description: G.description };
 

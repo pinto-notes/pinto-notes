@@ -1,5 +1,5 @@
-import DownloadLink from "../../DownloadLink";
-import PlatformNote from "../../PlatformNote";
+import DownloadLink from "../DownloadLink";
+import PlatformNote from "../PlatformNote";
 import k from "./download.module.css";
 
 /// The download button, with an optional quiet line under it. Hidden on iPhone and other systems,
