@@ -1,0 +1,88 @@
+/* Pinned rows: the row sticks under the header, centred in the space left, while the scene plays. */
+
+/* Voice mode, as ChatGPT draws it: a white screen, the cloudy blue orb, mic and close at the bottom. */
+@keyframes drift { to { translate: 10px 8px; } }
+/* Talking: uneven, voice-like swells, a soft glow that breathes with them, and clouds drifting inside. */
+@keyframes talk {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(90, 160, 255, 0.0), 0 10px 30px -8px rgba(60, 130, 240, 0.35); }
+  14%  { transform: scale(1.16); box-shadow: 0 0 0 10px rgba(90, 160, 255, 0.16), 0 14px 40px -6px rgba(60, 130, 240, 0.5); }
+  28%  { transform: scale(1.04); box-shadow: 0 0 0 4px rgba(90, 160, 255, 0.08), 0 10px 30px -8px rgba(60, 130, 240, 0.4); }
+  44%  { transform: scale(1.22); box-shadow: 0 0 0 14px rgba(90, 160, 255, 0.18), 0 16px 44px -6px rgba(60, 130, 240, 0.55); }
+  60%  { transform: scale(1.07); box-shadow: 0 0 0 6px rgba(90, 160, 255, 0.1), 0 12px 34px -8px rgba(60, 130, 240, 0.45); }
+  76%  { transform: scale(1.13); box-shadow: 0 0 0 9px rgba(90, 160, 255, 0.14), 0 14px 38px -6px rgba(60, 130, 240, 0.5); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(90, 160, 255, 0.0), 0 10px 30px -8px rgba(60, 130, 240, 0.35); }
+}
+@keyframes drift { 0% { background-position: 30% 50%; } 50% { background-position: 70% 45%; } 100% { background-position: 30% 50%; } }
+
+/* ── Full-bleed frontier rows ── */
+.gymMini { margin: 6px 0 0; padding: 14px 14px 12px; border-radius: 16px; background: rgba(255, 253, 249, 0.96); color: #2a1d10; box-shadow: 0 24px 50px -20px rgba(0, 0, 0, 0.6); }
+.gymMiniHead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.gymMiniHead span { font-size: 17px; font-weight: 800; }
+.gymMiniHead em { font-style: normal; font-size: 11.5px; font-weight: 650; color: #8a7a68; }
+.gymMini ul { margin: 0; padding: 0; list-style: none; border-radius: 12px; background: #f3efe9; overflow: hidden; }
+.gymMini li { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-top: 0.5px solid rgba(60, 30, 5, 0.1); font-size: 14px; }
+.gymMini li:first-child { border-top: 0; }
+.gymMini li b { flex: 1; font-weight: 650; }
+.gymMini li i { font-style: normal; height: 18px; padding: 0 7px; border-radius: 9px; background: #dd6c0f; color: #fff; font-size: 10.5px; font-weight: 700; line-height: 18px; }
+.gymMini li span { min-width: 56px; text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+.gymMini li span[data-empty] { color: #b45f08; }
+.gymMini p { margin: 8px 2px 0; font-size: 12px; color: #8a7a68; }
+
+/* Paper frontier scenes: art in a rounded panel; bubbles over the calm sky. */
+.paperScene { position: relative; aspect-ratio: 16 / 9.4; border-radius: 28px; overflow: hidden; isolation: isolate;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.12), 0 50px 90px -50px rgba(60, 30, 5, 0.55); }
+.paperScene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
+.paperWhere { position: absolute; right: 18px; bottom: 14px; padding: 5px 11px; border-radius: 11px; background: rgba(255, 250, 243, 0.9); font-size: 12.5px; font-weight: 600; color: #5a4430; }
+
+/* The still exchange: you in dark, the AI in white, both big enough to read at a glance. */
+.quote { position: absolute; top: 7%; width: min(380px, 50%); margin: 0; display: grid; gap: 10px; }
+.quote[data-at="left"] { left: 5%; }
+.quote[data-at="right"] { right: 5%; }
+.qMe, .qAi { margin: 0; padding: 14px 18px 15px; font-size: clamp(15px, 1.25vw, 18px); line-height: 1.38; box-shadow: 0 18px 36px -16px rgba(20, 10, 0, 0.55); }
+/* The hero's bubbles: you on the right, tail toward you; the AI on the left, tail toward it. */
+.qMe { position: relative; justify-self: end; max-width: 92%; border-radius: 20px 20px 6px 20px; background: rgba(32, 24, 16, 0.92); color: #fff6ea; }
+.qMe::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 14px; height: 14px; background: inherit; clip-path: path("M0 0 C 2 8, 7 12, 14 14 L 0 14 Z"); }
+.qAi { position: relative; justify-self: start; margin-right: 24px; margin-left: 7px; border-radius: 20px 20px 20px 6px; background: #fff; color: #1d1b19; display: grid; gap: 4px; }
+.qAi::after { content: ""; position: absolute; left: -7px; bottom: 0; width: 14px; height: 14px; background: #fff; clip-path: path("M14 0 C 12 8, 7 12, 0 14 L 14 14 Z"); }
+.qAi span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #6b5f53; }
+
+/* Voice: a call pill, your line with a waveform, the reply under the cloud orb. */
+.quote[data-voice] .qMe { display: flex; align-items: center; gap: 10px; }
+.qWave { flex: none; display: inline-flex; align-items: center; gap: 2.5px; height: 20px; }
+.qWave i { width: 3px; border-radius: 2px; background: #f0a040; }
+.qWave i:nth-child(1) { height: 7px; } .qWave i:nth-child(2) { height: 15px; } .qWave i:nth-child(3) { height: 10px; } .qWave i:nth-child(4) { height: 18px; } .qWave i:nth-child(5) { height: 8px; }
+.qWave[data-mini] { height: 14px; gap: 2px; }
+.qWave[data-mini] i { width: 2.5px; background: #1d1b19; }
+.qWave[data-mini] i:nth-child(1) { height: 5px; } .qWave[data-mini] i:nth-child(2) { height: 11px; } .qWave[data-mini] i:nth-child(3) { height: 7px; } .qWave[data-mini] i:nth-child(4) { height: 13px; } .qWave[data-mini] i:nth-child(5) { height: 6px; }
+.budgetBig { margin: 2px 2px 10px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #2a1d10; }
+.budgetBig small { font-size: 13px; font-weight: 600; letter-spacing: 0; color: #8a7a68; }
+.gymMini li span { min-width: 0; }
+.gymMini .budgetBig { margin: 0 2px 8px; font-size: 24px; font-weight: 800; color: #2a1d10; }
+.gymMini .budgetBig small { font-size: 12.5px; }
+.quote[data-at="right"] ~ .paperWhere { right: auto; left: 18px; }
+
+/* The exchange arrives after the art: your line, then the AI's. */
+.quote .qMe { opacity: var(--q1, 1); transform: translateY(calc((1 - var(--q1, 1)) * 14px)); }
+.quote .qAi, .quote > figure { opacity: var(--q2, 1); transform: translateY(calc((1 - var(--q2, 1)) * 14px)); }
+
+/* Phones: the same scene, as a portrait card. The picture is cropped on its person (--fx), and the
+   exchange sits inside it at the hero's bubble size. */
+@media (max-width: 760px) {
+  .paperScene { aspect-ratio: 4 / 5; border-radius: 24px; }
+  .paperScene[data-budget] { aspect-ratio: 4 / 6; }
+  /* Sara's budget sits at the foot of the picture, so she shows between it and the chat. */
+  .paperScene[data-budget] .quote { bottom: 54px; display: flex; flex-direction: column; }
+  .paperScene[data-budget] .qMe { align-self: flex-end; }
+  .paperScene[data-budget] .qAi { align-self: flex-start; }
+  .paperScene[data-budget] .quote > figure { margin-top: auto; }
+  .paperScene img { object-position: var(--fx, 50%) 50%; }
+  .quote { top: 16px; left: 14px !important; right: 14px !important; width: auto; gap: 8px; }
+  .qMe, .qAi { padding: 10px 13px 11px; border-radius: 16px; font-size: 14.5px; line-height: 1.35; }
+  .qMe { border-bottom-right-radius: 5px; max-width: 86%; }
+  .qAi { border-bottom-left-radius: 5px; margin-right: 18px; }
+  .qAi span { font-size: 11.5px; }
+  .qWave { height: 16px; }
+  .gymMini { margin-top: 2px; }
+  .paperWhere { right: 12px; bottom: 12px; font-size: 12px; }
+  .quote[data-at="right"] ~ .paperWhere { left: 12px; }
+}
