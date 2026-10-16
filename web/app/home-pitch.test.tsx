@@ -3,43 +3,44 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: () => {} }) }));
 import Home from "./page";
-import { AiSection, AppsSection, ImportSection } from "./Sections";
-import { FAQ } from "./help/questions";
 
-const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
+const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
 
-// The home page pitch (2026-10-13): what you get from connecting your AI, not only what connects.
-describe("the home page pitch", () => {
-  const page = text(renderToStaticMarkup(<Home />));
+// The home page (2026-10-16): the notebook you and your AI share.
+describe("the home page", () => {
+  const html = renderToStaticMarkup(<Home />);
+  const page = text(html);
 
-  it("leads with following through, and names every AI that connects", () => {
-    expect(page).toContain("Write the plan. Your AI helps you follow through.");
+  it("leads with the shared notebook, and names every AI that connects", () => {
+    expect(page).toContain("The notebook you and your AI share.");
     for (const ai of ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible"]) expect(page, ai).toContain(ai);
   });
 
-  it("shows what an AI does with your notes, each with a real request", () => {
-    const ai = text(renderToStaticMarkup(<AiSection />));
-    for (const job of ["Turns a messy note into next steps", "Checks in on the plan when you ask", "Remembers what you said you'd do"]) expect(ai, job).toContain(job);
-    // Claude Code shows the server's real name and a real tool.
-    expect(ai).toContain("amber-notes · search");
+  it("has one h1, and its structured data", () => {
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toContain("application/ld+json");
   });
 
-  it("says once, in the Apple Notes section, that the iPhone app is coming, and never says iPad", () => {
-    expect(text(renderToStaticMarkup(<ImportSection />))).toContain("The iPhone app is coming to the App Store soon.");
-    expect(page).not.toContain("iPhone · coming soon");
+  it("offers the Mac download, says the iPhone app is coming, and never says iPad", () => {
+    expect(page).toContain("Download for Mac");
+    expect(page).toContain("Coming to iPhone");
     expect(page).not.toMatch(/iPad/);
   });
 
-  it("shows a note becoming an app", () => {
-    const html = renderToStaticMarkup(<AppsSection />);
-    expect(text(html)).toContain("A note can also be an app");
-    // Note apps are in the released Mac app (1.2.25), so Help answers how, and the section links there.
-    expect(html).toContain('href="/help#apps"');
-    expect(FAQ.some((q) => q.id === "apps")).toBe(true);
+  it("says what the week film shows in words too, for screen readers", () => {
+    expect(page).toContain("A week in one note");
+    expect(page).toContain("you tick off the long run yourself");
   });
 
-  it("has no em or en dashes and no grocery-list gimmick", () => {
+  it("shows templates and links to all of them", () => {
+    expect(html).toContain('href="/templates"');
+  });
+
+  it("says sharing is coming, not here", () => {
+    expect(page).toMatch(/Share with people\s*Coming soon/);
+  });
+
+  it("has no em or en dashes", () => {
     expect(page).not.toMatch(/[–—]/);
-    expect(page).not.toContain("oat milk");
   });
 });
