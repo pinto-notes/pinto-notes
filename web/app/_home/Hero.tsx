@@ -55,7 +55,7 @@ export function Hero() {
           {/* Off a Mac (an iPhone, Windows, Android): the iPhone button leads, the Mac download is a link under it. */}
           <a className={x.offMac} href="/download">Download for Mac</a>
         </div>
-        <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for Mac. Brings your Apple Notes over.</p>
+        <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for Mac. Works with Claude now, ChatGPT soon.</p>
       </div>
       <div className={`${x.card} rise`} style={rise(1)} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">

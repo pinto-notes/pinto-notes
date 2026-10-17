@@ -8,7 +8,7 @@ export const metadata: Metadata = pageMetadata({
   title: "Pinto Notes: one notes app for every AI you use",
   shareTitle: "The notebook you and your AI share.",
   description:
-    "A notes app for iPhone and Mac that feels like Apple Notes. ChatGPT, Claude, Claude Code, Codex and Incredible read and edit the same notes, with your approval, and help you follow through. Imports your Apple Notes. Free.",
+    "A notes app for Mac that feels like Apple Notes. Claude, Claude Code, Codex and Incredible read and edit the same notes, with your approval. ChatGPT and the iPhone app are coming soon. Imports your Apple Notes. Free.",
   path: "/",
 });
 
