@@ -37,7 +37,6 @@ export default function Page() {
     <PostPage
       slug="connect-notes-to-grok"
       intro={<>Grok has had connectors since May, and one of them is a blank: paste the address of any MCP server and Grok can use its tools. That&apos;s how you give Grok your notes, if your notes app has a server. Below are the steps on grok.com and in Grok Build, with the gaps in xAI&apos;s docs marked.</>}
-      caption="Version history for a Groceries note in Pinto Notes on a Mac, with the two lines that differ tinted. Whatever an AI changes through a connector, you can check it here."
       answer={
         <Answer jump={[
           { href: "#connectors", label: "Grok connectors" },
@@ -54,9 +53,9 @@ export default function Page() {
           </p>
         </Answer>
       }
-      hero={<PostFigure priority src="/blog/news/xai-grok-gmail-connector" width={1600} height={900} maxWidth={800}
-        alt="Grok on the web, dark theme. A message with the Gmail connector asks: what are my most pressing emails today? Grok answers with a numbered list: an overdue task, a rescheduled meeting and a design office follow-up."
-        caption="Grok answering from Gmail through one of its built-in connectors. Image: xAI." />}
+      hero={<PostFigure priority src="/blog/covers/xai-grok-bot" width={1600} height={840} maxWidth={800}
+        alt="Grok's white round face with two slanted eyes on an orange background."
+        caption="Grok's face, from xAI's Grok Bot announcement. Image: xAI." />}
       faq={FAQ}
     >
       <h2 id="connectors">What Grok connectors are</h2>
@@ -65,6 +64,9 @@ export default function Page() {
         and Android. A connector lets Grok search and work with another service inside a conversation, so you can ask about your
         email or a shared folder without copying anything in.
       </p>
+      <PostFigure src="/blog/news/xai-grok-gmail-connector" width={1600} height={900} maxWidth={800}
+        alt="Grok on the web, dark theme. A message with the Gmail connector asks: what are my most pressing emails today? Grok answers with a numbered list: an overdue task, a rescheduled meeting and a design office follow-up."
+        caption="Grok answering from Gmail through one of its built-in connectors. Image: xAI." />
       <p>
         xAI&apos;s <a href="https://docs.x.ai/grok/connectors" rel="noopener">connectors guide</a> describes three kinds. Built-in ones are
         made by xAI: Gmail and Google Calendar, Google Drive, OneDrive, Outlook, Microsoft Teams, SharePoint and Salesforce. A

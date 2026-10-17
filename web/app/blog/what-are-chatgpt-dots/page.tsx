@@ -34,7 +34,6 @@ export default function Page() {
     <PostPage
       slug="what-are-chatgpt-dots"
       intro={<>At DevDay on 29 September, OpenAI gave ChatGPT something new: a dot, an agent that keeps working after you close the app. Since 9 October you can set one up from your phone. Here&apos;s what a dot is, and what to hand it first if you can get one.</>}
-      caption="Version history for a Groceries note in Pinto Notes on a Mac: who changed it and when, ChatGPT included. A dot works for weeks, so that record is worth having somewhere you can read it."
       answer={
         <Answer jump={[
           { href: "#what-it-is", label: "What a dot is" },
@@ -52,12 +51,15 @@ export default function Page() {
           </p>
         </Answer>
       }
-      hero={<PostFigure priority src="/blog/news/openai-dots-slides" width={1600} height={900} maxWidth={800}
-        alt="A ChatGPT dot called Felipe, a blue plush character, in a chat beside a Google Slides deck. It offers two layouts for slide 5 of a launch deck and saves both to the library."
-        caption="A dot at work: it updates a launch deck in Google Slides and shows the options in its chat. Image: OpenAI." />}
+      hero={<PostFigure priority src="/blog/covers/openai-dots" width={1600} height={900} maxWidth={800}
+        alt="The word dots in glowing rainbow letters above four plush characters: a blue one in a beret, a green frog, a yellow one in round glasses and a pink heart in sunglasses."
+        caption="The dots, as OpenAI introduced them at DevDay. Image: OpenAI." />}
       faq={FAQ}
     >
       <h2 id="what-it-is">What a dot is</h2>
+      <PostFigure src="/blog/news/openai-dots-slides" width={1600} height={900} maxWidth={800}
+        alt="A ChatGPT dot called Felipe, a blue plush character, in a chat beside a Google Slides deck. It offers two layouts for slide 5 of a launch deck and saves both to the library."
+        caption="A dot at work: it updates a launch deck in Google Slides and shows the options in its chat. Image: OpenAI." />
       <p>
         Every other part of ChatGPT waits for you. You ask, it answers or does the task, and then it stops. A dot keeps going after the conversation ends.
         OpenAI&apos;s <a href="https://openai.com/index/introducing-dots/" rel="noopener">announcement</a> calls dots always-on agents,
@@ -141,6 +143,9 @@ export default function Page() {
         A wedding or a group holiday works the same way.
       </p>
       <h3>Renewals and admin</h3>
+      <PostFigure src="/blog/news/openai-dots-renewal" width={1150} height={1036} maxWidth={575}
+        alt="A dot called Alfred using its own cloud computer: a browser shows the California DMV's Vehicle Registration Online Renewal page, with a bar at the bottom that says Alfred has control and a Take over button."
+        caption="A dot on a car registration renewal, in its own browser. Take over hands it back to you. Image: OpenAI." />
       <p>
         The dots guide shows a dot on a car registration renewal page in its cloud browser. Ask it to track every renewal date it can
         find in your email and prepare each one a week ahead. When a site needs your login, it sends a sign-in request that you fill

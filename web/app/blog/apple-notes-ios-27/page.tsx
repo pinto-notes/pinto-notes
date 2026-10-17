@@ -52,6 +52,9 @@ export default function Page() {
         { on: "Mac", steps: ["Edit", "Insert Divider Line"], keys: "⌘L" },
         { on: "iPhone", steps: ["Tap where it goes", "Edit menu", "Insert Divider Line"] },
       ]} />
+      <PostFigure src="/blog/apple/iphone-notes-ios27-insert-divider-add-link" width={640} height={1320} maxWidth={280}
+        alt="Notes on an iPhone with iOS 27: the edit menu over a note lists Paste, Delete, Select, Select All, Writing Tools, AutoFill, Add Link, Insert Divider Line and Attach File."
+        caption="On iPhone, both new items are in the edit menu: Add Link and Insert Divider Line. Image: Apple." />
       <p>
         A thin line across the note, for splitting it into parts. Click or tap where the line should go first. One thing I noticed: a <code>---</code> line
         in pasted Markdown becomes a divider too. Apple&apos;s steps are in <a href="https://support.apple.com/guide/notes/apd1955d3b21/mac" rel="noopener">Format

@@ -1,5 +1,6 @@
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL, OLD_MCP_URL_STAYS } from "@/lib/facts";
 import { MCP_TOOLS, type McpTool } from "@/lib/mcp-tools";
@@ -15,6 +16,9 @@ export default function Page() {
     <PostPage
       slug="mcp-server"
       intro={<>Pinto Notes, the notes app for iPhone and Mac, has a remote MCP server built in. This page is for developers and anyone curious how it works: the address, how an AI app signs in and gets approved, and every tool it can call.</>}
+      hero={<PostFigure priority src="/blog/news/anthropic-mcp-announcement" width={1600} height={900} maxWidth={800}
+        alt="Anthropic's illustration for the launch of the Model Context Protocol: white paper-cut shapes on a terracotta background, joined by a black line to a single white circle."
+        caption="MCP, the open standard Anthropic launched in 2024, which ChatGPT, Claude and the rest now use to reach other apps. Image: Anthropic." />}
     >
       <h2>The address</h2>
       <pre><code>{MCP_URL}</code></pre>
@@ -68,6 +72,9 @@ export default function Page() {
       </ul>
 
       <h2>Tools</h2>
+      <PostFigure src="/blog/news/openai-chatgpt-mcp-request-diagram" width={1000} height={480} maxWidth={600}
+        alt="OpenAI's diagram of an MCP request: ChatGPT asks what the status of ticket 123 is, the question passes through an MCP server to a ticketing system, and ChatGPT answers that ticket 123 is open."
+        caption="What a tool call is, in OpenAI's own diagram. With Pinto Notes, the system on the right is your notes. Image: OpenAI." />
       <p>
         The tools treat your notes like a folder of files, the way coding agents already work. Each note is a markdown file with a
         path, like <code>Work/Acme.md</code>, and its first line is the title. A note&apos;s sub-notes and attached files sit in a
@@ -116,6 +123,9 @@ export default function Page() {
       </p>
 
       <h2>Connect it</h2>
+      <PostFigure src="/blog/news/anthropic-claude-connectors-directory" width={1600} height={900} maxWidth={720}
+        alt="Claude's Connectors window, from Anthropic's announcement: a grid of apps to connect, including Asana, Atlassian, Canva, Gmail, Google Calendar, Google Drive, Linear and Notion, each with a plus or a tick."
+        caption="Claude's connector directory, where Pinto Notes is listed. Image: Anthropic." />
       <ul>
         <li>Claude: <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a>, then Connect to Claude.</li>
         <li><a href="/blog/connect-chatgpt-to-your-notes">Connect ChatGPT or Claude to your notes</a>: add the address as a custom app in ChatGPT, or as a custom connector in an older Claude app.</li>

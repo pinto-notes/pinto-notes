@@ -57,7 +57,7 @@ const CLOSING: Record<Category, { title: string; text: string }> = {
   "Building Pinto Notes": { title: "Read the code, or just use it.", text: "Pinto Notes is open source: the apps, the server and this website." },
 };
 
-/// A post's picture at the top: its own paper-cut banner, or its category's cover.
+/// A post's picture at the top: its own banner, its own cover, or its category's cover.
 function Cover({ x, art }: { x: Post; art?: string }) {
   if (art) {
     return (
@@ -69,7 +69,8 @@ function Cover({ x, art }: { x: Post; art?: string }) {
       </div>
     );
   }
-  const c = CATEGORY_COVERS[x.category];
+  // The post's own cover (the topic's launch picture or a drawing of its apps), else its category's.
+  const c = x.thumb.art ? x.thumb : CATEGORY_COVERS[x.category];
   return (
     <div className={p.cover}>
       <img src={c.src} alt="" width={c.width} height={c.height} decoding="async" fetchPriority="high" />

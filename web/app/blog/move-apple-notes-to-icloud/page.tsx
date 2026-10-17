@@ -123,6 +123,9 @@ export default function Page() {
           The notes leave the old account and appear in that folder.
         </li>
       </Steps>
+      <PostFigure src="/blog/apple/iphone-notes-ios27-select-notes-move" width={640} height={1320} maxWidth={280}
+        alt="Notes on iPhone with iOS 27 in selection mode: 3 Selected, three notes ticked, and a Folder button at the bottom left for moving them."
+        caption="Select Notes, then the Folder button at the bottom left. Image: Apple." />
       <p>
         For a single note, touch and hold it, tap Move and choose the folder. To bring a whole folder across, create a folder with the
         same name under iCloud and move its notes into it.

@@ -157,7 +157,8 @@
 .card:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
 /* Cards in a row are equally tall; the text fills the card and the spare room goes above the
    byline, so every card's author and date sit on the same line at its foot. */
-.cardText { display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; padding: 0 20px; }
+.cardText { display: grid; align-content: start; gap: 6px; padding: 0 20px 4px; }
+.minutes { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .label { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 /* Titles fill the first line and never leave one word alone on the last. Balancing them into two
    equal halves split names across lines ("Claude / Cowork", "to- / do list"). */
@@ -172,3 +173,7 @@
 /* At most two lines of description and three of title on every card (Emil, 14 October 2026: "too
    much text"), so cards in a row stay even. The full description is in the post's meta. */
 .card .byline { margin-top: 6px; }
+
+/* A cover (the topic's launch picture or a drawing of its apps) fills the whole picture, uncropped by
+   the capture's frame, shadow and fade. */
+.thumb[data-art] img { inset: 0; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; background: none; box-shadow: none; -webkit-mask-image: none; mask-image: none; }

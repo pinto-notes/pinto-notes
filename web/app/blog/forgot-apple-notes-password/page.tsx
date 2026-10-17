@@ -1,6 +1,6 @@
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Capture, FigurePair, Steps } from "@/lib/PostParts";
+import { Answer, Capture, FigurePair, PostFigure, Steps } from "@/lib/PostParts";
 import { ResetChooser } from "@/lib/ResetChooser";
 import { SHOTS } from "@/lib/posts";
 
@@ -55,6 +55,9 @@ export default function Page() {
       <ResetChooser />
 
       <h2 id="why">Why nobody can open it for you</h2>
+      <PostFigure src="/blog/apple/iphone-notes-note-is-locked" width={760} height={910} maxWidth={300}
+        alt="A locked note on iPhone: a grey padlock, the words This note is locked, and a View Note button."
+        caption="A locked note on iPhone. Image: Apple." />
       <p>
         A locked note is end-to-end encrypted with a key made from your notes password. Apple&apos;s security guide describes it: the key
         is derived from your passphrase, and the note and its attachments are encrypted with it. Apple

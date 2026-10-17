@@ -53,7 +53,7 @@ export function Figure({ shot, caption, priority, ground = "soft" }: { shot: Sho
 /// short alt so image search knows what the picture shows.
 export function ThumbArt({ thumb }: { thumb: Thumb }) {
   return (
-    <div className={`${b.thumb} ${b.ground}`} data-ground={thumb.ground}>
+    <div className={`${b.thumb} ${b.ground}`} data-ground={thumb.ground} data-art={thumb.art ? "" : undefined}>
       <img src={thumb.src} alt={thumb.alt} width={thumb.width / 2} height={thumb.height / 2} loading="lazy" decoding="async" />
     </div>
   );
@@ -63,22 +63,16 @@ export function Avatar({ size = 24 }: { size?: number }) {
   return <img className={b.avatar} src={AUTHOR.avatar} alt="" width={size} height={size} />;
 }
 
-/// One post on the index or under "More posts".
+/// One post on the index or under "More posts": its cover, its title and how long it takes to read
+/// (Emil, 16 October 2026: "just do titles"; 17 October: keep the minutes to read).
 export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" | "h3" }) {
   const H = heading;
   return (
     <a className={b.card} href={`/blog/${post.slug}`} data-category={categoryAnchor(post.category)}>
       <ThumbArt thumb={post.thumb} />
       <span className={b.cardText}>
-        <span className={b.label}>{post.category}</span>
         <H className={b.cardTitle}>{post.title}</H>
-        <span className={b.excerpt}>{post.excerpt}</span>
-        <span className={b.byline}>
-          <Avatar size={20} />
-          <span>{AUTHOR.name}</span>
-          <span aria-hidden="true">·</span>
-          <time dateTime={post.date}>{longDate(post.date)}</time>
-        </span>
+        <span className={b.minutes}>{readingMinutes(post.slug)} min read</span>
       </span>
     </a>
   );

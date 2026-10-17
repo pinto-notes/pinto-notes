@@ -9,7 +9,8 @@ import { DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
 import { feedXml } from "./feed";
 import { llmsFullTxt, llmsTxt } from "./llms";
 import { REMOVED_POSTS } from "./removed-posts";
-import { FIRST_PAGE, FOLD, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
+import { SHELVES } from "./more-answers";
+import { FEATURED, FIRST_PAGE, FOLD, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
 
 const INDEX_FOLDERS = ["page", "category", "feed.xml"];
 
@@ -204,6 +205,14 @@ describe("blog pages", () => {
     expect(redirects).toContainEqual({ source: `/blog/page/${last + 1}`, destination: pagePath("/blog", last), permanent: true });
     // Never a live page.
     for (let n = 2; n <= last; n++) expect(redirects.some((r) => r.source === `/blog/page/${n}`)).toBe(false);
+  });
+
+  it("shows every published post on the index: featured as a card, or once under More answers", () => {
+    const live = published().map((p) => p.slug);
+    for (const f of FEATURED) expect(live, f).toContain(f);
+    const asked = SHELVES.flatMap((sh) => sh.items.map((i) => i.slug));
+    expect(new Set(asked).size).toBe(asked.length);
+    for (const slug of live) expect(FEATURED.includes(slug) || asked.includes(slug), slug).toBe(true);
   });
 
   it("keeps page 1 at the list's own address", () => {
