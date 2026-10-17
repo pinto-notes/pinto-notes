@@ -57,6 +57,8 @@ struct SettingsView: View {
         // Like WhatsApp's: you first, a few groups of rows, each opening its page (SettingsHome).
         SettingsHome(backend: backend, sync: sync, available: places, page: { AnyView(place($0)) }, route: route, start: start, tiles: tiles)
         .environment(\.networkReach, reach)
+        // Settings is a sheet on the notes window: allowing an AI shows over it.
+        .consentHost(client: backend.client, active: isSignedIn)
         .onChange(of: isSignedIn) { was, now in if was && !now { dismiss() } }
         #else
         NavigationStack(path: $path) {

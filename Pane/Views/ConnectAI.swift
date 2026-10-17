@@ -690,7 +690,21 @@ final class ConnectCenter: NSObject {
     /// Between one sheet closing and the next opening.
     var nextDelay: Duration = .milliseconds(450)
     /// The last approval made on this device, so an open guide can say it worked right away.
-    var approved: (ai: String?, at: Date)?
+    /// Set with `approvedHere(_:)`.
+    private(set) var approved: (ai: String?, at: Date)?
+    /// Counts the moments a connection may have appeared: approved on this device, or an "AI
+    /// connected" notice from the server (`AccountNotices`). The one signal every connect guide
+    /// waits on, so it looks at the account's connections at once instead of at its next poll.
+    private(set) var connectionNews = 0
+    @ObservationIgnored private var newsWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+    /// How long a guide waits between looks when nothing is heard: approving on another device
+    /// shows within this, even when realtime is down.
+    static let look: Duration = .seconds(2)
+    /// Keeps the Mac from napping the app while a guide waits: the person is in the browser and
+    /// the app is in the background, but the guide still has to notice at once.
+    @ObservationIgnored private var awake: NSObjectProtocol?
+    /// Whether the app is kept awake for a guide now.
+    var keptAwake: Bool { awake != nil }
     /// Looks at the server for asks now (set while signed in, by ConnectAsks): a push was tapped
     /// or arrived.
     @ObservationIgnored var lookAgain: (@MainActor () async -> Void)?
@@ -715,10 +729,53 @@ final class ConnectCenter: NSObject {
     /// A connect guide appeared: looks for asks now, and often until it goes.
     func expectAsks() {
         expecting += 1
-        if expecting == 1, let lookAgain { Task { await lookAgain() } }
+        if expecting == 1 {
+            awake = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Waiting for an AI to connect")
+            if let lookAgain { Task { await lookAgain() } }
+        }
     }
 
-    func stopExpectingAsks() { expecting = max(0, expecting - 1) }
+    func stopExpectingAsks() {
+        expecting = max(0, expecting - 1)
+        if expecting == 0, let awake {
+            ProcessInfo.processInfo.endActivity(awake)
+            self.awake = nil
+        }
+    }
+
+    /// Allowed on this device (the consent sheet): `ai` is the AI it could vouch for.
+    func approvedHere(_ ai: String?, at: Date = .now) {
+        approved = (ai, at)
+        connectionMayHaveAppeared()
+    }
+
+    /// A connection may have appeared: every guide waiting looks now.
+    func connectionMayHaveAppeared() {
+        connectionNews += 1
+        let waiters = newsWaiters
+        newsWaiters = [:]
+        for w in waiters.values { w.resume() }
+    }
+
+    /// Returns when there's news after `seen` (a `connectionNews` read before the last look), or
+    /// after `limit`, or when the task is cancelled.
+    func news(after seen: Int, within limit: Duration = ConnectCenter.look) async {
+        guard connectionNews == seen, !Task.isCancelled else { return }
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                newsWaiters[id] = c
+                Task { [weak self] in
+                    try? await Task.sleep(for: limit)
+                    self?.wake(id)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.wake(id) }
+        }
+    }
+
+    private func wake(_ id: UUID) { newsWaiters.removeValue(forKey: id)?.resume() }
     #if os(macOS)
     /// The browser the request showing came from, so the answer goes back to the same one.
     var browser: URL?
@@ -980,7 +1037,7 @@ struct ConsentHost: ViewModifier {
                 if let client {
                     ConsentSheet(client: client, requestID: pending.id, finish: { center.open($0) },
                                  allowed: { r in
-                                     center.approved = (r.verifiedAI, .now)
+                                     center.approvedHere(r.verifiedAI)
                                      Telemetry.shared.record(.aiConnected(AIKind(verified: r.verifiedAI)))
                                      // Connected an AI: the moment to ask to notify (the next
                                      // ask can then reach this device when the app isn't open).
@@ -1036,15 +1093,13 @@ struct ConnectWaitingRow: View {
 extension View {
     func connectHandler(backend: Backend) -> some View { modifier(ConnectHandler(backend: backend)) }
 
-    /// A sheet's content: the consent sheet can show over it. On the Mac each window presents its
-    /// own sheets, so only the window's root hosts it.
-    @ViewBuilder
+    /// A sheet's content: the consent sheet can show over it. On the Mac too: Settings, Connect an
+    /// AI and the guides are sheets on the notes window, and a window that shows a sheet can't show
+    /// another from its root until that one closes. When only the root hosted it there, the request
+    /// to allow ChatGPT or Claude waited unseen behind the guide until the person gave up on it
+    /// (16 October 2026: `gave_up`, then `ai_connected` seconds later).
     func consentHost(client: SupabaseClient?, active: Bool = true) -> some View {
-        #if os(iOS)
         modifier(ConsentHost(client: client, active: active))
-        #else
-        self
-        #endif
     }
 }
 

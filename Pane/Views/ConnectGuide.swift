@@ -180,8 +180,9 @@ enum ConnectHandoff {
 
 // MARK: Watching for the sign-in
 
-/// Says when the new connection exists: at once when it's approved on this device, and by
-/// asking the server every few seconds, so approving on the Mac also finishes the guide on iPhone.
+/// Says when the new connection exists: at once when it's approved on this device or the server
+/// says an AI connected (`ConnectCenter.connectionNews`), and by asking the server every two
+/// seconds, so approving on the Mac also finishes the guide on iPhone.
 @MainActor
 @Observable
 final class ConnectWatch {
@@ -192,6 +193,8 @@ final class ConnectWatch {
     private(set) var connected: Connection?
     private(set) var approvedHere = false
     private let find: ([Connection], Date) -> Connection?
+    /// Approvals here and news of new connections; tests give their own.
+    @ObservationIgnored var center = ConnectCenter.shared
 
     convenience init(ai: String) {
         self.init(approvedAs: ai) { ConnectCompletion.newConnection($0, ai: ai, since: $1) }
@@ -206,11 +209,12 @@ final class ConnectWatch {
 
     func run(client: SupabaseClient) async {
         while !Task.isCancelled, connected == nil {
-            if let a = ConnectCenter.shared.approved, a.ai == approvedAs, a.at >= since { approvedHere = true }
+            let seen = center.connectionNews
+            if let a = center.approved, a.ai == approvedAs, a.at >= since { approvedHere = true }
             if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value {
                 connected = find(rows, since)
             }
-            try? await Task.sleep(for: .seconds(approvedHere ? 1 : 3))
+            await center.news(after: seen, within: approvedHere ? .seconds(1) : ConnectCenter.look)
         }
     }
 

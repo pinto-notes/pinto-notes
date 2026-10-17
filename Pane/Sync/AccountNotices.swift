@@ -167,6 +167,9 @@ final class AccountNotices {
     @ObservationIgnored private let client: SupabaseClient
     @ObservationIgnored private let ledger: NoticeLedger
     @ObservationIgnored private let approvedHere: () -> Date?
+    /// Told when the server says an AI connected, this device's own approvals included: connect
+    /// guides waiting for it look at once (`ConnectCenter.connectionNews`).
+    @ObservationIgnored private let aiConnected: @MainActor () -> Void
     @ObservationIgnored private var channel: RealtimeChannelV2?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var stopped = false
@@ -176,10 +179,12 @@ final class AccountNotices {
 
     init(client: SupabaseClient, user: UUID, defaults: UserDefaults = .standard,
          approvedHere: @escaping () -> Date? = { ConnectCenter.shared.approved?.at },
+         aiConnected: @escaping @MainActor () -> Void = { ConnectCenter.shared.connectionMayHaveAppeared() },
          connection: ((UUID) async -> ConnectionLookup)? = nil) {
         self.client = client
         ledger = NoticeLedger(account: user, defaults: defaults)
         self.approvedHere = approvedHere
+        self.aiConnected = aiConnected
         self.connection = connection ?? { grant in await Self.connection(client, grant: grant) }
     }
 
@@ -249,6 +254,7 @@ final class AccountNotices {
 
     func take(_ rows: [AccountNotice]) async {
         guard !stopped else { return }
+        if rows.contains(where: { $0.kind == .aiConnected }) { aiConnected() }
         let unseen = ledger.unseen(rows.filter { $0.kind != .unknown }, approvedHere: approvedHere(), addedHere: AddDeviceMoment.here, fetchedHere: KeyCopyMoment.here)
         var fresh: [AccountNotice] = []
         for var n in unseen {

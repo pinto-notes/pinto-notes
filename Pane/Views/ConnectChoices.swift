@@ -243,6 +243,10 @@ final class ConnectRun {
     @ObservationIgnored var claudeCodeOnly: @MainActor () -> Bool = ConnectFinder.claudeCodeOnly
     #endif
     @ObservationIgnored var address: String?
+    /// Approvals here and news of new connections; tests give their own.
+    @ObservationIgnored var center = ConnectCenter.shared
+    /// Puts the address on the clipboard; tests keep theirs.
+    @ObservationIgnored var copy: (String) -> Void = ConnectClipboard.set
     /// How long the row says the browser is about to open before it does, so the browser coming to
     /// the front isn't a surprise. Tests set none.
     @ObservationIgnored var browserNotice: Duration = .seconds(1.5)
@@ -276,7 +280,7 @@ final class ConnectRun {
         #if os(macOS)
         switch g {
         case .chatgpt:
-            ConnectClipboard.set(server)
+            copy(server)
             open(WebConnectPlan.chatgpt.setupPage(server: server))
             wait(client, ConnectCopy.waiting(.chatgpt))
         case .claude:
@@ -289,12 +293,12 @@ final class ConnectRun {
         case .claudeCode, .codex:
             add(g, client: client)
         case .other, .incredible:
-            ConnectClipboard.set(server)
+            copy(server)
             wait(client, ConnectCopy.waiting(.other))
         }
         #else
         if g == .other {
-            ConnectClipboard.set(server)
+            copy(server)
             wait(client, ConnectCopy.waiting(.other))
         } else {
             // The link went to the computer (ShareLink): it finishes there, and shows here too.
@@ -318,7 +322,7 @@ final class ConnectRun {
     func stop(givingUp: Bool = true) {
         watching?.cancel()
         watching = nil
-        if expecting { ConnectCenter.shared.stopExpectingAsks(); expecting = false }
+        if expecting { center.stopExpectingAsks(); expecting = false }
         if givingUp, let ai = funnelAI { ConnectFunnel.closed(ai) }
         guide = nil
         phase = nil
@@ -328,24 +332,28 @@ final class ConnectRun {
     private var funnelAI: ConnectAIKind? { guide.map { direct ? .claudeCode : $0.funnel } }
 
     private func expect() {
-        if !expecting { ConnectCenter.shared.expectAsks(); expecting = true }
+        if !expecting { center.expectAsks(); expecting = true }
     }
 
     private func wait(_ client: SupabaseClient, _ line: String) {
         phase = .waiting(line)
         if let ai = funnelAI { ConnectFunnel.waiting(ai) }
         guard let g = guide else { return }
-        let since = since
+        let since = since, center = center
         watching?.cancel()
         watching = Task { [weak self] in
             while !Task.isCancelled {
-                let here = ConnectCenter.shared.approved.map { $0.at >= since && ConnectRun.approvalCounts($0.ai, for: g) } ?? false
-                if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value,
-                   ConnectRun.isNew(rows, for: g, since: since) || here {
+                let seen = center.connectionNews
+                if center.approved.map({ $0.at >= since && ConnectRun.approvalCounts($0.ai, for: g) }) ?? false {
                     self?.done(g)
                     return
                 }
-                try? await Task.sleep(for: .seconds(here ? 1 : 3))
+                if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value,
+                   ConnectRun.isNew(rows, for: g, since: since) {
+                    self?.done(g)
+                    return
+                }
+                await center.news(after: seen)
             }
         }
     }
@@ -359,16 +367,17 @@ final class ConnectRun {
         self.phase = phase
         if let kind = funnelAI { ConnectFunnel.waiting(kind) }
         guard let g = guide else { return }
-        let since = since
+        let since = since, center = center
         watching?.cancel()
         watching = Task { [weak self] in
             while !Task.isCancelled {
+                let seen = center.connectionNews
                 if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value,
                    TerminalConnect.isConnected(rows, guide: ai, way: .token, since: since) {
                     self?.done(g)
                     return
                 }
-                try? await Task.sleep(for: .seconds(3))
+                await center.news(after: seen)
             }
         }
     }

@@ -183,6 +183,8 @@ final class ConnectGuideRun {
     @ObservationIgnored var copy: (String) -> Void = ConnectClipboard.set
     /// The sheet closes (Done, after it worked).
     @ObservationIgnored var close: () -> Void = {}
+    /// Approvals here and news of new connections; tests give their own.
+    @ObservationIgnored var center = ConnectCenter.shared
     @ObservationIgnored private var watching: Task<Void, Never>?
     @ObservationIgnored private var expecting = false
     @ObservationIgnored private var saidWaiting = false
@@ -291,22 +293,23 @@ final class ConnectGuideRun {
     // MARK: Watching
 
     /// Watches for the connection while the sheet is up: at once when it's allowed on this
-    /// device, else from the server's list every few seconds.
+    /// device or the server says an AI connected, else from the server's list every two seconds.
     func watch(_ client: SupabaseClient) {
-        if !expecting { ConnectCenter.shared.expectAsks(); expecting = true }
-        let ai = ai, since = since
+        if !expecting { center.expectAsks(); expecting = true }
+        let ai = ai, since = since, center = center
         watching?.cancel()
         watching = Task { [weak self] in
             while !Task.isCancelled {
+                let seen = center.connectionNews
                 // Another AI may be any app, Claude's custom connector included.
-                let here = ConnectCenter.shared.approved.map { $0.at >= since && (ai == .other || ConnectRun.approvalCounts($0.ai, for: ai)) } ?? false
+                let here = center.approved.map { $0.at >= since && (ai == .other || ConnectRun.approvalCounts($0.ai, for: ai)) } ?? false
                 let rows: [Connection]? = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value
                 if let rows, ConnectRun.isNew(rows, for: ai, since: since) {
                     self?.connected(Self.newest(rows, for: ai, since: since)?.title)
                     return
                 }
                 if here { self?.connected(nil); return }
-                try? await Task.sleep(for: .seconds(3))
+                await center.news(after: seen)
             }
         }
     }
@@ -314,7 +317,7 @@ final class ConnectGuideRun {
     func stop() {
         watching?.cancel()
         watching = nil
-        if expecting { ConnectCenter.shared.stopExpectingAsks(); expecting = false }
+        if expecting { center.stopExpectingAsks(); expecting = false }
     }
 
     /// Connected. Internal for tests: the app gets here from the server's list.

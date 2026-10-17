@@ -202,6 +202,8 @@ struct MakeAppSheet: View {
         .sheet(isPresented: $connecting, onDismiss: { Task { await check() } }) {
             if let backend { SettingsView(backend: backend, sync: sync) }
         }
+        // Allowing an AI connected from here shows over this sheet.
+        .consentHost(client: backend?.client)
     }
 
     private var words: some View {
