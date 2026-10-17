@@ -63,6 +63,9 @@ export default function Page() {
         and the <a href="https://learn.chatgpt.com/docs/dots" rel="noopener">guide</a> says a dot decides for itself when to pause
         and when to wake up and carry on. You don&apos;t have to schedule every follow-up.
       </p>
+      <PostFigure src="/blog/news/openai-dots-cloud-computer" width={1600} height={944} maxWidth={700}
+        alt="A dot called Alfred, a yellow plush character with glasses, using its own cloud computer in ChatGPT, with a bar saying Alfred has control and a Take over button."
+        caption="A dot's own computer in the cloud. You can watch, or take over. Image: OpenAI." />
       <p>
         It runs on GPT-6 Astra, OpenAI&apos;s strongest model, and has its own computer and browser in the cloud, so it works while
         your laptop is shut. It can use the plugins you&apos;ve connected (OpenAI says there are over 4,000), such as Gmail or Google
@@ -85,6 +88,9 @@ export default function Page() {
       </div>
 
       <h2 id="who">Who can get a dot</h2>
+      <PostFigure src="/blog/drawn/dots-plans" width={1200} height={750} maxWidth={560}
+        alt="The OpenAI logo above three ticked plan tags: Pro, Business Premium and Enterprise."
+        caption="Dots come with Pro, Business Premium and Enterprise." />
       <p>
         Dots are rolling out slowly, so you may not see one even on an eligible plan. On a personal plan you need Pro (Pro 100, Pro 200
         or Pro 500), you must be over 18, and you can&apos;t be in the EU, the UK or Switzerland. Business Premium has them worldwide.
@@ -97,6 +103,9 @@ export default function Page() {
       </p>
 
       <h2 id="set-up">How to set up your dot</h2>
+      <PostFigure src="/blog/drawn/dots-links" width={1200} height={750} maxWidth={560}
+        alt="A round blue dot linked to a laptop, Gmail and Google Calendar."
+        caption="A dot gets the plugins you connect, and your computer if you add it." />
       <Steps>
         <li>
           <strong>Open ChatGPT and create your dot</strong>
@@ -171,6 +180,9 @@ export default function Page() {
         ChatGPT&apos;s saved memory, and OpenAI says they aren&apos;t a complete transcript. If you delete the dot, the guide tells you
         to save any results first, because deleting can&apos;t be undone.
       </p>
+      <PostFigure src="/blog/chatgpt/chatgpt-checks-off-lisbon" width={700} height={300} maxWidth={350}
+        alt="ChatGPT answering a request to check off Tram 28 early in the Lisbon note: it checked off the line in Pinto Notes and lists the checklist, 3 of 4 done."
+        caption="ChatGPT ticking off a line in a note it reaches through a plugin." />
       <p>
         So the plan itself, the checklist and the decisions, belongs somewhere you can open without asking the dot, like a document or a note it updates through a plugin.
         Then you can read it on your phone and keep it if you cancel Pro. <a href="/blog/claude-memory-vs-notes">AI memory vs notes it can edit</a> goes into that difference in more
@@ -191,6 +203,9 @@ export default function Page() {
         back. Stopping a task doesn&apos;t undo what it already did. Pause stops its current work. Tasks it handed off are stopped
         in Activity, and recurring ones are cancelled in Scheduled.
       </p>
+      <PostFigure src="/blog/news/openai-dots-review-fix" width={1600} height={900} maxWidth={700}
+        alt="A dot called Iggy, a pink plush character with headphones, in a chat beside a release checklist, offering a fix the person asks to review before merging."
+        caption="Tell a dot what to show you first, and it waits for your review. Image: OpenAI." />
       <p>
         By default it asks before actions that affect your accounts or share information, and some things, like changing a
         password, always stay with you. You can add your own rules, such as &ldquo;show me every email before you send it.&rdquo;

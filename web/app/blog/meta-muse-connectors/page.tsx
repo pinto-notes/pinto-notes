@@ -75,6 +75,9 @@ export default function Page() {
         sensitive actions such as sending an email or buying something. It&apos;s rolling out in the US on iOS, Android, the web
         and inside WhatsApp, and it&apos;s free for most needs, with paid plans for heavier use.
       </p>
+      <PostFigure src="/blog/news/meta-muse-browser-checkout" width={820} height={1672} maxWidth={300}
+        alt="Muse on an iPhone recommending a stroller and completing checkout on the shop's site in its own browser."
+        caption="Without a connector, Muse uses its own browser, as you would. Image: Meta." />
       <p>
         Without connectors, Muse works through its browser the way you would. A connector gives it a direct line to a service
         instead: the developer supplies the tools, and Muse decides when to use them. On 18 September Meta opened
@@ -90,6 +93,9 @@ export default function Page() {
         what you see as a user. Approved connectors show up in Settings under Connectors, and Muse can suggest one when a task
         needs it.
       </p>
+      <PostFigure src="/blog/news/meta-muse-checkout-approval" width={820} height={1672} maxWidth={300}
+        alt="Muse on an iPhone asking to place an order, with a checkout card for a stroller paid by a card ending 1234 and Deny and Allow buttons."
+        caption="A purchase asks every time, with only Allow or Deny. Image: Meta." />
       <Steps>
         <li>
           <strong>Open Settings, then Connectors</strong>
@@ -117,6 +123,9 @@ export default function Page() {
       </p>
 
       <h2 id="which">Which connectors to add first</h2>
+      <PostFigure src="/blog/drawn/muse-onetime" width={1200} height={750} maxWidth={560}
+        alt="A one-time card with the Stripe logo going to a checkout, with the real card behind it."
+        caption="Link gives Muse a one-time card number, so your real one stays hidden." />
       <p>
         Meta hasn&apos;t published a full list that I can find, and the lists on other sites disagree with each other, so check
         Settings, then Connectors, for what your account offers. The announcement itself names a few. Link, by Stripe, handles
@@ -133,6 +142,9 @@ export default function Page() {
         note="Read-only email is enough for this. Check the list against your inbox before you let it touch the calendar." />
 
       <h2 id="own">Can you add your own MCP server to Muse?</h2>
+      <PostFigure src="/blog/drawn/muse-gate" width={1200} height={750} maxWidth={560}
+        alt="Three plugs waiting at a gate under the Meta logo, with a ticked checklist and an OK stamp."
+        caption="Every Muse connector goes through Meta's review first." />
       <p>
         Not as far as Meta&apos;s pages say. ChatGPT, Claude and Grok each have a place to paste the address of any MCP server.
         Muse&apos;s connectors go through Meta&apos;s review first: a risk assessment, a review of each tool and whether it writes, then
@@ -166,6 +178,9 @@ export default function Page() {
       </p>
       <Keep title="An MCP server in Muse Code's settings" code text={MUSE_CODE}
         note={<>Then run <code>muse mcp login notes</code>. These are Meta&apos;s documented steps for any remote server. I haven&apos;t tested Pinto Notes with Muse Code yet.</>} />
+      <PostFigure src="/blog/drawn/three-agents" width={1200} height={750} maxWidth={560}
+        alt="Three terminals with the Claude, OpenAI and Meta logos, each with its own memory file, all joined to one shared note."
+        caption="Three agents, three memories of one project, one note they can all read." />
       <p>
         By default a server is required, and one that fails to start stops the whole run. With{" "}
         <code>&quot;mode&quot;: &quot;optional&quot;</code>, Muse Code skips it with a warning instead. And Meta notes that MCP tools aren&apos;t sandboxed, so add
@@ -180,6 +195,9 @@ export default function Page() {
       </p>
 
       <h2 id="limits">What Meta doesn&apos;t say yet</h2>
+      <PostFigure src="/blog/news/meta-muse-announcement" width={1600} height={900} maxWidth={700}
+        alt="Meta's picture for the Muse launch: a blue scribble surrounded by chat bubbles about ordering costumes, booking and a budget."
+        caption="Muse acting on things you mentioned before. Image: Meta." />
       <p>
         Meta says Muse remembers what matters to you and can act on something you mentioned once. You can tell it to forget
         specific things, but the announcement doesn&apos;t describe a page where you read or edit everything it remembers. If a plan

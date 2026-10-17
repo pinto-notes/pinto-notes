@@ -1,3 +1,5 @@
+import { SHOTS } from "@/lib/posts";
+import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -93,6 +95,9 @@ export default function Page() {
       </p>
 
       <h2 id="try-it">How to try GPT-6 Astra</h2>
+      <PostFigure src="/blog/news/openai-astra-sites-website" width={916} height={859} maxWidth={460}
+        alt="GPT-6 Astra in ChatGPT, dark theme, using the Sites skill to build a personal website, with GPT-6 Astra Extra High in the model control under the message box."
+        caption="Astra at work in ChatGPT, with its preset in the model control under the message box. Image: OpenAI." />
       <p>
         ChatGPT now has two modes. Chat is for answers and short drafts; Work is for tasks with an outcome you can check, like a
         file or a filled-in form. You&apos;ll find Astra in Work (and in Codex, for code). On a Mac or a Windows PC:
@@ -129,6 +134,9 @@ export default function Page() {
         Each one is a task you can describe in two or three sentences and check afterwards. That&apos;s the shape Astra is good at.
       </p>
       <h3>1. Fill in a long form from your documents</h3>
+      <PostFigure src="/blog/drawn/astra-form" width={1200} height={750} maxWidth={560}
+        alt="A drawn web form being filled in from a stack of PDF documents, with the OpenAI logo above."
+        caption="Astra copies what's in your documents into the form, and you press Submit." />
       <p>
         Insurance claims and school sign-ups ask for things you already have in PDFs. Point Astra at the files and the
         form, and tell it where to stop.
@@ -157,6 +165,9 @@ export default function Page() {
         is one of the things OpenAI says improved most.
       </p>
       <h3>6. Move data between two apps with no export</h3>
+      <PostFigure src="/blog/drawn/astra-table" width={1200} height={750} maxWidth={560}
+        alt="A drawn table in a web page with an arrow into a spreadsheet, the OpenAI logo above the arrow."
+        caption="No export button? Astra can read the table page by page and type it in." />
       <p>
         Some sites only show a table, like a bank portal or a club&apos;s member list, with no way to download it. Astra can read the
         screen page by page and type it into Numbers or Excel. It&apos;s slow, so leave it running on the Mac while you do something else.
@@ -183,6 +194,7 @@ export default function Page() {
         type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">AI memory
         vs notes it can edit</a> covers why the notes themselves are the better place for things you want an AI to remember.
       </p>
+      <Figure shot={SHOTS.aiEdit} caption="When an AI changes a note in Pinto Notes, the new lines are tinted, with Undo." />
       <p>
         That direct connection is what I built Pinto Notes around. It&apos;s a notes app for iPhone and Mac that ChatGPT, Claude,
         Claude Code and Codex can read and edit over MCP, once you approve each one. With Codex, it&apos;s one line:
@@ -200,6 +212,9 @@ export default function Page() {
       </p>
 
       <h2 id="limits">What GPT-6 Astra still gets wrong</h2>
+      <PostFigure src="/blog/drawn/astra-stop" width={1200} height={750} maxWidth={560}
+        alt="A drawn computer window with a cursor, a red stop sign and the OpenAI logo."
+        caption="Astra pauses for you on security prompts and some actions." />
       <p>
         A 72.6% score on long computer tasks is a big step, and it also means some tasks go wrong. Check the result, especially
         anything with numbers. On Plus, a handful of big Astra tasks can use up your five-hour allowance. More limits from OpenAI&apos;s own pages:

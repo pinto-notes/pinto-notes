@@ -1,3 +1,5 @@
+import { SHOTS } from "@/lib/posts";
+import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
@@ -82,6 +84,7 @@ export default function Page() {
         <strong>It works on the note in front of you.</strong> Select text, tap the Siri AI icon, and ask for a proofread, a rewrite or a
         summary, or describe the change. After a rewrite you can compare it with the original before you keep it.
       </p>
+      <Figure shot={SHOTS.notesDefaultAccount} caption="Siri's new notes go to the default account you pick here." />
       <p>
         <strong>It makes new notes.</strong> They go to the Default Account in Notes&apos; settings, so if Siri&apos;s notes land in On My
         iPhone or an old Gmail account, <a href="/blog/move-apple-notes-to-icloud">change it there</a>.
@@ -108,6 +111,9 @@ export default function Page() {
       </div>
 
       <h2 id="chatgpt">ChatGPT and other AIs</h2>
+      <PostFigure src="/blog/news/apple-intelligence-chatgpt-writing-tools" width={1600} height={1066} maxWidth={640}
+        alt="A MacBook showing a story in Pages, with the Writing Tools panel open at Refine with ChatGPT."
+        caption="Apple's ChatGPT extension inside Writing Tools, shown in Pages; it works the same in Notes. Image: Apple." />
       <p>
         Siri can hand a question to ChatGPT if you turn on its extension (Settings, Siri, Set Up Extensions, ChatGPT) and ask for ChatGPT
         by name. Apple&apos;s examples send it a photo or a document. None of its pages show ChatGPT reading your notes or writing an answer

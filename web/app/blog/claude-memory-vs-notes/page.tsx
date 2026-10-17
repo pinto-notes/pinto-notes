@@ -1,3 +1,5 @@
+import { SHOTS } from "@/lib/posts";
+import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, Keep, PostFigure, Steps } from "@/lib/PostParts";
@@ -81,6 +83,7 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      <Figure shot={SHOTS.iphoneGroceries} caption="A note on your phone, just after ChatGPT added five lines, with Undo." />
       <p>
         So memory suits things like your job, the tone you like and the tools you use: context you&apos;d otherwise repeat. Notes suit trip
         plans, shopping lists, meeting notes and drafts: things you&apos;ll read again yourself, often on your phone. If you also use ChatGPT,
@@ -93,6 +96,9 @@ export default function Page() {
         won&apos;t hold the plan: the hotel, the late checkout you still need to confirm, the list of restaurants your friend sent. Ask on
         your phone a week later and you&apos;re scrolling through an old chat to find them.
       </p>
+      <PostFigure src="/blog/chatgpt/chatgpt-checks-off-lisbon" width={700} height={300} maxWidth={350}
+        alt="ChatGPT answering a request to check off Tram 28 early in the Lisbon note: it checked off the line in Pinto Notes and lists the checklist, 3 of 4 done."
+        caption="ChatGPT working in the same Lisbon note Claude added to above." />
       <p>
         And memory belongs to one assistant. Tell ChatGPT the dates, and Claude doesn&apos;t know. Import fixes that once, by copy and paste;
         the next change goes missing again. What you actually want is the plan itself, in one place every AI you use can read and add to,
@@ -105,6 +111,9 @@ export default function Page() {
         memory:
       </p>
       <Keep title="A line for Claude's memory" text={MEMORY_LINE} />
+      <PostFigure src="/blog/drawn/claude-memcard" width={1200} height={750} maxWidth={560}
+        alt="A Claude memory card with an arrow into a note called About me (for Claude), with Work, Preferences and Projects."
+        caption="Copy what Claude remembers into a note you can read and fix." />
       <p>
         You can also move what Claude remembers into a note you can read and edit. The first sentence is the one Anthropic suggests for
         copying your memory out; the rest saves it as a note.
@@ -113,6 +122,7 @@ export default function Page() {
         note="Claude reads the result back from the note in later chats, and you can fix anything it got wrong in the note itself." />
 
       <h2 id="connect">Connect Claude to your notes</h2>
+      <Figure shot={SHOTS.consent} caption="Pinto Notes shows this sheet for any AI. Here it names ChatGPT; for Claude it names Claude." />
       <p>
         Claude reaches a notes app through a connector, which is an MCP server. Pinto Notes is in Claude&apos;s connector directory:
       </p>

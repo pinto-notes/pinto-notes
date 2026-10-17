@@ -84,6 +84,9 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      <PostFigure src="/blog/apple/apple-dts-notes-api-answer" width={1176} height={720} maxWidth={560}
+        alt="An Apple Developer Forums thread where an Apple engineer answers No to whether there is an API for Apple Notes."
+        caption="Apple's own answer on its developer forums. Image: Apple." />
       <p>
         Apple Notes is the one most people have, and it&apos;s the most closed: Apple has no API for it, so nothing outside your Mac can
         get in. <a href="/blog/apple-notes-api">Apple confirmed it this year</a>.
@@ -101,6 +104,9 @@ export default function Page() {
       <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
 
       <h2 id="which">Which AI, and what you need</h2>
+      <PostFigure src="/blog/news/openai-chatgpt-mcp-request-diagram" width={1000} height={480} maxWidth={560}
+        alt="OpenAI's diagram: a question in ChatGPT goes through an MCP server to a ticketing system and comes back as an answer."
+        caption="How MCP works, in OpenAI's own example. Image: OpenAI." />
       <p>
         MCP (Model Context Protocol) is an open standard that lets an assistant find, read and change things in another app. Once
         Pinto Notes is connected, the assistant can search your notes, read them, write new ones and edit the ones you have. Every
@@ -127,6 +133,7 @@ export default function Page() {
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
       <p>Do this in ChatGPT on the web, at chatgpt.com. That&apos;s where OpenAI documents custom apps; I haven&apos;t confirmed them in the phone apps.</p>
+      <Figure shot={SHOTS.connectList} caption="Connect an AI in Pinto Notes. Choose ChatGPT to start." />
       <Steps>
         <li>
           <strong>Open Connect an AI in Pinto Notes</strong>
@@ -197,6 +204,9 @@ export default function Page() {
       </p>
 
       <h2 id="claude">Connect Claude</h2>
+      <PostFigure src="/blog/news/anthropic-claude-connectors-directory" width={1600} height={900} maxWidth={700}
+        alt="The Connectors directory in the Claude app, listing apps such as Asana, Canva, Gmail, Google Calendar, Google Drive, Linear and Notion."
+        caption="Claude's connector directory, where Pinto Notes is listed. Image: Anthropic." />
       <p>
         Pinto Notes is in Claude&apos;s connector directory. Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">its
         listing</a> on claude.ai or in the Claude desktop app, choose Connect to Claude, sign in, then Allow in Pinto Notes. In Connect
@@ -209,6 +219,9 @@ export default function Page() {
       </p>
 
       <h2 id="claude-code">Claude Code and Codex</h2>
+      <PostFigure src="/blog/pinto/claude-code-standup-note" width={1250} height={540} maxWidth={620}
+        alt="Standup notes in Pinto Notes on a Mac, with the line Claude Code just added tinted and a bar saying Claude Code changed 1 line, with Undo."
+        caption="A standup note just after Claude Code added today's line." />
       <p>
         These use an access token instead of a sign-in. On a Mac, choose Claude Code in Connect an AI, then Add to Claude Code, or
         copy the command it shows. For Codex, Pinto Notes gives you a few lines to paste into <code>~/.codex/config.toml</code>.{" "}
@@ -236,6 +249,9 @@ export default function Page() {
       </p>
 
       <h2 id="other">Other MCP apps</h2>
+      <PostFigure src="/blog/news/mcp-docs-architecture-diagram" width={1920} height={750} maxWidth={760}
+        alt="The MCP architecture diagram: AI apps on the left connect through MCP to data, development tools and productivity tools on the right."
+        caption="Any app that speaks MCP can connect the same way. Image: Model Context Protocol." />
       <p>
         Any other app that supports MCP connects the same way: add <code>{MCP_URL}</code>, sign in when it asks, then choose Allow.
         The <a href="/blog/mcp-server">Pinto Notes MCP server page</a> has the address, the sign-in and every tool.
@@ -255,6 +271,9 @@ export default function Page() {
       </p>
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
+      <PostFigure src="/blog/pinto/habit-tracker-main-mac-light" width={1280} height={900} maxWidth={600}
+        alt="The habit tracker template in Pinto Notes on a Mac: Today, 2 of 6 done, streaks for each habit, and a dot grid for the week."
+        caption="The habit tracker template, which ChatGPT or Claude can fill in. Example data." />
       <Keep title="Five first things to ask" text={PROMPTS}
         note={<>For a to-do list you tick on your phone, ask ChatGPT to keep it as a checklist in one note.</>}>
         <ul>
