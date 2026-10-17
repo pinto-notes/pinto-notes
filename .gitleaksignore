@@ -6,3 +6,7 @@
 # snapshot tests, matched by generic-api-key. The test now builds it from a repeated character.
 805ec5f4ca8cb7fb3b96716964d2797f7a60ca4e:PaneTests/HIG/OnboardingSnapshots.swift:generic-api-key:57
 b4242cb0436262625e9cbcfa19a79cd7b560c8dc:PaneTests/HIG/WelcomeSnapshots.swift:generic-api-key:43
+
+# A made-up link secret in the web join-link test (NoteLink.test.tsx), matched by generic-api-key.
+# The line now carries gitleaks:allow.
+137979d8c9c4aa983e074145ec64d874be51bc24:web/app/s/[id]/NoteLink.test.tsx:generic-api-key:6
