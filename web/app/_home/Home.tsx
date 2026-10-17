@@ -26,7 +26,8 @@ const EXTRAS = [
 
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
-export function Home() {
+/// `jonas`: "b" tries the night-shift version of Jonas's scene (lab only, ?jonas=b).
+export function Home({ jonas }: { jonas?: string } = {}) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
@@ -53,6 +54,16 @@ export function Home() {
             me="Skipped the reading again." aiName="ChatGPT" aiGlyph="openai" ai="Third time this week. Want to move it to the mornings, before work?" />
         </div>
         <div className={v.row} data-flip="">
+          {jonas === "b" ? <>
+          <div className={v.words}>
+            <p className={v.kicker}>His notebook, all night</p>
+            <h3 className={v.rowTitle}>Jonas&apos;s agents work the night shift.</h3>
+            <p className={v.say}>Claude Code and Codex work from the same notes. Each one logs what it did, so the next starts where it stopped. He wakes up to one question.</p>
+          </div>
+          <PaperStill at="left" focus={78} src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
+            alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, Lisbon's rooftops and the river through tall open windows."
+            me="Finish the offline queue tonight. Have Codex review it." aiName="Claude Code" aiGlyph="claude" ai="On it. I'll log each step in Sync rewrite, so Codex picks up where I stop." log />
+          </> : <>
           <div className={v.words}>
             <p className={v.kicker}>All night</p>
             <h3 className={v.rowTitle}>Jonas&apos;s agents never start from zero.</h3>
@@ -61,6 +72,7 @@ export function Home() {
           <PaperStill at="left" focus={78} src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
             alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, Lisbon's rooftops and the river through tall open windows."
             me="Pick up the sync rewrite." aiName="Claude Code" aiGlyph="claude" ai="Read your plan and yesterday's log. Starting where Codex stopped: the offline queue." />
+          </>}
         </div>
         <div className={v.row}>
           <div className={v.words}>
