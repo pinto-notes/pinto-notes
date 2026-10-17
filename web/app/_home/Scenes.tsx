@@ -28,13 +28,13 @@ function useReveal() {
 }
 
 /// `focus` is where the person is across the picture (0 to 100), for the portrait crop on phones.
-export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50, log = false, review = false }:
-  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number; log?: boolean; review?: boolean }) {
+export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50, log = false, review = false, friend = false }:
+  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number; log?: boolean; review?: boolean; friend?: boolean }) {
   const [ref, v] = useReveal();
   // The same entrance as the cards further down: a quick fade with a short lift, fully there early.
   const art = mj(clamp(v * 2.2)), q1 = mj(span(v, 0.3, 0.6)), q2 = mj(span(v, 0.42, 0.72));
   return (
-    <div ref={ref} className={m.paperScene} data-budget={budget || log || review || undefined} style={{ "--fx": `${focus}%`, opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) } as React.CSSProperties}>
+    <div ref={ref} className={m.paperScene} data-budget={budget || log || review || friend || undefined} style={{ "--fx": `${focus}%`, opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) } as React.CSSProperties}>
       <img src={src} alt={alt} loading="lazy" decoding="async" />
       <figure className={m.quote} data-at={at} data-voice={voice || undefined} style={{ "--q1": q1, "--q2": q2 } as React.CSSProperties}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
@@ -42,6 +42,7 @@ export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "lef
         {budget && <BudgetCard />}
         {log && <LogCard />}
         {review && <ReviewCard />}
+        {friend && <FriendCard />}
       </figure>
       <span className={m.paperWhere}>{where}</span>
     </div>
@@ -87,6 +88,17 @@ export function ReviewCard() {
   return (
     <figure className={m.gymMini}>
       <div className={m.gymMiniHead}><span>Review prep</span><em className={m.logWho}><AIGlyph name="meta" size={11} color="#0866ff" />Muse wrote this</em></div>
+      <ul className={m.log}>{rows.map((r) => <li key={r.at} data-two=""><time>{r.at}</time><b>{r.did}</b></li>)}</ul>
+    </figure>
+  );
+}
+
+/// Sara's note about Leo: what he told her, with when.
+export function FriendCard() {
+  const rows = [{ at: "Sep 28", did: "Dad's knee surgery on the 9th." }, { at: "Oct 2", did: "Off gluten, doctor's orders." }];
+  return (
+    <figure className={m.gymMini}>
+      <div className={m.gymMiniHead}><span>Leo</span><em>People</em></div>
       <ul className={m.log}>{rows.map((r) => <li key={r.at} data-two=""><time>{r.at}</time><b>{r.did}</b></li>)}</ul>
     </figure>
   );

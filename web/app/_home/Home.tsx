@@ -28,7 +28,7 @@ const EXTRAS = [
 /// this, templates, everything else, and the download.
 /// `people`: "b" tries the smarter people scenes, where each answer uses what the notebook remembers
 /// (lab only, ?people=b).
-export function Home({ people }: { people?: string } = {}) {
+export function Home({ people, sara }: { people?: string; sara?: string } = {}) {
   const b = people === "b";
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
@@ -78,7 +78,16 @@ export function Home({ people }: { people?: string } = {}) {
           </>}
         </div>
         <div className={v.row}>
-          {b ? <>
+          {b && sara !== "review" ? <>
+          <div className={v.words}>
+            <p className={v.kicker}>Every morning, over coffee</p>
+            <h3 className={v.rowTitle}>Sara never forgets what friends tell her.</h3>
+            <p className={v.say}>She jots down what people tell her. Muse reminds her before she sees them.</p>
+          </div>
+          <PaperStill friend at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
+            me="Dinner with Leo tonight." aiName="Muse" aiGlyph="meta" ai="Ask how his dad's surgery went. And he's off gluten now, so not the pasta place." />
+          </> : b ? <>
           <div className={v.words}>
             <p className={v.kicker}>Before her review, over coffee</p>
             <h3 className={v.rowTitle}>Sara walks into her review with a year of proof.</h3>

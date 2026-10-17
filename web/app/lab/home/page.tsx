@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: G.title, description: G.description }
 // The home page in progress. Earlier versions and alternatives are in git history.
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
-  return <Home people={q.people ?? (q.jonas === "b" ? "b" : undefined)} />;
+  return <Home people={q.people ?? (q.jonas === "b" ? "b" : undefined)} sara={q.sara} />;
 }
