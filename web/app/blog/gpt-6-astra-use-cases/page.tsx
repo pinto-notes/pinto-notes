@@ -1,5 +1,4 @@
-import { SHOTS } from "@/lib/posts";
-import { Figure } from "@/lib/blog";
+import { NoteMoment } from "@/lib/NoteMoment";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -194,7 +193,17 @@ export default function Page() {
         type into a note. It&apos;s fine for a one-off tidy, and slow for anything you do every day. <a href="/blog/claude-memory-vs-notes">AI memory
         vs notes it can edit</a> covers why the notes themselves are the better place for things you want an AI to remember.
       </p>
-      <Figure shot={SHOTS.aiEdit} caption="When an AI changes a note in Pinto Notes, the new lines are tinted, with Undo." />
+      <NoteMoment
+        me="Put the three daycares you found in my Daycare note, cheapest first."
+        reply="Done. I added them to Daycare shortlist in Pinto Notes, with the monthly price and the visit days."
+        title="Daycare shortlist"
+        lines={[
+          { text: "Ask about the waiting list", done: true },
+          { text: "Sunny Hill · 9,800 kr · Tue", by: true },
+          { text: "Little Oaks · 10,400 kr · Wed", by: true },
+          { text: "Maple House · 11,200 kr · Thu", by: true },
+        ]}
+        caption="Research that ends in your notes: the lines ChatGPT added are marked, and you can undo them." />
       <p>
         That direct connection is what I built Pinto Notes around. It&apos;s a notes app for iPhone and Mac that ChatGPT, Claude,
         Claude Code and Codex can read and edit over MCP, once you approve each one. With Codex, it&apos;s one line:
