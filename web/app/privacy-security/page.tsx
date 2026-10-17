@@ -117,9 +117,10 @@ export default function PrivacySecurity() {
           <p>
             This website counts page views and where visitors came from with Vercel Web Analytics, and which links and buttons are
             clicked, where on a page people click and how far pages are scrolled with PostHog, in the EU. These are counted across all
-            visitors; no visit is recorded. Neither keeps a profile of you, and neither runs on shared notes or the connect pages.
-            PostHog uses a cookie only if you choose Accept on the cookie banner, to recognise your return visits for up to a year;
-            Cookie settings at the bottom of the page changes your answer. It also counts Mac downloads as daily totals. None of this
+            visitors. Neither keeps a profile of you, and neither runs on shared notes or the connect pages.
+            PostHog uses a cookie only if you choose Accept on the cookie banner, to recognise your return visits for up to a year,
+            and then also records your visits to the public pages as session replays, with everything you type masked, kept for 30
+            days. Without Accept, no visit is recorded. Cookie settings at the bottom of the page changes your answer. It also counts Mac downloads as daily totals. None of this
             touches your notes or your computer.
           </p>
           <p>The apps count a few things on our own server, so we can tell whether Pinto Notes works for people. Kept for 12 months, never shared:</p>

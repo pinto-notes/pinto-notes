@@ -94,10 +94,16 @@ describe("privacy copy", () => {
       expect(text).not.toMatch(/(on|or) (the|this) website, and we never/);
       expect(text).not.toMatch(/(apps and this website|website) (have|has|uses) no (analytics|tracking)/);
     }
-    expect(policy).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all visitors; no visit is recorded\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\. Vercel never uses cookies\. PostHog uses none either, unless you choose Accept on the website's cookie banner/);
-    expect(page).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all\s+visitors; no visit is recorded\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\.\s+PostHog uses a cookie only if you choose Accept on the cookie banner/);
+    expect(policy).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all visitors\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\. Vercel never uses cookies\. PostHog uses none either, unless you choose Accept on the website's cookie banner/);
+    expect(page).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all\s+visitors\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\.\s+PostHog uses a cookie only if you choose Accept on the cookie banner/);
     // Heatmaps are named, and limited to the marketing pages, in the long form too.
-    expect(policy).toMatch(/where on the page each click landed.*no visit is recorded or replayed/);
+    expect(policy).toMatch(/where on the page each click landed/);
+    // Session replays (web/lib/posthog.ts replayAllowed): only after Accept, inputs masked, never on private pages,
+    // kept 30 days; and said in the summary, the long form, the page, the retention list and the banner.
+    expect(policy).toMatch(/records your visits to the website's public pages as session replays/);
+    expect(policy).toMatch(/If you choose Accept, PostHog also records your visit as a session replay.*Everything typed into a field is masked.*Without Accept, no visit is recorded or replayed\./);
+    expect(policy).toMatch(/\*\*Session replays,\*\* only if you accept: kept at PostHog for 30 days/);
+    expect(page).toMatch(/records your visits to the public pages as session replays,\s+with everything you type masked/);
     expect(policy).toMatch(/\| PostHog, Inc\. \| Website usage: /);
     expect(policy).toContain("None of this touches your notes or your computer");
   });
