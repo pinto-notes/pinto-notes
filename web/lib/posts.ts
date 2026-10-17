@@ -154,7 +154,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.consent,
-    thumb: cover("lilac", "meta-muse-connectors", 1600, 1000, "The Meta logo connected to Gmail, Google Calendar, WhatsApp and Google Drive"),
+    thumb: cover("lilac", "meta-muse-apps", 1600, 900, "The Muse character beside a grid of app icons, from Meta"),
     draft: false,
   },
   {
@@ -226,7 +226,7 @@ export const posts: Post[] = [
     date: "2026-10-07",
     updated: "2026-10-14",
     image: { src: "/blog/amber-notes-claude-edit-lisbon.webp", alt: "A Lisbon trip note in Pinto Notes on a Mac, with the line Claude just added tinted and a bar saying Claude changed 1 line, with Undo.", width: 1500, height: 748, window: false, title: "Lisbon" },
-    thumb: cover("slate", "claude-memory", 1600, 1000, "The Claude logo and a note, with an arrow both ways"),
+    thumb: cover("slate", "anthropic-claude-memory", 1600, 840, "A scribble in a paper thought bubble on peach, Anthropic's picture for Claude memory"),
     draft: false,
   },
   {
@@ -334,7 +334,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: { src: "/blog/macos27/notes27-garden-note.webp", alt: "A Spring garden plan note in Apple Notes on macOS 27, with a link to the Seeds to order section at the top and divider lines between its sections.", width: 1400, height: 993, window: false },
-    thumb: cover("wheat", "ios-27", 1600, 1000, "A notes icon beside the number 27"),
+    thumb: cover("wheat", "apple-os-27", 1600, 840, "The glassy 27 icon among a Mac, an iPhone, a watch and Vision Pro, from Apple"),
     draft: false,
   },
   {
@@ -358,7 +358,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.connectChatGPT,
-    thumb: cover("paper", "connect-chatgpt", 1600, 1000, "The ChatGPT logo and a note, with an arrow both ways"),
+    thumb: cover("paper", "openai-apps-in-chatgpt", 1600, 900, "A stacked-layers app icon on a soft blue gradient, OpenAI's picture for apps in ChatGPT"),
     draft: false,
   },
   {
@@ -394,7 +394,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-09-30",
     image: SHOTS.lisbon,
-    thumb: cover("heather", "obsidian-mcp", 1600, 1000, "The Obsidian logo linked through the MCP mark to Claude"),
+    thumb: cover("heather", "obsidian-banner", 1600, 917, "The purple Obsidian crystal logo with Sharpen your thinking, from Obsidian"),
     draft: false,
   },
   {
@@ -430,7 +430,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-02",
     image: SHOTS.consent,
-    thumb: cover("amber", "mcp-server", 1600, 1000, "ChatGPT and Claude connected through the MCP mark to a note"),
+    thumb: cover("amber", "anthropic-mcp", 1600, 840, "White paper shapes joined to one hub on orange, Anthropic's picture for the Model Context Protocol"),
     draft: false,
   },
   {

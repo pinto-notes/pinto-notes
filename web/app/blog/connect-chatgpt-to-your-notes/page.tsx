@@ -1,3 +1,4 @@
+import { NoteMoment } from "@/lib/NoteMoment";
 import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
@@ -258,7 +259,19 @@ export default function Page() {
       </p>
 
       <h2 id="control">You stay in control</h2>
-      <Figure shot={SHOTS.aiEdit} caption="When ChatGPT changes a note, the new lines are tinted and you can undo the change." />
+      <NoteMoment
+        me="Add what I still need to pack for Lisbon to my Packing note."
+        reply="Added three things to Packing in Pinto Notes: adapter, sunscreen and the museum tickets."
+        title="Packing"
+        lines={[
+          { text: "Passport", done: true },
+          { text: "Rain jacket", done: true },
+          { text: "Plug adapter (type F)", by: true },
+          { text: "Sunscreen", by: true },
+          { text: "Print museum tickets", by: true },
+        ]}
+        caption="When ChatGPT changes a note, the new lines are tinted and you can undo the change."
+      />
       <ul>
         <li>Nothing is shared until you choose Allow: in Pinto Notes on your iPhone or Mac, after typing the number your browser shows, or on pintonotes.com with your recovery key.</li>
         <li>You choose Read only, or Read and edit, for each assistant.</li>

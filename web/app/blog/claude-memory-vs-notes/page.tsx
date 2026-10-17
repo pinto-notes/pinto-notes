@@ -1,3 +1,4 @@
+import { NoteMoment } from "@/lib/NoteMoment";
 import { SHOTS } from "@/lib/posts";
 import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
@@ -83,7 +84,20 @@ export default function Page() {
           </tbody>
         </table>
       </div>
-      <Figure shot={SHOTS.iphoneGroceries} caption="A note on your phone, just after ChatGPT added five lines, with Undo." />
+      <NoteMoment
+        ai="Claude" glyph="claude"
+        me="Add what we need for Friday's tacos to my Groceries note."
+        reply="Added four things to Groceries in Pinto Notes. You already had the tortillas."
+        title="Groceries"
+        lines={[
+          { text: "Tortillas", done: true },
+          { text: "Limes", by: true },
+          { text: "Coriander", by: true },
+          { text: "Black beans", by: true },
+          { text: "Sour cream", by: true },
+        ]}
+        caption="A note Claude wrote to, in your own notes app: the new lines are marked, and you can undo them."
+      />
       <p>
         So memory suits things like your job, the tone you like and the tools you use: context you&apos;d otherwise repeat. Notes suit trip
         plans, shopping lists, meeting notes and drafts: things you&apos;ll read again yourself, often on your phone. If you also use ChatGPT,
