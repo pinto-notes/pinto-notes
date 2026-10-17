@@ -112,6 +112,14 @@ describe("the blog", () => {
     for (const p of posts) expect(existsSync(new URL(`../public${p.thumb.src}`, import.meta.url)), p.thumb.src).toBe(true);
   });
 
+  it("never repeats a post's cover inside the post (the cover already shows at the top)", () => {
+    for (const p of published()) {
+      if (!p.thumb.art) continue;
+      const cover = p.thumb.src.replace(/\.webp$/, "");
+      expect(postSource(p.slug).includes(`"${cover}"`), p.slug).toBe(false);
+    }
+  });
+
   it("crops card pictures sharp enough for 2x screens (at least 640 px wide for a card about 330 px wide)", () => {
     for (const p of published()) expect(p.thumb.width, p.slug).toBeGreaterThanOrEqual(640);
   });
