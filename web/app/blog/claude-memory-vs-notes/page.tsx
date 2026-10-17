@@ -4,7 +4,7 @@ import { Answer, Capture, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("claude-memory-vs-notes", { title: "Claude memory vs notes Claude can read and write" });
+export const metadata = postMetadata("claude-memory-vs-notes", { title: "Claude memory vs notes: what each one keeps" });
 
 const FAQ = [
   { q: "Can ChatGPT or other apps read Claude's memory?", a: [
@@ -24,9 +24,8 @@ export default function Page() {
     <PostPage
       slug="claude-memory-vs-notes"
       intro={<>
-        Claude remembers you now: your job, your projects, how you like answers. So I wondered whether my notes still mattered. They do,
-        because memory and notes keep different things. Here&apos;s what Claude&apos;s memory actually holds, where it stops, and how to use
-        the two together.
+        Claude remembers you now. Your notes remember the plan. Here&apos;s what each one keeps, where memory stops, and how to
+        use both.
       </>}
       answer={
         <Answer jump={[

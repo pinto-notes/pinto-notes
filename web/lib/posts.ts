@@ -219,7 +219,7 @@ export const posts: Post[] = [
   },
   {
     slug: "claude-memory-vs-notes",
-    title: "Claude memory vs notes Claude can read and write",
+    title: "Claude + Memory vs Claude + Notes",
     description: "What Claude's memory keeps and where to edit it, when you want notes Claude can read and write instead, and two prompts to use both.",
     excerpt: "Memory is Claude's own summary of you. Notes are your words, on your phone and computer. What each is for, and how to use both.",
     category: "Comparisons",
