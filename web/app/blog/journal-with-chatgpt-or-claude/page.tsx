@@ -175,7 +175,7 @@ export default function Page() {
 
       <h2 id="in-a-note">Let the AI keep the journal itself</h2>
       <p>
-        The third row is what I built Pinto Notes for. It&apos;s a notes app for iPhone and Mac that ChatGPT and Claude can read
+        The third row is what I built Pinto Notes for. It&apos;s a notes app for Mac (iPhone coming soon) that ChatGPT and Claude can read
         and edit once you allow it. With one Daily journal note, an evening looks like this:
       </p>
       <Steps>

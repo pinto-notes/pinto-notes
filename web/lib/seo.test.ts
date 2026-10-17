@@ -5,7 +5,7 @@ import robots from "../app/robots";
 import sitemap from "../app/sitemap";
 import { MCP_URL } from "./facts";
 import { postShots } from "./post-images";
-import { DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
+import { APP_STORE_LIVE, DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
 import { feedXml } from "./feed";
 import { llmsFullTxt, llmsTxt } from "./llms";
 import { REMOVED_POSTS } from "./removed-posts";
@@ -379,5 +379,15 @@ describe("the posts removed on 14 October 2026", () => {
     const linked = new RegExp(`/blog/(${removed.join("|")})(?![\\w-])`);
     for (const f of files) expect(readFileSync(f, "utf8").match(linked)?.[0], f).toBeUndefined();
     expect(llmsTxt() + llmsFullTxt() + feedXml()).not.toMatch(linked);
+  });
+});
+
+// Emil, 17 October 2026: the iPhone app isn't out, so no post may say Pinto Notes is on the iPhone today.
+// Sentences about Apple Notes on iPhone are fine; these phrasings are the ones that described Pinto Notes.
+describe("posts don't claim the iPhone app before it's on the App Store", () => {
+  it.skipIf(APP_STORE_LIVE)("no post calls Pinto Notes an iPhone app or asks you to approve on an iPhone", () => {
+    const claims = [/notes app for iPhone and Mac/, /Pinto Notes on (your|their) iPhone/, /(approve|Allow|allow)[^."]{0,60}on your iPhone or Mac/, /Pinto Notes \(iPhone and Mac\)/];
+    const found = published().flatMap((p) => claims.filter((re) => re.test(postSource(p.slug))).map((re) => `${p.slug}: ${re}`));
+    expect(found).toEqual([]);
   });
 });

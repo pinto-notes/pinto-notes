@@ -201,7 +201,7 @@ export default function Page() {
       <h2 id="pinto-notes">A notes app without accounts to sort out</h2>
       <Figure shot={SHOTS.consent} caption="ChatGPT and Claude get your notes only after you allow them on your device." />
       <p>
-        Pinto Notes, the notes app for iPhone and Mac that I make, has no On My iPhone and no mail accounts. You sign in once, and
+        Pinto Notes, the notes app for Mac (iPhone coming soon) that I make, has no On My iPhone and no mail accounts. You sign in once, and
         every note syncs between your devices. ChatGPT and Claude can read and edit those notes after you approve them.
       </p>
       <p>

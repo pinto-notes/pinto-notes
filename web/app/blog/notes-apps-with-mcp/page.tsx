@@ -75,7 +75,7 @@ export default function Page() {
       <h2>The apps</h2>
       <p className="label"><strong>Pinto Notes</strong></p>
       <p>
-        A free notes app for iPhone and Mac that works like Apple Notes, with an MCP server built in. You approve each AI app in Pinto
+        A free notes app for Mac (iPhone coming soon) that works like Apple Notes, with an MCP server built in. You approve each AI app in Pinto
         Notes and choose Read Only, or Read and Edit. When an AI changes a note, you see what changed, with Undo, and every earlier
         version is kept. It <a href="/blog/move-from-apple-notes">imports Apple Notes on the Mac</a>. {APP_STORE_LIVE ? "It's on the Mac and the App Store." : "The Mac app is out now; the iPhone app is coming soon to the App Store."} The{" "}
         <a href="/blog/mcp-server">MCP server page</a> lists its tools, and{" "}

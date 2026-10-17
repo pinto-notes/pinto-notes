@@ -162,14 +162,14 @@ export default function Page() {
         apps with an MCP server</a> compares the ones that do.
       </p>
       <p>
-        Pinto Notes is one. It&apos;s the notes app for iPhone and Mac that I make, with a hosted server at <code>{MCP_URL}</code> that
+        Pinto Notes is one. It&apos;s the notes app for Mac (iPhone coming soon) that I make, with a hosted server at <code>{MCP_URL}</code> that
         signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it today. I haven&apos;t tested Pinto Notes with Grok yet,
         so treat this as what the steps should look like, going by xAI&apos;s docs and how the server works with other apps:
       </p>
       <ol>
         <li>Add <code>{MCP_URL}</code> as a Custom connector on grok.com, or with the Grok Build command above.</li>
         <li>A page on pintonotes.com opens. Sign in, and it shows a two-digit number.</li>
-        <li>Pinto Notes on your iPhone or Mac asks whether to allow the app. Type the number, choose Read Only or Read and Edit, then Allow.</li>
+        <li>Pinto Notes on your Mac asks whether to allow the app. Type the number, choose Read Only or Read and Edit, then Allow.</li>
       </ol>
       <Figure shot={SHOTS.consent} caption="The sheet when ChatGPT asks. For Grok, it adds a warning that Pinto Notes doesn't recognize the app." />
       <p>

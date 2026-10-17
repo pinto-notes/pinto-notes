@@ -17,7 +17,7 @@ const FAQ = [
     "Yes, through an MCP server. Add Pinto Notes with one command, sign in, and Claude Code can search, read, create and edit your notes, or only read them if you choose Read only when you allow it.",
   ] },
   { q: "How do I add a notes MCP server to Codex?", a: [
-    `Run codex mcp add pinto-notes --url ${MCP_URL}. Codex opens your browser to sign in, and you allow it in Pinto Notes on your iPhone or Mac. Codex in Terminal, in your editor and in the ChatGPT app share the same setup.`,
+    `Run codex mcp add pinto-notes --url ${MCP_URL}. Codex opens your browser to sign in, and you allow it in Pinto Notes on your Mac. Codex in Terminal, in your editor and in the ChatGPT app share the same setup.`,
   ] },
   { q: "Isn't CLAUDE.md enough?", a: [
     "For how a project works, yes. CLAUDE.md and Claude Code's auto memory are files on that computer, for that project. They're the wrong place for your standups, decisions and to-dos, which you want to read on your phone and share with Codex and ChatGPT too.",
@@ -68,7 +68,7 @@ export default function Page() {
         type <code>/mcp</code> and look. If not, run this in Terminal:
       </p>
       <Keep title="Add Pinto Notes to Claude Code" text={CLAUDE_CMD} code
-        note="Then run /mcp in Claude Code, pick pinto-notes and sign in. Pinto Notes asks on your iPhone or Mac whether to allow it." />
+        note="Then run /mcp in Claude Code, pick pinto-notes and sign in. Pinto Notes asks on your Mac whether to allow it." />
       <p>
         <code>--scope user</code> makes it available in every project, not just the one you&apos;re in. On the Mac, Pinto Notes can do this
         for you: Settings, Connect an AI, Claude Code.
@@ -119,7 +119,7 @@ export default function Page() {
       <h2 id="pinto-notes">One notebook for every agent you use</h2>
       <AIConnect ais={["claude-code", "codex", "claude", "chatgpt"]} caption="Claude Code, Codex, Claude and ChatGPT, all reading and writing the same notes." />
       <p>
-        That&apos;s why I built Pinto Notes. It&apos;s a notes app for iPhone and Mac, as quick as Apple Notes, with the server built in.
+        That&apos;s why I built Pinto Notes. It&apos;s a notes app for Mac (iPhone coming soon), as quick as Apple Notes, with the server built in.
         Claude Code writes the standup, you read it on your phone, and ChatGPT can pick it up from there. Every change shows up tinted
         with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. A read-only connection
         can&apos;t change anything. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.

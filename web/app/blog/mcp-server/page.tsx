@@ -15,7 +15,7 @@ export default function Page() {
   return (
     <PostPage
       slug="mcp-server"
-      intro={<>Pinto Notes, the notes app for iPhone and Mac, has a remote MCP server built in. This page is for developers and anyone curious how it works: the address, how an AI app signs in and gets approved, and every tool it can call.</>}
+      intro={<>Pinto Notes, the notes app for Mac (iPhone coming soon), has a remote MCP server built in. This page is for developers and anyone curious how it works: the address, how an AI app signs in and gets approved, and every tool it can call.</>}
       hero={<PostFigure priority src="/blog/news/anthropic-mcp-announcement" width={1600} height={900} maxWidth={800}
         alt="Anthropic's illustration for the launch of the Model Context Protocol: white paper-cut shapes on a terracotta background, joined by a black line to a single white circle."
         caption="MCP, the open standard Anthropic launched in 2024, which ChatGPT, Claude and the rest now use to reach other apps. Image: Anthropic." />}
@@ -41,7 +41,7 @@ export default function Page() {
         <li>The authorization server metadata is at the address above plus <code>/.well-known/oauth-authorization-server</code>.</li>
         <li>
           The authorization step opens <code>pintonotes.com/connect</code>. The person signs in there (email and password, or Sign in
-          with Apple), and the page shows a two-digit number. Pinto Notes on their iPhone or Mac asks &ldquo;Allow [app] to use your
+          with Apple), and the page shows a two-digit number. Pinto Notes on their Mac asks &ldquo;Allow [app] to use your
           notes?&rdquo; and where access goes; they type the number, choose Read and Edit or Read Only, then Allow. With no device
           nearby, they can approve on the page with their recovery key.
         </li>
@@ -118,7 +118,7 @@ export default function Page() {
       <h2 id="install">Install in your AI tool</h2>
       <p>
         Each of these adds the address above. The first time the tool connects, your browser opens pintonotes.com/connect: sign in
-        there, then approve on your iPhone or Mac by typing the number the page shows, and choose Read and Edit or Read Only. You need the free app and an
+        there, then approve on your Mac by typing the number the page shows, and choose Read and Edit or Read Only. You need the free app and an
         account.
       </p>
       <PostFigure src="/blog/news/anthropic-claude-code-terminal" width={920} height={920} maxWidth={400}

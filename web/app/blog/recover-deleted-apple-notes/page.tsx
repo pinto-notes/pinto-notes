@@ -156,7 +156,7 @@ export default function Page() {
         has nothing to go back to: it keeps no version history.
       </p>
       <p>
-        That&apos;s one of the things I built into Pinto Notes, the notes app for iPhone and Mac I make. Deleted notes stay in Recently
+        That&apos;s one of the things I built into Pinto Notes, the notes app for Mac (iPhone coming soon) I make. Deleted notes stay in Recently
         Deleted for 30 days, as in Apple Notes, and every note also keeps its earlier versions, with who made each change. You can restore
         one from File, Show Version History, including after ChatGPT or Claude edits it. It doesn&apos;t bring back notes you lost in Apple
         Notes; <a href="/blog/move-from-apple-notes">moving from Apple Notes</a> is one import on your Mac, and Apple Notes stays as it is.
