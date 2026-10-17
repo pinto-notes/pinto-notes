@@ -82,7 +82,7 @@ export const posts: Post[] = [
     date: "2026-10-14",
     updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
-    thumb: cover("cherry", "siri-ai", 1600, 1000, "A Siri-style glow beside a notes icon"),
+    thumb: cover("cherry", "apple-siri-orb", 1600, 1000, "The Siri AI orb, a glass sphere with a band of light across it, on black. From Apple's Siri AI page"),
     draft: false,
   },
   {
