@@ -28,19 +28,20 @@ function useReveal() {
 }
 
 /// `focus` is where the person is across the picture (0 to 100), for the portrait crop on phones.
-export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50, log = false, smart = false }:
-  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number; log?: boolean; smart?: boolean }) {
+export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50, log = false, review = false }:
+  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number; log?: boolean; review?: boolean }) {
   const [ref, v] = useReveal();
   // The same entrance as the cards further down: a quick fade with a short lift, fully there early.
   const art = mj(clamp(v * 2.2)), q1 = mj(span(v, 0.3, 0.6)), q2 = mj(span(v, 0.42, 0.72));
   return (
-    <div ref={ref} className={m.paperScene} data-budget={budget || log || undefined} style={{ "--fx": `${focus}%`, opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) } as React.CSSProperties}>
+    <div ref={ref} className={m.paperScene} data-budget={budget || log || review || undefined} style={{ "--fx": `${focus}%`, opacity: art, translate: `0 ${((1 - art) * 46).toFixed(1)}px`, scale: (0.96 + 0.04 * art).toFixed(4) } as React.CSSProperties}>
       <img src={src} alt={alt} loading="lazy" decoding="async" />
       <figure className={m.quote} data-at={at} data-voice={voice || undefined} style={{ "--q1": q1, "--q2": q2 } as React.CSSProperties}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
         <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} color={aiGlyph === "meta" ? "#0866ff" : undefined} />{aiName}</span>{ai}</p>
-        {budget && <BudgetCard smart={smart} />}
+        {budget && <BudgetCard />}
         {log && <LogCard />}
+        {review && <ReviewCard />}
       </figure>
       <span className={m.paperWhere}>{where}</span>
     </div>
@@ -48,10 +49,8 @@ export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "lef
 }
 
 /// Sara's budget, her own app: what's left this month, by category.
-export function BudgetCard({ smart = false }: { smart?: boolean }) {
-  const rows = smart
-    ? [{ n: "September", left: "1,940 kr under", ok: true }, { n: "Sundays cooked", left: "4 of 4", ok: true }]
-    : [{ n: "Groceries", left: "410 kr under", ok: true }, { n: "Eating out", left: "2 dinners left", ok: false }];
+export function BudgetCard() {
+  const rows = [{ n: "Groceries", left: "410 kr under", ok: true }, { n: "Eating out", left: "2 dinners left", ok: false }];
   return (
     <figure className={m.gymMini}>
       <div className={m.gymMiniHead}><span>Budget</span><em>October</em></div>
@@ -74,6 +73,21 @@ export function LogCard() {
       <ul className={m.log}>{rows.map((r) => (
         <li key={r.at}><time>{r.at}</time><span className={m.logWho}><AIGlyph name={r.glyph} size={11} color={r.glyph === "claude" ? "#d97757" : undefined} />{r.who}</span><b>{r.did}</b></li>
       ))}</ul>
+    </figure>
+  );
+}
+
+/// Sara's review prep, written by Muse from her work log: the three best wins, each with its date.
+export function ReviewCard() {
+  const rows = [
+    { at: "Mar 12", did: "Led the checkout redesign: 18% more sales." },
+    { at: "Jun 3", did: "New help pages: a third fewer tickets." },
+    { at: "Sep 20", did: "Two new hires shipping by week three." },
+  ];
+  return (
+    <figure className={m.gymMini}>
+      <div className={m.gymMiniHead}><span>Review prep</span><em className={m.logWho}><AIGlyph name="meta" size={11} color="#0866ff" />Muse wrote this</em></div>
+      <ul className={m.log}>{rows.map((r) => <li key={r.at} data-two=""><time>{r.at}</time><b>{r.did}</b></li>)}</ul>
     </figure>
   );
 }

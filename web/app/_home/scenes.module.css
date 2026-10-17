@@ -103,3 +103,8 @@
   .log li { grid-template-columns: 38px 1fr; row-gap: 1px; }
   .log time { grid-row: span 2; }
 }
+/* A two-column log row (date, what), for Sara's review prep. */
+.log li[data-two] { grid-template-columns: 52px 1fr; }
+.log li[data-two] time { grid-row: auto; }
+.quote:has(.log) { --x: 0; }
+@media (min-width: 901px) { .paperScene[data-budget] .quote:has(li[data-two]) { width: min(460px, 52%); top: 5%; } }

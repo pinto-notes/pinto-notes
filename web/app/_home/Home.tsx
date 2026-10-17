@@ -78,14 +78,25 @@ export function Home({ people }: { people?: string } = {}) {
           </>}
         </div>
         <div className={v.row}>
+          {b ? <>
+          <div className={v.words}>
+            <p className={v.kicker}>Before her review, over coffee</p>
+            <h3 className={v.rowTitle}>Sara walks into her review with a year of proof.</h3>
+            <p className={v.say}>She notes what she ships as she goes. On review day, Muse reads the year and writes her the case, every point with the date it happened.</p>
+          </div>
+          <PaperStill review at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
+            me="My review is at ten. What did I actually do this year?" aiName="Muse" aiGlyph="meta" ai="More than you remember: fourteen wins, five with numbers. The best three are in Review prep." />
+          </> : <>
           <div className={v.words}>
             <p className={v.kicker}>Every morning, over coffee</p>
             <h3 className={v.rowTitle}>Sara built her own budget.</h3>
-            <p className={v.say}>{b ? "Her budget sits next to her plans and her meal notes, so Muse answers with her real month, not a rule of thumb." : "Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions."}</p>
+            <p className={v.say}>Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions.</p>
           </div>
-          <PaperStill budget smart={b} at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+          <PaperStill budget at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
-            me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai={b ? "Yes, if October goes like September. You spent less every week you cooked on Sundays, and your meal plan has three Sundays left." : "Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid."} />
+            me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
+          </>}
         </div>
       </section>
 
