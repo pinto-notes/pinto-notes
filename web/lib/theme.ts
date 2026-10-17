@@ -12,12 +12,6 @@ export function themeFor(path: string): "cream" | "leaf" | null {
   return "cream";
 }
 
-/// Pages whose header drops the version badge and the GitHub stars (the stars move to the footer).
-/// Only home page studies E and F for now, to compare against the live header.
-export function quietHeader(path: string): boolean {
-  return path === "/lab/home-e" || path === "/lab/home-f" || path === "/lab/home-g" || path === "/lab/home-h" || path === "/lab/hero-lab" || path === "/lab/home-i" || path === "/lab/home";
-}
-
 /// Site pages that are one card under their own quiet top bar (lib/ui.tsx Shell and TopBar): the
 /// site's colours without its header and footer. A page that draws a TopBar and isn't listed here
 /// gets two headers; theme.test.ts checks every page that draws one. `copyIds` are the prompts

@@ -30,7 +30,7 @@ export function Home() {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
-    <div className={`${d.main} ${v.main}`} data-quiet-nav="">
+    <div className={`${d.main} ${v.main}`}>
       <div className={v.top}>
         <Hero />
         <PhoneToFilm />

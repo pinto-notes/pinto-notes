@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import nextConfig from "../../next.config";
 import sitemap from "../sitemap";
-import { quietHeader, themeFor, themeScript } from "@/lib/theme";
+import { themeFor, themeScript } from "@/lib/theme";
 import { metadata } from "./layout";
 
 // The home page in progress (/lab/home) is for the team: kept out of search, the sitemap and the site's links.
@@ -74,13 +74,11 @@ describe("the /lab design studies", () => {
     }
   });
 
-  it("the home page in progress drops the version and the stars from the header", () => {
-    expect(quietHeader("/lab/home")).toBe(true);
-    for (const p of ["/", "/lab/other", "/lab/home/x", "/templates"]) expect(quietHeader(p), p).toBe(false);
+  it("every page has the same header: no version badge, GitHub as an icon, the stars in the footer", () => {
     const chrome = readFileSync(join(APP, "SiteChrome.tsx"), "utf8");
-    expect(chrome).toMatch(/const lean = quietHeader\(path\);/);
-    expect(chrome).toMatch(/\{version && !lean && <span className="site-badge">/);
-    expect(chrome).toMatch(/\{!lean && <GitHubLink stars=\{stars\} \/>\}/);
+    expect(chrome).not.toMatch(/site-badge/);
+    expect(chrome).toMatch(/<a className="site-gh" href=\{GITHUB\}[^>]*><GitHubGlyph \/><\/a>/);
+    expect(chrome).toMatch(/<div className="site-social">\s*<GitHubLink stars=\{stars\} \/>/);
   });
 });
 
