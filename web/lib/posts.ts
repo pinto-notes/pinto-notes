@@ -436,7 +436,7 @@ export const posts: Post[] = [
   {
     slug: "apple-notes-api",
     title: "Apple Notes API: Apple says no. Here's what works instead",
-    description: "Apple confirmed in 2026 that Notes has no API. What works instead (AppleScript, Shortcuts, Claude on a Mac), and how to let ChatGPT and Claude use your notes.",
+    description: "Apple Notes has no API. What works instead: AppleScript, Shortcuts and every Apple Notes MCP server for Claude and Codex, compared, plus their limits.",
     excerpt: "Apple's own answer, in one word, and every way around it that works today: AppleScript, Shortcuts and Claude on a Mac. Plus the one thing none of them can do.",
     category: "Apple Notes",
     date: "2026-09-30",

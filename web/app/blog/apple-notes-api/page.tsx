@@ -6,7 +6,7 @@ import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes API: Apple says no. Here's what works instead" });
+export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes API and MCP: what works, since Apple says no" });
 
 // Rewritten by hand on 14 October 2026 to the blog bar (amber-site/BLOG-BAR.md) and Emil's recipe. What ranks
 // for "apple notes api": Apple's developer forum (thread 813810, January 2026, where Quinn of Apple DTS answers
@@ -61,7 +61,7 @@ export default function Page() {
           { href: "#apple", label: "Apple's answer" },
           { href: "#applescript", label: "AppleScript" },
           { href: "#shortcuts", label: "Shortcuts" },
-          { href: "#claude-mac", label: "Claude on a Mac" },
+          { href: "#claude-mac", label: "Apple Notes MCP" },
           { href: "#missing", label: "What none of them do" },
         ]}>
           <p>
@@ -122,12 +122,32 @@ export default function Page() {
         app read your notes, which is the part of the API people usually want.
       </p>
 
-      <h2 id="claude-mac">Claude on a Mac</h2>
+      <h2 id="claude-mac">Apple Notes MCP servers, compared</h2>
       <Figure shot={SHOTS.coworkAllow} caption="The prompt macOS shows the first time Claude uses its Apple Notes extension." />
       <p>
-        Claude&apos;s desktop app has an Apple Notes extension, and there are community MCP servers that do the same for Claude Code. They
-        all drive the Notes app with AppleScript, so Claude can search and edit your notes, on that Mac, while it&apos;s awake.
-        <a href="/blog/claude-and-apple-notes"> Claude and Apple Notes</a> walks through the setup.
+        An MCP server is how Claude, Claude Code or Codex gets tools for another app. Apple doesn&apos;t make one for Notes, so every Apple
+        Notes MCP server is a small program on your Mac that drives the Notes app with AppleScript, or reads its database directly. These
+        are the ones worth knowing, checked on their own pages on 17 October 2026:
+      </p>
+      <div className="tableWrap">
+        <table>
+          <thead><tr><th scope="col">Server</th><th scope="col">What the AI can do</th><th scope="col">Works with</th><th scope="col">Good to know</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Claude&apos;s Apple Notes extension</th><td>Search, read and edit notes</td><td>Claude desktop app</td><td>From Anthropic; one click in Claude&apos;s extensions, no setup</td></tr>
+            <tr><th scope="row"><a href="https://github.com/sweetrb/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (sweetrb)</th><td>Read, search, create, edit and move notes; folders, tags, checklists, tables, export</td><td>Claude Code, Claude Desktop, Codex</td><td>The most complete and actively updated; installs with one <code>npx</code> command; needs Node.js</td></tr>
+            <tr><th scope="row"><a href="https://github.com/sirmews/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (sirmews)</th><td>Read and search only</td><td>Claude Desktop</td><td>Reads the Notes database; skips locked notes; can&apos;t create or edit</td></tr>
+            <tr><th scope="row"><a href="https://github.com/RafalWilinski/mcp-apple-notes" rel="noopener">mcp-apple-notes</a></th><td>Search by meaning, not just words</td><td>Claude Desktop</td><td>Builds a local search index; not updated since December 2024</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        For Claude Code or Codex, the sweetrb server is the one I&apos;d use: <code>claude mcp add apple-notes -s user -- npx -y apple-notes-mcp</code>,
+        then allow the Automation prompt the first time it opens Notes. In the Claude app, the built-in extension is simpler.{" "}
+        <a href="/blog/claude-and-apple-notes">Claude and Apple Notes</a> walks through it.
+      </p>
+      <p>
+        They share the same limits: they run on your Mac, only while it&apos;s awake, and macOS asks for Automation (and sometimes Full Disk
+        Access) first. None of them reach your notes from Claude on your iPhone, from the web, or from ChatGPT.
       </p>
 
       <h2 id="missing">What none of them can do</h2>
