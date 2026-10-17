@@ -47,13 +47,15 @@ export function Hero() {
         <h1 className={`${x.h1} rise`} style={rise(0)}>The notebook <span className={x.mark}>you and your AI</span> share.</h1>
         <p className={`${x.lede} rise`} style={rise(1)}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
-          <Download />
+          <Download note={false} />
           <span className={x.soon} aria-disabled="true">
             <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
             Coming to iPhone
           </span>
+          {/* Off a Mac (an iPhone, Windows, Android): the iPhone button leads, the Mac download is a link under it. */}
+          <a className={x.offMac} href="/download">Download for Mac</a>
         </div>
-        <p className={`${x.fine} rise`} style={rise(3)}>Free for Mac. Brings your Apple Notes over.</p>
+        <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for Mac. Brings your Apple Notes over.</p>
       </div>
       <div className={`${x.card} rise`} style={rise(1)} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">

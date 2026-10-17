@@ -112,3 +112,12 @@
 .stage[data-narrow] .row { gap: 9px; padding: 5px 8px; font-size: 15.5px; }
 .stage[data-narrow] .long { display: none; }
 .stage[data-narrow] .caption { bottom: 26px; font-size: 24px; }
+
+/* Phones: after the week, a quiet button to play it again. */
+/* It sits where the chats were, in the empty band above the note. */
+.replay { position: absolute; left: 50%; top: 22%; translate: -50% 0; z-index: 6; display: flex; align-items: center; gap: 8px; margin: 0; min-height: 44px; padding: 0 18px; border: 0; border-radius: 22px;
+  background: #f3e6d4; color: #2a1d10; font: inherit; font-size: 15px; font-weight: 650; cursor: pointer; animation: replayIn .35s ease-out both; }
+.replay svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: hover) { .replay:hover { background: #ecdcc6; } }
+.replay:active { scale: 0.97; }
+@keyframes replayIn { from { opacity: 0; transform: translateY(6px); } }

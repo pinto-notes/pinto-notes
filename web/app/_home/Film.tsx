@@ -216,6 +216,7 @@ export function Film() {
   const box = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
   const [pinned, setPinned] = useState(true);
+  const replay = useRef<(() => void) | null>(null);
   useFit(box);
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("p");
@@ -226,10 +227,20 @@ export function Film() {
     let raf = 0;
     if (matchMedia("(max-width: 900px)").matches) {
       setPinned(false);
-      let start = 0;
-      const tick = (now: number) => { if (frozen) return; if (!start) start = now; const v = (now - start) / 22000; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick); };
-      const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !start) { raf = requestAnimationFrame(tick); io.disconnect(); } }, { threshold: 0.5 });
+      // Plays on time, but only while it's in view: it starts once most of it is on screen, pauses when
+      // you scroll away and carries on when you come back. The clock counts only time in view.
+      let last = 0, played = 0, on = false;
+      const tick = (now: number) => {
+        raf = 0; if (frozen || !on) return;
+        if (last) played += now - last; last = now;
+        const v = played / 22000; setP(Math.min(1, v)); if (v < 1) raf = requestAnimationFrame(tick);
+      };
+      const io = new IntersectionObserver(([e]) => {
+        on = e.intersectionRatio >= 0.75; last = 0;
+        if (on && !raf) raf = requestAnimationFrame(tick);
+      }, { threshold: [0, 0.75] });
       if (box.current) io.observe(box.current);
+      replay.current = () => { played = 0; last = 0; setP(0); if (on && !raf) raf = requestAnimationFrame(tick); };
       return () => { io.disconnect(); cancelAnimationFrame(raf); };
     }
     const read = () => { raf = 0; if (frozen) return; const el = box.current; if (!el) return; const r = el.getBoundingClientRect(); const travel = r.height - innerHeight; setP(clamp(travel > 0 ? -r.top / travel : 0)); };
@@ -250,6 +261,8 @@ export function Film() {
         </ol>
       </div>
       <div className={f.pin} aria-hidden="true"><Frame p={p} /></div>
+      {!pinned && p >= 1 && replay.current && <button type="button" className={f.replay} onClick={() => replay.current?.()}>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.4h2.4" /></svg>Replay the week</button>}
     </div>
   );
 }

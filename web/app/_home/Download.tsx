@@ -3,13 +3,13 @@ import PlatformNote from "../PlatformNote";
 import k from "./download.module.css";
 
 /// The download button, with an optional quiet line under it. Hidden on iPhone and other systems,
-/// where PlatformNote says what's coming instead.
-export function Download({ className = "", quiet }: { className?: string; quiet?: React.ReactNode }) {
+/// where PlatformNote says what's coming instead (`note={false}` when the page says it itself).
+export function Download({ className = "", quiet, note = true }: { className?: string; quiet?: React.ReactNode; note?: boolean }) {
   return (
     <div className={`${k.cta} ${className}`}>
       <div className="pi-apple pi-not-ios"><DownloadLink className={k.primary}><Apple /> Download for Mac</DownloadLink></div>
       {quiet && <p className={`${k.ctaQuiet} pi-apple pi-not-ios`}>{quiet}</p>}
-      <PlatformNote place="hero" />
+      {note && <PlatformNote place="hero" />}
     </div>
   );
 }
