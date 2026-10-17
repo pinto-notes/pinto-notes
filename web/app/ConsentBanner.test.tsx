@@ -36,6 +36,13 @@ describe("the cookie banner", () => {
     expect(banner()).not.toBeNull();
   });
 
+  it("says that Accept also means session replays, and that typing is never recorded", () => {
+    scrollTo(0);
+    act(() => root.render(<ConsentBanner apiKey="k" host="h" />));
+    act(() => scrollTo(ASK_AFTER_PX + 10));
+    expect(banner()?.textContent).toMatch(/replay how our pages are used \(never what you type\)/);
+  });
+
   it("asks after a while when the visitor doesn't scroll", () => {
     scrollTo(0);
     act(() => root.render(<ConsentBanner apiKey="k" host="h" />));

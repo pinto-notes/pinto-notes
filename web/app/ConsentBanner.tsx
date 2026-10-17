@@ -58,7 +58,7 @@ export default function ConsentBanner({ apiKey, host }: { apiKey: string; host: 
         <p className="consent-text">Your browser asks sites not to track you, so this one doesn&rsquo;t, and won&rsquo;t ask.</p>
       ) : (
         <p className="consent-text">
-          Accept to let us remember your visits, so we can see what helps people find Pinto Notes.{" "}
+          Accept to let us remember your visits and replay how our pages are used (never what you type), so we can see what helps people find Pinto Notes.{" "}
           <a href="/privacy#cookies-and-storage-on-the-website">Details</a>
           {!asked && choice && <span className="consent-now"> You chose {choice === "accepted" ? "Accept" : "Reject"}.</span>}
         </p>
