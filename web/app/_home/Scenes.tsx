@@ -28,8 +28,8 @@ function useReveal() {
 }
 
 /// `focus` is where the person is across the picture (0 to 100), for the portrait crop on phones.
-export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50, log = false }:
-  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number; log?: boolean }) {
+export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "left", budget = false, voice = false, focus = 50, log = false, smart = false }:
+  { src: string; alt: string; where: string; me: string; ai: string; aiName: string; aiGlyph: "openai" | "claude" | "meta"; at?: "left" | "right"; budget?: boolean; voice?: boolean; focus?: number; log?: boolean; smart?: boolean }) {
   const [ref, v] = useReveal();
   // The same entrance as the cards further down: a quick fade with a short lift, fully there early.
   const art = mj(clamp(v * 2.2)), q1 = mj(span(v, 0.3, 0.6)), q2 = mj(span(v, 0.42, 0.72));
@@ -39,7 +39,7 @@ export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "lef
       <figure className={m.quote} data-at={at} data-voice={voice || undefined} style={{ "--q1": q1, "--q2": q2 } as React.CSSProperties}>
                 <p className={m.qMe}>{voice && <span className={m.qWave} aria-hidden="true"><i /><i /><i /><i /><i /></span>}{me}</p>
         <p className={m.qAi}><span><AIGlyph name={aiGlyph} size={13} color={aiGlyph === "meta" ? "#0866ff" : undefined} />{aiName}</span>{ai}</p>
-        {budget && <BudgetCard />}
+        {budget && <BudgetCard smart={smart} />}
         {log && <LogCard />}
       </figure>
       <span className={m.paperWhere}>{where}</span>
@@ -48,8 +48,10 @@ export function PaperStill({ src, alt, where, me, ai, aiName, aiGlyph, at = "lef
 }
 
 /// Sara's budget, her own app: what's left this month, by category.
-export function BudgetCard() {
-  const rows = [{ n: "Groceries", left: "410 kr under", ok: true }, { n: "Eating out", left: "2 dinners left", ok: false }];
+export function BudgetCard({ smart = false }: { smart?: boolean }) {
+  const rows = smart
+    ? [{ n: "September", left: "1,940 kr under", ok: true }, { n: "Sundays cooked", left: "4 of 4", ok: true }]
+    : [{ n: "Groceries", left: "410 kr under", ok: true }, { n: "Eating out", left: "2 dinners left", ok: false }];
   return (
     <figure className={m.gymMini}>
       <div className={m.gymMiniHead}><span>Budget</span><em>October</em></div>

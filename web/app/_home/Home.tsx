@@ -26,8 +26,10 @@ const EXTRAS = [
 
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
-/// `jonas`: "b" tries the night-shift version of Jonas's scene (lab only, ?jonas=b).
-export function Home({ jonas }: { jonas?: string } = {}) {
+/// `people`: "b" tries the smarter people scenes, where each answer uses what the notebook remembers
+/// (lab only, ?people=b).
+export function Home({ people }: { people?: string } = {}) {
+  const b = people === "b";
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
@@ -47,14 +49,15 @@ export function Home({ jonas }: { jonas?: string } = {}) {
           <div className={v.words}>
             <p className={v.kicker}>Every evening, on a walk</p>
             <h3 className={v.rowTitle}>Maya plans tomorrow out loud.</h3>
-            <p className={v.say}>She talks her day through out loud with ChatGPT voice. It's planned before she's home.</p>
+            <p className={v.say}>{b ? "She talks her day through with ChatGPT voice. It has eight months of her notes, so the plan fits her life, not an average one." : "She talks her day through out loud with ChatGPT voice. It's planned before she's home."}</p>
           </div>
           <PaperStill voice at="left" focus={2} src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
             alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline lit up."
-            me="Skipped the reading again." aiName="ChatGPT" aiGlyph="openai" ai="Third time this week. Want to move it to the mornings, before work?" />
+            me={b ? "Plan tomorrow." : "Skipped the reading again."} aiName="ChatGPT" aiGlyph="openai"
+            ai={b ? "Run before work again? Your sleep log says you sleep better every week you do. And you told Sara you'd send the photos by Friday." : "Third time this week. Want to move it to the mornings, before work?"} />
         </div>
         <div className={v.row} data-flip="">
-          {jonas === "b" ? <>
+          {b ? <>
           <div className={v.words}>
             <p className={v.kicker}>His notebook, all night</p>
             <h3 className={v.rowTitle}>Jonas&apos;s agents work the night shift.</h3>
@@ -78,11 +81,11 @@ export function Home({ jonas }: { jonas?: string } = {}) {
           <div className={v.words}>
             <p className={v.kicker}>Every morning, over coffee</p>
             <h3 className={v.rowTitle}>Sara built her own budget.</h3>
-            <p className={v.say}>Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions.</p>
+            <p className={v.say}>{b ? "Her budget sits next to her plans and her meal notes, so Muse answers with her real month, not a rule of thumb." : "Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions."}</p>
           </div>
-          <PaperStill budget at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+          <PaperStill budget smart={b} at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
-            me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
+            me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai={b ? "Yes, if October goes like September. You spent less every week you cooked on Sundays, and your meal plan has three Sundays left." : "Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid."} />
         </div>
       </section>
 
