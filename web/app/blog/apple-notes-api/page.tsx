@@ -151,6 +151,9 @@ export default function Page() {
       </p>
 
       <h2 id="missing">What none of them can do</h2>
+      <PostFigure src="/blog/drawn/mac-asleep" width={1200} height={750} maxWidth={560}
+        alt="A drawn closed laptop with a moon on it, and an iPhone showing the ChatGPT logo, joined by a broken dotted line."
+        caption="When the Mac sleeps, every route into Apple Notes stops." />
       <p>
         Every route above needs your Mac on and the Notes app open behind it. None of them reach your notes from anywhere else. Ask
         ChatGPT on your phone to add milk to your groceries note and it can&apos;t. Tell Claude in the browser about your trip on Monday,

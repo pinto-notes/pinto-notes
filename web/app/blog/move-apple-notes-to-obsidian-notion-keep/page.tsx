@@ -74,6 +74,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="before">Before you start</h2>
+      <PostFigure src="/blog/macos27/notes-locked-window" width={1520} height={984} maxWidth={560}
+        alt="Apple Notes on macOS 27 with a locked note asking for the notes password, with the hint City and year of the trip."
+        caption="A locked note stays behind in every move. Unlock it first." />
       <p>
         Locked notes are the main thing that gets left behind. Obsidian&apos;s importer skips them, and Apple Notes won&apos;t export a
         locked note, so take the lock off the ones you want to bring. If you&apos;ve lost the password for one, <a
@@ -91,6 +94,9 @@ export default function Page() {
         Obsidian has the only real importer of the three. Its official Importer plugin reads Apple Notes&apos; data on your Mac and
         turns each note into a Markdown file in your vault. It runs on macOS only; Obsidian says it isn&apos;t available on iOS yet.
       </p>
+      <PostFigure src="/blog/apple/obsidian-importer-dialog" width={2004} height={1468} maxWidth={560}
+        alt="Obsidian's Import data into Obsidian window, with File format, Files to import, Output folder and an Import button."
+        caption="Obsidian's Importer. Choose Apple Notes under File format. Image: Obsidian." />
       <Steps>
         <li>
           <strong>Install Importer</strong>
@@ -156,6 +162,9 @@ export default function Page() {
       </p>
 
       <h2 id="google-keep">Apple Notes to Google Keep</h2>
+      <PostFigure src="/blog/drawn/keep-copy" width={1200} height={750} maxWidth={560}
+        alt="A drawn notes icon and the Google Keep logo, with copy and paste keys between them."
+        caption="Keep has no import: one note at a time, by copy and paste." />
       <p>
         Google Keep can&apos;t import notes from any app. Its help pages cover sending notes out of Keep and downloading them with
         Google Takeout, and nothing about bringing notes in. So the move is by hand:
@@ -180,6 +189,9 @@ export default function Page() {
       </p>
 
       <h2 id="what-comes-across">What comes across</h2>
+      <PostFigure src="/blog/macos27/notes27-smart-folder-open-todos" width={2000} height={900} maxWidth={640}
+        alt="A test note in Apple Notes on macOS 27 with a heading, a checklist with one item ticked, a tag, a small table, a link to another note and a picture."
+        caption="A test note like this shows what each move keeps." />
       <p>Google Keep gets the text of each note and nothing else. For the other two:</p>
       <div className="tableWrap">
         <table>
