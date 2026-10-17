@@ -52,9 +52,8 @@ export default function Page() {
           </p>
         </Answer>
       }
-      hero={<PostFigure priority src="/blog/covers/openai-gpt-6-astra" width={1600} height={900} maxWidth={800}
-        alt="A spiral galaxy of white and amber stars on black, its arms drawn into the shape of a 6."
-        caption="The picture OpenAI launched GPT-6 Astra with. Image: OpenAI." />}
+      // The launch picture is this post's cover at the top; no second picture under the intro.
+      hero={<></>}
       faq={FAQ}
     >
       <h2 id="what-it-is">What GPT-6 Astra is, and what changed</h2>
