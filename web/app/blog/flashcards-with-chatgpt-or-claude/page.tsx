@@ -70,6 +70,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
+      <PostFigure src="/blog/drawn/fc-onefact" width={1200} height={750} maxWidth={560}
+        alt="A crowded flashcard crossed out next to a short flashcard with a green tick."
+        caption="One fact per card, so you either knew it or didn't." />
       <p>
         Left alone, an AI writes cards that are too long and too vague: &ldquo;What are the key features of glycolysis?&rdquo;
         with a paragraph for an answer. You can&apos;t say whether you knew that, so you can&apos;t grade yourself honestly. The fix
@@ -83,6 +86,9 @@ export default function Page() {
       </p>
 
       <h2 id="chatgpt">ChatGPT&apos;s own flashcards, and Claude&apos;s artifacts</h2>
+      <PostFigure src="/blog/news/openai-chatgpt-flashcards-lecture-notes" width={1920} height={1080} maxWidth={720}
+        alt="ChatGPT's flashcard view for an exam review made from lecture notes, with a question card and a Show answer button, and the request that made it with two PDFs attached."
+        caption="ChatGPT's flashcards, made from uploaded lecture notes. Image: OpenAI." />
       <p>
         ChatGPT has a built-in flashcard view. According to OpenAI&apos;s <a href="https://help.openai.com/en/articles/20001533-flashcards-in-chatgpt" rel="noopener">help
         article</a>, you ask for cards on a topic or upload notes, flip each card, and mark it as known or to review again. You
@@ -101,6 +107,9 @@ export default function Page() {
       </p>
 
       <h2 id="missing">What&apos;s missing</h2>
+      <PostFigure src="/blog/drawn/fc-apart" width={1200} height={750} maxWidth={560}
+        alt="A note, a flashcard and a ChatGPT chat bubble, apart from each other with dotted lines that don't meet."
+        caption="Notes, cards and the AI in three different places." />
       <p>
         That separation is the part that bugs me. My lecture notes are in one app, the cards in another, and the AI in a third. When I
         fix a mistake in my notes, the card still says the old thing. When I ask Claude what I keep getting wrong, it can&apos;t see my
@@ -132,6 +141,9 @@ export default function Page() {
           app&apos;s own notes on how cards are kept, and adds them under that topic as new cards.
         </li>
       </Steps>
+      <PostFigure src="/blog/pinto/study-flashcards-main-mac-light" width={1280} height={900} maxWidth={600}
+        alt="The Study screen of the flashcards app in a Pinto Notes note on a Mac: 8 cards due today, topic pills, a Study now button, a streak, and the cards coming up this week."
+        caption="The first screen: what's due today, and one button to start. Example cards." />
       <p>
         Then study in the app. The first screen says how many cards are due today and has one button, Study now. You see the
         question, tap Show answer, then Again, Hard, Good or Easy. Each button shows when the card comes back: a new card you know
@@ -165,6 +177,9 @@ export default function Page() {
         is simpler than Anki&apos;s, with no settings, no daily limit on new cards and no import of Anki decks. There are no
         reminders, because apps in Pinto Notes can&apos;t send notifications yet.
       </p>
+      <PostFigure src="/blog/drawn/fc-quiz" width={1200} height={750} maxWidth={560}
+        alt="A phone showing a chat bubble that says quiz me, next to a flashcard."
+        caption="On the phone, ask your AI to quiz you from the same cards." />
       <p>
         The iPhone app isn&apos;t on the App Store yet, so the flashcard app opens on a Mac with macOS 26 or later. On your phone you
         can still say &ldquo;quiz me&rdquo; to ChatGPT or Claude, and it updates the same cards. If you already live in ChatGPT&apos;s

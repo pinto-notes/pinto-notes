@@ -56,6 +56,9 @@ export default function Page() {
         <li>Type a name for the file if you want another one, and pick where to save it.</li>
         <li>Click Save.</li>
       </ol>
+      <PostFigure src="/blog/macos27/notes27-copy-as-markdown" width={1400} height={836} maxWidth={600}
+        alt="The Edit menu of Apple Notes on macOS 27 with Copy as Markdown highlighted, over a Spring garden plan note with its Seeds to order list selected."
+        caption="Copy as Markdown copies only the part you select. New in macOS 27." />
       <p>
         To copy only part of a note, macOS 27 and iOS 27 add Copy as Markdown: select the text, then choose Edit, Copy as Markdown on a Mac,
         or Copy as Markdown in the edit menu on iPhone. It works the other way too: paste Markdown into a note and it turns into headings and
@@ -63,6 +66,9 @@ export default function Page() {
       </p>
 
       <h2 id="iphone">Export a note on iPhone</h2>
+      <PostFigure src="/blog/drawn/iphone-md" width={1200} height={750} maxWidth={560}
+        alt="A drawn iPhone with a notes icon on its screen and an arrow to the Markdown mark."
+        caption="On iPhone, Share, then Export as Markdown." />
       <ol>
         <li>Open the note in Notes.</li>
         <li>Tap the Share button, then tap Export as Markdown. If you don&apos;t see it, tap the View More button first.</li>
@@ -106,6 +112,9 @@ export default function Page() {
       </p>
 
       <h2 id="all">Export every note at once</h2>
+      <PostFigure src="/blog/drawn/export-all" width={1200} height={750} maxWidth={560}
+        alt="A drawn notes icon with lines fanning into a blue folder of Markdown files."
+        caption="Every note at once needs an exporter on your Mac." />
       <p>
         Apple&apos;s guides only describe exporting the note in front of you. For a folder or a whole library, the usual route is a free
         exporter that runs on your Mac and reads the Notes app for you:
@@ -132,6 +141,9 @@ export default function Page() {
         Apple Notes to Obsidian, Notion or Keep</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
         Notes, that&apos;s why I made Pinto Notes: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
       </p>
+      <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={420}
+        alt="The Import from Apple Notes sheet in Pinto Notes on a Mac, with every note listed under its folder and ticked, and an Import button."
+        caption="File, Import from Apple Notes in Pinto Notes. Apple Notes isn't changed." />
       <p>
         On a Mac, <a href="/blog/move-from-apple-notes">File, Import from Apple Notes</a> brings over the notes you pick in one go, in their
         folders, with tables and pictures. Be aware of what it leaves behind: other attachments and locked notes stay in Apple Notes. And

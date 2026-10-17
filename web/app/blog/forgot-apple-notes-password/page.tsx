@@ -37,6 +37,9 @@ export default function Page() {
           { href: "#reset-on-a-mac", label: "Reset on a Mac" },
           { href: "#next-time", label: "Avoid it next time" },
         ]}>
+      <PostFigure src="/blog/macos27/notes-locked-hint" width={720} height={580} maxWidth={360}
+        alt="A locked note in Apple Notes on macOS 27 asking for the notes password, with the hint City and year of the trip shown below the field."
+        caption="After a wrong password, Notes shows the hint you set." />
           <p>
             Nobody can open a locked note without its password, not Apple and not an unlock app. Try Face ID or Touch ID, the hint and
             your device passcode first. If none of them works, reset the password: that only changes it for the notes you lock from now
@@ -97,6 +100,9 @@ export default function Page() {
       </p>
 
       <h2 id="what-works">What each option can do</h2>
+      <PostFigure src="/blog/drawn/pw-keys" width={1200} height={750} maxWidth={560}
+        alt="A drawn orange padlock with three ways to open it around it: a face scan, six passcode dots and a password field."
+        caption="Three ways in: Face ID, your passcode, or the notes password itself." />
       <div className="tableWrap">
         <table>
           <thead>
@@ -158,6 +164,9 @@ export default function Page() {
       </p>
 
       <h2 id="unlock-apps">About unlock apps</h2>
+      <PostFigure src="/blog/drawn/pw-guess" width={1200} height={750} maxWidth={560}
+        alt="A drawn orange padlock beside a pile of keys and a question mark."
+        caption="An unlock app can only guess, one key at a time." />
       <p>
         Search results for this are full of apps that promise to unlock Apple Notes. None of them can decrypt a locked note without its
         password; the most they can do is try passwords for you. If one asks for your Apple Account password or your backup, think hard

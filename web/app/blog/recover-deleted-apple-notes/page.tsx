@@ -56,6 +56,9 @@ export default function Page() {
         Notes go missing more often than they get deleted. Apple&apos;s <a href="https://support.apple.com/en-us/102476" rel="noopener">missing
         notes article</a> suggests these checks first:
       </p>
+      <PostFigure src="/blog/apple/iphone-notes-search-results" width={760} height={894} maxWidth={300}
+        alt="Notes on iPhone searching for Home, with one top hit, Home renovation project, and another note, Kitchen remodel ideas, tagged #Home."
+        caption="Search finds a note by any word in it. Image: Apple." />
       <ul>
         <li><strong>Search everything.</strong> In the notes list, search for a word from the note with All Accounts selected. Search only sees the title of locked notes, so check those by hand.</li>
         <li><strong>Check each account.</strong> In Settings, Apps, Notes, Notes Accounts, make sure Notes is turned on for every account, such as Gmail or Yahoo. A note in an account that&apos;s switched off disappears from the list.</li>
@@ -110,6 +113,9 @@ export default function Page() {
       </p>
 
       <h2 id="mail-accounts">Notes in Gmail, Yahoo and other accounts</h2>
+      <PostFigure src="/blog/apple/iphone-settings-mail-account-notes-switch" width={760} height={894} maxWidth={300}
+        alt="An iPhone's settings for a Gmail account, with switches for Mail, Contacts, Calendars and Notes, all turned on."
+        caption="A mail account's notes live in that account. Image: Apple." />
       <p>
         Notes in a mail account don&apos;t use Recently Deleted. The account usually keeps a deleted note in its Trash, which you&apos;ll find in
         the Mail app. To get it back, copy it from Trash and paste it into a new note. Those accounts keep their own rules for how long
@@ -117,6 +123,9 @@ export default function Page() {
       </p>
 
       <h2 id="after-30-days">After 30 days</h2>
+      <PostFigure src="/blog/apple/iphone-settings-icloud-backup" width={760} height={1030} maxWidth={300}
+        alt="The iCloud Backup screen in iPhone Settings, with Back Up This iPhone turned on, a Back Up Now button and the time of the last backup."
+        caption="iCloud Backup leaves out notes already stored in iCloud. Image: Apple." />
       <p>
         For notes in iCloud, the honest answer is no. Apple says you can&apos;t recover notes that were permanently removed, and{" "}
         <a href="https://support.apple.com/en-us/108770" rel="noopener">iCloud Backup doesn&apos;t include notes already stored in iCloud</a>,
@@ -132,6 +141,9 @@ export default function Page() {
       </p>
 
       <h2 id="next-time">So it doesn&apos;t happen again</h2>
+      <PostFigure src="/blog/macos27/notes27-export-to" width={1138} height={855} maxWidth={500}
+        alt="The File menu of Apple Notes on macOS 27 with Export To open, offering PDF and Markdown, and Markdown highlighted."
+        caption="File, Export To, Markdown keeps a copy of one note as a file." />
       <ul>
         <li>Keep a copy of the notes you can&apos;t lose: <a href="/blog/export-apple-notes-to-markdown">export them to Markdown</a>, one at a time or with an exporter for everything.</li>
         <li>On a Mac, turn on Time Machine. <a href="/blog/back-up-apple-notes">How to back up Apple Notes</a> has a routine that covers the rest.</li>

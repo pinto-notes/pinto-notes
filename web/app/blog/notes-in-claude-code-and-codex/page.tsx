@@ -75,6 +75,9 @@ export default function Page() {
       </p>
 
       <h2 id="codex">Codex</h2>
+      <PostFigure src="/blog/news/openai-codex-app" width={1500} height={1340} maxWidth={560}
+        alt="The Codex app on a Mac, dark theme, with a sidebar of recent tasks and a box that says Ask Codex anything."
+        caption="Codex shares one setup across Terminal, your editor and the app. Image: OpenAI." />
       <Keep title="Add Pinto Notes to Codex" text={CODEX_CMD} code
         note="Codex opens your browser to sign in straight away. To sign in again later: codex mcp login pinto-notes." />
       <p>

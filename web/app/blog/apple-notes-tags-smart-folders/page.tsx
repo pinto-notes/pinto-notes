@@ -1,3 +1,5 @@
+import { SHOTS } from "@/lib/posts";
+import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -110,6 +112,9 @@ export default function Page() {
       </p>
 
       <h2>Tags or folders?</h2>
+      <PostFigure src="/blog/apple/iphone-notes-ios27-folders-list" width={640} height={1320} maxWidth={280}
+        alt="The Folders list in Notes on iPhone with iOS 27: Quick Notes and Shared, iCloud folders such as Notes, Gift Ideas and Grocery List, and a Tags section below."
+        caption="Folders above and tags below, in one list. Image: Apple." />
       <p>
         A note sits in one folder and can carry many tags. Apple&apos;s own tip in Notes says folders suit broad areas, like work or personal
         projects, and tags suit specific topics, like #Hiring or #Taxes. That holds up. A note about a client meeting goes in Work and gets
@@ -144,6 +149,9 @@ export default function Page() {
         any note and it comes back.
       </p>
       <h3>A Smart Folder is empty, or shows the wrong notes</h3>
+      <PostFigure src="/blog/apple/iphone-notes-edit-smart-folder" width={640} height={1324} maxWidth={280}
+        alt="Notes on iPhone with a Smart Folder called New home ideas held down, showing a preview of its notes and a menu with Delete and Edit Smart Folder."
+        caption="Touch and hold a Smart Folder, then Edit Smart Folder, to check its rules. Image: Apple." />
       <p>
         Open it with Edit Smart Folder (touch and hold it on iPhone, Control-click it on a Mac) and check whether it needs all of the rules
         or any of them. With all, every extra rule narrows the list. Also check the Tags rule: All Selected needs every chosen tag on the
@@ -161,6 +169,9 @@ export default function Page() {
         the folder&apos;s name, and that can&apos;t be undone.
       </p>
       <h3>Deleting a tag deleted a Smart Folder</h3>
+      <PostFigure src="/blog/apple/iphone-notes-rename-delete-tag" width={640} height={1324} maxWidth={280}
+        alt="The Tags section in Notes on iPhone with #Shopping held down and a menu offering Rename Tag and Delete Tag."
+        caption="Touch and hold a tag to rename or delete it. Image: Apple." />
       <p>
         If a Smart Folder filters on that tag alone, deleting the tag deletes the Smart Folder too. Notes lists them in the confirmation
         before it does, so read it. The notes stay put.
@@ -172,6 +183,9 @@ export default function Page() {
       </p>
 
       <h2>Tag notes with Shortcuts</h2>
+      <PostFigure src="/blog/macos27/notes27-api-shortcut-append" width={2048} height={980} maxWidth={640}
+        alt="Shortcuts on macOS 27 with its actions filtered to Notes."
+        caption="The Notes actions in Shortcuts on macOS 27." />
       <p>
         On macOS 26 the Shortcuts app has Notes actions named Add Tags to Notes, Remove Tags from Notes, Create Tag, Delete Tags and Open
         Tag. They&apos;re useful for tagging a batch of notes at once. Tags live in the notes themselves, so keep a copy of those too:
@@ -179,6 +193,7 @@ export default function Page() {
       </p>
 
       <h2>If you want an assistant to do the sorting</h2>
+      <Figure shot={SHOTS.connectList} caption="Connect ChatGPT or Claude in Pinto Notes, then ask it to sort your notes." />
       <p>
         Pinto Notes, the notes app for iPhone and Mac that I make, has no tags or Smart Folders. It has folders, sub-folders, pins and
         search across every word, and you can connect ChatGPT or Claude to it after approving them on your device. Then the job a Smart Folder does,

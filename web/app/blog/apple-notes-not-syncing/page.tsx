@@ -127,6 +127,9 @@ export default function Page() {
           macOS 26 is the likely setup, and updating the Mac to macOS 27 is the fix.
         </li>
       </Steps>
+      <PostFigure src="/blog/apple/iphone-settings-icloud-storage-notes" width={490} height={1008} maxWidth={250}
+        alt="The iCloud screen in iPhone Settings: storage at 4.1 of 50 GB, and under Saved to iCloud, Photos, Drive, Passwords, Notes with 29 items, Messages and Mail."
+        caption="Settings, your name, iCloud: how full your storage is, and what Notes keeps there. Image: Apple." />
       <p>
         Apple doesn&apos;t document a button that forces a sync, so there&apos;s nothing to press. For much older devices, Apple&apos;s
         Mac guide says upgraded iCloud notes can&apos;t be opened on versions earlier than OS X 10.11 or iOS 9, and that the Notes sidebar
@@ -134,6 +137,9 @@ export default function Page() {
       </p>
 
       <h2 id="shared">When a shared note won&apos;t update</h2>
+      <PostFigure src="/blog/drawn/shared-pause" width={1200} height={750} maxWidth={560}
+        alt="Two drawn notes icons, each with a person above it, joined by a dotted line with a pause sign in the middle."
+        caption="A shared note waits when one side can't sync." />
       <ul>
         <li>Everyone needs to be signed in to an Apple Account with Notes turned on for iCloud. Apple&apos;s guide for collaborating in Notes also asks for the latest iOS.</li>
         <li>You can&apos;t collaborate on a locked note, or on a folder that holds one.</li>
@@ -146,6 +152,9 @@ export default function Page() {
       </p>
 
       <h2 id="vanished">If notes vanished from every device</h2>
+      <PostFigure src="/blog/macos27/notes-recently-deleted-window" width={1520} height={1003} maxWidth={560}
+        alt="Apple Notes on macOS 27 open at Recently Deleted with two notes, Fresh pasta dough and Gift ideas, under a line saying deleted notes are removed from your devices after 30 days."
+        caption="A note deleted on any device waits here for 30 days." />
       <p>
         Deleting a note on one device deletes it everywhere, which can look like a sync problem. Deleted notes stay in Recently Deleted for
         30 days on every device signed in to the same Apple Account. <a href="/blog/recover-deleted-apple-notes">How to recover deleted
@@ -154,6 +163,9 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">A notes app that shows its sync</h2>
+      <PostFigure src="/blog/drawn/sync-ok" width={1200} height={750} maxWidth={560}
+        alt="A drawn white cloud with a green tick and a small clock beside it."
+        caption="Pinto Notes shows when it last synced, and why when it can't." />
       <p>
         Apple Notes doesn&apos;t show when it last synced, which is why this takes six checks. Pinto Notes, the notes app for iPhone and
         Mac that I make, syncs through its own end-to-end encrypted service rather than iCloud, so iCloud storage doesn&apos;t affect it.

@@ -1,3 +1,5 @@
+import { SHOTS } from "@/lib/posts";
+import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -59,6 +61,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="connectors">What Grok connectors are</h2>
+      <PostFigure src="/blog/news/xai-grok-connectors-announcement" width={1600} height={901} maxWidth={700}
+        alt="The words Grok Connectors in white on a dark purple glow, above a row of glowing round app icons."
+        caption="xAI's picture for the connectors launch in May. Image: xAI." />
       <p>
         xAI <a href="https://x.ai/news/grok-connectors" rel="noopener">announced connectors</a> on 6 May 2026 for Grok on the web, iOS
         and Android. A connector lets Grok search and work with another service inside a conversation, so you can ask about your
@@ -77,6 +82,9 @@ export default function Page() {
       </p>
 
       <h2 id="web">How to add a custom MCP connector on grok.com</h2>
+      <PostFigure src="/blog/drawn/grok-server" width={1200} height={750} maxWidth={560}
+        alt="The Grok logo joined by a dotted line to a server marked https."
+        caption="A custom connector is any MCP server Grok can reach on the internet." />
       <Steps>
         <li>
           <strong>Open grok.com/connectors</strong>
@@ -110,6 +118,9 @@ export default function Page() {
       </p>
 
       <h2 id="build">How to add an MCP server in Grok Build</h2>
+      <PostFigure src="/blog/drawn/grok-build" width={1200} height={750} maxWidth={560}
+        alt="A drawn terminal running grok mcp add, with the Grok logo, linked to a server."
+        caption="Grok Build adds an MCP server with one command." />
       <p>
         Grok Build is xAI&apos;s coding agent for the terminal. It runs on your computer, so local servers work as well as remote
         ones. Its <a href="https://docs.x.ai/build/features/mcp-servers" rel="noopener">MCP servers page</a> gives one command for a remote
@@ -129,6 +140,9 @@ export default function Page() {
       </p>
 
       <h2 id="bot">What about Grok Bot?</h2>
+      <PostFigure src="/blog/drawn/grok-bot-cloud" width={1200} height={750} maxWidth={560}
+        alt="A drawn cloud holding a computer with the Grok logo, with Gmail and Google Drive plugged into its sides."
+        caption="Grok Bot's apps are plugins on its own cloud computer." />
       <p>
         Grok Bot is xAI&apos;s always-on agent, with its own cloud computer. Its <a href="https://docs.x.ai/grok-bot/computer-and-apps" rel="noopener">docs</a> say
         connectors are added as plugins from Connect apps in the sidebar, and they&apos;re shared by every Bot on your account. They
@@ -157,6 +171,7 @@ export default function Page() {
         <li>A page on pintonotes.com opens. Sign in, and it shows a two-digit number.</li>
         <li>Pinto Notes on your iPhone or Mac asks whether to allow the app. Type the number, choose Read Only or Read and Edit, then Allow.</li>
       </ol>
+      <Figure shot={SHOTS.consent} caption="The sheet when ChatGPT asks. For Grok, it adds a warning that Pinto Notes doesn't recognize the app." />
       <p>
         Pinto Notes names ChatGPT and Claude on that sheet. Any other app, Grok included, gets a warning that Pinto Notes
         doesn&apos;t recognize it, so allow it only if you just started connecting it yourself. After that, every change Grok makes is
@@ -168,6 +183,9 @@ export default function Page() {
         note="Asking which note it changed makes the edit easy to find and check." />
 
       <h2 id="limits">What xAI&apos;s docs leave out</h2>
+      <PostFigure src="/blog/drawn/grok-readonly" width={1200} height={750} maxWidth={560}
+        alt="The Grok logo linked to a server through a padlock marked Read only."
+        caption="Start a custom server on read-only access if it offers one." />
       <p>
         xAI&apos;s connector pages don&apos;t say how Grok handles data from a custom server, whether it asks before each write, or how to
         remove a connector, apart from the tunneling page&apos;s advice to remove and re-add one when its address changes. A custom

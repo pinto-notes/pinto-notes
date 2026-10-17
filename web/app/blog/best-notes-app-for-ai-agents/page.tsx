@@ -2,7 +2,7 @@ import { Figure } from "@/lib/blog";
 import { APP_STORE_LIVE, DEVICES } from "@/lib/site";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { SHOTS } from "@/lib/posts";
-import { Answer } from "@/lib/PostParts";
+import { Answer, PostFigure } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("best-notes-app-for-ai-agents", {
@@ -53,6 +53,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="needs">What an agent needs</h2>
+      <PostFigure src="/blog/news/mcp-docs-architecture-diagram" width={1920} height={750} maxWidth={760}
+        alt="The Model Context Protocol's diagram: AI apps such as Claude Desktop and Claude Code on the left, data sources and tools such as databases, Git and Slack on the right, joined through MCP in the middle."
+        caption="MCP sits between AI apps and the things they use; a notes app is one more box on the right. Image: Model Context Protocol." />
       <ol>
         <li><strong>A remote MCP server.</strong> ChatGPT, Claude and Incredible run their agents in the cloud, so the notes app needs a server on the internet, not only on your Mac. The same server then works from Claude Code and Codex.</li>
         <li><strong>Precise writes.</strong> Changing one line, appending to a log or ticking a checklist item, instead of rewriting the whole note. Less can go wrong, and you can see what changed.</li>
@@ -74,6 +77,9 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      <PostFigure src="/blog/news/notion-mcp-cursor-travel-plans" width={1350} height={672} maxWidth={700}
+        alt="An agent calling Notion's MCP tools to search for a page and add blocks, next to the Notion page it wrote, a Tokyo two-day itinerary."
+        caption="An agent writing a Notion page through Notion MCP. Image: Notion." />
       <p>
         More detail on each, with links to their own pages, is in <a href="/blog/notes-apps-with-mcp">notes apps with an MCP server, compared</a>.
       </p>
@@ -93,6 +99,9 @@ export default function Page() {
       </p>
 
       <h2>Try it with your agent</h2>
+      <PostFigure src="/blog/amber-notes-connect-an-ai" width={1040} height={720} maxWidth={520}
+        alt="Connect an AI in Pinto Notes' settings on a Mac: ChatGPT, Claude, Claude Code and Codex, with what's connected below."
+        caption="Settings, Connect an AI, with a guided setup for each." />
       <ul>
         <li>ChatGPT or Claude: <a href="/blog/connect-chatgpt-to-your-notes">connect it in a few minutes</a>.</li>
         <li>Claude Code or Codex: <a href="/blog/notes-in-claude-code-and-codex">one command each</a>.</li>

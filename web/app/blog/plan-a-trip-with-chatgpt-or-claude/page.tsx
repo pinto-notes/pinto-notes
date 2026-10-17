@@ -63,6 +63,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
+      <PostFigure src="/blog/drawn/trip-dont" width={1200} height={750} maxWidth={560}
+        alt="A luggage tag listing Food, Views and Walking, next to the crossed-out words museums and car."
+        caption="What you don't want removes more bad suggestions than any list of interests." />
       <p>
         Most of a good itinerary comes from what you tell the AI you don&apos;t want. &ldquo;Not museums&rdquo; and &ldquo;no car&rdquo;
         remove more bad suggestions than any list of interests adds. Ask for three to five things a day. A plan with eight stops a day
@@ -78,6 +81,9 @@ export default function Page() {
       </p>
 
       <h2 id="check">What to check before you trust it</h2>
+      <PostFigure src="/blog/drawn/trip-closed" width={1200} height={750} maxWidth={560}
+        alt="A blue door with a sign saying Closed Mondays, next to a calendar page for Monday the 23rd."
+        caption="Opening days are the first thing an AI plan gets wrong." />
       <p>
         Go through the draft for three things before you book around it. Is each place open on the day the plan sends you there?
         Museums and restaurants often close on a Monday. Are the travel times realistic for you, on hills and with luggage? And does
@@ -87,6 +93,9 @@ export default function Page() {
       </p>
 
       <h2 id="missing">What&apos;s missing</h2>
+      <PostFigure src="/blog/drawn/trip-apart" width={1200} height={750} maxWidth={560}
+        alt="A chat bubble, an email envelope and a handwritten list, apart from each other."
+        caption="The plan, the bookings and the packing list, in three places." />
       <p>
         The plan is good now, and it&apos;s stuck in a chat. The bookings are in your email, the packing list is in your head, and the
         friend coming with you can&apos;t see any of it. Trip apps help, but they&apos;re another place to retype it all: TripIt reads
@@ -119,6 +128,9 @@ export default function Page() {
           list.
         </li>
       </Steps>
+      <PostFigure src="/blog/drawn/trip-booking" width={1200} height={750} maxWidth={560}
+        alt="An envelope with an arrow into a list where two rows are ticked and one is still open."
+        caption="Paste a confirmation into the chat, and the booking shows up in the plan, marked not paid." />
       <p>
         From then on, paste booking confirmations into the chat as they arrive: &ldquo;Here&apos;s the hotel confirmation.&rdquo; The
         AI adds a booking with what it is, when, and its reference, marked not paid. Ask &ldquo;What do I still need to book?&rdquo;
@@ -146,6 +158,9 @@ export default function Page() {
       </p>
 
       <h2 id="limits">What it doesn&apos;t do yet</h2>
+      <PostFigure src="/blog/news/openai-apps-in-chatgpt-booking" width={1600} height={900} maxWidth={700}
+        alt="ChatGPT on a phone using the Booking.com app: a request for a Paris hotel and hotel cards with prices and View on Booking.com buttons."
+        caption="Even Booking.com's app in ChatGPT sends you to its site to book. Image: OpenAI." />
       <p>
         A day&apos;s plan is edited as text, one line per item, and you can&apos;t drag items around within a day. There&apos;s no map,
         no weather and no cost per booking, and the app can&apos;t look anything up online unless you allow a site. Booking still

@@ -73,6 +73,9 @@ export default function Page() {
       <TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" />
 
       <h2 id="paste">Paste them in formatted</h2>
+      <PostFigure src="/blog/macos27/notes27-paste-as-markdown" width={1328} height={400} maxWidth={640}
+        alt="The same Markdown pasted twice in Apple Notes on macOS 27: with Command-V the symbols stay as text, and with Edit, Paste as Markdown it becomes a heading, a list and bold text."
+        caption="Plain paste on the left, Paste as Markdown on the right." />
       <p>
         On a Mac with macOS 27, start a new note and choose Edit, Paste as Markdown. The # line becomes the title, ## lines become
         headings, and - [ ] lines become a checklist. A plain Command-V keeps the symbols as text.
@@ -84,6 +87,9 @@ export default function Page() {
       </p>
 
       <h2 id="missing">Where a template in Notes stops</h2>
+      <PostFigure src="/blog/drawn/template-copies" width={1200} height={750} maxWidth={560}
+        alt="Three drawn checklist cards fanned out, with tally marks beside them."
+        caption="Every copy starts blank. Counting across them is up to you." />
       <p>
         A template in Apple Notes is a blank form. It&apos;s great for the first day. By the third week of a habit list you&apos;re
         scrolling through copies of the same checklist, counting ticks by hand to see whether you kept your streak, and nothing ever adds

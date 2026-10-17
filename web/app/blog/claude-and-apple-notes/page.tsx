@@ -40,6 +40,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2>Why it depends on where you use Claude</h2>
+      <PostFigure src="/blog/apple/apple-dts-notes-api-answer" width={1176} height={720} maxWidth={560}
+        alt="An Apple Developer Forums thread where an Apple engineer answers No to whether there is an API for Apple Notes."
+        caption="Apple's own answer on its developer forums. Image: Apple." />
       <p>
         Apple Notes has no public API. Your notes live in iCloud, and Apple doesn&apos;t let outside services read them there. The only
         way in is the Notes app itself, on a Mac, through AppleScript. So anything that connects Claude to Apple Notes has to run on a
@@ -81,6 +84,7 @@ export default function Page() {
       </p>
 
       <h3 id="not-working">If the Apple Notes connector isn&apos;t working</h3>
+      <Figure shot={SHOTS.coworkAllow} caption="The macOS prompt the extension needs. Choose Allow." />
       <ul>
         <li>It only works in the Claude desktop app on a Mac. On claude.ai or in Claude on iPhone, the tools won&apos;t appear.</li>
         <li>macOS has to let Claude control Notes. In System Settings, Privacy &amp; Security, Automation, check that Claude is allowed to control Notes.</li>
@@ -96,6 +100,9 @@ export default function Page() {
         Claude may control Notes. <a href="/blog/apple-notes-api">Apple Notes has no API</a> explains
         why every route like this one runs through a Mac.
       </p>
+      <PostFigure src="/blog/macos27/notes27-api-script-editor-names" width={1400} height={592} maxWidth={640}
+        alt="Script Editor on a Mac getting the name of every note from Notes, with a list of note titles as the result."
+        caption="AppleScript, the only way into Notes, and what every community server uses." />
       <p>Things to know:</p>
       <ul>
         <li>It only works on the Mac it&apos;s installed on, while that Mac is awake.</li>
@@ -108,6 +115,9 @@ export default function Page() {
       <p>
         iOS 27 and macOS 27 came out on 14 September with a new Siri, but nothing that gives Claude a way into Apple Notes:
       </p>
+      <PostFigure src="/blog/apple/apple-siri-ai-app-chat" width={1306} height={1829} maxWidth={320}
+        alt="Siri AI on an iPhone, in the new Siri app: a typed conversation about a park in Mexico City."
+        caption="The new Siri in iOS 27 reads your notes; Claude still can't. Image: Apple." />
       <ul>
         <li>Siri AI can search your notes itself. It can also pass a request to ChatGPT through the ChatGPT extension. Claude isn&apos;t offered
           as an extension; MacRumors found code for other providers and <a href="https://www.macrumors.com/2026/09/14/siri-can-be-swapped-out-for-chatgpt-claude/" rel="noopener">reported</a> that
@@ -121,6 +131,9 @@ export default function Page() {
       </p>
 
       <h2>What none of these fix</h2>
+      <PostFigure src="/blog/drawn/claude-asleep" width={1200} height={750} maxWidth={560}
+        alt="A drawn closed laptop with a moon, a notes icon, and a phone with the Claude logo, with the line to the phone crossed out."
+        caption="Close the lid, and Claude loses your notes." />
       <p>
         Every option above lives on one Mac. Close the lid and Claude loses your notes. Open Claude on your phone on the way to work and
         they aren&apos;t there at all. And Claude is only one of the AIs you use: what you planned with ChatGPT yesterday is still stuck in
@@ -155,6 +168,9 @@ export default function Page() {
       </p>
 
       <h2>Which one to pick</h2>
+      <PostFigure src="/blog/drawn/claude-three" width={1200} height={750} maxWidth={560}
+        alt="The Claude logo with three paths: to a laptop, to a terminal, and to a phone with a note."
+        caption="Three ways to give Claude your notes." />
       <ul>
         <li>You use Claude only on your Mac and your notes have few checklists: the desktop extension.</li>
         <li>You&apos;re comfortable with a config file and want Claude to write to Apple Notes on your Mac: a community MCP server.</li>

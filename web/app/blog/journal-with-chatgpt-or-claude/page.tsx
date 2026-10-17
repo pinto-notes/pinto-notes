@@ -2,7 +2,7 @@ import { Figure } from "@/lib/blog";
 import NoteWindow from "@/app/templates/NoteWindow";
 import JOURNAL from "@/content/templates/daily-journal.json";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
@@ -98,6 +98,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="prompt">The prompt</h2>
+      <PostFigure src="/blog/drawn/jr-voice" width={1200} height={750} maxWidth={560}
+        alt="A phone with an orange sound wave and four short lines of questions."
+        caption="It works by voice too, while you do the dishes." />
       <p>
         It names no app, so it works in ChatGPT, Claude, Gemini or anything else. It works in a voice chat too, so you can talk
         through the day while you do the dishes.
@@ -120,6 +123,9 @@ export default function Page() {
       </p>
 
       <h2 id="more">Prompts for other days</h2>
+      <PostFigure src="/blog/drawn/jr-four" width={1200} height={750} maxWidth={560}
+        alt="Four small cards showing a low battery, a sunrise, a knot and a calendar."
+        caption="A tired day, a morning, a stuck day and a month." />
       <p>Four more, for the days when the usual questions don&apos;t fit. Each one stands alone.</p>
       <Keep title="Four more journal prompts" text={MORE} />
       <p>
@@ -134,6 +140,9 @@ export default function Page() {
         company that runs the AI. ChatGPT and Claude each have a setting that decides whether your chats are used to train their
         models. Open the app&apos;s settings, find the data or privacy section, and choose before your first entry.
       </p>
+      <PostFigure src="/blog/apple/iphone-notes-note-is-locked" width={760} height={910} maxWidth={300}
+        alt="Notes on iPhone showing a locked note: a padlock, This note is locked, and View Note."
+        caption="A locked note in Apple Notes on iPhone. Image: Apple." />
       <p>
         Some things don&apos;t belong in a chat at all. Write those by hand in a note and lock it. Apple Notes can lock a note behind your
         passcode or a password of its own. If you choose a password and lose it,{" "}
@@ -154,6 +163,9 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      <PostFigure src="/blog/macos27/notes27-paste-as-markdown" width={1328} height={400} maxWidth={640}
+        alt="The same Markdown pasted into Notes on macOS 27 two ways: Edit, Paste shows the symbols, and Edit, Paste as Markdown shows a heading and bold text."
+        caption="Paste as Markdown in Notes on macOS 27 keeps the heading and the bold labels." />
       <p>
         Apple Notes does this well for free. Make one note called Journal and paste each entry at the top. On a Mac with macOS 27,
         Edit, Paste as Markdown keeps the heading and the bold labels. On iPhone, paste it as it is. If the labels arrive with

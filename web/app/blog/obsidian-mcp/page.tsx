@@ -149,6 +149,9 @@ export default function Page() {
       </div>
 
       <p className="label"><strong>Local REST API with MCP</strong></p>
+      <PostFigure src="/blog/drawn/obs-plugin" width={1200} height={750} maxWidth={560}
+        alt="The Obsidian logo with the MCP mark on it, joined by a dotted line to the Claude logo."
+        caption="A plugin runs the server inside Obsidian, so Obsidian has to be open." />
       <p>
         The one to use today if you keep Obsidian open. It&apos;s by the author of the Local REST API plugin, and the MCP server is part
         of the plugin, so there&apos;s nothing else to install. Its best trick is editing one part of a note: the AI can append under a
@@ -167,6 +170,9 @@ export default function Page() {
         folders. It can also search with the Omnisearch plugin when you have it.
       </p>
       <p className="label"><strong>bitbonsai/mcpvault</strong></p>
+      <PostFigure src="/blog/drawn/obs-files" width={1200} height={750} maxWidth={560}
+        alt="A folder of Markdown files joined by a dotted line to the Claude logo, with a faded Obsidian logo beside it."
+        caption="File servers read the vault folder itself, so Obsidian can stay closed." />
       <p>
         The best choice if you&apos;d rather not run a plugin. It works on the files in your vault, keeps the AI inside that folder,
         skips <code>.obsidian</code> and <code>.git</code>, and asks the AI to repeat the path before deleting a note or moving a file. Obsidian can be
@@ -189,6 +195,9 @@ export default function Page() {
       </p>
 
       <h2 id="claude-code">Set it up in Claude Code</h2>
+      <PostFigure src="/blog/news/anthropic-claude-code-terminal" width={920} height={920} maxWidth={400}
+        alt="Claude Code's welcome screen in a terminal window on an orange background, with an empty prompt waiting for input."
+        caption="Claude Code, where the server is added with one command. Image: Anthropic." />
       <ol>
         <li>In Obsidian, open Settings, then Community plugins, then Browse. Search for Local REST API with MCP, install it and turn it on.</li>
         <li>Open Settings, then Local REST API, and copy the API key.</li>
@@ -210,6 +219,9 @@ export default function Page() {
         Claude Desktop runs local servers from its config file, so it reaches the plugin through a small bridge called mcp-remote. You need
         Node.js.
       </p>
+      <PostFigure src="/blog/news/mcp-docs-claude-desktop-developer-settings" width={1688} height={534} maxWidth={640}
+        alt="Claude Desktop's Settings window on the Developer tab, with an Edit Config button and a Get Started button."
+        caption="Settings, Developer, Edit Config opens the file you add the server to. Image: Model Context Protocol." />
       <ol>
         <li>Install and turn on the plugin, and copy its API key, as above.</li>
         <li>Open <code>claude_desktop_config.json</code>. In Claude Desktop, Settings, then Developer, then Edit Config takes you there.</li>
@@ -238,6 +250,9 @@ export default function Page() {
       </p>
 
       <h2 id="limits">The limits they all share</h2>
+      <PostFigure src="/blog/drawn/mac-asleep" width={1200} height={750} maxWidth={560}
+        alt="A drawn closed laptop with a moon on it, and an iPhone showing the ChatGPT logo, joined by a broken dotted line."
+        caption="The server lives on the computer with the vault, so a phone or ChatGPT can't reach it." />
       <ul>
         <li><strong>The computer with the vault must be on.</strong> Every one of these runs on that computer, and the AI app has to run there too. If it&apos;s asleep or shut, nothing can reach your notes. The plugins also need Obsidian open.</li>
         <li><strong>Not from ChatGPT, the web or your phone.</strong> ChatGPT, claude.ai and the Claude and ChatGPT apps on iPhone connect only to servers on the internet. Getting there means putting the server online yourself, through a tunnel with sign-in in front of it, and keeping it running.</li>

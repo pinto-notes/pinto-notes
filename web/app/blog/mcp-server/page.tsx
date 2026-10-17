@@ -22,6 +22,9 @@ export default function Page() {
     >
       <h2>The address</h2>
       <pre><code>{MCP_URL}</code></pre>
+      <PostFigure src="/blog/amber-notes-connect-chatgpt-steps" width={1120} height={610} maxWidth={560}
+        alt="Pinto Notes' Connect ChatGPT steps: turn on Developer mode, add Pinto Notes in Plugins, paste the address and choose OAuth, with a Copy Address and Open ChatGPT button."
+        caption="Pinto Notes copies the address for you when you connect ChatGPT." />
       <p>{OLD_MCP_URL_STAYS}</p>
       <ul>
         <li>Transport: MCP Streamable HTTP, answering with JSON. There is no server-sent stream; clients post each request.</li>
@@ -64,6 +67,9 @@ export default function Page() {
       </p>
 
       <h2>What happens to changes</h2>
+      <PostFigure src="/blog/amber-notes-version-history-chatgpt" width={1800} height={1200} maxWidth={640}
+        alt="Version history for a Groceries note on a Mac: ChatGPT's version from 4:35 is selected, with the lines it differs on tinted and a Restore This Version button."
+        caption="Each change keeps the version before it, with who made it." />
       <ul>
         <li>Every edit keeps the previous version. <code>history</code> lists them and <code>restore</code> puts one back.</li>
         <li>In the app, the person sees what an AI changed, with Undo.</li>
@@ -81,15 +87,24 @@ export default function Page() {
         folder with its name, like <code>Work/Acme/Agenda.md</code>. Checklists are <code>- [ ]</code> lines, and tables are markdown
         tables.
       </p>
+      <PostFigure src="/blog/amber-notes-claude-edit-lisbon-note" width={865} height={555} maxWidth={520}
+        alt="A Lisbon note's Plan checklist with one line, Late checkout requested, confirm by 10 May, tinted, and a bar saying Claude changed 1 line, with Undo."
+        caption="One edit changes one line, and the rest of the note stays as it was." />
       <p>
         <code>edit</code> is an exact search and replace, like a coding agent&apos;s Edit. The AI has to read a note with{" "}
         <code>fetch</code> before it changes it, and an edit is refused if the note changed since. That covers ticking a checklist
         item, adding a row to a table and fixing a sentence, without rewriting the rest of the note.
       </p>
+      <PostFigure src="/blog/pinto/habit-tracker-main-mac-light" width={1280} height={900} maxWidth={600}
+        alt="A habit tracker app inside a Pinto Notes note on a Mac: 2 of 6 habits done today, a dot grid for the week, and each habit with its streak."
+        caption="A note's app, which the same tools read and change. Example data." />
       <p>
         A note can also hold an app: a small React project at a path like <code>Work/Habits.app/</code>, with its data in{" "}
         <code>data.json</code>. The same tools read and change it, and <code>see_app</code> shows what it looks like.
       </p>
+      <PostFigure src="/blog/amber-notes-allow-chatgpt-access" width={840} height={700} maxWidth={400}
+        alt="Pinto Notes asking whether ChatGPT may use your notes, with a choice of Read and Edit or Read Only, and Don't Allow and Allow buttons."
+        caption="Read Only gives a connection only the tools marked reads." />
       <ul>
         {MCP_TOOLS.map((t) => (
           <li key={t.name}><code>{t.name}</code> ({KIND[t.kind]}). {t.description}</li>
@@ -106,6 +121,9 @@ export default function Page() {
         there, then approve on your iPhone or Mac by typing the number the page shows, and choose Read and Edit or Read Only. You need the free app and an
         account.
       </p>
+      <PostFigure src="/blog/news/anthropic-claude-code-terminal" width={920} height={920} maxWidth={400}
+        alt="Claude Code's welcome screen in a terminal window on an orange background, with an empty prompt waiting for input."
+        caption="Claude Code, where the server is added with one command. Image: Anthropic." />
       {AGENT_INSTALLS.map((x) => (
         <section key={x.tool} aria-label={x.tool}>
           <p className="label"><strong>{x.tool}</strong></p>

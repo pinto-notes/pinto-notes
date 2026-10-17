@@ -79,12 +79,18 @@ export default function Page() {
       </p>
       <Keep title="A budget tracker prompt" text={PROMPT}
         note="Swap in your own categories and amounts. Fewer categories is easier to keep up." />
+      <PostFigure src="/blog/drawn/bd-guess" width={1200} height={750} maxWidth={560}
+        alt="A chat bubble with a small table whose total is a red question mark."
+        caption="A total written by an AI in a chat is a guess until you check it." />
       <p>
         Two checks before you trust it. Add an expense, close the chat and come back tomorrow: is it still there? And add up one category
         by hand. An AI writing numbers into a chat can get a sum wrong without telling you.
       </p>
 
       <h2 id="missing">What&apos;s missing</h2>
+      <PostFigure src="/blog/drawn/bd-lock" width={1200} height={750} maxWidth={560}
+        alt="A budgeting app with a padlock, and the ChatGPT logo outside it."
+        caption="Budgeting apps keep their own AI, and keep yours out." />
       <p>
         The budgeting apps are good at budgets and mostly closed to everything else. Their AI is their own. YNAB has no official ChatGPT
         app; the unofficial ones need an API token and a developer&apos;s patience. A spreadsheet is open, but the AI only sees it when you
@@ -118,6 +124,9 @@ export default function Page() {
         <li>&ldquo;How am I doing on eating out this month?&rdquo;</li>
         <li>&ldquo;Add rent as a monthly bill on the 25th.&rdquo;</li>
       </ul>
+      <PostFigure src="/blog/drawn/bd-log" width={1200} height={750} maxWidth={560}
+        alt="A chat bubble saying 412 groceries, 85 bus card, with an arrow to a budget listing both and what's left."
+        caption="The AI adds the expenses; the app does the sums." />
       <p>
         The AI adds two expenses; the app works out what&apos;s left. That split is the point: the AI understands what you said, and the
         app does the arithmetic, so the number on the screen is never a guess. Ask Claude next week how the month went, and it reads the
@@ -125,6 +134,9 @@ export default function Page() {
       </p>
 
       <h2 id="limits">Limits</h2>
+      <PostFigure src="/blog/drawn/bd-bank" width={1200} height={750} maxWidth={560}
+        alt="A bank building and a budget card with a crossed-out line between them."
+        caption="No bank connection: each expense is added by you or your AI." />
       <p>
         No bank connection: you, or your AI, add each expense. No income tracking yet. Connecting ChatGPT needs a paid plan with custom apps.
         {APP_STORE_LIVE

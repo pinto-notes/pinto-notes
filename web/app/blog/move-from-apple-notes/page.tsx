@@ -1,3 +1,5 @@
+import { SHOTS } from "@/lib/posts";
+import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -47,6 +49,9 @@ export default function Page() {
       </ol>
 
       <h2>What comes along</h2>
+      <PostFigure src="/blog/macos27/notes27-smart-folder-open-todos" width={2000} height={900} maxWidth={640}
+        alt="A note in Apple Notes on macOS 27 with a heading, a checklist with one item ticked, a tag, a small table, a link to another note and a picture."
+        caption="Text, tables and pictures come along. Checklists keep their ticks with Full Disk Access." />
       <ul>
         <li>Your notes, in their folders, with folders inside folders kept, and the day each note was written and last changed.</li>
         <li>Text formatting, lists, tables and empty lines as you wrote them.</li>
@@ -74,6 +79,7 @@ export default function Page() {
       )}
 
       <h2>After the move</h2>
+      <Figure shot={SHOTS.welcome} caption="Markdown underneath, formatted on screen." />
       <ul>
         <li>If you know Apple Notes, you already know Pinto Notes: folders, a note list by date, pins, search and Recently Deleted work the same way.</li>
         <li>Your notes are stored as markdown underneath, formatted on screen.</li>

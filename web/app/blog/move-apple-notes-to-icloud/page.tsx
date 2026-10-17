@@ -57,6 +57,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="where">See where your notes are</h2>
+      <PostFigure src="/blog/apple/iphone-notes-ios27-folders-list" width={640} height={1320} maxWidth={280}
+        alt="The Folders list in Notes on iPhone with iOS 27: Quick Notes and Shared at the top, then an iCloud heading with its folders, and Tags below."
+        caption="The heading above a folder, here iCloud, is the account its notes are in. Image: Apple." />
       <p>
         Notes groups folders by account, under headings such as iCloud, On My iPhone and Gmail. The heading a note sits under decides
         whether it reaches your other devices: only iCloud notes do, with every feature.
@@ -98,6 +101,9 @@ export default function Page() {
         Apple&apos;s iPhone guide describes moving only, with no way to copy. So on iPhone, back up first: notes in On My iPhone are
         part of your iPhone backup, and <a href="/blog/back-up-apple-notes">how to back up Apple Notes</a> covers the rest.
       </p>
+      <PostFigure src="/blog/apple/iphone-notes-remove-lock-menu" width={760} height={910} maxWidth={300}
+        alt="The More menu of an unlocked note in Notes on iPhone, with Remove highlighted at the top next to Scan and Pin Note."
+        caption="Unlock the note, then More, Remove, before you move it. Image: Apple." />
       <p>
         To take the lock off a note on iPhone, tap the locked note, tap View Note and unlock it, then tap the More button and choose
         Remove. Each account can have its own notes password. If you&apos;ve lost the password for a locked note, nobody can open it,
@@ -161,6 +167,9 @@ export default function Page() {
         <li>On macOS 26, Notes turns down <a href="/blog/apple-notes-tags-smart-folders">tags</a> and pinning in an IMAP account, with a message saying they aren&apos;t supported.</li>
         <li>When you delete one, Gmail usually keeps it in that account&apos;s Trash in the Mail app rather than in Recently Deleted.</li>
       </ul>
+      <PostFigure src="/blog/apple/iphone-settings-mail-account-notes-switch" width={760} height={894} maxWidth={300}
+        alt="An iPhone's settings for a Gmail account, with switches for Mail, Contacts, Calendars and Notes, all turned on."
+        caption="Turn off Notes here once the Gmail account holds no notes. Mail keeps working. Image: Apple." />
       <p>
         Apple says notes moved from another account into iCloud can use every feature. To stop the Gmail account syncing notes once
         it&apos;s empty, turn off Notes for it. Mail keeps working, and any notes still in Gmail stay in your Google account.
@@ -190,6 +199,7 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">A notes app without accounts to sort out</h2>
+      <Figure shot={SHOTS.consent} caption="ChatGPT and Claude get your notes only after you allow them on your device." />
       <p>
         Pinto Notes, the notes app for iPhone and Mac that I make, has no On My iPhone and no mail accounts. You sign in once, and
         every note syncs between your devices. ChatGPT and Claude can read and edit those notes after you approve them.

@@ -50,6 +50,9 @@ export default function Page() {
       faq={FAQ}
     >
       <h2 id="icloud">What iCloud protects you from</h2>
+      <PostFigure src="/blog/apple/notes-same-note-three-devices" width={814} height={412} maxWidth={560}
+        alt="The same handwritten note, Urban planner, open in Notes on a MacBook, a tablet and an iPhone at once."
+        caption="iCloud keeps one note the same everywhere, mistakes included. Image: Apple." />
       <p>
         With iCloud, every device signed in to your Apple Account has the same notes, so losing a phone doesn&apos;t lose them.
         A mistake travels the same way, though. A deleted note leaves every device and waits in Recently Deleted for 30 days, then it&apos;s
@@ -78,6 +81,9 @@ export default function Page() {
       </div>
 
       <h2 id="routine">A routine that works</h2>
+      <PostFigure src="/blog/macos27/notes27-export-to" width={1138} height={855} maxWidth={500}
+        alt="The File menu of Apple Notes on macOS 27 with Export To open, offering PDF and Markdown, and Markdown highlighted."
+        caption="File, Export To, Markdown on macOS 27, for the notes you can't lose." />
       <ol>
         <li>
           Once a month, export everything with an exporter such as <a href="https://github.com/kzaremski/apple-notes-exporter" rel="noopener">Apple
