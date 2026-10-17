@@ -158,6 +158,7 @@
 /* Cards in a row are equally tall; the text fills the card and the spare room goes above the
    byline, so every card's author and date sit on the same line at its foot. */
 .cardText { display: grid; align-content: start; gap: 6px; padding: 0 20px 4px; }
+.minutes { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .label { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 /* Titles fill the first line and never leave one word alone on the last. Balancing them into two
    equal halves split names across lines ("Claude / Cowork", "to- / do list"). */

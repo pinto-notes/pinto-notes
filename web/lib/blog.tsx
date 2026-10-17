@@ -63,8 +63,8 @@ export function Avatar({ size = 24 }: { size?: number }) {
   return <img className={b.avatar} src={AUTHOR.avatar} alt="" width={size} height={size} />;
 }
 
-/// One post on the index or under "More posts": its cover and its title, nothing else to read
-/// (Emil, 16 October 2026: "light, easy to digest images, with some titles... just do titles").
+/// One post on the index or under "More posts": its cover, its title and how long it takes to read
+/// (Emil, 16 October 2026: "just do titles"; 17 October: keep the minutes to read).
 export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" | "h3" }) {
   const H = heading;
   return (
@@ -72,6 +72,7 @@ export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" 
       <ThumbArt thumb={post.thumb} />
       <span className={b.cardText}>
         <H className={b.cardTitle}>{post.title}</H>
+        <span className={b.minutes}>{readingMinutes(post.slug)} min read</span>
       </span>
     </a>
   );
