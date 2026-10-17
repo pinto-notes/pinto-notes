@@ -268,7 +268,7 @@ export default function Page() {
       </p>
       <p>
         If you want ChatGPT, or Claude on your phone, to use your notes without a computer left on, the notes have to live somewhere with
-        a server on the internet. That&apos;s why I built Pinto Notes: a free, open-source notes app for iPhone and Mac with an MCP server
+        a server on the internet. That&apos;s why I built Pinto Notes: a free, open-source notes app for Mac (iPhone coming soon) with an MCP server
         built in, at <code>{MCP_URL}</code>. It&apos;s a different app, not an Obsidian plugin.
       </p>
       <ul>
@@ -280,7 +280,7 @@ export default function Page() {
       <Figure shot={SHOTS.connectList} caption="Connect an AI in Pinto Notes on a Mac: ChatGPT, Claude, Claude Code and Codex." />
       <p>
         Be clear about the trade. Notes are stored as Markdown, but in Pinto Notes&apos; sync, not as a folder of files on your disk.
-        There are no plugins, it runs only on iPhone and Mac, and there&apos;s no import from Obsidian today.{" "}
+        There are no plugins, it runs only on the Mac for now (iPhone coming soon), and there&apos;s no import from Obsidian today.{" "}
         {APP_STORE_LIVE
           ? "The Mac app is a free download and the iPhone app is on the App Store."
           : "The Mac app is out now; the iPhone app is coming soon to the App Store."}

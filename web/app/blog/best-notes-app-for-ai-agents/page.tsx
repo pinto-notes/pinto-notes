@@ -45,7 +45,7 @@ export default function Page() {
         ]}>
           <p>
             Pick an app your agent can reach from the cloud, that lets it change one line instead of rewriting a note, and that keeps every
-            version. In October 2026 that&apos;s Pinto Notes (iPhone and Mac) and Notion (everywhere, built for teams). Evernote&apos;s server
+            version. In October 2026 that&apos;s Pinto Notes (Mac, iPhone coming soon) and Notion (everywhere, built for teams). Evernote&apos;s server
             can&apos;t edit notes, and Bear&apos;s, Obsidian&apos;s and Apple Notes&apos; only run on your own computer.
           </p>
         </Answer>

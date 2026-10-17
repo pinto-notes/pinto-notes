@@ -63,7 +63,7 @@ export default function Page() {
         note&rdquo; and have it just happen, the notes need to be in an app with an MCP server that ChatGPT can connect to.
       </p>
       <p>
-        Pinto Notes is a free, open-source notes app for iPhone and Mac that works like Apple Notes and has one built in. It imports your
+        Pinto Notes is a free, open-source notes app for Mac (iPhone coming soon) that works like Apple Notes and has one built in. It imports your
         Apple Notes on your Mac without changing them. Once you add it to ChatGPT, ChatGPT can search, read and edit your notes on
         chatgpt.com. You approve it in Pinto Notes, and every change it makes can be undone.
       </p>

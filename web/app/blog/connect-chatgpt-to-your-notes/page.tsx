@@ -65,7 +65,7 @@ export default function Page() {
             It depends on where your notes live. Apple Notes: ChatGPT can only see the one note you have open on a Mac, and can&apos;t
             save to it. Notion and Google Drive: ChatGPT&apos;s connectors can search them, with editing depending on your plan. To
             have ChatGPT search, write and edit your notes from any chat, they need an app that connects to it, like Pinto Notes:
-            turn on Developer mode at chatgpt.com, add Pinto Notes with Create MCP App, then choose Allow on your iPhone or Mac.
+            turn on Developer mode at chatgpt.com, add Pinto Notes with Create MCP App, then choose Allow on your Mac.
           </p>
         </Answer>
       }
@@ -99,7 +99,7 @@ export default function Page() {
         chat and explain it all again, and if you switch to Claude, it starts from zero.
       </p>
       <p>
-        What you actually want is one notebook that ChatGPT can read and write, that you can open on your phone like any note, and that
+        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on the Mac today, iPhone soon), and that
         Claude sees too. That&apos;s what the setup below gives you.
       </p>
       <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
@@ -155,7 +155,7 @@ export default function Page() {
         <li>
           <strong>Sign in on the page that opens</strong>
           ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
-          it&apos;s on this computer). Then open Pinto Notes on your iPhone or Mac, and the page shows a two-digit number.
+          it&apos;s on this computer). Then open Pinto Notes on your Mac, and the page shows a two-digit number.
         </li>
         <li>
           <strong>Type the number in Pinto Notes and choose Allow</strong>
@@ -170,7 +170,7 @@ export default function Page() {
       </Steps>
       <Figure shot={SHOTS.consent} caption="Nothing is shared until you choose Allow, and you pick Read and edit or Read only." />
       <p>
-        No iPhone or Mac nearby? On the page, choose Use your recovery key. Enter your recovery key (Pinto Notes shows it in Settings,
+        No Mac nearby? On the page, choose Use your recovery key. Enter your recovery key (Pinto Notes shows it in Settings,
         Privacy &amp; Security), pick Read and edit or Read only, and choose Allow. The key is used on that page only and never sent
         to us, but approving on your device is safer, so use it when you can.
       </p>
@@ -245,7 +245,7 @@ export default function Page() {
         <li><strong>Back in Incredible, choose Let&apos;s go</strong></li>
       </Steps>
       <p>
-        On a Windows PC, you sign in on the page that opens and approve on your iPhone or Mac, or use your recovery key. On an older version of Incredible, where Pinto Notes isn&apos;t in Apps, choose Add it here at the bottom of Apps (or Add
+        On a Windows PC, you sign in on the page that opens and approve on your Mac, or use your recovery key. On an older version of Incredible, where Pinto Notes isn&apos;t in Apps, choose Add it here at the bottom of Apps (or Add
         another MCP server), paste <code>{MCP_URL}</code>, choose Continue, then Sign in. After you choose Allow, choose Add server.
       </p>
 
@@ -273,7 +273,7 @@ export default function Page() {
         caption="When ChatGPT changes a note, the new lines are tinted and you can undo the change."
       />
       <ul>
-        <li>Nothing is shared until you choose Allow: in Pinto Notes on your iPhone or Mac, after typing the number your browser shows, or on pintonotes.com with your recovery key.</li>
+        <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, after typing the number your browser shows, or on pintonotes.com with your recovery key.</li>
         <li>You choose Read only, or Read and edit, for each assistant.</li>
         <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Show Version History).</li>
         <li>Connect an AI lists everything that&apos;s connected. Choose Disconnect, and it loses access right away.</li>
