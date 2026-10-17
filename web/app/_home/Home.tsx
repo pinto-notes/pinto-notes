@@ -78,7 +78,16 @@ export function Home({ people, sara }: { people?: string; sara?: string } = {}) 
           </>}
         </div>
         <div className={v.row}>
-          {b && sara !== "review" ? <>
+          {b && !sara ? <>
+          <div className={v.words}>
+            <p className={v.kicker}>One sentence, over coffee</p>
+            <h3 className={v.rowTitle}>Sara asked for an app. Muse made one.</h3>
+            <p className={v.say}>A note can be a small app. She says what she needs, and it&apos;s in her notebook, working.</p>
+          </div>
+          <PaperStill split at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
+            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
+            me="Make me something to split the Lisbon trip with Leo." aiName="Muse" aiGlyph="meta" ai="Done. It's in Lisbon trip. Add a cost and it splits it." />
+          </> : b && sara === "friend" ? <>
           <div className={v.words}>
             <p className={v.kicker}>Every morning, over coffee</p>
             <h3 className={v.rowTitle}>Sara never forgets what friends tell her.</h3>
