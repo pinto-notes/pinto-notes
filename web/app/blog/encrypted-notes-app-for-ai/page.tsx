@@ -1,7 +1,7 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Figure } from "@/lib/blog";
 import { SHOTS } from "@/lib/posts";
-import { Answer } from "@/lib/PostParts";
+import { Answer, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 import { PRIVACY_PATH, READABLE } from "@/lib/privacy";
 
@@ -53,6 +53,9 @@ export default function Page() {
         they&apos;re uploaded. The key is made on your first device. iCloud Keychain carries it to your other iPhone and Mac, and Apple
         encrypts iCloud Keychain end to end too. We store only the encrypted copies, in Frankfurt, and we can&apos;t read them.
       </p>
+      <PostFigure src="/blog/amber-notes-locked-notes-password" width={880} height={600} maxWidth={440}
+        alt="Pinto Notes asking you to create a password for locked notes, saying a locked note can't be read by Pinto Notes or a connected AI."
+        caption="Locked notes get a second key, made from a password that stays on your devices." />
       <ul>
         <li><strong>Your recovery key</strong> is the fallback when a device can&apos;t get the key from iCloud Keychain. You save it yourself, from Settings, Privacy &amp; Security. We keep your notes&apos; key only locked with it, and we never get the recovery key.</li>
         <li><strong>Locked notes</strong> are encrypted a second time, with a key made from your notes password. That key never leaves your devices.</li>
@@ -78,6 +81,9 @@ export default function Page() {
       </p>
 
       <h2 id="limits">The limits</h2>
+      <PostFigure src="/blog/amber-notes-connect-an-ai" width={1040} height={720} maxWidth={520}
+        alt="Connect an AI in Pinto Notes' settings on a Mac: ChatGPT, Claude, Claude Code and Codex, with what's connected below."
+        caption="Disconnecting an AI here ends its access at once." />
       <ul>
         <li><strong>AI requests.</strong> While an AI works, our server handles the text it asks for, and our hosts (Vercel and Supabase) carry that text on its way. Neither stores it, but a changed server could copy it. Disconnecting ends this at once.</li>
         <li><strong>The recovery key in the browser.</strong> Approving on pintonotes.com with your recovery key runs our code in your browser. It never stores or sends the key, but a changed page could read it. Approve from your iPhone or Mac when you can.</li>
@@ -114,6 +120,9 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      <PostFigure src="/blog/drawn/enc-split" width={1200} height={750} maxWidth={560}
+        alt="A locked note on one side and the ChatGPT and Claude logos on the other, divided by a line with a closed eye."
+        caption="Encryption keeps a server blind; a cloud AI needs something to read the text." />
       <p>
         If you never want a server to see your text, a local setup is the stricter choice: Standard Notes with a local MCP server, or
         Obsidian with a plugin, works while that computer is on. If you want ChatGPT on your phone to add to a list while you&apos;re out,
@@ -126,6 +135,9 @@ export default function Page() {
       </p>
 
       <h2>Try it</h2>
+      <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={420}
+        alt="Pinto Notes' Import from Apple Notes sheet on a Mac, with notes listed by folder, all selected, and an Import button."
+        caption="Import from Apple Notes copies the notes you pick and leaves Apple Notes as it was." />
       <p>
         Pinto Notes is free and open source. The Mac app is on the <a href="/download">download page</a>, and the iPhone app is{" "}
         {APP_STORE_LIVE ? "on the App Store" : "in App Store review"}. Import your Apple Notes on the Mac, then <a href="/blog/connect-chatgpt-to-your-notes">connect

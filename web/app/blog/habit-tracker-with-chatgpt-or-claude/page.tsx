@@ -75,6 +75,9 @@ export default function Page() {
       </p>
       <Keep title="A habit tracker prompt" text={PROMPT}
         note="Two or three habits is a good start. A tracker with nine on day one is usually abandoned by Friday." />
+      <PostFigure src="/blog/drawn/hb-fade" width={1200} height={750} maxWidth={560}
+        alt="A chat bubble holding a grid of habit circles whose orange ticks fade away to the right."
+        caption="Close the chat, and a tracker built in it often forgets the ticks." />
       <p>
         Then do the test that decides whether it&apos;s a tracker or a demo: tick a habit, close the chat, open it tomorrow. If the tick is
         gone, you&apos;re back to a blank week. A downloaded spreadsheet keeps your ticks, but the AI can&apos;t see it unless you upload it
@@ -82,6 +85,9 @@ export default function Page() {
       </p>
 
       <h2 id="missing">What&apos;s missing</h2>
+      <PostFigure src="/blog/drawn/hb-cut" width={1200} height={750} maxWidth={560}
+        alt="A habit app with its own chat bubble and the ChatGPT logo, with the line between them cut."
+        caption="The app's coach and your AI don't talk to each other." />
       <p>
         I looked for a habit app my AI could write to and didn&apos;t find one. The App Store is full of trackers with a built-in AI coach,
         but that coach is a stranger: it doesn&apos;t know what you told ChatGPT this morning, and ChatGPT can&apos;t tick anything in it.
@@ -115,12 +121,18 @@ export default function Page() {
         <li>&ldquo;Which habit did I miss most this month?&rdquo;</li>
         <li>&ldquo;Add stretching, on weekdays only.&rdquo;</li>
       </ul>
+      <PostFigure src="/blog/drawn/hb-log" width={1200} height={750} maxWidth={560}
+        alt="A chat bubble saying walked, read 30 pages, 6 glasses, with an arrow to two ticked circles and a glass marked 6."
+        caption="One message logs the day." />
       <p>
         The first ticks Walk and Read and sets Water to 6. The second reads the same data you see. The third changes the app itself. And
         because it&apos;s one notebook, it doesn&apos;t matter which AI you told: log it in ChatGPT, ask Claude about your week, and it knows.
       </p>
 
       <h2 id="limits">Limits</h2>
+      <PostFigure src="/blog/drawn/hb-bell" width={1200} height={750} maxWidth={560}
+        alt="A yellow bell with a red line through it beside an empty habit circle."
+        caption="No reminders yet; your phone's own reminders do the nudging." />
       <p>
         Apps in a note can&apos;t send notifications yet, so use your phone&apos;s reminders for the nudge. The AI logs a day when you tell
         it, not on its own. Connecting ChatGPT needs a paid plan with custom apps. For a few words about the day next to the ticks,
