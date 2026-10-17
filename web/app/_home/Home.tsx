@@ -26,10 +26,7 @@ const EXTRAS = [
 
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
-/// `people`: "b" tries the smarter people scenes, where each answer uses what the notebook remembers
-/// (lab only, ?people=b).
-export function Home({ people, sara }: { people?: string; sara?: string } = {}) {
-  const b = people === "b";
+export function Home() {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
@@ -49,15 +46,14 @@ export function Home({ people, sara }: { people?: string; sara?: string } = {}) 
           <div className={v.words}>
             <p className={v.kicker}>Every evening, on a walk</p>
             <h3 className={v.rowTitle}>Maya plans tomorrow out loud.</h3>
-            <p className={v.say}>{b ? "She talks her day through with ChatGPT voice. It has eight months of her notes, so the plan fits her life, not an average one." : "She talks her day through out loud with ChatGPT voice. It's planned before she's home."}</p>
+            <p className={v.say}>She talks her day through with ChatGPT voice. It has eight months of her notes, so the plan fits her life, not an average one.</p>
           </div>
           <PaperStill voice at="left" focus={2} src="/home-v5/frontier/maya-paper.webp" where="Maya · San Francisco, 21:40"
             alt="A cut-paper scene of San Francisco at dusk from Dolores Park, a woman walking with her phone, the skyline lit up."
-            me={b ? "Plan tomorrow." : "Skipped the reading again."} aiName="ChatGPT" aiGlyph="openai"
-            ai={b ? "Run before work again? Your sleep log says you sleep better every week you do. And you told Sara you'd send the photos by Friday." : "Third time this week. Want to move it to the mornings, before work?"} />
+            me="Plan tomorrow." aiName="ChatGPT" aiGlyph="openai"
+            ai="Run before work again? Your sleep log says you sleep better every week you do. And you told Sara you'd send the photos by Friday." />
         </div>
         <div className={v.row} data-flip="">
-          {b ? <>
           <div className={v.words}>
             <p className={v.kicker}>His notebook, all night</p>
             <h3 className={v.rowTitle}>Jonas&apos;s agents work the night shift.</h3>
@@ -66,55 +62,16 @@ export function Home({ people, sara }: { people?: string; sara?: string } = {}) 
           <PaperStill at="left" focus={78} src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
             alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, Lisbon's rooftops and the river through tall open windows."
             me="Finish the offline queue tonight. Have Codex review it." aiName="Claude Code" aiGlyph="claude" ai="On it. I'll log each step in Sync rewrite, so Codex picks up where I stop." log />
-          </> : <>
-          <div className={v.words}>
-            <p className={v.kicker}>All night</p>
-            <h3 className={v.rowTitle}>Jonas&apos;s agents never start from zero.</h3>
-            <p className={v.say}>Every plan and decision he writes down is there for Claude Code and Codex. They start every task already knowing the project.</p>
-          </div>
-          <PaperStill at="left" focus={78} src="/home-v5/frontier/jonas-lisbon.webp" where="Jonas · Lisbon, 01:10"
-            alt="A cut-paper scene of a man at his desk late at night, a laptop glowing, Lisbon's rooftops and the river through tall open windows."
-            me="Pick up the sync rewrite." aiName="Claude Code" aiGlyph="claude" ai="Read your plan and yesterday's log. Starting where Codex stopped: the offline queue." />
-          </>}
         </div>
         <div className={v.row}>
-          {b && !sara ? <>
           <div className={v.words}>
             <p className={v.kicker}>One sentence, over coffee</p>
-            <h3 className={v.rowTitle}>Sara asked for an app. Muse made one.</h3>
+            <h3 className={v.rowTitle}>Sara asked for an app. Her AI made it.</h3>
             <p className={v.say}>A note can be a small app. She says what she needs, and it&apos;s in her notebook, working.</p>
           </div>
           <PaperStill split at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
-            me="Make me something to split the Lisbon trip with Leo." aiName="Muse" aiGlyph="meta" ai="Done. It's in Lisbon trip. Add a cost and it splits it." />
-          </> : b && sara === "friend" ? <>
-          <div className={v.words}>
-            <p className={v.kicker}>Every morning, over coffee</p>
-            <h3 className={v.rowTitle}>Sara never forgets what friends tell her.</h3>
-            <p className={v.say}>She jots down what people tell her. Muse reminds her before she sees them.</p>
-          </div>
-          <PaperStill friend at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
-            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
-            me="Dinner with Leo tonight." aiName="Muse" aiGlyph="meta" ai="Ask how his dad's surgery went. And he's off gluten now, so not the pasta place." />
-          </> : b ? <>
-          <div className={v.words}>
-            <p className={v.kicker}>Before her review, over coffee</p>
-            <h3 className={v.rowTitle}>Sara walks into her review with a year of proof.</h3>
-            <p className={v.say}>She notes what she ships as she goes. On review day, Muse reads the year and writes her the case, every point with the date it happened.</p>
-          </div>
-          <PaperStill review at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
-            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
-            me="My review is at ten. What did I actually do this year?" aiName="Muse" aiGlyph="meta" ai="More than you remember: fourteen wins, five with numbers. The best three are in Review prep." />
-          </> : <>
-          <div className={v.words}>
-            <p className={v.kicker}>Every morning, over coffee</p>
-            <h3 className={v.rowTitle}>Sara built her own budget.</h3>
-            <p className={v.say}>Budget apps sit unused. Hers lives next to her plans, so her AI can answer the real questions.</p>
-          </div>
-          <PaperStill budget at="right" focus={14} src="/home-v5/frontier/sara-cafe.webp" where="Sara · Stockholm, 08:10"
-            alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
-            me="Can I afford the Lisbon trip?" aiName="Muse" aiGlyph="meta" ai="Yes, if you skip two dinners out. Groceries are 410 kr under, and the flights are already paid." />
-          </>}
+            me="Make me something to split the Lisbon trip with Leo." aiName="Claude" aiGlyph="claude" ai="Done. It's in Lisbon trip. Add a cost and it splits it." />
         </div>
       </section>
 
