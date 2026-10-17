@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import nextConfig from "../next.config";
 import robots from "../app/robots";
 import sitemap from "../app/sitemap";
-import { MCP_URL } from "./facts";
+import { MCP_URL, WHAT_IT_IS } from "./facts";
 import { postShots } from "./post-images";
 import { APP_STORE_LIVE, DEFAULT_SHARE_IMAGE, pageMetadata } from "./site";
 import { feedXml } from "./feed";
@@ -75,7 +75,7 @@ describe("search and AI crawlers", () => {
 
   it("writes /llms.txt with the one-line description, the MCP address and the published posts only", () => {
     const txt = llmsTxt();
-    expect(txt.startsWith("# Pinto Notes\n\n> Pinto Notes is a free, open-source notes app for iPhone and Mac")).toBe(true);
+    expect(txt.startsWith(`# Pinto Notes\n\n> ${WHAT_IT_IS}`)).toBe(true);
     expect(txt).toContain(MCP_URL);
     expect(txt).toContain("Incredible");
     expect(txt).toContain("https://emilwagman.com");
