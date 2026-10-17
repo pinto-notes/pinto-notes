@@ -1,0 +1,236 @@
+{
+ "anthropic-claude-memory": {
+  "ground": "#eac9b6",
+  "ink": "dark",
+  "w": 880,
+  "h": 462
+ },
+ "anthropic-mcp": {
+  "ground": "#da7959",
+  "ink": "light",
+  "w": 880,
+  "h": 462
+ },
+ "api": {
+  "ground": "#f1e9de",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "apple-os-27": {
+  "ground": "#232424",
+  "ink": "light",
+  "w": 880,
+  "h": 462
+ },
+ "apple-siri-orb": {
+  "ground": "#020202",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "back-up": {
+  "ground": "#dfeae4",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "best-for-agents": {
+  "ground": "#ede4d9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "budget": {
+  "ground": "#fceecc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "chatgpt-apple-notes": {
+  "ground": "#e9f0e0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "claude-apple-notes": {
+  "ground": "#f5e3d5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "claude-code-codex": {
+  "ground": "#eee6df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "claude-memory": {
+  "ground": "#f7e6dc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "connect-chatgpt": {
+  "ground": "#e3f2ed",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "encrypted": {
+  "ground": "#dae1d9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "export-markdown": {
+  "ground": "#e7e4df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "flashcards": {
+  "ground": "#eee1f5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "forgot-password": {
+  "ground": "#f4e7d4",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "habit-tracker": {
+  "ground": "#ddeddf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "ios-27": {
+  "ground": "#fff3d0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "journal": {
+  "ground": "#f4e2ce",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "mcp-server": {
+  "ground": "#e8ecef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "meta-muse-apps": {
+  "ground": "#ebebed",
+  "ink": "dark",
+  "w": 880,
+  "h": 495
+ },
+ "meta-muse-connectors": {
+  "ground": "#e7effc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "move-apple-notes": {
+  "ground": "#fbefd9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "move-from-apple-notes": {
+  "ground": "#fcebd7",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "move-to-icloud": {
+  "ground": "#cce3fa",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "not-syncing": {
+  "ground": "#c9def5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "notes-apps-mcp": {
+  "ground": "#dce3ed",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "obsidian-banner": {
+  "ground": "#070707",
+  "ink": "light",
+  "w": 880,
+  "h": 504
+ },
+ "obsidian-mcp": {
+  "ground": "#ede6f8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "openai-apps-in-chatgpt": {
+  "ground": "#83cec1",
+  "ink": "dark",
+  "w": 880,
+  "h": 495
+ },
+ "openai-dots": {
+  "ground": "#000000",
+  "ink": "light",
+  "w": 880,
+  "h": 495
+ },
+ "openai-gpt-6-astra": {
+  "ground": "#0b151d",
+  "ink": "light",
+  "w": 880,
+  "h": 495
+ },
+ "recover-deleted": {
+  "ground": "#e5efdf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "tables": {
+  "ground": "#fbeccc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "tags": {
+  "ground": "#e7dbf3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "templates": {
+  "ground": "#f7e7d0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "trip": {
+  "ground": "#cde2f6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "xai-grok-bot": {
+  "ground": "#fe6b09",
+  "ink": "light",
+  "w": 880,
+  "h": 462
+ }
+}

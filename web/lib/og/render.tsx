@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import grounds from "./covers/grounds.json";
 
 /// Share cards (1200 × 630) in the site's own look: the page theme's colours, the app icon and name,
 /// a headline with the amber marker, and a real capture of the app on the right. Rendered at build.
@@ -126,7 +127,52 @@ export function renderTemplateCard({ slug, title, tagline, ground, ink }: { slug
             <div style={{ fontSize: 28, lineHeight: 1.3, fontWeight: 600, opacity: 0.9 }}>{tagline}</div>
           </div>
           <div style={{ display: "flex" }}>
-            <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#2a1d10", background: "#fffaf3", borderRadius: 12, padding: "10px 18px" }}>Free template for ChatGPT and Claude</div>
+            <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#2a1d10", background: "#fffaf3", borderRadius: 12, padding: "10px 18px" }}>Free template for your AI</div>
+          </div>
+        </div>
+      </div>
+    ),
+    {
+      ...size,
+      fonts: [
+        { name: "Inter", data: file("Inter-SemiBold.ttf"), weight: 600, style: "normal" },
+        { name: "Inter", data: file("Inter-ExtraBold.ttf"), weight: 800, style: "normal" },
+      ],
+    },
+  );
+}
+
+/// A blog post's share card, in the template cards' look: the post's cover large on the right, its own
+/// ground colour (sampled from the cover's left edge, lib/og/covers/grounds.json) carried across the
+/// card under the app's name, the title and the post's kind. Light ink on dark covers.
+export function renderPostCard({ cover, title, kind }: { cover: string; title: string; kind: string }) {
+  const g = (grounds as Record<string, { ground: string; ink: "dark" | "light"; w: number; h: number }>)[cover];
+  const ground = g?.ground ?? "#fff4e6", ink = g?.ink ?? "dark";
+  const color = ink === "dark" ? "#2a1d10" : "#fff4e6";
+  const mark = dataUrl(path.join(process.cwd(), "public", "mark.png"), "image/png");
+  // The whole cover, as wide as the right half and centred top to bottom; the ground (its own edge
+  // colour) fills around it, and every edge melts into the ground, so the card reads as one picture.
+  // Drawn a fifth larger than the half it sits in, so the drawing reads at share size; the box clips it.
+  const boxW = 660, w = Math.round(boxW * 1.2), h = g ? Math.round((w * g.h) / g.w) : 494, boxH = Math.min(630, h), top = Math.round((630 - boxH) / 2);
+  const titleSize = title.length > 64 ? 46 : title.length > 44 ? 52 : title.length > 28 ? 58 : 68;
+  const melt = (dir: string) => `linear-gradient(${dir}, ${ground}, ${ground}00)`;
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", background: ground, position: "relative", overflow: "hidden", fontFamily: "Inter" }}>
+        <div style={{ position: "absolute", right: 0, top, width: boxW, height: boxH, display: "flex", overflow: "hidden" }}>
+          <img src={dataUrl(here(`covers/covers/${cover}.jpg`), "image/jpeg")} width={w} height={h} style={{ position: "absolute", left: Math.round((boxW - w) / 2), top: Math.round((boxH - h) / 2) }} />
+        </div>
+        <div style={{ position: "absolute", left: 1200 - boxW, top, width: 90, height: boxH, backgroundImage: melt("90deg") }} />
+        <div style={{ position: "absolute", left: 1200 - boxW, top, width: boxW, height: 40, backgroundImage: melt("180deg") }} />
+        <div style={{ position: "absolute", left: 1200 - boxW, top: top + boxH - 40, width: boxW, height: 40, backgroundImage: melt("0deg") }} />
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "60px 0 60px 64px", width: 520, color }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <img src={mark} width={56} height={56} style={{ borderRadius: 13, boxShadow: "0 2px 6px rgba(40,20,0,0.25)" }} />
+            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.6 }}>Pinto Notes</div>
+          </div>
+          <div style={{ display: "flex", fontSize: titleSize, fontWeight: 800, lineHeight: 1.05, letterSpacing: -titleSize * 0.04 }}>{title}</div>
+          <div style={{ display: "flex" }}>
+            <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#2a1d10", background: "#fffaf3", borderRadius: 12, padding: "10px 18px" }}>{kind}</div>
           </div>
         </div>
       </div>

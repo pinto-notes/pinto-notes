@@ -57,7 +57,7 @@ type Page = {
 };
 
 /// The site's own share card (app/opengraph-image.tsx), for pages without one of their own.
-export const DEFAULT_SHARE_IMAGE = { url: "/opengraph-image", alt: "Pinto Notes: the notes app your AI can actually use. A note open on an iPhone." };
+export const DEFAULT_SHARE_IMAGE = { url: "/opengraph-image", alt: "Pinto Notes: the notebook you and your AI share. A paper-cut scene of a woman at dusk planning tomorrow with ChatGPT, her Pinto note filling in on her phone." };
 
 /// Title, description, canonical, robots, Open Graph and Twitter for one page. Next.js replaces
 /// (doesn't merge) openGraph and twitter between layouts and pages, so each page gets all of it.

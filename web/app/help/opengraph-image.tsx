@@ -8,7 +8,7 @@ export default function OpenGraphImage() {
     theme: "leaf",
     title: "Help and [answers].",
     sub: "Short answers on importing, connecting your AI, sync and sharing, and how to reach me.",
-    chips: ["Import Apple Notes", "Connect ChatGPT or Claude", "Sync"],
+    chips: ["Import Apple Notes", "Connect your AI", "Sync"],
     art: "icon",
     titleSize: 84,
   });
