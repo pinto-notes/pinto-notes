@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "lock-chats-in-chatgpt",
+    title: "How to lock chats in ChatGPT with a PIN or Face ID",
+    description: "Lock a ChatGPT chat from its ••• menu, open it with a PIN or Face ID, and know what it doesn't do: a forgotten PIN deletes every locked chat.",
+    excerpt: "ChatGPT can now hide a chat behind a PIN. How to lock one, where it goes, and the reset that deletes them all.",
+    category: "Guides",
+    date: "2026-10-20",
+    updated: "2026-10-20",
+    image: SHOTS.notesPassword,
+    thumb: cover("sage", "chatgpt-locked-chats", 1600, 1000, "A chat bubble with a green padlock, beside the ChatGPT logo"),
+    draft: false,
+  },
+  {
     slug: "siri-ai-apple-notes",
     title: "Siri AI and Apple Notes: what it can do, and what it can't",
     description: "Siri AI finds, rewrites and makes notes. What it can do in Apple Notes, what Apple doesn't say, and the one thing it can't: let ChatGPT or Claude in.",
@@ -505,6 +517,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "lock-chats-in-chatgpt",
   "siri-ai-apple-notes",
   "habit-tracker-with-chatgpt-or-claude",
   "budget-tracker-with-chatgpt-or-claude",
