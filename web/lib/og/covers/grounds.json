@@ -53,6 +53,12 @@
   "w": 880,
   "h": 550
  },
+ "chatgpt-locked-chats": {
+  "ground": "#d5e8e2",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "claude-apple-notes": {
   "ground": "#f5e3d5",
   "ink": "dark",
