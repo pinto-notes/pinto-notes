@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "how-to-use-claude-duet",
+    title: "How to use Claude Duet: what it does and how to get it",
+    description: "Claude Duet is Anthropic's proactive agent for Pro and Max in the US. How to join the waitlist, connect your apps, what to ask first, and what it won't do.",
+    excerpt: "Claude's new agent briefs you every morning and works while you're away. Who gets it, how to join, and what to hand it first.",
+    category: "Guides",
+    date: "2026-10-21",
+    updated: "2026-10-21",
+    image: SHOTS.connectClaude,
+    thumb: cover("linen", "claude-duet", 1600, 1000, "The Claude Duet app icon beside the words Claude Duet, from Anthropic"),
+    draft: false,
+  },
+  {
     slug: "lock-chats-in-chatgpt",
     title: "How to lock chats in ChatGPT with a PIN or Face ID",
     description: "Lock a ChatGPT chat from its ••• menu, open it with a PIN or Face ID, and know what it doesn't do: a forgotten PIN deletes every locked chat.",
@@ -517,6 +529,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "how-to-use-claude-duet",
   "lock-chats-in-chatgpt",
   "siri-ai-apple-notes",
   "habit-tracker-with-chatgpt-or-claude",
