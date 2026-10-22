@@ -1,0 +1,39 @@
+/* The AI feature tracker: chips to pick an assistant, then a month heading and its launches, one row
+   each. A row is the date and assistant on the left and the launch on the right; on phones the date
+   sits on its own line above. Colours are the site's own tokens, so light and dark mode follow. */
+
+.tracker { margin-top: 8px; }
+
+.months { margin: 0 0 12px !important; font-size: 15px; color: var(--muted); }
+.months a { font-weight: 600; }
+
+.filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+.filter button {
+  min-height: 36px; padding: 6px 14px; border: 0; border-radius: 999px; background: var(--soft); color: var(--ink);
+  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.filter button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.filter button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (hover: hover) { .filter button[aria-pressed="false"]:hover { box-shadow: inset 0 0 0 1px var(--line); } }
+
+.tracker .rows { list-style: none; margin: 0 0 8px; padding: 0; display: block; }
+.row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row[hidden] { display: none; }
+
+.meta { margin: 2px 0 0 !important; display: grid; gap: 6px; align-content: start; justify-items: start; }
+.meta time { font-size: 15px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+.body > * { margin: 0 !important; }
+.body { display: grid; gap: 4px; }
+.feature { font-size: 18px; line-height: 1.3; font-weight: 750; letter-spacing: -0.01em; }
+.what { font-size: 16px; line-height: 1.5; }
+.who { font-size: 15px; line-height: 1.45; color: var(--muted); }
+.who span { font-weight: 700; }
+.links { font-size: 14.5px; margin-top: 2px !important; }
+
+@media (max-width: 600px) {
+  .row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .meta { display: flex; align-items: center; gap: 10px; }
+}
