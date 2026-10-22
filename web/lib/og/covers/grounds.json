@@ -1,4 +1,10 @@
 {
+ "ai-feature-tracker": {
+  "ground": "#eee4d8",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
  "anthropic-claude-memory": {
   "ground": "#eac9b6",
   "ink": "dark",

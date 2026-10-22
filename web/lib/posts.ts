@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "new-ai-features",
+    title: "Every new ChatGPT, Claude and Gemini feature in 2026, with dates",
+    description: "Every new feature in ChatGPT, Claude and Gemini since April 2026, plus Grok, Meta AI, Perplexity and Copilot: the date, who gets it and the official page.",
+    excerpt: "A running list of what the AI assistants shipped, newest first: the date, what it does, who gets it and the official link.",
+    category: "Guides",
+    date: "2026-10-22",
+    updated: "2026-10-22",
+    image: { src: "/blog/duet/duet-brief.webp", alt: "Two phone screens from Claude Duet: a lock screen notification with the morning summary, and the morning brief listing what needs attention today.", width: 1984, height: 1848, window: false },
+    thumb: cover("sand", "ai-feature-tracker", 1600, 1000, "A paper wall calendar with the ChatGPT, Claude and Gemini marks pinned on three days"),
+    draft: false,
+  },
+  {
     slug: "how-to-use-claude-duet",
     title: "How to use Claude Duet: what it does and how to get it",
     description: "Claude Duet is Anthropic's proactive agent for Pro and Max in the US. How to join the waitlist, connect your apps, what to ask first, and what it won't do.",
