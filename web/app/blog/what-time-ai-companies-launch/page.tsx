@@ -83,8 +83,8 @@ export default function Page() {
       <p>
         On 97 of the 182 days, nothing launched at all. The rest came in bursts: the six busiest days carried 46 launches,
         22% of the total. Google I/O on 19 May was the peak, with 12 launches in one day, from Gemini 3.5
-        to Gmail Live. On 9 September, Apple confirmed the iOS 27 release date
-        and Meta introduced its Muse agent: 11 launches. Of the months we have complete data for, September was the
+        to Gmail Live. On 9 September, Apple confirmed the release dates for iOS 27
+        and macOS 27 and said Siri AI would launch that month: 11 launches. Of the months we have complete data for, September was the
         busiest, with 58, against 37 in May and 41 in August. Autumn brought <a href="/blog/what-are-chatgpt-dots">ChatGPT
         dots</a>, <a href="/blog/siri-ai-apple-notes">Siri AI</a> and <a href="/blog/gpt-6-astra-use-cases">GPT-6</a>.
       </p>
