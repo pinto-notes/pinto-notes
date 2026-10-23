@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "what-time-ai-companies-launch",
+    title: "What time do AI companies launch? We timed 206 launches",
+    description: "We counted six months of AI launches. 64% broke between 11 am and 5 pm US Eastern, Tuesday is the biggest day, and most days nothing ships.",
+    excerpt: "Six months of AI launch news, counted by hour and weekday. Most land at lunchtime in New York, and Tuesday wins.",
+    category: "Guides",
+    date: "2026-10-23",
+    updated: "2026-10-23",
+    image: { src: "/blog/launch-times/ai-launches-hours.webp", alt: "A bar chart of 200 AI launches by the hour their first report appeared: 64% between 11 am and 5 pm US Eastern, with a peak at 1 pm.", width: 1600, height: 1000, window: false },
+    thumb: cover("denim", "ai-launch-times", 1600, 1000, "A paper clock with the afternoon shaded amber, and three paper rockets taking off"),
+    draft: false,
+  },
+  {
     slug: "new-ai-features",
     title: "Every new ChatGPT, Claude and Gemini feature in 2026, with dates",
     description: "Every new feature in ChatGPT, Claude and Gemini since April 2026, plus Grok, Meta AI, Perplexity and Copilot: the date, who gets it and the official page.",
@@ -541,6 +553,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "what-time-ai-companies-launch",
   "how-to-use-claude-duet",
   "lock-chats-in-chatgpt",
   "siri-ai-apple-notes",

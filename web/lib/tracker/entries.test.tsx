@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { readingMinutes } from "../blog";
 import { published } from "../posts";
 import { ENTRIES } from "./entries";
 import { FeatureTracker } from "./FeatureTracker";
@@ -29,5 +30,9 @@ describe("the AI feature tracker", () => {
     const months = [...d.querySelectorAll("h2")].map((h) => h.id);
     expect(months[0]).toBe("october-2026");
     expect(months.at(-1)).toBe("april-2026");
+  });
+
+  it("counts its rows in the reading time, so it doesn't say 1 min read", () => {
+    expect(readingMinutes("new-ai-features")).toBeGreaterThanOrEqual(4);
   });
 });

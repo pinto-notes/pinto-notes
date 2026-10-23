@@ -5,6 +5,12 @@
   "w": 1600,
   "h": 1000
  },
+ "ai-launch-times": {
+  "ground": "#6fb0d7",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
  "anthropic-claude-memory": {
   "ground": "#eac9b6",
   "ink": "dark",
