@@ -57,6 +57,7 @@ export const SHELVES: Shelf[] = [
     title: "New in AI",
     line: "What just came out, and whether it's worth your time.",
     items: [
+      { slug: "new-ai-features", ask: "What's new in ChatGPT, Claude and Gemini?" },
       { slug: "gpt-6-astra-use-cases", ask: "GPT-6 Astra: what's it good for?" },
       { slug: "what-are-chatgpt-dots", ask: "What are ChatGPT dots?" },
       { slug: "meta-muse-connectors", ask: "Which Meta Muse connectors to add?" },
