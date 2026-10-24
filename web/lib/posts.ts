@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "gemini-notebooks",
+    title: "Gemini Notebooks: how to use them, now from any Gemini chat",
+    description: "How to make a Gemini notebook, add sources and old chats, and use @Gemini Notebook from any chat (new on 23 October). Free limits, EEA and Mac notes.",
+    excerpt: "Gemini's notebooks keep a project's files and chats together, and now any chat can fill them. How to set one up and what to ask.",
+    category: "Guides",
+    date: "2026-10-24",
+    updated: "2026-10-24",
+    image: { src: "/blog/gemini-notebooks/new-notebook.webp", alt: "The Gemini app on the web with Notebooks in the side menu and a new notebook being named Grad school application.", width: 1600, height: 800, window: false },
+    thumb: cover("fog", "gemini-notebooks", 1600, 1000, "The Gemini Notebook logo, Google's arch mark beside the words Gemini Notebook"),
+    draft: false,
+  },
+  {
     slug: "what-time-ai-companies-launch",
     title: "What time do AI companies launch? We timed 206 launches",
     description: "We counted six months of AI launches. 64% broke between 11 am and 5 pm US Eastern, Tuesday is the biggest day, and most days nothing ships.",
@@ -92,7 +104,7 @@ export const posts: Post[] = [
     excerpt: "A running list of what the AI assistants shipped, newest first: the date, what it does, who gets it and the official link.",
     category: "Guides",
     date: "2026-10-22",
-    updated: "2026-10-22",
+    updated: "2026-10-24",
     image: { src: "/blog/duet/duet-brief.webp", alt: "Two phone screens from Claude Duet: a lock screen notification with the morning summary, and the morning brief listing what needs attention today.", width: 1984, height: 1848, window: false },
     thumb: cover("sand", "ai-feature-tracker", 1600, 1000, "A paper wall calendar with the ChatGPT, Claude and Gemini marks pinned on three days"),
     draft: false,
@@ -553,6 +565,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "gemini-notebooks",
   "what-time-ai-companies-launch",
   "how-to-use-claude-duet",
   "lock-chats-in-chatgpt",
