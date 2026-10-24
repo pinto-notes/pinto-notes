@@ -175,6 +175,29 @@ struct TypedTable: Equatable {
         return indexed.sorted { $0.1[col] > $1.1[col] }
     }
 
+    /// Numeric values from rows with both a date and a valid number, sorted by date.
+    func points(for column: Int) -> [(Date, Double)] {
+        guard columns.indices.contains(column),
+              let dateColumn = columns.firstIndex(where: { $0.type == .date }) else { return [] }
+        return rows.compactMap { row in
+            guard row.indices.contains(dateColumn),
+                  row.indices.contains(column),
+                  let date = Self.date(from: row[dateColumn]),
+                  let value = Double(row[column].replacingOccurrences(of: ",", with: ".")) else { return nil }
+            return (date, value)
+        }.sorted { $0.0 < $1.0 }
+    }
+
+    /// Counts each declared choice, matching cell values without regard to case.
+    func counts(for column: Int) -> [(String, Int)] {
+        guard columns.indices.contains(column), case .choice(let options) = columns[column].type else { return [] }
+        return options.map { option in
+            (option, rows.filter {
+                $0.indices.contains(column) && $0[column].caseInsensitiveCompare(option) == .orderedSame
+            }.count)
+        }
+    }
+
     /// Averages for number and scale columns and hit rates for choices, over the last `days` rows with data.
     func summary(last days: Int = 7) -> [(String, String)] {
         let recent = recentRows.prefix(days).map(\.cells)
