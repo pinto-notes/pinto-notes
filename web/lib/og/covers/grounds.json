@@ -125,6 +125,12 @@
   "w": 880,
   "h": 550
  },
+ "gemini-notebooks": {
+  "ground": "#eaeceb",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
  "habit-tracker": {
   "ground": "#ddeddf",
   "ink": "dark",
