@@ -151,6 +151,24 @@ struct TypedTable: Equatable {
         return calendar.date(from: DateComponents(year: p[0], month: p[1], day: p[2]))
     }
 
+    /// Numeric values paired with dates, ordered from oldest to newest.
+    func points(for column: Int) -> [(Date, Double)] {
+        guard let dateColumn = columns.firstIndex(where: { $0.type == .date }) else { return [] }
+        return rows.compactMap { row in
+            guard let date = Self.date(from: row[dateColumn]),
+                  let value = Double(row[column].replacingOccurrences(of: ",", with: ".")) else { return nil }
+            return (date, value)
+        }.sorted { $0.0 < $1.0 }
+    }
+
+    /// Counts each declared choice, matching cell values without regard to case.
+    func counts(for column: Int) -> [(String, Int)] {
+        guard case .choice(let options) = columns[column].type else { return [] }
+        return options.map { option in
+            (option, rows.filter { $0[column].caseInsensitiveCompare(option) == .orderedSame }.count)
+        }
+    }
+
     /// A new row with today's date and blank fields.
     func blankRow(today: Date = .now) -> [String] {
         columns.map { c in
