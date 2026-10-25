@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "codex-usage-reset",
+    title: "\"Your usage does not need a reset right now\": Codex resets explained",
+    description: "Why Codex refuses a banked reset above 80% left, how to use one in ChatGPT's Usage settings, what it restores per plan, and free versus paid resets.",
+    excerpt: "Codex won't spend a saved reset until a limit drops below 80%. What that means, how to use one, and what to do when it's about to expire.",
+    category: "Guides",
+    date: "2026-10-25",
+    updated: "2026-10-25",
+    image: { src: "/blog/codex-reset/usage-limit-resets.webp", alt: "ChatGPT's Usage settings listing two Full resets available, with their expiry dates and Use reset buttons.", width: 1200, height: 402, window: false },
+    thumb: cover("peach", "codex-usage-reset", 1600, 1000, "A paper usage meter nearly empty, with a refresh arrow beside it and the OpenAI logo"),
+    draft: false,
+  },
+  {
     slug: "gemini-notebooks",
     title: "Gemini Notebooks: how to use them, now from any Gemini chat",
     description: "How to make a Gemini notebook, add sources and old chats, and use @Gemini Notebook from any chat (new on 23 October). Free limits, EEA and Mac notes.",
@@ -565,6 +577,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "codex-usage-reset",
   "gemini-notebooks",
   "what-time-ai-companies-launch",
   "how-to-use-claude-duet",
