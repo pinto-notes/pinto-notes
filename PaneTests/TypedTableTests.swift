@@ -72,7 +72,9 @@ import Testing
         """
         let table = try #require(TypedTable.find(in: markdown).first)
 
-        #expect(table.counts(for: 1) == [("Yes", 2), ("No", 1), ("N/A", 1)])
+        let counts = table.counts(for: 1)
+        #expect(counts.map(\.0) == ["Yes", "No", "N/A"])
+        #expect(counts.map(\.1) == [2, 1, 1])
     }
 
     @Test func trendPointsAreSortedAndSkipInvalidRows() throws {
