@@ -531,10 +531,10 @@ import AppKit
 
     // MARK: Shortcuts
 
-    @Test func shortcutsAddToTheEndOfANote() {
-        #expect(NoteIntents.appending("Milk", to: "Groceries\n- Eggs") == "Groceries\n- Eggs\nMilk\n")
-        #expect(NoteIntents.appending("Milk\n\n", to: "Groceries\n") == "Groceries\nMilk\n")
-        #expect(NoteIntents.appending("", to: "Groceries") == "Groceries")
+    @Test func shortcutsAddToTheEndOfANote() throws {
+        #expect(try NoteIntents.appending("Milk", to: "Groceries\n- Eggs") == "Groceries\n- Eggs\nMilk\n")
+        #expect(try NoteIntents.appending("Milk\n\n", to: "Groceries\n") == "Groceries\nMilk\n")
+        #expect(try NoteIntents.appending("", to: "Groceries") == "Groceries")
     }
 
     @Test func addChecklistItemKeepsChecklistsAsChecklists() throws {
