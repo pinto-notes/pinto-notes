@@ -38,11 +38,16 @@ const security = [
 // The connect pages (/connect, /open/connect) and /reset-password get their CSP, with a nonce, from middleware.ts.
 const connectSecurity = security.filter((h) => h.key !== "Content-Security-Policy");
 
+/// Files lib/blog.tsx reads at render time, for outputFileTracingIncludes (tested in lib/blog-trace.test.ts).
+export const BLOG_SOURCES = ["./app/blog/**/page.tsx", "./lib/**/entries.ts"];
+
 const config: NextConfig = {
   devIndicators: false, // the lab switcher lives in the lower-left
-  // The blog reads each post's source for its reading time (lib/blog.tsx). A server render (crawlers
-  // get one) must find those files in the function bundle, or the post fails with ENOENT.
-  outputFileTracingIncludes: { "/blog/*": ["./app/blog/**/page.tsx"] },
+  // The blog reads each post's source for its reading time (lib/blog.tsx), plus the data file a post
+  // shows (the tracker's lib/tracker/entries.ts). A server render (Google's crawler gets one) must find
+  // those files in the function bundle, or the page fails with ENOENT: every page with a card for the
+  // tracker returned 500 to Google on 25 Oct 2026. The index and its pages show cards too.
+  outputFileTracingIncludes: Object.fromEntries(["/blog", "/blog/**"].map((route) => [route, BLOG_SOURCES])),
   poweredByHeader: false,
   // The MCP proxy (middleware.ts) forwards the query exactly as sent. Without this, req.url in
   // middleware has 127.0.0.1 and [::1] turned into "localhost", query included.
