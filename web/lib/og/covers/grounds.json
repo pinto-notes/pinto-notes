@@ -95,6 +95,12 @@
   "w": 880,
   "h": 550
  },
+ "codex-usage-reset": {
+  "ground": "#fed3b4",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
  "connect-chatgpt": {
   "ground": "#e3f2ed",
   "ink": "dark",
