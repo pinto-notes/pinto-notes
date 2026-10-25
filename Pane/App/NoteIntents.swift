@@ -142,6 +142,7 @@ enum NoteIntents {
     /// Appends text at the end of the note, or at the end of a heading's section.
     nonisolated static func appending(_ text: String, to body: String, underHeading: String? = nil) throws -> String {
         let addition = trailingWhitespaceTrimmed(text)
+        guard !addition.isEmpty else { return body }
         guard let underHeading, !underHeading.isEmpty else {
             let trimmed = trailingWhitespaceTrimmed(body)
             return trimmed.isEmpty ? addition + "\n" : "\(trimmed)\n\(needsGap(after: trimmed, before: addition) ? "\n" : "")\(addition)\n"

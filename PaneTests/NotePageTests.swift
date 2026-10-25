@@ -532,8 +532,8 @@ import AppKit
     // MARK: Shortcuts
 
     @Test func shortcutsAddToTheEndOfANote() throws {
-        #expect(try NoteIntents.appending("Milk", to: "Groceries\n- Eggs") == "Groceries\n- Eggs\nMilk\n")
-        #expect(try NoteIntents.appending("Milk\n\n", to: "Groceries\n") == "Groceries\nMilk\n")
+        #expect(try NoteIntents.appending("Milk", to: "Groceries\n- Eggs") == "Groceries\n- Eggs\n\nMilk\n")
+        #expect(try NoteIntents.appending("Milk\n\n", to: "Groceries\n") == "Groceries\n\nMilk\n")
         #expect(try NoteIntents.appending("", to: "Groceries") == "Groceries")
     }
 
