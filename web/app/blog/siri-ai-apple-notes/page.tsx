@@ -22,6 +22,9 @@ export const metadata = postMetadata("siri-ai-apple-notes", { title: "Siri AI an
 // from ChatGPT. Apple doesn't say whether a spoken rewrite replaces the note's text, whether Siri AI opens locked
 // notes, or whether Apple TV and HomeView reach Notes, and the text says so. The guide's device list includes a
 // tablet the blog doesn't name (site copy test); the text says "iPhone and Mac" and links the full list.
+// Updated 26 October 2026: macOS 27.2 and watchOS 27.2 shipped with Siri AI in French, Japanese, Korean, Portuguese and
+// Spanish (Apple's watchOS 27.2 release notes as quoted by MacRumors; MacRumors and 9to5Mac on macOS 27.2). iOS 27.2 not
+// out yet. support.apple.com/127893 (published 22 October) still says English and, for EU accounts on the Mac, English only.
 
 const FAQ = [
   { q: "Can Siri AI find things in my Apple Notes?", a: [
@@ -65,7 +68,8 @@ export default function Page() {
         ]}>
           <p>
             Siri AI can find your notes, search inside them, make a new note, and proofread, rewrite or summarize the one you have open.
-            It&apos;s a beta, in English, on iPhone 15 Pro and later and Macs with M1 or later, and not on iPhone in the EU. What it
+            It&apos;s a beta on iPhone 15 Pro and later and Macs with M1 or later, and not on iPhone in the EU. It started in English;
+            since macOS 27.2 (26 October) the Mac also speaks French, Japanese, Korean, Portuguese and Spanish. What it
             can&apos;t do is let ChatGPT, Claude or any other AI into your notes: Siri is the only one that gets in.
           </p>
         </Answer>
@@ -92,8 +96,15 @@ export default function Page() {
       <Keep title="Things to try in Notes" text={ASK} note="All five are Apple's own examples." />
       <MenuPaths rows={[
         { on: "iPhone", steps: ["Settings", "Siri", "Try Siri AI (Beta)"] },
+        { on: "Mac", steps: ["System Settings", "Siri", "Try Siri AI (Beta)"] },
       ]} />
       <p>Setting up puts you on a waitlist; the download starts on its own when your turn comes.</p>
+      <p>
+        <strong>In another language.</strong> macOS 27.2, out on 26 October, adds French, Japanese, Korean, Portuguese and Spanish. Update
+        in System Settings, General, Software Update, then set your Mac&apos;s language and Siri&apos;s language to the same one: Apple says
+        they have to match. The iPhone gets the same languages with iOS 27.2, which isn&apos;t out yet. Apple&apos;s setup page still says
+        a Mac with an EU account gets Siri AI in English only.
+      </p>
 
       <h2 id="table">What it can do, and what it can&apos;t</h2>
       <div className="tableWrap">
