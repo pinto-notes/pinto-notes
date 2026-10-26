@@ -128,7 +128,7 @@ export const posts: Post[] = [
     excerpt: "A running list of what the AI assistants shipped, newest first: the date, what it does, who gets it and the official link.",
     category: "Guides",
     date: "2026-10-22",
-    updated: "2026-10-24",
+    updated: "2026-10-26",
     image: { src: "/blog/duet/duet-brief.webp", alt: "Two phone screens from Claude Duet: a lock screen notification with the morning summary, and the morning brief listing what needs attention today.", width: 1984, height: 1848, window: false },
     thumb: cover("sand", "ai-feature-tracker", 1600, 1000, "A paper wall calendar with the ChatGPT, Claude and Gemini marks pinned on three days"),
     draft: false,
