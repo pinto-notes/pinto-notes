@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "chatgpt-chat-memory-full",
+    title: "ChatGPT \"Chat memory full\": what it means and what to do",
+    description: "Why ChatGPT says Chat memory full after a few messages, why deleting memories doesn't fix it, what to do instead, and how it differs from Memory full.",
+    excerpt: "Since October, some ChatGPT chats stop with Chat memory full. It isn't your saved memories. What it is, what works, and how to keep your plans safe.",
+    category: "Guides",
+    date: "2026-10-26",
+    updated: "2026-10-26",
+    image: { src: "/blog/chat-memory-full/personalization-memory.webp", alt: "ChatGPT's Personalization settings: ChatGPT memory with Enable memory on and Memory summary with a Manage button.", width: 1200, height: 456, window: false },
+    thumb: cover("honey", "chatgpt-chat-memory-full", 1600, 1000, "A paper chat window overfilled with speech bubbles, beside the OpenAI logo"),
+    draft: false,
+  },
+  {
     slug: "codex-usage-reset",
     title: "\"Your usage does not need a reset right now\": Codex resets explained",
     description: "Why Codex refuses a banked reset above 80% left, how to use one in ChatGPT's Usage settings, what it restores per plan, and free versus paid resets.",
@@ -577,6 +589,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "chatgpt-chat-memory-full",
   "codex-usage-reset",
   "gemini-notebooks",
   "what-time-ai-companies-launch",
