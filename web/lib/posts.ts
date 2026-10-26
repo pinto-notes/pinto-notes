@@ -164,7 +164,7 @@ export const posts: Post[] = [
     excerpt: "Siri AI can find your notes and tidy the one you have open. What else it does, where you get it, and what Apple hasn't said yet.",
     category: "Apple Notes",
     date: "2026-10-14",
-    updated: "2026-10-14",
+    updated: "2026-10-26",
     image: SHOTS.notesDefaultAccount,
     thumb: cover("cherry", "apple-siri-orb", 1600, 1000, "The Siri AI orb, a glass sphere with a band of light across it, on black. From Apple's Siri AI page"),
     draft: false,
