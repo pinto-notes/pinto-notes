@@ -77,6 +77,12 @@
   "w": 1600,
   "h": 1000
  },
+ "chatgpt-icloud": {
+  "ground": "#f1e1c6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "chatgpt-locked-chats": {
   "ground": "#d5e8e2",
   "ink": "dark",

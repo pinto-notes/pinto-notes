@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "connect-icloud-mail-calendar-to-chatgpt",
+    title: "How to connect iCloud Mail and Calendar to ChatGPT",
+    description: "ChatGPT now has iCloud Mail and Calendar plugins on every plan. How to make the Apple app-specific password, connect both, what to ask, and how to disconnect.",
+    excerpt: "ChatGPT can read your iCloud Mail and change your iCloud Calendar. The five-minute setup, the password step that trips people up, and how to undo it.",
+    category: "Guides",
+    date: "2026-10-27",
+    updated: "2026-10-27",
+    image: { src: "/blog/news/chatgpt-icloud-mail-plugin.webp", alt: "The iCloud Mail plugin page in ChatGPT, by OpenAI, with an Install plugin button.", width: 1232, height: 560, window: false },
+    thumb: cover("teal", "chatgpt-icloud", 1600, 1000, "A paper envelope tied to a paper desk calendar by a red ribbon"),
+    draft: false,
+  },
+  {
     slug: "keynote-pages-numbers-ai-assistant",
     title: "The AI assistant in Keynote, Pages and Numbers, and MCP",
     description: "Apple's AI assistant comes to Keynote, Pages and Numbers in November, with MCP so ChatGPT and Claude can edit your documents. Who gets it and what it costs.",
@@ -140,7 +152,7 @@ export const posts: Post[] = [
     excerpt: "A running list of what the AI assistants shipped, newest first: the date, what it does, who gets it and the official link.",
     category: "Guides",
     date: "2026-10-22",
-    updated: "2026-10-26",
+    updated: "2026-10-27",
     image: { src: "/blog/duet/duet-brief.webp", alt: "Two phone screens from Claude Duet: a lock screen notification with the morning summary, and the morning brief listing what needs attention today.", width: 1984, height: 1848, window: false },
     thumb: cover("sand", "ai-feature-tracker", 1600, 1000, "A paper wall calendar with the ChatGPT, Claude and Gemini marks pinned on three days"),
     draft: false,
@@ -601,6 +613,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "connect-icloud-mail-calendar-to-chatgpt",
   "keynote-pages-numbers-ai-assistant",
   "chatgpt-chat-memory-full",
   "codex-usage-reset",
