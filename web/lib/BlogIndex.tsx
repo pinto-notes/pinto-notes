@@ -107,7 +107,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
         {more.length > 0 && <MoreAnswers groups={more} />}
         {pages > 1 && <Pagination base={l.base} page={page} pages={pages} />}
       </BlogList>
-      <ClosingBand title="Notes your AI can read and write." text="Pinto Notes works like Apple Notes, and ChatGPT, Claude and Claude Code can use it, with an Undo on every change." />
+      <ClosingBand title="Notes your AI can read and write." text="Pinto Notes works like Apple Notes, and Claude, Claude Code and Codex can use it, with an Undo on every change. ChatGPT is coming soon." />
     </div>
   );
 }

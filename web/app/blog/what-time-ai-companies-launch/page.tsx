@@ -120,7 +120,7 @@ export default function Page() {
       </p>
       <p>
         We counted because we write how-to posts the day something ships, for people who use these assistants with Pinto
-        Notes, a notes app for the Mac that ChatGPT and Claude can read and edit. The charts and numbers are free to reuse:
+        Notes, a notes app for the Mac that Claude can read and edit, with ChatGPT coming soon. The charts and numbers are free to reuse:
         please link to this page.
       </p>
     </PostPage>

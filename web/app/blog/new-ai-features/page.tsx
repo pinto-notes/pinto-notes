@@ -67,7 +67,7 @@ export default function Page() {
         and <a href="/blog/meta-muse-connectors">Meta Muse connectors</a>.
       </p>
       <p>
-        I keep lists like this one in Pinto Notes, a notes app for the Mac that ChatGPT and Claude can read and add to.
+        I keep lists like this one in Pinto Notes, a notes app for the Mac that Claude can read and add to, with ChatGPT coming soon.
       </p>
     </PostPage>
   );

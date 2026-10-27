@@ -62,8 +62,7 @@ export default function Page() {
         Notes are end-to-end encrypted, so the server can&apos;t read them at rest. Approving a connection gives it a copy of the
         notes&apos; key, locked with a secret derived from its own token. During each request the server unlocks the key in memory,
         decrypts what the call needs, and drops it when the request ends; disconnecting deletes that copy. Locked notes stay out of
-        reach, since their key comes from the notes password. <a href="/blog/encrypted-notes-app-for-ai">An encrypted notes app that
-        ChatGPT and Claude can use</a> explains the trade-off.
+        reach, since their key comes from the notes password. <a href="/blog/encrypted-notes-app-for-ai">An encrypted notes app your AI can use</a> explains the trade-off.
       </p>
 
       <h2>What happens to changes</h2>

@@ -145,7 +145,7 @@ export default function Page() {
       </p>
 
       <h2>Option 3: move your notes to an app Claude can reach</h2>
-      <AIConnect caption="Claude and ChatGPT in one notebook, from the web, the desktop app and your phone." />
+      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code in one notebook, from the web, the desktop app and your phone." />
       <p>
         Pinto Notes is a free, open-source notes app for Mac (iPhone coming soon) that works like Apple Notes and has an MCP server built in. You
         import your Apple Notes once, on your Mac, then open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a> and

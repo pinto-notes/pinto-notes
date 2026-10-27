@@ -118,7 +118,7 @@ export default function Page() {
 
       <h2 id="template">Cards that live next to your notes</h2>
       <p>
-        I make Pinto Notes, a notes app for Mac and iPhone that ChatGPT, Claude and Claude Code can read and edit once you allow them.
+        I make Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude and Claude Code can read and edit once you allow them, with ChatGPT coming soon.
         A note in it can hold a small app. The <a href="/templates/study-flashcards">Study notes and flashcards template</a> is a note
         with a flashcard app already built, with sample biology cards to replace. Your lecture notes can sit in the same notebook, so
         the AI that writes the cards reads the notes they came from, and the one you ask &ldquo;what do I keep getting wrong?&rdquo; sees
