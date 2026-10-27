@@ -442,7 +442,7 @@ import Testing
                 #expect(!w.contains("\u{2014}") && !w.contains("\u{2013}"), "no dashes: \(w)")
             }
         }
-        #expect(OnboardingFlow.line(.connect) == "Your AI can then read and write your notes when you ask it to.")
+        #expect(OnboardingFlow.line(.connect) == ConnectCopy.why)
         #expect(OnboardingFlow.skipBring.lowercased() != AccountCrypto.startFreshPhrase, "not the account's destructive action")
     }
 

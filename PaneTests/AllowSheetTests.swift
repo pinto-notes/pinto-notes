@@ -32,7 +32,24 @@ import AppKit
                                    redirect_uri: "https://claude-login.example/cb", claimed_name: "Claude", loopback: false, wants_write: true)
         #expect(ConsentSheet.title(spoof) == "Allow claude-login.example to use your notes?")
         #expect(!ConsentSheet.detail(spoof).contains("connecting Claude"))
-        #expect(ConsentSheet.detail(Self.claude) == "Access goes to claude.ai. Locked notes stay private.")
+        #expect(ConsentSheet.detail(Self.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Locked notes stay private.")
+    }
+
+    /// App Review (guidelines 5.1.1 and 5.1.2, 23 Oct 2026): before anything is shared, the sheet
+    /// says what is sent and who gets it, by company for the AIs it can name.
+    @Test func theSheetSaysWhatIsSentAndToWhom() {
+        let chatgpt = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com",
+                                     redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", loopback: false, wants_write: true)
+        #expect(ConsentSheet.detail(chatgpt).contains("sent to OpenAI"))
+        #expect(ConsentSheet.detail(Self.claude).contains("sent to Anthropic"))
+        for r in [chatgpt, Self.claude, Self.glama] {
+            #expect(ConsentSheet.detail(r).contains("with their text and files"), "what is sent")
+        }
+        // An app it can't name: the address it goes to, never a company it claims.
+        #expect(ConsentSheet.detail(Self.glama).contains("are sent to glama.ai."))
+        #expect(!ConsentSheet.detail(Self.glama).contains("Anthropic") && !ConsentSheet.detail(Self.glama).contains("OpenAI"))
+        // The guide says it before a request exists.
+        #expect(ConnectCopy.why.contains("OpenAI or Anthropic") && ConnectCopy.why.contains("Nothing is shared until you allow it."))
     }
 
     #if os(macOS)

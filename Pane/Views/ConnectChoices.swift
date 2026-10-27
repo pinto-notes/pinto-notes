@@ -760,7 +760,7 @@ enum ConnectShell {
 
 enum ConnectCopy {
     typealias Guide = ConnectAISection.Guide
-    static let why = "Your AI can then read and write your notes when you ask it to."
+    static let why = "Your AI can then read and write your notes when you ask it to. The notes it opens are sent to the company that makes it, such as OpenAI or Anthropic. Nothing is shared until you allow it."
     #if os(macOS)
     static let here = "On this Mac"
     #else
