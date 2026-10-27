@@ -1,16 +1,20 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FAQ } from "../app/help/questions";
+import { APP_STORE_LIVE } from "./site";
 import { app, article, breadcrumbs, faqPage, incredible, maker, organization, website } from "./structured-data";
 
 // The rules schema.org and Google's rich result docs set for these types, checked on what the pages emit.
 describe("structured data", () => {
-  it("describes the app as a free productivity app for iOS and macOS", () => {
+  it("describes the app as a free productivity app, with iOS only once the App Store listing is live", () => {
     const a = app("1.0");
     expect(a["@type"]).toBe("SoftwareApplication");
     expect(a.name).toBe("Pinto Notes");
     expect(a.applicationCategory).toBe("ProductivityApplication");
-    expect(a.operatingSystem).toBe("iOS, macOS");
+    expect(a.operatingSystem).toBe(APP_STORE_LIVE ? "iOS, macOS" : "macOS");
+    // ChatGPT is only claimed as coming soon until the connector passes review.
+    expect(String(a.description)).toMatch(/ChatGPT (and the iPhone app )?(is|are) coming soon/);
+    expect(JSON.stringify(a.featureList)).not.toMatch(/ChatGPT/);
     expect(a.offers).toEqual({ "@type": "Offer", price: "0", priceCurrency: "USD" });
     expect(a.softwareVersion).toBe("1.0");
     expect(String(a.downloadUrl)).toMatch(/^https:\/\/pintonotes\.com\//);

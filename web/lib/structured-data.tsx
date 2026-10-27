@@ -39,7 +39,7 @@ export const organization: Thing = {
   name: SITE_NAME,
   url: SITE_URL,
   logo: `${SITE_URL}/mark.png`,
-  description: "Makers of Pinto Notes, the free, open-source notes app for iPhone and Mac that ChatGPT and Claude can use.",
+  description: "Makers of Pinto Notes, the free, open-source notes app for Mac that Claude can use, with ChatGPT coming soon.",
   founder: { "@id": PERSON_ID },
   sameAs: SAME_AS,
 };
@@ -64,10 +64,12 @@ export function app(version: string | null): Thing {
     alternateName: OLD_NAME,
     url: SITE_URL,
     description:
-      "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can read and edit, with your approval. Imports your Apple Notes, syncs in about a second, keeps every version an AI changes, and stores notes as markdown.",
+      APP_STORE_LIVE
+        ? "A simple notes app for iPhone and Mac that Claude, Claude Code, Codex and Incredible can read and edit, with your approval. ChatGPT is coming soon. Imports your Apple Notes, syncs in about a second, keeps every version an AI changes, and stores notes as markdown."
+        : "A simple notes app for Mac that Claude, Claude Code, Codex and Incredible can read and edit, with your approval. ChatGPT and the iPhone app are coming soon. Imports your Apple Notes, keeps every version an AI changes, and stores notes as markdown.",
     applicationCategory: "ProductivityApplication",
-    operatingSystem: "iOS, macOS",
-    softwareRequirements: "macOS 26 or later; iOS 26 or later",
+    operatingSystem: APP_STORE_LIVE ? "iOS, macOS" : "macOS",
+    softwareRequirements: APP_STORE_LIVE ? "macOS 26 or later; iOS 26 or later" : "macOS 26 or later",
     ...(version ? { softwareVersion: version } : {}),
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     isAccessibleForFree: true,
@@ -77,11 +79,11 @@ export function app(version: string | null): Thing {
     image: `${SITE_URL}/mark.png`,
     screenshot: `${SITE_URL}/demo/lisbon/lisbon-1-faded.webp`,
     featureList: [
-      "Connect ChatGPT, Claude, Claude Code, Codex or Incredible over MCP",
+      "Connect Claude, Claude Code, Codex or Incredible over MCP",
       "Approve each AI connection, read-only or read and edit",
       "Version history for every change an AI makes",
       "Import from Apple Notes",
-      "Sync between iPhone and Mac",
+      ...(APP_STORE_LIVE ? ["Sync between iPhone and Mac"] : []),
       "Markdown underneath, formatted on screen",
       "Checklists, tables, photos and files",
       "Share a note as a web page",
@@ -179,9 +181,9 @@ export function templateHowTo(t: { slug: string; title: string }, steps: { name:
   return {
     "@type": "HowTo",
     "@id": `${url}#howto`,
-    name: `How to use the ${t.title.toLowerCase()} template with ChatGPT or Claude`,
+    name: `How to use the ${t.title.toLowerCase()} template with Claude`,
     url,
-    tool: [{ "@type": "HowToTool", name: "Pinto Notes" }, { "@type": "HowToTool", name: "ChatGPT, Claude or Claude Code" }],
+    tool: [{ "@type": "HowToTool", name: "Pinto Notes" }, { "@type": "HowToTool", name: "Claude or Claude Code" }],
     step: steps.map((st, i) => ({ "@type": "HowToStep", position: i + 1, name: st.name, text: st.text, url: `${url}#step-${i + 1}` })),
   };
 }
