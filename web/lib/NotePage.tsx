@@ -27,7 +27,7 @@ function GetAmberNotes() {
       <img src="/mark-256.png" alt="" width={44} height={44} />
       <p>
         <strong>Shared from Pinto Notes</strong>
-        <span>A notes app for iPhone and Mac that ChatGPT and Claude can read and edit.</span>
+        <span>A notes app for Mac that Claude can read and edit, with ChatGPT and the iPhone app coming soon.</span>
       </p>
       <a className={ui.secondary} href="/">Get Pinto Notes</a>
     </aside>

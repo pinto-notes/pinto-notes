@@ -147,8 +147,8 @@ export default function Page() {
       <p>
         On a Mac, <a href="/blog/move-from-apple-notes">File, Import from Apple Notes</a> brings over the notes you pick in one go, in their
         folders, with tables and pictures. Be aware of what it leaves behind: other attachments and locked notes stay in Apple Notes. And
-        once your notes are Markdown in Pinto Notes, ChatGPT and Claude can read and edit them directly, with your approval, instead of you
-        pasting files into a chat. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or Claude</a> takes a couple of minutes.
+        once your notes are Markdown in Pinto Notes, Claude can read and edit them directly, with your approval (ChatGPT is coming soon), instead of you
+        pasting files into a chat. <a href="/blog/connect-chatgpt-to-your-notes">Connecting Claude</a> takes a couple of minutes.
       </p>
       <p>
         If you&apos;re here because you want to script Apple Notes, <a href="/blog/apple-notes-api">what exists instead of an Apple Notes

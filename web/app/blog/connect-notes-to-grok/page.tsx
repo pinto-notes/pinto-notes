@@ -163,7 +163,7 @@ export default function Page() {
       </p>
       <p>
         Pinto Notes is one. It&apos;s the notes app for Mac (iPhone coming soon) that I make, with a hosted server at <code>{MCP_URL}</code> that
-        signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it today. I haven&apos;t tested Pinto Notes with Grok yet,
+        signs in with OAuth. Claude, Claude Code and Codex use it today, and ChatGPT is coming soon. I haven&apos;t tested Pinto Notes with Grok yet,
         so treat this as what the steps should look like, going by xAI&apos;s docs and how the server works with other apps:
       </p>
       <ol>

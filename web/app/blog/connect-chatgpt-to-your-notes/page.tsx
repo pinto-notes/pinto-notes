@@ -99,10 +99,9 @@ export default function Page() {
         chat and explain it all again, and if you switch to Claude, it starts from zero.
       </p>
       <p>
-        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on the Mac today, iPhone soon), and that
-        Claude sees too. That&apos;s what the setup below gives you.
+        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on the Mac today, iPhone soon), and that Claude sees too. Pinto Notes is built for that. It works with Claude today; the ChatGPT plugin is coming soon, and until then the Developer mode setup below is for people comfortable with OpenAI&apos;s developer settings.
       </p>
-      <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
+      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code in the same notes today; ChatGPT is coming soon." />
 
       <h2 id="which">Which AI, and what you need</h2>
       <PostFigure src="/blog/news/openai-chatgpt-mcp-request-diagram" width={1000} height={480} maxWidth={560}
@@ -133,7 +132,7 @@ export default function Page() {
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
-      <p>Do this in ChatGPT on the web, at chatgpt.com. That&apos;s where OpenAI documents custom apps; I haven&apos;t confirmed them in the phone apps.</p>
+      <p>A one-click Pinto Notes plugin for ChatGPT is coming soon. Until then, these are the Developer mode steps, in ChatGPT on the web at chatgpt.com. That&apos;s where OpenAI documents custom apps; I haven&apos;t rechecked them in a Plus account or the phone apps.</p>
       <Figure shot={SHOTS.connectList} caption="Connect an AI in Pinto Notes. Choose ChatGPT to start." />
       <Steps>
         <li>

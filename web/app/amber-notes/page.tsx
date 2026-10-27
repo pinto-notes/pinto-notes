@@ -10,7 +10,7 @@ import { ClosingBand } from "@/lib/ClosingBand";
 // someone who already uses it. ambernotes.app/amber-notes and /ambernotes arrive here too.
 
 const TITLE = `${OLD_NAME} is now ${SITE_NAME}`;
-const DESCRIPTION = `${OLD_NAME}, the notes app ChatGPT and Claude can read and edit, has been called ${SITE_NAME} since October 2026. Same app, same notes, at pintonotes.com.`;
+const DESCRIPTION = `${OLD_NAME}, the notes app Claude can read and edit, has been called ${SITE_NAME} since October 2026. Same app, same notes, at pintonotes.com.`;
 const PATH = "/amber-notes";
 
 export const dynamic = "force-static";

@@ -22,6 +22,11 @@ export const metadata = postMetadata("siri-ai-apple-notes", { title: "Siri AI an
 // from ChatGPT. Apple doesn't say whether a spoken rewrite replaces the note's text, whether Siri AI opens locked
 // notes, or whether Apple TV and HomeView reach Notes, and the text says so. The guide's device list includes a
 // tablet the blog doesn't name (site copy test); the text says "iPhone and Mac" and links the full list.
+// Updated 26 October 2026: macOS 27.2 and watchOS 27.2 shipped with Siri AI in French, Japanese, Korean, Portuguese and
+// Spanish. Same evening iOS 27.2 shipped too, and Apple's newsroom post "Siri AI is available in more languages starting
+// today" (26 October) confirms all five in every 27.2 update, Chinese (traditional), Norwegian,
+// Turkish and Vietnamese "by the end of the year", and no Siri AI in the EU except on the Mac and Vision Pro.
+// support.apple.com/127893 (published 22 October) still says English and, for EU accounts on the Mac, English only.
 
 const FAQ = [
   { q: "Can Siri AI find things in my Apple Notes?", a: [
@@ -65,7 +70,8 @@ export default function Page() {
         ]}>
           <p>
             Siri AI can find your notes, search inside them, make a new note, and proofread, rewrite or summarize the one you have open.
-            It&apos;s a beta, in English, on iPhone 15 Pro and later and Macs with M1 or later, and not on iPhone in the EU. What it
+            It&apos;s a beta on iPhone 15 Pro and later and Macs with M1 or later, and not on iPhone in the EU. It started in English;
+            since the 27.2 updates on 26 October it also speaks French, Japanese, Korean, Portuguese and Spanish. What it
             can&apos;t do is let ChatGPT, Claude or any other AI into your notes: Siri is the only one that gets in.
           </p>
         </Answer>
@@ -92,8 +98,16 @@ export default function Page() {
       <Keep title="Things to try in Notes" text={ASK} note="All five are Apple's own examples." />
       <MenuPaths rows={[
         { on: "iPhone", steps: ["Settings", "Siri", "Try Siri AI (Beta)"] },
+        { on: "Mac", steps: ["System Settings", "Siri", "Try Siri AI (Beta)"] },
       ]} />
       <p>Setting up puts you on a waitlist; the download starts on its own when your turn comes.</p>
+      <p>
+        <strong>In another language.</strong> iOS 27.2 and macOS 27.2, out on 26 October, add French, Japanese, Korean, Portuguese and
+        Spanish. Update (Settings, General, Software Update on iPhone; System Settings, General, Software Update on a Mac), then set your
+        device&apos;s language and Siri&apos;s language to the same one: Apple says they have to match. Chinese (traditional), Norwegian,
+        Turkish and Vietnamese are due by the end of the year. In the EU it&apos;s still Mac only, and Apple&apos;s setup page says in
+        English only there.
+      </p>
 
       <h2 id="table">What it can do, and what it can&apos;t</h2>
       <div className="tableWrap">
@@ -130,11 +144,10 @@ export default function Page() {
       <p>
         If that&apos;s you, what you want isn&apos;t a smarter Siri. It&apos;s one notebook every AI you use can work in.
       </p>
-      <AIConnect caption="The AIs you already use, in one notebook." />
+      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code in one notebook today, ChatGPT soon." />
       <p>
         That&apos;s why I made Pinto Notes. It works like Apple Notes, brings yours over in{" "}
-        <a href="/blog/move-from-apple-notes">one import</a> on a Mac (Apple Notes stays as it was), and lets ChatGPT, Claude, Claude
-        Code and Codex search, read and edit your notes once you approve them, with every change tinted and undoable.
+        <a href="/blog/move-from-apple-notes">one import</a> on a Mac (Apple Notes stays as it was), and lets Claude, Claude Code and Codex search, read and edit your notes once you approve them (ChatGPT is coming soon), with every change tinted and undoable.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
           : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}

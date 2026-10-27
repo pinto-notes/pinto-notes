@@ -194,8 +194,7 @@ export default function Page() {
       <p>
         Pinto Notes, the notes app for Mac (iPhone coming soon) that I make, has locked notes too, and they work the same way: encrypted with your
         notes password on your device, unreadable to us and to any AI you connect, and impossible to recover if you forget the password. It
-        says so when you set one. Everything else in Pinto Notes is end-to-end encrypted as well, and ChatGPT and Claude can still
-        use your other notes once you approve them; <a href="/blog/encrypted-notes-app-for-ai">how that works</a> has the details.
+        says so when you set one. Everything else in Pinto Notes is end-to-end encrypted as well, and Claude can still use your other notes once you approve it (ChatGPT is coming soon); <a href="/blog/encrypted-notes-app-for-ai">how that works</a> has the details.
       </p>
       <Figure shot={SHOTS.notesPassword} caption="Setting a notes password in Pinto Notes on a Mac. Like Apple's, it can't be recovered if you forget it." />
     </PostPage>

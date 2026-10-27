@@ -23,7 +23,7 @@ export const FAQ: QA[] = [
     `Yes. One command adds the address ${MCP_URL}, then you sign in to Pinto Notes in your browser the first time. Claude Code also has a plugin, and Codex takes one command too.`,
   ], more: { href: "/blog/mcp-server#install", text: "Install Pinto Notes in your AI tool" } },
   { id: "apple-notes-ai", q: "Can ChatGPT or Claude use my notes in Apple Notes?", a: [
-    "Only in a limited way, and only on a Mac: Apple Notes has no public API, so AI apps can't reach your notes in iCloud. Pinto Notes has an MCP server built in, so once you import your notes, ChatGPT and Claude can use them from any device.",
+    "Only in a limited way, and only on a Mac: Apple Notes has no public API, so AI apps can't reach your notes in iCloud. Pinto Notes has an MCP server built in, so once you import your notes, Claude can use them from any device, and ChatGPT soon.",
   ], more: { href: "/blog/claude-and-apple-notes", text: "Can Claude read your Apple Notes?" } },
   { id: "ai-access", q: "Can my AI see all my notes?", a: [
     "Only once you connect it and approve it on your iPhone or Mac. You choose read-only, or read and edit. While it's connected, it can read every note except locked ones: our server opens the notes it asks for in memory, during its requests. Every change an AI makes keeps the previous version, and you can disconnect any assistant in Settings at any time.",

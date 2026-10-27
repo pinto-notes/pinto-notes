@@ -13,7 +13,18 @@ export function readingMinutes(slug: string): number {
   const src = readFileSync(path.join(process.cwd(), "app/blog", slug, "page.tsx"), "utf8");
   const body = src.slice(src.indexOf("return ("));
   const words = body.replace(/<[^>]*>/g, " ").replace(/\{[^{}]*\}/g, " ").replace(/&[a-z]+;/g, "'").split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
-  return Math.max(1, Math.round(words.length / 220));
+  return Math.max(1, Math.round((words.length + dataWords(src)) / 220));
+}
+
+/// Words a page shows from a data file it imports (the AI feature tracker's rows live in lib/tracker/entries.ts),
+/// so a page that is mostly a table doesn't say "1 min read".
+function dataWords(src: string): number {
+  let n = 0;
+  for (const [, file] of src.matchAll(/from "@\/lib\/([\w/]+\/entries)"/g)) {
+    const data = readFileSync(path.join(process.cwd(), "lib", `${file}.ts`), "utf8");
+    for (const [, text] of data.matchAll(/\b(?:feature|what|who): "([^"]*)"/g)) n += text.split(/\s+/).filter((w) => /[A-Za-z]/.test(w)).length;
+  }
+  return n;
 }
 
 /// A real capture in a Mac window. Captures of a whole window come with their own frame; sheets and

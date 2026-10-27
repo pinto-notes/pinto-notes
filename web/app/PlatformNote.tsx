@@ -17,7 +17,7 @@ type Place = "hero" | "band" | "download" | "header";
 
 export default function PlatformNote({ place, className = "", style, appStoreLive = APP_STORE_LIVE }: { place: Place; className?: string; style?: React.CSSProperties; appStoreLive?: boolean }) {
   // In the header there's room for the fact alone; it leads to the page that says the rest.
-  if (place === "header") return <a className="pi-head" href="/download">For iPhone and Mac</a>;
+  if (place === "header") return <a className="pi-head" href="/download">{appStoreLive ? "For iPhone and Mac" : "For Mac"}</a>;
   const group = `pi-${place} ${className}`.trim();
   // From the download page they send themselves the download page.
   const url = place === "download" ? `${SITE_URL}/download` : SITE_URL;

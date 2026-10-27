@@ -3,7 +3,7 @@ import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("habit-tracker-with-chatgpt-or-claude", { title: "A habit tracker ChatGPT and Claude can update for you" });
+export const metadata = postMetadata("habit-tracker-with-chatgpt-or-claude", { title: "A habit tracker your AI can update for you" });
 
 // Checked on 13 October 2026 against the Habit tracker template on main (Mac 1.2.26):
 // content/templates/habit-tracker.json (its prompt and asks) and habit-tracker.app (README.md, docs/README.md:
@@ -99,9 +99,8 @@ export default function Page() {
 
       <h2 id="template">A tracker your AI can update</h2>
       <p>
-        That&apos;s what I built into Pinto Notes, a notes app for Mac and iPhone that ChatGPT and Claude can read and write once you
-        allow them. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
-        tracking, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT</a> or Claude once.
+        That&apos;s what I built into Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude can read and write once you allow it, with ChatGPT coming soon. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
+        tracking, then <a href="/blog/connect-chatgpt-to-your-notes">connect Claude</a> once.
       </p>
       <PostFigure src="/blog/pinto/habit-tracker-month-mac-light" width={1280} height={900} maxWidth={640}
         alt="The Month view of the habit tracker on a Mac: a calendar per habit for October with the done days filled in."
@@ -140,7 +139,7 @@ export default function Page() {
         <a href="/blog/budget-tracker-with-chatgpt-or-claude">a budget your AI keeps</a>.
         {APP_STORE_LIVE
           ? <> Pinto Notes is free on Mac and iPhone.</>
-          : <> Pinto Notes is free on the Mac today; the iPhone app is coming soon, and until then ChatGPT and Claude can still log days from your phone.</>}
+          : <> Pinto Notes is free on the Mac today; the iPhone app is coming soon, and until then Claude can still log days from your phone.</>}
       </p>
     </PostPage>
   );

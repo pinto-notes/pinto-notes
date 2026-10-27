@@ -6,7 +6,7 @@ import { APP_STORE_LIVE } from "@/lib/site";
 import { PRIVACY_PATH, READABLE } from "@/lib/privacy";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("encrypted-notes-app-for-ai", { title: "An encrypted notes app ChatGPT and Claude can use" });
+export const metadata = postMetadata("encrypted-notes-app-for-ai", { title: "An encrypted notes app your AI can use" });
 
 const FAQ = [
   { q: "Is Pinto Notes end-to-end encrypted?", a: [
@@ -30,7 +30,7 @@ export default function Page() {
   return (
     <PostPage
       slug="encrypted-notes-app-for-ai"
-      intro={<>Pinto Notes now encrypts every note end to end, on your Mac, and ChatGPT and Claude can still read and edit them once you approve. Those two things pull against each other, so here&apos;s exactly how it works, what it doesn&apos;t protect, and how other notes apps handle the same trade-off.</>}
+      intro={<>Pinto Notes now encrypts every note end to end, on your Mac, and Claude can still read and edit them once you approve (ChatGPT is coming soon). Those two things pull against each other, so here&apos;s exactly how it works, what it doesn&apos;t protect, and how other notes apps handle the same trade-off.</>}
       answer={
         <Answer jump={[
           { href: "#encrypted", label: "What's encrypted" },
@@ -63,7 +63,7 @@ export default function Page() {
       </ul>
 
       <h2 id="ai">How an AI reads encrypted notes</h2>
-      <Figure shot={SHOTS.consentE2ee} caption="What you see when you approve ChatGPT: read and edit or read only, and a reminder that locked notes stay closed to it." />
+      <Figure shot={SHOTS.consentE2ee} caption="What you see when you approve an AI: read and edit or read only, and a reminder that locked notes stay closed to it." />
       <p>
         ChatGPT and Claude run in the cloud, so something has to open your notes for them. Here&apos;s how it goes:
       </p>

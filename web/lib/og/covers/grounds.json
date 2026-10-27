@@ -1,4 +1,16 @@
 {
+ "ai-feature-tracker": {
+  "ground": "#eee4d8",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
+ "ai-launch-times": {
+  "ground": "#6fb0d7",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
  "anthropic-claude-memory": {
   "ground": "#eac9b6",
   "ink": "dark",
@@ -14,6 +26,12 @@
  "api": {
   "ground": "#f1e9de",
   "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "apple-creator-studio": {
+  "ground": "#020202",
+  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -53,6 +71,24 @@
   "w": 880,
   "h": 550
  },
+ "chatgpt-chat-memory-full": {
+  "ground": "#fcda91",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
+ "chatgpt-icloud": {
+  "ground": "#f1e1c6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "chatgpt-locked-chats": {
+  "ground": "#d5e8e2",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "claude-apple-notes": {
   "ground": "#f5e3d5",
   "ink": "dark",
@@ -65,11 +101,23 @@
   "w": 880,
   "h": 550
  },
+ "claude-duet": {
+  "ground": "#f1eee5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "claude-memory": {
   "ground": "#f7e6dc",
   "ink": "dark",
   "w": 880,
   "h": 550
+ },
+ "codex-usage-reset": {
+  "ground": "#fed3b4",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
  },
  "connect-chatgpt": {
   "ground": "#e3f2ed",
@@ -100,6 +148,12 @@
   "ink": "dark",
   "w": 880,
   "h": 550
+ },
+ "gemini-notebooks": {
+  "ground": "#eaeceb",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
  },
  "habit-tracker": {
   "ground": "#ddeddf",

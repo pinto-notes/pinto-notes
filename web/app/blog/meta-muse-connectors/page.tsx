@@ -153,8 +153,7 @@ export default function Page() {
       </p>
       <p>
         For notes, that means Muse can only work with your notes app if the app has had a connector approved. Pinto Notes, the notes app for Mac (iPhone coming soon) that I make, isn&apos;t in the Muse directory. I&apos;m preparing
-        a submission, and I haven&apos;t tested Pinto Notes with Muse. ChatGPT, Claude, Claude Code and Codex can read and edit it
-        today over MCP, once you approve them in the app. <a href="/blog/notes-apps-with-mcp">Notes apps with an MCP server</a> compares the
+        a submission, and I haven&apos;t tested Pinto Notes with Muse. Claude, Claude Code and Codex can read and edit it today over MCP (ChatGPT is coming soon), once you approve them in the app. <a href="/blog/notes-apps-with-mcp">Notes apps with an MCP server</a> compares the
         apps you can connect now.
       </p>
 
