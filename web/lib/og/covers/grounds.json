@@ -29,6 +29,12 @@
   "w": 880,
   "h": 550
  },
+ "apple-creator-studio": {
+  "ground": "#020202",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "apple-os-27": {
   "ground": "#232424",
   "ink": "light",
