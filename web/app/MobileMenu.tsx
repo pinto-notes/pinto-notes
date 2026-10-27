@@ -105,7 +105,7 @@ export default function MobileMenu({ path, stars: built, appStoreLive = APP_STOR
             </div>
             {/* Windows, Android and Linux: the header's own words there. */}
             <div className="site-sheet-for site-sheet-other">
-              <a className="site-sheet-cta site-sheet-cta-quiet" href="/download">For iPhone and Mac</a>
+              <a className="site-sheet-cta site-sheet-cta-quiet" href="/download">{appStoreLive ? "For iPhone and Mac" : "For Mac"}</a>
             </div>
           </div>
         </div>

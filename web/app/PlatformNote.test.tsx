@@ -44,7 +44,8 @@ describe("what Windows, Android and Linux see in place of Download for Mac", () 
   });
 
   it("is a quiet link to the download page in the header", () => {
-    expect(render("header")).toBe('<a class="pi-head" href="/download">For iPhone and Mac</a>');
+    expect(render("header")).toBe('<a class="pi-head" href="/download">For Mac</a>');
+    expect(render("header", true)).toBe('<a class="pi-head" href="/download">For iPhone and Mac</a>');
   });
 });
 

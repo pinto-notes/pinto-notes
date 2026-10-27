@@ -33,7 +33,7 @@ describe("what the phone menu holds", () => {
     const pages = hrefs(header).filter((h) => h.startsWith("/") && h !== "/download" && h !== "/download/mac");
     expect(pages).toEqual(MENU_PAGES.map((p) => p.href));
     expect(header).toContain("https://github.com/pinto-notes/pinto-notes");
-    expect(header).toContain(">For iPhone and Mac</a>");
+    expect(header).toContain(">For Mac</a>");
   });
 
   it("marks the current page, on the pages under it too", () => {
@@ -58,7 +58,9 @@ describe("what the phone menu holds", () => {
   });
 
   it("says what the header says to Windows, Android and Linux", () => {
-    expect(part(menu(), "site-sheet-other")).toContain('href="/download">For iPhone and Mac</a>');
+    expect(part(menu(), "site-sheet-other")).toContain('href="/download">For Mac</a>');
+    // The iPhone only joins it once the App Store listing is live.
+    expect(part(menu(true), "site-sheet-other")).toContain('href="/download">For iPhone and Mac</a>');
   });
 
   it("shows one of the three by the visitor's platform", () => {
