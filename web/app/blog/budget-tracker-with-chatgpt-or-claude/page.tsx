@@ -3,7 +3,7 @@ import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("budget-tracker-with-chatgpt-or-claude", { title: "A budget ChatGPT and Claude can keep for you" });
+export const metadata = postMetadata("budget-tracker-with-chatgpt-or-claude", { title: "A budget your AI can keep for you" });
 
 // Checked on 13 October 2026 against the Budget and expenses template on main (Mac 1.2.26):
 // content/templates/budget-log.json (prompt, asks) and budget-log.app (README.md, docs/README.md: Month,
@@ -103,9 +103,8 @@ export default function Page() {
 
       <h2 id="template">A budget your AI keeps</h2>
       <p>
-        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for Mac and iPhone. It&apos;s a
-        note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect
-        ChatGPT</a> or Claude once.
+        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for Mac (iPhone coming soon). It&apos;s a
+        note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect Claude</a> once (ChatGPT is coming soon).
       </p>
       <PostFigure src="/blog/pinto/budget-log-expenses-mac-light" width={1280} height={900} maxWidth={640}
         alt="The Expenses list of the budget app on a Mac for October: each expense by day with its category and amount, and a delete button."
@@ -141,7 +140,7 @@ export default function Page() {
         No bank connection: you, or your AI, add each expense. No income tracking yet. Connecting ChatGPT needs a paid plan with custom apps.
         {APP_STORE_LIVE
           ? <> Pinto Notes is free on Mac and iPhone.</>
-          : <> Pinto Notes is free on the Mac today; the iPhone app is coming soon, and ChatGPT and Claude can still add expenses from your phone.</>}{" "}
+          : <> Pinto Notes is free on the Mac today; the iPhone app is coming soon, and Claude can still add expenses from your phone.</>}{" "}
         For daily habits, the same idea is <a href="/blog/habit-tracker-with-chatgpt-or-claude">a habit tracker your AI can update</a>, and{" "}
         <a href="/blog/apple-notes-tables">Apple Notes tables</a> explains why a plain table can&apos;t add up.
       </p>

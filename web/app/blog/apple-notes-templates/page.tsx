@@ -101,7 +101,7 @@ export default function Page() {
         alt="A habit tracker app in a Pinto Notes note on a Mac: Today, 2 of 6 habits done with a 62 percent ring for the week, a dot grid for this week, and each habit with its streak, including Water at 5 of 8 glasses."
         caption="The habit tracker template in Pinto Notes: streaks and the week add themselves up. Example data." />
       <p>
-        That&apos;s why I made Pinto Notes, a notes app for Mac (iPhone coming soon) that ChatGPT and Claude can read and write. Its free{" "}
+        That&apos;s why I made Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude can read and write today, with ChatGPT coming soon. Its free{" "}
         <a href="/templates">template library</a> goes further than a blank note: some templates are little apps, like the{" "}
         <a href="/templates/habit-tracker">habit tracker</a> above, which keeps your streaks and the week&apos;s total for you. You tick
         things off yourself, or tell ChatGPT or Claude what you did and it updates the note. You can still add, rename and remove every

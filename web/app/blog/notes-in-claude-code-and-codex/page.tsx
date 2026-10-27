@@ -117,10 +117,10 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">One notebook for every agent you use</h2>
-      <AIConnect ais={["claude-code", "codex", "claude", "chatgpt"]} caption="Claude Code, Codex, Claude and ChatGPT, all reading and writing the same notes." />
+      <AIConnect ais={["claude-code", "codex", "claude"]} caption="Claude Code, Codex and Claude, all reading and writing the same notes." />
       <p>
         That&apos;s why I built Pinto Notes. It&apos;s a notes app for Mac (iPhone coming soon), as quick as Apple Notes, with the server built in.
-        Claude Code writes the standup, you read it on your phone, and ChatGPT can pick it up from there. Every change shows up tinted
+        Claude Code writes the standup, you read it on your phone, and Claude can pick it up from there. Every change shows up tinted
         with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. A read-only connection
         can&apos;t change anything. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
       </p>

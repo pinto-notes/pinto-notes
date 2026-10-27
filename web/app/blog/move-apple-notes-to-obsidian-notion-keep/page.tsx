@@ -223,7 +223,7 @@ export default function Page() {
         caption="Import from Apple Notes in Pinto Notes: every note under its folder, ticked. Nothing in Apple Notes changes." />
       <p>
         Pinto Notes, the notes app for Mac (iPhone coming soon) that I make, looks and works like Apple Notes, keeps every note as Markdown, and
-        lets ChatGPT and Claude read and edit your notes once you approve them. On a Mac, File, Import from Apple Notes copies every
+        lets Claude read and edit your notes once you approve it, with ChatGPT coming soon. On a Mac, File, Import from Apple Notes copies every
         note in every folder, with the folders&apos; names, nesting and order. Pictures come along as files, and importing again skips
         notes that are already there. Apple Notes doesn&apos;t change.
       </p>

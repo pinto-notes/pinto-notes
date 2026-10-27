@@ -199,10 +199,10 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">A notes app without accounts to sort out</h2>
-      <Figure shot={SHOTS.consent} caption="ChatGPT and Claude get your notes only after you allow them on your device." />
+      <Figure shot={SHOTS.consent} caption="An AI gets your notes only after you allow it on your device." />
       <p>
         Pinto Notes, the notes app for Mac (iPhone coming soon) that I make, has no On My iPhone and no mail accounts. You sign in once, and
-        every note syncs between your devices. ChatGPT and Claude can read and edit those notes after you approve them.
+        every note syncs between your devices. Claude can read and edit those notes after you approve it, with ChatGPT coming soon.
       </p>
       <p>
         It won&apos;t tidy up Apple Notes for you, and it has no Windows, Android or web version. <a

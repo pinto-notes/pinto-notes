@@ -272,7 +272,7 @@ export default function Page() {
         built in, at <code>{MCP_URL}</code>. It&apos;s a different app, not an Obsidian plugin.
       </p>
       <ul>
-        <li>It works from ChatGPT, Claude on the web, desktop and iPhone, Claude Code, Codex and Incredible, and your Mac doesn&apos;t need to be on.</li>
+        <li>It works from Claude on the web, desktop and iPhone, Claude Code, Codex and Incredible (ChatGPT is coming soon), and your Mac doesn&apos;t need to be on.</li>
         <li>You approve each AI app in Pinto Notes and choose Read Only, or Read and Edit.</li>
         <li>An AI can search, read, create and edit notes, tick checklist items, move and pin notes, and manage folders.</li>
         <li>When an AI changes a note, you see what changed, with Undo, and the previous version stays in the note&apos;s history.</li>

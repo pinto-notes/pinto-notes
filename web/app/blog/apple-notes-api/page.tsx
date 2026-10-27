@@ -165,12 +165,10 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">Notes your AIs can actually use</h2>
-      <AIConnect ais={["chatgpt", "claude", "claude-code", "codex"]} caption="One notebook that ChatGPT, Claude, Claude Code and Codex all read and write." />
+      <AIConnect ais={["claude", "claude-code", "codex"]} caption="One notebook that Claude, Claude Code and Codex all read and write today." />
       <p>
         That&apos;s why I made Pinto Notes. It looks and feels like Apple Notes, brings your notes over in <a href="/blog/move-from-apple-notes">one
-        import</a>, and has the API Apple Notes doesn&apos;t: a server that ChatGPT, Claude, Claude Code and Codex connect to, with your
-        OK in the app, read only or read and edit. Then they share one notebook. Tell ChatGPT on Monday, and Claude can read it on
-        Wednesday. For developers, the <a href="/blog/mcp-server">MCP server page</a> has the address, the tools and access tokens for
+        import</a>, and has the API Apple Notes doesn&apos;t: a server that Claude, Claude Code and Codex connect to today (ChatGPT is coming soon), with your OK in the app, read only or read and edit. Then they share one notebook. Tell Claude on Monday, and Codex can read it on Wednesday. For developers, the <a href="/blog/mcp-server">MCP server page</a> has the address, the tools and access tokens for
         scripts.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
