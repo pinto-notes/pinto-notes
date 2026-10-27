@@ -60,6 +60,14 @@ enum ConnectTrust {
         "https://claude.com/api/mcp/auth_callback": "Claude",
     ]
 
+    /// The company that makes each AI the sheet can name: what the AI reads is sent to it.
+    static let makers: [String: String] = [
+        "ChatGPT": "OpenAI",
+        "Codex": "OpenAI",
+        "Claude": "Anthropic",
+        "Claude Code": "Anthropic",
+    ]
+
     /// Who will receive access, in words for the consent sheet.
     static func destination(host: String, loopback: Bool) -> String {
         if loopback { return "an app on this computer" }
@@ -1350,10 +1358,20 @@ struct ConsentSheet: View {
     /// caution, with the name it gives itself shown only as a claim (anyone can call themselves
     /// Claude), and never the name the person is told to check against.
     nonisolated static func detail(_ r: ConnectRequest) -> String {
-        if let ai = r.startedHere { return "You started connecting \(ai) on this Mac. Locked notes stay private." }
-        guard r.verifiedAI == nil else { return "Access goes to \(r.redirect_host). Locked notes stay private." }
+        if let ai = r.startedHere { return "You started connecting \(ai) on this Mac. \(sent(r)) Locked notes stay private." }
+        guard r.verifiedAI == nil else { return "\(sent(r)) Locked notes stay private." }
         let claim = r.claimedName.map { " It calls itself \(displayName($0))." } ?? ""
-        return "Pinto Notes doesn\u{2019}t recognize this app.\(claim) Only allow it if you just started connecting it yourself."
+        return "Pinto Notes doesn\u{2019}t recognize this app.\(claim) \(sent(r)) Only allow it if you just started connecting it yourself."
+    }
+
+    /// What leaves the device and who gets it, as App Review asks (guidelines 5.1.1 and 5.1.2):
+    /// the notes the AI opens, with their text and files, go to the company that makes it.
+    nonisolated static func sent(_ r: ConnectRequest) -> String {
+        if let ai = r.verifiedAI, let maker = ConnectTrust.makers[ai] {
+            return "The notes \(ai) opens, with their text and files, are sent to \(maker) and handled under \(maker)\u{2019}s privacy policy."
+        }
+        let to = r.loopback ? "this app" : r.redirect_host
+        return "The notes it opens, with their text and files, are sent to \(to)."
     }
 
     /// What the chosen access lets the app do.

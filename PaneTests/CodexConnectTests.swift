@@ -78,7 +78,7 @@ private extension Process {
         #expect(ConsentSheet.title(r) == "Allow Codex to use your notes?")
         let line = ConsentSheet.detail(r)
         #expect(!line.contains("doesn\u{2019}t recognize") && !line.contains("calls itself"))
-        #expect(line == "You started connecting Codex on this Mac. Locked notes stay private.")
+        #expect(line == "You started connecting Codex on this Mac. The notes Codex opens, with their text and files, are sent to OpenAI and handled under OpenAI\u{2019}s privacy policy. Locked notes stay private.")
         #expect(ConnectRun.approvalCounts(r.verifiedAI, for: .codex), "allowing it finishes Codex's row")
         #expect(!ConnectRun.approvalCounts(r.verifiedAI, for: .chatgpt))
     }

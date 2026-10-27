@@ -106,6 +106,18 @@ import UIKit
     #endif
 
     #if os(iOS)
+    /// The first run's Connect step on iPhone, the screen App Review saw (5.1.1 and 5.1.2, Oct 2026).
+    @Test func iPhoneConnectStep() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        for shot in Self.shots where shot.step == .connect {
+            for dark in [false, true] {
+                try await ConnectJourneySnapshots.shoot(Self.flow(shot), "iphone-onboarding-\(shot.name)\(dark ? "-dark" : "")",
+                                                        size: CGSize(width: 375, height: 812), type: .large, dark: dark, scene: scene, dir: dir)
+            }
+        }
+    }
+
     @Test func iPhoneTerminalSheets() async throws {
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
