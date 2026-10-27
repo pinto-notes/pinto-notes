@@ -115,7 +115,6 @@ export default function Page() {
       </p>
 
       <h2 id="undo">Disconnecting, and what it doesn&apos;t do</h2>
-      <AIConnect ais={["chatgpt"]} caption="ChatGPT reaches iCloud only through the password you gave it." />
       <p>
         In Settings, Plugins, open the plugin, then the ••• menu, and choose Disconnect. That stops ChatGPT, but the password still
         works at Apple until you remove it at account.apple.com, under App-Specific Passwords. If you ever change your Apple Account
@@ -125,12 +124,12 @@ export default function Page() {
         Worth knowing: while a plugin is connected, ChatGPT may share relevant chats and memories with it to help with a request, and
         with Memory on it can use what it finds to make suggestions.
       </p>
+      <AIConnect ais={["claude"]} caption="Claude works in Pinto Notes today, and ChatGPT is coming soon." />
       <p>
         One thing isn&apos;t in this launch: your notes. OpenAI says Contacts and Reminders aren&apos;t included, and Apple Notes
         isn&apos;t mentioned. Apple Notes has <a href="/blog/apple-notes-api">no API</a> for ChatGPT to use, so if you want it to work with what
         you&apos;ve written down, <a href="/blog/connect-chatgpt-to-your-notes">connect it to a notes app</a> that lets it read and
-        edit them. That&apos;s what I
-        made Pinto Notes for.
+        edit them. Pinto Notes, the one I make, works with Claude today and ChatGPT soon.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
           : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}
