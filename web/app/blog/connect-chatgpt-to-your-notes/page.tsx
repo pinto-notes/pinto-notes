@@ -147,13 +147,13 @@ export default function Page() {
         <li>
           <strong>Connect it</strong>
           ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
-          it&apos;s on this computer). Then open Pinto Notes on your Mac, and the page shows a two-digit number.
+          it&apos;s on this computer).
         </li>
         <li>
-          <strong>Type the number in Pinto Notes and choose Allow</strong>
-          Pinto Notes asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Type the number from the page, pick Read and edit or Read
-          only, and choose Allow. The page takes you back to ChatGPT. If the app asks without a number showing in your browser, or
-          you didn&apos;t start this, choose Don&apos;t Allow.
+          <strong>Choose Allow in Pinto Notes</strong>
+          Pinto Notes on your Mac asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Pick Read and edit or Read only, and choose
+          Allow. If the page shows a number, type it in Pinto Notes first. The page takes you back to ChatGPT. If the app asks and you
+          didn&apos;t start this, choose Don&apos;t Allow.
         </li>
         <li>
           <strong>Try it</strong>
@@ -266,7 +266,7 @@ export default function Page() {
         caption="When ChatGPT changes a note, the new lines are tinted and you can undo the change."
       />
       <ul>
-        <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, after typing the number your browser shows, or on pintonotes.com with your recovery key.</li>
+        <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, or on pintonotes.com with your recovery key.</li>
         <li>You choose Read only, or Read and edit, for each assistant.</li>
         <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Show Version History).</li>
         <li>Connect an AI lists everything that&apos;s connected. Choose Disconnect, and it loses access right away.</li>
