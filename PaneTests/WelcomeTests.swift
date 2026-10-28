@@ -128,7 +128,7 @@ import AppKit
     }
 
     @Test func theLookDefaultsToTheNoteCard() {
-        #expect(WelcomeStyle.allCases.count == 3)
+        #expect(WelcomeStyle.allCases.count == 4)
         #expect(WelcomeStyle.current == .card)
     }
 

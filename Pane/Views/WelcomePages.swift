@@ -6,13 +6,15 @@ import SwiftUI
 /// autoplays between pages. Each page's demo plays once when the page settles, then rests on its
 /// last frame. With Reduce Motion the pages show their last frames and only fade.
 ///
-/// Three looks to choose from (`WelcomeStyle`): A, the note card on the cream ground with the
-/// words under it; B, a phone screen as the hero, cut off by the bottom edge, the words above;
-/// C, the paper-craft picture behind a floating note card.
+/// Four looks to choose from (`WelcomeStyle`): A, the note card on the cream ground with the
+/// words under it; B, the app's own screen running off the bottom edge, the words above; C, A's
+/// card over the paper-craft picture, which fades into the ground behind the words; D, A bolder:
+/// a warm amber wash, a bigger headline, and pages with their own shapes (an edge-to-edge list, a
+/// real bottom sheet), already moving on the first frame.
 enum WelcomeStyle: String, CaseIterable, Sendable {
-    case card, device, scene
+    case card, device, scene, bold
 
-    /// The look the app uses. A debug build takes `PINTO_WELCOME_STYLE=card|device|scene` first.
+    /// The look the app uses. A debug build takes `PINTO_WELCOME_STYLE=card|device|scene|bold` first.
     static var current: WelcomeStyle {
         #if DEBUG
         if let forced { return forced }
@@ -86,11 +88,15 @@ struct WelcomePages: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    init(style: WelcomeStyle = .current, page: WelcomePage = .writes, frozenStage: Int? = nil,
+    /// Captures: how far D's typing line has got (nil: all of it once frozen).
+    var typingProgress: Double? = nil
+
+    init(style: WelcomeStyle = .current, page: WelcomePage = .writes, frozenStage: Int? = nil, typingProgress: Double? = nil,
          start: @escaping () -> Void, haveAccount: @escaping () -> Void) {
         self.style = style
         self.page = page
         self.frozenStage = frozenStage
+        self.typingProgress = typingProgress
         self.start = start
         self.haveAccount = haveAccount
         _selection = State(initialValue: page)
@@ -109,7 +115,16 @@ struct WelcomePages: View {
                 actions
             }
         }
-        .background { ground }
+        .background {
+            GeometryReader { g in
+                ZStack(alignment: .top) {
+                    ground
+                    backdrop(stageHeight: (g.size.height + g.safeAreaInsets.top) * 0.5)
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .environment(\.welcomeTyping, frozenStage == nil ? nil : (typingProgress ?? 1))
         // Past this the headline and the button no longer fit beside anything else; the pages
         // scroll from the accessibility sizes on (`pageView`).
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
@@ -127,8 +142,8 @@ struct WelcomePages: View {
             // and the page scrolls.
             ScrollView {
                 VStack(spacing: 28) {
-                    Words(page: p, centred: true).padding(.horizontal, 24)
-                    WelcomeDemo(page: p, stage: stage(of: p), hero: style == .card)
+                    Words(page: p, centred: true, big: style == .bold).padding(.horizontal, 24)
+                    WelcomeDemo(page: p, stage: stage(of: p), hero: true)
                         .dynamicTypeSize(.large)
                         .padding(.horizontal, 20)
                         .frame(maxWidth: 520)
@@ -146,67 +161,75 @@ struct WelcomePages: View {
 
     @ViewBuilder private func styled(_ p: WelcomePage, screen: CGSize) -> some View {
         let stage = stage(of: p)
-        let words = Words(page: p, centred: style != .device)
+        let words = Words(page: p, centred: true, big: style == .bold)
         let stageHeight = screen.height * 0.5
         switch style {
-        case .card:
-            VStack(spacing: 0) {
-                // The card's top is at one height on every page and it grows downward, so
-                // nothing jumps between pages or lifts as a line arrives. The words below keep
-                // their place too.
-                WelcomeDemo(page: p, stage: stage, hero: true)
-                    .padding(.horizontal, 20)
-                    .frame(maxWidth: 520)
-                    .padding(.top, 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .frame(height: stageHeight * 1.16)
-                words.padding(.horizontal, 28).padding(.top, 8)
-                Spacer(minLength: 0)
+        case .card, .scene, .bold:
+            ZStack(alignment: .top) {
+                VStack(spacing: 0) {
+                    // The card's top is at one height on every page and it grows downward, so
+                    // nothing jumps between pages or lifts as a line arrives. The words below keep
+                    // their place too.
+                    let edge = style == .bold && p == .appleNotes
+                    WelcomeDemo(page: p, stage: stage, hero: true, edge: edge, sheet: style == .bold && p == .asksFirst,
+                                typing: style == .bold)
+                        .padding(.horizontal, edge ? 0 : 20)
+                        .frame(maxWidth: edge ? .infinity : 520)
+                        .padding(.top, 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .frame(height: stageHeight * 1.16)
+                    words.padding(.horizontal, 28).padding(.top, 8)
+                    Spacer(minLength: 0)
+                }
             }
         case .device:
             VStack(spacing: 0) {
-                words.padding(.horizontal, 28).padding(.top, 28)
-                Spacer(minLength: 20)
-                PhoneScreen { WelcomeDemo(page: p, stage: stage, onScreen: true) }
-                    .frame(width: min(screen.width * 0.82, 340), height: stageHeight + 60, alignment: .top)
-                    .frame(maxWidth: .infinity)
-                    // The phone runs on past the page: only its top shows.
-                    .frame(height: stageHeight * 1.02, alignment: .top)
+                words.padding(.horizontal, 28).padding(.top, 24)
+                Spacer(minLength: 24)
+                // The app's own screen, full width, running off the bottom edge: not a drawn phone.
+                AppScreen { WelcomeDemo(page: p, stage: stage, onScreen: true, hero: true) }
+                    .frame(height: stageHeight * 1.08, alignment: .top)
                     .clipped()
             }
+        }
+    }
+
+    /// What lies behind the card: nothing (A), the paper-craft picture fading into the ground
+    /// behind the words (C), or a warm amber wash (D).
+    /// Behind the pages, not on them, so it reaches under the status bar and stays put as they swipe.
+    @ViewBuilder private func backdrop(stageHeight: CGFloat) -> some View {
+        switch style {
         case .scene:
-            VStack(spacing: 0) {
-                ZStack {
-                    WelcomeFlow.picture()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .overlay(alignment: .bottom) {
-                            // The picture eases into the ground under it rather than ending on a hard line.
-                            LinearGradient(colors: [.clear, Color(Palette.sheetGround)], startPoint: .top, endPoint: .bottom)
-                                .frame(height: 64)
-                        }
-                    WelcomeDemo(page: p, stage: stage)
-                        .padding(.horizontal, 40)
-                        .frame(maxWidth: 400)
-                        .padding(.top, 36)
-                }
-                .frame(height: stageHeight + 36)
+            WelcomeFlow.picture()
+                .frame(maxWidth: .infinity)
+                .frame(height: stageHeight * 1.3)
+                .clipped()
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.62), .init(color: .clear, location: 1)],
+                                     startPoint: .top, endPoint: .bottom))
                 .ignoresSafeArea(edges: .top)
-                words.padding(.horizontal, 28).padding(.top, 4)
-                Spacer(minLength: 0)
-            }
+        case .bold:
+            LinearGradient(stops: [.init(color: Color(Palette.amber).opacity(0.32), location: 0),
+                                   .init(color: Color(Palette.amber).opacity(0.14), location: 0.55),
+                                   .init(color: .clear, location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(height: stageHeight * 1.5)
+                .ignoresSafeArea(edges: .top)
+        default:
+            EmptyView()
         }
     }
 
     private struct Words: View {
         let page: WelcomePage
         let centred: Bool
+        /// D's headline: bigger and heavier.
+        var big = false
 
         var body: some View {
             VStack(alignment: centred ? .center : .leading, spacing: 10) {
                 Text(page.shownTitle)
-                    .font(.system(size: 34, weight: .bold))
-                    .tracking(-0.6)
+                    .font(.system(size: big ? 40 : 34, weight: big ? .heavy : .bold))
+                    .tracking(big ? -1 : -0.6)
                     .foregroundStyle(Color.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(0.7)
@@ -263,15 +286,23 @@ struct WelcomePages: View {
     private func stage(of p: WelcomePage) -> Int {
         if let frozenStage { return p == page ? frozenStage : p.stages - 1 }
         if reduceMotion { return p.stages - 1 }
-        return stages[p] ?? 0
+        return stages[p] ?? opening(p)
+    }
+
+    /// Where a page's demo starts. D's first page is already moving on the very first frame:
+    /// Claude is editing and its line is typing in.
+    private func opening(_ p: WelcomePage) -> Int {
+        style == .bold && p == .writes ? 2 : 0
     }
 
     /// Plays a page's demo once, after the swipe has settled; a page seen before stays as it ended.
     private func play(_ p: WelcomePage) async {
         guard frozenStage == nil, !reduceMotion, stages[p] == nil else { return }
-        stages[p] = 0
-        try? await Task.sleep(for: .milliseconds(450))
-        for s in 1..<p.stages {
+        let first = opening(p)
+        stages[p] = first
+        // D's first page types from the first frame: its next step waits for the line to finish.
+        try? await Task.sleep(for: .milliseconds(first > 0 ? 1300 : 450))
+        for s in (first + 1)..<p.stages {
             guard !Task.isCancelled else {
                 stages[p] = p.stages - 1
                 return
@@ -313,26 +344,20 @@ private struct Dots: View {
     }
 }
 
-/// B's hero: a phone's screen in a dark frame, with the island, the demo inside it as the app.
-private struct PhoneScreen<Content: View>: View {
+/// B's hero: the app's own screen, full width, its top corners rounded like the display's, running
+/// off the bottom of the page.
+private struct AppScreen<Content: View>: View {
     @ViewBuilder var content: Content
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let outer = RoundedRectangle(cornerRadius: 46, style: .continuous)
-        let inner = RoundedRectangle(cornerRadius: 38, style: .continuous)
+        let shape = UnevenRoundedRectangle(topLeadingRadius: 34, topTrailingRadius: 34, style: .continuous)
         content
-            .padding(.top, 52)
-            .padding(.horizontal, 12)
+            .padding(.top, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color(Palette.listGround), in: inner)
-            .overlay(alignment: .top) {
-                Capsule().fill(.black).frame(width: 84, height: 24).padding(.top, 10)
-            }
-            .clipShape(inner)
-            .padding(7)
-            .background(Color(white: scheme == .dark ? 0.26 : 0.12), in: outer)
-            // No shadow: the page cuts the phone off at its foot, and a cut shadow shows as a box.
+            .background(Color.notePage, in: shape)
+            .overlay(shape.stroke(Color.line, lineWidth: 0.5))
+            .clipShape(shape)
+            .shadow(color: Color(Palette.shadow), radius: 18, y: -2)
     }
 }
 
@@ -348,6 +373,12 @@ struct WelcomeDemo: View {
     /// A's note card: wide, at the editor's own sizes (17 pt text, 28 pt title), with the note's
     /// navigation row above the title, as the app draws it.
     var hero = false
+    /// D, page 2: the list runs edge to edge instead of sitting in a card.
+    var edge = false
+    /// D, page 3: the Allow sheet rises from the bottom like the system's own sheet.
+    var sheet = false
+    /// D: Claude's line types itself into the note instead of rolling in.
+    var typing = false
 
     var body: some View {
         switch page {
@@ -357,12 +388,15 @@ struct WelcomeDemo: View {
         }
     }
 
-    private var look: DemoLook { DemoLook(onScreen: onScreen, hero: hero) }
+    private var look: DemoLook { DemoLook(onScreen: onScreen, hero: hero, edge: edge, sheet: sheet, typing: typing) }
 }
 
 struct DemoLook {
     var onScreen = false
     var hero = false
+    var edge = false
+    var sheet = false
+    var typing = false
 
     var title: Font { hero ? .system(size: 28, weight: .bold) : onScreen ? .title3.weight(.bold) : .title2.weight(.bold) }
 }
@@ -379,7 +413,8 @@ private struct NoteCard<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: look.onScreen ? 0 : look.hero ? 24 : 20, style: .continuous)
+        let flat = look.onScreen || look.edge
+        let shape = RoundedRectangle(cornerRadius: flat ? 0 : look.hero ? 24 : 20, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             if look.hero, let back {
                 HStack(spacing: 4) {
@@ -398,8 +433,15 @@ private struct NoteCard<Content: View>: View {
         .padding(.bottom, look.hero ? 22 : 18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(look.onScreen ? Color.notePage : Color.card, in: shape)
-        .overlay { if !look.onScreen { shape.strokeBorder(Color.line, lineWidth: 0.5) } }
-        .shadow(color: look.onScreen ? .clear : Color(Palette.shadow), radius: 22, y: 10)
+        .overlay {
+            if look.edge {
+                // Edge to edge, like a list: hairlines above and below, no corners.
+                VStack { Divider(); Spacer(); Divider() }
+            } else if !look.onScreen {
+                shape.strokeBorder(Color.line, lineWidth: 0.5)
+            }
+        }
+        .shadow(color: flat ? .clear : Color(Palette.shadow), radius: 22, y: 10)
     }
 }
 
@@ -408,13 +450,15 @@ private struct CheckRow: View {
     let text: String
     var done = false
     var fresh = false
+    /// The line types itself in (D).
+    var typing = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
                 .font(.body)
                 .foregroundStyle(done ? AnyShapeStyle(Color(Palette.amber)) : AnyShapeStyle(Color.muted.opacity(0.6)))
-            Text(text)
+            TypingText(text: text, typing: typing)
                 .font(.body)
                 .foregroundStyle(done ? Color.muted : Color.ink)
                 .strikethrough(done, color: Color.muted)
@@ -498,8 +542,8 @@ private struct WritesDemo: View {
                 CheckRow(text: RunningPlan.lines[0], done: true)
                 CheckRow(text: RunningPlan.lines[1])
                 if stage >= 2 {
-                    CheckRow(text: RunningPlan.added, fresh: true)
-                        .transition(.asymmetric(insertion: .offset(y: 14).combined(with: .opacity), removal: .opacity))
+                    CheckRow(text: RunningPlan.added, fresh: true, typing: look.typing)
+                        .transition(look.typing ? .opacity : .asymmetric(insertion: .offset(y: 14).combined(with: .opacity), removal: .opacity))
                 }
                 CheckRow(text: RunningPlan.lines[2])
             }
@@ -567,13 +611,40 @@ private struct AsksFirstDemo: View {
     let look: DemoLook
 
     var body: some View {
+        if look.sheet { sheetLayout } else { cardLayout }
+    }
+
+    private var note: some View {
         NoteCard(look: look, back: "Notes") {
             VStack(alignment: .leading, spacing: 4) {
                 Text(LisbonTrip.title).font(look.title).foregroundStyle(Color.ink).padding(.bottom, 6)
                 ForEach(LisbonTrip.lines, id: \.self) { CheckRow(text: $0) }
             }
-            .padding(.bottom, look.hero ? 64 : 40)
+            .padding(.bottom, look.sheet ? 0 : look.hero ? 64 : 40)
         }
+    }
+
+    /// D: the note dims and the sheet rises from the bottom of the page's picture, floating with
+    /// the system's margins and grabber, as a sheet does in iOS 26.
+    private var sheetLayout: some View {
+        ZStack(alignment: .bottom) {
+            note
+                .blur(radius: stage >= 1 ? 2 : 0)
+                .opacity(stage >= 1 ? 0.5 : 1)
+                .frame(maxHeight: .infinity, alignment: .top)
+            if stage >= 1 {
+                AllowCard(note: LisbonTrip.title, pressed: stage >= 2, sheet: true)
+                    .padding(.horizontal, -12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Claude asks to edit your note Lisbon trip, and waits for you to allow it.")
+    }
+
+    private var cardLayout: some View {
+        note
         .blur(radius: stage >= 1 ? 2 : 0)
         .opacity(stage >= 1 ? 0.5 : 1)
         .overlay(alignment: .bottom) {
@@ -594,11 +665,16 @@ private struct AsksFirstDemo: View {
 private struct AllowCard: View {
     let note: String
     let pressed: Bool
+    /// As a system sheet: larger corners, the grabber, more room.
+    var sheet = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: sheet ? 34 : 22, style: .continuous)
         VStack(spacing: 12) {
-            AITile(ai: "Claude", size: 40)
+            if sheet {
+                Capsule().fill(Color.muted.opacity(0.35)).frame(width: 36, height: 5).padding(.top, -6).padding(.bottom, 4)
+            }
+            AITile(ai: "Claude", size: sheet ? 48 : 40)
             Text("Claude wants to edit \u{201C}\(note)\u{201D}")
                 .font(.headline)
                 .foregroundStyle(Color.ink)
@@ -620,10 +696,52 @@ private struct AllowCard: View {
                     .scaleEffect(pressed ? 0.97 : 1)
             }
         }
-        .padding(16)
+        .padding(sheet ? 20 : 16)
         .background(Color.card, in: shape)
         .overlay(shape.strokeBorder(Color.line, lineWidth: 0.5))
-        .shadow(color: Color(Palette.shadow), radius: 20, y: 8)
+        .shadow(color: Color(Palette.shadow), radius: sheet ? 30 : 20, y: sheet ? -4 : 8)
+    }
+}
+
+/// How far a typing line has got: nil while it types live; captures set a fraction (1 = all).
+private struct WelcomeTypingKey: EnvironmentKey { static let defaultValue: Double? = nil }
+
+extension EnvironmentValues {
+    var welcomeTyping: Double? {
+        get { self[WelcomeTypingKey.self] }
+        set { self[WelcomeTypingKey.self] = newValue }
+    }
+}
+
+/// A line that types itself in, about 30 characters a second, keeping its full size from the
+/// start so nothing around it moves. Reduce Motion shows it whole.
+private struct TypingText: View {
+    let text: String
+    var typing = false
+    @State private var started = Date.now
+    @Environment(\.welcomeTyping) private var fixed
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static let duration = 1.1
+
+    var body: some View {
+        if !typing || reduceMotion {
+            Text(text)
+        } else if let fixed {
+            shown(fixed)
+        } else {
+            TimelineView(.animation(paused: false)) { context in
+                shown(min(1, context.date.timeIntervalSince(started) / Self.duration))
+            }
+        }
+    }
+
+    private func shown(_ fraction: Double) -> some View {
+        let count = Int((Double(text.count) * fraction).rounded())
+        return ZStack(alignment: .topLeading) {
+            Text(text).hidden()
+            Text(String(text.prefix(count))) + Text(fraction < 1 ? "\u{258F}" : "").foregroundStyle(Color(Palette.amber))
+        }
     }
 }
 #endif

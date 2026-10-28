@@ -367,7 +367,7 @@ import UIKit
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let letter: [WelcomeStyle: String] = [.card: "A", .device: "B", .scene: "C"]
+        let letter: [WelcomeStyle: String] = [.card: "A", .device: "B", .scene: "C", .bold: "D"]
         for style in WelcomeStyle.allCases {
             for page in WelcomePage.allCases {
                 for dark in [false, true] {
@@ -376,15 +376,22 @@ import UIKit
                 }
             }
         }
-        for page in WelcomePage.allCases {
-            let view = WelcomePages(style: .card, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-            try await Self.shootPage(view, "welcome-A-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
+        for style in [WelcomeStyle.card, .bold] {
+            for page in WelcomePage.allCases {
+                let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+                try await Self.shootPage(view, "welcome-\(letter[style]!)-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
+            }
         }
+        // Motion, step by step: every page of A; D's first page as it types.
         for page in WelcomePage.allCases {
             for stage in 0..<page.stages {
                 let view = WelcomePages(style: .card, page: page, frozenStage: stage, start: {}, haveAccount: {})
                 try await Self.shootPage(view, "welcome-A-\(page.rawValue + 1)-step\(stage)", dark: false, scene: scene, dir: dir)
             }
+        }
+        for (i, (stage, typed)) in [(2, 0.0), (2, 0.35), (2, 0.7), (2, 1.0), (3, 1.0)].enumerated() {
+            let view = WelcomePages(style: .bold, page: .writes, frozenStage: stage, typingProgress: typed, start: {}, haveAccount: {})
+            try await Self.shootPage(view, "welcome-D-1-frame\(i)", dark: false, scene: scene, dir: dir)
         }
     }
     #endif
