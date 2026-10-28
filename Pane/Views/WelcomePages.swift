@@ -20,12 +20,36 @@ enum WelcomeStyle: String, CaseIterable, Sendable {
         if let forced { return forced }
         if let s = ProcessInfo.processInfo.environment["PINTO_WELCOME_STYLE"].flatMap(WelcomeStyle.init(rawValue:)) { return s }
         #endif
-        return .device
+        return .scene
     }
 
     #if DEBUG
     nonisolated(unsafe) static var forced: WelcomeStyle?
     #endif
+}
+
+/// How C's desk scene meets the words (Emil liked C but not its fade): C1 the scene framed in an
+/// inset rounded picture; C2 edge to edge at the top, ending in a straight line; C3 the whole
+/// screen, the words on a solid sheet over it; C4 like C2 with an arched foot; C5 no note card,
+/// a few small pieces of the app floating on the framed scene like stickers; C6 a collage of round
+/// crops of the desk, the words above; C7 the website's own look: its paper-craft art framed, the
+/// chat from its "Plan it with ChatGPT" film floating over it, and its highlighter on the headline.
+enum SceneLook: String, CaseIterable, Sendable {
+    case framed, hardEdge, sheet, arch, fragments, collage, site
+
+    /// A debug build takes `PINTO_WELCOME_SCENE=framed|hardEdge|…` first.
+    static var current: SceneLook {
+        #if DEBUG
+        if let s = ProcessInfo.processInfo.environment["PINTO_WELCOME_SCENE"].flatMap(SceneLook.init(rawValue:)) { return s }
+        #endif
+        return .framed
+    }
+
+    /// "C1" to "C6", as the review names them.
+    var name: String { "C\((Self.allCases.firstIndex(of: self) ?? 0) + 1)" }
+
+    /// The scene carries the note card (C1 to C4); C5 and C6 show pieces of the app instead.
+    var hasCard: Bool { ![.fragments, .collage, .site].contains(self) }
 }
 
 /// What each page says and shows.
@@ -73,6 +97,10 @@ enum WelcomePage: Int, CaseIterable, Identifiable, Sendable {
 /// The three pages, the dots and the way in.
 struct WelcomePages: View {
     var style: WelcomeStyle = .current
+    /// C's treatment of the scene.
+    var sceneLook: SceneLook = .current
+    /// Segmented bars at the top in place of the dots (tried on C5).
+    var bars = false
     /// Captures: the page shown, and its demo held at a step (nil: as it plays).
     var page: WelcomePage = .writes
     var frozenStage: Int? = nil
@@ -92,9 +120,11 @@ struct WelcomePages: View {
     /// Captures: how far D's typing line has got (nil: all of it once frozen).
     var typingProgress: Double? = nil
 
-    init(style: WelcomeStyle = .current, page: WelcomePage = .writes, frozenStage: Int? = nil, typingProgress: Double? = nil,
-         start: @escaping () -> Void, haveAccount: @escaping () -> Void) {
+    init(style: WelcomeStyle = .current, sceneLook: SceneLook = .current, bars: Bool = false, page: WelcomePage = .writes,
+         frozenStage: Int? = nil, typingProgress: Double? = nil, start: @escaping () -> Void, haveAccount: @escaping () -> Void) {
         self.style = style
+        self.sceneLook = sceneLook
+        self.bars = bars
         self.page = page
         self.frozenStage = frozenStage
         self.typingProgress = typingProgress
@@ -122,10 +152,14 @@ struct WelcomePages: View {
             GeometryReader { g in
                 ZStack(alignment: .top) {
                     ground
-                    backdrop(stageHeight: (g.size.height + g.safeAreaInsets.top) * 0.5)
+                    backdrop(stageHeight: (g.size.height + g.safeAreaInsets.top) * 0.5, top: g.safeAreaInsets.top, height: g.size.height,
+                             width: g.size.width)
                 }
                 .ignoresSafeArea()
             }
+        }
+        .overlay(alignment: .top) {
+            if bars { Bars(count: WelcomePage.allCases.count, on: selection.rawValue).padding(.horizontal, 24).padding(.top, 6) }
         }
         .environment(\.welcomeTyping, frozenStage == nil ? nil : (typingProgress ?? 1))
         // Past this the headline and the button no longer fit beside anything else; the pages
@@ -144,6 +178,13 @@ struct WelcomePages: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
+    }
+
+    /// Tapping the picture moves on, so a tap there never does nothing; the last page goes back
+    /// to the first.
+    private func advance(from p: WelcomePage) {
+        let next = WelcomePage(rawValue: (p.rawValue + 1) % WelcomePage.allCases.count) ?? .writes
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) { selection = next }
     }
 
     /// The room the way in takes at the foot of B's screen (dots, Get started, I have an account).
@@ -180,6 +221,40 @@ struct WelcomePages: View {
         let words = Words(page: p, centred: true, big: style == .bold)
         let stageHeight = screen.height * 0.5
         switch style {
+        case .scene where sceneLook == .fragments:
+            VStack(spacing: 0) {
+                Fragments(page: p, stage: stage)
+                    .frame(height: stageHeight * 1.16)
+                    .contentShape(.rect)
+                    .onTapGesture { advance(from: p) }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Shows the next page")
+                words.padding(.horizontal, 28).padding(.top, 8)
+                Spacer(minLength: 0)
+            }
+        case .scene where sceneLook == .site:
+            VStack(spacing: 0) {
+                SiteArt(page: p, stage: stage)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .frame(height: stageHeight * 1.16 - 24)
+                    .contentShape(.rect)
+                    .onTapGesture { advance(from: p) }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Shows the next page")
+                MarkedWords(page: p).padding(.horizontal, 28).padding(.top, 32)
+                Spacer(minLength: 0)
+            }
+        case .scene where sceneLook == .collage:
+            VStack(spacing: 0) {
+                words.padding(.horizontal, 28).padding(.top, 28)
+                Collage(page: p, stage: stage)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(.rect)
+                    .onTapGesture { advance(from: p) }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Shows the next page")
+            }
         case .card, .scene, .bold:
             ZStack(alignment: .top) {
                 VStack(spacing: 0) {
@@ -189,8 +264,14 @@ struct WelcomePages: View {
                     let edge = style == .bold && p == .appleNotes
                     WelcomeDemo(page: p, stage: stage, hero: true, edge: edge, sheet: style == .bold && p == .asksFirst,
                                 typing: style == .bold)
-                        .padding(.horizontal, edge ? 0 : 20)
+                        // A card set down on the desk, a little askew: a picture, not a window.
+                        .rotationEffect(.degrees(edge ? 0 : -2.5))
+                        .padding(.horizontal, edge ? 0 : screen.width * 0.06)
                         .frame(maxWidth: edge ? .infinity : 520)
+                        .contentShape(.rect)
+                        .onTapGesture { advance(from: p) }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Shows the next page")
                         .padding(.top, 16)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .frame(height: stageHeight * 1.16)
@@ -226,16 +307,37 @@ struct WelcomePages: View {
     /// What lies behind the card: nothing (A), the paper-craft picture fading into the ground
     /// behind the words (C), or a warm amber wash (D).
     /// Behind the pages, not on them, so it reaches under the status bar and stays put as they swipe.
-    @ViewBuilder private func backdrop(stageHeight: CGFloat) -> some View {
-        switch style {
+    @ViewBuilder private func backdrop(stageHeight: CGFloat, top: CGFloat, height: CGFloat, width: CGFloat) -> some View {
+        // Where the words begin, from the top of the screen: the scene ends above them.
+        let wordsTop = top + height * 0.58
+        // Bars across the top push the framed picture down below them.
+        let barsRoom: CGFloat = bars ? 18 : 0
+        switch typeSize.isAccessibilitySize ? WelcomeStyle.card : style {
         case .scene:
-            WelcomeFlow.picture()
-                .frame(maxWidth: .infinity)
-                .frame(height: stageHeight * 1.3)
-                .clipped()
-                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.62), .init(color: .clear, location: 1)],
-                                     startPoint: .top, endPoint: .bottom))
-                .ignoresSafeArea(edges: .top)
+            switch sceneLook {
+            case .framed, .fragments:
+                // C1, C5: a picture set into the page, with margins and a clean foot.
+                desk
+                    .frame(width: width - 32, height: wordsTop - top - 24 - barsRoom)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .padding(.top, top + 4 + barsRoom)
+            case .hardEdge:
+                // C2: edge to edge under the status bar, ending in a straight line.
+                desk.frame(width: width, height: wordsTop - 20).clipped()
+            case .arch:
+                // C4: as C2, its foot a gentle arch.
+                desk.frame(width: width, height: wordsTop + 8).clipShape(ArchFoot(depth: 36))
+            case .sheet:
+                // C3: the scene fills the screen; the words and the way in sit on a solid sheet.
+                ZStack(alignment: .top) {
+                    desk.frame(width: width, height: top + height + 40).clipped()
+                    UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32, style: .continuous)
+                        .fill(Color(Palette.sheetGround))
+                        .padding(.top, wordsTop - 28)
+                }
+            case .collage, .site:
+                EmptyView()
+            }
         case .bold:
             LinearGradient(stops: [.init(color: Color(Palette.amber).opacity(0.32), location: 0),
                                    .init(color: Color(Palette.amber).opacity(0.14), location: 0.55),
@@ -246,6 +348,13 @@ struct WelcomePages: View {
         default:
             EmptyView()
         }
+    }
+
+    /// The desk scene, quieter than anything set on it: a little soft and less saturated.
+    private var desk: some View {
+        WelcomeFlow.picture()
+            .blur(radius: 1.5)
+            .saturation(0.88)
     }
 
     private struct Words: View {
@@ -285,7 +394,7 @@ struct WelcomePages: View {
 
     private var actions: some View {
         VStack(spacing: 14) {
-            Dots(count: WelcomePage.allCases.count, on: selection.rawValue)
+            if !bars { Dots(count: WelcomePage.allCases.count, on: selection.rawValue) }
             Button {
                 startTaps += 1
                 start()
@@ -340,7 +449,8 @@ struct WelcomePages: View {
                 return
             }
             withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) { stages[p] = s }
-            try? await Task.sleep(for: .milliseconds(p.pause(after: s)))
+            // C5's pieces rise one after another, quickly.
+            try? await Task.sleep(for: .milliseconds(style == .scene && sceneLook == .fragments ? 160 : p.pause(after: s)))
         }
     }
 }
@@ -354,6 +464,349 @@ private extension WelcomePage {
         case (.asksFirst, 1): 700
         default: 800
         }
+    }
+}
+
+/// C4's scene: a rectangle whose foot bows down in a gentle arch.
+struct ArchFoot: Shape {
+    var depth: CGFloat
+
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: r.origin)
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - depth))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - depth), control: CGPoint(x: r.midX, y: r.maxY + depth))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// A small piece of the app, like a sticker: a mark and a few words on a white pill.
+private struct Fragment: View {
+    enum Mark { case symbol(String), ai(String), appleNotes, none }
+    let mark: Mark
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            switch mark {
+            case .symbol(let name):
+                Image(systemName: name).font(.subheadline.weight(.semibold)).foregroundStyle(Color(Palette.amber))
+            case .ai(let ai):
+                AIGlyph(ai: ai, size: 16)
+            case .appleNotes:
+                ImportSourceIcon(origin: .appleNotes, size: 20)
+            case .none:
+                EmptyView()
+            }
+            Text(text).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.card, in: .capsule)
+        .shadow(color: .black.opacity(0.06), radius: 1.5, y: 1)
+        .shadow(color: Color(Palette.shadow).opacity(1.3), radius: 18, y: 10)
+    }
+
+    /// Each page's pieces, and where they lie on the scene (fractions of its width and height)
+    /// and how askew.
+    static func pieces(_ page: WelcomePage) -> [(Fragment, CGPoint, Double)] {
+        switch page {
+        case .writes:
+            [(Fragment(mark: .symbol("checkmark.circle.fill"), text: RunningPlan.lines[0]), CGPoint(x: 0.36, y: 0.24), -4),
+             (Fragment(mark: .symbol("circle"), text: RunningPlan.lines[2]), CGPoint(x: 0.6, y: 0.48), 3),
+             (Fragment(mark: .ai("Claude"), text: "Claude added a line"), CGPoint(x: 0.42, y: 0.72), -2)]
+        case .appleNotes:
+            [(Fragment(mark: .appleNotes, text: "From Apple Notes \u{00B7} 142"), CGPoint(x: 0.42, y: 0.26), -3),
+             (Fragment(mark: .none, text: "Groceries"), CGPoint(x: 0.66, y: 0.5), 4),
+             (Fragment(mark: .none, text: "Books to read"), CGPoint(x: 0.38, y: 0.72), -2)]
+        case .asksFirst:
+            [(Fragment(mark: .ai("Claude"), text: "Claude wants to edit \u{201C}\(LisbonTrip.title)\u{201D}"), CGPoint(x: 0.5, y: 0.36), -3),
+             (Fragment(mark: .symbol("checkmark.circle.fill"), text: "Allowed"), CGPoint(x: 0.64, y: 0.62), 3)]
+        }
+    }
+}
+
+/// C5: no note card; the page's pieces float on the scene, rising in one after another.
+private struct Fragments: View {
+    let page: WelcomePage
+    let stage: Int
+
+    var body: some View {
+        GeometryReader { g in
+            ForEach(Array(Fragment.pieces(page).enumerated()), id: \.offset) { i, piece in
+                let shown = stage > i || stage >= page.stages - 1
+                piece.0
+                    .rotationEffect(.degrees(piece.2))
+                    .position(x: g.size.width * piece.1.x, y: g.size.height * piece.1.y)
+                    .opacity(shown ? 1 : 0)
+                    .offset(y: shown ? 0 : 14)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Fragment.pieces(page).map(\.0.text).joined(separator: ". "))
+    }
+}
+
+/// C6: round crops of the desk at different sizes and zooms, overlapping, with one piece of the
+/// app across them.
+private struct Collage: View {
+    let page: WelcomePage
+    let stage: Int
+
+    var body: some View {
+        GeometryReader { g in
+            let w = min(g.size.width, 420)
+            let crops = Self.crops[page] ?? []
+            ZStack {
+                ForEach(Array(crops.enumerated()), id: \.offset) { _, c in
+                    crop(size: w * c.size, zoom: c.zoom, focus: c.focus).position(x: g.size.width * c.at.x, y: g.size.height * c.at.y)
+                }
+                Fragment.pieces(page)[0].0
+                    .rotationEffect(.degrees(-3))
+                    .position(x: g.size.width * 0.5, y: g.size.height * 0.8)
+                    .opacity(stage >= 1 || stage >= page.stages - 1 ? 1 : 0)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Fragment.pieces(page).map(\.0.text).joined(separator: ". "))
+    }
+
+    /// Each page's three crops: where on the picture each looks (0 to 1 across and down), how close,
+    /// how big (of the width) and where it sits (fractions of the space).
+    struct Crop { let focus: CGPoint; let zoom: CGFloat; let size: CGFloat; let at: CGPoint }
+    static let crops: [WelcomePage: [Crop]] = [
+        .writes: [Crop(focus: CGPoint(x: 0.5, y: 0.45), zoom: 1.5, size: 0.58, at: CGPoint(x: 0.4, y: 0.42)),
+                  Crop(focus: CGPoint(x: 0.82, y: 0.12), zoom: 2.4, size: 0.38, at: CGPoint(x: 0.73, y: 0.24)),
+                  Crop(focus: CGPoint(x: 0.12, y: 0.1), zoom: 2.8, size: 0.3, at: CGPoint(x: 0.74, y: 0.6))],
+        .appleNotes: [Crop(focus: CGPoint(x: 0.78, y: 0.16), zoom: 1.7, size: 0.58, at: CGPoint(x: 0.4, y: 0.42)),
+                      Crop(focus: CGPoint(x: 0.5, y: 0.5), zoom: 2.2, size: 0.38, at: CGPoint(x: 0.73, y: 0.24)),
+                      Crop(focus: CGPoint(x: 0.15, y: 0.88), zoom: 2.6, size: 0.3, at: CGPoint(x: 0.74, y: 0.6))],
+        .asksFirst: [Crop(focus: CGPoint(x: 0.2, y: 0.18), zoom: 1.6, size: 0.58, at: CGPoint(x: 0.4, y: 0.42)),
+                     Crop(focus: CGPoint(x: 0.72, y: 0.55), zoom: 2.6, size: 0.38, at: CGPoint(x: 0.73, y: 0.24)),
+                     Crop(focus: CGPoint(x: 0.85, y: 0.1), zoom: 2.8, size: 0.3, at: CGPoint(x: 0.74, y: 0.6))],
+    ]
+
+    /// A round crop: the picture at `zoom` times the circle's size (3:4), moved so `focus` sits in
+    /// the middle.
+    private func crop(size: CGFloat, zoom: CGFloat, focus: CGPoint) -> some View {
+        let w = size * zoom, h = w * 4 / 3
+        return WelcomeFlow.picture()
+            .frame(width: w, height: h)
+            .offset(x: (0.5 - focus.x) * w, y: (0.5 - focus.y) * h)
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay(Circle().strokeBorder(Color.card, lineWidth: 4))
+            .shadow(color: Color(Palette.shadow).opacity(1.3), radius: 16, y: 8)
+    }
+}
+
+/// Segmented bars across the top, in place of the dots (tried on C5): the ones behind and the
+/// one you're on are amber.
+private struct Bars: View {
+    let count: Int
+    let on: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<count, id: \.self) { i in
+                Capsule().fill(i <= on ? AnyShapeStyle(Color(Palette.amber)) : AnyShapeStyle(Color.ink.opacity(0.15))).frame(height: 4)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: on)
+        .accessibilityElement()
+        .accessibilityLabel("Page \(on + 1) of \(count)")
+    }
+}
+
+/// C7's headline and line, with the website's highlighter: a soft amber band behind the key words.
+private struct MarkedWords: View {
+    let page: WelcomePage
+
+    /// The headline in three parts: before the marked words, the marked words, after.
+    private var parts: (String, String, String) {
+        switch page {
+        case .writes: ("", "Your AI", " writes\nin your notes.")
+        case .appleNotes: ("Feels like\n", "Apple Notes", ".")
+        case .asksFirst: ("Nothing changes\n", "without you", ".")
+        }
+    }
+
+    var body: some View {
+        let (a, m, b) = parts
+        VStack(spacing: 10) {
+            (Text(a) + Text(m).customAttribute(Marker()) + Text(b))
+                .textRenderer(Marker.Renderer(color: Color(Palette.underline)))
+                .font(.system(size: 34, weight: .heavy))
+                .tracking(-0.8)
+                .foregroundStyle(Color.ink)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityLabel(page.title)
+                .accessibilityIdentifier("welcome.title")
+            Text(page.line)
+                .font(.body)
+                .foregroundStyle(Color.muted)
+                .lineSpacing(2)
+                .accessibilityIdentifier("welcome.line")
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: 440)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// C7's art: the website's paper-craft pictures in a rounded frame, with pieces of its film
+/// floating over the frame's foot, clearly a picture.
+private struct SiteArt: View {
+    let page: WelcomePage
+    let stage: Int
+
+    /// The picture, and where across it the subject is (0 left, 1 right) for a tall crop.
+    private var art: (String, CGFloat) {
+        switch page {
+        case .writes: ("Welcome-site-hero", 0.66)
+        case .appleNotes: ("Welcome-site-bring", 0.5)
+        case .asksFirst: ("Welcome-site-lisbon", 0.42)
+        }
+    }
+
+    var body: some View {
+        GeometryReader { g in
+            let (name, focus) = art
+            let h = g.size.height - 28
+            let w = h * 16 / 9
+            ZStack(alignment: .topLeading) {
+                Image(name)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: w, height: h)
+                    .offset(x: min(0, max(g.size.width - w, g.size.width / 2 - focus * w)))
+                    .frame(width: g.size.width, height: h, alignment: .leading)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .accessibilityHidden(true)
+                pieces(in: CGSize(width: g.size.width, height: h))
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+
+    private var label: String {
+        switch page {
+        case .writes: "You ask ChatGPT to plan four runs a week, and it writes the plan into your note."
+        case .appleNotes: "Your Apple Notes arrive in Pinto Notes, 142 of them."
+        case .asksFirst: "Claude asks to edit your note Lisbon trip, and you allow it."
+        }
+    }
+
+    /// What floats on the picture; each rises in on its own step.
+    @ViewBuilder private func pieces(in size: CGSize) -> some View {
+        let at = { (x: CGFloat, y: CGFloat) in CGPoint(x: size.width * x, y: size.height * y) }
+        switch page {
+        case .writes:
+            SiteMe(text: "Plan four runs a week for my half marathon")
+                .frame(maxWidth: size.width * 0.72, alignment: .trailing)
+                .position(at(0.6, 0.58)).modifier(Rise(on: stage >= 1))
+            SiteAI(name: "ChatGPT", glyph: "ChatGPT", busy: "Writing in Pinto Notes")
+                .position(at(0.4, 0.78)).modifier(Rise(on: stage >= 2))
+            CaretLine(text: "Easy 5 km on Monday")
+                .rotationEffect(.degrees(-2))
+                .position(at(0.5, 1.0)).modifier(Rise(on: stage >= 3))
+        case .appleNotes:
+            ForEach(Array(Fragment.pieces(page).enumerated()), id: \.offset) { i, piece in
+                piece.0.rotationEffect(.degrees(piece.2))
+                    .position(at(piece.1.x, [0.62, 0.8, 0.98][i]))
+                    .modifier(Rise(on: stage > i || stage >= page.stages - 1))
+            }
+        case .asksFirst:
+            ForEach(Array(Fragment.pieces(page).enumerated()), id: \.offset) { i, piece in
+                piece.0.rotationEffect(.degrees(piece.2))
+                    .position(at(piece.1.x, [0.8, 0.99][i]))
+                    .modifier(Rise(on: stage > i || stage >= page.stages - 1))
+            }
+        }
+    }
+}
+
+/// Shown, or a little lower and gone: a piece rising into place.
+private struct Rise: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        content.opacity(on ? 1 : 0).offset(y: on ? 0 : 12)
+    }
+}
+
+/// Your line in the chat, as on the website: a dark bubble, its corner by you.
+private struct SiteMe: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(Color(red: 1, green: 0.965, blue: 0.918))
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(Color(red: 0.11, green: 0.086, blue: 0.063).opacity(0.92),
+                        in: UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: 18, bottomTrailingRadius: 5, topTrailingRadius: 18, style: .continuous))
+            .shadow(color: Color(red: 0.16, green: 0.08, blue: 0.02).opacity(0.4), radius: 14, y: 8)
+    }
+}
+
+/// The AI's line: its name, what it's doing, and the website's three dots.
+private struct SiteAI: View {
+    let name: String
+    let glyph: String
+    let busy: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                AIGlyph(ai: glyph, size: 12)
+                Text(name).font(.caption.weight(.bold)).foregroundStyle(Color(red: 0.42, green: 0.37, blue: 0.33))
+            }
+            HStack(spacing: 5) {
+                Text(busy).font(.subheadline)
+                HStack(spacing: 3) { ForEach(0..<3, id: \.self) { _ in Circle().frame(width: 4, height: 4) } }
+            }
+            .foregroundStyle(Color(red: 0.11, green: 0.106, blue: 0.098))
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(Color.white,
+                    in: UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: 5, bottomTrailingRadius: 18, topTrailingRadius: 18, style: .continuous))
+        .shadow(color: Color(red: 0.16, green: 0.08, blue: 0.02).opacity(0.35), radius: 14, y: 8)
+        .environment(\.colorScheme, .light)
+    }
+}
+
+/// One checklist line with ChatGPT's caret and green name tag in it, as the website draws an AI
+/// writing like a collaborator.
+private struct CaretLine: View {
+    let text: String
+    static let green = Color(red: 0.063, green: 0.639, blue: 0.498)
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "circle").font(.subheadline).foregroundStyle(Color.muted.opacity(0.6))
+            HStack(spacing: 1) {
+                Text(text).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                Rectangle().fill(Self.green).frame(width: 2, height: 18)
+                    .overlay(alignment: .bottomLeading) {
+                        HStack(spacing: 3) {
+                            AIGlyph(ai: "ChatGPT", size: 9).environment(\.colorScheme, .dark)
+                            Text("ChatGPT").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 5).frame(height: 15)
+                        .background(Self.green, in: UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 0, bottomTrailingRadius: 4, topTrailingRadius: 4))
+                        .fixedSize()
+                        .offset(y: -18)
+                    }
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(Color.card, in: .capsule)
+        .shadow(color: .black.opacity(0.06), radius: 1.5, y: 1)
+        .shadow(color: Color(Palette.shadow).opacity(1.3), radius: 18, y: 10)
     }
 }
 
@@ -454,28 +907,16 @@ private let freshFill = Color(light: Color(Palette.amberSoft), dark: Color(Palet
 /// A note page as a card: the note's own ground, a hairline and the shared soft shadow.
 private struct NoteCard<Content: View>: View {
     var look = DemoLook()
-    /// The note's navigation row: where Back goes.
-    var back: String? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
         let flat = look.onScreen || look.edge
         let shape = RoundedRectangle(cornerRadius: flat ? 0 : look.hero ? 24 : 20, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
-            if look.hero, let back {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left").font(.body.weight(.semibold))
-                    Text(back).font(.body)
-                    Spacer(minLength: 0)
-                    Image(systemName: "square.and.arrow.up").font(.body)
-                }
-                .foregroundStyle(Color(Palette.amber))
-                .padding(.bottom, 14)
-            }
             content
         }
         .padding(.horizontal, look.hero ? 20 : 18)
-        .padding(.top, look.hero ? 14 : 18)
+        .padding(.top, look.hero ? 20 : 18)
         .padding(.bottom, look.hero ? 22 : 18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         // On B's screen the screen is the ground.
@@ -488,7 +929,10 @@ private struct NoteCard<Content: View>: View {
                 shape.strokeBorder(Color.line, lineWidth: 0.5)
             }
         }
-        .shadow(color: flat ? .clear : Color(Palette.shadow), radius: 22, y: 10)
+        // A card lying on the desk: a tight contact shadow and a long, soft one under it, not a
+        // window's.
+        .shadow(color: flat ? .clear : .black.opacity(look.hero ? 0.08 : 0), radius: 1.5, y: 1)
+        .shadow(color: flat ? .clear : Color(Palette.shadow).opacity(look.hero ? 1.4 : 1), radius: look.hero ? 34 : 22, y: look.hero ? 22 : 10)
     }
 }
 
@@ -541,15 +985,14 @@ private struct UndoChip: View {
     let ai: String
     let text: String
 
+    // A label, not the editor's receipt: no Undo to press in a picture.
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             AIGlyph(ai: ai, size: 15)
             Text(text).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-            Divider().frame(height: 16)
-            Text("Undo").font(.subheadline.weight(.semibold)).foregroundStyle(Color.amberInk)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .background(Color.card, in: .capsule)
         .overlay(Capsule().strokeBorder(Color.line, lineWidth: 0.5))
         .shadow(color: Color(Palette.shadow), radius: 12, y: 5)
@@ -578,7 +1021,7 @@ private struct WritesDemo: View {
     let look: DemoLook
 
     var body: some View {
-        NoteCard(look: look, back: "Notes") {
+        NoteCard(look: look) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(RunningPlan.title).font(look.title).foregroundStyle(Color.ink)
@@ -634,7 +1077,7 @@ private struct AppleNotesDemo: View {
     private var shownRows: [(String, String)] { look.more ? Self.rows + Self.moreRows : Self.rows }
 
     var body: some View {
-        NoteCard(look: look, back: "Folders") {
+        NoteCard(look: look) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
                     ImportSourceIcon(origin: .appleNotes, size: look.hero ? 40 : 30)
@@ -676,7 +1119,7 @@ private struct AsksFirstDemo: View {
     }
 
     private var note: some View {
-        NoteCard(look: look, back: "Notes") {
+        NoteCard(look: look) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(LisbonTrip.title).font(look.title).foregroundStyle(Color.ink).padding(.bottom, 6)
                 ForEach(LisbonTrip.lines, id: \.self) { CheckRow(text: $0) }
@@ -741,21 +1184,20 @@ private struct AllowCard: View {
                 .foregroundStyle(Color.ink)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 10) {
-                Text("Don\u{2019}t allow")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.ink)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color.soft, in: .capsule)
-                Text("Allow")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    // Pressed: darker and a touch smaller, as the app's own button.
-                    .background(Color(Palette.amberButton), in: .capsule)
-                    .overlay { if pressed { Capsule().fill(.black.opacity(0.14)) } }
-                    .scaleEffect(pressed ? 0.97 : 1)
+            // A picture of the ask, not buttons: nothing here looks pressable. It rests on the
+            // answer.
+            Group {
+                if pressed {
+                    Label("Allowed", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.amberInk)
+                } else {
+                    Text("Waiting for your answer")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.muted)
+                }
             }
+            .frame(minHeight: 22)
         }
         .padding(sheet ? 20 : 16)
         .background(Color.card, in: shape)

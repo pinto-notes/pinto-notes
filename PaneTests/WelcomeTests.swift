@@ -127,9 +127,11 @@ import AppKit
         #expect(words.contains("chatgpt") && words.contains("claude"))
     }
 
-    @Test func theLookDefaultsToTheAppsOwnScreen() {
+    @Test func theLookDefaultsToTheCardOnTheDesk() {
         #expect(WelcomeStyle.allCases.count == 4)
-        #expect(WelcomeStyle.current == .device, "B, chosen by PN design and the lead on 28 October 2026")
+        #expect(WelcomeStyle.current == .scene, "C, after Emil ruled B out on 28 October 2026")
+        #expect(SceneLook.current == .framed, "C1 for now")
+        #expect(SceneLook.allCases.map(\.name) == ["C1", "C2", "C3", "C4", "C5", "C6", "C7"])
     }
 
     #if os(iOS)

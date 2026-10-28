@@ -368,7 +368,7 @@ import UIKit
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let letter: [WelcomeStyle: String] = [.card: "A", .device: "B", .scene: "C", .bold: "D"]
-        for style in WelcomeStyle.allCases {
+        for style in WelcomeStyle.allCases where style != .scene {
             for page in WelcomePage.allCases {
                 for dark in [false, true] {
                     let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
@@ -376,7 +376,7 @@ import UIKit
                 }
             }
         }
-        for style in [WelcomeStyle.card, .bold, .device] {
+        for style in [WelcomeStyle.card, .bold] {
             for page in WelcomePage.allCases {
                 let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
                 try await Self.shootPage(view, "welcome-\(letter[style]!)-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
@@ -390,9 +390,25 @@ import UIKit
             }
         }
         for stage in 0..<WelcomePage.writes.stages {
-            let view = WelcomePages(style: .device, page: .writes, frozenStage: stage, start: {}, haveAccount: {})
-            try await Self.shootPage(view, "welcome-B-1-step\(stage)", dark: false, scene: scene, dir: dir)
+            let view = WelcomePages(style: .scene, sceneLook: .framed, page: .writes, frozenStage: stage, start: {}, haveAccount: {})
+            try await Self.shootPage(view, "welcome-C1-1-step\(stage)", dark: false, scene: scene, dir: dir)
         }
+        // C's six ways for the scene to meet the words: C1 to C4 every page light and dark, C1 at
+        // the largest text; C5 and C6 every page light and the first dark; C5 with bars.
+        for look in SceneLook.allCases {
+            for page in WelcomePage.allCases {
+                for dark in [false, true] where look.hasCard || !dark || page == .writes {
+                    let view = WelcomePages(style: .scene, sceneLook: look, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+                    try await Self.shootPage(view, "welcome-\(look.name)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
+                }
+            }
+        }
+        for page in WelcomePage.allCases {
+            let view = WelcomePages(style: .scene, sceneLook: .framed, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+            try await Self.shootPage(view, "welcome-C1-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
+        }
+        let barred = WelcomePages(style: .scene, sceneLook: .fragments, bars: true, page: .writes, frozenStage: WelcomePage.writes.stages - 1, start: {}, haveAccount: {})
+        try await Self.shootPage(barred, "welcome-C5-1-bars-light", dark: false, scene: scene, dir: dir)
         for (i, (stage, typed)) in [(2, 0.0), (2, 0.35), (2, 0.7), (2, 1.0), (3, 1.0)].enumerated() {
             let view = WelcomePages(style: .bold, page: .writes, frozenStage: stage, typingProgress: typed, start: {}, haveAccount: {})
             try await Self.shootPage(view, "welcome-D-1-frame\(i)", dark: false, scene: scene, dir: dir)
