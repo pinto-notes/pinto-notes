@@ -1,5 +1,9 @@
 import Foundation
 import Testing
+import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 @testable import Pane
 
 /// Every account's first note (WelcomeNote): its words per device, written once, by one device,
@@ -139,4 +143,20 @@ import Testing
         #expect(receipt.summary == "Claude changed 1 line")
         #expect(!receipt.created, "it changed the note, it didn't write it")
     }
+
+    #if os(iOS)
+    /// Played to the end without a tap, the way in comes up (it once never did: the last pause read
+    /// the note being done as a skip).
+    @Test func playedToTheEndTheWayInComesUp() async throws {
+        WelcomeNoteView.pace = 0.01
+        defer { WelcomeNoteView.pace = 1 }
+        let before = WelcomeNoteView.wayInShown
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 393, height: 852))
+        window.rootViewController = UIHostingController(rootView: WelcomeNoteView(backend: Backend(), useEmail: {}))
+        window.isHidden = false
+        defer { window.isHidden = true }
+        for _ in 0..<40 where WelcomeNoteView.wayInShown == before { try await Task.sleep(for: .milliseconds(100)) }
+        #expect(WelcomeNoteView.wayInShown == before + 1)
+    }
+    #endif
 }

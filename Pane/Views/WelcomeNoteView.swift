@@ -219,9 +219,9 @@ struct WelcomeNoteView: View {
                 try await pause(280)
             }
             ai = nil
-            done = true
+            // Not done until the way in is up: a pause after done would read as a skip and stop here.
             try await pause(700)
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.75)) { wayIn = true }
+            finish()
         } catch {}
     }
 
@@ -243,12 +243,18 @@ struct WelcomeNoteView: View {
         } else {
             wayIn = true
         }
+        Self.wayInShown += 1
     }
+
+    /// How fast the note writes itself (tests play it through at a hundredth of the time), and how
+    /// often the way in has come up (the test that plays it to the end checks it did).
+    static var pace = 1.0
+    static var wayInShown = 0
 
     private struct Skipped: Error {}
 
     private func pause(_ ms: Int) async throws {
-        try await Task.sleep(for: .milliseconds(ms))
+        try await Task.sleep(for: .milliseconds(Double(ms) * Self.pace))
         if done { throw Skipped() }
     }
 
