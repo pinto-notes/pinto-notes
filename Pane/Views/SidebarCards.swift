@@ -7,7 +7,18 @@ import SwiftUI
 /// marks on the server (`connect_card_closed`, `templates_closed`). Never during the first-run
 /// flow, which has the whole window.
 enum SidebarCard: Equatable {
+    /// iPhone and iPad, before the others, for an account that has never had a Mac: importing
+    /// and connecting an AI happen in the Mac app (the iPhone has no first-run steps).
+    case mac
     case connect, templates
+
+    static var onMac: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
 
     /// Below this the folders need the room, so no card.
     static let minimumSidebarHeight: CGFloat = 540
@@ -15,24 +26,42 @@ enum SidebarCard: Equatable {
     /// Which card, if any. Nothing until the server has said what the account has done, so a
     /// card never flashes and swaps.
     static func pick(account: UUID?, progress: SetupProgress?, connectClosedHere: Bool, templatesClosedHere: Bool,
-                     sidebarHeight: CGFloat, largestText: Bool = false,
+                     sidebarHeight: CGFloat, largestText: Bool = false, mac: Bool = SidebarCard.onMac,
+                     hasHadMac: Bool? = nil, macClosedHere: Bool = false,
                      arguments: [String] = ProcessInfo.processInfo.arguments) -> SidebarCard? {
         // At the largest text sizes the folders need every row of the screen.
         guard account != nil, let progress, !largestText, sidebarHeight >= minimumSidebarHeight, !arguments.contains("-uitest") else { return nil }
+        // Only once the devices list has said there's no Mac (nil: not known yet), so it never
+        // flashes for someone who has one.
+        if !mac, hasHadMac == false, !macClosedHere { return .mac }
         if !progress.connected, !progress.connectCardClosed, !connectClosedHere { return .connect }
         if !progress.templatesClosed, !templatesClosedHere { return .templates }
         return nil
     }
 
-    var mark: String {
+    /// The setup mark that closes it on the account's other devices. The Mac card has none: it
+    /// only shows on iPhone and iPad, and closing it there is enough.
+    var mark: String? {
         switch self {
+        case .mac: nil
         case .connect: "connect_card_closed"
         case .templates: "templates_closed"
         }
     }
 
     static func closedKey(_ card: SidebarCard, _ account: UUID) -> String {
-        "\(card == .connect ? "connectCard" : "templatesCard").closed.\(account.uuidString.lowercased())"
+        let name = switch card {
+        case .mac: "macCard"
+        case .connect: "connectCard"
+        case .templates: "templatesCard"
+        }
+        return "\(name).closed.\(account.uuidString.lowercased())"
+    }
+
+    /// Has the account ever had a Mac, by the devices that hold its key? nil until they're known.
+    static func hasHadMac(loaded: Bool, others: [KeyDevice]) -> Bool? {
+        guard loaded else { return nil }
+        return others.contains { $0.platform == "macos" }
     }
 
     static func isClosedHere(_ card: SidebarCard, _ account: UUID, defaults: UserDefaults = .standard) -> Bool {
@@ -41,6 +70,37 @@ enum SidebarCard: Equatable {
 
     static func closeHere(_ card: SidebarCard, _ account: UUID, defaults: UserDefaults = .standard) {
         defaults.set(true, forKey: closedKey(card, account))
+    }
+}
+
+enum MacCardWords {
+    static let title = "Pinto Notes works best with the Mac app"
+    static let line = "Import your notes and connect your AI there. They show up here a moment later."
+    static let button = "Send the Mac link to myself"
+}
+
+/// "Pinto Notes works best with the Mac app": the Mac's mark beside the words; the card opens
+/// the share sheet with the download link, to send to yourself.
+struct MacCard: View {
+    let onClose: () -> Void
+
+    var body: some View {
+        SidebarCardShell(id: "sidebar.mac", title: MacCardWords.title, line: MacCardWords.line, button: MacCardWords.button,
+                         opensWeb: false, share: Self.download, titleLines: 2, action: {}, onClose: onClose) { size in
+            Image(systemName: "macbook")
+                .font(.system(size: size * 0.9, weight: .regular))
+                .foregroundStyle(Color.amberInk)
+                .frame(width: size * 1.6, height: size * 1.2)
+                .accessibilityHidden(true)
+        }
+    }
+
+    static var download: URL {
+        #if os(iOS)
+        OnboardingFlow.macDownload
+        #else
+        URL(string: "https://pintonotes.com/download")!
+        #endif
     }
 }
 
@@ -118,6 +178,10 @@ struct SidebarCardShell<Art: View>: View {
     let button: String
     /// The button leaves the app (an arrow says so).
     let opensWeb: Bool
+    /// The card shares this link (the share sheet) instead of running `action`.
+    var share: URL? = nil
+    /// A title too long for one line in the sidebar takes two (the Mac card's).
+    var titleLines = 1
     let action: () -> Void
     let onClose: () -> Void
     @ViewBuilder let art: (CGFloat) -> Art
@@ -132,7 +196,7 @@ struct SidebarCardShell<Art: View>: View {
 
     private var words: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.85)
+            Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(titleLines).minimumScaleFactor(0.85)
             // At most three lines, never fixed to its full height: asked for its smallest size
             // at a narrow width, a fixed line grew one word per line, and the window took that
             // as its own smallest height (1.2.9: the window couldn't be made shorter than the screen).
@@ -144,15 +208,20 @@ struct SidebarCardShell<Art: View>: View {
     /// button in the corner is its own button, on top, so a click there only closes.
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
-        Button(action: action) {
-            content
-                .padding(.leading, Metrics.padding)
-                .padding(.top, Metrics.padding)
-                .padding(.bottom, Metrics.padding - 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.fill.quaternary, in: shape)
-                .hoverOverlay(shape, Color.primary.opacity(0.05))
-                .contentShape(shape)
+        let label = content
+            .padding(.leading, Metrics.padding)
+            .padding(.top, Metrics.padding)
+            .padding(.bottom, Metrics.padding - 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.fill.quaternary, in: shape)
+            .hoverOverlay(shape, Color.primary.opacity(0.05))
+            .contentShape(shape)
+        Group {
+            if let share {
+                ShareLink(item: share, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) { label }
+            } else {
+                Button(action: action) { label }
+            }
         }
         .buttonStyle(CardPress())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -204,7 +273,7 @@ struct SidebarCardShell<Art: View>: View {
             // What a click on the card does, said as a link line; the card is the button.
             HStack(spacing: 3) {
                 Text(button)
-                Image(systemName: opensWeb ? "arrow.up.right" : "chevron.right").font(Metrics.arrow)
+                Image(systemName: share != nil ? "square.and.arrow.up" : opensWeb ? "arrow.up.right" : "chevron.right").font(Metrics.arrow)
             }
             .font(Metrics.button)
             .foregroundStyle(Color.amberInk)

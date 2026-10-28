@@ -8,7 +8,9 @@ import Testing
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
     private var justNow: Date { now.addingTimeInterval(-30) }
 
-    private func store(_ defaults: UserDefaults = TestDefaults()) -> OnboardingStore { OnboardingStore(defaults: defaults) }
+    /// The Mac's flow, whatever platform the tests run on (iPhone and iPad have no steps: `iPhoneHasNoSteps`).
+    private func store(_ defaults: UserDefaults = TestDefaults()) -> OnboardingStore { OnboardingStore(defaults: defaults, steps: Self.mac) }
+    static let mac = Onboarding.steps(mac: true)
 
     // MARK: Who sees it
 
@@ -22,7 +24,7 @@ import Testing
         #expect(s.covers(account))
         s.settle(accountIsNew: true, progress: SetupProgress())
         #expect(s.phase == .showing(.name))
-        #expect(Onboarding.Step.counted(from: s.first) == [.name, .bring, .connect])
+        #expect(Onboarding.Step.counted(from: s.first, in: Self.mac) == [.name, .bring, .connect])
     }
 
     /// Item 100: a name that is known (Apple's, Google's, this device's last) is not asked again.
@@ -33,7 +35,7 @@ import Testing
         s.attach(account: account, created: justNow, holdsNothing: true, now: now)
         s.settle(accountIsNew: true, progress: SetupProgress(), nameKnown: true)
         #expect(s.phase == .showing(.bring))
-        #expect(Onboarding.Step.counted(from: s.first) == [.bring, .connect], "Step 1 of 2")
+        #expect(Onboarding.Step.counted(from: s.first, in: Self.mac) == [.bring, .connect], "Step 1 of 2")
         s.back()
         #expect(s.step == .bring, "nothing behind the first step")
         s.advance(connected: false)
@@ -57,10 +59,10 @@ import Testing
 
     /// Newcomer audit #25: all three segments were amber on Connect, with Try it still to come.
     @Test func theBarIsFullOnlyForStepsBehindYou() {
-        #expect(Onboarding.segments(on: .name, first: .name) == [.current, .ahead, .ahead])
-        #expect(Onboarding.segments(on: .connect, first: .name) == [.done, .done, .current], "not full on the last counted step")
-        #expect(Onboarding.segments(on: .tryIt, first: .name) == [.done, .done, .done])
-        #expect(Onboarding.segments(on: .bring, first: .bring) == [.current, .ahead])
+        #expect(Onboarding.segments(on: .name, first: .name, in: Self.mac) == [.current, .ahead, .ahead])
+        #expect(Onboarding.segments(on: .connect, first: .name, in: Self.mac) == [.done, .done, .current], "not full on the last counted step")
+        #expect(Onboarding.segments(on: .tryIt, first: .name, in: Self.mac) == [.done, .done, .done])
+        #expect(Onboarding.segments(on: .bring, first: .bring, in: Self.mac) == [.current, .ahead])
     }
 
     @Test func aStepSavedByAVersionWithTheWelcomeResumesAtTheName() {
@@ -494,5 +496,46 @@ import Testing
     @Test func everyWayToConnectHasItsGuide() {
         // Claude Code rides on Claude's connection (or is added directly with only the command on the Mac).
         #expect(OnboardingFlow.guides.map(\.title) == ["ChatGPT", "Claude", "Codex", "Another AI"])
+    }
+}
+
+/// iPhone and iPad have no first-run steps (Emil, 28 October 2026): after sign-in the notes open.
+/// The Mac keeps its four.
+@MainActor @Suite struct OnboardingPlatformTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test func theMacFlowIsUnchangedAndTheIPhoneHasNone() {
+        #expect(Onboarding.steps(mac: true) == [.name, .bring, .connect, .tryIt])
+        #expect(Onboarding.steps(mac: false).isEmpty)
+        #if os(macOS)
+        #expect(Onboarding.steps == [.name, .bring, .connect, .tryIt])
+        #else
+        #expect(Onboarding.steps.isEmpty)
+        #endif
+    }
+
+    @Test func iPhoneHasNoSteps() {
+        let defaults = TestDefaults()
+        let s = OnboardingStore(defaults: defaults, steps: Onboarding.steps(mac: false))
+        let account = UUID()
+        s.attach(account: account, created: now.addingTimeInterval(-30), holdsNothing: true, now: now)
+        #expect(s.phase == .waiting, "still waits on the first sync, so the notes don't flash before it")
+        s.settle(accountIsNew: true, progress: SetupProgress())
+        #expect(s.phase == .off, "the notes open at once")
+        #expect(s.step == nil)
+        #expect(s.endedThisLaunch, "a new account's onboarding counts as finished")
+        #expect(defaults.string(forKey: Onboarding.savedKey(account)) == nil, "nothing to resume")
+        s.startReplay()
+        #expect(s.phase == .off, "nothing to replay")
+    }
+
+    @Test func aStepAnOlderVersionSavedOnTheIPhoneIsDropped() {
+        let defaults = TestDefaults()
+        let account = UUID()
+        defaults.set("bring", forKey: Onboarding.savedKey(account))
+        let s = OnboardingStore(defaults: defaults, steps: Onboarding.steps(mac: false))
+        s.attach(account: account, created: now, holdsNothing: false, now: now)
+        #expect(s.phase == .off)
+        #expect(defaults.string(forKey: Onboarding.savedKey(account)) == nil)
     }
 }

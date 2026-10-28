@@ -530,17 +530,20 @@ struct SidebarView: View {
         return SidebarCard.pick(account: account, progress: setup?.progress,
                                 connectClosedHere: cardsClosedHere.contains(.connect) || SidebarCard.isClosedHere(.connect, account),
                                 templatesClosedHere: cardsClosedHere.contains(.templates) || SidebarCard.isClosedHere(.templates, account),
-                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
+                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize,
+                                hasHadMac: SidebarCard.hasHadMac(loaded: KeyDevices.shared.loaded, others: KeyDevices.shared.others),
+                                macClosedHere: cardsClosedHere.contains(.mac) || SidebarCard.isClosedHere(.mac, account))
     }
 
     @ViewBuilder private func cardView(_ card: SidebarCard) -> some View {
         let close = {
             if let account = backend?.userID { SidebarCard.closeHere(card, account) }
             withAnimation(.easeOut(duration: 0.2)) { _ = cardsClosedHere.insert(card) }
-            Task { await setup?.mark(card.mark) }
+            if let mark = card.mark { Task { await setup?.mark(mark) } }
         }
         Group {
             switch card {
+            case .mac: MacCard(onClose: close)
             case .connect: ConnectCard(onConnect: { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }, onClose: close)
             case .templates: TemplatesCard(onClose: close)
             }

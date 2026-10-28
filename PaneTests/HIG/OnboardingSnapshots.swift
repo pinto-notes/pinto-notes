@@ -106,18 +106,6 @@ import UIKit
     #endif
 
     #if os(iOS)
-    /// The first run's Connect step on iPhone, the screen App Review saw (5.1.1 and 5.1.2, Oct 2026).
-    @Test func iPhoneConnectStep() async throws {
-        guard let dir = Self.dir else { return }
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        for shot in Self.shots where shot.step == .connect {
-            for dark in [false, true] {
-                try await ConnectJourneySnapshots.shoot(Self.flow(shot), "iphone-onboarding-\(shot.name)\(dark ? "-dark" : "")",
-                                                        size: CGSize(width: 375, height: 812), type: .large, dark: dark, scene: scene, dir: dir)
-            }
-        }
-    }
-
     @Test func iPhoneTerminalSheets() async throws {
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -324,61 +312,78 @@ import UIKit
     #endif
 
     #if os(iOS)
-    /// On an iPhone simulator (no Simulator window needed):
-    /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-    /// -only-testing:PaneTests/OnboardingSnapshots CODE_SIGNING_ALLOWED=NO`.
-    @Test func iPhone() async throws {
+    /// iPhone and iPad have no first-run steps (28 October 2026): the folders offer the Mac app
+    /// to an account that has never had one, before the other cards.
+    @Test func iPhoneMacCard() async throws {
         guard let dir = Self.dir else { return }
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let pad = UIDevice.current.userInterfaceIdiom == .pad
-        let size = scene.screen.bounds.size
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        for shot in Self.shots {
-            for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
-                for dark in [false, true] {
-                    let window = UIWindow(windowScene: scene)
-                    window.frame = CGRect(origin: .zero, size: size)
-                    window.overrideUserInterfaceStyle = dark ? .dark : .light
-                    window.rootViewController = UIHostingController(rootView: Self.flow(shot).dynamicTypeSize(type))
-                    window.isHidden = false
-                    try? await Task.sleep(for: .seconds(0.9))
-                    let format = UIGraphicsImageRendererFormat()
-                    format.scale = 3
-                    let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-                        window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-                    }
-                    window.isHidden = true
-                    try #require(image.pngData()).write(to: dir.appending(path: "\(pad ? "ipad" : "iphone")-\(shot.name)-\(label)-\(dark ? "dark" : "light").png"))
-                }
-            }
-        }
-    }
-    #endif
-
-    #if os(iOS)
-    /// The sheet Apple Notes opens on iPhone, over the Bring step.
-    @Test func iPhoneAppleNotesSheet() async throws {
-        guard let dir = Self.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: true)
+        let devices = KeyDevices.shared
+        KeyDevices.shared = KeyDevices()
+        KeyDevices.shared.showForPreview(others: [])
+        defer { KeyDevices.shared = devices }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+        for (label, type) in [("default", DynamicTypeSize.large), ("larger", .xxxLarge)] {
             for dark in [false, true] {
                 let window = UIWindow(windowScene: scene)
                 window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
-                let view = Self.flow(Shot(name: "3-bring", step: .bring))
-                    .sheet(isPresented: .constant(true)) { AppleNotesOnMacSheet().dynamicTypeSize(type) }
-                    .dynamicTypeSize(type)
-                window.rootViewController = UIHostingController(rootView: view)
+                window.rootViewController = UIHostingController(rootView: Self.sidebar(connected: false, c).dynamicTypeSize(type))
                 window.isHidden = false
-                try? await Task.sleep(for: .seconds(1.2))
+                try? await Task.sleep(for: .seconds(1.0))
                 let format = UIGraphicsImageRendererFormat()
                 format.scale = 3
                 let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
                     window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
                 }
                 window.isHidden = true
-                try #require(image.pngData()).write(to: dir.appending(path: "iphone-3-bring-apple-notes-sheet-\(label)-\(dark ? "dark" : "light").png"))
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-mac-card-\(label)-\(dark ? "dark" : "light").png"))
+            }
+        }
+    }
+    #endif
+    #if os(iOS)
+    static func shootPage(_ view: some View, _ name: String, dark: Bool, type: DynamicTypeSize = .large, scene: UIWindowScene, dir: URL) async throws {
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+        window.overrideUserInterfaceStyle = dark ? .dark : .light
+        window.rootViewController = UIHostingController(rootView: view.dynamicTypeSize(type).tint(Color(PColor.paneAccent))
+            .environment(\.locale, Locale(identifier: "en_US")))
+        window.isHidden = false
+        try? await Task.sleep(for: .seconds(0.8))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3
+        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        window.isHidden = true
+        try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
+    }
+
+    /// The welcome's three looks (WelcomeStyle), each page at its resting step, light and dark; the
+    /// largest text for the note card; and each page's demo step by step, to review the motion.
+    @Test func iPhoneWelcomePages() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let letter: [WelcomeStyle: String] = [.card: "A", .device: "B", .scene: "C"]
+        for style in WelcomeStyle.allCases {
+            for page in WelcomePage.allCases {
+                for dark in [false, true] {
+                    let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+                    try await Self.shootPage(view, "welcome-\(letter[style]!)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
+                }
+            }
+        }
+        for page in WelcomePage.allCases {
+            let view = WelcomePages(style: .card, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+            try await Self.shootPage(view, "welcome-A-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
+        }
+        for page in WelcomePage.allCases {
+            for stage in 0..<page.stages {
+                let view = WelcomePages(style: .card, page: page, frozenStage: stage, start: {}, haveAccount: {})
+                try await Self.shootPage(view, "welcome-A-\(page.rawValue + 1)-step\(stage)", dark: false, scene: scene, dir: dir)
             }
         }
     }

@@ -85,3 +85,49 @@ import Testing
         #endif
     }
 }
+
+/// iPhone and iPad have no first-run steps: until the account has a Mac, the folders offer the
+/// Mac app ("Pinto Notes works best with the Mac app"), before the other cards, until it's closed.
+@MainActor @Suite struct MacCardTests {
+    private let account = UUID()
+    private func device(_ platform: String) -> KeyDevice {
+        KeyDevice(id: UUID(), name: platform, platform: platform, how: .made, backedUp: false, addedAt: .now, removing: false)
+    }
+
+    private func pick(mac: Bool = false, hasHadMac: Bool?, closed: Bool = false, progress: SetupProgress = SetupProgress()) -> SidebarCard? {
+        SidebarCard.pick(account: account, progress: progress, connectClosedHere: false, templatesClosedHere: false,
+                         sidebarHeight: 760, mac: mac, hasHadMac: hasHadMac, macClosedHere: closed, arguments: [])
+    }
+
+    @Test func shownOnTheIPhoneUntilThereIsAMacOrItIsClosed() {
+        #expect(pick(hasHadMac: false) == .mac, "no Mac yet: the Mac card, before Connect your AI")
+        #expect(pick(hasHadMac: false, progress: SetupProgress(connected: true)) == .mac)
+        #expect(pick(hasHadMac: true) == .connect, "a Mac holds the key: the usual cards")
+        #expect(pick(hasHadMac: nil) == .connect, "devices not known yet: nothing that could flash and go")
+        #expect(pick(hasHadMac: false, closed: true) == .connect, "closed for good")
+        #expect(pick(mac: true, hasHadMac: false) == .connect, "never on the Mac itself")
+    }
+
+    @Test func aMacIsKnownFromTheDevicesThatHoldTheKey() {
+        #expect(SidebarCard.hasHadMac(loaded: false, others: []) == nil)
+        #expect(SidebarCard.hasHadMac(loaded: true, others: []) == false)
+        #expect(SidebarCard.hasHadMac(loaded: true, others: [device("ios")]) == false)
+        #expect(SidebarCard.hasHadMac(loaded: true, others: [device("ios"), device("macos")]) == true)
+    }
+
+    @Test func closingItHoldsOnThisDeviceAndMarksNothingOnTheServer() {
+        let defaults = TestDefaults()
+        #expect(!SidebarCard.isClosedHere(.mac, account, defaults: defaults))
+        SidebarCard.closeHere(.mac, account, defaults: defaults)
+        #expect(SidebarCard.isClosedHere(.mac, account, defaults: defaults))
+        #expect(!SidebarCard.isClosedHere(.connect, account, defaults: defaults), "each card closes on its own")
+        #expect(SidebarCard.mac.mark == nil)
+    }
+
+    @Test func itsWords() {
+        #expect(MacCardWords.title == "Pinto Notes works best with the Mac app")
+        #expect(MacCardWords.line == "Import your notes and connect your AI there. They show up here a moment later.")
+        #expect(MacCardWords.button == "Send the Mac link to myself")
+        #expect(MacCard.download.absoluteString == "https://pintonotes.com/download")
+    }
+}

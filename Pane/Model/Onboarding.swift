@@ -31,8 +31,8 @@ enum Onboarding {
 
         /// The steps that count in "Step 2 of 3", from the one the flow began at: Try it only
         /// exists once an AI is connected.
-        static func counted(from first: Step) -> [Step] {
-            Array([Step.name, .bring, .connect].drop { $0 != first })
+        static func counted(from first: Step, in steps: [Step] = Onboarding.steps) -> [Step] {
+            Array(steps.filter { $0 != .tryIt }.drop { $0 != first })
         }
 
         /// A step saved by a version that still had a welcome after sign-in resumes at the name.
@@ -41,12 +41,29 @@ enum Onboarding {
         }
     }
 
+    /// The flow's steps on this platform. On the Mac: your name, bring your notes, connect your
+    /// AI, try it. On iPhone and iPad none (Emil, 28 October 2026): after sign-in the notes open
+    /// at once, and importing and connecting an AI happen in the Mac app, which a card in the
+    /// folders offers (`SidebarCard.mac`). ChatGPT and the rest stay in Settings, Connect an AI.
+    static var steps: [Step] {
+        #if os(macOS)
+        steps(mac: true)
+        #else
+        steps(mac: false)
+        #endif
+    }
+
+    static func steps(mac: Bool) -> [Step] { mac ? Step.allCases : [] }
+
+    /// Whether a new account sees a flow at all on this platform.
+    static var hasSteps: Bool { !steps.isEmpty }
+
     enum Segment: Equatable { case done, current, ahead }
 
     /// The progress bar's segments on `step`: full only for the steps behind you, so the bar is
     /// never full while a step is still to do. Try it, after the last counted step, fills them all.
-    static func segments(on step: Step, first: Step) -> [Segment] {
-        let steps = Step.counted(from: first)
+    static func segments(on step: Step, first: Step, in all: [Step] = Onboarding.steps) -> [Segment] {
+        let steps = Step.counted(from: first, in: all)
         guard let at = steps.firstIndex(of: step) else { return steps.map { _ in .done } }
         return steps.indices.map { $0 < at ? .done : $0 == at ? .current : .ahead }
     }
@@ -144,8 +161,13 @@ final class OnboardingStore {
     @ObservationIgnored private var waitedOut = false
     @ObservationIgnored private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    /// This platform's steps (`Onboarding.steps`); tests of the Mac flow pass the Mac's on any platform.
+    let steps: [Onboarding.Step]
+    private var hasSteps: Bool { !steps.isEmpty }
+
+    init(defaults: UserDefaults = .standard, steps: [Onboarding.Step] = Onboarding.steps) {
         self.defaults = defaults
+        self.steps = steps
     }
 
     /// For screenshots and previews only.
@@ -183,7 +205,11 @@ final class OnboardingStore {
         waitedOut = false
         first = .name
         guard let account else { phase = .off; return }
-        if let step = saved(account) {
+        if saved(account) != nil, !hasSteps {
+            // A flow an older version left midway: there are no steps here now.
+            close()
+            phase = .off
+        } else if let step = saved(account) {
             first = defaults.string(forKey: Onboarding.firstKey(account)).flatMap(Onboarding.Step.init(rawValue:)) ?? .name
             phase = .showing(step)
             // A flow quit midway is shown again where it was.
@@ -260,13 +286,20 @@ final class OnboardingStore {
 
     /// Help › Show Setup Guide: from the name, where it can be changed.
     func startReplay() {
-        guard account != nil, phase == .off else { return }
+        guard account != nil, phase == .off, hasSteps else { return }
         replay = true
         first = .name
         phase = .showing(.name)
     }
 
     private func begin(nameKnown: Bool) {
+        // No steps on this platform: the new account's onboarding is over as soon as it has
+        // signed in, and the funnel counts it as finished.
+        guard hasSteps else {
+            record(.done, .shown)
+            close()
+            return
+        }
         first = Onboarding.first(nameKnown: nameKnown)
         if let account { defaults.set(first.rawValue, forKey: Onboarding.firstKey(account)) }
         show(first)
