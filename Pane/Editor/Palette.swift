@@ -181,6 +181,25 @@ enum DesignLook: String, CaseIterable, Sendable {
     }
 }
 
+extension Palette {
+    /// The iPhone Format panel's colours (FormatPanel). It sits on the system's keyboard sheet, a
+    /// cool grey in light mode, so its pills are white there with the system's label colour, as in
+    /// Notes (the warm `soft` clashed with that sheet); in dark mode, the app's warm pill and ink.
+    /// What's on (a selected segment, the line's style) is a solid amber with a white glyph, so it
+    /// reads at a glance (2026-10-28: the soft amber tint was too faint to tell). Each is picked by
+    /// appearance and Increase Contrast; FormatPanelTests holds them to 3:1 against each other.
+    enum Format {
+        static func pill(dark: Bool, highContrast: Bool) -> UInt32 {
+            dark ? (highContrast ? 0x262321 : 0x36322E) : 0xFFFFFF
+        }
+        /// A glyph that's off: the label colour on light, ink on dark.
+        static func glyph(dark: Bool, highContrast: Bool) -> UInt32 { dark ? 0xF6EFE7 : 0x000000 }
+        /// What's on: the primary buttons' amber; deeper with Increase Contrast in light mode.
+        static func on(dark: Bool, highContrast: Bool) -> UInt32 { !dark && highContrast ? 0xA85700 : 0xD96A06 }
+        static let onGlyph: UInt32 = 0xFFFFFF
+    }
+}
+
 extension Color {
     static let ink = Color(Palette.ink)
     static let muted = Color(Palette.muted)

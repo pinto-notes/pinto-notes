@@ -7,7 +7,7 @@ import UIKit
 /// written in its own face, the caret line's one in a filled capsule), then grouped pills of 50 pt:
 /// bold, italic, underline and strikethrough; the three lists, the indents and the block quote.
 /// Everything acts on the selection or the caret's line, and the panel follows the caret. The
-/// pills are solid `soft`, the glyphs ink; the accent marks only what's on.
+/// pills are solid (`Palette.Format`); what's on is a solid amber with a white glyph.
 struct FormatPanel: View {
     let controller: EditorController
 
@@ -38,15 +38,15 @@ struct FormatPanel: View {
         HStack {
             Text("Format")
                 .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.ink)
+                .foregroundStyle(Color.formatInk)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             Button { controller.closeFormatPanel() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.ink)
+                    .foregroundStyle(Color.formatInk)
                     .frame(width: 36, height: 36)
-                    .background(Color.soft, in: Circle())
+                    .background(Color.formatPill, in: Circle())
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
             }
@@ -94,10 +94,10 @@ private struct StyleChip: View {
                 .font(font)
                 .lineLimit(1)
                 .fixedSize()
-                .foregroundStyle(on ? Color.white : enabled ? Color.ink : Color.muted)
+                .foregroundStyle(on ? Color.formatOnGlyph : enabled ? Color.formatInk : Color.formatOff)
                 .padding(.horizontal, 14)
                 .frame(height: 44)
-                .background(on ? Color(Palette.amberButton) : .clear, in: Capsule())
+                .background(on ? Color.formatOn : .clear, in: Capsule())
                 .contentShape(Capsule())
         }
         .buttonStyle(PressScale())
@@ -128,7 +128,7 @@ private struct PillRow: View {
                     }
                     .padding(4)
                     .frame(width: unit * CGFloat(pill.count))
-                    .background(Color.soft, in: Capsule())
+                    .background(Color.formatPill, in: Capsule())
                 }
             }
         }
@@ -136,7 +136,7 @@ private struct PillRow: View {
     }
 }
 
-/// A glyph in a pill: ink on the pill, or in the soft accent when it's on.
+/// A glyph in a pill: the label colour on the pill, or white on solid amber when it's on.
 private struct Segment: View {
     let control: FormatControl
     let on: Bool
@@ -147,9 +147,9 @@ private struct Segment: View {
         Button(action: action) {
             Image(systemName: control.symbol)
                 .font(.system(size: 19, weight: on ? .semibold : .medium))
-                .foregroundStyle(on ? Color.amberInk : enabled ? Color.ink : Color.muted.opacity(0.55))
+                .foregroundStyle(on ? Color.formatOnGlyph : enabled ? Color.formatInk : Color.formatOff)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(on ? Color.amberSoft : .clear, in: Capsule())
+                .background(on ? Color.formatOn : .clear, in: Capsule())
                 .contentShape(Capsule())
         }
         .buttonStyle(PressScale())
@@ -195,5 +195,18 @@ final class FormatPanelHost: UIInputView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+}
+
+/// The panel's colours (`Palette.Format`), by appearance and Increase Contrast.
+extension Color {
+    private static func format(_ pick: @escaping (Bool, Bool) -> UInt32) -> Color {
+        Color(UIColor { Palette.rgb(pick($0.userInterfaceStyle == .dark, $0.accessibilityContrast == .high)) })
+    }
+    static let formatPill = format(Palette.Format.pill)
+    static let formatInk = format(Palette.Format.glyph)
+    static let formatOn = format(Palette.Format.on)
+    static let formatOnGlyph = Color(Palette.rgb(Palette.Format.onGlyph))
+    /// A control that can't act here (indent on a plain line).
+    static let formatOff = Color(UIColor { $0.userInterfaceStyle == .dark ? Palette.muted.resolvedColor(with: $0).withAlphaComponent(0.55) : .tertiaryLabel })
 }
 #endif

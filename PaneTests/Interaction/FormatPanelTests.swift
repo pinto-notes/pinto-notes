@@ -216,6 +216,27 @@ import Testing
         #expect(h.controller.format == before)
     }
 
+    /// What's on reads at a glance, in light and dark, with and without Increase Contrast: a
+    /// selected segment stands 3:1 off an unselected one (the pill), its white glyph 3:1 on the
+    /// amber, and an unselected glyph 4.5:1 on the pill. (The soft amber tint failed this.)
+    @Test(arguments: [(false, false), (false, true), (true, false), (true, true)])
+    func selectedSegmentsStandOut(_ args: (Bool, Bool)) {
+        let look = (dark: args.0, highContrast: args.1)
+        let F = Palette.Format.self
+        func c(_ hex: UInt32) -> NSColor { Palette.rgb(hex) }
+        let pill = c(F.pill(dark: look.dark, highContrast: look.highContrast))
+        let on = c(F.on(dark: look.dark, highContrast: look.highContrast))
+        let glyph = c(F.glyph(dark: look.dark, highContrast: look.highContrast))
+        let selected = AmberButtonTests.contrast(on, pill)
+        #expect(selected >= 3, "selected against unselected: \(selected)")
+        #expect(AmberButtonTests.contrast(c(F.onGlyph), on) >= 3, "the white glyph on amber")
+        #expect(AmberButtonTests.contrast(glyph, pill) >= 4.5, "an unselected glyph on its pill")
+        if look.highContrast {
+            #expect(selected >= AmberButtonTests.contrast(c(F.on(dark: look.dark, highContrast: false)), c(F.pill(dark: look.dark, highContrast: false))),
+                    "Increase Contrast never lowers it")
+        }
+    }
+
     /// Recently Deleted: nothing to format.
     @Test func aReadOnlyNoteHasNoPanel() async {
         let h = await EditorHarness("Trip\nPlan")
