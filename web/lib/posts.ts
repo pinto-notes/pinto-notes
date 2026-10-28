@@ -284,7 +284,7 @@ export const posts: Post[] = [
     excerpt: "A dot follows up on its own, with its own computer, for weeks. Who gets one, how to set it up, and what to hand it first.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-28",
     image: SHOTS.history,
     thumb: cover("ice", "openai-dots", 1600, 900, "The word dots above four plush dot characters, from OpenAI"),
     draft: false,
