@@ -248,3 +248,11 @@ enum SidebarCardMetrics {
     static let sideBySide: CGFloat = 320
     #endif
 }
+
+extension SidebarCard {
+    /// The card this device shows: on iPhone and iPad never Connect your AI (ConnectHere, 28
+    /// October 2026), and nothing in its place, so the foot of the folders stays as it was.
+    static func here(_ card: SidebarCard?, mac: Bool = ConnectHere.onMac) -> SidebarCard? {
+        card == .connect && !ConnectHere.nudges(mac: mac) ? nil : card
+    }
+}

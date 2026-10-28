@@ -1771,6 +1771,8 @@ final class ConnectGuideRoute {
     var guide: ConnectAISection.Guide?
     /// Having trouble?
     var help: HelpTopic?
+    /// iPhone: the AI whose Connect on your Mac sheet is open (ConnectHere).
+    var onMac: ConnectAISection.Guide?
     /// Bumped each time a guide closes, so the Connected list loads again.
     private(set) var closed = 0
     /// The guide on screen, for the connect funnel.
@@ -1808,6 +1810,7 @@ struct ConnectGuides: ViewModifier {
                    onDismiss: { route.guideClosed() }) { topic in
                 if let client { ConnectHelpSheet(topic: topic, client: client).consentHost(client: client) }
             }
+            .sheet(item: Binding(get: { route.onMac }, set: { route.onMac = $0 })) { ConnectOnMacSheet(ai: $0) }
     }
 }
 

@@ -527,10 +527,10 @@ struct SidebarView: View {
     /// The one card above the account: Connect your AI, then Templates (`SidebarCard.pick`).
     private var sidebarCard: SidebarCard? {
         guard let backend, case .signedIn = backend.state, let account = backend.userID else { return nil }
-        return SidebarCard.pick(account: account, progress: setup?.progress,
+        return SidebarCard.here(SidebarCard.pick(account: account, progress: setup?.progress,
                                 connectClosedHere: cardsClosedHere.contains(.connect) || SidebarCard.isClosedHere(.connect, account),
                                 templatesClosedHere: cardsClosedHere.contains(.templates) || SidebarCard.isClosedHere(.templates, account),
-                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
+                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize))
     }
 
     @ViewBuilder private func cardView(_ card: SidebarCard) -> some View {
