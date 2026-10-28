@@ -1464,7 +1464,8 @@ struct ConsentSheet: View {
         let stacked = VStack(spacing: 8) {
             allow
             if r.wants_write { readOnly.buttonStyle(.secondary(size, wide: true)) }
-            deny.buttonStyle(.secondary(size, wide: true))
+            // Stacked, the way out is a quiet word under the two that allow.
+            deny.buttonStyle(.quiet(size))
         }
         if typeSize.isAccessibilitySize {
             stacked
