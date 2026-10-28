@@ -344,91 +344,40 @@ import UIKit
     }
     #endif
     #if os(iOS)
-    static func shootPage(_ view: some View, _ name: String, dark: Bool, type: DynamicTypeSize = .large, scene: UIWindowScene, dir: URL) async throws {
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
-        window.overrideUserInterfaceStyle = dark ? .dark : .light
-        window.rootViewController = UIHostingController(rootView: view.dynamicTypeSize(type).tint(Color(PColor.paneAccent))
-            .environment(\.locale, Locale(identifier: "en_US")))
-        window.isHidden = false
-        try? await Task.sleep(for: .seconds(0.8))
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 3
-        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        window.isHidden = true
-        try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
-    }
-
-    /// The welcome's three looks (WelcomeStyle), each page at its resting step, light and dark; the
-    /// largest text for the note card; and each page's demo step by step, to review the motion.
-    @Test func iPhoneWelcomePages() async throws {
+    /// The welcome note finished, with the way in under it (light, dark, the largest text), and the
+    /// list after it folded into its row: All Notes with the Welcome note, lit as it lands.
+    @Test func iPhoneWelcomeNote() async throws {
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let letter: [WelcomeStyle: String] = [.card: "A", .device: "B", .scene: "C", .bold: "D"]
-        for style in WelcomeStyle.allCases where style != .scene {
-            for page in WelcomePage.allCases {
-                for dark in [false, true] {
-                    let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-                    try await Self.shootPage(view, "welcome-\(letter[style]!)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
-                }
+        func shoot(_ view: some View, _ name: String, dark: Bool, type: DynamicTypeSize = .large) async throws {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = UIHostingController(rootView: view.dynamicTypeSize(type).tint(Color(PColor.paneAccent))
+                .environment(\.locale, Locale(identifier: "en_US")))
+            window.isHidden = false
+            try? await Task.sleep(for: .seconds(1.0))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
             }
+            window.isHidden = true
+            try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
         }
-        for style in [WelcomeStyle.card, .bold] {
-            for page in WelcomePage.allCases {
-                let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-                try await Self.shootPage(view, "welcome-\(letter[style]!)-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
-            }
+        for (label, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("largest", false, .accessibility3)] {
+            try await shoot(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}), "welcome-note-\(label)", dark: dark, type: type)
         }
-        // Motion, step by step: every page of A; D's first page as it types.
-        for page in WelcomePage.allCases {
-            for stage in 0..<page.stages {
-                let view = WelcomePages(style: .card, page: page, frozenStage: stage, start: {}, haveAccount: {})
-                try await Self.shootPage(view, "welcome-A-\(page.rawValue + 1)-step\(stage)", dark: false, scene: scene, dir: dir)
-            }
+        // After the fold: a new account's list, its one note the Welcome note, ticked as it was.
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
+        let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone, ticked: [0]))
+        for dark in [false, true] {
+            let list = NavigationStack { NoteListView(scope: .all, selection: .constant([]), onNewNote: {}) }.modelContainer(c)
+            try await shoot(list, "welcome-note-list-\(dark ? "dark" : "light")", dark: dark)
         }
-        for stage in 0..<WelcomePage.writes.stages {
-            let view = WelcomePages(style: .scene, sceneLook: .framed, page: .writes, frozenStage: stage, start: {}, haveAccount: {})
-            try await Self.shootPage(view, "welcome-C1-1-step\(stage)", dark: false, scene: scene, dir: dir)
-        }
-        // C's six ways for the scene to meet the words: C1 to C4 every page light and dark, C1 at
-        // the largest text; C5 and C6 every page light and the first dark; C5 with bars.
-        for look in SceneLook.allCases {
-            for page in WelcomePage.allCases {
-                for dark in [false, true] where look.hasCard || look == .site || !dark || page == .writes {
-                    let view = WelcomePages(style: .scene, sceneLook: look, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-                    try await Self.shootPage(view, "welcome-\(look.name)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
-                }
-            }
-        }
-        for look in [SceneLook.framed, .site] {
-            for page in WelcomePage.allCases {
-                let view = WelcomePages(style: .scene, sceneLook: look, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-                try await Self.shootPage(view, "welcome-\(look.name)-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
-            }
-        }
-        // C7's feet: every one on page 1, light and dark; F4, F5 and F6 on every page; F6 halfway
-        // from Next to Get started.
-        for foot in WelcomeFooter.allCases {
-            let all = [.f4, .f5, .f6].contains(foot)
-            for page in WelcomePage.allCases where all || page == .writes {
-                for dark in [false, true] where !dark || page == .writes {
-                    let view = WelcomePages(style: .scene, sceneLook: .site, footer: foot, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-                    try await Self.shootPage(view, "welcome-C7-\(foot.name)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
-                }
-            }
-        }
-        let widening = WelcomePages(style: .scene, sceneLook: .site, footer: .f6, page: .asksFirst, frozenStage: WelcomePage.asksFirst.stages - 1,
-                                    widenProgress: 0.5, start: {}, haveAccount: {})
-        try await Self.shootPage(widening, "welcome-C7-F6-3-widening", dark: false, scene: scene, dir: dir)
-        let barred = WelcomePages(style: .scene, sceneLook: .fragments, bars: true, page: .writes, frozenStage: WelcomePage.writes.stages - 1, start: {}, haveAccount: {})
-        try await Self.shootPage(barred, "welcome-C5-1-bars-light", dark: false, scene: scene, dir: dir)
-        for (i, (stage, typed)) in [(2, 0.0), (2, 0.35), (2, 0.7), (2, 1.0), (3, 1.0)].enumerated() {
-            let view = WelcomePages(style: .bold, page: .writes, frozenStage: stage, typingProgress: typed, start: {}, haveAccount: {})
-            try await Self.shootPage(view, "welcome-D-1-frame\(i)", dark: false, scene: scene, dir: dir)
-        }
+        _ = note
     }
     #endif
 }

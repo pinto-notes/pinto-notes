@@ -38,12 +38,23 @@ const stubs = `
   create function extensions.digest(t bytea, alg text) returns bytea language sql as $$ select sha256(t) $$;
 `;
 
-/** A fresh database with every migration applied. */
-export async function schemaDB(): Promise<PGlite> {
+/** A fresh database with every migration applied, or only those before `before` (a file name):
+ *  a test can then make the rows that exist when a migration runs, and apply it (`migrateFrom`). */
+export async function schemaDB(before?: string): Promise<PGlite> {
   const pg = new PGlite({ extensions: { pg_trgm } });
   await pg.exec(stubs);
+  await apply(pg, (n) => !before || n < before);
+  return pg;
+}
+
+/** Applies the migrations from `from` (a file name) on. */
+export async function migrateFrom(pg: PGlite, from: string): Promise<void> {
+  await apply(pg, (n) => n >= from);
+}
+
+async function apply(pg: PGlite, take: (name: string) => boolean): Promise<void> {
   const dir = new URL("../../migrations/", import.meta.url);
-  const files = [...Deno.readDirSync(dir)].map((f) => f.name).filter((n) => n.endsWith(".sql")).sort();
+  const files = [...Deno.readDirSync(dir)].map((f) => f.name).filter((n) => n.endsWith(".sql") && take(n)).sort();
   for (const f of files) {
     try {
       await pg.exec(await Deno.readTextFile(new URL(f, dir)));
@@ -51,7 +62,6 @@ export async function schemaDB(): Promise<PGlite> {
       throw new Error(`${f}: ${(e as Error).message}`);
     }
   }
-  return pg;
 }
 
 export async function newUser(pg: PGlite): Promise<string> {

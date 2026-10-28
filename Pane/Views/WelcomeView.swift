@@ -91,8 +91,8 @@ struct WelcomeFlow: View {
         #else
         ZStack {
             if stage == .welcome, !farewell {
-                // Three pages you swipe, each a live note (WelcomePages); the way in at the thumb.
-                WelcomePages(start: { stage = .signIn(returning: false) }, haveAccount: { stage = .signIn(returning: true) })
+                // The welcome is a note being written, the way in at the foot of it (WelcomeNoteView).
+                WelcomeNoteView(backend: backend, useEmail: { stage = .signIn(returning: false) })
                     .transition(.opacity)
             } else {
                 classic.transition(.opacity)

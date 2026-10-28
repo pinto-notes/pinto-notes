@@ -779,6 +779,27 @@ final class AppSession {
         let nameKnown = isNew ? await ProfileStore.shared.settleNewAccountName(backend) != nil : false
         onboarding.settle(accountIsNew: isNew, progress: setup.progress, nameKnown: nameKnown)
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) after the first sync (new \(isNew, privacy: .public), setup behind it \(Onboarding.alreadySetUp(self.setup.progress), privacy: .public))")
+        await writeWelcomeNote(user)
+    }
+
+    /// The account's Welcome note, if this device is the one to write it (WelcomeNote): once per
+    /// account, never for an account from before. Its to-do already asks for the Mac, so the Mac
+    /// card stays away for it.
+    private func writeWelcomeNote(_ user: UUID) async {
+        guard let client = backend.client else { return }
+        let context = self.context
+        let id = await WelcomeNote.settle(account: user, claim: {
+            let won: Bool = try await client.rpc("claim_welcome_note").execute().value
+            return won
+        }, write: { body in
+            let note = context.createNote(in: .all, body: body)
+            SyncSignal.changed()
+            return note.id
+        })
+        if id != nil { SidebarCard.closeHere(.mac, user) }
+        #if os(iOS)
+        WelcomeHandoff.shared.settled(id)
+        #endif
     }
 
     /// Another device with the key removed this one: its copy of the notes and of the key go,
@@ -886,6 +907,15 @@ struct AppGate: View {
                 gate
             }
         }
+        #if os(iOS)
+        // After a sign-in from the welcome note: the note folds into its row, or slides away.
+        .overlay {
+            if WelcomeHandoff.shared.phase != .idle, case .signedIn = backend.state {
+                WelcomeHandoffOverlay()
+            }
+        }
+        .onChange(of: keyGateShown) { _, shown in if shown { WelcomeHandoff.shared.leave() } }
+        #endif
         .sheet(item: $consent) { r in
             ConsentSheet(client: CaptureScreen.client, requestID: r.id, initial: .asking(r), finish: { _ in })
         }

@@ -108,37 +108,3 @@ import AppKit
 }
 #endif
 
-/// The iPhone welcome is three pages you swipe (Emil, 28 October 2026: the old one felt like "a
-/// printed static image"), each with a demo that rests on its last step, and two ways in.
-@Suite struct WelcomePagesTests {
-    @Test func threePagesEachWithAHeadlineALineAndADemo() {
-        #expect(WelcomePage.allCases.count == 3)
-        for page in WelcomePage.allCases {
-            #expect(!page.title.isEmpty && page.title.hasSuffix("."))
-            #expect(!page.line.isEmpty)
-            #expect(page.stages >= 2, "a demo has a start and a resting step")
-            #expect(!page.title.contains("\u{2014}") && !page.line.contains("\u{2014}"), "no em dashes in UI copy")
-        }
-    }
-
-    @Test func theWelcomeTalksAboutNotesNotKeys() {
-        let words = WelcomePage.allCases.map { $0.title + " " + $0.line }.joined(separator: " ").lowercased()
-        for word in ["recovery", "key", "encrypt", "device code"] { #expect(!words.contains(word)) }
-        #expect(words.contains("chatgpt") && words.contains("claude"))
-    }
-
-    @Test func theLookDefaultsToTheCardOnTheDesk() {
-        #expect(WelcomeStyle.allCases.count == 4)
-        #expect(WelcomeStyle.current == .scene, "C, after Emil ruled B out on 28 October 2026")
-        #expect(SceneLook.current == .site, "C7, Emil's pick on 28 October 2026")
-        #expect(WelcomeFooter.allCases.map(\.name) == ["F1", "F2", "F3", "F4", "F5", "F6"])
-        #expect(SceneLook.allCases.map(\.name) == ["C1", "C2", "C3", "C4", "C5", "C6", "C7"])
-    }
-
-    #if os(iOS)
-    @Test func twoWaysIn() {
-        #expect(WelcomePages.startID == "welcome.start", "UI tests press Get started by this id")
-        #expect(WelcomePages.haveAccountID == "welcome.haveAccount")
-    }
-    #endif
-}
