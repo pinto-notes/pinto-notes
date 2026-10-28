@@ -51,8 +51,8 @@ final class AccessibilityUITests: XCTestCase {
     }
 
     /// Every button on the list and note screens has a spoken name, not a symbol name or nothing.
-    /// Two known exceptions are system-built: the sub-folder disclosure chevron, and the button
-    /// SwiftUI makes for the format bar's Menu (its image is named "Text Formatting").
+    /// One known exception is system-built: the sub-folder disclosure chevron. (The format bar's Menu was
+    /// the second until 2026-10-28; Format is a plain button now.)
     func testButtonsAreNamed() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest", "-demo", "-showFolders"]
@@ -68,7 +68,7 @@ final class AccessibilityUITests: XCTestCase {
         app.textViews["editor"].tap()
         XCTAssertTrue(app.buttons["editor.format"].waitForExistence(timeout: 3))
         unnamed += Self.unnamedButtons(app, screen: "editing")
-        XCTAssertEqual(unnamed.count, 2, "only the two known ones: \(unnamed)")
+        XCTAssertEqual(unnamed.count, 1, "only the known one: \(unnamed)")
     }
 
     static func unnamedButtons(_ app: XCUIApplication, screen: String) -> [String] {

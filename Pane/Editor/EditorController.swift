@@ -160,6 +160,64 @@ final class EditorController {
     func perform(_ make: (String, NSRange) -> TextEdit?) {
         guard let t = target, !readOnly else { return }
         if let edit = make(t.currentText, t.currentSelection) { t.apply(edit) }
+        if formatPanelShown { refreshFormat() }
+    }
+
+    // MARK: The Format panel (iPhone)
+
+    /// The Format panel is up in the keyboard's place.
+    private(set) var formatPanelShown = false
+    /// What the panel shows as on, for the caret's line and the selection. Kept while it's up.
+    private(set) var format = FormatState()
+
+    func showFormatPanel() {
+        guard target != nil, !readOnly else { return }
+        formatPanelShown = true
+        refreshFormat()
+        target?.formatPanelChanged(shown: true)
+    }
+
+    /// The close button: the panel goes and the keyboard comes back. `keyboard: false` when
+    /// editing ended anyway (the text was swiped away, another note opened).
+    func closeFormatPanel(keyboard: Bool = true) {
+        guard formatPanelShown else { return }
+        formatPanelShown = false
+        target?.formatPanelChanged(shown: false)
+        if keyboard { target?.focusEditor() }
+    }
+
+    func refreshFormat() {
+        guard let t = target else { return }
+        let now = FormatState.at(t.currentText, selection: t.currentSelection)
+        if now != format { format = now }
+    }
+
+    /// One of the panel's controls, on the selection or the caret's line, as Notes does it.
+    func apply(_ control: FormatControl) {
+        guard let t = target, !readOnly else { return }
+        let state = FormatState.at(t.currentText, selection: t.currentSelection)
+        guard state.isEnabled(control) else { return }
+        switch control {
+        case .title, .heading, .subheading, .body:
+            // Choosing the style the line has keeps it, as in Notes.
+            guard !state.isOn(control) else { break }
+            if state.monostyled { perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) } }
+            perform { ListEditing.paragraph(in: $0, selection: $1, level: control.headingLevel!) }
+        case .monostyled:
+            perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) }
+        case .bold, .italic, .underline, .strikethrough:
+            perform { FormatState.toggle(control.inline!, in: $0, selection: $1) }
+        case .bulleted, .dashed, .numbered, .quote:
+            // A code block or a heading becomes body text first: a list item is body text.
+            if state.monostyled { perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) } }
+            if ListEditing.touchesHeading(in: t.currentText, selection: t.currentSelection) {
+                perform { ListEditing.paragraph(in: $0, selection: $1, level: 0) }
+            }
+            perform { ListEditing.toggleLineStyle(in: $0, selection: $1, control.lineStyle!) }
+        case .indent, .outdent:
+            perform { ListEditing.indentLines(in: $0, selection: $1, outdent: control == .outdent) }
+        }
+        refreshFormat()
     }
 
     /// An AI's edit landed on the open note: tint what it changed.
@@ -226,6 +284,8 @@ final class EditorController {
 
     /// The text or caret changed: offer titles when the caret is in an unfinished `[[link`.
     func typingChanged(text: String, selection: NSRange?) {
+        // The panel follows the caret: bold on, Heading lit, as it moves.
+        if formatPanelShown { refreshFormat() }
         guard let sel = selection, sel.length == 0, let q = WikiLinks.typingQuery(in: text, caret: sel.location) else {
             wikiDismissed = nil
             clearWikiSuggestions()
@@ -282,4 +342,10 @@ protocol EditorTarget: AnyObject {
     func syncExternal(_ new: String)
     /// Places other people's carets now, in the same pass as a text change (collaboration).
     func showRemoteCarets(_ carets: [RemoteCaret])
+    /// The Format panel came up or went (iPhone: it takes the keyboard's place).
+    func formatPanelChanged(shown: Bool)
+}
+
+extension EditorTarget {
+    func formatPanelChanged(shown: Bool) {}
 }

@@ -770,6 +770,31 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func focusEditor() { becomeFirstResponder() }
 
+    // MARK: The Format panel
+
+    private var formatPanel: FormatPanelHost?
+    /// The bar above the keyboard, put away while the panel is up.
+    private var keyboardBar: UIView?
+
+    /// The panel takes the keyboard's place, as in Notes: the text keeps the caret and the
+    /// selection, and the bar above the keyboard goes while it's up. Closed, the keyboard is back.
+    func formatPanelChanged(shown: Bool) {
+        guard let controller else { return }
+        if shown {
+            if formatPanel == nil { formatPanel = FormatPanelHost(controller: controller) }
+            if inputAccessoryView !== nil { keyboardBar = inputAccessoryView }
+            inputAccessoryView = nil
+            inputView = formatPanel
+        } else {
+            inputView = nil
+            if let keyboardBar { inputAccessoryView = keyboardBar }
+        }
+        if isFirstResponder { reloadInputViews() } else if shown { becomeFirstResponder() }
+    }
+
+    /// Whether the panel is in the keyboard's place now (tests).
+    var showsFormatPanel: Bool { inputView is FormatPanelHost }
+
     override func paste(_ sender: Any?) {
         let pb = UIPasteboard.general
         let html = pb.data(forPasteboardType: "public.html").flatMap { String(data: $0, encoding: .utf8) }
@@ -1009,6 +1034,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
+        // Swiped away or left: next time the keyboard comes, not the panel.
+        controller?.closeFormatPanel(keyboard: false)
         controller?.isEditing = false
         controller?.typingChanged(text: text, selection: nil)
         core.restyle(textStorage, selection: nil, force: true)

@@ -304,7 +304,7 @@ enum ListEditing {
         return NSRange(location: a, length: b - a)
     }
 
-    enum LineStyle { case bulleted, dashed, numbered, quote }
+    enum LineStyle: Sendable { case bulleted, dashed, numbered, quote }
 
     /// A line's style, with its indent and how long its prefix is. A checklist item has no line
     /// style of its own: choosing one turns it into that.
@@ -360,6 +360,111 @@ enum ListEditing {
         }
         let delta = (new as NSString).length - prefixLen
         return TextEdit(range: NSRange(location: lineRange.location, length: prefixLen), replacement: new, caret: max(lineRange.location + (new as NSString).length, selection.location + delta))
+    }
+
+    /// How much of a line's start marks its style: a heading's `## `, a list item's `* ` or
+    /// `- [ ] ` (with its indent), a quote's `> `.
+    private static func stylePrefixLength(_ line: String) -> Int {
+        if let h = line.range(of: #"^#{1,6}( +|$)"#, options: .regularExpression) { return (line[h] as Substring).utf16.count }
+        if let q = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression) { return (line[q] as Substring).utf16.count }
+        return ListPrefix(line: line)?.length ?? 0
+    }
+
+    /// Format → Title / Heading / Subheading / Body (level 1, 2, 3 or 0), like Notes: the caret's
+    /// line (or every selected line) becomes that, whatever it was: a list item or a quote loses
+    /// its marker. Choosing it again changes nothing.
+    static func paragraph(in text: String, selection: NSRange, level: Int) -> TextEdit {
+        let ns = text as NSString
+        let new = level == 0 ? "" : String(repeating: "#", count: level) + " "
+        let span = lines(in: ns, touching: selection)
+        if selectedLines(ns, in: span, selection: selection) != nil {
+            return restyle(ns, span: span) { (stylePrefixLength($0), new) }
+        }
+        let lineRange = ns.lineRange(for: NSRange(location: min(selection.location, ns.length), length: 0))
+        let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        let old = stylePrefixLength(line)
+        let n = (new as NSString).length
+        let at = lineRange.location + n + max(0, selection.location - lineRange.location - old)
+        let length = min(selection.length, max(0, NSMaxRange(selection) - lineRange.location - old))
+        return TextEdit(range: NSRange(location: lineRange.location, length: old), replacement: new, caret: at + length,
+                        selection: length > 0 ? NSRange(location: at, length: length) : nil)
+    }
+
+    /// Whether the caret's line, or a selected line, is a heading (`#` to `######`).
+    static func touchesHeading(in text: String, selection: NSRange) -> Bool {
+        let ns = text as NSString
+        return ns.substring(with: lines(in: ns, touching: selection)).components(separatedBy: .newlines)
+            .contains { $0.range(of: #"^#{1,6}( |$)"#, options: .regularExpression) != nil }
+    }
+
+    /// The fenced code block (```` ``` ```` or `~~~`) the line at `location` is in, fences included:
+    /// its opening fence line and its closing one (nil while it isn't closed yet).
+    static func codeBlock(in ns: NSString, at location: Int) -> (open: NSRange, close: NSRange?)? {
+        let target = ns.lineRange(for: NSRange(location: min(location, ns.length), length: 0)).location
+        var open: (range: NSRange, fence: String)?
+        var at = 0
+        while at < ns.length {
+            let line = ns.lineRange(for: NSRange(location: at, length: 0))
+            let text = ns.substring(with: line).trimmingCharacters(in: .newlines)
+            let fence = text.range(of: #"^ {0,3}(`{3,}|~{3,})"#, options: .regularExpression).map { String(text[$0]).trimmingCharacters(in: .whitespaces) }
+            if let o = open {
+                if let f = fence, f.first == o.fence.first, f.count >= o.fence.count, text.trimmingCharacters(in: .whitespaces) == f {
+                    if target >= o.range.location && target <= line.location { return (o.range, line) }
+                    open = nil
+                }
+            } else if let f = fence {
+                open = (line, f)
+            }
+            if line.location > target, open == nil { return nil }
+            at = NSMaxRange(line)
+        }
+        if let o = open, target >= o.range.location { return (o.range, nil) }
+        return nil
+    }
+
+    /// Format → Monostyled, like Notes: the caret's line (or the selected lines) goes into a code
+    /// block; in one already, the block's fences go and its lines are text again.
+    static func toggleCodeBlock(in text: String, selection: NSRange) -> TextEdit {
+        let ns = text as NSString
+        if let block = codeBlock(in: ns, at: selection.location) {
+            let openLength = block.open.length
+            let inner: NSRange
+            if let close = block.close {
+                inner = NSRange(location: NSMaxRange(block.open), length: close.location - NSMaxRange(block.open))
+            } else {
+                inner = NSRange(location: NSMaxRange(block.open), length: ns.length - NSMaxRange(block.open))
+            }
+            var body = ns.substring(with: inner)
+            let whole = NSRange(location: block.open.location, length: NSMaxRange(block.close ?? inner) - block.open.location)
+            // The closing fence was the last line: the line before it keeps no extra line break.
+            if let close = block.close, NSMaxRange(close) == ns.length, !ns.substring(with: close).hasSuffix("\n"), body.hasSuffix("\n") { body.removeLast() }
+            let length = (body as NSString).length
+            func map(_ p: Int) -> Int { block.open.location + min(max(0, p - block.open.location - openLength), length) }
+            let a = map(selection.location), b = map(NSMaxRange(selection))
+            return TextEdit(range: whole, replacement: body, caret: b, selection: b > a ? NSRange(location: a, length: b - a) : nil)
+        }
+        let span = lines(in: ns, touching: selection)
+        let content = ns.substring(with: span)
+        let replacement = content.hasSuffix("\n") ? "```\n" + content + "```\n" : "```\n" + content + "\n```"
+        return TextEdit(range: span, replacement: replacement, caret: NSMaxRange(selection) + 4,
+                        selection: selection.length > 0 ? NSRange(location: selection.location + 4, length: selection.length) : nil)
+    }
+
+    /// Format → Increase / Decrease Indent: nests the caret's list item (or every selected one)
+    /// a level deeper or shallower, as Tab and Shift-Tab do. Lines that aren't list items stay.
+    static func indentLines(in text: String, selection: NSRange, outdent: Bool) -> TextEdit? {
+        let ns = text as NSString
+        let span = lines(in: ns, touching: selection)
+        guard selectedLines(ns, in: span, selection: selection) != nil else { return indent(in: text, selection: selection, outdent: outdent) }
+        var changed = false
+        let edit = restyle(ns, span: span) { line in
+            guard let list = ListPrefix(line: line) else { return (0, "") }
+            if !outdent { changed = true; return (0, "  ") }
+            let drop = list.indent.hasPrefix("\t") ? 1 : min(2, list.indent.prefix { $0 == " " }.count)
+            if drop > 0 { changed = true }
+            return (drop, "")
+        }
+        return changed ? edit : nil
     }
 
     /// Sets the caret line's heading level (0 = body text).

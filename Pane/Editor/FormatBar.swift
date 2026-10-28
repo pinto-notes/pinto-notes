@@ -34,33 +34,12 @@ struct FormatBar: View {
     /// The writing tools; while a `[[link` is typed, note titles take their place.
     private var tools: some View {
                 HStack(spacing: 2) {
-                    Menu {
-                        Section {
-                            Button("Title") { controller.heading(1) }
-                            Button("Heading") { controller.heading(2) }
-                            Button("Subheading") { controller.heading(3) }
-                            Button("Body") { controller.heading(0) }
-                        }
-                        // One row of five glyphs, as in Notes: as five rows the menu was taller than
-                        // the room above the keyboard and opened with the three list styles out of sight.
-                        ControlGroup {
-                            Button("Bold", systemImage: "bold", action: controller.bold)
-                            Button("Italic", systemImage: "italic", action: controller.italic)
-                            Button("Underline", systemImage: "underline", action: controller.underline)
-                            Button("Strikethrough", systemImage: "strikethrough", action: controller.strikethrough)
-                            Button("Code", systemImage: "chevron.left.forwardslash.chevron.right", action: controller.code)
-                        }
-                        .controlGroupStyle(.palette)
-                        Section {
-                            Button("Bulleted List", systemImage: "list.bullet", action: controller.bulletList)
-                            Button("Dashed List", systemImage: "list.dash", action: controller.dashedList)
-                            Button("Numbered List", systemImage: "list.number", action: controller.numberedList)
-                        }
-                    } label: {
-                        BarIcon(systemName: "textformat")
-                    }
-                    .accessibilityLabel("Format")
-                    .accessibilityIdentifier("editor.format")
+                    // The Format panel in the keyboard's place, like Notes (FormatPanel). It was a
+                    // menu until 2026-10-28: a short list over the text, with no state shown.
+                    Button(action: controller.showFormatPanel) { BarIcon(systemName: "textformat") }
+                        .buttonStyle(PressScale())
+                        .accessibilityLabel("Format")
+                        .accessibilityIdentifier("editor.format")
                     BarButton("Checklist", "checklist", action: controller.checklist)
                     BarButton("Table", "tablecells", action: controller.insertTable)
                     BarButton("Sub-note", "doc.badge.plus") { controller.newSubNote() }
