@@ -385,6 +385,17 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             dispatchEvent(new CustomEvent("amber:insets", { detail: { bottom } }));
           } });
           window.amber = amber;
+          // Links to the person's notes and apps: <a href="pinto:Work/Acme">, pinto:Acme#Agenda,
+          // pinto:Work/Habits.app. Pinto Notes opens them like a [[link]] in a note (Back comes back
+          // here), and only when tapped. Every other link stays as it was (device.openURL asks).
+          amber.open = (href) => post({ op: "note.open", href: /^pinto:/i.test(String(href).trim()) ? String(href).trim() : "pinto:" + String(href).trim() });
+          addEventListener("click", (e) => {
+            const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+            const href = a ? (a.getAttribute("href") || "").trim() : "";
+            if (!/^pinto:/i.test(href)) return;
+            e.preventDefault();
+            amber.open(href);
+          }, true);
           // For swapping in a new version while you use it: when you last touched the page, what's
           // in its fields and where it's scrolled; and putting that back into the new version.
           let touched = 0;
@@ -920,8 +931,19 @@ enum NotePageActions {
     /// the data before a data change (nil for files), for Undo.
     static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?, html: String = "",
                      ask: (String) async -> Bool = { _ in false }, askLink: (String) async -> Bool = { _ in false },
-                     needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
+                     needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in },
+                     open: (AppLinks.Link) throws -> Void = { _ in throw NotePage.OpError("Links to notes open only in the note's own screen.") }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
         let m = message as? [String: Any] ?? [:]
+        if m["op"] as? String == "note.open" {
+            // A link to one of the person's notes or apps (pinto:Work/Acme#Agenda), resolved by title
+            // like a [[link]] and opened like one. Only when tapped: an app can't move you on its own.
+            guard m["_user"] as? Bool == true else { throw NotePage.OpError("A link to a note opens when the person taps it.") }
+            guard let link = AppLinks.parse(m["href"] as? String ?? "") else {
+                throw NotePage.OpError("A link to a note is pinto: and the note's title or path, like pinto:Work/Acme or pinto:Acme#Agenda.")
+            }
+            try open(link)
+            return ([:], nil)
+        }
         if let op = m["op"] as? String, op.hasPrefix("device.") {
             var d = m
             d["op"] = String(op.dropFirst("device.".count))

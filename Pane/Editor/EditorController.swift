@@ -200,6 +200,9 @@ final class EditorController {
 
     func focus() { target?.focusEditor() }
 
+    /// Scrolls the text to the line at `location` (a link to a heading).
+    func reveal(_ location: Int) { target?.reveal(location) }
+
     /// A sub-note's current title and first line (set by the note screen).
     @ObservationIgnored var resolveNote: (UUID) -> (title: String, preview: String)? = { _ in nil }
     /// A sub-note itself, for one shown as a widget (set by the note screen).
@@ -271,6 +274,8 @@ protocol EditorTarget: AnyObject {
     var currentSelection: NSRange { get }
     func apply(_ edit: TextEdit)
     func focusEditor()
+    /// Scrolls the line at `location` to the top, focus left as it is.
+    func reveal(_ location: Int)
     func insertGrid()
     /// The keyboard leaves a table, to the line above or below it.
     func leaveGrid(_ index: Int, below: Bool)
@@ -282,4 +287,8 @@ protocol EditorTarget: AnyObject {
     func syncExternal(_ new: String)
     /// Places other people's carets now, in the same pass as a text change (collaboration).
     func showRemoteCarets(_ carets: [RemoteCaret])
+}
+
+extension EditorTarget {
+    func reveal(_ location: Int) {}
 }
