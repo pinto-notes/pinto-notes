@@ -182,3 +182,51 @@ import UIKit
     }
     #endif
 }
+
+/// After a sign-in from the welcome note (Emil, 28 October 2026: the key screens came up between
+/// signing in and the fold, and the library flashed by). A new account's key, made here, needs
+/// nobody: no key screen, and the note stays until it folds. An account from before that needs the
+/// person (another device, the recovery key) gets its screens, and the note steps aside.
+@MainActor @Suite struct WelcomeKeyGateTests {
+    /// Every state a new account's key passes through on the way: none shows the gate.
+    @Test func aNewAccountFromTheWelcomeNoteNeverSeesTheKeyGate() {
+        let h = WelcomeHandoff()
+        h.arm(ticked: [], way: .apple)
+        for (phase, needsWelcome, keyIsAccounts) in [(AccountCrypto.Phase.off, false, false), (.checking, false, false), (.checking, false, true),
+                                                     (.unreachable, false, true), (.ready, true, true), (.ready, false, true)] {
+            let needs = AppGate.keyNeedsPerson(phase: phase, asksBeforeFetch: false, needsSignIn: false)
+            #expect(!needs, "\(phase): nothing for the person to do")
+            #expect(!AppGate.gateShown(phase: phase, needsWelcome: needsWelcome, keyIsAccounts: keyIsAccounts, handingOff: true, needsPerson: needs),
+                    "\(phase): the key screen stays behind the note")
+            if needs { h.leave() }
+        }
+        #expect(h.phase == .waiting, "the hand-off isn't left: the note will fold")
+        // "Your notes are encrypted" is marked as said, for a key made here only.
+        #expect(AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .made))
+        #expect(!AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .signIn), "a key fetched for an account from before")
+        #expect(!AppGate.welcomesSilently(handingOff: false, phase: .ready, needsWelcome: true, arrivedHow: .made), "no hand-off, the screen says it")
+    }
+
+    @Test func anAccountThatNeedsItsRecoveryKeyGetsTheGateAndTheNoteStepsAside() {
+        let h = WelcomeHandoff()
+        h.arm(ticked: [], way: .google)
+        for (phase, asks, signIn) in [(AccountCrypto.Phase.waiting, false, false), (.mismatch, false, false), (.accountGone, false, false),
+                                      (.checking, true, false), (.ready, false, true)] {
+            let needs = AppGate.keyNeedsPerson(phase: phase, asksBeforeFetch: asks, needsSignIn: signIn)
+            #expect(needs, "\(phase): the person has something to do")
+            #expect(AppGate.gateShown(phase: phase == .ready ? .checking : phase, needsWelcome: false, keyIsAccounts: true, handingOff: true, needsPerson: needs))
+        }
+        h.leave()
+        #expect(h.phase == .leaving, "the note steps aside")
+        h.done()
+        #expect(AppGate.gateShown(phase: .waiting, needsWelcome: false, keyIsAccounts: true, handingOff: false, needsPerson: true))
+    }
+
+    /// Without a hand-off the gate is what it was.
+    @Test func withoutAHandOffTheGateIsUnchanged() {
+        #expect(AppGate.gateShown(phase: .checking, needsWelcome: false, keyIsAccounts: true, handingOff: false, needsPerson: false))
+        #expect(AppGate.gateShown(phase: .ready, needsWelcome: true, keyIsAccounts: true, handingOff: false, needsPerson: false))
+        #expect(!AppGate.gateShown(phase: .ready, needsWelcome: false, keyIsAccounts: true, handingOff: false, needsPerson: false))
+        #expect(AppGate.gateShown(phase: .ready, needsWelcome: false, keyIsAccounts: false, handingOff: false, needsPerson: false))
+    }
+}

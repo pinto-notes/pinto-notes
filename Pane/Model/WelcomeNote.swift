@@ -91,11 +91,15 @@ final class WelcomeHandoff {
     /// The row lights up as the note lands in it, then fades.
     private(set) var flash: UUID?
     private(set) var ticked: Set<Int> = []
+    /// Which button started it: it stays on the screen, working, until the note folds.
+    enum Way: Equatable { case apple, google }
+    private(set) var way: Way = .apple
     @ObservationIgnored private var armedAt: Date?
 
     /// A sign-in from the welcome note is under way: what's ticked goes with it.
-    func arm(ticked: Set<Int>) {
+    func arm(ticked: Set<Int>, way: Way = .apple) {
         self.ticked = ticked
+        self.way = way
         WelcomeNote.ticked = ticked
         armedAt = .now
         phase = .waiting
@@ -136,7 +140,7 @@ final class WelcomeHandoff {
 
     func flashShown() { flash = nil }
 
-    /// How long the note waits for the first sync before it steps aside.
-    static let patience: TimeInterval = 8
+    /// How long the note waits for the key and the first sync before it steps aside.
+    static let patience: TimeInterval = 20
     var waitedTooLong: Bool { armedAt.map { Date.now.timeIntervalSince($0) > Self.patience } ?? false }
 }

@@ -160,7 +160,7 @@ struct WelcomeNoteView: View {
     static let emailID = "welcome.email"
 
     private func google() {
-        WelcomeHandoff.shared.arm(ticked: ticked)
+        WelcomeHandoff.shared.arm(ticked: ticked, way: .google)
         working = true
         pressed = .google
         error = nil
@@ -177,7 +177,7 @@ struct WelcomeNoteView: View {
     }
 
     private func signIn(_ credential: AppleSignIn.Credential) {
-        WelcomeHandoff.shared.arm(ticked: ticked)
+        WelcomeHandoff.shared.arm(ticked: ticked, way: .apple)
         working = true
         pressed = .apple
         error = nil
@@ -448,7 +448,12 @@ struct WelcomeHandoffOverlay: View {
     @State private var folded = false
     @State private var faded = false
     @State private var gone = false
+    /// The note is written: the button says done for a moment before the fold.
+    @State private var signedIn = false
     @State private var ticked: Set<Int> = []
+
+    /// How long "done" shows before the note folds.
+    static let doneHold = 0.4
 
     var body: some View {
         GeometryReader { g in
@@ -456,22 +461,36 @@ struct WelcomeHandoffOverlay: View {
             let w = g.size.width, h = g.size.height + top + g.safeAreaInsets.bottom
             // The row, in the screen's coordinates; until it's known, the whole screen.
             let t = handoff.target ?? CGRect(x: 0, y: 0, width: w, height: h)
-            WelcomeNotePage(ticked: $ticked)
-                .padding(.top, top)
-                .frame(width: w, height: h, alignment: .top)
-                .background(WelcomeNotePage.paper)
-                .clipShape(RoundedRectangle(cornerRadius: folded ? 46 : 0, style: .continuous))
-                // Folding: down to the row's size and place, the note's corner on the row's.
-                .scaleEffect(x: folded ? t.width / w : 1, y: folded ? t.height / h : 1, anchor: .topLeading)
-                .offset(x: folded ? t.minX : 0, y: folded ? t.minY : (gone ? h : 0))
-                .opacity(faded ? 0 : 1)
-                .frame(width: w, height: h, alignment: .topLeading)
-                .ignoresSafeArea()
+            ZStack(alignment: .bottom) {
+                WelcomeNotePage(ticked: $ticked)
+                    .padding(.top, top)
+                    .frame(width: w, height: h, alignment: .top)
+                    .background(WelcomeNotePage.paper)
+                    .clipShape(RoundedRectangle(cornerRadius: folded ? 46 : 0, style: .continuous))
+                    // Folding: down to the row's size and place, the note's corner on the row's.
+                    .scaleEffect(x: folded ? t.width / w : 1, y: folded ? t.height / h : 1, anchor: .topLeading)
+                    .offset(x: folded ? t.minX : 0, y: folded ? t.minY : (gone ? h : 0))
+                    .opacity(faded ? 0 : 1)
+                    .frame(width: w, height: h, alignment: .topLeading)
+                // The way in, where it was: the button pressed, working, then done. It goes down
+                // as the note folds or leaves.
+                HandoffWayIn(way: handoff.way, done: signedIn)
+                    .padding(.bottom, g.safeAreaInsets.bottom)
+                    .offset(y: folded || gone ? h : 0)
+            }
+            .ignoresSafeArea()
         }
         .allowsHitTesting(false)
         .onAppear { ticked = handoff.ticked }
-        .onChange(of: handoff.target) { _, _ in handoff.fold() }
-        .onChange(of: handoff.noteID) { _, _ in handoff.fold() }
+        .onChange(of: handoff.target) { _, _ in if signedIn { handoff.fold() } }
+        .onChange(of: handoff.noteID) { _, id in
+            guard id != nil else { return }
+            withAnimation(.snappy(duration: 0.2)) { signedIn = true }
+            Task {
+                try? await Task.sleep(for: .seconds(Self.doneHold))
+                handoff.fold()
+            }
+        }
         .onChange(of: handoff.phase) { _, phase in
             switch phase {
             case .folding:
@@ -486,12 +505,56 @@ struct WelcomeHandoffOverlay: View {
             }
         }
         .task {
-            // The first sync can be slow: past a while, the note steps aside rather than hold the screen.
+            // The key and the first sync can be slow: past a while, the note steps aside rather
+            // than hold the screen.
             while handoff.phase == .waiting {
                 try? await Task.sleep(for: .milliseconds(500))
                 if handoff.waitedTooLong { handoff.leave() }
             }
         }
+    }
+}
+
+/// The welcome's way in after its button was pressed: the tagline, and that button working (a
+/// spinner in its mark's place), then done (a tick: "Signed in").
+struct HandoffWayIn: View {
+    let way: WelcomeHandoff.Way
+    let done: Bool
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let apple = way == .apple
+        let shape = RoundedRectangle(cornerRadius: SignInView.Row.radius, style: .continuous)
+        // Apple's button is black, white in the dark; Google's the soft fill, as on the welcome.
+        let fill: Color = apple ? (scheme == .dark ? .white : .black) : Color.soft
+        let ink: Color = apple ? (scheme == .dark ? .black : .white) : Color.ink
+        VStack(spacing: 12) {
+            Text("Notes you and your AI share.")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.muted)
+            HStack(spacing: 8) {
+                if done {
+                    Image(systemName: "checkmark").font(.body.weight(.bold)).transition(.scale.combined(with: .opacity))
+                } else {
+                    ProgressView().controlSize(.small).tint(ink)
+                }
+                Text(done ? "Signed in" : (apple ? "Continue with Apple" : "Continue with Google"))
+                    .font(.system(size: 17, weight: .semibold))
+                    .contentTransition(.opacity)
+            }
+            .foregroundStyle(ink)
+            .frame(maxWidth: .infinity, minHeight: SignInView.Row.height)
+            .background(fill, in: shape)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(done ? "Signed in" : "Signing in")
+            .accessibilityIdentifier("welcome.handoff.button")
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 18)
+        .padding(.bottom, 24)
+        .frame(maxWidth: WelcomeFlow.readableWidth)
+        .frame(maxWidth: .infinity)
+        .background(WelcomeNotePage.paper)
     }
 }
 #endif
