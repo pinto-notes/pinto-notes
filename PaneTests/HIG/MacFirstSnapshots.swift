@@ -1,10 +1,11 @@
-#if os(iOS)
 import Supabase
 import SwiftData
 import SwiftUI
 import Testing
-import UIKit
 @testable import Pane
+#if os(iOS)
+import UIKit
+#endif
 
 /// iPhone, Mac first (28 October 2026): Settings' Connect an AI page and the folders, where the
 /// Connect your AI card was, light and dark, with no AI connected. Offscreen; runs only when
@@ -12,6 +13,14 @@ import UIKit
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 /// -only-testing:PaneTests/MacFirstSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct MacFirstSnapshots {
+    #if os(macOS)
+    /// The Mac is unchanged: its card and its rows as before.
+    @Test func theMacIsUnchanged() {
+        #expect(SidebarCard.here(.connect) == .connect)
+        #expect(ConnectHere.press(.claude, connected: false) == .start)
+        #expect(FirstOpenContent.offersConnect(connected: false))
+    }
+    #else
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
 
@@ -59,5 +68,5 @@ import UIKit
         let sheet = Color(.systemGroupedBackground).ignoresSafeArea().sheet(isPresented: .constant(true)) { ConnectOnMacSheet(ai: .claude) }
         try await Self.shoot(sheet, "iphone-claude-on-mac-\(mode)", dark: dark, scene: scene, dir: dir, wait: 1.8)
     }
-}
 #endif
+}
