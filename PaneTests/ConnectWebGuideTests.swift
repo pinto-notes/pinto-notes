@@ -82,8 +82,11 @@ import Testing
         #expect(box.opened == [listing, listing])
     }
 
-    @Test func listingIsOffByDefault() {
-        #expect(ChatGPTPlugin.listed == nil)
+    /// The plugin is live (28 October 2026): Connect ChatGPT opens its page in one step, not the
+    /// custom MCP server walk-through.
+    @Test func connectChatGPTOpensThePublishedPlugin() {
+        #expect(ChatGPTPlugin.listed?.absoluteString.hasPrefix("https://chatgpt.com/plugins/") == true)
+        #expect(ConnectWebGuide.chatgpt().single)
         #expect(ConnectWebGuide.chatgpt(listing: nil).single == false)
     }
 
