@@ -196,7 +196,7 @@ export const posts: Post[] = [
   {
     slug: "habit-tracker-with-chatgpt-or-claude",
     title: "A habit tracker your AI can update for you",
-    description: "Habit apps keep their AI coaches to themselves. A free tracker Claude can update today (ChatGPT soon), plus a prompt for one built in chat.",
+    description: "Habit apps keep their AI coaches to themselves. A free tracker ChatGPT or Claude can update, plus a prompt for one built in chat.",
     excerpt: "Every habit tracker dies from the ticking. The two ways to let the AI you already talk to fill it in, and the one that keeps working past week three.",
     category: "Guides",
     date: "2026-10-13",
@@ -208,7 +208,7 @@ export const posts: Post[] = [
   {
     slug: "budget-tracker-with-chatgpt-or-claude",
     title: "A budget your AI can keep for you",
-    description: "Most budget apps keep their AI to themselves. A free budget Claude can add your spending to (ChatGPT soon), where the app, not the AI, does the sums.",
+    description: "Most budget apps keep their AI to themselves. A free budget ChatGPT or Claude can add your spending to, where the app, not the AI, does the sums.",
     excerpt: "Budgets fail at writing things down. Tell the AI you already chat with what you spent, and let a real app, not the AI, do the maths.",
     category: "Guides",
     date: "2026-10-13",
@@ -424,8 +424,8 @@ export const posts: Post[] = [
   {
     slug: "encrypted-notes-app-for-ai",
     title: "An encrypted notes app your AI can use",
-    description: "Pinto Notes encrypts every note on your Mac and still lets Claude read and edit them (ChatGPT soon). How it works, its limits, and how others compare.",
-    excerpt: "Every note is encrypted on your devices, and Claude can still use them once you approve (ChatGPT is coming soon). How, what stays readable, and how Apple Notes, Standard Notes, Notesnook, Obsidian and Notion compare.",
+    description: "Pinto Notes encrypts every note on your Mac and still lets ChatGPT and Claude read and edit them. How it works, its limits, and how others compare.",
+    excerpt: "Every note is encrypted on your devices, and ChatGPT and Claude can still use them once you approve. How, what stays readable, and how Apple Notes, Standard Notes, Notesnook, Obsidian and Notion compare.",
     category: "Building Pinto Notes",
     date: "2026-10-01",
     updated: "2026-10-01",
@@ -464,7 +464,7 @@ export const posts: Post[] = [
     excerpt: "Where ChatGPT can reach your notes today (Apple Notes, Notion, Drive), where it stops, and the setup that lets its changes land in your notes.",
     category: "Guides",
     date: "2026-09-30",
-    updated: "2026-10-14",
+    updated: "2026-10-28",
     image: SHOTS.connectChatGPT,
     thumb: cover("paper", "openai-apps-in-chatgpt", 1600, 900, "A stacked-layers app icon on a soft blue gradient, OpenAI's picture for apps in ChatGPT"),
     draft: false,

@@ -205,7 +205,7 @@ export default function Page() {
         ]}
         caption="Research that ends in your notes: the lines ChatGPT added are marked, and you can undo them." />
       <p>
-        That direct connection is what I built Pinto Notes around. It&apos;s a notes app for Mac (iPhone coming soon) that Claude, Claude Code and Codex can read and edit today, with ChatGPT coming soon, over MCP, once you approve each one. With Codex, it&apos;s one line:
+        That direct connection is what I built Pinto Notes around. It&apos;s a notes app for Mac (iPhone coming soon) that ChatGPT, Claude, Claude Code and Codex can read and edit over MCP, once you approve each one. With Codex, it&apos;s one line:
       </p>
       <pre><code>{`codex mcp add pinto-notes --url ${MCP_URL}`}</code></pre>
       <p>

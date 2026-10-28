@@ -123,7 +123,7 @@ export default function Page() {
       </p>
 
       <h2 id="notes">And your notes?</h2>
-      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code in one notebook today, ChatGPT soon." />
+      <AIConnect caption="ChatGPT and Claude, working in one notebook." />
       <p>
         Apple Notes isn&apos;t part of this. The only AI that gets into it is Apple&apos;s own, <a href="/blog/siri-ai-apple-notes">Siri
         AI</a>, and it still has no MCP or any <a href="/blog/apple-notes-api">API</a> another app can use. So your slides will soon be
@@ -131,7 +131,7 @@ export default function Page() {
       </p>
       <p>
         That gap is why I made Pinto Notes. It works like Apple Notes, brings yours over in one import, and lets Claude, Claude Code and
-        Codex read and edit your notes through MCP once you approve them, with ChatGPT coming soon.
+        Codex read and edit your notes through MCP once you approve them.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
           : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}

@@ -18,16 +18,18 @@ export const metadata = postMetadata("connect-chatgpt-to-your-notes");
 // edit or Read only and Don't Allow (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
 // Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Show Version History (RootView.swift); the
 // connect page's "No device with Pinto Notes? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
+// 28 October 2026: the Pinto Notes plugin was published in ChatGPT's plugin directory; the ChatGPT steps now use it
+// (its page read first-hand that day). Developer mode stays only as the route for other custom apps.
 
 const FAQ = [
   { q: "Which ChatGPT plans can add Pinto Notes?", a: [
-    "Adding your own app in ChatGPT needs Developer mode, which OpenAI's developer docs list for Plus, Pro, Business, Enterprise and Edu, on the web. The free plan can't add one. Check what your plan allows before you rely on edits: OpenAI's pages differ on whether such apps can write on every plan. OpenAI also says Developer mode can depend on account and workspace policy, so in a Business or Enterprise workspace an admin may have to allow it.",
+    "Pinto Notes has been in ChatGPT's plugin directory since 28 October 2026, so you add it like any other plugin, without Developer mode. OpenAI decides which plans, countries and workspaces get directory plugins, and in a Business or Enterprise workspace an admin may have to allow it. If you can't find Plugins in ChatGPT, that's the place to check.",
   ] },
   { q: "Does it work in the ChatGPT app on my phone?", a: [
-    "You add Pinto Notes once, in ChatGPT on the web. OpenAI's developer docs only describe the web, and I haven't been able to recheck the phone apps in a Plus account since the September changes, so treat phone access as unverified for now.",
+    "Connect Pinto Notes once, in ChatGPT on the web. I haven't checked the ChatGPT phone apps with it myself yet, so treat phone access as unverified for now.",
   ] },
   { q: "Why don't I see Create MCP App in ChatGPT?", a: [
-    "Developer mode is probably off. Turn it on in Settings, Security and login (chatgpt.com/settings/security), then go back to Plugins and choose + again. Without it, the menu only offers Create plugin and Upload plugin. That fix comes from a ChatGPT Pro user on OpenAI's community forum on 28 September 2026, not from OpenAI's docs.",
+    "You don't need it for Pinto Notes any more: it's in the plugin directory. For other custom apps, Developer mode is probably off. Turn it on in Settings, Security and login (chatgpt.com/settings/security), then go back to Plugins and choose + again. Without it, the menu only offers Create plugin and Upload plugin. That fix comes from a ChatGPT Pro user on OpenAI's community forum on 28 September 2026, not from OpenAI's docs.",
   ] },
   { q: "Can ChatGPT delete my notes?", a: [
     "Only if you chose Read and edit. A deleted note goes to Recently Deleted for 30 days, and every change keeps the previous version in the note's history, so you can undo it.",
@@ -65,7 +67,7 @@ export default function Page() {
             It depends on where your notes live. Apple Notes: ChatGPT can only see the one note you have open on a Mac, and can&apos;t
             save to it. Notion and Google Drive: ChatGPT&apos;s connectors can search them, with editing depending on your plan. To
             have ChatGPT search, write and edit your notes from any chat, they need an app that connects to it, like Pinto Notes:
-            turn on Developer mode at chatgpt.com, add Pinto Notes with Create MCP App, then choose Allow on your Mac.
+            open the Pinto Notes plugin in ChatGPT, connect it, then choose Allow on your Mac.
           </p>
         </Answer>
       }
@@ -81,7 +83,7 @@ export default function Page() {
             <tr><th scope="row">Apple Notes</th><td>On a Mac, look at the note you have open. With Apple Intelligence, rewrite text you select in a note.</td><td>Can&apos;t search your notes, save a change, or reach them from your phone or the web</td></tr>
             <tr><th scope="row">Notion</th><td>Search and read pages through ChatGPT&apos;s Notion connector</td><td>What it can change depends on your plan and workspace</td></tr>
             <tr><th scope="row">Google Docs and Drive</th><td>Search and read files through the Google Drive connector</td><td>Editing depends on your plan and how your admin set it up</td></tr>
-            <tr><th scope="row">Pinto Notes</th><td>Search, read, write and edit your notes from any chat, with your OK</td><td>Needs ChatGPT Plus or higher, set up on the web once</td></tr>
+            <tr><th scope="row">Pinto Notes</th><td>Search, read, write and edit your notes from any chat, with your OK</td><td>Needs Pinto Notes on a Mac, connected once</td></tr>
           </tbody>
         </table>
       </div>
@@ -99,9 +101,9 @@ export default function Page() {
         chat and explain it all again, and if you switch to Claude, it starts from zero.
       </p>
       <p>
-        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on the Mac today, iPhone soon), and that Claude sees too. Pinto Notes is built for that. It works with Claude today; the ChatGPT plugin is coming soon, and until then the Developer mode setup below is for people comfortable with OpenAI&apos;s developer settings.
+        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on the Mac today, iPhone soon), and that Claude sees too. Pinto Notes is built for that, and it works with ChatGPT and Claude.
       </p>
-      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code in the same notes today; ChatGPT is coming soon." />
+      <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
 
       <h2 id="which">Which AI, and what you need</h2>
       <PostFigure src="/blog/news/openai-chatgpt-mcp-request-diagram" width={1000} height={480} maxWidth={560}
@@ -118,7 +120,7 @@ export default function Page() {
             <tr><th scope="col">Assistant</th><th scope="col">Where you add it</th><th scope="col">Plan</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row"><a href="#chatgpt">ChatGPT</a></th><td>On the web, in Plugins, with Developer mode on</td><td>Plus, Pro, Business, Enterprise or Edu</td></tr>
+            <tr><th scope="row"><a href="#chatgpt">ChatGPT</a></th><td>Its plugin directory: Pinto Notes</td><td>Plans with plugins</td></tr>
             <tr><th scope="row"><a href="#claude">Claude</a></th><td>Its connector directory, or a custom connector</td><td>Every plan</td></tr>
             <tr><th scope="row"><a href="#claude-code">Claude Code and Codex</a></th><td>A command or a few lines of config, with an access token</td><td>Any</td></tr>
             <tr><th scope="row"><a href="#incredible">Incredible</a></th><td>Apps, then Connect</td><td>Any</td></tr>
@@ -132,27 +134,18 @@ export default function Page() {
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
-      <p>A one-click Pinto Notes plugin for ChatGPT is coming soon. Until then, these are the Developer mode steps, in ChatGPT on the web at chatgpt.com. That&apos;s where OpenAI documents custom apps; I haven&apos;t rechecked them in a Plus account or the phone apps.</p>
-      <Figure shot={SHOTS.connectList} caption="Connect an AI in Pinto Notes. Choose ChatGPT to start." />
+      <p>Pinto Notes is in ChatGPT&apos;s plugin directory, so this takes a couple of minutes and no developer settings. I did it in ChatGPT on the web at chatgpt.com.</p>
+      <PostFigure src="/blog/news/chatgpt-pinto-notes-plugin" width={1482} height={736} maxWidth={640}
+        alt="The Pinto Notes plugin page in ChatGPT, with Manage and Try in chat buttons above three example requests about to-do lists and a Lisbon trip note."
+        caption="The Pinto Notes plugin in ChatGPT, with examples to try. Screenshot: ChatGPT." />
       <Steps>
         <li>
-          <strong>Open Connect an AI in Pinto Notes</strong>
-          <Path steps={["Pinto Notes", "Settings", "Connect an AI"]} /> If your notes are in Apple Notes, <a href="/blog/move-from-apple-notes">import them first</a>.
+          <strong>Open the Pinto Notes plugin in ChatGPT</strong>
+          Use <a href="https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f" rel="noopener">this link</a>,
+          or open Plugins in ChatGPT&apos;s sidebar and search for Pinto Notes.
         </li>
         <li>
-          <strong>Choose ChatGPT, then Copy Address and Open ChatGPT</strong>
-          Pinto Notes copies its address and opens ChatGPT&apos;s Plugins page. The steps stay on screen while you work.
-        </li>
-        <li>
-          <strong>Turn on Developer mode in ChatGPT</strong>
-          <Path steps={["Settings", "Security and login", "Developer mode"]} /> You only do this once.
-        </li>
-        <li>
-          <strong>In Plugins, choose +</strong>
-          On accounts that show a menu, choose Create MCP App. Name it Pinto Notes, paste the address as the connection, choose OAuth, then Create.
-        </li>
-        <li>
-          <strong>Sign in on the page that opens</strong>
+          <strong>Connect it</strong>
           ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
           it&apos;s on this computer). Then open Pinto Notes on your Mac, and the page shows a two-digit number.
         </li>
@@ -164,7 +157,7 @@ export default function Page() {
         </li>
         <li>
           <strong>Try it</strong>
-          Start a new chat, add Pinto Notes from the tools menu, and ask &ldquo;Search my Pinto Notes and tell me what I wrote most recently.&rdquo;
+          Choose Try in chat, or start a new chat, add Pinto Notes from the tools menu, and ask &ldquo;Search my Pinto Notes and tell me what I wrote most recently.&rdquo;
         </li>
       </Steps>
       <Figure shot={SHOTS.consent} caption="Nothing is shared until you choose Allow, and you pick Read and edit or Read only." />
@@ -177,7 +170,8 @@ export default function Page() {
 
       <h3 id="create-mcp-app-missing">If Create MCP App isn&apos;t there</h3>
       <p>
-        If choosing + in Plugins only offers Create plugin and Upload plugin, Developer mode is off. Open
+        You don&apos;t need this for Pinto Notes, which is in the directory. It&apos;s for adding other custom apps: if choosing + in
+        Plugins only offers Create plugin and Upload plugin, Developer mode is off. Open
         chatgpt.com/settings/security, turn on Developer mode, go back to Plugins and choose + again. This comes from a{" "}
         <a href="https://community.openai.com/t/create-mcp-app-missing-from-plugins-menu-on-personal-chatgpt-accounts/1401436" rel="noopener">thread
         on OpenAI&apos;s community forum</a> on 28 September 2026, where a Pro user confirmed it for a teammate&apos;s account; OpenAI&apos;s
@@ -185,8 +179,8 @@ export default function Page() {
         workspace&apos;s policy, so ask your admin if the toggle isn&apos;t there.
       </p>
       <p>
-        Menu labels differ between accounts while OpenAI rolls changes out. I couldn&apos;t check these steps in a Plus account after
-        the September changes; they follow OpenAI&apos;s <a href="https://developers.openai.com/api/docs/guides/developer-mode" rel="noopener">Developer
+        Menu labels differ between accounts while OpenAI rolls changes out. I couldn&apos;t check the Developer mode steps in a Plus account
+        after the September changes; they follow OpenAI&apos;s <a href="https://developers.openai.com/api/docs/guides/developer-mode" rel="noopener">Developer
         mode guide</a> and <a href="https://developers.openai.com/plugins/deploy/connect-chatgpt" rel="noopener">Connect and test your
         plugin</a>. If yours look different, the <a href="/help#connect">help page</a> is the quickest way to tell me.
       </p>
@@ -278,8 +272,8 @@ export default function Page() {
         <li>Connect an AI lists everything that&apos;s connected. Choose Disconnect, and it loses access right away.</li>
       </ul>
       <p>
-        OpenAI calls Developer mode elevated risk: the model can make mistakes on write actions, and a malicious server could try to
-        take your data. That&apos;s why Pinto Notes asks you to allow each app, lets you pick Read only, and keeps every earlier version.
+        ChatGPT says apps can come with elevated risk, and OpenAI&apos;s Developer mode guide spells it out: the model can make mistakes
+        on write actions, and a malicious server could try to take your data. That&apos;s why Pinto Notes asks you to allow each app, lets you pick Read only, and keeps every earlier version.
       </p>
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
