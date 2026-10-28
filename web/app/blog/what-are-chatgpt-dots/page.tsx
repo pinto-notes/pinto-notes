@@ -11,10 +11,16 @@ export const metadata = postMetadata("what-are-chatgpt-dots", { title: "What are
 // and dot table), Tasks and memory (its own notes, "not a complete transcript"; recurring tasks; proactive research
 // is read-only) and Control your dot (Pause, Activity, Scheduled, delete can't be undone). Not tested by me with a
 // dot. I haven't tried Pinto Notes with a dot, and the text says so.
+// 28 October 2026: texting a dot over iMessage and RCS, from 9to5Mac's report of two @ChatGPT posts that day (dot
+// profile, Texting; text, photos or voice notes; it texts updates; no access to your other conversations). OpenAI
+// hasn't said which plans or countries get texting, so the text doesn't either.
 
 const FAQ = [
   { q: "What is a dot in ChatGPT?", a: [
-    "An always-on agent that OpenAI announced on 29 September 2026. It runs on GPT-6 Astra, has its own computer and browser in the cloud, keeps working when your devices are off, and messages you when it needs a decision. You talk to it in ChatGPT, Slack or Teams, or call it.",
+    "An always-on agent that OpenAI announced on 29 September 2026. It runs on GPT-6 Astra, has its own computer and browser in the cloud, keeps working when your devices are off, and messages you when it needs a decision. You talk to it in ChatGPT, Slack or Teams, call it, or text it.",
+  ] },
+  { q: "Can I text my ChatGPT dot?", a: [
+    "Yes, since 28 October 2026, over iMessage or RCS. Open your dot's profile in ChatGPT and choose Texting. You can send it text, photos or voice notes, and it texts you updates on its own. OpenAI says this doesn't give the dot or OpenAI access to your other text conversations.",
   ] },
   { q: "Who can get a ChatGPT dot?", a: [
     "Pro subscribers aged over 18 outside the EU (strictly, the European Economic Area), the UK and Switzerland, Business Premium workspaces worldwide, and Enterprise workspaces once an admin turns dots on. It's rolling out gradually, so an eligible account may not see it yet.",
@@ -33,7 +39,7 @@ export default function Page() {
   return (
     <PostPage
       slug="what-are-chatgpt-dots"
-      intro={<>At DevDay on 29 September, OpenAI gave ChatGPT something new: a dot, an agent that keeps working after you close the app. Since 9 October you can set one up from your phone. Here&apos;s what a dot is, and what to hand it first if you can get one.</>}
+      intro={<>At DevDay on 29 September, OpenAI gave ChatGPT something new: a dot, an agent that keeps working after you close the app. Since 9 October you can set one up from your phone, and since 28 October you can text it from Messages. Here&apos;s what a dot is, and what to hand it first if you can get one.</>}
       answer={
         <Answer jump={[
           { href: "#what-it-is", label: "What a dot is" },
@@ -70,7 +76,8 @@ export default function Page() {
         It runs on GPT-6 Astra, OpenAI&apos;s strongest model, and has its own computer and browser in the cloud, so it works while
         your laptop is shut. It can use the plugins you&apos;ve connected (OpenAI says there are over 4,000), such as Gmail or Google
         Drive. You can give it a name and a look, message it in ChatGPT on your phone, desktop or the web, or call it and talk.
-        Slack and Teams work too, and it&apos;s the same dot with the same memory wherever you reach it.
+        Slack and Teams work too, and since 28 October you can text it over iMessage or RCS. It&apos;s the same dot with the
+        same memory and plugins wherever you reach it.
       </p>
       <p>OpenAI&apos;s own comparison is the clearest way to tell the new pieces of ChatGPT apart:</p>
       <div className="tableWrap">
@@ -127,6 +134,13 @@ export default function Page() {
           Correct what it missed before you add more.
         </li>
       </Steps>
+      <p>
+        To text your dot instead, open its profile and choose Texting (since 28 October, as{" "}
+        <a href="https://9to5mac.com/2026/10/28/openai-expanding-chatgpt-dot-access-to-imessage-and-rcs/" rel="noopener">9to5Mac reported</a>).
+        It works in Messages over iMessage or RCS: send it a job as text, a photo or a voice note, and it texts you updates
+        on its own. OpenAI says it can&apos;t see your other conversations. OpenAI hasn&apos;t said yet whether texting
+        has the same plan and country limits as dots themselves.
+      </p>
       <Keep title="A first job for your dot" text={FIRST}
         note="Based on OpenAI's own offsite example. Swap the renovation for whatever you're chasing by email this month." />
 
