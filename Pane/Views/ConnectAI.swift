@@ -1319,21 +1319,29 @@ struct ConsentSheet: View {
     static let compact = false
     #endif
 
-    /// One icon: the AI's mark when the return address is its own, else a plain tile.
-    private func icon(_ r: ConnectRequest) -> some View {
+    /// The pair at the top: the asking app's mark, three quiet dots, and Pinto's own icon.
+    /// The AI's mark only when the return address is its own, else a plain tile.
+    private func header(_ r: ConnectRequest) -> some View {
         let ai = r.verifiedAI
-        let size: CGFloat = Self.compact ? 72 : 64
-        return Group {
-            if let ai {
-                AITile(ai: ai, size: size)
-            } else {
-                // An app we can't vouch for: a plain glyph, never a borrowed mark.
-                ClientTile(symbol: r.loopback ? "desktopcomputer" : "globe", size: size)
+        let size: CGFloat = Self.compact ? 60 : 52
+        return HStack(spacing: Self.compact ? 14 : 12) {
+            Group {
+                if let ai {
+                    AITile(ai: ai, size: size)
+                } else {
+                    // An app we can't vouch for: a plain glyph, never a borrowed mark.
+                    ClientTile(symbol: r.loopback ? "desktopcomputer" : "globe", size: size)
+                }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ai ?? "An app")
+            .accessibilityIdentifier(ai == nil ? "connect.header.unknown" : "connect.header.\(ai!)")
+            HStack(spacing: 5) {
+                ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.muted.opacity(0.45)).frame(width: 4, height: 4) }
+            }
+            .accessibilityHidden(true)
+            AppMark(size: size)
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(ai ?? "An app")
-        .accessibilityIdentifier(ai == nil ? "connect.header.unknown" : "connect.header.\(ai!)")
     }
 
     #if os(macOS)
@@ -1343,7 +1351,11 @@ struct ConsentSheet: View {
     #endif
 
     /// The title: who gets access, by the address it goes to.
-    nonisolated static func title(_ r: ConnectRequest) -> String { "Allow \(r.who) to use your notes?" }
+    nonisolated static func title(_ r: ConnectRequest) -> String {
+        // A web address stays as it's written ("glama.ai"); a phrase starts the sentence.
+        let who = r.who.contains(".") ? r.who : r.who.prefix(1).uppercased() + r.who.dropFirst()
+        return who + " wants to use your notes"
+    }
 
     /// What an app calls itself, as a name reads: "glama" is Glama, "claude code" Claude Code.
     /// A name with capitals of its own ("ChatGPT", "iA Writer") stays as it is.
@@ -1380,56 +1392,94 @@ struct ConsentSheet: View {
             : "It can read notes, but not change them."
     }
 
+    /// Under the text when the app asked to edit: what the two buttons that allow it mean.
+    nonisolated static let choiceLine = "Allow lets it read and change notes, and every change can be undone. Read Only lets it read."
+
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
 
     private func asking(_ r: ConnectRequest) -> some View {
         VStack(spacing: 0) {
-            icon(r).padding(.bottom, 18)
+            header(r).padding(.bottom, Self.compact ? 20 : 18)
             Text(Self.title(r))
-                .font(.display(Self.compact ? 26 : 22))
-                .tracking(Palette.tracking(Self.compact ? 26 : 22))
+                .font(.display(Self.compact ? 24 : 19))
+                .tracking(Palette.tracking(Self.compact ? 24 : 19))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("connect.title")
             Text(Self.detail(r))
-                .font(Self.compact ? .body : .system(size: 14))
+                .font(Self.compact ? .callout : .system(size: 13))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
+                .lineSpacing(1.5)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier(r.verifiedAI == nil ? "connect.unknown" : "connect.destination")
+            Text(r.wants_write ? Self.choiceLine : Self.accessLine(write: false))
+                .font(Self.compact ? .callout : .system(size: 13))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .lineSpacing(1.5)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+                .accessibilityIdentifier("connect.access.line")
             if let line = r.requestedLine() {
                 Text(line)
-                    .font(Self.compact ? .footnote : .system(size: 12))
-                    .foregroundStyle(Color.muted)
+                    .font(Self.compact ? .footnote : .system(size: 11.5))
+                    .foregroundStyle(Color.muted.opacity(0.85))
                     .multilineTextAlignment(.center)
-                    .padding(.top, 6)
+                    .padding(.top, 10)
                     .accessibilityIdentifier("connect.requested")
             }
-            if byNumber(r) { number.padding(.top, 18) }
-            access(r).padding(.top, 20)
-            Button { Task { await decide(r, allow: true) } } label: {
-                Text("Allow").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.amberProminent(Self.compact ? .big : .regular, wide: true))
-            .keyboardShortcut(.defaultAction)
-            .frame(maxWidth: Self.compact ? .infinity : 320)
-            .disabled(!armed || (byNumber(r) && match == nil))
-            .padding(.top, 22)
-            .accessibilityHint(Self.allowHint)
-            .accessibilityIdentifier("connect.allow")
-            Button("Don\u{2019}t Allow") { Task { await decide(r, allow: false) } }
-                .buttonStyle(.hoverLink)
-                .font(.system(size: Self.compact ? 15 : 13, weight: .medium))
-                .foregroundStyle(Color.muted)
-                .keyboardShortcut(.cancelAction)
-                .frame(minHeight: Self.compact ? 44 : 34)
-                .padding(.top, 6)
-                .accessibilityIdentifier("connect.deny")
+            if byNumber(r) { number.padding(.top, 16) }
+            buttons(r).padding(.top, Self.compact ? 24 : 22)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// Don't Allow, Read Only and Allow side by side; one above the other, Allow first, when they
+    /// don't fit (the largest text sizes, a narrow phone). An app that asked only to read gets no
+    /// Read Only: Allow already means that.
+    @ViewBuilder
+    private func buttons(_ r: ConnectRequest) -> some View {
+        let ready = armed && (!byNumber(r) || match != nil)
+        let size: ButtonSize = Self.compact ? .big : .regular
+        // Each button's style is set where it's placed: hugging its words in the row, full width stacked.
+        let deny = Button("Don\u{2019}t Allow") { Task { await decide(r, allow: false) } }
+            .keyboardShortcut(.cancelAction)
+            .accessibilityIdentifier("connect.deny")
+        let readOnly = Button("Read Only") { write = false; Task { await decide(r, allow: true) } }
+            .disabled(!ready)
+            .accessibilityHint("Lets it read your notes, not change them. " + Self.allowHint)
+            .accessibilityIdentifier("connect.readonly")
+        let allow = Button { write = r.wants_write; Task { await decide(r, allow: true) } } label: {
+            Text("Allow").frame(maxWidth: .infinity)
+        }
+            .buttonStyle(.amberProminent(size, wide: true))
+            .keyboardShortcut(.defaultAction)
+            .disabled(!ready)
+            .accessibilityHint(Self.allowHint)
+            .accessibilityIdentifier("connect.allow")
+        let stacked = VStack(spacing: 8) {
+            allow
+            if r.wants_write { readOnly.buttonStyle(.secondary(size, wide: true)) }
+            deny.buttonStyle(.secondary(size, wide: true))
+        }
+        if typeSize.isAccessibilitySize {
+            stacked
+        } else {
+            ViewThatFits(in: .horizontal) {
+                // The quiet two as wide as their words, Allow the rest of the row; stacked when
+                // the words wouldn't fit.
+                HStack(spacing: 8) {
+                    deny.buttonStyle(.secondary(size))
+                    if r.wants_write { readOnly.buttonStyle(.secondary(size)) }
+                    allow
+                }
+                stacked
+            }
+        }
     }
 
     /// Asked by notification: the two digits the page shows, to compare.
@@ -1438,7 +1488,7 @@ struct ConsentSheet: View {
         VStack(spacing: 6) {
             if let match {
                 Text(match.number)
-                    .font(.system(size: 52, weight: .semibold, design: .rounded))
+                    .font(.system(size: 44, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(Color.ink)
                     .accessibilityLabel("Number \(match.number.map(String.init).joined(separator: " "))")
@@ -1453,49 +1503,6 @@ struct ConsentSheet: View {
         .foregroundStyle(Color.muted)
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    /// Read and edit or read only, in plain sight: what the app asked for is chosen. An app that
-    /// asked only to read gets no choice, just the line that says so.
-    private func access(_ r: ConnectRequest) -> some View {
-        let canEdit = Binding(get: { write && r.wants_write }, set: { write = $0 })
-        return VStack(spacing: 8) {
-            if r.wants_write {
-                Group {
-                    if typeSize.isAccessibilitySize {
-                        // Segments don't fit the largest text sizes: a choice per line does.
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach([true, false], id: \.self) { edit in
-                                Button { canEdit.wrappedValue = edit } label: {
-                                    Label(edit ? "Read and edit" : "Read only",
-                                          systemImage: canEdit.wrappedValue == edit ? "checkmark.circle.fill" : "circle")
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(Color.ink)
-                                .accessibilityAddTraits(canEdit.wrappedValue == edit ? .isSelected : [])
-                            }
-                        }
-                    } else {
-                        Picker("Access", selection: canEdit) {
-                            Text("Read and edit").tag(true)
-                            Text("Read only").tag(false)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(maxWidth: Self.compact ? .infinity : 260)
-                    }
-                }
-                .accessibilityLabel("Access")
-                .accessibilityIdentifier("connect.access")
-            }
-            Text(Self.accessLine(write: canEdit.wrappedValue))
-                .font(Self.compact ? .footnote : .system(size: 12))
-                .foregroundStyle(Color.muted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("connect.access.line")
-        }
     }
 
     private func load() async {
