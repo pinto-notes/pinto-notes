@@ -48,7 +48,7 @@ heading and ticking an item with `edit`, making a folder with `create`, filing a
 
 One email a couple of minutes after an account is made, whichever way it was made (email, Apple,
 Google): from Emil, what Pinto Notes is (notes on iPhone and Mac that ChatGPT and Claude can read and
-edit, end-to-end encrypted, free), one next step, and "Just reply, I read every email."
+edit, encrypted on your devices, free), one next step, and "Just reply, I read every email."
 
 - **The step fits where the person is** (`welcomeStep` in `logic.ts`): no AI yet, Connect ChatGPT or
   Claude (`/open/connect-ai`); an AI but no app, which is someone who signed up through ChatGPT or

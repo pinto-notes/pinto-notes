@@ -157,7 +157,7 @@ export default function Page() {
       <p>
         I make Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude, Claude Code and Codex can use today, with ChatGPT coming soon. When Claude adds to a note
         it changes only those lines, the change shows up tinted with Undo, and the version before is kept in the note&apos;s history, with
-        Claude named as the one who made it. Your notes are end-to-end encrypted, and only the AI connections you approve can read them;
+        Claude named as the one who made it. Your notes are encrypted on your devices, and an AI reads them only after you approve it;
         locked notes stay out of reach even then.
       </p>
       <p>
