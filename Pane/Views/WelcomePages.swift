@@ -20,7 +20,7 @@ enum WelcomeStyle: String, CaseIterable, Sendable {
         if let forced { return forced }
         if let s = ProcessInfo.processInfo.environment["PINTO_WELCOME_STYLE"].flatMap(WelcomeStyle.init(rawValue:)) { return s }
         #endif
-        return .card
+        return .device
     }
 
     #if DEBUG
@@ -46,7 +46,8 @@ enum WelcomePage: Int, CaseIterable, Identifiable, Sendable {
     var shownTitle: String {
         switch self {
         case .writes: "Your AI writes\nin your notes."
-        default: title
+        case .appleNotes: "Feels like\nApple Notes."
+        case .asksFirst: "Nothing changes\nwithout you."
         }
     }
 
@@ -104,15 +105,17 @@ struct WelcomePages: View {
 
     var body: some View {
         GeometryReader { screen in
-            VStack(spacing: 0) {
-                TabView(selection: $selection) {
-                    ForEach(WelcomePage.allCases) { p in
-                        pageView(p, screen: screen.size)
-                            .tag(p)
-                    }
+            if style == .device, !typeSize.isAccessibilitySize {
+                // B: the app's screen runs to the bottom edge, behind the way in, which floats on
+                // the screen's fade into the page.
+                pages(screen.size)
+                    .ignoresSafeArea(.container, edges: .bottom)
+                    .overlay(alignment: .bottom) { actions }
+            } else {
+                VStack(spacing: 0) {
+                    pages(screen.size)
+                    actions
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                actions
             }
         }
         .background {
@@ -132,6 +135,19 @@ struct WelcomePages: View {
         .task(id: selection) { await play(selection) }
         .accessibilityIdentifier("welcome.pages")
     }
+
+    private func pages(_ size: CGSize) -> some View {
+        TabView(selection: $selection) {
+            ForEach(WelcomePage.allCases) { p in
+                pageView(p, screen: size)
+                    .tag(p)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+    }
+
+    /// The room the way in takes at the foot of B's screen (dots, Get started, I have an account).
+    static let actionsRoom: CGFloat = 170
 
     // MARK: A page
 
@@ -184,12 +200,25 @@ struct WelcomePages: View {
             }
         case .device:
             VStack(spacing: 0) {
-                words.padding(.horizontal, 28).padding(.top, 24)
-                Spacer(minLength: 24)
-                // The app's own screen, full width, running off the bottom edge: not a drawn phone.
-                AppScreen { WelcomeDemo(page: p, stage: stage, onScreen: true, hero: true) }
-                    .frame(height: stageHeight * 1.08, alignment: .top)
-                    .clipped()
+                // Every headline is two lines and every line two, so the screen starts at the
+                // same height on every page.
+                Words(page: p, centred: true, big: true, reserves: true).padding(.horizontal, 28).padding(.top, 20)
+                // The app's own screen, full width, running to the bottom edge: not a drawn phone.
+                // Its content stops above the way in; what's under the buttons fades into the page.
+                AppScreen {
+                    WelcomeDemo(page: p, stage: stage, onScreen: true, hero: true, sheet: p == .asksFirst, more: true)
+                        // The sheet stands clear of the fade, so its buttons read at full strength.
+                        .padding(.bottom, Self.actionsRoom + (p == .asksFirst ? 90 : 16))
+                }
+                .padding(.top, 24)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(stops: [.init(color: Color(Palette.sheetGround).opacity(0), location: 0),
+                                           .init(color: Color(Palette.sheetGround), location: 0.4)],
+                                   startPoint: .top, endPoint: .bottom)
+                        // Fades over 120 pt and is solid by the dots, so nothing shows behind them.
+                        .frame(height: 300)
+                        .allowsHitTesting(false)
+                }
             }
         }
     }
@@ -222,8 +251,10 @@ struct WelcomePages: View {
     private struct Words: View {
         let page: WelcomePage
         let centred: Bool
-        /// D's headline: bigger and heavier.
+        /// D's and B's headline: bigger and heavier.
         var big = false
+        /// B: two lines held for the headline and two for the line, filled or not.
+        var reserves = false
 
         var body: some View {
             VStack(alignment: centred ? .center : .leading, spacing: 10) {
@@ -240,6 +271,7 @@ struct WelcomePages: View {
                     .font(.body)
                     .foregroundStyle(Color.muted)
                     .lineSpacing(2)
+                    .lineLimit(reserves ? 2 : 4, reservesSpace: reserves)
                     .accessibilityIdentifier("welcome.line")
             }
             .multilineTextAlignment(centred ? .center : .leading)
@@ -349,16 +381,27 @@ private struct Dots: View {
 private struct AppScreen<Content: View>: View {
     @ViewBuilder var content: Content
 
+    /// White on the cream page; in the dark a step lighter than the page, so it reads as a screen.
+    private var ground: Color { AppScreenLook.ground }
+    private var edge: Color { AppScreenLook.edge }
+
     var body: some View {
         let shape = UnevenRoundedRectangle(topLeadingRadius: 34, topTrailingRadius: 34, style: .continuous)
-        content
-            .padding(.top, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color.notePage, in: shape)
-            .overlay(shape.stroke(Color.line, lineWidth: 0.5))
+        // The content is drawn over the screen, not sized by it: a longer list runs on under the
+        // fade and never pushes the headline above it off the page.
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .top) { content.padding(.top, 10) }
+            .background(ground, in: shape)
+            .overlay(shape.stroke(edge, lineWidth: 0.5))
             .clipShape(shape)
-            .shadow(color: Color(Palette.shadow), radius: 18, y: -2)
+            .shadow(color: .black.opacity(0.08), radius: 24, y: -2)
     }
+}
+
+private enum AppScreenLook {
+    static let ground = Color(light: .white, dark: Color(Palette.card))
+    static let edge = Color(light: Color(uiColor: .separator).opacity(0.5), dark: Color.white.opacity(0.14))
 }
 
 // MARK: The demos
@@ -379,6 +422,8 @@ struct WelcomeDemo: View {
     var sheet = false
     /// D: Claude's line types itself into the note instead of rolling in.
     var typing = false
+    /// B: more of the note or the list, so the screen is full down to where it fades.
+    var more = false
 
     var body: some View {
         switch page {
@@ -388,7 +433,7 @@ struct WelcomeDemo: View {
         }
     }
 
-    private var look: DemoLook { DemoLook(onScreen: onScreen, hero: hero, edge: edge, sheet: sheet, typing: typing) }
+    private var look: DemoLook { DemoLook(onScreen: onScreen, hero: hero, edge: edge, sheet: sheet, typing: typing, more: more) }
 }
 
 struct DemoLook {
@@ -397,6 +442,7 @@ struct DemoLook {
     var edge = false
     var sheet = false
     var typing = false
+    var more = false
 
     var title: Font { hero ? .system(size: 28, weight: .bold) : onScreen ? .title3.weight(.bold) : .title2.weight(.bold) }
 }
@@ -432,7 +478,8 @@ private struct NoteCard<Content: View>: View {
         .padding(.top, look.hero ? 14 : 18)
         .padding(.bottom, look.hero ? 22 : 18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(look.onScreen ? Color.notePage : Color.card, in: shape)
+        // On B's screen the screen is the ground.
+        .background(look.onScreen ? Color.clear : Color.card, in: shape)
         .overlay {
             if look.edge {
                 // Edge to edge, like a list: hairlines above and below, no corners.
@@ -514,6 +561,8 @@ enum RunningPlan {
     static let title = "Running plan"
     static let lines = ["Easy 5 km on Monday", "Intervals on Wednesday", "Long run on Sunday, 14 km"]
     static let added = "Rest day Thursday, 10 min stretch"
+    /// The note goes on below the checklist, as a real one does.
+    static let notes = "Goal: the half marathon on 14 March."
 }
 
 /// Page 3's note: a different one, so the page isn't page 1 again.
@@ -546,6 +595,13 @@ private struct WritesDemo: View {
                         .transition(look.typing ? .opacity : .asymmetric(insertion: .offset(y: 14).combined(with: .opacity), removal: .opacity))
                 }
                 CheckRow(text: RunningPlan.lines[2])
+                if look.more {
+                    Text(RunningPlan.notes)
+                        .font(.body)
+                        .foregroundStyle(Color.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 12)
+                }
             }
             // Room under the last line for the receipt that sits over the card's edge.
             .padding(.bottom, 12)
@@ -572,6 +628,10 @@ private struct AppleNotesDemo: View {
     static let count = 142
     static let rows: [(String, String)] = [("Groceries", "Oat milk, lemons, rice"), ("Books to read", "The Overstory, Piranesi"),
                                            ("Lisbon trip", "Flights on the 12th"), ("Gift ideas", "Mum: a good teapot")]
+    /// B: the list goes on into the fade.
+    static let moreRows: [(String, String)] = [("Recipes", "Sunday dal, green curry"), ("Garden", "Plant the garlic in November")]
+
+    private var shownRows: [(String, String)] { look.more ? Self.rows + Self.moreRows : Self.rows }
 
     var body: some View {
         NoteCard(look: look, back: "Folders") {
@@ -585,8 +645,9 @@ private struct AppleNotesDemo: View {
                 }
                 .padding(.bottom, 14)
                 .accessibilityElement(children: .combine)
-                ForEach(Array(Self.rows.enumerated()), id: \.offset) { i, row in
-                    let shown = stage > i
+                ForEach(Array(shownRows.enumerated()), id: \.offset) { i, row in
+                    // The rows past the first four are already there (they run into the fade).
+                    let shown = stage > i || i >= Self.rows.count
                     VStack(alignment: .leading, spacing: 2) {
                         Divider().padding(.bottom, 9)
                         Text(row.0).font(.body.weight(.semibold)).foregroundStyle(Color.ink)
@@ -634,7 +695,7 @@ private struct AsksFirstDemo: View {
                 .frame(maxHeight: .infinity, alignment: .top)
             if stage >= 1 {
                 AllowCard(note: LisbonTrip.title, pressed: stage >= 2, sheet: true)
-                    .padding(.horizontal, -12)
+                    .padding(.horizontal, look.onScreen ? 8 : -12)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

@@ -127,9 +127,9 @@ import AppKit
         #expect(words.contains("chatgpt") && words.contains("claude"))
     }
 
-    @Test func theLookDefaultsToTheNoteCard() {
+    @Test func theLookDefaultsToTheAppsOwnScreen() {
         #expect(WelcomeStyle.allCases.count == 4)
-        #expect(WelcomeStyle.current == .card)
+        #expect(WelcomeStyle.current == .device, "B, chosen by PN design and the lead on 28 October 2026")
     }
 
     #if os(iOS)

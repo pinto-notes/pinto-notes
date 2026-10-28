@@ -376,7 +376,7 @@ import UIKit
                 }
             }
         }
-        for style in [WelcomeStyle.card, .bold] {
+        for style in [WelcomeStyle.card, .bold, .device] {
             for page in WelcomePage.allCases {
                 let view = WelcomePages(style: style, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
                 try await Self.shootPage(view, "welcome-\(letter[style]!)-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
@@ -388,6 +388,10 @@ import UIKit
                 let view = WelcomePages(style: .card, page: page, frozenStage: stage, start: {}, haveAccount: {})
                 try await Self.shootPage(view, "welcome-A-\(page.rawValue + 1)-step\(stage)", dark: false, scene: scene, dir: dir)
             }
+        }
+        for stage in 0..<WelcomePage.writes.stages {
+            let view = WelcomePages(style: .device, page: .writes, frozenStage: stage, start: {}, haveAccount: {})
+            try await Self.shootPage(view, "welcome-B-1-step\(stage)", dark: false, scene: scene, dir: dir)
         }
         for (i, (stage, typed)) in [(2, 0.0), (2, 0.35), (2, 0.7), (2, 1.0), (3, 1.0)].enumerated() {
             let view = WelcomePages(style: .bold, page: .writes, frozenStage: stage, typingProgress: typed, start: {}, haveAccount: {})
