@@ -93,8 +93,9 @@ import Testing
         #expect(ConnectOnMacWords.send == "Send the Mac link to myself")
         #if os(iOS)
         #expect(ConnectOnMacWords.send == AppleNotesOnMacSheet.send, "the same words as the Mac card")
+        #expect(ConnectOnMacWords.macDownload == OnboardingFlow.macDownload, "the same link")
         #endif
-        #expect(OnboardingFlow.macDownload.absoluteString == "https://pintonotes.com/download")
+        #expect(ConnectOnMacWords.macDownload.absoluteString == "https://pintonotes.com/download")
         for g in [Guide.claude, .codex, .other] {
             for w in [ConnectOnMacWords.line(g), ConnectOnMacWords.text(g), ConnectOnMacWords.noMac] {
                 #expect(!w.contains("\u{2014}") && !w.contains("!") && !w.contains("MCP"), "\(w)")

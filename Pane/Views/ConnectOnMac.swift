@@ -56,6 +56,8 @@ enum ConnectOnMacWords {
     static let noMac = "No Mac app yet? Send yourself the link."
     /// The same words and link as the Mac card (OnboardingFlow, AppleNotesOnMacSheet).
     static let send = "Send the Mac link to myself"
+    /// The Mac download, as the Mac card sends it (OnboardingFlow.macDownload on iPhone).
+    static let macDownload = URL(string: "https://pintonotes.com/download")!
 }
 
 /// iPhone: why an AI isn't connected here, and the Mac link to send to yourself.
@@ -82,7 +84,7 @@ struct ConnectOnMacSheet: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.muted)
                     .multilineTextAlignment(.center)
-                ShareLink(item: OnboardingFlow.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
+                ShareLink(item: ConnectOnMacWords.macDownload, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
                     Text(ConnectOnMacWords.send)
                 }
                 .buttonStyle(.amberProminent(.form, wide: true))
