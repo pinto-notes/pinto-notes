@@ -75,10 +75,10 @@ private extension Process {
     @Test func theRequestFromTheAppsOwnSignInIsShownAsThatAI() {
         let r = ConnectOwnSignIn.mark(Self.request(), by: Self.codexSignIn)
         #expect(r.startedHere == "Codex" && r.verifiedAI == "Codex")
-        #expect(ConsentSheet.title(r) == "Codex wants to use your notes")
+        #expect(ConsentSheet.title(r) == "Connect Codex to your notes?")
         let line = ConsentSheet.detail(r)
         #expect(!line.contains("doesn\u{2019}t recognize") && !line.contains("calls itself"))
-        #expect(line == "You started connecting Codex on this Mac. The notes Codex opens, with their text and files, are sent to OpenAI and handled under OpenAI\u{2019}s privacy policy. Locked notes stay private.")
+        #expect(line == "You started connecting Codex on this Mac. Shared with OpenAI. The notes Codex opens, with their text and files, are sent to OpenAI and handled under OpenAI\u{2019}s privacy policy. Locked notes stay private. Codex can\u{2019}t open them.")
         #expect(ConnectRun.approvalCounts(r.verifiedAI, for: .codex), "allowing it finishes Codex's row")
         #expect(!ConnectRun.approvalCounts(r.verifiedAI, for: .chatgpt))
     }
@@ -90,7 +90,7 @@ private extension Process {
                   Self.request(loopback: false)] {
             let shown = ConnectOwnSignIn.mark(r, by: own)
             #expect(shown.startedHere == nil && shown.verifiedAI == nil)
-            #expect(ConsentSheet.title(shown) == "An app on this computer wants to use your notes" || !r.loopback)
+            #expect(ConsentSheet.title(shown) == "Connect an app on this computer to your notes?" || !r.loopback)
             #expect(ConsentSheet.detail(shown).contains("doesn\u{2019}t recognize this app. It calls itself Codex."))
         }
         #expect(ConnectOwnSignIn.mark(Self.request(), by: nil).startedHere == nil, "nothing started here")

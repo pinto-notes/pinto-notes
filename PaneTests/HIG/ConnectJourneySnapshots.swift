@@ -34,6 +34,10 @@ import UIKit
     static let unknown = ConnectRequest(id: UUID(), client_name: "notes-helper.example.com", redirect_host: "notes-helper.example.com",
                                         redirect_uri: "https://notes-helper.example.com/callback", claimed_name: "Notes Helper",
                                         loopback: false, wants_write: true)
+    /// Claude in this Mac's own browser, by link: no number to compare.
+    static let claudeHere = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",
+                                           redirect_uri: "https://claude.ai/api/mcp/auth_callback", claimed_name: nil,
+                                           loopback: false, wants_write: true)
     static let match: ConnectMatch.Match = {
         let row = ConnectAskMatch(browser_key: Data(repeating: 4, count: 65).base64EncodedString(), match_commit: String(repeating: "a", count: 64))
         return ConnectMatch.Match(snapshot: ConnectMatch.Snapshot(row)!, row: row, number: "42")
@@ -45,6 +49,7 @@ import UIKit
 
     static let sheets: [(String, ConsentSheet)] = [
         ("3-allow-scanned", sheet(.asking(scanned))),
+        ("4-allow-claude-here", sheet(.asking(claudeHere))),
         ("5-allow-notification", sheet(.asking(notified), match: match)),
         ("6-allow-unknown-app", sheet(.asking(unknown))),
         ("7-connected", sheet(.handedOff("claude.ai"))),
@@ -127,6 +132,88 @@ import UIKit
             try await AppSnapshotTests.render(sheet, name: "mac-\(name)-\(d)", dark: dark, wait: 1.4)
         }
         try await AppSnapshotTests.render(Self.guide(connected: true).frame(width: 360, height: 520), name: "mac-8-guide-connected-\(d)", dark: dark, wait: 1.4)
+    }
+
+    /// The sheet as it's presented: over the real main window, attached under its title bar.
+    /// Composited: a presented sheet window can't be drawn offscreen, so the real RootView (demo
+    /// library) and the real sheet are each drawn offscreen and placed as macOS places a sheet,
+    /// centred, its top under the title bar, with the system's sheet corners and shadow. The
+    /// window's traffic lights are drawn in, since the offscreen window has no chrome.
+    @Test(arguments: [false, true])
+    func macPresented(dark: Bool) async throws {
+        guard let dir = Self.dir else { return }
+        let d = dark ? "dark" : "light"
+        let c = try AppSnapshotTests.container()
+        let main = try await AppSnapshotTests.withLastNote(c, "Welcome to Pinto Notes") {
+            try await Self.capture(RootView().modelContainer(c), size: CGSize(width: 1180, height: 760), dark: dark, wait: 0.8)
+        }
+        for (name, sheet) in Self.sheets where name != "7-connected" {
+            let drawn = try await Self.capture(sheet, size: nil, dark: dark, wait: 1.4)
+            let out = try Self.present(drawn, over: main, dark: dark)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try #require(out.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-presented-\(name)-\(d).png"))
+        }
+    }
+
+    /// Draws `view` offscreen (borderless, at -20000, -20000, never shown) at `size`, or at its
+    /// fitting size.
+    static func capture(_ view: some View, size: CGSize?, dark: Bool, wait: Double) async throws -> NSBitmapImageRep {
+        let host = NSHostingView(rootView: view)
+        host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 600, height: 900), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = host.appearance
+        window.contentView = host
+        let fit = size ?? host.fittingSize
+        host.frame = CGRect(origin: .zero, size: fit)
+        window.setContentSize(fit)
+        try? await Task.sleep(for: .seconds(wait))
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return rep
+    }
+
+    /// The title bar's height over the main window, where a sheet attaches.
+    static let titleBar: CGFloat = 52
+
+    static func present(_ sheet: NSBitmapImageRep, over main: NSBitmapImageRep, dark: Bool) throws -> NSBitmapImageRep {
+        let out = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: main.pixelsWide, pixelsHigh: main.pixelsHigh, bitsPerSample: 8,
+                                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        out.size = main.size
+        let ctx = try #require(NSGraphicsContext(bitmapImageRep: out))
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = ctx
+        let W = main.size.width, H = main.size.height
+        main.draw(in: CGRect(x: 0, y: 0, width: W, height: H))
+        // The traffic lights, as the real window draws them.
+        for (i, hex) in [0xFF5F57, 0xFEBC2E, 0x28C840].enumerated() {
+            Palette.rgb(UInt32(hex)).setFill()
+            NSBezierPath(ovalIn: CGRect(x: 20 + CGFloat(i) * 20, y: H - 20 - 12, width: 12, height: 12)).fill()
+        }
+        let sw = sheet.size.width, sh = sheet.size.height
+        let frame = CGRect(x: ((W - sw) / 2).rounded(), y: H - Self.titleBar - sh, width: sw, height: sh)
+        let shape = NSBezierPath(roundedRect: frame, xRadius: 16, yRadius: 16)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(dark ? 0.55 : 0.22)
+        shadow.shadowBlurRadius = 34
+        shadow.shadowOffset = CGSize(width: 0, height: -10)
+        shadow.set()
+        Palette.sheetGround.setFill()
+        shape.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        NSGraphicsContext.saveGraphicsState()
+        shape.addClip()
+        sheet.draw(in: frame)
+        NSGraphicsContext.restoreGraphicsState()
+        NSColor(white: dark ? 1 : 0, alpha: dark ? 0.12 : 0.10).setStroke()
+        let edge = NSBezierPath(roundedRect: frame.insetBy(dx: 0.25, dy: 0.25), xRadius: 16, yRadius: 16)
+        edge.lineWidth = 0.5
+        edge.stroke()
+        return out
     }
     #endif
 }

@@ -6,8 +6,8 @@ import Testing
 import AppKit
 #endif
 
-/// The Allow sheet an AI's connect request opens: the AI and Pinto side by side, a short title,
-/// grey text that says what is sent and to whom, and Don't Allow, Read Only and a filled Allow.
+/// The Allow sheet an AI's connect request opens, laid out as a Mac form: the AI and Pinto with
+/// the title beside them, access as two cards, the facts as rows, Don't Allow and Allow bottom right.
 @MainActor @Suite struct AllowSheetTests {
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
     static let glama = ConnectRequest(id: UUID(), client_name: "glama", redirect_host: "glama.ai",
@@ -23,16 +23,16 @@ import AppKit
     }
 
     @Test func anUnknownAppGetsACalmCautionAndItsNameOnlyAsAClaim() {
-        #expect(ConsentSheet.title(Self.glama) == "glama.ai wants to use your notes", "titled by where access goes")
+        #expect(ConsentSheet.title(Self.glama) == "Connect glama.ai to your notes?", "titled by where access goes")
         let line = ConsentSheet.detail(Self.glama)
         #expect(line.contains("It calls itself Glama."))
         #expect(line.contains("Only allow it if you just started connecting it yourself."))
         // A claimed name is never what the person is told to check against.
         let spoof = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude-login.example",
                                    redirect_uri: "https://claude-login.example/cb", claimed_name: "Claude", loopback: false, wants_write: true)
-        #expect(ConsentSheet.title(spoof) == "claude-login.example wants to use your notes")
+        #expect(ConsentSheet.title(spoof) == "Connect claude-login.example to your notes?")
         #expect(!ConsentSheet.detail(spoof).contains("connecting Claude"))
-        #expect(ConsentSheet.detail(Self.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Locked notes stay private.")
+        #expect(ConsentSheet.detail(Self.claude) == "Shared with Anthropic. The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Locked notes stay private. Claude can\u{2019}t open them.")
     }
 
     /// App Review (guidelines 5.1.1 and 5.1.2, 23 Oct 2026): before anything is shared, the sheet
@@ -85,8 +85,8 @@ import AppKit
         let scale = CGFloat(rep.pixelsWide) / host.bounds.width
         var amber = 0
         var box = CGRect.null
-        // The lower half only: Pinto's icon at the top is amber too.
-        for y in rep.pixelsHigh / 2..<rep.pixelsHigh {
+        // The footer only: Pinto's icon and the chosen card's outline are amber too.
+        for y in (rep.pixelsHigh - Int(56 * scale))..<rep.pixelsHigh {
             for x in 0..<rep.pixelsWide {
                 // Amber: strong red, middling green, little blue (the picture's colour space isn't the palette's).
                 guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
@@ -99,31 +99,30 @@ import AppKit
         return (points, Double(amber) / Double(box.width * box.height))
     }
 
-    /// The choice is three buttons in a row, as the prototype Emil liked (28 Oct 2026): Don't Allow,
-    /// Read Only, and one filled Allow on the right. No segmented control and no caption to read.
-    @Test func theAccessChoiceIsAButtonRowWithOneFilledAllowOnTheRight() async throws {
+    /// Layout A (28 Oct 2026): a left-aligned form. Access is two cards, Read and edit chosen as
+    /// the app asked; the one filled button, Allow, sits bottom right like every Mac sheet's.
+    @Test func accessIsTwoCardsAndAllowSitsBottomRight() async throws {
         let (w, host) = await Self.host(ConsentSheet(client: Self.client, requestID: Self.glama.id, initial: .asking(Self.glama), finish: { _ in }))
         defer { w.close() }
-        #expect(Self.segments(host).isEmpty, "no segmented control: Read Only is a button")
+        #expect(host.bounds.width == ConsentSheet.width)
+        #expect(Self.segments(host).isEmpty, "no segmented control: the choice is two cards")
+        #expect(ConsentSheet.accessOptions(Self.glama) == [true, false], "Read and edit, then Read only")
+        #expect(ConsentSheet.detail(Self.glama).hasPrefix(ConsentSheet.unknownLead), "an app Pinto can't name: the warning first")
+        #expect(ConsentSheet.detail(Self.claude).hasPrefix("Shared with Anthropic."), "a known AI: no warning")
         let (box, filled) = try Self.amberBox(host)
-        #expect(abs(box.height - 40) <= 1, "one bar 40 points tall: \(box.height)")
-        #expect(box.width < host.bounds.width / 3, "a third of the row: \(box.width) of \(host.bounds.width)")
-        #expect(box.minX > host.bounds.width / 2, "Allow sits on the right: \(box.minX)")
-        #expect(filled > 0.8, "a filled bar, nothing else amber: \(filled)")
+        #expect(box.maxX > host.bounds.width - 30 && box.minX > host.bounds.width * 0.7, "Allow sits on the right: \(box)")
+        #expect(box.maxY > host.bounds.height - 60, "and at the bottom: \(box) in \(host.bounds)")
+        #expect(filled > 0.75, "a filled button, nothing else amber down there: \(filled)")
     }
 
-    @Test func anAppThatAsksOnlyToReadGetsNoReadOnlyButton() async throws {
+    @Test func anAppThatAsksOnlyToReadGetsOnlyTheReadOnlyCard() async throws {
         let reader = ConnectRequest(id: UUID(), client_name: "glama", redirect_host: "glama.ai", redirect_uri: "https://glama.ai/oauth/callback",
                                     claimed_name: "glama", loopback: false, wants_write: false)
-        let (w1, h1) = await Self.host(ConsentSheet(client: Self.client, requestID: Self.glama.id, initial: .asking(Self.glama), finish: { _ in }))
-        let writerAllow = try Self.amberBox(h1).box
-        w1.close()
         let (w, host) = await Self.host(ConsentSheet(client: Self.client, requestID: reader.id, initial: .asking(reader), finish: { _ in }))
         defer { w.close() }
-        // Two buttons share the row, so Allow is wider than with three.
-        let readerAllow = try Self.amberBox(host).box
-        #expect(readerAllow.width > writerAllow.width * 1.2, "\(readerAllow) vs \(writerAllow)")
-        #expect(ConsentSheet.accessLine(write: false) == "It can read notes, but not change them.")
+        #expect(ConsentSheet.accessOptions(reader) == [false])
+        #expect(try Self.amberBox(host).box.width > 40, "Allow still shows")
+        #expect(ConsentSheet.accessLine(write: false) == "It can find and read notes, nothing more.")
     }
 
     /// A key press to the window, as the keyboard makes it (never a system-wide event).

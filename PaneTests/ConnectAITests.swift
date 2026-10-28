@@ -181,10 +181,10 @@ import Testing
     }
 
     @Test func theTitleIsOneLineNamingWhoGetsAccess() {
-        #expect(ConsentSheet.title(asked("https://claude.ai/api/mcp/auth_callback")) == "Claude wants to use your notes")
-        #expect(ConsentSheet.title(asked("https://helper.example/cb", claimed: "ChatGPT")) == "helper.example wants to use your notes")
+        #expect(ConsentSheet.title(asked("https://claude.ai/api/mcp/auth_callback")) == "Connect Claude to your notes?")
+        #expect(ConsentSheet.title(asked("https://helper.example/cb", claimed: "ChatGPT")) == "Connect helper.example to your notes?")
         let local = ConnectRequest(id: UUID(), client_name: "x", redirect_host: "127.0.0.1", redirect_uri: "http://127.0.0.1:4000/cb", loopback: true, wants_write: true)
-        #expect(ConsentSheet.title(local) == "An app on this computer wants to use your notes")
+        #expect(ConsentSheet.title(local) == "Connect an app on this computer to your notes?")
     }
 
     @MainActor @Test func aDeviceWritesOneNoncePerRequestAndCommit() {
