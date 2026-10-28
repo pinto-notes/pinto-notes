@@ -14,10 +14,10 @@ import AppKit
 
 /// Pinto Notes in ChatGPT's plugin directory, once OpenAI has approved it.
 enum ChatGPTPlugin {
-    /// The plugin's page in ChatGPT. Nil until the listing is live: the guide then walks through
-    /// adding Pinto Notes as a custom MCP server. Set it here when OpenAI approves the plugin
-    /// (id pinto-notes); `defaults write <bundle id> ChatGPTPluginListing <url>` tries it first.
-    static let listed: URL? = nil
+    /// The plugin's page in ChatGPT (approved and published 28 October 2026): Connect ChatGPT is
+    /// one step, open it and press Connect. Nil would bring back the walk through adding Pinto
+    /// Notes as a custom MCP server. `defaults write <bundle id> ChatGPTPluginListing <url>` tries another first.
+    static let listed: URL? = URL(string: "https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f")
 
     static var listing: URL? {
         UserDefaults.standard.string(forKey: "ChatGPTPluginListing").flatMap { URL(string: $0) }.flatMap { $0.scheme == "https" ? $0 : nil } ?? listed
