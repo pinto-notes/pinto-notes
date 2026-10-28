@@ -15,25 +15,20 @@ enum WelcomeNote {
 
     struct Item: Equatable, Sendable {
         let title: String
-        /// A grey line under the item on the iPhone welcome. Not saved: a note's lines are its text.
-        let detail: String
     }
 
     static let title = "Welcome"
     static let lines = ["This is your notebook.", "Your AI writes in it too."]
     static let section = "Get started"
 
-    /// What there is to do, in the order the AIs write it on the welcome.
+    /// What there is to do, in the order the AIs write it on the welcome. On iPhone only ChatGPT
+    /// connects for now (Claude's listing is still in review), so it says ChatGPT alone.
     static func items(for device: Device) -> [Item] {
         switch device {
         case .iPhone:
-            [Item(title: "Get Pinto on your Mac", detail: "Your notes are already there when you open it"),
-             Item(title: "Bring your Apple Notes over", detail: "On the Mac, in a minute or two"),
-             Item(title: "Connect ChatGPT or Claude", detail: "In Settings here, or on the Mac")]
+            [Item(title: "Get Pinto on your Mac"), Item(title: "Bring your Apple Notes over"), Item(title: "Connect ChatGPT")]
         case .mac:
-            [Item(title: "Bring your Apple Notes over", detail: "From the Notes app on this Mac"),
-             Item(title: "Connect ChatGPT or Claude", detail: "In Settings, Connect an AI"),
-             Item(title: "Get Pinto on your iPhone", detail: "Your notes are already there when you open it")]
+            [Item(title: "Bring your Apple Notes over"), Item(title: "Connect ChatGPT or Claude"), Item(title: "Get Pinto on your iPhone")]
         }
     }
 
@@ -45,11 +40,52 @@ enum WelcomeNote {
         #endif
     }
 
-    /// The note as it's saved: plain markdown, the items you ticked on the welcome ticked. No
-    /// sublines and no word of who wrote it.
+    /// How far the note is written: characters of each part, and how many to-dos have begun.
+    struct Progress: Equatable, Sendable {
+        var title = 0, line1 = 0, line2 = 0, section = 0
+        var todos: [Int] = []
+        @MainActor static func finished(_ device: Device) -> Progress {
+            Progress(title: WelcomeNote.title.count, line1: lines[0].count, line2: lines[1].count, section: WelcomeNote.section.count,
+                     todos: items(for: device).map(\.title.count))
+        }
+    }
+
+    /// The note's markdown as far as `progress` has written it, ticks applied: the title (the
+    /// editor's title line), the two lines, "Get started" as a ### heading (the editor's small
+    /// label) and the to-dos. Finished, it's exactly what's saved.
+    static func text(_ progress: Progress, for device: Device, ticked: Set<Int> = []) -> String {
+        var s = String(title.prefix(progress.title))
+        if progress.line1 > 0 || progress.line2 > 0 || progress.section > 0 || !progress.todos.isEmpty {
+            s += "\n\n" + String(lines[0].prefix(progress.line1))
+        }
+        if progress.line2 > 0 || progress.section > 0 || !progress.todos.isEmpty {
+            s += "\n" + String(lines[1].prefix(progress.line2))
+        }
+        if progress.section > 0 || !progress.todos.isEmpty {
+            s += "\n\n### " + String(section.prefix(progress.section))
+        }
+        let all = items(for: device)
+        for (i, n) in progress.todos.enumerated() where i < all.count {
+            s += "\n- [\(ticked.contains(i) ? "x" : " ")] " + String(all[i].title.prefix(n))
+        }
+        return s
+    }
+
+    /// The note as it's saved: plain markdown, the items you ticked on the welcome ticked, and no
+    /// word of who wrote it.
     static func body(for device: Device, ticked: Set<Int> = []) -> String {
-        let todo = items(for: device).enumerated().map { i, item in "- [\(ticked.contains(i) ? "x" : " ")] \(item.title)" }
-        return (["# \(title)", ""] + lines + ["", section, ""] + todo).joined(separator: "\n") + "\n"
+        text(.finished(device), for: device, ticked: ticked) + "\n"
+    }
+
+    /// Which to-dos a note's text has ticked, by their titles (the editor may have moved them).
+    static func ticks(in text: String, for device: Device) -> Set<Int> {
+        let all = items(for: device).map(\.title)
+        var out: Set<Int> = []
+        for line in text.split(separator: "\n") where line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
+            let title = String(line.dropFirst(6))
+            if let i = all.firstIndex(where: { $0.hasPrefix(title) || title.hasPrefix($0) }), !title.isEmpty { out.insert(i) }
+        }
+        return out
     }
 
     /// The items ticked on the iPhone welcome before signing in, kept for the saved note.
@@ -75,23 +111,19 @@ enum WelcomeNote {
     }
 }
 
-/// iPhone: the welcome note after a sign-in from it. Over everything, the finished note waits for
-/// the account's first sync, then folds into its row in the list (a new account, whose note this
-/// is) or slides away (an account from before, which gets no note).
+/// iPhone: the welcome note after a sign-in from it. Over everything, the finished note waits
+/// for the account's key and first sync; then the note this device wrote opens in the editor under
+/// it and it goes (a new account), or it slides away (an account from before, which gets no note).
 @MainActor @Observable
 final class WelcomeHandoff {
     static let shared = WelcomeHandoff()
 
-    enum Phase: Equatable { case idle, waiting, folding, leaving }
+    enum Phase: Equatable { case idle, waiting, opening, leaving }
     private(set) var phase: Phase = .idle
-    /// The note this device wrote, once it has; its row reports where it is.
+    /// The note this device wrote, once it has.
     private(set) var noteID: UUID?
-    /// Where that row is on the screen.
-    var target: CGRect?
-    /// The row lights up as the note lands in it, then fades.
-    private(set) var flash: UUID?
     private(set) var ticked: Set<Int> = []
-    /// Which button started it: it stays on the screen, working, until the note folds.
+    /// Which button started it: it stays on the screen, working, until the note opens.
     enum Way: Equatable { case apple, google }
     private(set) var way: Way = .apple
     @ObservationIgnored private var armedAt: Date?
@@ -104,7 +136,6 @@ final class WelcomeHandoff {
         armedAt = .now
         phase = .waiting
         noteID = nil
-        target = nil
     }
 
     /// The sign-in failed or was cancelled: the welcome is still there.
@@ -117,7 +148,12 @@ final class WelcomeHandoff {
     /// before, or another device wrote it).
     func settled(_ id: UUID?) {
         guard phase == .waiting else { return }
-        if let id { noteID = id } else { phase = .leaving }
+        if let id {
+            noteID = id
+            phase = .opening
+        } else {
+            phase = .leaving
+        }
     }
 
     /// Something else needs the screen (the key gate, a long wait): the note steps aside.
@@ -125,20 +161,16 @@ final class WelcomeHandoff {
         if phase == .waiting { phase = .leaving }
     }
 
-    /// The row has reported where it is: the fold can run.
-    func fold() {
-        guard phase == .waiting, noteID != nil, target != nil else { return }
-        phase = .folding
+    /// The note is open in the editor under the welcome: the welcome goes.
+    func opened() {
+        if phase == .opening { done() }
     }
 
-    /// The fold or the slide has finished.
+    /// The slide, or the opening, has finished.
     func done() {
-        if phase == .folding { flash = noteID }
         phase = .idle
         armedAt = nil
     }
-
-    func flashShown() { flash = nil }
 
     /// How long the note waits for the key and the first sync before it steps aside.
     static let patience: TimeInterval = 20

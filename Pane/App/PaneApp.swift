@@ -940,7 +940,7 @@ struct AppGate: View {
     /// A sign-in from the iPhone's welcome note is under way (WelcomeHandoff): the note stays on
     /// the screen until it folds into the list, and the key screens stay behind it unless the key
     /// needs the person.
-    private var handingOff: Bool { [.waiting, .folding].contains(WelcomeHandoff.shared.phase) }
+    private var handingOff: Bool { [.waiting, .opening].contains(WelcomeHandoff.shared.phase) }
 
     static func keyGateShown(crypto: AccountCrypto, backend: Backend, handingOff: Bool = false) -> Bool {
         gateShown(phase: crypto.phase, needsWelcome: crypto.needsWelcome,

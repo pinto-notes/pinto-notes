@@ -416,6 +416,8 @@ struct NoteListView: View {
                     }
                 }
                 .fontWeight(editMode.isEditing ? .semibold : .regular)
+                // The floating buttons in the label colour, as in the note (28 October 2026).
+                .tint(.primary)
                 .accessibilityIdentifier("list.select")
             }
             }
@@ -438,6 +440,7 @@ struct NoteListView: View {
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }
+                    .tint(.primary)
                     .accessibilityIdentifier("list.more")
                 }
             }
@@ -470,6 +473,7 @@ struct NoteListView: View {
                 }
                 ToolbarItem(placement: .bottomBar) {
                     ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                        .tint(.primary)
                         .newAppTip()
                         // Recently Deleted holds no new notes: the note it made went elsewhere.
                         .disabled(scope == .trash)
@@ -1646,9 +1650,6 @@ struct NoteRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared ? "Shared" : nil, note.isLocked ? "Locked" : nil, ai.map { "Edited by \($0)" }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
-        #if os(iOS)
-        .modifier(WelcomeLanding(id: note.id))
-        #endif
     }
 
     /// The lock sits close to its word, like the list's other small glyphs.
@@ -1698,27 +1699,3 @@ private struct NoteRowHover<Items: View>: ViewModifier {
     }
 }
 
-#if os(iOS)
-/// The Welcome note's row after a sign-in from the welcome: it says where it is, so the note can
-/// fold into it (WelcomeHandoff), then lights up for a moment as the note lands.
-private struct WelcomeLanding: ViewModifier {
-    let id: UUID
-    private var handoff: WelcomeHandoff { WelcomeHandoff.shared }
-
-    func body(content: Content) -> some View {
-        content
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
-                if handoff.noteID == id, handoff.phase == .waiting { handoff.target = frame }
-            }
-            .background {
-                if handoff.flash == id {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(WelcomeNotePage.highlight).padding(-8)
-                        .task {
-                            try? await Task.sleep(for: .milliseconds(60))
-                            withAnimation(.easeOut(duration: 1.2)) { handoff.flashShown() }
-                        }
-                }
-            }
-    }
-}
-#endif

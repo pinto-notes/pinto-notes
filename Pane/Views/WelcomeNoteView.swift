@@ -1,11 +1,12 @@
 #if os(iOS)
 import SwiftUI
 
-/// iPhone, signed out: the welcome is a note being written. Today's date and a blinking caret;
+/// iPhone, signed out: the welcome is a note being written, in the note editor itself (read-only
+/// while it plays), so it looks exactly as the note will when it opens. Today's date; a caret;
 /// "Welcome" types itself, then two lines; then ChatGPT and Claude, each with its own caret and
-/// name tag, write "Get started" and three to-dos, each landing on a soft highlight with a light
-/// tap. The checkboxes are real (they're only ticked by hand). Then the way in rises at the foot of
-/// the page. Tapping the note skips to the end; with Reduce Motion it's finished from the start.
+/// name flag, write "Get started" and three to-dos, each line lit as an AI's edit is, with a light
+/// tap. The checkboxes are real (ticked by hand only). Then the way in rises at the foot of the
+/// page. Tapping the note skips to the end; with Reduce Motion it's finished from the start.
 /// Timings from the prototype (welcome-note-v3.html, "ChatGPT + Claude").
 struct WelcomeNoteView: View {
     let backend: Backend
@@ -21,16 +22,8 @@ struct WelcomeNoteView: View {
         self.useEmail = useEmail
     }
 
-    @State private var head = 0
-    @State private var line1 = 0
-    @State private var line2 = 0
-    @State private var section = 0
-    @State private var todo = [0, 0, 0]
-    /// The to-dos that have come in, their sublines, and the ones still lit.
-    @State private var shown = 0
-    @State private var subs: Set<Int> = []
-    @State private var lit: Set<Int> = []
-    @State private var you: Field? = .head
+    @State private var progress = WelcomeNote.Progress()
+    @State private var you: Field? = .title
     @State private var ai: (Field, Writer)?
     @State private var done = false
     @State private var wayIn = false
@@ -42,7 +35,7 @@ struct WelcomeNoteView: View {
     @State private var wayInHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    enum Field: Equatable { case head, line1, line2, section, todo(Int) }
+    enum Field: Equatable { case title, line1, line2, section, todo(Int) }
 
     /// Who writes: ChatGPT "Get started", Claude the first to-do, ChatGPT the second, Claude the third.
     enum Writer {
@@ -55,42 +48,30 @@ struct WelcomeNoteView: View {
     private let items = WelcomeNote.items(for: .iPhone)
 
     var body: some View {
-        ScrollViewReader { reader in
-            ScrollView {
-                WelcomeNotePage(head: head, line1: line1, line2: line2, section: section, todo: todo, shown: shown, subs: subs, lit: lit,
-                                you: you, ai: ai.map { ($0.0, $0.1) }, ticked: $ticked)
-                    .padding(.bottom, 24)
-                Color.clear.frame(height: 1).id(Self.end)
+        WelcomeEditorPage(progress: progress, ticked: $ticked, you: you, ai: ai, bottomReserve: wayIn ? wayInHeight : 0,
+                          scrolledToEnd: scrolledToEnd && wayIn)
+            .simultaneousGesture(TapGesture().onEnded { if !done { finish() } })
+            .overlay(alignment: .bottom) {
+                if !done {
+                    Text("Tap to skip")
+                        .font(.footnote)
+                        .foregroundStyle(Color.muted)
+                        .padding(.bottom, 24)
+                        .allowsHitTesting(false)
+                }
             }
-            .onChange(of: wayInHeight) { _, _ in if scrolledToEnd { reader.scrollTo(Self.end, anchor: .bottom) } }
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        // On a small phone the note scrolls under the way in, never behind it.
-        .contentMargins(.bottom, wayIn ? wayInHeight : 0, for: .scrollContent)
-        .contentShape(.rect)
-        .onTapGesture { if !done { finish() } }
-        .overlay(alignment: .bottom) {
-            if !done {
-                Text("Tap to skip")
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .padding(.bottom, 24)
-                    .allowsHitTesting(false)
+            .overlay(alignment: .bottom) {
+                if wayIn {
+                    wayInBlock
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { wayInHeight = $0 }
+                        // Rises like the keyboard; no fade.
+                        .transition(.move(edge: .bottom))
+                }
             }
-        }
-        .overlay(alignment: .bottom) {
-            if wayIn {
-                wayInBlock
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { wayInHeight = $0 }
-                    // Rises like the keyboard; no fade.
-                    .transition(.move(edge: .bottom))
-            }
-        }
-        .background(WelcomeNotePage.paper.ignoresSafeArea())
-        .sensoryFeedback(.impact(weight: .light), trigger: landed)
-        .onChange(of: ticked) { _, now in WelcomeNote.ticked = now }
-        .task { await play() }
-        .accessibilityIdentifier("welcome.note")
+            .sensoryFeedback(.impact(weight: .light), trigger: landed)
+            .onChange(of: ticked) { _, now in WelcomeNote.ticked = now }
+            .task { await play() }
+            .accessibilityIdentifier("welcome.note")
     }
 
     // MARK: The way in
@@ -151,7 +132,7 @@ struct WelcomeNoteView: View {
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .frame(maxWidth: WelcomeFlow.readableWidth)
         .frame(maxWidth: .infinity)
-        .background(WelcomeNotePage.paper.ignoresSafeArea(edges: .bottom))
+        .background(Color.notePage.ignoresSafeArea(edges: .bottom))
     }
 
     static let end = "welcome.end"
@@ -197,25 +178,21 @@ struct WelcomeNoteView: View {
         if finished || reduceMotion { finish(animated: false); return }
         do {
             try await pause(500)
-            try await type(WelcomeNote.title, into: .head, every: 75, spaces: true)
+            try await type(WelcomeNote.title.count, into: .title, every: 75, text: WelcomeNote.title)
             try await pause(260)
-            try await type(WelcomeNote.lines[0], into: .line1, every: 30, spaces: true)
+            try await type(WelcomeNote.lines[0].count, into: .line1, every: 30, text: WelcomeNote.lines[0])
             try await pause(200)
-            try await type(WelcomeNote.lines[1], into: .line2, every: 30, spaces: true)
+            try await type(WelcomeNote.lines[1].count, into: .line2, every: 30, text: WelcomeNote.lines[1])
             try await pause(450)
             you = nil
             ai = (.section, Self.order[0])
-            try await type(WelcomeNote.section, into: .section, every: 32)
+            try await type(WelcomeNote.section.count, into: .section, every: 32)
             try await pause(250)
             for i in items.indices {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) { shown = i + 1 }
-                lit.insert(i)
+                progress.todos.append(0)
                 landed += 1
                 ai = (.todo(i), Self.order[i + 1])
-                try await type(items[i].title, into: .todo(i), every: 26)
-                withAnimation(.easeOut(duration: 0.3)) { _ = subs.insert(i) }
-                // The highlight settles over about 1.6 s.
-                withAnimation(.easeOut(duration: 1.6)) { _ = lit.remove(i) }
+                try await type(items[i].title.count, into: .todo(i), every: 26)
                 try await pause(280)
             }
             ai = nil
@@ -227,14 +204,7 @@ struct WelcomeNoteView: View {
 
     /// Everything written at once, and the way in up.
     private func finish(animated: Bool = true) {
-        head = WelcomeNote.title.count
-        line1 = WelcomeNote.lines[0].count
-        line2 = WelcomeNote.lines[1].count
-        section = WelcomeNote.section.count
-        todo = items.map(\.title.count)
-        shown = items.count
-        subs = Set(items.indices)
-        lit = []
+        progress = .finished(.iPhone)
         you = nil
         ai = nil
         done = true
@@ -259,249 +229,182 @@ struct WelcomeNoteView: View {
     }
 
     /// One character at a time, a little uneven, as a person types (a little longer on spaces).
-    private func type(_ text: String, into field: Field, every ms: Int, spaces: Bool = false) async throws {
-        if case .head = field {} else if you != nil { you = field }
-        for n in 1...text.count {
+    private func type(_ count: Int, into field: Field, every ms: Int, text: String? = nil) async throws {
+        if you != nil { you = field }
+        for n in 1...count {
             set(field, n)
-            let ch = text[text.index(text.startIndex, offsetBy: n - 1)]
-            let extra = spaces && ch == " " ? Double(ms) * 0.6 : 0
-            try await pause(Int(Double(ms) + extra + Double.random(in: 0...(Double(ms) * (spaces ? 0.5 : 0.6)))))
+            let space = text.map { $0[$0.index($0.startIndex, offsetBy: n - 1)] == " " } ?? false
+            let extra = space ? Double(ms) * 0.6 : 0
+            try await pause(Int(Double(ms) + extra + Double.random(in: 0...(Double(ms) * (text == nil ? 0.6 : 0.5)))))
         }
     }
 
     private func set(_ field: Field, _ n: Int) {
         switch field {
-        case .head: head = n
-        case .line1: line1 = n
-        case .line2: line2 = n
-        case .section: section = n
-        case .todo(let i): todo[i] = n
+        case .title: progress.title = n
+        case .line1: progress.line1 = n
+        case .line2: progress.line2 = n
+        case .section: progress.section = n
+        case .todo(let i): progress.todos[i] = n
         }
     }
 }
 
-/// The note itself, at any point of its writing: also what folds into the list after sign-in.
-struct WelcomeNotePage: View {
-    var head = WelcomeNote.title.count
-    var line1 = WelcomeNote.lines[0].count
-    var line2 = WelcomeNote.lines[1].count
-    var section = WelcomeNote.section.count
-    var todo = WelcomeNote.items(for: .iPhone).map(\.title.count)
-    var shown = 3
-    var subs: Set<Int> = [0, 1, 2]
-    var lit: Set<Int> = []
+/// The welcome note in the note editor, read-only, as far as it's written: the editor's own date
+/// line, title, label and checklist, so it's the note itself when it opens. Your caret and the
+/// AIs' are drawn by the editor as a collaborator's are; a to-do an AI starts lights up as an AI's
+/// edit does. Ticking still works.
+struct WelcomeEditorPage: View {
+    var progress = WelcomeNote.Progress.finished(.iPhone)
+    @Binding var ticked: Set<Int>
     var you: WelcomeNoteView.Field? = nil
     var ai: (WelcomeNoteView.Field, WelcomeNoteView.Writer)? = nil
-    @Binding var ticked: Set<Int>
+    var bottomReserve: CGFloat = 0
+    var scrolledToEnd = false
     var date = Date.now
+    @State private var controller: EditorController = {
+        let c = EditorController()
+        c.readOnly = true
+        c.ticksWhileReadOnly = true
+        return c
+    }()
+    @State private var lit = -1
+    @State private var blink = true
 
-    private let items = WelcomeNote.items(for: .iPhone)
+    private var text: String { WelcomeNote.text(progress, for: .iPhone, ticked: ticked) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(Self.dateLine(date))
-                .font(.footnote)
-                .foregroundStyle(Color.muted)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 14)
-            typed(WelcomeNote.title, head, at: .head)
-                .font(.system(.largeTitle, weight: .heavy))
-                .tracking(-0.6)
-                .foregroundStyle(Color.ink)
-                .frame(minHeight: 40, alignment: .leading)
-                .padding(.bottom, 10)
-                .accessibilityAddTraits(.isHeader)
-            typed(WelcomeNote.lines[0], line1, at: .line1).font(.body).foregroundStyle(Color.ink).frame(minHeight: 27, alignment: .leading)
-            typed(WelcomeNote.lines[1], line2, at: .line2).font(.body).foregroundStyle(Color.ink).frame(minHeight: 27, alignment: .leading)
-            typed(WelcomeNote.section, section, at: .section)
-                .font(.footnote.weight(.bold))
-                .foregroundStyle(Color.muted)
-                .frame(minHeight: 16, alignment: .leading)
-                .padding(.top, 18)
-                .padding(.bottom, 6)
-            ForEach(items.indices, id: \.self) { i in
-                if i < shown { row(i).transition(.offset(y: 14).combined(with: .opacity)) }
+        // Under an empty inline navigation bar, as the note screen is: the text sits exactly where
+        // the editor puts it when the note opens.
+        NavigationStack {
+            MarkdownEditor(initialText: text, header: DateBucket.header(date), controller: controller, identifier: "welcome.editor") { new in
+                // A tick by hand: the only change the read-only editor makes.
+                let now = WelcomeNote.ticks(in: new, for: .iPhone)
+                if now != ticked { ticked = now }
+            }
+            .ignoresSafeArea(.container, edges: .bottom)
+            .background(Color.notePage.ignoresSafeArea())
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            // The bar is there, empty, so the text starts where the note screen starts it.
+            .toolbar(.visible, for: .navigationBar)
+        }
+        .onChange(of: text, initial: true) { _, _ in carets() }
+        .onChange(of: bottomReserve, initial: true) { _, r in controller.bottomReserve = r }
+        .onChange(of: progress.todos.count) { _, count in light(count - 1) }
+        .onChange(of: scrolledToEnd) { _, end in
+            if end, let tv = controller.target as? UITextView {
+                tv.layoutIfNeeded()
+                tv.setContentOffset(CGPoint(x: 0, y: max(0, tv.contentSize.height - tv.bounds.height + tv.adjustedContentInset.bottom)), animated: false)
             }
         }
-        .padding(.horizontal, 26)
-        .padding(.top, 20)
-        .frame(maxWidth: WelcomeFlow.readableWidth, alignment: .leading)
-        .frame(maxWidth: .infinity)
-    }
-
-    /// "28 October 2026 at 09:41", as Notes dates a note.
-    static func dateLine(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_GB")
-        f.dateFormat = "d MMMM yyyy 'at' HH:mm"
-        return f.string(from: date)
-    }
-
-    private func row(_ i: Int) -> some View {
-        let on = ticked.contains(i)
-        return HStack(alignment: .top, spacing: 12) {
-            Button {
-                if on { ticked.remove(i) } else { ticked.insert(i) }
-            } label: {
-                ZStack {
-                    Circle().strokeBorder(on ? Color.clear : Color.muted.opacity(0.45), lineWidth: 1.6)
-                    if on {
-                        Circle().fill(Color(Palette.amber))
-                        Image(systemName: "checkmark").font(.system(size: 12, weight: .heavy)).foregroundStyle(.white)
-                            .transition(.scale(scale: 0.3).combined(with: .opacity))
-                    }
-                }
-                .frame(width: 24, height: 24)
-                .frame(width: 44, height: 44)
-                .contentShape(.rect)
+        .task(id: you == nil) {
+            // Your caret blinks, once a second, as a text field's does.
+            while you != nil, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                blink.toggle()
+                carets()
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, -10)
-            .padding(.vertical, -10)
-            .sensoryFeedback(.impact(weight: .light), trigger: on)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: on)
-            .accessibilityLabel(items[i].title)
-            .accessibilityValue(on ? "Done" : "Not done")
-            .accessibilityAddTraits(.isButton)
-            VStack(alignment: .leading, spacing: 2) {
-                typed(items[i].title, todo[i], at: .todo(i))
-                    .font(.body)
-                    .foregroundStyle(on ? Color.muted : Color.ink)
-                    .strikethrough(on, color: Color.muted)
-                Text(items[i].detail)
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .opacity(subs.contains(i) ? 1 : 0)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
         }
-        .padding(.vertical, 7)
-        .padding(.horizontal, 8)
-        .background(lit.contains(i) ? Self.highlight : .clear, in: .rect(cornerRadius: 10, style: .continuous))
-        .padding(.horizontal, -8)
     }
 
-    /// The welcome's paper: the note's in the light, the app's warm dark ground in the dark rather
-    /// than pure black.
-    static let paper = Color(light: Color.notePage, dark: Color(Palette.sheetGround))
-
-    /// The soft accent an AI's new line lands on.
-    static let highlight = Color(light: Color(Palette.amber).opacity(0.14), dark: Color(Palette.amber).opacity(0.18))
-
-    /// `text` up to `count` characters, with your caret or an AI's at the end when it's writing there.
-    /// The whole line is laid out from the start (the rest in clear ink) and the caret floats over
-    /// it, so nothing moves while it's written: not the line, not the lines below it.
-    private func typed(_ text: String, _ count: Int, at field: WelcomeNoteView.Field) -> some View {
-        let shown = String(text.prefix(count))
-        return (Text(shown) + Text(String(text.dropFirst(count))).foregroundStyle(.clear))
-            .overlay(alignment: .topLeading) {
-                if you == field || ai?.0 == field {
-                    HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        // A zero-width space keeps the line's baseline before the first letter.
-                        Text(shown.isEmpty ? "\u{200B}" : shown).hidden()
-                        if you == field { YourCaret() }
-                        if let ai, ai.0 == field { AICaret(writer: ai.1) }
-                    }
-                    .fixedSize()
-                    .allowsHitTesting(false)
-                }
+    /// Where the field being written ends in the text, as an offset (UTF-16).
+    private func end(of field: WelcomeNoteView.Field) -> Int {
+        let ns = text as NSString
+        switch field {
+        case .title: return (String(WelcomeNote.title.prefix(progress.title)) as NSString).length
+        case .line1, .line2, .section:
+            let target: String = switch field {
+            case .line1: String(WelcomeNote.lines[0].prefix(progress.line1))
+            case .line2: String(WelcomeNote.lines[1].prefix(progress.line2))
+            default: "### " + String(WelcomeNote.section.prefix(progress.section))
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(shown)
-    }
-}
-
-/// Your caret: the accent, blinking once a second.
-private struct YourCaret: View {
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
-            let on = Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
-            Rectangle().fill(Color(Palette.amber)).frame(width: 2, height: 22).offset(y: 3).opacity(on ? 1 : 0)
+            var lineStart = 0
+            for line in text.components(separatedBy: "\n") {
+                if line == target, !target.isEmpty || field != .title { return lineStart + (line as NSString).length }
+                lineStart += (line as NSString).length + 1
+            }
+            return ns.length
+        case .todo: return ns.length
         }
-        .accessibilityHidden(true)
     }
+
+    private func carets() {
+        var out: [RemoteCaret] = []
+        if let you, blink {
+            let at = end(of: you)
+            out.append(RemoteCaret(id: Self.yours, name: "", color: Color(Palette.amber), range: NSRange(location: at, length: 0), showsName: false))
+        }
+        if let (field, writer) = ai {
+            out.append(RemoteCaret(id: Self.theirs, name: writer.name, color: writer.color, range: NSRange(location: end(of: field), length: 0)))
+        }
+        if controller.remoteCarets != out { controller.remoteCarets = out }
+    }
+
+    /// The to-do an AI just started lights up as an AI's edit does, then settles.
+    private func light(_ i: Int) {
+        guard i >= 0, i != lit else { return }
+        lit = i
+        let before = WelcomeNote.text(WelcomeNote.Progress(title: progress.title, line1: progress.line1, line2: progress.line2,
+                                                           section: progress.section, todos: Array(progress.todos.prefix(i))),
+                                      for: .iPhone, ticked: ticked)
+        Task {
+            // Once its first letters are in, so the tint has a line to sit on.
+            try? await Task.sleep(for: .milliseconds(120))
+            (controller.target as? PaneTextView)?.tintChanges(from: before)
+        }
+    }
+
+    private static let yours = UUID(uuidString: "00000000-0000-0000-0000-00000000C0DE")!
+    private static let theirs = UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")!
 }
 
-/// An AI's caret: its colour, with its name on a small tag above, like a collaborator's.
-private struct AICaret: View {
-    let writer: WelcomeNoteView.Writer
-    var body: some View {
-        Rectangle().fill(writer.color).frame(width: 2, height: 21).offset(y: 3)
-            .overlay(alignment: .topLeading) {
-                Text(writer.name)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5).padding(.vertical, 2)
-                    .background(writer.color, in: UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 0, bottomTrailingRadius: 4, topTrailingRadius: 4))
-                    .fixedSize()
-                    .offset(y: -15)
-            }
-            .accessibilityHidden(true)
-    }
-}
-
-/// Over everything after a sign-in from the welcome note (WelcomeHandoff): the finished note
-/// folds into its row in the list, ticks and all, or slides away for an account from before.
+/// Over everything after a sign-in from the welcome note (WelcomeHandoff). A new account: the
+/// finished note, exactly as the editor will show it, stays while the account is made; then the
+/// note opens in the editor underneath, the way in drops away and this goes, so the welcome simply
+/// becomes the note. An account from before: the note slides away to its notes.
 struct WelcomeHandoffOverlay: View {
     @State private var handoff = WelcomeHandoff.shared
-    @State private var folded = false
-    @State private var faded = false
     @State private var gone = false
-    /// The note is written: the button says done for a moment before the fold.
+    @State private var wayInGone = false
+    /// The note is written: the button says done for a moment before the note opens.
     @State private var signedIn = false
     @State private var ticked: Set<Int> = []
 
-    /// How long "done" shows before the note folds.
+    /// How long "done" shows, and how long the editor takes to open under the note.
     static let doneHold = 0.4
+    static let openHold = 0.75
 
     var body: some View {
         GeometryReader { g in
-            let top = g.safeAreaInsets.top
-            let w = g.size.width, h = g.size.height + top + g.safeAreaInsets.bottom
-            // The row, in the screen's coordinates; until it's known, the whole screen.
-            let t = handoff.target ?? CGRect(x: 0, y: 0, width: w, height: h)
+            let h = g.size.height + g.safeAreaInsets.top + g.safeAreaInsets.bottom
             ZStack(alignment: .bottom) {
-                WelcomeNotePage(ticked: $ticked)
-                    .padding(.top, top)
-                    .frame(width: w, height: h, alignment: .top)
-                    .background(WelcomeNotePage.paper)
-                    .clipShape(RoundedRectangle(cornerRadius: folded ? 46 : 0, style: .continuous))
-                    // Folding: down to the row's size and place, the note's corner on the row's.
-                    .scaleEffect(x: folded ? t.width / w : 1, y: folded ? t.height / h : 1, anchor: .topLeading)
-                    .offset(x: folded ? t.minX : 0, y: folded ? t.minY : (gone ? h : 0))
-                    .opacity(faded ? 0 : 1)
-                    .frame(width: w, height: h, alignment: .topLeading)
-                // The way in, where it was: the button pressed, working, then done. It goes down
-                // as the note folds or leaves.
+                WelcomeEditorPage(ticked: $ticked)
+                    .offset(y: gone ? h : 0)
                 HandoffWayIn(way: handoff.way, done: signedIn)
                     .padding(.bottom, g.safeAreaInsets.bottom)
-                    .offset(y: folded || gone ? h : 0)
+                    .offset(y: gone || wayInGone ? h : 0)
             }
             .ignoresSafeArea()
         }
         .allowsHitTesting(false)
         .onAppear { ticked = handoff.ticked }
-        .onChange(of: handoff.target) { _, _ in if signedIn { handoff.fold() } }
         .onChange(of: handoff.noteID) { _, id in
-            guard id != nil else { return }
+            guard let id else { return }
             withAnimation(.snappy(duration: 0.2)) { signedIn = true }
             Task {
                 try? await Task.sleep(for: .seconds(Self.doneHold))
-                handoff.fold()
+                // The note opens in the editor, under this: the same note, the same place.
+                NoteOpener.shared.open(id)
+                withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.3)) { wayInGone = true }
+                try? await Task.sleep(for: .seconds(Self.openHold))
+                handoff.opened()
             }
         }
         .onChange(of: handoff.phase) { _, phase in
-            switch phase {
-            case .folding:
-                withAnimation(.timingCurve(0.65, 0, 0.35, 1, duration: 0.5)) { folded = true }
-                withAnimation(.easeIn(duration: 0.22).delay(0.32)) { faded = true }
-                Task { try? await Task.sleep(for: .milliseconds(520)); handoff.done() }
-            case .leaving:
+            if phase == .leaving {
                 withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.36)) { gone = true }
                 Task { try? await Task.sleep(for: .milliseconds(380)); handoff.done() }
-            default:
-                break
             }
         }
         .task {
@@ -554,7 +457,7 @@ struct HandoffWayIn: View {
         .padding(.bottom, 24)
         .frame(maxWidth: WelcomeFlow.readableWidth)
         .frame(maxWidth: .infinity)
-        .background(WelcomeNotePage.paper)
+        .background(Color.notePage)
     }
 }
 #endif

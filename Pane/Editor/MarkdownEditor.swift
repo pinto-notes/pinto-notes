@@ -529,6 +529,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.onCardsChanged = { [weak self] in self?.setNeedsLayout() }
         backgroundColor = .clear
         alwaysBounceVertical = true
+        // No bar background behind Back, Share and More, however far the note is scrolled: the
+        // buttons float on the page (Emil, 28 October 2026).
+        topEdgeEffect.isHidden = true
         keyboardDismissMode = .interactive
         smartDashesType = .no
         smartQuotesType = .no
@@ -541,8 +544,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: nil, force: true)
         observeChangeHighlight()
 
-        headerLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        headerLabel.textColor = .tertiaryLabel
+        // The welcome note's date line: small, regular, in the muted colour.
+        headerLabel.font = .systemFont(ofSize: 13)
+        headerLabel.textColor = Palette.muted
         headerLabel.textAlignment = .center
         headerLabel.accessibilityIdentifier = "editor.date"
         addSubview(headerLabel)
@@ -623,6 +627,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             v.bar.backgroundColor = color
             v.flag.backgroundColor = color
             v.flag.text = c.name
+            // A caret without a name (yours, on the welcome note) has no flag.
+            v.flag.isHidden = c.name.isEmpty
             let loc = min(c.range.location, length), end = min(NSMaxRange(c.range), length)
             guard let pos = position(from: beginningOfDocument, offset: loc) else { continue }
             let rect = caretRect(for: pos)
@@ -1097,7 +1103,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     @objc private func handleTap(_ g: UITapGestureRecognizer) {
-        guard isEditable, let line = checkboxLine(for: g.location(in: self)),
+        guard isEditable || controller?.ticksWhileReadOnly == true, let line = checkboxLine(for: g.location(in: self)),
               let edit = ListEditing.toggleCheckbox(in: text, lineStart: line) else { return }
         // A tick is a tap on a control: the caret, the scroll position and the keyboard stay as they were.
         let keep = selectedRange
@@ -1110,6 +1116,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
            let r = core.checkboxRect(line: line, layout: textLayoutManager) {
             CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
         }
+        guard controller?.ticksWhileReadOnly != true else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + ListEditing.sortDelay) { [weak self] in self?.sortChecklist(around: line) }
     }
 

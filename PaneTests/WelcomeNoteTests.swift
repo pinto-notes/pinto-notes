@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 import SwiftUI
 #if os(iOS)
@@ -9,26 +10,47 @@ import UIKit
 /// Every account's first note (WelcomeNote): its words per device, written once, by one device,
 /// never for an account from before; and the iPhone's hand-off after a sign-in from it.
 @MainActor @Suite(.serialized) struct WelcomeNoteTests {
+    /// The title is the note's first line (the editor's title), "Get started" its small ### label.
+    /// On iPhone only ChatGPT connects for now.
     @Test func theIPhoneNoteSendsYouToTheMac() {
         #expect(WelcomeNote.body(for: .iPhone) == """
-        # Welcome
+        Welcome
 
         This is your notebook.
         Your AI writes in it too.
 
-        Get started
-
+        ### Get started
         - [ ] Get Pinto on your Mac
         - [ ] Bring your Apple Notes over
-        - [ ] Connect ChatGPT or Claude
+        - [ ] Connect ChatGPT
 
         """)
+    }
+
+    /// Part-way through, the text is always the start of the finished note's, so the editor only
+    /// ever gains characters while it plays.
+    @Test func everyStageIsTheStartOfTheNote() {
+        let done = WelcomeNote.text(.finished(.iPhone), for: .iPhone)
+        let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
+        let stages: [WelcomeNote.Progress] = [
+            .init(), .init(title: 4), .init(title: 7, line1: 10), .init(title: 7, line1: 22, line2: 25, section: 3),
+            .init(title: 7, line1: 22, line2: 25, section: 11, todos: [0]), .init(title: 7, line1: 22, line2: 25, section: 11, todos: [n[0], 6]),
+        ]
+        for (k, p) in stages.enumerated() { #expect(done.hasPrefix(WelcomeNote.text(p, for: .iPhone)), "stage \(k)") }
+    }
+
+    @Test func ticksAreReadBackByTitle() {
+        let text = WelcomeNote.text(.finished(.iPhone), for: .iPhone, ticked: [2])
+        #expect(WelcomeNote.ticks(in: text, for: .iPhone) == [2])
+        // The editor may move a ticked item: it's found by its words, not its place.
+        let moved = "Welcome\n\n### Get started\n- [ ] Get Pinto on your Mac\n- [x] Connect ChatGPT\n- [ ] Bring your Apple Notes over"
+        #expect(WelcomeNote.ticks(in: moved, for: .iPhone) == [2])
     }
 
     @Test func theMacNoteSendsYouToTheIPhoneLast() {
         let items = WelcomeNote.items(for: .mac).map(\.title)
         #expect(items == ["Bring your Apple Notes over", "Connect ChatGPT or Claude", "Get Pinto on your iPhone"])
-        #expect(WelcomeNote.body(for: .mac).hasPrefix("# Welcome\n\nThis is your notebook.\nYour AI writes in it too.\n\nGet started\n\n"))
+        #expect(WelcomeNote.body(for: .mac).hasPrefix("Welcome\n\nThis is your notebook.\nYour AI writes in it too.\n\n### Get started\n"))
         #if os(macOS)
         #expect(WelcomeNote.thisDevice == .mac)
         #else
@@ -40,10 +62,9 @@ import UIKit
         let body = WelcomeNote.body(for: .iPhone, ticked: [0, 2])
         #expect(body.contains("- [x] Get Pinto on your Mac"))
         #expect(body.contains("- [ ] Bring your Apple Notes over"))
-        #expect(body.contains("- [x] Connect ChatGPT or Claude"))
-        for item in WelcomeNote.items(for: .iPhone) { #expect(!body.contains(item.detail), "the grey sublines aren't saved") }
+        #expect(body.contains("- [x] Connect ChatGPT"))
         for name in ["ChatGPT", "Claude"] {
-            #expect(!body.replacingOccurrences(of: "Connect ChatGPT or Claude", with: "").contains(name), "no word of who wrote it")
+            #expect(!body.replacingOccurrences(of: "Connect ChatGPT", with: "").contains(name), "no word of who wrote it")
         }
         #expect(NoteText.head(of: body).title == "Welcome")
     }
@@ -91,19 +112,17 @@ import UIKit
 
     // MARK: The iPhone's hand-off
 
-    @Test func aNewAccountsNoteFoldsOnceItsRowIsThere() {
+    /// A new account: the welcome becomes the note in the editor (Emil, 28 October 2026: "why
+    /// don't we open immediately into the welcome note?").
+    @Test func aNewAccountsNoteOpens() {
         let h = WelcomeHandoff()
         h.arm(ticked: [0])
         #expect(h.phase == .waiting)
         let id = UUID()
         h.settled(id)
-        h.fold()
-        #expect(h.phase == .waiting, "no row yet: it waits")
-        h.target = CGRect(x: 16, y: 180, width: 360, height: 64)
-        h.fold()
-        #expect(h.phase == .folding)
-        h.done()
-        #expect(h.phase == .idle && h.flash == id, "the row lights up as the note lands")
+        #expect(h.phase == .opening && h.noteID == id)
+        h.opened()
+        #expect(h.phase == .idle)
     }
 
     @Test func anAccountFromBeforeSlidesAway() {
@@ -112,7 +131,7 @@ import UIKit
         h.settled(nil)
         #expect(h.phase == .leaving)
         h.done()
-        #expect(h.phase == .idle && h.flash == nil)
+        #expect(h.phase == .idle && h.noteID == nil)
     }
 
     @Test func aCancelledSignInLeavesTheWelcome() {
@@ -121,7 +140,7 @@ import UIKit
         h.disarm()
         #expect(h.phase == .idle)
         h.settled(UUID())
-        #expect(h.phase == .idle, "nothing to fold")
+        #expect(h.phase == .idle, "nothing to open")
     }
 
     // MARK: The AI's first edit
@@ -159,33 +178,71 @@ import UIKit
         #expect(WelcomeNoteView.wayInShown == before + 1)
     }
 
-    /// While it's written, nothing moves: every stage of the writing, carets and all, lays out the
-    /// page at the height of the finished note (lines once jumped as a caret came and went).
-    @Test func theLinesDontMoveWhileItsWritten() {
-        let ticked = Binding<Set<Int>>(get: { [] }, set: { _ in })
-        let date = Date(timeIntervalSince1970: 0)
-        func height(_ page: WelcomeNotePage) -> CGFloat {
-            UIHostingController(rootView: page).sizeThatFits(in: CGSize(width: 393, height: 4000)).height
+
+    /// The welcome, finished, and the editor showing the saved note are the same picture where the
+    /// note is (Emil, 28 October 2026: "why does the welcome note look different when actually
+    /// open?"), so the welcome turning into the note can't be seen. Both drawn in the same window,
+    /// light and dark; the note's region (below the top buttons, above the bottom ones) compared
+    /// pixel by pixel.
+    @Test(arguments: [false, true])
+    func theWelcomeIsTheNoteAsTheEditorShowsIt(dark: Bool) async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let size = CGSize(width: 402, height: 874)
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        func draw(_ view: some View) async throws -> CGImage {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: size)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = UIHostingController(rootView: view.tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US")))
+            window.isHidden = false
+            defer { window.isHidden = true }
+            try? await Task.sleep(for: .seconds(1.2))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            return try #require(image.cgImage)
         }
-        let done = height(WelcomeNotePage(ticked: ticked, date: date))
-        let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
-        let stages: [WelcomeNotePage] = [
-            WelcomeNotePage(head: 0, line1: 0, line2: 0, section: 0, todo: [0, 0, 0], you: .head, ticked: ticked, date: date),
-            WelcomeNotePage(head: 4, line1: 0, line2: 0, section: 0, todo: [0, 0, 0], you: .head, ticked: ticked, date: date),
-            WelcomeNotePage(section: 0, todo: [0, 0, 0], ai: (.section, .chatGPT), ticked: ticked, date: date),
-            WelcomeNotePage(section: 5, todo: [0, 0, 0], ai: (.section, .chatGPT), ticked: ticked, date: date),
-            WelcomeNotePage(todo: [0, 0, 0], ai: (.todo(0), .claude), ticked: ticked, date: date),
-            WelcomeNotePage(todo: [n[0], 6, 0], ai: (.todo(1), .chatGPT), ticked: ticked, date: date),
-            WelcomeNotePage(todo: [n[0], n[1], 2], ai: (.todo(2), .claude), ticked: ticked, date: date),
-        ]
-        for (k, page) in stages.enumerated() { #expect(height(page) == done, "stage \(k)") }
+        let ticked: Set<Int> = [0]
+        let welcome = try await draw(WelcomeEditorPage(ticked: .constant(ticked), date: date))
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone, ticked: ticked))
+        note.updatedAt = date
+        let editor = try await draw(NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c))
+        if let dir = ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map({ URL(fileURLWithPath: $0) }) {
+            for (name, image) in [("welcome", welcome), ("editor", editor)] {
+                try UIImage(cgImage: image).pngData()?.write(to: dir.appending(path: "welcome-match-\(name)-\(dark ? "dark" : "light").png"))
+            }
+        }
+        let region = CGRect(x: 0, y: 110, width: size.width, height: 400)
+        let difference = try Self.difference(welcome, editor, in: region)
+        #expect(difference < 0.01, "mean difference \(difference) in the note's region")
+    }
+
+    /// The mean difference of two images in `region`, 0 (the same) to 1, over RGB.
+    static func difference(_ a: CGImage, _ b: CGImage, in region: CGRect) throws -> Double {
+        func pixels(_ image: CGImage) throws -> [UInt8] {
+            let w = Int(region.width), h = Int(region.height)
+            var data = [UInt8](repeating: 0, count: w * h * 4)
+            let ctx = try #require(CGContext(data: &data, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.draw(image, in: CGRect(x: -region.minX, y: -(CGFloat(image.height) - region.maxY), width: CGFloat(image.width), height: CGFloat(image.height)))
+            return data
+        }
+        let p = try pixels(a), q = try pixels(b)
+        var total = 0.0
+        for i in stride(from: 0, to: p.count, by: 4) {
+            total += Double(abs(Int(p[i]) - Int(q[i])) + abs(Int(p[i + 1]) - Int(q[i + 1])) + abs(Int(p[i + 2]) - Int(q[i + 2]))) / (3 * 255)
+        }
+        return total / Double(p.count / 4)
     }
     #endif
 }
 
 /// After a sign-in from the welcome note (Emil, 28 October 2026: the key screens came up between
-/// signing in and the fold, and the library flashed by). A new account's key, made here, needs
-/// nobody: no key screen, and the note stays until it folds. An account from before that needs the
+/// signing in and the note, and the library flashed by). A new account's key, made here, needs
+/// nobody: no key screen, and the note stays until it opens. An account from before that needs the
 /// person (another device, the recovery key) gets its screens, and the note steps aside.
 @MainActor @Suite struct WelcomeKeyGateTests {
     /// Every state a new account's key passes through on the way: none shows the gate.
@@ -200,7 +257,7 @@ import UIKit
                     "\(phase): the key screen stays behind the note")
             if needs { h.leave() }
         }
-        #expect(h.phase == .waiting, "the hand-off isn't left: the note will fold")
+        #expect(h.phase == .waiting, "the hand-off isn't left: the note will open")
         // "Your notes are encrypted" is marked as said, for a key made here only.
         #expect(AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .made))
         #expect(!AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .signIn), "a key fetched for an account from before")

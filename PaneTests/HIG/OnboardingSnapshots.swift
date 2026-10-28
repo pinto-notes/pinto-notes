@@ -369,20 +369,78 @@ import UIKit
         for (label, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("largest", false, .accessibility3)] {
             try await shoot(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}), "welcome-note-\(label)", dark: dark, type: type)
         }
-        // Mid-writing: Claude's caret two letters into the second to-do, ChatGPT's name gone.
+        // Mid-writing: Claude's caret seven letters into the second to-do.
         let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
-        try await shoot(WelcomeNotePage(todo: [n[0], 7, 0], shown: 2, subs: [0], lit: [1], ai: (.todo(1), .claude), ticked: .constant([])).background(WelcomeNotePage.paper.ignoresSafeArea()), "welcome-note-writing", dark: false)
+        let writing = WelcomeNote.Progress(title: WelcomeNote.title.count, line1: WelcomeNote.lines[0].count, line2: WelcomeNote.lines[1].count,
+                                           section: WelcomeNote.section.count, todos: [n[0], 7])
+        try await shoot(WelcomeEditorPage(progress: writing, ticked: .constant([]), ai: (.todo(1), .claude)), "welcome-note-writing", dark: false)
         // The largest text, scrolled to the end: the last to-do clears the way in.
         try await shoot(WelcomeNoteView(backend: Backend(), finished: true, scrolledToEnd: true, useEmail: {}), "welcome-note-largest-scrolled", dark: false, type: .accessibility3)
-        // After the fold: a new account's list, its one note the Welcome note, ticked as it was.
+        // What it becomes after sign-in: the saved note open in the editor, ticked as it was.
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
         let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone, ticked: [0]))
         for dark in [false, true] {
-            let list = NavigationStack { NoteListView(scope: .all, selection: .constant([]), onNewNote: {}) }.modelContainer(c)
-            try await shoot(list, "welcome-note-list-\(dark ? "dark" : "light")", dark: dark)
+            let editor = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+            try await shoot(editor, "welcome-note-opened-\(dark ? "dark" : "light")", dark: dark)
         }
-        _ = note
     }
+    #endif
+    #if os(iOS)
+    /// An ordinary note in the iPhone editor (a checklist, headings, a table) and the list it's in,
+    /// light and dark, with the toolbars: for the before and after of a look change. The run's
+    /// label (PINTO_SHOT_LABEL, e.g. before or after) starts each file's name.
+    @Test func iPhoneEditorLook() async throws {
+        guard let dir = Self.dir else { return }
+        let label = ProcessInfo.processInfo.environment["PINTO_SHOT_LABEL"] ?? "now"
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
+        let note = c.mainContext.createNote(in: .all, body: Self.ordinaryNote)
+        _ = c.mainContext.createNote(in: .all, body: "Groceries\n\nOat milk, lemons, rice")
+        _ = c.mainContext.createNote(in: .all, body: "Books to read\n\nThe Overstory, Piranesi")
+        func shoot(_ view: some View, _ name: String, dark: Bool) async throws {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = UIHostingController(rootView: view.tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US")))
+            window.isHidden = false
+            try? await Task.sleep(for: .seconds(1.6))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            window.isHidden = true
+            try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
+        }
+        for dark in [false, true] {
+            let mode = dark ? "dark" : "light"
+            let editor = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+            try await shoot(editor, "editor-\(label)-\(mode)", dark: dark)
+            let list = NavigationStack { NoteListView(scope: .all, selection: .constant([]), onNewNote: {}) }.modelContainer(c)
+            try await shoot(list, "list-\(label)-\(mode)", dark: dark)
+        }
+    }
+
+    static let ordinaryNote = """
+    Weekend in Lisbon
+
+    Tram 28 early, before the queues. Dinner booked for Saturday.
+
+    ### Before we go
+    - [x] Book the flights
+    - [ ] Pack the camera
+    - [ ] Download the offline maps
+
+    ### Budget
+    | Item | Cost |
+    |---|---|
+    | Flights | 240 |
+    | Hotel | 380 |
+
+    Ask Ana about the Alfama walk.
+    """
     #endif
 }

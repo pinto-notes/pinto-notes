@@ -13,8 +13,11 @@ import Testing
         #expect(groups() == [[.pin, .lock, .makeApp], [.moveTo, .history, .delete]])
     }
 
-    @Test func theSameOrderOnIPhoneWithSharingInTheSecondGroup() {
-        #expect(groups(phone: true) == [[.pin, .lock, .makeApp], [.moveTo, .share, .history, .delete]])
+    /// Share has its own button beside More on iPhone (as in Notes, 28 October 2026), so it isn't
+    /// in the menu too: the same menu as the Mac's.
+    @Test func theSameMenuOnIPhoneWithSharingBesideIt() {
+        #expect(groups(phone: true) == [[.pin, .lock, .makeApp], [.moveTo, .history, .delete]])
+        #expect(!groups(phone: true).joined().contains(.share))
     }
 
     @Test func whatANoteIsChangesTheFirstGroupOnly() {
