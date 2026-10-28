@@ -9,13 +9,15 @@ import SwiftUI
 /// Timings from the prototype (welcome-note-v3.html, "ChatGPT + Claude").
 struct WelcomeNoteView: View {
     let backend: Backend
-    /// Captures: the finished note with the way in, at once.
+    /// Captures: the finished note with the way in, at once, and scrolled to its end.
     var finished = false
+    var scrolledToEnd = false
     let useEmail: () -> Void
 
-    init(backend: Backend, finished: Bool = false, useEmail: @escaping () -> Void) {
+    init(backend: Backend, finished: Bool = false, scrolledToEnd: Bool = false, useEmail: @escaping () -> Void) {
         self.backend = backend
         self.finished = finished
+        self.scrolledToEnd = scrolledToEnd
         self.useEmail = useEmail
     }
 
@@ -53,10 +55,14 @@ struct WelcomeNoteView: View {
     private let items = WelcomeNote.items(for: .iPhone)
 
     var body: some View {
-        ScrollView {
-            WelcomeNotePage(head: head, line1: line1, line2: line2, section: section, todo: todo, shown: shown, subs: subs, lit: lit,
-                            you: you, ai: ai.map { ($0.0, $0.1) }, ticked: $ticked)
-                .padding(.bottom, 24)
+        ScrollViewReader { reader in
+            ScrollView {
+                WelcomeNotePage(head: head, line1: line1, line2: line2, section: section, todo: todo, shown: shown, subs: subs, lit: lit,
+                                you: you, ai: ai.map { ($0.0, $0.1) }, ticked: $ticked)
+                    .padding(.bottom, 24)
+                Color.clear.frame(height: 1).id(Self.end)
+            }
+            .onChange(of: wayInHeight) { _, _ in if scrolledToEnd { reader.scrollTo(Self.end, anchor: .bottom) } }
         }
         .scrollBounceBehavior(.basedOnSize)
         // On a small phone the note scrolls under the way in, never behind it.
@@ -80,7 +86,7 @@ struct WelcomeNoteView: View {
                     .transition(.move(edge: .bottom))
             }
         }
-        .background(Color.notePage.ignoresSafeArea())
+        .background(WelcomeNotePage.paper.ignoresSafeArea())
         .sensoryFeedback(.impact(weight: .light), trigger: landed)
         .onChange(of: ticked) { _, now in WelcomeNote.ticked = now }
         .task { await play() }
@@ -123,7 +129,19 @@ struct WelcomeNoteView: View {
                 .buttonStyle(.plain)
                 .frame(minHeight: 44)
                 .accessibilityIdentifier(WelcomeNoteView.emailID)
-            ConsentFooter()
+            // Two short lines: the terms, then what the app sends about itself (App Review asks
+            // for it on this screen).
+            VStack(spacing: 2) {
+                Text(Legal.shortConsent)
+                Text(DiagnosticsCopy.welcome)
+            }
+            .font(.caption)
+            .foregroundStyle(Color.muted)
+            .tint(Color(PColor.paneAccent))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("welcome.legal")
         }
         .padding(.horizontal, 22)
         .padding(.top, 18)
@@ -133,9 +151,10 @@ struct WelcomeNoteView: View {
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .frame(maxWidth: WelcomeFlow.readableWidth)
         .frame(maxWidth: .infinity)
-        .background(Color.notePage.ignoresSafeArea(edges: .bottom))
+        .background(WelcomeNotePage.paper.ignoresSafeArea(edges: .bottom))
     }
 
+    static let end = "welcome.end"
     static let appleID = "welcome.apple"
     static let googleID = "welcome.google"
     static let emailID = "welcome.email"
@@ -357,6 +376,10 @@ struct WelcomeNotePage: View {
         .padding(.horizontal, -8)
     }
 
+    /// The welcome's paper: the note's in the light, the app's warm dark ground in the dark rather
+    /// than pure black.
+    static let paper = Color(light: Color.notePage, dark: Color(Palette.sheetGround))
+
     /// The soft accent an AI's new line lands on.
     static let highlight = Color(light: Color(Palette.amber).opacity(0.14), dark: Color(Palette.amber).opacity(0.18))
 
@@ -419,7 +442,7 @@ struct WelcomeHandoffOverlay: View {
             WelcomeNotePage(ticked: $ticked)
                 .padding(.top, top)
                 .frame(width: w, height: h, alignment: .top)
-                .background(Color.notePage)
+                .background(WelcomeNotePage.paper)
                 .clipShape(RoundedRectangle(cornerRadius: folded ? 46 : 0, style: .continuous))
                 // Folding: down to the row's size and place, the note's corner on the row's.
                 .scaleEffect(x: folded ? t.width / w : 1, y: folded ? t.height / h : 1, anchor: .topLeading)

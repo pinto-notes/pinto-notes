@@ -369,6 +369,8 @@ import UIKit
         for (label, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("largest", false, .accessibility3)] {
             try await shoot(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}), "welcome-note-\(label)", dark: dark, type: type)
         }
+        // The largest text, scrolled to the end: the last to-do clears the way in.
+        try await shoot(WelcomeNoteView(backend: Backend(), finished: true, scrolledToEnd: true, useEmail: {}), "welcome-note-largest-scrolled", dark: false, type: .accessibility3)
         // After the fold: a new account's list, its one note the Welcome note, ticked as it was.
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)

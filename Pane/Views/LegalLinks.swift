@@ -15,6 +15,18 @@ enum Legal {
     }
 }
 
+extension Legal {
+    /// "By continuing you agree to the Terms and Privacy Policy.", both names links: the short form
+    /// under the welcome note.
+    static var shortConsent: AttributedString {
+        var s = AttributedString("By continuing you agree to the ")
+        var t = AttributedString("Terms"); t.link = terms
+        var p = AttributedString("Privacy Policy"); p.link = privacy
+        s += t; s += AttributedString(" and "); s += p; s += AttributedString(".")
+        return s
+    }
+}
+
 /// The quiet lines under the sign-in form: the terms and privacy policy, with their two links, then
 /// what the app reports about itself (DiagnosticsCopy). One paragraph for VoiceOver.
 struct ConsentFooter: View {
