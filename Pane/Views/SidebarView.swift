@@ -363,6 +363,16 @@ struct SidebarView: View {
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
+            #if os(iOS)
+            // The Mac card docks right under the folders, where it reads as part of the list.
+            if sidebarCard == .mac {
+                Section {
+                    cardView(.mac)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
+            #endif
         }
         .listStyle(.sidebar)
         #if os(iOS)
@@ -370,7 +380,7 @@ struct SidebarView: View {
         .background(Color(Palette.foldersGround).ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let card = sidebarCard {
+                if let card = sidebarCard, card != .mac {
                     cardView(card)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)

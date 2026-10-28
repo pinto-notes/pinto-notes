@@ -74,25 +74,70 @@ enum SidebarCard: Equatable {
 }
 
 enum MacCardWords {
-    static let title = "Pinto Notes works best with the Mac app"
+    static let title = "Get Pinto Notes on your Mac"
     static let line = "Import your notes and connect your AI there. They show up here a moment later."
     static let button = "Send the Mac link to myself"
 }
 
-/// "Pinto Notes works best with the Mac app": the Mac's mark beside the words; the card opens
-/// the share sheet with the download link, to send to yourself.
+/// "Get Pinto Notes on your Mac": the app's icon, the words, and one tinted button that opens
+/// the share sheet with the download link, to send to yourself. It sits right under the folders
+/// (not at the foot, where the other cards are) and closes for good.
 struct MacCard: View {
     let onClose: () -> Void
 
     var body: some View {
-        SidebarCardShell(id: "sidebar.mac", title: MacCardWords.title, line: MacCardWords.line, button: MacCardWords.button,
-                         opensWeb: false, share: Self.download, titleLines: 2, action: {}, onClose: onClose) { size in
-            Image(systemName: "macbook")
-                .font(.system(size: size * 0.9, weight: .regular))
-                .foregroundStyle(Color.amberInk)
-                .frame(width: size * 1.6, height: size * 1.2)
-                .accessibilityHidden(true)
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                AppMark(size: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(MacCardWords.title)
+                        .font(.headline)
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(MacCardWords.line)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.muted)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.9)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // Clear of the close button.
+                .padding(.trailing, 22)
+            }
+            ShareLink(item: Self.download, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
+                Label(MacCardWords.button, systemImage: "square.and.arrow.up")
+                    .foregroundStyle(Color.amberInk)
+            }
+            // The design system's secondary button (DESIGN.md, Buttons): a soft fill, under the
+            // one amber button a screen may have.
+            .buttonStyle(.secondary(.form, wide: true))
+            .accessibilityIdentifier("sidebar.mac.open")
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        #if os(iOS)
+        .background(Color(Palette.row), in: shape)
+        #else
+        .background(Color.card, in: shape)
+        #endif
+        .overlay(alignment: .topTrailing) {
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close \(MacCardWords.title)")
+            .accessibilityHint("Hides this for good")
+            .accessibilityIdentifier("sidebar.mac.close")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("sidebar.mac")
     }
 
     static var download: URL {
@@ -178,10 +223,6 @@ struct SidebarCardShell<Art: View>: View {
     let button: String
     /// The button leaves the app (an arrow says so).
     let opensWeb: Bool
-    /// The card shares this link (the share sheet) instead of running `action`.
-    var share: URL? = nil
-    /// A title too long for one line in the sidebar takes two (the Mac card's).
-    var titleLines = 1
     let action: () -> Void
     let onClose: () -> Void
     @ViewBuilder let art: (CGFloat) -> Art
@@ -196,7 +237,7 @@ struct SidebarCardShell<Art: View>: View {
 
     private var words: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(titleLines).minimumScaleFactor(0.85)
+            Text(title).font(Metrics.title).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.85)
             // At most three lines, never fixed to its full height: asked for its smallest size
             // at a narrow width, a fixed line grew one word per line, and the window took that
             // as its own smallest height (1.2.9: the window couldn't be made shorter than the screen).
@@ -216,13 +257,7 @@ struct SidebarCardShell<Art: View>: View {
             .background(.fill.quaternary, in: shape)
             .hoverOverlay(shape, Color.primary.opacity(0.05))
             .contentShape(shape)
-        Group {
-            if let share {
-                ShareLink(item: share, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) { label }
-            } else {
-                Button(action: action) { label }
-            }
-        }
+        Button(action: action) { label }
         .buttonStyle(CardPress())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .clipShape(shape)
@@ -273,7 +308,7 @@ struct SidebarCardShell<Art: View>: View {
             // What a click on the card does, said as a link line; the card is the button.
             HStack(spacing: 3) {
                 Text(button)
-                Image(systemName: share != nil ? "square.and.arrow.up" : opensWeb ? "arrow.up.right" : "chevron.right").font(Metrics.arrow)
+                Image(systemName: opensWeb ? "arrow.up.right" : "chevron.right").font(Metrics.arrow)
             }
             .font(Metrics.button)
             .foregroundStyle(Color.amberInk)

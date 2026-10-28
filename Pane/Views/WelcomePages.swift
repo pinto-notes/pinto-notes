@@ -40,6 +40,14 @@ enum WelcomePage: Int, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The title as it's set: broken where it balances ("Your AI writes / in your notes.").
+    var shownTitle: String {
+        switch self {
+        case .writes: "Your AI writes\nin your notes."
+        default: title
+        }
+    }
+
     var line: String {
         switch self {
         case .writes: "Ask ChatGPT or Claude to plan, list or remember something. It lands right here."
@@ -102,6 +110,9 @@ struct WelcomePages: View {
             }
         }
         .background { ground }
+        // Past this the headline and the button no longer fit beside anything else; the pages
+        // scroll from the accessibility sizes on (`pageView`).
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .sensoryFeedback(.selection, trigger: selection)
         .task(id: selection) { await play(selection) }
         .accessibilityIdentifier("welcome.pages")
@@ -111,15 +122,16 @@ struct WelcomePages: View {
 
     @ViewBuilder private func pageView(_ p: WelcomePage, screen: CGSize) -> some View {
         if typeSize.isAccessibilitySize {
-            // The largest text sizes: the words need the room. The demo keeps a fixed size (it's
-            // an illustration, with its own VoiceOver label) and the page scrolls.
+            // The largest text sizes: the words need the room, so they come first and are never
+            // cut; the demo follows at a fixed size (an illustration, with its own VoiceOver label)
+            // and the page scrolls.
             ScrollView {
                 VStack(spacing: 28) {
-                    WelcomeDemo(page: p, stage: stage(of: p))
-                        .dynamicTypeSize(.large)
-                        .padding(.horizontal, 28)
-                        .frame(maxWidth: 420)
                     Words(page: p, centred: true).padding(.horizontal, 24)
+                    WelcomeDemo(page: p, stage: stage(of: p), hero: style == .card)
+                        .dynamicTypeSize(.large)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: 520)
                 }
                 .padding(.vertical, 24)
                 .frame(maxWidth: .infinity)
@@ -139,16 +151,16 @@ struct WelcomePages: View {
         switch style {
         case .card:
             VStack(spacing: 0) {
-                // The card sits a fixed gap above the words, whatever its height, so the
-                // headline never moves between pages.
-                WelcomeDemo(page: p, stage: stage)
-                    .padding(.horizontal, 28)
-                    .frame(maxWidth: 420)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    // A little lower than the other looks: the card and the words sit as one group
-                    // nearer the middle, without a band of ground above the dots.
-                    .frame(height: stageHeight * 1.1)
-                words.padding(.horizontal, 28).padding(.top, 36)
+                // The card's top is at one height on every page and it grows downward, so
+                // nothing jumps between pages or lifts as a line arrives. The words below keep
+                // their place too.
+                WelcomeDemo(page: p, stage: stage, hero: true)
+                    .padding(.horizontal, 20)
+                    .frame(maxWidth: 520)
+                    .padding(.top, 16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(height: stageHeight * 1.16)
+                words.padding(.horizontal, 28).padding(.top, 8)
                 Spacer(minLength: 0)
             }
         case .device:
@@ -192,13 +204,14 @@ struct WelcomePages: View {
 
         var body: some View {
             VStack(alignment: centred ? .center : .leading, spacing: 10) {
-                Text(page.title)
+                Text(page.shownTitle)
                     .font(.system(size: 34, weight: .bold))
                     .tracking(-0.6)
                     .foregroundStyle(Color.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(0.7)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityLabel(page.title)
                     .accessibilityIdentifier("welcome.title")
                 Text(page.line)
                     .font(.body)
@@ -332,30 +345,61 @@ struct WelcomeDemo: View {
     let stage: Int
     /// Inside B's phone: the note fills the screen instead of floating as a card.
     var onScreen = false
+    /// A's note card: wide, at the editor's own sizes (17 pt text, 28 pt title), with the note's
+    /// navigation row above the title, as the app draws it.
+    var hero = false
 
     var body: some View {
         switch page {
-        case .writes: WritesDemo(stage: stage, onScreen: onScreen)
-        case .appleNotes: AppleNotesDemo(stage: stage, onScreen: onScreen)
-        case .asksFirst: AsksFirstDemo(stage: stage, onScreen: onScreen)
+        case .writes: WritesDemo(stage: stage, look: look)
+        case .appleNotes: AppleNotesDemo(stage: stage, look: look)
+        case .asksFirst: AsksFirstDemo(stage: stage, look: look)
         }
     }
+
+    private var look: DemoLook { DemoLook(onScreen: onScreen, hero: hero) }
 }
+
+struct DemoLook {
+    var onScreen = false
+    var hero = false
+
+    var title: Font { hero ? .system(size: 28, weight: .bold) : onScreen ? .title3.weight(.bold) : .title2.weight(.bold) }
+}
+
+/// The soft amber behind an AI's line: the app's own in the light; in the dark the accent at 18%,
+/// which reads as amber rather than brown.
+private let freshFill = Color(light: Color(Palette.amberSoft), dark: Color(Palette.amber).opacity(0.18))
 
 /// A note page as a card: the note's own ground, a hairline and the shared soft shadow.
 private struct NoteCard<Content: View>: View {
-    var onScreen = false
+    var look = DemoLook()
+    /// The note's navigation row: where Back goes.
+    var back: String? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: onScreen ? 0 : 20, style: .continuous)
-        content
-            .padding(.horizontal, 18)
-            .padding(.vertical, 18)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .background(onScreen ? Color.notePage : Color.card, in: shape)
-            .overlay { if !onScreen { shape.strokeBorder(Color.line, lineWidth: 0.5) } }
-            .shadow(color: onScreen ? .clear : Color(Palette.shadow), radius: 22, y: 10)
+        let shape = RoundedRectangle(cornerRadius: look.onScreen ? 0 : look.hero ? 24 : 20, style: .continuous)
+        VStack(alignment: .leading, spacing: 0) {
+            if look.hero, let back {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left").font(.body.weight(.semibold))
+                    Text(back).font(.body)
+                    Spacer(minLength: 0)
+                    Image(systemName: "square.and.arrow.up").font(.body)
+                }
+                .foregroundStyle(Color(Palette.amber))
+                .padding(.bottom, 14)
+            }
+            content
+        }
+        .padding(.horizontal, look.hero ? 20 : 18)
+        .padding(.top, look.hero ? 14 : 18)
+        .padding(.bottom, look.hero ? 22 : 18)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(look.onScreen ? Color.notePage : Color.card, in: shape)
+        .overlay { if !look.onScreen { shape.strokeBorder(Color.line, lineWidth: 0.5) } }
+        .shadow(color: look.onScreen ? .clear : Color(Palette.shadow), radius: 22, y: 10)
     }
 }
 
@@ -379,7 +423,7 @@ private struct CheckRow: View {
         }
         .padding(.vertical, 5)
         .padding(.horizontal, 8)
-        .background(fresh ? Color.amberSoft : .clear, in: .rect(cornerRadius: 8, style: .continuous))
+        .background(fresh ? freshFill : .clear, in: .rect(cornerRadius: 8, style: .continuous))
         .padding(.horizontal, -8)
     }
 }
@@ -397,7 +441,7 @@ private struct AIBadge: View {
         .padding(.leading, 4)
         .padding(.trailing, 12)
         .padding(.vertical, 4)
-        .background(Color.amberSoft, in: .capsule)
+        .background(freshFill, in: .capsule)
     }
 }
 
@@ -428,140 +472,134 @@ enum RunningPlan {
     static let added = "Rest day Thursday, 10 min stretch"
 }
 
+/// Page 3's note: a different one, so the page isn't page 1 again.
+enum LisbonTrip {
+    static let title = "Lisbon trip"
+    static let lines = ["Flights on the 12th, 07:40", "Book the tram tour", "Pastéis de nata in Belém"]
+}
+
 /// Page 1: Claude starts editing, a line rolls into the plan with the AI's soft amber, and the
-/// receipt with Undo rises under it.
+/// receipt with Undo rises over the card's foot.
 private struct WritesDemo: View {
     let stage: Int
-    let onScreen: Bool
+    let look: DemoLook
 
     var body: some View {
-        VStack(spacing: 14) {
-            NoteCard(onScreen: onScreen) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(RunningPlan.title).font(onScreen ? .title3.weight(.bold) : .title2.weight(.bold)).foregroundStyle(Color.ink)
-                        Spacer(minLength: 8)
-                        AIBadge(ai: "Claude", text: "Editing")
-                            .opacity(stage >= 1 ? 1 : 0)
-                            .scaleEffect(stage >= 1 ? 1 : 0.6, anchor: .trailing)
-                    }
-                    .padding(.bottom, 6)
-                    CheckRow(text: RunningPlan.lines[0], done: true)
-                    CheckRow(text: RunningPlan.lines[1])
-                    if stage >= 2 {
-                        CheckRow(text: RunningPlan.added, fresh: true)
-                            .transition(.asymmetric(insertion: .offset(y: 14).combined(with: .opacity), removal: .opacity))
-                    }
-                    CheckRow(text: RunningPlan.lines[2])
+        NoteCard(look: look, back: "Notes") {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(RunningPlan.title).font(look.title).foregroundStyle(Color.ink)
+                    Spacer(minLength: 8)
+                    AIBadge(ai: "Claude", text: "Editing")
+                        .opacity(stage >= 1 ? 1 : 0)
+                        .scaleEffect(stage >= 1 ? 1 : 0.6, anchor: .trailing)
                 }
+                .padding(.bottom, 6)
+                CheckRow(text: RunningPlan.lines[0], done: true)
+                CheckRow(text: RunningPlan.lines[1])
+                if stage >= 2 {
+                    CheckRow(text: RunningPlan.added, fresh: true)
+                        .transition(.asymmetric(insertion: .offset(y: 14).combined(with: .opacity), removal: .opacity))
+                }
+                CheckRow(text: RunningPlan.lines[2])
             }
+            // Room under the last line for the receipt that sits over the card's edge.
+            .padding(.bottom, 12)
+        }
+        .overlay(alignment: .bottom) {
             UndoChip(ai: "Claude", text: "Claude added a line")
                 .opacity(stage >= 3 ? 1 : 0)
                 .scaleEffect(stage >= 3 ? 1 : 0.25)
                 .blur(radius: stage >= 3 ? 0 : 4)
+                // Half on the card, half off it, like the editor's own receipt.
+                .offset(y: 21)
         }
+        .padding(.bottom, 21)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("A note called Running plan. Claude adds a line to it, and you can undo it.")
     }
 }
 
-/// Page 2: the notes list, and Apple Notes arriving under "Imported".
+/// Page 2: your Apple Notes, counted under their icon, roll in one by one.
 private struct AppleNotesDemo: View {
     let stage: Int
-    let onScreen: Bool
+    let look: DemoLook
 
+    static let count = 142
     static let rows: [(String, String)] = [("Groceries", "Oat milk, lemons, rice"), ("Books to read", "The Overstory, Piranesi"),
                                            ("Lisbon trip", "Flights on the 12th"), ("Gift ideas", "Mum: a good teapot")]
 
     var body: some View {
-        NoteCard(onScreen: onScreen) {
+        NoteCard(look: look, back: "Folders") {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Notes").font(onScreen ? .title3.weight(.bold) : .title2.weight(.bold)).foregroundStyle(Color.ink).padding(.bottom, 12)
-                HStack(spacing: 8) {
-                    ImportSourceIcon(origin: .appleNotes, size: 20)
-                    Text("Imported from Apple Notes").font(.footnote.weight(.semibold)).foregroundStyle(Color.muted)
-                    Spacer(minLength: 0)
-                    if stage >= Self.rows.count {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(Palette.amber))
-                            .transition(.scale.combined(with: .opacity))
+                HStack(spacing: 12) {
+                    ImportSourceIcon(origin: .appleNotes, size: look.hero ? 40 : 30)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("From Apple Notes").font(look.hero ? .title3.weight(.bold) : .headline).foregroundStyle(Color.ink)
+                        Text("\(Self.count) notes").font(.subheadline).foregroundStyle(Color.muted)
                     }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 14)
+                .accessibilityElement(children: .combine)
                 ForEach(Array(Self.rows.enumerated()), id: \.offset) { i, row in
-                    if stage > i {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if i > 0 { Divider().padding(.bottom, 8) }
-                            Text(row.0).font(.body.weight(.semibold)).foregroundStyle(Color.ink)
-                            Text(row.1).font(.subheadline).foregroundStyle(Color.muted).lineLimit(1)
-                        }
-                        .padding(.bottom, 8)
-                        .transition(.asymmetric(insertion: .offset(y: 14).combined(with: .opacity), removal: .opacity))
-                    } else {
-                        // Holds the row's room, so the card doesn't grow as rows arrive.
-                        VStack(alignment: .leading, spacing: 2) {
-                            if i > 0 { Divider().padding(.bottom, 8) }
-                            Text(row.0).font(.body.weight(.semibold))
-                            Text(row.1).font(.subheadline)
-                        }
-                        .padding(.bottom, 8)
-                        .hidden()
+                    let shown = stage > i
+                    VStack(alignment: .leading, spacing: 2) {
+                        Divider().padding(.bottom, 9)
+                        Text(row.0).font(.body.weight(.semibold)).foregroundStyle(Color.ink)
+                        Text(row.1).font(.subheadline).foregroundStyle(Color.muted).lineLimit(1)
                     }
+                    .padding(.bottom, 9)
+                    // Each row keeps its room, so the card never grows as they arrive.
+                    .opacity(shown ? 1 : 0)
+                    .offset(y: shown ? 0 : 14)
                 }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Your Apple Notes arrive in Pinto Notes.")
+        .accessibilityLabel("Your Apple Notes arrive in Pinto Notes, \(Self.count) of them.")
     }
 }
 
-/// Page 3: Claude asks to edit the plan; Allow is pressed; the line lands, marked as allowed.
+/// Page 3: another note dims as Claude asks to edit it; the Allow sheet rises over it, and the
+/// page rests with Allow pressed: nothing happens until you say so.
 private struct AsksFirstDemo: View {
     let stage: Int
-    let onScreen: Bool
+    let look: DemoLook
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            NoteCard(onScreen: onScreen) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(RunningPlan.title).font(onScreen ? .title3.weight(.bold) : .title2.weight(.bold)).foregroundStyle(Color.ink)
-                        Spacer(minLength: 8)
-                        if stage >= 2 {
-                            AIBadge(ai: "Claude", text: "Allowed").transition(.scale(scale: 0.6, anchor: .trailing).combined(with: .opacity))
-                        }
-                    }
-                    .padding(.bottom, 6)
-                    CheckRow(text: RunningPlan.lines[0], done: true)
-                    CheckRow(text: RunningPlan.lines[1])
-                    CheckRow(text: RunningPlan.added, fresh: stage >= 2)
-                        .opacity(stage >= 2 ? 1 : 0)
-                    CheckRow(text: RunningPlan.lines[2])
-                }
+        NoteCard(look: look, back: "Notes") {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LisbonTrip.title).font(look.title).foregroundStyle(Color.ink).padding(.bottom, 6)
+                ForEach(LisbonTrip.lines, id: \.self) { CheckRow(text: $0) }
             }
-            .blur(radius: stage < 2 ? 1.5 : 0)
-            .opacity(stage < 2 ? 0.55 : 1)
-            if stage < 2 {
-                AllowCard(pressed: stage == 1)
-                    .padding(.horizontal, onScreen ? 6 : 10)
-                    .offset(y: 26)
-                    .transition(.asymmetric(insertion: .opacity, removal: .offset(y: 40).combined(with: .opacity)))
+            .padding(.bottom, look.hero ? 64 : 40)
+        }
+        .blur(radius: stage >= 1 ? 2 : 0)
+        .opacity(stage >= 1 ? 0.5 : 1)
+        .overlay(alignment: .bottom) {
+            if stage >= 1 {
+                AllowCard(note: LisbonTrip.title, pressed: stage >= 2)
+                    .padding(.horizontal, look.onScreen ? 6 : 12)
+                    .offset(y: 28)
+                    .transition(.asymmetric(insertion: .offset(y: 40).combined(with: .opacity), removal: .opacity))
             }
         }
-        .padding(.bottom, stage < 2 ? 26 : 0)
+        .padding(.bottom, 28)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Claude asks to edit your note. You allow it, and the change lands.")
+        .accessibilityLabel("Claude asks to edit your note Lisbon trip, and waits for you to allow it.")
     }
 }
 
 /// The Allow sheet, small: who asks, for which note, and the two answers.
 private struct AllowCard: View {
+    let note: String
     let pressed: Bool
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
         VStack(spacing: 12) {
             AITile(ai: "Claude", size: 40)
-            Text("Claude wants to edit \u{201C}\(RunningPlan.title)\u{201D}")
+            Text("Claude wants to edit \u{201C}\(note)\u{201D}")
                 .font(.headline)
                 .foregroundStyle(Color.ink)
                 .multilineTextAlignment(.center)
@@ -570,14 +608,16 @@ private struct AllowCard: View {
                 Text("Don\u{2019}t allow")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.ink)
-                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background(Color.soft, in: .capsule)
                 Text("Allow")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 40)
-                    .background(Color(Palette.amberButton).opacity(pressed ? 0.8 : 1), in: .capsule)
-                    .scaleEffect(pressed ? 0.95 : 1)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    // Pressed: darker and a touch smaller, as the app's own button.
+                    .background(Color(Palette.amberButton), in: .capsule)
+                    .overlay { if pressed { Capsule().fill(.black.opacity(0.14)) } }
+                    .scaleEffect(pressed ? 0.97 : 1)
             }
         }
         .padding(16)

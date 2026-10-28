@@ -125,7 +125,7 @@ import Testing
     }
 
     @Test func itsWords() {
-        #expect(MacCardWords.title == "Pinto Notes works best with the Mac app")
+        #expect(MacCardWords.title == "Get Pinto Notes on your Mac")
         #expect(MacCardWords.line == "Import your notes and connect your AI there. They show up here a moment later.")
         #expect(MacCardWords.button == "Send the Mac link to myself")
         #expect(MacCard.download.absoluteString == "https://pintonotes.com/download")
