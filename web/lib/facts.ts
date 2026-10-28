@@ -41,7 +41,8 @@ export const FACTS: string[] = [
   APP_STORE_LIVE
     ? "Notes sync between iPhone and Mac through the cloud, and are stored as markdown."
     : "Notes sync between your Macs through the cloud, and are stored as markdown.",
-  `Notes are end-to-end encrypted ${ON_DEVICE}, with a key iCloud Keychain carries between your devices, so Pinto Notes can't read them at rest. While an AI you approved is working, the server opens the notes it asks for in memory; locked notes stay unreadable to it.`,
+    `Notes are encrypted ${ON_DEVICE} before they sync. Pinto Notes keeps a locked copy of your key so that signing in opens your notes on a new device. That means Pinto Notes could open your notes if it had to, for example under a court order, and so could someone who gets into your account. With Advanced protection on, notes are end-to-end encrypted: Pinto Notes can't open them and can't help you back in. While an AI you approved is working, the server opens the notes it asks for in memory; locked notes stay unreadable to it`,
+
   APP_STORE_LIVE
     ? "The Mac app (macOS 26 or later) is a free download from pintonotes.com, and the iPhone app is on the App Store."
     : "The Mac app (macOS 26 or later) is a free download from pintonotes.com. The iPhone app is coming soon to the App Store.",
