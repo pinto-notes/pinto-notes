@@ -390,14 +390,25 @@ struct WelcomeNotePage: View {
     static let highlight = Color(light: Color(Palette.amber).opacity(0.14), dark: Color(Palette.amber).opacity(0.18))
 
     /// `text` up to `count` characters, with your caret or an AI's at the end when it's writing there.
+    /// The whole line is laid out from the start (the rest in clear ink) and the caret floats over
+    /// it, so nothing moves while it's written: not the line, not the lines below it.
     private func typed(_ text: String, _ count: Int, at field: WelcomeNoteView.Field) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 1) {
-            Text(String(text.prefix(count)))
-            if you == field { YourCaret() }
-            if let ai, ai.0 == field { AICaret(writer: ai.1) }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(text.prefix(count)))
+        let shown = String(text.prefix(count))
+        return (Text(shown) + Text(String(text.dropFirst(count))).foregroundStyle(.clear))
+            .overlay(alignment: .topLeading) {
+                if you == field || ai?.0 == field {
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        // A zero-width space keeps the line's baseline before the first letter.
+                        Text(shown.isEmpty ? "\u{200B}" : shown).hidden()
+                        if you == field { YourCaret() }
+                        if let ai, ai.0 == field { AICaret(writer: ai.1) }
+                    }
+                    .fixedSize()
+                    .allowsHitTesting(false)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(shown)
     }
 }
 

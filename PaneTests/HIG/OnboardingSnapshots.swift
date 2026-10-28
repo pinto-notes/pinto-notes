@@ -369,6 +369,9 @@ import UIKit
         for (label, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("largest", false, .accessibility3)] {
             try await shoot(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}), "welcome-note-\(label)", dark: dark, type: type)
         }
+        // Mid-writing: Claude's caret two letters into the second to-do, ChatGPT's name gone.
+        let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
+        try await shoot(WelcomeNotePage(todo: [n[0], 7, 0], shown: 2, subs: [0], lit: [1], ai: (.todo(1), .claude), ticked: .constant([])).background(WelcomeNotePage.paper.ignoresSafeArea()), "welcome-note-writing", dark: false)
         // The largest text, scrolled to the end: the last to-do clears the way in.
         try await shoot(WelcomeNoteView(backend: Backend(), finished: true, scrolledToEnd: true, useEmail: {}), "welcome-note-largest-scrolled", dark: false, type: .accessibility3)
         // After the fold: a new account's list, its one note the Welcome note, ticked as it was.

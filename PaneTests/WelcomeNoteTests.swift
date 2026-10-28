@@ -158,5 +158,27 @@ import UIKit
         for _ in 0..<40 where WelcomeNoteView.wayInShown == before { try await Task.sleep(for: .milliseconds(100)) }
         #expect(WelcomeNoteView.wayInShown == before + 1)
     }
+
+    /// While it's written, nothing moves: every stage of the writing, carets and all, lays out the
+    /// page at the height of the finished note (lines once jumped as a caret came and went).
+    @Test func theLinesDontMoveWhileItsWritten() {
+        let ticked = Binding<Set<Int>>(get: { [] }, set: { _ in })
+        let date = Date(timeIntervalSince1970: 0)
+        func height(_ page: WelcomeNotePage) -> CGFloat {
+            UIHostingController(rootView: page).sizeThatFits(in: CGSize(width: 393, height: 4000)).height
+        }
+        let done = height(WelcomeNotePage(ticked: ticked, date: date))
+        let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
+        let stages: [WelcomeNotePage] = [
+            WelcomeNotePage(head: 0, line1: 0, line2: 0, section: 0, todo: [0, 0, 0], you: .head, ticked: ticked, date: date),
+            WelcomeNotePage(head: 4, line1: 0, line2: 0, section: 0, todo: [0, 0, 0], you: .head, ticked: ticked, date: date),
+            WelcomeNotePage(section: 0, todo: [0, 0, 0], ai: (.section, .chatGPT), ticked: ticked, date: date),
+            WelcomeNotePage(section: 5, todo: [0, 0, 0], ai: (.section, .chatGPT), ticked: ticked, date: date),
+            WelcomeNotePage(todo: [0, 0, 0], ai: (.todo(0), .claude), ticked: ticked, date: date),
+            WelcomeNotePage(todo: [n[0], 6, 0], ai: (.todo(1), .chatGPT), ticked: ticked, date: date),
+            WelcomeNotePage(todo: [n[0], n[1], 2], ai: (.todo(2), .claude), ticked: ticked, date: date),
+        ]
+        for (k, page) in stages.enumerated() { #expect(height(page) == done, "stage \(k)") }
+    }
     #endif
 }
