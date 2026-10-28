@@ -19,7 +19,8 @@ export const metadata = postMetadata("connect-chatgpt-to-your-notes");
 // Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Show Version History (RootView.swift); the
 // connect page's "No device with Pinto Notes? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
 // 28 October 2026: the Pinto Notes plugin was published in ChatGPT's plugin directory; the ChatGPT steps now use it
-// (its page read first-hand that day). Developer mode stays only as the route for other custom apps.
+// (its page read first-hand that day). Mac 1.2.33 (28 Oct) replaced the in-app walk-through with one step, "Open Pinto Notes in
+// ChatGPT" (PN dev). The ChatGPT button's label for a new user is unverified, so the post doesn't quote it. Developer mode stays only as the route for other custom apps.
 
 const FAQ = [
   { q: "Which ChatGPT plans can add Pinto Notes?", a: [
@@ -141,12 +142,13 @@ export default function Page() {
       <Steps>
         <li>
           <strong>Open the Pinto Notes plugin in ChatGPT</strong>
-          Use <a href="https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f" rel="noopener">this link</a>,
+          In Pinto Notes on your Mac, choose <Path steps={["Settings", "Connect an AI", "ChatGPT", "Open Pinto Notes in ChatGPT"]} />
+          Or use <a href="https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f" rel="noopener">this link</a>,
           or open Plugins in ChatGPT&apos;s sidebar and search for Pinto Notes.
         </li>
         <li>
           <strong>Connect it</strong>
-          ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
+          Press the connect button on the plugin&apos;s page. ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
           it&apos;s on this computer).
         </li>
         <li>
