@@ -140,6 +140,10 @@ enum QuickOpen {
         return min(max(index + by, 0), count - 1)
     }
 
+    /// A note's date, written exactly as the notes list writes it (DateBucket.rowDate), so the
+    /// panel and the list always say the same thing.
+    static func dateText(_ note: NoteItem) -> String { DateBucket.rowDate(note.date) }
+
     // MARK: Running
 
     /// What the notes window does for each kind of row.
@@ -184,7 +188,6 @@ struct QuickOpenPanel: View {
     let commands: [QuickOpen.CommandItem]
     let choose: (QuickOpen.Row) -> Void
     let close: () -> Void
-    var now: Date
 
     @State private var query: String
     @State private var highlighted = 0
@@ -192,12 +195,11 @@ struct QuickOpenPanel: View {
 
     /// `query`: snapshots start with text typed.
     init(notes: [QuickOpen.NoteItem], commands: [QuickOpen.CommandItem], choose: @escaping (QuickOpen.Row) -> Void, close: @escaping () -> Void,
-         initialQuery: String = "", now: Date = .now) {
+         initialQuery: String = "") {
         self.notes = notes
         self.commands = commands
         self.choose = choose
         self.close = close
-        self.now = now
         _query = State(initialValue: initialQuery)
     }
 
@@ -302,7 +304,7 @@ struct QuickOpenPanel: View {
                     Text(f).foregroundStyle(Color.muted).lineLimit(1).layoutPriority(-1)
                 }
                 Spacer(minLength: 8)
-                Text(DateBucket.rowDate(n.date, now: now)).foregroundStyle(Color.muted).monospacedDigit()
+                Text(QuickOpen.dateText(n)).foregroundStyle(Color.muted).monospacedDigit()
             case .command(let c):
                 icon(c.symbol, on: on)
                 highlightedTitle(c.title)
