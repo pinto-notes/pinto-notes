@@ -149,6 +149,12 @@
   "w": 880,
   "h": 550
  },
+ "gemini-4-carbon": {
+  "ground": "#1554a5",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
  "gemini-notebooks": {
   "ground": "#eaeceb",
   "ink": "dark",

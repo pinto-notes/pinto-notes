@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "gemini-4-carbon",
+    title: "Gemini 4 Carbon: who gets it, price and what to try first",
+    description: "Gemini 4 Carbon is Google's new frontier model. Who can use it now (cyber defenders first), what it will cost, how it beats Argon, and what to try today.",
+    excerpt: "Google's strongest model is out, but only for security teams so far. Who gets it next, the price, and what to try in Argon while you wait.",
+    category: "Guides",
+    date: "2026-10-28",
+    updated: "2026-10-28",
+    image: { src: "/blog/gemini-4-carbon/benchmarks.webp", alt: "Google's benchmark table comparing Gemini 4 Carbon with Gemini 4 Argon, GPT-6 Astra, Claude Opus 5.5 and Claude Fable 5.1, with Carbon leading most rows.", width: 1600, height: 1346, window: false },
+    thumb: cover("mist", "gemini-4-carbon", 1600, 1000, "A faceted iridescent crystal among small white 4s, Google's picture for Gemini 4 Carbon"),
+    draft: false,
+  },
+  {
     slug: "connect-icloud-mail-calendar-to-chatgpt",
     title: "How to connect iCloud Mail and Calendar to ChatGPT",
     description: "ChatGPT now has iCloud Mail and Calendar plugins on every plan. How to make the Apple app-specific password, connect both, what to ask, and how to disconnect.",
@@ -152,7 +164,7 @@ export const posts: Post[] = [
     excerpt: "A running list of what the AI assistants shipped, newest first: the date, what it does, who gets it and the official link.",
     category: "Guides",
     date: "2026-10-22",
-    updated: "2026-10-27",
+    updated: "2026-10-28",
     image: { src: "/blog/duet/duet-brief.webp", alt: "Two phone screens from Claude Duet: a lock screen notification with the morning summary, and the morning brief listing what needs attention today.", width: 1984, height: 1848, window: false },
     thumb: cover("sand", "ai-feature-tracker", 1600, 1000, "A paper wall calendar with the ChatGPT, Claude and Gemini marks pinned on three days"),
     draft: false,
@@ -613,6 +625,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "gemini-4-carbon",
   "connect-icloud-mail-calendar-to-chatgpt",
   "keynote-pages-numbers-ai-assistant",
   "chatgpt-chat-memory-full",
