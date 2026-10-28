@@ -1205,6 +1205,7 @@ struct ConnectChoices: View {
         }
         do {
             connections = try await client.from("mcp_tokens").select().order("created_at", ascending: false).execute().value
+            ConnectedAIs.shared.update(connections)
             error = nil
             onLoaded(Set(active.map(\.title)))
         } catch {

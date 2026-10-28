@@ -261,6 +261,11 @@ struct SidebarView: View {
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
+    /// The AIs that can use your notes (`SidebarAI`). Captures pass their own.
+    @Environment(ConnectedAIs.self) private var shownAIs: ConnectedAIs?
+    private var ais: ConnectedAIs { shownAIs ?? .shared }
+    @State private var disconnectingAI: ConnectedAIs.Row?
+    @State private var aiPromptHiddenHere = false
 
     /// All Notes and Recently Deleted, counted by the store (unsaved changes included), as the list
     /// shows them: a sub-note lives inside its parent and is no row of its own (NoteListView.nested).
@@ -362,6 +367,9 @@ struct SidebarView: View {
             }
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
+            #endif
+            #if os(macOS)
+            aiSection
             #endif
         }
         .listStyle(.sidebar)
@@ -485,6 +493,22 @@ struct SidebarView: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onReceive(NotificationCenter.default.publisher(for: .paneNewFolder)) { _ in startNewFolder(nil) }
+        // What is connected: asked on sign-in and each time the app comes to the front (back from
+        // ChatGPT in the browser, say). Connect an AI and Settings tell it too (`ConnectedAIs.update`).
+        .task(id: backend?.userID) {
+            if signedIn { await ais.refresh(backend?.client) } else if shownAIs == nil { ais.forget() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            if signedIn { Task { await ais.refresh(backend?.client) } }
+        }
+        .confirmationDialog("Disconnect \(disconnectingAI?.title ?? "")?", isPresented: Binding(get: { disconnectingAI != nil }, set: { if !$0 { disconnectingAI = nil } }), titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) {
+                if let row = disconnectingAI { Task { try? await ais.disconnect(row, client: backend?.client) } }
+                disconnectingAI = nil
+            }
+        } message: {
+            Text("It loses access to your notes right away.")
+        }
         #endif
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
@@ -523,6 +547,52 @@ struct SidebarView: View {
             if renaming == nil { Text("Enter a name for this folder.") }
         }
     }
+
+    private var signedIn: Bool {
+        if let backend, case .signedIn = backend.state { return true }
+        return false
+    }
+
+    #if os(macOS)
+    /// The AIs that can use your notes, under the folders: each with its mark and a green dot (or
+    /// "Read only"). Click one for Settings → AI; right-click to disconnect it. With none, one quiet
+    /// row, unless the Connect card at the foot already asks.
+    @ViewBuilder private var aiSection: some View {
+        if SidebarAI.enabled, signedIn || shownAIs != nil, ais.known {
+            let rows = ais.rows
+            let prompt = SidebarAI.showsPrompt(rows: rows.count, hidden: aiPromptHiddenHere || SidebarAI.promptHidden(backend?.userID),
+                                               cardAsks: sidebarCard == .connect)
+            if !rows.isEmpty || prompt {
+                Section {
+                    ForEach(rows) { row in
+                        Button { SidebarAI.open(row) } label: { SidebarAIRow(row: row).contentShape(.rect) }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("AI Settings\u{2026}") { SidebarAI.open(row) }
+                                Divider()
+                                Button("Disconnect\u{2026}", role: .destructive) { disconnectingAI = row }
+                            }
+                            .accessibilityIdentifier("sidebar.ai.\(row.title)")
+                    }
+                    if prompt {
+                        Button { NotificationCenter.default.post(name: .paneConnectAI, object: nil) } label: { SidebarAIPrompt().contentShape(.rect) }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Hide") {
+                                    SidebarAI.hidePrompt(backend?.userID)
+                                    withAnimation(.easeOut(duration: 0.2)) { aiPromptHiddenHere = true }
+                                }
+                            }
+                            .accessibilityIdentifier("sidebar.ai.connect")
+                    }
+                } header: {
+                    Text(SidebarAI.header)
+                        .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+                }
+            }
+        }
+    }
+    #endif
 
     /// The one card above the account: Connect your AI, then Templates (`SidebarCard.pick`).
     private var sidebarCard: SidebarCard? {
