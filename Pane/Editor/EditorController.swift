@@ -200,9 +200,7 @@ final class EditorController {
 
     func focus() { target?.focusEditor() }
 
-    /// A sub-note's current title and first line (set by the note screen).
-    @ObservationIgnored var resolveNote: (UUID) -> (title: String, preview: String)? = { _ in nil }
-    /// A sub-note itself, for one shown as a widget (set by the note screen).
+    /// A note that is an app, for its widget where another note links it (set by the note screen).
     @ObservationIgnored var resolveNoteModel: (UUID) -> Note? = { _ in nil }
     /// Opens a note by id (set by the note screen).
     @ObservationIgnored var openNote: (UUID) -> Void = { _ in }
@@ -261,8 +259,6 @@ final class EditorController {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
     }
-    /// Creates a sub-note linked from here (set by the note screen).
-    @ObservationIgnored var newSubNote: () -> Void = {}
 }
 
 @MainActor

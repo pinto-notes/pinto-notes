@@ -52,7 +52,8 @@ final class Note {
     var updatedAt: Date
     var isPinned: Bool
     var folder: Folder?
-    /// Set for a sub-note: the note that links to it.
+    /// Set on notes made as sub-notes by older builds or an AI. Sub-notes are gone: such a note
+    /// moves into a folder named after this note (`foldSubNotesIntoFolders`), and this is cleared.
     var parentID: UUID?
     /// Moved to Recently Deleted. Purged after 30 days.
     var trashedAt: Date?

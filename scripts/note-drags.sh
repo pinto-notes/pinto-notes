@@ -34,7 +34,7 @@ cd ~/note-drags
 ditto -x -k app.zip . && rm app.zip
 swiftc -O NoteDrags.swift -o NoteDrags 2>/dev/null || { echo "NoteDrags.swift didn't compile on this Mac" >&2; exit 2; }
 failed=0
-for step in ${=NOTE_DRAG_STEPS:-row undo-menu two text self}; do
+for step in ${=NOTE_DRAG_STEPS:-text}; do  # row, undo-menu, two and self were sub-note drops (removed 2026-10-28)
   start=$(date "+%Y-%m-%d %H:%M:%S")
   open -n -a "$PWD/$1" --args -uitest -demo
   pid=

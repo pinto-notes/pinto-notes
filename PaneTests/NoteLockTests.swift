@@ -265,14 +265,17 @@ private actor HeldLockRemote: NoteLockRemote {
         #expect(n.body == "Diary\n\nDay one")
     }
 
-    @Test func notesWithFilesOrSubNotesCantBeLocked() async throws {
+    /// Files stay readable outside a locked note, so a note with files can't be locked. A link to
+    /// another note is only a link (sub-notes are gone, 2026-10-28): that note can be locked.
+    @Test func notesWithFilesCantBeLockedButNotesWithLinksCan() async throws {
         let vault = try device()
         try await vault.setUp(password: "pw", hint: nil)
         let file = context.createNote(in: .all, body: "Scan\n\n![x](pane-file:\(UUID().uuidString.lowercased()))")
-        let parent = context.createNote(in: .all, body: "Trip\n\n[Hotel](pane-note:\(UUID().uuidString.lowercased()))")
-        #expect(throws: NoteLockError.hasFilesOrSubNotes) { try vault.lock(file) }
-        #expect(throws: NoteLockError.hasFilesOrSubNotes) { try vault.lock(parent) }
-        #expect(!file.isLocked && !parent.isLocked)
+        let linking = context.createNote(in: .all, body: "Trip\n\n[Hotel](pane-note:\(UUID().uuidString.lowercased()))\n[[Packing list]]")
+        #expect(throws: NoteLockError.hasFiles) { try vault.lock(file) }
+        #expect(!file.isLocked)
+        try vault.lock(linking)
+        #expect(linking.isLocked)
     }
 
     @Test func lockingNeedsThePasswordFirst() async throws {

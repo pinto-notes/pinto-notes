@@ -970,9 +970,10 @@ enum NotePageActions {
     }
 }
 
-/// A sub-note that is an app, shown where its parent links it: the picture of it from last time,
+/// A note that is an app, shown where another note links it on a line of its own: the picture of
+/// it from last time,
 /// live once you tap it, with Open for the full screen. In other apps and exports it stays a link.
-struct SubNoteWidget: View {
+struct NoteAppWidget: View {
     let id: UUID
     let name: String
     let controller: EditorController?

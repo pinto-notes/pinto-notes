@@ -26,7 +26,7 @@ enum ShareWays {
 
 /// The toolbar's Share, like Notes': the note and the app at the top, a choice between sharing a
 /// link and sending a copy with a line saying what that does, then what there is to do. For a
-/// link: make it, or (once shared) copy it, open the page, include sub-notes, stop sharing. For
+/// link: make it, or (once shared) copy it, open the page, stop sharing. For
 /// a copy: the system's share targets with their own icons, and Copy.
 struct ShareNotePopover: View {
     let title: String
@@ -113,10 +113,6 @@ struct ShareNotePopover: View {
             row("Copy Link", "link", id: "share.copy") { Task { await store.shareAndCopy() } }
             if let url = store.url {
                 row("Open Shared Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
-            }
-            row(store.state.includesSubNotes ? "Leave Sub-notes Out" : "Include Sub-notes…", "doc.on.doc", id: "share.subnotes") {
-                // Turning sub-notes on makes more public: it asks first. Leaving them out needs no warning.
-                if store.state.includesSubNotes { Task { await store.setIncludesSubNotes(false) } } else { store.confirming = .includeSubNotes }
             }
             Divider().padding(.horizontal, 6).padding(.vertical, 4)
             row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }

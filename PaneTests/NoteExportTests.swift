@@ -31,7 +31,7 @@ import ZIPFoundation
         let top = try #require(try FileManager.default.contentsOfDirectory(at: out, includingPropertiesForKeys: nil).first)
         let lisbon = try String(contentsOf: top.appending(path: "Work/Trips/Lisbon.md"), encoding: .utf8)
         #expect(lisbon.contains("](../../Files/map%20of%20Lisbon.txt)"), "the file link points at the exported file")
-        #expect(lisbon.contains("[Packing list](../../Work/Packing%20list.md)"), "a sub-note link points at its export")
+        #expect(lisbon.contains("[Packing list](../../Work/Packing%20list.md)"), "a link to a note points at its export")
         #expect(try String(contentsOf: top.appending(path: "Work/Trips/Lisbon 2.md"), encoding: .utf8).contains("the other one"), "same titles don't overwrite")
         #expect(try String(contentsOf: top.appending(path: "Files/map of Lisbon.txt"), encoding: .utf8) == "a map")
         #expect(!FileManager.default.fileExists(atPath: top.appending(path: "Work/Gone.md").path), "Recently Deleted stays out")

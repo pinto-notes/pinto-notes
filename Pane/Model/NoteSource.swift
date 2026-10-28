@@ -199,7 +199,7 @@ enum NoteSourceError: Error, Equatable, Sendable {
 }
 
 /// A shared page's text, made into a note of your own: its photos and files stay with its owner
-/// (they're dropped, and counted), and links to its sub-notes become their plain names.
+/// (they're dropped, and counted), and links to other notes (`pane-note:`) become their plain names.
 enum SharedCopy {
     private static let id = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
 
@@ -210,7 +210,7 @@ enum SharedCopy {
         let file = try! NSRegularExpression(pattern: #"!?\[[^\]\n]*\]\(pane-file:"# + id + #"\)"#)
         leftOut = file.numberOfMatches(in: text, range: NSRange(text.startIndex..., in: text))
         text = file.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")
-        // Sub-note links keep their names.
+        // Links to notes keep their names.
         let sub = try! NSRegularExpression(pattern: #"\[([^\]\n]*)\]\(pane-note:"# + id + #"\)"#)
         text = sub.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "$1")
         // A line that held only a photo or a file goes, without leaving a gap of blank lines.

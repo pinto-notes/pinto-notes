@@ -26,7 +26,6 @@ import Testing
         // In Recently Deleted a note can only come back or go for good, like Notes (2026-10-12).
         #expect(groups(trashed: true) == [[.recover, .delete]])
         #expect(groups(locked: true, trashed: true) == [[.recover, .delete]])
-        #expect(NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, linkedFrom: false, nested: true, phone: false, dev: false)[1] == [.moveTo, .moveOut, .history, .delete])
         #expect(groups(dev: true).first == [.pin, .lock, .makeApp, .devImportApp])
     }
 }

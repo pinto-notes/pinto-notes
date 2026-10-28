@@ -143,6 +143,18 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
         }
     }
 
+    /// Another device (or an AI) puts a note under another one on the server (`parent_id`).
+    static func reparent(_ id: UUID, under parent: UUID?) {
+        lock.withLock {
+            guard var list = tables["notes"], let i = list.firstIndex(where: { ($0["id"] as? String)?.lowercased() == id.uuidString.lowercased() }) else { return }
+            var r = list[i]
+            r["parent_id"] = parent.map { $0.uuidString.lowercased() } ?? NSNull()
+            bump(&r)
+            list[i] = r
+            tables["notes"] = list
+        }
+    }
+
     /// A client whose requests go through the fault layer, then here.
     /// `storage`: where the session is kept; pass the same one to a second client to launch again.
     static func client(storage: AuthLocalStorage = MemoryAuthStorage()) -> SupabaseClient {

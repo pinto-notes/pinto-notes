@@ -516,16 +516,15 @@ extension ModelContext {
         return (notes, folders)
     }
 
-    /// Notes that link to `note`, with a wiki link or a note link, newest first. Its parent's link
-    /// to a sub-note isn't counted: the sub-note already leads back to it. Worked out from where
+    /// Notes that link to `note`, with a wiki link or a note link, newest first. Worked out from where
     /// each note links (WikiDirectory), not by searching every note's text, which the store did
     /// on opening a note and after every save. Empty while those are being read (`didRead`).
     func backlinks(to note: Note) -> [Note] {
         guard let index = WikiDirectory.ready(self), let linking = WikiDirectory.linking(self) else { return [] }
-        let id = note.id, parent = note.parentID
+        let id = note.id
         var found: [UUID] = []
         for (other, links) in linking where other != id {
-            if other != parent, links.noteLinks.contains(id) { found.append(other); continue }
+            if links.noteLinks.contains(id) { found.append(other); continue }
             if links.wikiTargets.contains(where: { index.resolve($0, from: links.folders) == id }) { found.append(other) }
         }
         guard !found.isEmpty else { return [] }

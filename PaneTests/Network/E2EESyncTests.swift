@@ -424,51 +424,29 @@ extension NetworkFaults {
 
     private func link(_ n: Note) -> String { "[\(n.title)](pane-note:\(n.id.uuidString.lowercased()))" }
 
-    @Test func theShareCopyHasOnlyLinkedLiveUnlockedSubNotesAndEmbeddedFiles() throws {
+    /// A page is the note alone, with the files it embeds (sub-notes are gone, 2026-10-28): a
+    /// note it links, or one an older build put under it, is never on it, whatever the share's
+    /// old sub-notes flag says.
+    @Test func theShareCopyIsTheNoteAloneWithItsOwnFiles() throws {
         let a = try device()
         let root = a.context.createNote(in: .all, body: "Trip\nSee below")
         let kept = a.context.createNote(in: .all, body: "Day one")
         kept.parentID = root.id
-        let grandchild = a.context.createNote(in: .all, body: "Morning")
-        grandchild.parentID = kept.id
         let locked = a.context.createNote(in: .all, body: "Passport")
-        locked.parentID = root.id
         locked.lockedBody = "amb2.0123456789abcdef.AAAA"
-        let underLocked = a.context.createNote(in: .all, body: "Under the lock")
-        underLocked.parentID = locked.id
-        let trashed = a.context.createNote(in: .all, body: "Old idea")
-        trashed.parentID = root.id
-        trashed.trashedAt = .now
-        // Its parent_id says it's under the root, but no text links to it.
-        let reparented = a.context.createNote(in: .all, body: "Diary")
-        reparented.parentID = root.id
-        // The root's text links it, but it lives elsewhere (no parent, or another one).
-        let elsewhereNote = a.context.createNote(in: .all, body: "Tax return")
-        let otherParent = a.context.createNote(in: .all, body: "Money")
-        let underOther = a.context.createNote(in: .all, body: "Salary")
-        underOther.parentID = otherParent.id
         let embedded = Pane.Attachment(filename: "map.pdf", contentType: "com.adobe.pdf", size: 10)
         let elsewhere = Pane.Attachment(filename: "other.pdf", contentType: "com.adobe.pdf", size: 10)
         a.context.insert(embedded); a.context.insert(elsewhere)
-        grandchild.body += "\n" + embedded.markdown
-        underLocked.body += "\n" + elsewhere.markdown
-        root.body += "\n" + [kept, locked, trashed, elsewhereNote, underOther].map(link).joined(separator: "\n")
-        kept.body += "\n" + link(grandchild) + "\n" + link(root)
-        locked.body += "\n" + link(underLocked)
-
-        let copy = try #require(SharePublisher.copy(of: root.id, includeSubNotes: true, in: a.context))
-        #expect(copy.title == "Trip" && copy.body == root.body)
-        #expect(Set(copy.pages.map(\.id)) == Set([kept.id, grandchild.id].map { $0.uuidString.lowercased() }))
-        #expect(copy.pages.first { $0.id == grandchild.id.uuidString.lowercased() }?.parent_id == kept.id.uuidString.lowercased())
-        #expect(!copy.pages.contains { $0.id == reparented.id.uuidString.lowercased() }, "parent_id alone never puts a note on a page")
-        #expect(!copy.pages.contains { [elsewhereNote.id, underOther.id].map { $0.uuidString.lowercased() }.contains($0.id) },
-                "nor does a link alone to a note whose parent_id isn't the linking note")
-        #expect(copy.files == [embedded.id.uuidString.lowercased()])
-        let alone = try #require(SharePublisher.copy(of: root.id, includeSubNotes: false, in: a.context))
-        #expect(alone.pages.isEmpty && alone.files.isEmpty)
-        #expect(SharePublisher.copy(of: locked.id, includeSubNotes: true, in: a.context) == nil, "a locked note is never published")
+        root.body += "\n" + embedded.markdown + "\n" + link(kept)
+        kept.body += "\n" + elsewhere.markdown
+        for include in [true, false] {
+            let copy = try #require(SharePublisher.copy(of: root.id, includeSubNotes: include, in: a.context))
+            #expect(copy.title == "Trip" && copy.body == root.body)
+            #expect(copy.pages.isEmpty, "no other note is on the page")
+            #expect(copy.files == [embedded.id.uuidString.lowercased()], "only the note's own files")
+        }
+        #expect(SharePublisher.copy(of: locked.id, includeSubNotes: false, in: a.context) == nil, "a locked note is never published")
     }
-
     /// A live share on the server, as the stub keeps it. `tag`: nil for none.
     private func plantShare(_ note: UUID, slug: String, include: Bool, tag: String?) {
         StubSupabase.insert("note_shares", ["slug": slug, "note_id": note.uuidString.lowercased(), "user_id": user.uuidString.lowercased(),
@@ -691,10 +669,7 @@ extension NetworkFaults {
         defer { SyncEngine.publishDelay = saved }
         let a = try device()
         let root = a.context.createNote(in: .all, body: "Shared trip")
-        let page = a.context.createNote(in: .all, body: "Day one")
-        page.parentID = root.id
-        root.body += "\n" + link(page)
-        for n in [root, page] { n.dirty = true }
+        root.dirty = true
         await a.engine.sync()
         let slug = "abcdefghijklmnopqrstuvwx"
         plantShare(root.id, slug: slug, include: true, tag: myTag(root.id, slug, true))
@@ -703,7 +678,7 @@ extension NetworkFaults {
         #expect(a.engine.liveShares[root.id] == true)
         #expect(a.engine.liveSlugs[root.id] == slug, "with its slug, for the open note")
         try await waitForPublishes(a.engine)
-        var before = publishes().count
+        let before = publishes().count
 
         // The AI edits the shared note on the server; this device pulls it and publishes the page.
         let rootText = root.body + "\nAdded by the AI"
@@ -712,15 +687,6 @@ extension NetworkFaults {
         let published = try #require(try await waitForPublish(a.engine, after: before))
         #expect(published["p_slug"] as? String == slug)
         #expect((published["p_copy"] as? [String: Any])?["body"] as? String == rootText)
-
-        // A page of it, by realtime: published under the root.
-        before = publishes().count
-        StubSupabase.edit(page.id, body: "Day one, by the AI", updatedAt: .now.addingTimeInterval(3), aiEditor: "Claude")
-        let rows: [NoteDTO] = try await StubSupabase.client().from("notes").select().eq("id", value: page.id.uuidString.lowercased()).execute().value
-        a.engine.take(rows)
-        let again = try #require(try await waitForPublish(a.engine, after: before))
-        let pages = (again["p_copy"] as? [String: Any])?["pages"] as? [[String: Any]] ?? []
-        #expect(pages.first?["body"] as? String == "Day one, by the AI")
         await a.engine.stop()
     }
 
@@ -753,14 +719,15 @@ extension NetworkFaults {
         await a.engine.stop()
     }
 
-    @Test func aNoteReparentedByParentIDAloneIsNeverPublished() async throws {
+    /// A note a shared note links, or one an older build put under it, isn't on its page: an
+    /// edit to it publishes nothing, and the shared note's page is the note alone.
+    @Test func aNoteLinkedFromASharedNoteIsNeverPublished() async throws {
         let saved = SyncEngine.publishDelay
         SyncEngine.publishDelay = .milliseconds(50)
         defer { SyncEngine.publishDelay = saved }
         let a = try device()
         let root = a.context.createNote(in: .all, body: "Shared trip")
         let linked = a.context.createNote(in: .all, body: "Day one")
-        linked.parentID = root.id
         root.body += "\n" + link(linked)
         let diary = a.context.createNote(in: .all, body: "Diary")
         for n in [root, linked, diary] { n.dirty = true }
@@ -770,27 +737,27 @@ extension NetworkFaults {
         StubSupabase.answer("publish_share") { _ in ["slug": slug, "missing_files": [String]()] }
         await a.engine.sync()
         #expect(a.engine.liveShares[root.id] == true)
-        // The server (or anyone) moves the diary under the shared note by parent_id.
         diary.parentID = root.id
-        #expect(a.engine.sharedRoots(of: diary.id).isEmpty && a.engine.sharedRoots(of: linked.id) == [root.id])
+        #expect(a.engine.sharedRoots(of: diary.id).isEmpty && a.engine.sharedRoots(of: linked.id).isEmpty)
+        linked.body = "Day one, morning"
+        linked.touch()
         diary.body = "Diary, today"
         diary.touch()
         await a.engine.sync(pulling: false)
         try await waitForPublishes(a.engine)
-        #expect(!StubSupabase.rpcCalls.contains { $0.name == "publish_share" }, "an edit to it publishes nothing")
-        // An edit to the shared note publishes its page, without the diary.
-        linked.body = "Day one, morning"
-        linked.touch()
+        #expect(!StubSupabase.rpcCalls.contains { $0.name == "publish_share" }, "an edit to them publishes nothing")
+        // An edit to the shared note publishes its page: the note alone.
+        root.body += "\nPacked"
+        root.touch()
         await a.engine.sync(pulling: false)
         let end = Date.now.addingTimeInterval(3)
         while !StubSupabase.rpcCalls.contains(where: { $0.name == "publish_share" }), Date.now < end { try await Task.sleep(for: .milliseconds(20)) }
         let published = try #require(StubSupabase.rpcCalls.last { $0.name == "publish_share" })
         let pages = (published.params["p_copy"] as? [String: Any])?["pages"] as? [[String: Any]] ?? []
-        #expect(pages.map { $0["id"] as? String } == [linked.id.uuidString.lowercased()])
+        #expect(pages.isEmpty)
         #expect(!String(describing: published.params).contains("Diary"))
         await a.engine.stop()
     }
-
     // MARK: Connecting an AI
 
     @Test func theDecisionCarriesTheExactReturnAddressAndACodeMadeHere() async throws {

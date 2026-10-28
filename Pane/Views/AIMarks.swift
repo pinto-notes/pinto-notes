@@ -124,7 +124,7 @@ struct AIReceipt: View {
 }
 
 /// The mark of a note that is also an app (it has a page; see NotePage): after the title in the note
-/// list and search results, on a sub-note's widget, and on Show App. PICKED: soft (A3), a soft grey
+/// list and search results, and on Show App. PICKED: soft (A3), a soft grey
 /// capsule with "App" in the secondary colour. The candidates it was chosen from (`-appMark`, debug):
 ///   A capsule: a solid amber capsule with the word "App" (our feature has no other noun);
 ///   B tile: SF Symbol app.fill in amber, at the title's cap height;

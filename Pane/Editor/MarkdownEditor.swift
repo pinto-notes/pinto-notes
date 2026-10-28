@@ -1,4 +1,11 @@
 import SwiftUI
+import os
+
+/// Notes dropped into a note's text, in the system log ("drop"), so a real drag can be checked
+/// without a picture of the screen.
+enum TextDrop {
+    nonisolated static let log = Logger(subsystem: "dev.emilwagman.pane", category: "drop")
+}
 
 /// The live-preview markdown editor. One instance per open note.
 struct MarkdownEditor: View {
@@ -1448,7 +1455,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             window?.makeFirstResponder(self)
             let ids = droppedNotes(sender)
             let done = dropNotes(ids, at: at)
-            NoteDrop.log.notice("text drop: \(ids.count) notes read, \(done ? "linked" : "nothing linked", privacy: .public)")
+            TextDrop.log.notice("text drop: \(ids.count) notes read, \(done ? "linked" : "nothing linked", privacy: .public)")
             return done
         }
         let urls = droppedFiles(sender)

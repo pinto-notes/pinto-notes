@@ -115,21 +115,6 @@ final class DogfoodTests: XCTestCase {
         #endif
     }
 
-    func testSubNotes() throws {
-        pause(1)
-        #if os(iOS)
-        openNote("Lisbon")
-        #endif
-        let chip = app.descendants(matching: .any).matching(identifier: "subnote.Hotel booking").firstMatch
-        XCTAssertTrue(chip.waitForExistence(timeout: 5), "the sub-note shows as a link in its parent")
-        shot("subnote-link")
-        chip.tap()
-        let back = app.descendants(matching: .any).matching(identifier: "subnote.parent").firstMatch
-        XCTAssertTrue(back.waitForExistence(timeout: 3), "a sub-note leads back to its parent")
-        pause(1)
-        shot("subnote-open")
-    }
-
     func testFiles() throws {
         pause(1)
         #if os(iOS)
@@ -197,14 +182,6 @@ final class DogfoodTests: XCTestCase {
         pause(2)
         let tick = app.descendants(matching: .any).matching(identifier: "grid.1.4").firstMatch
         if tick.exists { tick.tap() }
-        pause(2.5)
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        pause(1.2)
-
-        // A sub-note.
-        openNote("Lisbon")
-        pause(1.5)
-        app.descendants(matching: .any).matching(identifier: "subnote.Hotel booking").firstMatch.tap()
         pause(2.5)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         pause(1.2)

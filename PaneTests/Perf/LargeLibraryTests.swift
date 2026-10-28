@@ -14,7 +14,8 @@ import Testing
     nonisolated static let count = 20_000
 
     /// The store's folder, made the first time a test asks for it: 800 folders three deep, every
-    /// 20th note a sub-note, every 50th note with a wiki link, every note a few lines long.
+    /// 20th note under another as an older build made sub-notes, every 50th note with a wiki link,
+    /// every note a few lines long.
     nonisolated static let store = Task.detached(priority: .utility) { () -> URL in
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("LargeLibraryTests-\(ProcessInfo.processInfo.processIdentifier)")
         try? FileManager.default.removeItem(at: dir)
