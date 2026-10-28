@@ -1,9 +1,9 @@
 // The home page's shared words: the page title, the download lines and the template taglines.
 export const G = {
   title: "Pinto Notes: one notes app for every AI you use",
-  description: "Notes for Mac that Claude, Claude Code and Codex can read and edit, with your OK. ChatGPT and the iPhone app are coming soon. Imports Apple Notes. Free and open source.",
+  description: "Notes for Mac that ChatGPT, Claude, Claude Code and Codex can read and edit, with your OK. The iPhone app is coming soon. Imports Apple Notes. Free and open source.",
   h1: "One notes app for every AI you use.",
-  lede: "Claude, Claude Code and Codex read and edit your notes, with your OK. ChatGPT is coming soon.",
+  lede: "ChatGPT, Claude, Claude Code and Codex read and edit your notes, with your OK.",
   quiet: "Free for Mac. Brings your Apple Notes over.",
   notebook: {
     title: "Every AI you use, one notebook.",
