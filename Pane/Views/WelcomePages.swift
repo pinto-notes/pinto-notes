@@ -42,14 +42,36 @@ enum SceneLook: String, CaseIterable, Sendable {
         #if DEBUG
         if let s = ProcessInfo.processInfo.environment["PINTO_WELCOME_SCENE"].flatMap(SceneLook.init(rawValue:)) { return s }
         #endif
-        return .framed
+        return .site
     }
 
-    /// "C1" to "C6", as the review names them.
+    /// "C1" to "C7", as the review names them.
     var name: String { "C\((Self.allCases.firstIndex(of: self) ?? 0) + 1)" }
 
     /// The scene carries the note card (C1 to C4); C5 and C6 show pieces of the app instead.
     var hasCard: Bool { ![.fragments, .collage, .site].contains(self) }
+}
+
+/// C7's foot, after Emil found the dots, the full-width amber button and the link under it
+/// unprofessional: F1 a dark capsule with "Already have an account? Sign in"; F2 Apple's own
+/// controls; F3 Continue page by page, Sign in at the top; F4 from "WanderWise": a compact amber
+/// capsule, the wordmark on top, small dots under the line; F5 from "Family, Simplified": bars
+/// across the top with Back, a compact dark "Next".
+enum WelcomeFooter: String, CaseIterable, Sendable {
+    case f1, f2, f3, f4, f5, f6
+
+    static var current: WelcomeFooter {
+        #if DEBUG
+        if let s = ProcessInfo.processInfo.environment["PINTO_WELCOME_FOOTER"].flatMap(WelcomeFooter.init(rawValue:)) { return s }
+        #endif
+        return .f4
+    }
+
+    var name: String { rawValue.uppercased() }
+    /// Sign in sits at the top right instead of under the button.
+    var signInOnTop: Bool { [.f3, .f4, .f5, .f6].contains(self) }
+    /// The main button moves page by page (Continue, Next) and says Get started on the last.
+    var stepsThrough: Bool { [.f3, .f5, .f6].contains(self) }
 }
 
 /// What each page says and shows.
@@ -101,6 +123,8 @@ struct WelcomePages: View {
     var sceneLook: SceneLook = .current
     /// Segmented bars at the top in place of the dots (tried on C5).
     var bars = false
+    /// C7's foot.
+    var footer: WelcomeFooter = .current
     /// Captures: the page shown, and its demo held at a step (nil: as it plays).
     var page: WelcomePage = .writes
     var frozenStage: Int? = nil
@@ -114,20 +138,27 @@ struct WelcomePages: View {
     @State private var selection: WelcomePage
     @State private var stages: [WelcomePage: Int] = [:]
     @State private var startTaps = 0
+    @State private var finishTaps = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Captures: how far D's typing line has got (nil: all of it once frozen).
     var typingProgress: Double? = nil
+    /// Captures: F6's Next part way to Get started (0 to 1).
+    var widenProgress: Double? = nil
 
-    init(style: WelcomeStyle = .current, sceneLook: SceneLook = .current, bars: Bool = false, page: WelcomePage = .writes,
-         frozenStage: Int? = nil, typingProgress: Double? = nil, start: @escaping () -> Void, haveAccount: @escaping () -> Void) {
+    init(style: WelcomeStyle = .current, sceneLook: SceneLook = .current, bars: Bool = false, footer: WelcomeFooter = .current,
+         page: WelcomePage = .writes,
+         frozenStage: Int? = nil, typingProgress: Double? = nil, widenProgress: Double? = nil,
+         start: @escaping () -> Void, haveAccount: @escaping () -> Void) {
         self.style = style
         self.sceneLook = sceneLook
         self.bars = bars
+        self.footer = footer
         self.page = page
         self.frozenStage = frozenStage
         self.typingProgress = typingProgress
+        self.widenProgress = widenProgress
         self.start = start
         self.haveAccount = haveAccount
         _selection = State(initialValue: page)
@@ -135,7 +166,9 @@ struct WelcomePages: View {
 
     var body: some View {
         GeometryReader { screen in
-            if style == .device, !typeSize.isAccessibilitySize {
+            if isSite, !typeSize.isAccessibilitySize {
+                siteLayout(screen.size)
+            } else if style == .device, !typeSize.isAccessibilitySize {
                 // B: the app's screen runs to the bottom edge, behind the way in, which floats on
                 // the screen's fade into the page.
                 pages(screen.size)
@@ -168,6 +201,165 @@ struct WelcomePages: View {
         .sensoryFeedback(.selection, trigger: selection)
         .task(id: selection) { await play(selection) }
         .accessibilityIdentifier("welcome.pages")
+    }
+
+    private var isSite: Bool { style == .scene && sceneLook == .site }
+
+    /// C7: the top row (wordmark, Sign in, bars), the pages, and the foot, which sits a set
+    /// distance above the home indicator on every page.
+    private func siteLayout(_ size: CGSize) -> some View {
+        VStack(spacing: 0) {
+            siteTop
+            pages(size)
+            siteFoot
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+        }
+    }
+
+    private var last: Bool { selection == WelcomePage.allCases.last }
+
+    @ViewBuilder private var siteTop: some View {
+        switch footer {
+        case .f1, .f2:
+            EmptyView()
+        case .f3, .f6:
+            HStack { Spacer(); signInLink(ink: footer == .f6) }.padding(.horizontal, 20).frame(height: 40)
+        case .f4:
+            ZStack {
+                HStack(spacing: 7) {
+                    AppMark(size: 24)
+                    Text("Pinto Notes").font(.system(size: 17, weight: .semibold)).foregroundStyle(Color.ink)
+                }
+                .accessibilityElement(children: .combine)
+                HStack { Spacer(); signInLink(ink: false) }
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 44)
+        case .f5:
+            HStack(spacing: 12) {
+                if selection != .writes {
+                    Button { back() } label: {
+                        Image(systemName: "chevron.left").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                            .frame(width: 36, height: 36)
+                            .background(Color.card, in: .circle)
+                            .shadow(color: Color(Palette.shadow), radius: 8, y: 3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back")
+                    .transition(.opacity)
+                }
+                Bars(count: WelcomePage.allCases.count, on: selection.rawValue, ink: true)
+                signInLink(ink: true)
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 44)
+            .animation(.easeOut(duration: 0.2), value: selection)
+        }
+    }
+
+    @ViewBuilder private var siteFoot: some View {
+        VStack(spacing: 0) {
+            switch footer {
+            case .f1:
+                SmallDots(count: WelcomePage.allCases.count, on: selection.rawValue, size: 7, active: Color.ink, rest: Color.ink.opacity(0.22))
+                    .padding(.top, 20).padding(.bottom, 28)
+                startButton.buttonStyle(.welcomeCapsule(.darkWide))
+                Button(action: haveAccount) {
+                    (Text("Already have an account? ").foregroundStyle(Color.muted) + Text("Sign in").fontWeight(.semibold).foregroundStyle(Color.ink))
+                        .font(.subheadline)
+                }
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
+                .padding(.top, 6)
+                .accessibilityIdentifier(Self.haveAccountID)
+            case .f2:
+                SmallDots(count: WelcomePage.allCases.count, on: selection.rawValue, size: 8, active: Color.primary, rest: Color.primary.opacity(0.25))
+                    .padding(.top, 20).padding(.bottom, 28)
+                startButton
+                    .frame(maxWidth: .infinity)
+                    .modifier(WelcomeNativeProminent())
+                Button("Sign in", action: haveAccount)
+                    .buttonStyle(.borderless)
+                    .frame(minHeight: 44)
+                    .padding(.top, 4)
+                    .accessibilityIdentifier(Self.haveAccountID)
+            case .f3:
+                SmallDots(count: WelcomePage.allCases.count, on: selection.rawValue, size: 7, active: Color(Palette.amber), rest: Color.ink.opacity(0.18))
+                    .padding(.top, 28).padding(.bottom, 20)
+                startButton.buttonStyle(.amberProminent(.form, wide: true))
+            case .f4:
+                SmallDots(count: WelcomePage.allCases.count, on: selection.rawValue, size: 6, active: Color(Palette.amber), rest: Color.ink.opacity(0.16))
+                    .padding(.top, 20).padding(.bottom, 36)
+                startButton.buttonStyle(.welcomeCapsule(.amberCompact))
+            case .f5:
+                startButton.buttonStyle(.welcomeCapsule(.darkCompact))
+                    .padding(.top, 56)
+            case .f6:
+                // One row: the bars at the left, Next at the right. On the last page the bars give
+                // way and Next widens into Get started.
+                GeometryReader { g in
+                    let wide = widenProgress ?? (last ? 1 : 0)
+                    HStack(spacing: 0) {
+                        JumpBars(count: WelcomePage.allCases.count, on: selection.rawValue) { i in
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) { selection = WelcomePage(rawValue: i) ?? .writes }
+                        }
+                        .opacity(1 - wide)
+                        // The bars give up their room as Next widens.
+                        .frame(width: JumpBars.width * (1 - wide), alignment: .leading)
+                        .clipped()
+                        Spacer(minLength: 0)
+                        startButton
+                            .buttonStyle(.welcomeCapsule(.morph(last: wide > 0.5)))
+                            .frame(width: Self.nextWidth + (g.size.width - Self.nextWidth) * wide)
+                    }
+                    .frame(height: g.size.height)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: last)
+                }
+                .frame(height: ButtonSize.big.height)
+                .padding(.top, 36)
+                .padding(.horizontal, 4)
+                .sensoryFeedback(.success, trigger: finishTaps)
+            }
+        }
+    }
+
+    /// F6's Next, hugging its words.
+    static let nextWidth: CGFloat = 112
+
+    /// The foot's main button: Get started, or on F3, F5 and F6 the next page until the last.
+    private var startButton: some View {
+        Button {
+            if footer.stepsThrough, !last {
+                startTaps += 1
+                advance(from: selection)
+            } else {
+                if footer == .f6 { finishTaps += 1 } else { startTaps += 1 }
+                start()
+            }
+        } label: {
+            switch footer {
+            case .f3: Text(last ? "Get started" : "Continue")
+            case .f5, .f6: Text(last ? (footer == .f6 ? "Get started" : "Get started \u{2192}") : "Next \u{2192}")
+            default: Text("Get started").frame(maxWidth: footer == .f2 ? .infinity : nil)
+            }
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: startTaps)
+        .accessibilityIdentifier(Self.startID)
+    }
+
+    private func signInLink(ink: Bool) -> some View {
+        Button("Sign in", action: haveAccount)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(ink ? Color.ink : Color.amberInk)
+            .buttonStyle(.plain)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityIdentifier(Self.haveAccountID)
+    }
+
+    private func back() {
+        let prev = WelcomePage(rawValue: max(0, selection.rawValue - 1)) ?? .writes
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) { selection = prev }
     }
 
     private func pages(_ size: CGSize) -> some View {
@@ -233,18 +425,19 @@ struct WelcomePages: View {
                 Spacer(minLength: 0)
             }
         case .scene where sceneLook == .site:
-            VStack(spacing: 0) {
+            // The art takes whatever the words leave, so the words end right above the foot on
+            // every page: no band of empty page between them.
+            VStack(spacing: 28) {
                 SiteArt(page: p, stage: stage)
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .frame(height: stageHeight * 1.16 - 24)
+                    .frame(maxHeight: .infinity)
                     .contentShape(.rect)
                     .onTapGesture { advance(from: p) }
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHint("Shows the next page")
-                MarkedWords(page: p).padding(.horizontal, 28).padding(.top, 32)
-                Spacer(minLength: 0)
+                MarkedWords(page: p, footer: footer).padding(.horizontal, 28)
             }
+            .padding(.top, 4)
         case .scene where sceneLook == .collage:
             VStack(spacing: 0) {
                 words.padding(.horizontal, 28).padding(.top, 28)
@@ -607,11 +800,13 @@ private struct Collage: View {
 private struct Bars: View {
     let count: Int
     let on: Int
+    /// F5: the filled bars in the ink, thin, rather than amber.
+    var ink = false
 
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<count, id: \.self) { i in
-                Capsule().fill(i <= on ? AnyShapeStyle(Color(Palette.amber)) : AnyShapeStyle(Color.ink.opacity(0.15))).frame(height: 4)
+                Capsule().fill(i <= on ? AnyShapeStyle(ink ? Color.ink : Color(Palette.amber)) : AnyShapeStyle(Color.ink.opacity(0.15))).frame(height: ink ? 3 : 4)
             }
         }
         .animation(.easeOut(duration: 0.25), value: on)
@@ -623,6 +818,7 @@ private struct Bars: View {
 /// C7's headline and line, with the website's highlighter: a soft amber band behind the key words.
 private struct MarkedWords: View {
     let page: WelcomePage
+    var footer: WelcomeFooter = .f1
 
     /// The headline in three parts: before the marked words, the marked words, after.
     private var parts: (String, String, String) {
@@ -633,13 +829,26 @@ private struct MarkedWords: View {
         }
     }
 
+    private var titleSize: CGFloat {
+        switch footer {
+        case .f4, .f6: 32
+        case .f5: 30
+        default: 34
+        }
+    }
+
+    private var titleWeight: Font.Weight { [.f4, .f5, .f6].contains(footer) ? .bold : .heavy }
+
+    static let line = Color(light: Color(red: 0.36, green: 0.29, blue: 0.22), dark: Color.muted)
+
     var body: some View {
         let (a, m, b) = parts
         VStack(spacing: 10) {
             (Text(a) + Text(m).customAttribute(Marker()) + Text(b))
-                .textRenderer(Marker.Renderer(color: Color(Palette.underline)))
-                .font(.system(size: 34, weight: .heavy))
-                .tracking(-0.8)
+                .textRenderer(SiteMarker(color: Color(Palette.underline)))
+                .font(.system(size: titleSize, weight: titleWeight))
+                .tracking([.f4, .f5, .f6].contains(footer) ? -0.5 : -0.8)
+                .lineSpacing(footer == .f5 ? -2 : 0)
                 .foregroundStyle(Color.ink)
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
@@ -647,15 +856,41 @@ private struct MarkedWords: View {
                 .accessibilityLabel(page.title)
                 .accessibilityIdentifier("welcome.title")
             Text(page.line)
-                .font(.body)
-                .foregroundStyle(Color.muted)
+                .font(footer == .f4 ? .system(size: 15) : footer == .f5 ? .system(size: 16) : .body)
+                // A step darker than the app's muted grey on the cream, for contrast.
+                .foregroundStyle(footer == .f5 ? Color.ink.opacity(0.75) : MarkedWords.line)
                 .lineSpacing(2)
+                .lineLimit(3, reservesSpace: true)
+                // F4: about 30 characters a line.
+                .frame(maxWidth: footer == .f4 ? 250 : .infinity)
                 .accessibilityIdentifier("welcome.line")
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: 440)
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// The website's highlighter (hero.module.css `.mark`): a band across the lower half of the
+/// x-height, a little past both ends of the marked words.
+private struct SiteMarker: TextRenderer {
+    let color: Color
+
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for line in layout {
+            for run in line {
+                if run[Marker.self] != nil {
+                    let b = run.typographicBounds
+                    let baseline = b.rect.minY + b.ascent
+                    // The x-height is about 0.55 of the ascent in SF at heavy weights.
+                    let x = b.ascent * 0.55
+                    let band = CGRect(x: b.rect.minX - 3, y: baseline - x * 0.62, width: b.rect.width + 6, height: x * 0.58)
+                    context.fill(Path(roundedRect: band, cornerRadius: 2), with: .color(color))
+                }
+                context.draw(run)
+            }
+        }
     }
 }
 
@@ -807,6 +1042,52 @@ private struct CaretLine: View {
         .background(Color.card, in: .capsule)
         .shadow(color: .black.opacity(0.06), radius: 1.5, y: 1)
         .shadow(color: Color(Palette.shadow).opacity(1.3), radius: 18, y: 10)
+    }
+}
+
+/// F6's bars: short, the current one twice as long in the accent; each jumps to its page.
+private struct JumpBars: View {
+    /// Two short bars, the long one and the gaps.
+    static let width: CGFloat = 18 * 2 + 36 + 6 * 2
+    let count: Int
+    let on: Int
+    let jump: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<count, id: \.self) { i in
+                Button { jump(i) } label: {
+                    Capsule().fill(i == on ? AnyShapeStyle(Color(Palette.amber)) : AnyShapeStyle(Color.ink.opacity(0.2)))
+                        .frame(width: i == on ? 36 : 18, height: 4)
+                        .frame(height: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Page \(i + 1)")
+                .accessibilityAddTraits(i == on ? .isSelected : [])
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: on)
+    }
+}
+
+/// Round dots all the same size, the one you're on in `active` (F1 to F4).
+private struct SmallDots: View {
+    let count: Int
+    let on: Int
+    let size: CGFloat
+    let active: Color
+    let rest: Color
+
+    var body: some View {
+        HStack(spacing: size + 3) {
+            ForEach(0..<count, id: \.self) { i in
+                Circle().fill(i == on ? active : rest).frame(width: size, height: size)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: on)
+        .accessibilityElement()
+        .accessibilityLabel("Page \(on + 1) of \(count)")
     }
 }
 

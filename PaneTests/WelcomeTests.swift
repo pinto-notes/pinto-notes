@@ -130,7 +130,8 @@ import AppKit
     @Test func theLookDefaultsToTheCardOnTheDesk() {
         #expect(WelcomeStyle.allCases.count == 4)
         #expect(WelcomeStyle.current == .scene, "C, after Emil ruled B out on 28 October 2026")
-        #expect(SceneLook.current == .framed, "C1 for now")
+        #expect(SceneLook.current == .site, "C7, Emil's pick on 28 October 2026")
+        #expect(WelcomeFooter.allCases.map(\.name) == ["F1", "F2", "F3", "F4", "F5", "F6"])
         #expect(SceneLook.allCases.map(\.name) == ["C1", "C2", "C3", "C4", "C5", "C6", "C7"])
     }
 

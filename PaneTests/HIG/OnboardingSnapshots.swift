@@ -397,16 +397,32 @@ import UIKit
         // the largest text; C5 and C6 every page light and the first dark; C5 with bars.
         for look in SceneLook.allCases {
             for page in WelcomePage.allCases {
-                for dark in [false, true] where look.hasCard || !dark || page == .writes {
+                for dark in [false, true] where look.hasCard || look == .site || !dark || page == .writes {
                     let view = WelcomePages(style: .scene, sceneLook: look, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
                     try await Self.shootPage(view, "welcome-\(look.name)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
                 }
             }
         }
-        for page in WelcomePage.allCases {
-            let view = WelcomePages(style: .scene, sceneLook: .framed, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
-            try await Self.shootPage(view, "welcome-C1-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
+        for look in [SceneLook.framed, .site] {
+            for page in WelcomePage.allCases {
+                let view = WelcomePages(style: .scene, sceneLook: look, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+                try await Self.shootPage(view, "welcome-\(look.name)-\(page.rawValue + 1)-largest", dark: false, type: .accessibility3, scene: scene, dir: dir)
+            }
         }
+        // C7's feet: every one on page 1, light and dark; F4, F5 and F6 on every page; F6 halfway
+        // from Next to Get started.
+        for foot in WelcomeFooter.allCases {
+            let all = [.f4, .f5, .f6].contains(foot)
+            for page in WelcomePage.allCases where all || page == .writes {
+                for dark in [false, true] where !dark || page == .writes {
+                    let view = WelcomePages(style: .scene, sceneLook: .site, footer: foot, page: page, frozenStage: page.stages - 1, start: {}, haveAccount: {})
+                    try await Self.shootPage(view, "welcome-C7-\(foot.name)-\(page.rawValue + 1)-\(dark ? "dark" : "light")", dark: dark, scene: scene, dir: dir)
+                }
+            }
+        }
+        let widening = WelcomePages(style: .scene, sceneLook: .site, footer: .f6, page: .asksFirst, frozenStage: WelcomePage.asksFirst.stages - 1,
+                                    widenProgress: 0.5, start: {}, haveAccount: {})
+        try await Self.shootPage(widening, "welcome-C7-F6-3-widening", dark: false, scene: scene, dir: dir)
         let barred = WelcomePages(style: .scene, sceneLook: .fragments, bars: true, page: .writes, frozenStage: WelcomePage.writes.stages - 1, start: {}, haveAccount: {})
         try await Self.shootPage(barred, "welcome-C5-1-bars-light", dark: false, scene: scene, dir: dir)
         for (i, (stage, typed)) in [(2, 0.0), (2, 0.35), (2, 0.7), (2, 1.0), (3, 1.0)].enumerated() {
