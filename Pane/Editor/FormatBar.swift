@@ -5,12 +5,14 @@ import UIKit
 /// The glass bar that floats above the keyboard while you write.
 struct FormatBar: View {
     let controller: EditorController
+    /// Over a table cell's keyboard: the table's own menu, like Notes.
+    var inTable = false
     let dismiss: () -> Void
 
     var body: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                if controller.wikiSuggestions.isEmpty { tools } else {
+                if inTable { tableTools } else if controller.wikiSuggestions.isEmpty { tools } else {
                     WikiSuggestionRow(controller: controller)
                         .glassEffect(.regular.interactive(), in: .capsule)
                 }
@@ -29,6 +31,20 @@ struct FormatBar: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
         }
+    }
+
+    /// In a table the Table button is the table's menu: add or delete a row or column, or Delete
+    /// Table, like Notes.
+    private var tableTools: some View {
+        Menu {
+            if let menu = controller.currentTableMenu { TableMenuItems(menu: menu) }
+        } label: {
+            BarIcon(systemName: "tablecells")
+        }
+        .accessibilityLabel("Table")
+        .accessibilityIdentifier("editor.tableMenu")
+        .padding(.horizontal, 4)
+        .glassEffect(.regular.interactive(), in: .capsule)
     }
 
     /// The writing tools; while a `[[link` is typed, note titles take their place.
@@ -102,8 +118,8 @@ private struct BarIcon: View {
 final class FormatBarHost: UIView {
     private let host: UIHostingController<FormatBar>
 
-    init(controller: EditorController, dismiss: @escaping () -> Void) {
-        host = UIHostingController(rootView: FormatBar(controller: controller, dismiss: dismiss))
+    init(controller: EditorController, inTable: Bool = false, dismiss: @escaping () -> Void) {
+        host = UIHostingController(rootView: FormatBar(controller: controller, inTable: inTable, dismiss: dismiss))
         super.init(frame: CGRect(x: 0, y: 0, width: 390, height: 60))
         autoresizingMask = .flexibleHeight
         backgroundColor = .clear

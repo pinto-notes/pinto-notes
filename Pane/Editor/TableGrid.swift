@@ -205,6 +205,186 @@ enum GridMetrics {
     static var row: CGFloat { max(32, ceil(EditorMetrics.body * 32 / 17)) }
     static let handle: CGFloat = 16
     static func height(_ t: GridTable) -> CGFloat { handle + CGFloat(t.rows.count) * row + 2 }
+    #if os(iOS)
+    /// A row or column handle's touch target: 44 points square (HIG), however small its grip.
+    static let handleHit: CGFloat = 44
+    /// Room above the table for the column handles' targets: they reach this far over the line
+    /// above, so less of the header row is given up to them. Only the targets take taps there.
+    static let reach: CGFloat = 14
+    #else
+    /// On the Mac a pointer is precise: the target is the grip and a little around it, so a click
+    /// in the header next to a grip still places the caret.
+    static let handleHit: CGFloat = 28
+    static let reach: CGFloat = 0
+    #endif
+}
+
+/// A whole row or a whole column of a table, as its handle picks it.
+enum GridLine: Hashable {
+    case row(Int)
+    case column(Int)
+}
+
+/// What the table menus do to the row or column of a cell.
+enum TableAction: Hashable, CaseIterable {
+    case addRowAbove, addRowBelow, deleteRow, addColumnBefore, addColumnAfter, deleteColumn
+
+    var title: String {
+        switch self {
+        case .addRowAbove: "Add Row Above"
+        case .addRowBelow: "Add Row Below"
+        case .deleteRow: "Delete Row"
+        case .addColumnBefore: "Add Column Before"
+        case .addColumnAfter: "Add Column After"
+        case .deleteColumn: "Delete Column"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .addRowAbove: "arrow.up"
+        case .addRowBelow: "arrow.down"
+        case .addColumnBefore: "arrow.left"
+        case .addColumnAfter: "arrow.right"
+        case .deleteRow, .deleteColumn: "trash"
+        }
+    }
+
+    var isDestructive: Bool { self == .deleteRow || self == .deleteColumn }
+
+    static let row: [TableAction] = [.addRowAbove, .addRowBelow, .deleteRow]
+    static let column: [TableAction] = [.addColumnBefore, .addColumnAfter, .deleteColumn]
+}
+
+extension GridTable {
+    /// The last row and the last column stay: Delete Table removes the table.
+    func allows(_ a: TableAction) -> Bool {
+        switch a {
+        case .deleteRow: rows.count > 1
+        case .deleteColumn: columns > 1
+        default: true
+        }
+    }
+
+    /// Does `a` to the row or column of `cell`, and returns where the keyboard goes next: the same
+    /// cell where it now is, or its neighbour when its row or column went.
+    @discardableResult
+    mutating func perform(_ a: TableAction, at cell: GridCell) -> GridCell {
+        let r = min(max(cell.row, 0), rows.count - 1), c = min(max(cell.column, 0), max(columns - 1, 0))
+        switch a {
+        case .addRowAbove:
+            // Never above the header: the new row goes under it.
+            let at = max(r, 1)
+            rows.insert(blankRow, at: at)
+            return GridCell(row: at == r ? r + 1 : r, column: c)
+        case .addRowBelow:
+            rows.insert(blankRow, at: r + 1)
+            return GridCell(row: r, column: c)
+        case .deleteRow:
+            guard rows.count > 1 else { return GridCell(row: r, column: c) }
+            rows.remove(at: r)
+            return GridCell(row: min(r, rows.count - 1), column: c)
+        case .addColumnBefore:
+            insertColumn(at: c)
+            return GridCell(row: r, column: c + 1)
+        case .addColumnAfter:
+            insertColumn(at: c + 1)
+            return GridCell(row: r, column: c)
+        case .deleteColumn:
+            guard columns > 1 else { return GridCell(row: r, column: c) }
+            removeColumn(at: c)
+            return GridCell(row: r, column: min(c, columns - 1))
+        }
+    }
+}
+
+/// Where the row and column handles of the cell with the keyboard are, and which one a tap picks.
+/// Each target is `hit` points square (44 on iPhone), centred on its grip and kept inside the
+/// table's own area. Two targets can overlap (a narrow first column puts its column handle near the
+/// first row's handle): a tap there goes to the nearer grip, so neither ever takes the other's taps.
+/// Points are in the table view's content space: the reach band at the top, the column handle
+/// strip, then the rows; the row handle strip on the left.
+struct GridHandles: Equatable {
+    struct Grip: Equatable {
+        var line: GridLine
+        var center: CGPoint
+        var hit: CGRect
+    }
+
+    var grips: [Grip] = []
+
+    init(widths: [CGFloat], rows: Int, cell: GridCell?, rowHeight: CGFloat = GridMetrics.row,
+         strip: CGFloat = GridMetrics.handle, reach: CGFloat = GridMetrics.reach, hit: CGFloat = GridMetrics.handleHit) {
+        guard let cell, rows > 0, cell.row < rows, cell.column < widths.count else { return }
+        let total = strip + widths.reduce(0, +)
+        let bottom = reach + strip + CGFloat(rows) * rowHeight
+        func target(_ center: CGPoint) -> CGRect {
+            var r = CGRect(x: center.x - hit / 2, y: center.y - hit / 2, width: hit, height: hit)
+            r.origin.x = min(max(r.minX, 0), max(total - hit, 0))
+            r.origin.y = min(max(r.minY, 0), max(bottom - hit, 0))
+            return r
+        }
+        let cx = strip + widths[..<cell.column].reduce(0, +) + widths[cell.column] / 2
+        let column = CGPoint(x: cx, y: reach + strip / 2)
+        let row = CGPoint(x: strip / 2, y: reach + strip + CGFloat(cell.row) * rowHeight + rowHeight / 2)
+        grips = [Grip(line: .column(cell.column), center: column, hit: target(column)),
+                 Grip(line: .row(cell.row), center: row, hit: target(row))]
+    }
+
+    /// The handle a tap at `p` picks: of the targets under it, the one whose grip is nearest.
+    func line(at p: CGPoint) -> GridLine? {
+        grips.filter { $0.hit.contains(p) }
+            .min { hypot($0.center.x - p.x, $0.center.y - p.y) < hypot($1.center.x - p.x, $1.center.y - p.y) }?.line
+    }
+}
+
+/// The handle targets of one table on screen, in the table view's own (host) coordinates: the
+/// iPhone editor lets taps in the reach band above a table through to the text unless one lands
+/// on a target, and anchors a handle's menu on it.
+@MainActor
+final class GridHitBox {
+    static let space = "gridHost"
+    var targets: [GridLine: CGRect] = [:]
+}
+
+/// A table's menu as shown: for a handle (`line`), or for the whole table from the toolbar.
+struct TableMenu {
+    struct Item {
+        var title: String
+        var systemImage: String
+        var destructive = false
+        var enabled = true
+        var run: () -> Void
+    }
+    var grid: Int
+    var line: GridLine?
+    var sections: [[Item]]
+    var items: [Item] { sections.flatMap { $0 } }
+    func item(_ title: String) -> Item? { items.first { $0.title == title } }
+}
+
+/// A table menu's items, for a SwiftUI menu (the keyboard bar's and the Mac toolbar's Table button).
+struct TableMenuItems: View {
+    let menu: TableMenu
+
+    var body: some View {
+        ForEach(Array(menu.sections.enumerated()), id: \.offset) { _, section in
+            Section {
+                ForEach(section, id: \.title) { item in
+                    Button(item.title, systemImage: item.systemImage, role: item.destructive ? .destructive : nil, action: item.run)
+                        .disabled(!item.enabled)
+                        .accessibilityIdentifier("table.menu.\(item.title)")
+                }
+            }
+        }
+    }
+}
+
+/// The table the keyboard is in, and the row or column picked by its handle.
+struct TableContext: Equatable {
+    var grid: Int
+    var cell: GridCell
+    var selected: GridLine?
 }
 
 /// Where the keyboard is inside a grid.
@@ -246,13 +426,27 @@ struct TableGridView: View {
     /// pressed then would repeat the last move or be dropped.
     private var current: GridCell? { wanted ?? focus }
 
-    init(table: GridTable, focusRequest: GridFocusRequest? = nil, selected: Bool = false, exit: @escaping (Bool) -> Void = { _ in }, commit: @escaping (GridTable) -> Void) {
+    /// The note's editor: the table menus, and which row or column is picked.
+    var controller: EditorController?
+    /// Where this table's handle targets are, for the editor (see GridHitBox).
+    var box: GridHitBox?
+
+    init(table: GridTable, focusRequest: GridFocusRequest? = nil, selected: Bool = false, controller: EditorController? = nil, box: GridHitBox? = nil,
+         exit: @escaping (Bool) -> Void = { _ in }, commit: @escaping (GridTable) -> Void) {
         self.selected = selected
         self.table = table
         self.commit = commit
         self.focusRequest = focusRequest
+        self.controller = controller
+        self.box = box
         self.exit = exit
         _draft = State(initialValue: table)
+    }
+
+    /// The row or column picked by its handle in this table, while the keyboard is in it.
+    private var picked: GridLine? {
+        guard let t = controller?.table, t.grid == table.index, focus != nil || wanted != nil else { return nil }
+        return t.selected
     }
 
     var body: some View {
@@ -271,8 +465,11 @@ struct TableGridView: View {
             .onScrollGeometryChange(for: GridOverflow.self) { GridOverflow($0) } action: { _, new in overflow = new }
             .mask { GridOverflow.Fade(overflow: overflow) }
         }
+        .coordinateSpace(.named(GridHitBox.space))
         .onChange(of: table) { _, new in
             guard new != draft else { return }
+            // A row or column the menus removed: the cell being edited may be gone.
+            if let e = editing, e.row >= new.rows.count || e.column >= max(new.columns, 1) { editing = nil }
             // Our own edit coming back from the note keeps what's on screen: the note's
             // copy has lost the space just typed at the end of a cell, and taking it
             // would join the next word onto the last.
@@ -291,11 +488,16 @@ struct TableGridView: View {
                 // one lands: put it back (`land` keeps asking if this is turned down too).
                 // A real departure leaves `wanted` empty.
                 if let w = wanted { DispatchQueue.main.async { if focus == nil, wanted == w { focus = w } } }
+                // The keyboard really left the table (not on its way to another cell): its menus
+                // no longer apply to it.
+                let index = table.index
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { if focus == nil, wanted == nil { controller?.leftTable(index) } }
                 // The last cell's field stays: it's plain-styled, so it reads as text.
                 return
             }
             if new == wanted { wanted = nil }
             if let new, new != editing { editing = new }
+            if let new { controller?.tableFocused(grid: table.index, cell: new) }
             guard caretToEnd else { return }
             caretToEnd = false
             let caret = caretAt
@@ -323,26 +525,95 @@ struct TableGridView: View {
     }
 
     private func content(widths: [CGFloat]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Column handle above the focused column.
-            ZStack(alignment: .leading) {
-                Color.clear.frame(height: GridMetrics.handle)
-                if let f = focus, f.column < widths.count {
-                    handle(horizontal: true, label: columnHandleLabel(f.column)) { columnMenu(f.column) }
-                        .offset(x: GridMetrics.handle + widths[..<f.column].reduce(0, +) + widths[f.column] / 2 - 14)
-                }
-            }
+        let handles = GridHandles(widths: widths, rows: draft.rows.count, cell: focus)
+        return VStack(alignment: .leading, spacing: 0) {
+            // Over the line above: only the column handle's target takes taps here (iPhone).
+            Color.clear.frame(height: GridMetrics.reach)
+            // The strip the column handle sits in.
+            Color.clear.frame(height: GridMetrics.handle)
             HStack(alignment: .top, spacing: 0) {
-                // Row handle beside the focused row.
-                ZStack(alignment: .top) {
-                    Color.clear.frame(width: GridMetrics.handle)
-                    if let f = focus {
-                        handle(horizontal: false, label: rowHandleLabel(f.row)) { rowMenu(f.row) }
-                            .offset(y: CGFloat(f.row) * GridMetrics.row + GridMetrics.row / 2 - 12)
-                    }
-                }
+                // The strip the row handles sit in.
+                Color.clear.frame(width: GridMetrics.handle)
                 grid(widths: widths)
+                    .overlay(alignment: .topLeading) { pickedTint(widths: widths) }
             }
+        }
+        // Each handle is a small grip with a target as big as a fingertip around it. A tap
+        // anywhere in a target picks the handle whose grip is nearest, so targets that overlap
+        // never take each other's taps.
+        .overlay(alignment: .topLeading) {
+            ZStack(alignment: .topLeading) {
+                ForEach(handles.grips, id: \.line) { g in
+                    grip(g, handles: handles)
+                }
+            }
+        }
+        .coordinateSpace(.named(Self.contentSpace))
+    }
+
+    private static let contentSpace = "gridContent"
+
+    private func grip(_ g: GridHandles.Grip, handles: GridHandles) -> some View {
+        let horizontal = if case .column = g.line { true } else { false }
+        let picked = self.picked == g.line
+        let label = switch g.line {
+        case .row(let r): rowHandleLabel(r)
+        case .column(let c): columnHandleLabel(c)
+        }
+        return ZStack {
+            Image(systemName: "ellipsis")
+                .rotationEffect(.degrees(horizontal ? 0 : 90))
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(picked ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
+                .frame(width: horizontal ? 28 : 14, height: horizontal ? 14 : 24)
+                .background(picked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill.secondary), in: .capsule)
+                .hoverHighlight(Capsule())
+                .position(x: g.center.x - g.hit.minX, y: g.center.y - g.hit.minY)
+        }
+        .frame(width: g.hit.width, height: g.hit.height)
+        .contentShape(.rect)
+        .onTapGesture(coordinateSpace: .named(Self.contentSpace)) { p in
+            pick(handles.line(at: p) ?? g.line)
+        }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(GridHitBox.space)) } action: { box?.targets[g.line] = $0 }
+        .onDisappear { box?.targets[g.line] = nil }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(picked ? .isSelected : [])
+        .accessibilityAction { pick(g.line) }
+        .accessibilityIdentifier(horizontal ? "grid.handle.column" : "grid.handle.row")
+        // Placed by padding, not offset: an offset moves the drawing but not the frame the
+        // editor reads for the target (where it lets taps through, where the menu goes).
+        .padding(.leading, g.hit.minX)
+        .padding(.top, g.hit.minY)
+    }
+
+    /// A handle was tapped: its row or column is picked (tinted like selected text) and its menu shows.
+    private func pick(_ line: GridLine) {
+        guard let f = focus ?? wanted else { return }
+        qaTrace("grid pick \(line) from \(f)")
+        controller?.pickTableLine(line, grid: table.index, cell: f)
+    }
+
+    /// The picked row or column, tinted like selected text.
+    @ViewBuilder
+    private func pickedTint(widths: [CGFloat]) -> some View {
+        switch picked {
+        case .row(let r) where r < draft.rows.count:
+            Rectangle().fill(Color.accentColor.opacity(0.16))
+                .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 2))
+                .frame(width: widths.reduce(0, +), height: GridMetrics.row)
+                .offset(y: CGFloat(r) * GridMetrics.row)
+                .allowsHitTesting(false)
+        case .column(let c) where c < widths.count:
+            Rectangle().fill(Color.accentColor.opacity(0.16))
+                .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 2))
+                .frame(width: widths[c], height: CGFloat(draft.rows.count) * GridMetrics.row)
+                .offset(x: widths[..<c].reduce(0, +))
+                .allowsHitTesting(false)
+        default:
+            EmptyView()
         }
     }
 
@@ -608,43 +879,6 @@ struct TableGridView: View {
         go(GridCell(row: f.row + 1, column: f.column))
     }
 
-    private func handle(horizontal: Bool, label: String, @ViewBuilder menu: () -> some View) -> some View {
-        Menu { menu() } label: {
-            Image(systemName: "ellipsis")
-                .rotationEffect(.degrees(horizontal ? 0 : 90))
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.secondary)
-                .frame(width: horizontal ? 28 : 14, height: horizontal ? 14 : 24)
-                .hoverHighlight(Capsule())
-                .background(.fill.secondary, in: .capsule)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .accessibilityLabel(label)
-    }
-
-    @ViewBuilder
-    private func rowMenu(_ r: Int) -> some View {
-        Button("Add Row Above") { edit { $0.rows.insert($0.blankRow, at: max(r, 1)) } }
-        Button("Add Row Below") { edit { $0.rows.insert($0.blankRow, at: r + 1) } }
-        Divider()
-        Button("Delete Row", role: .destructive) { edit { if $0.rows.count > 1 { $0.rows.remove(at: r) } } }
-    }
-
-    @ViewBuilder
-    private func columnMenu(_ c: Int) -> some View {
-        Button("Add Column Before") { edit { $0.insertColumn(at: c) } }
-        Button("Add Column After") { edit { $0.insertColumn(at: c + 1) } }
-        Divider()
-        Button("Delete Column", role: .destructive) { edit { $0.removeColumn(at: c) } }
-    }
-
-    private func edit(_ change: (inout GridTable) -> Void) {
-        change(&draft)
-        commit(draft)
-    }
 }
 
 /// Development traces for the QA harness; compiled out of real builds.
@@ -665,3 +899,12 @@ private struct ReadingCorners: ViewModifier {
         }
     }
 }
+
+#if os(macOS)
+/// A table menu item's action, as an AppKit menu item's target.
+final class TableMenuAction: NSObject {
+    let run: () -> Void
+    init(_ run: @escaping () -> Void) { self.run = run }
+    @objc func fire() { run() }
+}
+#endif
