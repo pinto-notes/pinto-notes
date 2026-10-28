@@ -189,7 +189,7 @@ export default function Page() {
         detail.
       </p>
       <p>
-        Pinto Notes is one place for it. It&apos;s the notes app for Mac (iPhone coming soon) that I make, and Claude, Claude Code and Codex can read and edit it over MCP once you approve them. ChatGPT is coming soon. Each change by an AI is tinted with an Undo, and every
+        Pinto Notes is one place for it. It&apos;s the notes app for Mac (iPhone coming soon) that I make, and ChatGPT, Claude, Claude Code and Codex can read and edit it over MCP once you approve them. Each change by an AI is tinted with an Undo, and every
         earlier version is kept, which is the record you want from an agent that works while you sleep. I haven&apos;t tested
         Pinto Notes with a dot yet, so I can&apos;t promise a dot can use it. <a href="/blog/connect-chatgpt-to-your-notes">How to
         connect ChatGPT to your notes</a> covers the setup that works today, and <a href="/blog/gpt-6-astra-use-cases">GPT-6

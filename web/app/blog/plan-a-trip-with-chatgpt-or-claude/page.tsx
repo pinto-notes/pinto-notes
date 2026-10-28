@@ -108,7 +108,7 @@ export default function Page() {
       <h2 id="keep">Keep the plan where you can edit it</h2>
       <p>
         Once the plan is roughly right, it needs a home where you can change it without asking the AI, tick off what&apos;s paid and
-        packed, and still let the AI add to it. I make Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude and Claude Code can read and edit once you allow them, with ChatGPT coming soon. A note in it can hold a small app, and the <a href="/templates/trip-plan">Trip plan
+        packed, and still let the AI add to it. I make Pinto Notes, a notes app for Mac (iPhone coming soon) that ChatGPT, Claude and Claude Code can read and edit once you allow them. A note in it can hold a small app, and the <a href="/templates/trip-plan">Trip plan
         template</a> is a note with a trip planner app already built, with a sample Lisbon trip to replace.
       </p>
       <Steps>

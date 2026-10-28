@@ -153,9 +153,9 @@ export default function Page() {
       </p>
 
       <h2 id="amber-notes">Why I built Pinto Notes this way</h2>
-      <AIConnect ais={["claude", "claude-code", "codex"]} caption="One set of notes that Claude, Claude Code and Codex all read and add to." />
+      <AIConnect ais={["claude", "chatgpt", "claude-code", "codex"]} caption="One set of notes that Claude, ChatGPT, Claude Code and Codex all read and add to." />
       <p>
-        I make Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude, Claude Code and Codex can use today, with ChatGPT coming soon. When Claude adds to a note
+        I make Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude, ChatGPT, Claude Code and Codex can use. When Claude adds to a note
         it changes only those lines, the change shows up tinted with Undo, and the version before is kept in the note&apos;s history, with
         Claude named as the one who made it. Your notes are encrypted on your devices, and an AI reads them only after you approve it;
         locked notes stay out of reach even then.
