@@ -44,6 +44,10 @@ struct RootView: View {
     @State private var refusal: FileRefusal?
     /// Connect an AI, from the File menu, the list's menu or the card at the foot of the sidebar.
     @State private var connectingAI = false
+    #if os(macOS)
+    /// Go to Note… (⌘O): the notes as they were when it opened, while it shows.
+    @State private var quickOpen: [QuickOpen.NoteItem]?
+    #endif
     @Environment(SetupStore.self) private var setupStore: SetupStore?
     @Environment(Backend.self) private var backendForConnect: Backend?
     @AppStorage("lastNote") private var lastNote: String = ""
@@ -79,6 +83,12 @@ struct RootView: View {
             // A template or shared note to add, from a link.
             .noteSourceHandler()
             .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
+            #if os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
+                quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
+            }
+            .overlay(alignment: .top) { quickOpenPanel }
+            #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
@@ -139,6 +149,50 @@ struct RootView: View {
         .toolbar(removing: .title)
         #endif
     }
+
+    #if os(macOS)
+    /// Go to Note…, over the window's top third like Spotlight. A click outside closes it.
+    @ViewBuilder private var quickOpenPanel: some View {
+        if let notes = quickOpen {
+            let open = selectedNote.flatMap { context.note($0) }
+            ZStack(alignment: .top) {
+                Color.clear
+                    .contentShape(.rect)
+                    .onTapGesture { quickOpen = nil }
+                QuickOpenPanel(notes: notes,
+                               commands: QuickOpen.commands(openNote: open != nil && open?.trashedAt == nil, pinned: open?.isPinned == true, importKinds: ImportKind.listed),
+                               choose: { row in
+                                   quickOpen = nil
+                                   QuickOpen.choose(row, with: quickOpenActions)
+                               },
+                               close: { quickOpen = nil })
+                    .padding(.top, 72)
+            }
+        }
+    }
+
+    /// What the panel's rows do here: the notes window's own actions, as the menus run them.
+    private var quickOpenActions: QuickOpen.Actions {
+        QuickOpen.Actions(
+            open: { id in reveal(id) },
+            run: { action in
+                switch action {
+                case .newNote: newNote()
+                case .newFolder: NotificationCenter.default.post(name: .paneNewFolder, object: nil)
+                case .togglePin: if let id = selectedNote, let n = context.note(id) { context.togglePin(n) }
+                case .move: NotificationCenter.default.post(name: .paneMoveNote, object: nil)
+                case .importAppleNotes: showImport = true
+                case .importFrom(let kind): importFiles = []; importing = kind
+                case .connectAI: connectingAI = true
+                case .settings: SettingsRoute.shared.show()
+                }
+            },
+            search: { text in
+                scope = .all
+                NotificationCenter.default.post(name: .paneSearchNotes, object: text)
+            })
+    }
+    #endif
 
     /// Restoring where you were, and remembering it.
     private func lifecycle(_ content: some View) -> some View {
@@ -563,6 +617,11 @@ struct PaneCommands: Commands {
                 .disabled(newNote == nil)
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
+            Divider()
+            // ⌘K is Add Link, as in Notes. ⌘O is where Open would be, and Obsidian's quick switcher.
+            Button("Go to Note…") { NotificationCenter.default.post(name: .paneQuickOpen, object: nil) }
+                .keyboardShortcut("o")
+                .disabled(newNote == nil)
         }
         // Where Pages keeps Browse All Versions: File, after saving.
         CommandGroup(after: .saveItem) {

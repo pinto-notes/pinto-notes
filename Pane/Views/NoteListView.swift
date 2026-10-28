@@ -344,6 +344,8 @@ struct NoteListView: View {
         .searchToolbarBehavior(.automatic)
         #else
         .searchable(text: $search, placement: .toolbar, prompt: "Search")
+        // "Search all notes for …" from Go to Note (⌘O).
+        .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in if let text = n.object as? String { search = text } }
         #endif
         .navigationTitle(title)
         #if os(iOS)
