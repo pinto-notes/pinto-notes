@@ -378,7 +378,12 @@ final class NoteHistory {
             note.touch()
             try? context.save()
         }
+        // The open note shows it now, not as an outside edit it might take for its own typing.
+        NotificationCenter.default.post(name: Self.restored, object: noteID)
     }
+
+    /// Posted with the note's id once a version of it is restored.
+    static let restored = Notification.Name("NoteHistory.restored")
 }
 
 private extension String {

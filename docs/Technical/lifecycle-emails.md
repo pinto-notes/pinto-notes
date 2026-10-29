@@ -283,4 +283,4 @@ tells someone something the app doesn't:
 - **Templates.** A "New from Template" picker (proposed in the strategy doc), shown once an AI is
   connected, with the same three templates the email uses.
 - **Undo and history.** After the first AI edit, the receipt already offers Undo. A one-time tip
-  pointing at More, then Show Version History, is the twin of the Undo email.
+  pointing at More, then Version History, is the twin of the Undo email.
