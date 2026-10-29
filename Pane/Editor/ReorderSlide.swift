@@ -8,6 +8,7 @@ import AppKit
 /// When ticked items sink (or unticked ones rise), the rows slide to their new places like
 /// Notes, instead of jumping. The text is reordered at once; for the length of the slide,
 /// pictures of the old rows cover it and move from where each row was to where it is now.
+/// Each row moves as one piece, its circle and its words together.
 @MainActor
 enum ReorderSlide {
     static let duration: CFTimeInterval = 0.35
@@ -41,11 +42,102 @@ enum ReorderSlide {
         return out
     }
 
+    /// Each row's band across the editor (`origin` is where the text container sits in it), from
+    /// its top to the next row's top. The whole run is laid out first: a line ticked a moment ago
+    /// could otherwise still report where TextKit guessed it was, and the pictures would show the
+    /// wrong strip of the page. The last row is as tall as its own lines: after a final newline
+    /// TextKit adds an empty line to the last paragraph, and that isn't part of the row.
+    static func bands(_ starts: [Int], layout tlm: NSTextLayoutManager?, origin: CGPoint, width: CGFloat) -> [CGRect] {
+        guard let tlm, let tcm = tlm.textContentManager, let first = starts.first, let last = starts.last,
+              let a = tcm.location(tcm.documentRange.location, offsetBy: first),
+              let b = tcm.location(tcm.documentRange.location, offsetBy: last) else { return [] }
+        tlm.ensureLayout(for: NSTextRange(location: a, end: b) ?? NSTextRange(location: a))
+        tlm.ensureLayout(for: NSTextRange(location: b))
+        let fragments = starts.compactMap { s in tcm.location(tcm.documentRange.location, offsetBy: s).flatMap { tlm.textLayoutFragment(for: $0) } }
+        guard fragments.count == starts.count else { return [] }
+        let tops = fragments.map { $0.layoutFragmentFrame.minY + origin.y }
+        let end = fragments[fragments.count - 1]
+        var height = end.layoutFragmentFrame.height
+        if end.textLineFragments.count > 1, let first = end.textLineFragments.first, let extra = end.textLineFragments.last, extra.characterRange.length == 0 {
+            // Every line sits the same distance below its band's top, the empty one too.
+            height = extra.typographicBounds.minY - first.typographicBounds.minY
+        }
+        return tops.enumerated().map { i, y in
+            CGRect(x: 0, y: y, width: width, height: i + 1 < tops.count ? tops[i + 1] - y : height)
+        }
+    }
+
+    /// The order to stack the pictures in, lowest first: the rows that travel furthest (the item
+    /// that was ticked, sinking past the others) go over the rest. The others pass under it
+    /// and stay in sight; on top of it, they would hide it for the middle of the move.
+    static func stacking(from: [CGFloat], to: [CGFloat]) -> [Int] {
+        from.indices.sorted { (abs(to[$0] - from[$0]), $0) < (abs(to[$1] - from[$1]), $1) }
+    }
+
+    #if os(macOS)
+    typealias Piece = CALayer
+    #else
+    typealias Piece = UIView
+    #endif
+
+    /// A slide on screen. A click while it plays is for the row drawn under the pointer, which
+    /// is a picture, not the text beneath it: `line(atY:)` says which line that row is now.
+    final class Running {
+        private let cover: Piece
+        private let rows: [Piece]
+        /// For each picture, where its line starts in the reordered text.
+        let lines: [Int]
+        /// The pictures from the one drawn lowest to the one on top.
+        private let stacking: [Int]
+        private(set) var done = false
+
+        fileprivate init(cover: Piece, rows: [Piece], lines: [Int], stacking: [Int]) {
+            self.cover = cover
+            self.rows = rows
+            self.lines = lines
+            self.stacking = stacking
+        }
+
+        /// Where each picture is drawn right now, in the editor's coordinates.
+        var drawn: [CGRect] {
+            #if os(macOS)
+            rows.map { $0.presentation()?.frame ?? $0.frame }
+            #else
+            rows.map { $0.layer.presentation()?.frame ?? $0.frame }
+            #endif
+        }
+
+        /// The line of the row drawn at `y`: the picture on top there, as it's seen.
+        func line(atY y: CGFloat) -> Int? {
+            guard !done else { return nil }
+            let frames = drawn
+            for i in stacking.reversed() where frames[i].minY <= y && y < frames[i].maxY { return lines[i] }
+            return nil
+        }
+
+        /// Ends the slide now: the rows are where the text has them.
+        func stop() {
+            guard !done else { return }
+            done = true
+            #if os(macOS)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            cover.removeFromSuperlayer()
+            rows.forEach { $0.removeFromSuperlayer() }
+            CATransaction.commit()
+            #else
+            cover.removeFromSuperview()
+            rows.forEach { $0.removeFromSuperview() }
+            #endif
+        }
+    }
+
     #if os(macOS)
     /// Slides pictures of the old rows (`rows`, in `view`'s flipped coordinates) to their new
     /// tops over a cover the colour of the page. Call right after the text is reordered.
-    static func play(in view: NSView, rows: [(image: CGImage, frame: CGRect)], newTops: [CGFloat], cover: CGRect, pageColor: NSColor) {
-        guard !CheckPop.reduceMotion, rows.count > 1, let host = view.layer else { return }
+    /// `lines` is where each row's line starts in the new text.
+    static func play(in view: NSView, rows: [(image: CGImage, frame: CGRect)], newTops: [CGFloat], lines: [Int], cover: CGRect, pageColor: NSColor) -> Running? {
+        guard !CheckPop.reduceMotion, rows.count > 1, let host = view.layer else { return nil }
         let top = rows.map(\.frame.minY).min() ?? 0
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -57,15 +149,16 @@ enum ReorderSlide {
         shield.backgroundColor = page
         shield.zPosition = 20
         host.addSublayer(shield)
-        var layers = [shield]
+        let order = stacking(from: rows.map(\.frame.minY), to: newTops.map { top + $0 })
+        var pieces: [CALayer] = []
         for (i, row) in rows.enumerated() {
             let l = CALayer()
             l.contents = row.image
             l.contentsScale = view.window?.backingScaleFactor ?? 2
             l.frame = row.frame
-            l.zPosition = 21
+            l.zPosition = 21 + CGFloat(order.firstIndex(of: i) ?? 0) / CGFloat(rows.count)
             host.addSublayer(l)
-            layers.append(l)
+            pieces.append(l)
             let to = CGPoint(x: row.frame.midX, y: top + newTops[i] + row.frame.height / 2)
             let slide = CABasicAnimation(keyPath: "position")
             slide.fromValue = NSValue(point: CGPoint(x: row.frame.midX, y: row.frame.midY))
@@ -76,7 +169,9 @@ enum ReorderSlide {
             l.add(slide, forKey: "slide")
         }
         CATransaction.commit()
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { layers.forEach { $0.removeFromSuperlayer() } }
+        let running = Running(cover: shield, rows: pieces, lines: lines, stacking: order)
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { running.stop() }
+        return running
     }
 
     /// A picture of `rect` of `view` as it's drawn now.
@@ -95,24 +190,24 @@ enum ReorderSlide {
         return rep.cgImage
     }
     #else
-    static func play(in view: UIView, rows: [(snapshot: UIView, frame: CGRect)], newTops: [CGFloat], cover: CGRect, pageColor: UIColor) {
-        guard !CheckPop.reduceMotion, rows.count > 1 else { return }
+    static func play(in view: UIView, rows: [(snapshot: UIView, frame: CGRect)], newTops: [CGFloat], lines: [Int], cover: CGRect, pageColor: UIColor) -> Running? {
+        guard !CheckPop.reduceMotion, rows.count > 1 else { return nil }
         let top = rows.map(\.frame.minY).min() ?? 0
         let shield = UIView(frame: cover)
         shield.backgroundColor = pageColor
         shield.isUserInteractionEnabled = false
         view.addSubview(shield)
-        for row in rows {
-            row.snapshot.frame = row.frame
-            row.snapshot.isUserInteractionEnabled = false
-            view.addSubview(row.snapshot)
+        let order = stacking(from: rows.map(\.frame.minY), to: newTops.map { top + $0 })
+        for i in order {
+            rows[i].snapshot.frame = rows[i].frame
+            rows[i].snapshot.isUserInteractionEnabled = false
+            view.addSubview(rows[i].snapshot)
         }
+        let running = Running(cover: shield, rows: rows.map(\.snapshot), lines: lines, stacking: order)
         UIView.animate(withDuration: duration, delay: 0, options: [.curveEaseInOut]) {
             for (i, row) in rows.enumerated() { row.snapshot.frame.origin.y = top + newTops[i] }
-        } completion: { _ in
-            shield.removeFromSuperview()
-            rows.forEach { $0.snapshot.removeFromSuperview() }
-        }
+        } completion: { _ in running.stop() }
+        return running
     }
     #endif
 }
