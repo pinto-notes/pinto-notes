@@ -125,6 +125,27 @@ extension LibraryNotesTests {
     }
 }
 
+@Suite struct NoteIntentAppendTests {
+    @Test func appendsAtEndWithServerSpacingRules() throws {
+        #expect(try NoteIntents.appending("- b", to: "Title\n- a") == "Title\n- a\n- b\n")
+        #expect(try NoteIntents.appending("More", to: "Title\nText") == "Title\nText\n\nMore\n")
+    }
+
+    @Test func appendsUnderHeadingBeforeNextSection() throws {
+        #expect(try NoteIntents.appending("x", to: "T\n## A\n1\n\n## B\n2", underHeading: "a") == "T\n## A\n1\nx\n\n## B\n2")
+    }
+
+    @Test func reportsMissingHeading() {
+        #expect(throws: NoteIntentError.self) {
+            try NoteIntents.appending("x", to: "T\n## A", underHeading: "Nope")
+        }
+    }
+
+    @Test func appendsToEmptyNote() throws {
+        #expect(try NoteIntents.appending("First", to: "") == "First\n")
+    }
+}
+
 extension LibraryNotesTests {
     /// A touch saves on the next turn; when the library has gone by then (a window closed with
     /// its container), nothing is saved and nothing breaks.

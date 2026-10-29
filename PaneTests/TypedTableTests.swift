@@ -43,6 +43,81 @@ import Testing
         #expect(TypedTable.format(6.25).contains("3"))
     }
 
+    @Test func pointsAreSortedAndSkipInvalidRows() throws {
+        let markdown = """
+        <!-- pane-table: Date=date; Hours=number -->
+        | Date | Hours |
+        | --- | --- |
+        | 2026-09-28 | 3 |
+        | 2026-09-26 | 2,5 |
+        | not-a-date | 4 |
+        | 2026-09-27 | not-a-number |
+        """
+        let table = try #require(TypedTable.find(in: markdown).first)
+        let points = table.points(for: 1)
+
+        #expect(points.map { TypedTable.day($0.0) } == ["2026-09-26", "2026-09-28"])
+        #expect(points.map(\.1) == [2.5, 3])
+    }
+
+    @Test func countsChoicesWithoutRegardToCase() throws {
+        let markdown = """
+        <!-- pane-table: Date=date; Diet=choice Yes|No|N/A -->
+        | Date | Diet |
+        | --- | --- |
+        | 2026-09-26 | yes |
+        | 2026-09-27 | No |
+        | 2026-09-28 | Yes |
+        | 2026-09-29 | N/A |
+        """
+        let table = try #require(TypedTable.find(in: markdown).first)
+
+        let counts = table.counts(for: 1)
+        #expect(counts.map(\.0) == ["Yes", "No", "N/A"])
+        #expect(counts.map(\.1) == [2, 1, 1])
+    }
+
+    @Test func trendPointsAreSortedAndSkipInvalidRows() throws {
+        let table = TypedTable(
+            columns: [
+                .init(name: "Date", type: .date),
+                .init(name: "Hours", type: .number)
+            ],
+            rows: [
+                ["2026-09-28", "12,5"],
+                ["", "8"],
+                ["2026-09-26", "not a number"],
+                ["2026-09-27", "6"],
+                ["not-a-date", "3.75"],
+                ["2026-09-29", ""]
+            ]
+        )
+
+        let points = table.points(for: 1)
+        #expect(points.map { TypedTable.day($0.0) } == ["2026-09-27", "2026-09-28"])
+        #expect(points.map(\.1) == [6, 12.5])
+    }
+
+    @Test func trendCountsMatchChoicesWithoutRegardToCase() {
+        let table = TypedTable(
+            columns: [
+                .init(name: "Date", type: .date),
+                .init(name: "Diet", type: .choice(["Yes", "No"]))
+            ],
+            rows: [
+                ["2026-09-26", "yes"],
+                ["2026-09-27", "Yes"],
+                ["2026-09-28", "YES"],
+                ["2026-09-29", "No"],
+                ["2026-09-30", "no"]
+            ]
+        )
+
+        let counts = table.counts(for: 1)
+        #expect(counts.map(\.0) == ["Yes", "No"])
+        #expect(counts.map(\.1) == [3, 2])
+    }
+
     @Test func blankRowHasToday() throws {
         let t = try #require(TypedTable.find(in: source).first)
         let day = TypedTable.date(from: "2026-10-01")!.addingTimeInterval(23 * 3600 + 50 * 60) // 23:50 local

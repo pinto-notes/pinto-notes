@@ -24,20 +24,9 @@ struct TableChartSheet: View {
         }
     }
 
-    private var dateCol: Int? { table.columns.firstIndex { $0.type == .date } }
+    private var points: [(Date, Double)] { table.points(for: column) }
 
-    private var points: [(Date, Double)] {
-        guard let dc = dateCol else { return [] }
-        return table.rows.compactMap { r in
-            guard let d = TypedTable.date(from: r[dc]), let v = Double(r[column].replacingOccurrences(of: ",", with: ".")) else { return nil }
-            return (d, v)
-        }.sorted { $0.0 < $1.0 }
-    }
-
-    private var counts: [(String, Int)] {
-        guard case .choice(let opts) = table.columns[column].type else { return [] }
-        return opts.map { o in (o, table.rows.filter { $0[column] == o }.count) }
-    }
+    private var counts: [(String, Int)] { table.counts(for: column) }
 
     var body: some View {
         NavigationStack {
