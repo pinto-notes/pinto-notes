@@ -710,6 +710,41 @@ Deno.test("decide stores the code's hash and wrap, and answers without a code", 
   assert(await opens(row.code_wrap, code, "code", me));
 });
 
+Deno.test("Allow gives read and edit, whatever scope the app asked for; only an old app's Read only stays read only", async () => {
+  // 29 October 2026: connecting has no access choice. An app that asks only for notes:read is
+  // offered no switch and still gets read and edit; an app or page from before then that sends
+  // `write: false` (the person ticked Read only) keeps that choice, enforced as before.
+  const { sql, pg } = await db();
+  const me = await newUser(pg);
+  const readScoped = async () => {
+    const clientId = await register(sql, "proxy");
+    const { verifier, challenge } = await pkce();
+    const res = await call(sql, request("proxy", `/authorize?${new URLSearchParams({
+      response_type: "code", client_id: clientId, redirect_uri: CHATGPT, code_challenge: challenge, code_challenge_method: "S256",
+      state: "xyz", scope: "notes:read", resource: ALIAS })}`));
+    return { clientId, verifier, requestId: new URL(res.headers.get("location")!).searchParams.get("request")! };
+  };
+  const grantOf = async (requestId: string) =>
+    (await sql`select g.can_write from public.oauth_requests r join public.mcp_tokens g on g.id = r.grant_id where r.id = ${requestId}` as { can_write: boolean }[])[0];
+
+  const a = await readScoped();
+  const shown = await (await call(sql, request("function", `/connect/request?id=${a.requestId}`, { headers: { authorization: `Bearer ${me.jwt}` } }))).json();
+  assertEquals(shown.wants_write, true, "older apps start their switch at read and edit");
+  // What the app and page send now: Allow, with no access in it.
+  const { code, body } = await appDecision(me, a.requestId, CHATGPT);
+  const { write: _, ...allow } = JSON.parse(body);
+  const r = await decideAs(sql, me, allow);
+  assertEquals([r.status, r.body.can_write], [200, true]);
+  assertEquals((await grantOf(a.requestId)).can_write, true);
+  const t = await exchange(sql, "proxy", a.clientId, code, a.verifier);
+  assertEquals(t.body.scope, "notes:read notes:write");
+
+  const b = await readScoped();
+  const old = await decideAs(sql, me, JSON.parse((await appDecision(me, b.requestId, CHATGPT, true, false)).body));
+  assertEquals([old.status, old.body.can_write], [200, false]);
+  assertEquals((await grantOf(b.requestId)).can_write, false);
+});
+
 Deno.test("an account without a key can't approve: the app sets it up first", async () => {
   const { sql, pg } = await db();
   const { requestId } = await pendingRequest(sql);

@@ -522,7 +522,6 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
   if (!r) return json({ error: EXPIRED }, 404);
   if (!(await claim(sql, r, user))) return json({ error: notYours(r) }, 403);
   const host = new URL(r.redirect_uri).hostname;
-  const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
   // Asked from a browser elsewhere: when, and in what (the page says, e.g. "Chrome on a Mac").
   const asked = await askedFrom(sql, r.id);
   // A device answering a browser it can't see has no way to tell whose ChatGPT or Claude this is
@@ -546,8 +545,9 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
     iss: r.resource,
     verified_ai: verified,
     loopback: LOOPBACK.has(host),
-    // No scope means "whatever you allow"; asking only for read keeps it read-only.
-    wants_write: scopes.length === 0 || scopes.includes("notes:write"),
+    // Every connection reads and edits (decided 29 October 2026): there is no choice to start
+    // from. Kept for apps from before then, which read it to set their Read only switch.
+    wants_write: true,
     expires_at: r.expires_at,
     ...asked,
   });
@@ -930,8 +930,9 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   // clientRedirect documents, the same way the device builds what it seals.
   const u = clientRedirect(r.redirect_uri, r.state, r.resource);
   const name = displayName(r.client_name, r.redirect_uri);
-  const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
-  const write = body.write === true && (scopes.length === 0 || scopes.includes("notes:write"));
+  // Read and edit, whatever scope the app asked for. Only an app or page from before 29 October
+  // 2026, where the person could still pick Read only, sends `write: false`, and keeps that choice.
+  const write = body.write !== false;
   const wrongNumber = Boolean(asked) && !allow && body.wrong_number === true;
   // One answer per request, even when two arrive at once.
   const answered = await sql.begin(async (tx): Promise<boolean | "reveal" | "rescan"> => {

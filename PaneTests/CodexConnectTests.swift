@@ -45,7 +45,7 @@ private extension Process {
     static func request(state: String = "q6coy-SGV4u92eR5uSf_8g", redirect: String = "http://127.0.0.1:57505/callback",
                         claimed: String = "Codex", loopback: Bool = true) -> ConnectRequest {
         ConnectRequest(id: UUID(), client_name: "127.0.0.1", redirect_host: URL(string: redirect)!.host!, redirect_uri: redirect,
-                       claimed_name: claimed, loopback: loopback, wants_write: true, asked: true, started_at: .now,
+                       claimed_name: claimed, loopback: loopback, asked: true, started_at: .now,
                        started_from: "Chrome on a Mac", state: state, iss: "https://mcp.pintonotes.com", scan: true, browser_key: "")
     }
 

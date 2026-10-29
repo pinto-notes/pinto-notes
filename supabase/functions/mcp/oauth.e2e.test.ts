@@ -326,6 +326,7 @@ Deno.test({ name: "denying sends the app back with access_denied", ...opts }, as
 // MARK: Access levels and revoking
 
 Deno.test({ name: "read-only connections see no editing tools", ...opts }, async () => {
+  // Made only by apps from before 29 October 2026, when Read only was a choice; still enforced.
   const t = await connect(false);
   assertEquals(t.scope, "notes:read");
   const names = await toolNames(t.access_token);

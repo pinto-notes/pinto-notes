@@ -216,7 +216,7 @@ struct BlurDemoStage: View {
             BlurFrames.shared?.mark("back"); page = .intro; await pause()
         default:
             BlurFrames.shared?.mark("sheet")
-            consent = CaptureScreen.consentRequest ?? ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com", loopback: false, wants_write: true)
+            consent = CaptureScreen.consentRequest ?? ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com", loopback: false)
             await pause(.seconds(2))
             BlurDemo.send("working"); await pause(.milliseconds(900))
             BlurDemo.send("done"); await pause(.seconds(2))

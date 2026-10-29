@@ -35,11 +35,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const steps = (t: Template) => APP_TEMPLATES.live
   ? [
       { name: "Add the template to Pinto Notes", text: `Choose Use template. Pinto Notes opens and adds the "${noteTitle(t)}" note${t.app ? " with its app" : ""} to the folder you pick.` },
-      { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can fill in the note." },
+      { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, so it can fill in the note." },
       { name: "Talk to your AI", text: "Tell it what happened, in your own words. It finds the note and fills it in, and you see every change in Pinto Notes." },
     ]
   : [
-      { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, and choose Read and Edit so it can write the note." },
+      { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, so it can write the note." },
       { name: "Paste the prompt", text: `Copy the prompt for your AI and paste it into a chat. It creates the "${noteTitle(t)}" note${t.app ? " with its app" : ""} in your ${t.folder} folder, if you don't have it yet.` },
       { name: "Talk to your AI", text: "Tell it what happened, in your own words. It fills in the note, and you see every change in Pinto Notes." },
     ];

@@ -487,8 +487,12 @@ import Testing
 
     @Test func aConnectionSaysWhatItCanDoWithoutJargon() {
         let c = OnboardingSnapshots.twoConnected
-        #expect(ConnectChoices.detail(c[0]).hasPrefix("chatgpt.com · Can read and edit · Used"))
-        #expect(ConnectChoices.detail(c[1]) == "Can read only · Not used yet")
+        // Every connection reads and edits, so that goes unsaid (29 October 2026).
+        #expect(ConnectChoices.detail(c[0]).hasPrefix("chatgpt.com · Used"))
+        #expect(ConnectChoices.detail(c[1]) == "Not used yet")
+        // One made read only before then still says so: it is still enforced.
+        let old = Connection(id: UUID(), name: "Claude Code", kind: "token", can_write: false, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: nil)
+        #expect(ConnectChoices.detail(old) == "Can read only · Not used yet")
     }
 
     @Test func everyWayToConnectHasItsGuide() {

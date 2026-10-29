@@ -88,7 +88,7 @@ import Testing
     @Test func consentForCommandLine() async throws {
         guard let dir = AppSnapshotTests.dir else { return }
         let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
-        let r = ConnectRequest(id: UUID(), client_name: "", redirect_host: "an app on this computer", loopback: true, wants_write: true)
+        let r = ConnectRequest(id: UUID(), client_name: "", redirect_host: "an app on this computer", loopback: true)
         let view = ConsentSheet(client: client, requestID: r.id, initial: .asking(r), finish: { _ in }).frame(width: 420)
         let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
         host.appearance = NSAppearance(named: .aqua)

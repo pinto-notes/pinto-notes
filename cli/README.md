@@ -43,7 +43,6 @@ terminal away, like any other connection. `amber logout` disconnects it from her
 - **On a server or over SSH** (no browser), `amber login` prints an address instead. Open it in any
   browser and approve. The browser then lands on a page that won't load (it points at the server's
   127.0.0.1): copy that page's address and paste it into the terminal.
-- **Read only:** `amber login --read-only`.
 - **CI and scripts:** set `AMBER_TOKEN` to an access token from Settings › Connect an AI, or save one
   with `amber login --token`.
 

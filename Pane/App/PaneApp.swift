@@ -1179,7 +1179,7 @@ struct CaptureScreen: View {
     static var consentRequest: ConnectRequest? {
         guard ProcessInfo.processInfo.arguments.contains("-uitest"), let name = Capture.argument("-captureConsent") else { return nil }
         let host = name.lowercased().contains("claude") ? "claude.ai" : "chatgpt.com"
-        return ConnectRequest(id: UUID(), client_name: name, redirect_host: host, loopback: false, wants_write: true)
+        return ConnectRequest(id: UUID(), client_name: name, redirect_host: host, loopback: false)
     }
 
     static let connections: [Connection] = [
