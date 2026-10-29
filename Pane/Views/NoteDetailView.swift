@@ -872,15 +872,6 @@ struct NoteDetailView: View {
     #if os(macOS)
     private var toolbarParts: NoteToolbarParts {
         NoteToolbarParts(
-            newNote: AnyView(ComposeButton(newNote: onNewNote) {
-                // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
-            }
-                .help("New Note (⌘N). Click and hold for New App.")
-                .newAppTip()
-                // The menu bar's quick capture is the other way to start a note.
-                .paneTip(MenuBarTip(), arrowEdge: .top)
-                .accessibilityIdentifier("list.newNote")),
             // A note with an app is just the app: no writing tools.
             writing: notePage != nil ? nil : AnyView(Group {
                 FormatButton(controller: controller).disabled(hidden || trashed)
@@ -1375,7 +1366,6 @@ private struct HostAskAlert: ViewModifier {
 /// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
 /// in a toolbar that stays: the items are brought up to date in place, like any other view.
 struct NoteToolbarParts: Equatable, @unchecked Sendable {
-    var newNote: AnyView
     /// Format, Checklist, Table, Attach; none for a note that is an app.
     var writing: AnyView?
     /// Who else is in a shared note.
@@ -1418,8 +1408,8 @@ struct NoteToolbarStage<Pane: View>: View {
         }
             .toolbar {
                 if let shown = self.parts {
-                    // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
-                    ToolbarItem { shown.newNote }
+                    // Only the note's own controls (Emil, 10-29): the writing tools together, then
+                    // share and more. Compose sits with the list, search with the sidebar.
                     ToolbarSpacer(.flexible)
                     if let writing = shown.writing {
                         ToolbarItemGroup { writing }

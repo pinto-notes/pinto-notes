@@ -83,6 +83,8 @@ enum EditorMetrics {
     // Apple Notes on the Mac: 13 pt body, ~20 pt title, tight lines. The candidates (DesignLook)
     // give the title the display size the website gives a headline's one line.
     static let body: CGFloat = 13
+    /// A ### heading: a small bold label, as on the iPhone ("Get started").
+    static let label: CGFloat = 11
     static var title: CGFloat {
         switch DesignLook.current {
         case .control: 20

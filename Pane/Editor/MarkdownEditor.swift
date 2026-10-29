@@ -1221,6 +1221,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private let readableWidth: CGFloat = 720
     /// D's reading column.
     static let readingColumn: CGFloat = 680
+    /// The date's top, under the toolbar, and the text's top under it (or without a date).
+    static let dateTop: CGFloat = 10
+    static let textTop: CGFloat = 40
+    static let bareTop: CGFloat = 16
 
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
 
@@ -1283,13 +1287,15 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         // Like Notes on the Mac: a slim margin and text that uses the full width. D (the reading
-        // page) sets the text in a centred column about 680 pt wide, with the date small above it.
+        // page) sets the text in a centred column about 680 pt wide. The date is centred just
+        // under the toolbar and the title close under it, as in Notes (Emil, 10-29: the date was
+        // 36 pt down, "the content of the note is placed weirdly far down").
         if DesignLook.readingPage {
             let side = max(32, (newSize.width - Self.readingColumn) / 2)
-            let inset = NSSize(width: side, height: headerLabel.stringValue.isEmpty ? 40 : 64)
+            let inset = NSSize(width: side, height: headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop)
             if textContainerInset != inset { textContainerInset = inset }
-            headerLabel.alignment = .left
-            headerLabel.frame = NSRect(x: side, y: 36, width: min(Self.readingColumn, newSize.width - side * 2), height: 16)
+            headerLabel.alignment = .center
+            headerLabel.frame = NSRect(x: 0, y: Self.dateTop, width: newSize.width, height: 16)
         } else {
             let inset = NSSize(width: 20, height: headerLabel.stringValue.isEmpty ? 14 : 44)
             if textContainerInset != inset { textContainerInset = inset }

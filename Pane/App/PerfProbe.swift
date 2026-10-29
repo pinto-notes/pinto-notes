@@ -220,11 +220,13 @@ final class PerfProbe: NSObject {
             }
         }
 
-        // Search as you type, through the toolbar's search field.
-        if runs("search"), let field = searchField, let w = window {
+        // Search as you type, in the list's search field (opened as the sidebar's Search button does).
+        if runs("search"), let w = window {
             for _ in 0..<times {
-                w.makeFirstResponder(field)
+                NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
                 try? await Task.sleep(for: .milliseconds(300))
+                guard let field = searchField else { break }
+                w.makeFirstResponder(field)
                 restart()
                 let begin = CACurrentMediaTime()
                 for ch in "note 12" {
@@ -334,8 +336,8 @@ final class PerfProbe: NSObject {
     }
 
     private var searchField: NSSearchField? {
-        guard let items = window?.toolbar?.items else { return nil }
-        return items.compactMap { ($0 as? NSSearchToolbarItem)?.searchField }.first
+        guard let content = window?.contentView else { return nil }
+        return Self.find(NSSearchField.self, in: content)
     }
 
     private func open(_ title: String) {
