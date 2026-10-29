@@ -5,7 +5,7 @@ import { scanAppLink, scanLink } from "@/lib/connect-flow";
 import { universalLink } from "@/lib/connect";
 import { DeviceScreen, type NumberAction } from "../DeviceLead";
 import type { PreviewState } from "./states";
-import { EndedScreen, LeavingScreen, NotifyScreen, NotifySignInScreen, RecoverScreen, ScanScreen } from "../ConnectScreens";
+import { EndedScreen, LeavingScreen, NotifyScreen, NotifySignInScreen, RecoverScreen, ScanScreen, WorkingScreen } from "../ConnectScreens";
 import { BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen } from "../BrowserScreens";
 import { consentWords } from "@/lib/connect-browser";
 
@@ -100,5 +100,8 @@ export default function Preview({ state, number, action, both }: {
       return <EndedScreen title="This request has expired" text="Start connecting again from ChatGPT, Claude or the other app you were using." />;
     case "webInApp":
       return <InAppScreen email="me@example.com" onSwitch={noop} onContinue={noop} />;
+    case "webStart":
+      // /connect/start, the moment after Connect in the app.
+      return <WorkingScreen text="Opening ChatGPT…" />;
   }
 }

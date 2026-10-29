@@ -137,3 +137,61 @@ AES-GCM open, one wrap and one transaction. Nothing was measured on staging.
   mark shows from sign-in on; with the switch off it stays null, as before.
 - The consent's words are unchanged: Shared with OpenAI (or Anthropic) word for word, Locked notes
   stay private, Read and edit / Read only, Don't Allow and Allow.
+
+## No access choice (29 October, night)
+
+- Emil dropped Read and edit / Read only everywhere. The web consent has no picker: one Allow, and
+  connecting is read and edit. The rest of the consent is word for word as before.
+- Sign-in's line is now "Sign in to Pinto Notes, then choose Allow."
+- Server: `/connect/allow` ignores a `write` from an older page and grants read and edit. Only an app
+  whose own OAuth request asked for `notes:read` alone gets read-only, so the grant never exceeds the
+  scope asked for. Existing read-only connections keep working; nothing about them changes.
+
+## The Mac popup (29 October, night)
+
+- Connect an AI on the Mac is the wide Allow sheet without the number. Left: the pair, "Connect
+  ChatGPT to your notes?", "ChatGPT opens next. Choose Connect there.", "Connect Claude instead".
+  Right: "Shared with OpenAI." with the Allow sheet's sentence word for word, and "Locked notes stay
+  private. ChatGPT can't open them." Buttons: Cancel and Connect. Connected: "ChatGPT is connected".
+- The app's strict-mode Allow sheet (with its number) is untouched.
+
+## Connect in the app counts as the Allow (keys change)
+
+What it does: pressing Connect in the popup is the yes. The app asks the server for a pre-approval
+(`POST /connect/preapprove {ai}` with its session), opens `pintonotes.com/connect/start#t=<ticket>&to=<the
+AI's page>`, and the start page swaps the ticket for a key kept in that browser (`/connect/redeem`), then
+goes on to ChatGPT (or Claude). When the AI's OAuth reaches `/connect`, the page sends the key with no
+sign-in and the server answers as Allow would. On the local stack the page was on screen for 337 ms
+before ChatGPT's callback had the code; the code exchanged for tokens (200).
+
+Why it is safe enough, and what limits it:
+
+- Only for an account the web page could already answer for: switch on, standard protection, a
+  current key copy, no recent reset hold. The sign-in's age doesn't count here, because the yes comes
+  from a signed-in device that holds the key (as `/connect/decide` does).
+- From the apps only: a call with an Origin header is refused. Redeeming is from the site only.
+- The ticket is used once; the browser key is used once; both expire 10 minutes after Connect. A new
+  Connect replaces the account's earlier unused one. Only SHA-256 hashes of the ticket and key are
+  stored (`connect_preapprovals`, RLS on, no grants to anon or authenticated).
+- It answers only a request whose return address is that AI's pinned callback (`verifiedAI`), and only
+  one that started after Connect, so an authorize link made earlier by someone else can't ride on it.
+- Only for the account that pressed Connect: a request already opened by another account, or a browser
+  signed in to another account, is refused. Any refusal spends the pre-approval and the page falls back
+  to sign-in and Allow.
+- It counts toward the same per-account limits as Allow on the page (10 an hour, 30 a day), writes the
+  same `connected` key-copy event and the same "Connected ChatGPT from …" notice on every device.
+
+Residual risk: within the 10 minutes, a request to ChatGPT's own callback that started after Connect
+is answered for the person who pressed it. That needs an attacker to get their ChatGPT authorize link
+opened in this browser in that window; the code would still go only to chatgpt.com. Same order of risk
+as a person clicking Allow on a consent they didn't start, which the page already guards with the AI
+check.
+
+Migration: `20261029200000_connect_preapprovals.sql`, additive (a new table). Builds from before it
+never read it. New endpoints: `/connect/preapprove`, `/connect/redeem`. New site page: `/connect/start`
+(noindex, no-store, the connect pages' strict CSP with the Supabase origin).
+
+Tests: `oauth_browser.pglite.test.ts` (one use, 10-minute expiry, ticket redeemed once, unverified
+callback refused, request from before Connect refused, wrong AI refused, another account's session or
+request refused, browser origin / Advanced protection / no copy / switch off refused); vitest for the
+page and start page; `ConnectBrowserTests` for the app's start address and its fallback.

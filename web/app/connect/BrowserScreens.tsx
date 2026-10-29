@@ -44,7 +44,7 @@ export function BrowserSignInScreen({ who, email, onEmail, onSubmit, onGoogle, o
   return (
     <>
       <h1 className={styles.title}>{again ? "Sign in again" : `Connect ${who} to your notes?`}</h1>
-      <p className={styles.lede}>{again ? SIGN_IN_AGAIN : "Sign in to Pinto Notes, then choose what it can do."}</p>
+      <p className={styles.lede}>{again ? SIGN_IN_AGAIN : "Sign in to Pinto Notes, then choose Allow."}</p>
       {APPLE_ON_WEB && <SignInButtons onApple={onApple} onGoogle={GOOGLE_ON_WEB ? onGoogle : undefined} busy={busy} />}
       <form className={styles.form} method="post" onSubmit={onSubmit}>
         <label className={styles.field}>
