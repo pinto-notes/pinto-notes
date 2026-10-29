@@ -331,7 +331,7 @@ struct NoteListView: View {
             withAnimation(.easeOut(duration: 0.15)) { fileDropTargeted = t }
         }
         #if os(iOS)
-        // iOS 26 Notes and Mail: a full search field in the bottom bar.
+        // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose.
         .searchable(text: $search, prompt: "Search")
         .searchToolbarBehavior(.automatic)
         #else
@@ -339,7 +339,7 @@ struct NoteListView: View {
         #endif
         .navigationTitle(title)
         #if os(iOS)
-        // The folder's name centred between ••• and +, with the count small under it (Emil,
+        // The folder's name centred between back and •••, with the count small under it (Emil,
         // 29 October 2026; it was a large title with the count as the list's first line).
         .navigationBarTitleDisplayMode(.inline)
         .navigationSubtitle(Self.titleCount(notes: scopedNotes.count, files: scopedFiles.count, searching: !search.isEmpty, trash: scope == .trash) ?? "")
@@ -397,9 +397,9 @@ struct NoteListView: View {
         #endif
         .toolbar {
             #if os(iOS)
-            // Like a chat app's top bar (Emil, 29 October 2026): ••• on the left, the title in the
-            // middle, a round + on the right. No Select button: a row's long-press menu or a
-            // two-finger swipe starts selecting, as in Notes; while selecting, Done is where + was.
+            // Back on the left, the title in the middle, ••• on the right; new note beside Search at
+            // the bottom (Emil, 29 October 2026). No Select button: a row's long-press menu or a
+            // two-finger swipe starts selecting, as in Notes; while selecting, Done is where ••• was.
             if editMode.isEditing {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
@@ -414,7 +414,7 @@ struct NoteListView: View {
                 }
             } else {
                 // The list's own menu, as in Notes: how it's sorted and grouped, and adding files.
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         ListOrderMenu(store: orderStore)
                         if scope != .trash {
@@ -435,20 +435,6 @@ struct NoteListView: View {
                     .tint(.primary)
                     .accessibilityIdentifier("list.more")
                 }
-                // New note: a filled circle in the label colour (white on black, black on white),
-                // never the accent. Holding it still offers New App.
-                ToolbarItem(placement: .topBarTrailing) {
-                    ComposeButton(newNote: onNewNote) {
-                        SwiftUI.Label { Text("New Note") } icon: { NewNoteCircle() }
-                            .labelStyle(.iconOnly)
-                    }
-                        .newAppTip()
-                        // Recently Deleted holds no new notes: the note it made went elsewhere.
-                        .disabled(scope == .trash)
-                        .accessibilityIdentifier("list.newNote")
-                }
-                // The circle is the button: no glass capsule around it.
-                .sharedBackgroundVisibility(.hidden)
             }
             if editMode.isEditing {
                 ToolbarItem(placement: .bottomBar) {
@@ -473,8 +459,21 @@ struct NoteListView: View {
                     .accessibilityIdentifier("list.deleteSelected")
                 }
             } else {
-                // Search alone, the bar's whole width, as in Apple's apps (new note is at the top).
                 DefaultToolbarItem(kind: .search, placement: .bottomBar)
+                // iPad moves search to the top of the column; compose then belongs at the trailing edge.
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    ToolbarSpacer(.flexible, placement: .bottomBar)
+                } else {
+                    ToolbarSpacer(.fixed, placement: .bottomBar)
+                }
+                ToolbarItem(placement: .bottomBar) {
+                    ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                        .tint(.primary)
+                        .newAppTip()
+                        // Recently Deleted holds no new notes: the note it made went elsewhere.
+                        .disabled(scope == .trash)
+                        .accessibilityIdentifier("list.newNote")
+                }
             }
             #else
             // Like Notes: the folder's name and count, then a "⋯" menu for the list.
@@ -1699,30 +1698,3 @@ private struct NoteRowHover<Items: View>: ViewModifier {
         }
     }
 }
-
-#if os(iOS)
-/// The list's new-note button: a + in a filled circle, in the label colour (black in light mode,
-/// white in dark), 44 pt. A drawn picture, not a symbol: the bar tints a symbol, greys a drawn
-/// view, and at the largest text sizes keeps only the label's picture.
-struct NewNoteCircle: View {
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        Image(uiImage: scheme == .dark ? Self.dark : Self.light).renderingMode(.original)
-    }
-
-    static let light = picture(.light), dark = picture(.dark)
-
-    static func picture(_ style: UIUserInterfaceStyle) -> UIImage {
-        let traits = UITraitCollection(userInterfaceStyle: style)
-        let size = CGSize(width: 44, height: 44)
-        let plus = UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .semibold))!
-            .withTintColor(UIColor.systemBackground.resolvedColor(with: traits), renderingMode: .alwaysOriginal)
-        return UIGraphicsImageRenderer(size: size).image { _ in
-            UIColor.label.resolvedColor(with: traits).setFill()
-            UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
-            plus.draw(at: CGPoint(x: (size.width - plus.size.width) / 2, y: (size.height - plus.size.height) / 2))
-        }.withRenderingMode(.alwaysOriginal)
-    }
-}
-#endif

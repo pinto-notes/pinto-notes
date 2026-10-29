@@ -44,8 +44,11 @@ final class AccessibilityUITests: XCTestCase {
         app.cells.containing(.any, identifier: "folder.Travel").firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Travel"].waitForExistence(timeout: 3))
         keep(app, "xxxl-list")
-        // The centred title stops short of ••• and + (it truncates rather than runs under them).
+        // The centred title stops short of back and ••• (it truncates rather than runs under them),
+        // and new note stays reachable beside Search.
         let title = app.navigationBars.staticTexts["Travel"].firstMatch.frame
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertFalse(title.intersects(back.frame), "the title clears back")
         for id in ["list.more", "list.newNote"] {
             let button = app.buttons[id].firstMatch
             XCTAssertTrue(button.isHittable, "\(id) stays reachable")
