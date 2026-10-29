@@ -68,6 +68,7 @@ fi
 # Build folders a killed check left behind (two hours old: a checkout that still has this script
 # without the lock may be building right now).
 find "$CACHE" -maxdepth 1 -type d -name 'build-*' -mmin +120 -exec rm -rf {} + 2>/dev/null || true
+find "$CACHE" -maxdepth 1 -type d -name 'failed-*.xcresult' -mtime +1 -exec rm -rf {} + 2>/dev/null || true
 free=$(df -g "$CACHE" | awk 'NR == 2 { print $4 }')
 if (( free < 20 )); then
   print -- "✗ Not started: $free GB free on this disk, and the check wants 20 (its three build folders and the cache take about 15 while it runs). Free some space and run it again."
@@ -150,7 +151,27 @@ if [[ ${1:-} == --tests ]]; then
   always=(${(f)"$(python3 scripts/ci/select-tests.py --always)"})
   only+=($always)
   if (( ${#only} )); then
-    compile run "Tests of the touched test files, the smoke tests and the whole-app suites (${#only})" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO
+    if ! compile run "Tests of the touched test files, the smoke tests and the whole-app suites (${#only})" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO; then
+      # A failed test prints no "error:" line, and the exit trap deletes $DD: name the failures
+      # from the result bundle and keep a copy of it (2026-10-29: three agents got "FAILED" and nothing else).
+      if [[ -d $DD/run.xcresult ]]; then
+        xcrun xcresulttool get test-results tests --path "$DD/run.xcresult" --compact 2>/dev/null | python3 -c '
+import json, sys
+def walk(node, path):
+    name = node.get("name", "")
+    if node.get("nodeType") == "Test Case" and node.get("result") == "Failed":
+        print("  ✘ " + "/".join(path + [name]))
+    for k in node.get("children", []):
+        walk(k, path + [name] if node.get("nodeType") == "Test Suite" else path)
+for n in json.load(sys.stdin).get("testNodes", []): walk(n, [])' || true
+        kept="$CACHE/failed-$(date +%Y%m%d-%H%M%S).xcresult"
+        cp -R "$DD/run.xcresult" "$kept" && print -- "  Result bundle kept: $kept"
+      else
+        print -- "  No result bundle: the test host never started or crashed. The log's last lines:"
+        tail -15 "$DD/run.log" | sed 's/^/    /'
+      fi
+      exit 1
+    fi
     # A name that matches no test is not an error to xcodebuild, so look: every touched test file
     # has to have had a test of a suite of its own run. Read from the result bundle, not from the
     # log: the test host writes into the same stream and cuts its lines in two.
