@@ -34,12 +34,15 @@ extension FunnelTests {
             #expect(BrowserConnect.sharedLead(.claude) == "Shared with Anthropic.")
             #expect(BrowserConnect.shared(.chatgpt) == "The notes ChatGPT opens, with their text and files, are sent to OpenAI and handled under OpenAI\u{2019}s privacy policy. Nothing is shared until you choose Allow.")
             #expect(BrowserConnect.shared(.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Nothing is shared until you choose Allow.")
-            #expect(BrowserConnect.button(.chatgpt) == "Open ChatGPT")
+            #expect(BrowserConnect.button(.chatgpt, listing: nil) == "Open ChatGPT")
+            #expect(BrowserConnect.button(.chatgpt, listing: ChatGPTPlugin.listed) == "Open Pinto Notes in ChatGPT")
             #expect(BrowserConnect.button(.claude) == "Open Claude")
             for g in [Guide.chatgpt, .claude] {
                 for listing in [nil, URL(string: "https://chatgpt.com/plugins/pinto-notes")] {
                     let line = BrowserConnect.line(g, listing: listing)
                     #expect(line.hasSuffix("sign in and choose Allow on the Pinto Notes page."), "\(line)")
+                    // Plain words: what to click, never the connector's jargon.
+                    #expect(!line.contains("MCP"), "\(line)")
                     for text in [line, BrowserConnect.shared(g), BrowserConnect.noticed] {
                         #expect(!text.contains("\u{2014}"), "no em dashes: \(text)")
                     }

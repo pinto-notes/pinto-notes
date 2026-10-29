@@ -35,8 +35,11 @@ enum BrowserConnect {
         case .claude:
             return "Claude opens Pinto Notes in its connector directory. Choose Connect, then sign in and choose Allow on the Pinto Notes page."
         default:
-            if listing != nil { return "ChatGPT opens Pinto Notes. Choose Connect, then sign in and choose Allow on the Pinto Notes page." }
-            return "ChatGPT opens with the address copied. Add it as a custom MCP server, then sign in and choose Allow on the Pinto Notes page."
+            // Pinto Notes is one of ChatGPT's apps (published 28 October 2026): its page there, as
+            // ConnectWebGuide.chatgpt says it. Without the listing, the plugins with the address.
+            let click = ConnectWebGuide.click
+            if listing != nil { return "ChatGPT opens Pinto Notes in its apps. \(click) Connect, then sign in and choose Allow on the Pinto Notes page." }
+            return "ChatGPT opens its plugins with the address copied. \(click) Add and paste it, then sign in and choose Allow on the Pinto Notes page."
         }
     }
 
@@ -49,7 +52,10 @@ enum BrowserConnect {
         "The notes \(g.title) opens, with their text and files, are sent to \(maker(g)) and handled under \(maker(g))\u{2019}s privacy policy. Nothing is shared until you choose Allow."
     }
 
-    static func button(_ g: Guide) -> String { "Open \(g.title)" }
+    /// ChatGPT's button names where it goes once Pinto Notes is listed, as the ChatGPT guide's does.
+    static func button(_ g: Guide, listing: URL? = ChatGPTPlugin.listing) -> String {
+        g == .chatgpt && listing != nil ? "Open Pinto Notes in ChatGPT" : "Open \(g.title)"
+    }
     static func waiting(_ g: Guide) -> String { "Waiting for \(g.title)\u{2026}" }
     static func connected(_ g: Guide) -> String { "\(g.title) is connected" }
     static let noticed = "Pinto noticed the connection. Ask it about your notes:"
@@ -78,10 +84,10 @@ extension ConnectWebGuide {
                         action: BrowserConnect.button(.claude), link: WebConnectPlan.directoryListing, waits: true)
         } else if let listing {
             step = Step(title: BrowserConnect.title, text: BrowserConnect.line(.chatgpt, listing: listing), art: .listing,
-                        action: BrowserConnect.button(.chatgpt), link: listing, waits: true)
+                        action: BrowserConnect.button(.chatgpt, listing: listing), link: listing, waits: true)
         } else {
             step = Step(title: BrowserConnect.title, text: BrowserConnect.line(.chatgpt, listing: nil), art: .addMenu,
-                        action: BrowserConnect.button(.chatgpt), link: ChatGPTPlugin.plugins, copiesAndMovesOn: true, waits: true)
+                        action: BrowserConnect.button(.chatgpt, listing: nil), link: ChatGPTPlugin.plugins, copiesAndMovesOn: true, waits: true)
         }
         return ConnectWebGuide(ai: g, introTitle: BrowserConnect.title, introLine: "", steps: [step], single: true,
                                doneTitle: BrowserConnect.connected(g))
@@ -101,6 +107,10 @@ struct ConnectBrowserSheet: View {
     var switched: (Guide) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+
+    /// The note's page colour, which follows the window's look (DesignLook): white and pure black
+    /// in the Mac's plain look, not the fixed cream of `sheetGround`.
+    static var ground: Color { Color(Palette.page) }
 
     #if os(iOS)
     nonisolated static let compact = true
@@ -128,9 +138,9 @@ struct ConnectBrowserSheet: View {
             .fixedSize(horizontal: false, vertical: true)
             #endif
             .foregroundStyle(Color.ink)
-            .background(Color(Palette.sheetGround))
+            .background(Self.ground)
             .tint(Color(Palette.amber))
-            .presentationBackground(Color(Palette.sheetGround))
+            .presentationBackground(Self.ground)
             #if os(iOS)
             .presentationDetents([.medium, .large])
             #endif
@@ -183,10 +193,13 @@ struct ConnectBrowserSheet: View {
         .padding(Self.compact ? 22 : 24)
     }
 
+    /// What the button says: the page's own (it knows whether Pinto Notes is listed).
+    private var action: String { run.guide?.steps.first?.action ?? BrowserConnect.button(run.ai) }
+
     private var asking: some View {
         VStack(alignment: .leading, spacing: 16) {
             if offered.count > 1 { choices }
-            Text(BrowserConnect.line(run.ai))
+            Text(run.guide?.steps.first?.text ?? BrowserConnect.line(run.ai))
                 .font(Self.compact ? .body : .system(size: 14))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("connect.browser.line")
@@ -194,11 +207,11 @@ struct ConnectBrowserSheet: View {
             VStack(spacing: 4) {
                 if run.waits {
                     waitingRow
-                    quiet(run.ai == .claude ? BrowserConnect.customConnector : "\(BrowserConnect.button(run.ai)) again") {
+                    quiet(run.ai == .claude ? BrowserConnect.customConnector : "\(action) again") {
                         if run.ai == .claude { openURL(WebConnectPlan.installLink(server: run.server)) } else { run.quiet() }
                     }
                 } else {
-                    primary(BrowserConnect.button(run.ai), symbol: "arrow.up.right") { run.primary() }
+                    primary(action, symbol: "arrow.up.right") { run.primary() }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -264,7 +277,7 @@ struct ConnectBrowserSheet: View {
                         .font(.system(size: 20))
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.white, Color(Palette.amberButton))
-                        .background(Circle().fill(Color(Palette.sheetGround)).padding(-2))
+                        .background(Circle().fill(Self.ground).padding(-2))
                         .offset(x: 6, y: 5)
                 }
                 .accessibilityHidden(true)

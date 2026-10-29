@@ -14,7 +14,7 @@ import UIKit
 
     static func states() -> [(String, ConnectGuideRun)] {
         func r(_ ai: ConnectAISection.Guide, opened: Set<Int> = []) -> ConnectGuideRun {
-            ConnectGuideRun(ai: ai, guide: .browser(ai, listing: nil), server: server, stage: .step(0), opened: opened)
+            ConnectGuideRun(ai: ai, guide: .browser(ai), server: server, stage: .step(0), opened: opened)
         }
         var list: [(String, ConnectGuideRun)] = []
         for ai in BrowserConnect.offered() {
@@ -31,7 +31,7 @@ import UIKit
         for dark in [false, true] {
             for (name, run) in Self.states() {
                 try await VersionHistorySnapshots.shoot(
-                    ConnectBrowserSheet(run: run).frame(width: 460, height: 400, alignment: .top).background(Color(Palette.sheetGround)),
+                    ConnectBrowserSheet(run: run).frame(width: 460, height: 400, alignment: .top).background(ConnectBrowserSheet.ground),
                     to: dir.appending(path: "mac-\(dark ? "dark" : "light")-\(name).png"), size: CGSize(width: 460, height: 400), dark: dark)
             }
         }

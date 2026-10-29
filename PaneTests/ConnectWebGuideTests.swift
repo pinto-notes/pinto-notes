@@ -82,8 +82,10 @@ import Testing
         #expect(box.opened == [listing, listing])
     }
 
-    @Test func listingIsOffByDefault() {
-        #expect(ChatGPTPlugin.listed == nil)
+    /// Pinto Notes is one of ChatGPT's apps: the guide is its one page there by default.
+    @Test func listingIsOnByDefault() {
+        #expect(ChatGPTPlugin.listed?.absoluteString.hasPrefix("https://chatgpt.com/plugins/plugin_") == true)
+        #expect(ConnectWebGuide.chatgpt(listing: ChatGPTPlugin.listed, onWeb: false).single)
         #expect(ConnectWebGuide.chatgpt(listing: nil).single == false)
     }
 
