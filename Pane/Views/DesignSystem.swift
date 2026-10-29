@@ -120,9 +120,12 @@ struct AmberProminentButtonStyle: ButtonStyle {
     var wide = false
     /// A long title in a narrow place takes a second line instead of being cut.
     var wraps = false
+    /// Black with a white label, white with a black one in the dark, like Sign in with Apple:
+    /// the primary button beside it on the iPhone welcome, which keeps amber for links.
+    var ink = false
 
     func makeBody(configuration: Configuration) -> some View {
-        AmberProminentButton(configuration: configuration, size: size, wide: wide, wraps: wraps)
+        AmberProminentButton(configuration: configuration, size: size, wide: wide, wraps: wraps, ink: ink)
     }
 
     /// The fills and the label's colour, for the contrast test.
@@ -137,6 +140,8 @@ extension ButtonStyle where Self == AmberProminentButtonStyle {
     static var amberProminent: AmberProminentButtonStyle { .init() }
     static var amberProminentWrapping: AmberProminentButtonStyle { .init(wraps: true) }
     static func amberProminent(_ size: ButtonSize, wide: Bool = false) -> AmberProminentButtonStyle { .init(size: size, wide: wide) }
+    /// The primary button in black and white (`ink`).
+    static func inkProminent(_ size: ButtonSize, wide: Bool = false) -> AmberProminentButtonStyle { .init(size: size, wide: wide, ink: true) }
 }
 
 private struct AmberBusyKey: EnvironmentKey { static let defaultValue = false }
@@ -159,6 +164,7 @@ private struct AmberProminentButton: View {
     let size: ButtonSize
     let wide: Bool
     var wraps = false
+    var ink = false
     @Environment(\.amberBusy) private var busy
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.isFocused) private var isFocused
@@ -177,10 +183,12 @@ private struct AmberProminentButton: View {
         // A busy button stays solid: it's working, not unavailable.
         let off = !isEnabled && !busy
         let fill = off ? AmberProminentButtonStyle.disabledFill
-            : configuration.role == .destructive ? AmberProminentButtonStyle.destructiveFill : AmberProminentButtonStyle.fill
+            : configuration.role == .destructive ? AmberProminentButtonStyle.destructiveFill
+            : ink ? Palette.inkButton : AmberProminentButtonStyle.fill
+        let label = ink && !off ? Palette.inkButtonLabel : off ? AmberProminentButtonStyle.disabledLabel : AmberProminentButtonStyle.label
         return configuration.label
             .font(.system(size: textSize, weight: .bold))
-            .foregroundStyle(Color(off ? AmberProminentButtonStyle.disabledLabel : AmberProminentButtonStyle.label))
+            .foregroundStyle(Color(label))
             .lineLimit(wraps ? 3 : twoLines ? 2 : 1)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: twoLines || wraps)
@@ -188,7 +196,7 @@ private struct AmberProminentButton: View {
             .padding(.vertical, twoLines ? 12 : wraps || grows ? 6 : 0)
             // Busy: the label keeps its place (so nothing moves) and a spinner sits on it.
             .opacity(busy ? 0 : 1)
-            .overlay { if busy { AmberSpinner(reduceMotion: reduceMotion) } }
+            .overlay { if busy { AmberSpinner(color: ink ? Palette.inkButtonLabel : AmberProminentButtonStyle.label, reduceMotion: reduceMotion) } }
             .padding(.horizontal, size.padding)
             .frame(maxWidth: wide ? .infinity : nil)
             // The size's height, until a larger text size or a second line needs more.
@@ -198,7 +206,7 @@ private struct AmberProminentButton: View {
                     .fill(Color(fill))
                     // Under the pointer a touch lighter; pressed, darker.
                     .overlay {
-                        if configuration.isPressed { shape.fill(.black.opacity(0.14)) }
+                        if configuration.isPressed { shape.fill(Color(ink ? Palette.inkButtonLabel : PColor.black).opacity(ink ? 0.22 : 0.14)) }
                         else if !off && (hovering || preview.contains("*")) { shape.fill(.white.opacity(0.12)) }
                     }
             }
@@ -246,6 +254,7 @@ private struct AmberProminentButton: View {
 /// The busy button's spinner: a white arc that turns (the Mac's own spinner draws grey, and dimmed
 /// in a disabled button). With Reduce Motion it holds still.
 private struct AmberSpinner: View {
+    var color = AmberProminentButtonStyle.label
     let reduceMotion: Bool
 
     var body: some View {
@@ -253,7 +262,7 @@ private struct AmberSpinner: View {
             let turn = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.9) / 0.9
             Circle()
                 .trim(from: 0, to: 0.72)
-                .stroke(Color(AmberProminentButtonStyle.label), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(Color(color), style: StrokeStyle(lineWidth: 2, lineCap: .round))
                 .frame(width: 14, height: 14)
                 .rotationEffect(.degrees(turn * 360))
         }

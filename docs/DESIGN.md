@@ -65,7 +65,7 @@ Three kinds, everywhere. Nothing else.
 
 | Kind | Fill | Label | Use |
 |---|---|---|---|
-| **Primary** | Solid: amber in the app, ink on the website | White / cream, bold | The one thing to do. At most one per view. |
+| **Primary** | Solid: amber in the app, ink on the website and on the iPhone welcome (`inkProminent`, black in light, white in dark, beside Sign in with Apple) | White / cream, bold (black on white) | The one thing to do. At most one per view. |
 | **Secondary** | `soft` fill | Ink, semibold | Every other button with a shape. |
 | **Quiet** | None until hover | Muted, turns ink on hover | Cancel, Back, Skip, icon buttons in a toolbar row. |
 

@@ -125,7 +125,7 @@ import Testing
                                  name: "mac-welcome-\(name)-\(mode)", size: WelcomeFlow.size, dark: dark, toolbar: false, card: true)
         }
         try await Self.shoot(WelcomeFlow(backend: backend, stage: .signIn(returning: false), flow: EmailSignInFlow(step: .confirm, email: "sara@example.com"),
-                                         error: "That code didn't work. Check the newest email from Pinto Notes, or press Resend code."),
+                                         error: "That code is wrong or has expired. Check the newest email from Pinto Notes, or press Resend code."),
                              name: "mac-welcome-confirm-wrong-\(mode)", size: WelcomeFlow.size, dark: dark, toolbar: false, card: true)
         // Email confirmation: Check your email, fresh and just after a code went out.
         for (name, sent) in [("confirm", nil), ("confirm-wait", Date.now)] as [(String, Date?)] {

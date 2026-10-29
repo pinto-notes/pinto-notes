@@ -92,7 +92,7 @@ struct WelcomeFlow: View {
         ZStack {
             if stage == .welcome, !farewell {
                 // The welcome is a note being written, the way in at the foot of it (WelcomeNoteView).
-                WelcomeNoteView(backend: backend, useEmail: { stage = .signIn(returning: false) })
+                WelcomeNoteView(backend: backend)
                     .transition(.opacity)
             } else {
                 classic.transition(.opacity)

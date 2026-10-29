@@ -1320,7 +1320,7 @@ struct CaptureScreen: View {
             WelcomeFlow(backend: backend, stage: .signIn(returning: false), flow: EmailSignInFlow(step: .confirm, email: "sara@example.com", code: "704"))
         case "welcome-confirm-wrong":
             WelcomeFlow(backend: backend, stage: .signIn(returning: false), flow: EmailSignInFlow(step: .confirm, email: "sara@example.com"),
-                        error: "That code didn't work. Check the newest email from Pinto Notes, or press Resend code.")
+                        error: "That code is wrong or has expired. Check the newest email from Pinto Notes, or press Resend code.")
         case "welcome-confirm", "welcome-confirm-wait":
             WelcomeFlow(backend: backend, stage: .signIn(returning: false),
                         flow: EmailSignInFlow(step: .confirm, email: "sara@example.com", codeSentAt: name.hasSuffix("-wait") ? .now : nil))

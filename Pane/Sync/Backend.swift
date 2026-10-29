@@ -567,7 +567,8 @@ final class Backend {
             return "We just sent a code. Wait a minute, then press Resend code."
         }
         if code == "otp_expired" || lower.contains("expired") || lower.contains("invalid") {
-            return "That code didn't work. Check the newest email from Pinto Notes, or press Resend code."
+            // Supabase answers the same for a mistyped code and an old one.
+            return "That code is wrong or has expired. Check the newest email from Pinto Notes, or press Resend code."
         }
         return "Couldn't confirm your email. Try again in a moment."
     }

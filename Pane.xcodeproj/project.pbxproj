@@ -60,6 +60,7 @@
 		0D31B2E5C2082D78B0FFD6A4 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6ECF7DA4BD18007EE9AD20 /* RootView.swift */; };
 		0DB07CB4B8B8AD5A02FC8406 /* FormatPopoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1E2F1F299DF8F502D2E6AD9 /* FormatPopoverTests.swift */; };
 		0DCE9C13346B5F177FA67A9B /* SidebarCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */; };
+		0DF10BFEAD1A3237F73111BD /* WelcomeEmailUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A7256E614CEFF0684BB4C92 /* WelcomeEmailUITests.swift */; };
 		0E21A62A8EB76E514AEADA04 /* LiveSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9713C82676B677E851130A /* LiveSyncTests.swift */; };
 		0E40673C6FEC277FC8BB63C4 /* GoogleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD8BF7D9C77E06DFA9BE70C /* GoogleSignIn.swift */; };
 		0E45434D5A9E2D8A07F518F4 /* firstopen-meal-plan.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BC21DF51FFD468B83B80F5C1 /* firstopen-meal-plan.jpg */; };
@@ -176,6 +177,7 @@
 		312E09D4D8448F881D9DF560 /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */; };
 		32082DA9BBA628FAB0F5D8E9 /* Funnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F23D900BF7C689A4C8F231E /* Funnel.swift */; };
 		3239BBD122051C60F7DCC3C0 /* ENMLToMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97BBCF0A4A8EA967BB4FAE0E /* ENMLToMarkdown.swift */; };
+		324D8A95A47F94CAB8DDC168 /* WelcomeEmailSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = E440B115A2C508EE38B556EA /* WelcomeEmailSignIn.swift */; };
 		329CDFF2E1D412083D1CC558 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9676DA5BDCEE33EF5357B9BF /* Assets.xcassets */; };
 		33289495A371B07C4F8A6AF2 /* Onboarding.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 09235F26E4A1346438B99659 /* Onboarding.xcassets */; };
 		3351028ED7A66AD203F9A841 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99F11FB36958597987AD023E /* Inbox.swift */; };
@@ -592,6 +594,7 @@
 		C31386DEDF93E0340E99476A /* WikiLinkEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE3FF188D09E62B4A68D47F /* WikiLinkEditorTests.swift */; };
 		C3D862DDAD903DBF6377AE75 /* KeyProtectionAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B368A33CBCE4C0634FF8A2 /* KeyProtectionAsk.swift */; };
 		C3FDDB755E2DAB9909A8ED0F /* TypedTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D3C041048DAAB22B2FC870 /* TypedTable.swift */; };
+		C41C82F7E3008945B26207FA /* WelcomeEmailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AB4B9F8C73ED99036E5A05 /* WelcomeEmailTests.swift */; };
 		C45A9D5CD5221B6E29E071EA /* SettingsHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B21B489F3B2310C6D64E325 /* SettingsHome.swift */; };
 		C460E86BE2C39E1C8EBF62AC /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99F11FB36958597987AD023E /* Inbox.swift */; };
 		C47DF4C37D203CD351C84805 /* CodeFileSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B4A785E0E10C6BB3865280D /* CodeFileSnapshots.swift */; };
@@ -650,6 +653,7 @@
 		D8E460522E8DD23119115323 /* GridTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */; };
 		D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		D99238A4F1F1EE32EDA155B3 /* RecentlyDeletedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A65489A5A3E4082CEE2D038C /* RecentlyDeletedTests.swift */; };
+		DA64E54D6FBC775650262423 /* WelcomeEmailSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = E440B115A2C508EE38B556EA /* WelcomeEmailSignIn.swift */; };
 		DA72C1EDB78E9365335D08F0 /* ChangeHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */; };
 		DAB07BAF36EE1DB9016C32DE /* DiagnosticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3ED99431A52143032D92B9 /* DiagnosticsSection.swift */; };
 		DB7D3D645DA4467B46FCDC65 /* SyncRefusalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EF073C3361FC5D0A974206 /* SyncRefusalTests.swift */; };
@@ -897,6 +901,7 @@
 		393568B67D8EEBF493C50F93 /* WelcomeNoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeNoteTests.swift; sourceTree = "<group>"; };
 		39A273CF66124CF6366B545E /* KeepImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepImport.swift; sourceTree = "<group>"; };
 		39EF6421870B0C2E8060E578 /* ConnectAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAI.swift; sourceTree = "<group>"; };
+		3A7256E614CEFF0684BB4C92 /* WelcomeEmailUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeEmailUITests.swift; sourceTree = "<group>"; };
 		3BA93B1E52E9234DA5E09729 /* TipsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipsTests.swift; sourceTree = "<group>"; };
 		3C3136DA96503DF8954D6202 /* CollabSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabSession.swift; sourceTree = "<group>"; };
 		3C4E1DE16E31E18A753492A3 /* note-pages */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "note-pages"; path = "demo/note-pages"; sourceTree = SOURCE_ROOT; };
@@ -965,6 +970,7 @@
 		550E4D52A7E05ECB1417CCD0 /* RichPaste.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichPaste.swift; sourceTree = "<group>"; };
 		5565EB367045469002EA399A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		569EB1430761546DBD046F80 /* AccountKeysSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountKeysSync.swift; sourceTree = "<group>"; };
+		56AB4B9F8C73ED99036E5A05 /* WelcomeEmailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeEmailTests.swift; sourceTree = "<group>"; };
 		56BA16A2B5C7881A05F21723 /* Model */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Model; path = Pane/Model; sourceTree = SOURCE_ROOT; };
 		57082248EBCF867276471FE9 /* firstopen-note.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-note.jpg"; sourceTree = "<group>"; };
 		574EE2DEFC4559FC36B6B7CC /* OnboardingArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingArt.swift; sourceTree = "<group>"; };
@@ -1235,6 +1241,7 @@
 		E37BFAF54A1A956AD495D1DE /* preact-hooks.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "preact-hooks.js"; sourceTree = "<group>"; };
 		E3F5F913E4976210AB96D8D0 /* OnboardingFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowUITests.swift; sourceTree = "<group>"; };
 		E43C8835EE05529FC6C66B17 /* LegalLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalLinks.swift; sourceTree = "<group>"; };
+		E440B115A2C508EE38B556EA /* WelcomeEmailSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeEmailSignIn.swift; sourceTree = "<group>"; };
 		E4A6AEA3511E852CEB97E51D /* ImportGuideTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGuideTests.swift; sourceTree = "<group>"; };
 		E504C4AD7BF264A4D52C3FDB /* ShareNotePopoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareNotePopoverTests.swift; sourceTree = "<group>"; };
 		E5A1AE108885E3A9E3B3583A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -1575,6 +1582,7 @@
 				587AD0188BB0C85D166B7656 /* StorageViews.swift */,
 				FD35A6994110D17D56D7D8D7 /* ToolbarGlyph.swift */,
 				90CC0B378983D3F5A7E49012 /* VersionHistoryView.swift */,
+				E440B115A2C508EE38B556EA /* WelcomeEmailSignIn.swift */,
 				B73124348FB5312C93E0184F /* WelcomeNoteView.swift */,
 				29275F9A6205F10924E14DE2 /* WelcomeView.swift */,
 			);
@@ -1804,6 +1812,7 @@
 				3BA93B1E52E9234DA5E09729 /* TipsTests.swift */,
 				2FB0FAF5FA660EBD5F3003ED /* TypedTableTests.swift */,
 				D17CB8FD610675468F2C8D0A /* UpdaterTests.swift */,
+				56AB4B9F8C73ED99036E5A05 /* WelcomeEmailTests.swift */,
 				393568B67D8EEBF493C50F93 /* WelcomeNoteTests.swift */,
 				0BC98D85A82BA1ECBFDE6ABB /* WelcomeTests.swift */,
 				C0BF05AC42703752FBAE6D6D /* WhatsNewTests.swift */,
@@ -2108,6 +2117,7 @@
 				887E29254FECA87E7240D624 /* SlowNetworkUITests.swift */,
 				E5FF211616E406434EE7DC37 /* SyncTests.swift */,
 				477ACA457C7563F360F21E9B /* TableEditingUITests.swift */,
+				3A7256E614CEFF0684BB4C92 /* WelcomeEmailUITests.swift */,
 				14F9F8FBEB782DAC56C7A390 /* WikiLinksUITests.swift */,
 			);
 			path = PaneUITests;
@@ -2640,6 +2650,7 @@
 				754C0BAE9A8182360E0045EF /* UpdaterTests.swift in Sources */,
 				B8E32610DE26332AB8853B4D /* VersionHistorySnapshots.swift in Sources */,
 				2898465930190134A07C70F6 /* WarmGreySnapshots.swift in Sources */,
+				C41C82F7E3008945B26207FA /* WelcomeEmailTests.swift in Sources */,
 				2303CD3870336F60D24602F1 /* WelcomeNoteTests.swift in Sources */,
 				0A1ACD933DAE00CD5397ADF3 /* WelcomeSnapshots.swift in Sources */,
 				FE516722EB37A2A5BB47F10E /* WelcomeTests.swift in Sources */,
@@ -2835,6 +2846,7 @@
 				70FD7776A93DA08BA735BF8F /* VersionHistoryView.swift in Sources */,
 				4B5697845D621DC2E6E8DCBF /* VersionTextView.swift in Sources */,
 				46BFEF129C92C8BA646178A5 /* WebAuthSession.swift in Sources */,
+				DA64E54D6FBC775650262423 /* WelcomeEmailSignIn.swift in Sources */,
 				945FB61904A24C748E6D1AB2 /* WelcomeNote.swift in Sources */,
 				D0D9DEB51EB8764B3FFA6A0D /* WelcomeNoteView.swift in Sources */,
 				BA66524A312BEA9767F3FE8B /* WelcomeView.swift in Sources */,
@@ -2903,6 +2915,7 @@
 				9230A169024D28C76C191874 /* SlowNetworkUITests.swift in Sources */,
 				4F2E162B27450D4C56EACFF6 /* SyncTests.swift in Sources */,
 				F77885AA135AFC57A9D55F0C /* TableEditingUITests.swift in Sources */,
+				0DF10BFEAD1A3237F73111BD /* WelcomeEmailUITests.swift in Sources */,
 				486F06F685010C3279CCBA3E /* WikiLinksUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -3090,6 +3103,7 @@
 				563A6EA348703923FFB358FD /* VersionHistoryView.swift in Sources */,
 				CCA46476EB8A1E84186D96DD /* VersionTextView.swift in Sources */,
 				B1838349B2E160ED73FE1808 /* WebAuthSession.swift in Sources */,
+				324D8A95A47F94CAB8DDC168 /* WelcomeEmailSignIn.swift in Sources */,
 				18539A4905E42F2AEF61354A /* WelcomeNote.swift in Sources */,
 				4C5E4105DA77CC36CE4029A9 /* WelcomeNoteView.swift in Sources */,
 				83AA673DC328D6B441A0D72F /* WelcomeView.swift in Sources */,
