@@ -150,8 +150,8 @@ struct HoverRowReader<Content: View>: View {
                     // C and D: sm corners on every row, and the hover a little under half way to the selection's
                     // fill (a note row's card, a folder's neutral pill), never on the selected row.
                     RoundedRectangle(cornerRadius: DesignLook.calmList ? Radius.sm : Hover.pillRadius, style: .continuous)
-                        .fill(selected ? (card ? AnyShapeStyle(Color.card) : Hover.selected)
-                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color.card.opacity(0.4)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
+                        .fill(selected ? (card ? AnyShapeStyle(Color(Palette.rowSelection)) : Hover.selected)
+                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color(Palette.rowSelection).opacity(0.4)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }

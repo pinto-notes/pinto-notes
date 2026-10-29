@@ -167,18 +167,46 @@ import Testing
         #expect(Self.contrast(Self.resolved(Palette.disabledButtonLabel, appearance), soft) >= 3)
     }
 
-    /// D, the reading page, is the window that ships: without PINTO_LOOK the app draws it, with its
-    /// calm list (DesignLook.shipped; release builds read nothing else).
-    @Test func theShippedLookIsTheReadingPage() {
-        #expect(DesignLook.shipped == .reading)
+    /// E, D's reading page in plain white and black, is the Mac window that ships: without
+    /// PINTO_LOOK the app draws it, with its calm list (DesignLook.shipped; release builds read
+    /// nothing else).
+    @Test func theShippedLookIsThePlainReadingPage() {
+        #expect(DesignLook.shipped == .plain)
         let env = ProcessInfo.processInfo.environment
         if env["PINTO_LOOK"] == nil && UserDefaults.standard.string(forKey: "PintoLook") == nil {
-            #expect(DesignLook.current == .reading)
+            #expect(DesignLook.current == .plain)
             #expect(DesignLook.isCandidate && DesignLook.calmList && DesignLook.readingPage)
         }
         // Release builds have no switch at all: the look is the shipped one.
         let src = try? String(contentsOf: TestFiles.url("Editor").appendingPathComponent("Palette.swift"), encoding: .utf8)
         #expect(src?.contains("#else\n        return shipped\n        #endif") == true)
+    }
+
+    /// The Mac's shipped look is plain (Emil, 2026-10-29: no cream): the note and the list are white
+    /// in the light and pure black in the dark, the sidebar's glass has no brown laid in it, and the
+    /// cards, chips and hairlines are neutral grey. The selected note still reads on the white list.
+    @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
+    func theShippedMacLookIsPlainWhiteAndBlack(_ appearance: NSAppearance.Name) {
+        let was = DesignLook.current
+        DesignLook.current = DesignLook.shipped
+        defer { DesignLook.current = was }
+        func rgba(_ c: NSColor) -> [Int] {
+            let s = Self.resolved(c, appearance)
+            return [s.redComponent, s.greenComponent, s.blueComponent, s.alphaComponent].map { Int(($0 * 255).rounded()) }
+        }
+        let ground = appearance == .darkAqua ? [0, 0, 0, 255] : [255, 255, 255, 255]
+        #expect(rgba(Palette.page) == ground, "page \(appearance.rawValue)")
+        #expect(rgba(Palette.listGround) == ground, "list \(appearance.rawValue)")
+        #expect(rgba(Palette.sidebarWarmth)[3] == 0, "sidebar warmth \(appearance.rawValue)")
+        for (name, c) in [("card", Palette.card), ("soft", Palette.soft), ("line", Palette.line), ("row selection", Palette.rowSelection)] {
+            let v = rgba(c)
+            #expect(v[0] == v[1] && v[1] == v[2], "\(name) is neutral \(appearance.rawValue): \(v)")
+        }
+        let list = Self.resolved(Palette.listGround, appearance), selection = Self.resolved(Palette.rowSelection, appearance)
+        #expect(Self.contrast(list, selection) >= 1.15, "the selected row reads on the list \(appearance.rawValue)")
+        // The other looks keep their warmth, for comparison.
+        DesignLook.current = .reading
+        #expect(rgba(Palette.page) != ground && rgba(Palette.sidebarWarmth)[3] > 0)
     }
 }
 #endif
