@@ -52,7 +52,8 @@ import Testing
         func focusEditor() {}
         func insertGrid() {}
         func leaveGrid(_ index: Int, below: Bool) {}
-        func tintChanges(from previous: String) {}
+        func tintChanges(from previous: String, untilCleared: Bool) {}
+        var isTinted: Bool { false }
         func clearTint() {}
         func syncExternal(_ new: String) {}
         func showRemoteCarets(_ carets: [RemoteCaret]) {}

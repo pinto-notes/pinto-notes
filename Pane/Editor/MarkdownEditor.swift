@@ -1120,9 +1120,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     /// An AI's edit just landed: tint the lines it changed compared with `previous`.
-    func tintChanges(from previous: String) {
-        core.layoutDelegate.tint.play(from: previous, to: currentText)
+    func tintChanges(from previous: String, untilCleared: Bool) {
+        core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
+
+    var isTinted: Bool { core.layoutDelegate.tint.isLit }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
@@ -1757,9 +1759,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     /// An AI's edit just landed: tint the lines it changed compared with `previous`.
-    func tintChanges(from previous: String) {
-        core.layoutDelegate.tint.play(from: previous, to: currentText)
+    func tintChanges(from previous: String, untilCleared: Bool) {
+        core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
+
+    var isTinted: Bool { core.layoutDelegate.tint.isLit }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 

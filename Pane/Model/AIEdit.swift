@@ -35,6 +35,9 @@ enum AIEdit {
     /// The unseen AI change is a whole note it wrote.
     static func wroteIt(_ note: Note) -> Bool { AIEditStore.shared[note.id].created ?? false }
 
+    /// The list row's line, in place of the note's preview, until you open it.
+    static func listLine(_ note: Note, by ai: String) -> String { wroteIt(note) ? "Written by \(ai)" : "Edited by \(ai)" }
+
     /// You've opened it: the list marker goes. Returns what the receipt and tint need, once.
     static func markSeen(_ note: Note) -> Receipt? {
         guard isUnseen(note), let by = note.aiEditor, let at = note.aiEditedAt else { return nil }
@@ -120,6 +123,14 @@ enum AIEdit {
             if created { return "\(by) wrote this note" }
             return lines == 0 ? "Updated by \(by)" : "\(by) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
+
+        /// An AI's edit of the note's text stays marked (the tint, and Undo) until you start
+        /// typing, undo it or leave the note, however long you read. The others are moments in a
+        /// note's app, and go on their own.
+        var staysUntilEdited: Bool { kind == .edit }
+
+        /// For VoiceOver on the Undo button, which shows only "Undo".
+        var undoLabel: String { created ? "Undo, removes the note \(by) wrote" : "Undo \(by)'s changes" }
 
         /// For the navigation bar over a note's app, where there's room for a word or two.
         var shortSummary: String {

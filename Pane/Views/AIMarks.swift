@@ -71,6 +71,22 @@ struct AITile: View {
     }
 }
 
+/// iPhone: an AI's edit of a note's text is marked by the tint on the lines it changed and a plain
+/// Undo button in the navigation bar, not the receipt pill (Emil, 29 October 2026: design effort
+/// goes into the AI's marking, everything else is standard). The Mac keeps the pill, which now
+/// stays as long as the tint does.
+enum NoteAIUndo {
+    static let identifier = "note.aiUndo"
+
+    static func inBar(_ receipt: AIEdit.Receipt?, showingPage: Bool) -> Bool {
+        #if os(iOS)
+        !showingPage && receipt?.staysUntilEdited == true
+        #else
+        false
+        #endif
+    }
+}
+
 /// "ChatGPT changed 5 lines", with Undo: shown on the open note when an AI's edit lands on it.
 struct AIReceipt: View {
     let receipt: AIEdit.Receipt

@@ -64,6 +64,7 @@
 		0E40673C6FEC277FC8BB63C4 /* GoogleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD8BF7D9C77E06DFA9BE70C /* GoogleSignIn.swift */; };
 		0E45434D5A9E2D8A07F518F4 /* firstopen-meal-plan.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BC21DF51FFD468B83B80F5C1 /* firstopen-meal-plan.jpg */; };
 		0E5A93367DF00F588EC6C7A3 /* DecoratedLayoutFragment.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4C25B7D160D0B147F9EC20 /* DecoratedLayoutFragment.swift */; };
+		0EAF1EF814DB06B298E28565 /* AIChangesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */; };
 		0ED845C9D35EA0852A7477A5 /* BlurMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99629D4F11ED9D35B4B851A2 /* BlurMotion.swift */; };
 		0F46C8D98BE583B848F7ED64 /* htm.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 586174156618B0DB73BFE5A7 /* htm.module.js */; };
 		0F5DB7BF6D4ABC653F3234D3 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64B3C5141EE3AF3984622FC /* Palette.swift */; };
@@ -811,6 +812,7 @@
 		138C228FA740D92E0D104154 /* PressSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressSelect.swift; sourceTree = "<group>"; };
 		14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTableTests.swift; sourceTree = "<group>"; };
 		14F9F8FBEB782DAC56C7A390 /* WikiLinksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiLinksUITests.swift; sourceTree = "<group>"; };
+		15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesTests.swift; sourceTree = "<group>"; };
 		15AFB020DF9CA42B5FEDBCC0 /* KeepImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepImportTests.swift; sourceTree = "<group>"; };
 		15D7726410B10FF37FF6EB51 /* KeyCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCopy.swift; sourceTree = "<group>"; };
 		17A49ECF5C2416ECB7428670 /* StressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StressTests.swift; sourceTree = "<group>"; };
@@ -1609,6 +1611,7 @@
 		615A6B625E7A04B1D9C26297 /* Interaction */ = {
 			isa = PBXGroup;
 			children = (
+				15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */,
 				BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */,
 				FF514831FEE33CB560873B07 /* BulletLookTests.swift */,
 				06F885F11369967DA92A32CE /* CaretFixTests.swift */,
@@ -2060,8 +2063,8 @@
 				D735696D027A23734B8C6C30 /* DogfoodTests.swift */,
 				81F7D97727CE36EF026FC374 /* EmailConfirmUITests.swift */,
 				8E1EDD6EA0A72A2064832EE9 /* FolderNavigationUITests.swift */,
-				D19E0A40C4F68710C1E2177D /* FormerSubNotesUITests.swift */,
 				6E18D450CB6E4A81D0C916D8 /* FormatPanelUITests.swift */,
+				D19E0A40C4F68710C1E2177D /* FormerSubNotesUITests.swift */,
 				679AA69EF9B06E496AB5D84B /* HeardFromUITests.swift */,
 				45E841E864DEFA026AC0CF16 /* HomeScreenTests.swift */,
 				8E2ED2A4AF8812202F92B945 /* KeyboardBarUITests.swift */,
@@ -2429,6 +2432,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0EAF1EF814DB06B298E28565 /* AIChangesTests.swift in Sources */,
 				5EFE2991114664DF1D981C66 /* AIEditSnapshots.swift in Sources */,
 				DE5EE93B05370A763A90D28F /* AIEditTests.swift in Sources */,
 				A64D7D4950EFCE103608A867 /* AccountGoneTests.swift in Sources */,
@@ -2849,8 +2853,8 @@
 				CD71F1E4803FE64FB4C22727 /* DogfoodTests.swift in Sources */,
 				5AF7EC6DB93FFA40B9D54CFA /* EmailConfirmUITests.swift in Sources */,
 				6158DE4E75B7C5A16EB2E25E /* FolderNavigationUITests.swift in Sources */,
-				6F8E50B2A1AF9EC20EBF86B0 /* FormerSubNotesUITests.swift in Sources */,
 				496A643FC4AC3ACB5B278C1C /* FormatPanelUITests.swift in Sources */,
+				6F8E50B2A1AF9EC20EBF86B0 /* FormerSubNotesUITests.swift in Sources */,
 				14B88056C81A04C286A15ED4 /* HeardFromUITests.swift in Sources */,
 				F5DFE70493F7E13C3AAA35FD /* HomeScreenTests.swift in Sources */,
 				864098AF04B94A0FCD1273BC /* KeyCopyUITests.swift in Sources */,

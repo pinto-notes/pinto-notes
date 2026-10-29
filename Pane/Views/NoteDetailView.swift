@@ -344,8 +344,9 @@ struct NoteDetailView: View {
         if let receipt {
             #if os(iOS)
             // Over a note's app it sits in the navigation bar instead (see toolbar): an app's own
-            // tab bar, sheets and the keyboard live at the bottom, its title at the top.
-            let inBar = showingPage
+            // tab bar, sheets and the keyboard live at the bottom, its title at the top. An AI's
+            // edit of the text is only the tint and a plain Undo button in the bar.
+            let inBar = showingPage || NoteAIUndo.inBar(receipt, showingPage: showingPage)
             #else
             let inBar = false
             #endif
@@ -361,8 +362,9 @@ struct NoteDetailView: View {
         }
     }
 
-    /// An AI's edit you haven't seen: tint what it changed and say who did it. Opening the note
-    /// counts as seeing it; the tint and the receipt then go on their own.
+    /// An AI's edit you haven't seen: tint what it changed and offer Undo. Opening the note counts
+    /// as seeing it, so the list's dot goes; the tint and Undo stay while you read, and go quietly
+    /// once you start typing, undo it or leave the note (`staysUntilEdited`).
     private func showAIEdit() {
         guard let r = AIEdit.markSeen(note) else { return }
         Telemetry.shared.record(.firstAIEditSeen)
@@ -372,18 +374,22 @@ struct NoteDetailView: View {
             // Let the editor take the new text first.
             try? await Task.sleep(for: .seconds(0.15 * slow))
             guard note.id == r.noteID else { return }
-            controller.tintChanges(from: r.previous)
+            controller.tintChanges(from: r.previous, untilCleared: r.staysUntilEdited)
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()
-            try? await Task.sleep(for: .seconds(5.5 * slow))
-            while ChangeTint.holdForCapture, receipt == r { try? await Task.sleep(for: .seconds(0.1)) }
-            guard receipt == r else { return }
-            withAnimation(.easeIn(duration: 0.2 * slow)) { receipt = nil }
         }
+    }
+
+    /// You started typing: what the AI changed is yours now, so its marking goes, quietly.
+    private func editedSinceAIEdit() {
+        guard let r = receipt, r.staysUntilEdited else { return }
+        withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
+        controller.clearTint()
     }
 
     private func undo(_ r: AIEdit.Receipt) {
         withAnimation(.smooth(duration: 0.25)) { receipt = nil }
+        if r.staysUntilEdited { controller.clearTint() }
         if r.kind == .pageMade || r.kind == .pageChanged {
             // The note's text never changed: the page goes back to what it was (the new one is kept).
             if undoPage != nil { restorePreviousPage() } else {
@@ -934,6 +940,7 @@ struct NoteDetailView: View {
     private func save(_ text: String) {
         // Recently Deleted is read-only: nothing typed or ticked there is kept.
         guard !trashed else { return }
+        if receipt != nil { editedSinceAIEdit() }
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
             collab.local(text, selection: controller.target?.currentSelection)
@@ -1109,6 +1116,18 @@ struct NoteDetailView: View {
                     .transition(.opacity)
             }
             .sharedBackgroundVisibility(.hidden)
+        }
+        // An AI's edit of the text: the changed lines are tinted, and this undoes them. A plain
+        // button, as Notes would have it; it goes with the tint (you type, undo or leave).
+        if let receipt, NoteAIUndo.inBar(receipt, showingPage: showingPage) {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Undo") { undo(receipt) }
+                    .tint(.primary)
+                    .accessibilityLabel(receipt.undoLabel)
+                    .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
+                    .accessibilityIdentifier(NoteAIUndo.identifier)
+            }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
         }
 
         if let collab {
