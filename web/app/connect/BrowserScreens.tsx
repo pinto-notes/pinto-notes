@@ -84,63 +84,90 @@ export function CodeScreen({ email, code, onCode, onSubmit, onResend, onDifferen
   );
 }
 
-/// The consent: access, what is shared and with whom, locked notes, then Allow. Every line is on
-/// screen before Allow; nothing is folded away.
-export function ConsentScreen({ words, ai, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch }: {
-  words: ConsentWords; ai: string; canWrite: boolean; write: boolean; onWrite: (write: boolean) => void;
+/// The consent, in the Mac's wide Allow sheet (ConsentSheet in Pane/Views/ConnectAI.swift): who asks
+/// on the left, what it gets and the answer on the right; one column on a phone. The access choice
+/// is a pair of bordered rows with a selected state, so it reads as a control; the facts under it
+/// stay plain text with a glyph. No number: Allow here is the answer, and nothing else must match.
+/// The pair at the top is a plain chat glyph, never the AI's mark (the 2 October rule).
+export function ConsentScreen({ words, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
+  words: ConsentWords; canWrite: boolean; write: boolean; onWrite: (write: boolean) => void;
   onAllow: () => void; onDeny: () => void;
   /// Which answer is on its way.
   busy: "allow" | "deny" | null; failure: string | null; email: string; onSwitch: () => void;
+  /// "Requested just now from Chrome on Windows" (requestedLine).
+  requested: string;
 }) {
   const options = canWrite ? [true, false] : [false];
   return (
-    <>
-      <h1 className={styles.title}>Choose what {ai} can do</h1>
-      {words.caution && (
-        <p className={styles.warn} data-testid="connect-unknown"><b>{words.caution.lead}</b> {words.caution.detail}</p>
-      )}
-      <div className={styles.access} role="radiogroup" aria-label="Access">
-        {options.map((edit) => {
-          const a = edit ? ACCESS.edit : ACCESS.read;
-          const on = write === edit || options.length === 1;
-          return (
-            <button
-              key={a.title} type="button" role="radio" aria-checked={on} className={styles.accessCard}
-              onClick={() => onWrite(edit)} disabled={busy !== null}
-            >
-              <span className={styles.accessDot} aria-hidden="true" />
-              <span className={styles.accessWords}>
-                <b>{a.title}</b>
-                <span>{a.detail}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <ul className={styles.facts}>
-        <li data-testid="connect-shared">
-          <ShareGlyph />
-          <p><b>{words.sharedLead}</b> {words.sent}</p>
-        </li>
-        <li data-testid="connect-locked">
-          <LockGlyph />
-          <p><b>{words.lockedLead}</b> {words.lockedDetail}</p>
-        </li>
-      </ul>
-      <ErrorLine text={failure} />
-      <div className={styles.answers}>
-        <button type="button" className={styles.primary} onClick={onAllow} disabled={busy !== null} aria-busy={busy === "allow"}>
-          {busy === "allow" ? <><Spinner /> Allowing…</> : "Allow"}
-        </button>
-        <button type="button" className={styles.secondary} onClick={onDeny} disabled={busy !== null} aria-busy={busy === "deny"}>
-          {busy === "deny" ? <><Spinner /> Declining…</> : "Don’t allow"}
-        </button>
-      </div>
-      <p className={styles.signedAs}>
-        Signed in as <b>{email}</b>.{" "}
-        <button type="button" className={styles.inlineLink} onClick={onSwitch} disabled={busy !== null}>Use another account</button>
-      </p>
-    </>
+    <div className={styles.wide} data-testid="connect-consent">
+      <section className={styles.wideWho}>
+        <PairMark />
+        <h1 className={styles.wideTitle}>{words.title}</h1>
+        <p className={styles.requested} data-testid="connect-requested">{requested}</p>
+        {words.caution && (
+          <p className={styles.warn} data-testid="connect-unknown"><b>{words.caution.lead}</b> {words.caution.detail}</p>
+        )}
+      </section>
+      <section className={styles.wideWhat}>
+        <p className={styles.accessLabel} id="connect-access-label">Access</p>
+        <div className={styles.access} role="radiogroup" aria-labelledby="connect-access-label">
+          {options.map((edit) => {
+            const a = edit ? ACCESS.edit : ACCESS.read;
+            const on = write === edit || options.length === 1;
+            return (
+              <button
+                key={a.title} type="button" role="radio" aria-checked={on} className={styles.accessRow}
+                onClick={() => onWrite(edit)} disabled={busy !== null}
+              >
+                <span className={styles.accessDot} aria-hidden="true" />
+                <span className={styles.accessWords}>
+                  <b>{a.title}</b>
+                  <span>{a.detail}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <ul className={styles.facts}>
+          <li data-testid="connect-shared">
+            <ShareGlyph />
+            <p><b>{words.sharedLead}</b> {words.sent}</p>
+          </li>
+          <li data-testid="connect-locked">
+            <LockGlyph />
+            <p><b>{words.lockedLead}</b> {words.lockedDetail}</p>
+          </li>
+        </ul>
+        <ErrorLine text={failure} />
+        <div className={styles.answers}>
+          <button type="button" className={styles.secondary} onClick={onDeny} disabled={busy !== null} aria-busy={busy === "deny"}>
+            {busy === "deny" ? <><Spinner /> Declining…</> : "Don’t Allow"}
+          </button>
+          <button type="button" className={styles.primary} onClick={onAllow} disabled={busy !== null} aria-busy={busy === "allow"}>
+            {busy === "allow" ? <><Spinner /> Allowing…</> : "Allow"}
+          </button>
+        </div>
+        <p className={styles.signedAs}>
+          Signed in as <b>{email}</b>.{" "}
+          <button type="button" className={styles.inlineLink} onClick={onSwitch} disabled={busy !== null}>Use another account</button>
+        </p>
+      </section>
+    </div>
+  );
+}
+
+/// A plain chat glyph, three dots, and Pinto's icon: the app's pair, without the AI's mark.
+function PairMark() {
+  return (
+    <div className={styles.pair} aria-hidden="true">
+      <span className={styles.pairTile}>
+        <svg viewBox="0 0 20 20" width={20} height={20} focusable="false">
+          <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <span className={styles.pairDots}>···</span>
+      <img className={styles.pairIcon} src="/icon-96.png" alt="" width={40} height={40} decoding="async" />
+    </div>
   );
 }
 

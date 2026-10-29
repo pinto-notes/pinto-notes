@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLabel } from "@/lib/connect";
-import { codeRequestError, consentWords, hereFrom, safeReturn, SESSION_KEY } from "@/lib/connect-browser";
+import { codeRequestError, consentWords, hereFrom, requestedLine, safeReturn, SESSION_KEY } from "@/lib/connect-browser";
 import BrowserConnect from "./BrowserConnect";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -43,6 +43,15 @@ describe("the consent's words", () => {
     expect(hereFrom({})).toBe("app");
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT", allow_here: true })?.allow_here).toBe(true);
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT" })?.allow_here).toBeUndefined();
+  });
+
+  it("says when the request was made, from its expiry, and from which browser", () => {
+    const now = Date.parse("2026-10-29T12:00:00Z");
+    const at = (minutesAgo: number) => ({ expires_at: new Date(now + (10 - minutesAgo) * 60_000).toISOString() });
+    expect(requestedLine(at(0), "Chrome on Windows", now)).toBe("Requested just now from Chrome on Windows");
+    expect(requestedLine(at(1), "Safari on a Mac", now)).toBe("Requested 1 minute ago from Safari on a Mac");
+    expect(requestedLine(at(4), "Safari on a Mac", now)).toBe("Requested 4 minutes ago from Safari on a Mac");
+    expect(requestedLine({ expires_at: "" }, "a web browser", now)).toBe("Requested just now from a web browser");
   });
 
   it("follows only a web address back, and says when an email has no account", () => {
@@ -143,7 +152,7 @@ describe("connecting on the page alone", () => {
     await until(() => container.textContent!.includes("That code didn’t work"));
     type(container.querySelector<HTMLInputElement>("#connect-code")!, "123 456");
     submit(container.querySelector("form")!);
-    await until(() => heading() === "Choose what ChatGPT can do");
+    await until(() => heading() === "Connect ChatGPT to your notes?");
 
     // What, who by company, and that it asks first: all on screen before Allow.
     const text = container.textContent!;
@@ -153,6 +162,18 @@ describe("connecting on the page alone", () => {
     expect(text).toContain("Read only");
     expect(container.querySelector("details")).toBeNull();
     expect(localStorage.getItem(SESSION_KEY)).toContain("rt-1");
+    // The wide sheet: when and from where under the title, no number to match, the access as a
+    // radio group of its own, apart from the facts, and Don't Allow before Allow.
+    expect(container.querySelector("[data-testid=connect-requested]")!.textContent).toMatch(/^Requested (just now|\d+ minutes? ago) from /);
+    expect(text).not.toMatch(/Allow only if|shows \d+ too/);
+    const group = container.querySelector("[role=radiogroup]")!;
+    expect(group.getAttribute("aria-labelledby")).toBe("connect-access-label");
+    expect(group.querySelectorAll("[role=radio]")).toHaveLength(2);
+    expect(group.querySelector("[aria-checked=true]")!.textContent).toContain("Read and edit");
+    expect(group.contains(container.querySelector("[data-testid=connect-shared]"))).toBe(false);
+    const answers = [...container.querySelectorAll("button")].map((b) => b.textContent).filter((t) => t === "Allow" || t === "Don’t Allow");
+    expect(answers).toEqual(["Don’t Allow", "Allow"]);
+    expect(container.querySelector("img[src*='chatgpt'], img[alt*='ChatGPT']")).toBeNull();
 
     act(() => button("Read only").click());
     act(() => button("Allow").click());
@@ -168,7 +189,7 @@ describe("connecting on the page alone", () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "old", refresh_token: "rt-old", user_id: "u1", email: "me@example.com" }));
     vi.stubGlobal("fetch", fakeServer().fetch);
     render();
-    await until(() => heading() === "Choose what ChatGPT can do");
+    await until(() => heading() === "Connect ChatGPT to your notes?");
     expect(container.textContent).toContain("Signed in as me@example.com.");
   });
 
@@ -193,7 +214,7 @@ describe("connecting on the page alone", () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "old", refresh_token: "rt-old", user_id: "u1", email: "me@example.com" }));
     vi.stubGlobal("fetch", fakeServer({ allow: { status: 409, body: { error: "x", hint: "no_copy" } } }).fetch);
     render();
-    await until(() => heading() === "Choose what ChatGPT can do");
+    await until(() => heading() === "Connect ChatGPT to your notes?");
     act(() => button("Allow").click());
     await until(() => heading() === "Allow this in Pinto Notes");
     expect(assigned).toEqual([]);
@@ -203,7 +224,7 @@ describe("connecting on the page alone", () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "old", refresh_token: "rt-old", user_id: "u1", email: "me@example.com" }));
     vi.stubGlobal("fetch", fakeServer({ allow: { status: 404, body: { error: "gone", hint: "expired" } } }).fetch);
     render();
-    await until(() => heading() === "Choose what ChatGPT can do");
+    await until(() => heading() === "Connect ChatGPT to your notes?");
     act(() => button("Allow").click());
     await until(() => heading() === "This request has expired");
   });
@@ -213,7 +234,7 @@ describe("connecting on the page alone", () => {
     const server = fakeServer();
     vi.stubGlobal("fetch", server.fetch);
     render();
-    await until(() => heading() === "Choose what ChatGPT can do");
+    await until(() => heading() === "Connect ChatGPT to your notes?");
     act(() => button("Use another account").click());
     await until(() => heading() === "Sign in to Pinto Notes");
     expect(localStorage.getItem(SESSION_KEY)).toBeNull();
@@ -223,8 +244,8 @@ describe("connecting on the page alone", () => {
     root = createRoot(container);
     localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "old", refresh_token: "rt-old", user_id: "u1", email: "me@example.com" }));
     render();
-    await until(() => heading() === "Choose what ChatGPT can do");
-    act(() => button("Don’t allow").click());
+    await until(() => heading() === "Connect ChatGPT to your notes?");
+    act(() => button("Don’t Allow").click());
     await until(() => assigned.length === 1);
     expect(assigned[0]).toContain("error=access_denied");
   });

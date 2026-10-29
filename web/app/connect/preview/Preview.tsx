@@ -88,7 +88,7 @@ export default function Preview({ state, number, action, both }: {
       const r = state === "webConsentUnknown" ? UNKNOWN : CHATGPT;
       return (
         <ConsentScreen
-          words={consentWords(r)} ai={r.verified_ai ?? "it"} canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
+          words={consentWords(r)} requested="Requested just now from Chrome on Windows" canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
           onAllow={noop} onDeny={noop} busy={state === "webAllowing" ? "allow" : null} failure={null} email="me@example.com" onSwitch={noop}
         />
       );

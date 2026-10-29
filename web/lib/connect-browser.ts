@@ -75,6 +75,19 @@ export const ACCESS = {
   read: { title: "Read only", detail: "It can find and read notes, nothing more." },
 } as const;
 
+/// How long a request lives on the server (oauth_requests.expires_at defaults to 10 minutes on),
+/// so when it was made is its expiry less this.
+const REQUEST_MINUTES = 10;
+
+/// Under the consent's title, when and from where it was asked, as the app's Allow sheet says it
+/// ("Requested just now from Chrome on Windows"). The browser is this one: the AI sent it here.
+export function requestedLine(r: Pick<ConnectRequest, "expires_at">, browser: string, now = Date.now()): string {
+  const made = Date.parse(r.expires_at) - REQUEST_MINUTES * 60_000;
+  const minutes = Number.isFinite(made) ? Math.floor((now - made) / 60_000) : 0;
+  const when = minutes < 1 ? "just now" : minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
+  return `Requested ${when} from ${browser}`;
+}
+
 /// The AI's name for the way back: "ChatGPT" for its own address, else the address.
 export function backTo(r: Pick<ConnectRequest, "verified_ai" | "redirect_host" | "loopback">): string {
   return r.verified_ai ?? (r.loopback ? "the app" : r.redirect_host);

@@ -5,7 +5,7 @@ import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, startsWi
 import { browserFrom } from "@/lib/connect-flow";
 import {
   allowRequest, backTo, codeDigits, codeRequest, codeRequestError, consentWords, denyRequest, forgetSession, hereFrom, loadSession,
-  refreshRequest, safeReturn, saveSession, sessionFrom, verifyError, verifyRequest, type StoredSession,
+  refreshRequest, requestedLine, safeReturn, saveSession, sessionFrom, verifyError, verifyRequest, type StoredSession,
 } from "@/lib/connect-browser";
 import { EndedScreen, LeavingScreen, WorkingScreen } from "./ConnectScreens";
 import { BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen } from "./BrowserScreens";
@@ -311,7 +311,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       const r = view.request;
       return (
         <ConsentScreen
-          words={consentWords(r)} ai={r.verified_ai ?? "it"} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
+          words={consentWords(r)} requested={requestedLine(r, browserFrom(navigator.userAgent))} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
           onAllow={() => void answer(r, true)} onDeny={() => void answer(r, false)} busy={answering} failure={failure}
           email={signedIn ?? email} onSwitch={() => void switchAccount()}
         />
