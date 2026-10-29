@@ -1279,7 +1279,11 @@ struct ConsentSheet: View {
     }
 
     /// The Mac sheet's width: a form, laid out left to right like the other Mac sheets.
+    #if os(macOS)
+    static let width: CGFloat = 460
+    #else
     static let width: CGFloat = 520
+    #endif
 
     /// iPhone: as tall as what it shows, scrolling when that's more than the screen (the
     /// largest text sizes). Nothing is ever cut short.
@@ -1311,7 +1315,8 @@ struct ConsentSheet: View {
     /// before fades (BlurMotion).
     private var content: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let last { header(last) }
+            // Mac, asking: the sentence is the header.
+            if let last, !Self.asSentence(phase) { header(last) }
             ZStack(alignment: .topLeading) {
                 states
                     .id(phaseKey)
@@ -1521,7 +1526,118 @@ struct ConsentSheet: View {
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
 
+    /// Mac, asking: one sentence with the access in it, the code small at the top, the facts, the answer.
+    static func asSentence(_ phase: Phase) -> Bool {
+        #if os(macOS)
+        if case .asking = phase { return true }
+        #endif
+        return false
+    }
+
+    @ViewBuilder
     private func asking(_ r: ConnectRequest) -> some View {
+        #if os(macOS)
+        quiet(r)
+        #else
+        stacked(r)
+        #endif
+    }
+
+    /// What the app may do, as a pop-up in the sentence when it asked to edit.
+    @ViewBuilder
+    private func verb(_ r: ConnectRequest) -> some View {
+        if r.wants_write {
+            Picker("Access", selection: $write) {
+                Text("read and edit").tag(true)
+                Text("read only").tag(false)
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityIdentifier("connect.access")
+        } else {
+            Text("read")
+        }
+    }
+
+    private func quiet(_ r: ConnectRequest) -> some View {
+        let known = r.verifiedAI != nil
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                pair(r)
+                Spacer(minLength: 12)
+                if byNumber(r) {
+                    if let match {
+                        HStack(alignment: .firstTextBaseline, spacing: 5) {
+                            Text("Code").font(.system(size: 12)).foregroundStyle(Color.muted)
+                            Text(match.number).font(.system(size: 17, weight: .bold, design: .rounded)).monospacedDigit()
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Code \(match.number.map(String.init).joined(separator: " "))")
+                        .accessibilityIdentifier("connect.number")
+                    } else {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+            }
+            Group {
+                if known {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("\(r.who) wants to")
+                        verb(r)
+                        Text("your notes.")
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.who)
+                        HStack(alignment: .firstTextBaseline, spacing: 5) { Text("wants to"); verb(r); Text("your notes.") }
+                    }
+                }
+            }
+            .font(.system(size: 19, weight: .semibold))
+            .padding(.top, 16)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("connect.title")
+            if let line = quietLine(r) {
+                Text(line).font(.system(size: 12.5)).foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 5)
+                    .accessibilityIdentifier("connect.requested")
+            }
+            if !known, r.startedHere == nil {
+                (Text(Image(systemName: "exclamationmark.triangle.fill")) + Text(" " + Self.unknownLead).fontWeight(.semibold) + Text(" " + Self.unknownDetail(r)).foregroundColor(Color.ink))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.amberInk)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 14)
+                    .accessibilityIdentifier("connect.unknown")
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                (Text(Self.sharedLead(r)).fontWeight(.semibold).foregroundColor(Color.ink) + Text(" " + Self.sent(r)))
+                    .accessibilityIdentifier("connect.destination")
+                (Text("Locked notes stay private.").fontWeight(.semibold).foregroundColor(Color.ink) + Text(" " + Self.lockedDetail(r)))
+                    .accessibilityIdentifier("connect.locked")
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(Color.muted)
+            .lineSpacing(1.5)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 16)
+            .padding(.bottom, 18)
+            HStack(spacing: 8) { Spacer(minLength: 0); answers(r) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Under the sentence: where it was asked, and the code to compare.
+    private func quietLine(_ r: ConnectRequest) -> String? {
+        let check = byNumber(r) ? match.map { "Allow only if your computer shows code \($0.number)." } : nil
+        let parts = [Self.whereLine(r), check].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    private func stacked(_ r: ConnectRequest) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             if r.verifiedAI == nil, r.startedHere == nil { warning(r) }
             if byNumber(r) { number }
@@ -1614,6 +1730,8 @@ struct ConsentSheet: View {
             .accessibilityIdentifier("connect.access")
             // A radio group at the keyboard: the arrows move the choice.
             .focusable(r.wants_write)
+            // The selected card shows the choice; a ring around both cards was a second outline.
+            .focusEffectDisabled()
             .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
                 guard r.wants_write else { return .ignored }
                 write = press.key == .leftArrow || press.key == .upArrow
