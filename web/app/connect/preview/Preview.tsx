@@ -24,6 +24,7 @@ const prevent = (e: React.FormEvent) => e.preventDefault();
 /// Who is asking, as /connect/request says it after sign-in: ChatGPT at its own callback, and an
 /// app Pinto can't name.
 const CHATGPT = { verified_ai: "ChatGPT" as const, redirect_host: "chatgpt.com", loopback: false, claimed_name: null, client_name: "ChatGPT" };
+const CLAUDE = { verified_ai: "Claude" as const, redirect_host: "claude.ai", loopback: false, claimed_name: null, client_name: "Claude" };
 const UNKNOWN = { verified_ai: null, redirect_host: "notebot.example", loopback: false, claimed_name: "notebot", client_name: "notebot.example" };
 
 export default function Preview({ state, number, action, both }: {
@@ -84,8 +85,9 @@ export default function Preview({ state, number, action, both }: {
     case "webConsent":
     case "webConsentRead":
     case "webConsentUnknown":
+    case "webConsentClaude":
     case "webAllowing": {
-      const r = state === "webConsentUnknown" ? UNKNOWN : CHATGPT;
+      const r = state === "webConsentUnknown" ? UNKNOWN : state === "webConsentClaude" ? CLAUDE : CHATGPT;
       return (
         <ConsentScreen
           words={consentWords(r)} mark={r.verified_ai ?? null} requested="Requested just now from Chrome on Windows" canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
