@@ -480,6 +480,16 @@ struct SidebarView: View {
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
+            #else
+            // Where the sidebar button was, at the sidebar's trailing edge: search every note.
+            ToolbarSpacer(.flexible)
+            ToolbarItem {
+                Button("Search", systemImage: "magnifyingglass") {
+                    NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
+                }
+                .help("Search (⌘F)")
+                .accessibilityIdentifier("sidebar.search")
+            }
             #endif
         }
     }

@@ -904,15 +904,6 @@ struct NoteDetailView: View {
     #if os(macOS)
     private var toolbarParts: NoteToolbarParts {
         NoteToolbarParts(
-            newNote: AnyView(ComposeButton(newNote: onNewNote) {
-                // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
-            }
-                .help("New Note (⌘N). Click and hold for New App.")
-                .newAppTip()
-                // The menu bar's quick capture is the other way to start a note.
-                .paneTip(MenuBarTip(), arrowEdge: .top)
-                .accessibilityIdentifier("list.newNote")),
             // A note with an app is just the app: no writing tools.
             writing: notePage != nil ? nil : AnyView(Group {
                 FormatButton(controller: controller).disabled(hidden || trashed)
@@ -1406,7 +1397,6 @@ private struct HostAskAlert: ViewModifier {
 /// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
 /// in a toolbar that stays: the items are brought up to date in place, like any other view.
 struct NoteToolbarParts: Equatable, @unchecked Sendable {
-    var newNote: AnyView
     /// Format, Checklist, Table, Attach; none for a note that is an app.
     var writing: AnyView?
     /// Who else is in a shared note.
@@ -1439,6 +1429,21 @@ struct NoteToolbarKey: PreferenceKey {
 struct NoteToolbarStage<Pane: View>: View {
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
+    /// The column's width, for lining the toolbar up with the note's text.
+    @State private var width: CGFloat = 0
+
+    /// How far in from each side of the column the toolbar's groups stand: the text's own margin,
+    /// less the room the toolbar leaves at its edges anyway. In a wide window the groups stay over
+    /// the reading column instead of out at the window's edges (Emil, 10-29: the Share group felt
+    /// "a bit lonely" at the edge).
+    /// None in a narrow window: the groups' own place at the edges is then about the text's.
+    static func inset(column width: CGFloat) -> CGFloat? {
+        let inset = PaneTextView.textSide(width: width) - edgeRoom
+        return inset >= 36 ? inset : nil
+    }
+    /// What the toolbar leaves between the column's edge and its first group, and between two
+    /// items, measured (MacWindowChromeTests).
+    static var edgeRoom: CGFloat { 18 }
 
     var body: some View {
         let parts = $parts
@@ -1447,19 +1452,29 @@ struct NoteToolbarStage<Pane: View>: View {
             // are: the next pane's are on their way, and without a note this view goes too.
             pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
         }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .toolbar {
                 if let shown = self.parts {
-                    // Like Notes: compose first (just right of the divider), the writing tools together, then share and more.
-                    ToolbarItem { shown.newNote }
-                    ToolbarSpacer(.flexible)
+                    // Only the note's own controls (Emil's draft, 10-29): the writing tools on the
+                    // left, share and more on the right, both over the note's text column. Compose
+                    // sits with the list, search with the sidebar.
+                    let inset = Self.inset(column: width)
+                    if let inset {
+                        ToolbarItem { Color.clear.frame(width: inset, height: 1) }
+                            .sharedBackgroundVisibility(.hidden)
+                    }
                     if let writing = shown.writing {
                         ToolbarItemGroup { writing }
                     }
-                    ToolbarSpacer(.fixed)
+                    ToolbarSpacer(.flexible)
                     if let people = shown.people {
                         ToolbarItem { people }
                     }
                     ToolbarItemGroup { shown.sharing }
+                    if let inset {
+                        ToolbarItem { Color.clear.frame(width: inset, height: 1) }
+                            .sharedBackgroundVisibility(.hidden)
+                    }
                 }
             }
     }

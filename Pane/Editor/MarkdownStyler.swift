@@ -697,6 +697,17 @@ private struct StyleWalker: MarkupWalker {
         }
         #endif
         storage.addAttribute(.paragraphStyle, value: p, range: ns.paragraphRange(for: r))
+        #if os(macOS)
+        if heading.level == 3, DesignLook.current == .paper || DesignLook.readingPage {
+            // As on the iPhone: a small bold label in the muted colour ("Get started"), a little
+            // apart from what's above it.
+            storage.addAttributes([.font: PFont.systemFont(ofSize: EditorMetrics.label, weight: .bold), .foregroundColor: Palette.muted], range: r)
+            let label = styler.baseParagraph()
+            label.paragraphSpacingBefore = 8
+            label.paragraphSpacing = 4
+            storage.addAttribute(.paragraphStyle, value: label, range: ns.paragraphRange(for: r))
+        }
+        #endif
         let hashes = delimiterLength(r, char: 0x23)
         var marker = hashes
         while r.location + marker < NSMaxRange(r), ns.character(at: r.location + marker) == 0x20 { marker += 1 }

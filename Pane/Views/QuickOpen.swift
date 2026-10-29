@@ -177,8 +177,7 @@ extension Notification.Name {
     static let paneQuickOpen = Notification.Name("pane.quickOpen")
     /// The open note's Move to… picker, from the panel.
     static let paneMoveNote = Notification.Name("pane.moveNote")
-    /// Search every note for the text in `object` (a String), from the panel.
-    static let paneSearchNotes = Notification.Name("pane.searchNotes")
+    // .paneSearchNotes (search every note for the text in `object`) is declared with the list's search.
 }
 
 /// The panel itself: a search line, then the rows. Solid card, the shared shadow, no animation

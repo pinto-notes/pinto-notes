@@ -70,9 +70,10 @@ final class MacDogfoodTests: XCTestCase {
         shot("dragged-into-ideas")
         XCTAssertTrue(row("Book club").waitForExistence(timeout: 2), "Note should be in Ideas after the drop")
 
-        // Search.
+        // Search: the sidebar's button opens the field at the top of the list.
+        app.buttons["sidebar.search"].firstMatch.click()
         let search = app.searchFields.firstMatch
-        search.click()
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.typeText("piranesi")
         pause(1)
         shot("search")

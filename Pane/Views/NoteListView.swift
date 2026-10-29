@@ -27,6 +27,13 @@ struct NoteListView: View {
     /// Files kept in folders on their own, listed with the notes.
     @Query(filter: #Predicate<Attachment> { $0.folderID != nil && $0.deletedAt == nil }) private var folderFiles: [Attachment]
     @State private var search = ""
+    #if os(macOS)
+    /// The search field shows at the top of the list while searching: opened by the sidebar's
+    /// Search button or ⌘F, closed by Escape or by leaving it empty.
+    @State private var searching = false
+    /// Counts the requests to put the keys in the field (each press of Search or ⌘F).
+    @State private var searchFocus = 0
+    #endif
     /// "Add File": the picker, and a file being renamed.
     @State private var addingFiles = false
     #if os(macOS)
@@ -335,9 +342,21 @@ struct NoteListView: View {
         .searchable(text: $search, prompt: "Search")
         .searchToolbarBehavior(.automatic)
         #else
-        .searchable(text: $search, placement: .toolbar, prompt: "Search")
-        // "Search all notes for …" from Go to Note (⌘O).
-        .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in if let text = n.object as? String { search = text } }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if searching {
+                ListSearchField(text: $search, focus: searchFocus) { searching = false }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 6)
+                    .padding(.bottom, 8)
+                    .background(Color(Palette.listGround))
+            }
+        }
+        // "Search all notes for …" from Go to Note (⌘O) carries the text to search for.
+        .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in
+            if let text = n.object as? String { search = text }
+            searching = true
+            searchFocus += 1
+        }
         #endif
         .navigationTitle(title)
         #if os(iOS)
@@ -466,23 +485,8 @@ struct NoteListView: View {
                 SearchComposeBar(newNote: onNewNote, disabled: scope == .trash, tip: true)
             }
             #else
-            // Like Notes: the folder's name and count, then a "⋯" menu for the list.
-            ToolbarItem(placement: .navigation) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.muted)
-                        .monospacedDigit()
-                }
-                // As far from the ••• as the toolbar's groups are from each other; a long name
-                // ends in "…" before it gets near the button.
-                .padding(.leading, 6)
-                .padding(.trailing, NoteListView.titleGap)
-                .frame(maxWidth: NoteListView.titleWidth, alignment: .leading)
-            }
-            .sharedBackgroundVisibility(.hidden)
-            ToolbarSpacer(.flexible)
+            // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count
+            // centred, compose on the right.
             ToolbarItem {
                 Menu {
                     ListOrderMenu(store: orderStore)
@@ -501,6 +505,32 @@ struct NoteListView: View {
                 .menuIndicator(.hidden)
                 .tint(.primary)
                 .accessibilityIdentifier("list.more")
+            }
+            ToolbarSpacer(.flexible)
+            ToolbarItem {
+                VStack(spacing: 0) {
+                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.muted)
+                        .monospacedDigit()
+                }
+                // A long name ends in "…" before it gets near the buttons.
+                .frame(maxWidth: NoteListView.titleWidth)
+            }
+            .sharedBackgroundVisibility(.hidden)
+            ToolbarSpacer(.flexible)
+            // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29).
+            ToolbarItem {
+                ComposeButton(newNote: onNewNote) {
+                    // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
+                    Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+                }
+                .help("New Note (⌘N). Click and hold for New App.")
+                .newAppTip()
+                // The menu bar's quick capture is the other way to start a note.
+                .paneTip(MenuBarTip(), arrowEdge: .top)
+                .accessibilityIdentifier("list.newNote")
             }
             #endif
         }
@@ -548,10 +578,8 @@ struct NoteListView: View {
     static let headingTop: CGFloat = 6.5
     static let headingBottom: CGFloat = 6.5
 
-    /// The folder's name in the list's toolbar: the gap after it (the space between the toolbar's
-    /// groups) and the most room it takes before it ends in "…".
-    static let titleGap: CGFloat = 16
-    static let titleWidth: CGFloat = 190
+    /// The folder's name in the list's toolbar: the most room it takes before it ends in "…".
+    static let titleWidth: CGFloat = 170
 
     /// Whether a row draws the quiet selection (the Mac only; iOS keeps the system's).
     static func quiet(_ selection: Set<UUID>, _ id: UUID) -> Bool {
@@ -1688,3 +1716,66 @@ private struct NoteRowHover<Items: View>: ViewModifier {
         }
     }
 }
+
+#if os(macOS)
+extension Notification.Name {
+    /// Opens the notes search at the top of the list (the sidebar's Search button, ⌘F). From Go to
+    /// Note (⌘O), `object` is the text to search for.
+    static let paneSearchNotes = Notification.Name("pane.searchNotes")
+}
+
+/// The list's search field: the system's search field, so it looks and behaves like Mail's and
+/// Notes'. Escape, or leaving it empty, closes it.
+struct ListSearchField: NSViewRepresentable {
+    @Binding var text: String
+    /// A new value puts the keys in the field.
+    let focus: Int
+    let close: () -> Void
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let field = NSSearchField()
+        field.placeholderString = "Search"
+        field.sendsSearchStringImmediately = true
+        field.delegate = context.coordinator
+        field.setAccessibilityIdentifier("list.search")
+        return field
+    }
+
+    func updateNSView(_ field: NSSearchField, context: Context) {
+        context.coordinator.parent = self
+        if field.stringValue != text { field.stringValue = text }
+        if context.coordinator.focused != focus {
+            context.coordinator.focused = focus
+            // A turn later: the field has only just been put in the window.
+            DispatchQueue.main.async { field.window?.makeFirstResponder(field) }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        var parent: ListSearchField
+        var focused: Int?
+        init(_ parent: ListSearchField) { self.parent = parent }
+
+        func controlTextDidChange(_ note: Notification) {
+            guard let field = note.object as? NSSearchField else { return }
+            parent.text = field.stringValue
+        }
+
+        /// Clicking elsewhere with nothing typed puts the field away; with a search it stays.
+        func controlTextDidEndEditing(_ note: Notification) {
+            guard let field = note.object as? NSSearchField, field.stringValue.isEmpty else { return }
+            parent.close()
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            // Escape clears the search and closes the field in one press.
+            guard selector == #selector(NSResponder.cancelOperation(_:)) else { return false }
+            parent.text = ""
+            parent.close()
+            return true
+        }
+    }
+}
+#endif

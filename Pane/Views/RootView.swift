@@ -117,7 +117,10 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
+                // Search takes the sidebar button's place (Emil, 10-29). View › Hide Sidebar (⌃⌘S)
+                // and the split view's own collapse in a narrow window still hide it.
+                .toolbar(removing: .sidebarToggle)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 260, max: 360)
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -129,7 +132,7 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                .navigationSplitViewColumnWidth(min: 260, ideal: 310, max: 420)
+                .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 .navigationSplitViewColumnWidth(min: typeSize.isAccessibilitySize ? 340 : 260, ideal: typeSize.isAccessibilitySize ? 380 : 310, max: 420)
@@ -151,6 +154,11 @@ struct RootView: View {
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
+        // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
+        // then the text view takes it first and finds in the note, as in Notes.
+        .onCommand(#selector(NSTextView.performFindPanelAction(_:))) {
+            NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
+        }
         #endif
     }
 
