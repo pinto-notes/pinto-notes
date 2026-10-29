@@ -50,7 +50,7 @@ ENCRYPTED END TO END
 Your notes are encrypted on your Mac and iPhone before they sync. We can't read them. Two things work differently. An AI you connect reads the notes it asks for through our server. A note you share as a web page is readable by anyone with the link.
 
 YOU DECIDE WHO GETS IN
-• You approve every AI connection on your device, read only or read and edit
+• You approve every AI connection on your device
 • Disconnect an AI at any time
 • Every change keeps the earlier version, so you can go back
 • Share a note as a web page and stop sharing whenever you like

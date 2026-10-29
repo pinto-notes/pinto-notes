@@ -22,18 +22,18 @@ import UIKit
     /// Claude in the computer's browser, the page's code scanned with the phone.
     static let scanned = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",
                                         redirect_uri: "https://claude.ai/api/mcp/auth_callback", claimed_name: nil,
-                                        loopback: false, wants_write: true, asked: true, started_at: .now.addingTimeInterval(-20),
+                                        loopback: false, asked: true, started_at: .now.addingTimeInterval(-20),
                                         started_from: "Safari on a Mac", state: "s1", iss: "https://mcp.ambernotes.app",
                                         scan: true, browser_key: pageKey.base64EncodedString())
     /// Signed in on the page for a notification instead: the number to compare.
     static let notified = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com",
                                          redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", claimed_name: nil,
-                                         loopback: false, wants_write: true, asked: true, started_at: .now.addingTimeInterval(-20),
+                                         loopback: false, asked: true, started_at: .now.addingTimeInterval(-20),
                                          started_from: "Chrome on Windows", state: "s1", iss: "https://mcp.ambernotes.app")
     /// An app Amber Notes can't name, by link on this device.
     static let unknown = ConnectRequest(id: UUID(), client_name: "notes-helper.example.com", redirect_host: "notes-helper.example.com",
                                         redirect_uri: "https://notes-helper.example.com/callback", claimed_name: "Notes Helper",
-                                        loopback: false, wants_write: true)
+                                        loopback: false)
     static let match: ConnectMatch.Match = {
         let row = ConnectAskMatch(browser_key: Data(repeating: 4, count: 65).base64EncodedString(), match_commit: String(repeating: "a", count: 64))
         return ConnectMatch.Match(snapshot: ConnectMatch.Snapshot(row)!, row: row, number: "42")

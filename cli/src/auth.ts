@@ -63,7 +63,7 @@ const PAGE = (title: string, line: string) => `<!doctype html><meta charset="utf
 export type LoginIO = { open(url: string): Promise<boolean>; say(line: string): void; ask(prompt: string): Promise<string | null> };
 
 /** Signs in through the browser and Pinto Notes; saves the tokens. */
-export async function login(server: string, io: LoginIO, o: { noBrowser?: boolean; readOnly?: boolean } = {}): Promise<Credentials> {
+export async function login(server: string, io: LoginIO, o: { noBrowser?: boolean } = {}): Promise<Credentials> {
   const meta = await discover(server);
   const clientId = await register(server, meta);
   const verifier = randomString(48);
@@ -82,7 +82,7 @@ export async function login(server: string, io: LoginIO, o: { noBrowser?: boolea
   });
   try {
     const redirect = `http://127.0.0.1:${listener.addr.port}${CALLBACK_PATH}`;
-    const url = authorizeURL(meta, { clientId, redirect, challenge: await challengeOf(verifier), state, resource: server, scope: o.readOnly ? "notes:read" : SCOPE });
+    const url = authorizeURL(meta, { clientId, redirect, challenge: await challengeOf(verifier), state, resource: server, scope: SCOPE });
     const opened = !o.noBrowser && await io.open(url);
     if (opened) io.say("Opened your browser to connect. Approve in Pinto Notes on your iPhone or Mac.");
     io.say(`${opened ? "If it didn't open, go to" : "Open this in a browser"}:\n\n  ${url}\n`);

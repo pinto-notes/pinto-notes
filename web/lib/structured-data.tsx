@@ -80,7 +80,7 @@ export function app(version: string | null): Thing {
     screenshot: `${SITE_URL}/demo/lisbon/lisbon-1-faded.webp`,
     featureList: [
       "Connect Claude, Claude Code, Codex or Incredible over MCP",
-      "Approve each AI connection, read-only or read and edit",
+      "Approve each AI connection on your iPhone or Mac",
       "Version history for every change an AI makes",
       "Import from Apple Notes",
       ...(APP_STORE_LIVE ? ["Sync between iPhone and Mac"] : []),

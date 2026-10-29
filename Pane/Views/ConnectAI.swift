@@ -13,8 +13,8 @@ import UIKit
 // ChatGPT and Claude sign in with OAuth: they send the person's browser to the MCP server's
 // /authorize, which opens ambernotes.app/connect?request=<id>. That page hands over to the app,
 // by https://ambernotes.app/open/connect?request=<id> or ambernotes://connect?request=<id>. The
-// app (already signed in) shows who's asking, the person allows read-only or read and edit with
-// Face ID or Touch ID, and the app sends the browser on to the AI with the result.
+// app (already signed in) shows who's asking, the person allows it (read and edit) with Face ID
+// or Touch ID, and the app sends the browser on to the AI with the result.
 //
 // The notes are end-to-end encrypted, so approving hands the AI a copy of the account's key: the
 // app makes the authorization code itself and sends the server only its hash and the key wrapped
@@ -185,7 +185,6 @@ struct ConnectRequest: Decodable, Identifiable, Equatable {
     /// What an unverified app calls itself, made plain ASCII by the server; never a title.
     var claimed_name: String? = nil
     let loopback: Bool
-    let wants_write: Bool
     /// Asked from a browser (anywhere) that waits for this account's devices to approve: the code
     /// goes to that page, sealed to its key, and this device opens nothing.
     var asked: Bool? = nil
@@ -205,16 +204,11 @@ struct ConnectRequest: Decodable, Identifiable, Equatable {
     var startedHere: String? = nil
 
     private enum CodingKeys: String, CodingKey {
-        case id, client_name, redirect_host, redirect_uri, claimed_name, loopback, wants_write, asked, started_at, started_from,
+        case id, client_name, redirect_host, redirect_uri, claimed_name, loopback, asked, started_at, started_from,
              state, iss, scan, browser_key
     }
 
     var isAsked: Bool { asked == true }
-
-    /// The access the sheet starts at: what the app asked for. Someone who just started connecting
-    /// expects their AI to work; the warning and the number, not a weaker default, guard an app
-    /// Amber Notes can't name.
-    var startsWithWrite: Bool { wants_write }
 
     /// "Requested 2 minutes ago from Chrome on a Mac", for a request asked from a browser.
     func requestedLine(now: Date = .now) -> String? {
@@ -529,12 +523,13 @@ enum ConnectAPI {
     ///
     /// `wrongNumber`: declined because the person typed a number the page didn't show. The server
     /// then takes no asks for this account for an hour and tells every device.
-    static func decide(id: UUID, redirectURI: String?, allow: Bool, write: Bool,
+    static func decide(id: UUID, redirectURI: String?, allow: Bool,
                        code: (code: String, hash: String, wrap: String)?, browserKey: Data? = nil, handoffRedirect: String? = nil,
                        wrongNumber: Bool = false, scan: String? = nil, send: Send) async throws -> Answer {
         guard let redirectURI else { throw Failure(message: Self.noReturnAddress) }
         guard !allow || code != nil else { throw Failure(message: "Open Pinto Notes and finish setting up encryption first.") }
-        var body: [String: Any] = ["id": id.uuidString.lowercased(), "allow": allow, "write": write, "redirect_uri": redirectURI]
+        // Read and edit, the only access there is (29 October 2026); servers from before then needed it said.
+        var body: [String: Any] = ["id": id.uuidString.lowercased(), "allow": allow, "write": true, "redirect_uri": redirectURI]
         if !allow, wrongNumber { body["wrong_number"] = true }
         if let scan { body["scan"] = scan }
         if allow, let code {
@@ -570,7 +565,7 @@ enum ConnectAPI {
     /// (`match`) is read again first (`read`): unless it's exactly what the number was made from,
     /// the request is declined (never as a wrong number) and no code is made or sealed. Allowing
     /// seals the code only to the key the number was made from.
-    @MainActor static func answer(_ r: ConnectRequest, allow: Bool, write: Bool, wrongNumber: Bool = false, match: ConnectMatch.Match?,
+    @MainActor static func answer(_ r: ConnectRequest, allow: Bool, wrongNumber: Bool = false, match: ConnectMatch.Match?,
                        scanned: (scan: ConnectScan, key: Data)? = nil,
                        read: () async throws -> ConnectAskMatch?, code: () throws -> (code: String, hash: String, wrap: String),
                        send: Send) async throws -> Answered {
@@ -579,14 +574,14 @@ enum ConnectAPI {
             // Scanned from the page: its key was checked against the code when the sheet opened.
             if allow { key = scanned.key }
             let made = allow ? try code() : nil
-            return .answered(try await decide(id: r.id, redirectURI: r.redirect_uri, allow: allow, write: write, code: made, browserKey: key,
+            return .answered(try await decide(id: r.id, redirectURI: r.redirect_uri, allow: allow, code: made, browserKey: key,
                                               handoffRedirect: r.handoffRedirect, scan: scanned.scan.secret, send: send))
         } else if r.isAsked, let match {
             switch ConnectMatch.recheck(match, now: try await read()) {
             case .expired:
                 throw Failure(message: ConnectMatchCopy.expired)
             case .changed:
-                _ = try await decide(id: r.id, redirectURI: r.redirect_uri, allow: false, write: false, code: nil, send: send)
+                _ = try await decide(id: r.id, redirectURI: r.redirect_uri, allow: false, code: nil, send: send)
                 return .declinedChanged
             case .same:
                 if allow { key = match.key }
@@ -595,7 +590,7 @@ enum ConnectAPI {
             throw Failure(message: ConnectMatchCopy.changed)
         }
         let made = allow ? try code() : nil
-        return .answered(try await decide(id: r.id, redirectURI: r.redirect_uri, allow: allow, write: write, code: made, browserKey: key,
+        return .answered(try await decide(id: r.id, redirectURI: r.redirect_uri, allow: allow, code: made, browserKey: key,
                                           handoffRedirect: r.handoffRedirect, wrongNumber: wrongNumber, send: send))
     }
 
@@ -631,11 +626,12 @@ enum ConnectRevoke {
 enum ConnectTokens {
     /// A new pane_ token: made here with the account's key wrapped under it, registered by its hash
     /// only. The token itself never leaves the device except in the AI's Authorization header.
-    static func create(_ client: SupabaseClient, name: String, write: Bool,
+    /// Read and edit, like every connection.
+    static func create(_ client: SupabaseClient, name: String,
                        make: () throws -> (token: String, hash: String, wrap: String)) async throws -> String {
         let made = try make()
         struct Params: Encodable { var token_name: String; var write_access: Bool; var token_hash: String; var dk_wrap: String }
-        try await client.rpc("create_mcp_token", params: Params(token_name: name, write_access: write, token_hash: made.hash, dk_wrap: made.wrap)).execute()
+        try await client.rpc("create_mcp_token", params: Params(token_name: name, write_access: true, token_hash: made.hash, dk_wrap: made.wrap)).execute()
         return made.token
     }
 
@@ -1146,8 +1142,6 @@ struct ConsentSheet: View {
 
     enum Phase: Equatable { case loading, asking(ConnectRequest), working, done(String), handedOff(String), failed(String) }
     @State private var phase: Phase
-    @State private var write = true
-    @Environment(\.dynamicTypeSize) private var typeSize
     /// Asked from a browser that the person signed in on (a notification): what the number was
     /// made from (the page's key and commit as first read, and the revealed nonce), and the
     /// number both screens show. Nil until the page has revealed its nonce and it opened the commit.
@@ -1374,11 +1368,9 @@ struct ConsentSheet: View {
         return "The notes it opens, with their text and files, are sent to \(to)."
     }
 
-    /// What the chosen access lets the app do.
-    nonisolated static func accessLine(write: Bool) -> String {
-        write ? "It can read, create and change notes. Every change keeps the previous version."
-            : "It can read notes, but not change them."
-    }
+    /// What Allow lets the app do. There is no access to choose: every connection reads and edits,
+    /// and every change it makes can be undone (decided 29 October 2026).
+    nonisolated static let accessLine = "It can read, create and change notes. Every change keeps the previous version."
 
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
@@ -1409,7 +1401,7 @@ struct ConsentSheet: View {
                     .accessibilityIdentifier("connect.requested")
             }
             if byNumber(r) { number.padding(.top, 18) }
-            access(r).padding(.top, 20)
+            access.padding(.top, 20)
             Button { Task { await decide(r, allow: true) } } label: {
                 Text("Allow").frame(maxWidth: .infinity)
             }
@@ -1455,55 +1447,19 @@ struct ConsentSheet: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Read and edit or read only, in plain sight: what the app asked for is chosen. An app that
-    /// asked only to read gets no choice, just the line that says so.
-    private func access(_ r: ConnectRequest) -> some View {
-        let canEdit = Binding(get: { write && r.wants_write }, set: { write = $0 })
-        return VStack(spacing: 8) {
-            if r.wants_write {
-                Group {
-                    if typeSize.isAccessibilitySize {
-                        // Segments don't fit the largest text sizes: a choice per line does.
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach([true, false], id: \.self) { edit in
-                                Button { canEdit.wrappedValue = edit } label: {
-                                    Label(edit ? "Read and edit" : "Read only",
-                                          systemImage: canEdit.wrappedValue == edit ? "checkmark.circle.fill" : "circle")
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(Color.ink)
-                                .accessibilityAddTraits(canEdit.wrappedValue == edit ? .isSelected : [])
-                            }
-                        }
-                    } else {
-                        Picker("Access", selection: canEdit) {
-                            Text("Read and edit").tag(true)
-                            Text("Read only").tag(false)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(maxWidth: Self.compact ? .infinity : 260)
-                    }
-                }
-                .accessibilityLabel("Access")
-                .accessibilityIdentifier("connect.access")
-            }
-            Text(Self.accessLine(write: canEdit.wrappedValue))
-                .font(Self.compact ? .footnote : .system(size: 12))
-                .foregroundStyle(Color.muted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("connect.access.line")
-        }
+    private var access: some View {
+        Text(Self.accessLine)
+            .font(Self.compact ? .footnote : .system(size: 12))
+            .foregroundStyle(Color.muted)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("connect.access.line")
     }
 
     private func load() async {
         do {
             // Codex or Claude Code signing in from Connect an AI here: shown as that AI.
             let r = ConnectOwnSignIn.mark(try await ConnectAPI.request(client, id: requestID), by: ConnectCenter.shared.ownSignIn)
-            // Someone who just started connecting expects their AI to work.
-            write = r.startsWithWrite
             phase = .asking(r)
             await opened(r)
         } catch {
@@ -1586,7 +1542,7 @@ struct ConsentSheet: View {
             // The connection gets its own copy of the account's key, wrapped under a code made here.
             // Asked from a browser: the code goes to that page, sealed to its key (checked against
             // the scanned code, or the key the number was made from), with the address it goes to.
-            let answered = try await ConnectAPI.answer(r, allow: allow, write: write && r.wants_write,
+            let answered = try await ConnectAPI.answer(r, allow: allow,
                                                        match: r.isAsked ? match : nil, scanned: scanned,
                                                        read: { try await askMatch(client, r.id) },
                                                        code: { try AccountCrypto.shared.connectionCode() }, send: ConnectAPI.sender(client))

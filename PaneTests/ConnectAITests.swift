@@ -95,7 +95,7 @@ import Testing
 
     @Test func onTheConsentSheetOnlyThePinnedCallbackCounts() {
         func req(_ name: String, _ uri: String?) -> ConnectRequest {
-            ConnectRequest(id: UUID(), client_name: name, redirect_host: uri.flatMap { URL(string: $0)?.host() } ?? "chatgpt.com", redirect_uri: uri, loopback: false, wants_write: true)
+            ConnectRequest(id: UUID(), client_name: name, redirect_host: uri.flatMap { URL(string: $0)?.host() } ?? "chatgpt.com", redirect_uri: uri, loopback: false)
         }
         let real = req("ChatGPT", "https://chatgpt.com/connector_platform_oauth_redirect")
         #expect(real.verifiedAI == "ChatGPT")
@@ -108,12 +108,12 @@ import Testing
         #expect(otherPath.who == "claude.ai")
         #expect(otherPath.claimedName == nil, "no plain claim from the server: none shown")
         #expect(req("ChatGPT", nil).verifiedAI == nil)
-        let local = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1", redirect_uri: "http://127.0.0.1:4000/cb", claimed_name: "claude code", loopback: true, wants_write: true)
+        let local = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1", redirect_uri: "http://127.0.0.1:4000/cb", claimed_name: "claude code", loopback: true)
         #expect(local.who == "an app on this computer")
         #expect(local.claimedName == "claude code")
         // The claim is only ever the server's plain version, never the raw name.
         #expect(req("CIaude", "https://attacker.example/cb").claimedName == nil)
-        #expect(ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai", redirect_uri: "https://claude.ai/api/mcp/auth_callback", claimed_name: "claude", loopback: false, wants_write: true).claimedName == nil)
+        #expect(ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai", redirect_uri: "https://claude.ai/api/mcp/auth_callback", claimed_name: "claude", loopback: false).claimedName == nil)
     }
 
     @Test func chatGPTsPerConnectorCallbackCountsButNothingLikeIt() {
@@ -127,7 +127,7 @@ import Testing
 
     @Test func aClientThatOnlyCallsItselfChatGPTGetsNoMark() {
         // Registered as "ChatGPT", but the approval would go to its own site.
-        let spoof = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt-login.example.com", loopback: false, wants_write: true)
+        let spoof = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt-login.example.com", loopback: false)
         #expect(ConnectTrust.verifiedAI(host: spoof.redirect_host, loopback: spoof.loopback) == nil)
         #expect(ConnectTrust.verifiedAI(host: "evilchatgpt.com", loopback: false) == nil, "a look-alike domain isn't chatgpt.com")
         #expect(ConnectTrust.verifiedAI(host: "chatgpt.com.example.net", loopback: false) == nil)
@@ -140,7 +140,7 @@ import Testing
 @Suite struct AskedRequestTests {
     private func asked(_ uri: String, claimed: String? = "Claude") -> ConnectRequest {
         ConnectRequest(id: UUID(), client_name: URL(string: uri)!.host()!, redirect_host: URL(string: uri)!.host()!, redirect_uri: uri,
-                       claimed_name: claimed, loopback: false, wants_write: true, asked: true, started_from: "Chrome on a Mac",
+                       claimed_name: claimed, loopback: false, asked: true, started_from: "Chrome on a Mac",
                        state: "s1", iss: "https://mcp.ambernotes.app")
     }
 
@@ -152,19 +152,6 @@ import Testing
         #expect(other.verifiedAI == nil)
         #expect(other.who == "claude.ai.evil.example", "a name an app gives itself is never the title")
         #expect(other.claimedName == "Claude", "shown only as what it calls itself")
-    }
-
-    /// Emil connected Claude in his Mac's browser and approved on his iPhone: an asked request,
-    /// so no verified AI, and the sheet started at Read Only. It starts where the app asked.
-    @Test func accessStartsAtWhatTheAppAskedFor() {
-        #expect(asked("https://claude.ai/api/mcp/auth_callback").startsWithWrite)
-        #expect(asked("https://unknown.example/cb", claimed: nil).startsWithWrite)
-        let local = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1",
-                                   redirect_uri: "http://127.0.0.1:4000/cb", loopback: true, wants_write: true)
-        #expect(local.startsWithWrite)
-        let readOnly = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",
-                                      redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false, wants_write: false)
-        #expect(!readOnly.startsWithWrite, "an app that asked only to read can't be given more")
     }
 
     @Test func theRedirectIsBuiltAsTheServerBuildsIt() {
@@ -183,7 +170,7 @@ import Testing
     @Test func theTitleIsOneLineNamingWhoGetsAccess() {
         #expect(ConsentSheet.title(asked("https://claude.ai/api/mcp/auth_callback")) == "Allow Claude to use your notes?")
         #expect(ConsentSheet.title(asked("https://helper.example/cb", claimed: "ChatGPT")) == "Allow helper.example to use your notes?")
-        let local = ConnectRequest(id: UUID(), client_name: "x", redirect_host: "127.0.0.1", redirect_uri: "http://127.0.0.1:4000/cb", loopback: true, wants_write: true)
+        let local = ConnectRequest(id: UUID(), client_name: "x", redirect_host: "127.0.0.1", redirect_uri: "http://127.0.0.1:4000/cb", loopback: true)
         #expect(ConsentSheet.title(local) == "Allow an app on this computer to use your notes?")
     }
 
@@ -235,7 +222,7 @@ import Testing
 
     func request() -> ConnectRequest {
         ConnectRequest(id: id, client_name: "chatgpt.com", redirect_host: "chatgpt.com", redirect_uri: redirect, loopback: false,
-                       wants_write: true, asked: true, state: "s1", iss: "https://mcp.ambernotes.app")
+                       asked: true, state: "s1", iss: "https://mcp.ambernotes.app")
     }
 
     func follow(_ ask: Ask) async throws -> ConnectMatch.Outcome {
@@ -244,7 +231,7 @@ import Testing
 
     func answer(_ ask: Ask, allow: Bool, wrongNumber: Bool = false, match: ConnectMatch.Match?) async throws -> ConnectAPI.Answered {
         let secret = "amb_code_" + E2EE.randomHex()
-        return try await ConnectAPI.answer(request(), allow: allow, write: true, wrongNumber: wrongNumber, match: match, read: { ask.read() },
+        return try await ConnectAPI.answer(request(), allow: allow, wrongNumber: wrongNumber, match: match, read: { ask.read() },
                                            code: { ask.codesMade += 1; return (secret, E2EE.sha256Hex(secret), "amb2.0123456789abcdef.AAAA") },
                                            send: ask.send)
     }
@@ -756,7 +743,7 @@ extension AIEditSnapshots {
         for (name, uri, file) in [("ChatGPT", "https://chatgpt.com/connector_platform_oauth_redirect", "consent-chatgpt"),
                                   ("Claude", "https://claude.ai/api/mcp/auth_callback", "consent-claude"),
                                   ("ChatGPT", "https://chatgpt-login.example.com/cb", "consent-spoofed-name")] {
-            let r = ConnectRequest(id: UUID(), client_name: name, redirect_host: URL(string: uri)!.host()!, redirect_uri: uri, loopback: false, wants_write: true)
+            let r = ConnectRequest(id: UUID(), client_name: name, redirect_host: URL(string: uri)!.host()!, redirect_uri: uri, loopback: false)
             try await AppSnapshotTests.render(ConsentSheet(client: client, requestID: r.id, initial: .asking(r), finish: { _ in }), name: file, dark: false)
         }
     }
@@ -794,7 +781,7 @@ extension AIEditSnapshots {
         try await AppSnapshotTests.render(Form { ConnectAISection(client: client, preview: []) }.formStyle(.grouped).frame(width: 560, height: 560),
                                           name: "connect-list", dark: false)
         let local = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1",
-                                   redirect_uri: "http://127.0.0.1:53682/callback", claimed_name: "incredible", loopback: true, wants_write: true)
+                                   redirect_uri: "http://127.0.0.1:53682/callback", claimed_name: "incredible", loopback: true)
         try await AppSnapshotTests.render(ConsentSheet(client: client, requestID: local.id, initial: .asking(local), finish: { _ in }),
                                           name: "consent-incredible", dark: false)
     }
@@ -837,12 +824,12 @@ extension AIEditSnapshots {
         final class Sent: @unchecked Sendable { var body: [String: Any] = [:] }
         let sent = Sent()
         let r = ConnectRequest(id: UUID(uuidString: Self.id)!, client_name: "Claude", redirect_host: "claude.ai",
-                               redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false, wants_write: true,
+                               redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false,
                                asked: true, state: "s1", iss: "https://mcp.ambernotes.app", scan: true)
         let page = P256.KeyAgreement.PrivateKey()
         let scan = try #require(ConnectScan(url: URL(string: "ambernotes://connect?request=\(Self.id)#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(ConnectScan.base64url(Data(SHA256.hash(data: page.publicKey.x963Representation))))")!))
         #expect(scan.holds(browserKey: page.publicKey.x963Representation))
-        let answered = try await ConnectAPI.answer(r, allow: true, write: true, match: nil, scanned: (scan, page.publicKey.x963Representation),
+        let answered = try await ConnectAPI.answer(r, allow: true, match: nil, scanned: (scan, page.publicKey.x963Representation),
                                                    read: { nil }, code: { ("amb_code_1", String(repeating: "a", count: 64), "amb2.0000000000000000.AAAA") },
                                                    send: { _, _, body in sent.body = body ?? [:]; return try JSONSerialization.data(withJSONObject: ["handoff": true]) })
         #expect(answered == .answered(.handedOff))

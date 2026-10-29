@@ -110,7 +110,7 @@ import Testing
         let backend = Backend()
         let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
         try await Self.render(Form { ConnectAISection(client: client) }.formStyle(.grouped).frame(width: 520, height: 520), name: "mac-connect-\(mode)", dark: dark, wait: 1.0)
-        let r = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com", loopback: false, wants_write: true)
+        let r = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com", loopback: false)
         try await Self.render(ConsentSheet(client: client, requestID: r.id, initial: .asking(r), finish: { _ in }), name: "mac-consent-\(mode)", dark: dark)
         try await Self.shoot(SignInView(backend: backend).fixedSize().containerBackground(for: .window) { Backdrop() }, name: "mac-signin-\(mode)", size: CGSize(width: 380, height: 470), dark: dark, toolbar: false)
         // The email-first steps: an existing account, a new email, a Sign in with Apple account, and Forgot password?.

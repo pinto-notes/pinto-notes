@@ -26,7 +26,7 @@ export const FAQ: QA[] = [
     "Only in a limited way, and only on a Mac: Apple Notes has no public API, so AI apps can't reach your notes in iCloud. Pinto Notes has an MCP server built in, so once you import your notes, Claude can use them from any device, and ChatGPT soon.",
   ], more: { href: "/blog/claude-and-apple-notes", text: "Can Claude read your Apple Notes?" } },
   { id: "ai-access", q: "Can my AI see all my notes?", a: [
-    "Only once you connect it and approve it on your iPhone or Mac. You choose read-only, or read and edit. While it's connected, it can read every note except locked ones: our server opens the notes it asks for in memory, during its requests. Every change an AI makes keeps the previous version, and you can disconnect any assistant in Settings at any time.",
+    "Only once you connect it and approve it on your iPhone or Mac. Then it can read and edit every note except locked ones: our server opens the notes it asks for in memory, during its requests. Every change an AI makes keeps the previous version, and you can disconnect any assistant in Settings at any time.",
   ], more: { href: "/blog/mcp-server", text: "How the Pinto Notes MCP server works" } },
   { id: "free", q: "Is it free?", a: [
     "Yes. Pinto Notes is free, with no ads and no tracking in the app. It's also open source, so anyone can read the code.",

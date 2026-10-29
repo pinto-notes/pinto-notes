@@ -45,7 +45,7 @@ const MORE: Record<string, string> = {
   history: `amber history <note> [--limit 10]\n\nEarlier versions, newest first, with who made each (a device, or an AI).`,
   restore: `amber restore <note>              out of Recently Deleted\namber restore <note> <version>    bring back a version from amber history (the current text is kept too)`,
   pin: `amber pin <note>\namber pin <note> --off`,
-  login: `amber login                 opens your browser; approve in Pinto Notes on your iPhone or Mac\namber login --no-browser    for a server or SSH session: prints the address to open anywhere,\n                            then takes the address the browser ends on\namber login --read-only     ask for read access only\namber login --token         paste an access token from Settings › Connect an AI (for CI)\n\nOr set AMBER_TOKEN. The connection shows in Settings › Connect an AI, where you can disconnect it.\nTokens are kept in ${where()}.`,
+  login: `amber login                 opens your browser; approve in Pinto Notes on your iPhone or Mac\namber login --no-browser    for a server or SSH session: prints the address to open anywhere,\n                            then takes the address the browser ends on\namber login --token         paste an access token from Settings › Connect an AI (for CI)\n\nOr set AMBER_TOKEN. The connection shows in Settings › Connect an AI, where you can disconnect it.\nTokens are kept in ${where()}.`,
 };
 
 const out = (s: string) => console.log(s);
@@ -123,7 +123,9 @@ async function main() {
       await mcp.close();
       await saveCredentials(server, { access_token: token });
     } else {
-      const c = await login(server, { open: openBrowser, say: (l) => console.error(l), ask: askLine }, { noBrowser: args["no-browser"], readOnly: args["read-only"] });
+      // Every connection reads and edits (29 October 2026): say so rather than ignore the old flag.
+      if (args["read-only"]) fail("Every connection can read and edit now. Run amber login without --read-only.");
+      const c = await login(server, { open: openBrowser, say: (l) => console.error(l), ask: askLine }, { noBrowser: args["no-browser"] });
       if (!c) return;
     }
     if (old) await revoke(server, old);
@@ -183,7 +185,7 @@ async function main() {
       case "pin": need(1, "amber pin <note> [--off]"); tool = "pin"; call = { path: rest[0], pinned: !args.off }; break;
       default: return fail(`Unknown command "${cmd}".\n\n${HELP}`);
     }
-    if (!mcp.tools.includes(tool)) fail(`This connection can only read notes. Run amber login (without --read-only) to edit.`);
+    if (!mcp.tools.includes(tool)) fail(`This connection can only read notes. Run amber login again to edit.`);
     const r = await mcp.call(tool, call);
     if (args.json) return out(JSON.stringify(r, null, 2));
     if (tool === "fetch") {
