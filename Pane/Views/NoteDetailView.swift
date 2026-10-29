@@ -170,6 +170,7 @@ struct NoteDetailView: View {
             #endif
             .overlay(alignment: .bottom) { aiReceipt }
             .overlay(alignment: .bottom) { undoProblem }
+            .overlay(alignment: .bottom) { editorNotice }
             .overlay(alignment: .bottom) { keyCard }
             .modifier(HostAskAlert(ask: $hostAsk))
             .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
@@ -311,6 +312,30 @@ struct NoteDetailView: View {
                 .transition(.opacity)
                 .accessibilityAddTraits(.isStaticText)
                 .accessibilityIdentifier("note.notice")
+        }
+    }
+
+    /// "Table deleted", with Undo: what the editor just did at once, without asking first. It goes
+    /// after a few seconds; Undo stays in the Edit menu, ⌘Z and shake.
+    @ViewBuilder
+    private var editorNotice: some View {
+        if let n = controller.notice {
+            Toast(text: n.text, undo: n.canUndo ? { withAnimation(.smooth(duration: 0.2)) { controller.undoNotice() } } : nil)
+                .padding(.horizontal, 24)
+                #if os(macOS)
+                .padding(.bottom, 20)
+                #else
+                // Over the keyboard while you write; over the toolbar otherwise.
+                .padding(.bottom, controller.isEditing ? 12 : 64)
+                #endif
+                .transition(AIReceipt.transition(reduceMotion: reduceMotion))
+                .accessibilityIdentifier("note.editorNotice")
+                .task(id: n.id) {
+                    AccessibilityNotification.Announcement(n.text).post()
+                    try? await Task.sleep(for: .seconds(5))
+                    guard controller.notice?.id == n.id else { return }
+                    withAnimation(.easeIn(duration: 0.2)) { controller.notice = nil }
+                }
         }
     }
 
@@ -879,9 +904,16 @@ struct NoteDetailView: View {
                 Button("Checklist", systemImage: "checklist", action: controller.checklist)
                     .help("Checklist (⇧⌘L)")
                     .disabled(hidden || trashed)
-                Button("Table", systemImage: "tablecells", action: controller.insertTable)
-                    .help("Table (⌥⌘T)")
-                    .disabled(hidden || trashed)
+                // In a table it's the table's menu, like Notes.
+                if let menu = controller.currentTableMenu {
+                    Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
+                        .help("Table")
+                        .disabled(hidden || trashed)
+                } else {
+                    Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                        .help("Table (⌥⌘T)")
+                        .disabled(hidden || trashed)
+                }
                 attachMenu.disabled(trashed)
             }),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },

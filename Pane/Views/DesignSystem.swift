@@ -504,6 +504,8 @@ struct Toast: View {
     enum Kind { case done, working, failed }
     let text: String
     var kind = Kind.done
+    /// An Undo button after the text, for something that was done at once without asking.
+    var undo: (() -> Void)? = nil
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
@@ -516,6 +518,17 @@ struct Toast: View {
             Text(text)
                 .foregroundStyle(Color.ink)
                 .lineLimit(1)
+            if let undo {
+                Divider().frame(height: 14)
+                Button("Undo", action: undo)
+                    .buttonStyle(.hoverLink)
+                    .foregroundStyle(Color.amberInk)
+                    .contentShape(.rect)
+                    #if os(iOS)
+                    .frame(minHeight: 44)
+                    #endif
+                    .accessibilityIdentifier("toast.undo")
+            }
         }
         .font(.system(size: ButtonSize.compact.textSize, weight: .semibold))
         .padding(.horizontal, 16)
@@ -523,7 +536,8 @@ struct Toast: View {
         // Solid, so the note behind never shows through.
         .background(Color.card, in: shape)
         .raised(in: shape)
-        .accessibilityElement(children: .combine)
+        // With Undo the button stays its own element, so VoiceOver can press it.
+        .accessibilityElement(children: undo == nil ? .combine : .contain)
         .accessibilityAddTraits(.updatesFrequently)
     }
 }

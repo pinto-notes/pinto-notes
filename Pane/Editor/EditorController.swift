@@ -262,6 +262,93 @@ final class EditorController {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
     }
+    // MARK: Tables
+
+    /// The table the keyboard is in, and the row or column picked by its handle. Set as a cell
+    /// takes the keyboard; cleared when the keyboard goes back to the text.
+    private(set) var table: TableContext?
+    /// The last handle menu asked for (tests read it and run its items).
+    @ObservationIgnored var lastTableMenu: TableMenu?
+    /// False in tests: menus are made and kept in `lastTableMenu`, never put on screen.
+    @ObservationIgnored var presentsTableMenus = true
+    /// What just happened, said for a moment over the note ("Table deleted"), with Undo.
+    var notice: EditorNotice?
+
+    /// A cell of a table took the keyboard.
+    func tableFocused(grid: Int, cell: GridCell) {
+        if table?.grid != grid || table?.cell != cell { table = TableContext(grid: grid, cell: cell) }
+        target?.gridFieldFocused()
+    }
+
+    /// The keyboard went back to the text, or out of table `grid`.
+    func leftTable(_ grid: Int? = nil) {
+        guard let t = table, grid == nil || t.grid == grid else { return }
+        table = nil
+    }
+
+    /// A row or column handle was tapped: its row or column is picked and its menu shows.
+    func pickTableLine(_ line: GridLine, grid: Int, cell: GridCell) {
+        table = TableContext(grid: grid, cell: cell, selected: line)
+        let menu = tableMenu(grid: grid, cell: cell, line: line)
+        lastTableMenu = menu
+        if presentsTableMenus { target?.showTableMenu(menu) }
+    }
+
+    /// The menu of a row or column handle (`line`), or the toolbar's table menu (nil), like Notes.
+    func tableMenu(grid: Int, cell: GridCell, line: GridLine?) -> TableMenu {
+        let g = target.flatMap { t in GridTable.find(in: t.currentText).first { $0.index == grid } }
+        func item(_ a: TableAction) -> TableMenu.Item {
+            TableMenu.Item(title: a.title, systemImage: a.systemImage, destructive: a.isDestructive, enabled: g?.allows(a) ?? false) { [weak self] in
+                self?.performTable(a, grid: grid, cell: cell)
+            }
+        }
+        let delete = TableMenu.Item(title: "Delete Table", systemImage: "trash", destructive: true) { [weak self] in self?.deleteTable(grid: grid) }
+        let sections: [[TableMenu.Item]] = switch line {
+        case .row: [[item(.addRowAbove), item(.addRowBelow)], [item(.deleteRow)]]
+        case .column: [[item(.addColumnBefore), item(.addColumnAfter)], [item(.deleteColumn)]]
+        case nil: [[item(.addRowAbove), item(.addRowBelow), item(.addColumnBefore), item(.addColumnAfter)],
+                   [item(.deleteRow), item(.deleteColumn)], [delete]]
+        }
+        return TableMenu(grid: grid, line: line, sections: sections)
+    }
+
+    /// The toolbar's table menu, for the cell with the keyboard.
+    var currentTableMenu: TableMenu? { table.map { tableMenu(grid: $0.grid, cell: $0.cell, line: nil) } }
+
+    /// Adds or deletes the row or column of `cell` in table `grid`; the keyboard stays in the table.
+    func performTable(_ a: TableAction, grid: Int, cell: GridCell) {
+        guard let t = target, !readOnly else { return }
+        let all = GridTable.find(in: t.currentText)
+        guard grid < all.count else { return }
+        var g = all[grid]
+        guard g.allows(a) else { return }
+        let next = g.perform(a, at: cell)
+        t.apply(TextEdit(range: all[grid].range, replacement: g.markdown, caret: -1))
+        table = TableContext(grid: grid, cell: next)
+        t.focusGrid(grid, cell: next)
+    }
+
+    /// Removes table `grid` from the note, keyboard back in the text where it was. It's one
+    /// step of Undo, and a notice says so with an Undo button, like Notes (no question first).
+    func deleteTable(grid: Int) {
+        guard let t = target, !readOnly, GridTable.find(in: t.currentText).contains(where: { $0.index == grid }) else { return }
+        table = nil
+        t.deleteGrid(grid)
+        notice = EditorNotice(text: "Table deleted", canUndo: true)
+    }
+
+    /// The notice's Undo.
+    func undoNotice() {
+        notice = nil
+        target?.undoLastEdit()
+    }
+}
+
+/// A short confirmation over the note of something just done to it.
+struct EditorNotice: Equatable, Identifiable {
+    var id = UUID()
+    var text: String
+    var canUndo = false
 }
 
 @MainActor
@@ -281,4 +368,22 @@ protocol EditorTarget: AnyObject {
     func syncExternal(_ new: String)
     /// Places other people's carets now, in the same pass as a text change (collaboration).
     func showRemoteCarets(_ carets: [RemoteCaret])
+    /// Removes table `index` as one undoable edit, the keyboard back in the text.
+    func deleteGrid(_ index: Int)
+    /// Undoes the last edit (the notice's Undo).
+    func undoLastEdit()
+    /// Puts the keyboard in a cell of table `index`.
+    func focusGrid(_ index: Int, cell: GridCell)
+    /// A table cell's field just took the keyboard (the iPhone gives it the table toolbar).
+    func gridFieldFocused()
+    /// Shows a handle's menu by its handle.
+    func showTableMenu(_ menu: TableMenu)
+}
+
+extension EditorTarget {
+    func deleteGrid(_ index: Int) {}
+    func undoLastEdit() {}
+    func focusGrid(_ index: Int, cell: GridCell) {}
+    func gridFieldFocused() {}
+    func showTableMenu(_ menu: TableMenu) {}
 }
