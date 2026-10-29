@@ -27,7 +27,7 @@ final class FormerSubNotesUITests: XCTestCase {
 
     func pause(_ s: Double = 1.0) { Thread.sleep(forTimeInterval: s) }
 
-    var folderList: XCUIElement { app.navigationBars["Pinto Notes"] }
+    var folderList: XCUIElement { app.navigationBars["Folders"] }
 
     func back() {
         app.navigationBars.element(boundBy: 0).buttons.element(boundBy: 0).tap()

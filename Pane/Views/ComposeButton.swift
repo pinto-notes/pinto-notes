@@ -71,3 +71,55 @@ struct NewAppTip: Tip {
     var rules: [Rule] { tipRules(Feature.newApp) }
     var options: [any TipOption] { [Tips.MaxDisplayCount(1)] }
 }
+
+#if os(iOS)
+
+/// The iPhone bottom bar of the folders screen and of a folder's notes, one look for both: the
+/// search field, and New Note at the right, as in Notes and Mail.
+struct SearchComposeBar: ToolbarContent {
+    let newNote: () -> Void
+    /// Recently Deleted holds no new notes.
+    var disabled = false
+    /// New App's one-off tip, shown on one of the two buttons only.
+    var tip = false
+    var identifier = "list.newNote"
+
+    var body: some ToolbarContent {
+        DefaultToolbarItem(kind: .search, placement: .bottomBar)
+        // iPad moves search to the top of the column; compose then belongs at the trailing edge.
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+        } else {
+            ToolbarSpacer(.fixed, placement: .bottomBar)
+        }
+        Compose(newNote: newNote, disabled: disabled, tip: tip, identifier: identifier)
+    }
+
+    /// New Note alone (iPad's folders, where the list beside them has the search). Holding it
+    /// still offers New App.
+    struct Compose: ToolbarContent {
+        let newNote: () -> Void
+        var disabled = false
+        var tip = false
+        var identifier = "list.newNote"
+
+        var body: some ToolbarContent {
+            ToolbarItem(placement: .bottomBar) {
+                ComposeButton(newNote: newNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                    .tint(.primary)
+                    .modifier(NewAppTipHere(on: tip))
+                    .disabled(disabled)
+                    .accessibilityIdentifier(identifier)
+            }
+        }
+    }
+}
+
+private struct NewAppTipHere: ViewModifier {
+    let on: Bool
+
+    func body(content: Content) -> some View {
+        if on { content.newAppTip() } else { content }
+    }
+}
+#endif

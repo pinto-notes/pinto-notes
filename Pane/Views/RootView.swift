@@ -111,7 +111,7 @@ struct RootView: View {
         NavigationSplitView(columnVisibility: $visibility) {
             // On the Mac the folders and the list are compared before they're worked out again (see
             // their `==`): the split view hands its columns over again whenever one is hidden or shown.
-            SidebarView(scope: $scope, onNewNote: newNote)
+            SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound)
                 #if os(macOS)
                 .equatable()
                 #endif
@@ -447,6 +447,14 @@ struct RootView: View {
         #endif
         justCreated = note.id
         selectedNote = note.id
+    }
+
+    /// A note the iPhone folders screen's search found: its folder opens under it, as for a new
+    /// note, so back leads through the folder to the search.
+    private func openFound(_ id: UUID) {
+        guard let note = context.note(id), note.deletedAt == nil else { return }
+        scope = Scope.opening(note)
+        selectedNote = id
     }
 
     /// Leaving a blank note deletes it, like Apple Notes.

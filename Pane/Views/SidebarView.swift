@@ -230,6 +230,8 @@ struct SidebarView: View {
     @Environment(\.modelContext) private var context
     @Binding var scope: Scope?
     let onNewNote: () -> Void
+    /// A note found by the folders screen's search (iPhone): it opens in its folder.
+    var onOpenNote: (UUID) -> Void = { _ in }
 
     @Query(filter: #Predicate<Folder> { $0.deletedAt == nil }, sort: \Folder.sortIndex) private var folders: [Folder]
     /// At most one file: this query is here so the sidebar updates whenever a file kept in a
@@ -256,6 +258,11 @@ struct SidebarView: View {
     /// A card at the foot was closed in this window (it's also kept per account, and on the server).
     @State private var cardsClosedHere: Set<SidebarCard> = []
     @State private var sidebarHeight: CGFloat = 0
+    #if os(iOS)
+    /// The folders screen's search: every note, as in Notes.
+    @State private var search = ""
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(\.dynamicTypeSize) private var templatesTypeSize
     @Environment(\.importActions) private var imports
@@ -324,7 +331,7 @@ struct SidebarView: View {
         let files = self.files
         // In stages, in the same order: as one chain the body took the type checker about 8 s
         // (compile-time audit, 2026-10-13).
-        return withDialogs(withChrome(folderList(files), files: files))
+        return withDialogs(withChrome(searchable(folderList(files)), files: files))
             .environment(windowLibrary ?? ownLibrary)
     }
 
@@ -346,10 +353,11 @@ struct SidebarView: View {
                     .tag(Scope.trash)
                     .accessibilityIdentifier("sidebar.trash")
             } header: {
+                // On iPhone the screen's title says it (Emil, 29 October 2026).
+                #if os(macOS)
                 Text("Folders")
-                    #if os(macOS)
                     .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
-                    #endif
+                #endif
             }
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
@@ -421,10 +429,16 @@ struct SidebarView: View {
             }
             return moved
         }
+        #if os(iOS)
+        .navigationTitle("Folders")
+        #else
         .navigationTitle("Pinto Notes")
+        #endif
         .toolbar {
             #if os(iOS)
-            ToolbarItem(placement: .bottomBar) {
+            // New Folder at the top left, your photo at the right; below, the same search and new
+            // note as in a folder's notes (Emil, 29 October 2026).
+            ToolbarItem(placement: .topBarLeading) {
                 Menu {
                     Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
                     ForEach(ImportKind.listed) { kind in
@@ -437,17 +451,20 @@ struct SidebarView: View {
                 .tint(.primary)
                 .accessibilityIdentifier("sidebar.newFolder")
             }
-            ToolbarSpacer(.flexible, placement: .bottomBar)
-            ToolbarItem(placement: .bottomBar) {
-                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }.tint(.primary)
+            if sizeClass == .compact {
+                SearchComposeBar(newNote: onNewNote, identifier: "sidebar.newNote")
+            } else {
+                // iPad: the notes' list beside this one has the search.
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
-            if let backend, backend.client != nil {
+            if let backend, backend.client != nil || Self.capturesAccount {
                 ToolbarItem(placement: .primaryAction) {
                     // Signed in, your photo is the way into Settings (your account comes first there).
-                    if case .signedIn = backend.state {
+                    if Self.signedIn(backend) {
                         let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
-                            AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
+                            AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: Self.avatar)
                                 // The photo alone, no glass around it (Emil, 28 October 2026), still a finger's target.
                                 .frame(width: 44, height: 44)
                                 .contentShape(.circle)
@@ -465,6 +482,42 @@ struct SidebarView: View {
             }
             #endif
         }
+    }
+
+    #if os(iOS)
+    /// UI tests and captures: `-uitest -captureAccount` shows the signed-in top bar (your photo)
+    /// without an account to sign in to.
+    static var capturesAccount: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        return args.contains("-uitest") && args.contains("-captureAccount")
+    }
+
+    private static func signedIn(_ backend: Backend) -> Bool {
+        if case .signedIn = backend.state { return true }
+        return capturesAccount
+    }
+
+    /// The profile photo at the top right: big enough to tell whose it is, inside its 44 pt target.
+    static let avatar: CGFloat = 38
+    #endif
+
+    /// The folders screen's search on iPhone; while it has words, the notes it finds in place of
+    /// the folders. (On iPad the notes' list beside this one searches.)
+    @ViewBuilder private func searchable(_ folders: some View) -> some View {
+        #if os(iOS)
+        if sizeClass == .compact {
+            let query = search.trimmingCharacters(in: .whitespaces)
+            Group {
+                if query.isEmpty { folders } else { FolderSearchResults(query: query, open: onOpenNote) }
+            }
+            .searchable(text: $search, prompt: "Search")
+            .searchToolbarBehavior(.automatic)
+        } else {
+            folders
+        }
+        #else
+        folders
+        #endif
     }
 
     /// The account at the foot, Settings, and the folder dialogs.
@@ -851,3 +904,41 @@ private struct FolderTree: View {
         Button("Delete Folder…", systemImage: "trash", role: .destructive) { delete(folder) }
     }
 }
+
+#if os(iOS)
+/// What the folders screen's search finds: every note whose text holds the words, newest first,
+/// each with its folder under it, as in Notes. A tap opens the note in its folder.
+private struct FolderSearchResults: View {
+    @Environment(\.modelContext) private var context
+    @Environment(LibraryNotes.self) private var library
+    let query: String
+    let open: (UUID) -> Void
+
+    var body: some View {
+        let live = library.entries(in: context).filter { !$0.deleted && !$0.trashed }
+        let found = NoteListView.found(query, in: live, listedBy: .standard, context: context)
+        List {
+            Section {
+                ForEach(found) { entry in
+                    if let note = entry.note(in: context) {
+                        Button { open(note.id) } label: {
+                            NoteRow(note: note, query: query, showFolder: true)
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(.horizontal, RowMetrics.sideInset)
+                        .accessibilityIdentifier("folders.found")
+                    }
+                }
+            }
+            .listRowBackground(Color(Palette.row))
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color(Palette.foldersGround).ignoresSafeArea())
+        .overlay {
+            if found.isEmpty { ContentUnavailableView.search(text: query) }
+        }
+    }
+}
+#endif

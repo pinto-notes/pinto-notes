@@ -57,7 +57,7 @@ final class KeyCopyUITests: XCTestCase {
     }
 
     private func toFolders() {
-        for _ in 0..<3 where !app.navigationBars["Pinto Notes"].exists { back(); _ = app.navigationBars["Pinto Notes"].waitForExistence(timeout: 1.5) }
+        for _ in 0..<3 where !app.navigationBars["Folders"].exists { back(); _ = app.navigationBars["Folders"].waitForExistence(timeout: 1.5) }
     }
 
     /// Types the email and the password; what comes next is the test's to look at.

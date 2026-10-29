@@ -461,21 +461,9 @@ struct NoteListView: View {
                     .accessibilityIdentifier("list.deleteSelected")
                 }
             } else {
-                DefaultToolbarItem(kind: .search, placement: .bottomBar)
-                // iPad moves search to the top of the column; compose then belongs at the trailing edge.
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    ToolbarSpacer(.flexible, placement: .bottomBar)
-                } else {
-                    ToolbarSpacer(.fixed, placement: .bottomBar)
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
-                        .tint(.primary)
-                        .newAppTip()
-                        // Recently Deleted holds no new notes: the note it made went elsewhere.
-                        .disabled(scope == .trash)
-                        .accessibilityIdentifier("list.newNote")
-                }
+                // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
+                // holds no new notes: the note it made went elsewhere.
+                SearchComposeBar(newNote: onNewNote, disabled: scope == .trash, tip: true)
             }
             #else
             // Like Notes: the folder's name and count, then a "⋯" menu for the list.
