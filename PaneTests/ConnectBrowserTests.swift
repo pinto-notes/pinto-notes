@@ -27,6 +27,39 @@ extension FunnelTests {
             #expect(BrowserConnect.offered(compact: true) == [.chatgpt])
         }
 
+        // MARK: Connect here is the Allow
+
+        @Test func connectOpensTheAIsPageThroughTheStartPage() async {
+            let listing = URL(string: "https://chatgpt.com/plugins/plugin_x")!
+            let ticket = "amb_pre_" + String(repeating: "ab", count: 32)
+            let asked = Asked()
+            let send: ConnectAPI.Send = { path, method, body in
+                await asked.add(path, method, body?["ai"] as? String)
+                return try JSONSerialization.data(withJSONObject: ["ticket": ticket, "start": "https://pintonotes.com/connect/start#t=\(ticket)", "expires_in": 600])
+            }
+            let url = await BrowserConnect.oneClick(listing, ai: .chatgpt, send: send)
+            #expect(url?.absoluteString == "https://pintonotes.com/connect/start#t=\(ticket)&to=https%3A%2F%2Fchatgpt%2Ecom%2Fplugins%2Fplugin%5Fx")
+            #expect(await asked.calls == ["POST /connect/preapprove Optional(\"ChatGPT\")"])
+            // The start page reads it back as it was.
+            let fragment = URLComponents(string: "x:#" + (url?.fragment ?? ""))!.fragment!
+            let items = URLComponents(string: "x:?" + fragment)!.queryItems!
+            #expect(items.first { $0.name == "to" }?.value == listing.absoluteString)
+            #expect(items.first { $0.name == "t" }?.value == ticket)
+
+            let claude = await BrowserConnect.oneClick(WebConnectPlan.directoryListing, ai: .claude, send: send)
+            #expect(claude?.fragment?.hasSuffix("to=https%3A%2F%2Fclaude%2Eai%2Fdirectory%2Famber%2Dnotes") == true)
+        }
+
+        @Test func withoutAPreApprovalConnectOpensTheAIsPageAsBefore() async {
+            let listing = URL(string: "https://chatgpt.com/plugins/plugin_x")!
+            let refused: ConnectAPI.Send = { _, _, _ in throw ConnectAPI.Failure(message: "Your notes' key is only on your devices.") }
+            #expect(await BrowserConnect.oneClick(listing, ai: .chatgpt, send: refused) == nil)
+            let odd: ConnectAPI.Send = { _, _, _ in try JSONSerialization.data(withJSONObject: ["start": "pinto://connect/start#t=x"]) }
+            #expect(await BrowserConnect.oneClick(listing, ai: .chatgpt, send: odd) == nil, "a web address only")
+            let never: ConnectAPI.Send = { _, _, _ in Issue.record("asked the server"); return Data() }
+            #expect(await BrowserConnect.oneClick(listing, ai: .other, send: never) == nil)
+        }
+
         // MARK: What the sheet says
 
         @Test func theSheetNamesWhatIsSentAndToWhichCompany() {
@@ -146,4 +179,10 @@ extension FunnelTests {
             #expect(ConnectWebGuide.chatgpt(listing: URL(string: "https://chatgpt.com/plugins/pinto-notes"), onWeb: false).steps[0].text.hasSuffix("then Allow here."))
         }
     }
+}
+
+/// What a fake server was asked, in order.
+private actor Asked {
+    var calls: [String] = []
+    func add(_ path: String, _ method: String, _ ai: String?) { calls.append("\(method) \(path) \(String(describing: ai))") }
 }

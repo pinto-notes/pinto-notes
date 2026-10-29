@@ -76,6 +76,32 @@ enum BrowserConnect {
     /// Claude's fallback: its Add custom connector dialog, filled in.
     static let customConnector = "Add as a custom connector instead"
 
+    // MARK: Connect here is the Allow (29 October 2026)
+
+    /// Connect in this sheet counts as the Allow: the server keeps a pre-approval for this AI for
+    /// 10 minutes, and the AI's page opens through pintonotes.com/connect/start, which keeps the
+    /// key to it in that browser. When the AI's sign-in reaches the Pinto Notes page, the page
+    /// shows a brief Connected and goes straight back (supabase/functions/mcp/oauth.ts,
+    /// preapprove). Nil when the server says no or can't be reached: the AI's page opens as it
+    /// did, and the web page signs in and asks.
+    static func oneClick(_ link: URL, ai: Guide, send: ConnectAPI.Send) async -> URL? {
+        guard ai == .chatgpt || ai == .claude,
+              let data = try? await send("/connect/preapprove", "POST", ["ai": ai.title]),
+              let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let start = (body["start"] as? String).flatMap(URL.init(string:)),
+              start.scheme == "https" || ["127.0.0.1", "localhost"].contains(start.host ?? "")
+        else { return nil }
+        return through(start, to: link)
+    }
+
+    /// The start page's address with the AI's page added to its fragment (`to`), next to the ticket.
+    static func through(_ start: URL, to link: URL) -> URL {
+        guard var c = URLComponents(url: start, resolvingAgainstBaseURL: false) else { return link }
+        let to = link.absoluteString.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+        c.percentEncodedFragment = [c.percentEncodedFragment, "to=\(to)"].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: "&")
+        return c.url ?? link
+    }
+
     // MARK: Approving on the web, said wherever the app used to say "allow it here"
 
     /// The connect page's step: the code to scan (in the app), or signing in there (on the web).
@@ -168,7 +194,12 @@ struct ConnectBrowserSheet: View {
     }
 
     private func hook(_ r: ConnectGuideRun) {
-        r.open = { openURL($0) }
+        let link = r.guide?.steps.first?.link
+        r.open = { url in
+            // The AI's page, opened by Connect: through the start page, so Connect here is the Allow.
+            guard let client, url == link else { return openURL(url) }
+            Task { openURL(await BrowserConnect.oneClick(url, ai: r.ai, send: ConnectAPI.sender(client)) ?? url) }
+        }
         r.close = { dismiss() }
         if let client { r.watch(client) }
     }
