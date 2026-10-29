@@ -18,14 +18,13 @@ final class MultiSelectUITests: XCTestCase {
     }
 
     func testSelectAndDeleteSeveralNotes() throws {
-        // Select is in the ••• menu.
-        let more = app.buttons["list.more"].firstMatch
-        XCTAssertTrue(more.waitForExistence(timeout: 5))
-        more.tap()
-        let select = app.buttons["list.select"].firstMatch
+        // Long-press a note, Select: it starts selected, a tap adds the next.
+        let groceries = app.staticTexts["Groceries"].firstMatch
+        XCTAssertTrue(groceries.waitForExistence(timeout: 5))
+        groceries.press(forDuration: 1.0)
+        let select = app.buttons["Select"].firstMatch
         XCTAssertTrue(select.waitForExistence(timeout: 3))
         select.tap()
-        app.staticTexts["Groceries"].firstMatch.tap()
         app.staticTexts["Standup notes"].firstMatch.tap()
         let delete = app.buttons["list.deleteSelected"]
         XCTAssertTrue(delete.waitForExistence(timeout: 2))

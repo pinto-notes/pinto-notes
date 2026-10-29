@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct NoteListView: View {
     @Environment(\.modelContext) private var context
     let scope: Scope
-    /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; Select on iPhone).
+    /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select in a row's long-press menu or a two-finger swipe).
     @Binding var selection: Set<UUID>
     let onNewNote: () -> Void
     #if os(iOS)
@@ -250,6 +250,18 @@ struct NoteListView: View {
         }
         // Right-click acts on the whole selection when the row is part of it, like Notes.
         .contextMenu(forSelectionType: UUID.self) { ids in
+            #if os(iOS)
+            // Long-press, Select: selecting starts with this row, and a tap adds the next.
+            if !editMode.isEditing, !ids.isEmpty {
+                Button("Select", systemImage: "checkmark.circle") {
+                    withAnimation(.snappy(duration: 0.25)) {
+                        editMode = .active
+                        selection = ids
+                    }
+                }
+                Divider()
+            }
+            #endif
             menu(for: ids, folders: foldersByName)
         }
         #if os(macOS)
@@ -386,7 +398,8 @@ struct NoteListView: View {
         .toolbar {
             #if os(iOS)
             // Like a chat app's top bar (Emil, 29 October 2026): ••• on the left, the title in the
-            // middle, a round + on the right. Select is in the •••; while selecting, Done is where + was.
+            // middle, a round + on the right. No Select button: a row's long-press menu or a
+            // two-finger swipe starts selecting, as in Notes; while selecting, Done is where + was.
             if editMode.isEditing {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
@@ -400,17 +413,9 @@ struct NoteListView: View {
                     .accessibilityIdentifier("list.done")
                 }
             } else {
-                // The list's own menu, as in Notes: selecting, how it's sorted and grouped, and adding files.
+                // The list's own menu, as in Notes: how it's sorted and grouped, and adding files.
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        // Select only when there is something to select.
-                        if !(scopedNotes.isEmpty && scopedFiles.isEmpty) {
-                            Button("Select", systemImage: "checkmark.circle") {
-                                withAnimation(.snappy(duration: 0.25)) { editMode = .active }
-                            }
-                            .accessibilityIdentifier("list.select")
-                            Divider()
-                        }
                         ListOrderMenu(store: orderStore)
                         if scope != .trash {
                             Divider()
