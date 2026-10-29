@@ -554,8 +554,8 @@ struct SidebarView: View {
     }
 
     #if os(macOS)
-    /// The AIs that can use your notes, under the folders: each with its mark and a green dot (or
-    /// "Read only"). Click one for Settings → AI; right-click to disconnect it. With none, one quiet
+    /// The AIs that can use your notes, under the folders: each with its mark and a green dot.
+    /// Click one for Settings → AI; right-click to disconnect it. With none, one quiet
     /// row, unless the Connect card at the foot already asks.
     @ViewBuilder private var aiSection: some View {
         if SidebarAI.enabled, signedIn || shownAIs != nil, ais.known {

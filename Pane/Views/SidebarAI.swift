@@ -114,20 +114,17 @@ enum SidebarAI {
     }
 }
 
-/// An AI in the sidebar: its mark, its name, and a green dot (or "Read only").
+/// An AI in the sidebar: its mark, its name, and a green dot.
 struct SidebarAIRow: View {
     let row: ConnectedAIs.Row
 
     var body: some View {
         Label {
             SidebarRowText(title: row.title) {
-                if row.canWrite {
-                    Circle().fill(Color.green).frame(width: 7, height: 7)
-                        .help("Can read and edit your notes")
-                } else {
-                    Text("Read only").font(.system(size: 11)).foregroundStyle(.secondary)
-                        .help("Can read your notes, not edit them")
-                }
+                // Every connection gets the same dot: new ones are always read and edit, and an older
+                // read-only one says so only to VoiceOver and on hover.
+                Circle().fill(Color.green).frame(width: 7, height: 7)
+                    .help(row.canWrite ? "Can read and edit your notes" : "Can read your notes, not edit them")
             }
         } icon: {
             SidebarAIMark(connection: row.mark)
