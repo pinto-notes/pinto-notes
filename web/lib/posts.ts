@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "chatgpt-chat-and-work-merged",
+    title: "ChatGPT merged Chat and Work? How to get plain chat back",
+    description: "ChatGPT's Chat or Work toggle is gone for many users. What changed, what OpenAI has said, how to get plain chat back with GPT 6 Sol, and how limits count.",
+    excerpt: "The Chat or Work choice is gone for many paid users, replaced by one model picker. What OpenAI has said, and how to get a quick chat back.",
+    category: "Guides",
+    date: "2026-10-29",
+    updated: "2026-10-29",
+    image: { src: "/blog/chat-work-merged/before-after.webp", alt: "A drawing of ChatGPT before and after: a Chat and Work toggle above the message box, then one box with a model picker set to GPT 6 Sol High.", width: 1200, height: 640, window: false },
+    thumb: cover("clay", "chatgpt-chat-and-work-merged", 1600, 1000, "Two paper windows, chat bubbles and a checklist, merging into one beside the OpenAI logo"),
+    draft: false,
+  },
+  {
     slug: "gemini-4-carbon",
     title: "Gemini 4 Carbon: who gets it, price and what to try first",
     description: "Gemini 4 Carbon is Google's new frontier model. Who can use it now (cyber defenders first), what it will cost, how it beats Argon, and what to try today.",
@@ -284,7 +296,7 @@ export const posts: Post[] = [
     excerpt: "A dot follows up on its own, with its own computer, for weeks. Who gets one, how to set it up, and what to hand it first.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-28",
+    updated: "2026-10-29",
     image: SHOTS.history,
     thumb: cover("ice", "openai-dots", 1600, 900, "The word dots above four plush dot characters, from OpenAI"),
     draft: false,
@@ -296,7 +308,7 @@ export const posts: Post[] = [
     excerpt: "OpenAI's top model can click and type in apps on your Mac. How to switch it on, eight jobs to give it, and where it still needs you.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-10-29",
     image: SHOTS.iphoneGroceries,
     thumb: cover("apricot", "openai-gpt-6-astra", 1600, 900, "A spiral of stars shaped like a 6, OpenAI's picture for GPT-6 Astra"),
     draft: false,
@@ -625,6 +637,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "chatgpt-chat-and-work-merged",
   "gemini-4-carbon",
   "connect-icloud-mail-calendar-to-chatgpt",
   "keynote-pages-numbers-ai-assistant",

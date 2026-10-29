@@ -71,6 +71,12 @@
   "w": 880,
   "h": 550
  },
+ "chatgpt-chat-and-work-merged": {
+  "ground": "#e9ab84",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
  "chatgpt-chat-memory-full": {
   "ground": "#fcda91",
   "ink": "dark",
