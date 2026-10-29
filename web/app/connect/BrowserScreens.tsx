@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { AIGlyph } from "@/lib/ai-glyphs";
 import { GOOGLE_ON_WEB, APPLE_ON_WEB } from "@/lib/connect";
 import { ACCESS, CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
@@ -88,20 +89,23 @@ export function CodeScreen({ email, code, onCode, onSubmit, onResend, onDifferen
 /// on the left, what it gets and the answer on the right; one column on a phone. The access choice
 /// is a pair of bordered rows with a selected state, so it reads as a control; the facts under it
 /// stay plain text with a glyph. No number: Allow here is the answer, and nothing else must match.
-/// The pair at the top is a plain chat glyph, never the AI's mark (the 2 October rule).
-export function ConsentScreen({ words, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
+/// The pair at the top shows the AI's mark only for its own verified return address (`mark`); any
+/// other app gets a plain chat glyph.
+export function ConsentScreen({ words, mark = null, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
   words: ConsentWords; canWrite: boolean; write: boolean; onWrite: (write: boolean) => void;
   onAllow: () => void; onDeny: () => void;
   /// Which answer is on its way.
   busy: "allow" | "deny" | null; failure: string | null; email: string; onSwitch: () => void;
   /// "Requested just now from Chrome on Windows" (requestedLine).
   requested: string;
+  /// The server's verified AI (ConnectRequest.verified_ai): its mark leads the pair.
+  mark?: "ChatGPT" | "Claude" | null;
 }) {
   const options = canWrite ? [true, false] : [false];
   return (
     <div className={styles.wide} data-testid="connect-consent">
       <section className={styles.wideWho}>
-        <PairMark />
+        <PairMark ai={mark} />
         <h1 className={styles.wideTitle}>{words.title}</h1>
         <p className={styles.requested} data-testid="connect-requested">{requested}</p>
         {words.caution && (
@@ -156,14 +160,20 @@ export function ConsentScreen({ words, canWrite, write, onWrite, onAllow, onDeny
   );
 }
 
-/// A plain chat glyph, three dots, and Pinto's icon: the app's pair, without the AI's mark.
-function PairMark() {
+/// The AI's tile, three dots, and Pinto's icon. The AI's mark only after sign-in and only for its
+/// verified return address (the server's verifiedAI, the check the app's Allow sheet uses); an app
+/// Pinto can't name gets a plain chat glyph, so nothing on the page vouches for it.
+function PairMark({ ai }: { ai: "ChatGPT" | "Claude" | null }) {
   return (
     <div className={styles.pair} aria-hidden="true">
-      <span className={styles.pairTile}>
-        <svg viewBox="0 0 20 20" width={20} height={20} focusable="false">
-          <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        </svg>
+      <span className={styles.pairTile} data-testid="connect-mark" data-ai={ai ?? "none"}>
+        {ai === "ChatGPT" ? <AIGlyph name="openai" size={22} color="#000" />
+          : ai === "Claude" ? <AIGlyph name="claude" size={22} color="#d97757" />
+          : (
+            <svg viewBox="0 0 20 20" width={20} height={20} focusable="false">
+              <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+          )}
       </span>
       <span className={styles.pairDots}>···</span>
       <img className={styles.pairIcon} src="/icon-96.png" alt="" width={40} height={40} decoding="async" />

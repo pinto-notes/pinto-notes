@@ -311,7 +311,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       const r = view.request;
       return (
         <ConsentScreen
-          words={consentWords(r)} requested={requestedLine(r, browserFrom(navigator.userAgent))} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
+          words={consentWords(r)} mark={r.verified_ai ?? null} requested={requestedLine(r, browserFrom(navigator.userAgent))} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
           onAllow={() => void answer(r, true)} onDeny={() => void answer(r, false)} busy={answering} failure={failure}
           email={signedIn ?? email} onSwitch={() => void switchAccount()}
         />

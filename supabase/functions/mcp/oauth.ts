@@ -541,9 +541,10 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
   // A device answering a browser it can't see has no way to tell whose ChatGPT or Claude this is
   // (anyone can start a real ChatGPT sign-in and ask your devices), so no AI's mark or name is a
   // title then: the address is, and the name the client gives itself is only a claim.
-  // Showing the AI's icon or name as fact on the web connect page was considered and declined on
-  // 2 October 2026 for the same reason: a browser-started request proves where the code goes, not
-  // whose account it is. Don't add it back.
+  // The web connect page shows no AI's mark before sign-in (decided 2 October 2026: a browser-started
+  // request proves where the code goes, not whose account it is). After sign-in, its consent shows
+  // the mark of the AI named here, only for that AI's pinned callback, as the app's Allow sheet does
+  // (29 October 2026). Any other app gets a plain glyph.
   const verified = asked.asked ? null : verifiedAI(r.redirect_uri);
   return json({
     id: r.id,

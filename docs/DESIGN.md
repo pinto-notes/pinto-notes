@@ -70,6 +70,7 @@ Three kinds, everywhere. Nothing else.
 | **Quiet** | None until hover | Muted, turns ink on hover | Cancel, Back, Skip, icon buttons in a toolbar row. |
 
 - **No borders on buttons.** A button is a fill, never a stroke. That includes "Sign in with Google": a secondary fill with the Google mark, not a white box with a grey edge. (Apple's "Sign in with Apple" keeps Apple's required look.)
+  - One exception: a choice of radio rows, like Read and edit / Read only on the web consent, has a hairline round each row at rest, and the chosen row gets an amber ring, a tint and a filled dot. It's a control, so it must not look like the plain facts under it (Emil, 29 October 2026). It is a radio row, not a button.
 - Native toolbar buttons and menus stay native (`.glass`, system toolbar items). These rules are for the buttons we draw.
 - Heights: 50 (big, onboarding and website), 40 (default), 28 (compact, rows and toolbars). The radius follows the table above.
 - Disabled is a quiet warm grey with muted text (`Palette.disabledButton`), never faded amber.

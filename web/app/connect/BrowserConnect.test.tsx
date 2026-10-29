@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLabel } from "@/lib/connect";
 import { codeRequestError, consentWords, hereFrom, requestedLine, safeReturn, SESSION_KEY } from "@/lib/connect-browser";
 import BrowserConnect from "./BrowserConnect";
+import { ConsentScreen } from "./BrowserScreens";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -173,7 +174,8 @@ describe("connecting on the page alone", () => {
     expect(group.contains(container.querySelector("[data-testid=connect-shared]"))).toBe(false);
     const answers = [...container.querySelectorAll("button")].map((b) => b.textContent).filter((t) => t === "Allow" || t === "Don’t Allow");
     expect(answers).toEqual(["Don’t Allow", "Allow"]);
-    expect(container.querySelector("img[src*='chatgpt'], img[alt*='ChatGPT']")).toBeNull();
+    // ChatGPT's own return address, after sign-in: its mark leads the pair.
+    expect(container.querySelector("[data-testid=connect-mark]")!.getAttribute("data-ai")).toBe("ChatGPT");
 
     act(() => button("Read only").click());
     act(() => button("Allow").click());
@@ -248,5 +250,20 @@ describe("connecting on the page alone", () => {
     act(() => button("Don’t Allow").click());
     await until(() => assigned.length === 1);
     expect(assigned[0]).toContain("error=access_denied");
+  });
+});
+
+describe("the consent's pair", () => {
+  it("shows the AI's mark only for a verified AI; an app Pinto can't name gets the plain glyph", () => {
+    const el = document.createElement("div");
+    const r = createRoot(el);
+    const props = { canWrite: true, write: true, onWrite: () => {}, onAllow: () => {}, onDeny: () => {}, busy: null, failure: null, email: "me@example.com", onSwitch: () => {}, requested: "Requested just now from Chrome on Windows" };
+    for (const [mark, expected] of [["Claude", "Claude"], [null, "none"]] as const) {
+      const words = consentWords({ verified_ai: mark, redirect_host: mark ? "claude.ai" : "notebot.example", loopback: false, claimed_name: null, client_name: "x" });
+      act(() => r.render(<ConsentScreen words={words} mark={mark} {...props} />));
+      expect(el.querySelector("[data-testid=connect-mark]")!.getAttribute("data-ai")).toBe(expected);
+      expect(el.querySelectorAll("[data-testid=connect-mark] path").length).toBe(1);
+    }
+    act(() => r.unmount());
   });
 });

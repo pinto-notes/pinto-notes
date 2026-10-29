@@ -134,8 +134,8 @@ export type ConnectRequest = {
   redirect_host: string;
   /// The exact return address; /connect/decide takes it back unchanged.
   redirect_uri: string;
-  /// The server's view that this is a known AI's pinned callback. The page never shows it as a
-  /// name or a mark.
+  /// The server's view that this is a known AI's pinned callback. Its name and mark show only on
+  /// the consent after sign-in (BrowserScreens' ConsentScreen); before sign-in, never as a mark.
   verified_ai?: "ChatGPT" | "Claude" | null;
   loopback: boolean;
   wants_write: boolean;
