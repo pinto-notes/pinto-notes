@@ -24,7 +24,7 @@ final class HeardFromUITests: XCTestCase {
         shot("asking")
         row.tap()
         shot("tapped")
-        XCTAssertTrue(app.buttons["list.select"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["list.newNote"].waitForExistence(timeout: 5))
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: row)
         wait(for: [gone], timeout: 3)
     }

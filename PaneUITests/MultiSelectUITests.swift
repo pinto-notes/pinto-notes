@@ -18,10 +18,13 @@ final class MultiSelectUITests: XCTestCase {
     }
 
     func testSelectAndDeleteSeveralNotes() throws {
-        let select = app.buttons["list.select"]
-        XCTAssertTrue(select.waitForExistence(timeout: 5))
+        // Long-press a note, Select: it starts selected, a tap adds the next.
+        let groceries = app.staticTexts["Groceries"].firstMatch
+        XCTAssertTrue(groceries.waitForExistence(timeout: 5))
+        groceries.press(forDuration: 1.0)
+        let select = app.buttons["Select"].firstMatch
+        XCTAssertTrue(select.waitForExistence(timeout: 3))
         select.tap()
-        app.staticTexts["Groceries"].firstMatch.tap()
         app.staticTexts["Standup notes"].firstMatch.tap()
         let delete = app.buttons["list.deleteSelected"]
         XCTAssertTrue(delete.waitForExistence(timeout: 2))
@@ -29,7 +32,7 @@ final class MultiSelectUITests: XCTestCase {
         shot("selecting")
         delete.tap()
         XCTAssertFalse(app.staticTexts["Groceries"].waitForExistence(timeout: 1.5), "deleted notes leave the list")
-        XCTAssertTrue(app.buttons["list.select"].waitForExistence(timeout: 2), "Select mode ends after deleting")
+        XCTAssertTrue(app.buttons["list.newNote"].waitForExistence(timeout: 2), "Select mode ends after deleting")
         shot("after-delete")
     }
 }

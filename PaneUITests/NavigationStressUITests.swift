@@ -57,7 +57,6 @@ final class NavigationStressUITests: XCTestCase {
         app.alerts.buttons["Create"].tap()
         XCTAssertTrue(app.navigationBars["Empty"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["No Notes"].waitForExistence(timeout: 2), "an empty folder says so")
-        XCTAssertFalse(app.buttons["list.select"].isEnabled, "nothing to select")
         // A new note left blank is discarded when you leave it, like Notes.
         app.buttons["list.newNote"].firstMatch.tap()
         XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 3))
@@ -115,10 +114,13 @@ final class NavigationStressUITests: XCTestCase {
 
     func testMultiSelectMoveThenOpenTarget() {
         row("sidebar.all").tap()
-        let select = app.buttons["list.select"]
+        // Long-press a note, Select: it starts selected, a tap adds the next.
+        let groceries = app.staticTexts["Groceries"].firstMatch
+        XCTAssertTrue(groceries.waitForExistence(timeout: 3))
+        groceries.press(forDuration: 1.0)
+        let select = app.buttons["Select"].firstMatch
         XCTAssertTrue(select.waitForExistence(timeout: 3))
         select.tap()
-        app.staticTexts["Groceries"].firstMatch.tap()
         app.staticTexts["Standup notes"].firstMatch.tap()
         app.buttons["list.moveSelected"].firstMatch.tap()
         app.buttons["Ideas"].firstMatch.tap()
