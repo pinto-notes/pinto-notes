@@ -216,6 +216,18 @@ import Testing
         #expect(AppGate.firstRunShown(state: .signedIn(email: "a@b.c"), holdsNothing: { false }, keyGate: false, armed: false, covers: store.covers(account)))
     }
 
+    /// Recording the first run, 29 October: the panel landed on the new note, and the window
+    /// built the app again from scratch (another branch of the gate), the sidebar slid under the
+    /// title bar. The app is one view from the panel to the notes.
+    @Test func theAppIsTheSameViewWhenThePanelEnds() {
+        let signedIn = Backend.State.signedIn(email: "a@b.c")
+        #expect(AppGate.appShown(state: signedIn, firstRun: true, keyGate: false, onboarding: true), "the panel's steps, over the app")
+        #expect(AppGate.appShown(state: signedIn, firstRun: false, keyGate: false, onboarding: false), "and after it, the same app")
+        #expect(AppGate.appShown(state: .signedOut, firstRun: true, keyGate: false, onboarding: false), "signing in from the panel")
+        #expect(!AppGate.appShown(state: .signedOut, firstRun: false, keyGate: false, onboarding: false), "the welcome card")
+        #expect(!AppGate.appShown(state: signedIn, firstRun: false, keyGate: true, onboarding: false), "a key that needs you")
+    }
+
     @Test func anOnboardedAccountNeverGetsIt() {
         let store = OnboardingStore(defaults: TestDefaults(), steps: FirstRun.storeSteps)
         let account = UUID()

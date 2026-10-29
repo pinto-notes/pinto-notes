@@ -1013,8 +1013,9 @@ struct AppGate: View {
 
     private var gate: some View {
         Group {
-            if firstRunShown {
-                // The Mac's first run: the real app from the first second, the panel over it.
+            // One place for the app, so it stays the same view when the Mac's first run (the
+            // panel over the real app) ends: the note it landed on stays open.
+            if Self.appShown(state: backend.state, firstRun: firstRunShown, keyGate: keyGateShown, onboarding: onboardingShown) {
                 app
             } else {
             switch backend.state {
@@ -1055,7 +1056,7 @@ struct AppGate: View {
                 .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
                 .transition(.opacity)
             case .disabled, .signedIn:
-                app
+                EmptyView()
             }
             }
         }
@@ -1195,6 +1196,17 @@ struct AppGate: View {
         #else
         false
         #endif
+    }
+
+    /// The notes window rather than a card: during the Mac's first run, and once signed in with
+    /// no key screen and no flow.
+    static func appShown(state: Backend.State, firstRun: Bool, keyGate: Bool, onboarding: Bool) -> Bool {
+        if firstRun { return true }
+        switch state {
+        case .signedOut: return false
+        case .signedIn: return !keyGate && !onboarding
+        case .disabled: return true
+        }
     }
 
     static func firstRunShown(state: Backend.State, holdsNothing: () -> Bool, keyGate: Bool, armed: Bool, covers: Bool) -> Bool {
