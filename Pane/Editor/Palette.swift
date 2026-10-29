@@ -28,6 +28,9 @@ enum Palette {
     /// amber, so it reads as "not yet" rather than as broken.
     static let disabledButton = pair(brown, 0.13, 0xFFFFFF, 0.11)
     static let disabledButtonLabel = pair(0x6A5743, 0xB0A498)
+    /// The black-and-white primary button (`inkProminent`), the colours of Sign in with Apple.
+    static let inkButton = pair(0x000000, 0xFFFFFF)
+    static let inkButtonLabel = pair(0xFFFFFF, 0x000000)
     /// The fill of destructive primary buttons (Start fresh), in light and dark alike: a red deep
     /// enough for the same white label.
     static let destructiveButton = pair(0xC62828, 0xC62828)

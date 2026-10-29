@@ -367,7 +367,7 @@ import UIKit
             try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
         }
         for (label, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("largest", false, .accessibility3)] {
-            try await shoot(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}), "welcome-note-\(label)", dark: dark, type: type)
+            try await shoot(WelcomeNoteView(backend: Backend(), finished: true), "welcome-note-\(label)", dark: dark, type: type)
         }
         // Mid-writing: Claude's caret seven letters into the second to-do.
         let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
@@ -375,7 +375,7 @@ import UIKit
                                            section: WelcomeNote.section.count, todos: [n[0], 7])
         try await shoot(WelcomeEditorPage(progress: writing, ticked: .constant([]), ai: (.todo(1), .claude)), "welcome-note-writing", dark: false)
         // The largest text, scrolled to the end: the last to-do clears the way in.
-        try await shoot(WelcomeNoteView(backend: Backend(), finished: true, scrolledToEnd: true, useEmail: {}), "welcome-note-largest-scrolled", dark: false, type: .accessibility3)
+        try await shoot(WelcomeNoteView(backend: Backend(), finished: true, scrolledToEnd: true), "welcome-note-largest-scrolled", dark: false, type: .accessibility3)
         // What it becomes after sign-in: the saved note open in the editor, ticked as it was.
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)

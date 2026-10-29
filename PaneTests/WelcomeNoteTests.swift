@@ -171,7 +171,7 @@ import UIKit
         defer { WelcomeNoteView.pace = 1 }
         let before = WelcomeNoteView.wayInShown
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 393, height: 852))
-        window.rootViewController = UIHostingController(rootView: WelcomeNoteView(backend: Backend(), useEmail: {}))
+        window.rootViewController = UIHostingController(rootView: WelcomeNoteView(backend: Backend()))
         window.isHidden = false
         defer { window.isHidden = true }
         for _ in 0..<40 where WelcomeNoteView.wayInShown == before { try await Task.sleep(for: .milliseconds(100)) }

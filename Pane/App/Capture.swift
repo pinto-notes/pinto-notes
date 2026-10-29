@@ -12,6 +12,12 @@ enum Capture {
     /// Captures: the held "landed" moment (tint and receipt) is over.
     static let clearAIMarks = Notification.Name("pane.captureClearAIMarks")
 
+    /// UI tests and captures: email sign-in answers offline (`EmailAuth.standIn`), never sending an email.
+    static var mockEmailAuth: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        return args.contains("-uitest") && args.contains("-mockEmailAuth")
+    }
+
     static func argument(_ name: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }

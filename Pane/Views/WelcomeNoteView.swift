@@ -13,13 +13,13 @@ struct WelcomeNoteView: View {
     /// Captures: the finished note with the way in, at once, and scrolled to its end.
     var finished = false
     var scrolledToEnd = false
-    let useEmail: () -> Void
 
-    init(backend: Backend, finished: Bool = false, scrolledToEnd: Bool = false, useEmail: @escaping () -> Void) {
+    /// `email`: captures and tests, the way in already on email sign-in at that step.
+    init(backend: Backend, finished: Bool = false, scrolledToEnd: Bool = false, email: WelcomeEmailModel? = nil) {
         self.backend = backend
         self.finished = finished
         self.scrolledToEnd = scrolledToEnd
-        self.useEmail = useEmail
+        _email = State(initialValue: email)
     }
 
     @State private var progress = WelcomeNote.Progress()
@@ -33,6 +33,8 @@ struct WelcomeNoteView: View {
     @State private var pressed: SignInView.Way?
     @State private var error: String?
     @State private var wayInHeight: CGFloat = 0
+    /// Use email: the way in is the email form, in place (WelcomeEmailForm).
+    @State private var email: WelcomeEmailModel?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Field: Equatable { case title, line1, line2, section, todo(Int) }
@@ -48,30 +50,35 @@ struct WelcomeNoteView: View {
     private let items = WelcomeNote.items(for: .iPhone)
 
     var body: some View {
-        WelcomeEditorPage(progress: progress, ticked: $ticked, you: you, ai: ai, bottomReserve: wayIn ? wayInHeight : 0,
-                          scrolledToEnd: scrolledToEnd && wayIn)
-            .simultaneousGesture(TapGesture().onEnded { if !done { finish() } })
-            .overlay(alignment: .bottom) {
-                if !done {
-                    Text("Tap to skip")
-                        .font(.footnote)
-                        .foregroundStyle(Color.muted)
-                        .padding(.bottom, 24)
-                        .allowsHitTesting(false)
+        // The way in is its own layer over the page, so it follows the keyboard (Use email) by
+        // itself; the page stays where it is.
+        ZStack(alignment: .bottom) {
+            WelcomeEditorPage(progress: progress, ticked: $ticked, you: you, ai: ai, bottomReserve: wayIn ? wayInHeight : 0,
+                              scrolledToEnd: scrolledToEnd && wayIn)
+                // On the page only: on the whole view it would replace the way in's own identifiers.
+                .accessibilityIdentifier("welcome.note")
+                .simultaneousGesture(TapGesture().onEnded { if !done { finish() } })
+                .overlay(alignment: .bottom) {
+                    if !done {
+                        Text("Tap to skip")
+                            .font(.footnote)
+                            .foregroundStyle(Color.muted)
+                            .padding(.bottom, 24)
+                            .allowsHitTesting(false)
+                    }
                 }
+                .ignoresSafeArea(.keyboard)
+            if wayIn {
+                wayInBlock
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { wayInHeight = $0 }
+                    // Rises like the keyboard; no fade.
+                    .transition(.move(edge: .bottom))
+                    .modifier(AboveKeyboard())
             }
-            .overlay(alignment: .bottom) {
-                if wayIn {
-                    wayInBlock
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { wayInHeight = $0 }
-                        // Rises like the keyboard; no fade.
-                        .transition(.move(edge: .bottom))
-                }
-            }
+        }
             .sensoryFeedback(.impact(weight: .light), trigger: landed)
             .onChange(of: ticked) { _, now in WelcomeNote.ticked = now }
             .task { await play() }
-            .accessibilityIdentifier("welcome.note")
     }
 
     // MARK: The way in
@@ -79,6 +86,40 @@ struct WelcomeNoteView: View {
     /// On the note's own paper, part of the page: what the app is, Apple, Google, email, the terms.
     private var wayInBlock: some View {
         VStack(spacing: 12) {
+            if let email {
+                WelcomeEmailForm(model: email) { withAnimation(.snappy(duration: 0.25)) { self.email = nil } }
+                    .transition(.opacity)
+            } else {
+                ways
+            }
+            // Two short lines: the terms, then what the app sends about itself (App Review asks
+            // for it on this screen).
+            VStack(spacing: 2) {
+                Text(Legal.shortConsent)
+                Text(DiagnosticsCopy.welcome)
+            }
+            .font(.caption)
+            .foregroundStyle(Color.muted)
+            .tint(Color(PColor.paneAccent))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("welcome.legal")
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 18)
+        .padding(.bottom, 8)
+        // At the largest sizes the way in would cover the note: it grows only so far, and the
+        // note above it still scrolls at full size. Typing an email it may take the screen.
+        .dynamicTypeSize(...(email == nil ? DynamicTypeSize.xxLarge : .accessibility5))
+        .frame(maxWidth: WelcomeFlow.readableWidth)
+        .frame(maxWidth: .infinity)
+        .scrollable(email != nil)
+        .background(Color.notePage.ignoresSafeArea(edges: .bottom))
+    }
+
+    /// Apple, Google and Use email, under what the app is.
+    @ViewBuilder private var ways: some View {
             Text("Notes you and your AI share.")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.muted)
@@ -110,29 +151,16 @@ struct WelcomeNoteView: View {
                 .buttonStyle(.plain)
                 .frame(minHeight: 44)
                 .accessibilityIdentifier(WelcomeNoteView.emailID)
-            // Two short lines: the terms, then what the app sends about itself (App Review asks
-            // for it on this screen).
-            VStack(spacing: 2) {
-                Text(Legal.shortConsent)
-                Text(DiagnosticsCopy.welcome)
-            }
-            .font(.caption)
-            .foregroundStyle(Color.muted)
-            .tint(Color(PColor.paneAccent))
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("welcome.legal")
-        }
-        .padding(.horizontal, 22)
-        .padding(.top, 18)
-        .padding(.bottom, 8)
-        // At the largest sizes the way in would cover the note: it grows only so far, and the
-        // note above it still scrolls at full size.
-        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-        .frame(maxWidth: WelcomeFlow.readableWidth)
-        .frame(maxWidth: .infinity)
-        .background(Color.notePage.ignoresSafeArea(edges: .bottom))
+    }
+
+    /// Use email: the buttons give way to the email form, in place, the keyboard up.
+    private func useEmail() {
+        error = nil
+        let model = WelcomeEmailModel(auth: Capture.mockEmailAuth ? .standIn : .live(backend))
+        model.arm = { WelcomeHandoff.shared.arm(ticked: WelcomeNote.ticked, way: .email) }
+        model.disarm = { WelcomeHandoff.shared.disarm() }
+        Funnel.record(.signInStep(nil, .shown))
+        withAnimation(.snappy(duration: 0.25)) { email = model }
     }
 
     static let end = "welcome.end"
@@ -427,9 +455,9 @@ struct HandoffWayIn: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let apple = way == .apple
+        let apple = way != .google
         let shape = RoundedRectangle(cornerRadius: SignInView.Row.radius, style: .continuous)
-        // Apple's button is black, white in the dark; Google's the soft fill, as on the welcome.
+        // Apple's button (and email's) is black, white in the dark; Google's the soft fill, as on the welcome.
         let fill: Color = apple ? (scheme == .dark ? .white : .black) : Color.soft
         let ink: Color = apple ? (scheme == .dark ? .black : .white) : Color.ink
         VStack(spacing: 12) {
@@ -442,7 +470,7 @@ struct HandoffWayIn: View {
                 } else {
                     ProgressView().controlSize(.small).tint(ink)
                 }
-                Text(done ? "Signed in" : (apple ? "Continue with Apple" : "Continue with Google"))
+                Text(done ? "Signed in" : way.title)
                     .font(.system(size: 17, weight: .semibold))
                     .contentTransition(.opacity)
             }
@@ -460,5 +488,74 @@ struct HandoffWayIn: View {
         .frame(maxWidth: .infinity)
         .background(Color.notePage)
     }
+}
+extension WelcomeHandoff.Way {
+    /// The button that was pressed, as the welcome said it.
+    var title: String {
+        switch self {
+        case .apple: "Continue with Apple"
+        case .google: "Continue with Google"
+        case .email: "Signing in"
+        }
+    }
+}
+
+/// Keeps the way in on top of the keyboard, following every change of its frame. SwiftUI's own
+/// keyboard safe area missed the email keyboard's AutoFill bar, which comes a moment after the
+/// keyboard: the terms stayed 35 pt under it until the first letter was typed.
+private struct AboveKeyboard: ViewModifier {
+    @State private var overlap: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.bottom, overlap)
+            .ignoresSafeArea(.keyboard)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                guard let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                keyboard = end
+                update(note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+                keyboard = nil
+                update(note)
+            }
+    }
+
+    @State private var keyboard: CGRect?
+    @State private var frame: CGRect = .zero
+
+    /// How far the keyboard reaches over the bottom of this view's frame (measured around the
+    /// padding, so it holds still as the padding changes).
+    private func update(_ note: Notification) {
+        let new = keyboard.map { max(0, frame.maxY - $0.minY) } ?? 0
+        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        withAnimation(.easeOut(duration: max(duration, 0.01))) { overlap = new }
+    }
+}
+
+/// Typing an email at the largest text sizes the way in can be taller than the room above the
+/// keyboard: then it scrolls, rather than push its button off the screen. One scroll view as tall
+/// as what's in it, so the field is never made again while you type (two copies, one fitting and
+/// one scrolling, swapped as the keyboard moved, and lost the letters typed).
+private struct Scrollable: ViewModifier {
+    let on: Bool
+    @State private var height: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        if on {
+            ScrollView {
+                content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxHeight: height > 0 ? height : nil)
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func scrollable(_ on: Bool) -> some View { modifier(Scrollable(on: on)) }
 }
 #endif

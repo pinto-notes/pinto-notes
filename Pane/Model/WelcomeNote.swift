@@ -124,7 +124,7 @@ final class WelcomeHandoff {
     private(set) var noteID: UUID?
     private(set) var ticked: Set<Int> = []
     /// Which button started it: it stays on the screen, working, until the note opens.
-    enum Way: Equatable { case apple, google }
+    enum Way: Equatable { case apple, google, email }
     private(set) var way: Way = .apple
     @ObservationIgnored private var armedAt: Date?
 

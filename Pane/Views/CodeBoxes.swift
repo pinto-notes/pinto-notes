@@ -11,6 +11,8 @@ struct CodeBoxes: View {
     /// Bumped on a wrong or expired code: the boxes shake once.
     var shakes = 0
     var onSubmit: () -> Void = {}
+    /// The ring on the next box to fill: amber, or ink on the iPhone welcome.
+    var ring = Color(Palette.amber)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     nonisolated static let length = EmailSignInFlow.codeLength
@@ -80,7 +82,7 @@ struct CodeBoxes: View {
             .frame(maxWidth: .infinity)
             .frame(height: Self.boxHeight)
             .background(Color(Palette.field), in: shape)
-            .overlay(shape.strokeBorder(active ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: active ? 2 : 1))
+            .overlay(shape.strokeBorder(active ? ring : Color(Palette.fieldHairline), lineWidth: active ? 2 : 1))
             .animation(.easeOut(duration: 0.12), value: active)
             .animation(.snappy(duration: 0.15), value: digit)
     }
