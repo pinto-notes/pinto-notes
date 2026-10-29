@@ -75,6 +75,33 @@ final class WritingBarUITests: XCTestCase {
         shot("3-attach")
     }
 
+    /// A note that can't be written in shows no writing tools, tapped or not: Recently Deleted
+    /// here; the welcome note while it's being written is read-only the same way.
+    @MainActor
+    func testNoToolsOverANoteThatCantBeWrittenIn() throws {
+        app.terminate()
+        app.launchArguments = ["-uitest", "-demo", "-showFolders"]
+        app.launch()
+        app.cells.containing(.any, identifier: "folder.Travel").firstMatch.tap()
+        let lisbon = app.staticTexts["Lisbon"].firstMatch
+        XCTAssertTrue(lisbon.waitForExistence(timeout: 5))
+        lisbon.swipeLeft()
+        app.buttons["Delete"].firstMatch.tap()
+        XCTAssertFalse(lisbon.waitForExistence(timeout: 1.5), "Lisbon left the list")
+        app.navigationBars.firstMatch.buttons.element(boundBy: 0).tap()
+        let trash = app.cells.containing(.any, identifier: "sidebar.trash").firstMatch
+        XCTAssertTrue(trash.waitForExistence(timeout: 5))
+        trash.tap()
+        XCTAssertTrue(app.navigationBars["Recently Deleted"].waitForExistence(timeout: 5))
+        app.staticTexts["Lisbon"].firstMatch.tap()
+        let editor = app.textViews["editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)).tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        shot("4-deleted-tapped")
+        for id in Self.tools { XCTAssertFalse(app.buttons[id].exists, "no \(id) over a deleted note") }
+    }
+
     /// The glyph's ink inside a button: pixels well away from the colour most of the frame has.
     static func ink(in frame: CGRect, of image: UIImage) -> CGSize? {
         guard let cg = image.cgImage else { return nil }

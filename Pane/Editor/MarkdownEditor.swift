@@ -632,6 +632,18 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private var cardHosts: [String: UIHostingController<AnyView>] = [:]
 
+    /// No writing tools over a note that can't be written in (Recently Deleted, the welcome note
+    /// while it's being written): a tap selects or ticks there, and the bar came up with nothing
+    /// to do (Emil, 29 October 2026).
+    override var inputAccessoryView: UIView? {
+        get { isEditable ? super.inputAccessoryView : nil }
+        set { super.inputAccessoryView = newValue }
+    }
+
+    override var isEditable: Bool {
+        didSet { if isEditable != oldValue, isFirstResponder { reloadInputViews() } }
+    }
+
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
         delegate = self
