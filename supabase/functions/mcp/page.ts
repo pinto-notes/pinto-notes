@@ -15,6 +15,7 @@ export const PAGE_REWRITE = `Before changing a note's page, call get_note_page a
 /** What an app can ask the device for. Reminders, Calendar, notifications, the camera, contacts,
  *  location, Maps, weather and on-device AI were removed from apps (2026-10-11). */
 const DEVICE = `The device: amber.device.openURL(url) opens a web, mail or phone link once the person agrees to it (they see the whole address each time); amber.device.share({ name, type, text | base64 }) exports a file through the share sheet (iPhone) or a Save panel (Mac); amber.device.photos.pick({ limit }) -> { files: [{ $file, thumb }] } and amber.device.files.pick() let the person choose photos or files. Every call returns { ok, ... } or { ok: false, error }.
+  Links to the person's notes and other apps: <a href="pinto:Work/Acme">Acme</a>, written like a [[link]] (pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app); tapping one opens it in Pinto Notes the way a [[link]] does.
   Not available yet: Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and on-device AI. Those calls answer { ok: false, error }; don't build an app that depends on them, and say so if the person asks for one.
 `;
 

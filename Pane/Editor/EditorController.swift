@@ -261,6 +261,9 @@ final class EditorController {
 
     func focus() { target?.focusEditor() }
 
+    /// Scrolls the text to the line at `location` (a link to a heading).
+    func reveal(_ location: Int) { target?.reveal(location) }
+
     /// A note that is an app, for its widget where another note links it (set by the note screen).
     @ObservationIgnored var resolveNoteModel: (UUID) -> Note? = { _ in nil }
     /// Opens a note by id (set by the note screen).
@@ -417,6 +420,8 @@ protocol EditorTarget: AnyObject {
     var currentSelection: NSRange { get }
     func apply(_ edit: TextEdit)
     func focusEditor()
+    /// Scrolls the line at `location` to the top, focus left as it is.
+    func reveal(_ location: Int)
     func insertGrid()
     /// The keyboard leaves a table, to the line above or below it.
     func leaveGrid(_ index: Int, below: Bool)
@@ -449,4 +454,8 @@ extension EditorTarget {
     func gridFieldFocused() {}
     func showTableMenu(_ menu: TableMenu) {}
     func formatPanelChanged(shown: Bool) {}
+}
+
+extension EditorTarget {
+    func reveal(_ location: Int) {}
 }

@@ -19,7 +19,7 @@ export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app (som
 - See your work with preview_app and check_app before you say it's done.`;
 
 /** What the file tools' instructions (files_tools.ts) say about apps, and the Claude skill with them. */
-export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. ${IN_CONTROL}`;
+export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. An app links to a note or another app with <a href="pinto:Work/Acme">, written like a [[link]]: pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. ${IN_CONTROL}`;
 
 /** The apps guide with the file tools: what every new app's README.md says, as a document (the
  *  MCP resource and the Claude skill's reference). */
@@ -84,6 +84,8 @@ The app can't reach the internet by itself. For live data, declare the hosts in 
 \`<meta name="amber-needs" content='{"hosts": ["api.open-meteo.com"], "keys": [{ "name": "OpenWeather", "hosts": ["api.openweathermap.org"], "query": "appid={key}", "help": "Where to get one" }]}'>\`
 
 Then call fetch(url, { key: "OpenWeather" }) from "@/lib/amber"; it returns { ok, status, body }. Keys live in Pinto Notes › Settings › API Keys; the app and you never see their values. list_api_keys shows which exist. Walk the person through getting one (the site, the free plan, where the key is) and adding it there. Never ask for a key in the chat; if one is pasted, don't store or repeat it, and suggest they make a new one. Prefer services that need no key (api.open-meteo.com for weather). fetch("/src/data.json") reads the app's own files.
+
+Links to the person's notes and other apps are plain links, written like a [[link]] in a note: <a href="pinto:Work/Acme">Acme</a>, pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. Tapping one opens it in Pinto Notes the way a [[link]] does.
 
 The device: device.openURL(url) opens a web, mail or phone link once the person agrees to it, share({ name, type, text }) exports a file, and device.photos.pick() and device.files.pick() let the person choose photos or files. Reminders, Calendar, notifications, the camera, contacts, location, Maps, weather and on-device AI are not available yet: don't build on them.
 

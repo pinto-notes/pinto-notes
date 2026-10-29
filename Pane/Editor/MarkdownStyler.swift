@@ -356,7 +356,8 @@ struct MarkdownStyler {
             storage.addAttributes(syntax, range: NSRange(location: NSMaxRange(shown), length: NSMaxRange(range) - NSMaxRange(shown)))
             let exists = wiki?.resolves(link.target) ?? true
             storage.addAttribute(.foregroundColor, value: exists ? PColor.paneAccent : PColor.paneAccentFaded, range: shown)
-            if let url = LinkPolicy.wikiURL(link.target) { storage.addAttribute(.link, value: url, range: shown) }
+            // The heading comes along ("Budget#October"): the note opens there.
+            if let url = LinkPolicy.wikiURL(link.heading.map { "\(link.target)#\($0)" } ?? link.target) { storage.addAttribute(.link, value: url, range: shown) }
             // "Budget#October": the # between note and heading reads as a separator.
             if link.aliasRange == nil, let h = link.headingRange.map(shift), h.length > 0 {
                 storage.addAttribute(.foregroundColor, value: PColor.paneTertiary, range: NSRange(location: h.location, length: 1))

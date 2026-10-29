@@ -450,6 +450,11 @@ struct NoteDetailView: View {
                     }
                     #endif
                     .onAppear { if note.isLocked { vault.touch() } }
+                    // Opened by a link to one of its headings: there, once the text is laid out.
+                    .task {
+                        try? await Task.sleep(for: .milliseconds(150))
+                        landOnHeading()
+                    }
                     // The note's images that are on the server and not here are fetched as it opens,
                     // and again when a sync brings changes: a note's text, or file rows on their own
                     // (a picture added on another device can arrive a sync after the text that shows it).
@@ -583,7 +588,8 @@ struct NoteDetailView: View {
     /// receipts are for changes to the note's text.
     private func pageData(_ message: Any) async throws -> [String: Any] {
         let (reply, before) = try await NotePageActions.data(message, note: note, context: context, sync: sync, html: notePage?.html ?? "",
-                                                             ask: askHost, askLink: askLink, needKey: { need in withAnimation(.smooth) { keyNeeded = need } })
+                                                             ask: askHost, askLink: askLink, needKey: { need in withAnimation(.smooth) { keyNeeded = need } },
+                                                             open: followAppLink)
         // A change you made gets a receipt; the app saving on its own is quiet (Undo still reaches it
         // through version history).
         if let before, (message as? [String: Any])?["_user"] as? Bool == true { dataChanged(before: before) }
@@ -991,14 +997,40 @@ struct NoteDetailView: View {
     }
 
     /// A wiki link was tapped: open its note, or offer to make it, as Obsidian does.
-    private func followWikiLink(_ target: String) {
+    /// `written` is the link's target, with its `#heading` if it has one.
+    private func followWikiLink(_ written: String) {
+        let link = WikiLinks.links(in: "[[\(written)]]").first
+        followLink(link?.target ?? written, heading: link?.heading)
+    }
+
+    /// A link in this note's app was tapped (pinto:Work/Acme#Agenda): the same as a wiki link.
+    /// The app hears whether there was a note to open.
+    private func followAppLink(_ link: AppLinks.Link) throws {
+        guard followLink(link.target, heading: link.heading) else {
+            throw NotePage.OpError("No note is called \u{201C}\(WikiLinks.name(of: link.target))\u{201D}.")
+        }
+    }
+
+    /// Opens the note a link names, at its heading, or offers to make it. False when there's none.
+    @discardableResult
+    private func followLink(_ target: String, heading: String?) -> Bool {
         // What was just typed here counts in the next note's "Linked from".
         saver.flush()
-        if let linked = context.resolveWikiLink(target, from: note) {
-            onOpenNote(linked.id, false)
-        } else {
+        guard let linked = context.resolveWikiLink(target, from: note) else {
             missingNote = WikiLinks.name(of: target)
+            return false
         }
+        if let heading { LinkLanding.shared.request(linked.id, heading: heading) }
+        if linked.id == note.id { landOnHeading() } else { onOpenNote(linked.id, false) }
+        return true
+    }
+
+    /// A link asked for a heading in this note: the text scrolls to it. A note showing its app
+    /// opens on the app.
+    private func landOnHeading() {
+        guard let heading = LinkLanding.shared.take(note.id), !showingPage,
+              let text = vault.text(of: note), let at = WikiLinks.headingLocation(heading, in: text) else { return }
+        controller.reveal(at)
     }
 
     /// The note a link named, made in this note's folder and opened for writing.
@@ -1431,3 +1463,75 @@ struct TrashBanner: View {
         .accessibilityIdentifier("editor.trashBanner")
     }
 }
+
+/// A link that named a heading (`[[Budget#October]]`, `pinto:Budget#October`): the note it opens
+/// scrolls there once its text is on screen. Kept only for the next note that opens.
+@MainActor
+final class LinkLanding {
+    static let shared = LinkLanding()
+    private var pending: (id: UUID, heading: String)?
+
+    func request(_ id: UUID, heading: String) { pending = (id, heading) }
+
+    /// The heading asked for in note `id`, once.
+    func take(_ id: UUID) -> String? {
+        guard let p = pending, p.id == id else { return nil }
+        pending = nil
+        return p.heading
+    }
+}
+
+/// The notes a link opened, in order, so Back returns to the note or app the link was in, as a
+/// link does in Notes on iPhone. Opening a note any other way (the list, a new note) ends it.
+struct LinkTrail: Equatable {
+    private(set) var stack: [UUID] = []
+    /// The note a link or Back is opening right now.
+    private var expected: UUID?
+
+    /// Where Back goes.
+    var previous: UUID? { stack.last }
+
+    /// A link in `from` opened `to`.
+    mutating func followed(from: UUID?, to: UUID) {
+        guard let from, from != to else { return }
+        stack.append(from)
+        if stack.count > 50 { stack.removeFirst() }
+        expected = to
+    }
+
+    /// Back: the note to open again, taken off the trail.
+    mutating func back() -> UUID? {
+        guard let p = stack.popLast() else { return nil }
+        expected = p
+        return p
+    }
+
+    /// The open note changed. Anything but a link or Back ends the trail.
+    mutating func opened(_ id: UUID?) {
+        if id == nil || id != expected { stack = [] }
+        expected = nil
+    }
+}
+
+#if os(iOS)
+/// After a link: Back in the navigation bar returns to the note or app the link was in.
+struct LinkBackButton: ViewModifier {
+    /// The note Back returns to, or nil for the system's Back to the list.
+    let title: String?
+    let back: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .navigationBarBackButtonHidden(title != nil)
+            .toolbar {
+                if let title {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(action: back) { Image(systemName: "chevron.backward") }
+                            .accessibilityLabel("Back to \(title)")
+                            .accessibilityIdentifier("note.linkBack")
+                    }
+                }
+            }
+    }
+}
+#endif

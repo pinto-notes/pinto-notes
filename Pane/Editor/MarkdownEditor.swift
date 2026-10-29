@@ -948,6 +948,18 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// Whether the panel is in the keyboard's place now (tests).
     var showsFormatPanel: Bool { inputView is FormatPanelHost }
 
+    /// Scrolls the line at `location` to the top (a link to a heading), the keyboard left as it is.
+    func reveal(_ location: Int) {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: min(max(location, 0), (text as NSString).length)) else { return }
+        tlm.ensureLayout(for: tcm.documentRange)
+        guard let frag = tlm.textLayoutFragment(for: loc) else { return }
+        pulledDate = true
+        let top = -adjustedContentInset.top
+        let y = frag.layoutFragmentFrame.minY + textContainerInset.top - adjustedContentInset.top - 8
+        contentOffset = CGPoint(x: contentOffset.x, y: min(max(top, y), max(top, contentSize.height - bounds.height + adjustedContentInset.bottom)))
+    }
+
     override func paste(_ sender: Any?) {
         let pb = UIPasteboard.general
         let html = pb.data(forPasteboardType: "public.html").flatMap { String(data: $0, encoding: .utf8) }
@@ -1549,6 +1561,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     func focusEditor() { window?.makeFirstResponder(self) }
+
+    /// Scrolls the line at `location` to the top (a link to a heading), focus left as it is.
+    func reveal(_ location: Int) {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager, let scroll = enclosingScrollView,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: min(max(location, 0), (string as NSString).length)) else { return }
+        tlm.ensureLayout(for: tcm.documentRange)
+        guard let frag = tlm.textLayoutFragment(for: loc) else { return }
+        let clip = scroll.contentView
+        let top = -scroll.contentInsets.top
+        let y = frag.layoutFragmentFrame.minY + textContainerOrigin.y - scroll.contentInsets.top - 8
+        let bottom = max(top, frame.height - clip.bounds.height + scroll.contentInsets.bottom)
+        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: min(max(top, y), bottom)))
+        scroll.reflectScrolledClipView(clip)
+    }
 
     override func paste(_ sender: Any?) {
         let pb = NSPasteboard.general

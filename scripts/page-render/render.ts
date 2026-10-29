@@ -292,6 +292,15 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     for (const fn of listeners) { try { fn(note, amber.data); } catch (e) { console.error(e); } }
   } });
   window.amber = amber;
+  // Links to the person's notes and apps (pinto:Work/Acme) open in Pinto Notes; here they're kept
+  // in window.__amberOpened and the page stays where it is, as in the app.
+  window.__amberOpened = [];
+  amber.open = (href) => { window.__amberOpened.push(String(href)); return Promise.resolve({ ok: true }); };
+  addEventListener("click", (e) => {
+    const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    const href = a ? (a.getAttribute("href") || "").trim() : "";
+    if (/^pinto:/i.test(href)) { e.preventDefault(); amber.open(href); }
+  }, true);
   const sized = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", sized, { once: true }); const w = window.innerWidth, c = document.documentElement.classList;
     c.toggle("amber-narrow", w < 600); c.toggle("amber-medium", w >= 600 && w < 900); c.toggle("amber-wide", w >= 900); };
   sized(); addEventListener("resize", sized);

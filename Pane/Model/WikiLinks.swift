@@ -156,6 +156,53 @@ enum WikiLinks {
         }
         return out
     }
+
+    /// The heading in `body` a `#Heading` link names: where its line starts. Matched like titles
+    /// (case and spacing aside), the first one wins.
+    static func headingLocation(_ heading: String, in body: String) -> Int? {
+        let want = key(heading)
+        var location = 0
+        for line in body.components(separatedBy: "\n") {
+            if line.hasPrefix("#"), let m = line.range(of: #"^#{1,6}\s+"#, options: .regularExpression),
+               key(String(line[m.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "# "))) == want {
+                return location
+            }
+            location += (line as NSString).length + 1
+        }
+        return nil
+    }
+}
+
+/// Links from a note's app to the person's notes and other apps: `<a href="pinto:Work/Acme">`,
+/// `pinto:Acme#Agenda`, `pinto:Work/Habits.app`. What follows `pinto:` is what goes between
+/// `[[` and `]]` in a note, and resolves the same way, by title. It can only ever name one of the
+/// person's own notes: it is never an address, a file or a command.
+enum AppLinks {
+    static let scheme = "pinto"
+
+    struct Link: Equatable {
+        /// The note as written: "Work/Acme" (a `.app` ending names the note whose app it is).
+        var target: String
+        var heading: String?
+    }
+
+    /// The note an app's link names, or nil for anything that isn't a `pinto:` link to a note.
+    static func parse(_ href: String) -> Link? {
+        guard href.count <= 1000, href.lowercased().hasPrefix(scheme + ":") else { return nil }
+        var rest = String(href.dropFirst(scheme.count + 1))
+        while rest.hasPrefix("/") { rest.removeFirst() }
+        rest = rest.removingPercentEncoding ?? rest
+        // Only what a [[link]] could hold: no brackets, no new lines; an alias has no use here.
+        guard !rest.contains(where: { $0 == "[" || $0 == "]" || $0.isNewline || $0.asciiValue.map { $0 < 0x20 } == true }) else { return nil }
+        if let bar = rest.firstIndex(of: "|") { rest = String(rest[..<bar]) }
+        guard let link = WikiLinks.links(in: "[[\(rest)]]").first else { return nil }
+        var target = link.target
+        while target.hasSuffix("/") { target.removeLast() }
+        if target.lowercased().hasSuffix(".app") { target = String(target.dropLast(4)) }
+        target = target.trimmingCharacters(in: .whitespaces)
+        guard !target.isEmpty, WikiLinks.name(of: target).isEmpty == false else { return nil }
+        return Link(target: target, heading: link.heading)
+    }
 }
 
 /// Every note's title and folder, to resolve wiki links the way Obsidian does: by name, case
