@@ -40,8 +40,8 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
   authCode?: string;
   authError?: string;
   /// The page as it was (a QR code, a notification, the recovery key), for accounts the server
-  /// keeps no key copy for.
-  inApp: () => React.ReactNode;
+  /// keeps no key copy for. An element, mounted only once the account turns out to need it.
+  inApp: React.ReactNode;
 }) {
   const [view, setView] = useState<View>({ kind: "loading" });
   const [email, setEmail] = useState("");
@@ -320,7 +320,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     case "inApp":
       return <InAppScreen email={signedIn} onSwitch={() => void switchAccount()} onContinue={() => setView({ kind: "legacy" })} />;
     case "legacy":
-      return <>{inApp()}</>;
+      return <>{inApp}</>;
     case "connected":
       return <ConnectedScreen to={view.to} href={view.href} />;
     case "leaving":

@@ -55,7 +55,7 @@ export default async function Connect({ searchParams }: { searchParams: Promise<
       <ConnectCard request label={label}>
         <BrowserConnect
           requestId={flow.requestId} supabaseURL={supabaseURL} anonKey={anonKey} authCode={flow.authCode} authError={flow.authError}
-          inApp={() => asBefore({ ...flow, authCode: undefined, authError: undefined })}
+          inApp={asBefore({ ...flow, authCode: undefined, authError: undefined })}
         />
       </ConnectCard>
     );

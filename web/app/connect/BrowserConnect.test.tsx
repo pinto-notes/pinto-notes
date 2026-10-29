@@ -111,7 +111,7 @@ async function until(check: () => boolean, ms = 3000) {
   }
 }
 
-const inApp = () => <p>the page as it was</p>;
+const inApp = <p>the page as it was</p>;
 function render() {
   act(() => root.render(<BrowserConnect requestId={ID} supabaseURL={SUPABASE} anonKey="anon" inApp={inApp} />));
 }
