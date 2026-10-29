@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, type ConnectLabel, type ConnectRequest, type OAuthProvider } from "@/lib/connect";
 import { browserFrom } from "@/lib/connect-flow";
 import {
-  allowRequest, backTo, codeDigits, codeRequest, codeRequestError, consentWords, denyRequest, forgetSession, hereFrom, loadSession,
-  refreshRequest, requestedLine, safeReturn, saveSession, sessionFrom, verifyError, verifyRequest, type StoredSession,
+  allowRequest, backTo, codeDigits, codeRequest, codeRequestError, consentWords, denyRequest, forgetPre, forgetSession, hereFrom, loadPre,
+  loadSession, preAllowRequest, refreshRequest, requestedLine, safeReturn, saveSession, sessionFrom, verifyError, verifyRequest, type StoredSession,
 } from "@/lib/connect-browser";
 import { EndedScreen, LeavingScreen, WorkingScreen } from "./ConnectScreens";
 import { BrowserFrame, BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen, type Verified } from "./BrowserScreens";
 
 // The connect page for a server that lets the page answer itself (/connect/label's allow_here):
-// sign in, the consent, Allow. Accounts whose key is only on their devices go on to the app's way
+// sign in, the consent, Allow. Right after Connect in the app, none of that: a brief Connected. Accounts whose key is only on their devices go on to the app's way
 // (`inApp`, the page as it was). See lib/connect-browser.ts for the whole flow.
 
 type View =
@@ -74,14 +74,14 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
         return setView({ kind: "signIn" });
       }
       const stored = loadSession(local());
-      if (!stored) return setView({ kind: "signIn" });
-      setEmail(stored.email);
+      if (stored) setEmail(stored.email);
       // Kept from an earlier visit: made fresh, then straight to the consent.
-      const fresh = await refresh(stored);
-      if (!fresh) {
-        forgetSession(local());
-        return setView({ kind: "signIn" });
-      }
+      const fresh = stored ? await refresh(stored) : null;
+      if (stored && !fresh) forgetSession(local());
+      if (fresh) saveSession(local(), fresh);
+      // Connect in the app was the yes: a brief Connected, and back to the AI.
+      if (await preapproved(fresh)) return;
+      if (!fresh) return setView({ kind: "signIn" });
       await signedInAs(fresh);
     })();
     // Runs once, for the address the page was opened with.
@@ -126,6 +126,30 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     setView({ kind: "loading" });
     await signOut();
     setView({ kind: "signIn" });
+  }
+
+  /// Connect pressed in the app a moment ago, for this AI: its key, sent once (lib/connect-browser.ts).
+  /// True when the page has its answer; false goes on to sign-in and the consent.
+  async function preapproved(fresh: StoredSession | null): Promise<boolean> {
+    const ai = label?.verified_ai;
+    const key = loadPre(local(), ai);
+    if (!ai || !key) return false;
+    forgetPre(local());
+    try {
+      const res = await fetch(...preAllowRequest(mcp, fresh?.access_token ?? null, { id: requestId, from: browserFrom(navigator.userAgent), preapproval: key }));
+      const body = await res.json().catch(() => null) as { redirect?: unknown } | null;
+      const to = safeReturn(body?.redirect);
+      if (res.ok && to) {
+        setView({ kind: "connected", to: ai, href: to });
+        window.location.assign(to);
+        return true;
+      }
+      if (res.status === 404) {
+        setView(EXPIRED);
+        return true;
+      }
+    } catch {}
+    return false;
   }
 
   // MARK: Who is asking, and whether this page may answer

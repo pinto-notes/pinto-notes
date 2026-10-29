@@ -9,7 +9,7 @@
 //    copy (an hour, as for a new device), so the page asks for a fresh one. Anything else that
 //    isn't yes ("strict", "no_copy", "no_key", "off") goes to the app, the way it worked before.
 // 3. The consent: who, what is shared and with which company (the words the app's Allow sheet
-//    uses, as App Review asked), Read and edit or Read only, locked notes stay private. Allow posts
+//    uses, as App Review asked), locked notes stay private. Connecting is read and edit. Allow posts
 //    /connect/allow; the server makes the code and answers with the AI's return address, code
 //    included. Don't allow is /connect/decide with allow: false, as before.
 //
@@ -204,7 +204,7 @@ export function refreshRequest(supabaseURL: string, anonKey: string, refreshToke
   }];
 }
 
-/// Allow, on this page: the exact return address it showed, and the access chosen.
+/// Allow, on this page: the exact return address it showed.
 export function allowRequest(mcp: string, token: string, b: { id: string; redirect_uri: string; from: string }): [string, RequestInit] {
   return [`${mcp}/connect/allow`, {
     method: "POST",
@@ -233,4 +233,76 @@ export function safeReturn(url: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+// MARK: Connect in the app counts as the Allow
+
+// Connect in Pinto opens pintonotes.com/connect/start#t=<ticket>&to=<the AI's page>. The start page
+// swaps the one-time ticket for a key kept in this browser (PRE_KEY) and goes on to ChatGPT or
+// Claude. When their sign-in lands on /connect a few seconds later, the page sends that key with
+// no sign-in or consent: the server answers once, for that AI's own callback, for the account that
+// pressed Connect, within 10 minutes (supabase/functions/mcp/oauth.ts, preapprove). If it says no,
+// the key goes and the page signs in and asks as before.
+
+export const PRE_KEY = "pinto.connect.preapproval";
+
+export type StoredPre = { key: string; ai: "ChatGPT" | "Claude"; expires_at: string };
+
+/// The key this browser keeps for the AI asking now, if it's still in time.
+export function loadPre(store: Pick<Storage, "getItem"> | null, ai: string | null | undefined, now = Date.now()): string | null {
+  if (!ai) return null;
+  try {
+    const p = JSON.parse(store?.getItem(PRE_KEY) ?? "null");
+    if (typeof p?.key !== "string" || p.ai !== ai) return null;
+    return Date.parse(p.expires_at) > now ? p.key : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePre(store: Pick<Storage, "setItem"> | null, p: StoredPre) {
+  try { store?.setItem(PRE_KEY, JSON.stringify(p)); } catch {}
+}
+
+export function forgetPre(store: Pick<Storage, "removeItem"> | null) {
+  try { store?.removeItem(PRE_KEY); } catch {}
+}
+
+/// The start page's ticket, for this browser's key.
+export function redeemRequest(mcp: string, ticket: string): [string, RequestInit] {
+  return [`${mcp}/connect/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket }) }];
+}
+
+/// /connect/redeem's answer, or null.
+export function preFrom(body: { key?: unknown; ai?: unknown; expires_at?: unknown } | null): StoredPre | null {
+  if (typeof body?.key !== "string" || (body.ai !== "ChatGPT" && body.ai !== "Claude") || typeof body.expires_at !== "string") return null;
+  return { key: body.key, ai: body.ai, expires_at: body.expires_at };
+}
+
+/// Allow by Connect in the app: the browser's key, and the session kept here, if any, so the server
+/// can refuse a browser signed in to another account.
+export function preAllowRequest(mcp: string, token: string | null, b: { id: string; from: string; preapproval: string }): [string, RequestInit] {
+  return [`${mcp}/connect/allow`, {
+    method: "POST",
+    headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), "content-type": "application/json" },
+    body: JSON.stringify(b),
+  }];
+}
+
+/// Where the start page goes on to: the page the app named, on ChatGPT's or Claude's own site
+/// only, else that AI's home.
+const AI_SITES: Record<StoredPre["ai"], string[]> = { ChatGPT: ["chatgpt.com"], Claude: ["claude.ai", "claude.com"] };
+export function startTarget(to: string | null, ai: StoredPre["ai"]): string {
+  try {
+    const u = new URL(to ?? "");
+    if (u.protocol === "https:" && AI_SITES[ai].includes(u.hostname)) return u.toString();
+  } catch {}
+  return `https://${AI_SITES[ai][0]}/`;
+}
+
+/// The start page's fragment: the ticket and the AI's page.
+export function startParams(hash: string): { ticket: string | null; to: string | null } {
+  const q = new URLSearchParams(hash.replace(/^#/, ""));
+  const t = q.get("t");
+  return { ticket: t && /^amb_pre_[0-9a-f]{64}$/.test(t) ? t : null, to: q.get("to") };
 }

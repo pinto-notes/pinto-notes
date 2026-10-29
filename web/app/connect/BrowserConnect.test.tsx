@@ -3,9 +3,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLabel } from "@/lib/connect";
-import { codeRequestError, consentWords, hereFrom, requestedLine, safeReturn, SESSION_KEY } from "@/lib/connect-browser";
+import { codeRequestError, consentWords, hereFrom, loadPre, PRE_KEY, requestedLine, safeReturn, SESSION_KEY, startParams, startTarget } from "@/lib/connect-browser";
 import BrowserConnect from "./BrowserConnect";
 import { BACK_LINK_AFTER_MS, BrowserFrame, ConnectedScreen } from "./BrowserScreens";
+import StartConnect from "./start/StartConnect";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -285,5 +286,118 @@ describe("the frame's pair", () => {
     expect(el.querySelector("a")!.textContent).toBe("Back to ChatGPT");
     act(() => r.unmount());
     vi.useRealTimers();
+  });
+});
+
+describe("Connect in the app counts as the Allow", () => {
+  const KEY = `amb_pb_${"cd".repeat(32)}`;
+  const keep = (ai = "ChatGPT", inMs = 300_000) => localStorage.setItem(PRE_KEY, JSON.stringify({ key: KEY, ai, expires_at: new Date(Date.now() + inMs).toISOString() }));
+
+  it("sends this browser's key with no sign-in or consent: a brief Connected, then back to ChatGPT", async () => {
+    keep();
+    const server = fakeServer();
+    vi.stubGlobal("fetch", server.fetch);
+    render();
+    await until(() => assigned.length === 1);
+    expect(assigned[0]).toBe(BACK);
+    expect(heading()).toBe("Connected");
+    expect(pair()).toEqual(["ChatGPT", true]);
+    const allow = server.calls.find((c) => c.url === `${MCP}/connect/allow`)!;
+    expect(allow.body).toMatchObject({ id: ID, preapproval: KEY });
+    expect(new Headers(allow.init.headers).get("authorization")).toBeNull();
+    // Never asked who is asking: there was nothing to show.
+    expect(server.calls.some((c) => c.url.includes("/connect/request"))).toBe(false);
+    // Used once, whatever the answer.
+    expect(localStorage.getItem(PRE_KEY)).toBeNull();
+  });
+
+  it("with a session kept here, sends it fresh, so the server can refuse another account", async () => {
+    keep();
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "old", refresh_token: "rt-old", user_id: "u1", email: "me@example.com" }));
+    const server = fakeServer();
+    vi.stubGlobal("fetch", server.fetch);
+    render();
+    await until(() => assigned.length === 1);
+    const allow = server.calls.find((c) => c.url === `${MCP}/connect/allow`)!;
+    expect(new Headers(allow.init.headers).get("authorization")).toBe("Bearer at-1");
+    // The refreshed session is kept: its old refresh token is spent.
+    expect(localStorage.getItem(SESSION_KEY)).toContain("rt-2");
+  });
+
+  it("refused: the key goes, and the page signs in and asks as before", async () => {
+    keep();
+    vi.stubGlobal("fetch", fakeServer({ allow: { status: 403, body: { error: "Sign in to connect.", hint: "preapproval" } } }).fetch);
+    render();
+    await until(() => !!container.querySelector("#connect-email"));
+    expect(heading()).toBe("Connect ChatGPT to your notes?");
+    expect(localStorage.getItem(PRE_KEY)).toBeNull();
+    expect(assigned).toEqual([]);
+  });
+
+  it("only for the AI it was made for, and only in time", async () => {
+    for (const [ai, inMs] of [["Claude", 300_000], ["ChatGPT", -1]] as const) {
+      keep(ai, inMs);
+      const server = fakeServer();
+      vi.stubGlobal("fetch", server.fetch);
+      render();
+      await until(() => !!container.querySelector("#connect-email"));
+      expect(server.calls.some((c) => c.url === `${MCP}/connect/allow`)).toBe(false);
+    }
+  });
+
+  it("reads the start page's address, and goes on only to ChatGPT's or Claude's own site", () => {
+    const t = `amb_pre_${"ef".repeat(32)}`;
+    expect(startParams(`#t=${t}&to=${encodeURIComponent("https://chatgpt.com/plugins/x")}`)).toEqual({ ticket: t, to: "https://chatgpt.com/plugins/x" });
+    expect(startParams("#t=nope").ticket).toBeNull();
+    expect(startTarget("https://chatgpt.com/plugins/x", "ChatGPT")).toBe("https://chatgpt.com/plugins/x");
+    expect(startTarget("https://claude.ai/directory/amber-notes", "Claude")).toBe("https://claude.ai/directory/amber-notes");
+    expect(startTarget("https://evil.example/", "ChatGPT")).toBe("https://chatgpt.com/");
+    expect(startTarget("https://claude.ai/x", "ChatGPT")).toBe("https://chatgpt.com/");
+    expect(startTarget("http://chatgpt.com/", "ChatGPT")).toBe("https://chatgpt.com/");
+    expect(startTarget(null, "Claude")).toBe("https://claude.ai/");
+    expect(loadPre({ getItem: () => "{bad" }, "ChatGPT")).toBeNull();
+  });
+});
+
+describe("the start page", () => {
+  const T = `amb_pre_${"ef".repeat(32)}`;
+  const LISTING = "https://chatgpt.com/plugins/plugin_x";
+  let replaced: string[];
+  beforeEach(() => {
+    replaced = [];
+    vi.spyOn(window.location, "replace").mockImplementation((u: string | URL) => { replaced.push(String(u)); });
+  });
+
+  function open(hash: string, answer: { status: number; body: unknown }) {
+    window.history.replaceState(null, "", `/connect/start${hash}`);
+    const calls: Call[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      calls.push({ url: String(input), init, body: JSON.parse(String(init.body ?? "{}")) });
+      return new Response(JSON.stringify(answer.body), { status: answer.status, headers: { "content-type": "application/json" } });
+    }));
+    act(() => root.render(<StartConnect mcp={MCP} />));
+    return calls;
+  }
+
+  it("swaps the ticket for this browser's key, takes it out of the address, and goes on to ChatGPT", async () => {
+    const until10 = new Date(Date.now() + 600_000).toISOString();
+    const calls = open(`#t=${T}&to=${encodeURIComponent(LISTING)}`, { status: 200, body: { key: "amb_pb_1", ai: "ChatGPT", expires_at: until10 } });
+    await until(() => replaced.length === 1);
+    expect(replaced[0]).toBe(LISTING);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(`${MCP}/connect/redeem`);
+    expect(calls[0].body).toEqual({ ticket: T });
+    expect(window.location.hash).toBe("");
+    expect(JSON.parse(localStorage.getItem(PRE_KEY)!)).toEqual({ key: "amb_pb_1", ai: "ChatGPT", expires_at: until10 });
+    expect(container.textContent).toContain("Opening ChatGPT…");
+    expect(pair()).toEqual(["ChatGPT", false]);
+  });
+
+  it("a spent or missing ticket says to press Connect again, and goes nowhere", async () => {
+    open(`#t=${T}`, { status: 404, body: { error: "expired", hint: "expired" } });
+    await until(() => heading() === "This link has expired");
+    expect(container.textContent).toContain("Choose Connect in Pinto Notes again.");
+    expect(replaced).toEqual([]);
+    expect(localStorage.getItem(PRE_KEY)).toBeNull();
   });
 });

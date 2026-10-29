@@ -123,6 +123,12 @@ describe("the connect pages' CSP", () => {
     expect(policy).not.toContain("unsafe-inline");
   });
 
+  it("gives /connect/start, where Connect in the app opens, the strict policy and the function", async () => {
+    const policy = await csp("/connect/start");
+    expect(policy).toContain(`connect-src 'self' ${SUPABASE};`);
+    expect(policy).not.toContain("unsafe-inline");
+  });
+
   it("gives the Dev-only /connect/preview the same strict policy, with no network", async () => {
     const policy = await csp("/connect/preview?state=scan");
     expect(policy).toContain("style-src 'self' 'nonce-");

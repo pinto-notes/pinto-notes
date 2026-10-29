@@ -20,7 +20,7 @@ export function themeFor(path: string): "cream" | "leaf" | "connect" | null {
 /// gets two headers; theme.test.ts checks every page that draws one. `copyIds` are the prompts
 /// /copy/<id> has a page for (lib/try-prompts.json): any other id is the site's 404, with the header.
 export function ownTopBar(path: string, copyIds: readonly string[] = []): boolean {
-  if (["/connect", "/connect/preview", "/open/connect", "/reset-password", "/unsubscribe"].includes(path)) return true;
+  if (["/connect", "/connect/preview", "/connect/start", "/open/connect", "/reset-password", "/unsubscribe"].includes(path)) return true;
   const copy = /^\/copy\/([^/]+)$/.exec(path);
   return !!copy && copyIds.includes(copy[1]);
 }
