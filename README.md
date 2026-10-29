@@ -22,7 +22,7 @@ Pinto Notes is a notes app for Mac and iPhone that ChatGPT, Claude, Claude Code 
 - **You see what changed, and undo it.** An AI's edits are tinted with its name. Every version is kept, with who made it.
 - **Feels like Apple Notes. Brings yours over.** Folders, checklists and tables, and a one-step Apple Notes import. Evernote, Google Keep, Obsidian, Notion and Bear exports come along too.
 - **A note can be an app.** Ask your AI to turn a note into a habit tracker or a budget. The text stays underneath.
-- **End-to-end encrypted, free and open source.** MIT licensed, no ads, no tracking.
+- **Encrypted, free and open source.** Notes are sealed on your devices before upload, and Advanced protection makes them end-to-end encrypted. MIT licensed, no ads, no tracking.
 
 <table align="center">
   <tr>
@@ -120,9 +120,9 @@ New versions ship most days: [Releases](https://github.com/pinto-notes/pinto-not
 
 ## Privacy and security
 
-- **End-to-end encryption.** Each account has one random 256-bit key, made on your first device and kept as a synced Keychain item, so iCloud Keychain carries it to your other iPhone or Mac. Note bodies, titles, folder names, files and old versions are sealed with AES-256-GCM before upload. The server holds no key.
+- **Encryption.** Each account has one random 256-bit key, made on your first device and kept as a synced Keychain item, so iCloud Keychain carries it to your other iPhone or Mac. Note bodies, titles, folder names, files and old versions are sealed with AES-256-GCM before upload. By default the server also keeps a copy of the key, sealed under a secret that is not in the database, so that signing in opens the notes on a new device. That means Pinto Notes could open a standard account's notes if it had to, for example under a court order, and so could someone who gets into the account. Advanced protection, in Settings, Security, deletes that copy, and the notes are then end-to-end encrypted ([how it works, and who can read what](docs/Technical/recoverable-key.md)).
 - **AI connections.** When you approve an AI, the app wraps your key under the OAuth authorization code; at the token exchange it is rewrapped under the access and refresh tokens, and the server keeps only token hashes. Disconnecting deletes the wrap.
-- **The honest limit.** During an AI request the server decrypts the notes that request needs, in memory. Notes you lock with the notes password stay out of reach, because that key isn't on the server. Dates, sizes, folder structure and which notes are locked stay readable. If you lose every device, have iCloud Keychain off and never saved the recovery key, nobody can open the notes.
+- **The honest limit.** During an AI request the server decrypts the notes that request needs, in memory. Notes you lock with the notes password stay out of reach, because that key isn't on the server. Dates, sizes, folder structure and which notes are locked stay readable. With Advanced protection on, if you lose every device and the recovery key, nobody can open the notes.
 - Row-level security applies to the app, the AI server and direct API calls alike, on top of the encryption. AI tokens are stored as hashes.
 - Shared pages are public to anyone with the link. The app warns before creating one, and a page stops working the moment you stop sharing.
 - The full design: [docs/Technical/e2ee-design.md](docs/Technical/e2ee-design.md) · [Privacy policy](https://pintonotes.com/privacy) · [Security policy](SECURITY.md)
