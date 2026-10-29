@@ -33,6 +33,12 @@ final class EditorCore {
     let layoutDelegate = DecoratingLayoutDelegate()
     var onChange: (String) -> Void = { _ in }
     var applyingEdit = false
+    /// Checklist lines ticked since the last sort. Each tick starts the wait again, so quick
+    /// ticks settle once, together, and nothing moves under a pointer that's still ticking.
+    private var pendingSort: DispatchWorkItem?
+    private var ticked: [Int] = []
+    /// Reorders sliding into place now.
+    private(set) var slides: [ReorderSlide.Running] = []
     private var lastActiveLine: NSRange?
     /// Each table's handle targets, by its index (see GridHitBox).
     private(set) var gridBoxes: [Int: GridHitBox] = [:]
@@ -469,6 +475,45 @@ final class EditorCore {
               let d = fragment.decoration, case .checkbox = d.kind else { return nil }
         let f = fragment.layoutFragmentFrame
         return fragment.checkboxRect(d).offsetBy(dx: f.minX, dy: f.minY)
+    }
+
+    /// The checklist line whose circle is drawn at `point` (text-container coordinates; `viewY` is
+    /// its height in the view). While rows slide, what's drawn there is a picture of a row, and
+    /// that row is the one, wherever its text already is.
+    func tickTarget(at point: CGPoint, viewY: CGFloat, layout: NSTextLayoutManager?) -> Int? {
+        if let drawn = slides.lazy.compactMap({ $0.line(atY: viewY) }).first {
+            guard let r = checkboxRect(line: drawn, layout: layout), abs(point.x - r.midX) < EditorMetrics.checkHitRadius else { return nil }
+            return drawn
+        }
+        return checkboxLine(at: point, layout: layout)
+    }
+
+    /// Sorts the checklist around `line` once the ticks stop for `ListEditing.sortDelay`.
+    func sortSoon(after line: Int, _ sort: @escaping @MainActor (Int) -> Void) {
+        pendingSort?.cancel()
+        if !ticked.contains(line) { ticked.append(line) }
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let lines = self.ticked
+                self.ticked = []
+                self.pendingSort = nil
+                lines.forEach(sort)
+            }
+        }
+        pendingSort = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + ListEditing.sortDelay, execute: work)
+    }
+
+    func slideStarted(_ slide: ReorderSlide.Running?) {
+        slides.removeAll { $0.done }
+        if let slide { slides.append(slide) }
+    }
+
+    /// Puts every sliding row where its text is, at once (a click or an edit while it slides).
+    func endSlides() {
+        slides.forEach { $0.stop() }
+        slides = []
     }
 
     func checkboxLine(at point: CGPoint, layout: NSTextLayoutManager?) -> Int? {
@@ -1082,6 +1127,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         guard markedTextRange == nil else { return }
         takeWhatArrivedWhileComposing()
         core.layoutDelegate.tint.stop()
+        // Rows still sliding would cover the new text.
+        core.endSlides()
         core.restyle(textStorage, selection: editingSelection, force: true)
         typingAttributes = core.styler.typingAttributes
         lastReported = text
@@ -1281,7 +1328,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private func checkboxLine(for p: CGPoint) -> Int? {
         let point = CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top)
-        return core.checkboxLine(at: point, layout: textLayoutManager)
+        return core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager)
     }
 
     /// The reader changed their text size or Bold Text: restyle to match, like Notes.
@@ -1294,19 +1341,22 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     @objc private func handleTap(_ g: UITapGestureRecognizer) {
         guard isEditable || controller?.ticksWhileReadOnly == true, let line = checkboxLine(for: g.location(in: self)),
               let edit = ListEditing.toggleCheckbox(in: text, lineStart: line) else { return }
+        // The row drawn under the finger, even while rows slide; then they stop where they're going.
+        core.endSlides()
         // A tick is a tap on a control: the caret, the scroll position and the keyboard stay as they were.
         let keep = selectedRange
         let offset = contentOffset
+        // The circle's place before the edit, while the line's layout is still current.
+        let circle = core.checkboxRect(line: line, layout: textLayoutManager)
         apply(edit)
         selectedRange = keep
         setContentOffset(offset, animated: false)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        if ListPrefix(line: (text as NSString).substring(with: (text as NSString).lineRange(for: NSRange(location: line, length: 0))))?.checkbox == true,
-           let r = core.checkboxRect(line: line, layout: textLayoutManager) {
+        if edit.replacement == "x", let r = circle {
             CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
         }
         guard controller?.ticksWhileReadOnly != true else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + ListEditing.sortDelay) { [weak self] in self?.sortChecklist(around: line) }
+        core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
     }
 
     /// Ticked items sink below the open ones, a moment after the tick, sliding into place.
@@ -1315,7 +1365,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let sel = selectedRange
         guard let edit = ListEditing.sortChecklist(in: text, around: min(line, (text as NSString).length), caret: sel.location) else { return }
         let old = ReorderSlide.lines(of: edit.range, in: text as NSString)
-        let frames = rowFrames(old.map(\.1.location))
+        let frames = ReorderSlide.bands(old.map(\.1.location), layout: textLayoutManager,
+                                        origin: CGPoint(x: textContainerInset.left, y: textContainerInset.top), width: bounds.width)
         let pictures = frames.compactMap { resizableSnapshotView(from: $0, afterScreenUpdates: false, withCapInsets: .zero) }
         let offset = contentOffset
         apply(TextEdit(range: edit.range, replacement: edit.replacement, caret: -1))
@@ -1323,26 +1374,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         setContentOffset(offset, animated: false)
         guard pictures.count == old.count, let first = frames.first, let last = frames.last else { return }
         let moves = ReorderSlide.moves(old: old.map(\.0), new: edit.replacement.components(separatedBy: "\n"))
+        let starts = ReorderSlide.lines(of: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), in: text as NSString).map(\.1.location)
         let tops = ReorderSlide.targets(heights: frames.map(\.height), moves: moves)
-        ReorderSlide.play(in: self, rows: Array(zip(pictures, frames)).map { ($0, $1) }, newTops: tops,
-                          cover: first.union(last), pageColor: .panePage)
-    }
-
-    /// Each row's band across the editor, from its top to the next row's top.
-    private func rowFrames(_ starts: [Int]) -> [CGRect] {
-        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return [] }
-        let tops: [CGFloat] = starts.compactMap { at in
-            guard let loc = tcm.location(tcm.documentRange.location, offsetBy: at) else { return nil }
-            tlm.ensureLayout(for: NSTextRange(location: loc))
-            return tlm.textLayoutFragment(for: loc).map { $0.layoutFragmentFrame.minY + textContainerInset.top }
-        }
-        guard tops.count == starts.count, let lastStart = starts.last,
-              let loc = tcm.location(tcm.documentRange.location, offsetBy: lastStart),
-              let lastFrag = tlm.textLayoutFragment(for: loc) else { return [] }
-        let pitch = tops.count > 1 ? tops[tops.count - 1] - tops[tops.count - 2] : lastFrag.layoutFragmentFrame.height
-        return tops.enumerated().map { i, y in
-            CGRect(x: 0, y: y, width: bounds.width, height: i + 1 < tops.count ? tops[i + 1] - y : max(pitch, lastFrag.layoutFragmentFrame.height))
-        }
+        core.slideStarted(ReorderSlide.play(in: self, rows: Array(zip(pictures, frames)).map { ($0, $1) }, newTops: tops,
+                                            lines: moves.map { starts[min($0, starts.count - 1)] }, cover: first.union(last), pageColor: .panePage))
     }
 
     // MARK: Hardware keyboard
@@ -1721,6 +1756,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard !hasMarkedText() else { return }
         takeWhatArrivedWhileComposing()
         core.layoutDelegate.tint.stop()
+        // Rows still sliding would cover the new text.
+        core.endSlides()
         core.restyle(textStorage!, selection: editingSelection, force: true)
         typingAttributes = core.styler.typingAttributes
         lastReported = string
@@ -2002,7 +2039,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let p = convert(event.locationInWindow, from: nil)
         if card(at: p) != nil { return }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
-        if core.checkboxLine(at: point, layout: textLayoutManager) != nil {
+        if core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager) != nil {
             NSCursor.arrow.set()
             return
         }
@@ -2012,17 +2049,23 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
-        if let line = core.checkboxLine(at: point, layout: textLayoutManager),
-           let edit = ListEditing.toggleCheckbox(in: string, lineStart: line) {
+        // The row drawn under the pointer, even while rows slide; then they stop where they're going.
+        let target = core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager)
+        core.endSlides()
+        if let line = target, let edit = ListEditing.toggleCheckbox(in: string, lineStart: line) {
+            // The circle's place before the edit: right after it, TextKit may not have placed the
+            // line again yet, and the pop landed a row or two higher, over the heading.
+            let circle = core.checkboxRect(line: line, layout: textLayoutManager)
             let keep = selectedRange()
             apply(edit)
             setSelectedRange(keep)
-            let ns = string as NSString
-            if ListPrefix(line: ns.substring(with: ns.lineRange(for: NSRange(location: line, length: 0))))?.checkbox == true,
-               let r = core.checkboxRect(line: line, layout: textLayoutManager), let host = layer {
-                CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            if edit.replacement == "x", let r = circle, let host = layer {
+                // In this view's light or dark, so the pop is the colour of the circle it lands on.
+                effectiveAppearance.performAsCurrentDrawingAppearance {
+                    CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+                }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + ListEditing.sortDelay) { [weak self] in self?.sortChecklist(around: line) }
+            core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
             return
         }
         super.mouseDown(with: event)
@@ -2034,32 +2077,16 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let sel = selectedRange()
         guard let edit = ListEditing.sortChecklist(in: string, around: min(line, (string as NSString).length), caret: sel.location) else { return }
         let old = ReorderSlide.lines(of: edit.range, in: string as NSString)
-        let frames = rowFrames(old.map(\.1.location))
+        let frames = ReorderSlide.bands(old.map(\.1.location), layout: textLayoutManager, origin: textContainerOrigin, width: bounds.width)
         let pictures = frames.compactMap { ReorderSlide.picture(of: $0, in: self) }
         apply(TextEdit(range: edit.range, replacement: edit.replacement, caret: -1))
         setSelectedRange(NSRange(location: edit.caret >= 0 ? edit.caret : sel.location, length: edit.caret >= 0 ? 0 : sel.length))
         guard pictures.count == old.count, let first = frames.first, let last = frames.last else { return }
         let moves = ReorderSlide.moves(old: old.map(\.0), new: edit.replacement.components(separatedBy: "\n"))
+        let starts = ReorderSlide.lines(of: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), in: string as NSString).map(\.1.location)
         let tops = ReorderSlide.targets(heights: frames.map(\.height), moves: moves)
-        ReorderSlide.play(in: self, rows: Array(zip(pictures, frames)).map { (image: $0, frame: $1) }, newTops: tops,
-                          cover: first.union(last), pageColor: .panePage)
-    }
-
-    /// Each row's band across the editor, from its top to the next row's top.
-    private func rowFrames(_ starts: [Int]) -> [CGRect] {
-        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return [] }
-        let tops: [CGFloat] = starts.compactMap { at in
-            guard let loc = tcm.location(tcm.documentRange.location, offsetBy: at) else { return nil }
-            tlm.ensureLayout(for: NSTextRange(location: loc))
-            return tlm.textLayoutFragment(for: loc).map { $0.layoutFragmentFrame.minY + textContainerOrigin.y }
-        }
-        guard tops.count == starts.count, let lastStart = starts.last,
-              let loc = tcm.location(tcm.documentRange.location, offsetBy: lastStart),
-              let lastFrag = tlm.textLayoutFragment(for: loc) else { return [] }
-        let pitch = tops.count > 1 ? tops[tops.count - 1] - tops[tops.count - 2] : lastFrag.layoutFragmentFrame.height
-        return tops.enumerated().map { i, y in
-            CGRect(x: 0, y: y, width: bounds.width, height: i + 1 < tops.count ? tops[i + 1] - y : max(pitch, lastFrag.layoutFragmentFrame.height))
-        }
+        core.slideStarted(ReorderSlide.play(in: self, rows: Array(zip(pictures, frames)).map { (image: $0, frame: $1) }, newTops: tops,
+                                            lines: moves.map { starts[min($0, starts.count - 1)] }, cover: first.union(last), pageColor: .panePage))
     }
 }
 #endif

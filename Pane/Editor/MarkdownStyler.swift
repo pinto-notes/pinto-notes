@@ -579,16 +579,14 @@ struct MarkdownStyler {
                 p.paragraphSpacing = max(0, EditorMetrics.checkPitch - line - p.lineSpacing)
             }
             if let checked = list.checkbox {
-                // On the Mac ticked items keep their text colour, like Notes: the filled circle says
-                // it's done. On iPhone, the welcome note's: muted and struck through.
+                // Ticked items are muted and struck through, the welcome note's look, on iPhone
+                // and Mac alike (Notes keeps their colour; the Mac follows the iPhone since 29 October 2026).
                 storage.addAttribute(.paneLine, value: LineDecoration(.checkbox(checked: checked), markerX: markerX), range: enclosing)
-                #if os(iOS)
                 if checked, NSMaxRange(prefix) < NSMaxRange(lineRange) {
                     let text = NSRange(location: NSMaxRange(prefix), length: NSMaxRange(lineRange) - NSMaxRange(prefix))
                     storage.addAttributes([.foregroundColor: Palette.muted, .strikethroughStyle: NSUnderlineStyle.single.rawValue,
                                            .strikethroughColor: Palette.muted], range: text)
                 }
-                #endif
             } else {
                 storage.addAttribute(.paneLine, value: LineDecoration(list.marker == "-" ? .dash : .bullet, markerX: markerX), range: enclosing)
             }

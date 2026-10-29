@@ -70,12 +70,12 @@ import Testing
     @Test func circlesMatchNotesInLight() async throws { try await measure(dark: false) }
     @Test func circlesMatchNotesInDark() async throws { try await measure(dark: true) }
 
-    @Test func tickedItemsKeepTheirTextColour() async {
+    @Test func tickedItemsAreMutedAndStruckThrough() async {
         let h = await EditorHarness(Self.note, focus: false)
         defer { h.close() }
         let at = (h.text as NSString).range(of: "Eggs").location
         let color = h.view.textStorage!.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor
-        #expect(color == nil || color == PColor.paneLabel, "Notes leaves ticked text as it is")
+        #expect(color == Palette.muted, "muted like the iPhone, not Notes' unchanged colour")
     }
 }
 #endif
