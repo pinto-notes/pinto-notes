@@ -9,6 +9,8 @@ struct SignInView: View {
     let heading: Heading
     /// Captures: start with the cursor in the email field, to show its focused state.
     var focusEmail = false
+    /// Only the email form (the Mac's first-run panel, whose own rows are Apple and Google).
+    var emailOnly = false
     @State private var flow: EmailSignInFlow
     @State private var working = false
     /// Which way in is working: its own button spins, never another one.
@@ -38,10 +40,12 @@ struct SignInView: View {
 
     /// `error`: captures only, the screen as it looks after a failed try.
     /// `pressed`: captures only, a way in that is under way.
-    init(backend: Backend, flow: EmailSignInFlow = EmailSignInFlow(), heading: Heading = .card, focusEmail: Bool = false, error: String? = nil, pressed: Way? = nil) {
+    init(backend: Backend, flow: EmailSignInFlow = EmailSignInFlow(), heading: Heading = .card, focusEmail: Bool = false, emailOnly: Bool = false,
+         error: String? = nil, pressed: Way? = nil) {
         self.backend = backend
         self.heading = heading
         self.focusEmail = focusEmail
+        self.emailOnly = emailOnly
         _flow = State(initialValue: flow)
         _error = State(initialValue: error)
         _pressed = State(initialValue: pressed)
@@ -138,7 +142,7 @@ struct SignInView: View {
             VStack(spacing: 12) {
                 // Asking for a password, the Apple and Google rows fold away as the password row comes in,
                 // so the main button keeps its place and the whole form fits above the keyboard.
-                if flow.showsApple {
+                if flow.showsApple, !emailOnly {
                     VStack(spacing: 12) {
                         AppleAuthButton(label: .signIn, height: Row.height, cornerRadius: Row.radius, title: "Sign in with Apple", web: webSignIn,
                                         busy: working && pressed == .apple) { result in

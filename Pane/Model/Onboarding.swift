@@ -210,8 +210,9 @@ final class OnboardingStore {
             close()
             phase = .off
         } else if let step = saved(account) {
-            first = defaults.string(forKey: Onboarding.firstKey(account)).flatMap(Onboarding.Step.init(rawValue:)) ?? .name
-            phase = .showing(step)
+            first = opening(defaults.string(forKey: Onboarding.firstKey(account)).flatMap(Onboarding.Step.init(rawValue:)) ?? .name)
+            // A name step saved by the card flow resumes at this store's first.
+            phase = .showing(steps.contains(step) ? step : first)
             // A flow quit midway is shown again where it was.
             record(step.funnel, .shown)
         } else if Onboarding.isCandidate(created: created, holdsNothing: holdsNothing, now: now) {
@@ -288,8 +289,13 @@ final class OnboardingStore {
     func startReplay() {
         guard account != nil, phase == .off, hasSteps else { return }
         replay = true
-        first = .name
-        phase = .showing(.name)
+        first = opening(.name)
+        phase = .showing(first)
+    }
+
+    /// `step` if this store has it, else its first step (the Mac's first run has no name step).
+    private func opening(_ step: Onboarding.Step) -> Onboarding.Step {
+        steps.contains(step) ? step : steps.first ?? step
     }
 
     private func begin(nameKnown: Bool) {
@@ -300,7 +306,7 @@ final class OnboardingStore {
             close()
             return
         }
-        first = Onboarding.first(nameKnown: nameKnown)
+        first = opening(Onboarding.first(nameKnown: nameKnown))
         if let account { defaults.set(first.rawValue, forKey: Onboarding.firstKey(account)) }
         show(first)
     }

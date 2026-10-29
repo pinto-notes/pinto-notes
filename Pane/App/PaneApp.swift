@@ -612,8 +612,15 @@ final class AppSession {
     @ObservationIgnored let context: ModelContext
     /// What the server knows about the account's setup (`SetupProgress`).
     let setup = SetupStore()
-    /// The first-run flow, for an account that was just made (see `Onboarding`).
+    /// The first-run flow, for an account that was just made (see `Onboarding`). On the Mac its
+    /// steps are the first-run panel's (`FirstRun`).
+    #if os(macOS)
+    let onboarding: OnboardingStore
+    /// The Mac's first-run panel over the app: sign-in, then the onboarding store's steps.
+    let firstRun: FirstRunModel
+    #else
     let onboarding = OnboardingStore()
+    #endif
     /// "Enjoying Pinto Notes?", once, after a week of use.
     let shareAsk = ShareAskStore()
     /// "How did you hear about Pinto Notes?", once, for a new account.
@@ -633,6 +640,11 @@ final class AppSession {
         self.backend = backend
         self.sync = sync
         self.context = context
+        #if os(macOS)
+        let store = OnboardingStore(steps: FirstRun.storeSteps)
+        onboarding = store
+        firstRun = FirstRunModel(store: store)
+        #endif
     }
 
     /// Runs `work` now and again each time `value` changes, cancelling the run before it: what a
@@ -792,9 +804,16 @@ final class AppSession {
             let won: Bool = try await client.rpc("claim_welcome_note").execute().value
             return won
         }, write: { body in
+            #if os(macOS)
+            // The Mac's first run asks for each thing and finishes it only when it has happened
+            // (FirstRun): no list of to-dos to tick. The claim still keeps other devices from
+            // writing one for this account.
+            return nil
+            #else
             let note = context.createNote(in: .all, body: body)
             SyncSignal.changed()
             return note.id
+            #endif
         })
         if id != nil { SidebarCard.closeHere(.mac, user) }
         #if os(iOS)
@@ -917,11 +936,11 @@ struct AppGate: View {
         // Only a key that needs the person takes the screen from the note (a new account's key,
         // made here, needs nobody).
         .onChange(of: handingOff && Self.keyNeedsPerson(crypto), initial: true) { _, needs in if needs { WelcomeHandoff.shared.leave() } }
+        #endif
         .onChange(of: Self.welcomesSilently(handingOff: handingOff, phase: crypto.phase, needsWelcome: crypto.needsWelcome,
                                             arrivedHow: crypto.arrivedHow), initial: true) { _, silent in
             if silent { crypto.welcomeShown() }
         }
-        #endif
         .sheet(item: $consent) { r in
             ConsentSheet(client: CaptureScreen.client, requestID: r.id, initial: .asking(r), finish: { _ in })
         }
@@ -940,7 +959,15 @@ struct AppGate: View {
     /// A sign-in from the iPhone's welcome note is under way (WelcomeHandoff): the note stays on
     /// the screen until it folds into the list, and the key screens stay behind it unless the key
     /// needs the person.
-    private var handingOff: Bool { [.waiting, .opening].contains(WelcomeHandoff.shared.phase) }
+    private var handingOff: Bool {
+        #if os(macOS)
+        // A sign-in from the first-run panel: the panel stays over the app while the key is made
+        // or fetched by itself.
+        session.firstRun.armed
+        #else
+        [.waiting, .opening].contains(WelcomeHandoff.shared.phase)
+        #endif
+    }
 
     static func keyGateShown(crypto: AccountCrypto, backend: Backend, handingOff: Bool = false) -> Bool {
         gateShown(phase: crypto.phase, needsWelcome: crypto.needsWelcome,
@@ -986,6 +1013,10 @@ struct AppGate: View {
 
     private var gate: some View {
         Group {
+            if firstRunShown {
+                // The Mac's first run: the real app from the first second, the panel over it.
+                app
+            } else {
             switch backend.state {
             case .signedOut:
                 WelcomeFlow(backend: backend)
@@ -1024,25 +1055,23 @@ struct AppGate: View {
                 .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
                 .transition(.opacity)
             case .disabled, .signedIn:
-                RootView()
-                    .environment(backend)
-                    .environment(sync)
-                    .environment(\.networkReach, sync.reach)
-                    .environment(setup)
-                    .environment(onboarding)
-                    .shareAskSheet(shareAsk)
-                    .heardFromSheet(heardFrom)
-                    .task {
-                        try? await Task.sleep(for: .seconds(1.2))
-                        shareAsk.showIfForced()
-                        heardFrom.showIfForced()
-                    }
-                    .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
-                    .transition(.opacity)
+                app
+            }
             }
         }
         #if os(macOS)
-        .background(WindowShaper(compact: cardShown || onboardingShown, cardSize: WelcomeFlow.size))
+        .background(WindowShaper(compact: (cardShown || onboardingShown) && !firstRunShown, cardSize: WelcomeFlow.size))
+        .onChange(of: backend.state) { _, state in
+            if case .signedIn = state, session.firstRun.armed { session.firstRun.signedIn() }
+        }
+        .onChange(of: onboarding.step, initial: true) { _, step in session.firstRun.follow(step) }
+        // Played again from the Help menu: the panel starts clean.
+        .onChange(of: onboarding.replay) { _, replay in if replay { session.firstRun.reset(signedIn: true); session.firstRun.follow(onboarding.step) } }
+        // Signed in from the panel, the key open by itself, and no flow for this account (one from
+        // before): the notes. A key that needs you: its screen.
+        .onChange(of: firstRunDisarms, initial: true) { _, disarm in if disarm { session.firstRun.disarm() } }
+        .onAppear { session.firstRun.name = ProfileStore.shared.name.flatMap { $0.split(separator: " ").first.map(String.init) } }
+        .onChange(of: ProfileStore.shared.name) { _, name in session.firstRun.name = name.flatMap { $0.split(separator: " ").first.map(String.init) } }
         #endif
         .animation(.easeOut(duration: 0.25), value: backend.state)
         .animation(.easeOut(duration: 0.25), value: onboardingShown)
@@ -1128,6 +1157,73 @@ struct AppGate: View {
         }
         .onAppear { context.drainInbox() }
     }
+
+    /// The notes window: on the Mac with the first-run panel over it while it asks.
+    private var app: some View {
+        RootView()
+            .environment(backend)
+            .environment(sync)
+            .environment(\.networkReach, sync.reach)
+            .environment(setup)
+            .environment(onboarding)
+            .shareAskSheet(shareAsk)
+            .heardFromSheet(heardFrom)
+            .task {
+                try? await Task.sleep(for: .seconds(1.2))
+                shareAsk.showIfForced()
+                heardFrom.showIfForced()
+            }
+            .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
+            #if os(macOS)
+            .overlay {
+                if firstRunShown {
+                    FirstRunOverlay(model: session.firstRun, backend: backend, sync: sync, finish: finishFirstRun)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: firstRunShown)
+            #endif
+            .transition(.opacity)
+    }
+
+    /// The Mac's first run is over the window: signed out on a Mac that holds nothing yet, a
+    /// sign-in from the panel on its way into the notes, or a new account's steps.
+    private var firstRunShown: Bool {
+        #if os(macOS)
+        Self.firstRunShown(state: backend.state, holdsNothing: { SyncEngine.holdsNothing(context) }, keyGate: keyGateShown,
+                           armed: session.firstRun.armed, covers: onboarding.covers(backend.userID))
+        #else
+        false
+        #endif
+    }
+
+    static func firstRunShown(state: Backend.State, holdsNothing: () -> Bool, keyGate: Bool, armed: Bool, covers: Bool) -> Bool {
+        switch state {
+        // A Mac that has held an account's notes signs in on the welcome's card, as before.
+        case .signedOut: holdsNothing()
+        case .signedIn: !keyGate && (armed || covers)
+        case .disabled: false
+        }
+    }
+
+    #if os(macOS)
+    /// Signed in from the panel, the key open (or needing you), and the flow decided.
+    private var firstRunDisarms: Bool {
+        guard session.firstRun.armed, case .signedIn = backend.state else { return false }
+        if Self.keyNeedsPerson(crypto) { return true }
+        return crypto.phase == .ready && onboarding.phase == .off
+    }
+
+    /// The panel has landed: the flow is over and the notes open where it left them. Setup is
+    /// then over on the server, for every device (a replay from the Help menu marks nothing).
+    private func finishFirstRun(_ landing: Onboarding.Landing?) {
+        let replay = onboarding.replay
+        SyncSignal.changed()
+        onboarding.finish(landing: landing ?? (replay ? nil : .newNote))
+        if !replay { Task { await setup.mark("dismissed") } }
+        session.firstRun.reset(signedIn: true)
+    }
+    #endif
 
     /// The first-run flow (or the short wait before it) has the window. After the key gate:
     /// a new account adds this device first.
