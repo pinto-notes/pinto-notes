@@ -220,11 +220,14 @@ struct WelcomeNoteView: View {
     /// often the way in has come up (the test that plays it to the end checks it did).
     static var pace = 1.0
     static var wayInShown = 0
+    /// Tests: called after every pause of the writing, with what was shown during it on screen.
+    static var stepped: (() -> Void)?
 
     private struct Skipped: Error {}
 
     private func pause(_ ms: Int) async throws {
         try await Task.sleep(for: .milliseconds(Double(ms) * Self.pace))
+        Self.stepped?()
         if done { throw Skipped() }
     }
 
@@ -265,7 +268,7 @@ struct WelcomeEditorPage: View {
     @State private var controller: EditorController = {
         let c = EditorController()
         c.readOnly = true
-        c.ticksWhileReadOnly = true
+        c.inert = true
         return c
     }()
     @State private var lit = -1
@@ -273,23 +276,27 @@ struct WelcomeEditorPage: View {
 
     private var text: String { WelcomeNote.text(progress, for: .iPhone, ticked: ticked) }
 
+    /// The paper reaches up under the status bar. The hand-off's page leaves that to its own paper,
+    /// which fades to show the note screen's buttons.
+    var paperToTop = true
+
     var body: some View {
-        // Under an empty inline navigation bar, as the note screen is: the text sits exactly where
-        // the editor puts it when the note opens.
-        NavigationStack {
-            MarkdownEditor(initialText: text, header: DateBucket.header(date), controller: controller, identifier: "welcome.editor") { new in
-                // A tick by hand: the only change the read-only editor makes.
-                let now = WelcomeNote.ticks(in: new, for: .iPhone)
-                if now != ticked { ticked = now }
-            }
-            .ignoresSafeArea(.container, edges: .bottom)
-            .background(Color.notePage.ignoresSafeArea())
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            // The bar is there, empty, so the text starts where the note screen starts it.
-            .toolbar(.visible, for: .navigationBar)
+        // No bar: the date sits just under the status bar. The note screen puts it a bar lower
+        // (WelcomeHandoffPage settles it there when the note opens).
+        MarkdownEditor(initialText: text, header: DateBucket.header(date), controller: controller, identifier: "welcome.editor") { new in
+            // A tick by hand: the only change the read-only editor makes.
+            let now = WelcomeNote.ticks(in: new, for: .iPhone)
+            if now != ticked { ticked = now }
         }
+        .ignoresSafeArea(.container, edges: .bottom)
+        .background(Color.notePage.ignoresSafeArea(edges: paperToTop ? .all : .bottom))
+        // Read in the view as it is now: a closure kept from before would draw a caret where the
+        // text was then (the blink once put yours back at the start of the note).
         .onChange(of: text, initial: true) { _, _ in carets() }
+        .onChange(of: blink) { _, _ in carets() }
+        .onChange(of: you) { _, _ in carets() }
+        .onChange(of: ai?.0) { _, _ in carets() }
+        .onChange(of: ai?.1) { _, _ in carets() }
         .onChange(of: bottomReserve, initial: true) { _, r in controller.bottomReserve = r }
         // Only while it's being written, one to-do at a time: a note finished at once has nothing lit.
         .onChange(of: progress.todos.count) { old, count in if count == old + 1 { light(count - 1) } }
@@ -304,7 +311,6 @@ struct WelcomeEditorPage: View {
             while you != nil, !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
                 blink.toggle()
-                carets()
             }
         }
     }
@@ -356,37 +362,85 @@ struct WelcomeEditorPage: View {
         }
     }
 
-    private static let yours = UUID(uuidString: "00000000-0000-0000-0000-00000000C0DE")!
-    private static let theirs = UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")!
+    static let yours = UUID(uuidString: "00000000-0000-0000-0000-00000000C0DE")!
+    static let theirs = UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")!
+}
+
+/// The finished welcome over the note screen as it opens. It starts where the welcome was, the
+/// date just under the status bar; settled, it is a bar lower, exactly where the note screen puts
+/// the note, and the paper over the screen's bars has faded so their buttons show. Each bar's height
+/// is read from an empty note screen drawn out of sight, so it is the screen's own.
+struct WelcomeHandoffPage: View {
+    @Binding var ticked: Set<Int>
+    var settled = false
+    var date = Date.now
+    /// The safe area here, and under the note screen's bars.
+    @State private var outside = EdgeInsets()
+    @State private var inside = EdgeInsets()
+
+    /// How much lower the note screen starts the note than the welcome does: its top bar.
+    var drop: CGFloat { max(0, inside.top - outside.top) }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            NavigationStack {
+                Color.clear
+                    .ignoresSafeArea()
+                    .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { inside = $0 }
+                    .navigationTitle("")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar(.visible, for: .navigationBar)
+                    .toolbar { ToolbarItem(placement: .bottomBar) { Image(systemName: "square") } }
+            }
+            .opacity(0)
+            .accessibilityHidden(true)
+            // Over the bars: fades as the page settles, so the buttons under it come up.
+            Color.notePage.opacity(settled ? 0 : 1).ignoresSafeArea()
+            WelcomeEditorPage(ticked: $ticked, date: date, paperToTop: false)
+                .offset(y: settled ? drop : 0)
+                // Never over the bottom bar: its buttons come up with the top bar's.
+                .mask { Rectangle().padding(.top, -1000).padding(.bottom, inside.bottom) }
+        }
+        .background { Color.clear.ignoresSafeArea().onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { outside = $0 } }
+    }
 }
 
 /// Over everything after a sign-in from the welcome note (WelcomeHandoff). A new account: the
-/// finished note, exactly as the editor will show it, stays while the account is made; then the
-/// note opens in the editor underneath, the way in drops away and this goes, so the welcome simply
-/// becomes the note. An account from before: the note slides away to its notes.
+/// finished note, exactly as the welcome showed it, stays while the account is made; then the note
+/// opens in the editor underneath, the way in drops away, the page settles a bar lower as the
+/// bar's buttons fade in (with Reduce Motion, the welcome fades into the note instead), and this
+/// goes, so the welcome simply becomes the note. An account from before: the note slides away to
+/// its notes.
 struct WelcomeHandoffOverlay: View {
     @State private var handoff = WelcomeHandoff.shared
     @State private var gone = false
     @State private var wayInGone = false
+    @State private var settled = false
     /// The note is written: the button says done for a moment before the note opens.
     @State private var signedIn = false
     @State private var ticked: Set<Int> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// How long "done" shows, and how long the editor takes to open under the note.
+    /// How long "done" shows, how long the editor takes to open under the note, and the settle.
     static let doneHold = 0.4
-    static let openHold = 0.75
+    static let openHold = 0.4
+    static let settle = 0.35
 
     var body: some View {
         GeometryReader { g in
             let h = g.size.height + g.safeAreaInsets.top + g.safeAreaInsets.bottom
-            ZStack(alignment: .bottom) {
-                WelcomeEditorPage(ticked: $ticked)
+            ZStack {
+                WelcomeHandoffPage(ticked: $ticked, settled: settled && !reduceMotion)
+                    .opacity(settled && reduceMotion ? 0 : 1)
                     .offset(y: gone ? h : 0)
-                HandoffWayIn(way: handoff.way, done: signedIn)
-                    .padding(.bottom, g.safeAreaInsets.bottom)
-                    .offset(y: gone || wayInGone ? h : 0)
+                ZStack(alignment: .bottom) {
+                    Color.clear
+                    HandoffWayIn(way: handoff.way, done: signedIn)
+                        .padding(.bottom, g.safeAreaInsets.bottom)
+                        .offset(y: gone || wayInGone ? h : 0)
+                }
+                .ignoresSafeArea()
             }
-            .ignoresSafeArea()
         }
         .allowsHitTesting(false)
         .onAppear { ticked = handoff.ticked }
@@ -395,10 +449,13 @@ struct WelcomeHandoffOverlay: View {
             withAnimation(.snappy(duration: 0.2)) { signedIn = true }
             Task {
                 try? await Task.sleep(for: .seconds(Self.doneHold))
-                // The note opens in the editor, under this: the same note, the same place.
+                // The note opens in the editor, under this: the same note, a bar lower.
                 NoteOpener.shared.open(id)
                 withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.3)) { wayInGone = true }
                 try? await Task.sleep(for: .seconds(Self.openHold))
+                // One eased move, no bounce: the page settles under the bar as its buttons come up.
+                withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: Self.settle)) { settled = true }
+                try? await Task.sleep(for: .seconds(Self.settle + 0.05))
                 handoff.opened()
             }
         }

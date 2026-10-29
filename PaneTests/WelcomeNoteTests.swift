@@ -178,51 +178,208 @@ import UIKit
         #expect(WelcomeNoteView.wayInShown == before + 1)
     }
 
-
-    /// The welcome, finished, and the editor showing the saved note are the same picture where the
-    /// note is (Emil, 28 October 2026: "why does the welcome note look different when actually
-    /// open?"), so the welcome turning into the note can't be seen. Both drawn in the same window,
-    /// light and dark; the note's region (below the top buttons, above the bottom ones) compared
-    /// pixel by pixel.
-    @Test(arguments: [false, true])
-    func theWelcomeIsTheNoteAsTheEditorShowsIt(dark: Bool) async throws {
+    /// While it writes, the only carets are the writers': yours, then ChatGPT's and Claude's, each
+    /// at the end of what it has typed, through every pause. The editor's own caret never shows,
+    /// and no caret goes back to the start of the note (Emil, 29 October 2026: "in between emulated
+    /// typing, the caret resets back to the first position in the note"; the blink redrew your
+    /// caret where the note began).
+    @Test func whileItWritesEveryCaretStaysAtTheEndOfItsText() async throws {
+        WelcomeNoteView.pace = 0.4
+        defer { WelcomeNoteView.pace = 1; WelcomeNoteView.stepped = nil }
+        let before = WelcomeNoteView.wayInShown
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let size = CGSize(width: 402, height: 874)
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        func draw(_ view: some View) async throws -> CGImage {
-            let window = UIWindow(windowScene: scene)
-            window.frame = CGRect(origin: .zero, size: size)
-            window.overrideUserInterfaceStyle = dark ? .dark : .light
-            window.rootViewController = UIHostingController(rootView: view.tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US")))
-            window.isHidden = false
-            defer { window.isHidden = true }
-            try? await Task.sleep(for: .seconds(1.2))
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = 1
-            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-            }
-            return try #require(image.cgImage)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: WelcomeNoteView(backend: Backend(), useEmail: {}))
+        window.isHidden = false
+        defer { window.isHidden = true }
+        func editor(in view: UIView) -> PaneTextView? {
+            if let tv = view as? PaneTextView { return tv }
+            for v in view.subviews { if let tv = editor(in: v) { return tv } }
+            return nil
         }
-        let ticked: Set<Int> = [0]
-        let welcome = try await draw(WelcomeEditorPage(ticked: .constant(ticked), date: date))
+        var steps = 0, carets = 0
+        var problems: [String] = []
+        WelcomeNoteView.stepped = {
+            guard let tv = editor(in: window) else { return }
+            steps += 1
+            if tv.isFirstResponder || tv.isEditable { problems.append("step \(steps): the editor's own caret could show") }
+            let length = (tv.text as NSString).length
+            guard length > 0 else { return }
+            let end = tv.caretRect(for: tv.endOfDocument), start = tv.caretRect(for: tv.beginningOfDocument)
+            for id in [WelcomeEditorPage.yours, WelcomeEditorPage.theirs] {
+                guard let bar = tv.remoteCaretFrame(id) else { continue }
+                carets += 1
+                // A caret is drawn a point left of its place (see layoutRemoteCarets); one sampled a
+                // keystroke early is a letter short of the end.
+                if abs(bar.minY - end.minY) > 1 || abs(bar.minX + 1 - end.minX) > 14 {
+                    problems.append("step \(steps): caret at \(bar.origin), the text ends at \(end.origin), the note starts at \(start.origin)")
+                }
+            }
+        }
+        for _ in 0..<100 where WelcomeNoteView.wayInShown == before { try await Task.sleep(for: .milliseconds(100)) }
+        #expect(WelcomeNoteView.wayInShown == before + 1, "played to the end")
+        #expect(steps > 60 && carets > 60, "sampled \(steps) steps, \(carets) carets")
+        #expect(problems.isEmpty, "\(problems.prefix(5))")
+    }
+
+
+    static func textView(in view: UIView) -> PaneTextView? {
+        if let tv = view as? PaneTextView { return tv }
+        for v in view.subviews { if let tv = textView(in: v) { return tv } }
+        return nil
+    }
+
+    static func window(_ view: some View) throws -> UIWindow {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.isHidden = false
+        return window
+    }
+
+    /// Signed out, the welcome is only shown (Emil, 29 October 2026: a tap brought up the keyboard
+    /// bar, and its to-dos ticked): a tap on the note or a checkbox changes nothing, nothing takes
+    /// focus, there's no keyboard bar, no selection and nothing for VoiceOver to edit.
+    @Test func signedOutTheWelcomeCantBeTouched() async throws {
+        let window = try Self.window(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}))
+        defer { window.isHidden = true }
+        window.makeKey()
+        try? await Task.sleep(for: .seconds(1))
+        let tv = try #require(Self.textView(in: window))
+        let before = tv.text
+        let line = try #require(before?.range(of: "- [ ] Bring")).lowerBound.utf16Offset(in: before ?? "")
+        let box = try #require(tv.checkboxCenter(line: line), "the second to-do's circle")
+        tv.tapCheckbox(at: box)
+        #expect(!tv.becomeFirstResponder(), "the note takes no focus")
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(tv.text == before, "nothing ticked or changed")
+        #expect(!tv.isFirstResponder && tv.inputAccessoryView?.window == nil, "no keyboard, no keyboard bar")
+        // Not editable: VoiceOver reads the text as text and offers nothing to edit.
+        #expect(!tv.isEditable && !tv.isSelectable, "no caret, selection, menu, link taps or edit actions")
+        #expect(!tv.accessibilityElementsHidden, "VoiceOver still reads it")
+    }
+
+    /// Handed over, it's an ordinary note: a tick works and so does typing.
+    @Test func handedOverTheNoteTicksAndEdits() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone))
+        let window = try Self.window(NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c))
+        defer { window.isHidden = true }
+        window.makeKey()
+        try? await Task.sleep(for: .seconds(1))
+        let tv = try #require(Self.textView(in: window))
+        let text = tv.text ?? ""
+        let line = try #require(text.range(of: "- [ ] Bring")).lowerBound.utf16Offset(in: text)
+        tv.tapCheckbox(at: try #require(tv.checkboxCenter(line: line)))
+        #expect(tv.text.contains("- [x] Bring your Apple Notes over"), "ticked")
+        #expect(tv.becomeFirstResponder(), "it takes focus")
+        tv.selectedRange = NSRange(location: (tv.text as NSString).length, length: 0)
+        tv.insertText("Buy milk")
+        #expect(tv.text.hasSuffix("Buy milk"), "typing works")
+        tv.resignFirstResponder()
+    }
+
+    /// One picture of `view` in an offscreen window the size of an iPhone 17 Pro, with where the
+    /// editor's date line is, the top of the safe area, and the bottom of the navigation bar (if any).
+    struct Drawn {
+        let image: CGImage
+        let dateY: CGFloat
+        let safeTop: CGFloat
+        let barBottom: CGFloat?
+    }
+
+    static let size = CGSize(width: 402, height: 874)
+    static let date = Date(timeIntervalSince1970: 1_800_000_000)
+    static let ticked: Set<Int> = [0]
+
+    static func draw(_ view: some View, dark: Bool = false) async throws -> Drawn {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        window.overrideUserInterfaceStyle = dark ? .dark : .light
+        window.rootViewController = UIHostingController(rootView: view.tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US")))
+        window.isHidden = false
+        defer { window.isHidden = true }
+        try? await Task.sleep(for: .seconds(1.2))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        func find<T: UIView>(_ type: T.Type, in v: UIView, where ok: (T) -> Bool = { _ in true }) -> T? {
+            if let t = v as? T, ok(t), !t.isHidden { return t }
+            for s in v.subviews { if let t = find(type, in: s, where: ok) { return t } }
+            return nil
+        }
+        let label = try #require(find(UILabel.self, in: window) { $0.accessibilityIdentifier == "editor.date" }, "the date line")
+        return Drawn(image: try #require(image.cgImage), dateY: label.convert(label.bounds, to: window).minY, safeTop: window.safeAreaInsets.top,
+                     barBottom: find(UINavigationBar.self, in: window).map { $0.convert($0.bounds, to: window).maxY })
+    }
+
+    static func editor(dark: Bool = false) async throws -> Drawn {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone, ticked: ticked))
         note.updatedAt = date
-        let editor = try await draw(NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c))
-        if let dir = ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map({ URL(fileURLWithPath: $0) }) {
-            for (name, image) in [("welcome", welcome), ("editor", editor)] {
-                try UIImage(cgImage: image).pngData()?.write(to: dir.appending(path: "welcome-match-\(name)-\(dark ? "dark" : "light").png"))
-            }
-        }
-        let region = CGRect(x: 0, y: 110, width: size.width, height: 400)
-        let difference = try Self.difference(welcome, editor, in: region)
-        #expect(difference < 0.01, "mean difference \(difference) in the note's region")
+        return try await draw(NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c), dark: dark)
     }
 
-    /// The mean difference of two images in `region`, 0 (the same) to 1, over RGB.
-    static func difference(_ a: CGImage, _ b: CGImage, in region: CGRect) throws -> Double {
-        func pixels(_ image: CGImage) throws -> [UInt8] {
+    /// The hand-off's page settled, over the paper of the note screen opening under it.
+    static func settled(dark: Bool = false) async throws -> Drawn {
+        try await draw(WelcomeHandoffPage(ticked: .constant(ticked), settled: true, date: date).background(Color.notePage.ignoresSafeArea()), dark: dark)
+    }
+
+    /// The welcome starts high: its date sits under the status bar as far as the note screen's date
+    /// sits under its bar, with no room kept for a bar (Emil, 29 October 2026: "you made it have the
+    /// top section but invisible during welcome screen. it looks a bit odd").
+    @Test func theWelcomesDateSitsJustUnderTheStatusBar() async throws {
+        let welcome = try await Self.draw(WelcomeEditorPage(ticked: .constant(Self.ticked), date: Self.date))
+        let editor = try await Self.editor()
+        let barBottom = try #require(editor.barBottom, "the note screen has its bar")
+        let spacing = editor.dateY - barBottom
+        #expect(spacing > 0 && spacing < 30, "the note screen's date is \(spacing) pt under its bar")
+        #expect(welcome.safeTop > 20, "a window with a status bar")
+        #expect(welcome.dateY >= welcome.safeTop, "under the status bar")
+        #expect(welcome.dateY - welcome.safeTop <= spacing + 2, "the welcome's date is \(welcome.dateY - welcome.safeTop) pt under the status bar")
+    }
+
+    /// Settled after a sign-in, the note is exactly where the note screen puts it.
+    @Test func afterTheHandOffTheNoteIsWhereTheEditorPutsIt() async throws {
+        let settled = try await Self.settled()
+        let editor = try await Self.editor()
+        #expect(abs(settled.dateY - editor.dateY) < 0.5, "date at \(settled.dateY), the editor's at \(editor.dateY)")
+    }
+
+    /// The welcome, finished, and the editor showing the saved note are the same picture where the
+    /// note is (Emil, 28 October 2026: "why does the welcome note look different when actually
+    /// open?"), so the welcome turning into the note can't be seen: the welcome a bar higher, and
+    /// the hand-off's page settled exactly. Drawn in the same window, light and dark; the note's
+    /// region (below the top buttons, above the bottom ones) compared pixel by pixel.
+    @Test(arguments: [false, true])
+    func theWelcomeIsTheNoteAsTheEditorShowsIt(dark: Bool) async throws {
+        let welcome = try await Self.draw(WelcomeEditorPage(ticked: .constant(Self.ticked), date: Self.date), dark: dark)
+        let settled = try await Self.settled(dark: dark)
+        let editor = try await Self.editor(dark: dark)
+        if let dir = ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map({ URL(fileURLWithPath: $0) }) {
+            for (name, d) in [("welcome", welcome), ("settled", settled), ("editor", editor)] {
+                try UIImage(cgImage: d.image).pngData()?.write(to: dir.appending(path: "welcome-match-\(name)-\(dark ? "dark" : "light").png"))
+            }
+        }
+        let region = CGRect(x: 0, y: 110, width: Self.size.width, height: 400)
+        // The welcome is the note a bar higher: the one shift for the whole page.
+        let shift = editor.dateY - welcome.dateY
+        #expect(shift > 30 && shift < 80, "the note screen's bar is \(shift) pt")
+        let shifted = try Self.difference(welcome.image, editor.image, in: region.offsetBy(dx: 0, dy: -shift.rounded()), region)
+        #expect(shifted < 0.01, "mean difference \(shifted) in the note's region, the welcome \(shift) pt higher")
+        let exact = try Self.difference(settled.image, editor.image, in: region)
+        #expect(exact < 0.01, "mean difference \(exact) in the note's region, settled")
+    }
+
+    /// The mean difference of two images in `region` (of `b`, `regionB` when it's elsewhere), 0
+    /// (the same) to 1, over RGB.
+    static func difference(_ a: CGImage, _ b: CGImage, in region: CGRect, _ regionB: CGRect? = nil) throws -> Double {
+        func pixels(_ image: CGImage, _ region: CGRect) throws -> [UInt8] {
             let w = Int(region.width), h = Int(region.height)
             var data = [UInt8](repeating: 0, count: w * h * 4)
             let ctx = try #require(CGContext(data: &data, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
@@ -230,7 +387,7 @@ import UIKit
             ctx.draw(image, in: CGRect(x: -region.minX, y: -(CGFloat(image.height) - region.maxY), width: CGFloat(image.width), height: CGFloat(image.height)))
             return data
         }
-        let p = try pixels(a), q = try pixels(b)
+        let p = try pixels(a, region), q = try pixels(b, regionB ?? region)
         var total = 0.0
         for i in stride(from: 0, to: p.count, by: 4) {
             total += Double(abs(Int(p[i]) - Int(q[i])) + abs(Int(p[i + 1]) - Int(q[i + 1])) + abs(Int(p[i + 2]) - Int(q[i + 2]))) / (3 * 255)

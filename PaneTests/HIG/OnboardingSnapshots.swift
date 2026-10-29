@@ -384,6 +384,40 @@ import UIKit
             let editor = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
             try await shoot(editor, "welcome-note-opened-\(dark ? "dark" : "light")", dark: dark)
         }
+        // The hand-off: the welcome over the note screen as it opens under it, settling a bar lower
+        // as the bar's buttons fade in. Before, halfway, after.
+        let settle = SettleSwitch()
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+        window.rootViewController = UIHostingController(rootView: ZStack {
+            NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+            SettlingHost(settle: settle)
+        }.tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US")))
+        window.isHidden = false
+        defer { window.isHidden = true }
+        try? await Task.sleep(for: .seconds(1.2))
+        func frame(_ name: String) throws {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+            }
+            try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
+        }
+        try frame("welcome-handoff-1-start")
+        withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: WelcomeHandoffOverlay.settle)) { settle.on = true }
+        try? await Task.sleep(for: .seconds(WelcomeHandoffOverlay.settle / 2))
+        try frame("welcome-handoff-2-halfway")
+        try? await Task.sleep(for: .seconds(WelcomeHandoffOverlay.settle))
+        try frame("welcome-handoff-3-settled")
+    }
+
+    @Observable final class SettleSwitch { var on = false }
+
+    struct SettlingHost: View {
+        let settle: SettleSwitch
+        @State private var ticked: Set<Int> = [0]
+        var body: some View { WelcomeHandoffPage(ticked: $ticked, settled: settle.on) }
     }
     #endif
     #if os(iOS)

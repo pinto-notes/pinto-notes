@@ -564,6 +564,8 @@ private struct PlatformEditor: UIViewRepresentable {
         view.setImages(controller.imagesArrived)
         // Recently Deleted: no keyboard, no caret.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
+        // The welcome: not even a selection, a menu or a link.
+        if view.isSelectable == controller.inert { view.isSelectable = !controller.inert }
         // Read here so a change to it lays the text out again.
         _ = controller.bottomReserve
         view.showRemoteCarets(controller.remoteCarets)
@@ -704,11 +706,17 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         return UIColor(red: r2 + (r1 - r2) * amount, green: g2 + (g1 - g2) * amount, blue: b2 + (b1 - b2) * amount, alpha: 1)
     }
 
+    /// The welcome before sign-in never takes focus, so no keyboard or keyboard bar comes up.
+    override var canBecomeFirstResponder: Bool { controller?.inert == true ? false : super.canBecomeFirstResponder }
+
     func showRemoteCarets(_ carets: [RemoteCaret]) {
         guard carets != remoteCarets else { return }
         remoteCarets = carets
         layoutRemoteCarets()
     }
+
+    /// Where a person's caret bar is drawn, if it is (tests).
+    func remoteCaretFrame(_ id: UUID) -> CGRect? { caretViews[id].map(\.bar.frame) }
 
     /// A bar in the person's colour where their caret is, exactly the line's height, and a tint over
     /// what they've selected. Their first name sits on a small flag that never hides text it can
@@ -1338,8 +1346,16 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: editingSelection, force: true)
     }
 
-    @objc private func handleTap(_ g: UITapGestureRecognizer) {
-        guard isEditable || controller?.ticksWhileReadOnly == true, let line = checkboxLine(for: g.location(in: self)),
+    @objc private func handleTap(_ g: UITapGestureRecognizer) { tapCheckbox(at: g.location(in: self)) }
+
+    /// Where a checkbox's circle is, in the view, for the line starting at `line` (tests).
+    func checkboxCenter(line: Int) -> CGPoint? {
+        core.checkboxRect(line: line, layout: textLayoutManager).map { CGPoint(x: $0.midX + textContainerInset.left, y: $0.midY + textContainerInset.top) }
+    }
+
+    /// A tap at `point`: on a checkbox's circle, in a note you can change, ticks it.
+    func tapCheckbox(at point: CGPoint) {
+        guard isEditable, let line = checkboxLine(for: point),
               let edit = ListEditing.toggleCheckbox(in: text, lineStart: line) else { return }
         // The row drawn under the finger, even while rows slide; then they stop where they're going.
         core.endSlides()
@@ -1355,7 +1371,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if edit.replacement == "x", let r = circle {
             CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
         }
-        guard controller?.ticksWhileReadOnly != true else { return }
         core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
     }
 
