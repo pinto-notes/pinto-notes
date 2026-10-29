@@ -135,7 +135,7 @@ import AppKit
     @Test func returnAllowsAfterTouchIDAndEscapeDoesNot() async throws {
         var confirmed: [String] = []
         var answered: [UUID] = []
-        var sheet = ConsentSheet(client: Self.client, requestID: Self.glama.id, initial: .asking(Self.glama), finish: { _ in },
+        var sheet = ConsentSheet(client: Self.client, requestID: Self.claude.id, initial: .asking(Self.claude), finish: { _ in },
                                  answering: { answered.append($0) })
         sheet.canConfirm = { true }
         sheet.confirm = { confirmed.append($0); return false }
@@ -143,12 +143,45 @@ import AppKit
         defer { w.close() }
         Self.press("\r", code: 36, in: w)
         try? await Task.sleep(for: .milliseconds(300))
-        #expect(confirmed == ["glama.ai"], "Return is Allow, and Allow asks for Touch ID first")
+        #expect(confirmed == ["Claude"], "Return is Allow, and Allow asks for Touch ID first")
         #expect(answered.isEmpty, "Touch ID said no: nothing is answered")
         Self.press("\u{1b}", code: 53, in: w)
         try? await Task.sleep(for: .milliseconds(300))
-        #expect(answered == [Self.glama.id], "Escape is Don't Allow")
+        #expect(answered == [Self.claude.id], "Escape is Don't Allow")
         #expect(confirmed.count == 1, "Don't Allow asks for nothing")
+    }
+
+    /// Steps (29 Oct 2026): an app Pinto can't name first asks whether you started it, on its own.
+    /// Yes leads to access and Allow (which arms a moment later, and still asks for Touch ID); No declines.
+    @Test func anUnknownAppAsksWhetherYouStartedItBeforeAccess() async throws {
+        var confirmed: [String] = []
+        var answered: [UUID] = []
+        var sheet = ConsentSheet(client: Self.client, requestID: Self.glama.id, initial: .asking(Self.glama), finish: { _ in },
+                                 answering: { answered.append($0) })
+        sheet.canConfirm = { true }
+        sheet.confirm = { confirmed.append($0); return false }
+        let (w, host) = await Self.host(sheet)
+        defer { w.close() }
+        Self.press("\r", code: 36, in: w)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(confirmed.isEmpty && answered.isEmpty, "Yes, I started it is not Allow")
+        Self.press("\r", code: 36, in: w)
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(confirmed.isEmpty, "Allow waits a moment after the step changes")
+        try? await Task.sleep(for: ConsentSheet.armDelay + .milliseconds(300))
+        host.layoutSubtreeIfNeeded()
+        Self.press("\r", code: 36, in: w)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(confirmed == ["glama.ai"], "then Return is Allow, with Touch ID")
+
+        var declined: [UUID] = []
+        let no = ConsentSheet(client: Self.client, requestID: Self.glama.id, initial: .asking(Self.glama), finish: { _ in },
+                              answering: { declined.append($0) })
+        let (w2, _) = await Self.host(no)
+        defer { w2.close() }
+        Self.press("\u{1b}", code: 53, in: w2)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(declined == [Self.glama.id], "No declines")
     }
 
     /// 13 October 2026: an answer that failed left the request held by this account, and the

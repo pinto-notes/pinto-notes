@@ -1214,6 +1214,9 @@ struct ConsentSheet: View {
     /// (`release`): on 13 October 2026 a failed answer left it held, and the recovery key on the
     /// page, signed in to another account, was turned away.
     @State private var serverAnswered = false
+    /// Mac: the first step was answered (the number matches, or the person started it), so the
+    /// sheet shows the access step with Allow.
+    @State private var checked = false
     var release: (SupabaseClient, UUID) async -> Void = { client, id in
         try? await ConnectAPI.release(id: id, send: ConnectAPI.sender(client))
     }
@@ -1248,7 +1251,7 @@ struct ConsentSheet: View {
         if case .asking(let r) = initial { _last = State(initialValue: r) }
     }
 
-    private struct Shown: Equatable { var phase: Phase; var match: Match? }
+    private struct Shown: Equatable { var phase: Phase; var match: Match?; var checked: Bool }
 
     var body: some View {
         sized
@@ -1262,7 +1265,7 @@ struct ConsentSheet: View {
                 if phase == .loading { await load() }
                 else if case .asking(let r) = phase { await opened(r) }
             }
-            .task(id: Shown(phase: phase, match: match)) {
+            .task(id: Shown(phase: phase, match: match, checked: checked)) {
                 armed = false
                 try? await Task.sleep(for: Self.armDelay)
                 if !Task.isCancelled { armed = true }
@@ -1325,7 +1328,7 @@ struct ConsentSheet: View {
     private var phaseKey: Int {
         switch phase {
         case .loading, .working: 0
-        case .asking: 1
+        case .asking: checked ? 4 : 1
         case .done, .handedOff: 2
         case .failed: 3
         }
@@ -1521,10 +1524,74 @@ struct ConsentSheet: View {
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
 
+    /// Mac: a request by number, or from an app Pinto can't name, first asks the one question that
+    /// keeps it safe, on its own; access and Allow come after.
+    private func checksFirst(_ r: ConnectRequest) -> Bool {
+        #if os(macOS)
+        byNumber(r) || (r.verifiedAI == nil && r.startedHere == nil)
+        #else
+        false
+        #endif
+    }
+
+    @ViewBuilder
     private func asking(_ r: ConnectRequest) -> some View {
+        if checksFirst(r) && !checked {
+            check(r)
+        } else {
+            choose(r)
+        }
+    }
+
+    /// Step one: is it you? The number, large, with a plain yes or no; or, for an app Pinto can't
+    /// name, its caution and whether you started it.
+    private func check(_ r: ConnectRequest) -> some View {
+        let unknown = r.verifiedAI == nil && r.startedHere == nil
+        return VStack(alignment: .leading, spacing: 18) {
+            if unknown { warning(r) }
+            if byNumber(r) {
+                VStack(spacing: 10) {
+                    if let match {
+                        Text(match.number)
+                            .font(.system(size: 72, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .accessibilityLabel("Number \(match.number.map(String.init).joined(separator: " "))")
+                            .accessibilityIdentifier("connect.number")
+                        Text("Is \(match.number) on your computer?")
+                            .font(.system(size: 15, weight: .semibold))
+                    } else {
+                        ProgressView().controlSize(.regular).frame(height: 86)
+                        Text("Waiting for your computer\u{2026}").font(.system(size: 13)).foregroundStyle(Color.muted)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            } else {
+                Text("Did you just start connecting it yourself?")
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            footer {
+                Button("No") { Task { await decide(r, allow: false) } }
+                    .buttonStyle(.secondary(Self.buttonSize))
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("connect.check.no")
+                Button(byNumber(r) ? "Yes, it matches" : "Yes, I started it") { checked = true }
+                    .buttonStyle(.amberProminent(Self.buttonSize))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!armed || (byNumber(r) && match == nil))
+                    .accessibilityIdentifier("connect.check.yes")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Step two (the only step for a known AI started here): access, what's shared, and Allow.
+    private func choose(_ r: ConnectRequest) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            if r.verifiedAI == nil, r.startedHere == nil { warning(r) }
-            if byNumber(r) { number }
+            if !checksFirst(r) {
+                if r.verifiedAI == nil, r.startedHere == nil { warning(r) }
+                if byNumber(r) { number }
+            }
             access(r)
             facts(r)
             footer { answers(r) }
@@ -1614,6 +1681,8 @@ struct ConsentSheet: View {
             .accessibilityIdentifier("connect.access")
             // A radio group at the keyboard: the arrows move the choice.
             .focusable(r.wants_write)
+            // The selected card shows the choice; a ring around both cards was a second outline.
+            .focusEffectDisabled()
             .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
                 guard r.wants_write else { return .ignored }
                 write = press.key == .leftArrow || press.key == .upArrow
