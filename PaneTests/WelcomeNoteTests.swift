@@ -190,7 +190,7 @@ import UIKit
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-        window.rootViewController = UIHostingController(rootView: WelcomeNoteView(backend: Backend(), useEmail: {}))
+        window.rootViewController = UIHostingController(rootView: WelcomeNoteView(backend: Backend()))
         window.isHidden = false
         defer { window.isHidden = true }
         func editor(in view: UIView) -> PaneTextView? {
@@ -243,7 +243,7 @@ import UIKit
     /// bar, and its to-dos ticked): a tap on the note or a checkbox changes nothing, nothing takes
     /// focus, there's no keyboard bar, no selection and nothing for VoiceOver to edit.
     @Test func signedOutTheWelcomeCantBeTouched() async throws {
-        let window = try Self.window(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}))
+        let window = try Self.window(WelcomeNoteView(backend: Backend(), finished: true))
         defer { window.isHidden = true }
         window.makeKey()
         try? await Task.sleep(for: .seconds(1))
