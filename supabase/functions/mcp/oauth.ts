@@ -50,7 +50,7 @@ export const SCOPES = ["notes:read", "notes:write"];
 const ACCESS_TTL = 60 * 60; // seconds
 const REFRESH_TTL_DAYS = 90;
 const CODE_TTL = 60; // seconds
-const LIMITS: Record<string, [number, number]> = { register: [30, 3600], authorize: [60, 600], token: [120, 600], request: [120, 600], label: [120, 600], decide: [60, 600], status: [400, 600], resend: [12, 600], allow: [30, 600] };
+const LIMITS: Record<string, [number, number]> = { register: [30, 3600], authorize: [60, 600], token: [120, 600], request: [120, 600], label: [120, 600], decide: [60, 600], status: [400, 600], resend: [12, 600], allow: [30, 600], preapprove: [20, 600], redeem: [30, 600] };
 
 export type Grant = { user_id: string; token_id: string; name: string; can_write: boolean; resource?: string; dk_wrap: string | null };
 
@@ -105,7 +105,7 @@ export function subpath(req: Request): string {
 }
 
 export function isOAuthPath(p: string) {
-  return p.startsWith("/.well-known/") || ["/register", "/authorize", "/token", "/revoke", "/connect/request", "/connect/label", "/connect/ask", "/connect/scan", "/connect/resend", "/connect/status", "/connect/nonce", "/connect/reveal", "/connect/decide", "/connect/allow", "/connect/release"].includes(p);
+  return p.startsWith("/.well-known/") || ["/register", "/authorize", "/token", "/revoke", "/connect/request", "/connect/label", "/connect/ask", "/connect/scan", "/connect/resend", "/connect/status", "/connect/nonce", "/connect/reveal", "/connect/decide", "/connect/allow", "/connect/release", "/connect/preapprove", "/connect/redeem"].includes(p);
 }
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -214,6 +214,7 @@ async function limited(sql: Sql, req: Request, bucket: string): Promise<boolean>
     await sql`delete from public.oauth_rate where at < now() - interval '2 hours'`;
     await sql`delete from public.oauth_requests where expires_at < now() - interval '1 day' and (code_expires_at is null or code_expires_at < now() - interval '1 day')`;
     await sql`delete from public.oauth_tokens where expires_at < now() - interval '1 day'`;
+    await sql`delete from public.connect_preapprovals where expires_at < now() - interval '1 day'`;
     // An expired token or code can't be used, so its wrap of the data key goes now, not in a day.
     await sql`update public.oauth_tokens set dk_wrap = null where expires_at < now() and dk_wrap is not null`;
     await sql`update public.oauth_requests set code_wrap = null where code_expires_at < now() and code_wrap is not null`;
@@ -380,6 +381,8 @@ export async function handleOAuth(req: Request, sql: Sql, path: string): Promise
       case "/connect/decide": return req.method === "POST" ? await decide(req, sql) : json({ error: "method_not_allowed" }, 405);
       case "/connect/allow": return req.method === "POST" ? await allowHere(req, sql) : json({ error: "method_not_allowed" }, 405);
       case "/connect/release": return req.method === "POST" ? await release(req, sql) : json({ error: "method_not_allowed" }, 405);
+      case "/connect/preapprove": return req.method === "POST" ? await preapprove(req, sql) : json({ error: "method_not_allowed" }, 405);
+      case "/connect/redeem": return req.method === "POST" ? await redeem(req, sql) : json({ error: "method_not_allowed" }, 405);
     }
   } catch (e) {
     log("oauth_error", { path_kind: path, ...errorKind(e) });
@@ -502,12 +505,12 @@ async function sessionUser(req: Request): Promise<string | null> {
   return typeof user?.id === "string" ? user.id : null;
 }
 
-type RequestRow = { id: string; client_id: string; client_name: string; redirect_uri: string; state: string | null; scope: string | null; resource: string; expires_at: Date; claimed_by: string | null };
+type RequestRow = { id: string; client_id: string; client_name: string; redirect_uri: string; state: string | null; scope: string | null; resource: string; created_at: Date; expires_at: Date; claimed_by: string | null };
 
 async function pending(sql: Sql, id: string): Promise<RequestRow | undefined> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return undefined;
   const [r] = await sql<RequestRow[]>`
-    select r.id, r.client_id, c.client_name, r.redirect_uri, r.state, r.scope, r.resource, r.expires_at, r.claimed_by
+    select r.id, r.client_id, c.client_name, r.redirect_uri, r.state, r.scope, r.resource, r.created_at, r.expires_at, r.claimed_by
     from public.oauth_requests r join public.oauth_clients c on c.id = r.client_id
     where r.id = ${id} and r.decided_at is null and r.expires_at > now()`;
   return r;
@@ -1060,9 +1063,10 @@ const bearer = (req: Request) => (req.headers.get("authorization") ?? "").replac
 ///   reauth   the session's sign-in is older than KEY_COPY_SIGNIN_HOURS (1 hour by default)
 ///   paused   a password reset was too recent (KEY_COPY_HOLD_HOURS, none by default)
 /// The same rules as a device getting the key from the `key` function, since a connection is
-/// the key going to whoever holds the AI's tokens.
+/// the key going to whoever holds the AI's tokens. A null token is the app's Connect: a signed-in
+/// device holding the key says yes, as /connect/decide does, so the sign-in's age doesn't count.
 type HereRow = { key_id: string; verifier: string; recovery_wrap: string; mode: string | null; sealed: string | null; copy_key_id: string | null; reset_at: Date | null };
-async function hereCheck(sql: Sql, user: string, token: string, now = Date.now()): Promise<{ why: string; until?: string } | { row: HereRow }> {
+async function hereCheck(sql: Sql, user: string, token: string | null, now = Date.now()): Promise<{ why: string; until?: string } | { row: HereRow }> {
   if (!browserAllowOn()) return { why: "off" };
   const [row] = await sql<HereRow[]>`
     select k.key_id, k.verifier, k.recovery_wrap,
@@ -1074,8 +1078,10 @@ async function hereCheck(sql: Sql, user: string, token: string, now = Date.now()
   if (!row) return { why: "no_key" };
   if (row.mode === "strict") return { why: "strict" };
   if (row.mode !== "standard" || !row.sealed || row.copy_key_id !== row.key_id) return { why: "no_copy" };
-  const signedIn = signedInAtOf(token);
-  if (signedIn === null || signedIn < now - signInHours(Deno.env) * 3600_000) return { why: "reauth" };
+  if (token !== null) {
+    const signedIn = signedInAtOf(token);
+    if (signedIn === null || signedIn < now - signInHours(Deno.env) * 3600_000) return { why: "reauth" };
+  }
   const hold = holdHours(Deno.env);
   const until = hold > 0 && row.reset_at ? new Date(row.reset_at).getTime() + hold * 3600_000 : 0;
   if (until > now) return { why: "paused", until: new Date(until).toISOString() };
@@ -1103,25 +1109,49 @@ const HERE_WORDS: Record<string, [number, string]> = {
 /// /connect/decide), keeps only the code's hash and the wrap, and answers with the client's
 /// redirect, code included. A refusal names why in `hint` (see hereCheck), lets go of the request
 /// (so the app can still answer it) and opens nothing.
+///
+/// After Connect in the app, the page sends {id, from, preapproval} instead, the key its browser got
+/// for the app's ticket (preapprove, redeem), with no session needed. The yes was Connect: it
+/// answers a request of the AI named there (its pinned callback) that started after it, for the
+/// account that pressed it, once. A session of another account in that browser is refused. Any
+/// refusal spends the pre-approval, and the page goes on to sign-in and Allow as before.
 async function allowHere(req: Request, sql: Sql): Promise<Response> {
   // Browsers only, and only the site: the apps answer through /connect/decide.
   if (req.headers.get("origin") !== new URL(connectPage()).origin) return json({ error: "Not allowed from this site." }, 403);
   if (await limited(sql, req, "allow")) return json({ error: "Too many attempts. Wait a few minutes and try again.", hint: "rate" }, 429);
   const s = browserAllowOn();
   if (!s) return json({ error: HERE_WORDS.off[1], hint: "off" }, 503);
-  const user = await sessionUser(req);
+  const body = await req.json().catch(() => ({})) as { id?: unknown; write?: unknown; redirect_uri?: unknown; from?: unknown; preapproval?: unknown };
+  const session = await sessionUser(req);
+  let pre: Preapproval | undefined;
+  if (body.preapproval !== undefined) {
+    pre = await preapproved(sql, typeof body.preapproval === "string" ? body.preapproval : "");
+    if (!pre) return json({ error: PRE_GONE, hint: "preapproval" }, 403);
+    if (session && session !== pre.user_id) {
+      await spend(sql, pre.id);
+      log("connect_allow", { status: "refused", kind: "preapproval_account" });
+      return json({ error: "This browser is signed in to another Pinto Notes account. Sign in with the account you chose Connect in.", hint: "other_account" }, 403);
+    }
+  }
+  const user = pre?.user_id ?? session;
   if (!user) return json({ error: "Sign in to Pinto Notes first.", hint: "sign_in" }, 401);
-  const body = await req.json().catch(() => ({})) as { id?: unknown; write?: unknown; redirect_uri?: unknown; from?: unknown };
   const r = await pending(sql, typeof body.id === "string" ? body.id : "");
   if (!r) return json({ error: EXPIRED, hint: "expired" }, 404);
-  if (!(await claim(sql, r, user))) return json({ error: notYours(r), hint: "not_yours" }, 403);
+  if (!(await claim(sql, r, user))) {
+    if (pre) await spend(sql, pre.id);
+    return json({ error: notYours(r), hint: "not_yours" }, 403);
+  }
   const refuse = async (error: string, status: number, hint: string, more: Record<string, unknown> = {}) => {
     await unclaim(sql, r.id, user);
+    if (pre) await spend(sql, pre.id);
     log("connect_allow", { status: "refused", kind: hint });
     return json({ error, hint, ...more }, status);
   };
-  if (body.redirect_uri !== r.redirect_uri) return await refuse(CHANGED, 409, "changed");
-  const here = await hereCheck(sql, user, bearer(req));
+  if (pre) {
+    // Only where the app said, and only for a sign-in the AI started after Connect.
+    if (verifiedAI(r.redirect_uri) !== pre.ai || new Date(r.created_at) < new Date(pre.created_at)) return await refuse(PRE_GONE, 403, "preapproval");
+  } else if (body.redirect_uri !== r.redirect_uri) return await refuse(CHANGED, 409, "changed");
+  const here = await hereCheck(sql, user, pre ? null : bearer(req));
   if (!("row" in here)) {
     const [status, words] = HERE_WORDS[here.why];
     return await refuse(words, status, here.why, here.until ? { until: here.until } : {});
@@ -1157,7 +1187,7 @@ async function allowHere(req: Request, sql: Sql): Promise<Response> {
   const from = cleanName(typeof body.from === "string" ? body.from : "").slice(0, 60) || "a web browser";
   // Counted, answered and written down in one step, one at a time per account (the key function's
   // lock): of many sent at once, only as many as the limit connect anything.
-  const answered = await sql.begin(async (tx): Promise<"ok" | "rate" | "gone"> => {
+  const answered = await sql.begin(async (tx): Promise<"ok" | "rate" | "gone" | "spent"> => {
     await tx`select pg_advisory_xact_lock(hashtextextended(${"key-copy " + user}, 0))`;
     const [counts] = await tx<{ hour: number; day: number }[]>`
       select count(*) filter (where at > now() - interval '1 hour')::int as hour, count(*)::int as day
@@ -1166,18 +1196,99 @@ async function allowHere(req: Request, sql: Sql): Promise<Response> {
     const [open] = await tx`update public.oauth_requests set decided_at = now()
       where id = ${r.id} and decided_at is null and claimed_by = ${user} returning 1`;
     if (!open) return "gone";
+    if (pre) {
+      const [mine] = await tx`update public.connect_preapprovals set used_at = now(), request_id = ${r.id}
+        where id = ${pre.id} and used_at is null and expires_at > now() returning 1`;
+      if (!mine) throw new PreSpent();
+    }
     await grant(tx, r, user, { name, write, host: u.hostname, codeHash, codeWrap, from });
     await tx`insert into public.key_copy_events (user_id, what, platform) values (${user}, 'connected', 'web')`;
     // A page that also showed a QR code or asked a device: that ask is over, answered here.
     await tx`update public.connect_asks set answered_at = now(), denied = false, redirect = ${u.toString()}, user_id = coalesce(user_id, ${user}),
       answer = null, delivered_at = now() where request_id = ${r.id} and answered_at is null`;
     return "ok";
+  }).catch((e) => {
+    // Two pages sent the same pre-approval at once: the other one used it, and nothing here stays.
+    if (e instanceof PreSpent) return "spent" as const;
+    throw e;
   });
+  if (answered === "spent") return await refuse(PRE_GONE, 403, "preapproval");
   if (answered === "rate") return await refuse("Too many AI connections from the web today. Allow it in Pinto Notes on your iPhone or Mac.", 429, "rate");
   if (answered === "gone") return json({ error: EXPIRED, hint: "expired" }, 404);
-  log("connect_allow", { status: "allowed" });
+  log("connect_allow", { status: "allowed", kind: pre ? "preapproval" : "allow" });
   u.searchParams.set("code", code);
   return json({ redirect: u.toString(), client_name: name, can_write: write });
+}
+
+// MARK: Connect in the app counts as the Allow
+
+/// How long a pre-approval lasts: from Connect in the app to the AI's sign-in reaching the page.
+export const PREAPPROVAL_TTL = 600;
+const PRE_GONE = "Sign in to connect.";
+
+type Preapproval = { id: string; user_id: string; ai: "ChatGPT" | "Claude"; created_at: Date };
+class PreSpent extends Error {}
+
+/// The pre-approval a browser's key opens: redeemed, not used, not expired.
+async function preapproved(sql: Sql, key: string): Promise<Preapproval | undefined> {
+  if (!/^amb_pb_[0-9a-f]{64}$/.test(key)) return undefined;
+  const [p] = await sql<Preapproval[]>`select id, user_id, ai, created_at from public.connect_preapprovals
+    where browser_hash = ${await sha256Hex(key)} and redeemed_at is not null and used_at is null and expires_at > now()`;
+  return p;
+}
+
+async function spend(sql: Sql, id: string) {
+  await sql`update public.connect_preapprovals set used_at = now() where id = ${id} and used_at is null`;
+}
+
+/// Connect in the app: POST {ai} ("ChatGPT" or "Claude") with the app's session, from the apps
+/// only (a browser sends an Origin, and is refused). For an account the web page could answer
+/// for (hereCheck, apart from the sign-in's age: a device holding the key said yes), it answers
+/// with a one-time ticket and the site's /connect/start address carrying it in the fragment. An
+/// earlier unused pre-approval of the account goes. Only the ticket's hash is kept.
+async function preapprove(req: Request, sql: Sql): Promise<Response> {
+  if (req.headers.get("origin") !== null) return json({ error: "Not allowed from this site." }, 403);
+  if (await limited(sql, req, "preapprove")) return json({ error: "Too many attempts. Wait a few minutes and try again.", hint: "rate" }, 429);
+  if (!browserAllowOn()) return json({ error: HERE_WORDS.off[1], hint: "off" }, 503);
+  const user = await sessionUser(req);
+  if (!user) return json({ error: "Sign in to Pinto Notes first.", hint: "sign_in" }, 401);
+  const body = await req.json().catch(() => ({})) as { ai?: unknown };
+  if (body.ai !== "ChatGPT" && body.ai !== "Claude") return json({ error: "invalid_request" }, 400);
+  const here = await hereCheck(sql, user, null);
+  if (!("row" in here)) {
+    const [status, words] = HERE_WORDS[here.why];
+    return json({ error: words, hint: here.why, ...(here.until ? { until: here.until } : {}) }, status);
+  }
+  const ticket = randomToken("amb_pre_");
+  const ticketHash = await sha256Hex(ticket);
+  await sql.begin(async (tx) => {
+    await tx`update public.connect_preapprovals set used_at = now() where user_id = ${user} and used_at is null`;
+    await tx`insert into public.connect_preapprovals (user_id, ai, ticket_hash, expires_at)
+      values (${user}, ${body.ai as string}, ${ticketHash}, now() + make_interval(secs => ${PREAPPROVAL_TTL}))`;
+  });
+  log("connect_preapprove", { status: "made" });
+  const start = new URL("/connect/start", connectPage());
+  start.hash = new URLSearchParams({ t: ticket }).toString();
+  return json({ ticket, start: start.toString(), expires_in: PREAPPROVAL_TTL });
+}
+
+/// The site's /connect/start: POST {ticket}, from the site only. Swaps the app's one-time ticket
+/// for a key that stays in this browser; the ticket is spent, so a copy of the link opens nothing
+/// elsewhere. Only the key's hash is kept.
+async function redeem(req: Request, sql: Sql): Promise<Response> {
+  if (req.headers.get("origin") !== new URL(connectPage()).origin) return json({ error: "Not allowed from this site." }, 403);
+  if (await limited(sql, req, "redeem")) return json({ error: "Too many attempts. Wait a few minutes and try again.", hint: "rate" }, 429);
+  const body = await req.json().catch(() => ({})) as { ticket?: unknown };
+  const ticket = typeof body.ticket === "string" ? body.ticket : "";
+  const gone = () => json({ error: "This link has expired. Choose Connect in Pinto Notes again.", hint: "expired" }, 404);
+  if (!/^amb_pre_[0-9a-f]{64}$/.test(ticket)) return gone();
+  const key = randomToken("amb_pb_");
+  const [row] = await sql<{ ai: string; expires_at: Date }[]>`update public.connect_preapprovals
+    set redeemed_at = now(), browser_hash = ${await sha256Hex(key)}
+    where ticket_hash = ${await sha256Hex(ticket)} and redeemed_at is null and used_at is null and expires_at > now()
+    returning ai, expires_at`;
+  if (!row) return gone();
+  return json({ key, ai: row.ai, expires_at: new Date(row.expires_at).toISOString() });
 }
 
 // MARK: Tokens

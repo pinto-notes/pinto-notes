@@ -45,7 +45,7 @@ function browserTest(name: string, fn: () => Promise<void>) {
   });
 }
 
-const { handleOAuth, subpath, sha256Hex, resolveAccessToken, ALLOWS } = await import("./oauth.ts");
+const { handleOAuth, subpath, sha256Hex, resolveAccessToken, ALLOWS, PREAPPROVAL_TTL } = await import("./oauth.ts");
 
 // MARK: Fake Supabase Auth: a session is an unsigned JWT whose `sub` is the account and whose
 // `amr` says when it signed in. The function asks /auth/v1/user who it is, then reads `amr`.
@@ -107,14 +107,14 @@ async function pkce() {
 }
 
 /// ChatGPT registers and starts a sign-in; the browser lands on the page with the request's id.
-async function start(sql: Sql, scope = "notes:read notes:write") {
+async function start(sql: Sql, scope = "notes:read notes:write", redirect = CHATGPT) {
   const reg = await call(sql, new Request(`${FUNCTION}/register`, {
     method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.9" },
-    body: JSON.stringify({ client_name: "ChatGPT", redirect_uris: [CHATGPT] }),
+    body: JSON.stringify({ client_name: "ChatGPT", redirect_uris: [redirect] }),
   }));
   const clientId = (await reg.json()).client_id as string;
   const { verifier, challenge } = await pkce();
-  const q = new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: CHATGPT, code_challenge: challenge,
+  const q = new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: redirect, code_challenge: challenge,
     code_challenge_method: "S256", state: "xyz", scope, resource: FUNCTION });
   const res = await call(sql, new Request(`${FUNCTION}/authorize?${q}`, { headers: { "cf-connecting-ip": "203.0.113.9" } }));
   assertEquals(res.status, 302);
@@ -350,4 +350,169 @@ browserTest("Don't allow on the page sends the AI an access_denied, as before", 
   assertEquals(back.searchParams.get("error"), "access_denied");
   assertEquals(back.searchParams.get("code"), null);
   assertNotEquals((await pg.query(`select decided_at from public.oauth_requests where id = $1 and decided_at is not null`, [id])).rows.length, 0);
+});
+
+// MARK: Connect in the app counts as the Allow
+
+/// Connect in the app: its session, no Origin (the apps send none).
+async function preapprove(sql: Sql, token: string | null, ai = "ChatGPT", origin: string | null = null) {
+  const res = await call(sql, fromPage("/connect/preapprove", token, { ai }, origin));
+  return { status: res.status, body: await res.json() };
+}
+
+/// The site's /connect/start, swapping the app's ticket for this browser's key.
+async function redeem(sql: Sql, ticket: string, origin: string | null = SITE) {
+  const res = await call(sql, fromPage("/connect/redeem", null, { ticket }, origin));
+  return { status: res.status, body: await res.json() };
+}
+
+/// The page, once the AI's sign-in reaches it, with the browser's key and no session (unless given).
+async function allowPre(sql: Sql, id: string, key: string, token: string | null = null) {
+  const res = await call(sql, fromPage("/connect/allow", token, { id, from: "Safari on a Mac", preapproval: key }));
+  return { status: res.status, body: await res.json() };
+}
+
+/// Connect pressed, and the link opened in a browser: the key that browser keeps.
+async function connectPressed(sql: Sql, user: string, ai = "ChatGPT") {
+  const made = await preapprove(sql, session(user, 5 * 3600), ai);
+  assertEquals(made.status, 200, JSON.stringify(made.body));
+  const page = new URL(made.body.start);
+  assertEquals(page.origin + page.pathname, `${SITE}/connect/start`);
+  const ticket = new URLSearchParams(page.hash.slice(1)).get("t")!;
+  assertEquals(ticket, made.body.ticket);
+  const got = await redeem(sql, ticket);
+  assertEquals(got.status, 200);
+  assertEquals(got.body.ai, ai);
+  return { ticket, key: got.body.key as string };
+}
+
+browserTest("Connect in the app counts as the Allow, once, with no sign-in on the page", async () => {
+  const { pg, sql } = await db();
+  const me = await account(pg);
+  // The app's session is hours old: the device holding the key said yes, as /connect/decide does.
+  const { ticket, key } = await connectPressed(sql, me.id);
+  assertEquals(PREAPPROVAL_TTL, 600);
+  const { clientId, verifier, id } = await start(sql);
+  const { status, body } = await allowPre(sql, id, key);
+  assertEquals(status, 200, JSON.stringify(body));
+  assertEquals(body.can_write, true);
+  const back = new URL(body.redirect);
+  assertEquals(back.origin + back.pathname, CHATGPT);
+  const tokens = await exchange(sql, clientId, back.searchParams.get("code")!, verifier);
+  assertEquals(tokens.status, 200);
+  const grant = await resolveAccessToken(sql, tokens.body.access_token, new Request(FUNCTION));
+  assertEquals(grant?.user_id, me.id);
+  assertEquals(await unwrap(grant!.dk_wrap!, await tokenKey(tokens.body.access_token, "access"), "access", me.id), me.dk);
+  const [notice] = (await pg.query<{ what: string }>(`select what from public.account_notices where user_id = $1`, [me.id])).rows;
+  assertEquals(notice.what, "Connected ChatGPT from Safari on a Mac");
+
+  // Once: the next sign-in needs the page's own sign-in and Allow, and the ticket is spent too.
+  const again = await start(sql);
+  const second = await allowPre(sql, again.id, key);
+  assertEquals(second.status, 403);
+  assertEquals(second.body.hint, "preapproval");
+  assertEquals((await redeem(sql, ticket)).status, 404);
+  // The request let go of: the page's own Allow still answers it.
+  assertEquals((await allow(sql, again.id, session(me.id))).status, 200);
+  // Only hashes are kept.
+  const dump = JSON.stringify((await pg.query(`select * from public.connect_preapprovals`)).rows);
+  assert(!dump.includes(ticket) && !dump.includes(key));
+});
+
+browserTest("a pre-approval lasts 10 minutes, and a ticket is redeemed once, in one browser", async () => {
+  const { pg, sql } = await db();
+  const me = await account(pg);
+  const { key } = await connectPressed(sql, me.id);
+  const { id } = await start(sql);
+  await pg.query(`update public.connect_preapprovals set expires_at = now() - interval '1 second'`);
+  const late = await allowPre(sql, id, key);
+  assertEquals(late.status, 403);
+  assertEquals(late.body.hint, "preapproval");
+
+  // A ticket not redeemed in time opens nothing.
+  const made = await preapprove(sql, session(me.id));
+  await pg.query(`update public.connect_preapprovals set expires_at = now() - interval '1 second' where redeemed_at is null`);
+  assertEquals((await redeem(sql, made.body.ticket)).status, 404);
+
+  // A copy of the link, opened in another browser after the first: nothing.
+  const fresh = await preapprove(sql, session(me.id));
+  assertEquals((await redeem(sql, fresh.body.ticket)).status, 200);
+  assertEquals((await redeem(sql, fresh.body.ticket)).status, 404);
+  // Redeeming is the site's: another origin is refused.
+  const other = await preapprove(sql, session(me.id));
+  assertEquals((await redeem(sql, other.body.ticket, "https://evil.example")).status, 403);
+  // A new Connect replaces the last one: the older key opens nothing.
+  const first = await connectPressed(sql, me.id);
+  await connectPressed(sql, me.id);
+  const req = await start(sql);
+  assertEquals((await allowPre(sql, req.id, first.key)).status, 403);
+});
+
+browserTest("a pre-approval answers only the AI's own callback, for a sign-in started after Connect", async () => {
+  const { pg, sql } = await db();
+  const me = await account(pg);
+
+  // A sign-in from before Connect: someone's link, waiting to be opened.
+  const before = await start(sql);
+  const early = await connectPressed(sql, me.id);
+  const r1 = await allowPre(sql, before.id, early.key);
+  assertEquals(r1.status, 403);
+  assertEquals(r1.body.hint, "preapproval");
+
+  // An app calling itself ChatGPT, with its own callback.
+  const { key } = await connectPressed(sql, me.id);
+  const evil = await start(sql, "notes:read notes:write", "https://evil.example/callback");
+  const r2 = await allowPre(sql, evil.id, key);
+  assertEquals(r2.status, 403);
+  assertEquals(r2.body.hint, "preapproval");
+  const [left] = (await pg.query<{ decided_at: Date | null; claimed_by: string | null }>(`select decided_at, claimed_by from public.oauth_requests where id = $1`, [evil.id])).rows;
+  assertEquals(left, { decided_at: null, claimed_by: null });
+  // Spent by the try: ChatGPT's own sign-in now goes through the page's sign-in.
+  const real = await start(sql);
+  assertEquals((await allowPre(sql, real.id, key)).status, 403);
+
+  // Connect for Claude doesn't answer ChatGPT.
+  const claude = await connectPressed(sql, me.id, "Claude");
+  const chatgpt = await start(sql);
+  assertEquals((await allowPre(sql, chatgpt.id, claude.key)).status, 403);
+  assertEquals((await pg.query(`select 1 from public.mcp_tokens where user_id = $1`, [me.id])).rows.length, 0);
+});
+
+browserTest("a pre-approval is the account's own: another account's session or request is refused", async () => {
+  const { pg, sql } = await db();
+  const me = await account(pg);
+  const someone = await account(pg);
+
+  // This browser is signed in to another account.
+  const { key } = await connectPressed(sql, me.id);
+  const { id } = await start(sql);
+  const r1 = await allowPre(sql, id, key, session(someone.id));
+  assertEquals(r1.status, 403);
+  assertEquals(r1.body.hint, "other_account");
+  assertEquals((await allowPre(sql, id, key)).status, 403);
+
+  // A request another account opened first.
+  const mine = await connectPressed(sql, me.id);
+  const taken = await start(sql);
+  assertEquals((await call(sql, fromPage(`/connect/request?id=${taken.id}`, session(someone.id)))).status, 200);
+  const r2 = await allowPre(sql, taken.id, mine.key);
+  assertEquals(r2.status, 403);
+  assertEquals(r2.body.hint, "not_yours");
+  assertEquals((await pg.query(`select 1 from public.mcp_tokens`)).rows.length, 0);
+});
+
+browserTest("Connect in the app makes no pre-approval from a browser, for Advanced protection, or with the switch off", async () => {
+  const { pg, sql } = await db();
+  const me = await account(pg);
+  assertEquals((await preapprove(sql, session(me.id), "ChatGPT", SITE)).status, 403);
+  assertEquals((await preapprove(sql, null)).status, 401);
+  assertEquals((await preapprove(sql, session(me.id), "Gemini")).status, 400);
+  const strict = await account(pg);
+  await pg.query(`update public.account_key_protection set mode = 'strict' where user_id = $1`, [strict.id]);
+  assertEquals((await preapprove(sql, session(strict.id))).body.hint, "strict");
+  const none = await account(pg, false);
+  assertEquals((await preapprove(sql, session(none.id))).body.hint, "no_copy");
+  Deno.env.delete("CONNECT_IN_BROWSER");
+  assertEquals((await preapprove(sql, session(me.id))).status, 503);
+  assertEquals((await pg.query(`select 1 from public.connect_preapprovals`)).rows.length, 0);
 });
