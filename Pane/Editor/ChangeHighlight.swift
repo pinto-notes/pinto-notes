@@ -20,8 +20,10 @@ enum ChangeHighlight {
 }
 
 /// The lines an AI just changed in the open note, tinted amber behind the text: the tint
-/// swells in, holds while you look, then fades. One per editor; its layout fragments ask it
-/// whether their paragraph is one of the changed ones.
+/// swells in, then either holds a moment and fades (an edit made in the note's app), or stays
+/// until you start typing, undo or leave the note (an AI's edit, so it's still marked however long
+/// you take to read it). One per editor; its layout fragments ask it whether their paragraph is
+/// one of the changed ones.
 final class ChangeTint: @unchecked Sendable {
     /// Whole paragraphs (UTF-16, newline included) of the editor's text, in order.
     private(set) var ranges: [NSRange] = []
@@ -42,11 +44,15 @@ final class ChangeTint: @unchecked Sendable {
         return covers(offset) ? strength : 0
     }
 
+    /// Whether any line is tinted right now.
+    var isLit: Bool { strength > 0 && !ranges.isEmpty }
+
     /// Whether the paragraph starting at `offset` is one of the changed lines, tinted or not yet cleared.
     func covers(_ offset: Int) -> Bool { ranges.contains { NSLocationInRange(offset, $0) } }
 
-    /// Tints the paragraphs of `text` that `previous` didn't have, then fades them.
-    @MainActor func play(from previous: String, to text: String, hold: Double = 2.6) {
+    /// Tints the paragraphs of `text` that `previous` didn't have, then fades them. `untilCleared`:
+    /// the tint stays at rest until `stop()` instead of fading.
+    @MainActor func play(from previous: String, to text: String, hold: Double = 2.6, untilCleared: Bool = false) {
         stop()
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         guard !ranges.isEmpty else { return }
@@ -56,6 +62,7 @@ final class ChangeTint: @unchecked Sendable {
         Task { @MainActor in
             guard await animate(to: 1.5, over: 0.3, easeOut, run: mine, lit: lit),
                   await animate(to: 1, over: 0.5, easeInOut, run: mine, lit: lit) else { return }
+            if untilCleared { return }
             try? await Task.sleep(for: .seconds(hold * Self.slowMotion))
             while Self.holdForCapture, mine == run { try? await Task.sleep(for: .seconds(0.1)) }
             guard await animate(to: 0, over: 1.6, easeInOut, run: mine, lit: lit) else { return }

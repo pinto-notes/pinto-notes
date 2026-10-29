@@ -1621,7 +1621,7 @@ struct NoteRow: View {
                 } else if let ai {
                     HStack(spacing: 4) {
                         AIGlyph(ai: ai, size: 11)
-                        Text(AIEdit.wroteIt(note) ? "Written by \(ai)" : "Edited by \(ai)")
+                        Text(AIEdit.listLine(note, by: ai))
                     }
                     .foregroundStyle(Color.amberInk)
                     .lineLimit(1)
@@ -1649,7 +1649,7 @@ struct NoteRow: View {
         .padding(.bottom, RowMetrics.bottom(folderLine: folderLine) + RowMetrics.calmAir)
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
-        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared ? "Shared" : nil, note.isLocked ? "Locked" : nil, ai.map { "Edited by \($0)" }].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared ? "Shared" : nil, note.isLocked ? "Locked" : nil, ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
     }
 

@@ -224,7 +224,10 @@ final class EditorController {
     }
 
     /// An AI's edit landed on the open note: tint what it changed.
-    func tintChanges(from previous: String) { target?.tintChanges(from: previous) }
+    /// `untilCleared`: it stays until you type, undo or leave, instead of fading on its own.
+    func tintChanges(from previous: String, untilCleared: Bool = false) { target?.tintChanges(from: previous, untilCleared: untilCleared) }
+    /// Whether any line is tinted right now.
+    var isTinted: Bool { target?.isTinted ?? false }
     func clearTint() { target?.clearTint() }
 
     func bold() { perform { ListEditing.wrap(in: $0, selection: $1, with: "**") } }
@@ -425,8 +428,11 @@ protocol EditorTarget: AnyObject {
     func insertGrid()
     /// The keyboard leaves a table, to the line above or below it.
     func leaveGrid(_ index: Int, below: Bool)
-    /// Tints the lines an AI just changed compared with `previous`, then fades them.
-    func tintChanges(from previous: String)
+    /// Tints the lines an AI just changed compared with `previous`, then fades them (with
+    /// `untilCleared`, keeps them tinted until `clearTint` or typing).
+    func tintChanges(from previous: String, untilCleared: Bool)
+    /// Whether any line is tinted right now.
+    var isTinted: Bool { get }
     /// Clears that tint at once.
     func clearTint()
     /// Takes text that changed elsewhere (sync, a collaborator), replacing only what differs.
@@ -458,4 +464,6 @@ extension EditorTarget {
 
 extension EditorTarget {
     func reveal(_ location: Int) {}
+    /// Tints, then fades on its own.
+    func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
 }
