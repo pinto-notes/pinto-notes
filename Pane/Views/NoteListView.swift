@@ -458,6 +458,8 @@ struct NoteListView: View {
                         }
                     }
                     .disabled(selection.isEmpty || scope == .trash)
+                    // Never amber: the label colour, and Delete in the system red, as in Notes.
+                    .tint(.primary)
                     .accessibilityIdentifier("list.moveSelected")
                 }
                 ToolbarSpacer(.flexible, placement: .bottomBar)
@@ -467,6 +469,7 @@ struct NoteListView: View {
                         withAnimation(.snappy(duration: 0.25)) { editMode = .inactive }
                     }
                     .disabled(selection.isEmpty)
+                    .tint(.red)
                     .accessibilityIdentifier("list.deleteSelected")
                 }
             } else {
