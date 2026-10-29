@@ -1230,6 +1230,8 @@ struct NoteDetailView: View {
         .popover(isPresented: $movingNote, arrowEdge: .bottom) {
             MoveToPicker(current: note.folder?.id) { context.move(note, to: $0) }
         }
+        // Move Note… from Go to Note (⌘O).
+        .onReceive(NotificationCenter.default.publisher(for: .paneMoveNote)) { _ in if !trashed { movingNote = true } }
         #endif
         #if os(macOS)
         .paneTip(VersionHistoryTip(), arrowEdge: .top) { action in
