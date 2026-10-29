@@ -51,13 +51,12 @@ export default async function Connect({ searchParams }: { searchParams: Promise<
   // A server that lets the page answer (lib/connect-browser.ts): sign in and Allow here. The way it
   // was stays for the recovery key's return trip and for accounts whose key is only on their devices.
   if (label?.allow_here && recover !== "1") {
+    // Its own frame on every step (BrowserFrame); the way it was keeps its card.
     return (
-      <ConnectCard request label={label}>
-        <BrowserConnect
-          requestId={flow.requestId} supabaseURL={supabaseURL} anonKey={anonKey} authCode={flow.authCode} authError={flow.authError}
-          inApp={asBefore({ ...flow, authCode: undefined, authError: undefined })}
-        />
-      </ConnectCard>
+      <BrowserConnect
+        requestId={flow.requestId} supabaseURL={supabaseURL} anonKey={anonKey} authCode={flow.authCode} authError={flow.authError}
+        label={label} inApp={<ConnectCard request label={label}>{asBefore({ ...flow, authCode: undefined, authError: undefined })}</ConnectCard>}
+      />
     );
   }
   return (

@@ -33,7 +33,17 @@ function switchOn() {
   Deno.env.set("KEY_COPY", "on");
   Deno.env.set("KEY_COPY_SECRET_1", SECRET);
 }
-switchOn();
+function switchOff() {
+  for (const n of ["CONNECT_IN_BROWSER", "KEY_COPY", "KEY_COPY_SECRET_1"]) Deno.env.delete(n);
+}
+/// CI runs this file in one process with oauth.pglite.test.ts, which expects the switches off: each
+/// test here turns them on for itself and off again after.
+function browserTest(name: string, fn: () => Promise<void>) {
+  Deno.test(name, async () => {
+    switchOn();
+    try { await fn(); } finally { switchOff(); }
+  });
+}
 
 const { handleOAuth, subpath, sha256Hex, resolveAccessToken, ALLOWS } = await import("./oauth.ts");
 
@@ -144,12 +154,14 @@ async function db() {
 
 // MARK: Tests
 
-Deno.test("the page says it can answer, before sign-in and for the signed-in account", async () => {
+browserTest("the page says it can answer, before sign-in and for the signed-in account", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { id } = await start(sql);
   const label = await (await call(sql, fromPage(`/connect/label?id=${id}`, null))).json();
   assertEquals(label.allow_here, true);
+  // The page that answers itself names ChatGPT, mark and all, from sign-in on: its own callback.
+  assertEquals(label.verified_ai, "ChatGPT");
   const described = await (await call(sql, fromPage(`/connect/request?id=${id}`, session(me.id)))).json();
   assertEquals(described.allow_here, true);
   assertEquals(described.allow_here_why, null);
@@ -158,7 +170,7 @@ Deno.test("the page says it can answer, before sign-in and for the signed-in acc
   assertEquals(described.redirect_uri, CHATGPT);
 });
 
-Deno.test("Allow on the page connects: the code works once, the key reaches the tokens, only hashes are kept", async () => {
+browserTest("Allow on the page connects: the code works once, the key reaches the tokens, only hashes are kept", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { clientId, verifier, id } = await start(sql);
@@ -201,7 +213,7 @@ Deno.test("Allow on the page connects: the code works once, the key reaches the 
   assertEquals(events, [{ what: "connected", platform: "web" }]);
 });
 
-Deno.test("Read only on the page, or a read-only request, connects read-only", async () => {
+browserTest("Read only on the page, or a read-only request, connects read-only", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const chosen = await start(sql);
@@ -210,7 +222,7 @@ Deno.test("Read only on the page, or a read-only request, connects read-only", a
   assertEquals((await allow(sql, asked.id, session(me.id), { write: true })).body.can_write, false);
 });
 
-Deno.test("only the page's own origin, with a session, may allow", async () => {
+browserTest("only the page's own origin, with a session, may allow", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { id } = await start(sql);
@@ -223,7 +235,7 @@ Deno.test("only the page's own origin, with a session, may allow", async () => {
   assertEquals((await allow(sql, id, session(me.id))).status, 200);
 });
 
-Deno.test("an old sign-in is asked to sign in again, and nothing is opened", async () => {
+browserTest("an old sign-in is asked to sign in again, and nothing is opened", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { id } = await start(sql);
@@ -237,7 +249,7 @@ Deno.test("an old sign-in is asked to sign in again, and nothing is opened", asy
   assertEquals((await allow(sql, id, session(me.id))).status, 200);
 });
 
-Deno.test("Advanced protection and accounts without a copy are sent to the app, and the request stays open for it", async () => {
+browserTest("Advanced protection and accounts without a copy are sent to the app, and the request stays open for it", async () => {
   const { pg, sql } = await db();
   const strict = await account(pg, false);
   await pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, 'strict')`, [strict.id]);
@@ -258,7 +270,7 @@ Deno.test("Advanced protection and accounts without a copy are sent to the app, 
   assertEquals((await allow(sql, id, session(keyless))).body.hint, "no_key");
 });
 
-Deno.test("a copy of an old key isn't used", async () => {
+browserTest("a copy of an old key isn't used", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   // The account's key changed (Start fresh made a new one) and the copy wasn't renewed.
@@ -267,7 +279,7 @@ Deno.test("a copy of an old key isn't used", async () => {
   assertEquals((await allow(sql, id, session(me.id))).body.hint, "no_copy");
 });
 
-Deno.test("another account can't answer a request someone opened, and a changed return address is refused", async () => {
+browserTest("another account can't answer a request someone opened, and a changed return address is refused", async () => {
   const { pg, sql } = await db();
   const me = await account(pg), other = await account(pg);
   const { id } = await start(sql);
@@ -281,7 +293,7 @@ Deno.test("another account can't answer a request someone opened, and a changed 
   assertEquals((await allow(sql, id, session(me.id))).status, 404);
 });
 
-Deno.test("a few connections an hour per account, then the app", async () => {
+browserTest("a few connections an hour per account, then the app", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   for (let i = 0; i < ALLOWS.perHour; i++) {
@@ -295,7 +307,7 @@ Deno.test("a few connections an hour per account, then the app", async () => {
   assertEquals(r, { decided_at: null, grant_id: null });
 });
 
-Deno.test("too many from one address are turned away before the session is looked at", async () => {
+browserTest("too many from one address are turned away before the session is looked at", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { id } = await start(sql);
@@ -306,7 +318,7 @@ Deno.test("too many from one address are turned away before the session is looke
   assertEquals(last, 429);
 });
 
-Deno.test("with the switch off the page doesn't answer, and says so before sign-in", async () => {
+browserTest("with the switch off the page doesn't answer, and says so before sign-in", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { id } = await start(sql);
@@ -314,7 +326,10 @@ Deno.test("with the switch off the page doesn't answer, and says so before sign-
     switchOn();
     off();
     try {
-      assertEquals((await (await call(sql, fromPage(`/connect/label?id=${id}`, null))).json()).allow_here, false);
+      const off = await (await call(sql, fromPage(`/connect/label?id=${id}`, null))).json();
+      assertEquals(off.allow_here, false);
+      // The old flow's page: no AI's mark before sign-in.
+      assertEquals(off.verified_ai, null);
       const described = await (await call(sql, fromPage(`/connect/request?id=${id}`, session(me.id)))).json();
       assertEquals(described.allow_here_why, "off");
       const refused = await allow(sql, id, session(me.id));
@@ -325,7 +340,7 @@ Deno.test("with the switch off the page doesn't answer, and says so before sign-
   }
 });
 
-Deno.test("Don't allow on the page sends the AI an access_denied, as before", async () => {
+browserTest("Don't allow on the page sends the AI an access_denied, as before", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const { id } = await start(sql);

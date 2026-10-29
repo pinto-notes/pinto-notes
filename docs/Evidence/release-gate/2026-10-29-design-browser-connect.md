@@ -125,3 +125,15 @@ AES-GCM open, one wrap and one transaction. Nothing was measured on staging.
   line is unchanged.
 - `ChatGPTPlugin.listed` is now the published plugin's page, so the app's other ChatGPT guide
   (ConnectWebGuide.chatgpt) is its one-page listing version too, for every account.
+
+## One page for sign-in, consent and done (29 October, evening)
+
+- The page that answers itself is one plain column: white in light, pure black in dark, no card, no
+  side panel, no picture. The same pair (the AI's mark, Pinto's icon) heads every step.
+- Sign-in's title is now "Connect ChatGPT to your notes?" with "Sign in to Pinto Notes, then choose
+  what it can do." (was "Sign in to Pinto Notes" under the side panel's "Connect ChatGPT to Pinto Notes?").
+- Connected: "Connected", "Taking you back to ChatGPT…"; "Back to ChatGPT" shows only after 3 s.
+- `/connect/label` now names the verified AI (`verified_ai`) when the page answers itself, so the
+  mark shows from sign-in on; with the switch off it stays null, as before.
+- The consent's words are unchanged: Shared with OpenAI (or Anthropic) word for word, Locked notes
+  stay private, Read and edit / Read only, Don't Allow and Allow.

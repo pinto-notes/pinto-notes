@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLabel } from "@/lib/connect";
 import { codeRequestError, consentWords, hereFrom, requestedLine, safeReturn, SESSION_KEY } from "@/lib/connect-browser";
 import BrowserConnect from "./BrowserConnect";
-import { ConsentScreen } from "./BrowserScreens";
+import { BACK_LINK_AFTER_MS, BrowserFrame, ConnectedScreen } from "./BrowserScreens";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -44,6 +44,9 @@ describe("the consent's words", () => {
     expect(hereFrom({})).toBe("app");
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT", allow_here: true })?.allow_here).toBe(true);
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT" })?.allow_here).toBeUndefined();
+    // Only with allow_here, and only a known AI, does the label carry the mark.
+    expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT", allow_here: true, verified_ai: "ChatGPT" })?.verified_ai).toBe("ChatGPT");
+    expect(parseLabel({ redirect_host: "x.example", claimed_name: "x", allow_here: true, verified_ai: "Grok" })?.verified_ai).toBeNull();
   });
 
   it("says when the request was made, from its expiry, and from which browser", () => {
@@ -122,9 +125,12 @@ async function until(check: () => boolean, ms = 3000) {
 }
 
 const inApp = <p>the page as it was</p>;
+const LABEL = parseLabel({ claimed_name: "ChatGPT", redirect_host: "chatgpt.com", allow_here: true, verified_ai: "ChatGPT" });
 function render() {
-  act(() => root.render(<BrowserConnect requestId={ID} supabaseURL={SUPABASE} anonKey="anon" inApp={inApp} />));
+  act(() => root.render(<BrowserConnect requestId={ID} supabaseURL={SUPABASE} anonKey="anon" inApp={inApp} label={LABEL} />));
 }
+/// The pair's AI and whether it shows the tick: the frame, the same on every step.
+const pair = () => [container.querySelector("[data-testid=connect-mark]")?.getAttribute("data-ai"), !!container.querySelector("[data-testid=connect-done]")];
 const heading = () => container.querySelector("h1")?.textContent;
 const button = (text: string) => [...container.querySelectorAll("button")].find((b) => b.textContent === text || b.querySelector("b")?.textContent === text)!;
 
@@ -139,8 +145,10 @@ describe("connecting on the page alone", () => {
     const server = fakeServer();
     vi.stubGlobal("fetch", server.fetch);
     render();
-    await until(() => heading() === "Sign in to Pinto Notes");
+    await until(() => heading() === "Connect ChatGPT to your notes?" && !!container.querySelector("#connect-email"));
     expect(container.textContent).toContain("Sign in with Google");
+    // One frame on every step: ChatGPT's mark (its verified callback, from the label) from sign-in on.
+    expect(pair()).toEqual(["ChatGPT", false]);
 
     type(container.querySelector<HTMLInputElement>("#connect-email")!, "me@example.com");
     submit(container.querySelector("form")!);
@@ -182,6 +190,7 @@ describe("connecting on the page alone", () => {
     await until(() => assigned.length === 1);
     expect(assigned[0]).toBe(BACK);
     expect(heading()).toBe("Connected");
+    expect(pair()).toEqual(["ChatGPT", true]);
     const allow = server.calls.find((c) => c.url === `${MCP}/connect/allow`)!;
     expect(allow.body).toMatchObject({ id: ID, write: false, redirect_uri: CHATGPT });
     expect(new Headers(allow.init.headers).get("authorization")).toBe("Bearer at-1");
@@ -238,7 +247,8 @@ describe("connecting on the page alone", () => {
     render();
     await until(() => heading() === "Connect ChatGPT to your notes?");
     act(() => button("Use another account").click());
-    await until(() => heading() === "Sign in to Pinto Notes");
+    await until(() => !!container.querySelector("#connect-email"));
+    expect(heading()).toBe("Connect ChatGPT to your notes?");
     expect(localStorage.getItem(SESSION_KEY)).toBeNull();
     expect(server.calls.some((c) => c.url === `${MCP}/connect/release`)).toBe(true);
 
@@ -253,17 +263,32 @@ describe("connecting on the page alone", () => {
   });
 });
 
-describe("the consent's pair", () => {
-  it("shows the AI's mark only for a verified AI; an app Pinto can't name gets the plain glyph", () => {
+describe("the frame's pair", () => {
+  it("shows the AI's mark only for a verified AI; an app Pinto can't name gets the plain glyph; done puts a tick between", () => {
     const el = document.createElement("div");
     const r = createRoot(el);
-    const props = { canWrite: true, write: true, onWrite: () => {}, onAllow: () => {}, onDeny: () => {}, busy: null, failure: null, email: "me@example.com", onSwitch: () => {}, requested: "Requested just now from Chrome on Windows" };
-    for (const [mark, expected] of [["Claude", "Claude"], [null, "none"]] as const) {
-      const words = consentWords({ verified_ai: mark, redirect_host: mark ? "claude.ai" : "notebot.example", loopback: false, claimed_name: null, client_name: "x" });
-      act(() => r.render(<ConsentScreen words={words} mark={mark} {...props} />));
+    for (const [ai, expected] of [["Claude", "Claude"], ["ChatGPT", "ChatGPT"], [null, "none"]] as const) {
+      act(() => r.render(<BrowserFrame ai={ai}><p>step</p></BrowserFrame>));
       expect(el.querySelector("[data-testid=connect-mark]")!.getAttribute("data-ai")).toBe(expected);
-      expect(el.querySelectorAll("[data-testid=connect-mark] path").length).toBe(1);
+      expect(el.querySelector("[data-testid=connect-done]")).toBeNull();
     }
+    act(() => r.render(<BrowserFrame ai="ChatGPT" done><p>step</p></BrowserFrame>));
+    expect(el.querySelector("[data-testid=connect-done]")).not.toBeNull();
     act(() => r.unmount());
+  });
+
+  it("Connected offers the way back by hand only after 3 s", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("div");
+    const r = createRoot(el);
+    act(() => r.render(<ConnectedScreen to="ChatGPT" href={BACK} />));
+    expect(el.textContent).toContain("Taking you back to ChatGPT…");
+    expect(el.querySelector("a")).toBeNull();
+    act(() => { vi.advanceTimersByTime(BACK_LINK_AFTER_MS - 1); });
+    expect(el.querySelector("a")).toBeNull();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(el.querySelector("a")!.textContent).toBe("Back to ChatGPT");
+    act(() => r.unmount());
+    vi.useRealTimers();
   });
 });

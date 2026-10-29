@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, startsWithWrite, type ConnectRequest, type OAuthProvider } from "@/lib/connect";
+import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, startsWithWrite, type ConnectLabel, type ConnectRequest, type OAuthProvider } from "@/lib/connect";
 import { browserFrom } from "@/lib/connect-flow";
 import {
   allowRequest, backTo, codeDigits, codeRequest, codeRequestError, consentWords, denyRequest, forgetSession, hereFrom, loadSession,
   refreshRequest, requestedLine, safeReturn, saveSession, sessionFrom, verifyError, verifyRequest, type StoredSession,
 } from "@/lib/connect-browser";
 import { EndedScreen, LeavingScreen, WorkingScreen } from "./ConnectScreens";
-import { BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen } from "./BrowserScreens";
+import { BrowserFrame, BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen, type Verified } from "./BrowserScreens";
 
 // The connect page for a server that lets the page answer itself (/connect/label's allow_here):
 // sign in, the consent, Allow. Accounts whose key is only on their devices go on to the app's way
@@ -32,7 +32,7 @@ const EXPIRED: View = { kind: "ended", title: "This request has expired", text: 
 
 const local = () => { try { return window.localStorage; } catch { return null; } };
 
-export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCode, authError, inApp }: {
+export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCode, authError, inApp, label = null }: {
   requestId: string;
   supabaseURL: string;
   anonKey: string;
@@ -42,8 +42,15 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
   /// The page as it was (a QR code, a notification, the recovery key), for accounts the server
   /// keeps no key copy for. An element, mounted only once the account turns out to need it.
   inApp: React.ReactNode;
+  /// /connect/label: who asks, before sign-in (the frame's mark and the title's name).
+  label?: ConnectLabel | null;
 }) {
   const [view, setView] = useState<View>({ kind: "loading" });
+  // Who asks, the same on every step: the signed-in request's view once it's loaded, else the label's.
+  const [asking, setAsking] = useState<ConnectRequest | null>(null);
+  useEffect(() => { if (view.kind === "consent") setAsking(view.request); }, [view]);
+  const ai: Verified = asking ? asking.verified_ai ?? null : label?.verified_ai ?? null;
+  const who = asking ? (consentWords(asking).title.replace(/^Connect (.*) to your notes\?$/, "$1")) : ai ?? (label?.loopback ? "an app on this computer" : label?.redirect_host ?? "an app");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [write, setWrite] = useState(true);
@@ -289,13 +296,17 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
 
   // MARK: The page
 
+  if (view.kind === "legacy") return <>{inApp}</>;
+  return <BrowserFrame ai={ai} done={view.kind === "connected"}>{step()}</BrowserFrame>;
+
+  function step() {
   switch (view.kind) {
     case "loading":
       return <WorkingScreen text="Loading…" />;
     case "signIn":
       return (
         <BrowserSignInScreen
-          email={email} onEmail={(v) => { setEmail(v); setNoAccount(false); }} onSubmit={(e) => void sendCode(e)}
+          who={who} email={email} onEmail={(v) => { setEmail(v); setNoAccount(false); }} onSubmit={(e) => void sendCode(e)}
           onGoogle={() => void signInWith("google")} onApple={() => void signInWith("apple")}
           busy={busy} ready={ready} failure={failure} again={view.again} noAccount={noAccount} onDifferent={differentEmail}
         />
@@ -311,7 +322,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       const r = view.request;
       return (
         <ConsentScreen
-          words={consentWords(r)} mark={r.verified_ai ?? null} requested={requestedLine(r, browserFrom(navigator.userAgent))} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
+          words={consentWords(r)} requested={requestedLine(r, browserFrom(navigator.userAgent))} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
           onAllow={() => void answer(r, true)} onDeny={() => void answer(r, false)} busy={answering} failure={failure}
           email={signedIn ?? email} onSwitch={() => void switchAccount()}
         />
@@ -320,13 +331,14 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     case "inApp":
       return <InAppScreen email={signedIn} onSwitch={() => void switchAccount()} onContinue={() => setView({ kind: "legacy" })} />;
     case "legacy":
-      return <>{inApp}</>;
+      return null;
     case "connected":
       return <ConnectedScreen to={view.to} href={view.href} />;
     case "leaving":
       return <LeavingScreen allowed={false} host={view.to} />;
     case "ended":
       return <EndedScreen title={view.title} text={view.text} onRetry={view.retry ? () => { const s = session.current; if (s) void loadRequest(s); else setView({ kind: "signIn" }); } : undefined} />;
+    }
   }
 }
 

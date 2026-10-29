@@ -62,6 +62,8 @@ export type ConnectLabel = {
   claimed_name: string | null; redirect_host: string | null; loopback: boolean;
   /// The server lets this page answer for accounts whose key it keeps a copy of (BrowserConnect).
   allow_here?: boolean;
+  /// With allow_here: the AI whose pinned callback this is, so its mark shows from sign-in on.
+  verified_ai?: "ChatGPT" | "Claude" | null;
 };
 
 /// The sign-in step's heading (ConnectFlowV1). The question with the app's name is the frame's
@@ -85,12 +87,14 @@ function plainHost(host: unknown): string | null {
 /// Reads a /connect/label body into what the page may show.
 export function parseLabel(body: unknown): ConnectLabel | null {
   // Only claimed_name: client_name is the server's name for the address, not what the app says.
-  const b = (body ?? {}) as { claimed_name?: unknown; redirect_host?: unknown; allow_here?: unknown };
+  const b = (body ?? {}) as { claimed_name?: unknown; redirect_host?: unknown; allow_here?: unknown; verified_ai?: unknown };
   const claimed = plainName(b.claimed_name);
   const host = plainHost(b.redirect_host);
   if (!claimed && !host) return null;
   const label: ConnectLabel = { claimed_name: claimed, redirect_host: host, loopback: host !== null && LOOPBACK.has(host) };
-  return b.allow_here === true ? { ...label, allow_here: true } : label;
+  if (b.allow_here !== true) return label;
+  const ai = b.verified_ai === "ChatGPT" || b.verified_ai === "Claude" ? b.verified_ai : null;
+  return { ...label, allow_here: true, verified_ai: ai };
 }
 
 /// Reads /connect/label from the MCP function. `headers` are what the function should see: the

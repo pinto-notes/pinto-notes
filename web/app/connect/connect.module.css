@@ -432,43 +432,10 @@
 .facts b { color: var(--ink); font-weight: 650; }
 .factGlyph { flex: none; margin-top: 1px; color: var(--muted); }
 
-/* Don't Allow, then Allow, at the bottom right; half and half on a phone. */
-.answers { display: flex; justify-content: flex-end; gap: 10px; width: 100%; margin-top: 4px; }
-.answers .primary, .answers .secondary { width: auto; min-width: 128px; }
-@media (max-width: 860px) { .answers .primary, .answers .secondary { flex: 1; min-width: 0; } }
 .signedAs { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; }
 .signedAs b { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
 .page[data-layout="panel"] .signedAs { text-align: left; }
 .page[data-layout="panel"] .warn { text-align: left; }
-
-/* ── The consent, wide (the Mac's Allow sheet): who asks on the left, a hairline, what it gets
-   and the answer on the right. It takes the whole frame, so the request panel steps aside. ── */
-.page[data-layout="panel"] .shell:has(.wide) { grid-template-columns: minmax(0, 1fr); }
-.page[data-layout="panel"] .shell:has(.wide) .side { display: none; }
-.page[data-layout="panel"] .card:has(.wide) { padding: 40px 44px 32px; }
-.wide { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); width: 100%; text-align: left; }
-.wideWho { display: grid; align-content: start; justify-items: start; gap: 0; padding-right: 36px; box-shadow: inset -1px 0 0 var(--line); }
-.wideWhat { display: grid; align-content: start; gap: 16px; padding-left: 36px; min-width: 0; }
-.pair { display: flex; align-items: center; gap: 8px; }
-.pairTile {
-  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; box-sizing: border-box;
-  background: #fff; color: #6b6b6b; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(60, 30, 5, 0.12);
-}
-.pairDots { color: var(--muted); font-size: 18px; letter-spacing: 0.04em; line-height: 1; }
-.pairIcon { width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 1px 3px rgba(60, 30, 5, 0.12); }
-.wideTitle { margin: 20px 0 0; font-size: 30px; line-height: 1.15; font-weight: 750; letter-spacing: -0.022em; text-wrap: balance; overflow-wrap: anywhere; }
-.requested { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
-.wideWho .warn { margin-top: 18px; }
-.accessLabel { margin: 0 0 -6px; color: var(--muted); font-size: 13px; font-weight: 650; }
-.wideWhat .facts { margin-top: 6px; }
-.wideWhat .error:empty { min-height: 0; margin: -8px 0; }
-@media (max-width: 860px) {
-  .page[data-layout="panel"] .card:has(.wide) { padding: 24px 20px 22px; }
-  .wide { grid-template-columns: minmax(0, 1fr); gap: 22px; }
-  .wideWho { padding-right: 0; box-shadow: none; }
-  .wideWhat { padding-left: 0; }
-  .wideTitle { margin-top: 16px; font-size: 24px; }
-}
 
 /* ── Dark, on the connect theme (site.css): pure black ground, neutral greys, the leaf theme's
    light-on-dark pictures. The same overrides as leaf's, under the system's dark mode. ── */
@@ -485,3 +452,77 @@
   :global([data-theme="connect"]) .primary { box-shadow: none; }
   :global([data-theme="connect"]) .warn { background: color-mix(in srgb, var(--amber) 22%, transparent); }
 }
+
+/* ───── Connecting on the web alone (BrowserFrame): one page whose content changes in place ─────
+   No card, no side panel, no picture: the pair, the title, the step, in one column of about 400 px
+   on a plain white page, pure black in dark (Emil, 29 October 2026). Amber is the small accent
+   only; the filled button is black in light and white in dark. */
+.flowShell {
+  --bg: #ffffff; --ink: #1d1d1f; --muted: #6e6e73; --soft: #f2f2f4; --line: rgba(0, 0, 0, 0.1);
+  --amber: #f0901a; --link: #b86e00; --card: #ffffff; --cta-bg: #000000; --cta-ink: #ffffff;
+  --field: #ffffff; --field-line: rgba(0, 0, 0, 0.18); --danger: #c4291c; --apple-bg: #000; --apple-ink: #fff;
+  background: var(--bg); color: var(--ink); color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  .flowShell {
+    --bg: #000000; --ink: #f5f5f7; --muted: #a1a1a6; --soft: #1c1c1e; --line: rgba(255, 255, 255, 0.14);
+    --amber: #f5a53a; --link: #f5ad33; --card: #000000; --cta-bg: #ffffff; --cta-ink: #000000;
+    --field: #000000; --field-line: rgba(255, 255, 255, 0.24); --danger: #ff8a80; --apple-bg: #fff; --apple-ink: #000;
+    color-scheme: dark;
+  }
+}
+.flow {
+  flex: 1; width: min(400px, 100% - 32px); margin: 0 auto; box-sizing: border-box; padding: clamp(32px, 11vh, 112px) 0 24px;
+  display: grid; align-content: start; gap: 16px; text-align: left;
+}
+.flow .title { margin: 4px 0 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.012em; text-align: left; }
+.flow .lede { margin: -6px 0 4px; font-size: 15px; line-height: 1.45; text-align: left; }
+.flow .requested { margin: -8px 0 0; font-size: 14px; }
+.flow .status { justify-content: flex-start; margin: 0; font-size: 15px; }
+.flow .form { gap: 12px; }
+.flow .field input { min-height: 44px; border-radius: 10px; }
+.flow .primary, .flow .secondary, .flow .apple, .flow .google { min-height: 44px; border-radius: 10px; font-size: 15px; font-weight: 600; box-shadow: none; }
+.flow .primary { background: var(--cta-bg); color: var(--cta-ink); }
+.flow .secondary, .flow .google { background: var(--soft); color: var(--ink); }
+@media (hover: hover) {
+  .flow .primary:not(:disabled):hover { background: color-mix(in srgb, var(--cta-bg) 84%, var(--muted)); }
+  .flow .secondary:not(:disabled):hover, .flow .google:not(:disabled):hover { background: color-mix(in srgb, var(--soft) 88%, var(--ink)); }
+}
+.flow .primary:disabled, .flow .secondary:disabled, .flow .google:disabled { background: var(--soft); color: var(--muted); }
+.flow .or { font-size: 13px; }
+.flow .signedAs { margin-top: 2px; text-align: left; }
+.flow .warn { font-size: 14px; }
+
+/* The pair: the AI's tile, the link, Pinto's icon. Small, on every step. */
+.pair { display: flex; align-items: center; gap: 8px; }
+.pairTile {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; box-sizing: border-box;
+  background: #fff; color: #6b6b6b; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.pairDots { color: var(--muted); font-size: 16px; letter-spacing: 0.04em; line-height: 1; }
+.pairIcon { width: 36px; height: 36px; border-radius: 9px; }
+.pairDone { display: grid; place-items: center; }
+.pairDone circle { fill: var(--amber); }
+.pairDone path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Access: two light rows that read as a control: a hairline at rest, an amber ring and a filled
+   dot on the chosen one. The facts under them are plain lines. */
+.flow .access { gap: 8px; }
+.flow .accessLabel { margin: 2px 0 -2px; }
+.flow .accessRow { padding: 10px 12px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line); }
+.flow .accessRow[aria-checked="true"] { background: color-mix(in srgb, var(--amber) 9%, transparent); box-shadow: inset 0 0 0 1.5px var(--amber); }
+.flow .accessDot { width: 16px; height: 16px; margin-top: 2px; }
+.flow .accessRow[aria-checked="true"] .accessDot { box-shadow: inset 0 0 0 4.5px var(--amber); }
+.flow .accessWords { font-size: 13px; }
+.flow .accessWords b { font-size: 15px; font-weight: 600; }
+.flow .facts { gap: 10px; }
+.flow .facts p { font-size: 14px; }
+.flow .factGlyph { width: 16px; height: 16px; margin-top: 2px; }
+.flow .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
+
+.flowFoot { margin: 0; padding: 20px 16px 28px; text-align: center; color: var(--muted); font-size: 13px; }
+.flowFoot a { color: var(--muted); text-decoration: none; }
+@media (hover: hover) { .flowFoot a:hover { color: var(--ink); } }
+.requested { color: var(--muted); line-height: 1.45; }
+.accessLabel { color: var(--muted); font-size: 13px; font-weight: 650; }

@@ -1,24 +1,50 @@
-import { useEffect, useRef } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { GOOGLE_ON_WEB, APPLE_ON_WEB } from "@/lib/connect";
 import { ACCESS, CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
+import { Shell } from "@/lib/ui";
 import { ErrorLine, SignInButtons, Spinner } from "./ConnectScreens";
 import styles from "./connect.module.css";
 
-// The screens of connecting on the web page alone (BrowserConnect.tsx), from props only. Who is
-// asking is the frame's to say (ConnectCard), so these name the step. See lib/connect-browser.ts.
+// The screens of connecting on the web page alone (BrowserConnect.tsx), from props only. One page
+// whose content changes in place (Emil, 29 October 2026): the same frame on every step (the pair
+// at the top, then the title, then the step), one narrow column, plain white or pure black. See
+// lib/connect-browser.ts.
+
+/// Who connects, as every step shows it: the AI's mark for its own verified callback, else a plain
+/// chat glyph; then Pinto's icon. `done` puts a tick between them.
+export type Verified = "ChatGPT" | "Claude" | null;
+
+/// The frame around every step: no card, no side panel, no picture.
+export function BrowserFrame({ ai, done = false, children }: { ai: Verified; done?: boolean; children: React.ReactNode }) {
+  return (
+    <Shell className={styles.flowShell}>
+      <main className={styles.flow}>
+        <PairMark ai={ai} done={done} />
+        {children}
+      </main>
+      <p className={styles.flowFoot}>
+        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a>
+      </p>
+    </Shell>
+  );
+}
 
 /// Sign in: Google and Apple, or an email code. `again`: signed in, but too long ago to connect.
-export function BrowserSignInScreen({ email, onEmail, onSubmit, onGoogle, onApple, busy, ready, failure, again = false, noAccount = false, onDifferent }: {
+export function BrowserSignInScreen({ who, email, onEmail, onSubmit, onGoogle, onApple, busy, ready, failure, again = false, noAccount = false, onDifferent }: {
+  /// Who asks, as the consent's title names it ("ChatGPT", or the address).
+  who: string;
   email: string; onEmail: (v: string) => void; onSubmit: (e: React.FormEvent) => void;
   onGoogle: () => void; onApple: () => void; busy: boolean; ready: boolean; failure: string | null;
   again?: boolean; noAccount?: boolean; onDifferent: () => void;
 }) {
   return (
     <>
-      <h1 className={styles.title}>{again ? "Sign in again" : "Sign in to Pinto Notes"}</h1>
-      <p className={styles.lede}>{again ? SIGN_IN_AGAIN : "Then you choose what it can do with your notes."}</p>
+      <h1 className={styles.title}>{again ? "Sign in again" : `Connect ${who} to your notes?`}</h1>
+      <p className={styles.lede}>{again ? SIGN_IN_AGAIN : "Sign in to Pinto Notes, then choose what it can do."}</p>
       {APPLE_ON_WEB && <SignInButtons onApple={onApple} onGoogle={GOOGLE_ON_WEB ? onGoogle : undefined} busy={busy} />}
       <form className={styles.form} method="post" onSubmit={onSubmit}>
         <label className={styles.field}>
@@ -85,110 +111,107 @@ export function CodeScreen({ email, code, onCode, onSubmit, onResend, onDifferen
   );
 }
 
-/// The consent, in the Mac's wide Allow sheet (ConsentSheet in Pane/Views/ConnectAI.swift): who asks
-/// on the left, what it gets and the answer on the right; one column on a phone. The access choice
-/// is a pair of bordered rows with a selected state, so it reads as a control; the facts under it
-/// stay plain text with a glyph. No number: Allow here is the answer, and nothing else must match.
-/// The pair at the top shows the AI's mark only for its own verified return address (`mark`); any
-/// other app gets a plain chat glyph.
-export function ConsentScreen({ words, mark = null, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
+/// The consent, under the same frame: who asks and when, the access as two rows you can see are a
+/// control, then the facts as plain lines with a glyph, then Don't Allow and Allow side by side.
+/// Everything App Review asks for stays in view: what is sent, to which company, and both answers.
+export function ConsentScreen({ words, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
   words: ConsentWords; canWrite: boolean; write: boolean; onWrite: (write: boolean) => void;
   onAllow: () => void; onDeny: () => void;
   /// Which answer is on its way.
   busy: "allow" | "deny" | null; failure: string | null; email: string; onSwitch: () => void;
   /// "Requested just now from Chrome on Windows" (requestedLine).
   requested: string;
-  /// The server's verified AI (ConnectRequest.verified_ai): its mark leads the pair.
-  mark?: "ChatGPT" | "Claude" | null;
 }) {
   const options = canWrite ? [true, false] : [false];
   return (
-    <div className={styles.wide} data-testid="connect-consent">
-      <section className={styles.wideWho}>
-        <PairMark ai={mark} />
-        <h1 className={styles.wideTitle}>{words.title}</h1>
-        <p className={styles.requested} data-testid="connect-requested">{requested}</p>
-        {words.caution && (
-          <p className={styles.warn} data-testid="connect-unknown"><b>{words.caution.lead}</b> {words.caution.detail}</p>
-        )}
-      </section>
-      <section className={styles.wideWhat}>
+    <>
+      <h1 className={styles.title}>{words.title}</h1>
+      <p className={styles.requested} data-testid="connect-requested">{requested}</p>
+      {words.caution && (
+        <p className={styles.warn} data-testid="connect-unknown"><b>{words.caution.lead}</b> {words.caution.detail}</p>
+      )}
+      <div className={styles.access} role="radiogroup" aria-labelledby="connect-access-label">
         <p className={styles.accessLabel} id="connect-access-label">Access</p>
-        <div className={styles.access} role="radiogroup" aria-labelledby="connect-access-label">
-          {options.map((edit) => {
-            const a = edit ? ACCESS.edit : ACCESS.read;
-            const on = write === edit || options.length === 1;
-            return (
-              <button
-                key={a.title} type="button" role="radio" aria-checked={on} className={styles.accessRow}
-                onClick={() => onWrite(edit)} disabled={busy !== null}
-              >
-                <span className={styles.accessDot} aria-hidden="true" />
-                <span className={styles.accessWords}>
-                  <b>{a.title}</b>
-                  <span>{a.detail}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <ul className={styles.facts}>
-          <li data-testid="connect-shared">
-            <ShareGlyph />
-            <p><b>{words.sharedLead}</b> {words.sent}</p>
-          </li>
-          <li data-testid="connect-locked">
-            <LockGlyph />
-            <p><b>{words.lockedLead}</b> {words.lockedDetail}</p>
-          </li>
-        </ul>
-        <ErrorLine text={failure} />
-        <div className={styles.answers}>
-          <button type="button" className={styles.secondary} onClick={onDeny} disabled={busy !== null} aria-busy={busy === "deny"}>
-            {busy === "deny" ? <><Spinner /> Declining…</> : "Don’t Allow"}
-          </button>
-          <button type="button" className={styles.primary} onClick={onAllow} disabled={busy !== null} aria-busy={busy === "allow"}>
-            {busy === "allow" ? <><Spinner /> Allowing…</> : "Allow"}
-          </button>
-        </div>
-        <p className={styles.signedAs}>
-          Signed in as <b>{email}</b>.{" "}
-          <button type="button" className={styles.inlineLink} onClick={onSwitch} disabled={busy !== null}>Use another account</button>
-        </p>
-      </section>
-    </div>
+        {options.map((edit) => {
+          const a = edit ? ACCESS.edit : ACCESS.read;
+          const on = write === edit || options.length === 1;
+          return (
+            <button
+              key={a.title} type="button" role="radio" aria-checked={on} className={styles.accessRow}
+              onClick={() => onWrite(edit)} disabled={busy !== null}
+            >
+              <span className={styles.accessDot} aria-hidden="true" />
+              <span className={styles.accessWords}>
+                <b>{a.title}</b>
+                <span>{a.detail}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <ul className={styles.facts}>
+        <li data-testid="connect-shared">
+          <ShareGlyph />
+          <p><b>{words.sharedLead}</b> {words.sent}</p>
+        </li>
+        <li data-testid="connect-locked">
+          <LockGlyph />
+          <p><b>{words.lockedLead}</b> {words.lockedDetail}</p>
+        </li>
+      </ul>
+      <ErrorLine text={failure} />
+      <div className={styles.answers}>
+        <button type="button" className={styles.secondary} onClick={onDeny} disabled={busy !== null} aria-busy={busy === "deny"}>
+          {busy === "deny" ? <><Spinner /> Declining…</> : "Don’t Allow"}
+        </button>
+        <button type="button" className={styles.primary} onClick={onAllow} disabled={busy !== null} aria-busy={busy === "allow"}>
+          {busy === "allow" ? <><Spinner /> Allowing…</> : "Allow"}
+        </button>
+      </div>
+      <p className={styles.signedAs}>
+        Signed in as <b>{email}</b>.{" "}
+        <button type="button" className={styles.inlineLink} onClick={onSwitch} disabled={busy !== null}>Use another account</button>
+      </p>
+    </>
   );
 }
 
-/// The AI's tile, three dots, and Pinto's icon. The AI's mark only after sign-in and only for its
-/// verified return address (the server's verifiedAI, the check the app's Allow sheet uses); an app
-/// Pinto can't name gets a plain chat glyph, so nothing on the page vouches for it.
-function PairMark({ ai }: { ai: "ChatGPT" | "Claude" | null }) {
+/// The AI's tile, a link between, and Pinto's icon. The AI's mark only for its verified callback
+/// (the server's verifiedAI, the check the app's Allow sheet uses); an app Pinto can't name gets a
+/// plain chat glyph, so nothing on the page vouches for it. Done: a tick where the dots were.
+function PairMark({ ai, done }: { ai: Verified; done: boolean }) {
   return (
     <div className={styles.pair} aria-hidden="true">
       <span className={styles.pairTile} data-testid="connect-mark" data-ai={ai ?? "none"}>
-        {ai === "ChatGPT" ? <AIGlyph name="openai" size={22} color="#000" />
-          : ai === "Claude" ? <AIGlyph name="claude" size={22} color="#d97757" />
+        {ai === "ChatGPT" ? <AIGlyph name="openai" size={20} color="#000" />
+          : ai === "Claude" ? <AIGlyph name="claude" size={20} color="#d97757" />
           : (
-            <svg viewBox="0 0 20 20" width={20} height={20} focusable="false">
+            <svg viewBox="0 0 20 20" width={18} height={18} focusable="false">
               <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
             </svg>
           )}
       </span>
-      <span className={styles.pairDots}>···</span>
-      <img className={styles.pairIcon} src="/icon-96.png" alt="" width={40} height={40} decoding="async" />
+      {done ? (
+        <span className={styles.pairDone} data-testid="connect-done">
+          <svg viewBox="0 0 20 20" width={20} height={20} focusable="false"><circle cx="10" cy="10" r="10" /><path d="M5.8 10.4l2.8 2.8 5.6-6" /></svg>
+        </span>
+      ) : <span className={styles.pairDots}>···</span>}
+      <img className={styles.pairIcon} src="/icon-96.png" alt="" width={36} height={36} decoding="async" />
     </div>
   );
 }
 
-/// Allowed: on the way back to the AI, with a link in case the browser doesn't go by itself.
+/// Allowed: on the way back to the AI. The link to go by hand comes only after 3 s, for a browser
+/// that didn't go by itself; nothing else is left to answer.
+export const BACK_LINK_AFTER_MS = 3000;
 export function ConnectedScreen({ to, href }: { to: string; href: string }) {
+  const [late, setLate] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setLate(true), BACK_LINK_AFTER_MS); return () => clearTimeout(t); }, []);
   return (
     <>
-      <DoneMark />
       <h1 className={styles.title}>Connected</h1>
       <p className={styles.status} role="status"><Spinner /> Taking you back to {to}…</p>
-      <a className={styles.secondary} href={href}>Back to {to}</a>
+      {late && <a className={styles.secondary} href={href}>Back to {to}</a>}
     </>
   );
 }
@@ -207,17 +230,6 @@ export function InAppScreen({ onContinue, email, onSwitch }: { onContinue: () =>
         </p>
       )}
     </>
-  );
-}
-
-/// A tick on an amber disc of cut paper, as the other connect screens show it.
-function DoneMark() {
-  return (
-    <svg className={styles.done} viewBox="0 0 64 64" width={64} height={64} aria-hidden="true" focusable="false">
-      <circle className={styles.pShadow} cx="34" cy="35" r="26" />
-      <circle className={styles.pDisc} cx="32" cy="32" r="26" />
-      <path className={styles.doneTick} d="M21 33.5l7.5 7.5L43.5 25" />
-    </svg>
   );
 }
 

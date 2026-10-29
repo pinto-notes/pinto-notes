@@ -76,7 +76,7 @@ export default function Preview({ state, number, action, both }: {
     case "webSignInAgain":
       return (
         <BrowserSignInScreen
-          email={state === "webSignInAgain" ? "me@example.com" : email} onEmail={setEmail} onSubmit={prevent} onGoogle={noop} onApple={noop}
+          who="ChatGPT" email={state === "webSignInAgain" ? "me@example.com" : email} onEmail={setEmail} onSubmit={prevent} onGoogle={noop} onApple={noop}
           busy={false} ready failure={null} again={state === "webSignInAgain"} onDifferent={noop}
         />
       );
@@ -90,7 +90,7 @@ export default function Preview({ state, number, action, both }: {
       const r = state === "webConsentUnknown" ? UNKNOWN : state === "webConsentClaude" ? CLAUDE : CHATGPT;
       return (
         <ConsentScreen
-          words={consentWords(r)} mark={r.verified_ai ?? null} requested="Requested just now from Chrome on Windows" canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
+          words={consentWords(r)} requested="Requested just now from Chrome on Windows" canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
           onAllow={noop} onDeny={noop} busy={state === "webAllowing" ? "allow" : null} failure={null} email="me@example.com" onSwitch={noop}
         />
       );
