@@ -31,6 +31,8 @@ final class EditorController {
     @ObservationIgnored var addData: (Data, String, UTType) -> Attachment? = { _, _, _ in nil }
     /// Opens the file picker (set by the note screen).
     @ObservationIgnored var attach: () -> Void = {}
+    /// Asks what to put in: a photo, a file or a link (iPhone; set by the note screen).
+    @ObservationIgnored var attachChoices: () -> Void = {}
     /// Fetches a file that isn't on this device yet.
     @ObservationIgnored var download: @MainActor (Attachment) async -> Bool = { _ in false }
 

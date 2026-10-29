@@ -586,6 +586,7 @@
 		C2A23F349B49F07B95A1E81C /* NoteListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AFF5865DFB1F37542A9EF3A /* NoteListView.swift */; };
 		C2BE09056520338EBE726005 /* BundleRename.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C914D1C89C1A28F957DF97 /* BundleRename.swift */; };
 		C31386DEDF93E0340E99476A /* WikiLinkEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE3FF188D09E62B4A68D47F /* WikiLinkEditorTests.swift */; };
+		C38156137BA5E5E7624DC5F0 /* WritingBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 557A4247FD23A754D4334747 /* WritingBarUITests.swift */; };
 		C3D862DDAD903DBF6377AE75 /* KeyProtectionAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B368A33CBCE4C0634FF8A2 /* KeyProtectionAsk.swift */; };
 		C3FDDB755E2DAB9909A8ED0F /* TypedTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D3C041048DAAB22B2FC870 /* TypedTable.swift */; };
 		C45A9D5CD5221B6E29E071EA /* SettingsHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B21B489F3B2310C6D64E325 /* SettingsHome.swift */; };
@@ -958,6 +959,7 @@
 		550BEF23962BF4E461634AD1 /* SessionStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStorageTests.swift; sourceTree = "<group>"; };
 		550E4D52A7E05ECB1417CCD0 /* RichPaste.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichPaste.swift; sourceTree = "<group>"; };
 		5565EB367045469002EA399A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		557A4247FD23A754D4334747 /* WritingBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WritingBarUITests.swift; sourceTree = "<group>"; };
 		569EB1430761546DBD046F80 /* AccountKeysSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountKeysSync.swift; sourceTree = "<group>"; };
 		56BA16A2B5C7881A05F21723 /* Model */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Model; path = Pane/Model; sourceTree = SOURCE_ROOT; };
 		57082248EBCF867276471FE9 /* firstopen-note.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-note.jpg"; sourceTree = "<group>"; };
@@ -2096,6 +2098,7 @@
 				E5FF211616E406434EE7DC37 /* SyncTests.swift */,
 				477ACA457C7563F360F21E9B /* TableEditingUITests.swift */,
 				14F9F8FBEB782DAC56C7A390 /* WikiLinksUITests.swift */,
+				557A4247FD23A754D4334747 /* WritingBarUITests.swift */,
 			);
 			path = PaneUITests;
 			sourceTree = "<group>";
@@ -2887,6 +2890,7 @@
 				4F2E162B27450D4C56EACFF6 /* SyncTests.swift in Sources */,
 				F77885AA135AFC57A9D55F0C /* TableEditingUITests.swift in Sources */,
 				486F06F685010C3279CCBA3E /* WikiLinksUITests.swift in Sources */,
+				C38156137BA5E5E7624DC5F0 /* WritingBarUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

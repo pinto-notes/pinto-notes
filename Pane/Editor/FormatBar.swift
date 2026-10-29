@@ -9,6 +9,9 @@ struct FormatBar: View {
     var inTable = false
     let dismiss: () -> Void
 
+    /// The glass around a 44 pt target: a 48 pt capsule, as tall as the system toolbar's.
+    static let inset: CGFloat = 2
+
     var body: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
@@ -25,11 +28,11 @@ struct FormatBar: View {
                 .buttonStyle(PressScale())
                 .accessibilityLabel("Hide keyboard")
                 .accessibilityIdentifier("editor.done")
-                .padding(.horizontal, 4)
+                .padding(Self.inset)
                 .glassEffect(.regular.interactive(), in: .circle)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
         }
     }
 
@@ -43,25 +46,36 @@ struct FormatBar: View {
         }
         .accessibilityLabel("Table")
         .accessibilityIdentifier("editor.tableMenu")
-        .padding(.horizontal, 4)
+        .padding(.horizontal, Self.inset * 4)
+        .padding(.vertical, Self.inset)
         .glassEffect(.regular.interactive(), in: .capsule)
     }
 
-    /// The writing tools; while a `[[link` is typed, note titles take their place.
+    /// The writing tools; while a `[[link` is typed, note titles take their place. They show only
+    /// with the keyboard: the note has no bar at its foot while you read (Emil, 29 October 2026).
     private var tools: some View {
-                HStack(spacing: 2) {
-                    // The Format panel in the keyboard's place, like Notes (FormatPanel). It was a
-                    // menu until 2026-10-28: a short list over the text, with no state shown.
-                    Button(action: controller.showFormatPanel) { BarIcon(systemName: "textformat") }
-                        .buttonStyle(PressScale())
-                        .accessibilityLabel("Format")
-                        .accessibilityIdentifier("editor.format")
-                    BarButton("Checklist", "checklist", action: controller.checklist)
-                    BarButton("Table", "tablecells", action: controller.insertTable)
-                    BarButton("Attach", "paperclip") { controller.attach() }
-                }
-                .padding(.horizontal, 4)
-                .glassEffect(.regular.interactive(), in: .capsule)
+        HStack(spacing: 8) {
+            // The Format panel in the keyboard's place, like Notes (FormatPanel). It was a
+            // menu until 2026-10-28: a short list over the text, with no state shown.
+            Button(action: controller.showFormatPanel) { BarIcon(systemName: "textformat") }
+                .buttonStyle(PressScale())
+                .accessibilityLabel("Format")
+                .accessibilityIdentifier("editor.format")
+            BarButton("Checklist", "checklist", action: controller.checklist)
+            BarButton("Table", "tablecells", action: controller.insertTable)
+            attachMenu
+        }
+        .padding(.horizontal, Self.inset * 4)
+        .padding(.vertical, Self.inset)
+        .glassEffect(.regular.interactive(), in: .capsule)
+    }
+
+    /// The paperclip: what can be put into a note. The note screen asks which (a photo or video, a
+    /// file, a link to a note, a web link). A menu here put out a second, nameless button for
+    /// VoiceOver (AccessibilityUITests).
+    private var attachMenu: some View {
+        BarButton("Attach", "paperclip", action: controller.attachChoices)
+            .accessibilityIdentifier("editor.attach")
     }
 }
 
@@ -81,11 +95,13 @@ private struct BarButton: View {
     }
 }
 
+/// A tool's glyph at 22 pt, the size the system toolbar draws them (Emil, 29 October 2026: "I like
+/// the 22pt size on buttons, not smaller on iOS"; they were 17 pt here), in a 44 pt target.
 private struct BarIcon: View {
     let systemName: String
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 17, weight: .medium))
+            .font(.system(size: 22, weight: .regular))
             .foregroundStyle(.primary)
             .frame(width: 44, height: 44)
             .contentShape(.rect)
