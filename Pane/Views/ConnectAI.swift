@@ -1554,7 +1554,9 @@ struct ConsentSheet: View {
 
     /// Asked by notification: the two digits the page shows, to compare, in a box of their own.
     private var number: some View {
-        HStack(spacing: 18) {
+        // At the accessibility sizes the number sits above its words, so they keep the full width.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 18))
+        return layout {
             if let match {
                 Text(match.number)
                     .font(Self.compact ? .system(.largeTitle, design: .rounded, weight: .bold) : .system(size: 36, weight: .bold, design: .rounded))
