@@ -77,6 +77,25 @@ struct AITile: View {
 /// stays as long as the tint does.
 enum NoteAIUndo {
     static let identifier = "note.aiUndo"
+    /// The same place's Undo of your own changes.
+    static let yoursIdentifier = "note.undo"
+
+    /// What the one Undo beside Share and More undoes (Emil, 29 October 2026): your last change
+    /// since the note opened; before you've changed anything, an AI's edit; otherwise it isn't
+    /// there. Never two.
+    enum Button: Equatable {
+        case yours(canRedo: Bool)
+        case ai(AIEdit.Receipt)
+    }
+
+    static func button(canUndo: Bool, canRedo: Bool, receipt: AIEdit.Receipt?, showingPage: Bool, trashed: Bool) -> Button? {
+        guard !trashed else { return nil }
+        #if os(iOS)
+        if canUndo, !showingPage { return .yours(canRedo: canRedo) }
+        #endif
+        if let receipt, inBar(receipt, showingPage: showingPage) { return .ai(receipt) }
+        return nil
+    }
 
     static func inBar(_ receipt: AIEdit.Receipt?, showingPage: Bool) -> Bool {
         #if os(iOS)

@@ -655,6 +655,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         self.text = text
         lastReported = text
         remember(text)
+        // Undo's floor: the note as it opened.
+        undoManager?.removeAllActions()
+        observeUndo()
         core.observe(textStorage)
         core.restyle(textStorage, selection: nil, force: true)
         observeChangeHighlight()
@@ -887,6 +890,40 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         undoManager?.undo()
     }
 
+    // MARK: Undo
+
+    // The text view's own undo manager (one per note: each note gets a new text view) holds the
+    // steps, so ⌘Z, shake, the three-finger swipe and the top bar's Undo all reach the same stack.
+
+    func undoStep(redo: Bool) {
+        guard let undo = undoManager else { return }
+        if redo { if undo.canRedo { undo.redo() } } else if undo.canUndo { undo.undo() }
+        reportUndo()
+    }
+
+    private func observeUndo() {
+        for name: Notification.Name in [.NSUndoManagerDidCloseUndoGroup, .NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange] {
+            NotificationCenter.default.addObserver(self, selector: #selector(undoStackChanged(_:)), name: name, object: nil)
+        }
+        reportUndo()
+    }
+
+    @objc private func undoStackChanged(_ note: Notification) {
+        if (note.object as AnyObject?) === undoManager { reportUndo() }
+    }
+
+    /// Tells the top bar what Undo and Redo can do now, and again a turn later, once a typing
+    /// group the run loop closes has closed.
+    private func reportUndo() {
+        let report = { [weak self] in
+            guard let self, let controller = self.controller, controller.target === self else { return }
+            // A quick, quiet fade in and out.
+            withAnimation(.easeOut(duration: 0.18)) { controller.undoChanged(canUndo: self.undoManager?.canUndo == true, canRedo: self.undoManager?.canRedo == true) }
+        }
+        report()
+        DispatchQueue.main.async(execute: report)
+    }
+
     func focusGrid(_ index: Int, cell: GridCell) {
         core.gridFocus = GridFocusRequest(grid: index, cell: cell)
         layoutCards()
@@ -951,9 +988,15 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         guard isFirstResponder else {
             guard NSMaxRange(edit.range) <= textStorage.length else { return }
             let keep = selectedRange
+            let old = (textStorage.string as NSString).substring(with: edit.range)
             textStorage.replaceCharacters(in: edit.range, with: edit.replacement)
-            // Undo steps recorded against the old text would land in the wrong place now.
-            undoManager?.removeAllActions()
+            // Undo steps recorded against the old text would land in the wrong place now (the text
+            // view drops its typing steps on a change like this anyway). This change is a step of
+            // its own, so a tick with the keyboard down can be undone. (Not while that step is
+            // being undone or redone: clearing the stack then hung the undo manager.)
+            if let undo = undoManager, !undo.isUndoing, !undo.isRedoing { undo.removeAllActions() }
+            let back = TextEdit(range: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), replacement: old, caret: -1)
+            undoManager?.registerUndo(withTarget: self) { $0.apply(back) }
             let caret = min(edit.caret, textStorage.length)
             if let kept = edit.selection, NSMaxRange(kept) <= textStorage.length { selectedRange = kept }
             else {
@@ -1203,6 +1246,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if markedTextRange != nil { arrivedWhileComposing = new; return }
         reported.removeAll()
         lastReported = new
+        // Until what you type next is saved, the note still holds this: not a change again.
+        remember(new)
         replaceText(with: new)
     }
 
@@ -1225,7 +1270,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let offset = contentOffset
         textStorage.replaceCharacters(in: edit.range, with: edit.replacement)
         // Undo steps recorded against the old text would land in the wrong place now.
-        undoManager?.removeAllActions()
+        undoManager?.removeAllActions(); reportUndo()
         selectedRange = TextDiff.map(keep, through: edit)
         core.restyle(textStorage, selection: editingSelection, force: true)
         settleOverlays(after: NSMaxRange(edit.range) + (edit.replacement as NSString).length)
@@ -1842,6 +1887,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if hasMarkedText() { arrivedWhileComposing = new; return }
         reported.removeAll()
         lastReported = new
+        // Until what you type next is saved, the note still holds this: not a change again.
+        remember(new)
         replaceText(with: new)
     }
 

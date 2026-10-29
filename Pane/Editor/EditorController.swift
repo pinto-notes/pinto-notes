@@ -408,6 +408,24 @@ final class EditorController {
         notice = nil
         target?.undoLastEdit()
     }
+
+    // MARK: The note's Undo button
+
+    /// What the open note's own Undo can reach. Its floor is the note as it opened: the stack
+    /// starts empty then, and again when a sync, a restore or an AI's undo replaces the text.
+    private(set) var canUndo = false
+    private(set) var canRedo = false
+
+    /// Set by the editor whenever its undo stack changes.
+    func undoChanged(canUndo: Bool, canRedo: Bool) {
+        if self.canUndo != canUndo { self.canUndo = canUndo }
+        if self.canRedo != canRedo { self.canRedo = canRedo }
+    }
+
+    /// The top bar's Undo: one step, the keyboard left as it is.
+    func undo() { target?.undoStep(redo: false) }
+    /// Its long press: Redo.
+    func redo() { target?.undoStep(redo: true) }
 }
 
 /// A short confirmation over the note of something just done to it.
@@ -443,6 +461,8 @@ protocol EditorTarget: AnyObject {
     func deleteGrid(_ index: Int)
     /// Undoes the last edit (the notice's Undo).
     func undoLastEdit()
+    /// Undoes (or redoes) one step without moving the keyboard (the note's Undo button).
+    func undoStep(redo: Bool)
     /// Puts the keyboard in a cell of table `index`.
     func focusGrid(_ index: Int, cell: GridCell)
     /// A table cell's field just took the keyboard (the iPhone gives it the table toolbar).
@@ -456,6 +476,7 @@ protocol EditorTarget: AnyObject {
 extension EditorTarget {
     func deleteGrid(_ index: Int) {}
     func undoLastEdit() {}
+    func undoStep(redo: Bool) {}
     func focusGrid(_ index: Int, cell: GridCell) {}
     func gridFieldFocused() {}
     func showTableMenu(_ menu: TableMenu) {}

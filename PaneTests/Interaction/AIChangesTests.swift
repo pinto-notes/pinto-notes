@@ -161,8 +161,20 @@ import AppKit
         }
     }
 
+    /// The note's one Undo, whichever it undoes. (SwiftUI hands the bar item its title, not its
+    /// identifier.)
     static func undoItem(in window: UIWindow) -> UIBarButtonItem? {
-        barItems(in: window).first { $0.accessibilityIdentifier == NoteAIUndo.identifier || $0.title == "Undo" }
+        barItems(in: window).first { $0.title?.hasPrefix("Undo") == true }
+    }
+
+    /// That Undo while it undoes an AI's edit: titled "Undo ChatGPT's changes".
+    static func aiUndoItem(in window: UIWindow) -> UIBarButtonItem? {
+        barItems(in: window).first { $0.title?.hasPrefix("Undo ") == true || $0.title?.hasPrefix("Undo,") == true }
+    }
+
+    /// That Undo while it undoes your own changes.
+    static func yourUndoItem(in window: UIWindow) -> UIBarButtonItem? {
+        barItems(in: window).first { $0.title == "Undo" }
     }
 
     static func tap(_ item: UIBarButtonItem) {
@@ -206,11 +218,13 @@ import AppKit
         try? await Task.sleep(for: .seconds(1.5))
         #expect(!AIEdit.isUnseen(note))
         #expect(controller.isTinted, "what the AI changed is tinted")
-        let undo = try #require(Self.undoItem(in: open), "Undo is in the bar; items: \(Self.barItems(in: open).map { $0.title ?? $0.accessibilityIdentifier ?? "?" })")
+        let undo = try #require(Self.aiUndoItem(in: open), "Undo is in the bar; items: \(Self.barItems(in: open).map { $0.title ?? $0.accessibilityIdentifier ?? "?" })")
+        #expect(undo.title == "Undo ChatGPT's changes", "VoiceOver says whose change it undoes")
+        #expect(Self.yourUndoItem(in: open) == nil, "never two")
         try Self.shot(open, "2-note-\(mode)")
         try? await Task.sleep(for: .seconds(6))
         #expect(controller.isTinted, "still tinted while you read")
-        #expect(Self.undoItem(in: open) != nil, "and Undo still there")
+        #expect(Self.aiUndoItem(in: open) != nil, "and Undo still there")
 
         Self.tap(undo)
         try? await Task.sleep(for: .seconds(1.0))
@@ -221,7 +235,8 @@ import AppKit
         try Self.shot(open, "3-after-undo-\(mode)")
     }
 
-    /// Typing on the iPhone: the first keystroke takes the tint and Undo away.
+    /// Typing on the iPhone: the first keystroke takes the tint and the AI's Undo away; the same
+    /// place is then your own Undo (NoteUndoButtonTests).
     @Test func typingClearsTheMarkOnTheIPhone() async throws {
         let c = try Self.container()
         let note = Self.aiEdited(c, by: "Claude")
@@ -230,13 +245,14 @@ import AppKit
         defer { open.isHidden = true }
         try? await Task.sleep(for: .seconds(1.5))
         #expect(controller.isTinted)
-        #expect(Self.undoItem(in: open) != nil)
+        #expect(Self.aiUndoItem(in: open) != nil)
         let view = try #require(controller.target as? PaneTextView)
         view.selectedRange = NSRange(location: (view.text as NSString).length, length: 0)
         view.insertText("!")
         try? await Task.sleep(for: .seconds(0.6))
         #expect(!controller.isTinted, "typing makes it yours")
-        #expect(Self.undoItem(in: open) == nil, "Undo goes with it")
+        #expect(Self.aiUndoItem(in: open) == nil, "the AI's Undo goes with it")
+        #expect(Self.yourUndoItem(in: open) != nil, "your typing is what Undo undoes now")
         #expect(note.body != Self.before, "nothing was undone")
     }
     #endif
