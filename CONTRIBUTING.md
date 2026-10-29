@@ -13,8 +13,6 @@ Good ideas become issues, credited to you, and you're first in line to build it 
 ## Where to start
 
 - [**help wanted**](https://github.com/pinto-notes/pinto-notes/labels/help%20wanted): real features with a short spec, where the code lives, how to test it and a size. Comment on one to claim it.
-  - [Shortcuts actions: add to a note, and create a note](https://github.com/pinto-notes/pinto-notes/issues/131) (Swift, M)
-  - [Let an AI update any table row](https://github.com/pinto-notes/pinto-notes/issues/132) (TypeScript, M)
   - [Import Notion databases as tables](https://github.com/pinto-notes/pinto-notes/issues/133) (Swift, M)
   - [Import from Day One](https://github.com/pinto-notes/pinto-notes/issues/134) (Swift, M)
   - [Import Bear backups](https://github.com/pinto-notes/pinto-notes/issues/139) (Swift, S)
