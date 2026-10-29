@@ -75,7 +75,7 @@ struct NewAppTip: Tip {
 #if os(iOS)
 
 /// The iPhone bottom bar of the folders screen and of a folder's notes, one look for both: the
-/// search field, and the round new-note button at the right, as in Notes and Mail.
+/// search field, and New Note at the right, as in Notes and Mail.
 struct SearchComposeBar: ToolbarContent {
     let newNote: () -> Void
     /// Recently Deleted holds no new notes.
@@ -86,10 +86,17 @@ struct SearchComposeBar: ToolbarContent {
 
     var body: some ToolbarContent {
         DefaultToolbarItem(kind: .search, placement: .bottomBar)
+        // iPad moves search to the top of the column; compose then belongs at the trailing edge.
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+        } else {
+            ToolbarSpacer(.fixed, placement: .bottomBar)
+        }
         Compose(newNote: newNote, disabled: disabled, tip: tip, identifier: identifier)
     }
 
-    /// The round button alone (iPad's folders, where the list beside them has the search).
+    /// New Note alone (iPad's folders, where the list beside them has the search). Holding it
+    /// still offers New App.
     struct Compose: ToolbarContent {
         let newNote: () -> Void
         var disabled = false
@@ -97,19 +104,13 @@ struct SearchComposeBar: ToolbarContent {
         var identifier = "list.newNote"
 
         var body: some ToolbarContent {
-            // A filled circle in the label colour (white on black, black on white), never the
-            // accent. Holding it still offers New App.
             ToolbarItem(placement: .bottomBar) {
-                ComposeButton(newNote: newNote) {
-                    SwiftUI.Label { Text("New Note") } icon: { NewNoteCircle() }
-                        .labelStyle(.iconOnly)
-                }
-                .modifier(NewAppTipHere(on: tip))
-                .disabled(disabled)
-                .accessibilityIdentifier(identifier)
+                ComposeButton(newNote: newNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                    .tint(.primary)
+                    .modifier(NewAppTipHere(on: tip))
+                    .disabled(disabled)
+                    .accessibilityIdentifier(identifier)
             }
-            // The circle is the button: no glass capsule around it.
-            .sharedBackgroundVisibility(.hidden)
         }
     }
 }
