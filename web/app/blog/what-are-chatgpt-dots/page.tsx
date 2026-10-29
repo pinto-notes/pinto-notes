@@ -93,6 +93,11 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      <p>
+        Update, 29 October: many paid users no longer see Chat and Work as separate choices. There&apos;s one model picker
+        instead, and the model you pick decides which job ChatGPT does. OpenAI hasn&apos;t announced the details yet; <a href="/blog/chatgpt-chat-and-work-merged">what
+        changed and how to get plain chat back</a>.
+      </p>
 
       <h2 id="who">Who can get a dot</h2>
       <PostFigure src="/blog/drawn/dots-plans" width={1200} height={750} maxWidth={560}
