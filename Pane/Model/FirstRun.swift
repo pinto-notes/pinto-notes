@@ -45,6 +45,12 @@ enum FirstRun {
 
     /// Hovering picks a row only once the pointer has moved since the rows came up, as in
     /// Spotlight: a pointer left resting where a new row appears doesn't change what Return does.
+    /// The AI that just connected, for "Pinto noticed ChatGPT": the new one in the list, however
+    /// it was allowed (on the web, or in the app's Allow sheet).
+    static func noticed(before: [ConnectAISection.Guide], after: [ConnectAISection.Guide]) -> ConnectAISection.Guide? {
+        after.last { !before.contains($0) }
+    }
+
     static func hoverPicks(restingAt: CGPoint?, here: CGPoint) -> Bool {
         guard let r = restingAt else { return true }
         return abs(r.x - here.x) > 1 || abs(r.y - here.y) > 1

@@ -27,8 +27,10 @@ struct FirstRunOverlay: View {
     @State private var watch: Task<Void, Never>?
     /// The panel is going into the note.
     @State private var landed = false
-    /// "Pinto noticed ChatGPT", while its Allow sheet is up.
+    /// "Pinto noticed ChatGPT": while its Allow sheet is up (strict accounts), or for a moment
+    /// when it connects without one (allowed on the web, the usual way).
     @State private var noticed: String?
+    @State private var noticedDone = false
 
     /// A sheet the panel opened, or the Allow sheet, is over the window.
     private var sheetUp: Bool { importing != nil || guide != nil || center.pending != nil }
@@ -52,7 +54,7 @@ struct FirstRunOverlay: View {
         }
         .overlay(alignment: .bottom) {
             if let noticed {
-                Toast(text: "Pinto noticed \(noticed)", kind: .working)
+                Toast(text: "Pinto noticed \(noticed)", kind: noticedDone ? .done : .working)
                     .padding(.bottom, 28)
                     .transition(.opacity.combined(with: .offset(y: 6)))
                     .accessibilityIdentifier("firstRun.noticed")
@@ -86,8 +88,19 @@ struct FirstRunOverlay: View {
         .onChange(of: center.pending) { _, pending in
             if pending != nil, model.step == .ai, let working = model.working {
                 noticed = ConnectAISection.Guide(rawValue: working)?.title ?? "your AI"
-            } else {
+                noticedDone = false
+            } else if !noticedDone {
                 noticed = nil
+            }
+        }
+        // Connected, however it was allowed: said for a moment, then the panel's next question.
+        .onChange(of: model.connected) { before, after in
+            guard let g = FirstRun.noticed(before: before, after: after) else { return }
+            noticed = g.title
+            noticedDone = true
+            Task {
+                try? await Task.sleep(for: .seconds(2.4))
+                if noticedDone, noticed == g.title { noticed = nil; noticedDone = false }
             }
         }
         .onChange(of: model.step) { _, step in

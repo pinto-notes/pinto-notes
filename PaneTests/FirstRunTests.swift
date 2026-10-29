@@ -61,6 +61,21 @@ import Testing
         #expect(FirstRun.hoverPicks(restingAt: nil, here: resting), "once it has moved, hovering picks")
     }
 
+    /// The browser way (allowed on pintonotes.com/connect, no Allow sheet) is the usual one, so
+    /// "Pinto noticed" comes from the connection itself.
+    @Test func pintoNoticesAConnectionWithoutTheAllowSheet() {
+        let model = panel(at: .connect)
+        let before = model.connected
+        model.connecting(.chatgpt, line: "Waiting for ChatGPT")
+        model.connected(.chatgpt)
+        #expect(FirstRun.noticed(before: before, after: model.connected) == .chatgpt)
+        let again = model.connected
+        model.connected(.chatgpt)
+        #expect(FirstRun.noticed(before: again, after: model.connected) == nil, "said once")
+        model.connected(.claude)
+        #expect(FirstRun.noticed(before: again, after: model.connected) == .claude)
+    }
+
     @Test func skipIsTheWayOutNeverARow() {
         for step in [Onboarding.Step.bring, .connect, .tryIt] {
             let p = panel(at: step)
