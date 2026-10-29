@@ -31,8 +31,8 @@ import UIKit
         for dark in [false, true] {
             for (name, run) in Self.states() {
                 try await VersionHistorySnapshots.shoot(
-                    ConnectBrowserSheet(run: run).frame(width: 460, height: 400, alignment: .top).background(ConnectBrowserSheet.ground),
-                    to: dir.appending(path: "mac-\(dark ? "dark" : "light")-\(name).png"), size: CGSize(width: 460, height: 400), dark: dark)
+                    ConnectBrowserSheet(run: run).frame(width: 720, height: 290, alignment: .top).background(ConnectBrowserSheet.ground),
+                    to: dir.appending(path: "mac-\(dark ? "dark" : "light")-\(name).png"), size: CGSize(width: 720, height: 290), dark: dark)
             }
         }
     }

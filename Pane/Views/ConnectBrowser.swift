@@ -53,6 +53,20 @@ enum BrowserConnect {
     }
 
     /// ChatGPT's button names where it goes once Pinto Notes is listed, as the ChatGPT guide's does.
+    // MARK: The Mac's popup: the wide Allow sheet, without the number (Emil, 29 October 2026)
+
+    /// The popup's title, as the Allow sheet asks it.
+    static func question(_ g: Guide) -> String { "Connect \(g.title) to your notes?" }
+    /// Under the title: what happens after Connect.
+    static func next(_ g: Guide) -> String { "\(g.title) opens next. Choose Connect there." }
+    /// The Allow sheet's words for what is sent, word for word (ConsentSheet.sent).
+    static func sent(_ g: Guide) -> String {
+        "The notes \(g.title) opens, with their text and files, are sent to \(maker(g)) and handled under \(maker(g))\u{2019}s privacy policy."
+    }
+    static let lockedLead = "Locked notes stay private."
+    static func lockedDetail(_ g: Guide) -> String { "\(g.title) can\u{2019}t open them." }
+    static func instead(_ g: Guide) -> String { "Connect \(g.title) instead" }
+
     static func button(_ g: Guide, listing: URL? = ChatGPTPlugin.listing) -> String {
         g == .chatgpt && listing != nil ? "Open Pinto Notes in ChatGPT" : "Open \(g.title)"
     }
@@ -134,7 +148,7 @@ struct ConnectBrowserSheet: View {
     var body: some View {
         content
             #if os(macOS)
-            .frame(width: 460)
+            .frame(width: 720)
             .fixedSize(horizontal: false, vertical: true)
             #endif
             .foregroundStyle(Color.ink)
@@ -170,6 +184,117 @@ struct ConnectBrowserSheet: View {
     }
 
     @ViewBuilder private var content: some View {
+        #if os(macOS)
+        wide
+        #else
+        stacked
+        #endif
+    }
+
+    /// The Mac: the wide Allow sheet. Who on the left (the marks, the question, what happens
+    /// next), what is shared on the right, Cancel and Connect at the bottom right. Connected keeps
+    /// the frame; the question becomes the answer.
+    private var wide: some View {
+        let done = run.stage == .connected
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    pair(done: done)
+                    Text(done ? BrowserConnect.connected(run.ai) : BrowserConnect.question(run.ai))
+                        .font(.system(size: 22, weight: .bold))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 16)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier(done ? "connect.connected" : "connect.browser.title")
+                    if !done {
+                        Text(BrowserConnect.next(run.ai)).font(.system(size: 13)).foregroundStyle(Color.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 6)
+                            .accessibilityIdentifier("connect.browser.line")
+                        if offered.count > 1, let other = offered.first(where: { $0 != run.ai }) {
+                            Button(BrowserConnect.instead(other)) { pick(other) }
+                                .buttonStyle(.hoverLink)
+                                .font(.system(size: 13, weight: .medium))
+                                .padding(.top, 10)
+                                .accessibilityIdentifier("connect.browser.\(other.rawValue)")
+                        }
+                    }
+                }
+                .frame(width: 250, alignment: .leading)
+                Rectangle().fill(Color.line).frame(width: 1).padding(.horizontal, 28)
+                VStack(alignment: .leading, spacing: 12) {
+                    if done {
+                        Text("\(BrowserConnect.noticed) \u{201C}\(WebConnectPlan.testPrompt)\u{201D}")
+                            .font(.system(size: 14)).foregroundStyle(Color.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        wideFact("paperplane", lead: BrowserConnect.sharedLead(run.ai), BrowserConnect.sent(run.ai))
+                            .accessibilityIdentifier("connect.browser.shared")
+                        wideFact("lock", lead: BrowserConnect.lockedLead, BrowserConnect.lockedDetail(run.ai))
+                            .accessibilityIdentifier("connect.browser.locked")
+                        if run.waits { waitingRow.frame(height: 30) }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                if done {
+                    Button("Ask \(run.ai.title)") { openURL(run.ai == .claude ? WebConnectPlan.claude.testPage : WebConnectPlan.chatgpt.testPage) }
+                        .buttonStyle(.secondary(.regular))
+                    Button("Done") { dismiss() }
+                        .buttonStyle(.amberProminent(.regular))
+                        .keyboardShortcut(.defaultAction)
+                        .accessibilityIdentifier("connect.browser.primary")
+                } else {
+                    Button("Cancel") { dismiss() }
+                        .buttonStyle(.secondary(.regular))
+                        .keyboardShortcut(.cancelAction)
+                        .accessibilityIdentifier("connect.browser.close")
+                    Button(run.waits ? "Open \(run.ai.title) again" : "Connect") { run.waits ? run.quiet() : run.primary() }
+                        .buttonStyle(.amberProminent(.regular))
+                        .keyboardShortcut(.defaultAction)
+                        .accessibilityIdentifier("connect.browser.primary")
+                }
+            }
+            .padding(.top, 24)
+        }
+        .padding(24)
+    }
+
+    /// The AI's tile, three dots (a tick once connected) and Pinto's icon.
+    private func pair(done: Bool) -> some View {
+        HStack(spacing: 7) {
+            AITile(ai: run.ai.title, size: 40).accessibilityLabel(run.ai.title)
+            Group {
+                if done {
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 16))
+                        .symbolRenderingMode(.palette).foregroundStyle(.white, Color(Palette.amberButton))
+                } else {
+                    HStack(spacing: 3) { ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.muted.opacity(0.5)).frame(width: 3, height: 3) } }
+                }
+            }
+            .accessibilityHidden(true)
+            AppMark(size: 40)
+        }
+        .padding(2)
+    }
+
+    /// A fact as a plain line with its glyph: never a box, so it never reads as a choice.
+    private func wideFact(_ symbol: String, lead: String, _ detail: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol).foregroundStyle(Color.muted).frame(minWidth: 16).accessibilityHidden(true)
+            (Text(lead).fontWeight(.semibold).foregroundColor(Color.ink) + Text(" " + detail))
+                .foregroundStyle(Color.muted)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 14))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var stacked: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(run.stage == .connected ? BrowserConnect.connected(run.ai) : BrowserConnect.title)
