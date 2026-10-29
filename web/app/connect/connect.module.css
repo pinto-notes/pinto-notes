@@ -406,25 +406,6 @@
 /* The emailed code: six digits, spaced, in the page's own figures. */
 .field input.otp { font-size: 24px; font-weight: 650; letter-spacing: 0.32em; font-variant-numeric: tabular-nums; text-align: center; padding-left: calc(14px + 0.32em); }
 
-/* Access: two rows you can see are a control (Emil, 29 October): a hairline round each at rest,
-   an amber ring, a tint and a filled dot on the chosen one. The facts under them have no box at
-   all, so the choice never reads as more information. This is the one place a stroke sits at rest
-   (docs/DESIGN.md says fills): a radio row, not a button. */
-.access { display: grid; gap: 8px; width: 100%; }
-.accessRow {
-  display: flex; align-items: flex-start; gap: 12px; width: 100%; box-sizing: border-box; padding: 12px 14px; border: 0; border-radius: 12px;
-  background: transparent; box-shadow: inset 0 0 0 1px var(--field-line); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
-}
-.accessRow[aria-checked="true"] { background: color-mix(in srgb, var(--amber) 12%, transparent); box-shadow: inset 0 0 0 2px var(--amber); }
-.accessRow:disabled { cursor: default; }
-.accessRow:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-.accessDot { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; box-sizing: border-box; box-shadow: inset 0 0 0 1.5px var(--muted); }
-.accessRow[aria-checked="true"] .accessDot { box-shadow: inset 0 0 0 5px var(--amber); }
-.accessWords { display: grid; gap: 2px; font-size: 14px; line-height: 1.4; color: var(--muted); }
-.accessWords b { color: var(--ink); font-size: 15px; font-weight: 650; }
-@media (hover: hover) { .accessRow:not(:disabled):not([aria-checked="true"]):hover { background: color-mix(in srgb, var(--soft) 70%, transparent); } }
-@media (prefers-reduced-motion: no-preference) { .accessRow { transition: background-color 0.15s ease-out, box-shadow 0.15s ease-out; } }
-
 /* What is shared and what isn't: plain rows with a glyph, never folded away. */
 .facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; width: 100%; text-align: left; }
 .facts li { display: flex; align-items: flex-start; gap: 12px; }
@@ -506,16 +487,6 @@
 .pairDone circle { fill: var(--amber); }
 .pairDone path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-/* Access: two light rows that read as a control: a hairline at rest, an amber ring and a filled
-   dot on the chosen one. The facts under them are plain lines. */
-.flow .access { gap: 8px; }
-.flow .accessLabel { margin: 2px 0 -2px; }
-.flow .accessRow { padding: 10px 12px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line); }
-.flow .accessRow[aria-checked="true"] { background: color-mix(in srgb, var(--amber) 9%, transparent); box-shadow: inset 0 0 0 1.5px var(--amber); }
-.flow .accessDot { width: 16px; height: 16px; margin-top: 2px; }
-.flow .accessRow[aria-checked="true"] .accessDot { box-shadow: inset 0 0 0 4.5px var(--amber); }
-.flow .accessWords { font-size: 13px; }
-.flow .accessWords b { font-size: 15px; font-weight: 600; }
 .flow .facts { gap: 10px; }
 .flow .facts p { font-size: 14px; }
 .flow .factGlyph { width: 16px; height: 16px; margin-top: 2px; }
@@ -525,4 +496,3 @@
 .flowFoot a { color: var(--muted); text-decoration: none; }
 @media (hover: hover) { .flowFoot a:hover { color: var(--ink); } }
 .requested { color: var(--muted); line-height: 1.45; }
-.accessLabel { color: var(--muted); font-size: 13px; font-weight: 650; }

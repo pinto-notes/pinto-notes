@@ -213,11 +213,11 @@ browserTest("Allow on the page connects: the code works once, the key reaches th
   assertEquals(events, [{ what: "connected", platform: "web" }]);
 });
 
-browserTest("Read only on the page, or a read-only request, connects read-only", async () => {
+browserTest("Allow connects read and edit, whatever an older page sends; only a read-only request connects read-only", async () => {
   const { pg, sql } = await db();
   const me = await account(pg);
   const chosen = await start(sql);
-  assertEquals((await allow(sql, chosen.id, session(me.id), { write: false })).body.can_write, false);
+  assertEquals((await allow(sql, chosen.id, session(me.id), { write: false })).body.can_write, true);
   const asked = await start(sql, "notes:read");
   assertEquals((await allow(sql, asked.id, session(me.id), { write: true })).body.can_write, false);
 });

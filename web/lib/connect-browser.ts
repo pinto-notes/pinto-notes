@@ -69,12 +69,6 @@ export function consentWords(r: Pick<ConnectRequest, "verified_ai" | "redirect_h
 /// What an app calls itself, as a name reads ("glama" is Glama); its own capitals stay.
 const displayClaim = (name: string) => (name === name.toLowerCase() ? name.charAt(0).toUpperCase() + name.slice(1) : name);
 
-/// The two access choices, as the app shows them. Only Read only for an app that asked to read.
-export const ACCESS = {
-  edit: { title: "Read and edit", detail: "It can create and change notes. Every change can be undone." },
-  read: { title: "Read only", detail: "It can find and read notes, nothing more." },
-} as const;
-
 /// How long a request lives on the server (oauth_requests.expires_at defaults to 10 minutes on),
 /// so when it was made is its expiry less this.
 const REQUEST_MINUTES = 10;
@@ -211,7 +205,7 @@ export function refreshRequest(supabaseURL: string, anonKey: string, refreshToke
 }
 
 /// Allow, on this page: the exact return address it showed, and the access chosen.
-export function allowRequest(mcp: string, token: string, b: { id: string; write: boolean; redirect_uri: string; from: string }): [string, RequestInit] {
+export function allowRequest(mcp: string, token: string, b: { id: string; redirect_uri: string; from: string }): [string, RequestInit] {
   return [`${mcp}/connect/allow`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },

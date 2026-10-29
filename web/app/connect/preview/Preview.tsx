@@ -83,14 +83,13 @@ export default function Preview({ state, number, action, both }: {
     case "webCode":
       return <CodeScreen email="me@example.com" code={email.replace(/\D/g, "")} onCode={setEmail} onSubmit={prevent} onResend={noop} onDifferent={noop} busy={false} ready failure={null} resent={false} />;
     case "webConsent":
-    case "webConsentRead":
     case "webConsentUnknown":
     case "webConsentClaude":
     case "webAllowing": {
       const r = state === "webConsentUnknown" ? UNKNOWN : state === "webConsentClaude" ? CLAUDE : CHATGPT;
       return (
         <ConsentScreen
-          words={consentWords(r)} requested="Requested just now from Chrome on Windows" canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
+          words={consentWords(r)} requested="Requested just now from Chrome on Windows"
           onAllow={noop} onDeny={noop} busy={state === "webAllowing" ? "allow" : null} failure={null} email="me@example.com" onSwitch={noop}
         />
       );

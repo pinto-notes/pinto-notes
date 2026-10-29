@@ -954,7 +954,9 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   const u = clientRedirect(r.redirect_uri, r.state, r.resource);
   const name = displayName(r.client_name, r.redirect_uri);
   const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
-  const write = body.write === true && (scopes.length === 0 || scopes.includes("notes:write"));
+  // Connecting is read and edit, with one Allow (Emil, 29 October 2026): the page sends no choice,
+  // and `write` from an older page is ignored. Only an app that itself asked to read gets read-only.
+  const write = scopes.length === 0 || scopes.includes("notes:write");
   const wrongNumber = Boolean(asked) && !allow && body.wrong_number === true;
   // One answer per request, even when two arrive at once.
   const answered = await sql.begin(async (tx): Promise<boolean | "reveal" | "rescan"> => {
@@ -1094,7 +1096,7 @@ const HERE_WORDS: Record<string, [number, string]> = {
   paused: [403, "Connecting on the web opens again a while after a password reset. Allow it in Pinto Notes on your iPhone or Mac."],
 };
 
-/// Allow, on the web page: POST {id, write, redirect_uri, from} with the person's session, from the
+/// Allow, on the web page: POST {id, redirect_uri, from} with the person's session, from the
 /// page's origin only. The page showed the exact return address from /connect/request and sends it
 /// back, so what was approved is where the code goes. The function opens the account's key copy,
 /// makes a one-minute, single-use code and wraps the data key under it (what a device sends to
@@ -1149,7 +1151,9 @@ async function allowHere(req: Request, sql: Sql): Promise<Response> {
   const u = clientRedirect(r.redirect_uri, r.state, r.resource);
   const name = displayName(r.client_name, r.redirect_uri);
   const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
-  const write = body.write === true && (scopes.length === 0 || scopes.includes("notes:write"));
+  // Connecting is read and edit, with one Allow (Emil, 29 October 2026): the page sends no choice,
+  // and `write` from an older page is ignored. Only an app that itself asked to read gets read-only.
+  const write = scopes.length === 0 || scopes.includes("notes:write");
   const from = cleanName(typeof body.from === "string" ? body.from : "").slice(0, 60) || "a web browser";
   // Counted, answered and written down in one step, one at a time per account (the key function's
   // lock): of many sent at once, only as many as the limit connect anything.

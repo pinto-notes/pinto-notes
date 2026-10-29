@@ -167,32 +167,27 @@ describe("connecting on the page alone", () => {
     const text = container.textContent!;
     expect(text).toContain("Shared with OpenAI. The notes ChatGPT opens, with their text and files, are sent to OpenAI and handled under OpenAI’s privacy policy.");
     expect(text).toContain("Locked notes stay private.");
-    expect(text).toContain("Read and edit");
-    expect(text).toContain("Read only");
+    // No access choice: connecting is read and edit, with one Allow.
+    expect(text).not.toContain("Read only");
+    expect(container.querySelector("[role=radiogroup], [role=radio]")).toBeNull();
     expect(container.querySelector("details")).toBeNull();
     expect(localStorage.getItem(SESSION_KEY)).toContain("rt-1");
-    // The wide sheet: when and from where under the title, no number to match, the access as a
-    // radio group of its own, apart from the facts, and Don't Allow before Allow.
+    // When and from where under the title, no number to match, and Don't Allow before Allow.
     expect(container.querySelector("[data-testid=connect-requested]")!.textContent).toMatch(/^Requested (just now|\d+ minutes? ago) from /);
     expect(text).not.toMatch(/Allow only if|shows \d+ too/);
-    const group = container.querySelector("[role=radiogroup]")!;
-    expect(group.getAttribute("aria-labelledby")).toBe("connect-access-label");
-    expect(group.querySelectorAll("[role=radio]")).toHaveLength(2);
-    expect(group.querySelector("[aria-checked=true]")!.textContent).toContain("Read and edit");
-    expect(group.contains(container.querySelector("[data-testid=connect-shared]"))).toBe(false);
     const answers = [...container.querySelectorAll("button")].map((b) => b.textContent).filter((t) => t === "Allow" || t === "Don’t Allow");
     expect(answers).toEqual(["Don’t Allow", "Allow"]);
     // ChatGPT's own return address, after sign-in: its mark leads the pair.
     expect(container.querySelector("[data-testid=connect-mark]")!.getAttribute("data-ai")).toBe("ChatGPT");
 
-    act(() => button("Read only").click());
     act(() => button("Allow").click());
     await until(() => assigned.length === 1);
     expect(assigned[0]).toBe(BACK);
     expect(heading()).toBe("Connected");
     expect(pair()).toEqual(["ChatGPT", true]);
     const allow = server.calls.find((c) => c.url === `${MCP}/connect/allow`)!;
-    expect(allow.body).toMatchObject({ id: ID, write: false, redirect_uri: CHATGPT });
+    expect(allow.body).toMatchObject({ id: ID, redirect_uri: CHATGPT });
+    expect(allow.body).not.toHaveProperty("write");
     expect(new Headers(allow.init.headers).get("authorization")).toBe("Bearer at-1");
   });
 

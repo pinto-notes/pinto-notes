@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, startsWithWrite, type ConnectLabel, type ConnectRequest, type OAuthProvider } from "@/lib/connect";
+import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, type ConnectLabel, type ConnectRequest, type OAuthProvider } from "@/lib/connect";
 import { browserFrom } from "@/lib/connect-flow";
 import {
   allowRequest, backTo, codeDigits, codeRequest, codeRequestError, consentWords, denyRequest, forgetSession, hereFrom, loadSession,
@@ -53,7 +53,6 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
   const who = asking ? (consentWords(asking).title.replace(/^Connect (.*) to your notes\?$/, "$1")) : ai ?? (label?.loopback ? "an app on this computer" : label?.redirect_host ?? "an app");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [write, setWrite] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [answering, setAnswering] = useState<"allow" | "deny" | null>(null);
@@ -148,7 +147,6 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       }
       switch (hereFrom(body)) {
         case "yes":
-          setWrite(startsWithWrite(body));
           return setView({ kind: "consent", request: body });
         case "reauth":
           return setView({ kind: "signIn", again: true });
@@ -270,7 +268,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     setFailure(null);
     try {
       const res = await fetch(...(allow
-        ? allowRequest(mcp, s.access_token, { id: requestId, write: write && r.wants_write, redirect_uri: r.redirect_uri, from: browserFrom(navigator.userAgent) })
+        ? allowRequest(mcp, s.access_token, { id: requestId, redirect_uri: r.redirect_uri, from: browserFrom(navigator.userAgent) })
         : denyRequest(mcp, s.access_token, { id: requestId, redirect_uri: r.redirect_uri })));
       const body = await res.json().catch(() => null) as { redirect?: unknown; error?: string; hint?: string } | null;
       const to = safeReturn(body?.redirect);
@@ -322,7 +320,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       const r = view.request;
       return (
         <ConsentScreen
-          words={consentWords(r)} requested={requestedLine(r, browserFrom(navigator.userAgent))} canWrite={r.wants_write} write={write && r.wants_write} onWrite={setWrite}
+          words={consentWords(r)} requested={requestedLine(r, browserFrom(navigator.userAgent))}
           onAllow={() => void answer(r, true)} onDeny={() => void answer(r, false)} busy={answering} failure={failure}
           email={signedIn ?? email} onSwitch={() => void switchAccount()}
         />

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { GOOGLE_ON_WEB, APPLE_ON_WEB } from "@/lib/connect";
-import { ACCESS, CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
+import { CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { Shell } from "@/lib/ui";
 import { ErrorLine, SignInButtons, Spinner } from "./ConnectScreens";
@@ -111,18 +111,18 @@ export function CodeScreen({ email, code, onCode, onSubmit, onResend, onDifferen
   );
 }
 
-/// The consent, under the same frame: who asks and when, the access as two rows you can see are a
-/// control, then the facts as plain lines with a glyph, then Don't Allow and Allow side by side.
-/// Everything App Review asks for stays in view: what is sent, to which company, and both answers.
-export function ConsentScreen({ words, canWrite, write, onWrite, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
-  words: ConsentWords; canWrite: boolean; write: boolean; onWrite: (write: boolean) => void;
+/// The consent, under the same frame: who asks and when, the facts as plain lines with a glyph,
+/// then Don't Allow and Allow side by side. Connecting is read and edit, with one Allow (Emil,
+/// 29 October 2026). Everything App Review asks for stays in view: what is sent, to which
+/// company, and both answers.
+export function ConsentScreen({ words, onAllow, onDeny, busy, failure, email, onSwitch, requested }: {
+  words: ConsentWords;
   onAllow: () => void; onDeny: () => void;
   /// Which answer is on its way.
   busy: "allow" | "deny" | null; failure: string | null; email: string; onSwitch: () => void;
   /// "Requested just now from Chrome on Windows" (requestedLine).
   requested: string;
 }) {
-  const options = canWrite ? [true, false] : [false];
   return (
     <>
       <h1 className={styles.title}>{words.title}</h1>
@@ -130,25 +130,6 @@ export function ConsentScreen({ words, canWrite, write, onWrite, onAllow, onDeny
       {words.caution && (
         <p className={styles.warn} data-testid="connect-unknown"><b>{words.caution.lead}</b> {words.caution.detail}</p>
       )}
-      <div className={styles.access} role="radiogroup" aria-labelledby="connect-access-label">
-        <p className={styles.accessLabel} id="connect-access-label">Access</p>
-        {options.map((edit) => {
-          const a = edit ? ACCESS.edit : ACCESS.read;
-          const on = write === edit || options.length === 1;
-          return (
-            <button
-              key={a.title} type="button" role="radio" aria-checked={on} className={styles.accessRow}
-              onClick={() => onWrite(edit)} disabled={busy !== null}
-            >
-              <span className={styles.accessDot} aria-hidden="true" />
-              <span className={styles.accessWords}>
-                <b>{a.title}</b>
-                <span>{a.detail}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
       <ul className={styles.facts}>
         <li data-testid="connect-shared">
           <ShareGlyph />
