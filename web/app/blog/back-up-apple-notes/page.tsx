@@ -111,7 +111,7 @@ export default function Page() {
       <p>
         Version history is what helps on an ordinary day, when you or an app changes a note and removes the part you needed, and Apple
         Notes has none. Pinto Notes, the notes app for Mac (iPhone coming soon) that I make, keeps earlier
-        versions of every note, including the ones from before ChatGPT or Claude edited it, and File, Show Version History puts
+        versions of every note, including the ones from before ChatGPT or Claude edited it, and File, Version History puts
         any of them back. Deleted notes stay in Recently Deleted for 30 days, as in Apple Notes. When you want your own copy, Export Your
         Notes in Settings saves every note as Markdown in its folder, with its files.
       </p>

@@ -16,7 +16,7 @@ export default function Page() {
       lede="Pinto Notes opens the version history of the note your AI changed last. On another device, here's how to get there."
       steps={[
         <>Open the note in Pinto Notes on your iPhone or Mac.</>,
-        <>Choose <b>More</b> (•••), then <b>Show Version History</b>. On a Mac it's also under File.</>,
+        <>Choose <b>More</b> (•••), then <b>Version History</b>. On a Mac it's also under File.</>,
         <>Pick a version to see it, and <b>Restore This Version</b> to bring it back. Versions an AI made are kept for 90 days.</>,
       ]}
     />

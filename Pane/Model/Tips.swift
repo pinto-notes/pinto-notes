@@ -261,7 +261,7 @@ func tipRules(_ feature: Feature) -> [Tips.Rule] {
     commonRules + [#Rule(PaneTips.$appsOn) { $0 == true }, #Rule(PaneTips.$turn) { $0 == "" || $0 == "newApp" }]
 }
 
-/// 1. After an AI edit lands on the open note, or a big deletion. Opens Show Version History.
+/// 1. After an AI edit lands on the open note, or a big deletion. Opens Version History.
 struct VersionHistoryTip: Tip {
     var id: String { "versionHistory" }
     var title: Text { Text("Changed your mind?") }

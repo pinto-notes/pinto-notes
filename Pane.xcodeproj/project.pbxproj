@@ -287,6 +287,7 @@
 		595DC63A9C80788BAA7A2127 /* world.js in Resources */ = {isa = PBXBuildFile; fileRef = 6CDCC8AFDF6EDF69C609FDEA /* world.js */; };
 		596679A5D42BEB60C96C43F5 /* SessionStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331EDF0C10DE153F5969F58D /* SessionStorage.swift */; };
 		5A6B5361EE0A109041FCF3A9 /* ShareModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE451C95D74DA3569B6F557A /* ShareModel.swift */; };
+		5AF15A3A0749477F50178E87 /* RestoreVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C54E235CF14CAA3C539D3B21 /* RestoreVersionTests.swift */; };
 		5AF7EC6DB93FFA40B9D54CFA /* EmailConfirmUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7D97727CE36EF026FC374 /* EmailConfirmUITests.swift */; };
 		5B6C770F3E4A3786C55A0A51 /* BlurMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E33664A956D28AE3CE8157C /* BlurMotionTests.swift */; };
 		5BB1A82995AEA7369C1475CE /* NoteSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 672E87D77CAD63F58ED84550 /* NoteSourceTests.swift */; };
@@ -1162,6 +1163,7 @@
 		C4C97E6585116F850850E7D8 /* E2EETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EETests.swift; sourceTree = "<group>"; };
 		C4D9D0EF12121044139ED543 /* TelemetryDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryDiagnostics.swift; sourceTree = "<group>"; };
 		C50F24771D014A8D43AD8481 /* EvernoteImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvernoteImport.swift; sourceTree = "<group>"; };
+		C54E235CF14CAA3C539D3B21 /* RestoreVersionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestoreVersionTests.swift; sourceTree = "<group>"; };
 		C55C10553460868D451E9230 /* FolderFilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderFilesTests.swift; sourceTree = "<group>"; };
 		C561D2BC7327C8F950CD3504 /* AppleSignInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInTests.swift; sourceTree = "<group>"; };
 		C5BB88BE25221CC7CD3B1FF1 /* ShareAskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareAskTests.swift; sourceTree = "<group>"; };
@@ -1635,6 +1637,7 @@
 				8009A12E24480934013AE276 /* NoteRowClickTests.swift */,
 				B0B083D4A28559AE1C6D170D /* OnboardingTransitionTests.swift */,
 				451925FBA71291F8A2590004 /* PDFZoomTests.swift */,
+				C54E235CF14CAA3C539D3B21 /* RestoreVersionTests.swift */,
 				BAC7D1ED7E22C1612C2680B3 /* SaveTests.swift */,
 				17A49ECF5C2416ECB7428670 /* StressTests.swift */,
 				F7B3FEBC5E8B405D61B40897 /* TableInteractionTests.swift */,
@@ -2590,6 +2593,7 @@
 				77150E16C095CB1A108E5FB2 /* ProfileTests.swift in Sources */,
 				659C0A1B0B3D3988A8A1F210 /* PushTests.swift in Sources */,
 				D99238A4F1F1EE32EDA155B3 /* RecentlyDeletedTests.swift in Sources */,
+				5AF15A3A0749477F50178E87 /* RestoreVersionTests.swift in Sources */,
 				7F6BFCC3E30CB53BB780058D /* RichTextTests.swift in Sources */,
 				BB4C11D0A97A352EA9FB4AA8 /* RowPressSlopTests.swift in Sources */,
 				2E4EF9FAFC33E26233CC539F /* SaveTests.swift in Sources */,

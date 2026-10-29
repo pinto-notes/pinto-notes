@@ -2,7 +2,7 @@ import Testing
 @testable import Pane
 
 /// The note's More (…) menu: two groups in the order the owner asked for on 2026-10-11,
-/// "Pin Note, Lock Note, Make It an App…" then "Move to…, Show Version History…, Delete Note".
+/// "Pin Note, Lock Note, Make It an App…" then "Move to…, Version History…, Delete Note".
 @Suite struct NoteMoreMenuTests {
     func groups(locked: Bool = false, vaultOpen: Bool = false, trashed: Bool = false, hasApp: Bool = false, linkedFrom: Bool = false,
                 phone: Bool = false, dev: Bool = false) -> [[NoteMoreMenu.Item]] {

@@ -1206,6 +1206,22 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         replaceText(with: new)
     }
 
+    func takeRestored(_ new: String) {
+        // Restoring is a choice: it wins over a composition, and over the text you typed before.
+        arrivedWhileComposing = nil
+        if markedTextRange != nil { unmarkText() }
+        reported.removeAll()
+        lastReported = new
+        remember(new)
+        replaceText(with: new)
+        undoManager?.removeAllActions()
+        clearTint()
+        // A shorter version: back inside the text, not scrolled past its end.
+        layoutIfNeeded()
+        let bottom = max(-adjustedContentInset.top, contentSize.height + adjustedContentInset.bottom - bounds.height)
+        if contentOffset.y > bottom { setContentOffset(CGPoint(x: contentOffset.x, y: bottom), animated: false) }
+    }
+
     /// A change from elsewhere that arrived while you were composing.
     private var arrivedWhileComposing: String?
 
@@ -1843,6 +1859,19 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         reported.removeAll()
         lastReported = new
         replaceText(with: new)
+    }
+
+    func takeRestored(_ new: String) {
+        // Restoring is a choice: it wins over a composition, and over the text you typed before.
+        // (The scroll view keeps the scroll inside a shorter text by itself.)
+        arrivedWhileComposing = nil
+        if hasMarkedText() { unmarkText() }
+        reported.removeAll()
+        lastReported = new
+        remember(new)
+        replaceText(with: new)
+        undoManager?.removeAllActions()
+        clearTint()
     }
 
     /// A change from elsewhere that arrived while you were composing.

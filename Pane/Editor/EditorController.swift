@@ -229,6 +229,8 @@ final class EditorController {
     /// Whether any line is tinted right now.
     var isTinted: Bool { target?.isTinted ?? false }
     func clearTint() { target?.clearTint() }
+    /// A restored version of the open note (see `EditorTarget.takeRestored`).
+    func takeRestored(_ text: String) { target?.takeRestored(text) }
 
     func bold() { perform { ListEditing.wrap(in: $0, selection: $1, with: "**") } }
     func italic() { perform { ListEditing.wrap(in: $0, selection: $1, with: "*") } }
@@ -437,6 +439,9 @@ protocol EditorTarget: AnyObject {
     func clearTint()
     /// Takes text that changed elsewhere (sync, a collaborator), replacing only what differs.
     func syncExternal(_ new: String)
+    /// Takes a restored version even if it's text you typed earlier (which `syncExternal` takes
+    /// for its own echo), clears the undo steps and the tint, and keeps the scroll in the text.
+    func takeRestored(_ new: String)
     /// Places other people's carets now, in the same pass as a text change (collaboration).
     func showRemoteCarets(_ carets: [RemoteCaret])
     /// Removes table `index` as one undoable edit, the keyboard back in the text.
@@ -460,6 +465,7 @@ extension EditorTarget {
     func gridFieldFocused() {}
     func showTableMenu(_ menu: TableMenu) {}
     func formatPanelChanged(shown: Bool) {}
+    func takeRestored(_ new: String) { syncExternal(new) }
 }
 
 extension EditorTarget {

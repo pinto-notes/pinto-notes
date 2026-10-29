@@ -9,7 +9,7 @@ describe("the places the onboarding emails open", () => {
   it.each([
     ["connect-ai", ConnectAI, "Connect an AI", "/blog/connect-chatgpt-to-your-notes"],
     ["import", Import, "Import from Apple Notes", "/blog/move-from-apple-notes"],
-    ["history", History, "Show Version History", null],
+    ["history", History, "Version History", null],
   ] as const)("/open/%s tries the app, then says how by hand, with Open in Pinto Notes and the download", (place, Page, step, guide) => {
     const html = renderToStaticMarkup(<Page />);
     expect(html).toContain(`href="ambernotes://${place}"`);

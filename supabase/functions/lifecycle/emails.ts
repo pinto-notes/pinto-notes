@@ -215,7 +215,7 @@ function draft(kind: Kind, c: Context): Draft {
         blocks: [
           { p: "Your AI made its first change. When it edits a note you have open, this bar appears, and Undo puts the note back." },
           { shot: { file: "undo.jpg", w: 395, h: 330, alt: "A Groceries note on a Mac with five lines ChatGPT added marked in amber, and the bar ChatGPT changed 5 lines, Undo" } },
-          { p: "Older changes are in each note's version history: on a note, choose More (•••), then Show Version History." },
+          { p: "Older changes are in each note's version history: on a note, choose More (•••), then Version History." },
           { button: { label: "See your note's history", href: open(c, "history") } },
           { p: "Versions an AI made are kept for 90 days.", small: true },
         ],

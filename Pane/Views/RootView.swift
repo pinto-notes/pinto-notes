@@ -548,7 +548,7 @@ extension FocusedValues {
         get { self[EditorControllerKey.self] }
         set { self[EditorControllerKey.self] = newValue }
     }
-    /// File › Show Version History… for the open note.
+    /// File › Version History… for the open note.
     var showHistoryAction: (() -> Void)? {
         get { self[ShowHistoryActionKey.self] }
         set { self[ShowHistoryActionKey.self] = newValue }
@@ -583,7 +583,7 @@ struct PaneCommands: Commands {
         }
         // Where Pages keeps Browse All Versions: File, after saving.
         CommandGroup(after: .saveItem) {
-            Button("Show Version History…") { showHistory?() }
+            Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
         }
         CommandGroup(after: .help) {
