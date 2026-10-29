@@ -13,8 +13,11 @@ import Testing
         #expect(groups() == [[.pin, .lock, .makeApp], [.moveTo, .history, .delete]])
     }
 
-    @Test func theSameOrderOnIPhoneWithSharingInTheSecondGroup() {
-        #expect(groups(phone: true) == [[.pin, .lock, .makeApp], [.moveTo, .share, .history, .delete]])
+    /// Share has its own button beside More on iPhone (as in Notes, 28 October 2026), so it isn't
+    /// in the menu too: the same menu as the Mac's.
+    @Test func theSameMenuOnIPhoneWithSharingBesideIt() {
+        #expect(groups(phone: true) == [[.pin, .lock, .makeApp], [.moveTo, .history, .delete]])
+        #expect(!groups(phone: true).joined().contains(.share))
     }
 
     @Test func whatANoteIsChangesTheFirstGroupOnly() {
@@ -26,7 +29,6 @@ import Testing
         // In Recently Deleted a note can only come back or go for good, like Notes (2026-10-12).
         #expect(groups(trashed: true) == [[.recover, .delete]])
         #expect(groups(locked: true, trashed: true) == [[.recover, .delete]])
-        #expect(NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, linkedFrom: false, nested: true, phone: false, dev: false)[1] == [.moveTo, .moveOut, .history, .delete])
         #expect(groups(dev: true).first == [.pin, .lock, .makeApp, .devImportApp])
     }
 }

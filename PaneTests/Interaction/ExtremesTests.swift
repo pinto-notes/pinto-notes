@@ -106,17 +106,21 @@ import Testing
         }
     }
 
-    @Test func subNoteLoopsDontRecurseForever() throws {
+    /// Old sub-notes under each other (A under B under A) are folded into folders without
+    /// going round for ever, and deleting one takes only that one.
+    @Test func parentLoopsDontRecurseForever() throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext
         let a = Note(body: "A"), b = Note(body: "B")
         ctx.insert(a); ctx.insert(b)
         a.parentID = b.id
         b.parentID = a.id
+        #expect(ctx.foldSubNotesIntoFolders() == 2)
+        #expect(a.parentID == nil && b.parentID == nil)
         ctx.trash(a)
-        #expect(a.trashedAt != nil && b.trashedAt != nil)
-        ctx.restore(b)
-        #expect(a.trashedAt == nil && b.trashedAt == nil)
+        #expect(a.trashedAt != nil && b.trashedAt == nil)
+        ctx.restore(a)
+        #expect(a.trashedAt == nil)
     }
 
     @Test func folderLoopsDontRecurseForever() throws {

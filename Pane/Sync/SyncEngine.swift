@@ -496,7 +496,7 @@ final class SyncEngine {
         }
         for n in notes where !keptNoteIDs.contains(n.id) { context.delete(n); removed += 1 }
         for n in keptNotes {
-            // A sub-note whose parent went is a note of its own now.
+            // A note whose old parent went has no parent to point at.
             if let p = n.parentID, !keptNoteIDs.contains(p) { n.parentID = nil }
             n.dirty = true
         }
@@ -751,15 +751,9 @@ final class SyncEngine {
         liveSlugs[note] = includesSubNotes == nil ? nil : slug ?? liveSlugs[note]
     }
 
-    /// The shared notes whose pages show this one: itself, and each shared note whose link
-    /// includes sub-notes and whose text links to it (at any depth). Never by `parent_id`.
+    /// The shared notes whose pages show this one: only itself (a page is one note).
     func sharedRoots(of id: UUID) -> [UUID] {
-        var roots: [UUID] = liveShares[id] != nil ? [id] : []
-        for (root, include) in liveShares where include && root != id {
-            guard let r = context.note(root) else { continue }
-            if SharePublisher.subNotes(of: r, in: context).contains(where: { $0.note.id == id }) { roots.append(root) }
-        }
-        return roots
+        liveShares[id] != nil ? [id] : []
     }
 
     /// Typing pushes every 0.35 s; the pages are written 2 s after the last push that touched them.
@@ -1374,6 +1368,9 @@ final class SyncEngine {
             offset += 500
         }
         if changed { context.saveOrReport() }
+        // A note an AI or an older build made under another note is an ordinary note in a folder
+        // named after that note (sub-notes are gone; see foldSubNotesIntoFolders).
+        if changed { context.foldSubNotesIntoFolders() }
         // Note pages (prototype): a backend without the table leaves this out; it never stops a sync.
         if let pages: [NotePageDTO] = try? await client.from("note_pages").select("note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems")
             .gt("server_updated_at", value: stamp).order("server_updated_at").execute().value {

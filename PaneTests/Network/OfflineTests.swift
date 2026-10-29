@@ -175,7 +175,7 @@ extension NetworkFaults {
     }
 
     /// Hours offline: notes made, edited, deleted and restored, folders made, renamed and moved,
-    /// a checklist ticked, a sub-note added; the app is quit and opened again, still offline. Back
+    /// a checklist ticked; the app is quit and opened again, still offline. Back
     /// online, one sync brings the server to exactly what this device has.
     @Test func aLongOfflineSessionAcrossARestartLandsWhole() async throws {
         let groceries = try await syncedNote("Groceries\n- [ ] milk\n- [ ] eggs")
@@ -190,8 +190,6 @@ extension NetworkFaults {
         for i in 0 ..< 200 { made.append(context.createNote(in: .folder(trip.id), body: "Note \(i) from the plane\n| a | b |\n|---|---|\n| \(i) | x |")) }
         groceries.body = "Groceries\n- [x] milk\n- [ ] eggs"; groceries.touch()
         context.trash(old)
-        let sub = context.createNote(in: .folder(trip.id), body: "Hotel")
-        sub.parentID = made[0].id
         context.trash(made[1])
         context.restore(made[1])
         try context.save()
@@ -217,7 +215,6 @@ extension NetworkFaults {
         #expect(StubSupabase.body(groceries.id) == "Groceries\n- [x] milk\n- [ ] eggs")
         #expect(StubSupabase.note(old.id)?["trashed_at"] is String)
         #expect(StubSupabase.note(made[1].id)?["trashed_at"] == nil || StubSupabase.note(made[1].id)?["trashed_at"] is NSNull)
-        #expect((StubSupabase.note(sub.id)?["parent_id"] as? String)?.lowercased() == made[0].id.uuidString.lowercased())
         let folderRows = StubSupabase.rows("folders")
         #expect(folderRows.count == context.allFoldersIncludingDeleted().count)
         #expect(folderRows.contains { ($0["parent_id"] as? String)?.lowercased() == trip.id.uuidString.lowercased() })
@@ -248,10 +245,9 @@ extension NetworkFaults {
         await finish()
     }
 
-    /// Made offline: a folder, a file in it, a note in it and a sub-note under that note (made in
-    /// the order that the server would refuse). Back online, one sync puts all of it up: the server
-    /// takes a row only once what it points at is there.
-    @Test func aNewFolderWithAFileAndSubNotesGoesUpInOneSync() async throws {
+    /// Made offline: a folder, a file in it and notes in it. Back online, one sync puts all of it
+    /// up: the server takes a row only once what it points at is there.
+    @Test func aNewFolderWithAFileAndNotesGoesUpInOneSync() async throws {
         NetFault.config = .init(offline: true)
         let folder = context.createFolder(named: "Trip")
         let file = try FileStore.importData(Data("Seat 14A".utf8), filename: "pass.txt", type: .plainText)
@@ -260,8 +256,6 @@ extension NetworkFaults {
         defer { FileStore.remove(file) }
         let parent = context.createNote(in: .folder(folder.id), body: "Itinerary")
         let sub = context.createNote(in: .folder(folder.id), body: "Hotel")
-        sub.parentID = parent.id
-        // The sub-note is the older edit, so it would go first.
         sub.updatedAt = .now.addingTimeInterval(-60)
         try context.save()
         await engine.sync()

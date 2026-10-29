@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmingPurge = false
@@ -171,6 +170,7 @@ struct NoteDetailView: View {
             #endif
             .overlay(alignment: .bottom) { aiReceipt }
             .overlay(alignment: .bottom) { undoProblem }
+            .overlay(alignment: .bottom) { editorNotice }
             .overlay(alignment: .bottom) { keyCard }
             .modifier(HostAskAlert(ask: $hostAsk))
             .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
@@ -315,6 +315,30 @@ struct NoteDetailView: View {
         }
     }
 
+    /// "Table deleted", with Undo: what the editor just did at once, without asking first. It goes
+    /// after a few seconds; Undo stays in the Edit menu, ⌘Z and shake.
+    @ViewBuilder
+    private var editorNotice: some View {
+        if let n = controller.notice {
+            Toast(text: n.text, undo: n.canUndo ? { withAnimation(.smooth(duration: 0.2)) { controller.undoNotice() } } : nil)
+                .padding(.horizontal, 24)
+                #if os(macOS)
+                .padding(.bottom, 20)
+                #else
+                // Over the keyboard while you write; over the toolbar otherwise.
+                .padding(.bottom, controller.isEditing ? 12 : 64)
+                #endif
+                .transition(AIReceipt.transition(reduceMotion: reduceMotion))
+                .accessibilityIdentifier("note.editorNotice")
+                .task(id: n.id) {
+                    AccessibilityNotification.Announcement(n.text).post()
+                    try? await Task.sleep(for: .seconds(5))
+                    guard controller.notice?.id == n.id else { return }
+                    withAnimation(.easeIn(duration: 0.2)) { controller.notice = nil }
+                }
+        }
+    }
+
     @ViewBuilder
     private var aiReceipt: some View {
         if let receipt {
@@ -410,11 +434,11 @@ struct NoteDetailView: View {
                     #if os(macOS)
                     // Like Notes: the text runs under the see-through toolbar, which fades it at the
                     // edge (AppKit insets the text by the toolbar's height). Not under a banner.
-                    .ignoresSafeArea(.container, edges: parentNote == nil && note.trashedAt == nil ? .top : [])
+                    .ignoresSafeArea(.container, edges: note.trashedAt == nil ? .top : [])
                     // The soft edge: text passing under the toolbar fades into the page's ground, so
                     // the buttons stay readable over it.
                     .overlay(alignment: .top) {
-                        if parentNote == nil && note.trashedAt == nil && !Self.captureWithoutToolbar {
+                        if note.trashedAt == nil && !Self.captureWithoutToolbar {
                             LinearGradient(stops: [.init(color: Color.notePage, location: 0), .init(color: Color.notePage.opacity(0.85), location: 0.55),
                                                    .init(color: Color.notePage.opacity(0), location: 1)],
                                            startPoint: .top, endPoint: .bottom)
@@ -426,6 +450,11 @@ struct NoteDetailView: View {
                     }
                     #endif
                     .onAppear { if note.isLocked { vault.touch() } }
+                    // Opened by a link to one of its headings: there, once the text is laid out.
+                    .task {
+                        try? await Task.sleep(for: .milliseconds(150))
+                        landOnHeading()
+                    }
                     // The note's images that are on the server and not here are fetched as it opens,
                     // and again when a sync brings changes: a note's text, or file rows on their own
                     // (a picture added on another device can arrive a sync after the text that shows it).
@@ -559,7 +588,8 @@ struct NoteDetailView: View {
     /// receipts are for changes to the note's text.
     private func pageData(_ message: Any) async throws -> [String: Any] {
         let (reply, before) = try await NotePageActions.data(message, note: note, context: context, sync: sync, html: notePage?.html ?? "",
-                                                             ask: askHost, askLink: askLink, needKey: { need in withAnimation(.smooth) { keyNeeded = need } })
+                                                             ask: askHost, askLink: askLink, needKey: { need in withAnimation(.smooth) { keyNeeded = need } },
+                                                             open: followAppLink)
         // A change you made gets a receipt; the app saving on its own is quiet (Undo still reaches it
         // through version history).
         if let before, (message as? [String: Any])?["_user"] as? Bool == true { dataChanged(before: before) }
@@ -716,12 +746,6 @@ struct NoteDetailView: View {
                 }
             }
             #endif
-        case .moveOut:
-            // A sub-note: out of the note it is in, a note of its own in the list again.
-            Button("Move Out of Note", systemImage: "arrow.up.left.square") {
-                withAnimation(.snappy) { _ = NoteDrop.moveOut(note.id, in: context, undo: undoManager) }
-            }
-            .accessibilityIdentifier("editor.moveOut")
         case .linkedFrom:
             Menu("Linked from", systemImage: "link") {
                 ForEach(backlinks, id: \.id) { n in
@@ -844,7 +868,6 @@ struct NoteDetailView: View {
             .background(Color.notePage.ignoresSafeArea())
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
-                    if let parent = parentNote { parentLink(parent) }
                     if note.trashedAt != nil { trashBanner }
                 }
             }
@@ -887,9 +910,16 @@ struct NoteDetailView: View {
                 Button("Checklist", systemImage: "checklist", action: controller.checklist)
                     .help("Checklist (⇧⌘L)")
                     .disabled(hidden || trashed)
-                Button("Table", systemImage: "tablecells", action: controller.insertTable)
-                    .help("Table (⌥⌘T)")
-                    .disabled(hidden || trashed)
+                // In a table it's the table's menu, like Notes.
+                if let menu = controller.currentTableMenu {
+                    Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
+                        .help("Table")
+                        .disabled(hidden || trashed)
+                } else {
+                    Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                        .help("Table (⌥⌘T)")
+                        .disabled(hidden || trashed)
+                }
                 attachMenu.disabled(trashed)
             }),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
@@ -925,17 +955,13 @@ struct NoteDetailView: View {
         if note.isLocked {
             // Sealed again as you type; the title in the list follows.
             guard text != vault.text(of: note) else { return }
-            let oldTitle = note.title
             try? vault.write(text, to: note)
-            if note.title != oldTitle { relabelLinkInParent() }
             return
         }
         guard text != note.body else { return }
         if TipTriggers.isBigDeletion(from: note.body, to: text) { PaneTips.deletedALot() }
-        let oldTitle = note.title
         note.body = text
         note.touch()
-        if note.title != oldTitle { relabelLinkInParent() }
     }
 
     #if os(macOS)
@@ -945,53 +971,6 @@ struct NoteDetailView: View {
     nonisolated(unsafe) static var captureWithoutToolbar = false
     static let toolbarFade: CGFloat = 64
     #endif
-
-    private var parentNote: Note? {
-        guard let pid = note.parentID, let p = context.note(pid), p.deletedAt == nil else { return nil }
-        return p
-    }
-
-    /// "← Parent": sub-notes lead back to the note that holds them.
-    private func parentLink(_ parent: Note) -> some View {
-        HStack {
-            Button { onOpenNote(parent.id, false) } label: {
-                Label(parent.title, systemImage: "chevron.left")
-                    #if os(macOS)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                    #else
-                    // On iPhone and iPad the link follows the text size and is a full-height target.
-                    .font(.footnote.weight(.medium))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(minHeight: 44)
-                    .contentShape(.rect)
-                    #endif
-            }
-            .buttonStyle(.hoverLink)
-            .foregroundStyle(.tint)
-            .accessibilityIdentifier("subnote.parent")
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        #if os(macOS)
-        .padding(.top, 8)
-        #endif
-    }
-
-    /// Keeps the parent's link text in step with this sub-note's title, for readers and AI tools.
-    private func relabelLinkInParent() {
-        guard let parent = parentNote else { return }
-        let id = note.id.uuidString.lowercased()
-        let label = note.title.replacingOccurrences(of: "]", with: ")").replacingOccurrences(of: "[", with: "(")
-        let pattern = #"\[[^\]]*\]\(pane-note:"# + id + #"\)"#
-        let updated = parent.body.replacingOccurrences(of: pattern, with: "[\(label)](pane-note:\(id))", options: .regularExpression)
-        if updated != parent.body {
-            parent.body = updated
-            parent.dirty = true
-            SyncSignal.changed()
-        }
-    }
 
     // MARK: Wiki links
 
@@ -1018,14 +997,40 @@ struct NoteDetailView: View {
     }
 
     /// A wiki link was tapped: open its note, or offer to make it, as Obsidian does.
-    private func followWikiLink(_ target: String) {
+    /// `written` is the link's target, with its `#heading` if it has one.
+    private func followWikiLink(_ written: String) {
+        let link = WikiLinks.links(in: "[[\(written)]]").first
+        followLink(link?.target ?? written, heading: link?.heading)
+    }
+
+    /// A link in this note's app was tapped (pinto:Work/Acme#Agenda): the same as a wiki link.
+    /// The app hears whether there was a note to open.
+    private func followAppLink(_ link: AppLinks.Link) throws {
+        guard followLink(link.target, heading: link.heading) else {
+            throw NotePage.OpError("No note is called \u{201C}\(WikiLinks.name(of: link.target))\u{201D}.")
+        }
+    }
+
+    /// Opens the note a link names, at its heading, or offers to make it. False when there's none.
+    @discardableResult
+    private func followLink(_ target: String, heading: String?) -> Bool {
         // What was just typed here counts in the next note's "Linked from".
         saver.flush()
-        if let linked = context.resolveWikiLink(target, from: note) {
-            onOpenNote(linked.id, false)
-        } else {
+        guard let linked = context.resolveWikiLink(target, from: note) else {
             missingNote = WikiLinks.name(of: target)
+            return false
         }
+        if let heading { LinkLanding.shared.request(linked.id, heading: heading) }
+        if linked.id == note.id { landOnHeading() } else { onOpenNote(linked.id, false) }
+        return true
+    }
+
+    /// A link asked for a heading in this note: the text scrolls to it. A note showing its app
+    /// opens on the app.
+    private func landOnHeading() {
+        guard let heading = LinkLanding.shared.take(note.id), !showingPage,
+              let text = vault.text(of: note), let at = WikiLinks.headingLocation(heading, in: text) else { return }
+        controller.reveal(at)
     }
 
     /// The note a link named, made in this note's folder and opened for writing.
@@ -1042,13 +1047,6 @@ struct NoteDetailView: View {
         context.retargetWikiLinks(to: note, renamedFrom: old)
     }
 
-    /// A new sub-note, linked where the caret is, opened for writing.
-    private func createSubNote() {
-        let child = context.createSubNote(of: note)
-        controller.insertLines(["[New sub-note](pane-note:\(child.id.uuidString.lowercased()))"])
-        onOpenNote(child.id, true)
-    }
-
     private func attach(_ result: Result<[URL], Error>) {
         if case .success(let urls) = result { controller.insertFiles(context.addAttachments(urls)) }
     }
@@ -1062,7 +1060,6 @@ struct NoteDetailView: View {
         let context = self.context
         let sync = self.sync
         controller.resolveAttachment = { id in context.attachment(id) }
-        controller.resolveNote = { id in context.note(id).map { ($0.title, $0.preview) } }
         controller.resolveNoteModel = { id in context.note(id) }
         // A note dragged in from the list is linked by its title. Not this note to itself.
         controller.noteLinkTitle = { [own = note.id] id in
@@ -1072,8 +1069,6 @@ struct NoteDetailView: View {
         controller.openNote = { id in onOpenNote(id, false) }
         controller.openWiki = { target in followWikiLink(target) }
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
-        // A locked note's files and sub-notes would stay readable: it can't take them.
-        controller.newSubNote = { if !note.isLocked { createSubNote() } }
         controller.download = { a in await sync?.download(a) ?? false }
         controller.attach = { importing = true }
         controller.addFiles = { urls in note.isLocked ? [] : context.addAttachments(urls) }
@@ -1093,18 +1088,20 @@ struct NoteDetailView: View {
     #if os(iOS)
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // The floating buttons in the label colour, not the accent (Emil, 28 October 2026): the
+        // accent is for the caret, ticks, selection and links.
         ToolbarItem(placement: .bottomBar) {
-            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden || trashed)
+            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden || trashed).tint(.primary)
         }
         ToolbarItem(placement: .bottomBar) {
-            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed)
+            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed).tint(.primary)
         }
         ToolbarItem(placement: .bottomBar) {
-            attachMenu.disabled(trashed)
+            attachMenu.disabled(trashed).tint(.primary)
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
-            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }.tint(.primary)
         }
         if showingPage, let receipt {
             ToolbarItem(placement: .principal) {
@@ -1117,12 +1114,21 @@ struct NoteDetailView: View {
         if let collab {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
-        ToolbarItem(placement: .primaryAction) { moreMenu }
+        // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
+        ToolbarItemGroup(placement: .primaryAction) {
+            if !note.isLocked {
+                Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
+                    .disabled(trashed)
+                    .tint(.primary)
+                    .accessibilityIdentifier("editor.share")
+            }
+            moreMenu.tint(.primary)
+        }
     }
     #endif
 
-    /// The paperclip: what can be put into a note. A photo or video, a file; then a new sub-note,
-    /// a link to another note (the `[[Title]]` link typing `[[` makes) and a web link.
+    /// The paperclip: what can be put into a note. A photo or video, a file; then a link to
+    /// another note (the `[[Title]]` link typing `[[` makes) and a web link.
     private var attachMenu: some View {
         Menu {
             Button("Choose Photo or Video…", systemImage: "photo.on.rectangle") { pickingPhotos = true }
@@ -1131,8 +1137,6 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("attach.file")
             Divider()
             Group {
-                Button("New Sub-note", systemImage: "doc.badge.plus") { controller.newSubNote() }
-                    .accessibilityIdentifier("attach.subNote")
                 Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
                     .accessibilityIdentifier("attach.noteLink")
                 Button("Add Link", systemImage: "link", action: controller.insertLink)
@@ -1190,8 +1194,7 @@ struct NoteDetailView: View {
     private var moreMenu: some View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
-                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, linkedFrom: !backlinks.isEmpty,
-                                             nested: note.parentID != nil && context.isNested(note))
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, linkedFrom: !backlinks.isEmpty)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -1238,9 +1241,9 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, moveOut, linkedFrom, share, history, recover, delete }
+    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, linkedFrom, share, history, recover, delete }
 
-    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, linkedFrom: Bool, nested: Bool = false,
+    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, linkedFrom: Bool,
                        phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
@@ -1254,10 +1257,8 @@ enum NoteMoreMenu {
         if hasApp { about.append(.appInfo) }
         if dev, appsEnabled, !locked, !trashed { about.append(.devImportApp) }
         var rest: [Item] = [.moveTo]
-        if nested { rest.append(.moveOut) }
         if linkedFrom { rest.append(.linkedFrom) }
-        // On iPhone and iPad sharing lives in this menu; the Mac has its own toolbar button.
-        if phone, !locked { rest.append(.share) }
+        // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked { rest.append(.history) }
         rest.append(.delete)
         return [about, rest]
@@ -1462,3 +1463,75 @@ struct TrashBanner: View {
         .accessibilityIdentifier("editor.trashBanner")
     }
 }
+
+/// A link that named a heading (`[[Budget#October]]`, `pinto:Budget#October`): the note it opens
+/// scrolls there once its text is on screen. Kept only for the next note that opens.
+@MainActor
+final class LinkLanding {
+    static let shared = LinkLanding()
+    private var pending: (id: UUID, heading: String)?
+
+    func request(_ id: UUID, heading: String) { pending = (id, heading) }
+
+    /// The heading asked for in note `id`, once.
+    func take(_ id: UUID) -> String? {
+        guard let p = pending, p.id == id else { return nil }
+        pending = nil
+        return p.heading
+    }
+}
+
+/// The notes a link opened, in order, so Back returns to the note or app the link was in, as a
+/// link does in Notes on iPhone. Opening a note any other way (the list, a new note) ends it.
+struct LinkTrail: Equatable {
+    private(set) var stack: [UUID] = []
+    /// The note a link or Back is opening right now.
+    private var expected: UUID?
+
+    /// Where Back goes.
+    var previous: UUID? { stack.last }
+
+    /// A link in `from` opened `to`.
+    mutating func followed(from: UUID?, to: UUID) {
+        guard let from, from != to else { return }
+        stack.append(from)
+        if stack.count > 50 { stack.removeFirst() }
+        expected = to
+    }
+
+    /// Back: the note to open again, taken off the trail.
+    mutating func back() -> UUID? {
+        guard let p = stack.popLast() else { return nil }
+        expected = p
+        return p
+    }
+
+    /// The open note changed. Anything but a link or Back ends the trail.
+    mutating func opened(_ id: UUID?) {
+        if id == nil || id != expected { stack = [] }
+        expected = nil
+    }
+}
+
+#if os(iOS)
+/// After a link: Back in the navigation bar returns to the note or app the link was in.
+struct LinkBackButton: ViewModifier {
+    /// The note Back returns to, or nil for the system's Back to the list.
+    let title: String?
+    let back: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .navigationBarBackButtonHidden(title != nil)
+            .toolbar {
+                if let title {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(action: back) { Image(systemName: "chevron.backward") }
+                            .accessibilityLabel("Back to \(title)")
+                            .accessibilityIdentifier("note.linkBack")
+                    }
+                }
+            }
+    }
+}
+#endif

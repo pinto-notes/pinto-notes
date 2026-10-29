@@ -74,7 +74,7 @@ struct ShareLinkState: Equatable {
     mutating func shared(slug: String, includesSubNotes: Bool, copied: Bool) {
         let wasShared = self.slug != nil
         phase = .shared(slug: slug, includesSubNotes: includesSubNotes)
-        feedback = .done(copied ? (wasShared ? "Link copied" : "Link created and copied") : (includesSubNotes ? "Sub-notes included" : "Sub-notes left out"))
+        feedback = .done(copied ? (wasShared ? "Link copied" : "Link created and copied") : "Link updated")
     }
 
     mutating func stopped() {
@@ -137,17 +137,14 @@ struct SupabaseShareLinks: ShareLinkService {
 }
 
 /// The readable copy a shared page shows. The server can't read the notes, so this device
-/// publishes one: the note, the sub-notes the link includes (any depth, only live, unlocked ones),
-/// and the files they embed. It's written again as the notes change (SyncEngine) and deleted with
-/// the link.
+/// publishes one: the note and the files it embeds. It's written again as the note changes
+/// (SyncEngine) and deleted with the link.
 ///
 /// Only for a share this account made: every share carries a tag (`E2EE.shareTag`, an HMAC under
-/// a subkey of the data key over the note, the slug and whether sub-notes are included), and
-/// before anything is published the live share is read and its tag checked. A share row planted
-/// or changed by anyone without the key publishes nothing, and neither does a link this account
-/// stopped (`RevokedShares`). The sub-notes a page includes are the notes linked from their
-/// parent's own (sealed) text whose `parent_id` is that parent: the server can't add a note by
-/// changing `parent_id`, and a link alone doesn't pull in a note that lives elsewhere.
+/// a subkey of the data key over the note, the slug and the share's old sub-notes flag, which the
+/// server still keeps), and before anything is published the live share is read and its tag
+/// checked. A share row planted or changed by anyone without the key publishes nothing, and
+/// neither does a link this account stopped (`RevokedShares`).
 @MainActor
 enum SharePublisher {
     struct Failure: LocalizedError { var errorDescription: String? { "This note couldn't be published. Try again." } }
@@ -161,8 +158,6 @@ enum SharePublisher {
 
     /// Files over this aren't published (the server's limit); the page shows them as unavailable.
     static let maxFileBytes = 10 * 1024 * 1024
-    /// At most this many sub-notes on one page.
-    static let maxPages = 500
 
     nonisolated static func slugIsValid(_ slug: String) -> Bool { slug.wholeMatch(of: /[A-Za-z0-9_-]{24,64}/) != nil }
 
@@ -184,57 +179,19 @@ enum SharePublisher {
         return sealer.shareTagMatches(note: note, slug: share.slug, includeSubNotes: share.include_subnotes, tag: share.share_tag)
     }
 
-    /// The notes a body links to (`pane-note:<id>`), in order, each once.
-    nonisolated static func linkedNotes(in body: String) -> [UUID] {
-        var out: [UUID] = []
-        for m in body.matches(of: /pane-note:([0-9a-fA-F-]{36})/) {
-            if let id = UUID(uuidString: String(m.1)), !out.contains(id) { out.append(id) }
-        }
-        return out
-    }
-
-    /// The sub-notes a page of `root` includes, with the note that links each: breadth first
-    /// through the links in the (local, readable) text. A locked, trashed or deleted note, and
-    /// one this device doesn't have, is left out with everything only it links to.
-    static func subNotes(of root: Note, in context: ModelContext) -> [(note: Note, parent: UUID)] {
-        var out: [(Note, UUID)] = []
-        var queue = [root]
-        var seen: Set<UUID> = [root.id]
-        while !queue.isEmpty, out.count < maxPages {
-            let parent = queue.removeFirst()
-            for id in linkedNotes(in: parent.body) where seen.insert(id).inserted {
-                // Both halves: the parent's own (sealed) text links it, and the child says it's
-                // under that parent. A link to a note that lives elsewhere, or a parent_id alone,
-                // puts nothing on the page.
-                guard let child = context.note(id), child.parentID == parent.id,
-                      child.deletedAt == nil, child.trashedAt == nil, child.lockedBody == nil else { continue }
-                queue.append(child)
-                out.append((child, parent.id))
-                if out.count >= maxPages { break }
-            }
-        }
-        return out
-    }
 
     static func copy(of id: UUID, includeSubNotes: Bool, in context: ModelContext) -> Copy? {
         guard let root = context.note(id), root.lockedBody == nil, root.deletedAt == nil, root.trashedAt == nil else { return nil }
-        var pages: [Page] = []
-        var bodies = [root.body]
-        if includeSubNotes {
-            for (child, parent) in subNotes(of: root, in: context) {
-                bodies.append(child.body)
-                pages.append(Page(id: child.id.uuidString.lowercased(), parent_id: parent.uuidString.lowercased(), title: child.title, body: child.body))
-            }
-        }
+        // Sub-notes are gone (2026-10-28): a page is the note alone, whatever an older link said
+        // about them (`includeSubNotes` stays part of the link's tag, which the server keeps).
+        _ = includeSubNotes
         var files: [String] = []
-        for body in bodies {
-            for m in body.matches(of: /pane-file:([0-9a-fA-F-]{36})/) {
-                guard let fid = UUID(uuidString: String(m.1)), let a = context.attachment(fid), a.deletedAt == nil else { continue }
-                let key = fid.uuidString.lowercased()
-                if !files.contains(key) { files.append(key) }
-            }
+        for m in root.body.matches(of: /pane-file:([0-9a-fA-F-]{36})/) {
+            guard let fid = UUID(uuidString: String(m.1)), let a = context.attachment(fid), a.deletedAt == nil else { continue }
+            let key = fid.uuidString.lowercased()
+            if !files.contains(key) { files.append(key) }
         }
-        return Copy(title: root.title, body: root.body, pages: pages, files: files)
+        return Copy(title: root.title, body: root.body, pages: [], files: files)
     }
 
     /// Creates the note's link (or keeps the live one this account made) with its copy and tag,
@@ -439,7 +396,7 @@ final class ShareLinkStore {
     var isAvailable: Bool { service != nil && baseURL != nil }
 
     /// What making something public is waiting on: you confirm before anything becomes readable by link.
-    enum PublicStep: Equatable { case createLink, includeSubNotes }
+    enum PublicStep: Equatable { case createLink }
     var confirming: PublicStep?
     /// Where "you've been told what sharing publishes" is kept, per note. Tests use their own.
     @ObservationIgnored var defaults: UserDefaults = .standard
@@ -547,19 +504,6 @@ final class ShareLinkStore {
         settleFeedback()
     }
 
-    func setIncludesSubNotes(_ include: Bool) async {
-        guard let service, let note = noteID else { return }
-        state.begin(include ? "Including sub-notes…" : "Leaving out sub-notes…")
-        do {
-            let slug = try await service.share(note: note, includeSubNotes: include)
-            guard noteID == note else { return }
-            state.shared(slug: slug, includesSubNotes: include, copied: false)
-        } catch {
-            state.failed(Self.message(for: error))
-        }
-        settleFeedback()
-    }
-
     func stopSharing() async {
         guard let service, let note = noteID else { return }
         state.begin("Stopping…")
@@ -616,8 +560,8 @@ final class ShareLinkStore {
     }
 }
 
-/// The note menu's sharing items: Share Link… before a note is shared; Copy Link, sub-notes and
-/// Stop Sharing once it is.
+/// The note menu's sharing items: Share Link… before a note is shared; Copy Link and Stop Sharing
+/// once it is.
 struct ShareLinkMenuSection: View {
     let store: ShareLinkStore
     let note: Note
@@ -643,14 +587,6 @@ struct ShareLinkMenuSection: View {
                     if let url = store.url {
                         Link(destination: url) { Label("Open Shared Page", systemImage: "safari") }
                     }
-                    Toggle(isOn: Binding(get: { store.state.includesSubNotes },
-                                         set: { v in
-                                             // Turning sub-notes on makes more public: ask first. Leaving them out needs no warning.
-                                             if v { store.confirming = .includeSubNotes } else { Task { await store.setIncludesSubNotes(false) } }
-                                         })) {
-                        Label("Include Sub-notes", systemImage: "doc.on.doc")
-                    }
-                    .accessibilityIdentifier("share.subnotes")
                     Button("Stop Sharing", systemImage: "xmark.circle", role: .destructive) { Task { await store.stopSharing() } }
                         .accessibilityIdentifier("share.stop")
                 }
@@ -749,13 +685,6 @@ private struct ShareLinkChrome: ViewModifier {
                         Button("Add Name and Photo First", action: editProfile)
                             .accessibilityIdentifier("share.profile")
                     }
-                case .includeSubNotes:
-                    Button("Include Sub-notes") { Task { await store.setIncludesSubNotes(true) } }
-                        // As above: not the default button on iPhone.
-                        #if os(macOS)
-                        .keyboardShortcut(.defaultAction)
-                        #endif
-                        .accessibilityIdentifier("share.confirm")
                 }
                 Button("Cancel", role: .cancel) {}
             } message: { step in
@@ -764,8 +693,6 @@ private struct ShareLinkChrome: ViewModifier {
                     // Short (newcomer audit, 2026-10-12: ten lines, then nothing): who can read it,
                     // that it leaves the encryption, and that it shows who shared it.
                     Text("Anyone with the link can read it and its files, outside your encryption, until you stop sharing. The page shows your name and email.")
-                case .includeSubNotes:
-                    Text("Readable copies of the sub-notes in this note go on \(ShareLinkConfig.siteName(store.baseURL)) too, for anyone with the link, until you stop sharing. Locked sub-notes are never included.")
                 }
             }
             #if os(iOS)
@@ -801,7 +728,7 @@ private struct ShareLinkChrome: ViewModifier {
 
     private var alertTitle: String {
         let title = note.title.isEmpty ? "this note" : "“\(note.title)”"
-        return store.confirming == .includeSubNotes ? "Make sub-notes public too?" : "Share \(title) publicly?"
+        return "Share \(title) publicly?"
     }
 
     private func toast(_ f: ShareLinkState.Feedback) -> some View {

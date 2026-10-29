@@ -104,7 +104,13 @@ struct MarkdownStyler {
             switch level {
             case 1: return .systemFont(ofSize: EditorMetrics.title * 0.85, weight: .heavy)
             case 2: return .systemFont(ofSize: bodySize * 1.3, weight: .heavy)
-            case 3: return .systemFont(ofSize: bodySize * 1.12, weight: .bold)
+            case 3:
+                #if os(iOS)
+                // The welcome note's small bold label ("Get started").
+                return .systemFont(ofSize: EditorMetrics.label, weight: .bold)
+                #else
+                return .systemFont(ofSize: bodySize * 1.12, weight: .bold)
+                #endif
             default: return .systemFont(ofSize: bodySize, weight: .bold)
             }
         }
@@ -218,7 +224,12 @@ struct MarkdownStyler {
                     // The website's display type: heavy and tight.
                     storage.addAttributes([.font: Self.titleFont, .kern: Palette.tracking(EditorMetrics.title)], range: lineRange)
                     let p = baseParagraph()
+                    #if os(iOS)
+                    // The welcome note's room under the title.
+                    p.paragraphSpacing = 10
+                    #else
                     p.paragraphSpacing = 4
+                    #endif
                     storage.addAttribute(.paragraphStyle, value: p, range: enclosing)
                     return
                 }
@@ -345,7 +356,8 @@ struct MarkdownStyler {
             storage.addAttributes(syntax, range: NSRange(location: NSMaxRange(shown), length: NSMaxRange(range) - NSMaxRange(shown)))
             let exists = wiki?.resolves(link.target) ?? true
             storage.addAttribute(.foregroundColor, value: exists ? PColor.paneAccent : PColor.paneAccentFaded, range: shown)
-            if let url = LinkPolicy.wikiURL(link.target) { storage.addAttribute(.link, value: url, range: shown) }
+            // The heading comes along ("Budget#October"): the note opens there.
+            if let url = LinkPolicy.wikiURL(link.heading.map { "\(link.target)#\($0)" } ?? link.target) { storage.addAttribute(.link, value: url, range: shown) }
             // "Budget#October": the # between note and heading reads as a separator.
             if link.aliasRange == nil, let h = link.headingRange.map(shift), h.length > 0 {
                 storage.addAttribute(.foregroundColor, value: PColor.paneTertiary, range: NSRange(location: h.location, length: 1))
@@ -567,8 +579,16 @@ struct MarkdownStyler {
                 p.paragraphSpacing = max(0, EditorMetrics.checkPitch - line - p.lineSpacing)
             }
             if let checked = list.checkbox {
-                // Ticked items keep their text colour, like Notes: the filled circle says it's done.
+                // On the Mac ticked items keep their text colour, like Notes: the filled circle says
+                // it's done. On iPhone, the welcome note's: muted and struck through.
                 storage.addAttribute(.paneLine, value: LineDecoration(.checkbox(checked: checked), markerX: markerX), range: enclosing)
+                #if os(iOS)
+                if checked, NSMaxRange(prefix) < NSMaxRange(lineRange) {
+                    let text = NSRange(location: NSMaxRange(prefix), length: NSMaxRange(lineRange) - NSMaxRange(prefix))
+                    storage.addAttributes([.foregroundColor: Palette.muted, .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                                           .strikethroughColor: Palette.muted], range: text)
+                }
+                #endif
             } else {
                 storage.addAttribute(.paneLine, value: LineDecoration(list.marker == "-" ? .dash : .bullet, markerX: markerX), range: enclosing)
             }
@@ -669,6 +689,15 @@ private struct StyleWalker: MarkupWalker {
         let p = styler.baseParagraph()
         p.paragraphSpacingBefore = heading.level <= 2 ? 4 : 2
         p.paragraphSpacing = 2
+        #if os(iOS)
+        if heading.level == 3, DesignLook.current == .paper || DesignLook.readingPage {
+            // A label, in the muted colour, a little apart from what's above it.
+            storage.addAttribute(.foregroundColor, value: Palette.muted, range: r)
+            p.minimumLineHeight = EditorMetrics.label
+            p.paragraphSpacingBefore = 8
+            p.paragraphSpacing = 6
+        }
+        #endif
         storage.addAttribute(.paragraphStyle, value: p, range: ns.paragraphRange(for: r))
         let hashes = delimiterLength(r, char: 0x23)
         var marker = hashes

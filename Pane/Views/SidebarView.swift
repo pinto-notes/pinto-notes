@@ -263,26 +263,17 @@ struct SidebarView: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
 
     /// All Notes and Recently Deleted, counted by the store (unsaved changes included), as the list
-    /// shows them: a sub-note lives inside its parent and is no row of its own (NoteListView.nested).
+    /// shows them.
     static func counts(in context: ModelContext) -> (live: Int, trashed: Int) {
         let live = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
         let trashed = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt != nil }))) ?? 0
-        let nested = nestedSubNotes(in: context)
-        return (live - nested.filter { $0.trashedAt == nil }.count, trashed - nested.filter { $0.trashedAt != nil }.count)
+        return (live, trashed)
     }
 
-    /// The sub-notes inside their parent, which the list doesn't count as rows. The folder said 2
-    /// while its list said "1 note" (newcomer audit, 2026-10-12). Only notes with a parent are
-    /// fetched: a library without sub-notes pays for one empty fetch.
-    static func nestedSubNotes(in context: ModelContext) -> [Note] {
-        context.nestedSubNotes()
-    }
-
-    /// A folder's notes as its list counts them: without the sub-notes inside a parent. In a window
-    /// the list's notes count them (LibraryNotes.listedCount); this reads the folder's own notes.
+    /// A folder's notes as its list counts them. In a window the list's notes count them
+    /// (LibraryNotes.listedCount); this reads the folder's own notes.
     static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        let nested = Set(SubNoteIndex.nestedIDs(in: context))
-        return folder.liveNotes.count { !nested.contains($0.id) }
+        folder.liveNotes.count
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
@@ -363,6 +354,16 @@ struct SidebarView: View {
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
+            #if os(iOS)
+            // The Mac card docks right under the folders, where it reads as part of the list.
+            if sidebarCard == .mac {
+                Section {
+                    cardView(.mac)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
+            #endif
         }
         .listStyle(.sidebar)
         #if os(iOS)
@@ -370,7 +371,7 @@ struct SidebarView: View {
         .background(Color(Palette.foldersGround).ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let card = sidebarCard {
+                if let card = sidebarCard, card != .mac {
                     cardView(card)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
@@ -432,11 +433,13 @@ struct SidebarView: View {
                 } label: {
                     Label("New Folder", systemImage: "folder.badge.plus")
                 } primaryAction: { startNewFolder(nil) }
+                // The floating buttons in the label colour, as in the note and the list.
+                .tint(.primary)
                 .accessibilityIdentifier("sidebar.newFolder")
             }
             ToolbarSpacer(.flexible, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
-                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }.tint(.primary)
             }
             if let backend, backend.client != nil {
                 ToolbarItem(placement: .primaryAction) {
@@ -445,7 +448,11 @@ struct SidebarView: View {
                         let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
                             AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
+                                // The photo alone, no glass around it (Emil, 28 October 2026), still a finger's target.
+                                .frame(width: 44, height: 44)
+                                .contentShape(.circle)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Account, \(name). Opens Settings")
                         .accessibilityIdentifier("sidebar.settings")
                         .task(id: backend.state) { await ProfileStore.shared.bind(backend) }
@@ -454,6 +461,7 @@ struct SidebarView: View {
                             .accessibilityIdentifier("sidebar.settings")
                     }
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
             #endif
         }
@@ -527,20 +535,23 @@ struct SidebarView: View {
     /// The one card above the account: Connect your AI, then Templates (`SidebarCard.pick`).
     private var sidebarCard: SidebarCard? {
         guard let backend, case .signedIn = backend.state, let account = backend.userID else { return nil }
-        return SidebarCard.pick(account: account, progress: setup?.progress,
+        return SidebarCard.here(SidebarCard.pick(account: account, progress: setup?.progress,
                                 connectClosedHere: cardsClosedHere.contains(.connect) || SidebarCard.isClosedHere(.connect, account),
                                 templatesClosedHere: cardsClosedHere.contains(.templates) || SidebarCard.isClosedHere(.templates, account),
-                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize)
+                                sidebarHeight: sidebarHeight, largestText: templatesTypeSize.isAccessibilitySize,
+                                hasHadMac: SidebarCard.hasHadMac(loaded: KeyDevices.shared.loaded, others: KeyDevices.shared.others),
+                                macClosedHere: cardsClosedHere.contains(.mac) || SidebarCard.isClosedHere(.mac, account)))
     }
 
     @ViewBuilder private func cardView(_ card: SidebarCard) -> some View {
         let close = {
             if let account = backend?.userID { SidebarCard.closeHere(card, account) }
             withAnimation(.easeOut(duration: 0.2)) { _ = cardsClosedHere.insert(card) }
-            Task { await setup?.mark(card.mark) }
+            if let mark = card.mark { Task { await setup?.mark(mark) } }
         }
         Group {
             switch card {
+            case .mac: MacCard(onClose: close)
             case .connect: ConnectCard(onConnect: { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }, onClose: close)
             case .templates: TemplatesCard(onClose: close)
             }

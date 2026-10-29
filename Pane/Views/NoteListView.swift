@@ -60,26 +60,14 @@ struct NoteListView: View {
 
     /// The notes a scope lists, in the order they came in.
     static func scoped(_ all: [NoteEntry], to scope: Scope, context: ModelContext) -> [NoteEntry] {
-        let nested = Self.nested(in: all, context: context)
-        return all.filter { e in
+        all.filter { e in
             guard !e.deleted else { return false }
-            // Sub-notes live inside their parent, not in the list.
-            if nested.contains(e.id) { return false }
             switch scope {
             case .all: return !e.trashed
             case .trash: return e.trashed
             case .folder(let id): return !e.trashed && e.folderID == id
             }
         }
-    }
-
-    /// The sub-notes still linked from their parent (`ModelContext.isNested`), for the whole
-    /// list at once, from SubNoteIndex: asked of the store one sub-note at a time, a library with
-    /// a few hundred sub-notes spent a fetch on each of them whenever the list was worked out,
-    /// which is every time a note is opened. Without sub-notes nothing is looked up at all.
-    static func nested(in all: [NoteEntry], context: ModelContext) -> Set<UUID> {
-        guard all.contains(where: { $0.parentID != nil }) else { return [] }
-        return Set(context.nestedSubNotes().map(\.id))
     }
 
     private var filtered: [NoteEntry] {
@@ -114,6 +102,13 @@ struct NoteListView: View {
     /// the same line says how long things stay: "9 notes · Deleted after 30 days".
     private func countText(notes: Int, files: Int, capitalized: Bool) -> String {
         Self.countText(notes: notes, files: files, capitalized: capitalized, trash: scope == .trash)
+    }
+
+    /// The line under the large title: "3 notes", "1 note"; nothing while searching or when there's
+    /// nothing in the list.
+    static func titleCount(notes: Int, files: Int, searching: Bool, trash: Bool) -> String? {
+        guard !searching, notes + files > 0 else { return nil }
+        return countText(notes: notes, files: files, capitalized: false, trash: trash)
     }
 
     static func countText(notes: Int, files: Int, capitalized: Bool, trash: Bool) -> String {
@@ -195,6 +190,22 @@ struct NoteListView: View {
         let listSelection = $selection
         #endif
         return List(selection: listSelection) {
+            #if os(iOS)
+            // The count, small and muted under the large title, lined up with it; it scrolls away
+            // with the title. Not for a search, and not when the list is empty (the empty state
+            // says so). It was a footer at the end of the list (Emil, 28 October 2026).
+            if let count = Self.titleCount(notes: scopedNotes.count, files: scopedFiles.count, searching: !search.isEmpty, trash: scope == .trash) {
+                Section {} header: {
+                    Text(count)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.muted)
+                        .textCase(nil)
+                        .monospacedDigit()
+                        .listRowInsets(.leading, 0)
+                        .accessibilityIdentifier("list.count")
+                }
+            }
+            #endif
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
             if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
                 #if os(iOS)
@@ -251,18 +262,7 @@ struct NoteListView: View {
                     }
                 }
             }
-            #if os(iOS)
-            // The count, quietly at the end of the list, as in Notes.
-            if !(visible.isEmpty && visibleFiles.isEmpty) && search.isEmpty {
-                Section {} footer: {
-                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: true))
-                        .font(.footnote)
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("list.count")
-                }
-            }
-            #endif
+
         }
         // Right-click acts on the whole selection when the row is part of it, like Notes.
         .contextMenu(forSelectionType: UUID.self) { ids in
@@ -326,10 +326,6 @@ struct NoteListView: View {
                     .transition(.opacity)
                     .allowsHitTesting(false)
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NoteDrop.nested)) { n in
-            guard let parent = n.object as? UUID else { return }
-            selection = NoteDrop.selection(afterNestingUnder: parent)
         }
         .dropDestination(for: URL.self) { urls, _ in
             let made = context.importFiles(urls, into: scope == .trash ? .all : scope)
@@ -399,9 +395,6 @@ struct NoteListView: View {
         }
         .onChange(of: selection) { old, new in
             RowClickLog.selection(old, new)
-            // Notes that went inside another note aren't rows any more (see `withoutSubNotes`).
-            let rows = NoteDrop.withoutSubNotes(new, in: context)
-            if rows != new { selection = rows }
         }
         #endif
         .toolbar {
@@ -416,6 +409,8 @@ struct NoteListView: View {
                     }
                 }
                 .fontWeight(editMode.isEditing ? .semibold : .regular)
+                // The floating buttons in the label colour, as in the note (28 October 2026).
+                .tint(.primary)
                 .accessibilityIdentifier("list.select")
             }
             }
@@ -431,13 +426,16 @@ struct NoteListView: View {
                             Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
                                 .accessibilityIdentifier("list.addFile")
                         }
-                        Divider()
-                        // Always here, not only in Settings.
-                        Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
-                            .accessibilityIdentifier("list.connectAI")
+                        // Connect an AI was here; on iPhone it is in Settings only (ConnectHere, 28 October 2026).
+                        if ConnectHere.nudges() {
+                            Divider()
+                            Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
+                                .accessibilityIdentifier("list.connectAI")
+                        }
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }
+                    .tint(.primary)
                     .accessibilityIdentifier("list.more")
                 }
             }
@@ -470,6 +468,7 @@ struct NoteListView: View {
                 }
                 ToolbarItem(placement: .bottomBar) {
                     ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                        .tint(.primary)
                         .newAppTip()
                         // Recently Deleted holds no new notes: the note it made went elsewhere.
                         .disabled(scope == .trash)
@@ -529,9 +528,11 @@ struct NoteListView: View {
             if section.0 != DateBucket.unheaded {
                 // One step lighter than the display type: bold, in the warm ink.
                 #if os(iOS)
-                // The system's prominent header: large and bold, as in Notes.
+                // The system's prominent header: large and bold, as in Notes. No indent of its own:
+                // it lines up with the large title, not with the rows' text (28 October 2026).
                 Text(section.0)
                     .foregroundStyle(Color.ink)
+                    .listRowInsets(.leading, 0)
                 #else
                 // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
                 // C and D: small, semibold and muted, a label over the rows rather than a title.
@@ -587,6 +588,11 @@ struct NoteListView: View {
         .equatable()
         // On the row as the list holds it, where the list's selection finds it.
         .tag(id)
+        #if os(iOS)
+        // A little more room either side inside the card (Emil, 28 October 2026); the hairline
+        // between rows starts with the text.
+        .listRowInsets(.horizontal, RowMetrics.sideInset)
+        #endif
         #if os(macOS)
         // C and D: no hairlines between rows.
         .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
@@ -1287,7 +1293,7 @@ final class LibraryNotes {
         if counted { countFolders() }
     }
 
-    /// Each folder's notes as its list shows them: live, and not a sub-note inside its parent.
+    /// Each folder's notes as its list shows them: the live ones.
     /// Counted from the entries in one pass whenever they change; each folder's row hears only of
     /// its own count, so the sidebar's 800 folder rows aren't worked out again for every change.
     func listedCount(inFolder id: UUID, context: ModelContext) -> Int? {
@@ -1323,10 +1329,9 @@ final class LibraryNotes {
 
     private func countFolders() {
         guard let context else { return }
-        let inside = Set(SubNoteIndex.nestedIDs(in: context))
         var counts: [UUID: Int] = [:]
         var live = 0, trashed = 0
-        for e in sorted where !e.deleted && !inside.contains(e.id) {
+        for e in sorted where !e.deleted {
             if e.trashed { trashed += 1; continue }
             live += 1
             if let folder = e.folderID { counts[folder, default: 0] += 1 }
@@ -1414,6 +1419,8 @@ final class LibraryNotes {
 
 /// Row type and spacing, matched to Apple Notes on each platform.
 enum RowMetrics {
+    /// iPhone: the room either side of a row's text inside its card.
+    static let sideInset: CGFloat = 20
     #if os(macOS)
     // Against Apple Notes on macOS 26 (owner, 2026-10-12: "a bit less overwhelming"): the second
     // line a size smaller than the title. The rows are Apple's, read through Accessibility in a
@@ -1530,9 +1537,6 @@ private struct ListRow: View, @MainActor Equatable {
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)
             }
-            // Notes dropped on this row become its sub-notes. (After the drag source, as on
-            // the sidebar's folders: inside it, the row was never offered a drop.)
-            .modifier(SubNoteDropTarget(note: note))
             .swipeActions(edge: .leading) {
                 if note.trashedAt == nil {
                     Button(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin", action: togglePin)
@@ -1694,3 +1698,4 @@ private struct NoteRowHover<Items: View>: ViewModifier {
         }
     }
 }
+

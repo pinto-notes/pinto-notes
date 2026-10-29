@@ -742,6 +742,133 @@ import AppKit
         }
     }
 
+    // MARK: Links to notes and apps (pinto:)
+
+    /// What follows pinto: is what goes between [[ and ]] in a note: a title, folders and a title,
+    /// a heading, a .app folder for another app. Nothing else is a link to a note.
+    @Test func anAppsLinkNamesANoteTheWayAWikiLinkDoes() {
+        let link = { (href: String) in AppLinks.parse(href) }
+        #expect(link("pinto:Work/Acme") == .init(target: "Work/Acme", heading: nil))
+        #expect(link("pinto:Acme#Agenda") == .init(target: "Acme", heading: "Agenda"))
+        #expect(link("pinto:Work/Habits.app") == .init(target: "Work/Habits", heading: nil), "an app's folder names its note")
+        #expect(link("pinto:Work/Habits.app/") == .init(target: "Work/Habits", heading: nil))
+        #expect(link("pinto:Kitchen%20remodel#Budget%202026") == .init(target: "Kitchen remodel", heading: "Budget 2026"), "encoded, as encodeURIComponent writes it")
+        #expect(link("pinto:Kitchen remodel") == .init(target: "Kitchen remodel", heading: nil), "or as written")
+        #expect(link("PINTO://Acme") == .init(target: "Acme", heading: nil))
+        #expect(link("pinto:Acme.md") == .init(target: "Acme.md", heading: nil), "a .md ending resolves as in a [[link]]")
+        #expect(link("pinto:Acme|shown") == .init(target: "Acme", heading: nil))
+        for no in ["pinto:", "pinto:#Agenda", "pinto:   ", "pinto:[[Acme]]", "pinto:a\nb", "pinto:" + String(repeating: "a", count: 1000),
+                   "https://pintonotes.com/Acme", "file:///etc/hosts", "ambernotes://settings", "javascript:alert(1)", "pane-note:00000000-0000-0000-0000-000000000000", "Acme", ""] {
+            #expect(link(no) == nil, "\(no.prefix(40)) is no link to a note")
+        }
+        #expect(WikiLinks.headingLocation("agenda", in: "Acme\n\nIntro\n## Agenda\n- one") == 12)
+        #expect(WikiLinks.headingLocation("Nope", in: "Acme\n## Agenda") == nil)
+    }
+
+    /// A tapped link in an app opens the note it names, its heading, or another app, resolved like
+    /// a [[link]] from the app's note. A link that names no note says so. Web, file and other
+    /// apps' links do what they did before (nothing; device.openURL asks), and an app can't move
+    /// you to a note without a tap.
+    @Test func anAppsLinksOpenNotesHeadingsAndOtherAppsAndNothingElse() async throws {
+        let container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: .init(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        WikiDirectory.invalidate()
+        let work = context.createFolder(named: "Work"), home = context.createFolder(named: "Home")
+        let acme = context.createNote(in: .folder(work.id), body: "Acme\n\nIntro\n\n## Agenda\n- Budget")
+        _ = context.createNote(in: .folder(home.id), body: "Acme\n\nThe other Acme")
+        let habits = context.createNote(in: .folder(work.id), body: "Habits\n\n3 of 4 today")
+        let dashboard = context.createNote(in: .folder(work.id), body: "Dashboard\n\nToday")
+        try context.save()
+        WikiDirectory.invalidate()
+
+        var opened: [String] = [], missing: [String] = [], asked: [String] = []
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.onData = { m in
+            try await NotePageActions.data(m, note: dashboard, context: context, sync: nil, askLink: { asked.append($0); return false }, open: { link in
+                // As the note screen follows it (NoteDetailView.followLink): by title, from the app's note.
+                guard let note = context.resolveWikiLink(link.target, from: dashboard) else {
+                    missing.append(link.target)
+                    throw NotePage.OpError("No note is called \u{201C}\(WikiLinks.name(of: link.target))\u{201D}.")
+                }
+                opened.append(note.id == acme.id ? "acme" + (link.heading.map { "#" + $0 } ?? "") : note.id == habits.id ? "habits" : note.title)
+            }).reply
+        }
+        sandbox.load(html: """
+        <a id=acme href="pinto:Acme">Acme</a>
+        <a id=agenda href="pinto:Work/Acme#Agenda">Agenda</a>
+        <a href="pinto:Work/Habits.app"><span id=habits>Habits</span></a>
+        <a id=missing href="pinto:Someday">Someday</a>
+        <a id=web href="https://example.org/">Web</a>
+        <a id=file href="file:///etc/hosts">File</a>
+        <a id=scheme href="ambernotes://settings">Settings</a>
+        <script>
+          window.__tap = (id) => { dispatchEvent(new PointerEvent("pointerdown")); document.getElementById(id).click(); };
+          // On its own, before anyone touched it: no.
+          amber.open("Work/Acme").then((r) => { window.__untapped = r; });
+          window.__byCode = async () => { dispatchEvent(new PointerEvent("pointerdown")); window.__coded = await amber.open("Work/Habits.app"); };
+        </script>
+        """, body: "Dashboard\n\nToday")
+        try await run(sandbox.webView, until: "window.__untapped !== undefined")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__untapped.ok") as? Bool == false)
+        #expect(opened.isEmpty)
+
+        for (id, count) in [("acme", 1), ("agenda", 2), ("habits", 3)] {
+            _ = try await sandbox.webView.evaluateJavaScript("window.__tap('\(id)'); 1")
+            for _ in 0..<100 where opened.count < count { try await Task.sleep(for: .milliseconds(20)) }
+        }
+        #expect(opened == ["acme", "acme#Agenda", "habits"], "the Acme next to the app (Work), its heading, and the other app")
+        _ = try await sandbox.webView.evaluateJavaScript("window.__byCode(); 1")
+        try await run(sandbox.webView, until: "window.__coded !== undefined")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__coded.ok") as? Bool == true)
+        #expect(opened.last == "habits", "amber.open(target) is the same link")
+
+        _ = try await sandbox.webView.evaluateJavaScript("window.__tap('missing'); 1")
+        for _ in 0..<100 where missing.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(missing == ["Someday"], "a link to no note is the note screen's to say (Create “Someday”?)")
+
+        for id in ["web", "file", "scheme"] { _ = try await sandbox.webView.evaluateJavaScript("window.__tap('\(id)'); 1") }
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(opened.count == 4 && asked.isEmpty, "other links open nothing and ask nothing")
+        #expect(sandbox.blocked.contains("navigation https://example.org/"), "a web link stays blocked, as before: device.openURL asks")
+        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html", "the app stayed where it was")
+
+        // Past the bridge's own functions: still only a tapped link to a note.
+        await #expect(throws: NotePage.OpError.self) {
+            _ = try await NotePageActions.data(["op": "note.open", "href": "pinto:Acme"], note: dashboard, context: context, sync: nil, open: { _ in Issue.record("opened untapped") })
+        }
+        for href in ["https://example.org/", "file:///etc/hosts", "ambernotes://settings", "pinto:"] {
+            await #expect(throws: NotePage.OpError.self) {
+                _ = try await NotePageActions.data(["op": "note.open", "href": href, "_user": true], note: dashboard, context: context, sync: nil, open: { _ in Issue.record("opened \(href)") })
+            }
+        }
+        // A widget (no note screen around it) opens nothing.
+        await #expect(throws: NotePage.OpError.self) {
+            _ = try await NotePageActions.data(["op": "note.open", "href": "pinto:Acme", "_user": true], note: dashboard, context: context, sync: nil)
+        }
+    }
+
+    /// Back after a link returns to the note or app the link was in, link by link; opening a note
+    /// any other way starts again.
+    @Test func backAfterALinkReturnsToTheAppItWasIn() {
+        let app = UUID(), acme = UUID(), budget = UUID(), other = UUID()
+        var trail = LinkTrail()
+        trail.followed(from: app, to: acme); trail.opened(acme)
+        trail.followed(from: acme, to: budget); trail.opened(budget)
+        #expect(trail.previous == acme)
+        #expect(trail.back() == acme); trail.opened(acme)
+        #expect(trail.previous == app)
+        #expect(trail.back() == app); trail.opened(app)
+        #expect(trail.previous == nil, "back at the app: Back goes to the list")
+
+        trail.followed(from: app, to: acme); trail.opened(acme)
+        trail.opened(other)
+        #expect(trail.previous == nil, "a note opened from the list ends the trail")
+        trail.followed(from: app, to: app); trail.opened(app)
+        #expect(trail.previous == nil, "a link to the note you're in isn't a step")
+        trail.followed(from: app, to: acme); trail.opened(nil)
+        #expect(trail.previous == nil, "back at the list")
+    }
+
     // MARK: The switch (NoteApps)
 
     @Test func noteAppsAreOnInEveryBuildUnlessTheSettingSaysNo() {
@@ -762,7 +889,7 @@ import AppKit
         #expect(NoteApps.page(note.id, in: store, enabled: false) == nil)
         #expect(!NoteAppMark.has(note, in: store, enabled: false))
         #expect(store[note.id] == page && store.live(note.id) == page)
-        // Off: a sub-note with an app shows in its parent as a link, not a live widget.
+        // Off: a note with an app, linked from another note, shows there as a link, not a live widget.
         let sub = UUID()
         NoteWidgets.update(sub, html: page.html, enabled: false)
         #expect(!NoteWidgets.isApp(sub) && NoteWidgets.height(sub) == nil)

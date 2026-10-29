@@ -12,6 +12,9 @@ final class EditorController {
     var isEditing = false
     /// A note in Recently Deleted: shown, not changed (like Notes). Recover it to edit.
     var readOnly = false
+    /// Read-only, but its checkboxes still tick (the iPhone's welcome note, ticked by hand while
+    /// it's being written). Ticked items stay where they are.
+    var ticksWhileReadOnly = false
     /// Room kept free under the note's last line for something laid over the bottom (iPhone
     /// tips), so the text can always scroll clear of it.
     var bottomReserve: CGFloat = 0
@@ -160,6 +163,64 @@ final class EditorController {
     func perform(_ make: (String, NSRange) -> TextEdit?) {
         guard let t = target, !readOnly else { return }
         if let edit = make(t.currentText, t.currentSelection) { t.apply(edit) }
+        if formatPanelShown { refreshFormat() }
+    }
+
+    // MARK: The Format panel (iPhone)
+
+    /// The Format panel is up in the keyboard's place.
+    private(set) var formatPanelShown = false
+    /// What the panel shows as on, for the caret's line and the selection. Kept while it's up.
+    private(set) var format = FormatState()
+
+    func showFormatPanel() {
+        guard target != nil, !readOnly else { return }
+        formatPanelShown = true
+        refreshFormat()
+        target?.formatPanelChanged(shown: true)
+    }
+
+    /// The close button: the panel goes and the keyboard comes back. `keyboard: false` when
+    /// editing ended anyway (the text was swiped away, another note opened).
+    func closeFormatPanel(keyboard: Bool = true) {
+        guard formatPanelShown else { return }
+        formatPanelShown = false
+        target?.formatPanelChanged(shown: false)
+        if keyboard { target?.focusEditor() }
+    }
+
+    func refreshFormat() {
+        guard let t = target else { return }
+        let now = FormatState.at(t.currentText, selection: t.currentSelection)
+        if now != format { format = now }
+    }
+
+    /// One of the panel's controls, on the selection or the caret's line, as Notes does it.
+    func apply(_ control: FormatControl) {
+        guard let t = target, !readOnly else { return }
+        let state = FormatState.at(t.currentText, selection: t.currentSelection)
+        guard state.isEnabled(control) else { return }
+        switch control {
+        case .title, .heading, .subheading, .body:
+            // Choosing the style the line has keeps it, as in Notes.
+            guard !state.isOn(control) else { break }
+            if state.monostyled { perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) } }
+            perform { ListEditing.paragraph(in: $0, selection: $1, level: control.headingLevel!) }
+        case .monostyled:
+            perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) }
+        case .bold, .italic, .underline, .strikethrough:
+            perform { FormatState.toggle(control.inline!, in: $0, selection: $1) }
+        case .bulleted, .dashed, .numbered, .quote:
+            // A code block or a heading becomes body text first: a list item is body text.
+            if state.monostyled { perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) } }
+            if ListEditing.touchesHeading(in: t.currentText, selection: t.currentSelection) {
+                perform { ListEditing.paragraph(in: $0, selection: $1, level: 0) }
+            }
+            perform { ListEditing.toggleLineStyle(in: $0, selection: $1, control.lineStyle!) }
+        case .indent, .outdent:
+            perform { ListEditing.indentLines(in: $0, selection: $1, outdent: control == .outdent) }
+        }
+        refreshFormat()
     }
 
     /// An AI's edit landed on the open note: tint what it changed.
@@ -200,9 +261,10 @@ final class EditorController {
 
     func focus() { target?.focusEditor() }
 
-    /// A sub-note's current title and first line (set by the note screen).
-    @ObservationIgnored var resolveNote: (UUID) -> (title: String, preview: String)? = { _ in nil }
-    /// A sub-note itself, for one shown as a widget (set by the note screen).
+    /// Scrolls the text to the line at `location` (a link to a heading).
+    func reveal(_ location: Int) { target?.reveal(location) }
+
+    /// A note that is an app, for its widget where another note links it (set by the note screen).
     @ObservationIgnored var resolveNoteModel: (UUID) -> Note? = { _ in nil }
     /// Opens a note by id (set by the note screen).
     @ObservationIgnored var openNote: (UUID) -> Void = { _ in }
@@ -226,6 +288,8 @@ final class EditorController {
 
     /// The text or caret changed: offer titles when the caret is in an unfinished `[[link`.
     func typingChanged(text: String, selection: NSRange?) {
+        // The panel follows the caret: bold on, Heading lit, as it moves.
+        if formatPanelShown { refreshFormat() }
         guard let sel = selection, sel.length == 0, let q = WikiLinks.typingQuery(in: text, caret: sel.location) else {
             wikiDismissed = nil
             clearWikiSuggestions()
@@ -261,8 +325,93 @@ final class EditorController {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
     }
-    /// Creates a sub-note linked from here (set by the note screen).
-    @ObservationIgnored var newSubNote: () -> Void = {}
+    // MARK: Tables
+
+    /// The table the keyboard is in, and the row or column picked by its handle. Set as a cell
+    /// takes the keyboard; cleared when the keyboard goes back to the text.
+    private(set) var table: TableContext?
+    /// The last handle menu asked for (tests read it and run its items).
+    @ObservationIgnored var lastTableMenu: TableMenu?
+    /// False in tests: menus are made and kept in `lastTableMenu`, never put on screen.
+    @ObservationIgnored var presentsTableMenus = true
+    /// What just happened, said for a moment over the note ("Table deleted"), with Undo.
+    var notice: EditorNotice?
+
+    /// A cell of a table took the keyboard.
+    func tableFocused(grid: Int, cell: GridCell) {
+        if table?.grid != grid || table?.cell != cell { table = TableContext(grid: grid, cell: cell) }
+        target?.gridFieldFocused()
+    }
+
+    /// The keyboard went back to the text, or out of table `grid`.
+    func leftTable(_ grid: Int? = nil) {
+        guard let t = table, grid == nil || t.grid == grid else { return }
+        table = nil
+    }
+
+    /// A row or column handle was tapped: its row or column is picked and its menu shows.
+    func pickTableLine(_ line: GridLine, grid: Int, cell: GridCell) {
+        table = TableContext(grid: grid, cell: cell, selected: line)
+        let menu = tableMenu(grid: grid, cell: cell, line: line)
+        lastTableMenu = menu
+        if presentsTableMenus { target?.showTableMenu(menu) }
+    }
+
+    /// The menu of a row or column handle (`line`), or the toolbar's table menu (nil), like Notes.
+    func tableMenu(grid: Int, cell: GridCell, line: GridLine?) -> TableMenu {
+        let g = target.flatMap { t in GridTable.find(in: t.currentText).first { $0.index == grid } }
+        func item(_ a: TableAction) -> TableMenu.Item {
+            TableMenu.Item(title: a.title, systemImage: a.systemImage, destructive: a.isDestructive, enabled: g?.allows(a) ?? false) { [weak self] in
+                self?.performTable(a, grid: grid, cell: cell)
+            }
+        }
+        let delete = TableMenu.Item(title: "Delete Table", systemImage: "trash", destructive: true) { [weak self] in self?.deleteTable(grid: grid) }
+        let sections: [[TableMenu.Item]] = switch line {
+        case .row: [[item(.addRowAbove), item(.addRowBelow)], [item(.deleteRow)]]
+        case .column: [[item(.addColumnBefore), item(.addColumnAfter)], [item(.deleteColumn)]]
+        case nil: [[item(.addRowAbove), item(.addRowBelow), item(.addColumnBefore), item(.addColumnAfter)],
+                   [item(.deleteRow), item(.deleteColumn)], [delete]]
+        }
+        return TableMenu(grid: grid, line: line, sections: sections)
+    }
+
+    /// The toolbar's table menu, for the cell with the keyboard.
+    var currentTableMenu: TableMenu? { table.map { tableMenu(grid: $0.grid, cell: $0.cell, line: nil) } }
+
+    /// Adds or deletes the row or column of `cell` in table `grid`; the keyboard stays in the table.
+    func performTable(_ a: TableAction, grid: Int, cell: GridCell) {
+        guard let t = target, !readOnly else { return }
+        let all = GridTable.find(in: t.currentText)
+        guard grid < all.count else { return }
+        var g = all[grid]
+        guard g.allows(a) else { return }
+        let next = g.perform(a, at: cell)
+        t.apply(TextEdit(range: all[grid].range, replacement: g.markdown, caret: -1))
+        table = TableContext(grid: grid, cell: next)
+        t.focusGrid(grid, cell: next)
+    }
+
+    /// Removes table `grid` from the note, keyboard back in the text where it was. It's one
+    /// step of Undo, and a notice says so with an Undo button, like Notes (no question first).
+    func deleteTable(grid: Int) {
+        guard let t = target, !readOnly, GridTable.find(in: t.currentText).contains(where: { $0.index == grid }) else { return }
+        table = nil
+        t.deleteGrid(grid)
+        notice = EditorNotice(text: "Table deleted", canUndo: true)
+    }
+
+    /// The notice's Undo.
+    func undoNotice() {
+        notice = nil
+        target?.undoLastEdit()
+    }
+}
+
+/// A short confirmation over the note of something just done to it.
+struct EditorNotice: Equatable, Identifiable {
+    var id = UUID()
+    var text: String
+    var canUndo = false
 }
 
 @MainActor
@@ -271,6 +420,8 @@ protocol EditorTarget: AnyObject {
     var currentSelection: NSRange { get }
     func apply(_ edit: TextEdit)
     func focusEditor()
+    /// Scrolls the line at `location` to the top, focus left as it is.
+    func reveal(_ location: Int)
     func insertGrid()
     /// The keyboard leaves a table, to the line above or below it.
     func leaveGrid(_ index: Int, below: Bool)
@@ -282,4 +433,29 @@ protocol EditorTarget: AnyObject {
     func syncExternal(_ new: String)
     /// Places other people's carets now, in the same pass as a text change (collaboration).
     func showRemoteCarets(_ carets: [RemoteCaret])
+    /// Removes table `index` as one undoable edit, the keyboard back in the text.
+    func deleteGrid(_ index: Int)
+    /// Undoes the last edit (the notice's Undo).
+    func undoLastEdit()
+    /// Puts the keyboard in a cell of table `index`.
+    func focusGrid(_ index: Int, cell: GridCell)
+    /// A table cell's field just took the keyboard (the iPhone gives it the table toolbar).
+    func gridFieldFocused()
+    /// Shows a handle's menu by its handle.
+    func showTableMenu(_ menu: TableMenu)
+    /// The Format panel came up or went (iPhone: it takes the keyboard's place).
+    func formatPanelChanged(shown: Bool)
+}
+
+extension EditorTarget {
+    func deleteGrid(_ index: Int) {}
+    func undoLastEdit() {}
+    func focusGrid(_ index: Int, cell: GridCell) {}
+    func gridFieldFocused() {}
+    func showTableMenu(_ menu: TableMenu) {}
+    func formatPanelChanged(shown: Bool) {}
+}
+
+extension EditorTarget {
+    func reveal(_ location: Int) {}
 }

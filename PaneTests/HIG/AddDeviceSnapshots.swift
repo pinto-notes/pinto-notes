@@ -143,4 +143,27 @@ import UIKit
         alone.signedOut()
     }
     #endif
+    #if os(iOS)
+    /// The key screens that remain after sign-in, straight on the warm ground (no card): the
+    /// spinner, "Your notes are encrypted", and an account from before on a new iPhone (another
+    /// device, no device left, the recovery key). Light and dark, as keygate-*.png.
+    @Test func iPhoneKeyGateScreens() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let size = scene.screen.bounds.size
+        let checking = AccountCrypto(store: MemoryAccountKeyStore(), defaults: UserDefaults(suiteName: "keygate-shots-\(UUID())")!)
+        let keychain = KeyStartupTests.FakeKeychain(cloud: KeyStartupTests.Cloud())
+        let made = AccountCrypto(store: keychain, defaults: UserDefaults(suiteName: "keygate-shots-\(UUID())")!, sleep: { _ in throw CancellationError() })
+        await made.attach(account: UUID(), server: KeyStartupTests.FakeServer())
+        let waiting = try await Self.waiting()
+        for dark in [false, true] {
+            let mode = dark ? "dark" : "light"
+            for (name, view) in [("checking", Self.gate(checking)), ("encrypted", Self.gate(made)), ("add-device", Self.gate(waiting)),
+                                 ("no-device", Self.gate(waiting, .noDevice)), ("recovery", Self.gate(waiting, .recovery))] {
+                try await ConnectJourneySnapshots.shoot(view, "keygate-\(name)-\(mode)", size: size, type: .large, dark: dark, scene: scene, dir: dir)
+            }
+        }
+        waiting.signedOut()
+    }
+    #endif
 }

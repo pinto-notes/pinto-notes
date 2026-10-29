@@ -12,9 +12,9 @@ describe("structured data", () => {
     expect(a.name).toBe("Pinto Notes");
     expect(a.applicationCategory).toBe("ProductivityApplication");
     expect(a.operatingSystem).toBe(APP_STORE_LIVE ? "iOS, macOS" : "macOS");
-    // ChatGPT is only claimed as coming soon until the connector passes review.
-    expect(String(a.description)).toMatch(/ChatGPT (and the iPhone app )?(is|are) coming soon/);
-    expect(JSON.stringify(a.featureList)).not.toMatch(/ChatGPT/);
+    // The ChatGPT plugin is live (2026-10-28); the iPhone app is only claimed once it's in the App Store.
+    expect(String(a.description)).toMatch(/ChatGPT, Claude/);
+    if (!APP_STORE_LIVE) expect(String(a.description)).toMatch(/The iPhone app is coming soon/);
     expect(a.offers).toEqual({ "@type": "Offer", price: "0", priceCurrency: "USD" });
     expect(a.softwareVersion).toBe("1.0");
     expect(String(a.downloadUrl)).toMatch(/^https:\/\/pintonotes\.com\//);

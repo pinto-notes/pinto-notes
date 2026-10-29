@@ -5,12 +5,14 @@ import UIKit
 /// The glass bar that floats above the keyboard while you write.
 struct FormatBar: View {
     let controller: EditorController
+    /// Over a table cell's keyboard: the table's own menu, like Notes.
+    var inTable = false
     let dismiss: () -> Void
 
     var body: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                if controller.wikiSuggestions.isEmpty { tools } else {
+                if inTable { tableTools } else if controller.wikiSuggestions.isEmpty { tools } else {
                     WikiSuggestionRow(controller: controller)
                         .glassEffect(.regular.interactive(), in: .capsule)
                 }
@@ -31,39 +33,31 @@ struct FormatBar: View {
         }
     }
 
+    /// In a table the Table button is the table's menu: add or delete a row or column, or Delete
+    /// Table, like Notes.
+    private var tableTools: some View {
+        Menu {
+            if let menu = controller.currentTableMenu { TableMenuItems(menu: menu) }
+        } label: {
+            BarIcon(systemName: "tablecells")
+        }
+        .accessibilityLabel("Table")
+        .accessibilityIdentifier("editor.tableMenu")
+        .padding(.horizontal, 4)
+        .glassEffect(.regular.interactive(), in: .capsule)
+    }
+
     /// The writing tools; while a `[[link` is typed, note titles take their place.
     private var tools: some View {
                 HStack(spacing: 2) {
-                    Menu {
-                        Section {
-                            Button("Title") { controller.heading(1) }
-                            Button("Heading") { controller.heading(2) }
-                            Button("Subheading") { controller.heading(3) }
-                            Button("Body") { controller.heading(0) }
-                        }
-                        // One row of five glyphs, as in Notes: as five rows the menu was taller than
-                        // the room above the keyboard and opened with the three list styles out of sight.
-                        ControlGroup {
-                            Button("Bold", systemImage: "bold", action: controller.bold)
-                            Button("Italic", systemImage: "italic", action: controller.italic)
-                            Button("Underline", systemImage: "underline", action: controller.underline)
-                            Button("Strikethrough", systemImage: "strikethrough", action: controller.strikethrough)
-                            Button("Code", systemImage: "chevron.left.forwardslash.chevron.right", action: controller.code)
-                        }
-                        .controlGroupStyle(.palette)
-                        Section {
-                            Button("Bulleted List", systemImage: "list.bullet", action: controller.bulletList)
-                            Button("Dashed List", systemImage: "list.dash", action: controller.dashedList)
-                            Button("Numbered List", systemImage: "list.number", action: controller.numberedList)
-                        }
-                    } label: {
-                        BarIcon(systemName: "textformat")
-                    }
-                    .accessibilityLabel("Format")
-                    .accessibilityIdentifier("editor.format")
+                    // The Format panel in the keyboard's place, like Notes (FormatPanel). It was a
+                    // menu until 2026-10-28: a short list over the text, with no state shown.
+                    Button(action: controller.showFormatPanel) { BarIcon(systemName: "textformat") }
+                        .buttonStyle(PressScale())
+                        .accessibilityLabel("Format")
+                        .accessibilityIdentifier("editor.format")
                     BarButton("Checklist", "checklist", action: controller.checklist)
                     BarButton("Table", "tablecells", action: controller.insertTable)
-                    BarButton("Sub-note", "doc.badge.plus") { controller.newSubNote() }
                     BarButton("Attach", "paperclip") { controller.attach() }
                 }
                 .padding(.horizontal, 4)
@@ -102,8 +96,11 @@ private struct BarIcon: View {
 final class FormatBarHost: UIView {
     private let host: UIHostingController<FormatBar>
 
-    init(controller: EditorController, dismiss: @escaping () -> Void) {
-        host = UIHostingController(rootView: FormatBar(controller: controller, dismiss: dismiss))
+    init(controller: EditorController, inTable: Bool = false, dismiss: @escaping () -> Void) {
+        host = UIHostingController(rootView: FormatBar(controller: controller, inTable: inTable, dismiss: dismiss))
+        // The accessory sits on the keyboard: the bar mustn't make room for the keyboard or the
+        // home indicator again on top of that (it stood 84 pt above the keyboard; Notes' is about 8).
+        host.safeAreaRegions = []
         super.init(frame: CGRect(x: 0, y: 0, width: 390, height: 60))
         autoresizingMask = .flexibleHeight
         backgroundColor = .clear

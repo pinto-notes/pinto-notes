@@ -4,7 +4,7 @@ import SwiftUI
 
 /// How the note list is ordered: "Sort By" and "Group By Date" in the list's menu, as in Apple
 /// Notes. One choice for every folder, kept on this device (never synced). Pinned notes stay on
-/// top in every order, and sub-notes stay inside their parents.
+/// top in every order.
 struct ListOrder: Equatable, Sendable {
     enum Key: String, CaseIterable, Identifiable, Sendable {
         case edited, created, title

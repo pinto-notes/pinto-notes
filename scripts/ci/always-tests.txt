@@ -5,3 +5,4 @@
 AmberButtonTests          # every primary button in Pane/Views uses the amber style
 TelemetryPrivacyTests     # docs/Technical/app-telemetry.md lists every value the app can send
 OldNameTests              # no string a person reads says the old name
+FormerSubNotesTests       # nothing in either app makes a sub-note any more (removed 2026-10-28)

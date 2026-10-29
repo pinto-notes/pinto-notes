@@ -7,7 +7,7 @@ export default function OpenGraphImage() {
   return renderCard({
     theme: "cream",
     title: "Download it [for Mac].",
-    sub: "Free. Import your Apple Notes and connect Claude. ChatGPT and the iPhone app are coming soon.",
+    sub: "Free. Import your Apple Notes and connect ChatGPT or Claude. The iPhone app is coming soon.",
     chips: ["macOS 26 or later", "Updates install themselves"],
     art: "icon",
     titleSize: 84,

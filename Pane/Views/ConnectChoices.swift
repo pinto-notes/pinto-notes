@@ -840,6 +840,8 @@ struct ConnectChoices: View {
     @State private var found = ConnectFinder.known
     @State private var showsDetails = false
     @State private var copied = false
+    /// iPhone, without a form around it to present it: the AI whose Connect on your Mac sheet is open.
+    @State private var onMac: Guide?
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
     @Environment(\.networkReach) private var reach
     @Environment(\.openURL) private var openURL
@@ -903,6 +905,7 @@ struct ConnectChoices: View {
             run.asksToFinish = asksToFinish
         }
         .onDisappear { run.stop() }
+        .sheet(item: $onMac) { ConnectOnMacSheet(ai: $0) }
         // Asks again when a sheet over it closes and when back online.
         .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
         .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
@@ -933,18 +936,29 @@ struct ConnectChoices: View {
 
     private func detail(_ g: Guide) -> String {
         switch state(g) {
-        case .rest: g.line
+        case .rest: ConnectHere.onMacOnly(g) ? ConnectOnMacWords.line(g) : g.line
         case .waiting(let line), .added(let line), .failed(let line): line
         case .connected: ConnectCopy.connected
         }
     }
 
     private func press(_ g: Guide) {
-        // Incredible, ChatGPT and Another AI open a guide of their own; the rest start from the row.
-        if let route, g == .incredible || ConnectWebGuide.opensSheet(g) {
-            run.stop(givingUp: run.guide != nil)
-            route.guide = g
+        switch ConnectHere.press(g, connected: state(g) == .connected) {
+        case .nothing:
             return
+        case .onMac:
+            // iPhone: Claude, Codex and the rest are connected on the Mac (ConnectHere).
+            if let route { route.onMac = g } else { onMac = g }
+            return
+        case .guide:
+            // Incredible, ChatGPT and Another AI open a guide of their own; the rest start from the row.
+            if let route {
+                run.stop(givingUp: run.guide != nil)
+                route.guide = g
+                return
+            }
+        case .start:
+            break
         }
         run.start(g, client: client) { openURL($0) }
     }
@@ -1050,20 +1064,10 @@ struct ConnectChoices: View {
         }
     }
 
-    /// The row as a button; on iPhone, the AIs added on a computer send the link there (ShareLink).
+    /// The row as a button. On iPhone, the AIs connected on the Mac open a short sheet that says
+    /// so, with the Mac link (`ConnectHere`); they no longer share a link to finish on a computer.
     @ViewBuilder private func pressable(_ g: Guide, @ViewBuilder label: () -> some View) -> some View {
-        #if os(iOS)
-        if g != .incredible, !ConnectWebGuide.opensSheet(g), state(g) != .connected {
-            ShareLink(item: ConnectCopy.message(g, server: run.server), subject: Text("Connect \(g.title) to Pinto Notes"),
-                      preview: SharePreview("Connect \(g.title) to Pinto Notes", icon: Image("Mark"))) { label() }
-                .buttonStyle(CardPress())
-                .simultaneousGesture(TapGesture().onEnded { press(g) })
-        } else {
-            Button { press(g) } label: { label() }.buttonStyle(CardPress())
-        }
-        #else
         Button { press(g) } label: { label() }.buttonStyle(CardPress())
-        #endif
     }
 
     private func big(_ g: Guide) -> some View {
@@ -1287,7 +1291,8 @@ struct ConnectHelpSheet: View {
 
     private var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
     private var order: [Guide] {
-        let all: [Guide] = [.chatgpt, .claude, .claudeCode, .codex, .other]
+        // On iPhone only ChatGPT's help: the others are connected on the Mac (ConnectHere).
+        let all = ConnectHere.helped([.chatgpt, .claude, .claudeCode, .codex, .other])
         guard let g = topic.guide, all.contains(g) else { return all }
         return [g] + all.filter { $0 != g }
     }

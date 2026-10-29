@@ -1,4 +1,11 @@
 import SwiftUI
+import os
+
+/// Notes dropped into a note's text, in the system log ("drop"), so a real drag can be checked
+/// without a picture of the screen.
+enum TextDrop {
+    nonisolated static let log = Logger(subsystem: "dev.emilwagman.pane", category: "drop")
+}
 
 /// The live-preview markdown editor. One instance per open note.
 struct MarkdownEditor: View {
@@ -27,6 +34,8 @@ final class EditorCore {
     var onChange: (String) -> Void = { _ in }
     var applyingEdit = false
     private var lastActiveLine: NSRange?
+    /// Each table's handle targets, by its index (see GridHitBox).
+    private(set) var gridBoxes: [Int: GridHitBox] = [:]
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
@@ -89,9 +98,15 @@ final class EditorCore {
             guard var f = frame(at: g.range.location, height: GridMetrics.height(g)) else { continue }
             f.origin.x -= GridMetrics.handle
             f.size.width += GridMetrics.handle
+            // The handle targets' reach over the line above (iPhone; see GridMetrics.reach).
+            f.origin.y -= GridMetrics.reach
+            f.size.height += GridMetrics.reach
             let request = gridFocus?.grid == g.index ? gridFocus : nil
             let isSelected = armedGrid == g.index
-            let view = TableGridView(table: g, focusRequest: request, selected: isSelected, exit: { [weak target] below in target?.leaveGrid(g.index, below: below) }) { edited in
+            let box = gridBoxes[g.index] ?? GridHitBox()
+            gridBoxes[g.index] = box
+            let view = TableGridView(table: g, focusRequest: request, selected: isSelected, controller: controller, box: box,
+                                     exit: { [weak target] below in target?.leaveGrid(g.index, below: below) }) { edited in
                 // Find the table again in the current text: earlier edits may have moved it.
                 let now = GridTable.find(in: target.currentText)
                 guard edited.index < now.count else { return }
@@ -404,13 +419,8 @@ final class EditorCore {
     /// is selected first, and a second press removes it. Never merges a line into
     /// a block's markdown.
     func deleteNearBlock(_ text: String, _ sel: NSRange, forward: Bool) -> BlockDelete? {
-        let ns = text as NSString
         let all = blocks(in: text)
-        func removal(_ b: EditorBlock) -> TextEdit {
-            var r = b.range
-            if NSMaxRange(r) < ns.length { r.length += 1 } else if r.location > 0 { r.location -= 1; r.length += 1 }
-            return TextEdit(range: r, replacement: "", caret: min(r.location, ns.length - r.length))
-        }
+        func removal(_ b: EditorBlock) -> TextEdit { Self.removal(of: b.range, in: text) }
         guard sel.length == 0 else { return nil }
         let hit = forward ? all.first { $0.range.location > 0 && $0.range.location - 1 == sel.location }
                           : all.first { NSMaxRange($0.range) + 1 == sel.location }
@@ -420,6 +430,20 @@ final class EditorCore {
         armedGrid = g
         armedAt = sel
         return .arm(g)
+    }
+
+    /// The edit that removes a whole block (a table, an embed) and its line break.
+    static func removal(of range: NSRange, in text: String) -> TextEdit {
+        let ns = text as NSString
+        var r = range
+        if NSMaxRange(r) < ns.length { r.length += 1 } else if r.location > 0 { r.location -= 1; r.length += 1 }
+        return TextEdit(range: r, replacement: "", caret: min(r.location, ns.length - r.length))
+    }
+
+    /// Where the caret can wait, outside table `range`, while the text takes the keyboard back to
+    /// remove it: inside, the caret would be moved (and a line added) under the edit.
+    static func caretOutside(_ range: NSRange, in text: String) -> Int {
+        range.location > 0 ? range.location - 1 : min(NSMaxRange(range) + 1, (text as NSString).length)
     }
 
     /// A table marked for deletion by one press of Delete; the next press removes it.
@@ -502,6 +526,50 @@ private struct PlatformEditor: UIViewRepresentable {
     }
 }
 
+/// Holds a table's view. Its top `GridMetrics.reach` points lie over the line above the table: a
+/// tap there is the table's only on a handle's target, otherwise it goes to the text.
+final class GridHolder: UIView {
+    var box: GridHitBox?
+
+    override func point(inside p: CGPoint, with event: UIEvent?) -> Bool {
+        guard bounds.contains(p) else { return false }
+        if p.y >= GridMetrics.reach { return true }
+        return box?.targets.values.contains { $0.contains(p) } ?? false
+    }
+}
+
+/// A handle's menu, opened from the handle as a pull-down menu, the same kind as the Table
+/// button's. (An edit menu was tried first: by a handle at the edge of the screen it showed one
+/// item at a time, and Delete was pages away.) An invisible button over the handle holds the
+/// menu and opens it.
+@MainActor
+final class TableMenuPresenter {
+    private weak var view: UIView?
+    private let button = UIButton(type: .custom)
+
+    init(view: UIView) {
+        self.view = view
+        button.showsMenuAsPrimaryAction = true
+        button.isUserInteractionEnabled = false
+        button.isAccessibilityElement = false
+        view.addSubview(button)
+    }
+
+    func present(_ menu: TableMenu, from rect: CGRect) {
+        guard let view else { return }
+        button.frame = rect
+        view.bringSubviewToFront(button)
+        button.menu = UIMenu(children: menu.sections.map { section in
+            UIMenu(options: .displayInline, children: section.filter(\.enabled).map { item in
+                UIAction(title: item.title, image: UIImage(systemName: item.systemImage), attributes: item.destructive ? .destructive : []) { _ in item.run() }
+            })
+        })
+        // A turn later, once the button is where the handle is: opened at once, the menu came up
+        // where the button was last time (by the row handle for a column's menu).
+        DispatchQueue.main.async { [button] in button.performPrimaryAction() }
+    }
+}
+
 /// A name flag with a little room around the text.
 private final class PaddedLabel: UILabel {
     override var intrinsicContentSize: CGSize {
@@ -529,6 +597,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.onCardsChanged = { [weak self] in self?.setNeedsLayout() }
         backgroundColor = .clear
         alwaysBounceVertical = true
+        // No bar background behind Back, Share and More, however far the note is scrolled: the
+        // buttons float on the page (Emil, 28 October 2026).
+        topEdgeEffect.isHidden = true
         keyboardDismissMode = .interactive
         smartDashesType = .no
         smartQuotesType = .no
@@ -541,8 +612,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: nil, force: true)
         observeChangeHighlight()
 
-        headerLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        headerLabel.textColor = .tertiaryLabel
+        // The welcome note's date line: small, regular, in the muted colour.
+        headerLabel.font = .systemFont(ofSize: 13)
+        headerLabel.textColor = Palette.muted
         headerLabel.textAlignment = .center
         headerLabel.accessibilityIdentifier = "editor.date"
         addSubview(headerLabel)
@@ -623,6 +695,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             v.bar.backgroundColor = color
             v.flag.backgroundColor = color
             v.flag.text = c.name
+            // A caret without a name (yours, on the welcome note) has no flag.
+            v.flag.isHidden = c.name.isEmpty
             let loc = min(c.range.location, length), end = min(NSMaxRange(c.range), length)
             guard let pos = position(from: beginningOfDocument, offset: loc) else { continue }
             let rect = caretRect(for: pos)
@@ -704,24 +778,103 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                                   target: self, storage: textStorage, controller: controller) { [weak self] in self?.editingSelection }
         let live = Set(items.map(\.key))
         for (k, host) in cardHosts where !live.contains(k) {
-            host.view.removeFromSuperview()
+            (gridHolders[k] ?? host.view).removeFromSuperview()
             cardHosts[k] = nil
+            gridHolders[k] = nil
         }
         for item in items {
             let host = cardHosts[item.key] ?? {
                 let h = UIHostingController(rootView: item.view)
                 h.view.backgroundColor = .clear
                 h.sizingOptions = []
-                addSubview(h.view)
+                if case .grid(let g, _, _) = item.content {
+                    // A table sits in a holder that lets taps through to the text above it, except
+                    // on a handle's target (GridMetrics.reach).
+                    let holder = GridHolder(frame: item.frame)
+                    holder.box = core.gridBoxes[g.index]
+                    h.view.frame = holder.bounds
+                    h.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                    holder.addSubview(h.view)
+                    addSubview(holder)
+                    gridHolders[item.key] = holder
+                } else {
+                    addSubview(h.view)
+                    h.view.frame = item.frame
+                }
                 cardHosts[item.key] = h
-                h.view.frame = item.frame
                 return h
             }()
             host.rootView = item.view
-            if host.view.frame != item.frame {
-                UIView.animate(withDuration: 0.22, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) { host.view.frame = item.frame }
+            let placed: UIView = gridHolders[item.key] ?? host.view
+            if case .grid(let g, _, _) = item.content { gridHolders[item.key]?.box = core.gridBoxes[g.index] }
+            if placed.frame != item.frame {
+                UIView.animate(withDuration: 0.22, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) { placed.frame = item.frame }
             }
         }
+    }
+
+    /// Tables' holders, by the same keys as their hosts.
+    private var gridHolders: [String: GridHolder] = [:]
+
+    // MARK: Table menus
+
+    func deleteGrid(_ index: Int) {
+        guard let g = GridTable.find(in: text).first(where: { $0.index == index }) else { return }
+        core.gridFocus = nil
+        let edit = EditorCore.removal(of: g.range, in: text)
+        // Into the text first, so the edit goes through the text view's own undo.
+        selectedRange = NSRange(location: EditorCore.caretOutside(g.range, in: text), length: 0)
+        becomeFirstResponder()
+        apply(edit)
+        layoutCards()
+    }
+
+    func undoLastEdit() {
+        if !isFirstResponder { becomeFirstResponder() }
+        undoManager?.undo()
+    }
+
+    func focusGrid(_ index: Int, cell: GridCell) {
+        core.gridFocus = GridFocusRequest(grid: index, cell: cell)
+        layoutCards()
+        giveTableBar(tries: 20)
+    }
+
+    /// The table toolbar over the keyboard while a cell has it.
+    private lazy var tableBar = FormatBarHost(controller: controller ?? EditorController(), inTable: true) {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    func gridFieldFocused() { giveTableBar(tries: 20) }
+
+    /// The cell's field is made as it takes the keyboard, a turn or more after the table asks for
+    /// it: the bar goes on it once it has the keyboard. A row or column added or deleted makes the
+    /// field again for the same cell, so the editor asks again then (focusGrid).
+    private func giveTableBar(tries: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self else { return }
+            // Keeps looking for the whole second: the old cell's field can still have the keyboard
+            // on the first looks, the new one after.
+            if let field = self.gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first,
+               field.inputAccessoryView !== self.tableBar {
+                field.inputAccessoryView = self.tableBar
+                field.reloadInputViews()
+            }
+            if tries > 0 { self.giveTableBar(tries: tries - 1) }
+        }
+    }
+
+    private static func firstResponder(in view: UIView) -> UITextField? {
+        if let f = view as? UITextField, f.isFirstResponder { return f }
+        for v in view.subviews { if let f = firstResponder(in: v) { return f } }
+        return nil
+    }
+
+    private lazy var tableMenus = TableMenuPresenter(view: self)
+
+    func showTableMenu(_ menu: TableMenu) {
+        guard let line = menu.line, let holder = gridHolders["g\(menu.grid)"], let r = core.gridBoxes[menu.grid]?.targets[line] else { return }
+        tableMenus.present(menu, from: holder.convert(r, to: self))
     }
 
     func insertGrid() {
@@ -769,6 +922,43 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func focusEditor() { becomeFirstResponder() }
+
+    // MARK: The Format panel
+
+    private var formatPanel: FormatPanelHost?
+    /// The bar above the keyboard, put away while the panel is up.
+    private var keyboardBar: UIView?
+
+    /// The panel takes the keyboard's place, as in Notes: the text keeps the caret and the
+    /// selection, and the bar above the keyboard goes while it's up. Closed, the keyboard is back.
+    func formatPanelChanged(shown: Bool) {
+        guard let controller else { return }
+        if shown {
+            if formatPanel == nil { formatPanel = FormatPanelHost(controller: controller) }
+            if inputAccessoryView !== nil { keyboardBar = inputAccessoryView }
+            inputAccessoryView = nil
+            inputView = formatPanel
+        } else {
+            inputView = nil
+            if let keyboardBar { inputAccessoryView = keyboardBar }
+        }
+        if isFirstResponder { reloadInputViews() } else if shown { becomeFirstResponder() }
+    }
+
+    /// Whether the panel is in the keyboard's place now (tests).
+    var showsFormatPanel: Bool { inputView is FormatPanelHost }
+
+    /// Scrolls the line at `location` to the top (a link to a heading), the keyboard left as it is.
+    func reveal(_ location: Int) {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: min(max(location, 0), (text as NSString).length)) else { return }
+        tlm.ensureLayout(for: tcm.documentRange)
+        guard let frag = tlm.textLayoutFragment(for: loc) else { return }
+        pulledDate = true
+        let top = -adjustedContentInset.top
+        let y = frag.layoutFragmentFrame.minY + textContainerInset.top - adjustedContentInset.top - 8
+        contentOffset = CGPoint(x: contentOffset.x, y: min(max(top, y), max(top, contentSize.height - bounds.height + adjustedContentInset.bottom)))
+    }
 
     override func paste(_ sender: Any?) {
         let pb = UIPasteboard.general
@@ -1005,10 +1195,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         controller?.isEditing = true
         // The keyboard is back in the text: no table is waiting for it any more.
         core.gridFocus = nil
+        controller?.leftTable()
         core.restyle(textStorage, selection: selectedRange, force: true)
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
+        // Swiped away or left: next time the keyboard comes, not the panel.
+        controller?.closeFormatPanel(keyboard: false)
         controller?.isEditing = false
         controller?.typingChanged(text: text, selection: nil)
         core.restyle(textStorage, selection: nil, force: true)
@@ -1097,7 +1290,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     @objc private func handleTap(_ g: UITapGestureRecognizer) {
-        guard isEditable, let line = checkboxLine(for: g.location(in: self)),
+        guard isEditable || controller?.ticksWhileReadOnly == true, let line = checkboxLine(for: g.location(in: self)),
               let edit = ListEditing.toggleCheckbox(in: text, lineStart: line) else { return }
         // A tick is a tap on a control: the caret, the scroll position and the keyboard stay as they were.
         let keep = selectedRange
@@ -1110,6 +1303,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
            let r = core.checkboxRect(line: line, layout: textLayoutManager) {
             CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
         }
+        guard controller?.ticksWhileReadOnly != true else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + ListEditing.sortDelay) { [weak self] in self?.sortChecklist(around: line) }
     }
 
@@ -1368,6 +1562,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func focusEditor() { window?.makeFirstResponder(self) }
 
+    /// Scrolls the line at `location` to the top (a link to a heading), focus left as it is.
+    func reveal(_ location: Int) {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager, let scroll = enclosingScrollView,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: min(max(location, 0), (string as NSString).length)) else { return }
+        tlm.ensureLayout(for: tcm.documentRange)
+        guard let frag = tlm.textLayoutFragment(for: loc) else { return }
+        let clip = scroll.contentView
+        let top = -scroll.contentInsets.top
+        let y = frag.layoutFragmentFrame.minY + textContainerOrigin.y - scroll.contentInsets.top - 8
+        let bottom = max(top, frame.height - clip.bounds.height + scroll.contentInsets.bottom)
+        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: min(max(top, y), bottom)))
+        scroll.reflectScrolledClipView(clip)
+    }
+
     override func paste(_ sender: Any?) {
         let pb = NSPasteboard.general
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
@@ -1448,7 +1656,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             window?.makeFirstResponder(self)
             let ids = droppedNotes(sender)
             let done = dropNotes(ids, at: at)
-            NoteDrop.log.notice("text drop: \(ids.count) notes read, \(done ? "linked" : "nothing linked", privacy: .public)")
+            TextDrop.log.notice("text drop: \(ids.count) notes read, \(done ? "linked" : "nothing linked", privacy: .public)")
             return done
         }
         let urls = droppedFiles(sender)
@@ -1665,6 +1873,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             controller?.isEditing = true
             // The keyboard is back in the text: no table is waiting for it any more.
             core.gridFocus = nil
+            controller?.leftTable()
             core.restyle(storage, selection: selectedRange(), force: true)
         }
         return ok
@@ -1720,6 +1929,53 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         } else {
             if g.range.location > 0 { setSelectedRange(NSRange(location: g.range.location - 1, length: 0)) }
             else { apply(TextEdit(range: NSRange(location: 0, length: 0), replacement: "\n", caret: 0)) }
+        }
+    }
+
+    // MARK: Table menus
+
+    func deleteGrid(_ index: Int) {
+        guard let g = GridTable.find(in: string).first(where: { $0.index == index }) else { return }
+        core.gridFocus = nil
+        let edit = EditorCore.removal(of: g.range, in: string)
+        setSelectedRange(NSRange(location: EditorCore.caretOutside(g.range, in: string), length: 0))
+        window?.makeFirstResponder(self)
+        // One step of Undo, whatever was typed just before.
+        breakUndoCoalescing()
+        apply(edit)
+        breakUndoCoalescing()
+        layoutCards()
+    }
+
+    func undoLastEdit() {
+        window?.makeFirstResponder(self)
+        undoManager?.undo()
+    }
+
+    func focusGrid(_ index: Int, cell: GridCell) {
+        core.gridFocus = GridFocusRequest(grid: index, cell: cell)
+        layoutCards()
+    }
+
+    func showTableMenu(_ menu: TableMenu) {
+        guard let host = cardHosts["g\(menu.grid)"] else { return }
+        let r = menu.line.flatMap { core.gridBoxes[menu.grid]?.targets[$0] } ?? host.bounds
+        let m = NSMenu()
+        m.autoenablesItems = false
+        for (i, section) in menu.sections.enumerated() {
+            if i > 0 { m.addItem(.separator()) }
+            for item in section {
+                let mi = NSMenuItem(title: item.title, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+                let action = TableMenuAction(item.run)
+                mi.target = action
+                mi.representedObject = action
+                mi.isEnabled = item.enabled
+                m.addItem(mi)
+            }
+        }
+        // Not inside the click that asked for it: the menu tracks the mouse until it closes.
+        DispatchQueue.main.async {
+            m.popUp(positioning: nil, at: NSPoint(x: r.minX, y: host.isFlipped ? r.maxY : host.bounds.height - r.maxY), in: host)
         }
     }
 

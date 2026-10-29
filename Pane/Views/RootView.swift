@@ -20,6 +20,10 @@ struct RootView: View {
     @State private var library = LibraryNotes()
     @State private var justCreated: UUID?
     #if os(iOS)
+    /// The notes links opened, for Back to the note or app a link was in.
+    @State private var trail = LinkTrail()
+    #endif
+    #if os(iOS)
     @Environment(\.dynamicTypeSize) private var typeSize
     /// UI tests: `-uitest -launchAlert` raises an alert as the notes first show, like the
     /// account's connection notices after unlocking.
@@ -248,7 +252,18 @@ struct RootView: View {
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
         if let new { lastNote = new.uuidString }
+        #if os(iOS)
+        trail.opened(new)
+        #endif
     }
+
+    #if os(iOS)
+    /// Back after a link: the note or app the link was in.
+    private func goBack() {
+        guard let p = trail.back() else { return }
+        selectedNote = p
+    }
+    #endif
 
     private func imports(_ content: some View) -> some View {
         content
@@ -328,9 +343,11 @@ struct RootView: View {
                 #else
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
                     if edit { justCreated = target }
+                    trail.followed(from: selectedNote, to: target)
                     selectedNote = target
                 }
                     .id(id)
+                    .modifier(LinkBackButton(title: trail.previous.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0.title : nil }, back: goBack))
                 #endif
             } else if let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
                 // A file kept in the folder: its preview.
@@ -616,7 +633,6 @@ struct PaneCommands: Commands {
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
                 Divider()
                 Button("Table") { editor?.insertTable() }.keyboardShortcut("t", modifiers: [.command, .option])
-                Button("Sub-note") { editor?.newSubNote() }.keyboardShortcut("n", modifiers: [.command, .option])
                 Button("Link") { editor?.insertLink() }.keyboardShortcut("k")
             }
             .disabled(editor == nil)

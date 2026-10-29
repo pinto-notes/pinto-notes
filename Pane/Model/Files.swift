@@ -137,8 +137,8 @@ enum FileStore {
 }
 
 /// Image heights from their real proportions, for the width images show at.
-/// Sub-notes that are apps show in their parent as a live widget instead of a link (prototype;
-/// see NotePage). Kept here, off the main actor, because embed heights are read while laying out.
+/// A note that is an app, linked from another note on a line of its own, shows there as a live
+/// widget instead of a link (see NotePage). Kept here, off the main actor, because embed heights are read while laying out.
 enum NoteWidgets {
     nonisolated(unsafe) private static var apps: [UUID: CGFloat] = [:]
     #if os(iOS)
@@ -149,7 +149,7 @@ enum NoteWidgets {
     /// Wider than images and cards: an app uses the note's width.
     static let maxWidth: CGFloat = 920
 
-    /// The widget's height for a sub-note that is an app, nil for any other note.
+    /// The widget's height for a note that is an app, nil for any other note.
     static func height(_ id: UUID) -> CGFloat? { apps[id] }
     static func isApp(_ id: UUID) -> Bool { apps[id] != nil }
 
@@ -229,7 +229,8 @@ struct LineEmbed: Equatable {
                 let image = m.range(at: 1).length > 0
                 return LineEmbed(kind: image ? .image(id, name: name) : .file(id, name: name), range: r, index: index)
             }
-            if let m = noteLine.firstMatch(in: text, range: r), let id = UUID(uuidString: ns.substring(with: m.range(at: 2))) {
+            // A link to a note that is an app is its widget; a link to any other note stays a link.
+            if let m = noteLine.firstMatch(in: text, range: r), let id = UUID(uuidString: ns.substring(with: m.range(at: 2))), NoteWidgets.isApp(id) {
                 return LineEmbed(kind: .note(id, name: ns.substring(with: m.range(at: 1))), range: r, index: index)
             }
         } else if first == 0x68 || first == 0x3C { // h <

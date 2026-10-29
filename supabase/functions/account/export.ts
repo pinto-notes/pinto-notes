@@ -20,8 +20,8 @@ connections, share links, locked-note settings, which notes have an app (dates a
 your devices reported, not the apps themselves), the usage counts the app keeps, which
 onboarding emails we sent you, and your current sign-ins.
 
-Your notes, folder names, file names and files are end-to-end encrypted with a key only your
-devices have, so we can't read them and can't export them. To take your notes with you, open
+Your notes, folder names, file names and files are encrypted on your devices, so the export of
+your notes is made there and they aren't in this file. To take your notes with you, open
 Pinto Notes and choose Settings > Privacy & Security > Export Your Notes.
 
 Access tokens and passwords are never stored in readable form, so they aren't included.

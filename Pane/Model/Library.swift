@@ -133,184 +133,60 @@ extension ModelContext {
         }
         var newest = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         newest.fetchLimit = 20
-        return ((try? fetch(newest)) ?? []).first { $0.deletedAt == nil && $0.trashedAt == nil && !blank($0) && !isNested($0) }
+        return ((try? fetch(newest)) ?? []).first { $0.deletedAt == nil && $0.trashedAt == nil && !blank($0) }
     }
 
-    /// A note's sub-notes (those that name it as their parent).
-    func subNotes(of note: Note) -> [Note] {
-        let id = note.id
-        return ((try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.parentID == id }))) ?? []).filter { $0.deletedAt == nil }
-    }
-
-    /// Creates a sub-note of `parent`, in the same folder.
-    func createSubNote(of parent: Note, body: String = "") -> Note {
-        let n = Note(body: body, folder: parent.folder)
-        n.parentID = parent.id
-        insert(n)
-        saveOrReport()
-        return n
-    }
-
-    /// What `nest` changed, so it can be put back (Undo).
-    struct Nesting {
-        struct Moved { var note: UUID; var parent: UUID?; var folder: UUID?; var pinned: Bool; var unlinkedFrom: UUID?; var unlinkedLine: String? }
-        var parent: UUID
-        var moved: [Moved]
-        var notes: [UUID] { moved.map(\.note) }
-    }
-
-    /// Why a note can't become a sub-note of another.
-    enum NestRefusal: Equatable { case itself, insideItself, locked, gone }
-
-    /// Whether `note` may become a sub-note of `parent`: never of itself, never of a note that
-    /// is inside it (a sub-note, or a sub-note's sub-note), never of a locked note (its sub-notes
-    /// would stay readable), and neither may be deleted.
-    func nestRefusal(_ note: Note, under parent: Note) -> NestRefusal? {
-        if note.id == parent.id { return .itself }
-        if parent.isLocked { return .locked }
-        if parent.deletedAt != nil || parent.trashedAt != nil || note.deletedAt != nil || note.trashedAt != nil { return .gone }
-        var cursor = parent.parentID, hops = 0
-        while let id = cursor, hops < 64 {
-            if id == note.id { return .insideItself }
-            cursor = self.note(id)?.parentID
-            hops += 1
-        }
-        return nil
-    }
-
-    /// The line that keeps a sub-note in its parent: `[Title](pane-note:<id>)`.
-    static func subNoteLine(for note: Note) -> String {
-        let title = note.title.replacingOccurrences(of: "[", with: "(").replacingOccurrences(of: "]", with: ")")
-        return "[\(title.isEmpty ? "New Note" : title)](pane-note:\(note.id.uuidString.lowercased()))"
-    }
-
-    /// `body` without the line that links the sub-note `id` (nil when no line of its own does).
-    static func removingSubNoteLine(_ id: UUID, from body: String) -> (body: String, line: String)? {
-        let mark = "(pane-note:\(id.uuidString.lowercased()))"
-        var lines = body.components(separatedBy: "\n")
-        guard let i = lines.firstIndex(where: { l in
-            let t = l.trimmingCharacters(in: .whitespaces)
-            return t.hasPrefix("[") && t.hasSuffix(mark)
-        }) else { return nil }
-        let line = lines.remove(at: i)
-        return (lines.joined(separator: "\n"), line)
-    }
-
-    /// Makes `notes` sub-notes of `parent`: each keeps its text, history and files, moves to the
-    /// parent's folder, and is linked on a line of its own at the end of the parent's text (that
-    /// line is what keeps a sub-note inside its parent). Notes that can't go there (`nestRefusal`)
-    /// are left alone. One save for the parent and all of them. Returns what changed, for Undo;
-    /// nil when nothing did.
+    /// Sub-notes are gone as a feature (2026-10-28). A note made as one, here before or by an AI
+    /// that wrote "Work/Acme/Agenda.md" next to the note "Work/Acme.md", is an ordinary note in a
+    /// folder named after the note it was under ("Work/Acme/"), made if there isn't one. The AI
+    /// sees the same path as before: a folder and a note with the same name are one place there.
+    /// Its text, history, files and links stay as they are; the link in the other note's text
+    /// is an ordinary link to it now. Notes under a note that's gone stay where they are.
+    /// Returns how many notes moved.
     @discardableResult
-    func nest(_ notes: [Note], under parent: Note) -> Nesting? {
-        // Typing that isn't in a note yet goes in first: the parent's text is added to.
-        DebouncedSave.flushAll()
-        var moved: [Nesting.Moved] = []
-        var lines: [String] = []
-        var seen: Set<UUID> = []
-        for n in notes where seen.insert(n.id).inserted && nestRefusal(n, under: parent) == nil {
-            // Already this note's sub-note, linked: nothing to do.
-            if n.parentID == parent.id, isNested(n) { continue }
-            var m = Nesting.Moved(note: n.id, parent: n.parentID, folder: n.folder?.id, pinned: n.isPinned)
-            // A sub-note of another note leaves it: its line there goes.
-            if let old = n.parentID, old != parent.id, let from = self.note(old), !from.isLocked,
-               let cut = Self.removingSubNoteLine(n.id, from: from.body) {
-                from.body = cut.body
-                from.touch()
-                m.unlinkedFrom = old
-                m.unlinkedLine = cut.line
+    func foldSubNotesIntoFolders() -> Int {
+        let subs = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.parentID != nil && $0.deletedAt == nil }))) ?? []
+        guard !subs.isEmpty else { return 0 }
+        // Notes under notes under notes: each one's folder is made after its parent's.
+        var depth: [UUID: Int] = [:]
+        func depthOf(_ n: Note) -> Int {
+            if let d = depth[n.id] { return d }
+            var d = 0, cursor = n.parentID
+            while let id = cursor, d < 64, let p = self.note(id) { d += 1; cursor = p.parentID }
+            depth[n.id] = d
+            return d
+        }
+        var moved = 0
+        // Live notes first at each depth: one in Recently Deleted goes into a folder only if a live
+        // one needed it (whatever order the store gave them in).
+        let ordered = subs.sorted { (depthOf($0), $0.trashedAt == nil ? 0 : 1) < (depthOf($1), $1.trashedAt == nil ? 0 : 1) }
+        for child in ordered {
+            defer { child.parentID = nil; child.dirty = true; moved += 1 }
+            guard let pid = child.parentID, pid != child.id, let parent = note(pid), parent.deletedAt == nil else { continue }
+            let name = parent.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            let place = parent.folder.flatMap { $0.deletedAt == nil ? $0 : nil }
+            let folders = allFolders()
+            if let existing = folders.first(where: { $0.deletedAt == nil && $0.parent?.id == place?.id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+                child.folder = existing
+                continue
             }
-            n.parentID = parent.id
-            if n.folder?.id != parent.folder?.id { n.folder = parent.folder }
-            n.isPinned = false
-            n.touch()
-            if !parent.body.contains("pane-note:\(n.id.uuidString.lowercased())") { lines.append(Self.subNoteLine(for: n)) }
-            moved.append(m)
+            // A note in Recently Deleted needs no new folder: it waits in the one it was in.
+            guard child.trashedAt == nil else { continue }
+            let siblings = folders.filter { $0.parent?.id == place?.id }
+            let f = Folder(name: name, parent: place, sortIndex: (siblings.map(\.sortIndex).max() ?? 0) + 1)
+            insert(f)
+            child.folder = f
         }
-        guard !moved.isEmpty else { return nil }
-        if !lines.isEmpty {
-            let body = parent.body
-            parent.body = body + (body.isEmpty || body.hasSuffix("\n") ? "" : "\n") + lines.joined(separator: "\n") + "\n"
-        }
-        parent.touch()
         saveOrReport()
-        return Nesting(parent: parent.id, moved: moved)
+        SyncSignal.changed()
+        return moved
     }
-
-    /// Puts back what `nest` changed: each note is a note of its own again (or the sub-note it
-    /// was), in the folder it was in, and its line leaves the parent's text. What was typed in
-    /// the parent since stays.
-    func unnest(_ change: Nesting) {
-        DebouncedSave.flushAll()
-        let parent = note(change.parent)
-        for m in change.moved {
-            guard let n = note(m.note), n.deletedAt == nil else { continue }
-            if let parent, !parent.isLocked, let cut = Self.removingSubNoteLine(n.id, from: parent.body) { parent.body = cut.body }
-            n.parentID = m.parent
-            if let f = m.folder.flatMap({ folder($0) }), f.deletedAt == nil { n.folder = f }
-            n.isPinned = m.pinned
-            n.touch()
-            if let old = m.unlinkedFrom, let line = m.unlinkedLine, let from = note(old), !from.isLocked, from.deletedAt == nil,
-               !from.body.contains("pane-note:\(n.id.uuidString.lowercased())") {
-                from.body += (from.body.isEmpty || from.body.hasSuffix("\n") ? "" : "\n") + line + "\n"
-                from.touch()
-            }
-        }
-        parent?.touch()
-        saveOrReport()
-    }
-
-    /// Sub-notes made before the parent was recorded (older builds, imports) get it from the link
-    /// in their parent's text, so every device and the AI see the same tree (notes.parent_id).
-    /// Only a missing parent is filled in; one already set is never changed. Returns how many.
-    @discardableResult
-    func backfillSubNoteParents() -> Int {
-        // The store picks the notes whose text links a note, and then the few notes they link:
-        // reading every note's text here held up each return to the app (and launch), about
-        // 1.5 s with 20,000 notes.
-        let linking = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.body.contains("pane-note:") }))) ?? []
-        var parentOf: [UUID: UUID] = [:]
-        for parent in linking where !parent.isLocked {
-            for m in parent.body.matches(of: /pane-note:([0-9a-fA-F-]{36})/) {
-                guard let id = UUID(uuidString: String(m.1)), id != parent.id, parentOf[id] == nil else { continue }
-                parentOf[id] = parent.id
-            }
-        }
-        guard !parentOf.isEmpty else { return 0 }
-        let ids = Array(parentOf.keys)
-        let orphans = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { ids.contains($0.id) && $0.deletedAt == nil && $0.parentID == nil }))) ?? []
-        var filled = 0
-        for child in orphans {
-            guard let parent = parentOf[child.id] else { continue }
-            child.parentID = parent
-            child.dirty = true
-            filled += 1
-        }
-        if filled > 0 { saveOrReport(); SyncSignal.changed() }
-        return filled
-    }
-
-    /// True when a sub-note is still linked from its parent, so it lives there, not in the list.
-    func isNested(_ note: Note) -> Bool {
-        guard let pid = note.parentID, let parent = self.note(pid), parent.deletedAt == nil else { return false }
-        return Self.links(parent, to: note)
-    }
-
-    static func links(_ parent: Note, to child: Note) -> Bool {
-        parent.body.contains("pane-note:\(child.id.uuidString.lowercased())")
-    }
-
-    /// Every sub-note that lives inside its parent (`isNested`), worked out once and kept until a
-    /// note it was worked out from changes (see SubNoteIndex).
-    func nestedSubNotes() -> [Note] { SubNoteIndex.nested(in: self) }
 
     func trash(_ note: Note) {
-        // Marked before its sub-notes, so a loop of sub-notes (A under B under A) ends.
         note.trashedAt = .now
         note.isPinned = false
         note.touch()
-        // A parent takes its sub-notes with it.
-        for child in subNotes(of: note) where child.trashedAt == nil { trash(child) }
         saveOrReport()
     }
 
@@ -318,7 +194,6 @@ extension ModelContext {
         note.trashedAt = nil
         if note.folder == nil || note.folder?.deletedAt != nil { note.folder = defaultFolder() }
         note.touch()
-        for child in subNotes(of: note) where child.trashedAt != nil { restore(child) }
         saveOrReport()
     }
 
@@ -330,8 +205,8 @@ extension ModelContext {
         saveOrReport()
     }
 
-    /// Deletes several notes the way one is deleted: live notes go to Recently Deleted
-    /// (sub-notes with them), notes already there are deleted for good.
+    /// Deletes several notes the way one is deleted: live notes go to Recently Deleted,
+    /// notes already there are deleted for good.
     func remove(_ notes: [Note]) {
         for n in notes where n.deletedAt == nil {
             if n.trashedAt == nil { trash(n) } else { purge(n) }
@@ -561,76 +436,3 @@ enum DateBucket {
     }
 }
 
-/// The sub-notes that live inside their parent, for the sidebar's counts and the list. Asked one
-/// sub-note at a time (`isNested`, a fetch for each parent), a library with 1,000 sub-notes spent
-/// most of every save on it: the sidebar's two counted rows and the empty-trash check each asked
-/// for all of them whenever a note changed (release gate, 2026-10-13: half the main thread's time
-/// at 20,000 notes). Here two fetches find them all, and the answer is kept until one of the notes
-/// it was read from changes (Observation: a parent's text, deletion, a sub-note's parent) or a
-/// save adds, deletes or re-parents a note.
-@MainActor
-enum SubNoteIndex {
-    private static var cached: [Note]?
-    private static var cachedIDs: [UUID] = []
-    private static weak var cachedContext: ModelContext?
-    private static var observer: NSObjectProtocol?
-    /// Goes up when the answer is dropped, so a change heard from an older answer is ignored.
-    private(set) static var generation = 0
-
-    static func nested(in context: ModelContext) -> [Note] {
-        if let cached, cachedContext === context { return cached }
-        watchSaves(of: context)
-        generation += 1
-        let built = generation
-        // Dropped as the change happens, so whatever asks next (in the same turn, too) gets the new answer.
-        let nested = withObservationTracking { build(context) } onChange: {
-            MainActor.assumeIsolated { if generation == built { invalidate() } }
-        }
-        cached = nested
-        cachedIDs = nested.map(\.id)
-        cachedContext = context
-        return nested
-    }
-
-    /// The ids of `nested(in:)`.
-    static func nestedIDs(in context: ModelContext) -> [UUID] {
-        _ = nested(in: context)
-        return cachedIDs
-    }
-
-    static func invalidate() {
-        cached = nil
-        cachedIDs = []
-        generation += 1
-    }
-
-    private static func build(_ context: ModelContext) -> [Note] {
-        let subs = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.parentID != nil && $0.deletedAt == nil }))) ?? []
-        guard !subs.isEmpty else { return [] }
-        let parentIDs = Array(Set(subs.compactMap(\.parentID)))
-        let parents = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { parentIDs.contains($0.id) }))) ?? []
-        let byID = Dictionary(parents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return subs.filter { sub in
-            guard let pid = sub.parentID, let parent = byID[pid], parent.deletedAt == nil else { return false }
-            return ModelContext.links(parent, to: sub)
-        }
-    }
-
-    /// A save that adds or deletes notes, or changes one that has a parent, can make a sub-note
-    /// nobody was watching: the answer is worked out again.
-    private static func watchSaves(of context: ModelContext) {
-        guard cachedContext !== context || observer == nil else { return }
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-        observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { n in
-            func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
-            let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers), updated = ids(.updatedIdentifiers)
-            nonisolated(unsafe) let saved = n
-            MainActor.assumeIsolated {
-                guard let context = saved.object as? ModelContext, context === cachedContext, cached != nil else { return }
-                if !inserted.isEmpty || !deleted.isEmpty || updated.contains(where: { (context.model(for: $0) as? Note)?.parentID != nil }) {
-                    invalidate()
-                }
-            }
-        }
-    }
-}

@@ -7,6 +7,8 @@ enum DiagnosticsCopy {
     static let footer = "Sends error and crash reports, how fast the app is, and a few counts such as “signed in” and “first sync”, linked to your account. Never your notes, their titles, file names or anything you type."
     /// Under the sign-in form, where an account is made.
     static let signIn = "The app sends error reports and a few usage counts, never your notes. You can turn this off in Settings."
+    /// The same, short, under the welcome note's way in (two lines with the terms, no more).
+    static let welcome = "Sends error reports, never your notes. Turn off in Settings."
 }
 
 /// Settings › General: one switch for everything the app reports about itself. Off, nothing is

@@ -82,6 +82,32 @@ import Testing
         #expect(followed == ["Projects/Kitchen remodel", "Someday"])
     }
 
+    /// `[[Budget#October]]` (and an app's pinto:Budget#October) opens the note at that heading: the
+    /// link carries it, and the editor scrolls the heading to the top without taking focus.
+    @Test func aLinkToAHeadingOpensTheNoteThere() async {
+        let h = await EditorHarness("Plan\nSee [[Budget#October|october]].", focus: false)
+        defer { h.close() }
+        h.view.setWiki(Self.scope(titles: ["Budget"]))
+        await h.settle()
+        let shown = range("october", in: h)
+        #expect(LinkPolicy.action(for: h.view.textStorage!.attribute(.link, at: shown.location, effectiveRange: nil) as Any) == .wiki("Budget#October"))
+
+        let filler = (1...80).map { "Line \($0) of September" }.joined(separator: "\n")
+        let body = "Budget\n\n## September\n\(filler)\n\n## October\n- Rent\n- Food\n" + filler
+        let b = await EditorHarness(body, height: 500, focus: false)
+        defer { b.close() }
+        await b.settle(0.2)
+        #expect(b.scroll.contentView.bounds.minY <= 1, "it opens at the top")
+        let at = WikiLinks.headingLocation("october", in: body)!
+        b.controller.reveal(at)
+        await b.settle()
+        let visible = b.scroll.contentView.bounds
+        let line = b.lineRect(at: at)
+        #expect(visible.minY > 100, "scrolled down to the heading")
+        #expect(line.minY >= visible.minY && line.minY - visible.minY < 40, "the heading sits at the top: \(line) in \(visible)")
+        #expect(b.window.firstResponder !== b.view, "focus is left alone")
+    }
+
     @Test func typingTwoBracketsOffersTitles() async {
         let h = await EditorHarness("Plan\n")
         defer { h.close() }

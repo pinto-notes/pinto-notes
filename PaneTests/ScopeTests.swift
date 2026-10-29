@@ -66,31 +66,6 @@ import Testing
         #expect(SidebarView.counts(in: ctx) == (live: 18, trashed: 0))
     }
 
-    /// A sub-note lives inside its parent: the sidebar counts what the list shows (newcomer audit,
-    /// 2026-10-12: the folder said 2 while its list said "1 note").
-    @Test func subNotesAreCountedAsTheListShowsThem() throws {
-        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let ctx = c.mainContext
-        let folder = ctx.createFolder(named: "Notes")
-        let parent = ctx.createNote(in: .folder(folder.id), body: "Passport\n\nCharger")
-        let sub = ctx.createSubNote(of: parent, body: "Visa\n\nForms")
-        // As the editor does: the parent links to its sub-note.
-        parent.body += "\n" + ModelContext.subNoteLine(for: sub)
-        try ctx.save()
-        func entries() throws -> [NoteEntry] { try ctx.fetch(FetchDescriptor<Note>()).map(NoteEntry.init) }
-        #expect(ctx.isNested(sub))
-        let listed = NoteListView.scoped(try entries(), to: .folder(folder.id), context: ctx)
-        let all = NoteListView.scoped(try entries(), to: .all, context: ctx)
-        #expect(listed.count == 1)
-        #expect(SidebarView.listedNotes(in: folder, context: ctx) == listed.count, "the folder's count is the list's")
-        #expect(SidebarView.counts(in: ctx).live == all.count)
-        // In Recently Deleted too: the parent takes its sub-note with it, and shows as one.
-        ctx.trash(parent)
-        let trash = NoteListView.scoped(try entries(), to: .trash, context: ctx)
-        #expect(SidebarView.counts(in: ctx) == (live: 0, trashed: trash.count))
-        #expect(SidebarView.counts(in: ctx).trashed == 1)
-    }
-
     @Test func aFolderInsideAnotherIsCalledASubfolder() {
         #expect(SidebarView.nameAlertTitle(renaming: false, inside: true) == "New Subfolder")
         #expect(SidebarView.nameAlertTitle(renaming: false, inside: false) == "New Folder")
