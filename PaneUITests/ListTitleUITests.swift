@@ -1,9 +1,9 @@
 #if os(iOS)
 import XCTest
 
-/// iPhone: the note list's top bar, laid out like a chat app's (29 October 2026). ••• on the left
-/// (with Select in it), the folder's name centred with the count under it, a round + on the right
-/// that makes a note and opens it. Search alone in the bottom bar, and no new note in the editor.
+/// iPhone: the note list's bars (29 October 2026). Back on the left, the folder's name centred with
+/// the count under it, ••• on the right; Search with new note beside it at the bottom, which makes a
+/// note and opens it. No Select button, and no new note in the editor.
 final class ListTitleUITests: XCTestCase {
     var app: XCUIApplication!
 
@@ -20,22 +20,26 @@ final class ListTitleUITests: XCTestCase {
         try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(dir)/topbar-\(name).png"))
     }
 
-    func testMoreIsLeftNewNoteIsRightTitleBetween() {
+    func testMoreIsRightTitleCentredNewNoteBesideSearch() {
         let more = app.buttons["list.more"].firstMatch
-        let plus = app.buttons["list.newNote"].firstMatch
+        let compose = app.buttons["list.newNote"].firstMatch
         XCTAssertTrue(more.exists)
         XCTAssertEqual(more.label, "More")
-        XCTAssertEqual(plus.label, "New Note")
-        let width = app.windows.firstMatch.frame.width
-        XCTAssertLessThan(more.frame.midX, width / 2, "••• on the left")
-        XCTAssertGreaterThan(plus.frame.midX, width / 2, "+ on the right")
-        // The ••• reports its glyph's frame, not its 44 pt glass; the + is all circle.
-        XCTAssertGreaterThanOrEqual(plus.frame.height, 44, "a 44 pt target")
+        XCTAssertEqual(compose.label, "New Note")
+        let screen = app.windows.firstMatch.frame
+        XCTAssertGreaterThan(more.frame.midX, screen.width / 2, "••• on the right")
+        XCTAssertLessThan(more.frame.maxY, screen.height * 0.2, "••• in the top bar")
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertLessThan(back.frame.midX, screen.width / 2, "back on the left")
         let title = app.navigationBars.staticTexts["All Notes"].firstMatch
         XCTAssertTrue(title.exists)
-        XCTAssertEqual(title.frame.midX, width / 2, accuracy: 4, "the title is centred, inline")
+        XCTAssertEqual(title.frame.midX, screen.width / 2, accuracy: 4, "the title is centred, inline")
         XCTAssertTrue(app.navigationBars.staticTexts.matching(NSPredicate(format: "label ENDSWITH 'notes'")).firstMatch.exists, "the count under the title")
-        XCTAssertFalse(app.toolbars.buttons["New Note"].exists, "no compose beside Search")
+        // New note at the bottom right, beside Search and as tall as it.
+        let field = app.searchFields.firstMatch
+        XCTAssertGreaterThan(compose.frame.minY, screen.height * 0.8, "new note in the bottom bar")
+        XCTAssertGreaterThan(compose.frame.minX, field.frame.maxX, "right of Search")
+        XCTAssertEqual(compose.frame.midY, field.frame.midY, accuracy: 3, "level with Search")
         shot("list")
     }
 

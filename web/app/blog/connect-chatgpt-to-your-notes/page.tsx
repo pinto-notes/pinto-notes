@@ -16,7 +16,7 @@ export const metadata = postMetadata("connect-chatgpt-to-your-notes");
 // Settings, AI is titled Connect an AI (SettingsView.swift, ConnectAI.swift); the guide's button is "Copy
 // Address and Open <AI>" (ConnectGuide.swift); the ask is "Allow ChatGPT to use your notes?" with Read and
 // edit or Read only and Don't Allow (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
-// Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Show Version History (RootView.swift); the
+// Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Version History (RootView.swift); the
 // connect page's "No device with Pinto Notes? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
 
 const FAQ = [
@@ -274,7 +274,7 @@ export default function Page() {
       <ul>
         <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, after typing the number your browser shows, or on pintonotes.com with your recovery key.</li>
         <li>You choose Read only, or Read and edit, for each assistant.</li>
-        <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Show Version History).</li>
+        <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Version History).</li>
         <li>Connect an AI lists everything that&apos;s connected. Choose Disconnect, and it loses access right away.</li>
       </ul>
       <p>

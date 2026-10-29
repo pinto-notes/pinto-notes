@@ -1,8 +1,8 @@
 #if os(iOS)
 import XCTest
 
-/// The note list's search is a full field alone in the bottom bar (iOS 26 Notes/Mail; new note is
-/// the round + at the top since 29 October 2026), and there is only one search entry.
+/// The note list's search is a full field in the bottom bar, left of compose (iOS 26 Notes/Mail),
+/// and there is only one search entry.
 final class SearchBarUITests: XCTestCase {
     var app: XCUIApplication!
 
@@ -19,7 +19,7 @@ final class SearchBarUITests: XCTestCase {
         try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(dir)/search-\(idiom)-\(name).png"))
     }
 
-    func testSearchIsAFullBarOnItsOwn() throws {
+    func testSearchIsAFullBarBesideCompose() throws {
         XCTAssertTrue(app.buttons["list.newNote"].waitForExistence(timeout: 5))
         let field = app.searchFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 3), "a search field, not a minimised button")
@@ -29,11 +29,11 @@ final class SearchBarUITests: XCTestCase {
         // iPhone: the bottom bar, like Notes and Mail. iPad keeps the system's placement at the top of the column.
         if UIDevice.current.userInterfaceIdiom == .phone {
             XCTAssertGreaterThan(field.frame.minY, screen.height * 0.8, "search sits in the bottom bar")
-            XCTAssertLessThan(compose.frame.maxY, screen.height * 0.2, "new note is at the top, not beside search")
-            XCTAssertGreaterThan(field.frame.width, screen.width * 0.75, "search alone spans the bar")
+            XCTAssertLessThan(field.frame.maxX, compose.frame.minX, "search is left of compose")
+            XCTAssertGreaterThan(field.frame.width, screen.width * 0.5, "a full bar")
         }
         if UIDevice.current.userInterfaceIdiom == .pad {
-            XCTAssertGreaterThan(compose.frame.midX, app.collectionViews.firstMatch.frame.midX, "new note sits at the trailing edge on iPad")
+            XCTAssertGreaterThan(compose.frame.midX, app.collectionViews.firstMatch.frame.midX, "compose sits at the trailing edge on iPad")
             Thread.sleep(forTimeInterval: 1)
         }
         shot("rest")

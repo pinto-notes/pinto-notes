@@ -247,6 +247,13 @@ struct NoteDetailView: View {
                 withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
                 controller.clearTint()
             }
+            // A version was restored (from the history, or Undo of an AI's edit): the editor
+            // shows it at once, with nothing to undo back into, and an AI's marking goes.
+            .onReceive(NotificationCenter.default.publisher(for: NoteHistory.restored)) { n in
+                guard n.object as? UUID == note.id, collab == nil, let text = vault.text(of: note) else { return }
+                withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
+                controller.takeRestored(text)
+            }
             .task(id: note.id) { await noteOpened() }
             .onChange(of: showHistory) { _, open in if open { FeatureUse.mark(.versionHistory) } }
     }
@@ -762,11 +769,7 @@ struct NoteDetailView: View {
         case .share:
             Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
         case .history:
-            #if os(iOS)
-            Button("Show Version History", systemImage: "clock.arrow.circlepath") { showHistory = true }
-            #else
-            Button("Show Version History…", systemImage: "clock.arrow.circlepath") { showHistory = true }
-            #endif
+            Button(NoteMoreMenu.historyTitle, systemImage: "clock.arrow.circlepath") { showHistory = true }
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("editor.recover")
@@ -1241,6 +1244,15 @@ struct NoteDetailView: View {
 /// 2026-10-11. What the note is (pinned, locked, an app) first; then where it goes, what it
 /// was and deleting it.
 enum NoteMoreMenu {
+    /// The history item's name, as in Notes' more menu. On the Mac it opens a sheet, so "…".
+    static var historyTitle: String {
+        #if os(iOS)
+        "Version History"
+        #else
+        "Version History…"
+        #endif
+    }
+
     static var isPhoneOrPad: Bool {
         #if os(iOS)
         true
