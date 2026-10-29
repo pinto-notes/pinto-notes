@@ -780,7 +780,12 @@ enum ConnectCopy {
 
     static let onComputer = "Finish on your computer. This shows when it\u{2019}s done."
     static let pasteInTerminal = "Command copied. Paste it in Terminal."
-    static let allowInBrowser = "In your browser: choose Open Pinto Notes, then Allow."
+    @MainActor static var allowInBrowser: String { allowInBrowser(onWeb: BrowserConnect.onWeb) }
+    /// After a sign-in that opened the browser: Allow there in the app's handoff (Open Pinto Notes),
+    /// or, when the server keeps the key's copy, on the page itself.
+    static func allowInBrowser(onWeb: Bool) -> String {
+        onWeb ? "In your browser: sign in to Pinto Notes, then choose Allow." : "In your browser: choose Open Pinto Notes, then Allow."
+    }
     /// What Settings lists a token as: "Codex on Emil's MacBook Pro".
     static func tokenName(_ g: Guide, device: String = AddDeviceNames.thisDevice) -> String { "\(g.title) on \(device)" }
     static func added(_ g: Guide, askToFinish: Bool = true) -> String {
@@ -789,7 +794,10 @@ enum ConnectCopy {
     static let sampleQuestion = "What did I write in my notes this week?"
     static let showDetails = "Show details"
     static let hideDetails = "Hide details"
-    static func opensBrowser(_ g: Guide) -> String { "\(g.title) opens your browser to sign in. Then allow it here." }
+    @MainActor static func opensBrowser(_ g: Guide) -> String { opensBrowser(g, onWeb: BrowserConnect.onWeb) }
+    static func opensBrowser(_ g: Guide, onWeb: Bool) -> String {
+        onWeb ? "\(g.title) opens your browser to sign in. Then choose Allow there." : "\(g.title) opens your browser to sign in. Then allow it here."
+    }
     static let pasteInCodexConfig = "Copied. Paste it at the end of ~/.codex/config.toml."
     static func askIt(_ g: Guide) -> String { "Added. Ask \(g.title) about your notes." }
     static func adding(_ g: Guide) -> String { "Adding it to \(g.title)\u{2026}" }
@@ -941,7 +949,7 @@ struct ConnectChoices: View {
 
     private func press(_ g: Guide) {
         // Incredible, ChatGPT and Another AI open a guide of their own; the rest start from the row.
-        if let route, g == .incredible || ConnectWebGuide.opensSheet(g) {
+        if let route, g == .incredible || ConnectWebGuide.opensSheet(g) || BrowserConnect.opensSheet(g, onWeb: BrowserConnect.onWeb) {
             run.stop(givingUp: run.guide != nil)
             route.guide = g
             return
@@ -1053,7 +1061,7 @@ struct ConnectChoices: View {
     /// The row as a button; on iPhone, the AIs added on a computer send the link there (ShareLink).
     @ViewBuilder private func pressable(_ g: Guide, @ViewBuilder label: () -> some View) -> some View {
         #if os(iOS)
-        if g != .incredible, !ConnectWebGuide.opensSheet(g), state(g) != .connected {
+        if g != .incredible, !ConnectWebGuide.opensSheet(g), !BrowserConnect.opensSheet(g, onWeb: BrowserConnect.onWeb), state(g) != .connected {
             ShareLink(item: ConnectCopy.message(g, server: run.server), subject: Text("Connect \(g.title) to Pinto Notes"),
                       preview: SharePreview("Connect \(g.title) to Pinto Notes", icon: Image("Mark"))) { label() }
                 .buttonStyle(CardPress())
@@ -1254,7 +1262,7 @@ struct ConnectChoices: View {
 
 extension ConnectCopy {
     /// iPhone: what is sent to the computer for an AI that is added there.
-    static func message(_ g: Guide, server: String) -> String {
+    @MainActor static func message(_ g: Guide, server: String) -> String {
         switch g {
         case .chatgpt, .claude:
             WebConnectPlan.forAI(g.title)?.message(server: server) ?? server

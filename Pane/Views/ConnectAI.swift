@@ -1782,6 +1782,12 @@ final class ConnectGuideRoute {
         ConnectFunnel.opened(g.funnel)
     }
 
+    /// Another AI picked inside the browser sheet: the funnel follows it.
+    func guideSwitched(to g: ConnectAISection.Guide) {
+        if let old = shown { ConnectFunnel.closed(old.funnel) }
+        guideOpened(g)
+    }
+
     func guideClosed() {
         closed += 1
         if let g = shown { ConnectFunnel.closed(g.funnel) }
@@ -1801,7 +1807,13 @@ struct ConnectGuides: ViewModifier {
             .sheet(item: Binding(get: { client == nil ? nil : route.guide }, set: { route.guide = $0 }),
                    onDismiss: { route.guideClosed() }) { g in
                 if let client {
-                    if ConnectWebGuide.opensSheet(g) { ConnectWebGuideSheet(ai: g, client: client) } else { IncredibleSheet(client: client) }
+                    if BrowserConnect.opensSheet(g, onWeb: BrowserConnect.onWeb) {
+                        ConnectBrowserSheet(ai: g, client: client) { route.guideSwitched(to: $0) }
+                    } else if ConnectWebGuide.opensSheet(g) {
+                        ConnectWebGuideSheet(ai: g, client: client)
+                    } else {
+                        IncredibleSheet(client: client)
+                    }
                 }
             }
             .sheet(item: Binding(get: { client == nil ? nil : route.help }, set: { route.help = $0 }),

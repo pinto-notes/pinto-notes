@@ -510,7 +510,7 @@ import Testing
 }
 
 /// Connect ChatGPT or Claude: where the button goes, and knowing when it worked.
-@Suite struct WebConnectTests {
+@MainActor @Suite struct WebConnectTests {
     private func row(_ name: String, host: String?, kind: String = "oauth", at: Date, revoked: Bool = false) -> Connection {
         Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: at, last_used_at: nil,
                    revoked_at: revoked ? at : nil, redirect_host: host)
@@ -693,7 +693,7 @@ import Testing
 }
 
 /// Connect Incredible: a local app, so the guide never vouches for the name.
-@Suite struct IncredibleConnectTests {
+@MainActor @Suite struct IncredibleConnectTests {
     private func row(host: String?, kind: String = "oauth", at: Date, revoked: Bool = false) -> Connection {
         Connection(id: UUID(), name: "An app on this computer", kind: kind, can_write: false, created_at: at, last_used_at: nil,
                    revoked_at: revoked ? at : nil, redirect_host: host)

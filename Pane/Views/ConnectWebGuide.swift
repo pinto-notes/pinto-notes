@@ -60,12 +60,16 @@ struct ConnectWebGuide {
     static let click = "Tap", paste = "paste"
     #endif
 
-    static func chatgpt(listing: URL? = ChatGPTPlugin.listing) -> ConnectWebGuide {
+    @MainActor static func chatgpt(listing: URL? = ChatGPTPlugin.listing) -> ConnectWebGuide { chatgpt(listing: listing, onWeb: BrowserConnect.onWeb) }
+
+    /// `onWeb`: Allow is chosen on the connect page in the browser, not in the app.
+    static func chatgpt(listing: URL?, onWeb: Bool) -> ConnectWebGuide {
         if let listing {
             return ConnectWebGuide(
                 ai: .chatgpt, introTitle: "Connect ChatGPT", introLine: "",
                 steps: [Step(title: "Connect ChatGPT",
-                             text: "ChatGPT opens Pinto Notes. \(click) Connect there, then Allow here.",
+                             text: onWeb ? "ChatGPT opens Pinto Notes. \(click) Connect there, then sign in and choose Allow on the Pinto Notes page."
+                                 : "ChatGPT opens Pinto Notes. \(click) Connect there, then Allow here.",
                              art: .listing, action: "Open Pinto Notes in ChatGPT", link: listing, waits: true)],
                 single: true, doneTitle: "ChatGPT is connected")
         }
@@ -77,7 +81,7 @@ struct ConnectWebGuide {
                      text: "\(click) Add, then Add custom MCP server.",
                      art: .addMenu, action: "Open ChatGPT", link: ChatGPTPlugin.plugins, copiesAndMovesOn: true),
                 Step(title: "Paste, tick, create",
-                     text: "Name it Pinto Notes, \(paste) under Connection, tick I understand, then Create. Choose Allow when Pinto Notes asks.",
+                     text: "Name it Pinto Notes, \(paste) under Connection, tick I understand, then Create. \(BrowserConnect.allowWhere(onWeb: onWeb))",
                      art: .form, waits: true),
             ],
             doneTitle: "ChatGPT is connected")
@@ -279,7 +283,9 @@ final class ConnectGuideRun {
         if s.copiesAndMovesOn { copy(server); copied = true }
         ConnectFunnel.started(ai.funnel)
         open(link)
-        if s.copiesAndMovesOn { next(after: i) } else { said() }
+        if s.copiesAndMovesOn { next(after: i) }
+        // A one-page guide (the browser sheet) has nowhere to move on to: it waits on this page.
+        said()
     }
 
     /// The funnel hears `waiting` the first time the page waits.
@@ -618,7 +624,7 @@ struct ConnectWebGuideSheet: View {
                 AITile(ai: app == .claude ? "Claude" : "", size: BigChoices.Metrics.rowMark)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(app.title).font(BigChoices.Metrics.title).foregroundStyle(Color.ink)
-                    Text(lit ? "Waiting for \(app.title)\u{2026} Choose Allow when Pinto Notes asks." : app.detail)
+                    Text(lit ? "Waiting for \(app.title)\u{2026} \(BrowserConnect.allowWhere(onWeb: BrowserConnect.onWeb))" : app.detail)
                         .font(BigChoices.Metrics.detail).foregroundStyle(lit ? Color.ink : Color.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -760,7 +766,7 @@ struct ConnectWebGuideSheet: View {
 }
 
 /// The consent sheet can show over the guide (Allow comes while it is up). Not in captures.
-private struct ConsentHostIf: ViewModifier {
+struct ConsentHostIf: ViewModifier {
     let client: SupabaseClient?
     func body(content: Content) -> some View {
         if let client { content.consentHost(client: client) } else { content }

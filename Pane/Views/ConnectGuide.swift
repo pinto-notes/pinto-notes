@@ -42,7 +42,7 @@ struct WebConnectPlan: Equatable {
     /// The most specific page that exists for adding Amber Notes.
     func setupPage(server: String) -> URL { page(server) }
 
-    static func forAI(_ ai: String) -> WebConnectPlan? {
+    @MainActor static func forAI(_ ai: String) -> WebConnectPlan? {
         switch ai {
         case "ChatGPT": chatgpt
         case "Claude": claude
@@ -50,35 +50,35 @@ struct WebConnectPlan: Equatable {
         }
     }
 
-    /// The page shows a code to scan; on a Mac it also opens Amber Notes here.
-    #if os(macOS)
-    static let allowStep = "Choose Open Pinto Notes on this Mac, or scan the code with your iPhone. Then choose Allow."
-    #else
-    static var allowStep: String { "Scan the code it shows with this \(InstallID.kind), then choose Allow." }
-    #endif
+    /// The page's last step. In the app: the page shows a code to scan, and on a Mac it also opens
+    /// Pinto Notes here. On the web (the server keeps the key's copy): sign in there and Allow.
+    static func allowStep(onWeb: Bool) -> String { BrowserConnect.allowStep(onWeb: onWeb, kind: InstallID.kind) }
 
     static let testPrompt = "Search my Pinto Notes and tell me what I wrote most recently."
 
-    static let chatgpt = WebConnectPlan(
+    @MainActor static var chatgpt: WebConnectPlan { chatgpt(onWeb: BrowserConnect.onWeb) }
+    @MainActor static var claude: WebConnectPlan { claude(onWeb: BrowserConnect.onWeb) }
+
+    static func chatgpt(onWeb: Bool) -> WebConnectPlan { WebConnectPlan(
         ai: "ChatGPT",
         prefills: false,
         steps: [
             "In Plugins, choose Add, then Add custom MCP server.",
             "Name it Pinto Notes and paste the address under Connection.",
             "Tick I understand and want to continue, then choose Create as a plugin.",
-            allowStep,
+            allowStep(onWeb: onWeb),
         ],
         plans: "Needs ChatGPT Plus, Pro, Business, Enterprise or Edu, on the web.",
         testPrompt: testPrompt,
         testPage: prefilled("https://chatgpt.com/", testPrompt),
-        page: { _ in URL(string: "https://chatgpt.com/plugins")! })
+        page: { _ in URL(string: "https://chatgpt.com/plugins")! }) }
 
-    static let claude = WebConnectPlan(
+    static func claude(onWeb: Bool) -> WebConnectPlan { WebConnectPlan(
         ai: "Claude",
         prefills: true,
         steps: [
             "Claude opens Pinto Notes in its connector directory. Choose Connect to Claude.",
-            allowStep,
+            allowStep(onWeb: onWeb),
         ],
         plans: "Pinto Notes is in Claude's connector directory. On Team and Enterprise, an Owner may need to allow it first.",
         testPrompt: testPrompt,
@@ -86,7 +86,7 @@ struct WebConnectPlan: Equatable {
         page: { _ in directoryListing },
         fallback: (line: "Using an older Claude app, or it doesn't show Pinto Notes? Add it as a custom connector instead. That works on every plan; Free includes one.",
                    button: "Add as Custom Connector",
-                   page: installLink))
+                   page: installLink)) }
 
     /// Amber Notes in Claude's connector directory. Its Connect to Claude button adds it.
     static let directoryListing = URL(string: "https://claude.ai/directory/amber-notes")!
@@ -268,19 +268,21 @@ enum IncredibleConnect {
     static let site = URL(string: "https://incredible.one")!
 
     /// Amber Notes as one of Incredible's apps (Incredible's built-in, found by search).
-    static let steps = [
+    @MainActor static var steps: [String] { steps(onWeb: BrowserConnect.onWeb) }
+    static func steps(onWeb: Bool) -> [String] { [
         "Open Apps and search for notes, then choose the notes app with the orange leaf.",
         "Choose Connect. Your browser opens Pinto Notes.",
-        allowStep,
+        allowStep(onWeb: onWeb),
         "Back in Incredible, choose Let's go.",
-    ]
+    ] }
 
     /// The guide is read on the Mac next to Incredible, or on the iPhone that scans the code.
-    static var allowStep: String {
+    static func allowStep(onWeb: Bool) -> String {
+        if onWeb { return BrowserConnect.allowStep(onWeb: true) }
         #if os(macOS)
-        "Scan the code it shows with your iPhone (or open Pinto Notes on this Mac), then choose Allow."
+        return "Scan the code it shows with your iPhone (or open Pinto Notes on this Mac), then choose Allow."
         #else
-        "Scan the code it shows with this \(InstallID.kind), then choose Allow."
+        return "Scan the code it shows with this \(InstallID.kind), then choose Allow."
         #endif
     }
 
@@ -301,7 +303,7 @@ enum IncredibleConnect {
     }
 
     /// The steps as plain text, for sending to yourself.
-    static func message(server: String) -> String {
+    @MainActor static func message(server: String) -> String {
         var lines = ["Connect Incredible to Pinto Notes (in Incredible on your computer, once):", ""]
         for (i, s) in steps.enumerated() { lines.append("\(i + 1). \(s)") }
         lines += ["", "On a Windows PC, scan the code on the Pinto Notes page that opens with your iPhone, then choose Allow.",

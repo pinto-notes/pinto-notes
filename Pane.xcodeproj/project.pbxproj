@@ -11,6 +11,7 @@
 		005CA83D3102FABCDD0EA094 /* MacImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBAD3D7E5ED5CA9C34129EE /* MacImportTests.swift */; };
 		006F71C4EE202E9444573F3C /* preact-jsx-runtime.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 977A543BBB6A9AE0D3019BBE /* preact-jsx-runtime.module.js */; };
 		012ED6D0B71B789A7B996EB9 /* guide-bear-export.png in Resources */ = {isa = PBXBuildFile; fileRef = 79BB6E16D644B368ADE2FE15 /* guide-bear-export.png */; };
+		012F1EEF264302A9F5832B8A /* ConnectBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7AFF03A1756877140BF2BC /* ConnectBrowser.swift */; };
 		01F8A032F59404B7F22B1A3F /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43C8835EE05529FC6C66B17 /* LegalLinks.swift */; };
 		026084E1D300F5B1897A4489 /* AddDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB90883FB5418E63A15FD23 /* AddDevice.swift */; };
 		02FF3686D2DF7AA939A76277 /* CodeBoxes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */; };
@@ -426,6 +427,7 @@
 		8C0B6E76641724BE0382A626 /* ScopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA850D9ED3A3D8966BC9FF7 /* ScopeTests.swift */; };
 		8DDE0113A044E767BA32C8CE /* guide-obsidian-files.png in Resources */ = {isa = PBXBuildFile; fileRef = AC2974209CC95A34F20C0CD5 /* guide-obsidian-files.png */; };
 		8DECEC26D23538850E24676A /* SetupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828936EE95CD99013161C1CA /* SetupTests.swift */; };
+		8E2989244AC5ACB145F356DB /* ConnectBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7AFF03A1756877140BF2BC /* ConnectBrowser.swift */; };
 		8E48ECB8D6700699E9BB1E1C /* PasswordFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FE7BB86935ED6B278E0039C /* PasswordFieldTests.swift */; };
 		8ECA91B165546874C105D6C5 /* SignOutRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A5487F72AC7A7609DBCEE7B /* SignOutRemovalTests.swift */; };
 		8F8A11962EC3B8860169C41E /* note-pages in Resources */ = {isa = PBXBuildFile; fileRef = 3C4E1DE16E31E18A753492A3 /* note-pages */; };
@@ -1140,6 +1142,7 @@
 		CB7BCC25070DF499252B44F3 /* NotePageMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageMacShots.swift; sourceTree = "<group>"; };
 		CBAD2D5CF280D4F4179CB2F7 /* Updater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Updater.swift; sourceTree = "<group>"; };
 		CC4C25B7D160D0B147F9EC20 /* DecoratedLayoutFragment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecoratedLayoutFragment.swift; sourceTree = "<group>"; };
+		CC7AFF03A1756877140BF2BC /* ConnectBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectBrowser.swift; sourceTree = "<group>"; };
 		CD2FE12ACFA516DC9A1A19AF /* PaneShare */ = {isa = PBXFileReference; lastKnownFileType = folder; path = PaneShare; sourceTree = SOURCE_ROOT; };
 		CE1C02753FF5148177EAD29D /* firstopen-trip-plan.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-trip-plan.jpg"; sourceTree = "<group>"; };
 		CE38BE2414E2D6EFB432A70C /* InboxImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxImport.swift; sourceTree = "<group>"; };
@@ -1466,6 +1469,7 @@
 				83735DC9F6164AB1CB604086 /* CodeFileView.swift */,
 				0C6D15833CF6120B65D7384A /* ComposeButton.swift */,
 				39EF6421870B0C2E8060E578 /* ConnectAI.swift */,
+				CC7AFF03A1756877140BF2BC /* ConnectBrowser.swift */,
 				A63BCA6A4FFD0CF3D4A3011E /* ConnectChoices.swift */,
 				68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */,
 				D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */,
@@ -2612,6 +2616,7 @@
 				1F6B824701CE535CA576F3DA /* ComposeButton.swift in Sources */,
 				BF2B915D732726B9367D9C98 /* ConnectAI.swift in Sources */,
 				14E3C2B4C906F7EB17833216 /* ConnectAsks.swift in Sources */,
+				012F1EEF264302A9F5832B8A /* ConnectBrowser.swift in Sources */,
 				B405872E5470EE9546C41019 /* ConnectChoices.swift in Sources */,
 				779FB36891A0E3E0D6EC6260 /* ConnectGuide.swift in Sources */,
 				109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */,
@@ -2858,6 +2863,7 @@
 				35C84CFCD1BCA865A4E6FF53 /* ComposeButton.swift in Sources */,
 				C036D7D76F7E932D5EB797F7 /* ConnectAI.swift in Sources */,
 				BABD15AB84CC4A437789F4CC /* ConnectAsks.swift in Sources */,
+				8E2989244AC5ACB145F356DB /* ConnectBrowser.swift in Sources */,
 				694F24EB79E3D68D455FE540 /* ConnectChoices.swift in Sources */,
 				ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */,
 				D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */,
