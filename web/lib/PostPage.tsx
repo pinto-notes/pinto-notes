@@ -51,9 +51,9 @@ function Share({ x }: { x: Post }) {
 
 /// The band at the end of a post, written for its category.
 const CLOSING: Record<Category, { title: string; text: string }> = {
-  "Guides": { title: "Let your AI write in your notes.", text: "Pinto Notes works like Apple Notes, and Claude, Claude Code and Codex can read and edit it, with an Undo on every change. ChatGPT is coming soon." },
+  "Guides": { title: "Let your AI write in your notes.", text: "Pinto Notes works like Apple Notes, and ChatGPT, Claude, Claude Code and Codex can read and edit it, with an Undo on every change." },
   "Apple Notes": { title: "Bring your Apple Notes along.", text: "Pinto Notes imports them on your Mac in one go, and leaves Apple Notes as it was." },
-  "Comparisons": { title: "Try the notes app your AI can use.", text: "Pinto Notes works like Apple Notes, and connects to Claude, Claude Code and Codex today, with ChatGPT coming soon." },
+  "Comparisons": { title: "Try the notes app your AI can use.", text: "Pinto Notes works like Apple Notes, and connects to ChatGPT, Claude, Claude Code and Codex." },
   "Building Pinto Notes": { title: "Read the code, or just use it.", text: "Pinto Notes is open source: the apps, the server and this website." },
 };
 

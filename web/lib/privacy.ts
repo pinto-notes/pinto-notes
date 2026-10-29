@@ -1,6 +1,7 @@
 /// The privacy and security facts, written once for the Privacy & Security page and the home page.
 /// Every sentence must be true today; docs/privacy-policy.md is the long form, and
-/// docs/Technical/e2ee-design.md is the model as built. Every claim about encryption on the site is
+/// docs/Technical/e2ee-design.md is the model as built, with the copy of the key the server keeps
+/// for a standard account on top of it. Every claim about encryption on the site is
 /// in this file, so the page and the home page can't say more than it does.
 
 export const PRIVACY_PATH = "/privacy-security";
@@ -10,15 +11,15 @@ export type Fact = { title: string; text: string; short: string };
 
 /// The short list the Privacy & Security page opens with.
 export const FACTS: Fact[] = [
-  { title: "End-to-end encrypted", text: "Your notes, titles, folder names, files and earlier versions are encrypted on your iPhone or Mac with a key that only your devices, and AI connections you approve, can unlock. We can't read them.", short: "Encrypted on your iPhone or Mac before they're uploaded. We can't read them." },
+  { title: "Encrypted on your devices", text: "Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. With Advanced protection on, your notes are end-to-end encrypted: we can't open them and can't help you back in." , short: "Encrypted on your devices before they sync. With Advanced protection on, only your devices hold the key." },
   { title: "AI only with your approval", text: "An AI app can read your notes only after you approve it on your iPhone or Mac. While it works, our server opens the notes it asks for in memory. Disconnect it at any time.", short: "An AI reads your notes only after you approve it on your device." },
   { title: "No ads, no tracking in the app", text: "No ads and no tracking in the apps. They count a few things on our own server, and versions after 1.2 send error reports and a few usage counts, never your notes, to PostHog in the EU; one switch in Settings turns the reports off. This website counts page views and where visitors came from, clicks and how far pages are scrolled, without profiles, without cookies unless you accept them, and never on shared notes, and Mac downloads as daily totals. We never sell or share your data.", short: "No ads and no tracking in the apps. We never sell or share your data." },
   { title: "Stored in the EU", text: "Your encrypted notes and files are kept in Frankfurt, Germany.", short: "Your encrypted notes and files are kept in Frankfurt, Germany." },
 ];
 
-/// The one line under the facts: end to end has limits, and the page lists them.
+/// The one line under the facts: encryption has limits, and the page lists them.
 export const CAVEAT = {
-  text: "End-to-end encryption has limits. When an AI you connected asks for notes, our server reads them in memory to answer it, and some details about your account stay readable to us. Here is all of it.",
+  text: "Encryption has limits. Unless Advanced protection is on, we keep a locked copy of your key. When an AI you connected asks for notes, our server reads them in memory to answer it, and some details about your account stay readable to us. Here is all of it.",
   href: "#limits",
   link: "See the limits",
 };
@@ -28,14 +29,16 @@ export type Item = { label: string; text: string };
 /// "What's encrypted" on the Privacy & Security page.
 export const ENCRYPTION: { items: Item[]; note: string } = {
   items: [
-    { label: "End to end:", text: "your notes, their titles, folder names, file names and files, and every earlier version are encrypted on your device before they're uploaded. The key is made on your first device, and only your devices, and AI connections you approve, can unlock it. We store only the encrypted copies, and we can't read them." },
-    { label: "Your key:", text: "iCloud Keychain carries it between your iPhone and Mac. Apple encrypts iCloud Keychain end to end, so Apple can't read it either." },
-    { label: "Your recovery key:", text: "a key you save yourself, shown in Settings, Privacy & Security on your devices. It's the fallback when a device can't get your key from iCloud Keychain. We keep your notes' key only locked with it, and we never get the recovery key." },
+    { label: "On your devices:", text: "your notes, their titles, folder names, file names and files, and every earlier version are encrypted on your device before they're uploaded, with a key made on your first device. We store the encrypted copies." },
+    { label: "Your key, and our copy of it:", text: "your devices hold the key, and iCloud Keychain carries it between your iPhone and Mac. We keep a locked copy of your key so that signing in opens your notes on a new device, with no other device and no recovery key. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. The copy is sealed with a secret kept outside the database, so the sealed copy can't be opened with a copy or a backup of the database alone. We hold both the secret and the database." },
+    { label: "Advanced protection:", text: "a switch in Settings, Security. It is off unless you turn it on. Turning it on needs a saved recovery key or another device, and deletes our copy. With Advanced protection on, your notes are end-to-end encrypted: we can't open them and can't help you back in. Then only your devices, and AI connections you approve, can unlock your notes. A new device gets your key from iCloud Keychain, is added from a device that has your notes, or is opened with your recovery key. If you lose every device and the recovery key, your notes are lost." },
+    { label: "Accounts made before we kept copies:", text: "the app asks once, with a sheet titled \"Signing in now opens your notes\", before anything is copied. Continue stores the copy. Keep my key on my devices only turns on Advanced protection. Until you answer, nothing is copied and your key stays on your devices, as before." },
+    { label: "Your recovery key:", text: "a key you save yourself, shown in Settings, Security on your devices. It opens your notes without us. We keep your notes' key locked with it. Our copy of your key, while we keep one, holds the recovery key too." },
     { label: "Locked notes:", text: "encrypted a second time, with a key made from your notes password. That key never leaves your devices, so not even an AI you connect can read a locked note's text. If you forget the password, nobody can recover it." },
     { label: "On the way and on disk:", text: "everything travels over HTTPS, and Supabase encrypts its disks as well (AES-256)." },
     { label: "Passwords and access tokens", text: "are stored only as one-way hashes." },
   ],
-  note: "Signing in, with Apple or a password, only tells us who you are. Your password has nothing to do with your notes' key.",
+  note: "Signing in, with Apple, Google or a password, tells us who you are. Unless Advanced protection is on, it is also what lets a new device get your key, and there is no waiting period, also after a password reset. A device that has been signed in for more than an hour without your notes asks you to sign in again first. Each time a device gets your key by signing in, every device of yours shows the notice \"A new device opened your notes\", and we send an email to your account's address.",
 };
 
 /// "What stays readable to us" on the Privacy & Security page.
@@ -61,18 +64,21 @@ export const AI_ACCESS: Item[] = [
   { label: "Locked notes stay locked.", text: "An AI sees only their titles, never their text." },
 ];
 
-/// "Limits" on the Privacy & Security page: what end to end doesn't protect against, today.
+/// "Limits" on the Privacy & Security page: what encryption doesn't protect against, today.
 export const LIMITS: Item[] = [
+  { label: "Our copy of your key.", text: "Unless Advanced protection is on, we hold a copy of your notes' key, sealed with a secret kept outside the database. We hold both, so we could open your notes, and so could someone who took over our hosting account. The sealed copy can't be opened with a copy of the database alone. A recent copy of the database also holds sign-in sessions, though, and a session from a sign-in in the last hour can get your key as a device of yours would." },
+  { label: "Signing in.", text: "Unless Advanced protection is on, anyone who can sign in as you can open your notes: with your password, by resetting it from your mailbox, or through the Apple or Google account you sign in with. The notice on your devices and the email tell you it happened. They don't stop it." },
   { label: "AI requests.", text: "While an AI you connected works, our server handles the text it asks for. A changed server could copy it. Disconnecting ends this at once." },
   { label: "The recovery key in the browser.", text: "Approving on pintonotes.com with your recovery key runs our code in your browser. It never stores or sends the key, but a changed page could read it. When you can, approve from your iPhone or Mac instead." },
   { label: "No key rotation yet.", text: "Your notes' key stays the same for the life of your account. Disconnecting an AI deletes its copy of the key, but you can't change the key itself yet." },
-  { label: "The database.", text: "Someone running the database can't read your notes, but could roll a note back to an earlier encrypted version, or hide notes from your devices." },
+  { label: "The database.", text: "Someone with only an old copy of the database can't read your notes. With a recent one they might, where we keep a copy of your key: it holds sign-in sessions, and one from a sign-in in the last hour can get the key. Someone running the live database could roll a note back to an earlier encrypted version, or hide notes from your devices. Where we keep a copy of your key, they could also sign in as you and get it, as a new device of yours would." },
 ];
 
 /// "Who can see what" on the Privacy & Security page.
 export const WHO_CAN_SEE: Item[] = [
-  { label: "You,", text: "on every iPhone and Mac you sign in on, once it has your key." },
-  { label: "Us.", text: "As the people running the database (that's Emil, who makes Pinto Notes), we see the encrypted copies and the details listed under what stays readable. We can't read your notes." },
+  { label: "You,", text: "on every iPhone and Mac you sign in on. With Advanced protection on, a new device first needs your key: from iCloud Keychain, from one of your devices, or from your recovery key." },
+  { label: "Us.", text: "As the people running Pinto Notes (that's Emil, who makes it), we see the encrypted copies and the details listed under what stays readable. We keep a locked copy of your key, so we could open your notes if we had to, for example under a court order. With Advanced protection on, we can't open them." },
+  { label: "Anyone who can sign in as you,", text: "unless Advanced protection is on. Signing in opens your notes on a new device." },
   { label: "AI apps you approve,", text: "for the notes they ask for, until you disconnect them. They never see the text of locked notes." },
   { label: "Anyone with the link to a note you share,", text: "until you stop sharing it. Your device publishes a readable copy for the link, and it's deleted when you stop. Shared pages are hidden from search engines." },
 ];
@@ -87,6 +93,7 @@ export const LOGS: Log[] = [
   { name: "Sign-in records in our database", what: "Each sign-in: the time, the email address and the IP address, to keep your account secure.", kept: "30 days" },
   { name: "Vercel request logs", what: "Each request to this website: the time, the page, the IP address and device type, and whether it worked.", kept: "1 hour" },
   { name: "Rate limits", what: "A one-way hash of the IP address, made with a key that changes every day, to stop floods of sign-in attempts.", kept: "2 hours" },
+  { name: "The log of our copy of your key", what: "Each time the copy was stored, fetched by a device or removed, and each time a request for it was refused: the time and the kind of device.", kept: "12 months" },
 ];
 
 /// What the apps count, on our own server. Kept 12 months, never shared.
@@ -99,10 +106,11 @@ export const COUNTS: string[] = [
   "a random id for each installation and whether it's an iPhone or a Mac, to count devices",
 ];
 
-/// The home page's privacy card: one claim, and in the same breath the AI exception from CAVEAT.
+/// The home page's privacy card: one claim, what our copy of the key means, the switch that removes it,
+/// and in the same breath the AI exception from CAVEAT.
 export const HOME_PRIVACY = {
   eyebrow: "Private by design",
-  title: "We can't read your notes.",
-  text: "They're encrypted on your iPhone or Mac. When an AI you approve asks for notes, our server reads them in memory to answer it.",
+  title: "Encrypted on your devices.",
+  text: "Your notes are encrypted on your iPhone or Mac before they sync. We keep a locked copy of your key, so signing in opens them on a new device, and we could open them if we had to. Turn on Advanced protection and we keep no copy. When an AI you approve asks for notes, our server reads them in memory to answer it.",
   link: "Read what we store, and every log we keep",
 };

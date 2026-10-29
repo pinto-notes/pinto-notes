@@ -106,18 +106,6 @@ import UIKit
     #endif
 
     #if os(iOS)
-    /// The first run's Connect step on iPhone, the screen App Review saw (5.1.1 and 5.1.2, Oct 2026).
-    @Test func iPhoneConnectStep() async throws {
-        guard let dir = Self.dir else { return }
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        for shot in Self.shots where shot.step == .connect {
-            for dark in [false, true] {
-                try await ConnectJourneySnapshots.shoot(Self.flow(shot), "iphone-onboarding-\(shot.name)\(dark ? "-dark" : "")",
-                                                        size: CGSize(width: 375, height: 812), type: .large, dark: dark, scene: scene, dir: dir)
-            }
-        }
-    }
-
     @Test func iPhoneTerminalSheets() async throws {
         guard let dir = Self.dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -324,63 +312,144 @@ import UIKit
     #endif
 
     #if os(iOS)
-    /// On an iPhone simulator (no Simulator window needed):
-    /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-    /// -only-testing:PaneTests/OnboardingSnapshots CODE_SIGNING_ALLOWED=NO`.
-    @Test func iPhone() async throws {
+    /// iPhone and iPad have no first-run steps (28 October 2026): the folders offer the Mac app
+    /// to an account that has never had one, before the other cards.
+    @Test func iPhoneMacCard() async throws {
         guard let dir = Self.dir else { return }
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let pad = UIDevice.current.userInterfaceIdiom == .pad
-        let size = scene.screen.bounds.size
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        for shot in Self.shots {
-            for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
-                for dark in [false, true] {
-                    let window = UIWindow(windowScene: scene)
-                    window.frame = CGRect(origin: .zero, size: size)
-                    window.overrideUserInterfaceStyle = dark ? .dark : .light
-                    window.rootViewController = UIHostingController(rootView: Self.flow(shot).dynamicTypeSize(type))
-                    window.isHidden = false
-                    try? await Task.sleep(for: .seconds(0.9))
-                    let format = UIGraphicsImageRendererFormat()
-                    format.scale = 3
-                    let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-                        window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-                    }
-                    window.isHidden = true
-                    try #require(image.pngData()).write(to: dir.appending(path: "\(pad ? "ipad" : "iphone")-\(shot.name)-\(label)-\(dark ? "dark" : "light").png"))
-                }
-            }
-        }
-    }
-    #endif
-
-    #if os(iOS)
-    /// The sheet Apple Notes opens on iPhone, over the Bring step.
-    @Test func iPhoneAppleNotesSheet() async throws {
-        guard let dir = Self.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: true)
+        let devices = KeyDevices.shared
+        KeyDevices.shared = KeyDevices()
+        KeyDevices.shared.showForPreview(others: [])
+        defer { KeyDevices.shared = devices }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        for (label, type) in [("default", DynamicTypeSize.large), ("largest", .accessibility5)] {
+        for (label, type) in [("default", DynamicTypeSize.large), ("larger", .xxxLarge)] {
             for dark in [false, true] {
                 let window = UIWindow(windowScene: scene)
                 window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
-                let view = Self.flow(Shot(name: "3-bring", step: .bring))
-                    .sheet(isPresented: .constant(true)) { AppleNotesOnMacSheet().dynamicTypeSize(type) }
-                    .dynamicTypeSize(type)
-                window.rootViewController = UIHostingController(rootView: view)
+                window.rootViewController = UIHostingController(rootView: Self.sidebar(connected: false, c).dynamicTypeSize(type))
                 window.isHidden = false
-                try? await Task.sleep(for: .seconds(1.2))
+                try? await Task.sleep(for: .seconds(1.0))
                 let format = UIGraphicsImageRendererFormat()
                 format.scale = 3
                 let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
                     window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
                 }
                 window.isHidden = true
-                try #require(image.pngData()).write(to: dir.appending(path: "iphone-3-bring-apple-notes-sheet-\(label)-\(dark ? "dark" : "light").png"))
+                try #require(image.pngData()).write(to: dir.appending(path: "iphone-mac-card-\(label)-\(dark ? "dark" : "light").png"))
             }
         }
     }
+    #endif
+    #if os(iOS)
+    /// The welcome note finished, with the way in under it (light, dark, the largest text), and the
+    /// list after it folded into its row: All Notes with the Welcome note, lit as it lands.
+    @Test func iPhoneWelcomeNote() async throws {
+        guard let dir = Self.dir else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        func shoot(_ view: some View, _ name: String, dark: Bool, type: DynamicTypeSize = .large) async throws {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = UIHostingController(rootView: view.dynamicTypeSize(type).tint(Color(PColor.paneAccent))
+                .environment(\.locale, Locale(identifier: "en_US")))
+            window.isHidden = false
+            try? await Task.sleep(for: .seconds(1.0))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            window.isHidden = true
+            try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
+        }
+        for (label, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("largest", false, .accessibility3)] {
+            try await shoot(WelcomeNoteView(backend: Backend(), finished: true, useEmail: {}), "welcome-note-\(label)", dark: dark, type: type)
+        }
+        // Mid-writing: Claude's caret seven letters into the second to-do.
+        let n = WelcomeNote.items(for: .iPhone).map(\.title.count)
+        let writing = WelcomeNote.Progress(title: WelcomeNote.title.count, line1: WelcomeNote.lines[0].count, line2: WelcomeNote.lines[1].count,
+                                           section: WelcomeNote.section.count, todos: [n[0], 7])
+        try await shoot(WelcomeEditorPage(progress: writing, ticked: .constant([]), ai: (.todo(1), .claude)), "welcome-note-writing", dark: false)
+        // The largest text, scrolled to the end: the last to-do clears the way in.
+        try await shoot(WelcomeNoteView(backend: Backend(), finished: true, scrolledToEnd: true, useEmail: {}), "welcome-note-largest-scrolled", dark: false, type: .accessibility3)
+        // What it becomes after sign-in: the saved note open in the editor, ticked as it was.
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
+        let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone, ticked: [0]))
+        for dark in [false, true] {
+            let editor = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+            try await shoot(editor, "welcome-note-opened-\(dark ? "dark" : "light")", dark: dark)
+        }
+    }
+    #endif
+    #if os(iOS)
+    /// An ordinary note in the iPhone editor (a checklist, headings, a table) and the list it's in,
+    /// light and dark, with the toolbars: for the before and after of a look change. The run's
+    /// label (PINTO_SHOT_LABEL, e.g. before or after) starts each file's name.
+    @Test func iPhoneEditorLook() async throws {
+        guard let dir = Self.dir else { return }
+        let label = ProcessInfo.processInfo.environment["PINTO_SHOT_LABEL"] ?? "now"
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
+        let note = c.mainContext.createNote(in: .all, body: Self.ordinaryNote)
+        _ = c.mainContext.createNote(in: .all, body: "Groceries\n\nOat milk, lemons, rice")
+        _ = c.mainContext.createNote(in: .all, body: "Books to read\n\nThe Overstory, Piranesi")
+        func shoot(_ view: some View, _ name: String, dark: Bool) async throws {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = UIHostingController(rootView: view.tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US")))
+            window.isHidden = false
+            try? await Task.sleep(for: .seconds(1.6))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            window.isHidden = true
+            try #require(image.pngData()).write(to: dir.appending(path: "\(name).png"))
+        }
+        for dark in [false, true] {
+            let mode = dark ? "dark" : "light"
+            let editor = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+            try await shoot(editor, "editor-\(label)-\(mode)", dark: dark)
+            let list = NavigationStack { NoteListView(scope: .all, selection: .constant([]), onNewNote: {}) }.modelContainer(c)
+            try await shoot(list, "list-\(label)-\(mode)", dark: dark)
+            // The folders, with the account's photo at the top right.
+            ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
+            let signedIn = Backend(testClient: CaptureScreen.client, email: "emil@example.com", userID: UUID())
+            let folders = NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+                .environment(signedIn)
+                .environment(SetupStore(progress: SetupProgress(connected: true, dismissed: true, templatesClosed: true)))
+                .modelContainer(c)
+            try await shoot(folders, "folders-\(label)-\(mode)", dark: dark)
+            ProfileStore.shared.showForPreview(name: nil, photo: nil)
+        }
+    }
+
+    static let ordinaryNote = """
+    Weekend in Lisbon
+
+    Tram 28 early, before the queues. Dinner booked for Saturday.
+
+    ### Before we go
+    - [x] Book the flights
+    - [ ] Pack the camera
+    - [ ] Download the offline maps
+
+    ### Budget
+    | Item | Cost |
+    |---|---|
+    | Flights | 240 |
+    | Hotel | 380 |
+
+    Ask Ana about the Alfama walk.
+    """
     #endif
 }

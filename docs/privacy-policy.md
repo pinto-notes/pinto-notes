@@ -5,8 +5,10 @@ Last updated: 27 October 2026
 ## The short version
 
 - Pinto Notes was called Amber Notes until October 2026. Same app, same service, and this policy covers both names.
-- Your notes are yours. Your notes, their titles, folder names, file names and files, and earlier versions are encrypted on your iPhone or Mac with a key only your devices hold, before they're uploaded. We store the encrypted copies so they sync, and we can't read them.
-- Some details stay readable to us, such as your email address, dates and sizes, and how your notes are organized. The section on end-to-end encryption lists all of them, and its limits.
+- Your notes are yours. Your notes, their titles, folder names, file names and files, and earlier versions are encrypted on your iPhone or Mac before they're uploaded. We store the encrypted copies so they sync.
+- We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. Accounts made before we kept copies are asked first, and nothing is copied until they answer.
+- With **Advanced protection** on (**Settings → Security**), your notes are end-to-end encrypted: we can't open them and can't help you back in.
+- Some details stay readable to us, such as your email address, dates and sizes, and how your notes are organized. The section on encryption lists all of them, and its limits.
 - No ads and no tracking, and we never sell or share your data. Versions of the apps after 1.2 send error and crash reports and a few usage counts to PostHog in the EU, never your notes or anything you write. One switch in Settings turns it off. Version 1.2 and earlier send none of this.
 - The website counts page views and where visitors came from with Vercel Web Analytics, and which links and buttons are clicked, where on a page people click and how far pages are scrolled with PostHog, in the EU. These are counted across all visitors. Neither keeps a profile of you, and neither runs on shared notes or the connect pages. Vercel never uses cookies. PostHog uses none either, unless you choose Accept on the website's cookie banner: then it keeps one cookie for up to a year, so it can recognise your return visits, and records your visits to the website's public pages as session replays: what the pages showed and where the pointer went, never what you type. It also counts Mac downloads as daily totals. None of this touches your notes or your computer.
 - We count how features are used on our own server to improve the app. We never share or sell it.
@@ -39,14 +41,17 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 
 **Your notes, encrypted**
 
-- Your notes, folders, checklists, tables, and the images and files you add, and earlier versions of each note, so a change can be undone: up to 500 per note. We receive them only encrypted (see End-to-end encryption below). Each version records whether it came from the app, an AI connection, an import or a restore.
+- Your notes, folders, checklists, tables, and the images and files you add, and earlier versions of each note, so a change can be undone: up to 500 per note. We receive them only encrypted (see Encryption below). Each version records whether it came from the app, an AI connection, an import or a restore.
 - With each note, file and version we also store, readable: its size and dates, its folder, its parent note if it's a sub-note, whether it's pinned or locked, and which device or AI app wrote it.
 
 **Your encryption key, locked**
 
-- Your notes' key is made on your first device and kept in your iCloud Keychain. We never receive it in readable form.
+- Your notes' key is made on your first device and kept in your iCloud Keychain.
+- Unless **Advanced protection** is on: a copy of your notes' key and your recovery key, sealed with a secret that is kept outside our database (see Encryption).
+- Whether your account is standard or has Advanced protection on.
+- A log of each time our copy was stored, fetched by a device or removed, and each time a request for it was refused: when, and the kind of device. We keep it for 12 months.
 - We store a short identifier of the key and a check value that lets your devices confirm they have the right key. Neither can be used to read your notes.
-- Your recovery key is a key you save yourself. We store your notes' key locked with it, so a device can get your key with the recovery key. We never receive the recovery key.
+- Your recovery key is a key you save yourself. We store your notes' key locked with it, so a device can get your key with the recovery key. Our copy of your key, while we keep one, holds the recovery key too. With Advanced protection on, we hold neither.
 - Each AI connection you approve gets a copy of your notes' key, locked with a key derived from that connection's access token, which we store only as a hash (see AI connections).
 
 **Your devices**
@@ -101,7 +106,7 @@ The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no p
 
 **Emails we send you**
 
-- **Account emails:** the code that confirms your email address, password reset links, and a notice when your password or email address changes.
+- **Account emails:** the code that confirms your email address, password reset links, a notice when your password or email address changes, and a notice each time a new device gets your notes' key by signing in.
 - **Onboarding emails:** a welcome email a couple of minutes after you sign up, then at most six short emails from Emil in your first 30 days, each about one next step in the app. Every one has a "Stop these emails" link, and using it stops them all. They go only to a confirmed email address.
 - **How we pick them:** from what your account has done so far, such as how many notes it has, which kinds of device it uses, whether an AI is connected, and which features have been used. Never from what's in a note.
 - **What we record:** which of these emails were sent to you and when, whether you unsubscribed, that you replied to one (the time, not what you wrote), and, if you click a link in one, which email it was in and the page the link leads to.
@@ -116,7 +121,7 @@ The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no p
 **What we don't collect**
 
 - No advertising identifiers, no location and no contacts. The apps link no analytics or crash-reporting SDK: crash reports come from Apple's own diagnostics, and the app sends its reports itself (see Diagnostics and usage from the apps).
-- We never receive your notes' key, your recovery key or your notes password in readable form, except that during an AI connection's requests our server unlocks your notes' key in memory (see AI connections).
+- We never receive your notes password. Your notes' key and your recovery key reach our server only sealed. Our server unlocks your notes' key in memory in two cases: during an AI connection's requests (see AI connections), and, unless Advanced protection is on, when one of your devices stores our copy of it or a new device fetches it (see Encryption).
 - The Apple Notes import runs on your Mac, and only the notes you choose are uploaded. If you turn on "Also bring over pinned notes", the app reads only which notes are pinned, from a temporary copy of the Notes database on your Mac, and deletes the copy straight after.
 
 ## Why we use it
@@ -126,6 +131,7 @@ We process personal data under the EU General Data Protection Regulation (GDPR) 
 | What | Why | Legal basis |
 |---|---|---|
 | Account, profile, encrypted notes, files and versions, devices, AI connections, share links | To provide the service: store and sync your notes, and answer the AI apps you connect | Performance of a contract |
+| Our copy of your notes' key, whether Advanced protection is on, and the log of when the copy was stored, fetched, removed or refused | So that signing in opens your notes on a new device, and so you can be told when a device got your key | Performance of a contract. Advanced protection turns it off |
 | Sign-in records, rate limits, hashed network addresses, request logs | To keep the service secure and stop abuse | Legitimate interests |
 | Reports about shared pages | To review and remove content that breaks our Terms | Legitimate interests, and legal obligations where they apply |
 | Feature usage counts | To learn whether the app works for people and improve it | Legitimate interests |
@@ -137,9 +143,19 @@ We process personal data under the EU General Data Protection Regulation (GDPR) 
 
 We don't use your data for advertising. The only emails about Pinto Notes we send you are the ones described above. We don't make automated decisions about you with legal or similarly significant effects.
 
-## End-to-end encryption
+## Encryption
 
-**What's encrypted.** Your notes, their titles and previews, folder names, file names and files, and every earlier version are encrypted on your iPhone or Mac (AES-256-GCM) with a key only your devices hold, before they're uploaded. iCloud Keychain, which Apple encrypts end to end, carries the key between your iPhone and Mac. Your recovery key is the fallback when a device can't get it from iCloud Keychain. We store only the encrypted copies, and we can't read them. Signing in, with Apple or a password, only identifies you; your password has nothing to do with the key.
+**What's encrypted.** Your notes, their titles and previews, folder names, file names and files, and every earlier version are encrypted on your iPhone or Mac (AES-256-GCM) before they're uploaded, with a key made on your first device. We store the encrypted copies.
+
+**Your key, and our copy of it.** Your devices hold your notes' key, and iCloud Keychain carries it between your iPhone and Mac. By default we keep a copy too: your notes' key and your recovery key, sealed with a secret that is kept in our server's settings and not in the database. We store the copy for one purpose: so that signing in opens your notes on a new device, with no other device and no recovery key. When you sign in on a new device, our server unlocks the copy in memory and sends the key to that device, sealed so that only that device can open it. There is no waiting period, and that includes after a password reset. A device asks for the key right after you sign in. One that has been signed in for more than an hour without your notes asks you to sign in again first.
+
+**What that means.** We could open your notes if we had to, for example under a court order, and so could someone who gets into your account: with your password, by resetting it from your mailbox, or through the Apple or Google account you sign in with. Each time a device gets the key by signing in, every device of yours shows the notice "A new device opened your notes", and we send an email to your account's address. The notice and the email tell you it happened. They don't stop it.
+
+**Who can reach our copy.** Our server uses it only to hand your key to a device that is signed in to your account. The apps can't read the table it is kept in. The secret is a setting that every part of our server can read, so a fault in any part of our server could expose the copies. The sealed copy can't be opened with a copy or a backup of the database alone, because the secret isn't in it. A recent copy of the database also holds sign-in sessions, though, and a session from a sign-in in the last hour can get your key as a device of yours would. We hold both the secret and the database, at Supabase, so whoever runs Pinto Notes could open the copy, and so could someone who took over our hosting account.
+
+**Advanced protection.** **Settings → Security** has this switch. It is off unless you turn it on. To turn it on you need a saved recovery key or another device that has your notes, and for 72 hours after a password reset it can't be turned on. Turning it on deletes our copy at once. With Advanced protection on, your notes are end-to-end encrypted: we can't open them and can't help you back in. A new device gets your key from iCloud Keychain, is added from a device that has your notes, or is opened with your recovery key. If you lose every device and the recovery key, your notes are lost. The exception for AI connections under Limits still applies. Turning Advanced protection off stores a copy again.
+
+**Accounts made before we kept copies.** They were made when only your devices held the key. The app asks such an account once, with a sheet titled "Signing in now opens your notes", on a device that has your notes. **Continue** stores the copy. **Keep my key on my devices only** turns on Advanced protection. Until you answer, nothing is copied and your account stays as it was, with the key only on your devices. Accounts made in a version of the apps that keeps copies are standard from the start.
 
 **What stays readable to us:**
 
@@ -156,13 +172,14 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 - the diagnostics and usage reports described under What we collect;
 - a note you share, while it's shared.
 
-**Limits.** End-to-end encryption doesn't cover everything, and we'd rather say so:
+**Limits.** Encryption doesn't cover everything, and we'd rather say so:
 
+- **Our copy of your key.** Unless Advanced protection is on, we hold a copy of your notes' key, sealed with a secret kept outside the database. We hold both, so we could open your notes, and so could someone who took over our hosting account. The sealed copy can't be opened with a copy of the database alone. A recent copy of the database also holds sign-in sessions, though, and a session from a sign-in in the last hour can get your key as a device of yours would.
 - **AI requests.** While an AI you connected works, our server unlocks your whole notes' key in memory and handles the text the AI asks for (see AI connections). A changed server could copy it.
 - **Apps your AI makes.** To build and check an app, our server sends its code, in readable form, to a render service at Railway, with a stand-in for your note, never the note itself (see Notes that are apps).
 - **The recovery key in the browser.** Approving on pintonotes.com with your recovery key runs our code in your browser. The page never stores the recovery key or your notes' key or sends them to us, but a changed page could read them. When you can, approve from your iPhone or Mac instead.
 - **No key rotation yet.** Your notes' key stays the same for the life of your account.
-- **The database.** Someone running the database can't read your notes, but could roll a note back to an earlier encrypted version, or hide notes from your devices.
+- **The database.** Someone with only an old copy of the database can't read your notes. With a recent one they might, where we keep a copy of your key: it holds sign-in sessions, and one from a sign-in in the last hour can get the key. Someone running the live database could roll a note back to an earlier encrypted version, or hide notes from your devices. Where we keep a copy of your key, they could also sign in as you and get it, as a new device of yours would.
 
 ## AI connections
 
@@ -191,7 +208,7 @@ In versions of the apps after 1.2.3, a note can hold a small app (a habit tracke
 
 ## Shared notes
 
-- A note you share becomes a web page at pintonotes.com. Your device publishes a readable copy of it for the page, and that copy is stored on our server. So the shared note isn't end-to-end encrypted while it's shared: anyone with the link can read it, and so can we, until you stop sharing. Changes, including an AI's, show on the page after your device's next sync. Anyone with the link can read it without signing in, and the link may be passed on.
+- A note you share becomes a web page at pintonotes.com. Your device publishes a readable copy of it for the page, and that copy is stored on our server. That copy isn't encrypted: anyone with the link can read it, and so can we, until you stop sharing. Changes, including an AI's, show on the page after your device's next sync. Anyone with the link can read it without signing in, and the link may be passed on.
 - The page shows the note, your profile name and photo, and your email address unless it's an Apple relay address.
 - Shared pages are hidden from search engines.
 - **Stop Sharing** takes the page down at once and deletes the readable copy. Images and files on a shared page are served through links that expire after an hour.
@@ -214,7 +231,7 @@ In versions of the apps after 1.2.3, a note can hold a small app (a habit tracke
 
 Your encrypted notes and files are stored only at Supabase, in Frankfurt. Supabase processes them only on our instructions. Our server functions do their work in Frankfurt too. A request to one enters Supabase's network at the location nearest whoever sent it, which can be outside the EU, and is passed to Frankfurt, where it is handled. If Frankfurt can't be reached, a request that only reads is answered where it arrived, and a request that changes something fails so it can be tried again. Vercel handles requests to the website on their way through: it sees a shared note while it shows the page, and the requests AI apps send to mcp.ambernotes.app, including the text of the notes they read or write, but it doesn't store your notes. Either company's support staff could access data from outside the EU; those transfers are covered as the table says.
 
-On top of end-to-end encryption, all data travels encrypted (HTTPS), and Supabase encrypts its disks (AES-256). Each account can only reach its own data: the database enforces this on every request.
+On top of the encryption on your devices, all data travels encrypted (HTTPS), and Supabase encrypts its disks (AES-256). Each account can only reach its own data: the database enforces this on every request.
 
 ## Logs
 
@@ -232,6 +249,8 @@ Our hosting providers keep logs of the requests that reach them. We can't turn t
 
 Rate limits on sign-in and connection requests count a one-way hash of the IP address, made with a key that changes every day, and delete it after 2 hours.
 
+In our own database we keep a log of each time our copy of your notes' key was stored, fetched by a device or removed, and each time a request for it was refused: the time and the kind of device, for 12 months (see Encryption).
+
 ## How long we keep it
 
 - **Notes you delete** stay in Recently Deleted for 30 days, then they're deleted for good, together with their earlier versions and share links. This happens on our server even if you never open the app again.
@@ -247,7 +266,7 @@ Rate limits on sign-in and connection requests count a one-way hash of the IP ad
 - **Website counts:** page view counts stay at Vercel, and clicks and scroll depth at PostHog, for as long as their plans keep them (at least a month). Daily download totals hold nothing about a person and are kept.
 - **Session replays,** only if you accept: kept at PostHog for 30 days, then deleted.
 - **The website's cookie,** only if you accept: PostHog's cookie expires a year after your last visit, or when you choose Reject. Your answer to the cookie banner stays in your browser until you clear its data.
-- **Your notes' key, locked:** the copy locked with your recovery key is kept until you delete your account or start fresh; each AI connection's copy is deleted when you disconnect it.
+- **Your notes' key, locked:** the copy locked with your recovery key is kept until you delete your account or start fresh; our own copy until you turn on Advanced protection, start fresh or delete your account; each AI connection's copy is deleted when you disconnect it. The log of when our copy was stored, fetched, removed or refused is kept for 12 months. Whether Advanced protection is on is kept until you delete your account.
 - **Browser approvals:** the approval sealed to a browser is kept until the browser picks it up, and the request expires after 10 minutes.
 - **Backups:** our current hosting plan keeps no backups of the database, so what's deleted is gone. If that changes, a backup would hold only the encrypted copies and the locked copies of your key, for the period this policy states.
 
@@ -258,7 +277,7 @@ Under the GDPR you can:
 - **access** your data and get a copy of it;
 - **correct** it (most of it you can edit directly in the app);
 - **delete** it, in the app with **Delete Account** or by asking us;
-- **take it with you:** **Settings → Privacy & Security → Export Your Notes** makes a zip on your device with every note as Markdown in its folder, with its files. We can't read your notes, so only your device can export them. Ask us for everything else we keep about you, and we'll send it as JSON;
+- **take it with you:** **Settings → Privacy & Security → Export Your Notes** makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. Ask us for everything else we keep about you, and we'll send it as JSON;
 - **object** to processing based on legitimate interests, including the feature usage counts and the diagnostics and usage reports (which you can also turn off in Settings), or ask us to **restrict** it.
 
 Write to **hello@pintonotes.com**. We answer within one month. If you think we've handled your data wrongly, you can complain to the Swedish Authority for Privacy Protection (Integritetsskyddsmyndigheten, IMY) at imy.se, or to the data protection authority where you live.
@@ -283,7 +302,7 @@ Pinto Notes isn't directed at children under 13, or in the EU under the age your
 
 ## Security
 
-We encrypt your notes end to end on your devices, encrypt data in transit, store passwords and access tokens only as one-way hashes, limit each account to its own data at the database level, and rate-limit sign-in and connection endpoints. The code is open source, so anyone can check how it works. No system is perfectly secure. If something goes wrong that affects you, we'll tell you as the law requires.
+We encrypt your notes on your devices, encrypt data in transit, store passwords and access tokens only as one-way hashes, limit each account to its own data at the database level, and rate-limit sign-in and connection endpoints. The code is open source, so anyone can check how it works. No system is perfectly secure. If something goes wrong that affects you, we'll tell you as the law requires.
 
 ## Changes to this policy
 

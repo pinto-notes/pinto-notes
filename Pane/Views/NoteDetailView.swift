@@ -1093,18 +1093,20 @@ struct NoteDetailView: View {
     #if os(iOS)
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // The floating buttons in the label colour, not the accent (Emil, 28 October 2026): the
+        // accent is for the caret, ticks, selection and links.
         ToolbarItem(placement: .bottomBar) {
-            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden || trashed)
+            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden || trashed).tint(.primary)
         }
         ToolbarItem(placement: .bottomBar) {
-            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed)
+            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed).tint(.primary)
         }
         ToolbarItem(placement: .bottomBar) {
-            attachMenu.disabled(trashed)
+            attachMenu.disabled(trashed).tint(.primary)
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
-            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }.tint(.primary)
         }
         if showingPage, let receipt {
             ToolbarItem(placement: .principal) {
@@ -1117,7 +1119,16 @@ struct NoteDetailView: View {
         if let collab {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
-        ToolbarItem(placement: .primaryAction) { moreMenu }
+        // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
+        ToolbarItemGroup(placement: .primaryAction) {
+            if !note.isLocked {
+                Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
+                    .disabled(trashed)
+                    .tint(.primary)
+                    .accessibilityIdentifier("editor.share")
+            }
+            moreMenu.tint(.primary)
+        }
     }
     #endif
 
@@ -1256,8 +1267,7 @@ enum NoteMoreMenu {
         var rest: [Item] = [.moveTo]
         if nested { rest.append(.moveOut) }
         if linkedFrom { rest.append(.linkedFrom) }
-        // On iPhone and iPad sharing lives in this menu; the Mac has its own toolbar button.
-        if phone, !locked { rest.append(.share) }
+        // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked { rest.append(.history) }
         rest.append(.delete)
         return [about, rest]

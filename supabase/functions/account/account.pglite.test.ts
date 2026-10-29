@@ -82,6 +82,8 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, 'standard')`, [me]);
   await pg.query(`insert into public.account_key_copies (user_id, key_id, sealed, secret_version) values ($1, $2, 'amb2k.1.c2VhbGVkLWNvcHk=', 1)`, [me, a.keyId]);
   await pg.query(`insert into public.key_copy_events (user_id, what, platform) values ($1, 'stored', 'ios')`, [me]);
+  // The Welcome note was claimed (claim_welcome_note).
+  await pg.query(`insert into public.account_welcome (user_id) values ($1) on conflict do nothing`, [me]);
   await pg.query(`insert into public.key_copy_tickets (hash, user_id) values (md5($1::uuid::text) || md5($1::uuid::text), $1::uuid)`, [me]);
   await pg.query(`insert into public.device_tokens (user_id, device_id, platform, token, environment) values ($1, gen_random_uuid(), 'ios', $2, 'sandbox')`, [me, crypto.randomUUID().replaceAll('-', '').repeat(2)]);
   await pg.query(`insert into public.device_adds (id, user_id, device_id, platform, public_key, key_id, scan_hash, scan_tag, scan_name, code_hash, code_tag, code_name, pickup_hash)

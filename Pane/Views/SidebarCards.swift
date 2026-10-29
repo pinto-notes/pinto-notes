@@ -7,7 +7,18 @@ import SwiftUI
 /// marks on the server (`connect_card_closed`, `templates_closed`). Never during the first-run
 /// flow, which has the whole window.
 enum SidebarCard: Equatable {
+    /// iPhone and iPad, before the others, for an account that has never had a Mac: importing
+    /// and connecting an AI happen in the Mac app (the iPhone has no first-run steps).
+    case mac
     case connect, templates
+
+    static var onMac: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
 
     /// Below this the folders need the room, so no card.
     static let minimumSidebarHeight: CGFloat = 540
@@ -15,24 +26,42 @@ enum SidebarCard: Equatable {
     /// Which card, if any. Nothing until the server has said what the account has done, so a
     /// card never flashes and swaps.
     static func pick(account: UUID?, progress: SetupProgress?, connectClosedHere: Bool, templatesClosedHere: Bool,
-                     sidebarHeight: CGFloat, largestText: Bool = false,
+                     sidebarHeight: CGFloat, largestText: Bool = false, mac: Bool = SidebarCard.onMac,
+                     hasHadMac: Bool? = nil, macClosedHere: Bool = false,
                      arguments: [String] = ProcessInfo.processInfo.arguments) -> SidebarCard? {
         // At the largest text sizes the folders need every row of the screen.
         guard account != nil, let progress, !largestText, sidebarHeight >= minimumSidebarHeight, !arguments.contains("-uitest") else { return nil }
+        // Only once the devices list has said there's no Mac (nil: not known yet), so it never
+        // flashes for someone who has one.
+        if !mac, hasHadMac == false, !macClosedHere { return .mac }
         if !progress.connected, !progress.connectCardClosed, !connectClosedHere { return .connect }
         if !progress.templatesClosed, !templatesClosedHere { return .templates }
         return nil
     }
 
-    var mark: String {
+    /// The setup mark that closes it on the account's other devices. The Mac card has none: it
+    /// only shows on iPhone and iPad, and closing it there is enough.
+    var mark: String? {
         switch self {
+        case .mac: nil
         case .connect: "connect_card_closed"
         case .templates: "templates_closed"
         }
     }
 
     static func closedKey(_ card: SidebarCard, _ account: UUID) -> String {
-        "\(card == .connect ? "connectCard" : "templatesCard").closed.\(account.uuidString.lowercased())"
+        let name = switch card {
+        case .mac: "macCard"
+        case .connect: "connectCard"
+        case .templates: "templatesCard"
+        }
+        return "\(name).closed.\(account.uuidString.lowercased())"
+    }
+
+    /// Has the account ever had a Mac, by the devices that hold its key? nil until they're known.
+    static func hasHadMac(loaded: Bool, others: [KeyDevice]) -> Bool? {
+        guard loaded else { return nil }
+        return others.contains { $0.platform == "macos" }
     }
 
     static func isClosedHere(_ card: SidebarCard, _ account: UUID, defaults: UserDefaults = .standard) -> Bool {
@@ -41,6 +70,82 @@ enum SidebarCard: Equatable {
 
     static func closeHere(_ card: SidebarCard, _ account: UUID, defaults: UserDefaults = .standard) {
         defaults.set(true, forKey: closedKey(card, account))
+    }
+}
+
+enum MacCardWords {
+    static let title = "Get Pinto Notes on your Mac"
+    static let line = "Import your notes and connect your AI there. They show up here a moment later."
+    static let button = "Send the Mac link to myself"
+}
+
+/// "Get Pinto Notes on your Mac": the app's icon, the words, and one tinted button that opens
+/// the share sheet with the download link, to send to yourself. It sits right under the folders
+/// (not at the foot, where the other cards are) and closes for good.
+struct MacCard: View {
+    let onClose: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                AppMark(size: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(MacCardWords.title)
+                        .font(.headline)
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(MacCardWords.line)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.muted)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.9)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // Clear of the close button.
+                .padding(.trailing, 22)
+            }
+            ShareLink(item: Self.download, subject: Text("Pinto Notes for Mac"), message: Text("Pinto Notes for Mac")) {
+                Label(MacCardWords.button, systemImage: "square.and.arrow.up")
+                    .foregroundStyle(Color.amberInk)
+            }
+            // The design system's secondary button (DESIGN.md, Buttons): a soft fill, under the
+            // one amber button a screen may have.
+            .buttonStyle(.secondary(.form, wide: true))
+            .accessibilityIdentifier("sidebar.mac.open")
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        #if os(iOS)
+        .background(Color(Palette.row), in: shape)
+        #else
+        .background(Color.card, in: shape)
+        #endif
+        .overlay(alignment: .topTrailing) {
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close \(MacCardWords.title)")
+            .accessibilityHint("Hides this for good")
+            .accessibilityIdentifier("sidebar.mac.close")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("sidebar.mac")
+    }
+
+    static var download: URL {
+        #if os(iOS)
+        OnboardingFlow.macDownload
+        #else
+        URL(string: "https://pintonotes.com/download")!
+        #endif
     }
 }
 
@@ -144,16 +249,15 @@ struct SidebarCardShell<Art: View>: View {
     /// button in the corner is its own button, on top, so a click there only closes.
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
-        Button(action: action) {
-            content
-                .padding(.leading, Metrics.padding)
-                .padding(.top, Metrics.padding)
-                .padding(.bottom, Metrics.padding - 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.fill.quaternary, in: shape)
-                .hoverOverlay(shape, Color.primary.opacity(0.05))
-                .contentShape(shape)
-        }
+        let label = content
+            .padding(.leading, Metrics.padding)
+            .padding(.top, Metrics.padding)
+            .padding(.bottom, Metrics.padding - 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.fill.quaternary, in: shape)
+            .hoverOverlay(shape, Color.primary.opacity(0.05))
+            .contentShape(shape)
+        Button(action: action) { label }
         .buttonStyle(CardPress())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .clipShape(shape)

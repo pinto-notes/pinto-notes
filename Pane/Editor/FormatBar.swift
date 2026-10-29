@@ -104,6 +104,9 @@ final class FormatBarHost: UIView {
 
     init(controller: EditorController, dismiss: @escaping () -> Void) {
         host = UIHostingController(rootView: FormatBar(controller: controller, dismiss: dismiss))
+        // The accessory sits on the keyboard: the bar mustn't make room for the keyboard or the
+        // home indicator again on top of that (it stood 84 pt above the keyboard; Notes' is about 8).
+        host.safeAreaRegions = []
         super.init(frame: CGRect(x: 0, y: 0, width: 390, height: 60))
         autoresizingMask = .flexibleHeight
         backgroundColor = .clear

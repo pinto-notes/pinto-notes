@@ -151,6 +151,14 @@ final class KeyDevices {
     private(set) var others: [KeyDevice] = []
     /// The list was read at least once for this account.
     private(set) var loaded = false
+
+    #if DEBUG
+    /// Captures: the account's other devices as known, without a server.
+    func showForPreview(others: [KeyDevice]) {
+        self.others = others
+        loaded = true
+    }
+    #endif
     private var account: UUID?
     private var server: KeyDeviceServer?
     private var refreshing = false

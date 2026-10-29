@@ -12,6 +12,9 @@ final class EditorController {
     var isEditing = false
     /// A note in Recently Deleted: shown, not changed (like Notes). Recover it to edit.
     var readOnly = false
+    /// Read-only, but its checkboxes still tick (the iPhone's welcome note, ticked by hand while
+    /// it's being written). Ticked items stay where they are.
+    var ticksWhileReadOnly = false
     /// Room kept free under the note's last line for something laid over the bottom (iPhone
     /// tips), so the text can always scroll clear of it.
     var bottomReserve: CGFloat = 0

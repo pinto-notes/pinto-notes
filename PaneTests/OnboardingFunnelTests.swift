@@ -9,10 +9,23 @@ extension FunnelTests {
         private var justNow: Date { now.addingTimeInterval(-30) }
 
         private func started(_ defaults: UserDefaults = TestDefaults()) -> OnboardingStore {
-            let s = OnboardingStore(defaults: defaults)
+            let s = OnboardingStore(defaults: defaults, steps: Onboarding.steps(mac: true))
             s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
             s.settle(accountIsNew: true, progress: SetupProgress())
             return s
+        }
+
+        /// iPhone and iPad have no steps: a new account that has signed in counts as finished,
+        /// and nothing else is said.
+        @Test func withoutStepsANewAccountCountsAsFinished() {
+            let steps = FunnelSteps()
+            steps.watch {
+                let s = OnboardingStore(defaults: TestDefaults(), steps: Onboarding.steps(mac: false))
+                s.attach(account: UUID(), created: justNow, holdsNothing: true, now: now)
+                s.settle(accountIsNew: true, progress: SetupProgress())
+            }
+            #expect(steps.count(.onboardingStep(.done, .shown)) == 1)
+            #expect(steps.events.count == 1)
         }
 
         @Test func eachScreenIsShownOnceAndLeftOnce() {
@@ -57,19 +70,19 @@ extension FunnelTests {
         @Test func aResumedFlowIsShownAgainWhereItWas() {
             let defaults = TestDefaults()
             let account = UUID()
-            let first = OnboardingStore(defaults: defaults)
+            let first = OnboardingStore(defaults: defaults, steps: Onboarding.steps(mac: true))
             first.attach(account: account, created: justNow, holdsNothing: true, now: now)
             first.settle(accountIsNew: true, progress: SetupProgress())
             first.advance(connected: false)
             let steps = FunnelSteps()
             steps.watch {
-                OnboardingStore(defaults: defaults).attach(account: account, created: justNow, holdsNothing: false, now: now)
+                OnboardingStore(defaults: defaults, steps: Onboarding.steps(mac: true)).attach(account: account, created: justNow, holdsNothing: false, now: now)
             }
             #expect(steps.events == [.onboardingStep(.bring, .shown)])
         }
 
         @Test func aReplayFromHelpSaysNothing() {
-            let s = OnboardingStore(defaults: TestDefaults())
+            let s = OnboardingStore(defaults: TestDefaults(), steps: Onboarding.steps(mac: true))
             s.attach(account: UUID(), created: nil, holdsNothing: false, now: now)
             let steps = FunnelSteps()
             steps.watch {

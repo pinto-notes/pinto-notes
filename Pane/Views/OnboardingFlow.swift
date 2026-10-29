@@ -307,8 +307,8 @@ struct OnboardingFlow: View {
     /// Short segments (your name, your notes, your AI; two when the name was known): amber for
     /// the ones behind you, a light amber for the one you're on (`Onboarding.segments`).
     private var progress: some View {
-        let segments = Onboarding.segments(on: step, first: store.first)
-        let steps = Onboarding.Step.counted(from: store.first)
+        let segments = Onboarding.segments(on: step, first: store.first, in: store.steps)
+        let steps = Onboarding.Step.counted(from: store.first, in: store.steps)
         let done = step == .tryIt ? steps.count : (steps.firstIndex(of: step) ?? 0) + 1
         return HStack(spacing: 4) {
             ForEach(segments.indices, id: \.self) { i in

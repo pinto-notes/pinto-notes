@@ -779,6 +779,27 @@ final class AppSession {
         let nameKnown = isNew ? await ProfileStore.shared.settleNewAccountName(backend) != nil : false
         onboarding.settle(accountIsNew: isNew, progress: setup.progress, nameKnown: nameKnown)
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) after the first sync (new \(isNew, privacy: .public), setup behind it \(Onboarding.alreadySetUp(self.setup.progress), privacy: .public))")
+        await writeWelcomeNote(user)
+    }
+
+    /// The account's Welcome note, if this device is the one to write it (WelcomeNote): once per
+    /// account, never for an account from before. Its to-do already asks for the Mac, so the Mac
+    /// card stays away for it.
+    private func writeWelcomeNote(_ user: UUID) async {
+        guard let client = backend.client else { return }
+        let context = self.context
+        let id = await WelcomeNote.settle(account: user, claim: {
+            let won: Bool = try await client.rpc("claim_welcome_note").execute().value
+            return won
+        }, write: { body in
+            let note = context.createNote(in: .all, body: body)
+            SyncSignal.changed()
+            return note.id
+        })
+        if id != nil { SidebarCard.closeHere(.mac, user) }
+        #if os(iOS)
+        WelcomeHandoff.shared.settled(id)
+        #endif
     }
 
     /// Another device with the key removed this one: its copy of the notes and of the key go,
@@ -886,6 +907,21 @@ struct AppGate: View {
                 gate
             }
         }
+        #if os(iOS)
+        // After a sign-in from the welcome note: the note folds into its row, or slides away.
+        .overlay {
+            if WelcomeHandoff.shared.phase != .idle, case .signedIn = backend.state {
+                WelcomeHandoffOverlay()
+            }
+        }
+        // Only a key that needs the person takes the screen from the note (a new account's key,
+        // made here, needs nobody).
+        .onChange(of: handingOff && Self.keyNeedsPerson(crypto), initial: true) { _, needs in if needs { WelcomeHandoff.shared.leave() } }
+        .onChange(of: Self.welcomesSilently(handingOff: handingOff, phase: crypto.phase, needsWelcome: crypto.needsWelcome,
+                                            arrivedHow: crypto.arrivedHow), initial: true) { _, silent in
+            if silent { crypto.welcomeShown() }
+        }
+        #endif
         .sheet(item: $consent) { r in
             ConsentSheet(client: CaptureScreen.client, requestID: r.id, initial: .asking(r), finish: { _ in })
         }
@@ -899,11 +935,42 @@ struct AppGate: View {
     /// The notes stay closed until this device has the account's key; the first time it does,
     /// one screen says what that means. Just signed in, before the key check has started, it's
     /// the key screen too (the library flashed by for a few frames).
-    private var keyGateShown: Bool { Self.keyGateShown(crypto: crypto, backend: backend) }
+    private var keyGateShown: Bool { Self.keyGateShown(crypto: crypto, backend: backend, handingOff: handingOff) }
 
-    static func keyGateShown(crypto: AccountCrypto, backend: Backend) -> Bool {
-        (crypto.phase != .ready && crypto.phase != .off) || crypto.needsWelcome
-            || (backend.client != nil && crypto.account != backend.userID)
+    /// A sign-in from the iPhone's welcome note is under way (WelcomeHandoff): the note stays on
+    /// the screen until it folds into the list, and the key screens stay behind it unless the key
+    /// needs the person.
+    private var handingOff: Bool { [.waiting, .opening].contains(WelcomeHandoff.shared.phase) }
+
+    static func keyGateShown(crypto: AccountCrypto, backend: Backend, handingOff: Bool = false) -> Bool {
+        gateShown(phase: crypto.phase, needsWelcome: crypto.needsWelcome,
+                  keyIsAccounts: backend.client == nil || crypto.account == backend.userID,
+                  handingOff: handingOff, needsPerson: keyNeedsPerson(crypto))
+    }
+
+    /// The key screen's rule, on its facts. Without a hand-off: whenever the key isn't open yet,
+    /// "Your notes are encrypted" is still to say, or the key open is another account's. During
+    /// one, only when the person has something to do.
+    static func gateShown(phase: AccountCrypto.Phase, needsWelcome: Bool, keyIsAccounts: Bool, handingOff: Bool, needsPerson: Bool) -> Bool {
+        let gate = (phase != .ready && phase != .off) || needsWelcome || !keyIsAccounts
+        return gate && (!handingOff || needsPerson)
+    }
+
+    /// The key is waiting on the person: another device or the recovery key (an account from
+    /// before, on a new device), a yes before a key is fetched, a fresh sign-in, or an account
+    /// that's gone. A key being made or fetched by itself needs nobody.
+    static func keyNeedsPerson(_ crypto: AccountCrypto) -> Bool {
+        keyNeedsPerson(phase: crypto.phase, asksBeforeFetch: crypto.asksBeforeFetch != nil, needsSignIn: crypto.needsSignIn)
+    }
+
+    static func keyNeedsPerson(phase: AccountCrypto.Phase, asksBeforeFetch: Bool, needsSignIn: Bool) -> Bool {
+        [.waiting, .mismatch, .accountGone].contains(phase) || asksBeforeFetch || needsSignIn
+    }
+
+    /// A new account's key, made on this device during a sign-in from the welcome note: "Your
+    /// notes are encrypted" isn't shown (Settings, Privacy says it), only marked as said.
+    static func welcomesSilently(handingOff: Bool, phase: AccountCrypto.Phase, needsWelcome: Bool, arrivedHow: KeyHow?) -> Bool {
+        handingOff && phase == .ready && needsWelcome && arrivedHow == .made
     }
 
     /// The window is the card from the welcome until the notes open.

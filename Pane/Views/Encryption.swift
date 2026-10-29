@@ -4,7 +4,7 @@ import SwiftUI
 /// After sign-in, before the notes, while this device doesn't have the account's key: a code for
 /// a device that has it to scan (Add a device), with the recovery key and iCloud Keychain as the
 /// other ways, and (last) starting fresh. Then, once per account on each device, "Your notes are
-/// encrypted". Styled like the sign-in card.
+/// encrypted". On iPhone it sits on the warm ground like the sign-in screens; on the Mac, in the welcome's card.
 struct KeyGateView: View {
     let crypto: AccountCrypto
     let backend: Backend
@@ -87,13 +87,14 @@ struct KeyGateView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(for: .window) { Backdrop() }
         #else
+        // Straight on the warm ground, like the sign-in screens: no card in a border around it
+        // (Emil, 28 October 2026: "these are ugly screens").
         ScrollView {
             card
-                .padding(28)
-                .frame(minWidth: 300, maxWidth: 400)
-                .glassEffect(.regular, in: .rect(cornerRadius: 28))
-                .padding(20)
-                .padding(.top, 20)
+                .padding(.horizontal, 24)
+                .padding(.top, 48)
+                .padding(.bottom, 24)
+                .frame(maxWidth: WelcomeFlow.readableWidth)
                 .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)

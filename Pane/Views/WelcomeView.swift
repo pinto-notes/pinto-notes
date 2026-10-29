@@ -89,6 +89,23 @@ struct WelcomeFlow: View {
         .frame(minWidth: Self.size.width, maxWidth: .infinity, minHeight: 540, idealHeight: Self.size.height, maxHeight: .infinity)
         .background { Backdrop() }
         #else
+        ZStack {
+            if stage == .welcome, !farewell {
+                // The welcome is a note being written, the way in at the foot of it (WelcomeNoteView).
+                WelcomeNoteView(backend: backend, useEmail: { stage = .signIn(returning: false) })
+                    .transition(.opacity)
+            } else {
+                classic.transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.35), value: stage)
+        .background { Backdrop() }
+        #endif
+    }
+
+    #if os(iOS)
+    /// The farewell after deleting an account, and sign-in: the picture on top, the words under it.
+    private var classic: some View {
         Group {
             if stage == .welcome {
                 // The picture fills the top; the way in stays at the bottom, where the thumb is.
@@ -130,9 +147,8 @@ struct WelcomeFlow: View {
         .ignoresSafeArea(.container, edges: .top)
         // Over the picture, but under the status bar: the overlay keeps the safe area.
         .overlay(alignment: .topLeading) { phoneBack }
-        .background { Backdrop() }
-        #endif
     }
+    #endif
 
     // MARK: The words side
 
