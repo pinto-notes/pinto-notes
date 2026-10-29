@@ -103,7 +103,7 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 260, max: 360)
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -115,7 +115,7 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                .navigationSplitViewColumnWidth(min: 260, ideal: 310, max: 420)
+                .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 .navigationSplitViewColumnWidth(min: typeSize.isAccessibilitySize ? 340 : 260, ideal: typeSize.isAccessibilitySize ? 380 : 310, max: 420)

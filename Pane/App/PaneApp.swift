@@ -204,7 +204,7 @@ struct PaneApp: App {
         }
         .modelContainer(container)
         #if os(macOS)
-        .defaultSize(width: 1180, height: 760)
+        .defaultSize(WindowFrameMemory.defaultSize(on: NSScreen.main?.visibleFrame.size))
         // Test and capture runs always start with the notes window, whatever was saved last time.
         // The notes window opens where WindowFrameMemory says, every launch: macOS's own window
         // restoration put it somewhere first, and then it moved.
@@ -216,7 +216,8 @@ struct PaneApp: App {
             // Test runs can ask for a width: `-uitest -width 820`.
             let args = ProcessInfo.processInfo.arguments
             let asked = args.contains("-uitest") ? args.firstIndex(of: "-width").flatMap { args.indices.contains($0 + 1) ? Double(args[$0 + 1]) : nil } : nil
-            let size = CGSize(width: min(asked ?? 1180, screen.width - 80), height: min(760, screen.height - 80))
+            var size = WindowFrameMemory.defaultSize(on: screen.size)
+            if let asked { size.width = min(asked, screen.width - 80) }
             return WindowPlacement(CGPoint(x: screen.midX - size.width / 2, y: screen.midY - size.height / 2), size: size)
         }
         .windowResizability(.contentSize)
@@ -274,21 +275,38 @@ import AppKit
 /// The sign-in card is never remembered.
 enum WindowFrameMemory {
     static let key = "notesWindowFrame"
-    static let defaultSize = CGSize(width: 1180, height: 760)
+    /// The default before it grew with the screen, and still the smallest default.
+    static let smallDefault = CGSize(width: 1180, height: 760)
+    /// The largest default, for big displays: past this a notes window is mostly empty space.
+    static let largeDefault = CGSize(width: 1600, height: 1000)
+
+    /// The notes window's size when nothing is saved: like Notes, most of the screen, centred
+    /// (85% of its width, 88% of its height). 1285×835 on a 14" MacBook Pro, 1469×954 at its
+    /// More Space setting, 1600×1000 on a 27" display; never under 1180×760 unless the screen is.
+    static func defaultSize(on screen: CGSize?) -> CGSize {
+        guard let screen, screen.width > 0, screen.height > 0 else { return smallDefault }
+        func side(_ length: CGFloat, _ share: CGFloat, _ small: CGFloat, _ large: CGFloat) -> CGFloat {
+            (min(max(length * share, small), large, length - 80)).rounded()
+        }
+        return CGSize(width: side(screen.width, 0.85, smallDefault.width, largeDefault.width),
+                      height: side(screen.height, 0.88, smallDefault.height, largeDefault.height))
+    }
+
     /// The notes window's smallest size (its contentMinSize, plus the title bar).
     static let minimum = CGSize(width: 760, height: 520)
 
     /// The saved frame if enough of it is on a screen you still have; otherwise the default, centred.
     static func frame(saved: CGRect?, screens: [CGRect], main: CGRect) -> CGRect {
         // Anything smaller than the notes window's minimum is the sign-in card, never a real choice.
-        if let saved, saved.width >= minimum.width, saved.height >= minimum.height,
+        // A window still at the old fixed default was never resized: it gets the new default.
+        if let saved, saved.width >= minimum.width, saved.height >= minimum.height, saved.size != smallDefault,
            let screen = screens.max(by: { area($0.intersection(saved)) < area($1.intersection(saved)) }),
            area(screen.intersection(saved)) >= min(area(saved) * 0.5, 200 * 150),
            // The title bar has to be reachable, or you couldn't move the window back.
            screen.intersects(CGRect(x: saved.minX, y: saved.maxY - 28, width: saved.width, height: 28)) {
             return saved
         }
-        let size = CGSize(width: min(defaultSize.width, main.width - 80), height: min(defaultSize.height, main.height - 80))
+        let size = defaultSize(on: main.size)
         return CGRect(x: main.midX - size.width / 2, y: main.midY - size.height / 2, width: size.width, height: size.height)
     }
 
@@ -348,8 +366,8 @@ enum CardWindow {
     /// The notes window that grows out of the card after signing in: where the card is, at the
     /// notes window's remembered size (or the default).
     static func notesFrame(from card: CGRect, saved: CGRect?, screen: CGRect?) -> CGRect {
-        let fits = saved.map { $0.width >= WindowFrameMemory.minimum.width && $0.height >= WindowFrameMemory.minimum.height } ?? false
-        return resized(card, to: fits ? saved!.size : WindowFrameMemory.defaultSize, on: screen)
+        let fits = saved.map { $0.width >= WindowFrameMemory.minimum.width && $0.height >= WindowFrameMemory.minimum.height && $0.size != WindowFrameMemory.smallDefault } ?? false
+        return resized(card, to: fits ? saved!.size : WindowFrameMemory.defaultSize(on: screen?.size), on: screen)
     }
 }
 

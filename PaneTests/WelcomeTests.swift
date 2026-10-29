@@ -83,7 +83,7 @@ import AppKit
                   + " -> notes before \(NSStringFromRect(before)), after \(NSStringFromRect(notes)) -> card \(NSStringFromRect(back))")
             #expect(notes.maxY == card.maxY, "the top edge stays put")
             #expect(notes.midX == card.midX, "the centre stays put")
-            #expect(notes.size == (remembered?.size ?? WindowFrameMemory.defaultSize), "the notes keep their size")
+            #expect(notes.size == (remembered?.size ?? WindowFrameMemory.defaultSize(on: screen.size)), "the notes keep their size")
             #expect(back == card, "signing out brings back the same card")
         }
     }
