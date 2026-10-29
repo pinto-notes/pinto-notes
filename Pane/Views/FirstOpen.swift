@@ -189,7 +189,7 @@ struct FirstOpenContent: View {
                     .accessibilityLabel("Copy: \(ask)")
                     .accessibilityIdentifier("firstOpen.ask")
                 }
-                if connected == false {
+                if FirstOpenContent.offersConnect(connected: connected) {
                     Button("Connect an AI") { connecting = true }
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(Color.amberInk)
@@ -209,6 +209,11 @@ struct FirstOpenContent: View {
         NSPasteboard.general.setString(text, forType: .string)
         #endif
         withAnimation(.smooth) { copied = true }
+    }
+
+    /// "Connect an AI" under the ask, without an AI: the Mac's only (ConnectHere). On iPhone, Settings.
+    static func offersConnect(connected: Bool?, mac: Bool = ConnectHere.onMac) -> Bool {
+        connected == false && ConnectHere.nudges(mac: mac)
     }
 
     private func check() async {

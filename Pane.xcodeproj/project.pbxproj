@@ -112,6 +112,7 @@
 		1D85DDF8E80172F67681E6BE /* FormerSubNotesSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 511426CD6526438E90CD7B2D /* FormerSubNotesSnapshots.swift */; };
 		1E19A90801FFFD1FDEBB3653 /* EvernoteImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0FD3EFDF28989E46C2DEBCE /* EvernoteImportTests.swift */; };
 		1E19B6337684163C3FE00914 /* LinkDeviceFunnelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35376C9E24B64FCEDB9BCA2E /* LinkDeviceFunnelTests.swift */; };
+		1E8A3D3A5741E9ADABE66374 /* ConnectOnMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC438BD287857509B0345BE3 /* ConnectOnMac.swift */; };
 		1F3920D5C81239B5851606C5 /* habit-tracker.json in Resources */ = {isa = PBXBuildFile; fileRef = DEDD1370565EF6AB3859F03B /* habit-tracker.json */; };
 		1F5D963CC8E14DFBC65B906D /* sunset.webp in Resources */ = {isa = PBXBuildFile; fileRef = 233EDFD11A3301976CFE967B /* sunset.webp */; };
 		1F64CBC13E4B5B9791B34A55 /* TelemetryDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D0EF12121044139ED543 /* TelemetryDiagnostics.swift */; };
@@ -220,6 +221,7 @@
 		4299C66147CB91F133747E6E /* LockedNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E829D2CD7ABD9B9531761D /* LockedNotes.swift */; };
 		4317173F1496865E53725B90 /* FileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A027634B929FE900803A6537 /* FileExport.swift */; };
 		43DDC9564543E17219D2D8C2 /* HeardFromSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 449E501D19F7AB860CA38215 /* HeardFromSnapshots.swift */; };
+		43E8DD34AC58272ECB351FB5 /* ConnectOnMacTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51F46BEBBA374A2A5D8E4CCA /* ConnectOnMacTests.swift */; };
 		4430BD8F09B8AF0C608223C2 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA33BB2FFE541AC66F2A224 /* SidebarView.swift */; };
 		44663312BF55734D4ECF6555 /* SignOutRemovalSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F69910B21B087593045DD7 /* SignOutRemovalSyncTests.swift */; };
 		44B3FAAC19C20D8B7D45688A /* AppIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2916AFC1F3D0B78C58824A3 /* AppIdentity.swift */; };
@@ -440,6 +442,7 @@
 		8E48ECB8D6700699E9BB1E1C /* PasswordFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FE7BB86935ED6B278E0039C /* PasswordFieldTests.swift */; };
 		8ECA91B165546874C105D6C5 /* SignOutRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A5487F72AC7A7609DBCEE7B /* SignOutRemovalTests.swift */; };
 		8F8A11962EC3B8860169C41E /* note-pages in Resources */ = {isa = PBXBuildFile; fileRef = 3C4E1DE16E31E18A753492A3 /* note-pages */; };
+		8FAF731200091329505E1901 /* ConnectOnMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC438BD287857509B0345BE3 /* ConnectOnMac.swift */; };
 		8FBE070B0E927789EA852C24 /* firstopen-apps.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 340C1ACA339E15FD7AEDC2FA /* firstopen-apps.jpg */; };
 		901131A181463954A80C697B /* TypedTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB0FAF5FA660EBD5F3003ED /* TypedTableTests.swift */; };
 		903B64219EF55BDD44E49277 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5565EB367045469002EA399A /* PrivacyInfo.xcprivacy */; };
@@ -473,6 +476,7 @@
 		992872A37D586E84420A3093 /* Info-Direct.plist in Resources */ = {isa = PBXBuildFile; fileRef = 205EB78628F64ADE88A5BF62 /* Info-Direct.plist */; };
 		9957E4607D0E56C13A4EB547 /* marked.js in Resources */ = {isa = PBXBuildFile; fileRef = CE878236645FC7961A369E8A /* marked.js */; };
 		9980F738A101922F018C5BFC /* firstopen-trip-plan.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CE1C02753FF5148177EAD29D /* firstopen-trip-plan.jpg */; };
+		99D089BCC3EFA6AEA578D1EB /* MacFirstSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD39E56EF9A2BD2D9D5C9FE /* MacFirstSnapshots.swift */; };
 		99D859E0B79454748AE31CBB /* AccountSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978E50D544DB24F72EA59957 /* AccountSwitchTests.swift */; };
 		99F02185BA07B1CE0C09D5F2 /* EmailSignInFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8960C267A4A73E8377D155D6 /* EmailSignInFlow.swift */; };
 		9A4C902422F875CEC5697BA5 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B20F92D2A50287948FFA111 /* Push.swift */; };
@@ -937,6 +941,7 @@
 		508D7FDAAB7702C132913D85 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		50D9729365D09DFD5585A159 /* SidebarCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarCardTests.swift; sourceTree = "<group>"; };
 		511426CD6526438E90CD7B2D /* FormerSubNotesSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormerSubNotesSnapshots.swift; sourceTree = "<group>"; };
+		51F46BEBBA374A2A5D8E4CCA /* ConnectOnMacTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectOnMacTests.swift; sourceTree = "<group>"; };
 		527730BB3E3E09A863D6895A /* NetFaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetFaultTests.swift; sourceTree = "<group>"; };
 		529388344853209DFB22B984 /* PaneDirect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PaneDirect.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		52A05065D6AC46E02DC096AF /* StubSupabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubSupabase.swift; sourceTree = "<group>"; };
@@ -1087,6 +1092,7 @@
 		9D09D7CB317A7B5F4E6D2550 /* PressSelectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressSelectTests.swift; sourceTree = "<group>"; };
 		9D3D3E80F22C4DF32F6C3405 /* KeyCopyLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCopyLiveTests.swift; sourceTree = "<group>"; };
 		9D93AD7A45E15447614E5242 /* PasswordField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordField.swift; sourceTree = "<group>"; };
+		9DD39E56EF9A2BD2D9D5C9FE /* MacFirstSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFirstSnapshots.swift; sourceTree = "<group>"; };
 		9DEBDAA2974F8C1CB31B0764 /* Profile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Profile.swift; sourceTree = "<group>"; };
 		9E0AC08F58F5BE90DD5AAD44 /* KeyDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDevices.swift; sourceTree = "<group>"; };
 		9E3ED99431A52143032D92B9 /* DiagnosticsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSection.swift; sourceTree = "<group>"; };
@@ -1263,6 +1269,7 @@
 		FA63BA9CC98D699F71D53B85 /* purify.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = purify.js; sourceTree = "<group>"; };
 		FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryTests.swift; sourceTree = "<group>"; };
 		FBAE6116415336DA1C500A87 /* FormatPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPopover.swift; sourceTree = "<group>"; };
+		FC438BD287857509B0345BE3 /* ConnectOnMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectOnMac.swift; sourceTree = "<group>"; };
 		FC894B0D3C73CC7040468483 /* KeyFlowSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyFlowSnapshots.swift; sourceTree = "<group>"; };
 		FD35A6994110D17D56D7D8D7 /* ToolbarGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarGlyph.swift; sourceTree = "<group>"; };
 		FD40DB3A0959421F768D4D34 /* NoteLockSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLockSync.swift; sourceTree = "<group>"; };
@@ -1496,6 +1503,7 @@
 				39EF6421870B0C2E8060E578 /* ConnectAI.swift */,
 				A63BCA6A4FFD0CF3D4A3011E /* ConnectChoices.swift */,
 				68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */,
+				FC438BD287857509B0345BE3 /* ConnectOnMac.swift */,
 				D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */,
 				DB80888B06B4A1F6FBC61797 /* ConnectWebGuide.swift */,
 				5D94335681A191B7DF159080 /* DeleteAccount.swift */,
@@ -1698,6 +1706,7 @@
 				87987EC62A5DA06AB545080F /* ConnectAITests.swift */,
 				53EFEF0B8258BBDA96D05B51 /* ConnectDetectTests.swift */,
 				1DD9D14813041A37BCED4970 /* ConnectFunnelTests.swift */,
+				51F46BEBBA374A2A5D8E4CCA /* ConnectOnMacTests.swift */,
 				8291C51A34B1C3189637F8B4 /* ConnectSnapshotTests.swift */,
 				78A71ADD7448F96F3FFDB188 /* ConnectWebGuideTests.swift */,
 				2AA02ED549CE37D8148F24D5 /* DateFoldTests.swift */,
@@ -2015,6 +2024,7 @@
 				FC894B0D3C73CC7040468483 /* KeyFlowSnapshots.swift */,
 				910239F87293563BD3F4B048 /* ListLayoutSnapshots.swift */,
 				BB1588B95C77F9BB5C79117D /* ListOrderSnapshots.swift */,
+				9DD39E56EF9A2BD2D9D5C9FE /* MacFirstSnapshots.swift */,
 				6A9EC2E111AD0E4ED32EBE6A /* MacLookSnapshots.swift */,
 				10144E98B22C1394342BC5FC /* MacStoreShots.swift */,
 				CB7BCC25070DF499252B44F3 /* NotePageMacShots.swift */,
@@ -2464,6 +2474,7 @@
 				DD6921DB833D452F62DB40F0 /* ConnectFunnelTests.swift in Sources */,
 				6E09968EBD6C3AD263A8692A /* ConnectGuideSnapshots.swift in Sources */,
 				A42882BBA2BE0998051BBAE3 /* ConnectJourneySnapshots.swift in Sources */,
+				43E8DD34AC58272ECB351FB5 /* ConnectOnMacTests.swift in Sources */,
 				2A1222002E0A3A15AB75B59B /* ConnectSnapshotTests.swift in Sources */,
 				976C1F32ADB32D8A0146615A /* ConnectWebGuideTests.swift in Sources */,
 				743A2DC87EC039B90E4FE7A8 /* DateFoldTests.swift in Sources */,
@@ -2530,6 +2541,7 @@
 				6ECD30112C54E00E2746A529 /* LiveViewerTests.swift in Sources */,
 				7ECADA0C2388363A6D3D3178 /* LocalUpkeepTests.swift in Sources */,
 				7B1E97DC2CD6F2716187E790 /* LockLeakProbeTests.swift in Sources */,
+				99D089BCC3EFA6AEA578D1EB /* MacFirstSnapshots.swift in Sources */,
 				26EE93D54AFBE6911882492D /* MacLookSnapshots.swift in Sources */,
 				E4B766562642AAD7347C61F1 /* MacStoreShots.swift in Sources */,
 				E853EF496274E5BFFF30826C /* MakeAppSheetTests.swift in Sources */,
@@ -2658,6 +2670,7 @@
 				14E3C2B4C906F7EB17833216 /* ConnectAsks.swift in Sources */,
 				B405872E5470EE9546C41019 /* ConnectChoices.swift in Sources */,
 				779FB36891A0E3E0D6EC6260 /* ConnectGuide.swift in Sources */,
+				1E8A3D3A5741E9ADABE66374 /* ConnectOnMac.swift in Sources */,
 				109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */,
 				D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */,
 				0A9CEFB1375921718DF57CCF /* ConnectWebGuide.swift in Sources */,
@@ -2911,6 +2924,7 @@
 				BABD15AB84CC4A437789F4CC /* ConnectAsks.swift in Sources */,
 				694F24EB79E3D68D455FE540 /* ConnectChoices.swift in Sources */,
 				ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */,
+				8FAF731200091329505E1901 /* ConnectOnMac.swift in Sources */,
 				D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */,
 				869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */,
 				9CD76482DDF2AB1F6C7FF89D /* ConnectWebGuide.swift in Sources */,
