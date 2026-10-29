@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// What the menu bar panel lists: pinned notes, then the latest ones; or, while you
-/// type, the notes that match. Sub-notes stay out, as in the note list.
+/// type, the notes that match. Every live note, as in the note list.
 enum MenuBarList {
     static let pinnedLimit = 5
     static let recentLimit = 6
@@ -16,8 +16,8 @@ enum MenuBarList {
         var all: [UUID] { matches.isEmpty ? pinned + recent : matches }
     }
 
-    static func sections(_ notes: [Note], query: String, isNested: (Note) -> Bool) -> Sections {
-        let live = notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !isNested($0) }
+    static func sections(_ notes: [Note], query: String) -> Sections {
+        let live = notes.filter { $0.deletedAt == nil && $0.trashedAt == nil }
         let newest = live.sorted { $0.updatedAt > $1.updatedAt }
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard q.isEmpty else {

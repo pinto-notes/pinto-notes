@@ -460,7 +460,7 @@ extension Capture {
         if let dir = argument("-showcase") {
             showcase(context, pages: URL(fileURLWithPath: dir))
         }
-        // `-widgetDemo <dir>`: "Budget 2026" with three sub-notes that are apps, shown as widgets.
+        // `-widgetDemo <dir>`: "Budget 2026" linking three notes that are apps, shown as widgets.
         if let dir = argument("-widgetDemo") {
             budgetWithWidgets(context, pages: URL(fileURLWithPath: dir))
         }
@@ -547,7 +547,7 @@ extension Capture {
         let parent = context.createNote(in: .all, body: "Budget 2026")
         parent.isPinned = true
         func app(_ body: String, _ file: String) -> Note {
-            let n = context.createSubNote(of: parent, body: body)
+            let n = context.createNote(in: .all, body: body)
             if !ProcessInfo.processInfo.arguments.contains("-widgetLinksOnly"), let html = try? String(contentsOf: pages.appending(path: file), encoding: .utf8) {
                 NotePageStore.shared[n.id] = .init(html: html, by: "Claude", at: .now.addingTimeInterval(-3600))
             }

@@ -42,8 +42,8 @@ private actor FakeShareLinks: ShareLinkService {
         #expect(s.feedback == .done("Link created and copied"))
         s.shared(slug: "abc", includesSubNotes: false, copied: true)
         #expect(s.feedback == .done("Link copied"), "a second copy says just copied")
-        s.shared(slug: "abc", includesSubNotes: true, copied: false)
-        #expect(s.includesSubNotes && s.feedback == .done("Sub-notes included"))
+        s.shared(slug: "abc", includesSubNotes: false, copied: false)
+        #expect(s.feedback == .done("Link updated"))
         s.stopped()
         #expect(s.phase == .notShared && s.feedback == .done("Sharing stopped"))
         s.failed("x")
@@ -65,17 +65,15 @@ private actor FakeShareLinks: ShareLinkService {
         #expect(copied.count == 1)
         #expect(copied.first??.absoluteString.hasSuffix("/n/AAAAAAAAAAAAAAAAAAAAAAAA") == true)
 
-        await store.setIncludesSubNotes(true)
-        #expect(store.state.includesSubNotes)
-        #expect(copied.count == 1, "changing the option doesn't copy")
-
         await store.stopSharing()
         #expect(store.state.phase == .notShared)
         await store.shareAndCopy()
         #expect(store.state.slug == "BBBBBBBBBBBBBBBBBBBBBBBB", "sharing again makes a new link")
-        #expect(await fake.calls == ["current", "share false", "share true", "unshare", "share false"])
+        #expect(await fake.calls == ["current", "share false", "unshare", "share false"])
     }
 
+    /// A link made with sub-notes included (before they were removed) loads as it is, and copying
+    /// it keeps what it says, so its tag still verifies.
     @Test func loadsAnExistingLinkAndReportsFailures() async {
         let fake = FakeShareLinks()
         await fake.seed("CCCCCCCCCCCCCCCCCCCCCCCC", true)
@@ -85,9 +83,9 @@ private actor FakeShareLinks: ShareLinkService {
         #expect(store.state.phase == .shared(slug: "CCCCCCCCCCCCCCCCCCCCCCCC", includesSubNotes: true))
 
         await fake.fail()
-        await store.setIncludesSubNotes(false)
+        await store.shareAndCopy()
         #expect(store.state.feedback == .failed("Couldn’t share yet. Try again once the note has synced."))
-        #expect(store.state.includesSubNotes, "a failed change keeps the old option")
+        #expect(store.state.slug == "CCCCCCCCCCCCCCCCCCCCCCCC", "a failed copy keeps the link")
     }
 
     /// Sharing publishes a readable copy: you're told once per note, before its first link.

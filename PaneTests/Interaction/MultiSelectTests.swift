@@ -38,7 +38,7 @@ import Testing
         }
 
         var context: ModelContext { container.mainContext }
-        var live: [Note] { ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil && !context.isNested($0) } }
+        var live: [Note] { ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil } }
 
         /// The AppKit table behind the SwiftUI List.
         var table: NSTableView? {
@@ -108,18 +108,19 @@ import Testing
         #expect(picked.allSatisfy { $0.trashedAt == nil })
     }
 
-    @Test func removingSeveralTakesSubNotesAlongAndPurgesTrashedOnes() throws {
+    @Test func removingSeveralTrashesLiveOnesAndPurgesTrashedOnes() throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext
         Seed.ensureLibrary(ctx, demo: false)
         let a = ctx.createNote(in: .all, body: "A")
-        let child = ctx.createSubNote(of: a)
-        a.body += "\n[Child](pane-note:\(child.id.uuidString.lowercased()))"
+        let linked = ctx.createNote(in: .all, body: "Linked")
+        a.body += "\n[Linked](pane-note:\(linked.id.uuidString.lowercased()))"
         let b = ctx.createNote(in: .all, body: "B")
         let gone = ctx.createNote(in: .all, body: "Gone")
         ctx.trash(gone)
         ctx.remove([a, b, gone])
-        #expect(a.trashedAt != nil && b.trashedAt != nil && child.trashedAt != nil)
+        #expect(a.trashedAt != nil && b.trashedAt != nil)
+        #expect(linked.trashedAt == nil, "a note another one links stays where it is")
         #expect(gone.deletedAt != nil)
     }
 

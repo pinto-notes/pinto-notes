@@ -263,26 +263,17 @@ struct SidebarView: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
 
     /// All Notes and Recently Deleted, counted by the store (unsaved changes included), as the list
-    /// shows them: a sub-note lives inside its parent and is no row of its own (NoteListView.nested).
+    /// shows them.
     static func counts(in context: ModelContext) -> (live: Int, trashed: Int) {
         let live = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? 0
         let trashed = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt != nil }))) ?? 0
-        let nested = nestedSubNotes(in: context)
-        return (live - nested.filter { $0.trashedAt == nil }.count, trashed - nested.filter { $0.trashedAt != nil }.count)
+        return (live, trashed)
     }
 
-    /// The sub-notes inside their parent, which the list doesn't count as rows. The folder said 2
-    /// while its list said "1 note" (newcomer audit, 2026-10-12). Only notes with a parent are
-    /// fetched: a library without sub-notes pays for one empty fetch.
-    static func nestedSubNotes(in context: ModelContext) -> [Note] {
-        context.nestedSubNotes()
-    }
-
-    /// A folder's notes as its list counts them: without the sub-notes inside a parent. In a window
-    /// the list's notes count them (LibraryNotes.listedCount); this reads the folder's own notes.
+    /// A folder's notes as its list counts them. In a window the list's notes count them
+    /// (LibraryNotes.listedCount); this reads the folder's own notes.
     static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        let nested = Set(SubNoteIndex.nestedIDs(in: context))
-        return folder.liveNotes.count { !nested.contains($0.id) }
+        folder.liveNotes.count
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {

@@ -4,7 +4,7 @@ import Testing
 @testable import Pane
 
 /// "Sort By" and "Group By Date" for the note list, as in Apple Notes: each order with pinned
-/// notes on top and sub-notes left inside their parents, headings that run the way the list does,
+/// notes on top, headings that run the way the list does,
 /// and the choice kept on the device.
 @MainActor @Suite struct ListOrderTests {
     let context: ModelContext
@@ -26,20 +26,15 @@ import Testing
         return n
     }
 
-    /// Five notes whose three orders all differ, one of them pinned, and a sub-note inside "Banana".
+    /// Five notes whose three orders all differ, one of them pinned.
     private func library() throws -> [Note] {
         let banana = note("Banana", created: 400, edited: 0.01)
         let apple = note("apple", created: 3, edited: 2)
         let cherry = note("Cherry 10", created: 100, edited: 40)
         let cherry2 = note("Cherry 2", created: 0.02, edited: 0.02)
         let pinned = note("Zebra", created: 50, edited: 500, pinned: true)
-        let child = context.createSubNote(of: banana, body: "Aardvark\ninside Banana")
-        child.createdAt = daysAgo(1)
-        child.updatedAt = daysAgo(0.001)
-        banana.body += "\n[Aardvark](pane-note:\(child.id.uuidString.lowercased()))"
-        banana.updatedAt = daysAgo(0.01)
         try context.save()
-        return [banana, apple, cherry, cherry2, pinned, child]
+        return [banana, apple, cherry, cherry2, pinned]
     }
 
     /// The list as the view builds it: the library's entries in order, the scope's notes, sections.
@@ -50,7 +45,7 @@ import Testing
 
     private func titles(_ order: ListOrder) -> [String] { listed(order).flatMap(\.1) }
 
-    @Test func everyOrderKeepsPinnedNotesOnTopAndSubNotesInsideTheirParents() throws {
+    @Test func everyOrderKeepsPinnedNotesOnTop() throws {
         _ = try library()
         #expect(titles(.standard) == ["Zebra", "Banana", "Cherry 2", "apple", "Cherry 10"], "as it has always been: newest edit first")
         #expect(titles(ListOrder(key: .edited, reversed: true)) == ["Zebra", "Cherry 10", "apple", "Cherry 2", "Banana"])
@@ -63,7 +58,7 @@ import Testing
             for reversed in [false, true] {
                 for grouped in [false, true] {
                     let all = titles(ListOrder(key: key, reversed: reversed, groupsByDate: grouped))
-                    #expect(all.first == "Zebra" && !all.contains("Aardvark") && all.count == 5, "\(key) \(reversed) \(grouped)")
+                    #expect(all.first == "Zebra" && all.count == 5, "\(key) \(reversed) \(grouped)")
                 }
             }
         }

@@ -18,11 +18,8 @@ struct EmbedView: View {
         case .link(let url):
             LinkCard(url: url, remove: remove)
         case .note(let id, let name):
-            if NoteWidgets.isApp(id) {
-                SubNoteWidget(id: id, name: name, controller: controller, remove: remove)
-            } else {
-                SubNoteChip(id: id, name: name, controller: controller, remove: remove)
-            }
+            // Only a note that is an app is an embed (LineEmbed): its live widget.
+            NoteAppWidget(id: id, name: name, controller: controller, remove: remove)
         }
     }
 }
@@ -70,7 +67,7 @@ private struct FileChip: View {
             .hoverHighlight(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(PressScale())
-        // Content, not a control: a solid surface like the sub-note chip (glass is for the navigation layer).
+        // Content, not a control: a solid surface (glass is for the navigation layer).
         .background(Color.paneChip, in: .rect(cornerRadius: 12, style: .continuous))
         .contextMenu { EmbedMenu(open: { controller?.openAttachment(id) }, remove: remove) }
         .accessibilityIdentifier("file.\(name)")
@@ -81,56 +78,9 @@ private struct FileChip: View {
     private func tint(_ f: Attachment?) -> Color { f?.tint ?? .secondary }
 }
 
-/// A link to a sub-note: its current title and first line; click to open it.
-private struct SubNoteChip: View {
-    let id: UUID
-    let name: String
-    let controller: EditorController?
-    let remove: () -> Void
-
-    var body: some View {
-        let info = controller?.resolveNote(id)
-        Button { controller?.openNote(id) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "doc.text")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.tint)
-                    .frame(width: 34, height: 34)
-                    .background(Color.accentColor.opacity(0.14), in: .rect(cornerRadius: 8, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(info?.title ?? name)
-                        .font(.system(size: EditorMetrics.body, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(info?.preview ?? "Sub-note")
-                        .font(.system(size: EditorMetrics.body * 0.85))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .hoverHighlight(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .background(Color.paneChip, in: .rect(cornerRadius: 12, style: .continuous))
-            .contentShape(.rect(cornerRadius: 12))
-        }
-        .buttonStyle(PressScale())
-        .contextMenu {
-            Button("Open Sub-note", systemImage: "arrow.right") { controller?.openNote(id) }
-            Divider()
-            Button("Remove Link", systemImage: "link.badge.plus", role: .destructive, action: remove)
-        }
-        .accessibilityIdentifier("subnote.\(info?.title ?? name)")
-    }
-}
-
 extension Color {
     /// A quiet fill for chips inside a note.
-    /// A sub-note's or file's card in a note: the system's fill, or in the candidates (DesignLook)
+    /// A file's card in a note: the system's fill, or in the candidates (DesignLook)
     /// the soft fill, so it stays warm on a warm page.
     static var paneChip: Color { DesignLook.isCandidate ? Color.soft : Color(PColor.paneFill) }
 }
@@ -282,7 +232,7 @@ private struct LinkCard: View {
             .hoverHighlight(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(PressScale())
-        // Content, not a control: a solid surface like the sub-note chip (glass is for the navigation layer).
+        // Content, not a control: a solid surface (glass is for the navigation layer).
         .background(Color.paneChip, in: .rect(cornerRadius: 12, style: .continuous))
         .contextMenu {
             Link(destination: url) { Label("Open Link", systemImage: "safari") }

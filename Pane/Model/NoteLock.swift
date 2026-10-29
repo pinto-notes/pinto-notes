@@ -126,7 +126,7 @@ enum NoteLockError: LocalizedError, Equatable {
     case changedElsewhere
     case notesChanged
     case unverified
-    case hasFilesOrSubNotes
+    case hasFiles
     case offline
     case other(String)
 
@@ -138,7 +138,7 @@ enum NoteLockError: LocalizedError, Equatable {
         case .changedElsewhere: "Your notes password was changed on another device. Enter the new one."
         case .notesChanged: "Your notes changed on another device. Try again in a moment."
         case .unverified: "The notes password on the server couldn't be checked against the one this device knows, so it wasn't used. Contact support."
-        case .hasFilesOrSubNotes: "Notes with files or sub-notes can't be locked."
+        case .hasFiles: "Notes with files can't be locked."
         case .offline: "You're offline. Connect to the internet to set or change your notes password."
         case .other(let s): s
         }
@@ -487,16 +487,12 @@ final class NoteVault {
         }
     }
 
-    /// Why a note can't be locked, or nil. Files and sub-notes live outside the note's text, so
-    /// they'd stay readable: like Apple Notes with some attachments, those notes can't be locked.
+    /// Why a note can't be locked, or nil. Files live outside the note's text, so they'd stay
+    /// readable: like Apple Notes with some attachments, those notes can't be locked. A link to
+    /// another note is only a link: that note keeps its own lock, or none.
     /// The server can't read a note to check this, so the apps are the only guard.
     static func blocker(for note: Note) -> NoteLockError? {
-        if note.body.contains("pane-file:") || note.body.contains("pane-note:") { return .hasFilesOrSubNotes }
-        // A sub-note whose link was cut from the text is still this note's sub-note.
-        let id = note.id
-        let children = FetchDescriptor<Note>(predicate: #Predicate { $0.parentID == id && $0.deletedAt == nil })
-        if let context = note.modelContext, ((try? context.fetchCount(children)) ?? 0) > 0 { return .hasFilesOrSubNotes }
-        return nil
+        note.body.contains("pane-file:") ? .hasFiles : nil
     }
 
     /// Seals the note's text. Its earlier versions are deleted on the server when this syncs.

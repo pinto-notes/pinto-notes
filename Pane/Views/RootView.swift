@@ -616,7 +616,6 @@ struct PaneCommands: Commands {
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
                 Divider()
                 Button("Table") { editor?.insertTable() }.keyboardShortcut("t", modifiers: [.command, .option])
-                Button("Sub-note") { editor?.newSubNote() }.keyboardShortcut("n", modifiers: [.command, .option])
                 Button("Link") { editor?.insertLink() }.keyboardShortcut("k")
             }
             .disabled(editor == nil)

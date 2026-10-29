@@ -245,21 +245,6 @@ import Testing
         made.compactMap { context.attachment($0) }.forEach(FileStore.remove)
     }
 
-    @Test func subNotesGetTheirParentFromTheLinkOnce() throws {
-        let container = try library()
-        let context = container.mainContext
-        let child = context.createNote(in: .all, body: "Agenda\n")
-        let parent = context.createNote(in: .all, body: "Acme\n\n[Agenda](pane-note:\(child.id.uuidString.lowercased()))\n")
-        let other = context.createNote(in: .all, body: "Another\n\n[Agenda](pane-note:\(child.id.uuidString.lowercased()))\n")
-        child.dirty = false
-        #expect(context.backfillSubNoteParents() == 1)
-        #expect(child.parentID == parent.id || child.parentID == other.id)
-        #expect(child.dirty, "the parent syncs")
-        let first = child.parentID
-        #expect(context.backfillSubNoteParents() == 0, "a parent already set is never changed")
-        #expect(child.parentID == first)
-    }
-
     @Test func csvReadsAsATable() {
         let rows = CSVTable.parse("Book,Author,Pages\n\"Fluent Python\",\"Ramalho, Luciano\",1014\n\"Quote \"\"here\"\"\",x,\"two\nlines\"\n")
         #expect(rows.count == 3)

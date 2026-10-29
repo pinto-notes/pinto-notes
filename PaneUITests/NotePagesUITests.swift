@@ -157,7 +157,7 @@ final class NotePagesUITests: XCTestCase {
         shot("toggle-a-text")
     }
 
-    /// Apps inside a note: Budget 2026 with three sub-notes shown as widgets.
+    /// Apps inside a note: Budget 2026 linking three apps, shown as widgets.
     func testWidgets() {
         launch(["-open", "Budget 2026", "-widgetDemo", pages])
         mark("widgets-start")

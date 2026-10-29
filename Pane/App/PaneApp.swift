@@ -1099,7 +1099,7 @@ struct AppGate: View {
                     await KeyDevices.shared.refresh(AccountCrypto.shared)
                 }
                 context.drainInbox()
-                context.backfillSubNoteParents()
+                context.foldSubNotesIntoFolders()
                 sync.schedule()
             } else {
                 connectAsks?.setForeground(false)
@@ -1198,8 +1198,6 @@ enum Seed {
     - Start a line with * for bullets or - for dashes
 
     > Quotes, `inline code`, ~~strikethrough~~ and [links](https://apple.com) all work.
-
-    Keep details in a **sub-note**: choose Format → Sub-note and a whole note opens, linked from here.
 
     | Shortcut | Does |
     | --- | --- |

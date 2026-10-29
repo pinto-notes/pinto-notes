@@ -60,26 +60,14 @@ struct NoteListView: View {
 
     /// The notes a scope lists, in the order they came in.
     static func scoped(_ all: [NoteEntry], to scope: Scope, context: ModelContext) -> [NoteEntry] {
-        let nested = Self.nested(in: all, context: context)
-        return all.filter { e in
+        all.filter { e in
             guard !e.deleted else { return false }
-            // Sub-notes live inside their parent, not in the list.
-            if nested.contains(e.id) { return false }
             switch scope {
             case .all: return !e.trashed
             case .trash: return e.trashed
             case .folder(let id): return !e.trashed && e.folderID == id
             }
         }
-    }
-
-    /// The sub-notes still linked from their parent (`ModelContext.isNested`), for the whole
-    /// list at once, from SubNoteIndex: asked of the store one sub-note at a time, a library with
-    /// a few hundred sub-notes spent a fetch on each of them whenever the list was worked out,
-    /// which is every time a note is opened. Without sub-notes nothing is looked up at all.
-    static func nested(in all: [NoteEntry], context: ModelContext) -> Set<UUID> {
-        guard all.contains(where: { $0.parentID != nil }) else { return [] }
-        return Set(context.nestedSubNotes().map(\.id))
     }
 
     private var filtered: [NoteEntry] {
@@ -339,10 +327,6 @@ struct NoteListView: View {
                     .allowsHitTesting(false)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NoteDrop.nested)) { n in
-            guard let parent = n.object as? UUID else { return }
-            selection = NoteDrop.selection(afterNestingUnder: parent)
-        }
         .dropDestination(for: URL.self) { urls, _ in
             let made = context.importFiles(urls, into: scope == .trash ? .all : scope)
             if let first = made.first { selection = [first] }
@@ -411,9 +395,6 @@ struct NoteListView: View {
         }
         .onChange(of: selection) { old, new in
             RowClickLog.selection(old, new)
-            // Notes that went inside another note aren't rows any more (see `withoutSubNotes`).
-            let rows = NoteDrop.withoutSubNotes(new, in: context)
-            if rows != new { selection = rows }
         }
         #endif
         .toolbar {
@@ -1310,7 +1291,7 @@ final class LibraryNotes {
         if counted { countFolders() }
     }
 
-    /// Each folder's notes as its list shows them: live, and not a sub-note inside its parent.
+    /// Each folder's notes as its list shows them: the live ones.
     /// Counted from the entries in one pass whenever they change; each folder's row hears only of
     /// its own count, so the sidebar's 800 folder rows aren't worked out again for every change.
     func listedCount(inFolder id: UUID, context: ModelContext) -> Int? {
@@ -1346,10 +1327,9 @@ final class LibraryNotes {
 
     private func countFolders() {
         guard let context else { return }
-        let inside = Set(SubNoteIndex.nestedIDs(in: context))
         var counts: [UUID: Int] = [:]
         var live = 0, trashed = 0
-        for e in sorted where !e.deleted && !inside.contains(e.id) {
+        for e in sorted where !e.deleted {
             if e.trashed { trashed += 1; continue }
             live += 1
             if let folder = e.folderID { counts[folder, default: 0] += 1 }
@@ -1555,9 +1535,6 @@ private struct ListRow: View, @MainActor Equatable {
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)
             }
-            // Notes dropped on this row become its sub-notes. (After the drag source, as on
-            // the sidebar's folders: inside it, the row was never offered a drop.)
-            .modifier(SubNoteDropTarget(note: note))
             .swipeActions(edge: .leading) {
                 if note.trashedAt == nil {
                     Button(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin", action: togglePin)

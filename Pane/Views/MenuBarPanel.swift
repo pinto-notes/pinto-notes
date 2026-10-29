@@ -28,7 +28,7 @@ struct MenuBarPanel: View {
 
     private var signedOut: Bool { if case .signedOut = backend.state { true } else { false } }
     private var typing: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    private var sections: MenuBarList.Sections { MenuBarList.sections(notes, query: text, isNested: { context.isNested($0) }) }
+    private var sections: MenuBarList.Sections { MenuBarList.sections(notes, query: text) }
 
     var body: some View {
         Group {

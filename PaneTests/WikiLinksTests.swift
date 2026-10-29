@@ -119,8 +119,8 @@ import Testing
     }
 
     /// Backlinks come from the notes the store picks (those with a wiki link or a note link):
-    /// both kinds count, newest first, unsaved ones included; trashed and locked notes, and the
-    /// parent's link to its sub-note, don't.
+    /// both kinds count, newest first, unsaved ones included; trashed and locked notes don't. The
+    /// note a former sub-note was under links it like any other note now, and counts.
     @Test func backlinksFromWikiLinksAndNoteLinksNewestFirst() throws {
         let c = try Self.container()
         let context = c.mainContext
@@ -138,12 +138,14 @@ import Testing
         let parent = context.createNote(in: .all, body: "Kitchen\n[Recipes](\(link))")
         recipes.parentID = parent.id
         try context.save()
+        #expect(context.foldSubNotesIntoFolders() == 1)
         WikiDirectory.invalidate()
-        #expect(context.backlinks(to: recipes).map(\.id) == [byLink.id, byWiki.id])
+        #expect(context.backlinks(to: recipes).map(\.id) == [parent.id, byLink.id, byWiki.id])
 
         let unsaved = context.createNote(in: .all, body: "Lunch\n[[Recipes]]")
         WikiDirectory.invalidate()
-        #expect(context.backlinks(to: recipes).map(\.id) == [unsaved.id, byLink.id, byWiki.id], "a note not saved yet counts too")
+        let newest: [UUID] = [unsaved.id, parent.id, byLink.id, byWiki.id]
+        #expect(context.backlinks(to: recipes).map(\.id) == newest, "a note not saved yet counts too")
     }
 
     /// A library larger than `WikiDirectory.readHere` has its titles and links read off the main

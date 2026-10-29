@@ -64,10 +64,12 @@ enum DemoData {
         for (folder, body, offset, pinned) in items {
             let n = context.createNote(in: .folder(folder.id), body: storeScene(body))
             if body.hasPrefix("Lisbon") {
-                // Lisbon keeps its hotel details in a sub-note.
+                // Lisbon links its hotel details, a note of their own. With `-demoSubNotes` the
+                // hotel note is made as an older build made sub-notes (under Lisbon), so captures
+                // and tests can show what becomes of one (`foldSubNotesIntoFolders`).
                 let hotel = Note(body: "Hotel booking\n\nMemmo Príncipe Real, 12–15 May\nConfirmation **LX-48213**\n\n- [x] Paid deposit\n- [ ] Ask for a late checkout\n- [ ] Airport transfer\n\n> Check-in from 15:00", folder: folder)
                 hotel.id = UUID(uuidString: "6d1f2c9a-1b7e-4c3a-9f0e-2a4b8c1d7e55")!
-                hotel.parentID = n.id
+                if ProcessInfo.processInfo.arguments.contains("-demoSubNotes") { hotel.parentID = n.id }
                 context.insert(hotel)
             }
             n.updatedAt = .now.addingTimeInterval(offset)

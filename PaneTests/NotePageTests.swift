@@ -762,7 +762,7 @@ import AppKit
         #expect(NoteApps.page(note.id, in: store, enabled: false) == nil)
         #expect(!NoteAppMark.has(note, in: store, enabled: false))
         #expect(store[note.id] == page && store.live(note.id) == page)
-        // Off: a sub-note with an app shows in its parent as a link, not a live widget.
+        // Off: a note with an app, linked from another note, shows there as a link, not a live widget.
         let sub = UUID()
         NoteWidgets.update(sub, html: page.html, enabled: false)
         #expect(!NoteWidgets.isApp(sub) && NoteWidgets.height(sub) == nil)
