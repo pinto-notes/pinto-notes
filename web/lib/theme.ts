@@ -3,8 +3,11 @@
 /// terms; everything else is cream, Privacy & Security included. Shared notes and the report form have no
 /// fixed theme: they follow the visitor's system (app/site.css), cream in light and leaf brown in dark.
 /// Any other address is a site page, so an address the site doesn't have gets the site's own 404.
-export function themeFor(path: string): "cream" | "leaf" | null {
+export function themeFor(path: string): "cream" | "leaf" | "connect" | null {
   if (/^\/(n|s|t|report)(\/|$)/.test(path)) return null;
+  // The connect pages follow the visitor's system: the site's cream in light, pure black in dark,
+  // like the app (Emil, 29 October 2026). The switch is in site.css, so it follows a change live.
+  if (/^\/(open\/)?connect(\/|$)/.test(path)) return "connect";
   if (/^\/(changelog|support|help|privacy|terms)(\/|$)/.test(path)) return "leaf";
   // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in
   // dark. The home page studies (/lab/home-d to -h) are cream like the home page: the home page is never dark.
@@ -24,4 +27,4 @@ export function ownTopBar(path: string, copyIds: readonly string[] = []): boolea
 
 /// Runs in <head> before first paint, so a page never flashes the wrong theme. The consent page's
 /// CSP allows it by its hash (middleware.ts), so change it only here.
-export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/(home-[defghi]|hero-lab|home)(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
+export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(open\\/)?connect(\\/|$)/.test(p)?"connect":/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/(home-[defghi]|hero-lab|home)(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;

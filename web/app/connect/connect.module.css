@@ -469,3 +469,19 @@
   .wideWhat { padding-left: 0; }
   .wideTitle { margin-top: 16px; font-size: 24px; }
 }
+
+/* ── Dark, on the connect theme (site.css): pure black ground, neutral greys, the leaf theme's
+   light-on-dark pictures. The same overrides as leaf's, under the system's dark mode. ── */
+@media (prefers-color-scheme: dark) {
+  :global([data-theme="connect"]) .page {
+    --field: #000000; --field-line: rgba(255, 255, 255, 0.26); --danger: #ff8a80; --apple-bg: #fff; --apple-ink: #000;
+  }
+  :global([data-theme="connect"]) .art, :global([data-theme="connect"]) .page[data-layout="panel"] .side {
+    --a-body: #e8e8ea; --a-screen: #2c2c2c; --a-paper: #f5f5f7; --a-bar: rgba(0, 0, 0, 0.42); --a-bar-soft: rgba(0, 0, 0, 0.2);
+    --a-shadow: rgba(0, 0, 0, 0.5);
+  }
+  :global([data-theme="connect"]) .macApp { color: #f5f5f7; }
+  :global([data-theme="connect"]) .card, :global([data-theme="connect"]) .page[data-layout="panel"] .shell { box-shadow: 0 0 0 1px var(--line); }
+  :global([data-theme="connect"]) .primary { box-shadow: none; }
+  :global([data-theme="connect"]) .warn { background: color-mix(in srgb, var(--amber) 22%, transparent); }
+}
