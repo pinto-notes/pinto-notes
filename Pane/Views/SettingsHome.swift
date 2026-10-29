@@ -157,9 +157,10 @@ struct SettingsHome: View {
                     .scrollContentBackground(.hidden)
                 }
                 // The sheet's own header names the page and goes back; the stack draws neither.
-                .toolbar(.hidden)
+                // Never `.toolbar(.hidden)` here: a sheet has no toolbar of its own, so it hid the
+                // notes window's, and the columns moved up under the sheet (owner, 2026-10-29).
                 .navigationDestination(for: SettingsPlace.self) { place in
-                    page(place).navigationBarBackButtonHidden(true).toolbar(.hidden)
+                    page(place).navigationBarBackButtonHidden(true)
                 }
             }
         }
