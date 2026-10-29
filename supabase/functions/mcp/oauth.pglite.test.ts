@@ -811,10 +811,10 @@ Deno.test("/connect/label names the address for the web page, without a session,
   const res = await call(sql, request("proxy", `/connect/label?id=${requestId}`, { headers: { origin: SITE } }));
   assertEquals(res.status, 200);
   // Before anyone signs in there's no telling whose sign-in this is: no mark, the name only as a claim.
-  assertEquals(await res.json(), { client_name: "chatgpt.com", claimed_name: "chatgpt", redirect_host: "chatgpt.com", verified_ai: null });
+  assertEquals(await res.json(), { client_name: "chatgpt.com", claimed_name: "chatgpt", redirect_host: "chatgpt.com", verified_ai: null, allow_here: false });
   const fake = await ask(sql, pg, "Claude", ["https://evil.example/cb"]);
   assertEquals(await (await call(sql, request("proxy", `/connect/label?id=${fake.requestId}`))).json(),
-    { client_name: "evil.example", claimed_name: fake.details.claimed_name, redirect_host: "evil.example", verified_ai: null });
+    { client_name: "evil.example", claimed_name: fake.details.claimed_name, redirect_host: "evil.example", verified_ai: null, allow_here: false });
   assertEquals((await call(sql, request("proxy", `/connect/label?id=${crypto.randomUUID()}`))).status, 404);
   assertEquals((await call(sql, request("proxy", `/connect/label?id=nope`))).status, 404);
   assertEquals((await call(sql, request("proxy", `/connect/label?id=${requestId}`, { method: "POST" }))).status, 405);

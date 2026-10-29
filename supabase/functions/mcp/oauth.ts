@@ -17,6 +17,16 @@
 // /connect/request who is asking, the person picks read-only or read & edit, and it posts the
 // decision to /connect/decide with their session in an Authorization header.
 //
+// Allowing on the web page instead (/connect/allow, since 29 October 2026): for an account whose
+// key the server keeps a copy of (supabase/functions/key, docs/Technical/recoverable-key.md), the
+// page signs the person in (an email code, Google or Apple), shows who is asking and what is
+// shared, and Allow there is the answer: no app and no number. The function opens the key copy,
+// makes the code and its wrap exactly as a device would, and keeps only the code's hash and the
+// wrap. Only with CONNECT_IN_BROWSER=on and the key copy switched on (KEY_COPY, KEY_COPY_SECRET_<n>),
+// only from the page's own origin, only for a session signed in to lately (KEY_COPY_SIGNIN_HOURS,
+// the key function's rule), and a few times an hour per account. An account without a copy
+// (Advanced protection, or one that never chose) is told to allow it in the app, as before.
+//
 // End-to-end encryption: the app makes the authorization code itself and sends only its hash and
 // the data key wrapped under it (code_wrap). The server answers with the client's redirect URL
 // without a code; the app adds it. At /token the code opens the wrap, and the key is wrapped
@@ -30,7 +40,9 @@
 
 import type { Sql } from "npm:postgres@3.4.5";
 import { apnsSender, type Environment, type Sender } from "../_shared/apns.ts";
-import { HANDOFF, tokenKey, unwrap, wrap } from "../_shared/e2ee.ts";
+import { HANDOFF, OpenError, tokenKey, unwrap, wrap } from "../_shared/e2ee.ts";
+import { type KeyMaterial, openAtRest, SecretMissing } from "../_shared/keycopy.ts";
+import { holdHours, isAccountsKey, signedInAtOf, signInHours, switchedOn } from "../key/logic.ts";
 import { dailyHash, hashSecret } from "../_shared/hash.ts";
 import { errorKind, log } from "../_shared/log.ts";
 
@@ -38,7 +50,7 @@ export const SCOPES = ["notes:read", "notes:write"];
 const ACCESS_TTL = 60 * 60; // seconds
 const REFRESH_TTL_DAYS = 90;
 const CODE_TTL = 60; // seconds
-const LIMITS: Record<string, [number, number]> = { register: [30, 3600], authorize: [60, 600], token: [120, 600], request: [120, 600], label: [120, 600], decide: [60, 600], status: [400, 600], resend: [12, 600] };
+const LIMITS: Record<string, [number, number]> = { register: [30, 3600], authorize: [60, 600], token: [120, 600], request: [120, 600], label: [120, 600], decide: [60, 600], status: [400, 600], resend: [12, 600], allow: [30, 600] };
 
 export type Grant = { user_id: string; token_id: string; name: string; can_write: boolean; resource?: string; dk_wrap: string | null };
 
@@ -93,7 +105,7 @@ export function subpath(req: Request): string {
 }
 
 export function isOAuthPath(p: string) {
-  return p.startsWith("/.well-known/") || ["/register", "/authorize", "/token", "/revoke", "/connect/request", "/connect/label", "/connect/ask", "/connect/scan", "/connect/resend", "/connect/status", "/connect/nonce", "/connect/reveal", "/connect/decide", "/connect/release"].includes(p);
+  return p.startsWith("/.well-known/") || ["/register", "/authorize", "/token", "/revoke", "/connect/request", "/connect/label", "/connect/ask", "/connect/scan", "/connect/resend", "/connect/status", "/connect/nonce", "/connect/reveal", "/connect/decide", "/connect/allow", "/connect/release"].includes(p);
 }
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -366,6 +378,7 @@ export async function handleOAuth(req: Request, sql: Sql, path: string): Promise
       case "/connect/nonce": return req.method === "POST" ? await deviceNonce(req, sql) : json({ error: "method_not_allowed" }, 405);
       case "/connect/reveal": return req.method === "POST" ? await reveal(req, sql) : json({ error: "method_not_allowed" }, 405);
       case "/connect/decide": return req.method === "POST" ? await decide(req, sql) : json({ error: "method_not_allowed" }, 405);
+      case "/connect/allow": return req.method === "POST" ? await allowHere(req, sql) : json({ error: "method_not_allowed" }, 405);
       case "/connect/release": return req.method === "POST" ? await release(req, sql) : json({ error: "method_not_allowed" }, 405);
     }
   } catch (e) {
@@ -550,6 +563,9 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
     wants_write: scopes.length === 0 || scopes.includes("notes:write"),
     expires_at: r.expires_at,
     ...asked,
+    // Whether Allow on the page is the answer (/connect/allow), and if not, why: the page then
+    // asks again for a sign-in ("reauth"), or sends the person to the app.
+    ...(await allowHereFor(sql, user, bearer(req))),
   });
 }
 
@@ -850,6 +866,9 @@ async function label(req: Request, sql: Sql): Promise<Response> {
     claimed_name: claimedName(r.client_name) || null,
     redirect_host: new URL(r.redirect_uri).hostname,
     verified_ai: null,
+    // The page signs in and answers itself (/connect/allow) when this server can: whether a given
+    // account can is known only after it signs in (/connect/request's allow_here).
+    allow_here: browserAllowOn() !== null,
   });
 }
 
@@ -957,16 +976,7 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
       await tx`insert into public.account_notices (user_id, kind, grant_id, what) values (${user}, 'wrong_number', null, 'wrong_number')`;
     }
     if (!allow) return true;
-    const [g] = await tx<{ id: string }[]>`
-      insert into public.mcp_tokens (user_id, name, token_hash, can_write, kind, client_id, redirect_host)
-      values (${user}, ${name}, ${"oauth:" + crypto.randomUUID()}, ${write}, 'oauth', ${r.client_id}, ${u.hostname})
-      returning id`;
-    await tx`update public.oauth_requests set grant_id = ${g.id}, code_hash = ${codeHash}, code_wrap = ${codeWrap},
-      code_expires_at = now() + make_interval(secs => ${CODE_TTL}) where id = ${r.id}`;
-    // Every device of the account says so, with Disconnect at hand: a connection nobody meant to
-    // make shows on the devices that didn't approve it too.
-    const what = `Connected ${name} from ${asked?.started_from ?? "this device"}`.slice(0, 200);
-    await tx`insert into public.account_notices (user_id, kind, grant_id, what) values (${user}, 'ai_connected', ${g.id}, ${what})`;
+    await grant(tx, r, user, { name, write, host: u.hostname, codeHash, codeWrap, from: asked?.started_from ?? "this device" });
     // The right number typed on a device: whoever is at the keyboard is the account's owner, so a
     // pause from an earlier wrong number ends.
     if (asked) await tx`delete from public.connect_blocks where user_id = ${user}`;
@@ -1004,6 +1014,162 @@ async function release(req: Request, sql: Sql): Promise<Response> {
 
 async function unclaim(sql: Sql, id: string, user: string) {
   await sql`update public.oauth_requests set claimed_by = null where id = ${id} and claimed_by = ${user} and decided_at is null`;
+}
+
+/// The connection itself, once a request is answered with Allow (by a device, the recovery key or
+/// the page): the grant, the code's hash and the data key wrapped under the code, for CODE_TTL.
+async function grant(tx: Sql, r: RequestRow, user: string, g: { name: string; write: boolean; host: string; codeHash: string; codeWrap: string; from: string }) {
+  const [row] = await tx<{ id: string }[]>`
+    insert into public.mcp_tokens (user_id, name, token_hash, can_write, kind, client_id, redirect_host)
+    values (${user}, ${g.name}, ${"oauth:" + crypto.randomUUID()}, ${g.write}, 'oauth', ${r.client_id}, ${g.host})
+    returning id`;
+  await tx`update public.oauth_requests set grant_id = ${row.id}, code_hash = ${g.codeHash}, code_wrap = ${g.codeWrap},
+    code_expires_at = now() + make_interval(secs => ${CODE_TTL}) where id = ${r.id}`;
+  // Every device of the account says so, with Disconnect at hand: a connection nobody meant to
+  // make shows on the devices that didn't approve it too.
+  const what = `Connected ${g.name} from ${g.from}`.slice(0, 200);
+  await tx`insert into public.account_notices (user_id, kind, grant_id, what) values (${user}, 'ai_connected', ${row.id}, ${what})`;
+}
+
+// MARK: Allowing on the web page
+
+/// How many times an hour, and a day, the page may open an account's key copy to connect an AI.
+export const ALLOWS = { perHour: 10, perDay: 30 };
+
+/// The key copy's secrets when the page may answer requests itself: CONNECT_IN_BROWSER=on and the
+/// key copy switched on (KEY_COPY=on and a KEY_COPY_SECRET_<n>). Null otherwise: the page then
+/// works as before, with the app answering.
+export function browserAllowOn() {
+  if ((Deno.env.get("CONNECT_IN_BROWSER") ?? "").trim().toLowerCase() !== "on") return null;
+  return switchedOn(Deno.env);
+}
+
+const bearer = (req: Request) => (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+
+/// Why the page can't answer for this account, or null when it can:
+///   off      this server doesn't answer on the page (browserAllowOn)
+///   no_key   the account has no key yet: a device makes it, at its first sign-in
+///   strict   Advanced protection: the key is on the person's devices only
+///   no_copy  no copy of the current key (an account that never chose, or a copy of an old key)
+///   reauth   the session's sign-in is older than KEY_COPY_SIGNIN_HOURS (1 hour by default)
+///   paused   a password reset was too recent (KEY_COPY_HOLD_HOURS, none by default)
+/// The same rules as a device getting the key from the `key` function, since a connection is
+/// the key going to whoever holds the AI's tokens.
+type HereRow = { key_id: string; verifier: string; recovery_wrap: string; mode: string | null; sealed: string | null; copy_key_id: string | null; reset_at: Date | null };
+async function hereCheck(sql: Sql, user: string, token: string, now = Date.now()): Promise<{ why: string; until?: string } | { row: HereRow }> {
+  if (!browserAllowOn()) return { why: "off" };
+  const [row] = await sql<HereRow[]>`
+    select k.key_id, k.verifier, k.recovery_wrap,
+           (select p.mode from public.account_key_protection p where p.user_id = k.user_id) as mode,
+           c.sealed, c.key_id as copy_key_id,
+           (select a.at from public.account_recoveries a where a.user_id = k.user_id) as reset_at
+    from public.account_keys k left join public.account_key_copies c on c.user_id = k.user_id
+    where k.user_id = ${user}`;
+  if (!row) return { why: "no_key" };
+  if (row.mode === "strict") return { why: "strict" };
+  if (row.mode !== "standard" || !row.sealed || row.copy_key_id !== row.key_id) return { why: "no_copy" };
+  const signedIn = signedInAtOf(token);
+  if (signedIn === null || signedIn < now - signInHours(Deno.env) * 3600_000) return { why: "reauth" };
+  const hold = holdHours(Deno.env);
+  const until = hold > 0 && row.reset_at ? new Date(row.reset_at).getTime() + hold * 3600_000 : 0;
+  if (until > now) return { why: "paused", until: new Date(until).toISOString() };
+  return { row };
+}
+
+async function allowHereFor(sql: Sql, user: string, token: string): Promise<{ allow_here: boolean; allow_here_why: string | null }> {
+  const here = await hereCheck(sql, user, token);
+  return "row" in here ? { allow_here: true, allow_here_why: null } : { allow_here: false, allow_here_why: here.why };
+}
+
+const HERE_WORDS: Record<string, [number, string]> = {
+  off: [503, "Allow it in Pinto Notes on your iPhone or Mac."],
+  no_key: [409, "Set up Pinto Notes on your iPhone or Mac first, then connect again."],
+  strict: [409, "Your notes' key is only on your devices. Allow it in Pinto Notes on your iPhone or Mac."],
+  no_copy: [409, "Allow it in Pinto Notes on your iPhone or Mac."],
+  reauth: [403, "Sign in again to connect."],
+  paused: [403, "Connecting on the web opens again a while after a password reset. Allow it in Pinto Notes on your iPhone or Mac."],
+};
+
+/// Allow, on the web page: POST {id, write, redirect_uri, from} with the person's session, from the
+/// page's origin only. The page showed the exact return address from /connect/request and sends it
+/// back, so what was approved is where the code goes. The function opens the account's key copy,
+/// makes a one-minute, single-use code and wraps the data key under it (what a device sends to
+/// /connect/decide), keeps only the code's hash and the wrap, and answers with the client's
+/// redirect, code included. A refusal names why in `hint` (see hereCheck), lets go of the request
+/// (so the app can still answer it) and opens nothing.
+async function allowHere(req: Request, sql: Sql): Promise<Response> {
+  // Browsers only, and only the site: the apps answer through /connect/decide.
+  if (req.headers.get("origin") !== new URL(connectPage()).origin) return json({ error: "Not allowed from this site." }, 403);
+  if (await limited(sql, req, "allow")) return json({ error: "Too many attempts. Wait a few minutes and try again.", hint: "rate" }, 429);
+  const s = browserAllowOn();
+  if (!s) return json({ error: HERE_WORDS.off[1], hint: "off" }, 503);
+  const user = await sessionUser(req);
+  if (!user) return json({ error: "Sign in to Pinto Notes first.", hint: "sign_in" }, 401);
+  const body = await req.json().catch(() => ({})) as { id?: unknown; write?: unknown; redirect_uri?: unknown; from?: unknown };
+  const r = await pending(sql, typeof body.id === "string" ? body.id : "");
+  if (!r) return json({ error: EXPIRED, hint: "expired" }, 404);
+  if (!(await claim(sql, r, user))) return json({ error: notYours(r), hint: "not_yours" }, 403);
+  const refuse = async (error: string, status: number, hint: string, more: Record<string, unknown> = {}) => {
+    await unclaim(sql, r.id, user);
+    log("connect_allow", { status: "refused", kind: hint });
+    return json({ error, hint, ...more }, status);
+  };
+  if (body.redirect_uri !== r.redirect_uri) return await refuse(CHANGED, 409, "changed");
+  const here = await hereCheck(sql, user, bearer(req));
+  if (!("row" in here)) {
+    const [status, words] = HERE_WORDS[here.why];
+    return await refuse(words, status, here.why, here.until ? { until: here.until } : {});
+  }
+
+  let k: KeyMaterial;
+  try {
+    ({ key: k } = await openAtRest(here.row.sealed!, s, user, here.row.key_id));
+  } catch (e) {
+    if (!(e instanceof OpenError) && !(e instanceof SecretMissing)) throw e;
+    // A copy this function can't open stays where it is (the key function's rule).
+    return await refuse("Not available right now. Allow it in Pinto Notes on your iPhone or Mac.", 503, "unreadable");
+  }
+  let code: string, codeHash: string, codeWrap: string;
+  try {
+    // Never wrap anything that isn't the account's key, whatever the table said.
+    if (!(await isAccountsKey(k, here.row, user))) return await refuse("Not available right now. Allow it in Pinto Notes on your iPhone or Mac.", 503, "unreadable");
+    // The code a device would make (E2EE.swift: "amb_code_" and 64 hex), and the key under it.
+    code = randomToken("amb_code_");
+    codeHash = await sha256Hex(code);
+    codeWrap = await wrap(k.dataKey, await tokenKey(code, "code"), "code", user);
+  } finally {
+    k.dataKey.fill(0);
+    k.recovery.fill(0);
+  }
+
+  const u = clientRedirect(r.redirect_uri, r.state, r.resource);
+  const name = displayName(r.client_name, r.redirect_uri);
+  const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
+  const write = body.write === true && (scopes.length === 0 || scopes.includes("notes:write"));
+  const from = cleanName(typeof body.from === "string" ? body.from : "").slice(0, 60) || "a web browser";
+  // Counted, answered and written down in one step, one at a time per account (the key function's
+  // lock): of many sent at once, only as many as the limit connect anything.
+  const answered = await sql.begin(async (tx): Promise<"ok" | "rate" | "gone"> => {
+    await tx`select pg_advisory_xact_lock(hashtextextended(${"key-copy " + user}, 0))`;
+    const [counts] = await tx<{ hour: number; day: number }[]>`
+      select count(*) filter (where at > now() - interval '1 hour')::int as hour, count(*)::int as day
+      from public.key_copy_events where user_id = ${user} and what = 'connected' and at > now() - interval '1 day'`;
+    if (counts.hour >= ALLOWS.perHour || counts.day >= ALLOWS.perDay) return "rate";
+    const [open] = await tx`update public.oauth_requests set decided_at = now()
+      where id = ${r.id} and decided_at is null and claimed_by = ${user} returning 1`;
+    if (!open) return "gone";
+    await grant(tx, r, user, { name, write, host: u.hostname, codeHash, codeWrap, from });
+    await tx`insert into public.key_copy_events (user_id, what, platform) values (${user}, 'connected', 'web')`;
+    // A page that also showed a QR code or asked a device: that ask is over, answered here.
+    await tx`update public.connect_asks set answered_at = now(), denied = false, redirect = ${u.toString()}, user_id = coalesce(user_id, ${user}),
+      answer = null, delivered_at = now() where request_id = ${r.id} and answered_at is null`;
+    return "ok";
+  });
+  if (answered === "rate") return await refuse("Too many AI connections from the web today. Allow it in Pinto Notes on your iPhone or Mac.", 429, "rate");
+  if (answered === "gone") return json({ error: EXPIRED, hint: "expired" }, 404);
+  log("connect_allow", { status: "allowed" });
+  u.searchParams.set("code", code);
+  return json({ redirect: u.toString(), client_name: name, can_write: write });
 }
 
 // MARK: Tokens
