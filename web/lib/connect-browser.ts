@@ -1,0 +1,229 @@
+// Connecting an AI on the web page alone (BrowserConnect.tsx), for accounts whose key the server
+// keeps a copy of: sign in, see who is asking and what is shared, Allow. No app and no number.
+//
+// 1. Sign in: an email code (Supabase's /auth/v1/otp, then /auth/v1/verify), Google or Apple
+//    (the same round trip as before, lib/connect.ts). No password and no new accounts here: an
+//    account starts in the app, which makes its notes' key.
+// 2. /connect/request with the session: who is asking, the exact return address, and whether this
+//    page may answer (allow_here). "reauth": the sign-in is too old for the server to open the key
+//    copy (an hour, as for a new device), so the page asks for a fresh one. Anything else that
+//    isn't yes ("strict", "no_copy", "no_key", "off") goes to the app, the way it worked before.
+// 3. The consent: who, what is shared and with which company (the words the app's Allow sheet
+//    uses, as App Review asked), Read and edit or Read only, locked notes stay private. Allow posts
+//    /connect/allow; the server makes the code and answers with the AI's return address, code
+//    included. Don't allow is /connect/decide with allow: false, as before.
+//
+// The session is kept in this browser (localStorage, SESSION_KEY) so a second AI connected soon
+// after is just the consent and Allow. "Use another account" and a refused session remove it.
+
+import type { ConnectRequest } from "./connect";
+
+/// Who receives what a known AI opens: the company that makes it (ConnectTrust.makers in the app).
+export const MAKERS: Record<"ChatGPT" | "Claude", string> = { ChatGPT: "OpenAI", Claude: "Anthropic" };
+
+/// What the consent says, line by line, in reading order. The same words as the app's Allow sheet
+/// (ConsentSheet in Pane/Views/ConnectAI.swift): App Review and the ChatGPT plugin's reviewers read
+/// this page, and each line stays on screen, never behind a disclosure.
+export type ConsentWords = {
+  title: string;
+  /// An app Pinto can't name: the caution, above everything else.
+  caution: { lead: string; detail: string } | null;
+  /// "Shared with OpenAI." and what that means.
+  sharedLead: string;
+  sent: string;
+  lockedLead: string;
+  lockedDetail: string;
+  /// Under the buttons: a request from ChatGPT's or Claude's own address proves where the code
+  /// goes, not whose account asked (the 2 October rule in the MCP function), so it is still said.
+  started: string;
+};
+
+export function consentWords(r: Pick<ConnectRequest, "verified_ai" | "redirect_host" | "loopback" | "claimed_name" | "client_name">): ConsentWords {
+  const ai = r.verified_ai ?? null;
+  const maker = ai ? MAKERS[ai] : null;
+  const where = r.loopback ? "this app" : r.redirect_host;
+  const who = ai ?? (r.loopback ? "an app on this computer" : r.redirect_host);
+  if (ai && maker) {
+    return {
+      title: `Connect ${ai} to your notes?`,
+      caution: null,
+      sharedLead: `Shared with ${maker}.`,
+      sent: `The notes ${ai} opens, with their text and files, are sent to ${maker} and handled under ${maker}’s privacy policy.`,
+      lockedLead: "Locked notes stay private.",
+      lockedDetail: `${ai} can’t open them.`,
+      started: `Allow it only if you just started connecting ${ai} yourself.`,
+    };
+  }
+  const claim = r.claimed_name ? `It calls itself ${displayClaim(r.claimed_name)}. ` : "";
+  return {
+    title: `Connect ${who} to your notes?`,
+    caution: { lead: "Pinto doesn’t recognize this app.", detail: `${claim}Only allow it if you just started connecting it yourself.` },
+    sharedLead: `Shared with ${where}.`,
+    sent: `The notes it opens, with their text and files, are sent to ${where}.`,
+    lockedLead: "Locked notes stay private.",
+    lockedDetail: "It can’t open them.",
+    started: "Allow it only if you just started connecting it yourself.",
+  };
+}
+
+/// What an app calls itself, as a name reads ("glama" is Glama); its own capitals stay.
+const displayClaim = (name: string) => (name === name.toLowerCase() ? name.charAt(0).toUpperCase() + name.slice(1) : name);
+
+/// The two access choices, as the app shows them. Only Read only for an app that asked to read.
+export const ACCESS = {
+  edit: { title: "Read and edit", detail: "It can create and change notes. Every change can be undone." },
+  read: { title: "Read only", detail: "It can find and read notes, nothing more." },
+} as const;
+
+/// The AI's name for the way back: "ChatGPT" for its own address, else the address.
+export function backTo(r: Pick<ConnectRequest, "verified_ai" | "redirect_host" | "loopback">): string {
+  return r.verified_ai ?? (r.loopback ? "the app" : r.redirect_host);
+}
+
+// MARK: Whether this page may answer
+
+/// What /connect/request said about answering here: Allow on this page, a fresh sign-in first,
+/// the app, or wait (a password reset was too recent).
+export type Here = "yes" | "reauth" | "app" | "paused";
+
+export function hereFrom(body: { allow_here?: unknown; allow_here_why?: unknown } | null | undefined): Here {
+  if (body?.allow_here === true) return "yes";
+  switch (body?.allow_here_why) {
+    case "reauth": return "reauth";
+    case "paused": return "paused";
+    // strict, no_copy, no_key, off, or a server from before this that doesn't say.
+    default: return "app";
+  }
+}
+
+/// Why the account goes to the app, in one plain line.
+export const IN_APP = {
+  title: "Allow this in Pinto Notes",
+  text: "Your account keeps its notes’ key on your iPhone and Mac only, so the app has to allow this.",
+  button: "Continue",
+} as const;
+
+/// Why a fresh sign-in is asked for. The server opens the key copy only for a sign-in from the
+/// last hour (KEY_COPY_SIGNIN_HOURS), as for a new device.
+export const SIGN_IN_AGAIN = "To keep your notes safe, connecting needs a sign-in from the last hour.";
+
+// MARK: Email codes (Supabase Auth)
+
+export const CODE_LENGTH = 6;
+
+/// Asks Supabase to email a sign-in code. Never makes an account: accounts start in the app.
+export function codeRequest(supabaseURL: string, anonKey: string, email: string): [string, RequestInit] {
+  return [`${supabaseURL.replace(/\/+$/, "")}/auth/v1/otp`, {
+    method: "POST",
+    headers: { apikey: anonKey, "content-type": "application/json" },
+    body: JSON.stringify({ email: email.trim(), create_user: false }),
+  }];
+}
+
+/// Trades the emailed code for a session.
+export function verifyRequest(supabaseURL: string, anonKey: string, email: string, code: string): [string, RequestInit] {
+  return [`${supabaseURL.replace(/\/+$/, "")}/auth/v1/verify`, {
+    method: "POST",
+    headers: { apikey: anonKey, "content-type": "application/json" },
+    body: JSON.stringify({ type: "email", email: email.trim(), token: code.replace(/\s+/g, "") }),
+  }];
+}
+
+/// The digits of a typed or pasted code, at most CODE_LENGTH.
+export const codeDigits = (typed: string) => typed.replace(/\D/g, "").slice(0, CODE_LENGTH);
+
+type AuthError = { error_code?: string; code?: string | number; msg?: string; message?: string; error_description?: string } | null;
+
+const said = (body: AuthError) => `${body?.error_code ?? ""} ${body?.msg ?? body?.message ?? body?.error_description ?? ""}`.toLowerCase();
+
+/// Why no code was sent, in plain words. No account: the page says where accounts start.
+export function codeRequestError(status: number, body: AuthError): { text: string; noAccount?: boolean } {
+  const s = said(body);
+  if (status === 429 || s.includes("rate limit") || s.includes("over_email_send")) return { text: "We just sent a code. Wait a minute, then try again." };
+  if (s.includes("signups not allowed") || s.includes("otp_disabled") || s.includes("user not found")) {
+    return { text: "No Pinto Notes account uses this email.", noAccount: true };
+  }
+  return { text: "Couldn’t send a code. Check your connection and try again." };
+}
+
+/// Why the code didn't sign in.
+export function verifyError(status: number, body: AuthError): string {
+  const s = said(body);
+  if (status === 429 || s.includes("rate limit")) return "Too many tries. Wait a few minutes and try again.";
+  if (s.includes("expired") || s.includes("invalid") || status === 403 || status === 400) return "That code didn’t work. Check the newest email from Pinto Notes, or send a new code.";
+  return "Couldn’t sign in. Check your connection and try again.";
+}
+
+// MARK: The session kept in this browser
+
+export const SESSION_KEY = "pinto.connect.session";
+
+export type StoredSession = { access_token: string; refresh_token: string; user_id: string; email: string };
+
+/// A session from a Supabase Auth token response, or null.
+export function sessionFrom(body: { access_token?: unknown; refresh_token?: unknown; user?: { id?: unknown; email?: unknown } } | null, fallbackEmail = ""): StoredSession | null {
+  if (typeof body?.access_token !== "string" || typeof body.refresh_token !== "string" || typeof body.user?.id !== "string") return null;
+  return { access_token: body.access_token, refresh_token: body.refresh_token, user_id: body.user.id, email: typeof body.user.email === "string" ? body.user.email : fallbackEmail };
+}
+
+export function loadSession(store: Pick<Storage, "getItem"> | null): StoredSession | null {
+  try {
+    const raw = store?.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    return typeof s?.refresh_token === "string" && typeof s?.user_id === "string"
+      ? { access_token: String(s.access_token ?? ""), refresh_token: s.refresh_token, user_id: s.user_id, email: String(s.email ?? "") }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSession(store: Pick<Storage, "setItem"> | null, s: StoredSession) {
+  try { store?.setItem(SESSION_KEY, JSON.stringify(s)); } catch {}
+}
+
+export function forgetSession(store: Pick<Storage, "removeItem"> | null) {
+  try { store?.removeItem(SESSION_KEY); } catch {}
+}
+
+/// A stored session made fresh: its refresh token for a new access token (which keeps the time of
+/// the sign-in it came from, so the server still knows how recent that was).
+export function refreshRequest(supabaseURL: string, anonKey: string, refreshToken: string): [string, RequestInit] {
+  return [`${supabaseURL.replace(/\/+$/, "")}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: anonKey, "content-type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  }];
+}
+
+/// Allow, on this page: the exact return address it showed, and the access chosen.
+export function allowRequest(mcp: string, token: string, b: { id: string; write: boolean; redirect_uri: string; from: string }): [string, RequestInit] {
+  return [`${mcp}/connect/allow`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(b),
+  }];
+}
+
+/// Don't allow: the AI hears access_denied (/connect/decide, as from the app).
+export function denyRequest(mcp: string, token: string, b: { id: string; redirect_uri: string }): [string, RequestInit] {
+  return [`${mcp}/connect/decide`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ ...b, allow: false }),
+  }];
+}
+
+/// The page follows only a web address (or an app on this computer) back, never another scheme.
+export function safeReturn(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:") return u.toString();
+    if (u.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname)) return u.toString();
+    return null;
+  } catch {
+    return null;
+  }
+}

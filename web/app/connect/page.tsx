@@ -4,13 +4,15 @@ import { approveOnFromUA } from "@/lib/connect-flow";
 import { fetchLabel, functionURL, problemText, qrConnectLive, validRequest } from "@/lib/connect";
 import { functionRegion, upstreamHeaders } from "@/lib/mcp-proxy";
 import { publicVersion } from "@/lib/public-release";
+import BrowserConnect from "./BrowserConnect";
 import ConnectCard from "./ConnectCard";
 import ConnectFlow from "./ConnectFlow";
 import ConnectFlowV1 from "./ConnectFlowV1";
 import styles from "./connect.module.css";
 
-// Where an AI's sign-in lands (the MCP server's /authorize sends it here). It says what the app calls itself;
-// you approve on your iPhone or Mac, or here with your recovery key. See lib/connect.ts.
+// Where an AI's sign-in lands (the MCP server's /authorize sends it here). It says what the app calls itself.
+// With a server that allows it, you sign in and allow it here (lib/connect-browser.ts); otherwise you
+// approve on your iPhone or Mac, or here with your recovery key (lib/connect.ts).
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Connect to Pinto Notes", robots: { index: false, follow: false } };
 
@@ -45,9 +47,22 @@ export default async function Connect({ searchParams }: { searchParams: Promise<
   // page those apps understand, and ?qr=1 for testing a newer build.
   const live = qrConnectLive(publicVersion());
   const device = approveOnFromUA((await headers()).get("user-agent"));
+  const asBefore = (f: typeof flow) => qrConnectLive(publicVersion(), qr) ? <ConnectFlow {...f} keepQR={!live} device={device} /> : <ConnectFlowV1 {...f} />;
+  // A server that lets the page answer (lib/connect-browser.ts): sign in and Allow here. The way it
+  // was stays for the recovery key's return trip and for accounts whose key is only on their devices.
+  if (label?.allow_here && recover !== "1") {
+    return (
+      <ConnectCard request label={label}>
+        <BrowserConnect
+          requestId={flow.requestId} supabaseURL={supabaseURL} anonKey={anonKey} authCode={flow.authCode} authError={flow.authError}
+          inApp={() => asBefore({ ...flow, authCode: undefined, authError: undefined })}
+        />
+      </ConnectCard>
+    );
+  }
   return (
     <ConnectCard request label={label}>
-      {qrConnectLive(publicVersion(), qr) ? <ConnectFlow {...flow} keepQR={!live} device={device} /> : <ConnectFlowV1 {...flow} />}
+      {asBefore(flow)}
     </ConnectCard>
   );
 }

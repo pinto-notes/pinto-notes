@@ -58,7 +58,11 @@ export function scanFragment(hash: string | null | undefined): string | null {
 
 /// What the page shows about who is asking, from /connect/label. Nothing here is verified: the
 /// name is what the app calls itself, and the host is where access would go.
-export type ConnectLabel = { claimed_name: string | null; redirect_host: string | null; loopback: boolean };
+export type ConnectLabel = {
+  claimed_name: string | null; redirect_host: string | null; loopback: boolean;
+  /// The server lets this page answer for accounts whose key it keeps a copy of (BrowserConnect).
+  allow_here?: boolean;
+};
 
 /// The sign-in step's heading (ConnectFlowV1). The question with the app's name is the frame's
 /// (requestWords), so this names the step, not the app.
@@ -81,11 +85,12 @@ function plainHost(host: unknown): string | null {
 /// Reads a /connect/label body into what the page may show.
 export function parseLabel(body: unknown): ConnectLabel | null {
   // Only claimed_name: client_name is the server's name for the address, not what the app says.
-  const b = (body ?? {}) as { claimed_name?: unknown; redirect_host?: unknown };
+  const b = (body ?? {}) as { claimed_name?: unknown; redirect_host?: unknown; allow_here?: unknown };
   const claimed = plainName(b.claimed_name);
   const host = plainHost(b.redirect_host);
   if (!claimed && !host) return null;
-  return { claimed_name: claimed, redirect_host: host, loopback: host !== null && LOOPBACK.has(host) };
+  const label: ConnectLabel = { claimed_name: claimed, redirect_host: host, loopback: host !== null && LOOPBACK.has(host) };
+  return b.allow_here === true ? { ...label, allow_here: true } : label;
 }
 
 /// Reads /connect/label from the MCP function. `headers` are what the function should see: the

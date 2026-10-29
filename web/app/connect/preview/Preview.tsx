@@ -5,7 +5,9 @@ import { scanAppLink, scanLink } from "@/lib/connect-flow";
 import { universalLink } from "@/lib/connect";
 import { DeviceScreen, type NumberAction } from "../DeviceLead";
 import type { PreviewState } from "./states";
-import { LeavingScreen, NotifyScreen, NotifySignInScreen, RecoverScreen, ScanScreen } from "../ConnectScreens";
+import { EndedScreen, LeavingScreen, NotifyScreen, NotifySignInScreen, RecoverScreen, ScanScreen } from "../ConnectScreens";
+import { BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen } from "../BrowserScreens";
+import { consentWords } from "@/lib/connect-browser";
 
 // The connect page's screens with fixed, made-up values. Nothing here talks to a server.
 
@@ -19,6 +21,10 @@ const TO = "claude.ai";
 const noop = () => {};
 const sentAgain = async () => null;
 const prevent = (e: React.FormEvent) => e.preventDefault();
+/// Who is asking, as /connect/request says it after sign-in: ChatGPT at its own callback, and an
+/// app Pinto can't name.
+const CHATGPT = { verified_ai: "ChatGPT" as const, redirect_host: "chatgpt.com", loopback: false, claimed_name: null, client_name: "ChatGPT" };
+const UNKNOWN = { verified_ai: null, redirect_host: "notebot.example", loopback: false, claimed_name: "notebot", client_name: "notebot.example" };
 
 export default function Preview({ state, number, action, both }: {
   state: PreviewState; number: string | null; action: NumberAction; both: boolean;
@@ -65,5 +71,33 @@ export default function Preview({ state, number, action, both }: {
       return <DeviceScreen lead="thisIphone" devices={{ iphone: true, mac: both }} number={number} action={action} openLink={universalLink(ID)} onRecover={noop} onResend={sentAgain} />;
     case "leaving":
       return <LeavingScreen allowed host={TO} />;
+    case "webSignIn":
+    case "webSignInAgain":
+      return (
+        <BrowserSignInScreen
+          email={state === "webSignInAgain" ? "me@example.com" : email} onEmail={setEmail} onSubmit={prevent} onGoogle={noop} onApple={noop}
+          busy={false} ready failure={null} again={state === "webSignInAgain"} onDifferent={noop}
+        />
+      );
+    case "webCode":
+      return <CodeScreen email="me@example.com" code={email.replace(/\D/g, "")} onCode={setEmail} onSubmit={prevent} onResend={noop} onDifferent={noop} busy={false} ready failure={null} resent={false} />;
+    case "webConsent":
+    case "webConsentRead":
+    case "webConsentUnknown":
+    case "webAllowing": {
+      const r = state === "webConsentUnknown" ? UNKNOWN : CHATGPT;
+      return (
+        <ConsentScreen
+          words={consentWords(r)} ai={r.verified_ai ?? "it"} canWrite={state !== "webConsentRead"} write={state === "webConsentRead" ? false : write} onWrite={setWrite}
+          onAllow={noop} onDeny={noop} busy={state === "webAllowing" ? "allow" : null} failure={null} email="me@example.com" onSwitch={noop}
+        />
+      );
+    }
+    case "webConnected":
+      return <ConnectedScreen to="ChatGPT" href="#" />;
+    case "webExpired":
+      return <EndedScreen title="This request has expired" text="Start connecting again from ChatGPT, Claude or the other app you were using." />;
+    case "webInApp":
+      return <InAppScreen email="me@example.com" onSwitch={noop} onContinue={noop} />;
   }
 }

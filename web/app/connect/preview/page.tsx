@@ -16,6 +16,7 @@ export const metadata: Metadata = { title: "Dev: connect preview", robots: { ind
 /// a website, and an app with no name.
 const APPS: Record<string, ConnectLabel> = {
   claude: { claimed_name: "Claude", redirect_host: "claude.ai", loopback: false },
+  chatgpt: { claimed_name: "ChatGPT", redirect_host: "chatgpt.com", loopback: false },
   codex: { claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true },
   fake: { claimed_name: "claude", redirect_host: "127.0.0.1", loopback: true },
   web: { claimed_name: "notebot", redirect_host: "notebot.example", loopback: false },
