@@ -58,7 +58,7 @@ import AppKit
 
     static func host(_ sheet: ConsentSheet, dark: Bool = false) async -> (NSWindow, NSHostingView<some View>) {
         let host = NSHostingView(rootView: sheet)
-        let w = KeyWindow(contentRect: CGRect(x: -20000, y: -20000, width: 440, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
+        let w = KeyWindow(contentRect: CGRect(x: -20000, y: -20000, width: 760, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         w.contentView = host
@@ -106,6 +106,8 @@ import AppKit
         defer { w.close() }
         #expect(host.bounds.width == ConsentSheet.width)
         #expect(Self.segments(host).isEmpty, "no segmented control: the choice is two cards")
+        // Wide (29 Oct 2026): two columns, the answer bottom right of the right one.
+        #expect(ConsentSheet.width == 720 && ConsentSheet.twoColumns(.asking(Self.glama)) && !ConsentSheet.twoColumns(.working))
         #expect(ConsentSheet.accessOptions(Self.glama) == [true, false], "Read and edit, then Read only")
         #expect(ConsentSheet.detail(Self.glama).hasPrefix(ConsentSheet.unknownLead), "an app Pinto can't name: the warning first")
         #expect(ConsentSheet.detail(Self.claude).hasPrefix("Shared with Anthropic."), "a known AI: no warning")

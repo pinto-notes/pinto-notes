@@ -1164,6 +1164,41 @@ struct AccessCard: View {
     }
 }
 
+/// A choice as a plain radio and its words: no box, no border (the wide Mac sheet).
+struct AccessRadio: View {
+    let title: String
+    let detail: String
+    let selected: Bool
+    var enabled = true
+    let choose: () -> Void
+
+    var body: some View {
+        Button(action: choose) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                ZStack {
+                    Circle().strokeBorder(selected ? Color(Palette.amber) : Color.muted.opacity(0.5), lineWidth: 1.5)
+                    if selected { Circle().fill(Color(Palette.amber)).padding(4) }
+                }
+                .frame(width: 16, height: 16)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ink)
+                    Text(detail).font(.system(size: 13)).foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(detail)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 struct ClientTile: View {
     let symbol: String
     var size: CGFloat = 30
@@ -1279,7 +1314,11 @@ struct ConsentSheet: View {
     }
 
     /// The Mac sheet's width: a form, laid out left to right like the other Mac sheets.
+    #if os(macOS)
+    static let width: CGFloat = 720
+    #else
     static let width: CGFloat = 520
+    #endif
 
     /// iPhone: as tall as what it shows, scrolling when that's more than the screen (the
     /// largest text sizes). Nothing is ever cut short.
@@ -1311,7 +1350,8 @@ struct ConsentSheet: View {
     /// before fades (BlurMotion).
     private var content: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let last { header(last) }
+            // Mac, asking: the left column carries who asks.
+            if let last, !Self.twoColumns(phase) { header(last) }
             ZStack(alignment: .topLeading) {
                 states
                     .id(phaseKey)
@@ -1521,7 +1561,119 @@ struct ConsentSheet: View {
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
 
+    /// Mac, asking: two columns. Who asks, from where and the number on the left; the choice,
+    /// what's shared and the answer on the right.
+    static func twoColumns(_ phase: Phase) -> Bool {
+        #if os(macOS)
+        if case .asking = phase { return true }
+        #endif
+        return false
+    }
+
+    @ViewBuilder
     private func asking(_ r: ConnectRequest) -> some View {
+        #if os(macOS)
+        wide(r)
+        #else
+        stacked(r)
+        #endif
+    }
+
+    private func wide(_ r: ConnectRequest) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                pair(r)
+                Text(Self.title(r))
+                    .font(.system(size: 22, weight: .bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 16)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("connect.title")
+                if let line = Self.whereLine(r) {
+                    Text(line).font(.system(size: 13)).foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 6)
+                        .accessibilityIdentifier("connect.requested")
+                }
+                if r.verifiedAI == nil, r.startedHere == nil {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.amberInk).accessibilityHidden(true)
+                        (Text(Self.unknownLead).fontWeight(.semibold).foregroundColor(Color.amberInk) + Text(" " + Self.unknownDetail(r)))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .font(.system(size: 13))
+                    .padding(.top, 18)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("connect.unknown")
+                }
+                if byNumber(r) {
+                    Spacer(minLength: 24)
+                    if let match {
+                        Text(match.number)
+                            .font(.system(size: 64, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .accessibilityLabel("Number \(match.number.map(String.init).joined(separator: " "))")
+                            .accessibilityIdentifier("connect.number")
+                        Text("Allow only if your computer shows \(match.number) too.")
+                            .font(.system(size: 13)).foregroundStyle(Color.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        ProgressView().controlSize(.small)
+                        Text("Waiting for your computer\u{2026}").font(.system(size: 13)).foregroundStyle(Color.muted)
+                    }
+                }
+            }
+            .frame(width: 250, alignment: .leading)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+            Rectangle().fill(Color.line).frame(width: 1).padding(.horizontal, 28)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Access").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.muted)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Self.accessOptions(r), id: \.self) { edit in
+                        AccessRadio(title: edit ? "Read and edit" : "Read only", detail: Self.accessLine(write: edit),
+                                    selected: (write && r.wants_write) == edit, enabled: r.wants_write) { write = edit }
+                            .accessibilityIdentifier(edit ? "connect.access.edit" : "connect.access.read")
+                    }
+                }
+                .padding(.top, 10)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Access")
+                .accessibilityIdentifier("connect.access")
+                .focusable(r.wants_write)
+                .focusEffectDisabled()
+                .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+                    guard r.wants_write else { return .ignored }
+                    write = press.key == .leftArrow || press.key == .upArrow
+                    return .handled
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    wideFact("paperplane", lead: Self.sharedLead(r), Self.sent(r)).accessibilityIdentifier("connect.destination")
+                    wideFact("lock", lead: "Locked notes stay private.", Self.lockedDetail(r)).accessibilityIdentifier("connect.locked")
+                }
+                .padding(.top, 24)
+                Spacer(minLength: 24)
+                HStack(spacing: 8) { Spacer(minLength: 0); answers(r) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.top, 6)
+    }
+
+    private func wideFact(_ symbol: String, lead: String, _ detail: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol).foregroundStyle(Color.muted).frame(minWidth: 16).accessibilityHidden(true)
+            (Text(lead).fontWeight(.semibold).foregroundColor(Color.ink) + Text(" " + detail))
+                .foregroundStyle(Color.muted)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 14))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func stacked(_ r: ConnectRequest) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             if r.verifiedAI == nil, r.startedHere == nil { warning(r) }
             if byNumber(r) { number }
@@ -1614,6 +1766,8 @@ struct ConsentSheet: View {
             .accessibilityIdentifier("connect.access")
             // A radio group at the keyboard: the arrows move the choice.
             .focusable(r.wants_write)
+            // The selected card shows the choice; a ring around both cards was a second outline.
+            .focusEffectDisabled()
             .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
                 guard r.wants_write else { return .ignored }
                 write = press.key == .leftArrow || press.key == .upArrow
