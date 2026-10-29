@@ -1547,13 +1547,25 @@ struct ConsentSheet: View {
     @ViewBuilder
     private func verb(_ r: ConnectRequest) -> some View {
         if r.wants_write {
-            Picker("Access", selection: $write) {
-                Text("read and edit").tag(true)
-                Text("read only").tag(false)
+            // A word in the sentence, in the sentence's own type, that opens the two choices.
+            Menu {
+                Button(Self.verb(write: true)) { write = true }
+                Button(Self.verb(write: false)) { write = false }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(Self.verb(write: write))
+                    Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
+                }
+                .foregroundStyle(Color(Palette.amber))
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
             .fixedSize()
+            // The amber word shows the choice; a ring around it was a second outline.
+            .focusEffectDisabled()
+            .accessibilityLabel("Access")
+            .accessibilityValue(Self.verb(write: write))
             .accessibilityIdentifier("connect.access")
         } else {
             Text("read")
@@ -1630,10 +1642,13 @@ struct ConsentSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The access as the sentence says it.
+    nonisolated static func verb(write: Bool) -> String { write ? "read and edit" : "read only" }
+
     /// Under the sentence: where it was asked, and the code to compare.
     private func quietLine(_ r: ConnectRequest) -> String? {
         let check = byNumber(r) ? match.map { "Allow only if your computer shows code \($0.number)." } : nil
-        let parts = [Self.whereLine(r), check].compactMap { $0 }
+        let parts = [Self.whereLine(r), check].compactMap { $0 }.map { $0.hasSuffix(".") ? $0 : $0 + "." }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 

@@ -73,10 +73,6 @@ import AppKit
         return (w, host)
     }
 
-    static func popUps(_ view: NSView) -> [NSPopUpButton] {
-        (view as? NSPopUpButton).map { [$0] } ?? view.subviews.flatMap(popUps)
-    }
-
     /// The segmented controls under the view (SwiftUI's segmented picker is AppKit's).
     static func segments(_ view: NSView) -> [NSSegmentedControl] {
         (view as? NSSegmentedControl).map { [$0] } ?? view.subviews.flatMap(segments)
@@ -112,7 +108,7 @@ import AppKit
         // Quiet (29 Oct 2026): one sentence with the access as a pop-up in it, no cards.
         #expect(Self.segments(host).isEmpty, "no segmented control")
         #expect(ConsentSheet.width == 460 && ConsentSheet.asSentence(.asking(Self.glama)) && !ConsentSheet.asSentence(.working))
-        #expect(Self.popUps(host).count == 1, "the access is one pop-up button")
+        #expect(ConsentSheet.verb(write: true) == "read and edit" && ConsentSheet.verb(write: false) == "read only", "the access as a word in the sentence")
         #expect(ConsentSheet.accessOptions(Self.glama) == [true, false], "Read and edit, then Read only")
         #expect(ConsentSheet.detail(Self.glama).hasPrefix(ConsentSheet.unknownLead), "an app Pinto can't name: the warning first")
         #expect(ConsentSheet.detail(Self.claude).hasPrefix("Shared with Anthropic."), "a known AI: no warning")
