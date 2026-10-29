@@ -43,6 +43,13 @@ enum FirstRun {
 
     static let skip = "Skip for now"
 
+    /// Hovering picks a row only once the pointer has moved since the rows came up, as in
+    /// Spotlight: a pointer left resting where a new row appears doesn't change what Return does.
+    static func hoverPicks(restingAt: CGPoint?, here: CGPoint) -> Bool {
+        guard let r = restingAt else { return true }
+        return abs(r.x - here.x) > 1 || abs(r.y - here.y) > 1
+    }
+
     typealias Guide = ConnectAISection.Guide
 
     enum Way: String, Equatable, Sendable { case apple, google }

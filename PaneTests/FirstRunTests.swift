@@ -52,6 +52,15 @@ import Testing
     }
 
     /// Each step has exactly one way past, labelled Skip for now; it is never one of the rows.
+    /// Recording the first run, 29 October: the pointer rested where Allow had been, the next
+    /// step's third row came up under it, and hovering made that row Return's pick.
+    @Test func aRestingPointerDoesNotChangeThePick() {
+        let resting = CGPoint(x: 779, y: 457)
+        #expect(!FirstRun.hoverPicks(restingAt: resting, here: resting), "the rows came up under a still pointer")
+        #expect(FirstRun.hoverPicks(restingAt: resting, here: CGPoint(x: 790, y: 440)), "the pointer moved onto the row")
+        #expect(FirstRun.hoverPicks(restingAt: nil, here: resting), "once it has moved, hovering picks")
+    }
+
     @Test func skipIsTheWayOutNeverARow() {
         for step in [Onboarding.Step.bring, .connect, .tryIt] {
             let p = panel(at: step)

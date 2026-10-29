@@ -270,6 +270,8 @@ struct FirstRunPanel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var typed = ""
     @State private var keys = FirstRunKeys()
+    /// Where the pointer was when these rows came up (see `FirstRun.hoverPicks`).
+    @State private var restingAt: CGPoint?
 
     /// Tests: the question appears at once instead of being typed out.
     nonisolated(unsafe) static var typesQuestion = true
@@ -359,9 +361,15 @@ struct FirstRunPanel: View {
                     model.select(i)
                     perform(row.action)
                 }
-                .onHover { if $0 { model.select(i) } }
+                .onHover { inside in
+                    let here = NSEvent.mouseLocation
+                    guard inside, FirstRun.hoverPicks(restingAt: restingAt, here: here) else { return }
+                    restingAt = nil
+                    model.select(i)
+                }
             }
         }
+        .onChange(of: model.rows.map(\.id), initial: true) { restingAt = NSEvent.mouseLocation }
         .padding(6)
         .id(model.page)
         .transition(.opacity)
