@@ -115,3 +115,13 @@ AES-GCM open, one wrap and one transaction. Nothing was measured on staging.
   approval.
 - `web/lib/seo.test.ts` line 389 checks the approve-on-device claim; update it with the copy.
 - The changelog entry for the release that turns it on.
+
+## Changed on this branch since (29 October, later)
+
+- The web consent is in the Mac's wide Allow sheet layout, with no number; its button reads Don't Allow.
+- The connect pages (/connect, /open/connect) follow the system: the cream in light, pure black in dark.
+- The app's Connect an AI sheet: "ChatGPT opens Pinto Notes in its apps. Click Connect, then sign in and
+  choose Allow on the Pinto Notes page." The button is Open Pinto Notes in ChatGPT. The Shared with OpenAI
+  line is unchanged.
+- `ChatGPTPlugin.listed` is now the published plugin's page, so the app's other ChatGPT guide
+  (ConnectWebGuide.chatgpt) is its one-page listing version too, for every account.
