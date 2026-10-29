@@ -50,16 +50,17 @@ import Testing
     @Test func eachColumnHoldsItsOwnControls() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            for size in [CGSize(width: 1469, height: 920), CGSize(width: 1180, height: 760)] {
+            for size in [CGSize(width: 2200, height: 1000), CGSize(width: 1469, height: 920), CGSize(width: 1180, height: 760)] {
                 let w = Self.window(c, size: size)
                 defer { w.close() }
                 await Self.settle(w)
                 let items = try Self.items(w)
-                print("toolbar at \(Int(size.width)): " + items.map { "\($0.label)@\($0.column) x\(Int($0.frame.minX))" }.joined(separator: ", "))
+                print("toolbar at \(Int(size.width)): " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
                 func column(_ label: String) -> [Int] { items.filter { $0.label == label }.map(\.column) }
                 #expect(column("Search") == [0], "search sits in the sidebar")
                 // At the sidebar's trailing edge, where its toggle was (x 225 at a 260 pt sidebar).
-                if let search = items.first(where: { $0.label == "Search" }), let split = w.contentView.flatMap({ Self.find(NSSplitView.self, in: $0) }) {
+                let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+                if let search = items.first(where: { $0.label == "Search" }) {
                     let sidebar = split.arrangedSubviews[0].convert(split.arrangedSubviews[0].bounds, to: nil)
                     #expect(sidebar.maxX - search.frame.maxX < 30, "search at the sidebar's trailing edge")
                 }
@@ -70,11 +71,49 @@ import Testing
                 }
                 #expect(column("More").sorted() == [1, 2], "a More for the list and one for the note")
                 #expect(!(w.toolbar?.items ?? []).contains { $0 is NSSearchToolbarItem }, "no search field over the note")
-                // The list's More, then compose, at its trailing edge.
+
+                // Emil's draft: the list's round More on the left, its name centred, compose on the right.
                 let more = try #require(items.first { $0.label == "More" && $0.column == 1 })
                 let compose = try #require(items.first { $0.label == "New Note" })
-                #expect(more.frame.maxX <= compose.frame.minX)
+                let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
+                #expect(more.frame.maxX < title.frame.minX && title.frame.maxX < compose.frame.minX)
+                let between = (more.frame.maxX + compose.frame.minX) / 2
+                #expect(abs(title.frame.midX - between) <= 4, "the name is centred between the buttons")
+
+                // The note's groups stand over its text: Format starts at the text's left edge,
+                // More ends at its right edge (the reading column's, in a wide window).
+                let editor = try #require(w.contentView.flatMap { Self.find(PaneTextView.self, in: $0) })
+                let page = editor.convert(editor.bounds, to: nil)
+                let side = PaneTextView.textSide(width: page.width)
+                let format = try #require(items.first { $0.label == "Format" })
+                let noteMore = try #require(items.first { $0.label == "More" && $0.column == 2 })
+                print("PERF note toolbar at \(Int(size.width)): text \(Int(page.minX + side))-\(Int(page.maxX - side)), Format from \(Int(format.frame.minX)), More to \(Int(noteMore.frame.maxX))")
+                // In a narrow window the groups keep the toolbar's own place at the column's edges,
+                // a little outside the text's 32 pt margin (a spacer is never narrower than 36 pt).
+                let slack: CGFloat = NoteToolbarStage<EmptyView>.inset(column: page.width) == nil ? 24 : 2
+                #expect(abs(format.frame.minX - (page.minX + side)) <= slack, "Format starts at the text's left edge")
+                #expect(abs(noteMore.frame.maxX - (page.maxX - side)) <= slack, "More ends at the text's right edge")
             }
+        }
+    }
+
+    /// With the sidebar hidden its Search button stays, beside the window buttons, like Notes'
+    /// sidebar button does.
+    @Test func searchStaysWithTheSidebarHidden() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1469, height: 920))
+            defer { w.close() }
+            await Self.settle(w)
+            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+            (split.delegate as? NSSplitViewController)?.toggleSidebar(nil)
+            await Self.settle(w, 10)
+            let items = try Self.items(w)
+            print("toolbar, sidebar hidden: " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
+            let search = items.filter { $0.label == "Search" }
+            #expect(search.count == 1, "one Search button")
+            let more = try #require(items.first { $0.label == "More" })
+            #expect(search.first.map { $0.frame.maxX <= more.frame.minX && $0.frame.minX > 70 } == true, "after the window buttons, before the list's More")
         }
     }
 
@@ -122,8 +161,8 @@ import Testing
         }
     }
 
-    /// Emil (10-29): "the content of the note is placed weirdly far down." Like Notes on the Mac:
-    /// the date centred just under the toolbar and the title close under it, with the sidebar
+    /// Emil (10-29): "the content of the note is placed weirdly far down." His draft: the date just
+    /// under the toolbar at the text's left edge and the title close under it, with the sidebar
     /// shown or hidden.
     @Test func theNoteStartsJustUnderTheToolbar() async throws {
         let c = try AppSnapshotTests.container()
@@ -149,8 +188,8 @@ import Testing
                 print("PERF note top (sidebar \(sidebar ? "shown" : "hidden")): date \(Int(dateGap)) pt under the toolbar, title \(Int(titleGap)) pt under the date, page \(NSStringFromRect(page))")
                 #expect(dateGap >= 6 && dateGap <= 14, "the date sits \(dateGap) pt under the toolbar (Notes: about 10)")
                 #expect(titleGap >= 0 && titleGap <= 16, "the title sits \(titleGap) pt under the date")
-                #expect(abs(dateFrame.midX - page.midX) <= 1, "the date is centred over the note")
-                #expect(date.alignment == .center)
+                // Emil's draft: at the text's left edge, like the title under it.
+                #expect(abs(dateFrame.minX - (page.minX + PaneTextView.textSide(width: page.width))) <= 1, "the date starts where the text does")
             }
         }
     }
@@ -168,6 +207,33 @@ import Testing
         #expect(font?.pointSize == EditorMetrics.label)
         #expect(font.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true)
         #expect(storage.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor == Palette.muted)
+    }
+    /// The whole window's layout, toolbar included, for review (AMBER_HIG_SHOTS). Drawn off screen
+    /// the toolbar's glass comes out as plain shapes without their symbols, and the sidebar blank,
+    /// but every item stands where it does in the app.
+    @Test func toolbarLayoutShots() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Lisbon") {
+            for (name, size) in [("default", CGSize(width: 1469, height: 920)), ("wide", CGSize(width: 2200, height: 1000))] {
+                for dark in [false, true] {
+                    let w = Self.window(c, size: size)
+                    w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    defer { w.close() }
+                    await Self.settle(w, 15)
+                    let frame = try #require(w.contentView?.superview)
+                    frame.wantsLayer = true
+                    let scale: CGFloat = 2
+                    let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(frame.bounds.height * scale),
+                                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+                    let ctx = try #require(NSGraphicsContext(bitmapImageRep: rep))
+                    ctx.cgContext.scaleBy(x: scale, y: scale)
+                    frame.layer?.render(in: ctx.cgContext)
+                    try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-toolbar-layout-\(name)-\(dark ? "dark" : "light").png"))
+                }
+            }
+        }
     }
 }
 #endif

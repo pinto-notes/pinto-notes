@@ -1226,6 +1226,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     static let textTop: CGFloat = 40
     static let bareTop: CGFloat = 16
 
+    /// The text's margin on each side in a page `width` wide (the note's toolbar lines up with it).
+    static func textSide(width: CGFloat) -> CGFloat {
+        DesignLook.readingPage ? max(32, (width - readingColumn) / 2) : 20
+    }
+
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
 
     func configure(text: String, header: String) {
@@ -1287,15 +1292,15 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         // Like Notes on the Mac: a slim margin and text that uses the full width. D (the reading
-        // page) sets the text in a centred column about 680 pt wide. The date is centred just
-        // under the toolbar and the title close under it, as in Notes (Emil, 10-29: the date was
-        // 36 pt down, "the content of the note is placed weirdly far down").
+        // page) sets the text in a centred column about 680 pt wide. The date sits just under the
+        // toolbar, at the text's left edge, and the title close under it (Emil's draft, 10-29:
+        // the date was 36 pt down, "the content of the note is placed weirdly far down").
         if DesignLook.readingPage {
-            let side = max(32, (newSize.width - Self.readingColumn) / 2)
+            let side = Self.textSide(width: newSize.width)
             let inset = NSSize(width: side, height: headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop)
             if textContainerInset != inset { textContainerInset = inset }
-            headerLabel.alignment = .center
-            headerLabel.frame = NSRect(x: 0, y: Self.dateTop, width: newSize.width, height: 16)
+            headerLabel.alignment = .left
+            headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: min(Self.readingColumn, newSize.width - side * 2), height: 16)
         } else {
             let inset = NSSize(width: 20, height: headerLabel.stringValue.isEmpty ? 14 : 44)
             if textContainerInset != inset { textContainerInset = inset }

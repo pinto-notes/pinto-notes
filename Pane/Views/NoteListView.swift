@@ -496,23 +496,8 @@ struct NoteListView: View {
                 }
             }
             #else
-            // Like Notes: the folder's name and count, then a "⋯" menu for the list.
-            ToolbarItem(placement: .navigation) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.muted)
-                        .monospacedDigit()
-                }
-                // As far from the ••• as the toolbar's groups are from each other; a long name
-                // ends in "…" before it gets near the button.
-                .padding(.leading, 6)
-                .padding(.trailing, NoteListView.titleGap)
-                .frame(maxWidth: NoteListView.titleWidth, alignment: .leading)
-            }
-            .sharedBackgroundVisibility(.hidden)
-            ToolbarSpacer(.flexible)
+            // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count
+            // centred, compose on the right.
             ToolbarItem {
                 Menu {
                     ListOrderMenu(store: orderStore)
@@ -532,6 +517,20 @@ struct NoteListView: View {
                 .tint(.primary)
                 .accessibilityIdentifier("list.more")
             }
+            ToolbarSpacer(.flexible)
+            ToolbarItem {
+                VStack(spacing: 0) {
+                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.muted)
+                        .monospacedDigit()
+                }
+                // A long name ends in "…" before it gets near the buttons.
+                .frame(maxWidth: NoteListView.titleWidth)
+            }
+            .sharedBackgroundVisibility(.hidden)
+            ToolbarSpacer(.flexible)
             // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29).
             ToolbarItem {
                 ComposeButton(newNote: onNewNote) {
@@ -588,10 +587,8 @@ struct NoteListView: View {
     static let headingTop: CGFloat = 6.5
     static let headingBottom: CGFloat = 6.5
 
-    /// The folder's name in the list's toolbar: the gap after it (the space between the toolbar's
-    /// groups) and the most room it takes before it ends in "…".
-    static let titleGap: CGFloat = 16
-    static let titleWidth: CGFloat = 190
+    /// The folder's name in the list's toolbar: the most room it takes before it ends in "…".
+    static let titleWidth: CGFloat = 170
 
     /// Whether a row draws the quiet selection (the Mac only; iOS keeps the system's).
     static func quiet(_ selection: Set<UUID>, _ id: UUID) -> Bool {
