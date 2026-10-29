@@ -71,3 +71,54 @@ struct NewAppTip: Tip {
     var rules: [Rule] { tipRules(Feature.newApp) }
     var options: [any TipOption] { [Tips.MaxDisplayCount(1)] }
 }
+
+#if os(iOS)
+
+/// The iPhone bottom bar of the folders screen and of a folder's notes, one look for both: the
+/// search field, and the round new-note button at the right, as in Notes and Mail.
+struct SearchComposeBar: ToolbarContent {
+    let newNote: () -> Void
+    /// Recently Deleted holds no new notes.
+    var disabled = false
+    /// New App's one-off tip, shown on one of the two buttons only.
+    var tip = false
+    var identifier = "list.newNote"
+
+    var body: some ToolbarContent {
+        DefaultToolbarItem(kind: .search, placement: .bottomBar)
+        Compose(newNote: newNote, disabled: disabled, tip: tip, identifier: identifier)
+    }
+
+    /// The round button alone (iPad's folders, where the list beside them has the search).
+    struct Compose: ToolbarContent {
+        let newNote: () -> Void
+        var disabled = false
+        var tip = false
+        var identifier = "list.newNote"
+
+        var body: some ToolbarContent {
+            // A filled circle in the label colour (white on black, black on white), never the
+            // accent. Holding it still offers New App.
+            ToolbarItem(placement: .bottomBar) {
+                ComposeButton(newNote: newNote) {
+                    SwiftUI.Label { Text("New Note") } icon: { NewNoteCircle() }
+                        .labelStyle(.iconOnly)
+                }
+                .modifier(NewAppTipHere(on: tip))
+                .disabled(disabled)
+                .accessibilityIdentifier(identifier)
+            }
+            // The circle is the button: no glass capsule around it.
+            .sharedBackgroundVisibility(.hidden)
+        }
+    }
+}
+
+private struct NewAppTipHere: ViewModifier {
+    let on: Bool
+
+    func body(content: Content) -> some View {
+        if on { content.newAppTip() } else { content }
+    }
+}
+#endif

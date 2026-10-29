@@ -25,7 +25,7 @@ final class AccessibilityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest", "-demo", "-showFolders"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["Pinto Notes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Folders"].waitForExistence(timeout: 5))
         let travel = app.cells.containing(.any, identifier: "folder.Travel").firstMatch
         XCTAssertTrue(travel.waitForExistence(timeout: 3))
         let row = app.descendants(matching: .any).matching(identifier: "folder.Travel").firstMatch
@@ -39,7 +39,7 @@ final class AccessibilityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest", "-demo", "-showFolders", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["Pinto Notes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Folders"].waitForExistence(timeout: 5))
         keep(app, "xxxl-folders")
         app.cells.containing(.any, identifier: "folder.Travel").firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Travel"].waitForExistence(timeout: 3))
@@ -68,7 +68,7 @@ final class AccessibilityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest", "-demo", "-showFolders"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["Pinto Notes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Folders"].waitForExistence(timeout: 5))
         var unnamed = Self.unnamedButtons(app, screen: "folders")
         app.cells.containing(.any, identifier: "folder.Travel").firstMatch.tap()
         XCTAssertTrue(app.buttons["list.newNote"].waitForExistence(timeout: 5))

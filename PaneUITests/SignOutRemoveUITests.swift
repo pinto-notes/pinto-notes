@@ -50,7 +50,7 @@ final class SignOutRemoveUITests: XCTestCase {
     }
 
     private func toFolders() {
-        for _ in 0..<3 where !app.navigationBars["Pinto Notes"].exists { back(); _ = app.navigationBars["Pinto Notes"].waitForExistence(timeout: 1.5) }
+        for _ in 0..<3 where !app.navigationBars["Folders"].exists { back(); _ = app.navigationBars["Folders"].waitForExistence(timeout: 1.5) }
     }
 
     private func newNote(_ text: String) {
