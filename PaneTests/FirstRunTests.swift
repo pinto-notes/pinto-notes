@@ -76,6 +76,22 @@ import Testing
         #expect(FirstRun.noticed(before: again, after: model.connected) == .claude)
     }
 
+    /// Connect ChatGPT stays in the panel: ChatGPT opens in the browser, the panel waits on one
+    /// plain line, no guide sheet over it and no "custom MCP server".
+    @Test func connectingChatGPTStaysInThePanel() {
+        let listing = URL(string: "https://chatgpt.com/apps/pinto-notes")!
+        #expect(FirstRun.chatgptPage(listing: listing) == listing)
+        #expect(FirstRun.chatgptPage(listing: nil).host() == "chatgpt.com")
+        #expect(FirstRun.chatgptWaiting(listing: nil) == "In ChatGPT, add Pinto Notes from Apps, sign in, then choose Allow.")
+        for line in [FirstRun.chatgptWaiting(listing: nil), FirstRun.chatgptWaiting(listing: listing), FirstRunModel.chatgptDetail] {
+            #expect(!line.contains("MCP") && !line.contains("guide"), "\(line)")
+        }
+        let model = panel(at: .connect)
+        model.connecting(.chatgpt, line: FirstRun.chatgptWaiting(listing: nil))
+        #expect(model.rows.first?.detail == FirstRun.chatgptWaiting(listing: nil), "the waiting line is on the row")
+        #expect(!model.done.contains(.ai), "waiting isn't connected")
+    }
+
     @Test func skipIsTheWayOutNeverARow() {
         for step in [Onboarding.Step.bring, .connect, .tryIt] {
             let p = panel(at: step)

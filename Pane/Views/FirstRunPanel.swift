@@ -5,9 +5,9 @@ import SwiftData
 import SwiftUI
 
 /// The Mac's first run over the real app (`FirstRun`): the app dimmed behind, the panel on top,
-/// and what the panel starts (sign-in, an import, an AI's guide, the prompt) done for real. The
-/// panel steps aside while a sheet it opened is up: an import, ChatGPT's guide, or the Allow
-/// sheet when an AI asks for your notes.
+/// and what the panel starts (sign-in, an import, connecting an AI, the prompt) done for real.
+/// The panel steps aside while a sheet is up: an import, or the Allow sheet when an AI asks for
+/// your notes (strict accounts; everyone else allows on the web).
 struct FirstRunOverlay: View {
     let model: FirstRunModel
     let backend: Backend
@@ -22,8 +22,6 @@ struct FirstRunOverlay: View {
     @State private var run = ConnectRun()
     /// Another app's import sheet.
     @State private var importing: ImportKind?
-    /// ChatGPT's guide.
-    @State private var guide: ConnectAISection.Guide?
     @State private var watch: Task<Void, Never>?
     /// The panel is going into the note.
     @State private var landed = false
@@ -33,7 +31,7 @@ struct FirstRunOverlay: View {
     @State private var noticedDone = false
 
     /// A sheet the panel opened, or the Allow sheet, is over the window.
-    private var sheetUp: Bool { importing != nil || guide != nil || center.pending != nil }
+    private var sheetUp: Bool { importing != nil || center.pending != nil }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -64,9 +62,6 @@ struct FirstRunOverlay: View {
         .animation(.easeOut(duration: 0.25), value: noticed)
         .sheet(item: $importing) { kind in
             ImportFlow(kind: kind) { ids in model.importFinished(count: ids.count) }
-        }
-        .sheet(item: $guide) { g in
-            if let client = backend.client { ConnectWebGuideSheet(ai: g, client: client) }
         }
         .onAppear {
             Funnel.record(.signInStep(nil, .shown))
@@ -214,23 +209,21 @@ struct FirstRunOverlay: View {
         }
     }
 
-    /// ChatGPT: its guide, over the window, and the panel watching for the connection. The rest:
-    /// the same run Connect an AI uses (Claude in the browser, Claude Code and Codex by command).
+    /// ChatGPT: its page in the browser, and the panel waiting on one line until the connection
+    /// shows up, however it was allowed. The rest: the same run Connect an AI uses (Claude in the
+    /// browser, Claude Code and Codex by command).
     private func connect(_ g: ConnectAISection.Guide) {
         guard let client = backend.client else { return }
         run.stop(givingUp: run.guide != nil)
         watch?.cancel()
         if g == .chatgpt {
-            model.connecting(.chatgpt, line: ConnectWebGuide.waiting(.chatgpt))
-            guide = .chatgpt
+            model.connecting(.chatgpt, line: FirstRun.chatgptWaiting())
+            openURL(FirstRun.chatgptPage())
             watch = Task {
                 let w = ConnectWatch(ai: "ChatGPT")
                 await w.run(client: client)
                 guard !Task.isCancelled, w.isConnected else { return }
                 model.connected(.chatgpt)
-                // "ChatGPT is connected" on the guide for a moment, then the panel's next question.
-                try? await Task.sleep(for: .seconds(1.6))
-                guide = nil
             }
             return
         }

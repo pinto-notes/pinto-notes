@@ -51,6 +51,18 @@ enum FirstRun {
         after.last { !before.contains($0) }
     }
 
+    /// Where Connect ChatGPT goes: Pinto Notes' page in ChatGPT once it is set, else ChatGPT's
+    /// apps, where Pinto Notes is listed. The panel stays as it is; no guide over it.
+    static func chatgptPage(listing: URL? = ChatGPTPlugin.listing) -> URL {
+        listing ?? URL(string: "https://chatgpt.com/apps")!
+    }
+
+    /// The panel's one line while it waits for ChatGPT, in the words of the browser connect sheet.
+    static func chatgptWaiting(listing: URL? = ChatGPTPlugin.listing) -> String {
+        listing != nil ? "ChatGPT opens Pinto Notes. Choose Connect, sign in, then choose Allow."
+            : "In ChatGPT, add Pinto Notes from Apps, sign in, then choose Allow."
+    }
+
     static func hoverPicks(restingAt: CGPoint?, here: CGPoint) -> Bool {
         guard let r = restingAt else { return true }
         return abs(r.x - here.x) > 1 || abs(r.y - here.y) > 1
@@ -258,9 +270,7 @@ final class FirstRunModel {
         .init(id: "otherApps", title: "Choose another app\u{2026}", detail: "Obsidian, Bear, Evernote, Google Keep or Markdown files", mark: .more, action: .otherApps)
     }
 
-    static var chatgptDetail: String {
-        ChatGPTPlugin.listing != nil ? "Opens ChatGPT in your browser. Click Connect there." : "Opens ChatGPT in your browser, with a short guide"
-    }
+    static var chatgptDetail: String { "Opens ChatGPT in your browser" }
 
     private func withWorkingLine(_ row: FirstRun.Row) -> FirstRun.Row {
         guard row.id == working, let workingLine else { return row }
