@@ -1099,10 +1099,7 @@ struct NoteDetailView: View {
         ToolbarItem(placement: .bottomBar) {
             attachMenu.disabled(trashed).tint(.primary)
         }
-        ToolbarSpacer(.flexible, placement: .bottomBar)
-        ToolbarItem(placement: .bottomBar) {
-            ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }.tint(.primary)
-        }
+        // No new note in here: that's the list's + (Emil, 29 October 2026).
         if showingPage, let receipt {
             ToolbarItem(placement: .principal) {
                 AIReceipt(receipt: receipt, compact: true) { undo(receipt) }

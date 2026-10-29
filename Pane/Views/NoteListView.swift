@@ -104,7 +104,7 @@ struct NoteListView: View {
         Self.countText(notes: notes, files: files, capitalized: capitalized, trash: scope == .trash)
     }
 
-    /// The line under the large title: "3 notes", "1 note"; nothing while searching or when there's
+    /// The line under the title: "3 notes", "1 note"; nothing while searching or when there's
     /// nothing in the list.
     static func titleCount(notes: Int, files: Int, searching: Bool, trash: Bool) -> String? {
         guard !searching, notes + files > 0 else { return nil }
@@ -190,22 +190,6 @@ struct NoteListView: View {
         let listSelection = $selection
         #endif
         return List(selection: listSelection) {
-            #if os(iOS)
-            // The count, small and muted under the large title, lined up with it; it scrolls away
-            // with the title. Not for a search, and not when the list is empty (the empty state
-            // says so). It was a footer at the end of the list (Emil, 28 October 2026).
-            if let count = Self.titleCount(notes: scopedNotes.count, files: scopedFiles.count, searching: !search.isEmpty, trash: scope == .trash) {
-                Section {} header: {
-                    Text(count)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.muted)
-                        .textCase(nil)
-                        .monospacedDigit()
-                        .listRowInsets(.leading, 0)
-                        .accessibilityIdentifier("list.count")
-                }
-            }
-            #endif
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
             if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
                 #if os(iOS)
@@ -335,7 +319,7 @@ struct NoteListView: View {
             withAnimation(.easeOut(duration: 0.15)) { fileDropTargeted = t }
         }
         #if os(iOS)
-        // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose.
+        // iOS 26 Notes and Mail: a full search field in the bottom bar.
         .searchable(text: $search, prompt: "Search")
         .searchToolbarBehavior(.automatic)
         #else
@@ -343,8 +327,10 @@ struct NoteListView: View {
         #endif
         .navigationTitle(title)
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
-        // No count subtitle: on iOS 26 a subtitle makes the large title open collapsed when the list is pushed again.
+        // The folder's name centred between ••• and +, with the count small under it (Emil,
+        // 29 October 2026; it was a large title with the count as the list's first line).
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationSubtitle(Self.titleCount(notes: scopedNotes.count, files: scopedFiles.count, searching: !search.isEmpty, trash: scope == .trash) ?? "")
         #endif
         #if os(macOS)
         .navigationSubtitle("")
@@ -399,26 +385,32 @@ struct NoteListView: View {
         #endif
         .toolbar {
             #if os(iOS)
-            // Select only when there is something to select.
-            if editMode.isEditing || !(scopedNotes.isEmpty && scopedFiles.isEmpty) {
-            ToolbarItem(placement: .primaryAction) {
-                Button(editMode.isEditing ? "Done" : "Select") {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        editMode = editMode.isEditing ? .inactive : .active
-                        if !editMode.isEditing { selection = [] }
+            // Like a chat app's top bar (Emil, 29 October 2026): ••• on the left, the title in the
+            // middle, a round + on the right. Select is in the •••; while selecting, Done is where + was.
+            if editMode.isEditing {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        withAnimation(.snappy(duration: 0.25)) {
+                            editMode = .inactive
+                            selection = []
+                        }
                     }
+                    .fontWeight(.semibold)
+                    .tint(.primary)
+                    .accessibilityIdentifier("list.done")
                 }
-                .fontWeight(editMode.isEditing ? .semibold : .regular)
-                // The floating buttons in the label colour, as in the note (28 October 2026).
-                .tint(.primary)
-                .accessibilityIdentifier("list.select")
-            }
-            }
-            if !editMode.isEditing {
-                // The list's own menu, as in Notes: how it's sorted and grouped, and adding files
-                // (it was an icon of a page with a plus beside Select, which read as New Note).
-                ToolbarItem(placement: .primaryAction) {
+            } else {
+                // The list's own menu, as in Notes: selecting, how it's sorted and grouped, and adding files.
+                ToolbarItem(placement: .topBarLeading) {
                     Menu {
+                        // Select only when there is something to select.
+                        if !(scopedNotes.isEmpty && scopedFiles.isEmpty) {
+                            Button("Select", systemImage: "checkmark.circle") {
+                                withAnimation(.snappy(duration: 0.25)) { editMode = .active }
+                            }
+                            .accessibilityIdentifier("list.select")
+                            Divider()
+                        }
                         ListOrderMenu(store: orderStore)
                         if scope != .trash {
                             Divider()
@@ -438,6 +430,20 @@ struct NoteListView: View {
                     .tint(.primary)
                     .accessibilityIdentifier("list.more")
                 }
+                // New note: a filled circle in the label colour (white on black, black on white),
+                // never the accent. Holding it still offers New App.
+                ToolbarItem(placement: .topBarTrailing) {
+                    ComposeButton(newNote: onNewNote) {
+                        SwiftUI.Label { Text("New Note") } icon: { NewNoteCircle() }
+                            .labelStyle(.iconOnly)
+                    }
+                        .newAppTip()
+                        // Recently Deleted holds no new notes: the note it made went elsewhere.
+                        .disabled(scope == .trash)
+                        .accessibilityIdentifier("list.newNote")
+                }
+                // The circle is the button: no glass capsule around it.
+                .sharedBackgroundVisibility(.hidden)
             }
             if editMode.isEditing {
                 ToolbarItem(placement: .bottomBar) {
@@ -459,21 +465,8 @@ struct NoteListView: View {
                     .accessibilityIdentifier("list.deleteSelected")
                 }
             } else {
+                // Search alone, the bar's whole width, as in Apple's apps (new note is at the top).
                 DefaultToolbarItem(kind: .search, placement: .bottomBar)
-                // iPad moves search to the top of the column; compose then belongs at the trailing edge.
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    ToolbarSpacer(.flexible, placement: .bottomBar)
-                } else {
-                    ToolbarSpacer(.fixed, placement: .bottomBar)
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
-                        .tint(.primary)
-                        .newAppTip()
-                        // Recently Deleted holds no new notes: the note it made went elsewhere.
-                        .disabled(scope == .trash)
-                        .accessibilityIdentifier("list.newNote")
-                }
             }
             #else
             // Like Notes: the folder's name and count, then a "⋯" menu for the list.
@@ -1699,3 +1692,29 @@ private struct NoteRowHover<Items: View>: ViewModifier {
     }
 }
 
+#if os(iOS)
+/// The list's new-note button: a + in a filled circle, in the label colour (black in light mode,
+/// white in dark), 44 pt. A drawn picture, not a symbol: the bar tints a symbol, greys a drawn
+/// view, and at the largest text sizes keeps only the label's picture.
+struct NewNoteCircle: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Image(uiImage: scheme == .dark ? Self.dark : Self.light).renderingMode(.original)
+    }
+
+    static let light = picture(.light), dark = picture(.dark)
+
+    static func picture(_ style: UIUserInterfaceStyle) -> UIImage {
+        let traits = UITraitCollection(userInterfaceStyle: style)
+        let size = CGSize(width: 44, height: 44)
+        let plus = UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .semibold))!
+            .withTintColor(UIColor.systemBackground.resolvedColor(with: traits), renderingMode: .alwaysOriginal)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            UIColor.label.resolvedColor(with: traits).setFill()
+            UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
+            plus.draw(at: CGPoint(x: (size.width - plus.size.width) / 2, y: (size.height - plus.size.height) / 2))
+        }.withRenderingMode(.alwaysOriginal)
+    }
+}
+#endif

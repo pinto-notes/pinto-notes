@@ -7,7 +7,9 @@ final class AccessibilityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest", "-demo"]
         app.launch()
-        XCTAssertTrue(app.buttons["list.select"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["list.newNote"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["list.more"].label, "More")
+        XCTAssertEqual(app.buttons["list.newNote"].label, "New Note")
         let pinned = app.descendants(matching: .any)["note.Evening tracker"].firstMatch
         XCTAssertTrue(pinned.waitForExistence(timeout: 3))
         XCTAssertEqual(pinned.value as? String, "Pinned")
@@ -15,7 +17,7 @@ final class AccessibilityUITests: XCTestCase {
         let cell = app.descendants(matching: .any)["grid.1.0"].firstMatch
         XCTAssertTrue(cell.waitForExistence(timeout: 5))
         XCTAssertEqual(cell.label, "⌘B, Shortcut, row 1")
-        XCTAssertTrue(app.buttons["New Note"].firstMatch.exists, "toolbar buttons are named")
+        XCTAssertTrue(app.buttons["Checklist"].firstMatch.exists, "toolbar buttons are named")
     }
 
     /// Folder rows read as their name and count; the icon is decoration (it used to read "Move").
@@ -42,7 +44,16 @@ final class AccessibilityUITests: XCTestCase {
         app.cells.containing(.any, identifier: "folder.Travel").firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Travel"].waitForExistence(timeout: 3))
         keep(app, "xxxl-list")
+        // The centred title stops short of ••• and + (it truncates rather than runs under them).
+        let title = app.navigationBars.staticTexts["Travel"].firstMatch.frame
+        for id in ["list.more", "list.newNote"] {
+            let button = app.buttons[id].firstMatch
+            XCTAssertTrue(button.isHittable, "\(id) stays reachable")
+            XCTAssertFalse(title.intersects(button.frame), "the title clears \(id)")
+        }
         let lisbon = app.staticTexts["Lisbon"].firstMatch
+        // Two notes fill the screen at this size: Lisbon is further down.
+        for _ in 0..<4 where !(lisbon.exists && lisbon.isHittable) { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(lisbon.waitForExistence(timeout: 3))
         lisbon.tap()
         XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 3))
@@ -60,7 +71,7 @@ final class AccessibilityUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Pinto Notes"].waitForExistence(timeout: 5))
         var unnamed = Self.unnamedButtons(app, screen: "folders")
         app.cells.containing(.any, identifier: "folder.Travel").firstMatch.tap()
-        XCTAssertTrue(app.buttons["list.select"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["list.newNote"].waitForExistence(timeout: 5))
         unnamed += Self.unnamedButtons(app, screen: "list")
         app.staticTexts["Lisbon"].firstMatch.tap()
         XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 3))
@@ -87,6 +98,9 @@ final class AccessibilityUITests: XCTestCase {
         a.name = name
         a.lifetime = .keepAlways
         add(a)
+        if let dir = ProcessInfo.processInfo.environment["PANE_SHOTS"] {
+            try? app.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+        }
     }
 }
 #endif
