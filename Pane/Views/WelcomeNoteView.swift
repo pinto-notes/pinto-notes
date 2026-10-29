@@ -291,7 +291,8 @@ struct WelcomeEditorPage: View {
         }
         .onChange(of: text, initial: true) { _, _ in carets() }
         .onChange(of: bottomReserve, initial: true) { _, r in controller.bottomReserve = r }
-        .onChange(of: progress.todos.count) { _, count in light(count - 1) }
+        // Only while it's being written, one to-do at a time: a note finished at once has nothing lit.
+        .onChange(of: progress.todos.count) { old, count in if count == old + 1 { light(count - 1) } }
         .onChange(of: scrolledToEnd) { _, end in
             if end, let tv = controller.target as? UITextView {
                 tv.layoutIfNeeded()

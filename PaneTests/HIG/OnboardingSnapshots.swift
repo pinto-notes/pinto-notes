@@ -421,6 +421,15 @@ import UIKit
             try await shoot(editor, "editor-\(label)-\(mode)", dark: dark)
             let list = NavigationStack { NoteListView(scope: .all, selection: .constant([]), onNewNote: {}) }.modelContainer(c)
             try await shoot(list, "list-\(label)-\(mode)", dark: dark)
+            // The folders, with the account's photo at the top right.
+            ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
+            let signedIn = Backend(testClient: CaptureScreen.client, email: "emil@example.com", userID: UUID())
+            let folders = NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+                .environment(signedIn)
+                .environment(SetupStore(progress: SetupProgress(connected: true, dismissed: true, templatesClosed: true)))
+                .modelContainer(c)
+            try await shoot(folders, "folders-\(label)-\(mode)", dark: dark)
+            ProfileStore.shared.showForPreview(name: nil, photo: nil)
         }
     }
 

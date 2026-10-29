@@ -442,11 +442,13 @@ struct SidebarView: View {
                 } label: {
                     Label("New Folder", systemImage: "folder.badge.plus")
                 } primaryAction: { startNewFolder(nil) }
+                // The floating buttons in the label colour, as in the note and the list.
+                .tint(.primary)
                 .accessibilityIdentifier("sidebar.newFolder")
             }
             ToolbarSpacer(.flexible, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
-                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
+                ComposeButton(newNote: onNewNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }.tint(.primary)
             }
             if let backend, backend.client != nil {
                 ToolbarItem(placement: .primaryAction) {
@@ -455,7 +457,11 @@ struct SidebarView: View {
                         let name = AccountName.shown(ProfileStore.shared.name)
                         Button { showSettings = true } label: {
                             AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: 30)
+                                // The photo alone, no glass around it (Emil, 28 October 2026), still a finger's target.
+                                .frame(width: 44, height: 44)
+                                .contentShape(.circle)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Account, \(name). Opens Settings")
                         .accessibilityIdentifier("sidebar.settings")
                         .task(id: backend.state) { await ProfileStore.shared.bind(backend) }
@@ -464,6 +470,7 @@ struct SidebarView: View {
                             .accessibilityIdentifier("sidebar.settings")
                     }
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
             #endif
         }
