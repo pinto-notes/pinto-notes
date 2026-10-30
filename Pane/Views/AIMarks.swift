@@ -23,9 +23,13 @@ struct AIGlyph: View {
                 .frame(width: size, height: size)
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
-        } else if let asset = Self.asset(ai) {
+        } else if let asset = Self.asset(ai), monochrome {
+            // No colour of its own: it takes the label colour around it.
             Image(asset).renderingMode(.template).resizable().scaledToFit().frame(width: size, height: size)
-                .foregroundStyle(monochrome ? AnyShapeStyle(.foreground) : AnyShapeStyle(Self.color(ai)))
+                .accessibilityHidden(true)
+        } else if let asset = Self.asset(ai) {
+            Image(asset).resizable().scaledToFit().frame(width: size, height: size)
+                .foregroundStyle(Self.color(ai))
                 .accessibilityHidden(true)
         } else {
             // Any other app: a plain glyph that fits any size (text would be cut short in a small tile).
