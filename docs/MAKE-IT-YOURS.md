@@ -55,7 +55,7 @@ When a step fails, `scripts/setup.sh` stops and says what to do. Do that and run
 
 1. A welcome window: "The notes app your AI can use." Press **Get started**.
 2. **Sign in or sign up.** Type any email address (it doesn't have to be real) and press **Continue**.
-3. The app sends a 6-digit code. Nothing is really emailed: open the local mail viewer at http://127.0.0.1:56424, open the newest message and type the code into the app. (A build from before email codes replaced passwords asks you to make a password of 12 characters or more first.)
+3. Make a password of 12 characters or more. Nothing is really emailed. If the app asks for a code, open the local mail viewer at http://127.0.0.1:56424 and copy it from there.
 4. A short setup: your name, bringing notes over, connecting an AI. Skip any of it.
 5. Your notes: a Notes folder with "Welcome to Pinto Notes" and a sample Habit tracker note. Press Command-N for a new note.
 
