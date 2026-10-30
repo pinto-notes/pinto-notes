@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import SwiftData
+import Supabase
 import SwiftUI
 import Testing
 @testable import Pane
@@ -87,6 +88,14 @@ import Testing
             .tint(Color(PColor.paneAccent))
             .modelContainer(lib)
         try await AppSnapshotTests.render(sidebar, name: "study-sidebar-\(mode)", dark: dark)
+        // Connect an AI opens the sheet: ChatGPT and Claude checked, every other AI to add.
+        // Settings → AI lists them too, each with Disconnect.
+        let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
+        let connected = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
+                         Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "claude.ai")]
+        try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: connected, previewFound: []), name: "study-connect-sheet-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(Form { ConnectAISection(client: client, preview: connected) }.formStyle(.grouped).frame(width: 520, height: 640)
+            .environment(ConnectGuideRoute()), name: "study-settings-ai-\(mode)", dark: dark, wait: 1)
         // Templates in the sidebar opens the same gallery as the last setup card.
         let gallery = SetupCardsFlow(store: OnboardingStore(defaults: TestDefaults()), backend: Backend(), preview: .init(card: .gallery), finish: { _ in })
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)

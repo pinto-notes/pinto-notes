@@ -41,19 +41,19 @@ struct SidebarActionRow: View {
     }
 }
 
-/// The study's rows at the foot of the sidebar: connect another AI (any time, not only the
-/// first), the templates, and importing more notes.
+/// The study's rows at the foot of the sidebar, most used first: the templates, your AIs (the
+/// sheet lists the connected ones and connects more), and importing more notes.
 struct SidebarStudyRows: View {
     var imports: ImportActions?
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SidebarActionRow(title: SidebarAIWords.connect, symbol: "sparkles", id: "sidebar.connectAI") {
-                NotificationCenter.default.post(name: .paneConnectAI, object: nil)
-            }
             SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates") {
                 openURL(TemplatesPromo.url)
+            }
+            SidebarActionRow(title: SidebarAIWords.connect, symbol: "sparkles", id: "sidebar.connectAI") {
+                NotificationCenter.default.post(name: .paneConnectAI, object: nil)
             }
             SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import") {
                 imports?.appleNotes()
