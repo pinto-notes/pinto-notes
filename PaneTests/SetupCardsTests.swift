@@ -120,6 +120,39 @@ import Testing
         #expect(AmberProminentButtonStyle.amberProminent(.regular, joined: .trailing).joined == .trailing)
     }
 
+    /// A Mac menu drew the marks dark on its dark ground (Emil, 2026-10-30): each row gets a
+    /// finished picture, ChatGPT in the text colour and Claude in its orange.
+    @Test @MainActor func theMenuMarksKeepTheirColours() throws {
+        func ink(_ ai: String, dark: Bool) throws -> (r: Double, g: Double, b: Double) {
+            let picture = try #require(AIGlyph.menuPicture(ai, dark: dark))
+            #expect(!picture.isTemplate)
+            let bitmap = try #require(picture.cgImage(forProposedRect: nil, context: nil, hints: nil).map(NSBitmapImageRep.init(cgImage:)))
+            var best: NSColor?
+            for x in 0..<bitmap.pixelsWide { for y in 0..<bitmap.pixelsHigh {
+                if let c = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB), c.alphaComponent > (best?.alphaComponent ?? 0.5) { best = c }
+            } }
+            let c = try #require(best)
+            return (c.redComponent, c.greenComponent, c.blueComponent)
+        }
+        #expect(try ink("ChatGPT", dark: true).r > 0.85)
+        #expect(try ink("ChatGPT", dark: false).r < 0.15)
+        let claude = try ink("Claude", dark: true)
+        #expect(claude.r > 0.7 && claude.b < 0.5)
+    }
+
+    /// With a mouse attached the scroll bar takes room from the grid, which then fitted a column
+    /// fewer and left a gap (Emil, 2026-10-30): the cards are sized to the measured row.
+    @Test func theTemplateGridFillsTheRowBesideAScrollBar() throws {
+        for row in [552.0, 552 - 15, 992, 992 - 15] {
+            let width = TemplateLibraryView.cardWidth(row: row, gap: 16)
+            let count = ((row + 16) / (width + 16)).rounded(.down)
+            #expect(row - (count * width + (count - 1) * 16) < count)
+        }
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
+        #expect(src.contains(".onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { row = $0 }"))
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)

@@ -78,6 +78,8 @@ struct TemplateLibraryView: View {
     @State private var filter = "All"
     @State private var query = ""
     @State private var copied = false
+    /// The grid's measured row, inside the scroll bar.
+    @State private var row: CGFloat = 0
     @Environment(\.colorScheme) private var scheme
 
     static let size = CGSize(width: 1040, height: 680)
@@ -147,8 +149,9 @@ struct TemplateLibraryView: View {
     private var grid: some View {
         GeometryReader { geo in
             let gap: CGFloat = 16
-            let row = geo.size.width - 48
-            let width = Self.cardWidth(row: row, gap: gap)
+            // The row the cards really get: less than the pane when a mouse is attached and the
+            // scroll bar takes its own room (the cards then left a column's gap).
+            let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - 48, gap: gap)
             ScrollView {
                 let shown = catalog.shown(filter: filter, query: query)
                 if shown.isEmpty {
@@ -161,6 +164,8 @@ struct TemplateLibraryView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { row = $0 }
                 .padding(24)
             }
         }
@@ -229,8 +234,8 @@ struct TemplateLibraryView: View {
                             Menu {
                                 ForEach(ais) { other in
                                     Button { picked = other; make(e, other) } label: {
-                                        if let asset = AIGlyph.asset(other.name) {
-                                            Label { Text(TemplateLibraryWords.make(other)) } icon: { Image(asset) }
+                                        if let mark = AIGlyph.menuImage(other.name, dark: scheme == .dark) {
+                                            Label { Text(TemplateLibraryWords.make(other)) } icon: { mark }
                                         } else {
                                             Text(TemplateLibraryWords.make(other))
                                         }

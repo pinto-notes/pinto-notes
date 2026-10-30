@@ -40,6 +40,24 @@ struct AIGlyph: View {
         }
     }
 
+    #if os(macOS)
+    /// The mark for a Mac menu row, already in its colour: a menu draws a template image dark,
+    /// whatever the menu's own colour, so it gets a finished picture (ChatGPT in the text colour,
+    /// Claude in its orange).
+    @MainActor static func menuImage(_ ai: String, dark: Bool) -> Image? {
+        menuPicture(ai, dark: dark).map { Image(nsImage: $0) }
+    }
+
+    @MainActor static func menuPicture(_ ai: String, dark: Bool) -> NSImage? {
+        guard asset(ai) != nil else { return nil }
+        let renderer = ImageRenderer(content: AIGlyph(ai: ai, size: 16).environment(\.colorScheme, dark ? .dark : .light))
+        renderer.scale = 2
+        guard let image = renderer.nsImage else { return nil }
+        image.isTemplate = false
+        return image
+    }
+    #endif
+
     /// Who made an edit on a note's page.
     static let page = "App"
 
