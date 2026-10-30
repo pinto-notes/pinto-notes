@@ -46,6 +46,8 @@ import Testing
         try await shot(flow(.init(card: .set)), "7-set", library: full, dark: dark)
         try await shot(flow(.init(card: .gallery)), "8-gallery", library: full, dark: dark)
         try await shot(flow(.init(card: .gallery, ai: .claude)), "8-gallery-claude", library: full, dark: dark)
+        try await shot(flow(.init(card: .gallery, ai: .other)), "8-gallery-other", library: full, dark: dark)
+        try await shot(flow(.init(card: .prompt, ai: .other, pick: SetupCards.picks[0])), "9-prompt", library: full, dark: dark)
     }
 }
 #endif

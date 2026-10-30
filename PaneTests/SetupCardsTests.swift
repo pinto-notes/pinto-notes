@@ -67,6 +67,15 @@ import Testing
 
     /// The card flow never asks for a name, and a connected ChatGPT leads to the gallery
     /// (Try it), where the store's own order already goes.
+    /// Another AI has no link to open, so a template's ask is shown to copy, word for word.
+    @Test func anotherAIGetsThePromptToCopy() {
+        let pick = SetupCards.picks[0]
+        #expect(SetupCards.page(.other, pick) == nil)
+        #expect(SetupCards.page(.chatgpt, pick) != nil)
+        #expect(SetupCards.prompt(pick).hasPrefix("In Pinto Notes, "))
+        #expect(SetupCards.width(.prompt) <= SetupCards.width(.gallery))
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)

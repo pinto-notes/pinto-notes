@@ -20,7 +20,7 @@ enum SetupCards {
 
     /// What the card shows.
     enum Card: Hashable {
-        case signIn, bring, importing, connect, waiting, connected, set, gallery, making
+        case signIn, bring, importing, connect, waiting, connected, set, gallery, making, prompt
     }
 
     /// The card's width for each: just enough for its one line and its choice. The gallery is the
@@ -34,6 +34,7 @@ enum SetupCards {
         case .set: 300
         case .gallery: 736
         case .making: 320
+        case .prompt: 380
         }
     }
 
@@ -103,8 +104,8 @@ enum SetupCards {
             }
         }
 
-        /// ChatGPT and Claude open from a link with the ask in them (`TryIt.page`); the gallery is
-        /// only for them.
+        /// ChatGPT and Claude open from a link with the ask in them (`TryIt.page`). Another AI
+        /// gets the gallery too, and the ask to copy.
         var asks: Bool { self != .other }
     }
 
@@ -147,6 +148,10 @@ enum SetupCards {
     static func galleryTitle(_ ai: AI) -> String { "What should \(ai.name) make first?" }
     static let allTemplates = "All templates"
     static func makingTitle(_ pick: Pick) -> String { "Making your \(pick.title)." }
+    /// Another AI: no link opens it, so the ask is shown to copy.
+    static let promptTitle = "Paste this into your AI."
+    static let copyPrompt = "Copy prompt"
+    static let copied = "Copied"
 
     /// What the AI is asked: in Pinto Notes, by the note's name, so it reaches for the connection.
     static func prompt(_ pick: Pick) -> String { "In Pinto Notes, \(pick.ask)" }
@@ -313,6 +318,7 @@ struct SetupCardsFlow: View {
         var ai: SetupCards.AI = .chatgpt
         var progress = 0.62
         var brought = 0
+        var pick: SetupCards.Pick?
     }
 
     let store: OnboardingStore
@@ -332,12 +338,16 @@ struct SetupCardsFlow: View {
     @State private var brought = 0
     @State private var moveOnAfterImport = false
     @State private var making: SetupCards.Pick?
+    /// Another AI's template: its note is added, and the ask waits to be copied.
+    @State private var prompting: (pick: SetupCards.Pick, landing: Onboarding.Landing)?
+    @State private var copied = false
     @State private var run = ConnectRun()
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
 
     private var card: SetupCards.Card {
         if let preview { return preview.card }
+        if prompting != nil { return .prompt }
         if making != nil { return .making }
         switch store.step ?? .bring {
         case .name, .bring: return importingAppleNotes || importing != nil ? .importing : .bring
@@ -384,6 +394,7 @@ struct SetupCardsFlow: View {
         case .set: set
         case .gallery: gallery
         case .making: makingCard
+        case .prompt: promptCard
         }
     }
 
@@ -552,6 +563,28 @@ struct SetupCardsFlow: View {
         }
     }
 
+    private var promptCard: some View {
+        let pick = preview?.pick ?? prompting?.pick ?? SetupCards.picks[0]
+        return VStack(spacing: 14) {
+            title(SetupCards.promptTitle)
+            Text(SetupCards.prompt(pick))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.ink)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .accessibilityIdentifier("setup.prompt")
+            Button { copyPrompt(pick) } label: {
+                Label(copied ? SetupCards.copied : SetupCards.copyPrompt, systemImage: copied ? "checkmark" : "doc.on.doc")
+            }
+            .buttonStyle(.amberProminent(.regular, wide: true))
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("setup.copyPrompt")
+        }
+    }
+
     // MARK: What the buttons do
 
     /// The name is never asked on the card: Apple's or Google's, else the Mac's own.
@@ -605,10 +638,10 @@ struct SetupCardsFlow: View {
         }
     }
 
-    /// You're set: the gallery for ChatGPT or Claude, else the notes.
+    /// You're set: the gallery once an AI is connected, else the notes.
     private func done() {
         guard case .set(let connected) = connecting else { return }
-        if connected, ai.asks, store.advance(connected: true) { return }
+        if connected, store.advance(connected: true) { return }
         finish(.newNote)
     }
 
@@ -629,7 +662,20 @@ struct SetupCardsFlow: View {
             if let page = SetupCards.page(ai, pick) {
                 ConnectClipboard.set(SetupCards.prompt(pick))
                 openURL(page)
+                finish(landing)
+            } else {
+                withAnimation { prompting = (pick, landing) }
             }
+        }
+    }
+
+    /// Copied, said on the button a moment, then the notes open on the template's note.
+    private func copyPrompt(_ pick: SetupCards.Pick) {
+        guard preview == nil, let landing = prompting?.landing else { return }
+        ConnectClipboard.set(SetupCards.prompt(pick))
+        withAnimation(.snappy(duration: 0.2)) { copied = true }
+        Task {
+            try? await Task.sleep(for: .seconds(0.9))
             finish(landing)
         }
     }

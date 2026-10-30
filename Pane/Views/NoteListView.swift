@@ -1559,6 +1559,7 @@ struct NoteRow: View {
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
+    @Environment(\.sidebarStudy) private var study
 
     /// Whether the row has its third line, the note's folder.
     private var folderLine: Bool { showFolder && note.folder != nil }
@@ -1583,6 +1584,12 @@ struct NoteRow: View {
                 if app {
                     AppMarkView(size: RowMetrics.markSize)
                         .accessibilityIdentifier("note.app")
+                }
+                // The study (`SidebarStudy`): the AI that made or last changed the note, for good.
+                if study != nil, let made = note.aiEditor, made != AIGlyph.page {
+                    AITile(ai: made, size: 16)
+                        .accessibilityLabel(SidebarAIWords.madeBy(made))
+                        .accessibilityIdentifier("note.madeBy")
                 }
             }
             // An AI changed this note and you haven't opened it since, like Mail's unread dot.
