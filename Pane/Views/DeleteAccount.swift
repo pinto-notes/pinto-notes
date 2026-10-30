@@ -113,6 +113,65 @@ extension ModelContext {
     }
 }
 
+/// Exporting your notes, wherever it starts (Settings, File › Export All Notes…, Go to Note): the
+/// zip is made, the save panel asks where it goes, then what was saved is said.
+@MainActor @Observable final class NoteExporter {
+    var working = false
+    var made: NoteExport.Result?
+    var saving = false
+    /// What the export did, or why it didn't, once it's over.
+    var message: String?
+    var failed = false
+    /// The export was saved without some files: what the alert says.
+    var leftOut: (title: String, message: String)?
+
+    func export(_ context: ModelContext, sync: SyncEngine?) async {
+        guard !working else { return }
+        working = true
+        message = nil
+        failed = false
+        defer { working = false }
+        DebouncedSave.flushAll()
+        do {
+            made = try await NoteExport.make(context, sharing: CollabStore.shared?.exportSharing() ?? .init(), fetch: { a in await sync?.download(a) ?? false })
+            saving = true
+        } catch {
+            message = "Couldn't export your notes: \(error.localizedDescription)"
+            failed = true
+        }
+    }
+
+    func saved(_ result: Result<URL, Error>) {
+        switch result {
+        case .success:
+            message = made.map(NoteExport.summary)
+            leftOut = made.flatMap(NoteExport.leftOut)
+        case .failure(let e as CocoaError) where e.code == .userCancelled: message = nil
+        case .failure:
+            message = "Couldn't save the export. Try again."
+            failed = true
+        }
+        made = nil
+    }
+}
+
+extension View {
+    /// The save panel and the alert an export shows.
+    func noteExportPanels(_ exporter: NoteExporter) -> some View {
+        @Bindable var exporter = exporter
+        return fileMover(isPresented: $exporter.saving, file: exporter.made?.zip) { exporter.saved($0) }
+            // The panel moves the finished zip where you choose, and its button said "Move": it sounded
+            // like the notes would leave the app (newcomer audit, 2026-10-12).
+            .fileDialogConfirmationLabel("Export")
+            // Said so it can't be missed: an export that isn't whole.
+            .alert(exporter.leftOut?.title ?? "", isPresented: Binding(get: { exporter.leftOut != nil }, set: { if !$0 { exporter.leftOut = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(exporter.leftOut?.message ?? "")
+            }
+    }
+}
+
 /// Export Your Notes…: every note as a markdown file in your folders, with its files, in one zip
 /// you save or share. Made here from this device's library; the server can't read your notes.
 struct ExportNotesButton: View {
@@ -121,60 +180,62 @@ struct ExportNotesButton: View {
     /// so there nothing was fetched and those files were left out of the export.
     let sync: SyncEngine?
     @Environment(\.modelContext) private var context
-    @State private var working = false
-    @State private var made: NoteExport.Result?
-    @State private var saving = false
-    @State private var message: String?
-    /// The export was saved without some files: what the alert says.
-    @State private var leftOut: (title: String, message: String)?
+    @State private var exporter = NoteExporter()
 
     var body: some View {
         Button {
-            Task { await export() }
+            Task { await exporter.export(context, sync: sync) }
         } label: {
             HStack(spacing: 8) {
-                Text(working ? "Exporting Your Notes…" : "Export Your Notes…")
-                if working { ProgressView().controlSize(.small) }
+                Text(exporter.working ? "Exporting Your Notes…" : "Export Your Notes…")
+                if exporter.working { ProgressView().controlSize(.small) }
             }
         }
-        .disabled(working)
+        .disabled(exporter.working)
         .accessibilityIdentifier("settings.exportNotes")
-        .fileMover(isPresented: $saving, file: made?.zip) { result in
-            switch result {
-            case .success:
-                message = summary
-                leftOut = made.flatMap(NoteExport.leftOut)
-            case .failure(let e as CocoaError) where e.code == .userCancelled: message = nil
-            case .failure: message = "Couldn't save the export. Try again."
-            }
-            made = nil
-        }
-        // The panel moves the finished zip where you choose, and its button said "Move": it sounded
-        // like the notes would leave the app (newcomer audit, 2026-10-12).
-        .fileDialogConfirmationLabel("Export")
-        // Said so it can't be missed: an export that isn't whole.
-        .alert(leftOut?.title ?? "", isPresented: Binding(get: { leftOut != nil }, set: { if !$0 { leftOut = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(leftOut?.message ?? "")
-        }
-        if let message {
+        .noteExportPanels(exporter)
+        if let message = exporter.message {
             Text(message).font(.callout).foregroundStyle(.secondary)
         }
     }
+}
 
-    private var summary: String? { made.map(NoteExport.summary) }
+#if os(macOS)
+/// File › Export All Notes… and its row in Go to Note: the export runs from the notes window, which
+/// says it's working, then what it saved, over its foot.
+struct ExportAllNotes: ViewModifier {
+    @Environment(\.modelContext) private var context
+    @Environment(SyncEngine.self) private var sync: SyncEngine?
+    @State private var exporter = NoteExporter()
 
-    private func export() async {
-        working = true
-        message = nil
-        defer { working = false }
-        DebouncedSave.flushAll()
-        do {
-            made = try await NoteExport.make(context, sharing: CollabStore.shared?.exportSharing() ?? .init(), fetch: { a in await sync?.download(a) ?? false })
-            saving = true
-        } catch {
-            message = "Couldn't export your notes: \(error.localizedDescription)"
-        }
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .paneExportNotes)) { _ in
+                Task { await exporter.export(context, sync: sync) }
+            }
+            .noteExportPanels(exporter)
+            .overlay(alignment: .bottom) {
+                Group {
+                    if exporter.working {
+                        Toast(text: "Exporting your notes…", kind: .working)
+                    } else if let message = exporter.message, !exporter.saving {
+                        Toast(text: message, kind: exporter.failed ? .failed : .done)
+                            .task(id: message) {
+                                try? await Task.sleep(for: .seconds(6))
+                                if exporter.message == message { exporter.message = nil }
+                            }
+                    }
+                }
+                .padding(.bottom, 18)
+                .accessibilityIdentifier("export.toast")
+            }
+            .animation(.easeOut(duration: 0.25), value: exporter.working)
+            .animation(.easeOut(duration: 0.25), value: exporter.message)
     }
 }
+
+extension Notification.Name {
+    /// File › Export All Notes…: the notes window in front exports.
+    static let paneExportNotes = Notification.Name("pane.exportNotes")
+}
+#endif

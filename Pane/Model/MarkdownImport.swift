@@ -8,6 +8,8 @@ import ZIPFoundation
 /// matter's, else a first `#` heading, else the file name; images and files linked from the notes
 /// (relative links, Notion's URL-encoded paths, Obsidian's `![[embeds]]`) come in as attachments;
 /// front-matter tags become a last line of #tags; dates come from front matter, else the file.
+/// Front-matter keys Pinto has no use for (aliases, a source, a status…) are kept with the note,
+/// as written, so an export writes them back; `[[Alias]]` links lead to the note with that alias.
 @MainActor
 final class MarkdownImporter {
     private let writer: ImportWriter
@@ -95,6 +97,10 @@ final class MarkdownImporter {
         let total = sources.reduce(0) { $0 + $1.notes }
         var done = 0
         progress(0, total)
+        // The main thread gets a turn at least every frame or so, however long a note takes
+        // (it got one every 25 notes, and a 5,000-note vault held the window 0.2 s at a time).
+        let clock = ContinuousClock()
+        var turn = clock.now
         let scratch = FileManager.default.temporaryDirectory.appending(path: "MarkdownImport-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: scratch) }
         outer: for source in sources where source.problem == nil {
@@ -112,13 +118,17 @@ final class MarkdownImporter {
                 }
                 root = dest
             }
-            let tree = Tree(root: root)
+            let folder = root
+            let tree = Tree(await Task.detached { Tree.scan(folder) }.value)
             for note in tree.notes {
                 if shouldStop() { writer.summary.stopped = true; break outer }
                 add(note, in: tree, source: source, destination: destination)
                 done += 1
                 progress(min(done, total), total)
-                if done % 25 == 0 { await Task.yield() }
+                if clock.now - turn > .milliseconds(12) {
+                    try? await Task.sleep(for: .milliseconds(1))
+                    turn = clock.now
+                }
             }
             writer.summary.trashed += tree.trashed
             writer.summary.notNotes += tree.files.keys.filter { !tree.used.contains($0) }.count
@@ -127,9 +137,56 @@ final class MarkdownImporter {
     }
 
     /// The files of one source, read once: notes, other files by path and by name (for Obsidian's
-    /// embeds, which name a file anywhere in the vault).
+    /// embeds, which name a file anywhere in the vault), and each note's title and aliases, for
+    /// finding the notes links name without reading the vault again for each link.
     @MainActor
     final class Tree {
+        /// What reading a source finds, worked out off the main thread.
+        struct Scan: Sendable {
+            var root: URL
+            var notes: [(path: [String], url: URL)] = []
+            var files: [String: URL] = [:]
+            var byName: [String: [URL]] = [:]
+            var used: Set<String> = []
+            var trashed = 0
+            var linkPaths: [String: [String]] = [:]
+            var notesByName: [String: [URL]] = [:]
+            /// The title each note gets and its aliases, by standardized file path (no title: not a note).
+            var titles: [String: String] = [:]
+            var aliases: [String: [String]] = [:]
+            // Looked up by the import, made here too: 5,000 notes' worth held the window 0.1 s.
+            var noteIndex: [String: Int] = [:]
+            var titleCounts: [String: [URL]] = [:]
+            var byLinkPath: [String: String] = [:]
+            var byStem: [String: [String]] = [:]
+            var byAlias: [String: [String]] = [:]
+            var commonPrefix = 0
+
+            mutating func index() {
+                for (i, n) in notes.enumerated() {
+                    let key = n.url.standardizedFileURL.path
+                    noteIndex[key] = i
+                    if let t = titles[key] { titleCounts[WikiLinks.key(t), default: []].append(n.url) }
+                }
+                for (url, path) in linkPaths {
+                    let joined = path.joined(separator: "/")
+                    byLinkPath[joined] = byLinkPath[joined].map { min($0, url) } ?? url
+                    if let last = path.last { byStem[last, default: []].append(url) }
+                }
+                for (url, list) in aliases {
+                    for a in Set(list.map(WikiLinks.key)) where !a.isEmpty { byAlias[a, default: []].append(url) }
+                }
+                var prefix = notes.first.map { Array($0.path.dropLast()) } ?? []
+                for n in notes.dropFirst() {
+                    let dirs = Array(n.path.dropLast())
+                    var i = 0
+                    while i < prefix.count, i < dirs.count, prefix[i] == dirs[i] { i += 1 }
+                    prefix = Array(prefix.prefix(i))
+                }
+                commonPrefix = prefix.count
+            }
+        }
+
         let root: URL
         var notes: [(path: [String], url: URL)] = []
         /// Files that aren't notes, by their standardized path.
@@ -142,45 +199,66 @@ final class MarkdownImporter {
         /// Each note's path as a wiki link names it: folders, then the file name without its
         /// extension (a TextBundle's folder name), lowercased. By standardized file path.
         private var linkPaths: [String: [String]] = [:]
+        /// Notes by their link path joined with "/", by their last part, and by alias.
         /// Notes by file name without extension, lowercased.
         private var notesByName: [String: [URL]] = [:]
-        private var titles: [String: String?] = [:]
+        private var byLinkPath: [String: String] = [:]
+        private var byStem: [String: [String]] = [:]
+        private var byAlias: [String: [String]] = [:]
+        private var titles: [String: String] = [:]
         /// Where each note is in `notes`, by standardized file path.
         private var noteIndex: [String: Int] = [:]
-        private var titleCounts: [String: [URL]]?
+        /// Notes by title (WikiLinks.key).
+        private var titleCounts: [String: [URL]] = [:]
 
-        init(root: URL) {
-            self.root = root.standardizedFileURL
+        nonisolated static func scan(_ root: URL) -> Scan {
+            var s = Scan(root: root.standardizedFileURL)
             for (path, url) in MarkdownImporter.walk(root) {
+                let key = url.standardizedFileURL.path
                 switch MarkdownImporter.kind(of: path) {
                 case .note where MarkdownImporter.looksLikeJSON(url):
                     // Standard Notes' and others' backups end in .txt but are JSON.
-                    files[url.standardizedFileURL.path] = url
+                    s.files[key] = url
                 case .note:
-                    noteIndex[url.standardizedFileURL.path] = notes.count
-                    notes.append((path, url))
+                    s.notes.append((path, url))
                     let bundle = path.dropLast().last.map { $0.lowercased().hasSuffix(".textbundle") } == true
                     let stem = bundle ? (path[path.count - 2] as NSString).deletingPathExtension : (path.last! as NSString).deletingPathExtension
                     let dirs = path.dropLast(bundle ? 2 : 1)
-                    linkPaths[url.standardizedFileURL.path] = (dirs + [stem]).map { $0.lowercased() }
-                    notesByName[stem.lowercased(), default: []].append(url)
+                    s.linkPaths[key] = (dirs + [stem]).map { $0.lowercased() }
+                    s.notesByName[stem.lowercased(), default: []].append(url)
+                    if let read = MarkdownImporter.read((path, url)) {
+                        s.titles[key] = read.title
+                        if !read.parsed.aliases.isEmpty { s.aliases[key] = read.parsed.aliases }
+                    }
                 case .file:
-                    files[url.standardizedFileURL.path] = url
+                    s.files[key] = url
                     // A TextBundle's own files (info.json) are part of its note, not left-overs.
-                    if path.dropLast().contains(where: { $0.lowercased().hasSuffix(".textbundle") }) { used.insert(url.standardizedFileURL.path) }
-                    byName[url.lastPathComponent.lowercased(), default: []].append(url)
-                case .trashed: trashed += 1
+                    if path.dropLast().contains(where: { $0.lowercased().hasSuffix(".textbundle") }) { s.used.insert(key) }
+                    s.byName[url.lastPathComponent.lowercased(), default: []].append(url)
+                case .trashed: s.trashed += 1
                 case .skipped: break
                 }
             }
-            var prefix = notes.first.map { Array($0.path.dropLast()) } ?? []
-            for n in notes.dropFirst() {
-                let dirs = Array(n.path.dropLast())
-                var i = 0
-                while i < prefix.count, i < dirs.count, prefix[i] == dirs[i] { i += 1 }
-                prefix = Array(prefix.prefix(i))
-            }
-            commonPrefix = prefix.count
+            s.index()
+            return s
+        }
+
+        init(_ scan: Scan) {
+            root = scan.root
+            notes = scan.notes
+            files = scan.files
+            byName = scan.byName
+            used = scan.used
+            trashed = scan.trashed
+            linkPaths = scan.linkPaths
+            notesByName = scan.notesByName
+            titles = scan.titles
+            noteIndex = scan.noteIndex
+            titleCounts = scan.titleCounts
+            byLinkPath = scan.byLinkPath
+            byStem = scan.byStem
+            byAlias = scan.byAlias
+            commonPrefix = scan.commonPrefix
         }
 
         /// A file a note points at, if it's inside this source.
@@ -220,17 +298,22 @@ final class MarkdownImporter {
 
         /// The note a wiki link's target names, found the way Obsidian finds it: a path from
         /// the vault's top or from the linking note's folder, else the one note whose path ends
-        /// with it; among several, the one nearest the linking note, then the shortest path.
+        /// with it, else a note with it as an alias; among several, the one nearest the linking
+        /// note, then the shortest path.
         func wikiTarget(_ target: String, from note: URL) -> URL? {
             let parts = WikiLinks.stripExtension(target).split(separator: "/").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty && $0 != "." }
             guard !parts.isEmpty, let here = linkPaths[note.standardizedFileURL.path]?.dropLast() else { return nil }
             var relative = Array(here)
             for p in parts { if p == ".." { _ = relative.popLast() } else { relative.append(p) } }
             let wanted = parts.filter { $0 != ".." }
-            var hits: [(url: String, path: [String])] = []
-            for (url, path) in linkPaths {
-                if path == wanted || path == relative { return URL(fileURLWithPath: url) }
-                if path.count >= wanted.count, Array(path.suffix(wanted.count)) == wanted { hits.append((url, path)) }
+            guard let last = wanted.last else { return nil }
+            for exact in [wanted, relative] { if let url = byLinkPath[exact.joined(separator: "/")] { return URL(fileURLWithPath: url) } }
+            var hits: [(url: String, path: [String])] = (byStem[last] ?? []).compactMap { url in
+                guard let path = linkPaths[url], path.count >= wanted.count, Array(path.suffix(wanted.count)) == wanted else { return nil }
+                return (url, path)
+            }
+            if hits.isEmpty, parts.count == 1 {
+                hits = (byAlias[WikiLinks.key(WikiLinks.stripExtension(target))] ?? []).compactMap { url in linkPaths[url].map { (url, $0) } }
             }
             func shared(_ p: [String]) -> Int {
                 var n = 0
@@ -246,13 +329,7 @@ final class MarkdownImporter {
 
         /// The title a note gets here (front matter, first heading, else file name); nil for one
         /// that won't be a note.
-        func title(of url: URL) -> String? {
-            let key = url.standardizedFileURL.path
-            if let t = titles[key] { return t }
-            let t = noteIndex[key].flatMap { MarkdownImporter.read(notes[$0])?.title }
-            titles[key] = t
-            return t
-        }
+        func title(of url: URL) -> String? { titles[url.standardizedFileURL.path] }
 
         /// The folders a note lands in, under the source's folder.
         func folders(of url: URL) -> [String] {
@@ -266,12 +343,7 @@ final class MarkdownImporter {
         /// front as it takes to tell it apart from other notes here with the same title.
         func linkTarget(for url: URL) -> String? {
             guard let title = title(of: url) else { return nil }
-            if titleCounts == nil {
-                var counts: [String: [URL]] = [:]
-                for n in notes { if let t = self.title(of: n.url) { counts[WikiLinks.key(t), default: []].append(n.url) } }
-                titleCounts = counts
-            }
-            let others = (titleCounts?[WikiLinks.key(title)] ?? []).filter { $0.standardizedFileURL.path != url.standardizedFileURL.path }.map(folders(of:))
+            let others = (titleCounts[WikiLinks.key(title)] ?? []).filter { $0.standardizedFileURL.path != url.standardizedFileURL.path }.map(folders(of:))
             guard !others.isEmpty else { return title }
             let mine = folders(of: url)
             for k in 1...max(mine.count, 1) where k <= mine.count {
@@ -285,7 +357,7 @@ final class MarkdownImporter {
     }
 
     /// A note file read and taken apart; nil when it can't be read or isn't a note.
-    static func read(_ note: (path: [String], url: URL)) -> (parsed: MarkdownNote, title: String, fileStem: String, isBundle: Bool)? {
+    nonisolated static func read(_ note: (path: [String], url: URL)) -> (parsed: MarkdownNote, title: String, fileStem: String, isBundle: Bool)? {
         let isBundle = note.path.count >= 2 && note.path[note.path.count - 2].lowercased().hasSuffix(".textbundle")
         let fileStem = isBundle ? (note.path[note.path.count - 2] as NSString).deletingPathExtension : (note.path.last! as NSString).deletingPathExtension
         guard let data = try? Data(contentsOf: note.url) else { return nil }
@@ -338,10 +410,10 @@ final class MarkdownImporter {
         var markdown = titleLine
         let rest = ImportWriter.dropRepeatedTitle(body, title: titleLine)
         if !rest.isEmpty { markdown += "\n" + rest }
-        if let tags = ImportWriter.tagLine(parsed.tags) { markdown += "\n\n" + tags }
+        if let tags = ImportWriter.tagLine(parsed.tags, besides: rest) { markdown += "\n\n" + tags }
         let dirs = Array(note.path.dropLast(isBundle ? 2 : 1).dropFirst(tree.commonPrefix)).map(Self.cleanName)
         let folder = writer.folder(source: source.name, path: dirs, destination)
-        if writer.add(markdown: markdown, created: created, updated: updated, in: folder, files: files) {
+        if writer.add(markdown: markdown, created: created, updated: updated, in: folder, files: files, frontMatter: parsed.kept) {
             writer.summary.attachments += files.count
         }
     }
@@ -376,16 +448,28 @@ struct MarkdownNote: Equatable {
     var created: Date?
     var updated: Date?
     var tags: [String] = []
+    /// Other names for the note (`aliases:`), which wiki links may use.
+    var aliases: [String] = []
+    /// The front matter's lines Pinto has no use for, as written (aliases among them).
+    var kept: String?
     var body: String
+
+    /// Front-matter keys that become the note's title, dates and tags.
+    static let titleKeys = ["title"]
+    static let createdKeys = ["created", "date created", "created_at", "creation date", "date", "created time"]
+    static let updatedKeys = ["updated", "modified", "updated_at", "last modified", "last edited time", "last edited", "lastmod"]
+    static let tagKeys = ["tags", "tag", "keywords", "labels"]
 
     static func parse(_ text: String, fileName: String, notion: Bool = false, plainText: Bool = false) -> MarkdownNote {
         var lines = text.components(separatedBy: "\n")
         var props: [String: [String]] = [:]
+        var yaml: [String] = []
 
         // YAML front matter (Obsidian, Joplin, Bear, Hugo-style exports).
         if lines.first?.trimmingCharacters(in: .whitespaces) == "---",
            let end = lines.dropFirst().firstIndex(where: { ["---", "..."].contains($0.trimmingCharacters(in: .whitespaces)) }) {
-            props = frontMatter(Array(lines[1..<end]))
+            yaml = Array(lines[1..<end])
+            props = frontMatter(yaml)
             lines.removeSubrange(0...end)
         }
         // Logseq page properties: `title:: …`, `tags:: a, b` at the top.
@@ -425,9 +509,15 @@ struct MarkdownNote: Equatable {
             }
         }
 
-        note.created = ["created", "date created", "created_at", "creation date", "date", "created time"].lazy.compactMap { props[$0]?.first.flatMap(Self.date) }.first
-        note.updated = ["updated", "modified", "updated_at", "last modified", "last edited time", "last edited", "lastmod"].lazy.compactMap { props[$0]?.first.flatMap(Self.date) }.first
-        note.tags = ["tags", "tag", "keywords", "labels"].flatMap { props[$0] ?? [] }
+        let dated = (createdKeys + updatedKeys).compactMap { k in props[k]?.first.flatMap(Self.date).map { (k, $0) } }
+        note.created = createdKeys.lazy.compactMap { k in dated.first { $0.0 == k }?.1 }.first
+        note.updated = updatedKeys.lazy.compactMap { k in dated.first { $0.0 == k }?.1 }.first
+        note.aliases = ["aliases", "alias"].flatMap { props[$0] ?? [] }.filter { !$0.isEmpty }
+        if !yaml.isEmpty {
+            // Dates that didn't read as dates stay as written.
+            note.kept = kept(yaml, without: Set(titleKeys + tagKeys + dated.map(\.0)))
+        }
+        note.tags = tagKeys.flatMap { props[$0] ?? [] }
             .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "#[]\"'")) }
             .filter { !$0.isEmpty }
         note.body = cleanBody(lines)
@@ -444,7 +534,7 @@ struct MarkdownNote: Equatable {
         var key: String?
         for raw in lines {
             let line = raw.replacingOccurrences(of: "\t", with: "  ")
-            if let k = key, let r = line.range(of: #"^\s+-\s*"#, options: .regularExpression) {
+            if let k = key, let r = line.range(of: #"^\s*-(\s+|$)"#, options: .regularExpression) {
                 out[k, default: []].append(unquote(String(line[r.upperBound...])))
                 continue
             }
@@ -453,9 +543,25 @@ struct MarkdownNote: Equatable {
             let v = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
             key = k
             if v.isEmpty { out[k] = out[k] ?? []; continue }
-            out[k] = (k.contains("tag") || k == "keywords" || k == "aliases") ? list(v) : [unquote(v)]
+            out[k] = (k.contains("tag") || k == "keywords" || k == "aliases" || k == "alias") ? list(v) : [unquote(v)]
         }
         return out
+    }
+
+    /// The front matter without the keys in `used` (lowercased), each other key with the lines
+    /// under it as written; nil when nothing is left.
+    static func kept(_ lines: [String], without used: Set<String>) -> String? {
+        var out: [String] = []
+        var keep = true
+        for line in lines {
+            // A key starts a line; its list items and nested lines follow it, indented or `- `.
+            let starts = !line.hasPrefix(" ") && !line.hasPrefix("\t") && !line.hasPrefix("-") && !line.hasPrefix("#") && line.contains(":")
+            if starts { keep = !used.contains(line[..<line.firstIndex(of: ":")!].trimmingCharacters(in: .whitespaces).lowercased()) }
+            if keep { out.append(line) }
+        }
+        while out.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { out.removeLast() }
+        while out.first?.trimmingCharacters(in: .whitespaces).isEmpty == true { out.removeFirst() }
+        return out.isEmpty ? nil : out.joined(separator: "\n")
     }
 
     /// `[a, b]`, `a, b` or `a b` (tags written with #).
@@ -467,8 +573,13 @@ struct MarkdownNote: Equatable {
     }
 
     static func unquote(_ s: String) -> String {
-        var t = s.trimmingCharacters(in: .whitespaces)
-        if t.count >= 2, (t.hasPrefix("\"") && t.hasSuffix("\"")) || (t.hasPrefix("'") && t.hasSuffix("'")) { t = String(t.dropFirst().dropLast()) }
+        let t = s.trimmingCharacters(in: .whitespaces)
+        guard t.count >= 2 else { return t }
+        if t.hasPrefix("\""), t.hasSuffix("\"") {
+            let inner = String(t.dropFirst().dropLast())
+            return inner.contains("\\") ? inner.replacing(/\\(.)/) { String($0.1) } : inner
+        }
+        if t.hasPrefix("'"), t.hasSuffix("'") { return String(t.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'") }
         return t
     }
 
@@ -487,21 +598,30 @@ struct MarkdownNote: Equatable {
         let s = unquote(raw)
         guard !s.isEmpty else { return nil }
         if let n = Double(s), n > 100_000_000 { return Date(timeIntervalSince1970: n > 100_000_000_000 ? n / 1000 : n) }
-        let iso = ISO8601DateFormatter()
-        for options: ISO8601DateFormatter.Options in [[.withInternetDateTime, .withFractionalSeconds], [.withInternetDateTime]] {
-            iso.formatOptions = options
-            if let d = iso.date(from: s) { return d }
-        }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
-        let zoned = ["yyyy-MM-dd HH:mm:ssXXXXX", "yyyy-MM-dd HH:mm:ssX", "yyyy-MM-dd'T'HH:mm:ssXXXXX"]
-        for format in zoned + ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
-                               "MMMM d, yyyy h:mm a", "MMMM d, yyyy", "yyyy/MM/dd HH:mm", "yyyy/MM/dd", "MMM d, yyyy"] {
-            f.dateFormat = format
+        for iso in isoFormatters { if let d = iso.date(from: s) { return d } }
+        let local = TimeZone.current
+        for f in formatters {
+            if f.timeZone != local { f.timeZone = local }
             if let d = f.date(from: s) { return d }
         }
         return nil
+    }
+
+    // Made once: a formatter costs more to make than a whole note does to read (5,000 notes spent
+    // most of their import making them). Formatters are safe to use from more than one thread.
+    nonisolated(unsafe) private static let isoFormatters: [ISO8601DateFormatter] = [[.withInternetDateTime, .withFractionalSeconds], [.withInternetDateTime]].map { (options: ISO8601DateFormatter.Options) in
+        let f = ISO8601DateFormatter()
+        f.formatOptions = options
+        return f
+    }
+    nonisolated(unsafe) private static let formatters: [DateFormatter] = ["yyyy-MM-dd HH:mm:ssXXXXX", "yyyy-MM-dd HH:mm:ssX", "yyyy-MM-dd'T'HH:mm:ssXXXXX",
+        "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+        "MMMM d, yyyy h:mm a", "MMMM d, yyyy", "yyyy/MM/dd HH:mm", "yyyy/MM/dd", "MMM d, yyyy"].map { format in
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = format
+        return f
     }
 
     // MARK: Body

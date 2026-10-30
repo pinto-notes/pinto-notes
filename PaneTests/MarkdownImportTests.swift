@@ -54,6 +54,25 @@ import ZIPFoundation
         #expect(MarkdownNote.parse("---\ntags: #one #two\n---\nx", fileName: "f").tags == ["one", "two"])
     }
 
+    /// Keys Pinto has no use for stay with the note as written, for the export to write back;
+    /// the title, dates and tags it takes don't.
+    @Test func frontMatterKeepsWhatPintoDoesntUse() {
+        let n = MarkdownNote.parse("---\ntitle: Porto\ncreated: 2024-03-02\ntags:\n- travel\naliases:\n  - Oporto\n  - \"Porto trip\"\nsource: https://example.com\nmeta:\n  rating: 5\ndate: someday\n---\nFlights.\n", fileName: "porto")
+        #expect(n.tags == ["travel"], "an unindented list is a list")
+        #expect(n.aliases == ["Oporto", "Porto trip"])
+        #expect(n.kept == "aliases:\n  - Oporto\n  - \"Porto trip\"\nsource: https://example.com\nmeta:\n  rating: 5\ndate: someday", "a date that isn't one stays as written")
+        #expect(MarkdownNote.parse("---\ntitle: x\ntags: [a]\n---\nx", fileName: "f").kept == nil)
+        #expect(MarkdownNote.parse("No front matter", fileName: "f").kept == nil)
+        #expect(MarkdownNote.unquote("\"say \\\"hi\\\"\"") == "say \"hi\"" && MarkdownNote.unquote("'it''s'") == "it's")
+    }
+
+    /// Tags already in the text aren't added again (an exported note has them in both places).
+    @Test func tagsInTheTextArentRepeated() {
+        #expect(ImportWriter.tagLine(["home", "Big ideas", "work"], besides: "Plan #home\n\n#big-ideas") == "#work")
+        #expect(ImportWriter.tagLine(["home"], besides: "Plan #home") == nil)
+        #expect(ImportWriter.tagLine(["home"], besides: "Plan [x](#home)") == "#home", "only a hashtag counts")
+    }
+
     @Test func theTitleIsTheFirstHeadingElseNone() {
         let h = MarkdownNote.parse("\n# Kitchen remodel\n\nPlan.\n## Budget\n", fileName: "kitchen")
         #expect(h.title == "Kitchen remodel" && h.body.hasPrefix("\nPlan."))
@@ -298,6 +317,160 @@ import ZIPFoundation
         let again = try await Self.importing([vault], container: c)
         #expect(again.summary.notes == 0 && again.summary.alreadyImported == 4 && again.summary.attachments == 0)
         #expect(again.files.count == 2, "no copies of the files either")
+    }
+}
+
+/// A 5,000-note Obsidian vault, made for the test: 100 folders two deep, front matter on every
+/// note (dates, tags, aliases, keys Pinto doesn't use), wiki links by name, by alias and by path,
+/// markdown links, embedded images, and ten notes with the same title in different folders.
+@MainActor @Suite(.serialized) struct MarkdownVaultScaleTests {
+    nonisolated static let count = 5_000
+    nonisolated static let images = 500
+
+    nonisolated static func folder(_ i: Int) -> String { "Area \((i % 100) / 10)/Project \(i % 10)" }
+
+    nonisolated static func makeVault() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appending(path: "vault-\(UUID().uuidString)").appending(path: "Big vault")
+        let fm = FileManager.default
+        try fm.createDirectory(at: root.appending(path: ".obsidian"), withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: root.appending(path: ".obsidian/app.json"))
+        try fm.createDirectory(at: root.appending(path: "attachments"), withIntermediateDirectories: true)
+        for k in 0..<images { try Data("png \(k)".utf8).write(to: root.appending(path: "attachments/image-\(k).png")) }
+        for a in 0..<10 { for p in 0..<10 { try fm.createDirectory(at: root.appending(path: "Area \(a)/Project \(p)"), withIntermediateDirectories: true) } }
+        let iso = ISO8601DateFormatter()
+        for i in 0..<count {
+            let created = Date(timeIntervalSince1970: 1_700_000_000 + Double(i) * 60)
+            let k = (i + 29) % count
+            let rel = "../../\(folder(k))/Note \(k).md".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!
+            var text = """
+            ---
+            created: \(iso.string(from: created))
+            updated: \(iso.string(from: created.addingTimeInterval(3600)))
+            tags: [topic-\(i % 20), shared]
+            aliases: [Alias \(i)]
+            source: https://example.com/\(i)
+            cssclasses:
+              - wide
+            ---
+            Some text for note \(i).
+            Next: [[Note \((i + 1) % count)]]. Also [[Alias \((i + 7) % count)]] and [[\(folder((i + 13) % count))/Note \((i + 13) % count)]].
+            See [the plan](\(rel)).
+
+            """
+            if i % 10 == 0 { text += "![[image-\(i / 10).png]]\n" }
+            if i % 100 < 10, i % 7 == 0 { text += "Notes from [[Meeting]].\n" }
+            try Data(text.utf8).write(to: root.appending(path: "\(folder(i))/Note \(i).md"))
+        }
+        for p in 0..<10 { try Data("Agenda for project \(p).\n".utf8).write(to: root.appending(path: "Area 0/Project \(p)/Meeting.md")) }
+        return root
+    }
+
+    /// The import's wall time and the longest the main thread went without a turn (what the
+    /// progress bar and the window wait on), printed as PERF lines. Timing never gates.
+    @Test func importsAFiveThousandNoteVault() async throws {
+        let vault = try await Task.detached { try Self.makeVault() }.value
+        defer { try? FileManager.default.removeItem(at: vault.deletingLastPathComponent()) }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let source = MarkdownImporter.inspect(vault)
+        #expect(source.notes == Self.count + 10)
+
+        let clock = ContinuousClock()
+        let stalls = StallMeter()
+        let ticker = Task { @MainActor in await stalls.run() }
+        var reports = 0
+        let start = clock.now
+        let summary = await MarkdownImporter(context: c.mainContext).run([source], into: .perSource, progress: { _, _ in reports += 1 })
+        let took = clock.now - start
+        stalls.running = false
+        await ticker.value
+        print("PERF markdown import 5,000 notes: \(took) total, longest main-thread stall \(stalls.longest)")
+
+        let r = MarkdownImportTests.Imported(container: c, summary: summary)
+        defer { r.cleanUp() }
+        #expect(summary.notes == Self.count + 10 && summary.attachments == Self.images && summary.filesMissing == 0)
+        #expect(reports >= Self.count)
+        let titles = Set(r.notes.map { WikiLinks.key($0.title) })
+        let byTitle = Dictionary(r.notes.map { ($0.title, $0) }, uniquingKeysWith: { a, _ in a })
+        for i in [0, 1, 7, 70, 4_999] {
+            let n = try #require(byTitle["Note \(i)"])
+            #expect(r.path(n) == "Big vault/\(Self.folder(i))")
+            #expect(n.body.contains("Next: [[Note \((i + 1) % Self.count)]]."))
+            #expect(n.body.contains("Also [[Note \((i + 7) % Self.count)|Alias \((i + 7) % Self.count)]]"), "an alias leads to its note")
+            #expect(n.body.contains("and [[Note \((i + 13) % Self.count)]]."), "a path names a note")
+            #expect(n.body.contains("See [[Note \((i + 29) % Self.count)|the plan]]."))
+            #expect(n.body.hasSuffix("#topic-\(i % 20) #shared\n"))
+            #expect(n.createdAt == Date(timeIntervalSince1970: 1_700_000_000 + Double(i) * 60))
+            #expect(n.frontMatter == "aliases: [Alias \(i)]\nsource: https://example.com/\(i)\ncssclasses:\n  - wide", "what Pinto doesn't use is kept")
+        }
+        #expect(try #require(byTitle["Note 7"]).body.contains("[[Project 7/Meeting]]"), "the nearest of two same-named notes")
+        #expect(try #require(byTitle["Note 10"]).body.contains(try #require(r.files.first { $0.filename == "image-1.png" }).markdown))
+        // Every wiki link in every note leads to a note.
+        var unresolved: [String] = []
+        for n in r.notes {
+            for m in n.body.matches(of: /\[\[([^\]|#]+)/) {
+                let name = WikiLinks.name(of: String(m.1))
+                if !titles.contains(WikiLinks.key(name)) { unresolved.append("\(n.title): \(m.1)") }
+            }
+        }
+        #expect(unresolved.isEmpty, "\(unresolved.prefix(5))")
+    }
+
+    /// The vault imported, exported, and the export imported again: the same notes in the same
+    /// folders, with the same text, links, tags, dates, files and front matter.
+    @Test func anExportImportedAgainIsTheSameNotes() async throws {
+        let vault = try await Task.detached { try Self.makeVault() }.value
+        defer { try? FileManager.default.removeItem(at: vault.deletingLastPathComponent()) }
+        let first = try await MarkdownImportTests.importing([vault])
+        defer { first.cleanUp() }
+        #expect(first.summary.notes == Self.count + 10)
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        let made = try await NoteExport.make(first.context, vault: NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults()))
+        print("PERF markdown export 5,000 notes: \(clock.now - start)")
+        defer { try? FileManager.default.removeItem(at: made.zip.deletingLastPathComponent()) }
+        #expect(made.notes == Self.count + 10 && made.files == Self.images && made.missingFiles == 0)
+
+        let again = try await MarkdownImportTests.importing([made.zip])
+        defer { again.cleanUp() }
+        #expect(again.summary.notes == Self.count + 10 && again.summary.attachments == Self.images && again.summary.filesMissing == 0)
+
+        // A file's link names a copy of its own in each library: compared by the file's name.
+        func text(_ n: Note, in r: MarkdownImportTests.Imported) -> String {
+            n.body.replacing(/pane-file:([0-9a-fA-F-]{36})/) { m in
+                UUID(uuidString: String(m.1)).flatMap { r.context.attachment($0)?.filename } ?? "?"
+            }
+        }
+        // Folders below the top one (the vault's name, then the export's).
+        func place(_ n: Note, in r: MarkdownImportTests.Imported) -> String { r.path(n).split(separator: "/").dropFirst().joined(separator: "/") }
+        let before = Dictionary(first.notes.map { ("\(place($0, in: first))/\($0.title)", $0) }, uniquingKeysWith: { a, _ in a })
+        let after = Dictionary(again.notes.map { ("\(place($0, in: again))/\($0.title)", $0) }, uniquingKeysWith: { a, _ in a })
+        #expect(before.count == Self.count + 10 && Set(before.keys) == Set(after.keys))
+        var different: [String] = []
+        for (key, a) in before {
+            guard let b = after[key] else { continue }
+            if text(a, in: first) != text(b, in: again) { different.append("\(key) text:\n\(text(a, in: first))\n---\n\(text(b, in: again))") }
+            if a.frontMatter != b.frontMatter { different.append("\(key) front matter: \(a.frontMatter ?? "nil") / \(b.frontMatter ?? "nil")") }
+            if Int(a.createdAt.timeIntervalSince1970.rounded()) != Int(b.createdAt.timeIntervalSince1970.rounded())
+                || Int(a.updatedAt.timeIntervalSince1970.rounded()) != Int(b.updatedAt.timeIntervalSince1970.rounded()) { different.append("\(key) dates") }
+        }
+        #expect(different.isEmpty, "\(different.count) differ: \(different.prefix(3))")
+    }
+}
+
+/// The longest gap between turns of the main thread while it runs.
+@MainActor final class StallMeter {
+    var longest = Duration.zero
+    var running = true
+    func run() async {
+        let clock = ContinuousClock()
+        var last = clock.now
+        while running {
+            try? await Task.sleep(for: .milliseconds(5))
+            let now = clock.now
+            longest = max(longest, now - last)
+            last = now
+        }
     }
 }
 

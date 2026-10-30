@@ -39,6 +39,32 @@ import ZIPFoundation
         _ = n
     }
 
+    /// Each file starts with front matter: dates, the tags of its last line (which leaves the
+    /// text), what an import kept, and the title when the file's name can't be it.
+    @Test func eachFileHasItsFrontMatter() {
+        let created = Date(timeIntervalSince1970: 1_790_000_000.4), updated = Date(timeIntervalSince1970: 1_790_003_600.6)
+        let utc = TimeZone(identifier: "UTC")!
+        #expect(NoteExport.fileText("Lisbon\nFlights.\n\n#travel #family-trip\n", created: created, updated: updated, kept: "aliases: [Lisboa]", fileStem: "Lisbon", timeZone: utc) == """
+        ---
+        created: 2026-09-21T14:13:20Z
+        updated: 2026-09-21T15:13:21Z
+        tags:
+          - travel
+          - family-trip
+        aliases: [Lisboa]
+        ---
+        Lisbon
+        Flights.
+
+        """)
+        let plain = NoteExport.fileText("Plans: A/B\nText #inline", created: created, updated: created, kept: nil, fileStem: "Plans- A-B", timeZone: utc)
+        #expect(plain == "---\ntitle: \"Plans: A/B\"\ncreated: 2026-09-21T14:13:20Z\nupdated: 2026-09-21T14:13:20Z\n---\nPlans: A/B\nText #inline\n", "a tag inside the text stays there")
+        #expect(NoteExport.fileText("#idea", created: created, updated: created, kept: nil, fileStem: "#idea", timeZone: utc).hasSuffix("---\n#idea\n"), "a title is never taken for tags")
+        // Read back: the same title, dates and tags.
+        let back = MarkdownNote.parse(plain, fileName: "Plans- A-B")
+        #expect(back.title == "Plans: A/B" && back.created == Date(timeIntervalSince1970: 1_790_000_000) && back.kept == nil)
+    }
+
     /// An export imported again keeps its notes' times: the zip stores them as the local time of
     /// day, the way Finder and `zip` do and the import reads them (it read them 2 h early once
     /// the import was fixed, 2026-10-13).
@@ -47,6 +73,7 @@ import ZIPFoundation
         let work = context.createFolder(named: "Work")
         let n = context.createNote(in: .folder(work.id), body: "Standup\nShipped it.")
         let edited = Date(timeIntervalSince1970: 1_791_800_000)
+        n.createdAt = edited.addingTimeInterval(-86_400)
         n.updatedAt = edited
         let result = try await NoteExport.make(context, vault: NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults()), now: .now)
         defer { try? FileManager.default.removeItem(at: result.zip.deletingLastPathComponent()) }

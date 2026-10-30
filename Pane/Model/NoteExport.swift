@@ -8,7 +8,9 @@ import ZIPFoundation
 ///
 /// It's made on the device, from the local library: the notes are end-to-end encrypted, so the
 /// server can't read them to export them for you. Links between notes and to files point at the
-/// exported copies, so the folder reads well in any markdown editor.
+/// exported copies, so the folder reads well in any markdown editor. Each note starts with front
+/// matter: its dates, its tags, and what an import kept from the file it came from, so the export
+/// imported again (here, or in Obsidian) is the same notes.
 @MainActor
 enum NoteExport {
     struct Result: Equatable {
@@ -152,7 +154,10 @@ enum NoteExport {
             let url = top.appending(path: path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let up = String(repeating: "../", count: path.split(separator: "/").count - 1)
-            try Data(relink(text, notes: paths, files: filePaths, up: up).utf8).write(to: url)
+            let stem = ((path as NSString).lastPathComponent as NSString).deletingPathExtension
+            let file = fileText(relink(text, notes: paths, files: filePaths, up: up), created: n.createdAt, updated: n.updatedAt,
+                                kept: n.frontMatter, fileStem: stem, timeZone: timeZone)
+            try Data(file.utf8).write(to: url)
             try? FileManager.default.setAttributes([.modificationDate: n.updatedAt, .creationDate: n.createdAt], ofItemAtPath: url.path)
             result.notes += 1
         }
@@ -203,6 +208,40 @@ enum NoteExport {
             for t in sharing.templates { lines.append("- \(noteLink(t.note)): \(t.url.absoluteString)") }
         }
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// A note as its file: YAML front matter, then its text. The front matter has the note's dates,
+    /// the tags of its last line (which then leaves the text: the import puts it back), the keys an
+    /// import kept, and the title when the file's name isn't it ("Lisbon 2.md", a title with a /).
+    static func fileText(_ text: String, created: Date, updated: Date, kept: String?, fileStem: String, timeZone: TimeZone = .current) -> String {
+        var lines = text.components(separatedBy: "\n")
+        while lines.count > 1, lines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { lines.removeLast() }
+        var tags: [String] = []
+        if lines.count > 1, let last = lines.last {
+            let words = last.split(whereSeparator: \.isWhitespace).map(String.init)
+            if !words.isEmpty, words.allSatisfy({ $0.wholeMatch(of: /#[^\s#]+/) != nil }) {
+                tags = words.map { String($0.dropFirst()) }
+                lines.removeLast()
+                while lines.count > 1, lines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { lines.removeLast() }
+            }
+        }
+        let dates = ISO8601DateFormatter()
+        dates.timeZone = timeZone
+        func second(_ d: Date) -> String { dates.string(from: Date(timeIntervalSinceReferenceDate: d.timeIntervalSinceReferenceDate.rounded())) }
+        var yaml = ["---"]
+        let title = NoteText.title(of: text)
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, title != fileStem { yaml.append("title: " + yamlScalar(title)) }
+        yaml += ["created: " + second(created), "updated: " + second(updated)]
+        if !tags.isEmpty { yaml += ["tags:"] + tags.map { "  - " + yamlScalar($0) } }
+        if let kept, !kept.isEmpty { yaml.append(kept) }
+        yaml.append("---")
+        return yaml.joined(separator: "\n") + "\n" + lines.joined(separator: "\n") + "\n"
+    }
+
+    /// A YAML value: as it is when it can't be misread, else in double quotes.
+    static func yamlScalar(_ s: String) -> String {
+        if s.wholeMatch(of: /[\p{L}\p{N}][\p{L}\p{N} _.,()\/-]*/) != nil, !s.hasSuffix(" ") { return s }
+        return "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     /// `pane-note:` and `pane-file:` links pointed at the exported copies, relative to the note.

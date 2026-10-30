@@ -66,6 +66,7 @@ enum PrivacyCopy {
     static let recoveryChanged = "Your account started fresh on another device, so a recovery key you saved before no longer opens your notes. The new one is here."
     static let recoveryChangedAlert = "Your account started fresh on another device, so it has a new recovery key. If you keep one, the new one is in Settings › Security."
     static let exportFooter = "Every note as a Markdown file in its folder, with its files. Your notes are encrypted, so the export is made on this device."
+    static let exportFooterLocal = "Every note on this device as a Markdown file in its folder, with its files."
 }
 
 #if os(iOS)

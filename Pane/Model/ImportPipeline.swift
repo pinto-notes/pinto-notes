@@ -133,7 +133,7 @@ final class ImportWriter {
     /// Adds a note: its first line is the title. False (and counted) when it's too long; its
     /// files are then dropped too.
     @discardableResult
-    func add(markdown: String, created: Date, updated: Date?, in folder: Folder, files: [Attachment], pinned: Bool = false) -> Bool {
+    func add(markdown: String, created: Date, updated: Date?, in folder: Folder, files: [Attachment], pinned: Bool = false, frontMatter: String? = nil) -> Bool {
         guard markdown.utf8.count <= Self.maxNoteBytes else {
             discard(files)
             summary.tooLong += 1
@@ -144,6 +144,7 @@ final class ImportWriter {
         note.createdAt = created
         note.updatedAt = max(updated ?? created, created)
         note.isPinned = pinned
+        note.frontMatter = frontMatter
         context.insert(note)
         summary.notes += 1
         summary.noteIDs.append(note.id)
@@ -194,6 +195,13 @@ final class ImportWriter {
         var t = RichTextToMarkdown.escape(title.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces))
         if let c = t.first, "#>-+*".contains(c) || t.range(of: #"^\d+[.)] "#, options: .regularExpression) != nil { t = "\\" + t }
         return t.isEmpty ? "Untitled" : t
+    }
+
+    /// Tags as one last line of hashtags, leaving out the ones `text` already has (an exported
+    /// note's tags are in its text and its front matter both).
+    static func tagLine(_ tags: [String], besides text: String) -> String? {
+        let have = Set(text.matches(of: /(?:^|\s)#([^\s#]+)/).map { $0.1.lowercased() })
+        return tagLine(tags.filter { tag in !have.contains(tagLine([tag])?.dropFirst().lowercased() ?? "") })
     }
 
     /// Tags as one last line of hashtags; a space inside a tag becomes a hyphen.

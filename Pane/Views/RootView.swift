@@ -92,6 +92,7 @@ struct RootView: View {
                 quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
             }
             .overlay(alignment: .top) { quickOpenPanel }
+            .modifier(ExportAllNotes())
             #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
@@ -196,6 +197,7 @@ struct RootView: View {
                 case .move: NotificationCenter.default.post(name: .paneMoveNote, object: nil)
                 case .importAppleNotes: showImport = true
                 case .importFrom(let kind): importFiles = []; importing = kind
+                case .exportNotes: NotificationCenter.default.post(name: .paneExportNotes, object: nil)
                 case .connectAI: connectingAI = true
                 case .settings: SettingsRoute.shared.show()
                 }
@@ -677,6 +679,9 @@ struct PaneCommands: Commands {
                 Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                     .disabled(importFrom == nil)
             }
+            // Your notes as Markdown in their folders, signed in or not.
+            Button("Export All Notes\u{2026}") { NotificationCenter.default.post(name: .paneExportNotes, object: nil) }
+                .disabled(importNotes == nil)
             Divider()
             Button("Attach File…") { editor?.attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])

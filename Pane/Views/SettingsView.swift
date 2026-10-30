@@ -387,11 +387,22 @@ private struct AccountSettings: View {
                 Text("Sync is off. This build keeps notes on this device only.")
                     .foregroundStyle(.secondary)
             }
+            localExport
         } else {
             Section {
                 Text("Sign in to sync your notes across your iPhone and Mac.")
                     .foregroundStyle(.secondary)
             }
+            localExport
+        }
+    }
+
+    /// Signed out, the notes on this device are still yours to take.
+    private var localExport: some View {
+        Section {
+            ExportNotesButton(sync: nil)
+        } footer: {
+            Text(PrivacyCopy.exportFooterLocal)
         }
     }
 }

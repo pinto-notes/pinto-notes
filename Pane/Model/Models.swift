@@ -71,6 +71,10 @@ final class Note {
     /// from the text when asked, and filled in once after launch (NoteSummaries.fill).
     var summaryTitle: String?
     var summaryPreview: String?
+    /// Front matter from an imported Markdown file that Pinto has no use for (aliases, a source,
+    /// a status…), as written, so exporting the note writes it back. Kept on this device only:
+    /// sync doesn't carry it, as the server has no column for it yet.
+    var frontMatter: String?
 
     init(body: String = "", folder: Folder? = nil) {
         NoteSummaries.install()
