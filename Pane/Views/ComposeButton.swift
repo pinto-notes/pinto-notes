@@ -2,9 +2,9 @@ import SwiftUI
 import TipKit
 
 /// The compose button. A tap or click makes a new note at once, as it always has. Pressing and
-/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note and New App. New App opens
-/// the sheet where your AI builds an app as a new note (MakeAppSheet, `init(newApp:)`); on the Mac
-/// it is also File › New App.
+/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note, Today's Note, New App and
+/// the templates (DailyNotes). New App opens the sheet where your AI builds an app as a new note
+/// (MakeAppSheet, `init(newApp:)`); on the Mac it is also File › New App.
 struct ComposeButton<Label: View>: View {
     let newNote: () -> Void
     @ViewBuilder let label: () -> Label
@@ -12,14 +12,37 @@ struct ComposeButton<Label: View>: View {
     var body: some View {
         Menu {
             Button("New Note", systemImage: "square.and.pencil", action: newNote)
+            Button("Today\u{2019}s Note", systemImage: "calendar") { NotificationCenter.default.post(name: .paneTodaysNote, object: nil) }
+                .accessibilityIdentifier("compose.today")
             Button("New App", systemImage: NoteAppMark.symbol) { NewApp.shared.open() }
                 .accessibilityIdentifier("compose.newApp")
+            #if os(macOS)
+            Menu("New from Template") { TemplateMenuItems() }
+            #else
+            Section("Templates") { TemplateMenuItems() }
+            #endif
         } label: {
             label()
         } primaryAction: {
             newNote()
         }
         .menuIndicator(.hidden)
+    }
+}
+
+/// The templates, then New Template…, for the compose button's menu and File › New from Template.
+struct TemplateMenuItems: View {
+    private var shelf = TemplateShelf.shared
+
+    var body: some View {
+        ForEach(shelf.templates) { t in
+            Button(t.name, systemImage: "doc.text") { NotificationCenter.default.post(name: .paneNewFromTemplate, object: t.id) }
+        }
+        #if os(macOS)
+        if !shelf.templates.isEmpty { Divider() }
+        #endif
+        Button("New Template\u{2026}", systemImage: "doc.badge.plus") { NotificationCenter.default.post(name: .paneNewTemplate, object: nil) }
+            .accessibilityIdentifier("compose.newTemplate")
     }
 }
 

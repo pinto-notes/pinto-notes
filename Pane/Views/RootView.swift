@@ -87,6 +87,11 @@ struct RootView: View {
             // A template or shared note to add, from a link.
             .noteSourceHandler()
             .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
+            // Today's Note and the templates, from the menus (DailyNotes).
+            .onReceive(NotificationCenter.default.publisher(for: .paneTodaysNote)) { _ in openTodaysNote() }
+            .onReceive(NotificationCenter.default.publisher(for: .paneNewFromTemplate)) { n in (n.object as? UUID).map(newNote(fromTemplate:)) }
+            .onReceive(NotificationCenter.default.publisher(for: .paneNewTemplate)) { _ in newTemplate() }
+            .onAppear { TemplateShelf.shared.start(context) }
             #if os(macOS)
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
                 quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
@@ -173,7 +178,8 @@ struct RootView: View {
                     .contentShape(.rect)
                     .onTapGesture { quickOpen = nil }
                 QuickOpenPanel(notes: notes,
-                               commands: QuickOpen.commands(openNote: open != nil && open?.trashedAt == nil, pinned: open?.isPinned == true, importKinds: ImportKind.listed),
+                               commands: QuickOpen.commands(openNote: open != nil && open?.trashedAt == nil, pinned: open?.isPinned == true, importKinds: ImportKind.listed,
+                                                         templates: TemplateShelf.shared.templates),
                                choose: { row in
                                    quickOpen = nil
                                    QuickOpen.choose(row, with: quickOpenActions)
@@ -191,6 +197,9 @@ struct RootView: View {
             run: { action in
                 switch action {
                 case .newNote: newNote()
+                case .todaysNote: openTodaysNote()
+                case .newFromTemplate(let id): newNote(fromTemplate: id)
+                case .newTemplate: newTemplate()
                 case .newFolder: NotificationCenter.default.post(name: .paneNewFolder, object: nil)
                 case .togglePin: if let id = selectedNote, let n = context.note(id) { context.togglePin(n) }
                 case .move: NotificationCenter.default.post(name: .paneMoveNote, object: nil)
@@ -458,6 +467,44 @@ struct RootView: View {
         selectedNote = note.id
     }
 
+    /// Today's note, made if it isn't yet, open with the cursor in it. The list shows it where
+    /// it is: the folder you're in if it's there, else Daily.
+    private func openTodaysNote() {
+        let (note, made) = context.openTodaysNote()
+        if made { Telemetry.shared.record(.firstNoteCreated) }
+        let shown: Bool
+        switch scope {
+        case .all?: shown = true
+        case .folder(let f)?: shown = note.folder?.id == f
+        default: shown = false
+        }
+        if !shown { scope = Scope.opening(note) }
+        justCreated = note.id
+        selectedNote = note.id
+    }
+
+    /// A new note from a template, where New Note would put it. A template that starts with
+    /// {{title}} leaves its first line empty, and the cursor goes there (PaneTextView.takeNewNoteFocus).
+    private func newNote(fromTemplate id: UUID) {
+        let target: Scope = scope == .trash ? .all : (scope ?? .all)
+        if scope == .trash { scope = .all }
+        guard let note = context.createNote(fromTemplate: id, in: target) else { return }
+        Telemetry.shared.record(.firstNoteCreated)
+        #if os(iOS)
+        if scope == nil { scope = Scope.opening(note) }
+        #endif
+        justCreated = note.id
+        selectedNote = note.id
+    }
+
+    /// New Template…: an empty note in Templates, open there. Its first line is the template's name.
+    private func newTemplate() {
+        let note = context.createTemplate()
+        scope = Scope.opening(note)
+        justCreated = note.id
+        selectedNote = note.id
+    }
+
     /// A note the iPhone folders screen's search found: its folder opens under it, as for a new
     /// note, so back leads through the folder to the search.
     private func openFound(_ id: UUID) {
@@ -651,6 +698,12 @@ struct PaneCommands: Commands {
                 .disabled(newNote == nil)
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
+            // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.
+            Button("Today\u{2019}s Note") { NotificationCenter.default.post(name: .paneTodaysNote, object: nil) }
+                .keyboardShortcut("t")
+                .disabled(newNote == nil)
+            Menu("New from Template") { TemplateMenuItems() }
+                .disabled(newNote == nil)
             Divider()
             // ⌘K is Add Link, as in Notes. ⌘O is where Open would be, and Obsidian's quick switcher.
             Button("Go to Note…") { NotificationCenter.default.post(name: .paneQuickOpen, object: nil) }
