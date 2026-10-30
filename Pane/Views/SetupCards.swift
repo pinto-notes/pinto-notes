@@ -300,7 +300,7 @@ struct SetupTemplateCard: View {
     }
 }
 
-private extension Color {
+extension Color {
     init(rgb: UInt32) {
         self.init(red: Double((rgb >> 16) & 255) / 255, green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255)
     }

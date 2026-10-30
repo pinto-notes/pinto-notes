@@ -57,7 +57,6 @@ enum TemplateLibraryWords {
     static func make(_ ai: SetupCards.AI) -> String { ai == .other ? "Add the note" : "Make with \(ai.name)" }
     static let copy = "Copy prompt"
     static let copied = "Copied"
-    static let inUse = "In use"
     static let tryAsking = "Then ask"
     static func none(_ q: String) -> String { "No templates match \u{201C}\(q)\u{201D}" }
 }
@@ -174,43 +173,61 @@ struct TemplateLibraryView: View {
         return ((row - gap * (count - 1)) / count).rounded(.down)
     }
 
-    /// One template as it looks in use, with its name, what to ask, and Make at the foot.
+    /// One template as it looks in use, on its cover like the website's template page: the
+    /// filled-in note (or the app) on the cover's picture and ground, then its name, what to ask,
+    /// and Make at the foot.
     private func detail(_ e: TemplateCatalog.Entry) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(e.title).font(.system(size: 17, weight: .bold)).foregroundStyle(Color.ink)
-                Text(e.tagline).font(.system(size: 12.5)).foregroundStyle(Color.muted)
+        let ground = Color(rgb: e.pick.ground)
+        return VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .top) {
+                ground
+                e.pick.image.resizable().scaledToFill()
+                    .frame(width: Self.panel, height: Self.panel)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .clipped()
+                    .accessibilityHidden(true)
+                inUse(e)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(scheme == .dark ? Color.black : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .shadow(color: .black.opacity(0.3), radius: 24, y: 14)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 72)
+                    // It runs off the stage's foot, as a window seen past the cover.
+                    .padding(.bottom, -40)
+                    .accessibilityLabel("\(e.title), in use")
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 12)
-            Text(TemplateLibraryWords.inUse.uppercased())
-                .font(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(Color.muted)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 6)
-            inUse(e)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(scheme == .dark ? Color.black : Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
-                .padding(.horizontal, 16)
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(TemplateLibraryWords.tryAsking).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                    Text("\u{201C}\(e.ask)\u{201D}").font(.system(size: 12.5)).foregroundStyle(Color.ink).lineLimit(2)
+            .frame(height: 330)
+            .clipped()
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(e.title).font(.system(size: 20, weight: .heavy)).tracking(-0.2).foregroundStyle(Color.ink)
+                    Text(e.description).font(.system(size: 12.5)).foregroundStyle(Color.muted)
+                        .lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 }
+                // What you'd say next, as you'd say it: a message on the right.
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(TemplateLibraryWords.tryAsking).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
+                    Text(e.ask)
+                        .font(.system(size: 12.5)).foregroundStyle(Color.ink)
+                        .lineLimit(2)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 14, style: .continuous))
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     // Words only: ChatGPT's mark takes the text colour, which vanishes on the dark look's white button.
                     Button(TemplateLibraryWords.make(ai)) { make(e) }
-                    .buttonStyle(.amberProminent(.regular, wide: true))
-                    .keyboardShortcut(.defaultAction)
-                    .accessibilityIdentifier("templates.make")
+                        .buttonStyle(.amberProminent(.regular, wide: true))
+                        .keyboardShortcut(.defaultAction)
+                        .accessibilityIdentifier("templates.make")
                     Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
                         .buttonStyle(.secondary(.regular))
                         .accessibilityIdentifier("templates.copy")
                 }
             }
-            .padding(16)
+            .padding(20)
         }
     }
 
@@ -218,11 +235,10 @@ struct TemplateLibraryView: View {
     @ViewBuilder private func inUse(_ e: TemplateCatalog.Entry) -> some View {
         if let picture = e.appPicture(dark: scheme == .dark) {
             // The whole app, fitted to the panel's width, never widening it.
+            // The app from its left edge, at a size you can read; the rest runs off the window.
             Color.clear
-                .overlay(alignment: .top) { Image(nsImage: picture).resizable().scaledToFit() }
+                .overlay(alignment: .topLeading) { Image(nsImage: picture).resizable().scaledToFit().frame(width: 560) }
                 .clipped()
-                .accessibilityElement()
-                .accessibilityLabel("\(e.title), in use")
         } else {
             NotePreview(markdown: e.example)
         }
