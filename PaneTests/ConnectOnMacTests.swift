@@ -58,9 +58,9 @@ import Testing
     /// offers Connect an AI.
     @Test func listMenuAsksFirst() throws {
         let source = try String(contentsOf: try TestFiles.url("Views").appending(path: "NoteListView.swift"), encoding: .utf8)
-        let item = try #require(source.range(of: "\"list.connectAI\""))
-        let before = source[..<item.lowerBound].suffix(400)
-        #expect(before.contains("if ConnectHere.nudges() {"))
+        // The ••• menu lists Connect an AI only when ConnectHere says so (ListMoreMenu).
+        #expect(source.contains("ListMoreMenu.groups(connectNudge: ConnectHere.nudges())"))
+        #expect(ListMoreMenu.groups(connectNudge: false).joined().contains(.connectAI) == false)
     }
 
     @Test func chatGPTIsUnchanged() {
