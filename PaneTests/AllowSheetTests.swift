@@ -11,9 +11,9 @@ import AppKit
 @MainActor @Suite struct AllowSheetTests {
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
     static let glama = ConnectRequest(id: UUID(), client_name: "glama", redirect_host: "glama.ai",
-                                      redirect_uri: "https://glama.ai/oauth/callback", claimed_name: "glama", loopback: false, wants_write: true)
+                                      redirect_uri: "https://glama.ai/oauth/callback", claimed_name: "glama", loopback: false)
     static let claude = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",
-                                       redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false, wants_write: true)
+                                       redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false)
 
     @Test func anAllLowercaseNameReadsAsAName() {
         #expect(ConsentSheet.displayName("glama") == "Glama")
@@ -29,7 +29,7 @@ import AppKit
         #expect(line.contains("Only allow it if you just started connecting it yourself."))
         // A claimed name is never what the person is told to check against.
         let spoof = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude-login.example",
-                                   redirect_uri: "https://claude-login.example/cb", claimed_name: "Claude", loopback: false, wants_write: true)
+                                   redirect_uri: "https://claude-login.example/cb", claimed_name: "Claude", loopback: false)
         #expect(ConsentSheet.title(spoof) == "Allow claude-login.example to use your notes?")
         #expect(!ConsentSheet.detail(spoof).contains("connecting Claude"))
         #expect(ConsentSheet.detail(Self.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Locked notes stay private.")
@@ -39,7 +39,7 @@ import AppKit
     /// says what is sent and who gets it, by company for the AIs it can name.
     @Test func theSheetSaysWhatIsSentAndToWhom() {
         let chatgpt = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com",
-                                     redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", loopback: false, wants_write: true)
+                                     redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", loopback: false)
         #expect(ConsentSheet.detail(chatgpt).contains("sent to OpenAI"))
         #expect(ConsentSheet.detail(Self.claude).contains("sent to Anthropic"))
         for r in [chatgpt, Self.claude, Self.glama] {
@@ -78,14 +78,19 @@ import AppKit
         (view as? NSSegmentedControl).map { [$0] } ?? view.subviews.flatMap(segments)
     }
 
-    @Test func theAccessChoiceIsInPlainSightWithOneFilledAllow() async throws {
+    /// The switches and checkboxes under the view (a SwiftUI Toggle is AppKit's NSSwitch or a checkbox NSButton).
+    static func switches(_ view: NSView) -> [NSView] {
+        let toggle = view is NSSwitch || (view as? NSButton)?.title.localizedCaseInsensitiveContains("read only") == true
+        return (toggle ? [view] : []) + view.subviews.flatMap(switches)
+    }
+
+    @Test func noAccessChoiceJustOneFilledAllow() async throws {
         let (w, host) = await Self.host(ConsentSheet(client: Self.client, requestID: Self.glama.id, initial: .asking(Self.glama), finish: { _ in }))
         defer { w.close() }
-        // Read and edit or read only, chosen as the app asked, without opening anything.
-        let picker = try #require(Self.segments(host).first, "the access choice shows")
-        #expect((0..<picker.segmentCount).map { picker.label(forSegment: $0) } == ["Read and edit", "Read only"])
-        #expect(picker.selectedSegment == 0)
-        #expect(picker.isEnabled)
+        // 29 October 2026: no Read and edit or Read only to pick. Allow is read and edit, said in one line.
+        #expect(Self.segments(host).isEmpty, "no access choice")
+        #expect(Self.switches(host).isEmpty, "no Read only switch")
+        #expect(ConsentSheet.accessLine == "It can read, create and change notes. Every change keeps the previous version.")
 
         // One filled button: the amber pixels make one 320 by 40 point bar, filled edge to edge.
         let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
@@ -106,15 +111,6 @@ import AppKit
         #expect(abs(box.width / scale - 320) <= 1, "320 points wide: \(box.width / scale)")
         // The bar's area less its rounded corners and white title: anything else amber would leave it emptier.
         #expect(Double(amber) / Double(box.width * box.height) > 0.85, "\(amber) amber pixels in \(box)")
-    }
-
-    @Test func anAppThatAsksOnlyToReadGetsNoChoice() async throws {
-        let reader = ConnectRequest(id: UUID(), client_name: "glama", redirect_host: "glama.ai", redirect_uri: "https://glama.ai/oauth/callback",
-                                    claimed_name: "glama", loopback: false, wants_write: false)
-        let (w, host) = await Self.host(ConsentSheet(client: Self.client, requestID: reader.id, initial: .asking(reader), finish: { _ in }))
-        defer { w.close() }
-        #expect(Self.segments(host).isEmpty)
-        #expect(ConsentSheet.accessLine(write: false) == "It can read notes, but not change them.")
     }
 
     /// A key press to the window, as the keyboard makes it (never a system-wide event).

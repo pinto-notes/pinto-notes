@@ -57,9 +57,9 @@ import Testing
 
     /// ChatGPT and Claude, both signed in (a token connection has no mark of its own).
     static let connections: [Connection] = [
-        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", can_write: true, created_at: .now.addingTimeInterval(-86400 * 3),
+        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now.addingTimeInterval(-86400 * 3),
                    last_used_at: .now.addingTimeInterval(-720), revoked_at: nil, redirect_host: "chatgpt.com"),
-        Connection(id: UUID(), name: "Claude", kind: "oauth", can_write: true, created_at: .now.addingTimeInterval(-86400),
+        Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86400),
                    last_used_at: .now.addingTimeInterval(-3 * 3600), revoked_at: nil, redirect_host: "claude.ai"),
     ]
 

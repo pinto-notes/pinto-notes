@@ -22,7 +22,7 @@ const { FILE_TOOLS, runFileTool } = await import("./files_tools.ts");
 
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
 // deno-lint-ignore no-explicit-any
-const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}, canWrite = true) => await runFileTool(name, args, await toolContext(pg, a, canWrite)) as any;
+const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runFileTool(name, args, await toolContext(pg, a)) as any;
 const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { assert(e instanceof ToolError, String(e)); return (e as Error).message; } throw new Error("expected a ToolError"); };
 
 /** A connection made in the app's Settings › Connect an AI: a pane_ token holding the data key. */
@@ -51,7 +51,7 @@ function client(pg: PGlite, token: string) {
   };
 }
 
-Deno.test("a client connecting now gets the file tools, their instructions, prompts and the apps guide; read-only sees only reads", async () => {
+Deno.test("a client connecting now gets the file tools, their instructions, prompts and the apps guide; and so does one made read only before 29 October 2026", async () => {
   const pg = await schemaDB();
   const a = await account(pg);
   await note(pg, a, "Groceries\n\n- [ ] Milk\n");
@@ -77,13 +77,11 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   assertStringIncludes(old.content[0].text, "search, list, fetch");
   await rpc("tools/call", { name: "no_such_tool", arguments: {} }).then(() => { throw new Error("no_such_tool answered"); }, (e) => assertStringIncludes(e.message, "Unknown tool"));
 
-  const ro = client(pg, await connect(pg, a, false));
-  const reads = (await ro("tools/list")).tools.map((t: { name: string }) => t.name);
-  assertEquals(reads, ["search", "list", "fetch", "history", "see_app"]);
-  const refused = await ro("tools/call", { name: "write", arguments: { path: "New.md", content: "New" } });
-  assertEquals(refused.isError, true);
-  assertStringIncludes(refused.content[0].text, "read-only");
-  assertStringIncludes(await fails(tool(pg, a, "edit", { path: "Groceries.md", old_string: "Milk", new_string: "Oat milk" }, false)), "read-only");
+  // can_write is no longer read: every connection reads and edits.
+  const before = client(pg, await connect(pg, a, false));
+  assertEquals((await before("tools/list")).tools.map((t: { name: string }) => t.name), FILE_TOOLS.map((t) => t.name));
+  const wrote = await before("tools/call", { name: "write", arguments: { path: "New.md", content: "New" } });
+  assertEquals(wrote.isError, undefined, JSON.stringify(wrote));
 });
 
 Deno.test("a locked note shows its title and nothing else: never read, searched or changed", async () => {

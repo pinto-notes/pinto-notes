@@ -325,14 +325,12 @@ Deno.test({ name: "denying sends the app back with access_denied", ...opts }, as
 
 // MARK: Access levels and revoking
 
-Deno.test({ name: "read-only connections see no editing tools", ...opts }, async () => {
+Deno.test({ name: "every connection reads and edits, even when the answer says write: false", ...opts }, async () => {
+  // 29 October 2026: no access choice. A client that still sends write: false gets read and edit.
   const t = await connect(false);
-  assertEquals(t.scope, "notes:read");
+  assertEquals(t.scope, "notes:read notes:write");
   const names = await toolNames(t.access_token);
-  assert(names.includes("search_notes"));
-  assert(!names.includes("create_note") && !names.includes("edit_note"));
-  const blocked = await rpc(t.access_token, "tools/call", { name: "create_note", arguments: { body: "Nope" } });
-  assert(blocked.body.result?.isError || blocked.body.error, "writing must fail");
+  assert(names.includes("search_notes") && names.includes("create_note") && names.includes("edit_note"));
 });
 
 Deno.test({ name: "revoking from the app or the revoke endpoint ends access at once", ...opts }, async () => {

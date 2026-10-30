@@ -145,9 +145,9 @@ import UIKit
     // MARK: Connect an AI, the sheet (Settings and notes open the same view)
 
     static let twoConnected: [Connection] = [
-        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", can_write: true, created_at: .now.addingTimeInterval(-86_400 * 3),
+        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 3),
                    last_used_at: .now.addingTimeInterval(-3_600), revoked_at: nil, redirect_host: "chatgpt.com"),
-        Connection(id: UUID(), name: "Claude Code", kind: "token", can_write: false, created_at: .now.addingTimeInterval(-86_400),
+        Connection(id: UUID(), name: "Claude Code", kind: "token", created_at: .now.addingTimeInterval(-86_400),
                    last_used_at: nil, revoked_at: nil, redirect_host: nil),
     ]
 

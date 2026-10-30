@@ -17,12 +17,12 @@ import UIKit
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
 
     static let claude = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",
-                                       redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false, wants_write: true)
+                                       redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false)
     /// The request in Emil's screenshot: Glama, by its own address.
     static let glama = ConnectRequest(id: UUID(), client_name: "glama", redirect_host: "glama.ai",
-                                      redirect_uri: "https://glama.ai/oauth/callback", claimed_name: "glama", loopback: false, wants_write: true)
+                                      redirect_uri: "https://glama.ai/oauth/callback", claimed_name: "glama", loopback: false)
     static let local = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1",
-                                      redirect_uri: "http://127.0.0.1:53682/callback", claimed_name: "incredible", loopback: true, wants_write: true)
+                                      redirect_uri: "http://127.0.0.1:53682/callback", claimed_name: "incredible", loopback: true)
     static let notified = ConnectJourneySnapshots.notified
 
     static var sheets: [(String, ConsentSheet)] {

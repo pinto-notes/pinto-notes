@@ -16,7 +16,7 @@ import { Content, runTool } from "./tools.ts";
 Deno.env.set("AMBER_MCP_TOOLS", "pages");
 
 // deno-lint-ignore no-explicit-any
-const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}, write = true) => await runTool(name, args, await toolContext(pg, a, write)) as any;
+const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runTool(name, args, await toolContext(pg, a)) as any;
 const BODY = "Lisbon budget\n\nSpent in Lisbon with Ana.\n\n## Costs\n| Date | Item | Category | Amount |\n| --- | --- | --- | --- |\n| 2026-10-01 | Hotel Avenida | Stay | 1 450 |\n| 2026-10-02 | Pastéis | Food | 12,50 |\n| 2026-10-02 | Tram 28 | Transport | 3 |\n\n- [x] Book flights\n- [ ] Pay Ana back\n";
 
 Deno.test("the sample keeps the note's shape and none of its words", () => {
@@ -75,7 +75,7 @@ Deno.test("check_app and preview_app render a sample through the render service"
     const id = await note(pg, a, BODY);
     const bad = `<!doctype html><html><body style="background:#fff"><main id="m" style="width:900px"></main><input placeholder="amount"><script>amber.onChange((n) => { m.innerHTML = n.tables[0].rows.map((r) => "<p style='font-size:9px'>" + r[1] + "</p>").join(""); setTimeout(() => nope.x); })</script></body></html>`;
     await tool(pg, a, "set_note_page", { id, html: bad });
-    const r = await tool(pg, a, "check_app", { id }, false);
+    const r = await tool(pg, a, "check_app", { id });
     const all = [...r.errors, ...r.notes].join("\n");
     assertEquals(r.ok, false);
     // Breakage is an error; the rest is information.
@@ -86,8 +86,8 @@ Deno.test("check_app and preview_app render a sample through the render service"
 
     const good = `<!doctype html><html lang="en"><body><main id="m" style="max-width:var(--amber-content-max);margin:0 auto;padding:16px var(--amber-gutter)"></main><script>const esc=(s)=>String(s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);amber.onChange((n) => { const t = n.tables[0]; m.innerHTML = "<h1>" + esc(n.title) + "</h1>" + (t ? t.rows.map((r) => "<p style='background:var(--amber-surface);color:var(--amber-text)'>" + esc(r[1]) + "</p>").join("") : "<p>No rows yet.</p>"); })</script></body></html>`;
     await tool(pg, a, "set_note_page", { id, html: good });
-    assertEquals((await tool(pg, a, "check_app", { id }, false)).errors, []);
-    const p = await tool(pg, a, "preview_app", { id, widths: [390], themes: ["light", "dark"] }, false);
+    assertEquals((await tool(pg, a, "check_app", { id })).errors, []);
+    const p = await tool(pg, a, "preview_app", { id, widths: [390], themes: ["light", "dark"] });
     assert(p instanceof Content);
     const images = p.content.filter((b: Record<string, unknown>) => b.type === "image");
     assertEquals(images.length, 2);
@@ -95,14 +95,14 @@ Deno.test("check_app and preview_app render a sample through the render service"
     assertStringIncludes(p.content[0].text as string, "Sample note");
     // Real data is refused outright unless this server is set up to allow it, whatever the person's setting says.
     await app(pg, a.id, `insert into public.profiles (user_id, app_previews_real) values ($1, true) on conflict (user_id) do update set app_previews_real = true`, [a.id]);
-    assertStringIncludes(await tool(pg, a, "preview_app", { id, data: "real" }, false).catch((e) => String(e)), "Real data isn't available for previews");
-    assertStringIncludes(await tool(pg, a, "try_app", { id, data: "real", steps: [{ tap: "x" }] }, false).catch((e) => String(e)), "Real data isn't available for previews");
+    assertStringIncludes(await tool(pg, a, "preview_app", { id, data: "real" }).catch((e) => String(e)), "Real data isn't available for previews");
+    assertStringIncludes(await tool(pg, a, "try_app", { id, data: "real", steps: [{ tap: "x" }] }).catch((e) => String(e)), "Real data isn't available for previews");
     await app(pg, a.id, `update public.profiles set app_previews_real = false where user_id = $1`, [a.id]);
     // A server set up to allow it: still only for a person who turned their own setting on.
     Deno.env.set("AMBER_APP_REAL_PREVIEWS", "on");
-    assertStringIncludes(await tool(pg, a, "preview_app", { id, data: "real" }, false).catch((e) => String(e)), "Previews with real data are off");
+    assertStringIncludes(await tool(pg, a, "preview_app", { id, data: "real" }).catch((e) => String(e)), "Previews with real data are off");
     await app(pg, a.id, `insert into public.profiles (user_id, app_previews_real) values ($1, true) on conflict (user_id) do update set app_previews_real = true`, [a.id]);
-    const real = await tool(pg, a, "preview_app", { id, widths: [390], themes: ["light"], data: "real" }, false);
+    const real = await tool(pg, a, "preview_app", { id, widths: [390], themes: ["light"], data: "real" });
     assertStringIncludes(real.content[0].text as string, "Hotel Avenida");
   } finally {
     await server.shutdown();

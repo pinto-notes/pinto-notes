@@ -134,21 +134,18 @@ export function MatchNumber({ number }: { number: string }) {
   );
 }
 
-export type Access = { write: boolean; canWrite: boolean; onWrite: (write: boolean) => void };
-
 /// No iPhone or Mac nearby: approve here with the recovery key. Two steps, never one long form:
-/// sign in first (once per visit), then only the key and Allow. Access follows what the app asked for.
-export function RecoverScreen({ to, signedIn, recoveryKey, onRecoveryKey, access, onSubmit, onSignIn, other, noDevices = false, appleInstead = APPLE_INSTEAD, ...signIn }: SignInProps & {
+/// sign in first (once per visit), then only the key and Allow.
+export function RecoverScreen({ to, signedIn, recoveryKey, onRecoveryKey, onSubmit, onSignIn, other, noDevices = false, appleInstead = APPLE_INSTEAD, ...signIn }: SignInProps & {
   /// What to say while Sign in with Apple is off on the web.
   appleInstead?: string;
   /// Signed in, and the account has no app seen lately: say why the recovery key leads.
   noDevices?: boolean;
   to: string | null; signedIn: string | null; recoveryKey: string; onRecoveryKey: (v: string) => void;
-  access: Access; onSubmit: (e: React.FormEvent) => void; onSignIn: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent) => void; onSignIn: (e: React.FormEvent) => void;
   /// The way back to a device: "Scan the code instead" or "Approve on your iPhone or Mac instead".
   other: { label: string; onClick: () => void };
 }) {
-  const { write, canWrite, onWrite } = access;
   const where = to ?? "this app";
   const back = (
     <BottomLinks>
@@ -180,12 +177,6 @@ export function RecoverScreen({ to, signedIn, recoveryKey, onRecoveryKey, access
             value={recoveryKey} onChange={(e) => onRecoveryKey(e.target.value)}
           />
         </label>
-        {canWrite && (
-          <label className={styles.check}>
-            <input type="checkbox" checked={!write} onChange={(e) => onWrite(!e.target.checked)} />
-            <span>Read only: it can&apos;t change your notes</span>
-          </label>
-        )}
         <ErrorLine text={signIn.failure} />
         <button type="submit" className={styles.primary} disabled={!signIn.ready || signIn.busy} aria-busy={signIn.busy}>
           {signIn.busy ? <><Spinner /> Allowing…</> : "Allow"}

@@ -103,7 +103,7 @@ Deno.test({ name: "a full editing session", ignore: !enabled }, async () => {
 });
 
 const other = Deno.env.get("PANE_OTHER_TOKEN");
-Deno.test({ name: "another user's token sees nothing, and a read-only token can't write", ignore: !enabled || !other }, async () => {
+Deno.test({ name: "another user's token sees nothing", ignore: !enabled || !other }, async () => {
   const mine = await call("create_note", { body: "Private thought " + crypto.randomUUID() });
   const id = mine.data.created.id;
   try {
@@ -113,20 +113,12 @@ Deno.test({ name: "another user's token sees nothing, and a read-only token can'
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "read_note", arguments: { id } } }),
     }).then((r) => r.json());
     assert(res.result.isError, "other user must not read the note");
-    const list = await fetch(url!, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${other}` },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
-    }).then((r) => r.json());
-    const names = list.result.tools.map((t: { name: string }) => t.name);
-    assert(!names.includes("create_note"), "read-only token shouldn't see write tools");
     const write = await fetch(url!, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${other}` },
       body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "delete_note", arguments: { id } } }),
     }).then((r) => r.json());
-    assert(write.result.isError);
-    assertStringIncludes(write.result.content[0].text, "read-only");
+    assert(write.result.isError, "other user must not delete the note");
   } finally {
     await call("delete_note", { id });
   }
@@ -354,7 +346,6 @@ Deno.test({ name: "typed tables: Yes/No takes booleans, tables without dates app
 
 // MARK: Security
 
-const readonly = Deno.env.get("PANE_READONLY_TOKEN");
 const otherWriter = Deno.env.get("PANE_OTHER_WRITE_TOKEN");
 Deno.test({ name: "isolation: another user's writer token can't touch my notes with any tool", ignore: !enabled || !otherWriter }, async () => {
   const s = crypto.randomUUID().slice(0, 6);
@@ -382,15 +373,6 @@ Deno.test({ name: "isolation: another user's writer token can't touch my notes w
   assertEquals(after.data.version, 1, "untouched");
   assertEquals(after.data.pinned, false);
   await call("delete_folder", { folder: `Mine ${s}` });
-});
-
-Deno.test({ name: "read-only tokens: write tools are hidden and refused", ignore: !enabled || !readonly }, async () => {
-  const list = await rpc("tools/list", {}, readonly!);
-  const names = list.body.result.tools.map((t: { name: string }) => t.name);
-  assert(names.includes("read_note") && !names.some((n: string) => ["create_note", "edit_note", "delete_note", "log_table_row"].includes(n)));
-  const r = await call("create_note", { body: "nope" }, readonly!);
-  assert(r.error);
-  assertStringIncludes(r.text, "read-only");
 });
 
 Deno.test({ name: "injection: hostile strings are just text", ignore: !enabled }, async () => {

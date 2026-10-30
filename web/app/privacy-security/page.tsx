@@ -91,7 +91,6 @@ export default function PrivacySecurity() {
           <SectionHeading id="ai">When you connect an AI</SectionHeading>
           <ul>
             {AI_ACCESS.map((i) => <li key={i.label}><strong>{i.label}</strong> {i.text}</li>)}
-            <li>You choose <strong>Read Only</strong> or <strong>Read and Edit</strong> for each one.</li>
             <li>Every change an AI makes keeps the previous version, so you can see what changed and restore it.</li>
             <li>Disconnect any AI app in <strong>Settings → Connect an AI</strong>. It loses access at once.</li>
             <li>What an AI app reads becomes part of your conversation with it, and the company behind it handles that under its own privacy policy.</li>

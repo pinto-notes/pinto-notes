@@ -698,7 +698,6 @@ Deno.test("decide stores the code's hash and wrap, and answers without a code", 
   const r = await decideAs(sql, me, sent);
   assertEquals(r.status, 200);
   assertEquals(r.body.client_name, "ChatGPT");
-  assertEquals(r.body.can_write, true);
   const back = new URL(r.body.redirect);
   assertEquals(`${back.origin}${back.pathname}`, CHATGPT);
   assertEquals([...back.searchParams.keys()].sort(), ["iss", "state"]);
@@ -708,6 +707,35 @@ Deno.test("decide stores the code's hash and wrap, and answers without a code", 
   assertEquals(row.code_wrap, sent.code_wrap);
   assert(row.fresh);
   assert(await opens(row.code_wrap, code, "code", me));
+});
+
+Deno.test("Allow gives read and edit, whatever scope the app asked for and whatever the answer says", async () => {
+  // 29 October 2026: connecting has no access choice. An app that asks only for notes:read, or an
+  // answer that still says `write: false`, gets read and edit.
+  const { sql, pg } = await db();
+  const me = await newUser(pg);
+  const readScoped = async () => {
+    const clientId = await register(sql, "proxy");
+    const { verifier, challenge } = await pkce();
+    const res = await call(sql, request("proxy", `/authorize?${new URLSearchParams({
+      response_type: "code", client_id: clientId, redirect_uri: CHATGPT, code_challenge: challenge, code_challenge_method: "S256",
+      state: "xyz", scope: "notes:read", resource: ALIAS })}`));
+    return { clientId, verifier, requestId: new URL(res.headers.get("location")!).searchParams.get("request")! };
+  };
+  const grantOf = async (requestId: string) =>
+    (await sql`select g.can_write from public.oauth_requests r join public.mcp_tokens g on g.id = r.grant_id where r.id = ${requestId}` as { can_write: boolean }[])[0];
+
+  for (const write of [undefined, false]) {
+    const a = await readScoped();
+    const shown = await (await call(sql, request("function", `/connect/request?id=${a.requestId}`, { headers: { authorization: `Bearer ${me.jwt}` } }))).json();
+    assertEquals(shown.wants_write, true, "released apps read it");
+    const { code, body } = await appDecision(me, a.requestId, CHATGPT);
+    const r = await decideAs(sql, me, { ...JSON.parse(body), write });
+    assertEquals(r.status, 200);
+    assertEquals((await grantOf(a.requestId)).can_write, true);
+    const t = await exchange(sql, "proxy", a.clientId, code, a.verifier);
+    assertEquals(t.body.scope, "notes:read notes:write");
+  }
 });
 
 Deno.test("an account without a key can't approve: the app sets it up first", async () => {

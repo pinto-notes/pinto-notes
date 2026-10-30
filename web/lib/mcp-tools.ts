@@ -1,6 +1,6 @@
 /// The tools the Pinto Notes MCP server offers, as supabase/functions/mcp/files_tools.ts defines them.
 /// supabase/functions/mcp/site_tools.test.ts keeps this list in step with what production serves.
-/// "read" tools are all a read-only connection sees.
+/// The kind is the tool's MCP annotation: "read" tools change nothing.
 export type McpTool = { name: string; title: string; description: string; kind: "read" | "write" | "destructive" };
 
 export const MCP_TOOLS: McpTool[] = [

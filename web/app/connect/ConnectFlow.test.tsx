@@ -391,26 +391,25 @@ describe("the recovery key path", () => {
     });
     await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
     await until(() => !!container.querySelector("#connect-recovery"));
-    // Step two: the key alone. Access follows the request; read only is one unticked box when it asked to write.
+    // Step two: the key alone, and Allow. No access to choose (29 October 2026): Allow is read and edit.
     expect(container.querySelector("#connect-email")).toBeNull();
     expect(container.querySelector("#connect-password")).toBeNull();
-    const readOnly = container.querySelector<HTMLInputElement>('input[type="checkbox"]');
-    if (wantsWrite) expect(readOnly?.checked).toBe(false);
-    else expect(readOnly).toBeNull();
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/read only/i);
     await act(async () => type("#connect-recovery", vectors.recovery.typed));
     await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
     await until(() => server.calls.some((c) => c.url === `${MCP}/connect/decide`));
     return server.calls.find((c) => c.url === `${MCP}/connect/decide`)!.body;
   }
 
-  it("allows Read and edit by default when the app asked to write", async () => {
+  it("allows read and edit, with no choice shown", async () => {
     const decided = await allowWithRecoveryKey(true);
     expect(decided.allow).toBe(true);
     expect(decided.write).toBe(true);
   });
 
-  it("gives an app that asked only to read no more than that", async () => {
+  it("allows read and edit even when the app asked only to read", async () => {
     const decided = await allowWithRecoveryKey(false);
-    expect(decided.write).toBe(false);
+    expect(decided.write).toBe(true);
   });
 });

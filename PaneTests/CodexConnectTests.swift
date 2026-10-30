@@ -45,7 +45,7 @@ private extension Process {
     static func request(state: String = "q6coy-SGV4u92eR5uSf_8g", redirect: String = "http://127.0.0.1:57505/callback",
                         claimed: String = "Codex", loopback: Bool = true) -> ConnectRequest {
         ConnectRequest(id: UUID(), client_name: "127.0.0.1", redirect_host: URL(string: redirect)!.host!, redirect_uri: redirect,
-                       claimed_name: claimed, loopback: loopback, wants_write: true, asked: true, started_at: .now,
+                       claimed_name: claimed, loopback: loopback, asked: true, started_at: .now,
                        started_from: "Chrome on a Mac", state: state, iss: "https://mcp.pintonotes.com", scan: true, browser_key: "")
     }
 
@@ -273,7 +273,7 @@ private extension Process {
         let long = AddDeviceNames.clean(String(repeating: "M", count: 200))
         #expect(ConnectCopy.tokenName(.claudeCode, device: long).count <= 80)
         func row(_ name: String) -> Connection {
-            Connection(id: UUID(), name: name, kind: "token", can_write: true, created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: nil)
+            Connection(id: UUID(), name: name, kind: "token", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: nil)
         }
         let since = Date.now.addingTimeInterval(-60)
         #expect(TerminalConnect.isConnected([row("Codex on Studio")], guide: .codex, way: .token, since: since))

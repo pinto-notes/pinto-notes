@@ -421,7 +421,7 @@ import Testing
     @Test func theGuideKnowsWhenItsConnectionIsThere() {
         let opened = Date.now
         func row(kind: String, name: String, host: String?, used: Date?, at: Date) -> Connection {
-            Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: at, last_used_at: used, revoked_at: nil, redirect_host: host)
+            Connection(id: UUID(), name: name, kind: kind, created_at: at, last_used_at: used, revoked_at: nil, redirect_host: host)
         }
         // Signing in: a new sign-in from this computer. An older one, or ChatGPT's, is not it.
         #expect(!TerminalConnect.isConnected([row(kind: "oauth", name: "x", host: "localhost", used: nil, at: opened.addingTimeInterval(-600))], guide: .claudeCode, way: .signIn, since: opened))
@@ -487,8 +487,9 @@ import Testing
 
     @Test func aConnectionSaysWhatItCanDoWithoutJargon() {
         let c = OnboardingSnapshots.twoConnected
-        #expect(ConnectChoices.detail(c[0]).hasPrefix("chatgpt.com · Can read and edit · Used"))
-        #expect(ConnectChoices.detail(c[1]) == "Can read only · Not used yet")
+        // Every connection reads and edits, so that goes unsaid (29 October 2026).
+        #expect(ConnectChoices.detail(c[0]).hasPrefix("chatgpt.com · Used"))
+        #expect(ConnectChoices.detail(c[1]) == "Not used yet")
     }
 
     @Test func everyWayToConnectHasItsGuide() {

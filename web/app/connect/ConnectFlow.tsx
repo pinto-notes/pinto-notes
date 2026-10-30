@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  universalLink, oauthSignInURL, didntFinish, type OAuthProvider, destination, functionURL, pkcePair, returnURL, signInError, startsWithWrite,
+  universalLink, oauthSignInURL, didntFinish, type OAuthProvider, destination, functionURL, pkcePair, returnURL, signInError,
   type ConnectLabel, type ConnectRequest,
 } from "@/lib/connect";
 import {
@@ -57,7 +57,6 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
-  const [write, setWrite] = useState(true);
   const [request, setRequest] = useState<ConnectRequest | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -417,7 +416,6 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
         return end(info.expired ? EXPIRED : { kind: "ended", title: "Couldn't connect", text: info.error, retry: true });
       }
       setRequest(info.request);
-      setWrite(startsWithWrite(info.request));
       setView({ kind: "recover" });
     } catch {
       setView({ kind: "recover" });
@@ -461,8 +459,9 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
       const res = await fetch(`${mcp}/connect/decide`, {
         method: "POST",
         headers: { authorization: `Bearer ${s.token}`, "content-type": "application/json" },
+        // Read and edit, the only access there is; servers from before 29 October 2026 needed it said.
         body: JSON.stringify({
-          id: requestId, allow: true, write: write && info.request.wants_write, redirect_uri: info.request.redirect_uri,
+          id: requestId, allow: true, write: true, redirect_uri: info.request.redirect_uri,
           code_hash: approval.code_hash, code_wrap: approval.code_wrap,
         }),
       });
@@ -543,7 +542,6 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
   // MARK: The page
 
   const signIn = { email, password, onEmail: setEmail, onPassword: setPassword, busy, ready, failure };
-  const canWrite = request ? request.wants_write : true;
   const recoverTo = request ? destination(request.redirect_host, request.loopback) : to;
 
   switch (view.kind) {
@@ -563,7 +561,7 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
         <RecoverScreen
           noDevices={lead === "recover"}
           {...signIn} to={recoverTo} signedIn={signedIn} recoveryKey={recoveryKey} onRecoveryKey={setRecoveryKey}
-          access={{ write, canWrite, onWrite: setWrite }} onApple={() => signInWith("apple", true)} onGoogle={() => signInWith("google", true)} onSubmit={submitRecovery} onSignIn={submitRecoverSignIn}
+          onApple={() => signInWith("apple", true)} onGoogle={() => signInWith("google", true)} onSubmit={submitRecovery} onSignIn={submitRecoverSignIn}
           other={{ label: "Scan the code instead", onClick: () => void backToScan() }}
         />
       );

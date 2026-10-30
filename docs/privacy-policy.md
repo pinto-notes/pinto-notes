@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 27 October 2026
+Last updated: 29 October 2026
 
 ## The short version
 
@@ -168,10 +168,10 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 
 Nothing reaches an AI assistant unless you connect one. When you connect ChatGPT, Claude, Claude Code, Codex or another assistant:
 
-- You approve the connection on your iPhone or Mac and choose **read only** or **read and edit**. When you start from a browser, the page shows a number and your device asks you to tap the same one. With no device nearby, you can approve on pintonotes.com with your recovery key.
+- You approve the connection on your iPhone or Mac. It can then read and edit your notes. When you start from a browser, the page shows a number and your device asks you to tap the same one. With no device nearby, you can approve on pintonotes.com with your recovery key.
 - Approving gives that connection a copy of your notes' key, locked with a key derived from that connection's access token. We keep only a hash of the token; the token itself arrives with each of the assistant's requests. During each request, our server unlocks your whole notes' key in memory, decrypts the notes the assistant asks for, encrypts any change it makes, and forgets the key when the request ends.
 - For those requests, the text the assistant reads or writes, and its access tokens, pass through our hosting providers Vercel and Supabase in readable form on their way. Neither stores your notes.
-- The assistant can read the notes it asks for and, if you allowed editing, change them. Every change it makes keeps the previous version, so you can undo it.
+- The assistant can read the notes it asks for and change them. Every change it makes keeps the previous version, so you can undo it.
 - The notes the assistant reads, with their text and the files it opens, are sent to the company behind that assistant: OpenAI for ChatGPT and Codex, Anthropic for Claude and Claude Code, or the company that makes any other assistant you connect. That company handles them, and everything else you and the assistant exchange, under its own privacy policy. Notes it reads become part of your conversation with it.
 - You can disconnect any assistant at any time in **Settings → Connect an AI**. It loses access immediately, and its copy of your notes' key is deleted.
 - Locked notes are encrypted with your notes password, which our server never has, so an assistant sees only their titles. It can't read, search or change them.

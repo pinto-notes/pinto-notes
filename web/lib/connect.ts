@@ -133,13 +133,8 @@ export type ConnectRequest = {
   /// name or a mark.
   verified_ai?: "ChatGPT" | "Claude" | null;
   loopback: boolean;
-  wants_write: boolean;
   expires_at: string;
 };
-
-/// The access the page starts at: what the app asked for. Someone who just started connecting
-/// expects their AI to work; the number, not a weaker default, guards an app we can't name.
-export const startsWithWrite = (r: Pick<ConnectRequest, "wants_write">) => r.wants_write;
 
 /// The names people know their tools by, from the plain lowercase name a client declares
 /// (claimedName in the MCP function). Words only: no mark, and the name stays a claim.

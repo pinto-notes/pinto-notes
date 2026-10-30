@@ -12,9 +12,9 @@ import { FILE_TOOLS, runFileTool } from "./files_tools.ts";
 const FILE_TOOLS_META = () => FILE_TOOLS.find((t) => t.name === "write")!._meta;
 
 // deno-lint-ignore no-explicit-any
-const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runFileTool(name, args, await toolContext(pg, a, true)) as any;
+const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runFileTool(name, args, await toolContext(pg, a)) as any;
 // deno-lint-ignore no-explicit-any
-const classic = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runTool(name, args, await toolContext(pg, a, true)) as any;
+const classic = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runTool(name, args, await toolContext(pg, a)) as any;
 const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { assert(e instanceof ToolError, String(e)); return (e as Error).message; } throw new Error("expected a ToolError"); };
 
 const PDF = new TextEncoder().encode("%PDF-1.4 a paper");
