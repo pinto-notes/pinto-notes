@@ -16,8 +16,8 @@
 #   install lasts 7 days.
 # --team: a paid Apple Developer Program team. Everything the iPhone app has, as upstream.
 # Neither: the Mac app and the iPhone Simulator, which need no account.
-# --site: your own website (web/), whose /open/… links the app should open. Leave it out until you
-#   have one.
+# --site: where you deployed web/'s connect pages (only for ChatGPT and Claude connections);
+#   deploy-backend.sh reads it from here. Your app's links never claim Pinto Notes' own sites.
 # The Mac app is always ad-hoc signed ("sign to run locally"), so it builds and runs with no account.
 # Your team id is in Xcode → Settings → Accounts, or at developer.apple.com/account (Membership).
 #

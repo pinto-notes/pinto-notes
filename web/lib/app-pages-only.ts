@@ -17,3 +17,13 @@ export function appPagesOnlyRewrites(flag = process.env.APP_PAGES_ONLY) {
   if (flag !== "1") return [];
   return PINTO_PAGES.map((source) => ({ source, destination: "/app-pages-only/not-here" }));
 }
+
+/// The site's own address, for a site with only the app's pages: SITE_URL, else the address Vercel
+/// gives the project. Its links that open the app (NEXT_PUBLIC_APP_LINK_ORIGIN, lib/app-scheme.ts)
+/// follow it, so a build of your own needs no setting for them. Nothing for pintonotes.com.
+export function appPagesOnlyEnv(env: Record<string, string | undefined> = process.env): Record<string, string> {
+  if (env.APP_PAGES_ONLY !== "1" || env.NEXT_PUBLIC_APP_LINK_ORIGIN) return {};
+  const vercel = env.VERCEL_PROJECT_PRODUCTION_URL;
+  const site = env.SITE_URL?.startsWith("https://") ? env.SITE_URL : vercel ? `https://${vercel}` : undefined;
+  return site ? { NEXT_PUBLIC_APP_LINK_ORIGIN: site.replace(/\/+$/, "") } : {};
+}

@@ -153,7 +153,7 @@ Deno.test({ name: "deploy-backend --dry-run deploys every function the app needs
   assertStringIncludes(r.text, "select count(*) from cron.job");
   assertStringIncludes(r.text, "MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-abcdefghijklmnopqrst.env");
   assertStringIncludes(r.text, "APP_PAGES_ONLY=1");
-  assertStringIncludes(r.text, "NEXT_PUBLIC_APP_LINK_ORIGIN  https://notes.example.org");
+  assertStringIncludes(r.text, "SITE_URL  https://notes.example.org");
   assertStringIncludes(r.text, "add a connector with this address, https://abcdefghijklmnopqrst.supabase.co/functions/v1/mcp");
   assert(!r.text.includes("external_apple_enabled"), "no Sign in with Apple without a paid team");
   assertStringIncludes(r.text, "CONNECT_PAGE_URL");

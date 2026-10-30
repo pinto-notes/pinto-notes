@@ -3,8 +3,7 @@ import { OLD_DMG_NAMES } from "./lib/downloads";
 import { posthogSettings } from "./lib/posthog";
 import { REMOVED_POSTS } from "./lib/removed-posts";
 import { pastLastPageRedirects } from "./lib/posts";
-import { appPagesOnlyRewrites } from "./lib/app-pages-only";
-import { aasaRewrites } from "./lib/aasa";
+import { appPagesOnlyEnv, appPagesOnlyRewrites } from "./lib/app-pages-only";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -51,6 +50,8 @@ const config: NextConfig = {
   // tracker returned 500 to Google on 25 Oct 2026. The index and its pages show cards too.
   outputFileTracingIncludes: Object.fromEntries(["/blog", "/blog/**"].map((route) => [route, BLOG_SOURCES])),
   poweredByHeader: false,
+  // APP_PAGES_ONLY=1: the app's links follow the site's own address (lib/app-pages-only.ts).
+  env: appPagesOnlyEnv(),
   // The MCP proxy (middleware.ts) forwards the query exactly as sent. Without this, req.url in
   // middleware has 127.0.0.1 and [::1] turned into "localhost", query included.
   skipMiddlewareUrlNormalize: true,
@@ -91,8 +92,7 @@ const config: NextConfig = {
       // /templates/<slug>.json is the template's data (app/api/templates/[slug]), checked before the
       // template's page so the page's [slug] never sees the ".json".
       // APP_PAGES_ONLY=1 (a build of your own, docs/MAKE-IT-YOURS.md): Pinto Notes' own pages are 404s.
-      // APPLE_APP_ID (the same): the universal links file names your app (lib/aasa.ts).
-      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }, ...appPagesOnlyRewrites(), ...aasaRewrites()],
+      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }, ...appPagesOnlyRewrites()],
       afterFiles: [],
       // The DMG's names from before the rename (lib/downloads.ts), once no file has them.
       fallback: OLD_DMG_NAMES,

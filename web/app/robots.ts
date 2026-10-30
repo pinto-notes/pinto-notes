@@ -9,8 +9,9 @@ import { MAC_DOWNLOAD_PATH } from "@/lib/downloads";
 export const AI_CRAWLERS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-User", "Claude-SearchBot", "PerplexityBot", "Perplexity-User", "Google-Extended", "Applebot-Extended"];
 
 export default function robots(): MetadataRoute.Robots {
-  // The staging site (docs/Technical/staging.md) stays out of search entirely.
-  if (process.env.SITE_NOINDEX === "1") return { rules: [{ userAgent: "*", disallow: "/" }] };
+  // The staging site (docs/Technical/staging.md) and a site with only the app's pages
+  // (APP_PAGES_ONLY, lib/app-pages-only.ts) stay out of search entirely.
+  if (process.env.SITE_NOINDEX === "1" || process.env.APP_PAGES_ONLY === "1") return { rules: [{ userAgent: "*", disallow: "/" }] };
   return {
     rules: [
       { userAgent: "*", allow: "/", disallow: MAC_DOWNLOAD_PATH },

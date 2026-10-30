@@ -221,9 +221,8 @@ echo "    SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL  $URL"
 echo "    SUPABASE_ANON_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY  the PANE_SUPABASE_KEY in Config/Backend.local.xcconfig"
 echo "    MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-$REF.env"
 echo "    NEXT_PUBLIC_APP_SCHEME  $SCHEME"
-echo "    NEXT_PUBLIC_APP_LINK_ORIGIN  ${SITE:-your site's address, https://…} (the links that open your app)"
-if (( APPLE )); then echo "    APPLE_APP_ID  $(identity PANE_IOS_TEAM).$BUNDLE (universal links to your iPhone app)"; fi
-echo "    APP_PAGES_ONLY=1 and SITE_NOINDEX=1  only the pages your app uses, kept out of search"
+echo "    SITE_URL  ${SITE:-your site's address, https://…} (not needed on Vercel, which says it itself)"
+echo "    APP_PAGES_ONLY=1  only the pages your app uses, kept out of search"
 if (( ! DRY )); then
   echo ""
   echo "Back up this file now: $PWD/$SECRETS"

@@ -159,31 +159,22 @@ What it sets up, and what it leaves off:
 
 Supabase's own mailer only sends to your project's team members, a few emails an hour. That's enough for you. For anyone else, add an SMTP server in the dashboard (Authentication, Emails, SMTP settings).
 
-Share links and connecting ChatGPT or Claude need the website, `web/`. Claude Code and Codex don't: in the app, open Settings, Connect an AI, and copy the command. For the site:
+### Only if you want ChatGPT or Claude to connect
 
-1. Deploy `web/` to any Next.js host, such as Vercel (New project, import your fork, root directory `web`), with these environment variables. `deploy-backend.sh` prints them at the end with your values:
+Claude Code and Codex connect with no website: in the app, open Settings, Connect an AI, and copy the command. ChatGPT and Claude sign in through a web page, so for them deploy the connect pages from `web/` (on Vercel: New project, import your fork, root directory `web`). Set these, which `deploy-backend.sh` prints with your values at the end:
 
-   | Variable | Value |
-   |---|---|
-   | `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
-   | `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the `PANE_SUPABASE_KEY` in `Config/Backend.local.xcconfig` |
-   | `MCP_PROXY_SECRET` | the `BACKEND_PROXY_SECRET` in `.secrets/backend-<ref>.env` |
-   | `NEXT_PUBLIC_APP_SCHEME` | your URL scheme (`scripts/make-it-yours.sh --show` prints it). If it's missing or not lowercase letters, digits and hyphens, the site falls back to Pinto Notes' `ambernotes` and its links open the wrong app |
-   | `NEXT_PUBLIC_APP_LINK_ORIGIN` | your site's address, `https://your-site`. Without it, the "Open in the app" links on the connect page point at Pinto Notes' site |
-   | `APPLE_APP_ID` | with a paid team only: your team id, a dot and your bundle id (`ABCDE12345.com.kim.notes`), so the site's universal links open your iPhone app. `deploy-backend.sh` prints it |
-   | `APP_PAGES_ONLY` | `1`: only the pages your app uses (connecting an AI, password resets, share links, links that open the app). Pinto Notes' home page, blog, changelog and downloads are 404s |
-   | `SITE_NOINDEX` | `1`: keeps the site out of search |
+- `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL`: `https://<ref>.supabase.co`
+- `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: the `PANE_SUPABASE_KEY` in `Config/Backend.local.xcconfig`
+- `MCP_PROXY_SECRET`: the `BACKEND_PROXY_SECRET` in `.secrets/backend-<ref>.env`
+- `NEXT_PUBLIC_APP_SCHEME`: your URL scheme (`scripts/make-it-yours.sh --show`)
+- `APP_PAGES_ONLY=1`: only the connect and sign-in pages, nothing of Pinto Notes' own site, and kept out of search. Links back to your app use the site's own address (on another host than Vercel, also set `SITE_URL=https://your-site`)
 
-2. Point the backend and the app at it, then rebuild. `--site` is stored once for both (in `Config/Identity.local.xcconfig`), so later runs of either script don't need it:
+Then tell the backend and the app where the site is (stored once for both), rebuild, and add a custom connector in ChatGPT or Claude with the address `https://<ref>.supabase.co/functions/v1/mcp`:
 
-   ```sh
-   scripts/deploy-backend.sh <ref> --site https://your-site
-   scripts/setup.sh
-   ```
-
-   Leave `NEXT_PUBLIC_USERCONTENT_ORIGIN` and `COLLAB_RELAY_URL` unset: only a prototype of sealed links uses them.
-
-3. Connect ChatGPT or Claude: add a custom connector with the address `https://<ref>.supabase.co/functions/v1/mcp` (`deploy-backend.sh` prints it). Not `mcp.pintonotes.com`: that one is Pinto Notes' own server. Signing in to connect opens your site's `/connect` page.
+```sh
+scripts/deploy-backend.sh <ref> --site https://your-site
+scripts/setup.sh
+```
 
 Your builds send no telemetry: the key is empty in every build that isn't Pinto Notes' own release.
 
