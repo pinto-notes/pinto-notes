@@ -146,6 +146,7 @@ struct RootView: View {
                 #if os(macOS)
                 // Room for the note's toolbar; a narrow window drops the sidebar instead, like Notes.
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
+                .overlay(alignment: .leading) { ColumnHairline() }
                 #endif
         }
         .environment(editor)
@@ -724,6 +725,25 @@ enum Presentation {
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .contains { $0.rootViewController?.presentedViewController != nil }
+    }
+}
+#endif
+
+#if os(macOS)
+/// The line between the notes list and the note, top to bottom, toolbar band included. The split
+/// view's own divider takes a colour that disappears on the plain look's black (Emil, 10-30: "no
+/// visible separation between note and notes list"), so the system's separator is drawn here,
+/// one pixel wide, against the note's leading edge.
+struct ColumnHairline: View {
+    @Environment(\.displayScale) private var scale
+
+    var body: some View {
+        Rectangle()
+            .fill(Color(nsColor: .separatorColor))
+            .frame(width: 1 / max(scale, 1))
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 #endif
