@@ -5,8 +5,9 @@
 #
 # <project-ref> is the 20 letters in your project's address (https://<ref>.supabase.co).
 # --site     where you deployed web/ (share links, and the page ChatGPT and Claude connect through).
-#            Without it, share links and ChatGPT or Claude connections don't work; Claude Code and
-#            Codex connect with a token from the app and need no site.
+#            Stored with your identity (scripts/make-it-yours.sh --site, the same value), so later runs
+#            use it without the flag. Without a site, share links and ChatGPT or Claude connections
+#            don't work; Claude Code and Codex connect with a token from the app and need no site.
 # --dry-run  prints every step and changes nothing, here or on Supabase.
 #
 # Needs a personal access token for the account that owns the project, in .env
@@ -35,7 +36,7 @@ while (( $# )); do
   case $1 in
     --site) SITE=${2:?--site needs an address}; SITE=${SITE%/}; shift 2 ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; exit 1 ;;
     *) REF=$1; shift ;;
   esac
@@ -74,6 +75,16 @@ step() { echo "→ $*"; }
 run() { if (( DRY )); then echo "  would run: $*"; else "$@"; fi; }
 # Stop with what to do next: what failed is printed above it by the command itself.
 fail() { echo "\n✗ $1" >&2; shift; for l in "$@"; do echo "  $l" >&2; done; echo "  Running scripts/deploy-backend.sh $REF again is safe once it's fixed." >&2; exit 1; }
+# Your site: one value, kept in Config/Identity.local.xcconfig as PANE_APPLINKS_HOST. --site stores it
+# there (through make-it-yours.sh); without --site, the stored one is used. Upstream's is never used.
+if [[ -n $SITE ]]; then
+  if [[ -f Config/Identity.local.xcconfig ]] && (( ! DRY )); then
+    scripts/make-it-yours.sh --site "$SITE" >/dev/null || fail "Couldn't store the site with scripts/make-it-yours.sh --site $SITE."
+  fi
+elif [[ -f Config/Identity.local.xcconfig ]]; then
+  stored=$(sed -n 's/^PANE_APPLINKS_HOST = \{0,1\}//p' Config/Identity.local.xcconfig | tail -1)
+  if [[ -n $stored ]]; then SITE=https://$stored; fi
+fi
 api() {  # api METHOD PATH JSON-FILE
   if (( DRY )); then echo "  would $1 https://api.supabase.com$2 with: $(python3 -c 'import json,sys;print(", ".join(sorted(json.load(open(sys.argv[1])))))' "$3")"; return; fi
   curl -sSf -X "$1" "https://api.supabase.com$2" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
@@ -210,6 +221,8 @@ echo "    SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL  $URL"
 echo "    SUPABASE_ANON_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY  the PANE_SUPABASE_KEY in Config/Backend.local.xcconfig"
 echo "    MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-$REF.env"
 echo "    NEXT_PUBLIC_APP_SCHEME  $SCHEME"
+echo "    NEXT_PUBLIC_APP_LINK_ORIGIN  ${SITE:-your site's address, https://…} (the links that open your app)"
+if (( APPLE )); then echo "    APPLE_APP_ID  $(identity PANE_IOS_TEAM).$BUNDLE (universal links to your iPhone app)"; fi
 echo "    APP_PAGES_ONLY=1 and SITE_NOINDEX=1  only the pages your app uses, kept out of search"
 if (( ! DRY )); then
   echo ""

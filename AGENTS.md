@@ -2,7 +2,7 @@
 
 Rules for coding agents (and people) changing this repo. The README explains the architecture and how to build and test.
 
-**If this is your fork** (docs/MAKE-IT-YOURS.md): the rules about pushing, handing over branches, merging, CI, releases and the App Store are how upstream Pinto Notes ships, and you can ignore them. The rest still helps: Apple Notes as the reference, a test with every fix, and no secrets or production data in tests.
+**If this is your fork** (docs/MAKE-IT-YOURS.md): you're in a fork if `Config/Identity.local.xcconfig` exists. The rules about pushing, handing over branches, merging, CI, releases and the App Store are how upstream Pinto Notes ships, and you can ignore them. To install, don't use `scripts/install-mac.sh` (it signs as upstream's team): run `scripts/setup.sh` and open `build/ddqa/Build/Products/Debug/Pane.app`. The rest still helps: Apple Notes as the reference, a test with every fix, and no secrets or production data in tests.
 
 - **Apple Notes is the behaviour reference.** Copy what Notes does for editing, lists, checklists, tables, selection and navigation. Follow Apple's Human Interface Guidelines for layout, type, colour, controls and accessibility, in light and dark mode.
 - **Every fix gets a regression test.** Editor and UI behaviour goes in the offscreen harness under `PaneTests/Harness` and `PaneTests/Interaction`; run `scripts/qa-test.sh`. Server changes get Deno tests; end-to-end tests run against the local stack only (`supabase start`, then `scripts/mcp-e2e.sh`).

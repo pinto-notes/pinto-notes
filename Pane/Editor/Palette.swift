@@ -23,10 +23,10 @@ enum Palette {
     static let ink = warm(0x2A1D10, 0xF6EFE7, plain: (0x262626, 0xD9D9D9))
     static let muted = warm(0x74604C, 0xBCB0A3, plain: (0x6A6A6A, 0x999999))
 
-    /// The accent, in one place: amber. To recolour the app, set this to
-    /// `Accent(light: 0x…, dark: 0x…)` and give the AccentColor asset the same two colours
-    /// (docs/MAKE-IT-YOURS.md). Everything below that leans toward amber follows it.
-    static let accent = Accent.amber
+    /// The accent, in one place: amber, or the build's own (scripts/set-accent.sh puts PANE_ACCENT
+    /// in the gitignored Config/Identity.local.xcconfig, and Info.plist carries it here as
+    /// PaneAccent, "1E7A4C 5CC48A"). Everything below that leans toward amber follows it.
+    static let accent = Accent(info: Bundle.main.object(forInfoDictionaryKey: "PaneAccent") as? String) ?? .amber
 
     /// The accent's shades. `light` fills the primary buttons under a white label, so it stays
     /// deep enough for 3:1 against white; `dark` is the accent on black (ticks, links, an AI's tint).
@@ -42,6 +42,14 @@ enum Palette {
         /// Amber, tuned by hand.
         static let amber = Accent(light: 0xD96A06, dark: 0xF4AD33, faded: (0xE69E5D, 0xAA7B2B),
                                   ink: (0xA85700, 0xF4AD33), soft: 0xFFF1DC)
+
+        /// A build's own accent from Info.plist: light and dark as hex, "1E7A4C 5CC48A". Nil when
+        /// empty or malformed, so the build keeps amber.
+        init?(info: String?) {
+            let hex = (info ?? "").split(separator: " ").compactMap { UInt32($0, radix: 16) }
+            guard hex.count == 2, info?.count == 13 else { return nil }
+            self.init(light: hex[0], dark: hex[1])
+        }
 
         /// Any other accent: the other shades worked out from the two.
         init(light: UInt32, dark: UInt32) {

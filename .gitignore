@@ -21,3 +21,5 @@ __pycache__/
 # ~/content-tools/projects/amber-proto/note-pages/evals/.
 scripts/page-evals/results/
 demo/note-pages/best/_tools/node_modules/
+# A build's own accent colour (scripts/set-accent.sh)
+Pane/Resources/Assets.xcassets/AccentColorLocal.colorset/

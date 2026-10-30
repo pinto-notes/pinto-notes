@@ -103,6 +103,18 @@ else
     "Or build without a backend (notes stay on this Mac): scripts/setup.sh --local-only"
   if supabase status >/dev/null 2>&1; then
     ok "The local backend is running"
+    # The same project id from another folder is the same database: say so, once per run.
+    pid=$(sed -n 's/^project_id = "\(.*\)"/\1/p' supabase/config.toml)
+    from=$(docker inspect "supabase_edge_runtime_$pid" --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}' 2>/dev/null \
+      | sed -n 's|^/host_mnt||; s|/supabase/functions$||p' | head -1)
+    if [[ -n $from && ${from:A} != ${ROOT:A} ]]; then
+      print -- "! That backend was started from $from, with the same project id (\"$pid\")."
+      print -- "  This checkout shares its database: the same accounts and notes. To give it its own:"
+      print -- "    (cd \"$from\" && supabase stop)"
+      suggest=${${(L)$(sed -n 's/^PANE_DISPLAY_NAME = //p' Config/Identity.local.xcconfig)}//[^a-z0-9]/}
+      print -- "    scripts/make-it-yours.sh --project-id ${suggest:-mynotes}"
+      print -- "    scripts/setup.sh"
+    fi
   else
     step "Starting the local backend (the first time downloads about 3 GB of Docker images: 5 to 15 minutes)"
     mkdir -p build

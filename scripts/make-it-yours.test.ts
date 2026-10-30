@@ -11,10 +11,10 @@ const onMac = Deno.build.os === "darwin";
 
 async function copy() {
   const dir = await Deno.makeTempDir();
-  for (const d of ["scripts", "Config", "Pane/Editor", "Pane/Resources/Assets.xcassets/AccentColor.colorset"]) {
+  for (const d of ["scripts", "Config", "supabase", "Pane/Editor", "Pane/Resources/Assets.xcassets/AccentColor.colorset"]) {
     await Deno.mkdir(`${dir}/${d}`, { recursive: true });
   }
-  for (const f of ["scripts/make-it-yours.sh", "scripts/deploy-backend.sh", "scripts/set-accent.sh", "Config/Identity.xcconfig",
+  for (const f of ["scripts/make-it-yours.sh", "scripts/deploy-backend.sh", "scripts/set-accent.sh", "Config/Identity.xcconfig", "supabase/config.toml",
     "Pane/Editor/Palette.swift", "Pane/Resources/Assets.xcassets/AccentColor.colorset/Contents.json"]) {
     await Deno.copyFile(`${root}${f}`, `${dir}/${f}`);
     await Deno.chmod(`${dir}/${f}`, 0o755);
@@ -85,22 +85,51 @@ Deno.test({ name: "make-it-yours run again changes only what's passed", ignore: 
   for (const line of ["PANE_IOS_TEAM = ", "PANE_URL_SCHEME = examplepad", "PANE_DISPLAY_NAME = Kim's Notes", "PANE_APPLINKS_HOST = notes.kim.dev"]) {
     assertStringIncludes(last, line + "\n");
   }
+  // Both links domains follow the site.
+  assertStringIncludes(local, "PANE_APPLINKS_ALIAS = notes.kim.dev\n");
+  // The local backend's own database: the one line of a tracked file it changes.
+  assertEquals((await run(dir, "make-it-yours.sh", "--project-id", "kimnotes")).code, 0);
+  assertStringIncludes(await Deno.readTextFile(`${dir}/supabase/config.toml`), 'project_id = "kimnotes"\n');
+  assertEquals((await run(dir, "make-it-yours.sh", "--project-id", "Kim Notes")).code, 1);
   // The site's rule for a URL scheme (web/lib/app-scheme.ts): no + or . in it.
   assertEquals((await run(dir, "make-it-yours.sh", "--url-scheme", "kim.notes")).code, 1);
 } });
 
-Deno.test({ name: "set-accent writes the palette and the asset together, and amber puts both back", ignore: !onMac, fn: async () => {
+Deno.test({ name: "set-accent keeps your accent out of tracked files, and amber takes it out again", ignore: !onMac, fn: async () => {
   const dir = await copy();
   const palette = `${dir}/Pane/Editor/Palette.swift`, asset = `${dir}/Pane/Resources/Assets.xcassets/AccentColor.colorset/Contents.json`;
-  const before = [await Deno.readTextFile(palette), await Deno.readTextFile(asset)];
+  const own = `${dir}/Pane/Resources/Assets.xcassets/AccentColorLocal.colorset/Contents.json`, local = `${dir}/Config/Identity.local.xcconfig`;
+  const tracked = async () => [await Deno.readTextFile(palette), await Deno.readTextFile(asset)];
+  const before = await tracked();
+  assertEquals((await run(dir, "set-accent.sh", "1E7A4C", "5CC48A")).code, 1, "needs make-it-yours first");
+  await run(dir, "make-it-yours.sh", "--bundle-id", "com.kim.notes");
   assertEquals((await run(dir, "set-accent.sh", "#1e7a4c", "5CC48A")).code, 0);
-  assertStringIncludes(await Deno.readTextFile(palette), "    static let accent = Accent(light: 0x1E7A4C, dark: 0x5CC48A)\n");
-  const colors = JSON.parse(await Deno.readTextFile(asset)).colors.map((c: { color: { components: Record<string, string> } }) =>
+  assertStringIncludes(await Deno.readTextFile(local), "PANE_ACCENT = 1E7A4C 5CC48A\nPANE_ACCENT_ASSET = AccentColorLocal\n");
+  const colors = JSON.parse(await Deno.readTextFile(own)).colors.map((c: { color: { components: Record<string, string> } }) =>
     ["red", "green", "blue"].map((k) => c.color.components[k].slice(2)).join(""));
   assertEquals(colors, ["1E7A4C", "5CC48A"]);
+  assertEquals(await tracked(), before, "no tracked file changes");
+  // Renaming keeps the accent; a second accent replaces the first.
+  await run(dir, "make-it-yours.sh", "--name", "Kim's Notes");
+  assertStringIncludes(await Deno.readTextFile(local), "PANE_ACCENT = 1E7A4C 5CC48A\n");
+  await run(dir, "set-accent.sh", "2255AA", "88AAEE");
+  assertEquals((await Deno.readTextFile(local)).match(/^PANE_ACCENT = /gm)?.length, 1);
   assertEquals((await run(dir, "set-accent.sh", "green")).code, 1);
   assertEquals((await run(dir, "set-accent.sh", "amber")).code, 0);
-  assertEquals([await Deno.readTextFile(palette), await Deno.readTextFile(asset)], before);
+  assert(!(await Deno.readTextFile(local)).includes("PANE_ACCENT"));
+  assert(!(await exists(own)));
+  assertEquals(await tracked(), before);
+} });
+
+Deno.test({ name: "deploy-backend uses the site make-it-yours stored, so --site is given once", ignore: !onMac, fn: async () => {
+  const dir = await copy();
+  await run(dir, "make-it-yours.sh", "--bundle-id", "com.kim.notes", "--site", "https://notes.kim.dev");
+  const r = await run(dir, "deploy-backend.sh", "abcdefghijklmnopqrst", "--dry-run");
+  assertEquals(r.code, 0, r.text);
+  assertStringIncludes(r.text, "site https://notes.kim.dev");
+  // Upstream's links host is never taken for your site.
+  const bare = await copy();
+  assert(!(await run(bare, "deploy-backend.sh", "abcdefghijklmnopqrst", "--dry-run")).text.includes("site https://ambernotes.app"));
 } });
 
 Deno.test({ name: "make-it-yours refuses upstream's bundle id and a malformed team", ignore: !onMac, fn: async () => {
@@ -124,6 +153,7 @@ Deno.test({ name: "deploy-backend --dry-run deploys every function the app needs
   assertStringIncludes(r.text, "select count(*) from cron.job");
   assertStringIncludes(r.text, "MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-abcdefghijklmnopqrst.env");
   assertStringIncludes(r.text, "APP_PAGES_ONLY=1");
+  assertStringIncludes(r.text, "NEXT_PUBLIC_APP_LINK_ORIGIN  https://notes.example.org");
   assertStringIncludes(r.text, "add a connector with this address, https://abcdefghijklmnopqrst.supabase.co/functions/v1/mcp");
   assert(!r.text.includes("external_apple_enabled"), "no Sign in with Apple without a paid team");
   assertStringIncludes(r.text, "CONNECT_PAGE_URL");

@@ -4,6 +4,7 @@ import { posthogSettings } from "./lib/posthog";
 import { REMOVED_POSTS } from "./lib/removed-posts";
 import { pastLastPageRedirects } from "./lib/posts";
 import { appPagesOnlyRewrites } from "./lib/app-pages-only";
+import { aasaRewrites } from "./lib/aasa";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -90,7 +91,8 @@ const config: NextConfig = {
       // /templates/<slug>.json is the template's data (app/api/templates/[slug]), checked before the
       // template's page so the page's [slug] never sees the ".json".
       // APP_PAGES_ONLY=1 (a build of your own, docs/MAKE-IT-YOURS.md): Pinto Notes' own pages are 404s.
-      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }, ...appPagesOnlyRewrites()],
+      // APPLE_APP_ID (the same): the universal links file names your app (lib/aasa.ts).
+      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }, ...appPagesOnlyRewrites(), ...aasaRewrites()],
       afterFiles: [],
       // The DMG's names from before the rename (lib/downloads.ts), once no file has them.
       fallback: OLD_DMG_NAMES,

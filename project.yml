@@ -100,6 +100,8 @@ targets:
         PaneURLScheme: $(PANE_URL_SCHEME)
         PaneBundleID: $(PANE_BUNDLE_ID)
         PaneAppGroup: $(PANE_APP_GROUP)
+        # A build's own accent (scripts/set-accent.sh); empty is amber (Palette.accent).
+        PaneAccent: $(PANE_ACCENT)
         PanePostHogKey: $(PANE_POSTHOG_KEY)
         PanePostHogHost: $(PANE_POSTHOG_HOST)
         NSAppTransportSecurity:
@@ -144,7 +146,8 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # AccentColor, or the gitignored AccentColorLocal scripts/set-accent.sh writes.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: $(PANE_ACCENT_ASSET)
         ENABLE_HARDENED_RUNTIME: YES
         # Ad-hoc builds use Pane-mac.entitlements; scripts/install-mac.sh passes
         # PANE_MAC_ENTITLEMENTS=Pane-mac-signed.entitlements for the team-signed app, and
@@ -211,6 +214,7 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         PaneAppGroup: $(PANE_APP_GROUP)
+        PaneAccent: $(PANE_ACCENT)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController

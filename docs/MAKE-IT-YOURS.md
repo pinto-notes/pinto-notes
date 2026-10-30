@@ -71,6 +71,7 @@ Either way your notes are saved as you type and are there when you open the app 
 |---|---|
 | `xcode-select: error: tool 'xcodebuild' requires Xcode` | Run `scripts/setup.sh`, which finds Xcode for you. For your own `xcodebuild` commands, run `sudo xcode-select -s /Applications/Xcode.app` once. |
 | `✗ Docker isn't running.` | Open Docker Desktop, wait until it says the engine is running, and run `scripts/setup.sh` again. |
+| `! That backend was started from <another folder>` | Another checkout of Pinto Notes runs the local backend, and this one shares its database. Do the three commands it prints to give this checkout its own. |
 | `✗ Something else is using a port the backend needs` | Another Supabase project is running. Run `supabase stop` in its folder, then `scripts/setup.sh` again. |
 | `✗ The build failed` with `Could not resolve package dependencies` | A download failed. Check your connection and run `scripts/setup.sh` again. |
 | The app says "Can't reach the server. Check your connection." | The local backend isn't running (Docker was quit, or the Mac restarted). Open Docker Desktop and run `scripts/setup.sh` again. |
@@ -168,16 +169,19 @@ Share links and connecting ChatGPT or Claude need the website, `web/`. Claude Co
    | `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the `PANE_SUPABASE_KEY` in `Config/Backend.local.xcconfig` |
    | `MCP_PROXY_SECRET` | the `BACKEND_PROXY_SECRET` in `.secrets/backend-<ref>.env` |
    | `NEXT_PUBLIC_APP_SCHEME` | your URL scheme (`scripts/make-it-yours.sh --show` prints it). If it's missing or not lowercase letters, digits and hyphens, the site falls back to Pinto Notes' `ambernotes` and its links open the wrong app |
+   | `NEXT_PUBLIC_APP_LINK_ORIGIN` | your site's address, `https://your-site`. Without it, the "Open in the app" links on the connect page point at Pinto Notes' site |
+   | `APPLE_APP_ID` | with a paid team only: your team id, a dot and your bundle id (`ABCDE12345.com.kim.notes`), so the site's universal links open your iPhone app. `deploy-backend.sh` prints it |
    | `APP_PAGES_ONLY` | `1`: only the pages your app uses (connecting an AI, password resets, share links, links that open the app). Pinto Notes' home page, blog, changelog and downloads are 404s |
    | `SITE_NOINDEX` | `1`: keeps the site out of search |
 
-2. Point the backend and the app at it, then rebuild:
+2. Point the backend and the app at it, then rebuild. `--site` is stored once for both (in `Config/Identity.local.xcconfig`), so later runs of either script don't need it:
 
    ```sh
    scripts/deploy-backend.sh <ref> --site https://your-site
-   scripts/make-it-yours.sh --site https://your-site
    scripts/setup.sh
    ```
+
+   Leave `NEXT_PUBLIC_USERCONTENT_ORIGIN` and `COLLAB_RELAY_URL` unset: only a prototype of sealed links uses them.
 
 3. Connect ChatGPT or Claude: add a custom connector with the address `https://<ref>.supabase.co/functions/v1/mcp` (`deploy-backend.sh` prints it). Not `mcp.pintonotes.com`: that one is Pinto Notes' own server. Signing in to connect opens your site's `/connect` page.
 
@@ -189,7 +193,7 @@ The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and targe
 
 | What | Where |
 |---|---|
-| The accent colour | `scripts/set-accent.sh 1E7A4C 5CC48A` (light mode, then dark mode). It sets `Palette.accent` in `Pane/Editor/Palette.swift`, which every button, tick, link and hover follows, and the AccentColor asset the system's controls use. `scripts/set-accent.sh amber` puts Pinto Notes' back |
+| The accent colour | `scripts/set-accent.sh 1E7A4C 5CC48A` (light mode, then dark mode), then `scripts/setup.sh`. Every button, tick, link and hover follows it (`Palette.accent`), and so do the system's controls. It changes no tracked file: the colours go in `Config/Identity.local.xcconfig` and a gitignored `AccentColorLocal` asset, so pulling never conflicts. `scripts/set-accent.sh amber` puts Pinto Notes' back |
 | Other colours, light and dark | the rest of `Pane/Editor/Palette.swift`: every colour the app draws |
 | Buttons, corner radii, shadows, toasts | `Pane/Views/DesignSystem.swift`, with the rules in [docs/DESIGN.md](DESIGN.md) |
 | The iPhone bar above the keyboard | `Pane/Editor/FormatBar.swift` |

@@ -9,8 +9,15 @@ PANE_BUNDLE_ID = dev.emilwagman.pane
 PANE_DISPLAY_NAME = Pinto Notes
 PANE_URL_SCHEME = ambernotes
 PANE_APP_GROUP = group.dev.emilwagman.pane
+// The sites whose /open/… links open the app (associated domains, with a paid team): the old name
+// and the new one. A build of your own has its own site in both (scripts/make-it-yours.sh --site).
 PANE_APPLINKS_HOST = ambernotes.app
+PANE_APPLINKS_ALIAS = pintonotes.com
 PANE_UPDATE_FEED = https:/$()/ambernotes.app/updates/appcast.xml
+// The accent: empty is Pinto Notes' amber and the AccentColor asset. scripts/set-accent.sh sets
+// both in Identity.local.xcconfig, with its own gitignored AccentColorLocal asset.
+PANE_ACCENT =
+PANE_ACCENT_ASSET = AccentColor
 
 // Signing. The Mac app and the Simulator are ad-hoc ("sign to run locally") and need no Apple
 // account. iPhone builds sign with PANE_IOS_TEAM (Emil's paid team: a year per install, app groups,

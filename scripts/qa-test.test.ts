@@ -51,3 +51,24 @@ Deno.test("a compile error is shown", async () => {
   const out = await summarize(`/Users/kim/pinto-notes/Pane/Editor/Palette.swift:27:9: error: cannot find 'accnt' in scope\n** TEST FAILED **\n`);
   assertStringIncludes(out[0], "Palette.swift:27:9: error: cannot find 'accnt' in scope");
 });
+
+Deno.test("each failed expectation shows with its file:line and values, before the tests' doc comments", async () => {
+  const one = (n: number) => `✘ Test labelReadsOnTheFill${n}(_:) recorded an issue with 1 argument appearance → NSAppearanceName(rawValue: "NSAppearanceNameAqua") at AmberButtonTests.swift:${30 + n}:9: Expectation failed: (ratio → 1.28) >= 3.0
+↳ // The label is bold: Apple's minimum for bold text is 3:1.
+↳ NSAppearanceNameAqua: 1.28
+​✘ Test labelReadsOnTheFill${n}(_:) with 2 test cases failed after 0.001 seconds with 1 issue.
+↳ /// Primary buttons stay readable in both appearances: white on the accent.
+↳ /// A second line of the test's doc comment.
+`;
+  const log = `${webkit}${Array.from({ length: 12 }, (_, i) => one(i)).join("")}    export SYSTEM_DEVELOPER_PERFORMANCE_TOOLS_DIR\\=/Applications/Xcode.app/Contents/Developer/Applications/Performance\\ Tools
+✘ Test run with 15 tests in 1 suite failed after 1.061 seconds with 12 issues.
+
+** TEST FAILED **
+`;
+  const out = await summarize(log);
+  const issues = out.filter((l) => l.includes("Expectation failed: (ratio → 1.28) >= 3.0"));
+  assertEquals(issues.length, 12, out.join("\n"));
+  assertStringIncludes(issues[0], "AmberButtonTests.swift:30:9");
+  assertEquals(out.filter((l) => l.startsWith("↳ ///") || l.includes("export ")), []);
+  assertEquals(out.at(-1), "** TEST FAILED **");
+});

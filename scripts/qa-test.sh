@@ -12,11 +12,16 @@ cd "$(dirname "$0")/.."
 # "Connection to 'pboard' server had an error:" and the like) are left out before anything is matched,
 # and so are the lines they continue on, so a passing run prints only its result.
 summarize() {
-  local summary="Test run with|TEST (SUCC|FAIL)"
-  grep -v "^20[0-9][0-9]-" "$1" | grep -A2 -E "PERF|(^|: )error: |✘|timeout" \
-    | grep -vE "^--$|^\s*export |^◇ |✔ (Suite|Test )|^Test (Suite|Case) |$summary|^\s+\"XPC|^}$|^Invalidation reason" \
-    | head -${LINES_OUT:-40}
-  grep -v "^20[0-9][0-9]-" "$1" | grep -E "$summary" | tail -2
+  local summary="Test run with|TEST (SUCC|FAIL)" log
+  log=$(grep -v "^20[0-9][0-9]-" "$1")
+  # Why: compile errors, then each failed expectation with its file:line and the values it saw (the
+  # lines under it that start "↳", less the test's own doc comment).
+  print -r -- "$log" | grep -A2 -E "(^|: )error: " | grep -vE "^--$|^\s+\"XPC|^}$|^Invalidation reason" | head -20
+  print -r -- "$log" | grep -A3 "recorded an issue" | grep -E "recorded an issue|^↳ " | grep -v "^↳ ///" | head -${LINES_OUT:-40}
+  # Which: every test that failed, one line each; then anything slow or stuck.
+  print -r -- "$log" | grep -E "✘ Test .* failed after" | grep -v "Test run with" | head -30
+  print -r -- "$log" | grep -E "PERF|timeout" | grep -vE "$summary|^\s*export " | head -10
+  print -r -- "$log" | grep -E "$summary" | tail -2
 }
 if [[ ${1:-} == --summarize ]]; then summarize "$2"; exit 0; fi
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer

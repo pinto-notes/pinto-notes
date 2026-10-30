@@ -50,6 +50,11 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>chatgpt</string>
+		<string>claude</string>
+	</array>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -65,15 +70,12 @@
 	<string>Pinto Notes uses Face ID to open your locked notes, show your recovery key, approve AI connections and add a device.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Pinto Notes saves a picture to your photo library when you choose Save Image in the share sheet.</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>chatgpt</string>
-		<string>claude</string>
-	</array>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>dev.emilwagman.pane.connect</string>
 	</array>
+	<key>PaneAccent</key>
+	<string>$(PANE_ACCENT)</string>
 	<key>PaneAppGroup</key>
 	<string>$(PANE_APP_GROUP)</string>
 	<key>PaneAuthHost</key>
