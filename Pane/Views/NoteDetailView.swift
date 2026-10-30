@@ -18,6 +18,7 @@ struct NoteDetailView: View {
     @State private var movingNote = false
     @State private var pickingPhotos = false
     @State private var linkingNote = false
+    @State private var choosingAttachment = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
@@ -115,6 +116,23 @@ struct NoteDetailView: View {
                     pageArrived(NotePageStore.shared.live(note.id))
                 }
             }
+            #endif
+            #if os(iOS)
+            // What the paperclip above the keyboard (FormatBar) opens: the Mac's Attach menu.
+            .confirmationDialog("Attach", isPresented: $choosingAttachment, titleVisibility: .hidden) {
+                Button("Choose Photo or Video…") { pickingPhotos = true }
+                    .accessibilityIdentifier("attach.photo")
+                Button("Attach File…") { importing = true }
+                    .accessibilityIdentifier("attach.file")
+                if !hidden {
+                    Button("Link to a Note…") { linkingNote = true }
+                        .accessibilityIdentifier("attach.noteLink")
+                    Button("Add Link", action: controller.insertLink)
+                        .accessibilityIdentifier("attach.link")
+                }
+            }
+            .sheet(isPresented: $linkingNote) { noteLinkPicker.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).presentationDetents([.medium]) }
+            .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
             #endif
             .onAppear(perform: wireController)
             .onDisappear {
@@ -332,7 +350,7 @@ struct NoteDetailView: View {
                 #if os(macOS)
                 .padding(.bottom, 20)
                 #else
-                // Over the keyboard while you write; over the toolbar otherwise.
+                // Over the keyboard while you write; clear of the foot of the screen otherwise.
                 .padding(.bottom, controller.isEditing ? 12 : 64)
                 #endif
                 .transition(AIReceipt.transition(reduceMotion: reduceMotion))
@@ -889,8 +907,6 @@ struct NoteDetailView: View {
             .navigationTitle("")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
-            // A page shows nothing of the text editor: no writing tools over it.
-            .toolbar(controller.isEditing || showingPage ? .hidden : .automatic, for: .bottomBar)
             .animation(.snappy(duration: 0.2), value: controller.isEditing)
             #endif
             #if os(macOS)
@@ -1072,6 +1088,7 @@ struct NoteDetailView: View {
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
         controller.download = { a in await sync?.download(a) ?? false }
         controller.attach = { importing = true }
+        controller.attachChoices = { choosingAttachment = true }
         controller.addFiles = { urls in note.isLocked ? [] : context.addAttachments(urls) }
         controller.addData = { data, name, type in
             guard !note.isLocked, let a = try? FileStore.importData(data, filename: name, type: type) else { return nil }
@@ -1091,15 +1108,8 @@ struct NoteDetailView: View {
     private var toolbar: some ToolbarContent {
         // The floating buttons in the label colour, not the accent (Emil, 28 October 2026): the
         // accent is for the caret, ticks, selection and links.
-        ToolbarItem(placement: .bottomBar) {
-            Button("Checklist", systemImage: "checklist", action: controller.checklist).disabled(hidden || trashed).tint(.primary)
-        }
-        ToolbarItem(placement: .bottomBar) {
-            Button("Table", systemImage: "tablecells", action: controller.insertTable).disabled(hidden || trashed).tint(.primary)
-        }
-        ToolbarItem(placement: .bottomBar) {
-            attachMenu.disabled(trashed).tint(.primary)
-        }
+        // No bar at the foot while you read (Emil, 29 October 2026): the writing tools come up
+        // with the keyboard, above it (FormatBar).
         // No new note in here: that's the list's + (Emil, 29 October 2026).
         if showingPage, let receipt {
             ToolbarItem(placement: .principal) {
@@ -1137,6 +1147,7 @@ struct NoteDetailView: View {
     }
     #endif
 
+    #if os(macOS)
     /// The paperclip: what can be put into a note. A photo or video, a file; then a link to
     /// another note (the `[[Title]]` link typing `[[` makes) and a web link.
     private var attachMenu: some View {
@@ -1157,17 +1168,14 @@ struct NoteDetailView: View {
             Label("Attach", systemImage: "paperclip")
         }
         .disabled(note.isLocked || showingPage)
-        #if os(macOS)
         .tint(.primary)
         .menuIndicator(.hidden)
         .help("Attach")
         .popover(isPresented: $linkingNote, arrowEdge: .bottom) { noteLinkPicker }
-        #else
-        .sheet(isPresented: $linkingNote) { noteLinkPicker.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).presentationDetents([.medium]) }
-        #endif
         .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
         .accessibilityIdentifier("editor.attach")
     }
+    #endif
 
     private var noteLinkPicker: some View {
         NoteLinkPicker(titles: { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context, limit: NoteLinkPicker.limit) },

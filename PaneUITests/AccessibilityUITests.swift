@@ -17,7 +17,9 @@ final class AccessibilityUITests: XCTestCase {
         let cell = app.descendants(matching: .any)["grid.1.0"].firstMatch
         XCTAssertTrue(cell.waitForExistence(timeout: 5))
         XCTAssertEqual(cell.label, "⌘B, Shortcut, row 1")
-        XCTAssertTrue(app.buttons["Checklist"].firstMatch.exists, "toolbar buttons are named")
+        // No tools at the foot while you read: they come up with the keyboard, named (the
+        // unnamed-buttons test below goes through them).
+        XCTAssertFalse(app.buttons["Checklist"].exists, "no writing tools while reading")
     }
 
     /// Folder rows read as their name and count; the icon is decoration (it used to read "Move").
@@ -92,7 +94,7 @@ final class AccessibilityUITests: XCTestCase {
             guard b.exists, b.frame.width > 0 else { return nil }
             let label = b.label
             let bad = label.isEmpty || symbolish.firstMatch(in: label, range: NSRange(label.startIndex..., in: label)) != nil
-            return bad ? "\(screen): \(b.identifier) '\(label)'" : nil
+            return bad ? "\(screen): \(b.identifier) '\(label)' at \(b.frame)" : nil
         }
     }
 

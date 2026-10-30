@@ -92,13 +92,17 @@ final class ListTitleUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 3), "+ opens the new note")
         editor.tap()
         editor.typeText("Top bar note")
-        // Back to the list and in again, out of the keyboard, so the editor's bottom bar shows.
+        // Back to the list and in again, out of the keyboard.
         app.navigationBars.element(boundBy: 0).buttons.element(boundBy: 0).tap()
         let row = app.staticTexts["Top bar note"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 3), "the new note is in the list")
         row.tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Checklist"].firstMatch.waitForExistence(timeout: 3), "the editor's bar is up")
+        XCTAssertFalse(app.buttons["New Note"].exists, "no new note inside a note")
+        // The tools come up with the keyboard (a short new note may open with it up), and still
+        // no new note among them.
+        if app.keyboards.count == 0 { editor.tap() }
+        XCTAssertTrue(app.buttons["Checklist"].firstMatch.waitForExistence(timeout: 5), "the bar above the keyboard")
         XCTAssertTrue(app.buttons["Table"].firstMatch.exists)
         XCTAssertFalse(app.buttons["New Note"].exists, "no new note inside a note")
         XCTAssertFalse(app.buttons["list.newNote"].exists)
