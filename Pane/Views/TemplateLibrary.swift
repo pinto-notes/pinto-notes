@@ -189,12 +189,8 @@ struct TemplateLibraryView: View {
                     Text("\u{201C}\(e.ask)\u{201D}").font(.system(size: 12.5)).foregroundStyle(Color.ink).lineLimit(2)
                 }
                 HStack(spacing: 8) {
-                    Button { make(e) } label: {
-                        HStack(spacing: 7) {
-                            if ai != .other { AIGlyph(ai: ai.name, size: 14) }
-                            Text(TemplateLibraryWords.make(ai))
-                        }
-                    }
+                    // Words only: ChatGPT's mark takes the text colour, which vanishes on the dark look's white button.
+                    Button(TemplateLibraryWords.make(ai)) { make(e) }
                     .buttonStyle(.amberProminent(.regular, wide: true))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("templates.make")
@@ -210,9 +206,11 @@ struct TemplateLibraryView: View {
     /// The app's own picture when it is one; otherwise the filled-in note, drawn as the app draws notes.
     @ViewBuilder private func inUse(_ e: TemplateCatalog.Entry) -> some View {
         if let picture = e.appPicture(dark: scheme == .dark) {
-            Image(nsImage: picture).resizable().scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // The whole app, fitted to the panel's width, never widening it.
+            Color.clear
+                .overlay(alignment: .top) { Image(nsImage: picture).resizable().scaledToFit() }
                 .clipped()
+                .accessibilityElement()
                 .accessibilityLabel("\(e.title), in use")
         } else {
             NotePreview(markdown: e.example)
