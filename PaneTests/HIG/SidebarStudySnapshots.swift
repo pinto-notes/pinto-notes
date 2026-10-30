@@ -107,9 +107,46 @@ import Testing
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
     }
 
+    /// Settings as a page of the window (`SettingsPageStudy`): Connect an AI and Appearance.
+    @Test(arguments: [false, true])
+    func settingsPage(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let mode = dark ? "dark" : "light"
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
+        let three = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
+                     Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "claude.ai"),
+                     Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 12), last_used_at: .now.addingTimeInterval(-86_400 * 2), revoked_at: nil, redirect_host: "claude.ai")]
+        let settings = SettingsView(backend: Self.backend, sync: nil)
+        let available: Set<SettingsPlace> = [.profile, .ai, .security, .storage, .account, .general, .help]
+        func page(_ p: SettingsStudyPage) -> AnyView {
+            switch p {
+            case .appearance: AnyView(AppearanceStudyPage())
+            case .place(.ai): AnyView(Form { ConnectAISection(client: client, preview: three) }.formStyle(.grouped).scrollContentBackground(.hidden)
+                .environment(ConnectGuideRoute()).environment(\.connectStudy, true))
+            case .place(let place): AnyView(settings.place(place))
+            }
+        }
+        for (name, start) in [("settings-page-ai", SettingsStudyPage.place(.ai)), ("settings-page-appearance", .appearance)] {
+            let view = SettingsPageStudy(available: available, page: page, selected: start)
+                .environment(\.controlActiveState, .key)
+                .tint(Color(PColor.paneAccent))
+            try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+        }
+    }
+
     /// The study is off in the app until it's picked: no AI section, no mark on the notes.
     @Test func theStudyIsOffByDefault() {
         #expect(EnvironmentValues().sidebarStudy == nil)
+    }
+
+    /// Settings as a page lists every page there is, Appearance among them, and leaves out the
+    /// ones that aren't there.
+    @Test func theSettingsPageListsEveryPage() {
+        let all = SettingsStudyPage.groups(available: [.ai, .security, .storage, .account, .general, .help]).flatMap { $0 }
+        #expect(all.contains(.appearance) && all.contains(.place(.ai)) && all.count == 7)
+        #expect(!SettingsStudyPage.groups(available: [.ai, .general, .help]).flatMap { $0 }.contains(.place(.security)))
     }
 }
 #endif
