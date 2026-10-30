@@ -127,6 +127,9 @@ final class WelcomeHandoff {
     enum Way: Equatable { case apple, google, email }
     private(set) var way: Way = .apple
     @ObservationIgnored private var armedAt: Date?
+    /// The note being opened under the welcome, read without observing: an editor asks once, as
+    /// it's made (NoteEditorText), and nothing should draw again when it changes.
+    @ObservationIgnored private(set) var opening: UUID?
 
     /// A sign-in from the welcome note is under way: what's ticked goes with it.
     func arm(ticked: Set<Int>, way: Way = .apple) {
@@ -150,6 +153,7 @@ final class WelcomeHandoff {
         guard phase == .waiting else { return }
         if let id {
             noteID = id
+            opening = id
             phase = .opening
         } else {
             phase = .leaving
@@ -170,6 +174,7 @@ final class WelcomeHandoff {
     func done() {
         phase = .idle
         armedAt = nil
+        opening = nil
     }
 
     /// How long the note waits for the key and the first sync before it steps aside.

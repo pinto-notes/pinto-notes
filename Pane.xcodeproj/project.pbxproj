@@ -107,6 +107,7 @@
 		1BCF71078355965AC9313B22 /* BundleRename.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C914D1C89C1A28F957DF97 /* BundleRename.swift */; };
 		1C5EF638C6398D2B6188288E /* TelemetryFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BC1A5A93E7CD28784F41F3F /* TelemetryFailure.swift */; };
 		1CB56AA727694AFCF834FB2E /* AddDeviceSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 672F945AC1C85249447146D1 /* AddDeviceSync.swift */; };
+		1CDB8F7A9A97637A7D3BAB9D /* EditorCaretTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4881CBBDA2B4B9FE0C12A94 /* EditorCaretTests.swift */; };
 		1CDE672D3CF4CC64C0D79511 /* ConnectAITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87987EC62A5DA06AB545080F /* ConnectAITests.swift */; };
 		1CE6B672D7A30D70F5913750 /* FolderFilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C55C10553460868D451E9230 /* FolderFilesTests.swift */; };
 		1D4FF721F8652972368E5901 /* RichTextToMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99375A4ACF211AEE18EC4EC3 /* RichTextToMarkdown.swift */; };
@@ -444,6 +445,7 @@
 		8B8A2E2CBE4BF9A3224735F4 /* tone.js in Resources */ = {isa = PBXBuildFile; fileRef = F97B6D61534B25944539B296 /* tone.js */; };
 		8BEA98A37026A9354663F4BA /* ReorderSlide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641F847428D60D9F54899530 /* ReorderSlide.swift */; };
 		8C0B6E76641724BE0382A626 /* ScopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA850D9ED3A3D8966BC9FF7 /* ScopeTests.swift */; };
+		8D4ED1927815FE0FAD30ABE0 /* EditorTapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FD361601B933FFDEC0E3A17 /* EditorTapUITests.swift */; };
 		8DDE0113A044E767BA32C8CE /* guide-obsidian-files.png in Resources */ = {isa = PBXBuildFile; fileRef = AC2974209CC95A34F20C0CD5 /* guide-obsidian-files.png */; };
 		8DECEC26D23538850E24676A /* SetupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828936EE95CD99013161C1CA /* SetupTests.swift */; };
 		8E48ECB8D6700699E9BB1E1C /* PasswordFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FE7BB86935ED6B278E0039C /* PasswordFieldTests.swift */; };
@@ -953,6 +955,7 @@
 		4F33B74A850251D3F2D92C97 /* sample-habit-tracker.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "sample-habit-tracker.html"; sourceTree = "<group>"; };
 		4F3756CDFB4168E8DA883124 /* RowPressSlop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowPressSlop.swift; sourceTree = "<group>"; };
 		4F493C1739DD15B07E64BFE7 /* Pane-mac-beta.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pane-mac-beta.entitlements"; sourceTree = "<group>"; };
+		4FD361601B933FFDEC0E3A17 /* EditorTapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorTapUITests.swift; sourceTree = "<group>"; };
 		4FDB2F2130F537884D8B99BB /* TableChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableChart.swift; sourceTree = "<group>"; };
 		5065525FC29F25AE64A5EA51 /* SessionFault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFault.swift; sourceTree = "<group>"; };
 		508D7FDAAB7702C132913D85 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
@@ -1277,6 +1280,7 @@
 		F25F3BCBAA740C44E2941395 /* ImportFunnelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportFunnelTests.swift; sourceTree = "<group>"; };
 		F289BCC7CFF17C5E38FD609F /* AppleSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignIn.swift; sourceTree = "<group>"; };
 		F41E8AB3DDD768F22B750F3E /* HoverSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverSnapshots.swift; sourceTree = "<group>"; };
+		F4881CBBDA2B4B9FE0C12A94 /* EditorCaretTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCaretTests.swift; sourceTree = "<group>"; };
 		F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRowClickTests.swift; sourceTree = "<group>"; };
 		F640AF3B161AEAD5FD260995 /* NoteLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLock.swift; sourceTree = "<group>"; };
 		F66C9398AFFB4C2850E7BD3E /* NoteOpenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteOpenTests.swift; sourceTree = "<group>"; };
@@ -1645,6 +1649,7 @@
 				8BDEFF02B8B16DE3DF974509 /* ChecklistInteractionTests.swift */,
 				F7306680E0E335C07172C36F /* ChecklistLookTests.swift */,
 				66122A2F372A20CB63D5C4E5 /* ChecklistTickReorderTests.swift */,
+				F4881CBBDA2B4B9FE0C12A94 /* EditorCaretTests.swift */,
 				2645544EC93B2A847792408A /* EmptyLibraryTests.swift */,
 				8DE676E076D7616ADB19BB34 /* ExtremesTests.swift */,
 				F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */,
@@ -2094,6 +2099,7 @@
 				12C0667A3D4E9B69B7502D0B /* CodeBoxesUITests.swift */,
 				FFEE9EC2B9105EAE247A65C8 /* ComposeFromFoldersUITests.swift */,
 				D735696D027A23734B8C6C30 /* DogfoodTests.swift */,
+				4FD361601B933FFDEC0E3A17 /* EditorTapUITests.swift */,
 				81F7D97727CE36EF026FC374 /* EmailConfirmUITests.swift */,
 				8E1EDD6EA0A72A2064832EE9 /* FolderNavigationUITests.swift */,
 				6E18D450CB6E4A81D0C916D8 /* FormatPanelUITests.swift */,
@@ -2523,6 +2529,7 @@
 				063345C03226663894E9C485 /* DesignLookSnapshots.swift in Sources */,
 				6446F4952BF2E70ECC8E9236 /* E2EESyncTests.swift in Sources */,
 				6993A695E36E1F6AEB6C307A /* E2EETests.swift in Sources */,
+				1CDB8F7A9A97637A7D3BAB9D /* EditorCaretTests.swift in Sources */,
 				4F076F4BD77FEA75A56F4078 /* EditorHarness.swift in Sources */,
 				9F62E76CDE7AE2DD7C74B970 /* EditorPerfTests.swift in Sources */,
 				23C51C81E1F1A07BDF892635 /* EmailSignInFlowTests.swift in Sources */,
@@ -2895,6 +2902,7 @@
 				A1D720E76BFBEA6667E566FB /* CodeBoxesUITests.swift in Sources */,
 				45A54F95009096AE8F8C1A51 /* ComposeFromFoldersUITests.swift in Sources */,
 				CD71F1E4803FE64FB4C22727 /* DogfoodTests.swift in Sources */,
+				8D4ED1927815FE0FAD30ABE0 /* EditorTapUITests.swift in Sources */,
 				5AF7EC6DB93FFA40B9D54CFA /* EmailConfirmUITests.swift in Sources */,
 				6158DE4E75B7C5A16EB2E25E /* FolderNavigationUITests.swift in Sources */,
 				496A643FC4AC3ACB5B278C1C /* FormatPanelUITests.swift in Sources */,

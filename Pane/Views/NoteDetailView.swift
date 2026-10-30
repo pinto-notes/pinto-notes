@@ -1334,8 +1334,10 @@ private struct NoteEditorText: View {
         #endif
         // A locked note that isn't open has no text to give the editor; its pane shows the lock.
         if let text = NoteVault.shared.text(of: note) {
+            // The note the welcome becomes opens as the welcome showed it, date and all.
+            let handoff = WelcomeHandoff.shared.opening == note.id
             MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                           followsInitialText: followsInitialText, onChange: onChange)
+                           followsInitialText: followsInitialText, dateShown: handoff, onChange: onChange)
         }
     }
 }
