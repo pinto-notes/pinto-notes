@@ -143,9 +143,9 @@ print -- "\nDone in $took. Open your app:\n  open \"$APP\""
 if (( LOCAL )); then
   print -- "Your notes stay on this Mac. To sync with your own backend later: docs/MAKE-IT-YOURS.md, step 4."
 else
-  print -- "First run: press Get started, type any email address, press Continue and make a password of 12"
-  print -- "characters or more. Nothing is really emailed: if the app asks for a code, it's in the local mail"
-  print -- "viewer, http://127.0.0.1:56424. (Sign in with Apple and Google aren't set up in your build.)"
+  print -- "First run: press Get started, type any email address and press Continue. Nothing is really"
+  print -- "emailed: the 6-digit code is in the local mail viewer, http://127.0.0.1:56424 (if the app asks for"
+  print -- "a password first, make one of 12 characters or more). Sign in with Apple and Google aren't set up."
 fi
 print -- "Next: docs/MAKE-IT-YOURS.md (your own name and icon, your iPhone, your own backend, changing the app)."
 (( OPEN )) && open "$APP"
