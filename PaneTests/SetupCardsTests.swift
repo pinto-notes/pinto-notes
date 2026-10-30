@@ -160,6 +160,8 @@ import Testing
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
         #expect(src.contains("if e.app {\n                        Text(e.title)"))
+        // The ask wraps to its two lines (the habit tracker's was cut to one, 2026-10-30).
+        #expect(src.contains(".lineLimit(2)\n                        // Two lines, never cut to one by the panel's height.\n                        .fixedSize(horizontal: false, vertical: true)"))
     }
 
     /// The library offers your AIs, the one used last first, each kind once; any AI without a chat

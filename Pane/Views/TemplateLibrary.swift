@@ -264,6 +264,8 @@ struct TemplateLibraryView: View {
                     Text(e.ask)
                         .font(.system(size: 12.5)).foregroundStyle(Color.ink)
                         .lineLimit(2)
+                        // Two lines, never cut to one by the panel's height.
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 14, style: .continuous))
                 }
@@ -311,14 +313,9 @@ struct TemplateLibraryView: View {
     /// The app's own picture when it is one; otherwise the filled-in note, drawn as the app draws notes.
     @ViewBuilder private func inUse(_ e: TemplateCatalog.Entry) -> some View {
         if let project = e.appProject {
-            // The app itself, running on its starting data: tick, add and scroll as you would. Its
-            // picture shows until it has drawn. Nothing it does is kept.
+            // The app itself, running on its starting data: tick, add and scroll as you would.
+            // Nothing it does is kept. (Its picture behind it showed through at the edge.)
             TemplateAppPreview(entry: e, project: project)
-                .background {
-                    if let picture = e.appPicture(dark: scheme == .dark) {
-                        Color.clear.overlay(alignment: .topLeading) { Image(nsImage: picture).resizable().scaledToFit().frame(width: 560) }.clipped()
-                    }
-                }
                 .id(e.slug)
         } else if let picture = e.appPicture(dark: scheme == .dark) {
             // The whole app, fitted to the panel's width, never widening it.
