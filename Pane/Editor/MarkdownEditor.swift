@@ -1526,10 +1526,23 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     override func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-        if g is UITapGestureRecognizer, g.view === self, g.delegate === self {
-            return checkboxLine(for: g.location(in: self)) != nil
-        }
+        if g is UITapGestureRecognizer, g.view === self, g.delegate === self { return takesTap(at: g.location(in: self)) }
         return super.gestureRecognizerShouldBegin(g)
+    }
+
+    /// Whether the checkbox tap takes a tap at `p`: on a circle; in Recently Deleted, any tap but
+    /// one on a link, which asks to recover the note (tap(at:)), like Notes. A long press still
+    /// selects there, to copy.
+    func takesTap(at p: CGPoint) -> Bool {
+        if controller?.readOnly == true { return !onLink(at: p) }
+        return checkboxLine(for: p) != nil
+    }
+
+    /// Whether a point of this view is on a link's text.
+    private func onLink(at p: CGPoint) -> Bool {
+        guard let pos = closestPosition(to: p) else { return false }
+        let i = offset(from: beginningOfDocument, to: pos)
+        return i < textStorage.length && textStorage.attribute(.link, at: i, effectiveRange: nil) != nil
     }
 
     private func checkboxLine(for p: CGPoint) -> Int? {
@@ -1544,7 +1557,12 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: editingSelection, force: true)
     }
 
-    @objc private func handleTap(_ g: UITapGestureRecognizer) { tapCheckbox(at: g.location(in: self)) }
+    @objc private func handleTap(_ g: UITapGestureRecognizer) { tap(at: g.location(in: self)) }
+
+    func tap(at point: CGPoint) {
+        if controller?.readOnly == true { controller?.askToRecover(); return }
+        tapCheckbox(at: point)
+    }
 
     /// Where a checkbox's circle is, in the view, for the line starting at `line` (tests).
     func checkboxCenter(line: Int) -> CGPoint? {
@@ -2183,9 +2201,23 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private var inKeyDown = false
 
     override func keyDown(with event: NSEvent) {
+        // Recently Deleted: typing asks to recover the note first, like Notes. Moving around and
+        // the ⌘ shortcuts (Copy, Select All) still work.
+        if controller?.readOnly == true, Self.edits(event) {
+            controller?.askToRecover()
+            return
+        }
         inKeyDown = true
         defer { inKeyDown = false }
         super.keyDown(with: event)
+    }
+
+    /// Whether a key press would change the text: anything but a ⌘ or ⌃ shortcut, a move or Escape.
+    static func edits(_ event: NSEvent) -> Bool {
+        if !event.modifierFlags.intersection([.command, .control]).isEmpty || event.keyCode == 53 { return false }
+        let moves: [NSEvent.SpecialKey] = [.upArrow, .downArrow, .leftArrow, .rightArrow, .pageUp, .pageDown, .home, .end]
+        if let key = event.specialKey, moves.contains(key) { return false }
+        return !(event.characters ?? "").isEmpty
     }
 
     private func resolve(_ fix: CaretFix) {
@@ -2298,6 +2330,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // The row drawn under the pointer, even while rows slide; then they stop where they're going.
         let target = core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager)
         core.endSlides()
+        if controller?.readOnly == true {
+            // Recently Deleted: a tick, or a click into the text, asks to recover the note first,
+            // like Notes. A drag still selects, to copy; a link still opens.
+            if target != nil { controller?.askToRecover(); return }
+            super.mouseDown(with: event)
+            if event.clickCount == 1, selectedRange().length == 0, !onLink(at: p) { controller?.askToRecover() }
+            return
+        }
         if let line = target, let edit = ListEditing.toggleCheckbox(in: string, lineStart: line) {
             // The circle's place before the edit: right after it, TextKit may not have placed the
             // line again yet, and the pop landed a row or two higher, over the heading.
@@ -2315,6 +2355,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             return
         }
         super.mouseDown(with: event)
+    }
+
+    /// Whether a point of this view is on a link's text.
+    private func onLink(at p: CGPoint) -> Bool {
+        let i = characterIndexForInsertion(at: p)
+        guard let storage = textStorage, i < storage.length else { return false }
+        return storage.attribute(.link, at: i, effectiveRange: nil) != nil
     }
 
     /// Ticked items sink below the open ones, a moment after the tick, sliding into place.

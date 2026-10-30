@@ -262,7 +262,6 @@ struct FileDetailView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .safeAreaInset(edge: .bottom, spacing: 0) { if file.trashedAt != nil { trashBanner } }
             .toolbar { toolbar }
             // Back online, a file that wasn't here is fetched by itself.
             .task(id: "\(file.id)\(file.filename)\(sync?.reach == .online)") { await load() }
@@ -348,29 +347,16 @@ struct FileDetailView: View {
         }
     }
 
-    private var trashBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "trash").foregroundStyle(.secondary)
-            Text("This file is in Recently Deleted.")
-                .font(.callout)
-            Spacer()
-            Button("Recover") { withAnimation(.snappy) { context.restore(file) } }
-                .buttonStyle(.amberProminent)
-                .accessibilityIdentifier("file.recover")
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 18))
-        .padding(12)
-    }
-
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         #if os(macOS)
-        // Where a note's toolbar has it: compose first.
-        ToolbarItem {
-            ComposeButton(newNote: onNewNote) {
-                Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+        // Where a note's toolbar has it: compose first. Not in Recently Deleted, like Notes.
+        if file.trashedAt == nil {
+            ToolbarItem {
+                ComposeButton(newNote: onNewNote) {
+                    Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+                }
+                .accessibilityIdentifier("file.newNote")
             }
         }
         ToolbarSpacer(.flexible)
@@ -389,9 +375,12 @@ struct FileDetailView: View {
                     .accessibilityIdentifier("file.dragOut")
             }
             #endif
-            ToolbarItem {
-                ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
-                    .accessibilityIdentifier("file.share")
+            // A deleted file isn't shared: More alone (Recover, Delete Forever), as for a note.
+            if file.trashedAt == nil {
+                ToolbarItem {
+                    ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
+                        .accessibilityIdentifier("file.share")
+                }
             }
         }
         ToolbarItem {

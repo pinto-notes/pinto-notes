@@ -20,6 +20,8 @@ struct CodeFileView: View {
     @State private var saved = true
     @State private var preview: Bool
     @State private var saveTask: Task<Void, Never>?
+    /// Trying to change a file in Recently Deleted: Notes' "can't be edited" prompt.
+    @State private var askingRecover = false
 
     init(file: Attachment, url: URL, preview: Bool = CodeFileView.capturePreview) {
         self.file = file
@@ -31,6 +33,9 @@ struct CodeFileView: View {
     static var capturePreview: Bool { ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-htmlPreview") }
 
     private var isHTML: Bool { FileKinds.isHTML(file.filename) }
+
+    static let recoverTitle = "Recently deleted files can't be edited."
+    static let recoverMessage = "To edit this file, you'll need to recover it."
     private var language: CodeLanguage { CodeLanguage(filename: file.filename) }
 
     var body: some View {
@@ -43,12 +48,20 @@ struct CodeFileView: View {
                 LockedHTMLView(html: text)
                     .accessibilityIdentifier("file.htmlPreview")
             } else {
-                CodeTextView(text: $text, language: language, editable: file.trashedAt == nil)
+                CodeTextView(text: $text, language: language, editable: file.trashedAt == nil,
+                             askToRecover: file.trashedAt == nil ? nil : { askingRecover = true })
                     .accessibilityIdentifier("file.code")
                     .onChange(of: text) { _, _ in scheduleSave() }
             }
         }
         .background(Color.notePage)
+        .alert(Self.recoverTitle, isPresented: $askingRecover) {
+            Button("Cancel", role: .cancel) {}
+            Button("Recover") { withAnimation(.snappy) { context.restore(file) } }
+                .keyboardShortcut(.defaultAction)
+        } message: {
+            Text(Self.recoverMessage)
+        }
         .task(id: url) {
             let data = (try? Data(contentsOf: url)) ?? Data()
             text = String(data: data, encoding: .utf8) ?? String(decoding: data, as: UTF8.self)
@@ -260,6 +273,9 @@ struct CodeTextView: NSViewRepresentable {
     @Binding var text: String
     let language: CodeLanguage
     let editable: Bool
+    /// Recently Deleted: the text takes a caret and a selection, and any change asks to recover
+    /// the file instead (paste, drop and typing alike).
+    var askToRecover: (() -> Void)? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
@@ -275,7 +291,7 @@ struct CodeTextView: NSViewRepresentable {
         tv.drawsBackground = false
         tv.textContainerInset = NSSize(width: 16, height: 14)
         tv.font = CodePalette.font
-        tv.isEditable = editable
+        tv.isEditable = editable || askToRecover != nil
         tv.delegate = context.coordinator
         tv.string = text
         highlightCode(tv.textStorage!, language)
@@ -285,7 +301,8 @@ struct CodeTextView: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let tv = scroll.documentView as? NSTextView else { return }
-        tv.isEditable = editable
+        context.coordinator.parent = self
+        tv.isEditable = editable || askToRecover != nil
         if tv.string != text {
             tv.string = text
             highlightCode(tv.textStorage!, language)
@@ -298,6 +315,12 @@ struct CodeTextView: NSViewRepresentable {
         var parent: CodeTextView
         private var pending: Task<Void, Never>?
         init(_ p: CodeTextView) { parent = p }
+
+        func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
+            guard let ask = parent.askToRecover else { return true }
+            ask()
+            return false
+        }
 
         func textDidChange(_ n: Notification) {
             guard let tv = n.object as? NSTextView else { return }
@@ -316,6 +339,8 @@ struct CodeTextView: UIViewRepresentable {
     @Binding var text: String
     let language: CodeLanguage
     let editable: Bool
+    /// Recently Deleted: a tap asks to recover the file (a long press still selects, to copy).
+    var askToRecover: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
@@ -330,10 +355,16 @@ struct CodeTextView: UIViewRepresentable {
         tv.delegate = context.coordinator
         tv.text = text
         highlightCode(tv.textStorage, language)
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped))
+        tap.isEnabled = askToRecover != nil
+        tv.addGestureRecognizer(tap)
+        context.coordinator.tap = tap
         return tv
     }
 
     func updateUIView(_ tv: UITextView, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.tap?.isEnabled = askToRecover != nil
         tv.isEditable = editable
         if tv.text != text {
             tv.text = text
@@ -346,7 +377,10 @@ struct CodeTextView: UIViewRepresentable {
     @MainActor final class Coordinator: NSObject, UITextViewDelegate {
         var parent: CodeTextView
         private var pending: Task<Void, Never>?
+        weak var tap: UITapGestureRecognizer?
         init(_ p: CodeTextView) { parent = p }
+
+        @objc func tapped() { parent.askToRecover?() }
 
         func textViewDidChange(_ tv: UITextView) {
             parent.text = tv.text

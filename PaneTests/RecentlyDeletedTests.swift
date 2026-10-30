@@ -70,17 +70,6 @@ import Testing
         controller.insertTable()
         #expect(target.applied == 1, "Format, Checklist and Table do nothing to a note in Recently Deleted")
     }
-
-    #if os(macOS)
-    /// The banner over a deleted note, light and dark (offscreen; AMBER_HIG_SHOTS only).
-    @Test func trashBannerPicture() async throws {
-        guard let dir = ImportSheetSnapshots.dir else { return }
-        for dark in [false, true] {
-            let view = TrashBanner {}.frame(width: 700).background(Color.notePage)
-            try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "80-trash-banner-after-\(dark ? "dark" : "light").png"), size: CGSize(width: 700, height: 74), dark: dark)
-        }
-    }
-    #endif
 }
 
 extension RecentlyDeletedTests {

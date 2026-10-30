@@ -12,6 +12,8 @@ final class EditorController {
     var isEditing = false
     /// A note in Recently Deleted: shown, not changed (like Notes). Recover it to edit.
     var readOnly = false
+    /// Typing, clicking or tapping into a note in Recently Deleted: the note screen asks to recover it.
+    @ObservationIgnored var askToRecover: () -> Void = {}
     /// Shown, and nothing more: no caret, keyboard, selection, menu, link or tick (the iPhone's
     /// welcome note before sign-in; once it's handed over it's an ordinary note).
     var inert = false

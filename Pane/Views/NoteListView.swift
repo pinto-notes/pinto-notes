@@ -485,7 +485,7 @@ struct NoteListView: View {
             } else {
                 // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
                 // holds no new notes: the note it made went elsewhere.
-                SearchComposeBar(newNote: onNewNote, disabled: scope == .trash, tip: true)
+                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true)
             }
             #else
             // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count
@@ -523,17 +523,20 @@ struct NoteListView: View {
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarSpacer(.flexible)
-            // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29).
-            ToolbarItem {
-                ComposeButton(newNote: onNewNote) {
-                    // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-                    Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+            // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in Recently
+            // Deleted, which holds no new notes, like Notes.
+            if scope != .trash {
+                ToolbarItem {
+                    ComposeButton(newNote: onNewNote) {
+                        // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
+                        Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
+                    }
+                    .help("New Note (⌘N). Click and hold for New App.")
+                    .newAppTip()
+                    // The menu bar's quick capture is the other way to start a note.
+                    .paneTip(MenuBarTip(), arrowEdge: .top)
+                    .accessibilityIdentifier("list.newNote")
                 }
-                .help("New Note (⌘N). Click and hold for New App.")
-                .newAppTip()
-                // The menu bar's quick capture is the other way to start a note.
-                .paneTip(MenuBarTip(), arrowEdge: .top)
-                .accessibilityIdentifier("list.newNote")
             }
             #endif
         }
