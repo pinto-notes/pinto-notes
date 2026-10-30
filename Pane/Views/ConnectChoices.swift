@@ -962,10 +962,11 @@ struct ConnectChoices: View {
         }
     }
 
-    /// One AI in the library: its mark, its name, one line, and Add or its menu.
+    /// One AI in the library: its bare mark (no white box: Emil, 2026-10-30), its name, one
+    /// line, and Add or its menu.
     private func libraryRow(_ g: Guide, accounts: [Connection]) -> some View {
         HStack(spacing: 10) {
-            AITile(ai: g.title, size: 28)
+            AIGlyph(ai: g.title, size: 20).frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(g.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
                 Text(ConnectCopy.libraryLine(g, accounts: accounts, working: run.guide == g && run.phase != nil ? detail(g) : nil))

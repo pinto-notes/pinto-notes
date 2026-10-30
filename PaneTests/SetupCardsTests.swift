@@ -102,6 +102,15 @@ import Testing
         #expect(ConnectCopy.anotherAccount("Claude") == "Add another Claude account")
     }
 
+    /// The library shows each AI's bare mark, never the white tile (Emil, 2026-10-30).
+    @Test func theLibraryHasNoWhiteTiles() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Pane/Views/ConnectChoices.swift"), encoding: .utf8)
+        let row = try #require(src.range(of: "private func libraryRow"))
+        let body = src[row.lowerBound...].prefix(400)
+        #expect(body.contains("AIGlyph(") && !body.contains("AITile("))
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)
