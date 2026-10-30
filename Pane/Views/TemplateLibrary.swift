@@ -153,6 +153,8 @@ struct TemplateLibraryView: View {
                 .frame(width: 300, alignment: .leading)
                 .frame(minHeight: SetupTemplateCard.size.height)
             }
+            // As tall as the card or its words, whichever is more; never the window.
+            .fixedSize(horizontal: false, vertical: true)
             .padding(24)
             .background {
                 RoundedRectangle(cornerRadius: 20, style: .continuous).fill(SetupCards.ground)
