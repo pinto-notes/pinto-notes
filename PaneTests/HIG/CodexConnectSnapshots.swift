@@ -27,7 +27,7 @@ import Testing
           url: https://mcp.pintonotes.com
           http_headers: Authorization=*****
         """
-    static let used = Connection(id: UUID(), name: "Codex", kind: "token", can_write: true, created_at: .now, last_used_at: .now,
+    static let used = Connection(id: UUID(), name: "Codex", kind: "token", created_at: .now, last_used_at: .now,
                                  revoked_at: nil, redirect_host: nil)
 
     static func sheet(_ r: ConnectRequest) -> ConsentSheet {

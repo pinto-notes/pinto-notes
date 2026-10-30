@@ -632,7 +632,7 @@ struct OnboardingFlow: View {
 
     /// Captures: connections by those names.
     static func connections(_ titles: [String]) -> [Connection] {
-        titles.map { Connection(id: UUID(), name: $0, kind: "token", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: nil) }
+        titles.map { Connection(id: UUID(), name: $0, kind: "token", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: nil) }
     }
 
     #if os(iOS)

@@ -53,7 +53,7 @@ import UIKit
     static func guide(connected: Bool = false) -> some View {
         NavigationStack {
             Form { ConnectChoices(client: client, listsConnected: false, preview: connected ? [Connection(id: UUID(), name: "Claude", kind: "oauth",
-                       can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")] : [], previewFound: []) }
+                       created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")] : [], previewFound: []) }
                 .formStyle(.grouped)
                 .navigationTitle("Connect an AI")
                 #if os(iOS)

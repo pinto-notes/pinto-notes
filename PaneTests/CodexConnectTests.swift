@@ -273,7 +273,7 @@ private extension Process {
         let long = AddDeviceNames.clean(String(repeating: "M", count: 200))
         #expect(ConnectCopy.tokenName(.claudeCode, device: long).count <= 80)
         func row(_ name: String) -> Connection {
-            Connection(id: UUID(), name: name, kind: "token", can_write: true, created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: nil)
+            Connection(id: UUID(), name: name, kind: "token", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: nil)
         }
         let since = Date.now.addingTimeInterval(-60)
         #expect(TerminalConnect.isConnected([row("Codex on Studio")], guide: .codex, way: .token, since: since))

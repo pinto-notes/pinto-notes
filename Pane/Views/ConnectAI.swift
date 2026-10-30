@@ -1576,7 +1576,6 @@ struct Connection: Decodable, Identifiable {
     let id: UUID
     let name: String
     let kind: String?
-    let can_write: Bool
     let created_at: Date
     let last_used_at: Date?
     let revoked_at: Date?

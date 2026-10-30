@@ -499,7 +499,7 @@ import Testing
 /// Connect ChatGPT or Claude: where the button goes, and knowing when it worked.
 @Suite struct WebConnectTests {
     private func row(_ name: String, host: String?, kind: String = "oauth", at: Date, revoked: Bool = false) -> Connection {
-        Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: at, last_used_at: nil,
+        Connection(id: UUID(), name: name, kind: kind, created_at: at, last_used_at: nil,
                    revoked_at: revoked ? at : nil, redirect_host: host)
     }
 
@@ -582,7 +582,7 @@ import Testing
     @Test func aRowFinishesOnItsOwnAIsNewConnection() {
         let opened = Date.now.addingTimeInterval(-60)
         func row(_ name: String, kind: String = "oauth", host: String?, ago: TimeInterval = 10) -> Connection {
-            Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: .now.addingTimeInterval(-ago), last_used_at: nil, revoked_at: nil, redirect_host: host)
+            Connection(id: UUID(), name: name, kind: kind, created_at: .now.addingTimeInterval(-ago), last_used_at: nil, revoked_at: nil, redirect_host: host)
         }
         let chatgpt = row("ChatGPT", host: "chatgpt.com"), claude = row("Claude", host: "claude.ai")
         let local = row("claude-code", host: "127.0.0.1"), old = row("ChatGPT", host: "chatgpt.com", ago: 3600)
@@ -682,7 +682,7 @@ import Testing
 /// Connect Incredible: a local app, so the guide never vouches for the name.
 @Suite struct IncredibleConnectTests {
     private func row(host: String?, kind: String = "oauth", at: Date, revoked: Bool = false) -> Connection {
-        Connection(id: UUID(), name: "An app on this computer", kind: kind, can_write: false, created_at: at, last_used_at: nil,
+        Connection(id: UUID(), name: "An app on this computer", kind: kind, created_at: at, last_used_at: nil,
                    revoked_at: revoked ? at : nil, redirect_host: host)
     }
 
@@ -754,7 +754,7 @@ extension AIEditSnapshots {
     @Test func connectSheet() async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
-        let claude = Connection(id: UUID(), name: "Claude", kind: "oauth", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")
+        let claude = Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")
         for dark in [false, true] {
             let d = dark ? "-dark" : ""
             try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: [], previewFound: []), name: "connect-sheet-none\(d)", dark: dark)
@@ -841,7 +841,7 @@ extension AIEditSnapshots {
 /// Every connected row has a mark or a plain glyph and a name: never a blank tile or cut-off text.
 @MainActor @Suite struct ConnectionTileTests {
     static func conn(_ name: String, kind: String?, host: String?) -> Connection {
-        Connection(id: UUID(), name: name, kind: kind, can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: host)
+        Connection(id: UUID(), name: name, kind: kind, created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: host)
     }
 
     @Test func eachConnectionHasAMarkOrAGlyph() {

@@ -74,7 +74,7 @@ export function llmsFullTxt(): string {
     ...FAQ.flatMap((q) => [`### ${q.q}`, "", ...q.a.flatMap((p) => [p, ""])]),
     "## MCP tools",
     "",
-    "A read-only connection sees only the tools marked read.",
+    "Every connection can use every tool.",
     "",
     ...MCP_TOOLS.map((t) => `- \`${t.name}\` (${t.kind}): ${t.description}`),
   ].join("\n") + "\n";
