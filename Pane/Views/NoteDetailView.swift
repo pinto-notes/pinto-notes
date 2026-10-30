@@ -1118,16 +1118,12 @@ struct NoteDetailView: View {
             }
             .sharedBackgroundVisibility(.hidden)
         }
-        // An AI's edit of the text: the changed lines are tinted, and this undoes them. A plain
-        // button, as Notes would have it; it goes with the tint (you type, undo or leave).
-        if let receipt, NoteAIUndo.inBar(receipt, showingPage: showingPage) {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Undo") { undo(receipt) }
-                    .tint(.primary)
-                    .accessibilityLabel(receipt.undoLabel)
-                    .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
-                    .accessibilityIdentifier(NoteAIUndo.identifier)
-            }
+        // Undo, a round button of its own just left of Share and More (Emil, 29 October 2026): it
+        // comes once you change the note and goes when there's nothing left since it opened.
+        // Before you've changed anything it undoes an AI's edit, whose lines are tinted.
+        if let undoButton = NoteAIUndo.button(canUndo: controller.canUndo, canRedo: controller.canRedo, receipt: receipt,
+                                              showingPage: showingPage, trashed: trashed) {
+            ToolbarItem(placement: .primaryAction) { barUndo(undoButton) }
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
 
@@ -1143,6 +1139,35 @@ struct NoteDetailView: View {
                     .accessibilityIdentifier("editor.share")
             }
             moreMenu.tint(.primary)
+        }
+    }
+
+    @ViewBuilder
+    private func barUndo(_ button: NoteAIUndo.Button) -> some View {
+        switch button {
+        case .yours(let canRedo):
+            if canRedo {
+                // A long press offers Redo.
+                Menu {
+                    Button("Redo", systemImage: "arrow.uturn.forward", action: controller.redo)
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                } primaryAction: {
+                    controller.undo()
+                }
+                .tint(.primary)
+                .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
+            } else {
+                Button("Undo", systemImage: "arrow.uturn.backward", action: controller.undo)
+                    .tint(.primary)
+                    .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
+            }
+        case .ai(let receipt):
+            // Titled for VoiceOver ("Undo ChatGPT's changes"); the bar shows the glyph.
+            Button(receipt.undoLabel, systemImage: "arrow.uturn.backward") { undo(receipt) }
+                .tint(.primary)
+                .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
+                .accessibilityIdentifier(NoteAIUndo.identifier)
         }
     }
     #endif
