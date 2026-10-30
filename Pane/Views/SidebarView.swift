@@ -356,15 +356,11 @@ struct SidebarView: View {
 
     /// The folders, All Notes and Recently Deleted.
     private func folderList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
+        #if os(iOS)
         Group {
-            #if os(iOS)
             if editingFolders { editList } else { selectList(files) }
-            #else
-            selectList(files)
-            #endif
         }
         .listStyle(.sidebar)
-        #if os(iOS)
         .scrollContentBackground(.hidden)
         .background(Color(Palette.foldersGround).ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -380,8 +376,10 @@ struct SidebarView: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         #else
-        // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
-        .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
+        selectList(files)
+            .listStyle(.sidebar)
+            // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
+            .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
         #endif
     }
 
