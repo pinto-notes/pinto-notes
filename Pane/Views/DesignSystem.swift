@@ -120,9 +120,14 @@ struct AmberProminentButtonStyle: ButtonStyle {
     var wide = false
     /// A long title in a narrow place takes a second line instead of being cut.
     var wraps = false
+    /// Half of a split button: square on the side that meets the other half.
+    var joined: SplitHalf?
+
+    /// Which half of a split button (Make with ChatGPT | ⌄): the main part leads, the arrow trails.
+    enum SplitHalf { case leading, trailing }
 
     func makeBody(configuration: Configuration) -> some View {
-        AmberProminentButton(configuration: configuration, size: size, wide: wide, wraps: wraps)
+        AmberProminentButton(configuration: configuration, size: size, wide: wide, wraps: wraps, joined: joined)
     }
 
     /// The fills and the label's colour, for the contrast test.
@@ -137,6 +142,10 @@ extension ButtonStyle where Self == AmberProminentButtonStyle {
     static var amberProminent: AmberProminentButtonStyle { .init() }
     static var amberProminentWrapping: AmberProminentButtonStyle { .init(wraps: true) }
     static func amberProminent(_ size: ButtonSize, wide: Bool = false) -> AmberProminentButtonStyle { .init(size: size, wide: wide) }
+    /// One half of a split button; the two sit 1 pt apart.
+    static func amberProminent(_ size: ButtonSize, wide: Bool = false, joined: AmberProminentButtonStyle.SplitHalf) -> AmberProminentButtonStyle {
+        .init(size: size, wide: wide, joined: joined)
+    }
 }
 
 private struct AmberBusyKey: EnvironmentKey { static let defaultValue = false }
@@ -159,6 +168,7 @@ private struct AmberProminentButton: View {
     let size: ButtonSize
     let wide: Bool
     var wraps = false
+    var joined: AmberProminentButtonStyle.SplitHalf?
     @Environment(\.amberBusy) private var busy
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.isFocused) private var isFocused
@@ -173,7 +183,12 @@ private struct AmberProminentButton: View {
     #endif
 
     var body: some View {
-        let shape = AnyShape(RoundedRectangle(cornerRadius: size.radius, style: .continuous))
+        let r = size.radius, inner = 2.0
+        let shape: AnyShape = switch joined {
+        case nil: AnyShape(RoundedRectangle(cornerRadius: r, style: .continuous))
+        case .leading: AnyShape(UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: r, bottomTrailingRadius: inner, topTrailingRadius: inner, style: .continuous))
+        case .trailing: AnyShape(UnevenRoundedRectangle(topLeadingRadius: inner, bottomLeadingRadius: inner, bottomTrailingRadius: r, topTrailingRadius: r, style: .continuous))
+        }
         // A busy button stays solid: it's working, not unavailable.
         let off = !isEnabled && !busy
         let fill = off ? AmberProminentButtonStyle.disabledFill

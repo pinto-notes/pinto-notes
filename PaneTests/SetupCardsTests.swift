@@ -111,6 +111,15 @@ import Testing
         #expect(body.contains("AIGlyph(") && !body.contains("AITile("))
     }
 
+    /// Make with ChatGPT and its arrow are one split button: square where the halves meet, not
+    /// two rounded buttons side by side (Emil, 2026-10-30).
+    @Test func makeAndItsArrowAreOneSplitButton() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
+        #expect(src.contains("joined: .leading") && src.contains("joined: .trailing"))
+        #expect(AmberProminentButtonStyle.amberProminent(.regular, joined: .trailing).joined == .trailing)
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)

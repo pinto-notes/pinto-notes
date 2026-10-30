@@ -220,9 +220,9 @@ struct TemplateLibraryView: View {
                 HStack(spacing: 8) {
                     // A split button: Make with the AI shown, and an arrow to make it with another
                     // (remembered while the library is open).
-                    HStack(spacing: 2) {
+                    HStack(spacing: 1) {
                         Button { make(e, ai) } label: { makeLabel(ai) }
-                            .buttonStyle(.amberProminent(.regular, wide: true))
+                            .buttonStyle(ais.count > 1 ? .amberProminent(.regular, wide: true, joined: .leading) : .amberProminent(.regular, wide: true))
                             .keyboardShortcut(.defaultAction)
                             .accessibilityIdentifier("templates.make")
                         if ais.count > 1 {
@@ -241,7 +241,7 @@ struct TemplateLibraryView: View {
                             }
                             .menuStyle(.button)
                             .menuIndicator(.hidden)
-                            .buttonStyle(.amberProminent(.regular))
+                            .buttonStyle(.amberProminent(.regular, joined: .trailing))
                             .fixedSize()
                             .accessibilityLabel(TemplateLibraryWords.another)
                             .accessibilityIdentifier("templates.makeWith")
