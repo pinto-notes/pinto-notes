@@ -14,7 +14,7 @@ import { parseStored } from "./app_project.ts";
 Deno.env.set("AMBER_MCP_TOOLS", "pages");
 
 // deno-lint-ignore no-explicit-any
-const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}, write = true) => await runTool(name, args, await toolContext(pg, a, write)) as any;
+const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runTool(name, args, await toolContext(pg, a)) as any;
 const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { assert(e instanceof ToolError, String(e)); return (e as Error).message; } throw new Error("expected a ToolError"); };
 
 /** What devices run (page_ct) and what the AI is working on (draft_ct). */
@@ -40,7 +40,7 @@ Deno.test("a project app: the starter and its tests, files, edits, the gate, see
     const paths = made.files.map((f: { path: string }) => f.path);
     for (const f of ["/README.md", "/index.html", "/package.json", "/src/App.tsx", "/src/screens/home.tsx", "/tests/app.test.tsx", "/src/components/ui/button.tsx"]) assert(paths.includes(f), f);
     assertEquals([made.tests, made.smoke?.startsWith("ok"), made.live.startsWith("Live")], ["2 passed, 0 failed", true, true]);
-    assertStringIncludes(JSON.parse((await tool(pg, a, "read_app_file", { id, path: "/package.json" }, false)).content.replace(/^\s*\d+\t/gm, "")).scripts.test, "vitest");
+    assertStringIncludes(JSON.parse((await tool(pg, a, "read_app_file", { id, path: "/package.json" })).content.replace(/^\s*\d+\t/gm, "")).scripts.test, "vitest");
     assertStringIncludes(await fails(tool(pg, a, "create_app", { id })), "already has an app");
 
     // A syntax error is refused outright.
@@ -55,7 +55,7 @@ Deno.test("a project app: the starter and its tests, files, edits, the gate, see
     let b = await boxes(pg, a, id);
     assert(!b.live!.files["/src/screens/settings.tsx"].includes("settings broke") && b.draft!.files["/src/screens/settings.tsx"].includes("settings broke"));
     assertEquals(b.why, "smoke check at 390 px: script error after tapping a control\nsmoke check at 1280 px: script error after tapping a control");
-    assertStringIncludes((await tool(pg, a, "read_app_file", { id, path: "/src/screens/settings.tsx" }, false)).content, "settings broke");
+    assertStringIncludes((await tool(pg, a, "read_app_file", { id, path: "/src/screens/settings.tsx" })).content, "settings broke");
     // Held back: no new version, the live page untouched.
     assertEquals(await versions(), versionsBefore);
     // Fixed: live again, the draft gone.
@@ -76,12 +76,12 @@ Deno.test("a project app: the starter and its tests, files, edits, the gate, see
     assertEquals((await boxes(pg, a, id)).draft, null);
 
     // try_app uses the app like a person, on a throwaway copy.
-    const tried = await tool(pg, a, "try_app", { id, steps: [{ type: "Milk", into: "New item" }, { tap: "Add" }, { tap: "Nowhere" }] }, false);
+    const tried = await tool(pg, a, "try_app", { id, steps: [{ type: "Milk", into: "New item" }, { tap: "Add" }, { tap: "Nowhere" }] });
     assert(tried instanceof Content);
     const steps = (tried.structured as { steps: { failed?: string; data_changed?: string[] }[] }).steps;
     assertEquals(steps.map((s) => !s.failed), [true, true, false]);
     assertStringIncludes(steps[1].data_changed!.join(), "items");
-    assertEquals((await tool(pg, a, "run_app_tests", { id }, false)).passed, 2);
+    assertEquals((await tool(pg, a, "run_app_tests", { id })).passed, 2);
     assertStringIncludes(await fails(tool(pg, a, "delete_app_file", { id, path: "/index.html" })), "can't be deleted");
   } finally {
     await closeBrowser();

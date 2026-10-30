@@ -29,8 +29,8 @@ export async function account(pg: PGlite, id?: string): Promise<Account> {
 }
 
 /** A ToolContext with its own vault, as index.ts makes one per request. */
-export async function toolContext(pg: PGlite, a: Account, canWrite = true, client = "Claude"): Promise<ToolContext> {
-  return { sql: sqlFor(pg), userId: a.id, client, canWrite, vault: await vaultOf(a.dk, a.id) };
+export async function toolContext(pg: PGlite, a: Account, client = "Claude"): Promise<ToolContext> {
+  return { sql: sqlFor(pg), userId: a.id, client, vault: await vaultOf(a.dk, a.id) };
 }
 
 type NoteOptions = { id?: string; folder?: string | null; parent?: string | null; pinned?: boolean };
