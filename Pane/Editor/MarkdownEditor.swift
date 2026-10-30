@@ -1403,11 +1403,27 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// empty title line, the body's on a new body line. UIKit sized it by the line break before it,
     /// with the line's spacing on some lines, so it jumped as the first letter went in: small, then
     /// big, in a new note; big, then small, on the line after the title (Emil, 30 October 2026).
+    ///
+    /// And where the letter will be drawn: TextKit counts an empty line's spacing in the line and
+    /// put the caret at its top, 6⅔ pt above where a typed letter goes, under the spacing (on the
+    /// line after the title, the caret dropped as you typed).
     override func caretRect(for position: UITextPosition) -> CGRect {
         var r = super.caretRect(for: position)
-        guard let font = core.emptyLineFont(text, at: offset(from: beginningOfDocument, to: position)) else { return r }
+        let at = offset(from: beginningOfDocument, to: position)
+        guard let font = core.emptyLineFont(text, at: at) else { return r }
+        r.origin.y += spacingAbove(emptyLineAt: at)
         r.size.height = Self.caretHeight(font, scale: traitCollection.displayScale)
         return r
+    }
+
+    /// How much of the empty line at `location` is its spacing, drawn above a letter typed there.
+    private func spacingAbove(emptyLineAt location: Int) -> CGFloat {
+        guard location < textStorage.length, let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: location),
+              let fragment = tlm.textLayoutFragment(for: loc),
+              let line = fragment.textLineFragments.first,
+              let font = textStorage.attribute(.font, at: location, effectiveRange: nil) as? UIFont else { return 0 }
+        return max(0, line.typographicBounds.height - font.lineHeight)
     }
 
     /// The height UIKit gives the caret next to a letter in `font`: the line's height and a
