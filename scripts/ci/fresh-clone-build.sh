@@ -42,18 +42,18 @@ build() {  # build NAME DESTINATION [settings…]
     return 1
   fi
 }
-status=0
+failed=0
 if [[ $WHAT == all || $WHAT == mac ]]; then
-  build mac 'platform=macOS' || status=1
+  build mac 'platform=macOS' || failed=1
   if [[ -d $TMP/dd-mac/Build/Products/Debug/Pane.app ]]; then
     codesign -dv "$TMP/dd-mac/Build/Products/Debug/Pane.app" 2>&1 | grep -q "Signature=adhoc" \
-      || { echo "✘ the Mac app isn't ad-hoc signed" >&2; status=1; }
+      || { echo "✘ the Mac app isn't ad-hoc signed" >&2; failed=1; }
     id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$TMP/dd-mac/Build/Products/Debug/Pane.app/Contents/Info.plist")
-    [[ $id == org.example.freshnotes ]] || { echo "✘ make-it-yours.sh's bundle id didn't reach the app ($id)" >&2; status=1; }
+    [[ $id == org.example.freshnotes ]] || { echo "✘ make-it-yours.sh's bundle id didn't reach the app ($id)" >&2; failed=1; }
   fi
 fi
 if [[ $WHAT == all || $WHAT == simulator ]]; then
   # One architecture: the check is that it compiles and signs, not that it runs on an Intel Mac.
-  build simulator 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=NO || status=1
+  build simulator 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=NO || failed=1
 fi
-exit $status
+exit $failed
