@@ -45,6 +45,7 @@ struct SettingsPageStudy: View {
     @State var selected: SettingsStudyPage = .place(.ai)
     var back: () -> Void = {}
     @State private var profile = ProfileStore.shared
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         HStack(spacing: 0) {
@@ -68,7 +69,8 @@ struct SettingsPageStudy: View {
             .padding(.leading, 16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        // The notes' own ground: white, and pure black in the dark.
+        .background(scheme == .dark ? Color.black : Color.white)
     }
 
     private var sidebar: some View {
@@ -175,6 +177,7 @@ struct AppearanceStudyPage: View {
 
     @State var mode: Mode = .system
     @State var theme = Theme.all[0]
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         Form {
@@ -245,7 +248,7 @@ struct AppearanceStudyPage: View {
     }
 
     private func themePreview(_ t: Theme) -> some View {
-        Self.window(mode == .dark ? t.dark : t.light)
+        Self.window(mode == .dark || (mode == .system && scheme == .dark) ? t.dark : t.light)
     }
 
     /// A small window: a sidebar strip and a note with a title, lines and a ticked box.
