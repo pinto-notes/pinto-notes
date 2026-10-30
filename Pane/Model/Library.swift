@@ -223,8 +223,9 @@ extension ModelContext {
         saveOrReport()
     }
 
+    /// Into `folder`, out of Recently Deleted if it was there (also into the folder it was in).
     func move(_ note: Note, to folder: Folder) {
-        guard note.folder?.id != folder.id else { return }
+        guard note.folder?.id != folder.id || note.trashedAt != nil else { return }
         note.folder = folder
         note.trashedAt = nil
         note.touch()

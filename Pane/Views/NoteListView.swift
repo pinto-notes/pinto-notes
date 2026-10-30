@@ -6,11 +6,15 @@ import UniformTypeIdentifiers
 struct NoteListView: View {
     @Environment(\.modelContext) private var context
     let scope: Scope
-    /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select in a row's long-press menu or a two-finger swipe).
+    /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
     @Binding var selection: Set<UUID>
     let onNewNote: () -> Void
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
+    /// What Move (a long-press, Select Notes, Recently Deleted) is moving, while its sheet is up.
+    @State private var moving: Set<UUID>?
+    /// Lock Note or Remove Lock from a note's long-press menu (ListLockFlow).
+    @State private var lockRequest: ListLockRequest?
     #endif
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
@@ -18,10 +22,10 @@ struct NoteListView: View {
     /// The window's (RootView), shared with the sidebar's folder counts; a list on its own keeps its own.
     @Environment(LibraryNotes.self) private var windowLibrary: LibraryNotes?
     private var library: LibraryNotes { windowLibrary ?? ownLibrary }
-    /// "Sort By" and "Group By Date", as chosen on this device.
+    /// "Sort By" and "Group By Date", as chosen on this device (grouping per folder).
     @State private var orderStore = ListOrderStore.shared
     /// The order the list is shown in. What a search finds keeps the list's own order, newest first.
-    private var order: ListOrder { search.trimmingCharacters(in: .whitespaces).isEmpty ? orderStore.order : .standard }
+    private var order: ListOrder { search.trimmingCharacters(in: .whitespaces).isEmpty ? orderStore.order(for: scope) : .standard }
     /// In the chosen order, as plain values: nothing here reads a note from the store.
     private var entries: [NoteEntry] { library.entries(in: context, order: orderStore.order) }
     /// Files kept in folders on their own, listed with the notes.
@@ -34,7 +38,7 @@ struct NoteListView: View {
     /// Counts the requests to put the keys in the field (each press of Search or ⌘F).
     @State private var searchFocus = 0
     #endif
-    /// "Add File": the picker, and a file being renamed.
+    /// "Add Files to …": the picker, and a file being renamed.
     @State private var addingFiles = false
     #if os(macOS)
     /// The Import choice, from the list's More menu.
@@ -245,6 +249,7 @@ struct NoteListView: View {
                                 .hoverRow(file.filename, reach: Hover.noteRowReach, selected: Self.quiet(selection, file.id))
                                 .quietSelection()
                                 #if os(iOS)
+                                .contextMenu { menu(for: file, folders: foldersByName) }
                                 .listRowBackground(Color(Palette.row))
                                 #else
                                 .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
@@ -255,23 +260,12 @@ struct NoteListView: View {
             }
 
         }
-        // Right-click acts on the whole selection when the row is part of it, like Notes.
+        #if os(macOS)
+        // Right-click acts on the whole selection when the row is part of it, like Notes. On
+        // iPhone each row has its own long-press menu, with the note as its preview (noteRow).
         .contextMenu(forSelectionType: UUID.self) { ids in
-            #if os(iOS)
-            // Long-press, Select: selecting starts with this row, and a tap adds the next.
-            if !editMode.isEditing, !ids.isEmpty {
-                Button("Select", systemImage: "checkmark.circle") {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        editMode = .active
-                        selection = ids
-                    }
-                }
-                Divider()
-            }
-            #endif
             menu(for: ids, folders: foldersByName)
         }
-        #if os(macOS)
         // Another folder or another library is another list, built new. Kept as one list,
         // SwiftUI worked out the difference row by row and sized every row that came or went:
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
@@ -286,6 +280,13 @@ struct NoteListView: View {
         #if os(iOS)
         .listStyle(.insetGrouped)
         .environment(\.editMode, $editMode)
+        .sheet(isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })) {
+            MoveNotesSheet(current: movingFrom) { f in
+                if let ids = moving { withAnimation(.snappy) { move(ids, to: f) } }
+                endEditing()
+            }
+        }
+        .modifier(ListLockFlow(request: $lockRequest))
         // Offline: a quiet line over the bottom bar (the Mac says it in the sidebar).
         .safeAreaInset(edge: .bottom, spacing: 0) { OfflineLine(sync: sync).animation(.easeOut(duration: 0.25), value: sync?.reach) }
         #endif
@@ -399,6 +400,9 @@ struct NoteListView: View {
             Button("Delete Forever", role: .destructive) {
                 if let ids = pendingForever { performRemove(ids) }
                 pendingForever = nil
+                #if os(iOS)
+                endEditing()
+                #endif
             }
         } message: {
             Text("You can't undo this.")
@@ -419,36 +423,32 @@ struct NoteListView: View {
         .toolbar {
             #if os(iOS)
             // Back on the left, the title in the middle, ••• on the right; new note beside Search at
-            // the bottom (Emil, 29 October 2026). No Select button: a row's long-press menu or a
-            // two-finger swipe starts selecting, as in Notes; while selecting, Done is where ••• was.
+            // the bottom (Emil, 29 October 2026). Select Notes in ••• (or a two-finger swipe) starts
+            // selecting, as in Notes; Recently Deleted has Edit instead of •••. While selecting, a
+            // checkmark ends it, where ••• or Edit was.
             if editMode.isEditing {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        withAnimation(.snappy(duration: 0.25)) {
-                            editMode = .inactive
-                            selection = []
-                        }
-                    }
-                    .fontWeight(.semibold)
-                    .tint(.primary)
-                    .accessibilityIdentifier("list.done")
+                    Button("Done", systemImage: "checkmark") { endEditing() }
+                        .labelStyle(.iconOnly)
+                        .fontWeight(.semibold)
+                        .tint(.primary)
+                        .accessibilityIdentifier("list.done")
+                }
+            } else if scope == .trash {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") { startSelecting() }
+                        .tint(.primary)
+                        .disabled(scopedNotes.isEmpty && scopedFiles.isEmpty)
+                        .accessibilityIdentifier("list.edit")
                 }
             } else {
-                // The list's own menu, as in Notes: how it's sorted and grouped, and adding files.
+                // The list's own menu, in Notes' order (ListMoreMenu).
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        ListOrderMenu(store: orderStore)
-                        if scope != .trash {
-                            Divider()
-                            // Files kept in the folder on their own: PDFs to read, photos, spreadsheets.
-                            Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
-                                .accessibilityIdentifier("list.addFile")
-                        }
-                        // Connect an AI was here; on iPhone it is in Settings only (ConnectHere, 28 October 2026).
-                        if ConnectHere.nudges() {
-                            Divider()
-                            Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
-                                .accessibilityIdentifier("list.connectAI")
+                        ForEach(ListMoreMenu.groups(connectNudge: ConnectHere.nudges()), id: \.self) { group in
+                            Section {
+                                ForEach(group, id: \.self) { moreItem($0, empty: scopedNotes.isEmpty && scopedFiles.isEmpty) }
+                            }
                         }
                     } label: {
                         Label("More", systemImage: "ellipsis")
@@ -458,24 +458,27 @@ struct NoteListView: View {
                 }
             }
             if editMode.isEditing {
+                // Recently Deleted, as in Notes: Move All and Delete All with nothing selected,
+                // Move and Delete once something is. Elsewhere Move and Delete act on the selection.
+                let trash = scope == .trash
+                let titles = trash ? TrashEditBar.titles(selected: selection.count) : ("Move", selection.isEmpty ? "Delete" : "Delete (\(selection.count))")
+                let all = Set(scopedNotes.map(\.id)).union(scopedFiles.map(\.id))
+                let targets = trash && selection.isEmpty ? all : selection
                 ToolbarItem(placement: .bottomBar) {
-                    Menu("Move") {
-                        ForEach(foldersByName) { f in
-                            Button(f.name) { moveSelection(to: f) }
-                        }
-                    }
-                    .disabled(selection.isEmpty || scope == .trash)
-                    // Never amber: the label colour, and Delete in the system red, as in Notes.
-                    .tint(.primary)
-                    .accessibilityIdentifier("list.moveSelected")
+                    Button(titles.0) { moving = targets }
+                        .disabled(targets.isEmpty)
+                        // Never amber: the label colour, and Delete in the system red, as in Notes.
+                        .tint(.primary)
+                        .accessibilityIdentifier("list.moveSelected")
                 }
                 ToolbarSpacer(.flexible, placement: .bottomBar)
                 ToolbarItem(placement: .bottomBar) {
-                    Button(selection.isEmpty ? "Delete" : "Delete (\(selection.count))", role: .destructive) {
-                        remove(selection)
-                        withAnimation(.snappy(duration: 0.25)) { editMode = .inactive }
+                    // Out of Recently Deleted is for good: it asks first (remove).
+                    Button(titles.1, role: .destructive) {
+                        remove(targets)
+                        if !trash { endEditing() }
                     }
-                    .disabled(selection.isEmpty)
+                    .disabled(targets.isEmpty)
                     .tint(.red)
                     .accessibilityIdentifier("list.deleteSelected")
                 }
@@ -489,10 +492,10 @@ struct NoteListView: View {
             // centred, compose on the right.
             ToolbarItem {
                 Menu {
-                    ListOrderMenu(store: orderStore)
+                    ListOrderMenu(store: orderStore, scope: scope)
                     Divider()
                     Button("New Folder", systemImage: "folder.badge.plus") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
-                    Button("Add Files…", systemImage: "doc.badge.plus") { addingFiles = true }
+                    Button(ListMoreMenu.addFilesTitle(folder: context.folderNameForFiles(scope)), systemImage: "doc.badge.plus") { addingFiles = true }
                         .disabled(scope == .trash)
                         .accessibilityIdentifier("list.addFile")
                     Divider()
@@ -601,7 +604,11 @@ struct NoteListView: View {
                             top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil) + RowMetrics.calmAir,
                             togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
                             remove: { note in remove(note) }) { note in
+            #if os(iOS)
+            rowMenu(for: note)
+            #else
             menu(for: note, folders: foldersByName)
+            #endif
         }
         .equatable()
         // On the row as the list holds it, where the list's selection finds it.
@@ -618,6 +625,97 @@ struct NoteListView: View {
     }
 
     #if os(iOS)
+    /// A note's long-press menu (NoteRowMenu): Share, Move and Delete in a row, then the rest.
+    @ViewBuilder
+    private func rowMenu(for note: Note) -> some View {
+        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil)
+        ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+            if i == 0 && note.trashedAt == nil {
+                ControlGroup { ForEach(group, id: \.self) { rowItem($0, note) } }
+            } else {
+                Section { ForEach(group, id: \.self) { rowItem($0, note) } }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rowItem(_ item: NoteRowMenu.Item, _ note: Note) -> some View {
+        switch item {
+        case .share:
+            ShareLink(item: note.body, preview: SharePreview(note.title)) { Label("Share", systemImage: "square.and.arrow.up") }
+                .accessibilityIdentifier("row.share")
+        case .move:
+            Button("Move", systemImage: "folder") { moving = [note.id] }
+                .accessibilityIdentifier("row.move")
+        case .delete:
+            Button("Delete", systemImage: "trash", role: .destructive) { remove(note) }
+                .accessibilityIdentifier("row.delete")
+        case .pin:
+            Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
+                withAnimation(.snappy) { context.togglePin(note) }
+            }
+            .accessibilityIdentifier("row.pin")
+        case .lock:
+            Button("Lock Note", systemImage: "lock") { lockRequest = ListLockRequest(note: note.id, removing: false) }
+                .accessibilityIdentifier("row.lock")
+        case .removeLock:
+            Button("Remove Lock", systemImage: "lock.open") { lockRequest = ListLockRequest(note: note.id, removing: true) }
+                .accessibilityIdentifier("row.removeLock")
+        case .duplicate:
+            Button("Duplicate Note", systemImage: "plus.square.on.square") {
+                withAnimation(.snappy) { _ = context.createNote(in: note.folder.map { .folder($0.id) } ?? .all, body: note.body) }
+            }
+            .accessibilityIdentifier("row.duplicate")
+        case .recover:
+            Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
+                .accessibilityIdentifier("row.recover")
+        }
+    }
+
+    /// One item of the list's ••• menu (ListMoreMenu).
+    @ViewBuilder
+    private func moreItem(_ item: ListMoreMenu.Item, empty: Bool) -> some View {
+        switch item {
+        case .selectNotes:
+            Button("Select Notes", systemImage: "checkmark.circle") { startSelecting() }
+                .disabled(empty)
+                .accessibilityIdentifier("list.selectNotes")
+        case .sortBy, .groupByDate:
+            // ListOrderMenu holds both; it is placed once, for Sort By.
+            if item == .sortBy { ListOrderMenu(store: orderStore, scope: scope) }
+        case .addFiles:
+            // Files kept in the folder on their own, beside its notes: PDFs to read, photos, spreadsheets.
+            Button(ListMoreMenu.addFilesTitle(folder: context.folderNameForFiles(scope)), systemImage: "doc.badge.plus") { addingFiles = true }
+                .accessibilityIdentifier("list.addFile")
+        case .connectAI:
+            // Connect an AI was here; on iPhone it is in Settings only (ConnectHere, 28 October 2026).
+            Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
+                .accessibilityIdentifier("list.connectAI")
+        }
+    }
+
+    private func startSelecting() {
+        withAnimation(.snappy(duration: 0.25)) {
+            selection = []
+            editMode = .active
+        }
+    }
+
+    private func endEditing() {
+        withAnimation(.snappy(duration: 0.25)) {
+            editMode = .inactive
+            selection = []
+        }
+    }
+
+    /// The folder every note being moved is in, if they share one.
+    private var movingFrom: UUID? {
+        let folders = Set((moving ?? []).map { id in context.note(id)?.folder?.id ?? context.attachment(id)?.folderID })
+        guard folders.count == 1, let only = folders.first,
+              (moving ?? []).allSatisfy({ context.note($0)?.trashedAt == nil && context.attachment($0)?.trashedAt == nil }) else { return nil }
+        return only
+    }
+
     /// "Did you know" for what isn't a button here, as a row at the top of the list.
     private var listTip: some View {
         // One grouped card, like What's new: the tip is the row, on the row's own surface.
@@ -824,14 +922,6 @@ struct NoteListView: View {
     private func dragOthers(for id: UUID) -> [UUID]? {
         guard selection.count > 1, selection.contains(id) else { return nil }
         return selection.filter { $0 != id }.sorted { $0.uuidString < $1.uuidString }
-    }
-
-    private func moveSelection(to folder: Folder) {
-        withAnimation(.snappy) { move(selection, to: folder) }
-        #if os(iOS)
-        withAnimation(.snappy(duration: 0.25)) { editMode = .inactive }
-        #endif
-        selection = []
     }
 
     private func remove(_ note: Note) { remove([note.id]) }
@@ -1523,6 +1613,8 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 })
                 .quietSelection()
                 #if os(iOS)
+                // Long-press: the note itself as a tall card, its menu under it (Apple Notes).
+                .contextMenu { menu(note) } preview: { NotePreviewCard(note: note) }
                 .listRowBackground(Color(Palette.row))
                 #endif
         }

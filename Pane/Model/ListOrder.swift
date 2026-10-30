@@ -3,8 +3,8 @@ import Observation
 import SwiftUI
 
 /// How the note list is ordered: "Sort By" and "Group By Date" in the list's menu, as in Apple
-/// Notes. One choice for every folder, kept on this device (never synced). Pinned notes stay on
-/// top in every order.
+/// Notes. Kept on this device (never synced): the sort is one choice for every folder, grouping
+/// is chosen per folder (`ListOrderStore.order(for:)`). Pinned notes stay on top in every order.
 struct ListOrder: Equatable, Sendable {
     enum Key: String, CaseIterable, Identifiable, Sendable {
         case edited, created, title
@@ -62,6 +62,8 @@ struct ListOrder: Equatable, Sendable {
 final class ListOrderStore {
     static let shared = ListOrderStore(defaults: PaneApp.isUnitTestHost ? MemoryDefaults() : .standard)
     static let keyKey = "list.sortBy", reversedKey = "list.sortReversed", groupKey = "list.groupByDate"
+    /// Group By Date as set in each folder, by `ListOrderStore.key(of:)`.
+    static let groupsKey = "list.groupByDate.byFolder"
 
     var order: ListOrder {
         didSet {
@@ -72,6 +74,11 @@ final class ListOrderStore {
         }
     }
 
+    /// Group By Date in the folders where it was set; the others follow `order.groupsByDate`.
+    private var groups: [String: Bool] {
+        didSet { if groups != oldValue { defaults.set(groups, forKey: Self.groupsKey) } }
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -79,12 +86,33 @@ final class ListOrderStore {
         order = ListOrder(key: defaults.string(forKey: Self.keyKey).flatMap(ListOrder.Key.init) ?? .edited,
                           reversed: defaults.bool(forKey: Self.reversedKey),
                           groupsByDate: defaults.object(forKey: Self.groupKey) as? Bool ?? true)
+        groups = defaults.dictionary(forKey: Self.groupsKey) as? [String: Bool] ?? [:]
+    }
+
+    /// The order one list is shown in: the sort every list shares, with that folder's grouping.
+    func order(for scope: Scope) -> ListOrder {
+        var o = order
+        if let g = groups[Self.key(of: scope)] { o.groupsByDate = g }
+        return o
+    }
+
+    /// Group By Date in one folder, as in Apple Notes, where each folder keeps its own.
+    func setGroupsByDate(_ on: Bool, for scope: Scope) { groups[Self.key(of: scope)] = on }
+
+    static func key(of scope: Scope) -> String {
+        switch scope {
+        case .all: "all"
+        case .trash: "trash"
+        case .folder(let id): id.uuidString
+        }
     }
 }
 
 /// "Sort By" and "Group By Date", for the list's menu on the Mac, iPhone and iPad.
 struct ListOrderMenu: View {
     @Bindable var store: ListOrderStore
+    /// The list the menu is for: Group By Date is set for it alone.
+    let scope: Scope
 
     var body: some View {
         Menu("Sort By", systemImage: "arrow.up.arrow.down") {
@@ -104,7 +132,7 @@ struct ListOrderMenu: View {
         .accessibilityIdentifier("list.sortBy")
         // Titles in order have no dates to group by.
         Menu("Group By Date", systemImage: "calendar") {
-            Picker("Group By Date", selection: $store.order.groupsByDate) {
+            Picker("Group By Date", selection: Binding(get: { store.order(for: scope).groupsByDate }, set: { store.setGroupsByDate($0, for: scope) })) {
                 Text("On").tag(true)
                 Text("Off").tag(false)
             }

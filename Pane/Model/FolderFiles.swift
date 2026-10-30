@@ -63,6 +63,15 @@ extension ModelContext {
         return defaultFolder()
     }
 
+    /// The name of the folder `folderForFiles` uses, without making one: the menu item that adds
+    /// files says where they go. One small fetch, not every folder.
+    func folderNameForFiles(_ scope: Scope) -> String {
+        if case .folder(let id) = scope, let f = folder(id), f.deletedAt == nil { return f.name }
+        var top = FetchDescriptor<Folder>(predicate: #Predicate { $0.parent == nil && $0.deletedAt == nil }, sortBy: [SortDescriptor(\.sortIndex)])
+        top.fetchLimit = 1
+        return (try? fetch(top))?.first?.name ?? "Notes"
+    }
+
     func trash(_ file: Attachment) {
         file.trashedAt = .now
         file.touch()
