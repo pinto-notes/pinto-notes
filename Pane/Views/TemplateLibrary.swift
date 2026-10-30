@@ -151,7 +151,7 @@ struct TemplateLibraryView: View {
                     }
                 }
                 .frame(width: 300, alignment: .leading)
-                .frame(height: SetupTemplateCard.size.height)
+                .frame(minHeight: SetupTemplateCard.size.height)
             }
             .padding(24)
             .background {
