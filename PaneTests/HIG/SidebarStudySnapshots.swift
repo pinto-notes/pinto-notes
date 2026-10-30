@@ -17,7 +17,7 @@ import Testing
         ZStack(alignment: .topLeading) {
             RootView().allowsHitTesting(false)
             NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
-                .environment(Self.backend)
+                .overlay(alignment: .bottomLeading) { Self.foot }
                 .frame(width: 259, height: Self.size.height - 16)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -30,7 +30,25 @@ import Testing
         .modelContainer(library)
     }
 
-    /// Signed in, so the foot of the sidebar shows you (Templates and Import sit just above).
+    /// The sidebar's foot as the signed-in app draws it: Templates and Import, then you. Drawn
+    /// over the sidebar because a signed-in sidebar draws no folders offscreen (the Mac look's
+    /// own signed-in shots are blank too, 2026-10-30).
+    static var foot: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 0) {
+                SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates")
+                SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import")
+            }
+            .padding(.leading, SidebarStyle.edge(nested: true))
+            .padding(.bottom, 4)
+            AccountButton(backend: backend)
+                .padding(.leading, SidebarStyle.edge(nested: true) - 8)
+        }
+        .padding(.trailing, 10)
+        .padding(.bottom, 8)
+    }
+
+    /// Signed in, so the foot shows you.
     static let backend: Backend = {
         let b = Backend()
         b.showSignedInForPreview(email: "sara@example.com")
@@ -65,8 +83,8 @@ import Testing
     private func shots(_ both: SidebarStudy, lib: ModelContainer, mode: String, dark: Bool) async throws {
         try await AppSnapshotTests.shoot(window(both, library: lib), name: "study-marks-\(mode)", size: Self.size, dark: dark, wait: 1.0)
         let sidebar = NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+            .overlay(alignment: .bottomLeading) { Self.foot }
             .frame(width: 260, height: 560)
-            .environment(Self.backend)
             .environment(\.sidebarStudy, both)
             .environment(\.controlActiveState, .key)
             .tint(Color(PColor.paneAccent))
