@@ -1,5 +1,11 @@
-#if os(macOS)
 import SwiftUI
+
+extension EnvironmentValues {
+    /// Inside a Settings page that has its own title, so a page's first section needs none.
+    @Entry var settingsAsPage = false
+}
+
+#if os(macOS)
 
 /// Design study (2026-10-30): Settings as a page of the window, not a sheet. While it is open the
 /// sidebar lists Settings' pages instead of folders, and the page fills the rest (T3 Code's,
@@ -45,8 +51,7 @@ struct SettingsPageStudy: View {
             sidebar
                 .frame(width: 259)
                 .frame(maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 14, style: .continuous))
                 .padding(8)
             VStack(alignment: .leading, spacing: 0) {
                 Text(selected.title)
@@ -54,12 +59,14 @@ struct SettingsPageStudy: View {
                     .foregroundStyle(Color.ink)
                     .accessibilityAddTraits(.isHeader)
                     .padding(.horizontal, 20)
-                    .padding(.top, 28)
-                    .frame(maxWidth: SettingsStudyLayout.page, alignment: .leading)
+                    .padding(.top, 44)
                 page(selected)
-                    .frame(maxWidth: SettingsStudyLayout.page, maxHeight: .infinity, alignment: .top)
+                    .environment(\.settingsAsPage, true)
+                    .frame(maxHeight: .infinity, alignment: .top)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: SettingsStudyLayout.page, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.leading, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(nsColor: .textBackgroundColor))
     }

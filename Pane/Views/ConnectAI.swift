@@ -1636,6 +1636,7 @@ struct ConnectAISection: View {
     let client: SupabaseClient
     /// Captures: shows these instead of asking the server.
     var preview: [Connection]? = nil
+    @Environment(\.settingsAsPage) private var asPage
     @Environment(\.connectStudy) private var study
     @State private var anyConnected = false
 
@@ -1719,7 +1720,8 @@ struct ConnectAISection: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text(ConnectAISheet.title)
+            // A Settings page (the study) names it in its own title already.
+            if !asPage { Text(ConnectAISheet.title) }
         }
     }
 }
