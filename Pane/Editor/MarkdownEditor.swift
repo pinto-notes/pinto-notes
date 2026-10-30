@@ -1029,8 +1029,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The keyboard is somewhere else, in a table cell say. Through the text-input call
         // below, iOS then ran the new text past that keyboard's smart punctuation a moment
         // later: a table's `---` came out as `—` and it was a table no more. Straight into
-        // the storage, as a change from elsewhere goes in, the text stays as given.
-        guard isFirstResponder else {
+        // the storage, as a change from elsewhere goes in, the text stays as given. Not a tick
+        // or its sinking (`quietEdit`): a change from elsewhere clears the text view's undo
+        // stack, so they go through the text-input call with the keyboard down too.
+        guard isFirstResponder || quietEdit else {
             guard NSMaxRange(edit.range) <= textStorage.length else { return }
             let keep = selectedRange
             let old = (textStorage.string as NSString).substring(with: edit.range)
@@ -1039,9 +1041,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             // view drops its typing steps on a change like this anyway). This change is a step of
             // its own, so a tick with the keyboard down can be undone. (Not while that step is
             // being undone or redone: clearing the stack then hung the undo manager.)
-            if let undo = undoManager, !undo.isUndoing, !undo.isRedoing { undo.removeAllActions() }
-            let back = TextEdit(range: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), replacement: old, caret: -1)
-            undoManager?.registerUndo(withTarget: self) { $0.apply(back) }
+            if let undo = undoManager {
+                if !undo.isUndoing, !undo.isRedoing { undo.removeAllActions() }
+                let back = TextEdit(range: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), replacement: old, caret: -1)
+                undo.registerUndo(withTarget: self) { $0.apply(back) }
+            }
             let caret = min(edit.caret, textStorage.length)
             if let kept = edit.selection, NSMaxRange(kept) <= textStorage.length { selectedRange = kept }
             else {
@@ -1055,7 +1059,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
               let end = position(from: start, offset: edit.range.length),
               let range = textRange(from: start, to: end) else { return }
         core.applyingEdit = true
+        // A tick's step of Undo (`asOneStep`) covers it: none of the text view's own.
+        if quietEdit { undoManager?.disableUndoRegistration() }
         replace(range, withText: edit.replacement)
+        if quietEdit { undoManager?.enableUndoRegistration() }
         core.applyingEdit = false
         if let keep = edit.selection, NSMaxRange(keep) <= (text as NSString).length { selectedRange = keep }
         else if edit.caret >= 0 { selectedRange = NSRange(location: min(edit.caret, (text as NSString).length), length: 0) }
@@ -1580,7 +1587,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let offset = contentOffset
         // The circle's place before the edit, while the line's layout is still current.
         let circle = core.checkboxRect(line: line, layout: textLayoutManager)
-        apply(edit)
+        asOneStep { apply(edit) }
         selectedRange = keep
         setContentOffset(offset, animated: false)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -1600,7 +1607,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                                         origin: CGPoint(x: textContainerInset.left, y: textContainerInset.top), width: bounds.width)
         let pictures = frames.compactMap { resizableSnapshotView(from: $0, afterScreenUpdates: false, withCapInsets: .zero) }
         let offset = contentOffset
-        apply(TextEdit(range: edit.range, replacement: edit.replacement, caret: -1))
+        // Part of the tick's step of Undo: one Undo puts the item back unticked where it was.
+        withoutUndo { apply(TextEdit(range: edit.range, replacement: edit.replacement, caret: -1)) }
         selectedRange = NSRange(location: edit.caret >= 0 ? edit.caret : sel.location, length: edit.caret >= 0 ? 0 : sel.length)
         setContentOffset(offset, animated: false)
         guard pictures.count == old.count, let first = frames.first, let last = frames.last else { return }
@@ -1609,6 +1617,48 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let tops = ReorderSlide.targets(heights: frames.map(\.height), moves: moves)
         core.slideStarted(ReorderSlide.play(in: self, rows: Array(zip(pictures, frames)).map { ($0, $1) }, newTops: tops,
                                             lines: moves.map { starts[min($0, starts.count - 1)] }, cover: first.union(last), pageColor: .panePage))
+    }
+
+    // MARK: A tick and the sinking after it: one step of Undo
+
+    /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
+    /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.
+    private func asOneStep(_ change: () -> Void) {
+        let before = text ?? "", selection = selectedRange
+        withoutUndo(change)
+        registerStep(back: before, selection: selection)
+    }
+
+    /// Set while a change goes in without a step of Undo of its own (`apply`).
+    private var quietEdit = false
+
+    private func withoutUndo(_ change: () -> Void) {
+        let was = quietEdit
+        quietEdit = true
+        defer { quietEdit = was }
+        change()
+    }
+
+    /// What a tick's step is registered with, apart from the text view's own steps.
+    private final class StepTarget {
+        weak var view: PaneTextView?
+        init(_ view: PaneTextView) { self.view = view }
+    }
+    private lazy var stepTarget = StepTarget(self)
+
+    private func registerStep(back to: String, selection: NSRange) {
+        guard to != text else { return }
+        undoManager?.registerUndo(withTarget: stepTarget) { target in
+            guard let view = target.view else { return }
+            let now = view.text ?? "", kept = view.selectedRange
+            view.core.endSlides()
+            if let e = TextDiff.edit(from: now, to: to) {
+                view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
+            }
+            if NSMaxRange(selection) <= (to as NSString).length { view.selectedRange = selection }
+            // Registered while undoing, this is the Redo.
+            view.registerStep(back: now, selection: kept)
+        }
     }
 
     // MARK: Hardware keyboard
@@ -2343,7 +2393,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             // line again yet, and the pop landed a row or two higher, over the heading.
             let circle = core.checkboxRect(line: line, layout: textLayoutManager)
             let keep = selectedRange()
-            apply(edit)
+            asOneStep { apply(edit) }
             setSelectedRange(keep)
             if edit.replacement == "x", let r = circle, let host = layer {
                 // In this view's light or dark, so the pop is the colour of the circle it lands on.
@@ -2364,6 +2414,40 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         return storage.attribute(.link, at: i, effectiveRange: nil) != nil
     }
 
+    // MARK: A tick and the sinking after it: one step of Undo
+
+    /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
+    /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.
+    private func asOneStep(_ change: () -> Void) {
+        let before = string, selection = selectedRange()
+        // Typing after the tick is a step of its own, not more of the typing before it.
+        breakUndoCoalescing()
+        withoutUndo(change)
+        registerStep(back: before, selection: selection)
+    }
+
+    private func withoutUndo(_ change: () -> Void) {
+        guard let undo = undoManager else { change(); return }
+        undo.disableUndoRegistration()
+        defer { undo.enableUndoRegistration() }
+        change()
+    }
+
+    private func registerStep(back to: String, selection: NSRange) {
+        guard to != string else { return }
+        undoManager?.registerUndo(withTarget: self) { view in
+            let now = view.string, kept = view.selectedRange()
+            view.core.endSlides()
+            view.breakUndoCoalescing()
+            if let e = TextDiff.edit(from: now, to: to) {
+                view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
+            }
+            if NSMaxRange(selection) <= (to as NSString).length { view.setSelectedRange(selection) }
+            // Registered while undoing, this is the Redo.
+            view.registerStep(back: now, selection: kept)
+        }
+    }
+
     /// Ticked items sink below the open ones, a moment after the tick, sliding into place.
     /// The caret stays with the text it was in, and nothing scrolls or takes focus.
     private func sortChecklist(around line: Int) {
@@ -2372,7 +2456,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let old = ReorderSlide.lines(of: edit.range, in: string as NSString)
         let frames = ReorderSlide.bands(old.map(\.1.location), layout: textLayoutManager, origin: textContainerOrigin, width: bounds.width)
         let pictures = frames.compactMap { ReorderSlide.picture(of: $0, in: self) }
-        apply(TextEdit(range: edit.range, replacement: edit.replacement, caret: -1))
+        // Part of the tick's step of Undo: one ⌘Z puts the item back unticked where it was.
+        withoutUndo { apply(TextEdit(range: edit.range, replacement: edit.replacement, caret: -1)) }
         setSelectedRange(NSRange(location: edit.caret >= 0 ? edit.caret : sel.location, length: edit.caret >= 0 ? 0 : sel.length))
         guard pictures.count == old.count, let first = frames.first, let last = frames.last else { return }
         let moves = ReorderSlide.moves(old: old.map(\.0), new: edit.replacement.components(separatedBy: "\n"))
