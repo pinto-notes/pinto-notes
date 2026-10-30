@@ -1067,21 +1067,25 @@ final class SyncEngine {
         }
         // Theirs can't be opened here: nothing is merged with it or written over it.
         if s.unreadable { _ = skipUnreadable(s.id, "A note"); return [] }
-        if s.body == n.body && s.locked_body == n.lockedBody { return server }
+        if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) { return server }
         // A locked note's text is sealed: there's nothing to merge line by line.
         let sealed = s.locked_body != nil || n.lockedBody != nil
         // Both typed since the version we last had: where the edits don't touch the same lines,
         // put them together (like Notes), instead of one side's edit going to version history.
+        // Front matter is put together the same way.
         if !sealed, let base = synced[n.id], base.version == n.serverVersion, let sv = s.version,
-           let merged = TextDiff.merge(base: base.body, mine: n.body, theirs: s.body) {
+           let merged = TextDiff.merge(base: base.body, mine: n.body, theirs: s.body),
+           let props = Self.mergeProps(base: base.props, mine: n.frontMatter, theirs: s.hasProps ? s.front_matter : n.frontMatter) {
             let mine = n.body
             var patch = NoteDTO(n).patch
             patch.body = merged
+            patch.front_matter = props
             let saved: [NoteDTO] = try await client.from("notes").update(patch)
                 .eq("id", value: n.id).eq("version", value: Int(sv)).select().execute().value
             // Moved on again meanwhile: the next push tries again.
             guard let row = saved.first else { return [] }
             DebouncedSave.flushAll()
+            n.frontMatter = props
             if n.body == mine {
                 n.body = merged
             } else if let again = TextDiff.merge(base: mine, mine: n.body, theirs: merged) {
@@ -1098,13 +1102,13 @@ final class SyncEngine {
         let copyID = Self.conflictCopyID(of: n.id, server: s.version)
         if s.updated_at > n.updatedAt {
             // Theirs is newer: keep it, and keep ours as a conflicted copy.
-            insertConflictCopy(copyID, body: Self.conflictCopy(of: n.body), folder: n.folder, at: n.updatedAt)
+            insertConflictCopy(copyID, body: Self.conflictCopy(of: n.body), frontMatter: n.frontMatter, folder: n.folder, at: n.updatedAt)
             apply(s, to: n)
             return server
         }
         // Ours is newer: it goes up, and theirs is kept here as a conflicted copy (the server
         // keeps it in note_revisions too), so neither edit is lost.
-        insertConflictCopy(copyID, body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
+        insertConflictCopy(copyID, body: Self.conflictCopy(of: s.body), frontMatter: s.hasProps ? s.front_matter : n.frontMatter, folder: n.folder, at: s.updated_at)
         return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
     }
 
@@ -1119,10 +1123,11 @@ final class SyncEngine {
                            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
-    private func insertConflictCopy(_ id: UUID, body: String, folder: Folder?, at date: Date) {
+    private func insertConflictCopy(_ id: UUID, body: String, frontMatter: String? = nil, folder: Folder?, at date: Date) {
         guard context.note(id) == nil else { return }
         let copy = Note(body: body, folder: folder)
         copy.id = id
+        copy.frontMatter = frontMatter
         copy.createdAt = date
         copy.updatedAt = date
         context.insert(copy)
@@ -1152,6 +1157,16 @@ final class SyncEngine {
             return [s]
         }
         return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+    }
+
+    /// Front matter from both sides, put together like the text: one side's change is taken, and
+    /// changes on both sides are merged line by line. Nil when they can't be put together (the
+    /// note then goes the way a text conflict goes); else what the note gets, which may be none.
+    static func mergeProps(base: String?, mine: String?, theirs: String?) -> String?? {
+        if mine == theirs || theirs == base { return .some(mine) }
+        if mine == base { return .some(theirs) }
+        guard let merged = TextDiff.merge(base: base ?? "", mine: mine ?? "", theirs: theirs ?? "") else { return nil }
+        return .some(merged.isEmpty ? nil : merged)
     }
 
     static func conflictCopy(of body: String) -> String {
@@ -1450,24 +1465,33 @@ final class SyncEngine {
             default: false
             }
         }
-        return r.body == n.body && r.locked_body == n.lockedBody && r.parent_id == n.parentID && r.is_pinned == n.isPinned
+        return r.body == n.body && r.locked_body == n.lockedBody && sameProps(r, n) && r.parent_id == n.parentID && r.is_pinned == n.isPinned
             && near(r.trashed_at, n.trashedAt) && near(r.deleted_at, n.deletedAt) && r.folder_id == n.folder?.id
+    }
+
+    /// The same front matter, or a row that says nothing of it.
+    static func sameProps(_ r: NoteDTO, _ n: Note) -> Bool {
+        !r.hasProps || (r.front_matter == n.frontMatter && r.locked_props == n.lockedFrontMatter)
     }
 
     /// The text of each note at the server version this device last had: the common starting
     /// point when both sides typed at once. Kept for this run of the app only.
-    private var synced: [UUID: (version: Int64, body: String)] = [:]
+    private var synced: [UUID: (version: Int64, body: String, props: String?)] = [:]
     /// What was last sent of the API key names (pushAPIKeyNames).
     private var lastKeyNames: String?
 
     private func remember(_ r: NoteDTO) {
-        if let v = r.version { synced[r.id] = (v, r.body) }
+        if let v = r.version { synced[r.id] = (v, r.body, r.hasProps ? r.front_matter : synced[r.id]?.props) }
     }
 
     private func apply(_ r: NoteDTO, to n: Note) {
         remember(r)
         n.body = r.body
         n.lockedBody = r.locked_body
+        if r.hasProps {
+            n.frontMatter = r.front_matter
+            n.lockedFrontMatter = r.locked_props
+        }
         n.parentID = r.parent_id
         n.isPinned = r.is_pinned
         n.createdAt = r.created_at
@@ -1614,6 +1638,14 @@ struct NoteDTO: Codable {
     /// The AI that last changed the note, and when. Set by the server only; never sent.
     var ai_editor: String?
     var ai_edited_at: Date?
+    /// The note's front matter, opened (`props_ct`), and a locked note's, sealed with the notes
+    /// password's key (`locked_props`). Sent only for a note that has some, so a server from
+    /// before them takes every other note as before.
+    var front_matter: String?
+    var locked_props: String?
+    /// The row says what front matter the note has (a server, or a realtime row, from before
+    /// front matter says nothing: the note keeps what it has).
+    var hasProps = false
     /// Doesn't open with this device's key (or is damaged): never applied.
     var unreadable = false
 
@@ -1621,6 +1653,9 @@ struct NoteDTO: Codable {
         id = n.id
         body = n.body
         locked_body = n.lockedBody
+        front_matter = n.frontMatter
+        locked_props = n.lockedFrontMatter
+        hasProps = true
         folder_id = n.folder?.id
         parent_id = n.parentID
         is_pinned = n.isPinned
@@ -1630,7 +1665,7 @@ struct NoteDTO: Codable {
         deleted_at = n.deletedAt
     }
 
-    enum CodingKeys: String, CodingKey { case id, body_ct, head_ct, locked_body, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, deleted_at, version, server_updated_at, ai_editor, ai_edited_at }
+    enum CodingKeys: String, CodingKey { case id, body_ct, head_ct, locked_body, props_ct, locked_props, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, deleted_at, version, server_updated_at, ai_editor, ai_edited_at }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1665,6 +1700,26 @@ struct NoteDTO: Codable {
             body = ""
             unreadable = true
         }
+        hasProps = c.contains(.props_ct) || c.contains(.locked_props)
+        locked_props = try c.decodeIfPresent(String.self, forKey: .locked_props)
+        if let box = try c.decodeIfPresent(String.self, forKey: .props_ct) {
+            // Front matter that doesn't open is as unreadable as text that doesn't.
+            if let props = Wire.sealer?.open(box, context: E2EE.props(id)) { front_matter = props } else { unreadable = true }
+        }
+    }
+
+    /// The front matter columns: sealed with the account's key while the note is open, as the
+    /// password sealed it while it's locked. Nothing for a note that has none (a server from
+    /// before front matter would refuse the columns), and nothing for a tombstone.
+    static func encodeProps(_ c: inout KeyedEncodingContainer<CodingKeys>, id: UUID, props: String?, locked: String?, isLocked: Bool, deleted: Bool) throws {
+        guard props != nil || locked != nil else { return }
+        if deleted {
+            try c.encodeNil(forKey: .props_ct)
+            try c.encodeNil(forKey: .locked_props)
+            return
+        }
+        if !isLocked, let props { try c.encode(Wire.seal(props, E2EE.props(id)), forKey: .props_ct) } else { try c.encodeNil(forKey: .props_ct) }
+        try c.encode(isLocked ? locked : nil, forKey: .locked_props)
     }
 
     /// The text columns, sealed: the body (none for a locked note) and the head. A note deleted
@@ -1688,6 +1743,7 @@ struct NoteDTO: Codable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
         try Self.encodeText(&c, id: id, body: body, locked: locked_body, deleted: deleted_at != nil)
+        try Self.encodeProps(&c, id: id, props: front_matter, locked: locked_props, isLocked: locked_body != nil, deleted: deleted_at != nil)
         try c.encode(folder_id, forKey: .folder_id)
         try c.encode(parent_id, forKey: .parent_id)
         try c.encode(is_pinned, forKey: .is_pinned)
@@ -1701,6 +1757,8 @@ struct NoteDTO: Codable {
         var id: UUID
         var body: String
         var locked_body: String?
+        var front_matter: String?
+        var locked_props: String?
         var folder_id: UUID?
         var parent_id: UUID?
         var is_pinned: Bool
@@ -1711,6 +1769,7 @@ struct NoteDTO: Codable {
         func encode(to encoder: Encoder) throws {
             var c = encoder.container(keyedBy: NoteDTO.CodingKeys.self)
             try NoteDTO.encodeText(&c, id: id, body: body, locked: locked_body, deleted: deleted_at != nil)
+            try NoteDTO.encodeProps(&c, id: id, props: front_matter, locked: locked_props, isLocked: locked_body != nil, deleted: deleted_at != nil)
             try c.encode(folder_id, forKey: .folder_id)
             try c.encode(parent_id, forKey: .parent_id)
             try c.encode(is_pinned, forKey: .is_pinned)
@@ -1720,7 +1779,7 @@ struct NoteDTO: Codable {
         }
     }
 
-    var patch: Patch { Patch(id: id, body: body, locked_body: locked_body, folder_id: folder_id, parent_id: parent_id, is_pinned: is_pinned, updated_at: updated_at, trashed_at: trashed_at, deleted_at: deleted_at) }
+    var patch: Patch { Patch(id: id, body: body, locked_body: locked_body, front_matter: front_matter, locked_props: locked_props, folder_id: folder_id, parent_id: parent_id, is_pinned: is_pinned, updated_at: updated_at, trashed_at: trashed_at, deleted_at: deleted_at) }
 }
 
 /// A file's name, type (a UTType identifier) and size, sealed together as its `meta_ct`.

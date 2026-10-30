@@ -72,9 +72,13 @@ final class Note {
     var summaryTitle: String?
     var summaryPreview: String?
     /// Front matter from an imported Markdown file that Pinto has no use for (aliases, a source,
-    /// a status…), as written, so exporting the note writes it back. Kept on this device only:
-    /// sync doesn't carry it, as the server has no column for it yet.
+    /// a status…), as written, so exporting the note writes it back; its aliases name the note in
+    /// links. Synced sealed with the account's key, like the text (`props_ct`). Nil while the
+    /// note is locked: it's then in `lockedFrontMatter`.
     var frontMatter: String?
+    /// A locked note's front matter, sealed with the notes password's key like `lockedBody`
+    /// (`locked_props`). Never readable while the note is locked.
+    var lockedFrontMatter: String?
 
     init(body: String = "", folder: Folder? = nil) {
         NoteSummaries.install()

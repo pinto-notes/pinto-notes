@@ -136,6 +136,22 @@ import Testing
         #expect(h.controller.wikiSuggestions.isEmpty, "not offered again while typing the same link")
     }
 
+    /// A note's alias is offered as "Alias → Title", and taking it links to the note and reads
+    /// as the alias.
+    @Test func anAliasIsOfferedWithItsNote() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        h.controller.suggestTitles = { typed in typed.lowercased().hasPrefix("opo") ? ["Porto|Oporto"] : [] }
+        await h.select((h.text as NSString).length)
+        await h.type("Flights to [[Opo")
+        #expect(h.controller.wikiSuggestions == ["Porto|Oporto"])
+        let list = h.view.subviews.compactMap { $0 as? NSHostingView<WikiSuggestionList> }.first
+        #expect(list != nil)
+        await h.snapshot("wiki-alias-suggestion-light")
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nFlights to [[Porto|Oporto]]")
+    }
+
     @Test func darkMode() async {
         let h = await EditorHarness(Self.text, dark: true, focus: false)
         defer { h.close() }

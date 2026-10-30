@@ -147,6 +147,23 @@ enum WikiLinks {
         return NSRange(location: at, length: caret - at)
     }
 
+    /// A note's other names, from its front matter (`aliases:`, as Obsidian has them).
+    static func aliases(inFrontMatter text: String?) -> [String] {
+        guard let text, text.lowercased().contains("alias") else { return [] }
+        let props = MarkdownNote.frontMatter(text.components(separatedBy: "\n"))
+        var seen = Set<String>()
+        return ((props["aliases"] ?? []) + (props["alias"] ?? []))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.contains(where: { "[]|#\n".contains($0) }) && seen.insert(key($0)).inserted }
+    }
+
+    /// What a suggestion shows: a title, or for one of a note's aliases (`Title|Alias`, which is
+    /// what it puts in the link) "Alias → Title".
+    static func suggestionLabel(_ suggestion: String) -> String {
+        guard let bar = suggestion.firstIndex(of: "|") else { return suggestion }
+        return "\(suggestion[suggestion.index(after: bar)...]) \u{2192} \(suggestion[..<bar])"
+    }
+
     /// Links read as plain text, for previews and summaries: `[[Page|Alias]]` → "Alias".
     static func plain(_ line: String) -> String {
         guard line.contains("[[") else { return line }
@@ -216,14 +233,26 @@ struct WikiIndex {
         /// Folder names from the top.
         var folders: [String]
         var updated: Date
+        /// Its other names, from its front matter: `[[Alias]]` leads here too.
+        var aliases: [String] = []
     }
 
     private(set) var entries: [Entry]
     private var byKey: [String: [Int]] = [:]
+    private var byAlias: [String: [Int]] = [:]
 
     init(_ entries: [Entry]) {
         self.entries = entries
-        for (i, e) in entries.enumerated() { byKey[WikiLinks.key(e.title), default: []].append(i) }
+        index()
+    }
+
+    private mutating func index() {
+        byKey = [:]
+        byAlias = [:]
+        for (i, e) in entries.enumerated() {
+            byKey[WikiLinks.key(e.title), default: []].append(i)
+            for a in e.aliases { byAlias[WikiLinks.key(a), default: []].append(i) }
+        }
     }
 
     /// Puts in one note's entry as it is now (nil: it isn't live any more). True when that changed
@@ -233,7 +262,8 @@ struct WikiIndex {
         switch (i, entry) {
         case (nil, nil):
             return false
-        case (let i?, let entry?) where WikiLinks.key(entries[i].title) == WikiLinks.key(entry.title) && entries[i].folders == entry.folders:
+        case (let i?, let entry?) where WikiLinks.key(entries[i].title) == WikiLinks.key(entry.title) && entries[i].folders == entry.folders
+                                         && entries[i].aliases == entry.aliases:
             entries[i] = entry
             return false
         case (let i?, let entry?):
@@ -243,13 +273,15 @@ struct WikiIndex {
         case (nil, let entry?):
             entries.append(entry)
         }
-        byKey = [:]
-        for (i, e) in entries.enumerated() { byKey[WikiLinks.key(e.title), default: []].append(i) }
+        index()
         return true
     }
 
     /// Notes with this title.
     func titled(_ title: String) -> [Entry] { (byKey[WikiLinks.key(title)] ?? []).map { entries[$0] } }
+
+    /// Notes with this alias.
+    func aliased(_ name: String) -> [Entry] { (byAlias[WikiLinks.key(name)] ?? []).map { entries[$0] } }
 
     /// The note a link's target points at, seen from a note in `from` (its folder names).
     func resolve(_ target: String, from: [String] = []) -> UUID? {
@@ -258,6 +290,8 @@ struct WikiIndex {
         let folders = WikiLinks.folders(of: target).map { $0.lowercased() }
         if hits.isEmpty {
             hits = titled(WikiLinks.name(of: target))
+            // No note by that name: one of a note's aliases, as Obsidian resolves them.
+            if hits.isEmpty { hits = aliased(WikiLinks.name(of: target)) }
             if !folders.isEmpty {
                 let narrowed = hits.filter { $0.folders.map { $0.lowercased() }.ends(with: folders) }
                 // Folders that don't match (the note was moved) don't lose the link.
@@ -282,7 +316,7 @@ struct WikiIndex {
 
     /// Same index with one note's title swapped (to resolve links as they were before a rename).
     func with(title: String, for id: UUID) -> WikiIndex {
-        WikiIndex(entries.map { $0.id == id ? Entry(id: $0.id, title: title, folders: $0.folders, updated: $0.updated) : $0 })
+        WikiIndex(entries.map { $0.id == id ? Entry(id: $0.id, title: title, folders: $0.folders, updated: $0.updated, aliases: $0.aliases) : $0 })
     }
 }
 
@@ -382,7 +416,7 @@ enum WikiDirectory {
             for id in again {
                 let n = context.note(id)
                 let live = n.map { $0.deletedAt == nil && $0.trashedAt == nil } ?? false
-                let entry = live ? n.map { WikiIndex.Entry(id: $0.id, title: $0.title, folders: context.folderPath($0.folder), updated: $0.updatedAt) } : nil
+                let entry = live ? n.map { WikiIndex.Entry(id: $0.id, title: $0.title, folders: context.folderPath($0.folder), updated: $0.updatedAt, aliases: WikiLinks.aliases(inFrontMatter: $0.frontMatter)) } : nil
                 if index.take(entry, id: id) { generation += 1 }
                 outgoing?[id] = n.flatMap { OutgoingLinks(of: $0, folders: context.folderPath($0.folder)) }
             }
@@ -413,7 +447,8 @@ enum WikiDirectory {
         var outgoing: [UUID: OutgoingLinks] = [:]
         for n in notes {
             let folders = path(n.folder?.id)
-            entries.append(WikiIndex.Entry(id: n.id, title: n.summaryTitle ?? NoteText.head(of: n.body).title, folders: folders, updated: n.updatedAt))
+            entries.append(WikiIndex.Entry(id: n.id, title: n.summaryTitle ?? NoteText.head(of: n.body).title, folders: folders, updated: n.updatedAt,
+                                           aliases: WikiLinks.aliases(inFrontMatter: n.frontMatter)))
             if let links = OutgoingLinks(of: n, folders: folders) { outgoing[n.id] = links }
         }
         for f in folders { _ = path(f.id) }
@@ -433,11 +468,11 @@ enum WikiDirectory {
             paths[ObjectIdentifier(folder)] = p
             return p
         }
-        let index = WikiIndex(notes.map { WikiIndex.Entry(id: $0.id, title: $0.title, folders: path($0.folder), updated: $0.updatedAt) })
+        let index = WikiIndex(notes.map { WikiIndex.Entry(id: $0.id, title: $0.title, folders: path($0.folder), updated: $0.updatedAt, aliases: WikiLinks.aliases(inFrontMatter: $0.frontMatter)) })
         cached = index
         cachedContext = context
         // Most saves are typing: the editor recolours only when a title or folder changed.
-        let signature = index.entries.map { "\($0.id)\u{1F}\(WikiLinks.key($0.title))\u{1F}\($0.folders.joined(separator: "/"))" }.sorted()
+        let signature = index.entries.map { "\($0.id)\u{1F}\(WikiLinks.key($0.title))\u{1F}\($0.folders.joined(separator: "/"))\u{1F}\($0.aliases.joined(separator: "|"))" }.sorted()
         if signature != lastSignature {
             lastSignature = signature
             generation += 1
@@ -478,7 +513,7 @@ enum WikiDirectory {
         var changed = false
         for n in changes.notes {
             let live = n.deletedAt == nil && n.trashedAt == nil
-            let entry = live ? WikiIndex.Entry(id: n.id, title: n.title, folders: context.folderPath(n.folder), updated: n.updatedAt) : nil
+            let entry = live ? WikiIndex.Entry(id: n.id, title: n.title, folders: context.folderPath(n.folder), updated: n.updatedAt, aliases: WikiLinks.aliases(inFrontMatter: n.frontMatter)) : nil
             if index.take(entry, id: n.id) { changed = true }
         }
         cached = index
@@ -507,14 +542,24 @@ enum WikiDirectory {
     }
 
     /// Titles to offer after `[[`: those starting with what's typed, then those containing it,
-    /// each edited last first. Every title once; never the note being written.
+    /// each edited last first. Every title once; never the note being written. A note's alias
+    /// that matches (and its title doesn't) is offered as `Title|Alias`: the link it makes leads
+    /// to the note and reads as the alias (shown "Alias → Title", `WikiLinks.suggestionLabel`).
     static func suggestions(_ typed: String, excluding id: UUID, in context: ModelContext, limit: Int = 5) -> [String] {
         let q = WikiLinks.key(typed)
         let entries = index(context).entries.filter { $0.id != id && !$0.title.isEmpty }.sorted { $0.updated > $1.updated }
         let starts = entries.filter { q.isEmpty || WikiLinks.key($0.title).hasPrefix(q) }
         let contains = q.isEmpty ? [] : entries.filter { e in let k = WikiLinks.key(e.title); return !k.hasPrefix(q) && k.contains(q) }
+        func aliases(_ matches: (String) -> Bool) -> [String] {
+            q.isEmpty ? [] : entries.flatMap { e in
+                WikiLinks.key(e.title).contains(q) ? [] : e.aliases.filter { matches(WikiLinks.key($0)) }.map { "\(e.title)|\($0)" }
+            }
+        }
+        let aliasStarts = aliases { $0.hasPrefix(q) }
+        let aliasContains = aliases { !$0.hasPrefix(q) && $0.contains(q) }
         var seen = Set<String>()
-        return (starts + contains).map(\.title).filter { seen.insert(WikiLinks.key($0)).inserted }.prefix(limit).map { $0 }
+        return (starts.map(\.title) + aliasStarts + contains.map(\.title) + aliasContains)
+            .filter { seen.insert(WikiLinks.key($0)).inserted }.prefix(limit).map { $0 }
     }
 
     /// The index as the editor of `note` sees it. While the index is being read it's empty, and

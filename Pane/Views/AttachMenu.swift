@@ -73,7 +73,7 @@ struct NoteLinkPicker: View {
                         Button { take(title) } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "note.text").foregroundStyle(.secondary).frame(width: 18)
-                                Text(title).lineLimit(1).truncationMode(.tail)
+                                Text(WikiLinks.suggestionLabel(title)).lineLimit(1).truncationMode(.tail)
                                 Spacer(minLength: 0)
                             }
                             .font(.system(size: 13))

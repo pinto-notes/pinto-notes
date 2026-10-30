@@ -41,6 +41,8 @@ enum E2EE {
     static func body(_ id: UUID) -> String { "body:" + id.uuidString.lowercased() }
     static func head(_ id: UUID) -> String { "head:" + id.uuidString.lowercased() }
     static func folder(_ id: UUID) -> String { "folder:" + id.uuidString.lowercased() }
+    /// A note's front matter (`Note.frontMatter`), as `props_ct`.
+    static func props(_ id: UUID) -> String { "props:" + id.uuidString.lowercased() }
     /// A note's page (prototype, NotePage).
     static func page(_ id: UUID) -> String { "page:" + id.uuidString.lowercased() }
     /// A page's own data (prototype, NotePageData).

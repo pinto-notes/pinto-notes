@@ -78,6 +78,42 @@ import Testing
         #expect(lib.resolve("Index", from: ["Elsewhere"]) == Self.entry("", [], 2).id, "then the one edited last")
     }
 
+    /// `[[Alias]]` leads to the note with that alias in its front matter, as in Obsidian; a
+    /// note's own title wins over another's alias.
+    @Test func aliasesNameTheirNote() throws {
+        #expect(WikiLinks.aliases(inFrontMatter: "aliases:\n  - Oporto\n  - \"Porto trip\"\nsource: x") == ["Oporto", "Porto trip"])
+        #expect(WikiLinks.aliases(inFrontMatter: "alias: Lisboa") == ["Lisboa"])
+        #expect(WikiLinks.aliases(inFrontMatter: "source: https://example.com") == [] && WikiLinks.aliases(inFrontMatter: nil) == [])
+
+        let porto = UUID(), oporto = UUID()
+        let lib = WikiIndex([
+            WikiIndex.Entry(id: porto, title: "Porto", folders: ["Trips"], updated: .now, aliases: ["Oporto", "Porto trip"]),
+            WikiIndex.Entry(id: oporto, title: "Lisbon", folders: ["Trips"], updated: .now, aliases: ["Porto"]),
+        ])
+        #expect(lib.resolve("Oporto") == porto && lib.resolve("porto TRIP") == porto && lib.resolve("Trips/Oporto") == porto)
+        #expect(lib.resolve("Porto") == porto, "a title wins over another note's alias")
+
+        // In the app: the library's front matter feeds the index, and `[[` offers the alias.
+        let c = try Self.container()
+        let context = c.mainContext
+        WikiDirectory.invalidate()
+        let n = context.createNote(in: .all, body: "Porto\nFlights")
+        n.frontMatter = "aliases: [Oporto]"
+        let from = context.createNote(in: .all, body: "Trips\nSee [[Oporto]].")
+        try context.save()
+        WikiDirectory.invalidate()
+        #expect(context.resolveWikiLink("Oporto", from: from)?.id == n.id)
+        let offered = WikiDirectory.suggestions("opor", excluding: from.id, in: context)
+        #expect(offered == ["Porto|Oporto"])
+        #expect(WikiLinks.suggestionLabel(offered[0]) == "Oporto \u{2192} Porto" && WikiLinks.suggestionLabel("Porto") == "Porto")
+        #expect(WikiDirectory.suggestions("por", excluding: from.id, in: context) == ["Porto"], "the title, once, when it matches too")
+        // A sync that changes the aliases changes the index.
+        n.frontMatter = "aliases: [Invicta]"
+        try context.save()
+        #expect(context.resolveWikiLink("Invicta", from: from)?.id == n.id && context.resolveWikiLink("Oporto", from: from) == nil)
+        WikiDirectory.invalidate()
+    }
+
     // MARK: Renames
 
     @Test func retargetKeepsFoldersHeadingsAndAliases() {

@@ -439,6 +439,31 @@ private actor HeldLockRemote: NoteLockRemote {
         #expect(!vault.isUnlocked)
     }
 
+    /// A note's front matter is locked with its text: sealed with the password, never kept
+    /// readable beside it, opened again only by the password, and sealed again when it changes.
+    @Test func frontMatterIsLockedWithTheText() async throws {
+        let vault = try device()
+        try await vault.setUp(password: "old pw", hint: nil)
+        let n = context.createNote(in: .all, body: "Bank\n\nPIN")
+        n.frontMatter = "aliases: [Canary-ac31]"
+        try vault.lock(n)
+        #expect(n.frontMatter == nil, "nothing readable stays on the device")
+        let sealed = try #require(n.lockedFrontMatter)
+        #expect(!sealed.contains("Canary") && NoteCrypto.keyID(of: sealed) == vault.settings?.key_id)
+        #expect(vault.frontMatter(of: n) == "aliases: [Canary-ac31]")
+        vault.lockNow()
+        #expect(vault.frontMatter(of: n) == nil)
+        #expect(throws: NoteLockError.notUnlocked) { try vault.removeLock(n) }
+        #expect(n.lockedFrontMatter == sealed, "a failed unlock leaves it sealed")
+
+        try await vault.unlock(password: "old pw")
+        try await vault.changePassword(old: "old pw", new: "new pw", hint: nil, in: context)
+        let again = try #require(n.lockedFrontMatter)
+        #expect(again != sealed && NoteCrypto.keyID(of: again) == vault.settings?.key_id && n.dirty, "sealed again with the new password, to go up")
+        try vault.removeLock(n)
+        #expect(n.frontMatter == "aliases: [Canary-ac31]" && n.lockedFrontMatter == nil)
+    }
+
     @Test func anotherAccountStartsLocked() async throws {
         let vault = try device()
         try await vault.setUp(password: "pw", hint: nil)
@@ -468,6 +493,55 @@ extension NetworkFaults {
         #expect(SyncEngine.same(row, n))
         row.locked_body = "amb2.0123456789abcdef.BBBB"
         #expect(!SyncEngine.same(row, n), "a new sealed text is a change")
+    }
+
+    /// Front matter goes up sealed: with the account's key for an open note, as the password
+    /// sealed it for a locked one, never readable; a note without any sends no columns for it
+    /// (a server from before front matter takes it as before).
+    @Test func frontMatterGoesUpSealedAndComesBack() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let n = ModelContext(c).createNote(in: .all, body: "Porto")
+        let plain = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteDTO(n))) as? [String: Any])
+        #expect(plain["props_ct"] == nil && plain["locked_props"] == nil)
+
+        n.frontMatter = "aliases: [Canary-9d1e]"
+        let data = try JSONEncoder().encode(NoteDTO(n))
+        #expect(!String(decoding: data, as: UTF8.self).contains("Canary"))
+        let sent = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let box = try #require(sent["props_ct"] as? String)
+        #expect(Wire.sealer?.open(box, context: E2EE.props(n.id)) == "aliases: [Canary-9d1e]" && sent["locked_props"] is NSNull)
+        #expect(Wire.sealer?.open(box, context: E2EE.body(n.id)) == nil, "bound to the note's front matter, not its text")
+        let patch = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteDTO(n).patch)) as? [String: Any])
+        #expect(patch["props_ct"] is String)
+        let back = try JSONDecoder().decode(NoteDTO.self, from: data)
+        #expect(back.front_matter == "aliases: [Canary-9d1e]" && back.hasProps && !back.unreadable && SyncEngine.same(back, n))
+
+        // Locked: the password's box goes up as it is, and nothing with the account's key.
+        n.frontMatter = nil
+        n.lockedFrontMatter = "amb2.0123456789abcdef.CCCC"
+        n.lockedBody = "amb2.0123456789abcdef.AAAA"
+        let locked = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteDTO(n))) as? [String: Any])
+        #expect(locked["props_ct"] is NSNull && locked["locked_props"] as? String == "amb2.0123456789abcdef.CCCC")
+        let row = try JSONDecoder().decode(NoteDTO.self, from: JSONSerialization.data(withJSONObject: locked))
+        #expect(row.locked_props == "amb2.0123456789abcdef.CCCC" && row.front_matter == nil)
+
+        // A row from a server without front matter says nothing of it: the note keeps its own.
+        var old = sent
+        old.removeValue(forKey: "props_ct"); old.removeValue(forKey: "locked_props")
+        let older = try JSONDecoder().decode(NoteDTO.self, from: JSONSerialization.data(withJSONObject: old))
+        #expect(!older.hasProps && SyncEngine.sameProps(older, n))
+        // One that doesn't open isn't applied.
+        old["props_ct"] = "amb2.0123456789abcdef.AAAA"
+        #expect(try JSONDecoder().decode(NoteDTO.self, from: JSONSerialization.data(withJSONObject: old)).unreadable)
+    }
+
+    /// Both sides changed a note: front matter is put together like the text.
+    @Test func frontMatterMergesLikeTheText() {
+        #expect(SyncEngine.mergeProps(base: "a: 1", mine: "a: 1", theirs: "a: 2") == .some("a: 2"))
+        #expect(SyncEngine.mergeProps(base: "a: 1", mine: "a: 3", theirs: "a: 1") == .some("a: 3"))
+        #expect(SyncEngine.mergeProps(base: nil, mine: nil, theirs: "a: 2") == .some("a: 2"))
+        #expect(SyncEngine.mergeProps(base: "a: 1\nb: 1\nc: 1", mine: "a: 2\nb: 1\nc: 1", theirs: "a: 1\nb: 1\nc: 2") == .some("a: 2\nb: 1\nc: 2"))
+        #expect(SyncEngine.mergeProps(base: "a: 1", mine: "a: 2", theirs: "a: 3") == nil, "the same line changed both ways: a conflict")
     }
 
     @Test func removingALockSendsTheEmptyColumn() throws {

@@ -81,6 +81,35 @@ extension NetworkFaults {
         await a.engine.stop(); await b.engine.stop()
     }
 
+    /// A note's front matter syncs sealed, reaches the other device, and when both change the
+    /// note at once it's put together like the text: one device's front matter, the other's words.
+    @Test func frontMatterSyncsSealedAndMergesLikeTheText() async throws {
+        let a = try device(), b = try device()
+        let n = a.context.createNote(in: .all, body: "Porto\nFlights on Friday\n\nHotel by the river")
+        n.frontMatter = "aliases: [\(canary) Oporto]\nsource: https://example.com"
+        n.dirty = true
+        await a.engine.sync()
+        #expect(!n.dirty && StubSupabase.note(n.id)?["props_ct"] is String)
+        #expect(!everythingSent().contains(canary), "front matter never reaches the server readable")
+        await b.engine.sync()
+        let there = try #require(b.context.note(n.id))
+        #expect(there.frontMatter == n.frontMatter)
+
+        // B changes the front matter, A the text, both from the same version.
+        there.frontMatter = "aliases: [\(canary) Oporto]\nsource: https://example.org"
+        there.touch()
+        await b.engine.sync()
+        n.body = "Porto\nFlights on Saturday\n\nHotel by the river"
+        n.touch()
+        await a.engine.sync()
+        #expect(n.body == "Porto\nFlights on Saturday\n\nHotel by the river" && n.frontMatter == there.frontMatter, "both changes kept")
+        #expect(StubSupabase.body(n.id) == n.body)
+        await b.engine.sync()
+        #expect(there.body == n.body && there.frontMatter == n.frontMatter)
+        #expect(!((try? a.context.fetch(FetchDescriptor<Note>())) ?? []).contains { $0.title.contains("conflicted copy") }, "no copy: nothing was lost")
+        await a.engine.stop(); await b.engine.stop()
+    }
+
     @Test func anUnchangedNoteRepushesTheSameBox() async throws {
         let a = try device()
         let n = a.context.createNote(in: .all, body: "Same text\nand a preview")

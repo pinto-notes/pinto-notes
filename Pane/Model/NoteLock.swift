@@ -49,6 +49,8 @@ enum NoteCrypto {
 
     /// What a note's box is bound to.
     static func context(of note: UUID) -> String { "note:" + note.uuidString.lowercased() }
+    /// A locked note's front matter: bound to the note, and never mistaken for its text.
+    static func propsContext(of note: UUID) -> String { "note-props:" + note.uuidString.lowercased() }
 
     static func aad(_ keyID: Substring, _ context: String) -> Data {
         Data("\(prefix).\(keyID)|\(context)".utf8)
@@ -406,10 +408,15 @@ final class NoteVault {
         fresh.settings.previous = Array((s.previous + [.init(salt: s.salt, iterations: s.iterations, key_id: s.key_id, proof: proof)]).suffix(50))
         // Sealed again in memory first: the server gets the setup and the notes together.
         var resealed: [(Note, String, String)] = []
+        // Front matter sealed again too; it goes up with the next push, as an ordinary change.
+        var resealedProps: [(Note, String)] = []
         for n in Self.lockedNotes(in: context) {
             guard let text = open(n) else { continue }
             let sealed = try NoteCrypto.seal(text, key: fresh.key, keyID: fresh.settings.key_id, context: NoteCrypto.context(of: n.id))
             resealed.append((n, sealed, Self.titleLine(of: text)))
+            if let props = openProps(n) {
+                resealedProps.append((n, try NoteCrypto.seal(props, key: fresh.key, keyID: fresh.settings.key_id, context: NoteCrypto.propsContext(of: n.id))))
+            }
         }
         var versions: [UUID: Int64] = [:]
         if let remote {
@@ -432,6 +439,10 @@ final class NoteVault {
                 n.touch()
             }
         }
+        for (n, sealed) in resealedProps {
+            n.lockedFrontMatter = sealed
+            n.touch()
+        }
         try? context.save()
         unlocked(with: fresh.key)
     }
@@ -445,7 +456,9 @@ final class NoteVault {
         let key = await Self.derive(password, earlier)
         guard let text = try? NoteCrypto.open(sealed, key: key, context: NoteCrypto.context(of: note.id)) else { throw NoteLockError.wrongPassword }
         keys[id] = key
+        let props = openProps(note)
         try write(text, to: note)
+        if let props { try sealProps(props, to: note) }
     }
 
     // MARK: Locking
@@ -499,17 +512,43 @@ final class NoteVault {
     func lock(_ note: Note) throws {
         guard note.lockedBody == nil else { return }
         if let why = Self.blocker(for: note) { throw why }
+        let props = note.frontMatter
         try write(note.body, to: note)
+        // The front matter is locked with the text: never left readable beside a sealed note.
+        if let props { try sealProps(props, to: note) }
+        note.frontMatter = nil
     }
 
     /// Back to a normal note.
     func removeLock(_ note: Note) throws {
         guard note.lockedBody != nil else { return }
         guard let text = text(of: note) else { throw NoteLockError.notUnlocked }
+        let props = note.lockedFrontMatter == nil ? nil : openProps(note)
+        if note.lockedFrontMatter != nil, props == nil { throw NoteLockError.notUnlocked }
         opened[note.id] = nil
         note.lockedBody = nil
         note.body = text
+        note.lockedFrontMatter = nil
+        note.frontMatter = props
         note.touch()
+    }
+
+    /// A note's front matter, open: as it is for an open note; a locked one's while unlocked.
+    func frontMatter(of note: Note) -> String? {
+        guard note.lockedBody != nil else { return note.frontMatter }
+        return isUnlocked ? openProps(note) : nil
+    }
+
+    /// A locked note's front matter, sealed with the current key and bound to the note.
+    private func sealProps(_ props: String, to note: Note) throws {
+        guard let s = settings, let key = keys[s.key_id] else { throw NoteLockError.notUnlocked }
+        note.lockedFrontMatter = try NoteCrypto.seal(props, key: key, keyID: s.key_id, context: NoteCrypto.propsContext(of: note.id))
+        note.touch()
+    }
+
+    private func openProps(_ note: Note) -> String? {
+        guard let sealed = note.lockedFrontMatter, let id = NoteCrypto.keyID(of: sealed), let key = keys[id] else { return nil }
+        return try? NoteCrypto.open(sealed, key: key, context: NoteCrypto.propsContext(of: note.id))
     }
 
     /// A sealed text with whichever key this device has for it, bound to `note`.

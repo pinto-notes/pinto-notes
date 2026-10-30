@@ -156,7 +156,7 @@ enum NoteExport {
             let up = String(repeating: "../", count: path.split(separator: "/").count - 1)
             let stem = ((path as NSString).lastPathComponent as NSString).deletingPathExtension
             let file = fileText(relink(text, notes: paths, files: filePaths, up: up), created: n.createdAt, updated: n.updatedAt,
-                                kept: n.frontMatter, fileStem: stem, timeZone: timeZone)
+                                kept: vault.frontMatter(of: n), fileStem: stem, timeZone: timeZone)
             try Data(file.utf8).write(to: url)
             try? FileManager.default.setAttributes([.modificationDate: n.updatedAt, .creationDate: n.createdAt], ofItemAtPath: url.path)
             result.notes += 1

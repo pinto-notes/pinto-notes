@@ -15,7 +15,7 @@ struct WikiSuggestionList: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(controller.wikiSuggestions.enumerated()), id: \.offset) { i, title in
                 Button { controller.completeWiki(title) } label: {
-                    Text(title)
+                    Text(WikiLinks.suggestionLabel(title))
                         .font(.system(size: 13))
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
@@ -50,7 +50,7 @@ struct WikiSuggestionRow: View {
             HStack(spacing: 2) {
                 ForEach(Array(controller.wikiSuggestions.enumerated()), id: \.offset) { i, title in
                     Button { controller.completeWiki(title) } label: {
-                        Text(title)
+                        Text(WikiLinks.suggestionLabel(title))
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
