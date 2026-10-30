@@ -19,8 +19,9 @@ enum AccountName {
 
 #if os(macOS)
 /// The account at the foot of the sidebar, like the Mac App Store's: your photo (or initials) in a
-/// circle and your name. Clicking it opens Settings at Account. Signing out lives there, last,
-/// behind a confirmation, so a slip of the mouse here can never sign you out.
+/// circle and your name. Clicking it opens Settings at its first page, as ⌘, does (owner,
+/// 2026-10-29: not straight onto Profile). Your name, how you sign in and Sign Out… are on its
+/// Profile page; signing out asks first, so a slip of the mouse here can never sign you out.
 struct AccountButton: View {
     let backend: Backend
     /// Captures: a second line with the email, when it is a real one (the alternative look).
@@ -28,12 +29,17 @@ struct AccountButton: View {
     @State private var profile = ProfileStore.shared
 
     static let avatar: CGFloat = 28
+    /// Inside its highlight: the photo starts as far in as a folder row's icon starts inside its pill.
+    static let inset = Hover.sidebarReach().leading
 
     private var name: String { AccountName.shown(profile.name) }
 
+    /// Settings on the notes window in front, at its first page: the same as ⌘,.
+    static func open(_ route: SettingsRoute = .shared) { route.show() }
+
     var body: some View {
         Button {
-            SettingsRoute.shared.open(.account)
+            Self.open()
         } label: {
             HStack(spacing: 9) {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
@@ -53,13 +59,13 @@ struct AccountButton: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, Self.inset)
             .frame(height: 42)
             .hoverHighlight(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help("Account Settings")
-        .accessibilityLabel("Account, \(name). Opens Settings")
+        .help("Settings")
+        .accessibilityLabel("Settings")
         .accessibilityIdentifier("sidebar.account")
         .task(id: backend.state) { await profile.bind(backend) }
     }
@@ -180,6 +186,15 @@ enum SidebarStyle {
     static let headingInset: CGFloat = 15
     static let trailingColumn: CGFloat = 16
     static let trailingInset: CGFloat = 7
+    /// Where the list puts a row's content in the sidebar's glass: 16 pt in from either side, the
+    /// icon first; 9 pt further in once any folder has sub-folders (measured 2026-10-29, macOS 26;
+    /// `AccountRowTests` measures it again from the list).
+    static func rowContent(nested: Bool) -> (leading: CGFloat, trailing: CGFloat) { (nested ? 25 : 16, 16) }
+    /// A top-level row's pill, from the sidebar's edges: its content, widened by `Hover.sidebarReach`.
+    static func rowPill(nested: Bool) -> (leading: CGFloat, trailing: CGFloat) {
+        let content = rowContent(nested: nested), reach = Hover.sidebarReach()
+        return (content.leading - reach.leading, content.trailing - reach.trailing)
+    }
     #else
     static let icon = TintShapeStyle.tint
     static let iconFont = Font.body
@@ -545,10 +560,10 @@ struct SidebarView: View {
                             .padding(.bottom, 2)
                     }
                     OfflineLine(sync: sync)
-                    // The photo starts on the rows' icons' line (the button pads 8 inside its highlight).
+                    // Its highlight where a folder row's pill is, the photo on the rows' icons' line.
                     AccountButton(backend: backend)
-                        .padding(.leading, SidebarStyle.edge(nested: nested) - 8)
-                        .padding(.trailing, 10)
+                        .padding(.leading, SidebarStyle.rowPill(nested: nested).leading)
+                        .padding(.trailing, SidebarStyle.rowPill(nested: nested).trailing)
                 }
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)
