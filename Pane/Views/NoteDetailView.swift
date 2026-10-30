@@ -1491,6 +1491,10 @@ struct NoteToolbarKey: PreferenceKey {
 /// be on a view around the pane: put on the pane itself, also from outside its `.id`, the
 /// column makes it again with every note.)
 struct NoteToolbarStage<Pane: View>: View {
+    /// A note is in the pane. Without one the last note's items stay in the toolbar, unseen and
+    /// out of reach: putting them back for the next note took longer than the note itself
+    /// (80 of 150 ms from the empty pane, 10-30).
+    var showsItems = true
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     /// The column's width, for lining the toolbar up with the note's text.
@@ -1513,12 +1517,13 @@ struct NoteToolbarStage<Pane: View>: View {
         let parts = $parts
         ZStack {
             // A turn after the pane made them. A pane that has just gone leaves the items as they
-            // are: the next pane's are on their way, and without a note this view goes too.
+            // are: the next pane's are on their way, and without a note they stay unseen.
             pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
         }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .toolbar {
                 if let shown = self.parts {
+                    let off = !showsItems
                     // Only the note's own controls (Emil's draft, 10-29): the writing tools on the
                     // left, share and more on the right, both over the note's text column. Compose
                     // sits with the list, search with the sidebar.
@@ -1528,19 +1533,42 @@ struct NoteToolbarStage<Pane: View>: View {
                             .sharedBackgroundVisibility(.hidden)
                     }
                     if let writing = shown.writing {
-                        ToolbarItemGroup { writing }
+                        ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
+                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
                     }
                     ToolbarSpacer(.flexible)
                     if let people = shown.people {
-                        ToolbarItem { people }
+                        ToolbarItem { people.modifier(Unseen(off: off)) }
+                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
                     }
-                    ToolbarItemGroup { shown.sharing }
+                    ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
+                        .sharedBackgroundVisibility(off ? .hidden : .automatic)
                     if let inset {
                         ToolbarItem { Color.clear.frame(width: inset, height: 1) }
                             .sharedBackgroundVisibility(.hidden)
                     }
+                } else {
+                    // No note yet: nothing to see, but an item of the column's own; without one the
+                    // list's items spread over the whole window.
+                    ToolbarItem { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+                        .sharedBackgroundVisibility(.hidden)
                 }
             }
+    }
+}
+#endif
+
+#if os(macOS)
+/// A toolbar item kept while it has nothing to do: not drawn, not clickable, not read out.
+private struct Unseen: ViewModifier {
+    let off: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(off ? 0 : 1)
+            .disabled(off)
+            .allowsHitTesting(!off)
+            .accessibilityHidden(off)
     }
 }
 #endif

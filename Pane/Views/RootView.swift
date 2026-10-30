@@ -397,49 +397,70 @@ struct RootView: View {
 
     @ViewBuilder
     private var detail: some View {
-            if let id = shownNote, let note = context.note(id), note.deletedAt == nil {
-                #if os(macOS)
-                NoteToolbarStage {
-                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+        #if os(macOS)
+        if let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
+            // A file kept in the folder: its preview.
+            FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
+                .id(id)
+        } else {
+            // One stage for the note and for no note: a note opened from the empty pane only adds
+            // the note, not the stage and the window's toolbar again (that took the first note
+            // three times as long to show as the next one, 10-30). Without a note it has no items:
+            // the list has compose, and Notes shows only the page ground there.
+            let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
+            NoteToolbarStage(showsItems: note != nil) {
+                if let note {
+                    NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
                         selectedNote = target
                     }
-                        .id(id)
+                        .id(note.id)
+                } else {
+                    noNote
                 }
-                #else
-                NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
-                    if edit { justCreated = target }
-                    trail.followed(from: selectedNote, to: target)
-                    selectedNote = target
-                }
-                    .id(id)
-                    .modifier(LinkBackButton(title: trail.previous.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0.title : nil }, back: goBack))
-                #endif
-            } else if let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
-                // A file kept in the folder: its preview.
-                FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
-                    .id(id)
-            } else {
-                Group {
-                    if shown.count > 1 {
-                        MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
-                    } else {
-                        EmptyDetailView()
-                    }
-                }
-                .background(Color.notePage.ignoresSafeArea())
-                #if os(macOS)
-                .toolbar {
-                    ToolbarItem {
-                        ComposeButton(newNote: newNote) {
-                            Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
-                        }
-                            .accessibilityIdentifier("list.newNote")
-                    }
-                    ToolbarSpacer(.flexible)
-                }
-                #endif
             }
+        }
+        #else
+        if let id = shownNote, let note = context.note(id), note.deletedAt == nil {
+            NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
+                if edit { justCreated = target }
+                trail.followed(from: selectedNote, to: target)
+                selectedNote = target
+            }
+                .id(id)
+                .modifier(LinkBackButton(title: trail.previous.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0.title : nil }, back: goBack))
+        } else if let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
+            // A file kept in the folder: its preview.
+            FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
+                .id(id)
+        } else {
+            noNote
+        }
+        #endif
+    }
+
+    /// The note pane with no note: several selected, or none.
+    private var noNote: some View {
+        let content = Group {
+            if shown.count > 1 {
+                MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
+            } else {
+                EmptyDetailView()
+            }
+        }
+        #if os(macOS)
+        // Under the toolbar, a column with nothing that scrolls gets the window's grey title bar
+        // (a "hard pocket") across its top. A scroll view behind the page, which never scrolls,
+        // takes the toolbar's soft edge instead, so the page's ground runs up under the toolbar
+        // as it does under a note, and in Notes.
+        return content
+            .background {
+                SoftToolbarEdge().ignoresSafeArea()
+            }
+            .background(Color.notePage.ignoresSafeArea())
+        #else
+        return content.background(Color.notePage.ignoresSafeArea())
+        #endif
     }
 
     private func newNote() {
@@ -742,6 +763,27 @@ enum Presentation {
 #endif
 
 #if os(macOS)
+/// An empty scroll view that never scrolls, behind a pane with nothing that does: the window
+/// takes its soft edge under the toolbar instead of drawing its grey title bar there.
+struct SoftToolbarEdge: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSScrollView {
+        let v = NSScrollView()
+        v.drawsBackground = false
+        v.hasVerticalScroller = true
+        v.autohidesScrollers = true
+        v.scrollerStyle = .overlay
+        v.verticalScrollElasticity = .none
+        v.horizontalScrollElasticity = .none
+        let page = NSView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        page.autoresizingMask = [.width]
+        v.documentView = page
+        v.setAccessibilityElement(false)
+        return v
+    }
+
+    func updateNSView(_ v: NSScrollView, context: Context) {}
+}
+
 /// The line between the notes list and the note, top to bottom, toolbar band included. The split
 /// view's own divider takes a colour that disappears on the plain look's black (Emil, 10-30: "no
 /// visible separation between note and notes list"), so the system's separator is drawn here,
