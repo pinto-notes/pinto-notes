@@ -8,17 +8,20 @@ import { templates } from "./templates";
 /// scripts/template-catalog.py). A template added here and not there fails until the script runs.
 describe("the app's copy of the templates", () => {
   const dir = path.join(process.cwd(), "../Pane/Resources/Templates");
-  const copy = JSON.parse(readFileSync(path.join(dir, "catalog.json"), "utf8")) as { slug: string; title: string; tagline: string; ground: string; ask: string }[];
+  const copy = JSON.parse(readFileSync(path.join(dir, "catalog.json"), "utf8")) as { slug: string; title: string; tagline: string; ground: string; ask: string; example: string; app: boolean }[];
 
   it("has every template, in the gallery's order, with its words", () => {
     expect(copy.map((t) => t.slug)).toEqual(templates().map((t) => t.slug));
     for (const t of templates()) {
       const c = copy.find((x) => x.slug === t.slug)!;
-      expect([c.title, c.tagline, c.ask, `#${c.ground}`]).toEqual([t.title, t.tagline, t.asks[0], COVERS[t.slug].ground]);
+      expect([c.title, c.tagline, c.ask, `#${c.ground}`, c.example]).toEqual([t.title, t.tagline, t.asks[0], COVERS[t.slug].ground, t.example]);
     }
   });
 
-  it("has every cover", () => {
-    for (const t of copy) expect(existsSync(path.join(dir, `template-cover-${t.slug}.jpg`)), t.slug).toBe(true);
+  it("has every cover, and a picture of each app", () => {
+    for (const t of copy) {
+      expect(existsSync(path.join(dir, `template-cover-${t.slug}.jpg`)), t.slug).toBe(true);
+      for (const look of t.app ? ["light", "dark"] : []) expect(existsSync(path.join(dir, `template-app-${t.slug}-${look}.jpg`)), t.slug).toBe(true);
+    }
   });
 });

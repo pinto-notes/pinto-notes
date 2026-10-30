@@ -14,7 +14,15 @@ struct TemplateCatalog {
         let app: Bool
         let ground: String
         let ask: String
+        /// The note after the AI has filled it in: what it looks like in use.
+        let example: String
         var id: String { slug }
+
+        /// An app's picture in use (the site's), in the look asked for.
+        func appPicture(dark: Bool) -> NSImage? {
+            guard app, let url = Bundle.main.url(forResource: "template-app-\(slug)-\(dark ? "dark" : "light")", withExtension: "jpg") else { return nil }
+            return NSImage(contentsOf: url)
+        }
 
         /// As a pick of the setup gallery, so it draws with the same card.
         var pick: SetupCards.Pick {
@@ -49,12 +57,13 @@ enum TemplateLibraryWords {
     static func make(_ ai: SetupCards.AI) -> String { ai == .other ? "Add the note" : "Make with \(ai.name)" }
     static let copy = "Copy prompt"
     static let copied = "Copied"
-    static let tryAsking = "Then try asking"
+    static let inUse = "In use"
+    static let tryAsking = "Then ask"
     static func none(_ q: String) -> String { "No templates match \u{201C}\(q)\u{201D}" }
 }
 
-/// Every template, as a page of the window: search, the kinds, a grid of the site's cards. A card
-/// opens its template: what it is, what to ask, and Make with the AI you use.
+/// Every template, in a big card over the notes (a quick visit, like Settings: Esc goes back).
+/// A template opens on the right as it looks in use: the note your AI filled in, or the app.
 struct TemplateLibraryView: View {
     var catalog = TemplateCatalog.shipped
     /// The AI a template is made with: the one you used last.
@@ -62,119 +71,153 @@ struct TemplateLibraryView: View {
     /// Captures: the template that's open.
     @State var open: TemplateCatalog.Entry?
     var make: (TemplateCatalog.Entry) -> Void = { _ in }
+    var close: () -> Void = {}
     @State private var filter = "All"
     @State private var query = ""
     @State private var copied = false
     @Environment(\.colorScheme) private var scheme
 
+    static let size = CGSize(width: 1040, height: 680)
+    static let panel: CGFloat = 440
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                Picker("Kind", selection: $filter) {
-                    ForEach(TemplateCatalog.filters, id: \.self) { Text($0).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                let shown = catalog.shown(filter: filter, query: query)
-                if shown.isEmpty {
-                    Text(TemplateLibraryWords.none(query)).foregroundStyle(Color.muted).padding(.top, 20)
-                }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: SetupTemplateCard.size.width, maximum: SetupTemplateCard.size.width), spacing: 16)],
-                          alignment: .leading, spacing: 16) {
-                    ForEach(shown) { e in
-                        SetupTemplateCard(pick: e.pick) { withAnimation(.snappy(duration: 0.25)) { open = e } }
-                    }
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        VStack(spacing: 0) {
+            header
+            Divider().opacity(0.6)
+            HStack(spacing: 0) {
+                grid
+                if let open {
+                    Divider().opacity(0.6)
+                    detail(open)
+                        .frame(width: Self.panel)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, 32)
-            .padding(.top, 44)
-            .padding(.bottom, 32)
         }
-        .background(scheme == .dark ? Color.black : Color.white)
-        .overlay { if let open { detail(open) } }
+        .frame(width: Self.size.width, height: Self.size.height)
+        .background { shape.fill(SetupCards.ground).shadow(color: .black.opacity(0.2), radius: 30, y: 20) }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.28).onTapGesture(perform: close))
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(TemplateLibraryWords.title).font(.system(size: 22, weight: .bold)).foregroundStyle(Color.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Text(TemplateLibraryWords.line).font(.system(size: 13)).foregroundStyle(Color.muted)
-            }
-            Spacer(minLength: 16)
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search", text: $query).textFieldStyle(.plain)
-                    .accessibilityIdentifier("templates.search")
-            }
-            .font(.system(size: 13))
-            .padding(.horizontal, 10)
-            .frame(width: 220, height: 30)
-            .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8, style: .continuous))
-        }
-    }
-
-    /// One template, over the grid: its card, what it is, what to ask, Make and Copy prompt.
-    private func detail(_ e: TemplateCatalog.Entry) -> some View {
-        ZStack {
-            Color.black.opacity(0.28).ignoresSafeArea()
-                .onTapGesture { close() }
-            HStack(alignment: .top, spacing: 24) {
-                SetupTemplateCard(pick: e.pick) {}
-                    .allowsHitTesting(false)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(e.title).font(.system(size: 20, weight: .bold)).foregroundStyle(Color.ink)
-                    Text(e.description).font(.system(size: 13)).foregroundStyle(Color.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(TemplateLibraryWords.tryAsking).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
-                        Text("\u{201C}\(e.ask)\u{201D}").font(.system(size: 13)).foregroundStyle(Color.ink)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.top, 4)
-                    Spacer(minLength: 8)
-                    VStack(spacing: 8) {
-                        Button { make(e) } label: {
-                            HStack(spacing: 7) {
-                                if ai != .other { AIGlyph(ai: ai.name, size: 14) }
-                                Text(TemplateLibraryWords.make(ai))
-                            }
-                        }
-                        .buttonStyle(.amberProminent(.regular, wide: true))
-                        .keyboardShortcut(.defaultAction)
-                        .accessibilityIdentifier("templates.make")
-                        Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
-                            .buttonStyle(.quiet(.regular))
-                            .accessibilityIdentifier("templates.copy")
-                    }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(TemplateLibraryWords.title).font(.system(size: 22, weight: .bold)).foregroundStyle(Color.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(TemplateLibraryWords.line).font(.system(size: 13)).foregroundStyle(Color.muted)
                 }
-                .frame(width: 300, alignment: .leading)
-                .frame(minHeight: SetupTemplateCard.size.height)
-            }
-            // As tall as the card or its words, whichever is more; never the window.
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(24)
-            .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous).fill(SetupCards.ground)
-                    .shadow(color: .black.opacity(0.16), radius: 25, y: 18)
-            }
-            .overlay(alignment: .topTrailing) {
-                Button { close() } label: {
+                Spacer(minLength: 16)
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search", text: $query).textFieldStyle(.plain)
+                        .accessibilityIdentifier("templates.search")
+                }
+                .font(.system(size: 13))
+                .padding(.horizontal, 10)
+                .frame(width: 200, height: 30)
+                .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8, style: .continuous))
+                Button(action: close) {
                     Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
                         .frame(width: 28, height: 28).contentShape(Circle())
                 }
                 .buttonStyle(.quietIcon)
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
-                .padding(10)
             }
+            Picker("Kind", selection: $filter) {
+                ForEach(TemplateCatalog.filters, id: \.self) { Text($0).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
         }
-        .transition(.opacity)
+        .padding(.horizontal, 24)
+        .padding(.top, 22)
+        .padding(.bottom, 16)
     }
 
-    private func close() { withAnimation(.snappy(duration: 0.2)) { open = nil; copied = false } }
+    private var grid: some View {
+        ScrollView {
+            let shown = catalog.shown(filter: filter, query: query)
+            if shown.isEmpty {
+                Text(TemplateLibraryWords.none(query)).foregroundStyle(Color.muted).padding(.top, 20)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: SetupTemplateCard.size.width, maximum: SetupTemplateCard.size.width), spacing: 16)],
+                      alignment: .leading, spacing: 16) {
+                ForEach(shown) { e in
+                    SetupTemplateCard(pick: e.pick) { withAnimation(.snappy(duration: 0.28)) { open = e; copied = false } }
+                        .overlay {
+                            if open == e {
+                                RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3)
+                            }
+                        }
+                }
+            }
+            .padding(24)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// One template as it looks in use, with its name, what to ask, and Make at the foot.
+    private func detail(_ e: TemplateCatalog.Entry) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(e.title).font(.system(size: 17, weight: .bold)).foregroundStyle(Color.ink)
+                Text(e.tagline).font(.system(size: 12.5)).foregroundStyle(Color.muted)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 12)
+            Text(TemplateLibraryWords.inUse.uppercased())
+                .font(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(Color.muted)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+            inUse(e)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(scheme == .dark ? Color.black : Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+                .padding(.horizontal, 16)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(TemplateLibraryWords.tryAsking).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
+                    Text("\u{201C}\(e.ask)\u{201D}").font(.system(size: 12.5)).foregroundStyle(Color.ink).lineLimit(2)
+                }
+                HStack(spacing: 8) {
+                    Button { make(e) } label: {
+                        HStack(spacing: 7) {
+                            if ai != .other { AIGlyph(ai: ai.name, size: 14) }
+                            Text(TemplateLibraryWords.make(ai))
+                        }
+                    }
+                    .buttonStyle(.amberProminent(.regular, wide: true))
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("templates.make")
+                    Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
+                        .buttonStyle(.secondary(.regular))
+                        .accessibilityIdentifier("templates.copy")
+                }
+            }
+            .padding(16)
+        }
+    }
+
+    /// The app's own picture when it is one; otherwise the filled-in note, drawn as the app draws notes.
+    @ViewBuilder private func inUse(_ e: TemplateCatalog.Entry) -> some View {
+        if let picture = e.appPicture(dark: scheme == .dark) {
+            Image(nsImage: picture).resizable().scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .clipped()
+                .accessibilityLabel("\(e.title), in use")
+        } else {
+            NotePreview(markdown: e.example)
+        }
+    }
 
     private func copy(_ e: TemplateCatalog.Entry) {
         ConnectClipboard.set(SetupCards.prompt(e.pick))

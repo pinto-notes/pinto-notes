@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""The app's copy of the website's templates (Pane/Resources/Templates): one line each, for the
-template viewer, in the gallery's order, with each cover made small. Run it after a template is
+"""The app's copy of the website's templates (Pane/Resources/Templates): one line each and the note in use,
+for the template viewer, in the gallery's order, with each cover made small. Run it after a template is
 added or changed; web/lib/template-catalog.test.ts fails while the copy is behind."""
 import json, re, subprocess, sys
 from pathlib import Path
@@ -17,11 +17,17 @@ for slug in order:
     catalog.append({
         "slug": slug, "title": t["title"], "tagline": t["tagline"], "description": t["description"],
         "category": t["category"], "app": bool(t.get("app")), "ground": grounds[slug], "ask": t["asks"][0],
+        # In use: the note after the AI has filled it in; an app also shows a picture of it.
+        "example": t["example"],
     })
     if "--check" not in sys.argv:
         subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80", "-Z", "360",
                         str(web / f"public/templates/covers/{slug}.webp"), "--out", str(out / f"template-cover-{slug}.jpg")],
                        check=True, capture_output=True)
+        for look in ("light", "dark") if t.get("app") else ():
+            subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82", "-Z", "960",
+                            str(web / f"public/templates/apps/{slug}-{look}.png"), "--out", str(out / f"template-app-{slug}-{look}.jpg")],
+                           check=True, capture_output=True)
 text = json.dumps(catalog, indent=1, ensure_ascii=False) + "\n"
 if "--check" in sys.argv:
     sys.exit(0 if (out / "catalog.json").read_text() == text else "Pane/Resources/Templates is behind: run scripts/template-catalog.py")

@@ -146,21 +146,14 @@ import Testing
         ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         let catalog = TemplateCatalog.shipped
-        for (name, open) in [("templates-library", nil), ("templates-open", catalog.entries.first { $0.slug == "trip-plan" })] {
-            let view = HStack(spacing: 0) {
-                NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
-                    .overlay(alignment: .bottomLeading) { Self.foot }
-                    .frame(width: 259)
-                    .background(Color(nsColor: .windowBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .padding(8)
-                TemplateLibraryView(catalog: catalog, ai: .chatgpt, open: open)
+        let picks: [(String, TemplateCatalog.Entry?)] = [("templates-library", nil),
+                                                         ("templates-open", catalog.entries.first { $0.slug == "meeting-notes" }),
+                                                         ("templates-open-app", catalog.entries.first { $0.slug == "trip-plan" })]
+        try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
+            for (name, open) in picks {
+                let view = window(SidebarStudy(), library: lib, over: TemplateLibraryView(catalog: catalog, ai: .chatgpt, open: open))
+                try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
             }
-            .environment(\.sidebarStudy, SidebarStudy())
-            .environment(\.controlActiveState, .key)
-            .tint(Color(PColor.paneAccent))
-            .modelContainer(lib)
-            try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
         }
     }
 
@@ -177,6 +170,9 @@ import Testing
         #expect(found.contains("trip-plan"))
         #expect(covers.isEmpty)
         #expect(SetupCards.prompt(c.entries[0].pick).hasPrefix("In Pinto Notes, use my Habit tracker note."))
+        // In use: every template has its filled-in note, and every app its picture.
+        let bare = c.entries.filter { $0.example.isEmpty || ($0.app && $0.appPicture(dark: false) == nil) }.map(\.slug)
+        #expect(bare.isEmpty)
     }
 
     /// The study is off in the app until it's picked: no AI section, no mark on the notes.
