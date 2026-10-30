@@ -331,16 +331,21 @@ extension ModelContext {
     /// The notes that link to `note`, newest first, each with the lines it links on (the link
     /// marked): what "Linked from" shows. `limit` notes get their lines; `total` counts them all.
     func linkingNotes(to note: Note, limit: Int = 20) -> (notes: [LinkingNote], total: Int) {
-        linkingNotes(backlinks(to: note), to: note, limit: limit)
+        linkingNotes(backlinkIDs(to: note), to: note, limit: limit)
     }
 
-    /// The same for notes already found to link here (`backlinks(to:)`).
-    func linkingNotes(_ found: [Note], to note: Note, limit: Int = 20) -> (notes: [LinkingNote], total: Int) {
-        guard !found.isEmpty, let index = WikiDirectory.ready(self) else { return ([], 0) }
+    /// The same for the notes already found to link here (`backlinkIDs(to:)`, newest first):
+    /// only the first `limit` are read.
+    func linkingNotes(_ ids: [UUID], to note: Note, limit: Int = 20) -> (notes: [LinkingNote], total: Int) {
+        guard !ids.isEmpty, let index = WikiDirectory.ready(self) else { return ([], 0) }
+        let first = Array(ids.prefix(limit))
+        let read = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { first.contains($0.id) }))) ?? []
+        let byID = Dictionary(read.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let found = first.compactMap { byID[$0] }.filter { $0.deletedAt == nil && $0.trashedAt == nil && !$0.isLocked }
         let id = note.id
         let noteLink = "pane-note:\(id.uuidString)"
         var out: [LinkingNote] = []
-        for other in found.prefix(limit) {
+        for other in found {
             let body = other.body
             let from = folderPath(other.folder)
             var spots = WikiLinks.links(in: body).filter { index.resolve($0.target, from: from) == id }.map(\.range)
@@ -349,7 +354,7 @@ extension ModelContext {
             }
             out.append(LinkingNote(id: other.id, title: other.title, folders: from, updated: other.updatedAt, lines: LinkSnippets.lines(body, spots: spots)))
         }
-        return (out, found.count)
+        return (out, ids.count)
     }
 
     /// Where a note link (`[text](pane-note:…)`, or the bare address) names `link`, case aside.

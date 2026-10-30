@@ -37,7 +37,7 @@ import Testing
         try context.save()
         WikiDirectory.invalidate()
         let lib = Library(container: c, lisbon: lisbon, weekend: weekend, packing: packing, documents: documents, links: NoteLinks())
-        lib.links.refresh(context.backlinks(to: lisbon), note: lisbon, context: context)
+        lib.links.refresh(context.backlinkIDs(to: lisbon), note: lisbon, context: context)
         lib.links.findMentions(lisbon, context: context)
         await lib.links.mentionsSettled()
         return lib
@@ -193,7 +193,7 @@ import Testing
         #expect(lib.links.lastLinked?.note == lib.documents.id, "says where, with Undo")
         await h.snapshot("note-links-linked-light")
         let context = lib.container.mainContext
-        lib.links.refresh(context.backlinks(to: lib.lisbon), note: lib.lisbon, context: context)
+        lib.links.refresh(context.backlinkIDs(to: lib.lisbon), note: lib.lisbon, context: context)
         #expect(lib.links.linked.map(\.id).contains(lib.documents.id))
 
         // Undo, at the right of "Linked in Trip documents".
@@ -216,7 +216,7 @@ import Testing
         let alone = context.createNote(in: .all, body: "Quiet note\n\nnothing points here")
         try context.save()
         let links = NoteLinks()
-        links.refresh(context.backlinks(to: alone), note: alone, context: context)
+        links.refresh(context.backlinkIDs(to: alone), note: alone, context: context)
         links.findMentions(alone, context: context)
         await links.mentionsSettled()
         #expect(links.isEmpty)

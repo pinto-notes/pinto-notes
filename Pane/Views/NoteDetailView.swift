@@ -70,7 +70,7 @@ struct NoteDetailView: View {
     /// The title when the note opened; renaming it points wiki links at the new title on leaving.
     @State private var titleAtOpen: String?
     /// Notes that link here.
-    @State private var backlinks: [Note] = []
+    @State private var backlinks: [UUID] = []
     /// The foot of the note: what links here, with its lines, and what mentions it.
     @State private var links = NoteLinks()
     /// The wiki index's generation when they were last looked for.
@@ -990,7 +990,7 @@ struct NoteDetailView: View {
     /// Colours for the editor's wiki links and the "Linked from" list, from the library as it is now.
     private func refreshLinks() {
         controller.wiki = WikiDirectory.scope(for: note, in: context)
-        backlinks = note.isLocked ? [] : context.backlinks(to: note)
+        backlinks = note.isLocked ? [] : context.backlinkIDs(to: note)
         links.refresh(backlinks, note: note, context: context)
         linksGeneration = WikiDirectory.generation
     }
@@ -1001,7 +1001,7 @@ struct NoteDetailView: View {
     private func refreshLinks(after saved: Notification) {
         let link = "pane-note:\(note.id.uuidString.lowercased())"
         let mayLink: (Note) -> Bool = { other in
-            other.id != note.id && (backlinks.contains { $0.id == other.id } || other.body.contains("[[") || other.body.contains(link))
+            other.id != note.id && (backlinks.contains(other.id) || other.body.contains("[[") || other.body.contains(link))
         }
         let changes = context.savedNotes(saved)
         // Another note's text changed (it may mention this one now), or this one's title did.

@@ -238,6 +238,8 @@ struct WikiIndex {
 
     /// The title the index knows a note by.
     func title(of id: UUID) -> String? { byID[id].map { entries[$0].title } }
+    /// When the note was last edited, as the index knows.
+    func updated(of id: UUID) -> Date? { byID[id].map { entries[$0].updated } }
 
     /// Puts in one note's entry as it is now (nil: it isn't live any more). True when that changed
     /// a title, a folder or which notes there are; a newer date alone keeps the index as it was.
@@ -596,6 +598,15 @@ extension ModelContext {
     /// each note links (WikiDirectory), not by searching every note's text, which the store did
     /// on opening a note and after every save. Empty while those are being read (`didRead`).
     func backlinks(to note: Note) -> [Note] {
+        let ids = backlinkIDs(to: note)
+        guard !ids.isEmpty else { return [] }
+        let notes = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
+        return notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !$0.isLocked }.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// The same, as ids, newest first by the index's dates: no note is read (a note linked from
+    /// 2,000 others read all 2,000 to show twenty).
+    func backlinkIDs(to note: Note) -> [UUID] {
         guard let index = WikiDirectory.ready(self), let linking = WikiDirectory.linking(self) else { return [] }
         let id = note.id
         // Only the notes with a link by this note's title, or a note link to it, can link here.
@@ -606,11 +617,13 @@ extension ModelContext {
         for other in candidates where other != id {
             guard let links = linking[other] else { continue }
             if links.noteLinks.contains(id) { found.append(other); continue }
-            if links.wikiTargets.contains(where: { index.resolve($0, from: links.folders) == id }) { found.append(other) }
+            // Only a target named like this note can lead to it: the rest aren't resolved.
+            for (i, k) in links.targetKeys.enumerated() where k.name == key || k.whole == key {
+                if index.resolve(links.wikiTargets[i], from: links.folders) == id { found.append(other); break }
+            }
         }
-        guard !found.isEmpty else { return [] }
-        let notes = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { found.contains($0.id) }))) ?? []
-        return notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !$0.isLocked }.sorted { $0.updatedAt > $1.updatedAt }
+        // Locked, trashed and deleted notes have no links in the index.
+        return found.sorted { (index.updated(of: $0) ?? .distantPast) > (index.updated(of: $1) ?? .distantPast) }
     }
 
     /// After `note` was renamed from `oldTitle`, points the wiki links that led to it under its
@@ -659,6 +672,9 @@ struct OutgoingLinks: Equatable, Sendable {
     /// The keys a link here can resolve by: each target's name, and the whole target (a title
     /// can have a slash in it).
     var names: Set<String>
+    /// Each target's name key and whole key, in `wikiTargets`' order.
+    var targetKeys: [TargetKey]
+    struct TargetKey: Equatable, Sendable { var name: String; var whole: String }
 
     nonisolated(unsafe) private static let noteLink = /pane-note:([0-9a-fA-F-]{36})/
 
@@ -678,12 +694,10 @@ struct OutgoingLinks: Equatable, Sendable {
         self.wikiTargets = wikiTargets
         self.noteLinks = noteLinks
         self.folders = folders
-        var names = Set<String>()
-        for t in wikiTargets {
-            names.insert(WikiLinks.key(WikiLinks.name(of: t)))
-            names.insert(WikiLinks.key(WikiLinks.stripExtension(t.trimmingCharacters(in: .whitespaces))))
+        targetKeys = wikiTargets.map { t in
+            TargetKey(name: WikiLinks.key(WikiLinks.name(of: t)), whole: WikiLinks.key(WikiLinks.stripExtension(t.trimmingCharacters(in: .whitespaces))))
         }
-        self.names = names
+        names = Set(targetKeys.flatMap { [$0.name, $0.whole] })
     }
 }
 

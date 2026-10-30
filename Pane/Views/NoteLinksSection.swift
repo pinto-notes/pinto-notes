@@ -44,8 +44,8 @@ final class NoteLinks {
 
     var isEmpty: Bool { linked.isEmpty && mentions.isEmpty && lastLinked == nil }
 
-    /// The notes that link here, from the link index (`found`: `backlinks(to:)`, newest first).
-    func refresh(_ found: [Note], note: Note, context: ModelContext) {
+    /// The notes that link here, from the link index (`found`: `backlinkIDs(to:)`, newest first).
+    func refresh(_ found: [UUID], note: Note, context: ModelContext) {
         self.context = context
         noteID = note.id
         guard !note.isLocked, note.trashedAt == nil else { linked = []; linkedTotal = 0; return }

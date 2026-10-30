@@ -209,7 +209,7 @@ import Testing
         try context.save()
         WikiDirectory.invalidate()
         let links = NoteLinks()
-        links.refresh(context.backlinks(to: reno), note: reno, context: context)
+        links.refresh(context.backlinkIDs(to: reno), note: reno, context: context)
         links.findMentions(reno, context: context)
         await links.mentionsSettled()
         #expect(links.linked.map(\.id) == [week.id] && links.linkedTotal == 1)
@@ -220,7 +220,7 @@ import Testing
         let l = try #require(links.link(line, in: links.mentions[0]))
         #expect(week.body == "Week\nStart the [[Kitchen remodel|kitchen remodel]].\nAnd [[Kitchen remodel]].")
         #expect(links.mentions.isEmpty && links.lastLinked == l)
-        links.refresh(context.backlinks(to: reno), note: reno, context: context)
+        links.refresh(context.backlinkIDs(to: reno), note: reno, context: context)
         #expect(links.linked.first?.lines.count == 2, "it's a linked line now")
 
         links.undo(l)
