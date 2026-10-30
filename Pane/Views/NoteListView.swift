@@ -1279,6 +1279,10 @@ final class LibraryNotes {
             func ids(_ key: ModelContext.NotificationKey) -> [PersistentIdentifier] { (n.userInfo?[key.rawValue] as? [PersistentIdentifier]) ?? [] }
             let inserted = ids(.insertedIdentifiers), deleted = ids(.deletedIdentifiers), updated = ids(.updatedIdentifiers)
             guard !inserted.isEmpty || !deleted.isEmpty || !updated.isEmpty else { return }
+            // Only the list's own context, which saves on the main thread. A context made on
+            // another thread can take a freed context's address and so match `object` (a test's
+            // library written off the main thread crashed here).
+            guard Thread.isMainThread else { return }
             MainActor.assumeIsolated { self?.take(inserted: inserted, deleted: deleted, updated: updated) }
         }
     }
