@@ -968,7 +968,7 @@ struct ConnectChoices: View {
         HStack(spacing: 10) {
             AIGlyph(ai: g.title, size: 20).frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 1) {
-                Text(g.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
+                Text(g.shown).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
                 Text(ConnectCopy.libraryLine(g, accounts: accounts, working: run.guide == g && run.phase != nil ? detail(g) : nil))
                     .font(Metrics.smallDetail).foregroundStyle(Color.muted).monospacedDigit()
                     .lineLimit(1)
@@ -980,11 +980,11 @@ struct ConnectChoices: View {
             } else if accounts.isEmpty {
                 Button(ConnectCopy.add) { press(g) }
                     .buttonStyle(.secondary(.compact))
-                    .accessibilityLabel("Add \(g.title)")
+                    .accessibilityLabel("Add \(g.shown)")
                     .accessibilityIdentifier("connect.add.\(g.rawValue)")
             } else {
                 Menu {
-                    Button(ConnectCopy.anotherAccount(g.title)) { press(g) }
+                    Button(ConnectCopy.anotherAccount(g.shown)) { press(g) }
                     Divider()
                     ForEach(accounts) { c in
                         Button(accounts.count > 1 ? "Disconnect the one \(ConnectCopy.added(c))\u{2026}" : "Disconnect\u{2026}", role: .destructive) { removing = c }

@@ -1663,6 +1663,9 @@ struct ConnectAISection: View {
             case .other: "Another AI"
             }
         }
+        /// The name people see in the list. Codex says CLI: it is added to Codex on this Mac, not
+        /// to ChatGPT (Emil, 2026-10-30). `title` stays "Codex": connections are named and matched by it.
+        var shown: String { self == .codex ? "Codex CLI" : title }
         var subtitle: String {
             switch self {
             case .chatgpt: "Added once in ChatGPT on the web, then works in its apps"
@@ -1690,13 +1693,13 @@ struct ConnectAISection: View {
         }
 
         /// What it is for, in a few plain words, so someone who doesn't code sees at once which is
-        /// theirs. Never where it runs: Claude Code and Codex also live in the Claude and ChatGPT apps.
+        /// theirs. Codex says where it runs: it is added on this Mac and doesn't share ChatGPT's connection.
         var line: String {
             switch self {
             case .chatgpt: "Chat with ChatGPT"
             case .claude: "Chat with Claude, and Claude Code"
             case .claudeCode: "Claude for coding"
-            case .codex: "ChatGPT for coding"
+            case .codex: "OpenAI\u{2019}s coding agent, on this Mac"
             case .incredible: "Connects from the Incredible app"
             case .other: "Any other app that can add a connector"
             }
