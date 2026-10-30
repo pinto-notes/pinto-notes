@@ -31,7 +31,8 @@ struct SidebarActionRow: View {
                 SidebarIcon(name: symbol)
             }
             .sidebarRowLabel()
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // A folder row's height, so the two read as rows, not a caption.
+            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)

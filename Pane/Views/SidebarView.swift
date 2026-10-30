@@ -482,7 +482,7 @@ struct SidebarView: View {
                     // The study (`SidebarStudy`): Templates and Import just above you, with the
                     // other things that aren't folders.
                     if study != nil {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 0) {
                             SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates")
                             SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import")
                         }

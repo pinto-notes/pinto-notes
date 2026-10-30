@@ -64,6 +64,14 @@ import Testing
 
     private func shots(_ both: SidebarStudy, lib: ModelContainer, mode: String, dark: Bool) async throws {
         try await AppSnapshotTests.shoot(window(both, library: lib), name: "study-marks-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+        let sidebar = NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+            .frame(width: 260, height: 560)
+            .environment(Self.backend)
+            .environment(\.sidebarStudy, both)
+            .environment(\.controlActiveState, .key)
+            .tint(Color(PColor.paneAccent))
+            .modelContainer(lib)
+        try await AppSnapshotTests.render(sidebar, name: "study-sidebar-\(mode)", dark: dark)
         // Templates in the sidebar opens the same gallery as the last setup card.
         let gallery = SetupCardsFlow(store: OnboardingStore(defaults: TestDefaults()), backend: Backend(), preview: .init(card: .gallery), finish: { _ in })
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
