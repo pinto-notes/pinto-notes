@@ -346,6 +346,7 @@
 		6C0580F1C29D50F09C2AB55A /* TextDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7329AFAFDF70725C833E38C /* TextDiff.swift */; };
 		6C07D3EBDADDBC4860E889F3 /* NoteLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F640AF3B161AEAD5FD260995 /* NoteLock.swift */; };
 		6C0D68D980CC55FA3C391007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */; };
+		6D446FBF212877EA2DCA65AB /* AIChangesSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FAE4F721C4F09427A7AE53 /* AIChangesSnapshots.swift */; };
 		6D597B1C5F30A6957832112C /* preact-hooks.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 52D415B84CA735B3B8845F5E /* preact-hooks.module.js */; };
 		6DD09CC86FAF7B9E5D841692 /* ImportGuideFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C98109111422D10C0858EF /* ImportGuideFlow.swift */; };
 		6E09968EBD6C3AD263A8692A /* ConnectGuideSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92322EAC09047DABE673BD1B /* ConnectGuideSnapshots.swift */; };
@@ -1150,6 +1151,7 @@
 		A40FBDDB40A6791A4C81086B /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		A44218A9E5FBE7C82E8F7C95 /* AIChangesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesView.swift; sourceTree = "<group>"; };
 		A57B1C31988997DD4107396A /* NoteMoreMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteMoreMenuTests.swift; sourceTree = "<group>"; };
+		A5FAE4F721C4F09427A7AE53 /* AIChangesSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesSnapshots.swift; sourceTree = "<group>"; };
 		A63BCA6A4FFD0CF3D4A3011E /* ConnectChoices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectChoices.swift; sourceTree = "<group>"; };
 		A65489A5A3E4082CEE2D038C /* RecentlyDeletedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentlyDeletedTests.swift; sourceTree = "<group>"; };
 		A7329AFAFDF70725C833E38C /* TextDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextDiff.swift; sourceTree = "<group>"; };
@@ -2067,6 +2069,7 @@
 			isa = PBXGroup;
 			children = (
 				2C8C1097F11A537E7117D38F /* AddDeviceSnapshots.swift */,
+				A5FAE4F721C4F09427A7AE53 /* AIChangesSnapshots.swift */,
 				B3C667730E3C8E3C905E7874 /* AIEditSnapshots.swift */,
 				2F7E4558253D684B6A0050A2 /* AllowSheetSnapshots.swift */,
 				19A3CFE92D58ADD46C8269EB /* AmberButtonDynamicTypeSnapshots.swift */,
@@ -2504,6 +2507,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0D7E7D7BE11907499A410728 /* AIChangesLogTests.swift in Sources */,
+				6D446FBF212877EA2DCA65AB /* AIChangesSnapshots.swift in Sources */,
 				0EAF1EF814DB06B298E28565 /* AIChangesTests.swift in Sources */,
 				5EFE2991114664DF1D981C66 /* AIEditSnapshots.swift in Sources */,
 				DE5EE93B05370A763A90D28F /* AIEditTests.swift in Sources */,

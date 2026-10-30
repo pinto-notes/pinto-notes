@@ -1,4 +1,9 @@
 import Foundation
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 import SwiftData
 import Testing
 @testable import Pane
@@ -141,6 +146,19 @@ import Testing
         #expect(d.removed.map(ns.substring) == ["Two"])
         #expect(d.added.map(ns.substring) == ["Two, better", "Four"])
         #expect(AIChangeCopy.lines(d) == "+2 \u{2212}1 lines")
+    }
+
+    /// Lines an edit took out are struck through on a soft red, so they never read as ticked items.
+    @Test func removedLinesAreStruckThroughOnABand() throws {
+        let d = EditDiff.between("List\n\n- [x] Bread\n- [ ] Eggs", "List\n\n- [x] Bread\n- [ ] Milk")
+        let storage = NSTextStorage(string: d.text)
+        VersionTextView.style(storage, changed: d.added, removed: d.removed)
+        let gone = try #require(d.removed.first)
+        #expect(storage.attribute(.strikethroughStyle, at: gone.location, effectiveRange: nil) != nil)
+        #expect(storage.attribute(.backgroundColor, at: gone.location, effectiveRange: nil) != nil)
+        // The ticked item keeps its own look, with no band.
+        let bread = (d.text as NSString).range(of: "Bread")
+        #expect(storage.attribute(.backgroundColor, at: bread.location, effectiveRange: nil) == nil)
     }
 
     /// The diff is of that edit: the text it replaced against the text it wrote, kept as a

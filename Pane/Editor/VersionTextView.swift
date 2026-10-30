@@ -13,7 +13,7 @@ extension NSAttributedString.Key {
 
 /// A version of a note, read-only, styled as the editor styles it (checklists, headings,
 /// lists, quotes), with `changed` lines tinted amber. `removed` lines (an AI change's diff) are
-/// struck through in the secondary colour: text the change took out, shown where it was.
+/// struck through in the secondary colour on a soft red: text the change took out, shown where it was.
 struct VersionTextView {
     let text: String
     let changed: [NSRange]
@@ -21,8 +21,10 @@ struct VersionTextView {
 
     #if os(macOS)
     static let removedColor = NSColor.secondaryLabelColor
+    static let removedBand = NSColor.systemRed.withAlphaComponent(0.14)
     #else
     static let removedColor = UIColor.secondaryLabel
+    static let removedBand = UIColor.systemRed.withAlphaComponent(0.14)
     #endif
 
     /// The text styled with nothing being edited, so all markup stays hidden.
@@ -37,7 +39,9 @@ struct VersionTextView {
             storage.addAttribute(.paneChanged, value: true, range: line)
         }
         for r in removed where r.length > 0 && NSMaxRange(r) <= length {
-            storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: removedColor], range: r)
+            // A soft red behind it too, so it never reads as a ticked checklist item (also struck through).
+            storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: removedColor,
+                                   .backgroundColor: removedBand], range: r)
         }
         storage.endEditing()
     }
