@@ -24,6 +24,7 @@ import {
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName } from "./paths.ts";
 import { needles, WordIndex } from "./words.ts";
+import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
 
@@ -174,7 +175,7 @@ export const FILE_TOOLS: Tool[] = ([
 /** What the server tells every client when this tool set is on: how the files are laid out. The
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
-In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title.
+In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title (renaming a note with move, edit or write updates the links to it; fetch lists what links to a note).
 A note listed with locked: true is locked by the person with a separate password: only its title shows here, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
 ${FILE_APP_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
@@ -352,6 +353,84 @@ function canonicalDir(P: Paths, dir: string): string {
   if (e?.kind === "folder") return e.path;
   const n = P.note(P.noteOfDir(dir)?.id ?? "");
   return n ? n.path.replace(/\.md$/, "/") : dir;
+}
+
+// MARK: Wiki links between notes
+
+/** A note's folder names from the top, as the app resolves a link from it. */
+const foldersOfNote = (P: Paths, n: Note) => P.folderPathOf(n.folder_id).split("/").filter(Boolean);
+
+/** Every live note's title and folders, to resolve [[links]] the way the app does. */
+function wikiIndexOf(P: Paths): WikiIndex {
+  return new WikiIndex(P.all().flatMap((e) => e.kind === "note" && !e.note.trashed_at
+    ? [{ id: e.note.id, title: e.note.title, folders: foldersOfNote(P, e.note), updated: +new Date(e.note.updated_at) }] : []));
+}
+
+/** The texts of the live, readable notes (other than `except`) that can hold a [[link]] by
+ *  `title`: those whose words the word index says contain the title's, and those it hasn't seen at
+ *  their version, newest first, within the scan's time. `unchecked` counts what time left unread. */
+async function textsLinkingBy(tx: Tx, c: Call, P: Paths, title: string, except: string): Promise<{ texts: Map<string, { note: Note; body: string }>; unchecked: number }> {
+  const notes = P.all().flatMap((e) => e.kind === "note" && !e.note.trashed_at && !e.note.locked_body && e.note.id !== except ? [e.note] : [])
+    .sort((x, y) => +new Date(y.updated_at) - +new Date(x.updated_at));
+  const texts = new Map<string, { note: Note; body: string }>();
+  if (!notes.length) return { texts, unchecked: 0 };
+  let scan: Scan;
+  try { scan = await Scan.start(tx, c); } catch { return { texts, unchecked: notes.length }; }
+  const W = await WordIndex.load(tx, c);
+  const ns = needles(title);
+  const ids = notes.filter((n) => { const e = W.get(n.id, n.version); return !e || WordIndex.has(e, ns); }).map((n) => n.id);
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  const versions = new Map(notes.map((n) => [n.id, n.version]));
+  let looked = 0;
+  for (let i = 0; i < ids.length && !scan.over; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const rows = await tx<{ id: string; body_ct: string | null }[]>`select id, body_ct from public.notes where id = any(${chunk}::uuid[])`;
+    const opened = new Map<string, string>();
+    await scan.timed(async () => {
+      await Promise.all(rows.map(async (r) => { if (r.body_ct) opened.set(r.id, await c.v.openBody(r.id, r.body_ct).catch(() => "")); }));
+    });
+    looked += chunk.length;
+    await indexOpened(tx, c, W, opened, versions);
+    for (const [id, body] of opened) if (body.includes("[[")) texts.set(id, { note: byId.get(id)!, body });
+  }
+  await W.save(tx, c);
+  return { texts, unchecked: ids.length - looked };
+}
+
+/** After `id` was renamed from `oldTitle` (P: the paths from before), points the [[links]] in
+ *  other notes that led to it under the old title at its new one, as the app does on a rename
+ *  (ModelContext.retargetWikiLinks). Locked notes can't be read here and keep their links. */
+async function followRename(tx: Tx, c: Call, P: Paths, id: string, oldTitle: string, newTitle: string): Promise<Record<string, unknown>> {
+  if (!oldTitle || !newTitle || key(oldTitle) === key(newTitle)) return {};
+  const before = wikiIndexOf(P).withTitle(oldTitle, id);
+  const { texts, unchecked } = await textsLinkingBy(tx, c, P, oldTitle, id);
+  const changed: string[] = [];
+  for (const { note, body } of texts.values()) {
+    const updated = retargetForRename(body, foldersOfNote(P, note), before, id, oldTitle, newTitle);
+    if (updated === body) continue;
+    await save(tx, c, await full(tx, c, note.id), body, updated);
+    changed.push(note.id);
+  }
+  const fresh = changed.length ? await pathsOf(tx, c, true) : P;
+  return {
+    ...(changed.length ? { links_updated: changed.map((n) => fresh.pathOf(n) ?? n) } : {}),
+    ...(unchecked ? { links_not_checked: `${unchecked} notes weren't read in time; their [[${oldTitle}]] links still name the old title.` } : {}),
+  };
+}
+
+/** The notes that link to `n` with [[links]], each with the lines that hold a link, newest first. */
+async function linkedFrom(tx: Tx, c: Call, P: Paths, n: Note): Promise<Record<string, unknown>> {
+  const index = wikiIndexOf(P);
+  const { texts, unchecked } = await textsLinkingBy(tx, c, P, n.title, n.id);
+  const found: { path: string; lines: string[] }[] = [];
+  for (const { note, body } of texts.values()) {
+    const lines = linkLines(body, foldersOfNote(P, note), index, n.id);
+    if (lines.length) found.push({ path: P.pathOf(note.id) ?? note.id, lines: lines.slice(0, 5) });
+  }
+  return {
+    ...(found.length ? { linked_from: found.slice(0, 50), ...(found.length > 50 ? { linked_from_count: found.length } : {}) } : {}),
+    ...(unchecked ? { linked_from_incomplete: `${unchecked} notes weren't read in time.` } : {}),
+  };
 }
 
 // MARK: A note's files and links
@@ -777,6 +856,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
           ...(n.trashed_at ? { deleted: "In Recently Deleted: restore brings it back." } : {}),
           ...(subs.length ? { sub_notes: subs } : {}), ...(files.length ? { files: files.map((f) => f.path) } : {}),
           ...(wikiLinks(body).length ? { links: wikiLinks(body) } : {}),
+          ...(n.trashed_at ? {} : await linkedFrom(tx, c, P, n)),
           ...(P.hasApp(n.id) ? { app: r.path.replace(/\.md$/, ".app/") } : {}),
           ...(shown.truncated ? { truncated: shown.truncated } : {}),
         },
@@ -868,9 +948,11 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const [row] = await tx<{ version: string }[]>`select version from public.notes where id = ${n.id}`;
       await markRead(tx, c, noteItem(n.id), String(row.version));
       const checks = noteChecks(before, body, today());
-      // Its path only moves when its title did.
-      const now = titleOf(body) === titleOf(before) ? r.path : (await pathsOf(tx, c, true)).pathOf(n.id)!;
-      return { edited: now, ...(now !== r.path ? { renamed_from: r.path } : {}), checks: checks.length ? checks : "ok" };
+      // Its path only moves when its title did, and links to it follow it.
+      const renamed = titleOf(body) !== titleOf(before);
+      const links = renamed ? await followRename(tx, c, P, n.id, n.title, titleOf(body)) : {};
+      const now = renamed ? (await pathsOf(tx, c, true)).pathOf(n.id)! : r.path;
+      return { edited: now, ...(now !== r.path ? { renamed_from: r.path } : {}), ...links, checks: checks.length ? checks : "ok" };
     }
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
@@ -929,8 +1011,9 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const [row] = await tx<{ version: string }[]>`select version from public.notes where id = ${n.id}`;
       await markRead(tx, c, noteItem(n.id), String(row.version));
       const checks = noteChecks(before, body, today());
+      const links = titleOf(body) !== titleOf(before) ? await followRename(tx, c, P, n.id, n.title, titleOf(body)) : {};
       const now = (await pathsOf(tx, c, true)).pathOf(n.id)!;
-      return { written: now, ...(now !== r.path ? { renamed_from: r.path } : {}), checks: checks.length ? checks : "ok" };
+      return { written: now, ...(now !== r.path ? { renamed_from: r.path } : {}), ...links, checks: checks.length ? checks : "ok" };
     }
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
@@ -957,6 +1040,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (!to) throw new ToolError("to is where it goes.");
     if (r.kind === "note") {
       let n = await full(tx, c, r.note.id);
+      let links: Record<string, unknown> = {};
       const rename = /\.md$/i.test(to);
       const dir = (rename ? to.split("/").slice(0, -1).join("/") : to).replace(/\/+$/, "");
       const here = r.path.split("/").slice(0, -1).join("/");
@@ -992,9 +1076,12 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
         const k = lines.findIndex((l) => l.trim());
         const m = (lines[k] ?? "").match(/^(\s*#{1,6}\s+)/);
         lines[k < 0 ? 0 : k] = `${m ? m[1] : ""}${title}`;
-        await save(tx, c, n, before, lines.join("\n"));
+        const after = lines.join("\n");
+        await save(tx, c, n, before, after);
+        // Links to it under its old title name the new one (P: the paths from before the move).
+        if (titleOf(after) !== titleOf(before)) links = await followRename(tx, c, P, n.id, r.note.title, titleOf(after));
       }
-      return { moved: (await pathsOf(tx, c, true)).pathOf(n.id) };
+      return { moved: (await pathsOf(tx, c, true)).pathOf(n.id), ...links };
     }
     if (r.kind === "dir") {
       const e = P.at(r.dir);
