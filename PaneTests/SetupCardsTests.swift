@@ -1,7 +1,6 @@
 #if os(macOS)
 import AppKit
 import Foundation
-import SwiftUI
 import Testing
 @testable import Pane
 
@@ -71,22 +70,6 @@ import Testing
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)
-    }
-
-    /// The strong button is pure black in the light and pure white in the dark, never the grey a
-    /// system colour gives on a dark card.
-    @Test func theInkButtonIsBlackOrWhite() {
-        func white(_ color: Color, _ look: NSAppearance.Name) -> CGFloat {
-            var w: CGFloat = -1
-            NSAppearance(named: look)!.performAsCurrentDrawingAppearance {
-                w = NSColor(color).usingColorSpace(.deviceGray)!.whiteComponent
-            }
-            return w
-        }
-        #expect(white(SetupCards.ink, .aqua) == 0)
-        #expect(white(SetupCards.ink, .darkAqua) == 1)
-        #expect(white(SetupCards.inkLabel, .aqua) == 1)
-        #expect(white(SetupCards.inkLabel, .darkAqua) == 0)
     }
 }
 #endif

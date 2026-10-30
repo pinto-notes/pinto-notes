@@ -166,9 +166,6 @@ enum SetupCards {
     /// White in light, the system's raised grey in dark: a card over the pure black notes.
     static let ground = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.11, alpha: 1) : .white })
     static let soft = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.17, alpha: 1) : NSColor(white: 0.935, alpha: 1) })
-    /// The one strong button: pure black in the light, pure white in the dark, never grey.
-    static let ink = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .white : .black })
-    static let inkLabel = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .black : .white })
     /// One spring for every change of size: lands with a little overshoot.
     static let resize = Animation.spring(duration: 0.44, bounce: 0.26)
 }
@@ -198,36 +195,6 @@ struct SetupCard<Content: View>: View {
             .animation(reduceMotion ? .easeOut(duration: 0.2) : SetupCards.resize, value: card)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("setup.card")
-    }
-}
-
-/// The card's main button: black in light, white in dark, never amber.
-struct SetupInkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13.5, weight: .semibold))
-            .lineLimit(1)
-            .padding(.horizontal, 15)
-            .frame(maxWidth: .infinity, minHeight: 34)
-            .foregroundStyle(SetupCards.inkLabel)
-            .background(SetupCards.ink, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-/// The quiet button beside it (Skip, Not now).
-struct SetupSoftButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13.5, weight: .semibold))
-            .lineLimit(1)
-            .padding(.horizontal, 15)
-            .frame(minHeight: 34)
-            .foregroundStyle(Color.ink)
-            .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -452,10 +419,10 @@ struct SetupCardsFlow: View {
             }
             HStack(spacing: 8) {
                 Button("Skip") { skipBring() }
-                    .buttonStyle(SetupSoftButtonStyle())
+                    .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.skip")
                 Button(SetupCards.importTitle(shownSource)) { startImport() }
-                    .buttonStyle(SetupInkButtonStyle())
+                    .buttonStyle(.amberProminent(.regular, wide: true))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("setup.import")
             }
@@ -486,10 +453,10 @@ struct SetupCardsFlow: View {
             }
             HStack(spacing: 8) {
                 Button("Not now") { withAnimation { connecting = .set(connected: false) } }
-                    .buttonStyle(SetupSoftButtonStyle())
+                    .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
                 Button(shownAI.button) { startConnect() }
-                    .buttonStyle(SetupInkButtonStyle())
+                    .buttonStyle(.amberProminent(.regular, wide: true))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("setup.connect")
             }
@@ -549,7 +516,7 @@ struct SetupCardsFlow: View {
         VStack(spacing: 16) {
             title(SetupCards.setTitle)
             Button("Done") { done() }
-                .buttonStyle(SetupInkButtonStyle())
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("setup.done")
         }
