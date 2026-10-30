@@ -67,6 +67,7 @@ final class DailyNotesUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         let today = Date().formatted(date: .long, time: .omitted)
         XCTAssertTrue((editor.value as? String ?? "").contains("On \(today)"), "{{date}} is filled in: \(editor.value ?? "")")
+        shot("daily-template-filled")
         backToFolders()
 
         // Today's note in one press: the calendar beside New Note. In Daily, titled with the date.
@@ -98,6 +99,24 @@ final class DailyNotesUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Daily"].waitForExistence(timeout: 3), "it lives in Daily")
         XCTAssertEqual(app.cells.containing(.staticText, identifier: "note.\(today)").count, 1, "one note for today")
         shot("daily-folder")
+    }
+
+    /// The calendar, twice: today's note opens, and the second press opens the same note.
+    func testTheCalendarOpensTheSameNoteTwice() {
+        let calendar = app.buttons["sidebar.today"].firstMatch
+        XCTAssertTrue(calendar.waitForExistence(timeout: 3))
+        Thread.sleep(forTimeInterval: 1.0)
+        calendar.tap()
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        Thread.sleep(forTimeInterval: 0.8)
+        editor.typeText("Slept well. Call Anna about Saturday.")
+        Thread.sleep(forTimeInterval: 1.0)
+        backToFolders()
+        Thread.sleep(forTimeInterval: 1.2)
+        calendar.tap()
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertTrue((editor.value as? String ?? "").contains("Call Anna"), "the same note opens again")
+        Thread.sleep(forTimeInterval: 2.0)
     }
 }
 #endif
