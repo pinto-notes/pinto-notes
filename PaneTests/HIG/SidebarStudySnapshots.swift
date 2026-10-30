@@ -151,7 +151,7 @@ import Testing
                                                          ("templates-open-app", catalog.entries.first { $0.slug == "trip-plan" })]
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (name, open) in picks {
-                let view = window(SidebarStudy(), library: lib, over: TemplateLibraryView(catalog: catalog, ai: .chatgpt, open: open))
+                let view = window(SidebarStudy(), library: lib, over: TemplateLibraryView(catalog: catalog, ais: [.chatgpt, .claude], open: open))
                 try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
             }
         }

@@ -55,6 +55,7 @@ enum TemplateLibraryWords {
     static let title = "Templates"
     static let line = "Notes your AI fills in and keeps up to date."
     static func make(_ ai: SetupCards.AI) -> String { ai == .other ? "Add the note" : "Make with \(ai.name)" }
+    static let another = "Make with another AI"
     static let copy = "Copy prompt"
     static let copied = "Copied"
     static let tryAsking = "Then ask"
@@ -65,11 +66,14 @@ enum TemplateLibraryWords {
 /// A template opens on the right as it looks in use: the note your AI filled in, or the app.
 struct TemplateLibraryView: View {
     var catalog = TemplateCatalog.shipped
-    /// The AI a template is made with: the one you used last.
-    var ai: SetupCards.AI = .chatgpt
+    /// Your connected AIs, the one you used last first: Make uses the first, or the one picked
+    /// from the arrow beside it.
+    var ais: [SetupCards.AI] = [.chatgpt]
     /// Captures: the template that's open.
     @State var open: TemplateCatalog.Entry?
-    var make: (TemplateCatalog.Entry) -> Void = { _ in }
+    var make: (TemplateCatalog.Entry, SetupCards.AI) -> Void = { _, _ in }
+    @State private var picked: SetupCards.AI?
+    private var ai: SetupCards.AI { picked ?? ais.first ?? .other }
     var close: () -> Void = {}
     @State private var filter = "All"
     @State private var query = ""
@@ -215,10 +219,29 @@ struct TemplateLibraryView: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     // Words only: ChatGPT's mark takes the text colour, which vanishes on the dark look's white button.
-                    Button(TemplateLibraryWords.make(ai)) { make(e) }
-                        .buttonStyle(.amberProminent(.regular, wide: true))
-                        .keyboardShortcut(.defaultAction)
-                        .accessibilityIdentifier("templates.make")
+                    // A split button: Make with the AI shown, and an arrow to make it with another
+                    // (remembered while the library is open).
+                    HStack(spacing: 2) {
+                        Button(TemplateLibraryWords.make(ai)) { make(e, ai) }
+                            .buttonStyle(.amberProminent(.regular, wide: true))
+                            .keyboardShortcut(.defaultAction)
+                            .accessibilityIdentifier("templates.make")
+                        if ais.count > 1 {
+                            Menu {
+                                ForEach(ais) { other in
+                                    Button(TemplateLibraryWords.make(other)) { picked = other; make(e, other) }
+                                }
+                            } label: {
+                                Image(systemName: "chevron.down").font(.system(size: 12, weight: .bold))
+                            }
+                            .menuStyle(.button)
+                            .menuIndicator(.hidden)
+                            .buttonStyle(.amberProminent(.regular))
+                            .fixedSize()
+                            .accessibilityLabel(TemplateLibraryWords.another)
+                            .accessibilityIdentifier("templates.makeWith")
+                        }
+                    }
                     Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
                         .buttonStyle(.secondary(.regular))
                         .accessibilityIdentifier("templates.copy")
