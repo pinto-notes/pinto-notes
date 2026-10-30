@@ -28,11 +28,12 @@ enum Palette {
     /// The fill of amber primary buttons, in light and dark alike: the deeper amber, so their
     /// white label stays readable (the dark-mode amber is too light under white).
     static let amberButton = pair(0xD96A06, 0xD96A06)
-    /// The primary button: the deeper amber with a white label in the light; in the dark, white
-    /// with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons white or black,
-    /// never amber). Under the pointer a touch lighter in the light, a touch greyer in the dark.
-    static let primaryButton = pair(0xD96A06, 0xFFFFFF)
-    static let primaryButtonLabel = pair(0xFFFFFF, 0x000000)
+    /// The primary button: the deeper amber with a white label in the light; in the dark the ink
+    /// button, white with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons
+    /// white or black, never amber). Under the pointer a touch lighter in the light, a touch greyer
+    /// in the dark.
+    static let primaryButton = byAppearance(light: amberButton, dark: inkButton)
+    static let primaryButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
     static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
@@ -152,6 +153,15 @@ enum Palette {
         return UIColor { t in let c = all[DesignLook.current]!; return t.userInterfaceStyle == .dark ? c.1 : c.0 }
         #else
         return NSColor(name: nil) { a in let c = all[DesignLook.current]!; return a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? c.1 : c.0 }
+        #endif
+    }
+
+    /// One colour in the light and another in the dark.
+    static func byAppearance(light: PColor, dark: PColor) -> PColor {
+        #if os(iOS)
+        UIColor { $0.userInterfaceStyle == .dark ? dark.resolvedColor(with: $0) : light.resolvedColor(with: $0) }
+        #else
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light }
         #endif
     }
 
