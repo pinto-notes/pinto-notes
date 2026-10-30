@@ -270,12 +270,12 @@ struct SetupTemplateCard: View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         return Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
-                ZStack {
-                    Color(rgb: pick.ground)
-                    pick.image.resizable().scaledToFill()
-                }
-                .frame(width: width, height: width * 0.8)
-                .clipShape(shape)
+                // The covers keep their subject in the top half: the art shows from its top edge,
+                // and only the plain ground at the foot is cut.
+                Color(rgb: pick.ground)
+                    .frame(width: width, height: width * 0.8)
+                    .overlay(alignment: .top) { pick.image.resizable().scaledToFill().frame(width: width, height: width) }
+                    .clipShape(shape)
                 .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
                 .overlay {
                     if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3) }
