@@ -144,13 +144,6 @@ enum Palette {
         #endif
     }
 
-    static func rgb(_ hex: UInt32, _ alpha: CGFloat = 1) -> PColor {
-        PColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-               blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
-    }
-
-    static func pair(_ light: UInt32, _ dark: UInt32) -> PColor { pair(light, 1, dark, 1) }
-
     /// One colour in the light and another in the dark.
     static func byAppearance(light: PColor, dark: PColor) -> PColor {
         #if os(iOS)
@@ -159,6 +152,13 @@ enum Palette {
         NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light }
         #endif
     }
+
+    static func rgb(_ hex: UInt32, _ alpha: CGFloat = 1) -> PColor {
+        PColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+               blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
+    }
+
+    static func pair(_ light: UInt32, _ dark: UInt32) -> PColor { pair(light, 1, dark, 1) }
 
     static func pair(_ light: UInt32, _ lightAlpha: CGFloat, _ dark: UInt32, _ darkAlpha: CGFloat) -> PColor {
         let l = rgb(light, lightAlpha), d = rgb(dark, darkAlpha)
