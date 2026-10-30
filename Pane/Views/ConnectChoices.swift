@@ -769,10 +769,17 @@ enum ConnectCopy {
     static let others = "Other AIs"
     static let trouble = "Having trouble?"
     static let connected = "Connected"
-    /// The study (`connectStudy`): your AIs, then the rest to add.
-    static let yours = "Your AIs"
-    static let addAnother = "Add another"
-    static func anotherAccount(_ ai: String) -> String { "Another \(ai) account" }
+    static func anotherAccount(_ ai: String) -> String { "Add another \(ai) account" }
+    static let add = "Add"
+    static func added(_ c: Connection) -> String { "added \(c.created_at.formatted(.dateTime.day().month(.abbreviated)))" }
+    /// The library's one line: what it is for, or when you last used it ("2 accounts" when more).
+    static func libraryLine(_ g: ConnectAISection.Guide, accounts: [Connection], working: String?) -> String {
+        if let working { return working }
+        guard !accounts.isEmpty else { return g.line }
+        let last = accounts.compactMap(\.last_used_at).max()
+        let used = last.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Not used yet"
+        return accounts.count > 1 ? "\(accounts.count) accounts \u{00B7} \(used)" : used
+    }
 
     static func waiting(_ g: Guide) -> String {
         switch g {
@@ -925,116 +932,78 @@ struct ConnectChoices: View {
         }
     }
 
-    /// The study (`connectStudy`, 2026-10-30), once an AI is connected: your AIs first, each with
-    /// when it was last used and Disconnect in its menu; then one list of the rest to add; the
-    /// line on what is sent and to whom under them, word for word.
+    /// The study (`connectStudy`, 2026-10-30), once an AI is connected: a library. One plain
+    /// list of every AI, yours first; each one you have says when it was last used and keeps
+    /// Add another account and Disconnect in its menu, the rest have Add. The line on what is
+    /// sent and to whom under it, word for word.
     private var yours: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let mine = guides.filter { g in active.contains { ConnectRun.owner(of: $0) == g } }
+        let ordered = mine + guides.filter { !mine.contains($0) }
+        return VStack(alignment: .leading, spacing: 0) {
             if let ask = center.waiting().first {
-                ConnectWaitingRow(ask: ask)
+                ConnectWaitingRow(ask: ask).padding(.bottom, 8)
             }
-            header(ConnectCopy.yours)
-            card {
-                ForEach(Array(active.enumerated()), id: \.element.id) { i, c in
-                    if i > 0 { Divider().padding(.leading, Metrics.rowInset + 12) }
-                    yourRow(c)
-                }
+            ForEach(Array(ordered.enumerated()), id: \.element) { i, g in
+                if i > 0 { Divider().padding(.leading, 38) }
+                libraryRow(g, accounts: active.filter { ConnectRun.owner(of: $0) == g })
+                if run.guide == g { fixButton; addedNote }
             }
-            // Every AI stays here: one you have can be added again for another account of it.
-            header(ConnectCopy.addAnother).padding(.top, 10)
-            card {
-                ForEach(Array(guides.enumerated()), id: \.element) { i, g in
-                    if i > 0 { Divider().padding(.leading, Metrics.smallMark + 22) }
-                    addRow(g)
-                }
-            }
-            if run.guide != nil { fixButton; addedNote }
             if reach != .online {
-                Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted)
+                Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted).padding(.top, 8)
             }
             if let error, reach == .online {
-                Text(error).font(.footnote).foregroundStyle(.red)
+                Text(error).font(.footnote).foregroundStyle(.red).padding(.top, 8)
             }
             Text(ConnectCopy.why)
                 .font(.footnote)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
-            if !compact {
-                Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
-                    .buttonStyle(.hoverLink)
-                    .font(Metrics.quiet)
-                    .foregroundStyle(Color.muted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 4)
-                    .accessibilityIdentifier("connect.trouble")
-            }
+                .padding(.top, 14)
         }
     }
 
-    /// A row to add an AI. One you have already says it adds another account of it.
-    private func addRow(_ g: Guide) -> some View {
-        let again = state(g) == .connected
-        let line = again ? ConnectCopy.anotherAccount(g.title) : detail(g)
-        return pressable(g) {
-            HStack(spacing: 10) {
-                AITile(ai: g.title, size: Metrics.smallMark)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(g.title).font(Metrics.smallTitle).foregroundStyle(Color.ink)
-                    Text(line).font(Metrics.smallDetail).foregroundStyle(again || state(g) == .rest ? Color.muted : Color.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .multilineTextAlignment(.leading)
-                Spacer(minLength: 8)
-                Accessory(state: again ? .rest : state(g), size: Metrics.smallCheck)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, Metrics.smallPad)
-            .frame(maxWidth: .infinity, minHeight: Metrics.smallHeight, alignment: .leading)
-            .background(lit(g) ? Color.amberSoft : .clear)
-            .hoverOverlay(Rectangle(), Color.primary.opacity(0.05))
-            .contentShape(.rect)
-        }
-        .modifier(Said(id: "connect.add.\(g.rawValue)", label: "\(g.title). \(line)"))
-    }
-
-    private func card(@ViewBuilder _ rows: () -> some View) -> some View {
-        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
-        return VStack(spacing: 0, content: rows)
-            .clipShape(shape)
-            .choiceCard(shape)
-    }
-
-    /// One of your AIs: its mark, where access went and when it was last used, and its menu.
-    private func yourRow(_ c: Connection) -> some View {
+    /// One AI in the library: its mark, its name, one line, and Add or its menu.
+    private func libraryRow(_ g: Guide, accounts: [Connection]) -> some View {
         HStack(spacing: 10) {
-            ConnectionTile(connection: c, size: 26)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(c.title).font(Metrics.smallTitle).foregroundStyle(Color.ink)
-                Text(Self.detail(c, among: active)).font(Metrics.smallDetail).foregroundStyle(Color.muted).monospacedDigit()
-                    .fixedSize(horizontal: false, vertical: true)
+            AITile(ai: g.title, size: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(g.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
+                Text(ConnectCopy.libraryLine(g, accounts: accounts, working: run.guide == g && run.phase != nil ? detail(g) : nil))
+                    .font(Metrics.smallDetail).foregroundStyle(Color.muted).monospacedDigit()
+                    .lineLimit(1)
             }
             .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
-            Menu {
-                Button("Disconnect\u{2026}", role: .destructive) { removing = c }
-                    .accessibilityIdentifier("connect.disconnect")
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.muted)
-                    .frame(width: 26, height: 26)
-                    .contentShape(.rect)
+            if run.guide == g, run.phase != nil {
+                Accessory(state: state(g), size: Metrics.smallCheck)
+            } else if accounts.isEmpty {
+                Button(ConnectCopy.add) { press(g) }
+                    .buttonStyle(.secondary(.compact))
+                    .accessibilityLabel("Add \(g.title)")
+                    .accessibilityIdentifier("connect.add.\(g.rawValue)")
+            } else {
+                Menu {
+                    Button(ConnectCopy.anotherAccount(g.title)) { press(g) }
+                    Divider()
+                    ForEach(accounts) { c in
+                        Button(accounts.count > 1 ? "Disconnect the one \(ConnectCopy.added(c))\u{2026}" : "Disconnect\u{2026}", role: .destructive) { removing = c }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.muted)
+                        .frame(width: 28, height: 28)
+                        .contentShape(.rect)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel("More for \(g.title)")
+                .accessibilityIdentifier("connect.more.\(g.rawValue)")
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel("More for \(c.title)")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, Metrics.smallPad + 2)
-        .frame(minHeight: Metrics.smallHeight + 6)
+        .padding(.vertical, 9)
     }
 
     private func header(_ text: String) -> some View {
@@ -1313,13 +1282,6 @@ struct ConnectChoices: View {
                 .accessibilityIdentifier("connect.disconnect")
         }
         .padding(.vertical, 8)
-    }
-
-    /// Two of the same AI (two Claude accounts) also say when each was added, to tell them apart.
-    static func detail(_ c: Connection, among all: [Connection]) -> String {
-        let twins = all.filter { $0.title == c.title }.count > 1
-        let added = "Added \(c.created_at.formatted(.dateTime.day().month(.abbreviated)))"
-        return twins ? detail(c) + " · " + added : detail(c)
     }
 
     static func detail(_ c: Connection) -> String {

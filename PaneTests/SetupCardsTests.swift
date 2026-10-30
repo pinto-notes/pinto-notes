@@ -89,15 +89,17 @@ import Testing
         #expect(lines.contains { $0.hasPrefix(".shadow(") })
     }
 
-    /// Two accounts of one AI (two Claudes) are told apart by when each was added; one isn't.
-    @Test func twoOfOneAISayWhenEachWasAdded() {
-        func c(_ name: String, host: String) -> Connection {
-            Connection(id: UUID(), name: name, kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: host)
+    /// The library's line: what an AI is for until you have it, then when you last used it, and
+    /// how many accounts when there are two (two Claudes).
+    @Test func theLibrarySaysWhatYouHave() {
+        func c(_ used: Date?) -> Connection {
+            Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: used, revoked_at: nil, redirect_host: "claude.ai")
         }
-        let one = c("ChatGPT", host: "chatgpt.com"), a = c("Claude", host: "claude.ai"), b = c("Claude", host: "claude.ai")
-        #expect(ConnectChoices.detail(a, among: [one, a, b]).contains("Added"))
-        #expect(!ConnectChoices.detail(one, among: [one, a, b]).contains("Added"))
-        #expect(ConnectCopy.anotherAccount("Claude") == "Another Claude account")
+        #expect(ConnectCopy.libraryLine(.claude, accounts: [], working: nil) == ConnectAISection.Guide.claude.line)
+        #expect(ConnectCopy.libraryLine(.claude, accounts: [c(nil)], working: nil) == "Not used yet")
+        #expect(ConnectCopy.libraryLine(.claude, accounts: [c(.now), c(nil)], working: nil).hasPrefix("2 accounts"))
+        #expect(ConnectCopy.libraryLine(.claude, accounts: [c(.now)], working: "Waiting for Claude") == "Waiting for Claude")
+        #expect(ConnectCopy.anotherAccount("Claude") == "Add another Claude account")
     }
 
     @Test func afterConnectingTheGalleryIsNext() {
