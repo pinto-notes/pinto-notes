@@ -1,13 +1,20 @@
 #!/bin/zsh
 # Runs Mac unit tests in the QA derived data, with a hard time limit per run.
 #   scripts/qa-test.sh [PaneTests/SuiteName[/testName] ...]
+#   scripts/qa-test.sh --smoke     the few tests every change runs (scripts/ci/smoke-tests.txt), a first check
+#   scripts/qa-test.sh             every unit and interaction test: 20 to 30 minutes
 # The test host runs without a window or Dock icon (see PaneApp.isUnitTestHost).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 only=()
+if [[ ${1:-} == --smoke ]]; then
+  shift
+  for t in $(sed -e 's/#.*//' scripts/ci/smoke-tests.txt); do only+=(-only-testing:PaneTests/$t); done
+fi
 for t in "$@"; do only+=(-only-testing:$t); done
-[[ ${#only[@]} -eq 0 ]] && only=(-only-testing:PaneTests)
+# The whole suite gets the time it needs; a named run keeps the short limit, so a hang shows quickly.
+[[ ${#only[@]} -eq 0 ]] && { only=(-only-testing:PaneTests); LIMIT=${LIMIT:-2400}; }
 LIMIT=${LIMIT:-240}
 DD=${DD:-build/ddqa}
 log=$(mktemp)
@@ -20,7 +27,7 @@ xcodebuild -project Pane.xcodeproj -scheme Pane -configuration $CONFIG -destinat
 pid=$!
 for i in $(seq 1 $LIMIT); do kill -0 $pid 2>/dev/null || break; sleep 1; done
 if kill -0 $pid 2>/dev/null; then
-  echo "TIMEOUT after ${LIMIT}s"
+  echo "TIMEOUT after ${LIMIT}s (LIMIT=<seconds> waits longer)"
   # Only this run's own host app and xcodebuild.
   for h in $(pgrep -f "$PWD/$DD/Build/Products/$CONFIG/Pane.app/Contents/MacOS/Pane"); do kill $h; done
   kill $pid 2>/dev/null

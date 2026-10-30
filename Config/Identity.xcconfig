@@ -1,0 +1,29 @@
+// Who the app is: its bundle id, name, URL scheme, app group and Apple team. Every target reads
+// these (project.yml, configFiles at the top). Config/Beta.xcconfig switches them for Pinto Notes
+// Beta, the build that talks to the staging backend (docs/Technical/staging.md).
+//
+// Your own build: run scripts/make-it-yours.sh, which writes Config/Identity.local.xcconfig
+// (gitignored) with your values. It overrides these, so pulling from upstream never conflicts with
+// them. See docs/MAKE-IT-YOURS.md.
+PANE_BUNDLE_ID = dev.emilwagman.pane
+PANE_DISPLAY_NAME = Pinto Notes
+PANE_URL_SCHEME = ambernotes
+PANE_APP_GROUP = group.dev.emilwagman.pane
+PANE_APPLINKS_HOST = ambernotes.app
+PANE_UPDATE_FEED = https:/$()/ambernotes.app/updates/appcast.xml
+
+// Signing. The Mac app and the Simulator are ad-hoc ("sign to run locally") and need no Apple
+// account. iPhone builds sign with PANE_IOS_TEAM (Emil's paid team: a year per install, app groups,
+// TestFlight); with it empty, build for the Simulator.
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+PANE_IOS_TEAM = 4UM3XVUN9Y
+DEVELOPMENT_TEAM[sdk=iphoneos*] = $(PANE_IOS_TEAM)
+CODE_SIGN_STYLE[sdk=iphoneos*] = Automatic
+CODE_SIGN_IDENTITY[sdk=iphoneos*] = Apple Development
+// Pane-ios-personal.entitlements is for a free Apple account (a personal team), which can't sign
+// Sign in with Apple, push or associated domains.
+PANE_IOS_ENTITLEMENTS = Pane-ios.entitlements
+
+#include? "Identity.local.xcconfig"
