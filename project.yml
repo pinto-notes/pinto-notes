@@ -301,6 +301,11 @@ targets:
       # The project, for OnboardingArtTests (the pictures stay out of the share extension).
       - path: project.yml
         buildPhase: resources
+      # Who the app is and how it signs, for FreshCloneTests (a clone with no Apple team builds).
+      - path: Config/Identity.xcconfig
+        buildPhase: resources
+      - path: Pane/Resources/Pane-ios-personal.entitlements
+        buildPhase: resources
       # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md
         buildPhase: resources

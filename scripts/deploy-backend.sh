@@ -101,6 +101,7 @@ KEY_COPY_SECRET_1=$BACKEND_KEY_COPY_SECRET
 ACCOUNT_STATUS_SALT=$BACKEND_STATUS_SALT
 MCP_PUBLIC_URL=$MCP
 MCP_ALIAS_URLS=$MCP
+APNS_TOPIC=$BUNDLE
 EOF
 [[ -n $SITE ]] && printf 'CONNECT_PAGE_URL=%s/connect\nTEMPLATE_SITE_URL=%s\n' "$SITE" "$SITE" >> "$tmp/secrets.env")
 if (( DRY )); then echo "  would set: $(cut -d= -f1 "$tmp/secrets.env" | tr '\n' ' ')"

@@ -157,12 +157,13 @@ open Pane.xcodeproj       # run the "Pane" scheme on "My Mac" or an iPhone simul
 
 The app talks to the local stack through `Config/Backend.xcconfig`, which carries Supabase's standard local-only development key. To point your builds at a real project, create `Config/Backend.local.xcconfig` (gitignored) with your own `PANE_SUPABASE_URL`, `PANE_SUPABASE_KEY` and `PANE_SHARE_URL`.
 
-Running on a physical device needs your own Apple team. Change `DEVELOPMENT_TEAM` in `project.yml`, and the bundle ids if you like.
+The Mac app and the iPhone Simulator build with no Apple account. For your own bundle id, name and team (a free Apple account puts it on your iPhone), run `scripts/make-it-yours.sh`: see [Make it yours](#make-it-yours).
 
 **Tests**
 
 ```sh
-scripts/qa-test.sh                                   # Mac unit and interaction tests
+scripts/qa-test.sh --smoke                           # a first check, a few minutes
+scripts/qa-test.sh                                   # every Mac unit and interaction test, 20 to 30 minutes
 scripts/prepush.sh --tests                           # before a push: compiles what ships, runs the suites you touched
 deno test --allow-all supabase/functions/mcp/notes.test.ts
 scripts/mcp-e2e.sh                                   # MCP end-to-end, against the local stack
@@ -180,10 +181,23 @@ The interaction tests drive the real editor in an offscreen window, so they neve
 Everything the app needs runs on one Supabase project:
 
 1. Create a project at [supabase.com](https://supabase.com) and put a personal access token in `.env` as `SUPABASE_ACCESS_TOKEN=sbp_…`.
-2. Run `scripts/deploy-backend.sh <project-ref>`. It links the project, applies the migrations, deploys the functions, pushes the auth settings, and writes `Config/Backend.local.xcconfig`.
-3. For share links, deploy `web/` to any Next.js host and set `PANE_SHARE_URL` to it.
+2. Run `scripts/deploy-backend.sh <project-ref> --dry-run` to see the steps, then without `--dry-run`. It links the project, applies the migrations, deploys the functions and their secrets, sets up email sign-in with a code, and writes `Config/Backend.local.xcconfig`.
+3. For share links and connecting ChatGPT or Claude, deploy `web/` to any Next.js host and run the script again with `--site https://your-site`.
 
 </details>
+
+## Make it yours
+
+Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed.
+
+```sh
+git clone https://github.com/pinto-notes/pinto-notes.git && cd pinto-notes
+supabase start && xcodegen generate
+scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes   # your name and bundle id
+scripts/deploy-backend.sh <your-supabase-ref>                             # your own backend, when you want one
+```
+
+[docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md) has the rest: building with or without an Apple account, running your own backend, where the colours, toolbar, name and icon live, prompts that work for coding agents, and pulling updates with few conflicts.
 
 ## License
 

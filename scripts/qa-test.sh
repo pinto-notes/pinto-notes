@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Runs Mac unit tests in the QA derived data, with a hard time limit per run.
 #   scripts/qa-test.sh [PaneTests/SuiteName[/testName] ...]
-#   scripts/qa-test.sh --smoke     the few tests every change runs (scripts/ci/smoke-tests.txt), a first check
+#   scripts/qa-test.sh --smoke     the tests CI runs for every change (smoke-tests.txt, always-tests.txt), a first check
 #   scripts/qa-test.sh             every unit and interaction test: 20 to 30 minutes
 # The test host runs without a window or Dock icon (see PaneApp.isUnitTestHost).
 set -uo pipefail
@@ -10,7 +10,8 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 only=()
 if [[ ${1:-} == --smoke ]]; then
   shift
-  for t in $(sed -e 's/#.*//' scripts/ci/smoke-tests.txt); do only+=(-only-testing:PaneTests/$t); done
+  # As CI names them (a suite nested in another, such as NetworkFaults, needs its full path).
+  only=(${(f)"$(python3 scripts/ci/select-tests.py /dev/null 2>/dev/null | grep '^-only-testing:')"})
 fi
 for t in "$@"; do only+=(-only-testing:$t); done
 # The whole suite gets the time it needs; a named run keeps the short limit, so a hang shows quickly.
