@@ -169,10 +169,13 @@ import Testing
         let c = TemplateCatalog.shipped
         #expect(c.entries.count >= 23)
         #expect(c.shown(filter: "All", query: "").count == c.entries.count)
-        #expect(c.shown(filter: "Apps", query: "").allSatisfy(\.app))
-        #expect(c.shown(filter: "Work", query: "").allSatisfy { $0.category == "Work" })
-        #expect(c.shown(filter: "All", query: "trip").map(\.slug).contains("trip-plan"))
-        #expect(c.entries.allSatisfy { Bundle.main.url(forResource: "template-cover-\($0.slug)", withExtension: "jpg") != nil })
+        let apps = c.shown(filter: "Apps", query: "").allSatisfy(\.app)
+        let work = c.shown(filter: "Work", query: "").allSatisfy { $0.category == "Work" }
+        let found = c.shown(filter: "All", query: "trip").map(\.slug)
+        let covers = c.entries.filter { Bundle.main.url(forResource: "template-cover-\($0.slug)", withExtension: "jpg") == nil }.map(\.slug)
+        #expect(apps && work)
+        #expect(found.contains("trip-plan"))
+        #expect(covers.isEmpty)
         #expect(SetupCards.prompt(c.entries[0].pick).hasPrefix("In Pinto Notes, use my Habit tracker note."))
     }
 
