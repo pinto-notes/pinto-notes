@@ -373,6 +373,7 @@ struct TableMenuItems: View {
                 ForEach(section, id: \.title) { item in
                     Button(item.title, systemImage: item.systemImage, role: item.destructive ? .destructive : nil, action: item.run)
                         .disabled(!item.enabled)
+                        .destructiveTint(item.destructive)
                         .accessibilityIdentifier("table.menu.\(item.title)")
                 }
             }

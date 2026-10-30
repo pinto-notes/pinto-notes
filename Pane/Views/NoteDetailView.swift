@@ -796,11 +796,13 @@ struct NoteDetailView: View {
         case .delete:
             if trashed {
                 Button("Delete Now…", systemImage: "trash", role: .destructive) { confirmingPurge = true }
+                    .destructiveTint()
                     .accessibilityIdentifier("editor.deleteNow")
             } else {
                 Button("Delete Note", systemImage: "trash", role: .destructive) {
                     withAnimation(.snappy) { context.trash(note) }
                 }
+                .destructiveTint()
             }
         }
     }

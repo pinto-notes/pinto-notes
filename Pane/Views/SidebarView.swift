@@ -1068,6 +1068,7 @@ private struct FolderTree: View {
         }
         Divider()
         Button("Delete Folder…", systemImage: "trash", role: .destructive) { delete(folder) }
+            .destructiveTint()
     }
 }
 
@@ -1126,6 +1127,7 @@ private struct FolderActionsMenu: View {
             case .newSubfolder: newSub(folder)
             }
         }
+        .destructiveTint(action == .delete)
         .accessibilityIdentifier("folderMenu.\(action.rawValue)")
     }
 }

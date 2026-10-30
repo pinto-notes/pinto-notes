@@ -575,6 +575,7 @@ struct ShareLinkMenuSection: View {
                     // share or copy; the link can be stopped for good.
                     if store.state.slug != nil {
                         Button("Stop Sharing", systemImage: "xmark.circle", role: .destructive) { Task { await store.stopSharing() } }
+                            .destructiveTint()
                             .accessibilityIdentifier("share.stop")
                     }
                 } else if store.state.slug == nil {
@@ -588,6 +589,7 @@ struct ShareLinkMenuSection: View {
                         Link(destination: url) { Label("Open Shared Page", systemImage: "safari") }
                     }
                     Button("Stop Sharing", systemImage: "xmark.circle", role: .destructive) { Task { await store.stopSharing() } }
+                        .destructiveTint()
                         .accessibilityIdentifier("share.stop")
                 }
             }
