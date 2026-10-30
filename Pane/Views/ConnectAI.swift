@@ -1636,6 +1636,8 @@ struct ConnectAISection: View {
     let client: SupabaseClient
     /// Captures: shows these instead of asking the server.
     var preview: [Connection]? = nil
+    @Environment(\.connectStudy) private var study
+    @State private var anyConnected = false
 
     enum Guide: String, Identifiable, CaseIterable {
         case chatgpt, claude, claudeCode, codex, incredible, other
@@ -1704,10 +1706,13 @@ struct ConnectAISection: View {
     var body: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
-                Text(ConnectChoices.why)
-                    .foregroundStyle(Color.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                ConnectChoices(client: client, preview: preview)
+                // The study says it under your AIs instead, once one is connected.
+                if !(study && anyConnected) {
+                    Text(ConnectChoices.why)
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ConnectChoices(client: client, preview: preview) { anyConnected = !$0.isEmpty }
             }
             .padding(.vertical, 4)
         } header: {

@@ -8,6 +8,8 @@ struct SidebarStudy: Equatable {}
 
 extension EnvironmentValues {
     @Entry var sidebarStudy: SidebarStudy?
+    /// Connect an AI and Settings → AI as one design (2026-10-30): your AIs, then the rest to add.
+    @Entry var connectStudy = false
 }
 
 enum SidebarAIWords {

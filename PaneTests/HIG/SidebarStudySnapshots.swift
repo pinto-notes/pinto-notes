@@ -96,6 +96,12 @@ import Testing
         try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: connected, previewFound: []), name: "study-connect-sheet-\(mode)", dark: dark)
         try await AppSnapshotTests.render(Form { ConnectAISection(client: client, preview: connected) }.formStyle(.grouped).frame(width: 520, height: 640)
             .environment(ConnectGuideRoute()), name: "study-settings-ai-\(mode)", dark: dark, wait: 1)
+        // One design for both (`connectStudy`): your AIs, two Claude accounts among them, then
+        // every AI to add, the line on what is sent under them.
+        let three = connected + [Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 12), last_used_at: .now.addingTimeInterval(-86_400 * 2), revoked_at: nil, redirect_host: "claude.ai")]
+        try await AppSnapshotTests.render(ConnectAISheet(client: client, preview: three, previewFound: []).environment(\.connectStudy, true), name: "study-yours-sheet-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(Form { ConnectAISection(client: client, preview: three) }.formStyle(.grouped).frame(width: 520, height: 640)
+            .environment(ConnectGuideRoute()).environment(\.connectStudy, true), name: "study-yours-settings-\(mode)", dark: dark, wait: 1)
         // Templates in the sidebar opens the same gallery as the last setup card.
         let gallery = SetupCardsFlow(store: OnboardingStore(defaults: TestDefaults()), backend: Backend(), preview: .init(card: .gallery), finish: { _ in })
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)

@@ -89,6 +89,17 @@ import Testing
         #expect(lines.contains { $0.hasPrefix(".shadow(") })
     }
 
+    /// Two accounts of one AI (two Claudes) are told apart by when each was added; one isn't.
+    @Test func twoOfOneAISayWhenEachWasAdded() {
+        func c(_ name: String, host: String) -> Connection {
+            Connection(id: UUID(), name: name, kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: host)
+        }
+        let one = c("ChatGPT", host: "chatgpt.com"), a = c("Claude", host: "claude.ai"), b = c("Claude", host: "claude.ai")
+        #expect(ConnectChoices.detail(a, among: [one, a, b]).contains("Added"))
+        #expect(!ConnectChoices.detail(one, among: [one, a, b]).contains("Added"))
+        #expect(ConnectCopy.anotherAccount("Claude") == "Another Claude account")
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)

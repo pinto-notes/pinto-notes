@@ -769,6 +769,10 @@ enum ConnectCopy {
     static let others = "Other AIs"
     static let trouble = "Having trouble?"
     static let connected = "Connected"
+    /// The study (`connectStudy`): your AIs, then the rest to add.
+    static let yours = "Your AIs"
+    static let addAnother = "Add another"
+    static func anotherAccount(_ ai: String) -> String { "Another \(ai) account" }
 
     static func waiting(_ g: Guide) -> String {
         switch g {
@@ -844,6 +848,7 @@ struct ConnectChoices: View {
     @Environment(\.networkReach) private var reach
     @Environment(\.openURL) private var openURL
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.connectStudy) private var study
 
     static let why = ConnectCopy.why
 
@@ -858,6 +863,31 @@ struct ConnectChoices: View {
     private var rest: [Guide] { guides.filter { !top.contains($0) } }
 
     var body: some View {
+        Group {
+            if study, !active.isEmpty { yours } else { standard }
+        }
+        .disabled(reach != .online)
+        .onAppear {
+            if previewFound == nil { found = ConnectFinder.found() }
+            if let (g, phase) = previewPhase { run.show(g, phase) }
+            if previewShowsDetails { showsDetails = true }
+            run.connected = { _ in Task { await load() } }
+            run.added = { _ in Task { await load() } }
+            run.asksToFinish = asksToFinish
+        }
+        .onDisappear { run.stop() }
+        // Asks again when a sheet over it closes and when back online.
+        .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
+        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
+        } message: {
+            Text("It loses access to your notes right away.")
+        }
+    }
+
+    /// Before any AI is connected (and outside the study): the AIs on this device big, the rest
+    /// in a quiet list, then what is connected.
+    private var standard: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let ask = center.waiting().first {
                 ConnectWaitingRow(ask: ask)
@@ -893,23 +923,118 @@ struct ConnectChoices: View {
             }
             if listsConnected, !active.isEmpty { connectedList.padding(.top, 8) }
         }
-        .disabled(reach != .online)
-        .onAppear {
-            if previewFound == nil { found = ConnectFinder.found() }
-            if let (g, phase) = previewPhase { run.show(g, phase) }
-            if previewShowsDetails { showsDetails = true }
-            run.connected = { _ in Task { await load() } }
-            run.added = { _ in Task { await load() } }
-            run.asksToFinish = asksToFinish
+    }
+
+    /// The study (`connectStudy`, 2026-10-30), once an AI is connected: your AIs first, each with
+    /// when it was last used and Disconnect in its menu; then one list of the rest to add; the
+    /// line on what is sent and to whom under them, word for word.
+    private var yours: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let ask = center.waiting().first {
+                ConnectWaitingRow(ask: ask)
+            }
+            header(ConnectCopy.yours)
+            card {
+                ForEach(Array(active.enumerated()), id: \.element.id) { i, c in
+                    if i > 0 { Divider().padding(.leading, Metrics.rowInset + 12) }
+                    yourRow(c)
+                }
+            }
+            // Every AI stays here: one you have can be added again for another account of it.
+            header(ConnectCopy.addAnother).padding(.top, 10)
+            card {
+                ForEach(Array(guides.enumerated()), id: \.element) { i, g in
+                    if i > 0 { Divider().padding(.leading, Metrics.smallMark + 22) }
+                    addRow(g)
+                }
+            }
+            if run.guide != nil { fixButton; addedNote }
+            if reach != .online {
+                Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted)
+            }
+            if let error, reach == .online {
+                Text(error).font(.footnote).foregroundStyle(.red)
+            }
+            Text(ConnectCopy.why)
+                .font(.footnote)
+                .foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            if !compact {
+                Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
+                    .buttonStyle(.hoverLink)
+                    .font(Metrics.quiet)
+                    .foregroundStyle(Color.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
+                    .accessibilityIdentifier("connect.trouble")
+            }
         }
-        .onDisappear { run.stop() }
-        // Asks again when a sheet over it closes and when back online.
-        .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
-        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
-            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
-        } message: {
-            Text("It loses access to your notes right away.")
+    }
+
+    /// A row to add an AI. One you have already says it adds another account of it.
+    private func addRow(_ g: Guide) -> some View {
+        let again = state(g) == .connected
+        let line = again ? ConnectCopy.anotherAccount(g.title) : detail(g)
+        return pressable(g) {
+            HStack(spacing: 10) {
+                AITile(ai: g.title, size: Metrics.smallMark)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(g.title).font(Metrics.smallTitle).foregroundStyle(Color.ink)
+                    Text(line).font(Metrics.smallDetail).foregroundStyle(again || state(g) == .rest ? Color.muted : Color.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Accessory(state: again ? .rest : state(g), size: Metrics.smallCheck)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, Metrics.smallPad)
+            .frame(maxWidth: .infinity, minHeight: Metrics.smallHeight, alignment: .leading)
+            .background(lit(g) ? Color.amberSoft : .clear)
+            .hoverOverlay(Rectangle(), Color.primary.opacity(0.05))
+            .contentShape(.rect)
         }
+        .modifier(Said(id: "connect.add.\(g.rawValue)", label: "\(g.title). \(line)"))
+    }
+
+    private func card(@ViewBuilder _ rows: () -> some View) -> some View {
+        let shape = RoundedRectangle(cornerRadius: BigChoices.Metrics.radius, style: .continuous)
+        return VStack(spacing: 0, content: rows)
+            .clipShape(shape)
+            .choiceCard(shape)
+    }
+
+    /// One of your AIs: its mark, where access went and when it was last used, and its menu.
+    private func yourRow(_ c: Connection) -> some View {
+        HStack(spacing: 10) {
+            ConnectionTile(connection: c, size: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(c.title).font(Metrics.smallTitle).foregroundStyle(Color.ink)
+                Text(Self.detail(c, among: active)).font(Metrics.smallDetail).foregroundStyle(Color.muted).monospacedDigit()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 8)
+            Menu {
+                Button("Disconnect\u{2026}", role: .destructive) { removing = c }
+                    .accessibilityIdentifier("connect.disconnect")
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+                    .frame(width: 26, height: 26)
+                    .contentShape(.rect)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .accessibilityLabel("More for \(c.title)")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, Metrics.smallPad + 2)
+        .frame(minHeight: Metrics.smallHeight + 6)
     }
 
     private func header(_ text: String) -> some View {
@@ -1190,6 +1315,13 @@ struct ConnectChoices: View {
         .padding(.vertical, 8)
     }
 
+    /// Two of the same AI (two Claude accounts) also say when each was added, to tell them apart.
+    static func detail(_ c: Connection, among all: [Connection]) -> String {
+        let twins = all.filter { $0.title == c.title }.count > 1
+        let added = "Added \(c.created_at.formatted(.dateTime.day().month(.abbreviated)))"
+        return twins ? detail(c) + " · " + added : detail(c)
+    }
+
     static func detail(_ c: Connection) -> String {
         // No access label: every connection reads and edits (29 October 2026).
         var parts: [String] = []
@@ -1384,6 +1516,7 @@ struct ConnectAISheet: View {
     var preview: [Connection]? = nil
     var previewFound: [ConnectAISection.Guide]? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.connectStudy) private var study
     @State private var anyConnected = false
 
     static let title = "Connect an AI"
@@ -1418,11 +1551,16 @@ struct ConnectAISheet: View {
                         .accessibilityIdentifier("connect.close")
                 }
             }
-            Text(ConnectCopy.why)
-                .font(.system(size: 13))
-                .foregroundStyle(Color.muted)
-                .padding(.top, 6)
-                .padding(.bottom, 16)
+            if study && anyConnected {
+                // The study says it under your AIs, as a footnote.
+                Color.clear.frame(height: 16)
+            } else {
+                Text(ConnectCopy.why)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.muted)
+                    .padding(.top, 6)
+                    .padding(.bottom, 16)
+            }
             choices
             if anyConnected { done.padding(.top, 16) }
         }
