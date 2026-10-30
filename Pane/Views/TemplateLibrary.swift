@@ -17,7 +17,20 @@ struct TemplateCatalog {
         let ask: String
         /// The note after the AI has filled it in: what it looks like in use.
         let example: String
+        /// An app's note, which its app reads (nil for a plain note).
+        var note: String?
         var id: String { slug }
+
+        /// An app's compiled project (as a note's page holds it) and its starting data, as the site has them.
+        var appProject: String? {
+            guard app, let url = Bundle.main.url(forResource: "template-app-\(slug).project", withExtension: "json") else { return nil }
+            return try? String(contentsOf: url, encoding: .utf8)
+        }
+
+        var appData: NotePageData.Doc {
+            guard app, let url = Bundle.main.url(forResource: "template-app-\(slug).data", withExtension: "json") else { return [:] }
+            return NotePageData.decode(try? Data(contentsOf: url))
+        }
 
         /// An app's picture in use (the site's), in the look asked for.
         func appPicture(dark: Bool) -> NSImage? {
@@ -297,7 +310,17 @@ struct TemplateLibraryView: View {
 
     /// The app's own picture when it is one; otherwise the filled-in note, drawn as the app draws notes.
     @ViewBuilder private func inUse(_ e: TemplateCatalog.Entry) -> some View {
-        if let picture = e.appPicture(dark: scheme == .dark) {
+        if let project = e.appProject {
+            // The app itself, running on its starting data: tick, add and scroll as you would. Its
+            // picture shows until it has drawn. Nothing it does is kept.
+            TemplateAppPreview(entry: e, project: project)
+                .background {
+                    if let picture = e.appPicture(dark: scheme == .dark) {
+                        Color.clear.overlay(alignment: .topLeading) { Image(nsImage: picture).resizable().scaledToFit().frame(width: 560) }.clipped()
+                    }
+                }
+                .id(e.slug)
+        } else if let picture = e.appPicture(dark: scheme == .dark) {
             // The whole app, fitted to the panel's width, never widening it.
             // The app from its left edge, at a size you can read; the rest runs off the window.
             Color.clear
@@ -319,6 +342,26 @@ struct TemplateLibraryView: View {
     private func copy(_ e: TemplateCatalog.Entry) {
         ConnectClipboard.set(SetupCards.prompt(e.pick))
         withAnimation(.snappy(duration: 0.2)) { copied = true }
+    }
+}
+/// A template's app running in the library, on its own copy of the starting data: changes stay
+/// in this view and go when it closes. It reads the note and stores data, and nothing else.
+struct TemplateAppPreview: View {
+    let entry: TemplateCatalog.Entry
+    let project: String
+    @State private var doc: NotePageData.Doc?
+    /// Its own id, never a note's.
+    @State private var id = UUID()
+
+    var body: some View {
+        NotePageView(noteID: id, html: project, text: entry.note ?? entry.example, onUpdate: { _ in },
+                     onData: { message in try data(message) }, preview: doc ?? entry.appData)
+    }
+
+    @MainActor private func data(_ message: Any) throws -> [String: Any] {
+        let (after, made) = try NotePageData.apply(try NotePageData.Op(message), to: doc ?? entry.appData)
+        doc = after
+        return ["data": after].merging(made.map { ["id": $0] } ?? [:]) { a, _ in a }
     }
 }
 #endif

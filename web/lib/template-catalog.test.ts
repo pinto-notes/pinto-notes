@@ -24,4 +24,14 @@ describe("the app's copy of the templates", () => {
       for (const look of t.app ? ["light", "dark"] : []) expect(existsSync(path.join(dir, `template-app-${t.slug}-${look}.jpg`)), t.slug).toBe(true);
     }
   });
+
+  it("runs each app as the site has it: its note, project and starting data", () => {
+    const apps = path.join(process.cwd(), "public/templates/apps");
+    for (const t of templates().filter((t) => t.app)) {
+      expect((copy.find((x) => x.slug === t.slug) as { note?: string }).note, t.slug).toBe(t.note);
+      for (const kind of ["project", "data"]) {
+        expect(readFileSync(path.join(dir, `template-app-${t.slug}.${kind}.json`), "utf8"), `${t.slug} ${kind}`).toBe(readFileSync(path.join(apps, `${t.slug}.${kind}.json`), "utf8"));
+      }
+    }
+  });
 });

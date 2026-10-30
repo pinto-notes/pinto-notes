@@ -185,6 +185,22 @@ import Testing
         #expect(root.contains("publisher(for: .paneTemplates)") && root.contains("TemplateLibraryView(ais: ais"))
     }
 
+    /// An app template runs in the library (Emil, 2026-10-30: "these images suck"): each has its
+    /// note, its project and its starting data in the app, and a change stays in the preview.
+    @Test @MainActor func everyAppTemplateCanRun() throws {
+        let apps = TemplateCatalog.shipped.entries.filter(\.app)
+        #expect(apps.count >= 4)
+        for e in apps {
+            #expect(e.note?.isEmpty == false, "\(e.slug)")
+            #expect(e.appProject?.contains("amberApp") == true, "\(e.slug)")
+            #expect(!e.appData.isEmpty, "\(e.slug)")
+        }
+        let id = UUID()
+        _ = TemplateAppPreview(entry: try #require(apps.first), project: "")
+        #expect(NotePageDataStore.shared.docs[id] == nil)
+        #expect(TemplateCatalog.shipped.entries.filter { !$0.app }.allSatisfy { $0.appProject == nil && $0.note == nil })
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)
