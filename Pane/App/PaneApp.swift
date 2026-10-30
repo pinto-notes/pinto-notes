@@ -1262,13 +1262,13 @@ struct CaptureScreen: View {
     static var consentRequest: ConnectRequest? {
         guard ProcessInfo.processInfo.arguments.contains("-uitest"), let name = Capture.argument("-captureConsent") else { return nil }
         let host = name.lowercased().contains("claude") ? "claude.ai" : "chatgpt.com"
-        return ConnectRequest(id: UUID(), client_name: name, redirect_host: host, loopback: false, wants_write: true)
+        return ConnectRequest(id: UUID(), client_name: name, redirect_host: host, loopback: false)
     }
 
     static let connections: [Connection] = [
-        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", can_write: true, created_at: .now.addingTimeInterval(-86400 * 3),
+        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now.addingTimeInterval(-86400 * 3),
                    last_used_at: .now.addingTimeInterval(-720), revoked_at: nil, redirect_host: "chatgpt.com"),
-        Connection(id: UUID(), name: "Claude Code", kind: "token", can_write: true, created_at: .now.addingTimeInterval(-86400),
+        Connection(id: UUID(), name: "Claude Code", kind: "token", created_at: .now.addingTimeInterval(-86400),
                    last_used_at: .now.addingTimeInterval(-3 * 3600), revoked_at: nil, redirect_host: nil),
     ]
 
@@ -1298,7 +1298,7 @@ struct CaptureScreen: View {
             // Connect an AI, before and just after ChatGPT or Claude is connected.
             let ai = guide.hasSuffix("claude") ? "Claude" : "ChatGPT"
             ConnectAISheet(client: Self.client, preview: guide.hasPrefix("connected-") ? [
-                Connection(id: UUID(), name: ai, kind: "oauth", can_write: true, created_at: .now, last_used_at: nil, revoked_at: nil,
+                Connection(id: UUID(), name: ai, kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil,
                            redirect_host: ai == "Claude" ? "claude.ai" : "chatgpt.com"),
             ] : [], previewFound: [])
         case "settings":

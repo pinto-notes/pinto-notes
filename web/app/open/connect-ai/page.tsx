@@ -18,7 +18,7 @@ export default function Page() {
       steps={[
         <>In Pinto Notes on your iPhone or Mac, open Settings and choose <b>Connect an AI</b>.</>,
         <>Pick ChatGPT or Claude. The app shows each step. ChatGPT needs Plus or higher, on chatgpt.com.</>,
-        <>Approve it on your iPhone or Mac by typing the number the page shows. You can choose Read Only.</>,
+        <>Approve it on your iPhone or Mac by typing the number the page shows.</>,
       ]}
       links={[
         { href: "/blog/connect-chatgpt-to-your-notes", label: "The full guide, with pictures" },

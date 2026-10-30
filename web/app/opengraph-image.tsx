@@ -7,7 +7,7 @@ export default function OpenGraphImage() {
   return renderCard({
     theme: "cream",
     title: "The notebook | [you and your AI] | share.",
-    sub: "A notes app for you and every AI you use. It looks and feels like Apple Notes.",
+    sub: "Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life.",
     chips: ["Free", "Imports Apple Notes", "Open source"],
     // The home page's hero card, captured from the page (2x).
     art: { name: "home-hero", width: 880, height: 1013 },

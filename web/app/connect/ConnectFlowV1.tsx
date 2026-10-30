@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ALLOW_HEADING, APPLE_ON_WEB, oauthSignInURL, didntFinish, type OAuthProvider, destination, functionURL, pkcePair, returnURL, signInError, startsWithWrite, universalLink,
+  ALLOW_HEADING, APPLE_ON_WEB, oauthSignInURL, didntFinish, type OAuthProvider, destination, functionURL, pkcePair, returnURL, signInError, universalLink,
   type ConnectLabel, type ConnectRequest,
 } from "@/lib/connect";
 import {
@@ -60,7 +60,6 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
-  const [write, setWrite] = useState(true);
   const [request, setRequest] = useState<ConnectRequest | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -379,7 +378,6 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
         return end(info.expired ? EXPIRED : { kind: "ended", title: "Couldn't connect", text: info.error, retry: true });
       }
       setRequest(info.request);
-      setWrite(startsWithWrite(info.request));
       setMode("recover");
       setView({ kind: "recover" });
     } catch {
@@ -422,8 +420,9 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
       const res = await fetch(`${mcp}/connect/decide`, {
         method: "POST",
         headers: { authorization: `Bearer ${s.token}`, "content-type": "application/json" },
+        // Read and edit, the only access there is; servers from before 29 October 2026 needed it said.
         body: JSON.stringify({
-          id: requestId, allow: true, write: write && info.request.wants_write, redirect_uri: info.request.redirect_uri,
+          id: requestId, allow: true, write: true, redirect_uri: info.request.redirect_uri,
           code_hash: approval.code_hash, code_wrap: approval.code_wrap,
         }),
       });
@@ -493,7 +492,6 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
   const heading = ALLOW_HEADING;
   const to = label?.redirect_host ? destination(label.redirect_host, label.loopback) : null;
   const recovering = mode === "recover" && (view.kind === "signIn" || view.kind === "recover");
-  const canWrite = request ? request.wants_write : true;
   const signInProps = {
     email, password, onEmail: setEmail, onPassword: setPassword, onApple: signInWithApple, onGoogle: signInWithGoogle,
     busy, ready, failure, onSubmit: submitSignIn,
@@ -556,7 +554,7 @@ export default function ConnectFlowV1({ requestId, supabaseURL, anonKey, label, 
           email={email} password={password} onEmail={setEmail} onPassword={setPassword} onApple={signInWithApple} onGoogle={signInWithGoogle}
           busy={busy} ready={ready} failure={failure} appleInstead={APPLE_INSTEAD}
           to={request ? destination(request.redirect_host, request.loopback) : to} signedIn={signedIn}
-          recoveryKey={recoveryKey} onRecoveryKey={setRecoveryKey} access={{ write, canWrite, onWrite: setWrite }}
+          recoveryKey={recoveryKey} onRecoveryKey={setRecoveryKey}
           onSubmit={submitRecovery} onSignIn={submitSignIn}
           other={{ label: "Approve on your iPhone or Mac instead", onClick: () => void backToDevices() }}
         />

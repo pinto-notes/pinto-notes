@@ -15,7 +15,7 @@ import { scaffold } from "./app_scaffold.ts";
 import { fetchTemplateApp, fromTree, toTree, treeProblems } from "./template_apps.ts";
 
 // deno-lint-ignore no-explicit-any
-const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runFileTool(name, args, await toolContext(pg, a, true)) as any;
+const tool = async (pg: PGlite, a: Account, name: string, args: Record<string, unknown> = {}) => await runFileTool(name, args, await toolContext(pg, a)) as any;
 const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { assert(e instanceof ToolError, String(e)); return (e as Error).message; } throw new Error("expected a ToolError"); };
 const unnumbered = (t: string) => t.split("\n").map((l) => l.replace(/^\s*\d+\t/, "")).join("\n");
 

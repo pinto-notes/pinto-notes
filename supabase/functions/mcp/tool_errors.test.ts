@@ -24,7 +24,6 @@ Deno.test("finding the note, keys and limits", () => {
   assertEquals(toolErrorKind("No note with id 3f2b."), "note_not_found");
   assertEquals(toolErrorKind("This note can't be opened with this connection's key. Connect again."), "key_mismatch");
   assertEquals(toolErrorKind(`"Diary": This note is locked. Its text is encrypted.`), "locked");
-  assertEquals(toolErrorKind("This access token is read-only."), "read_only");
   assertEquals(toolErrorKind("Your AI has searched a lot in the last minute. Try again shortly."), "rate_limited");
   assertEquals(toolErrorKind("Something new"), "other");
 });

@@ -36,7 +36,7 @@ export const FACTS: string[] = [
   "It has a built-in MCP server, so AI apps connect to it directly, without a plugin or a server of your own.",
   `Incredible, the AI assistant from incredible.one, lists Pinto Notes in its Apps: search for it, choose Connect, then sign in and approve it ${ON_DEVICE}.`,
   `Pinto Notes is listed in Claude's connector directory (${CLAUDE_DIRECTORY_URL}): open the listing and choose Connect to Claude.`,
-  `You approve each AI app ${ON_DEVICE} (or with your recovery key on pintonotes.com), and choose read only, or read and edit. You can disconnect any of them at any time.`,
+  `You approve each AI app ${ON_DEVICE} (or with your recovery key on pintonotes.com). You can disconnect any of them at any time.`,
   "When an AI changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note's history.",
   APP_STORE_LIVE
     ? "Notes sync between iPhone and Mac through the cloud, and are stored as markdown."

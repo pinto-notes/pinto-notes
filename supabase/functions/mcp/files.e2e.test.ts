@@ -4,7 +4,6 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 
 const url = Deno.env.get("PANE_MCP_URL");
 const token = Deno.env.get("PANE_TOKEN");
-const readOnly = Deno.env.get("PANE_READONLY_TOKEN");
 const enabled = Boolean(url && token && /127\.0\.0\.1/.test(url ?? ""));
 let nextId = 1;
 
@@ -80,12 +79,3 @@ Deno.test({ name: "files: a full editing session (checklist, table, sub-note, mo
   assert(!(await call("pin", { path: moved, pinned: true })).error);
 });
 
-Deno.test({ name: "files: a read-only connection lists and reads, and can't write", ignore: !enabled || !readOnly }, async () => {
-  const { rpc, call } = session(readOnly!);
-  const names = (await rpc("tools/list")).result.tools.map((t: { name: string }) => t.name);
-  assertEquals(names, ["search", "list", "fetch", "history", "see_app"]);
-  assert(!(await call("list")).error);
-  const w = await call("write", { path: "Nope.md", content: "Nope" });
-  assert(w.error);
-  assertStringIncludes(w.text, "read-only");
-});

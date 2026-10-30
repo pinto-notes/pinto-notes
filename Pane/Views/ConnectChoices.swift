@@ -252,7 +252,7 @@ final class ConnectRun {
     @ObservationIgnored var browserNotice: Duration = .seconds(1.5)
     /// Makes the access token Claude Code or Codex is added with, named after it; tests give their own.
     @ObservationIgnored var makeToken: @MainActor (SupabaseClient, String) async throws -> String = { client, name in
-        try await ConnectTokens.create(client, name: name, write: true, make: { try AccountCrypto.shared.accessToken() })
+        try await ConnectTokens.create(client, name: name, make: { try AccountCrypto.shared.accessToken() })
     }
     /// Revokes a token made since then by that name and never used (the add didn't take it).
     @ObservationIgnored var dropToken: @MainActor (SupabaseClient, String, Date) async -> Void = { client, name, since in
@@ -1195,7 +1195,8 @@ struct ConnectChoices: View {
     }
 
     static func detail(_ c: Connection) -> String {
-        var parts = [c.can_write ? "Can read and edit" : "Can read only"]
+        // No access label: every connection reads and edits (29 October 2026).
+        var parts: [String] = []
         // Where access went: the proof of who this is, whatever it calls itself.
         if c.isOAuth, let host = c.redirect_host, !host.isEmpty, host != c.title { parts.insert(host, at: 0) }
         parts.append(c.last_used_at.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Not used yet")
@@ -1286,7 +1287,6 @@ struct ConnectHelpSheet: View {
     @Environment(\.openURL) private var openURL
     @State private var copied: String?
     @State private var token: String?
-    @State private var readOnly = false
     @State private var problem: String?
 
     private var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
@@ -1346,7 +1346,6 @@ struct ConnectHelpSheet: View {
             Section {
                 Text("If it asks for a token instead of signing in, make one here. It is shown once.")
                     .fixedSize(horizontal: false, vertical: true)
-                Toggle("Read only: it can read your notes, not change them", isOn: $readOnly)
                 if let token {
                     copyRow(token, id: "token")
                 } else {
@@ -1374,7 +1373,7 @@ struct ConnectHelpSheet: View {
 
     private func makeToken() async {
         do {
-            token = try await ConnectTokens.create(client, name: "Another AI", write: !readOnly) { try AccountCrypto.shared.accessToken() }
+            token = try await ConnectTokens.create(client, name: "Another AI") { try AccountCrypto.shared.accessToken() }
             problem = nil
         } catch {
             problem = "Couldn\u{2019}t make a token. Check your connection and try again."

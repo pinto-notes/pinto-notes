@@ -26,7 +26,6 @@ export default function Preview({ state, number, action, both }: {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
-  const [write, setWrite] = useState(true);
   const signIn = { email, password, onEmail: setEmail, onPassword: setPassword, onApple: noop, onGoogle: noop, busy: false, ready: true, failure: null };
   switch (state) {
     case "scan":
@@ -43,7 +42,7 @@ export default function Preview({ state, number, action, both }: {
       return (
         <RecoverScreen
           {...signIn} to={TO} signedIn={null} recoveryKey={recoveryKey} onRecoveryKey={setRecoveryKey}
-          access={{ write, canWrite: true, onWrite: setWrite }} onSubmit={prevent} onSignIn={prevent}
+          onSubmit={prevent} onSignIn={prevent}
           other={{ label: "Scan the code instead", onClick: noop }}
         />
       );
@@ -51,7 +50,7 @@ export default function Preview({ state, number, action, both }: {
       return (
         <RecoverScreen
           {...signIn} to={TO} signedIn="me@example.com" recoveryKey={recoveryKey} onRecoveryKey={setRecoveryKey}
-          access={{ write, canWrite: true, onWrite: setWrite }} onSubmit={prevent} onSignIn={prevent}
+          onSubmit={prevent} onSignIn={prevent}
           other={{ label: "Approve on your iPhone or Mac instead", onClick: noop }}
         />
       );

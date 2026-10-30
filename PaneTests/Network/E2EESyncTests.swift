@@ -767,7 +767,7 @@ extension NetworkFaults {
         final class Sent: @unchecked Sendable { var body: [String: Any] = [:] }
         let box = Sent()
         let answer = try JSONSerialization.data(withJSONObject: ["redirect": redirect + "?state=xyz&iss=https%3A%2F%2Fmcp.ambernotes.app"])
-        let decided = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, write: true, code: code) { path, method, body in
+        let decided = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, code: code) { path, method, body in
             #expect(path == "/connect/decide" && method == "POST")
             box.body = body ?? [:]
             return answer
@@ -777,6 +777,7 @@ extension NetworkFaults {
         let sent = box.body
         #expect(sent["handoff"] == nil)
         #expect(sent["redirect_uri"] as? String == redirect, "what the person approved is where the code goes")
+        #expect(sent["write"] as? Bool == true, "Allow is read and edit; there is no choice")
         #expect(sent["code_hash"] as? String == code.hash && sent["code_wrap"] as? String == code.wrap)
         #expect(!String(decoding: try JSONSerialization.data(withJSONObject: sent), as: UTF8.self).contains(secret), "the server never sees the code")
         #expect(!String(decoding: answer, as: UTF8.self).contains(secret))
@@ -785,10 +786,10 @@ extension NetworkFaults {
 
         // No key here, or no return address to send back: nothing is sent.
         await #expect(throws: ConnectAPI.Failure.self) {
-            _ = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, write: true, code: nil) { _, _, _ in Issue.record("sent"); return Data() }
+            _ = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, code: nil) { _, _, _ in Issue.record("sent"); return Data() }
         }
         let failure = await #expect(throws: ConnectAPI.Failure.self) {
-            _ = try await ConnectAPI.decide(id: UUID(), redirectURI: nil, allow: false, write: false, code: nil) { _, _, _ in Issue.record("sent"); return Data() }
+            _ = try await ConnectAPI.decide(id: UUID(), redirectURI: nil, allow: false, code: nil) { _, _, _ in Issue.record("sent"); return Data() }
         }
         #expect(failure?.message == ConnectAPI.noReturnAddress)
         #expect(!ConnectAPI.noReturnAddress.contains("Update"), "a current app is never told to update")
@@ -807,7 +808,7 @@ extension NetworkFaults {
             let back = String(ConnectAPI.clientRedirect(redirect, state: state, iss: "https://mcp.pintonotes.com").prefix(4000))
             final class Sent: @unchecked Sendable { var body: [String: Any] = [:] }
             let sent = Sent()
-            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, write: true, code: code,
+            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, code: code,
                                             browserKey: page.publicKey.x963Representation, handoffRedirect: back,
                                             send: { _, _, body in sent.body = body ?? [:]; return try JSONSerialization.data(withJSONObject: ["handoff": true]) })
             let handoff = try #require(sent.body["handoff"] as? String)
@@ -828,7 +829,7 @@ extension NetworkFaults {
         let send: ConnectAPI.Send = { _, _, body in box.bodies.append(body ?? [:]); return answer }
 
         let back = ConnectAPI.clientRedirect(redirect, state: "xyz", iss: "https://mcp.ambernotes.app")
-        let decided = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, write: true, code: code,
+        let decided = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, code: code,
                                                   browserKey: page.publicKey.x963Representation, handoffRedirect: back, send: send)
         #expect(decided == .handedOff && decided.url == nil, "the page picks the code up; nothing opens here")
         let sent = try #require(box.bodies.first)
@@ -840,27 +841,27 @@ extension NetworkFaults {
         #expect(payload["code"] == secret && payload["redirect"] == back)
         // Without the address to seal with it, nothing is sent.
         await #expect(throws: ConnectAPI.Failure.self) {
-            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, write: true, code: code,
+            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, code: code,
                                             browserKey: page.publicKey.x963Representation, handoffRedirect: nil) { _, _, _ in Issue.record("sent"); return Data() }
         }
         #expect(throws: E2EE.Failure.wrongKey) { try E2EE.openHandoff(handoff, browserPrivate: .init(), requestID: id) }
         #expect(!String(decoding: try JSONSerialization.data(withJSONObject: sent), as: UTF8.self).contains(secret), "the server never sees the code")
 
         // Don't Allow: no code, no handoff, and the page goes on by itself too.
-        let denied = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: false, write: false, code: nil,
+        let denied = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: false, code: nil,
                                                  browserKey: page.publicKey.x963Representation, send: send)
         #expect(denied == .handedOff)
         #expect(box.bodies.last?["handoff"] == nil && box.bodies.last?["code_hash"] == nil)
         #expect(box.bodies.allSatisfy { $0["wrong_number"] == nil }, "only a wrong number says so")
 
         // A wrong number typed: declined, and the server is told why.
-        _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: false, write: false, code: nil, wrongNumber: true, send: send)
+        _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: false, code: nil, wrongNumber: true, send: send)
         let wrong = try #require(box.bodies.last)
         #expect(wrong["wrong_number"] as? Bool == true && wrong["allow"] as? Bool == false && wrong["code_hash"] == nil)
 
         // A page key that isn't one: nothing is sent.
         await #expect(throws: ConnectAPI.Failure.self) {
-            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, write: true, code: code, browserKey: Data(repeating: 4, count: 65),
+            _ = try await ConnectAPI.decide(id: id, redirectURI: redirect, allow: true, code: code, browserKey: Data(repeating: 4, count: 65),
                                             handoffRedirect: back) { _, _, _ in
                 Issue.record("sent"); return Data()
             }
@@ -888,7 +889,7 @@ extension NetworkFaults {
         let secret = "amb_code_" + E2EE.randomHex()
         let code = (code: secret, hash: E2EE.sha256Hex(secret), wrap: "amb2.0123456789abcdef.AAAA")
         let answer = try JSONSerialization.data(withJSONObject: ["redirect": redirect + "?state=abc"])
-        let decided = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, write: false, code: code) { _, _, body in
+        let decided = try await ConnectAPI.decide(id: UUID(), redirectURI: redirect, allow: true, code: code) { _, _, body in
             #expect(body?["handoff"] == nil)
             return answer
         }
@@ -1125,12 +1126,13 @@ extension NetworkFaults {
 
     @Test func aPaneTokenNeverAppearsInAnyAddress() async throws {
         let token = "pane_" + E2EE.randomHex()
-        let made = try await ConnectTokens.create(StubSupabase.client(), name: "Claude Code", write: true) {
+        let made = try await ConnectTokens.create(StubSupabase.client(), name: "Claude Code") {
             (token, E2EE.sha256Hex(token), "amb2.0123456789abcdef.AAAA")
         }
         #expect(made == token)
         let call = try #require(StubSupabase.rpcCalls.first { $0.name == "create_mcp_token" })
         #expect(call.params["token_hash"] as? String == E2EE.sha256Hex(token) && call.params["dk_wrap"] as? String == "amb2.0123456789abcdef.AAAA")
+        #expect(call.params["write_access"] as? Bool == true, "a token reads and edits, like every connection")
         #expect(!StubSupabase.requests.joined().contains("pane_"), "no address carries it")
         #expect(!StubSupabase.bodies.joined().contains(token), "and the server gets only its hash")
         let command = ConnectSnippets.claudeCode(url: "https://mcp.ambernotes.app", token: token)

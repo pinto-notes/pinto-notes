@@ -45,7 +45,7 @@ export function Hero() {
     <section className={x.hero}>
       <div className={x.words}>
         <h1 className={`${x.h1} rise`} style={rise(0)}>The notebook <span className={x.mark}>you and your AI</span> share.</h1>
-        <p className={`${x.lede} rise`} style={rise(1)}>A notes app for you and every AI you use. It looks and feels like Apple Notes.</p>
+        <p className={`${x.lede} rise`} style={rise(1)}>Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download note={false} />
           <span className={x.soon} aria-disabled="true">

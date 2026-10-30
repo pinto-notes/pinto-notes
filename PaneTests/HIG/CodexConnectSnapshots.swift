@@ -15,7 +15,7 @@ import Testing
     /// Codex's sign-in, opened with the page's button on this Mac.
     static let codex = ConnectRequest(id: UUID(), client_name: "127.0.0.1", redirect_host: "127.0.0.1",
                                       redirect_uri: "http://127.0.0.1:57505/callback", claimed_name: "Codex", loopback: true,
-                                      wants_write: true, asked: true, started_at: .now, started_from: "Chrome on a Mac",
+                                      asked: true, started_at: .now, started_from: "Chrome on a Mac",
                                       state: "q6coy-SGV4u92eR5uSf_8g", iss: "https://mcp.pintonotes.com", scan: true,
                                       browser_key: ConnectJourneySnapshots.pageKey.base64EncodedString())
     /// What `codex mcp get pinto-notes` printed for the entry on fleet-win (Codex 0.159.3), less its
@@ -27,7 +27,7 @@ import Testing
           url: https://mcp.pintonotes.com
           http_headers: Authorization=*****
         """
-    static let used = Connection(id: UUID(), name: "Codex", kind: "token", can_write: true, created_at: .now, last_used_at: .now,
+    static let used = Connection(id: UUID(), name: "Codex", kind: "token", created_at: .now, last_used_at: .now,
                                  revoked_at: nil, redirect_host: nil)
 
     static func sheet(_ r: ConnectRequest) -> ConsentSheet {

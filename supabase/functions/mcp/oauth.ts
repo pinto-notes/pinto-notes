@@ -40,7 +40,7 @@ const REFRESH_TTL_DAYS = 90;
 const CODE_TTL = 60; // seconds
 const LIMITS: Record<string, [number, number]> = { register: [30, 3600], authorize: [60, 600], token: [120, 600], request: [120, 600], label: [120, 600], decide: [60, 600], status: [400, 600], resend: [12, 600] };
 
-export type Grant = { user_id: string; token_id: string; name: string; can_write: boolean; resource?: string; dk_wrap: string | null };
+export type Grant = { user_id: string; token_id: string; name: string; resource?: string; dk_wrap: string | null };
 
 /// Other public addresses of this server (comma-separated): mcp.ambernotes.app, which existing
 /// connectors call, and mcp.pintonotes.com, the new name's address.
@@ -522,7 +522,6 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
   if (!r) return json({ error: EXPIRED }, 404);
   if (!(await claim(sql, r, user))) return json({ error: notYours(r) }, 403);
   const host = new URL(r.redirect_uri).hostname;
-  const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
   // Asked from a browser elsewhere: when, and in what (the page says, e.g. "Chrome on a Mac").
   const asked = await askedFrom(sql, r.id);
   // A device answering a browser it can't see has no way to tell whose ChatGPT or Claude this is
@@ -546,8 +545,9 @@ async function describeRequest(req: Request, sql: Sql): Promise<Response> {
     iss: r.resource,
     verified_ai: verified,
     loopback: LOOPBACK.has(host),
-    // No scope means "whatever you allow"; asking only for read keeps it read-only.
-    wants_write: scopes.length === 0 || scopes.includes("notes:write"),
+    // Every connection reads and edits (decided 29 October 2026). Apps released before then need
+    // the field to read the request; drop it once they have updated.
+    wants_write: true,
     expires_at: r.expires_at,
     ...asked,
   });
@@ -880,7 +880,7 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   const user = await sessionUser(req);
   if (!user) return json({ error: "Sign in to Pinto Notes first." }, 401);
   if (await limited(sql, req, "decide")) return json({ error: "Too many attempts." }, 429);
-  const body = await req.json().catch(() => ({})) as { id?: string; allow?: boolean; write?: boolean; redirect_uri?: unknown; code_hash?: unknown; code_wrap?: unknown; handoff?: unknown; wrong_number?: unknown; scan?: unknown };
+  const body = await req.json().catch(() => ({})) as { id?: string; allow?: boolean; redirect_uri?: unknown; code_hash?: unknown; code_wrap?: unknown; handoff?: unknown; wrong_number?: unknown; scan?: unknown };
   const r = await pending(sql, String(body.id ?? ""));
   if (!r) return json({ error: EXPIRED }, 404);
   if (!(await claim(sql, r, user))) return json({ error: notYours(r) }, 403);
@@ -930,8 +930,6 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   // clientRedirect documents, the same way the device builds what it seals.
   const u = clientRedirect(r.redirect_uri, r.state, r.resource);
   const name = displayName(r.client_name, r.redirect_uri);
-  const scopes = (r.scope ?? "").split(/\s+/).filter(Boolean);
-  const write = body.write === true && (scopes.length === 0 || scopes.includes("notes:write"));
   const wrongNumber = Boolean(asked) && !allow && body.wrong_number === true;
   // One answer per request, even when two arrive at once.
   const answered = await sql.begin(async (tx): Promise<boolean | "reveal" | "rescan"> => {
@@ -957,9 +955,10 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
       await tx`insert into public.account_notices (user_id, kind, grant_id, what) values (${user}, 'wrong_number', null, 'wrong_number')`;
     }
     if (!allow) return true;
+    // Read and edit: every connection can (29 October 2026), whatever scope the app asked for.
     const [g] = await tx<{ id: string }[]>`
       insert into public.mcp_tokens (user_id, name, token_hash, can_write, kind, client_id, redirect_host)
-      values (${user}, ${name}, ${"oauth:" + crypto.randomUUID()}, ${write}, 'oauth', ${r.client_id}, ${u.hostname})
+      values (${user}, ${name}, ${"oauth:" + crypto.randomUUID()}, true, 'oauth', ${r.client_id}, ${u.hostname})
       returning id`;
     await tx`update public.oauth_requests set grant_id = ${g.id}, code_hash = ${codeHash}, code_wrap = ${codeWrap},
       code_expires_at = now() + make_interval(secs => ${CODE_TTL}) where id = ${r.id}`;
@@ -986,7 +985,7 @@ async function decide(req: Request, sql: Sql): Promise<Response> {
   }
   const handedOff = asked && !fromPage ? { handoff: true } : {};
   if (!allow) return json({ redirect: u.toString(), ...handedOff });
-  return json({ redirect: u.toString(), client_name: name, can_write: write, ...handedOff });
+  return json({ redirect: u.toString(), client_name: name, ...handedOff });
 }
 
 /// "Use another account": the account that opened the request lets go of it, unanswered.
@@ -1009,7 +1008,7 @@ async function unclaim(sql: Sql, id: string, user: string) {
 // MARK: Tokens
 
 /// A new access and refresh token for a grant, each holding the data key wrapped under itself.
-async function issue(sql: Sql, grantId: string, resource: string, canWrite: boolean, dataKey: Uint8Array<ArrayBuffer>, userId: string) {
+async function issue(sql: Sql, grantId: string, resource: string, dataKey: Uint8Array<ArrayBuffer>, userId: string) {
   const access = randomToken("amb_at_");
   const refresh = randomToken("amb_rt_");
   const accessWrap = await wrap(dataKey, await tokenKey(access, "access"), "access", userId);
@@ -1022,7 +1021,7 @@ async function issue(sql: Sql, grantId: string, resource: string, canWrite: bool
     token_type: "Bearer",
     expires_in: ACCESS_TTL,
     refresh_token: refresh,
-    scope: canWrite ? SCOPES.join(" ") : "notes:read",
+    scope: SCOPES.join(" "),
   };
 }
 
@@ -1049,9 +1048,9 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
   if (p.grant_type === "authorization_code") {
     if (!p.code || !p.code_verifier || !p.client_id) return oauthError("invalid_request", "code, code_verifier and client_id are required.");
     const hash = await sha256Hex(p.code);
-    const [r] = await sql<{ id: string; client_id: string; redirect_uri: string; code_challenge: string; grant_id: string; expired: boolean; resource: string; can_write: boolean; revoked: boolean; user_id: string }[]>`
+    const [r] = await sql<{ id: string; client_id: string; redirect_uri: string; code_challenge: string; grant_id: string; expired: boolean; resource: string; revoked: boolean; user_id: string }[]>`
       select r.id, r.client_id, r.redirect_uri, r.code_challenge, r.grant_id, r.code_expires_at < now() as expired, r.resource,
-             g.can_write, g.revoked_at is not null as revoked, g.user_id
+             g.revoked_at is not null as revoked, g.user_id
       from public.oauth_requests r join public.mcp_tokens g on g.id = r.grant_id
       where r.code_hash = ${hash}`;
     if (!r) return oauthError("invalid_grant", "Unknown code.");
@@ -1074,7 +1073,7 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
     const dataKey = await openWrap(claimed.code_wrap, p.code, "code", r.user_id);
     if (!dataKey) return oauthError("invalid_grant", "Connect again.");
     try {
-      return json(await issue(sql, r.grant_id, r.resource, r.can_write, dataKey, r.user_id));
+      return json(await issue(sql, r.grant_id, r.resource, dataKey, r.user_id));
     } finally {
       dataKey.fill(0);
     }
@@ -1083,8 +1082,8 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
   if (p.grant_type === "refresh_token") {
     if (!p.refresh_token) return oauthError("invalid_request", "refresh_token is required.");
     const hash = await sha256Hex(p.refresh_token);
-    const [t] = await sql<{ grant_id: string; used_at: Date | null; expired: boolean; resource: string; client_id: string; can_write: boolean; revoked: boolean; user_id: string }[]>`
-      select t.grant_id, t.used_at, t.expires_at < now() as expired, t.resource, g.client_id, g.can_write, g.revoked_at is not null as revoked, g.user_id
+    const [t] = await sql<{ grant_id: string; used_at: Date | null; expired: boolean; resource: string; client_id: string; revoked: boolean; user_id: string }[]>`
+      select t.grant_id, t.used_at, t.expires_at < now() as expired, t.resource, g.client_id, g.revoked_at is not null as revoked, g.user_id
       from public.oauth_tokens t join public.mcp_tokens g on g.id = t.grant_id
       where t.token_hash = ${hash} and t.kind = 'refresh'`;
     if (!t || t.revoked) return oauthError("invalid_grant", "This connection was removed. Connect again.");
@@ -1104,7 +1103,7 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
     const dataKey = await openWrap(claimed.dk_wrap, p.refresh_token, "refresh", t.user_id);
     if (!dataKey) return oauthError("invalid_grant", "Connect again.");
     try {
-      return json(await issue(sql, t.grant_id, t.resource, t.can_write, dataKey, t.user_id));
+      return json(await issue(sql, t.grant_id, t.resource, dataKey, t.user_id));
     } finally {
       dataKey.fill(0);
     }
