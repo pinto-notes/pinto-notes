@@ -105,9 +105,9 @@ private struct ButtonChrome: ViewModifier {
 
 // MARK: Primary
 
-/// The primary button, the one thing to do on a screen: the deeper amber with a bold white label,
-/// the same in light and dark (the system's prominent style takes the dark-mode amber, under which
-/// white text reads at about 2:1). Disabled turns a quiet warm grey with muted text, and a
+/// The primary button, the one thing to do on a screen: in the light the deeper amber with a bold
+/// white label; in the dark white with a black label, never amber (dark mode is pure black).
+/// Disabled turns a quiet warm grey with muted text, and a
 /// destructive button (`Button(role: .destructive)`) is the deeper red instead.
 ///
 ///     Button("Done") { … }.buttonStyle(.amberProminent)                       // compact, as wide as its title
@@ -129,9 +129,11 @@ struct AmberProminentButtonStyle: ButtonStyle {
     }
 
     /// The fills and the label's colour, for the contrast test.
-    static let fill = Palette.amberButton
+    static let fill = Palette.primaryButton
     static let destructiveFill = Palette.destructiveButton
-    static let label = PColor.white
+    static let label = Palette.primaryButtonLabel
+    /// White on the red in both appearances.
+    static let destructiveLabel = PColor.white
     static let disabledFill = Palette.disabledButton
     static let disabledLabel = Palette.disabledButtonLabel
 }
@@ -185,7 +187,7 @@ private struct AmberProminentButton: View {
         let fill = off ? AmberProminentButtonStyle.disabledFill
             : configuration.role == .destructive ? AmberProminentButtonStyle.destructiveFill
             : ink ? Palette.inkButton : AmberProminentButtonStyle.fill
-        let label = ink && !off ? Palette.inkButtonLabel : off ? AmberProminentButtonStyle.disabledLabel : AmberProminentButtonStyle.label
+        let label = ink && !off ? Palette.inkButtonLabel : off ? AmberProminentButtonStyle.disabledLabel : labelColor
         return configuration.label
             .font(.system(size: textSize, weight: .bold))
             .foregroundStyle(Color(label))
@@ -196,7 +198,7 @@ private struct AmberProminentButton: View {
             .padding(.vertical, twoLines ? 12 : wraps || grows ? 6 : 0)
             // Busy: the label keeps its place (so nothing moves) and a spinner sits on it.
             .opacity(busy ? 0 : 1)
-            .overlay { if busy { AmberSpinner(color: ink ? Palette.inkButtonLabel : AmberProminentButtonStyle.label, reduceMotion: reduceMotion) } }
+            .overlay { if busy { AmberSpinner(color: ink ? Palette.inkButtonLabel : labelColor, reduceMotion: reduceMotion) } }
             .padding(.horizontal, size.padding)
             .frame(maxWidth: wide ? .infinity : nil)
             // The size's height, until a larger text size or a second line needs more.
@@ -204,15 +206,19 @@ private struct AmberProminentButton: View {
             .background {
                 shape
                     .fill(Color(fill))
-                    // Under the pointer a touch lighter; pressed, darker.
+                    // Under the pointer a touch lighter (greyer on the dark mode's white); pressed, darker.
                     .overlay {
                         if configuration.isPressed { shape.fill(Color(ink ? Palette.inkButtonLabel : PColor.black).opacity(ink ? 0.22 : 0.14)) }
-                        else if !off && (hovering || preview.contains("*")) { shape.fill(.white.opacity(0.12)) }
+                        else if !off && (hovering || preview.contains("*")) { shape.fill(ink ? Color.white.opacity(0.12) : Color(Palette.primaryButtonHover)) }
                     }
             }
             .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
             .modifier(HoverTracking(hovering: $hovering))
             .accessibilityValue(busy ? Text("Working") : Text(""))
+    }
+
+    private var labelColor: PColor {
+        configuration.role == .destructive ? AmberProminentButtonStyle.destructiveLabel : AmberProminentButtonStyle.label
     }
 
     private var textSize: CGFloat {
@@ -273,7 +279,7 @@ private struct AmberSpinner: View {
 // MARK: Secondary
 
 /// Every other button with a shape: the soft fill and an ink label, no border. Under the pointer
-/// the fill leans toward amber.
+/// the fill leans toward amber in the light, toward white in the dark.
 ///
 ///     Button("Not now") { … }.buttonStyle(.secondary)
 ///     Button("Sign in with Google") { … }.buttonStyle(.secondary(.form, wide: true))
@@ -316,8 +322,8 @@ private struct SecondaryButton: View {
             .background {
                 shape.fill(Color(isEnabled ? SecondaryButtonStyle.fill : Palette.disabledButton))
                     .overlay {
-                        if configuration.isPressed { shape.fill(Color(Palette.amber).opacity(0.2)) }
-                        else if on { shape.fill(Color(Palette.amber).opacity(0.12)) }
+                        if configuration.isPressed { shape.fill(Color(Palette.buttonPressed)) }
+                        else if on { shape.fill(Color(Palette.buttonHover)) }
                     }
             }
             .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
@@ -374,7 +380,7 @@ private struct QuietButton: View {
                 .padding(padding)
                 .opacity(isEnabled ? 1 : 0.5)
                 .background {
-                    if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.amber).opacity(0.14))) }
+                    if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.quietPressed))) }
                     else if on { shape.fill(Color.soft) }
                 }
                 .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
@@ -393,7 +399,7 @@ private struct QuietButton: View {
                 .padding(.horizontal, size.padding * 0.75)
                 .frame(minHeight: size.height)
                 .background {
-                    if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.amber).opacity(0.14))) }
+                    if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.quietPressed))) }
                     else if on { shape.fill(Color.soft) }
                 }
                 .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
@@ -494,12 +500,12 @@ extension View {
 extension View {
     /// A large choice that is a button (an AI to connect, a place to import from, a list of them):
     /// the card fill a step lighter than its ground, a contact shadow for its edge, and under the
-    /// pointer a lean toward amber. No border: borders mark content, never controls. `lit`: the
+    /// pointer a lean toward amber (toward white in the dark). No border: borders mark content, never controls. `lit`: the
     /// one being set up, in the soft amber.
     func choiceCard<S: InsettableShape>(_ shape: S, lit: Bool = false) -> some View {
         self
             .background(lit ? Color.amberSoft : Color.card, in: shape)
-            .hoverOverlay(shape, Color(Palette.amber).opacity(0.07))
+            .hoverOverlay(shape, Color(Palette.choiceHover))
             .shadow(color: Color(Palette.shadow).opacity(0.55), radius: 0.75, y: 0.75)
             .contentShape(shape)
     }

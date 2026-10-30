@@ -22,7 +22,7 @@ Pinto Notes is a notes app for Mac and iPhone that ChatGPT, Claude, Claude Code 
 - **You see what changed, and undo it.** An AI's edits are tinted with its name. Every version is kept, with who made it.
 - **Feels like Apple Notes. Brings yours over.** Folders, checklists and tables, and a one-step Apple Notes import. Evernote, Google Keep, Obsidian, Notion and Bear exports come along too.
 - **A note can be an app.** Ask your AI to turn a note into a habit tracker or a budget. The text stays underneath.
-- **End-to-end encrypted, free and open source.** MIT licensed, no ads, no tracking.
+- **Encrypted, free and open source.** Notes are sealed on your devices before upload, and Advanced protection makes them end-to-end encrypted. MIT licensed, no ads, no tracking.
 
 <table align="center">
   <tr>
