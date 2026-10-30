@@ -50,7 +50,7 @@ if [[ $WHAT == all || $WHAT == mac ]]; then
   fi
   app=build/app/Build/Products/Debug/Pane.app
   if [[ -d $app ]]; then
-    codesign -dv "$app" 2>&1 | grep -q "Signature=adhoc" || { echo "✘ the Mac app isn't ad-hoc signed" >&2; failed=1; }
+    [[ $(codesign -dv "$app" 2>&1) == *Signature=adhoc* ]] || { echo "✘ the Mac app isn't ad-hoc signed" >&2; failed=1; }
     plist=$app/Contents/Info.plist
     id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist")
     [[ $id == local.*.notes ]] || { echo "✘ setup.sh didn't give the app a bundle id of its own ($id)" >&2; failed=1; }
