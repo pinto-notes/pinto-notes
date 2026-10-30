@@ -8,18 +8,19 @@ import TipKit
 struct ComposeButton<Label: View>: View {
     let newNote: () -> Void
     @ViewBuilder let label: () -> Label
+    @Environment(\.noteMakers) private var makers
 
     var body: some View {
         Menu {
             Button("New Note", systemImage: "square.and.pencil", action: newNote)
-            Button("Today\u{2019}s Note", systemImage: "calendar") { NotificationCenter.default.post(name: .paneTodaysNote, object: nil) }
+            Button("Today\u{2019}s Note", systemImage: "calendar") { makers?.today() }
                 .accessibilityIdentifier("compose.today")
             Button("New App", systemImage: NoteAppMark.symbol) { NewApp.shared.open() }
                 .accessibilityIdentifier("compose.newApp")
             #if os(macOS)
-            Menu("New from Template") { TemplateMenuItems() }
+            Menu("New from Template") { TemplateMenuItems(makers: makers) }
             #else
-            Section("Templates") { TemplateMenuItems() }
+            Section("Templates") { TemplateMenuItems(makers: makers) }
             #endif
         } label: {
             label()
@@ -32,16 +33,19 @@ struct ComposeButton<Label: View>: View {
 
 /// The templates, then New Template…, for the compose button's menu and File › New from Template.
 struct TemplateMenuItems: View {
+    let makers: NoteMakers?
     private var shelf = TemplateShelf.shared
+
+    init(makers: NoteMakers?) { self.makers = makers }
 
     var body: some View {
         ForEach(shelf.templates) { t in
-            Button(t.name, systemImage: "doc.text") { NotificationCenter.default.post(name: .paneNewFromTemplate, object: t.id) }
+            Button(t.name, systemImage: "doc.text") { makers?.fromTemplate(t.id) }
         }
         #if os(macOS)
         if !shelf.templates.isEmpty { Divider() }
         #endif
-        Button("New Template\u{2026}", systemImage: "doc.badge.plus") { NotificationCenter.default.post(name: .paneNewTemplate, object: nil) }
+        Button("New Template\u{2026}", systemImage: "doc.badge.plus") { makers?.newTemplate() }
             .accessibilityIdentifier("compose.newTemplate")
     }
 }

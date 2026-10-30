@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// Today's note and templates, at Obsidian's core level: nothing to set up.
 ///
@@ -154,11 +155,25 @@ final class TemplateShelf {
     }
 }
 
-extension Notification.Name {
-    /// Today's Note (File menu, the compose button's menu): the notes window opens it.
-    static let paneTodaysNote = Notification.Name("pane.todaysNote")
-    /// New from Template: a new note from the template whose id is the object.
-    static let paneNewFromTemplate = Notification.Name("pane.newFromTemplate")
-    /// New Template…: an empty note in Templates.
-    static let paneNewTemplate = Notification.Name("pane.newTemplate")
+/// What Today's Note, New from Template and New Template… do in the notes window they're chosen
+/// in: the compose button's menu reads it from the environment, File › from the window in front.
+struct NoteMakers {
+    var today: () -> Void
+    var fromTemplate: (UUID) -> Void
+    var newTemplate: () -> Void
+}
+
+private struct NoteMakersFocusKey: FocusedValueKey {
+    typealias Value = NoteMakers
+}
+
+extension EnvironmentValues {
+    @Entry var noteMakers: NoteMakers? = nil
+}
+
+extension FocusedValues {
+    var noteMakers: NoteMakers? {
+        get { self[NoteMakersFocusKey.self] }
+        set { self[NoteMakersFocusKey.self] = newValue }
+    }
 }

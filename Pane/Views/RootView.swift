@@ -87,10 +87,9 @@ struct RootView: View {
             // A template or shared note to add, from a link.
             .noteSourceHandler()
             .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
-            // Today's Note and the templates, from the menus (DailyNotes).
-            .onReceive(NotificationCenter.default.publisher(for: .paneTodaysNote)) { _ in openTodaysNote() }
-            .onReceive(NotificationCenter.default.publisher(for: .paneNewFromTemplate)) { n in (n.object as? UUID).map(newNote(fromTemplate:)) }
-            .onReceive(NotificationCenter.default.publisher(for: .paneNewTemplate)) { _ in newTemplate() }
+            // Today's Note and the templates, from the menus, in this window (DailyNotes).
+            .environment(\.noteMakers, noteMakers)
+            .focusedSceneValue(\.noteMakers, noteMakers)
             .onAppear { TemplateShelf.shared.start(context) }
             #if os(macOS)
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
@@ -467,6 +466,10 @@ struct RootView: View {
         selectedNote = note.id
     }
 
+    private var noteMakers: NoteMakers {
+        NoteMakers(today: openTodaysNote, fromTemplate: newNote(fromTemplate:), newTemplate: newTemplate)
+    }
+
     /// Today's note, made if it isn't yet, open with the cursor in it. The list shows it where
     /// it is: the folder you're in if it's there, else Daily.
     private func openTodaysNote() {
@@ -681,6 +684,7 @@ struct PaneCommands: Commands {
     @FocusedValue(\.importAction) private var importNotes
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
+    @FocusedValue(\.noteMakers) private var makers
 
     var body: some Commands {
         // Settings shows as a sheet on the notes window in front, like WhatsApp's.
@@ -699,11 +703,11 @@ struct PaneCommands: Commands {
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
             // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.
-            Button("Today\u{2019}s Note") { NotificationCenter.default.post(name: .paneTodaysNote, object: nil) }
+            Button("Today\u{2019}s Note") { makers?.today() }
                 .keyboardShortcut("t")
-                .disabled(newNote == nil)
-            Menu("New from Template") { TemplateMenuItems() }
-                .disabled(newNote == nil)
+                .disabled(makers == nil)
+            Menu("New from Template") { TemplateMenuItems(makers: makers) }
+                .disabled(makers == nil)
             Divider()
             // ⌘K is Add Link, as in Notes. ⌘O is where Open would be, and Obsidian's quick switcher.
             Button("Go to Note…") { NotificationCenter.default.post(name: .paneQuickOpen, object: nil) }
