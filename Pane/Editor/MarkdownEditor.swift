@@ -19,10 +19,13 @@ struct MarkdownEditor: View {
     /// False for a shared note (collaboration prototype): its text arrives through the controller's
     /// target as it merges, never through `initialText`, which can be a render behind your typing.
     var followsInitialText = true
+    /// iPhone: opens with the date in view (the welcome note, and the note it becomes). Other notes
+    /// open at their title, the date just above the top (DateFold).
+    var dateShown = false
     let onChange: (String) -> Void
 
     var body: some View {
-        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, onChange: onChange)
+        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, onChange: onChange)
     }
 }
 
@@ -393,6 +396,31 @@ final class EditorCore {
     /// Tables and embeds, each a whole block the caret goes around.
     func blocks(in text: String) -> [EditorBlock] { structure(of: text).blocks }
 
+    /// The type of what you're about to write on an empty line: the title's on the line that
+    /// becomes the note's title (nothing but blank lines above it), body text on any other. Nil on
+    /// a line with text, or in a code block, where the characters there set it.
+    func emptyLineFont(_ text: String, at location: Int) -> PFont? {
+        let ns = text as NSString
+        guard location >= 0, location <= ns.length else { return nil }
+        let line = ns.lineRange(for: NSRange(location: location, length: 0))
+        let content = ns.substring(with: line).trimmingCharacters(in: .newlines)
+        guard content.isEmpty else { return nil }
+        if structure(of: text).code.contains(where: { NSLocationInRange(line.location, $0) }) { return nil }
+        if styler.firstLineIsTitle, MarkdownStyler.titleLocation(ns) >= line.location { return MarkdownStyler.titleFont }
+        return styler.bodyFont
+    }
+
+    /// What typing at `location` starts with: the line's own type on an empty line (see
+    /// `emptyLineFont`), the body's otherwise (the styler restyles what you type).
+    func typingAttributes(_ text: String, at location: Int) -> [NSAttributedString.Key: Any] {
+        var a = styler.typingAttributes
+        if let font = emptyLineFont(text, at: location), font == MarkdownStyler.titleFont {
+            a[.font] = font
+            a[.kern] = Palette.tracking(EditorMetrics.title)
+        }
+        return a
+    }
+
     /// Where the caret should go instead, if it landed somewhere it can't be:
     /// inside a list marker, or inside a table's or embed's hidden markdown.
     /// `byKeyboard` is true when an arrow key moved it (then it enters a table
@@ -538,12 +566,14 @@ private struct PlatformEditor: UIViewRepresentable {
     let identifier: String
     let titleLine: Bool
     let followsInitialText: Bool
+    let dateShown: Bool
     let onChange: (String) -> Void
 
     func makeUIView(context: Context) -> PaneTextView {
         let view = PaneTextView(frame: .zero)
         view.core.styler.firstLineIsTitle = titleLine
         view.core.styler.wiki = controller.wiki
+        view.dateShown = dateShown
         view.configure(text: initialText, header: header)
         view.accessibilityIdentifier = identifier
         view.core.onChange = onChange
@@ -672,6 +702,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         observeUndo()
         core.observe(textStorage)
         core.restyle(textStorage, selection: nil, force: true)
+        typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         observeChangeHighlight()
 
         // The welcome note's date line: small, regular, in the muted colour.
@@ -815,7 +846,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if extra > 0, !isTracking, !isDecelerating, contentOffset.y > folded + 0.5 {
             contentOffset = CGPoint(x: contentOffset.x, y: folded)
         }
-        guard !DateFold.showOnOpen, !pulledDate, !isTracking, !isDecelerating else { return }
+        guard !DateFold.showOnOpen, !dateShown, !pulledDate, !isTracking, !isDecelerating else { return }
         // Until you scroll yourself, the date stays folded: on opening, and when the keyboard
         // comes up and the text view scrolls the caret into view (a new note's caret sits by the date).
         var target = DateFold.offset(top: adjustedContentInset.top)
@@ -837,6 +868,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     /// You scrolled: from here on the date shows whenever you pull down.
     private var pulledDate = false
+    /// Opens with the date in view, not folded away (MarkdownEditor.dateShown).
+    var dateShown = false
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) { pulledDate = true }
 
@@ -1240,7 +1273,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage, selection: editingSelection, force: true)
-        typingAttributes = core.styler.typingAttributes
+        typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         lastReported = text
         remember(text)
         core.onChange(text)
@@ -1360,7 +1393,28 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             return
         }
         core.restyle(textStorage, selection: editingSelection, force: false)
+        if selectedRange.length == 0, core.emptyLineFont(text, at: selectedRange.location) != nil {
+            typingAttributes = core.typingAttributes(text, at: selectedRange.location)
+        }
         controller?.typingChanged(text: text, selection: editingSelection)
+    }
+
+    /// On an empty line the caret is the height of what you're about to type: the title's on an
+    /// empty title line, the body's on a new body line. UIKit sized it by the line break before it,
+    /// with the line's spacing on some lines, so it jumped as the first letter went in: small, then
+    /// big, in a new note; big, then small, on the line after the title (Emil, 30 October 2026).
+    override func caretRect(for position: UITextPosition) -> CGRect {
+        var r = super.caretRect(for: position)
+        guard let font = core.emptyLineFont(text, at: offset(from: beginningOfDocument, to: position)) else { return r }
+        r.size.height = Self.caretHeight(font, scale: traitCollection.displayScale)
+        return r
+    }
+
+    /// The height UIKit gives the caret next to a letter in `font`: the line's height and a
+    /// little, to the pixel (22 pt for 17 pt text, 42⅓ for the 34 pt title).
+    static func caretHeight(_ font: UIFont, scale: CGFloat) -> CGFloat {
+        let s = max(scale, 1)
+        return ((font.lineHeight + 1.75) * s).rounded() / s
     }
 
     private var editingSelection: NSRange? { isFirstResponder || swappingInput ? selectedRange : nil }
@@ -1374,7 +1428,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The keyboard is back in the text: no table is waiting for it any more.
         core.gridFocus = nil
         controller?.leftTable()
-        core.restyle(textStorage, selection: selectedRange, force: true)
+        // The active line's syntax shows a turn later. A tap that raises the keyboard puts the
+        // caret where you tapped right after this returns, and restyling the text now threw that
+        // away: the caret stayed at the end of the note (Emil, 30 October 2026).
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isFirstResponder else { return }
+            self.core.restyle(self.textStorage, selection: self.selectedRange, force: true)
+        }
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
@@ -1464,7 +1524,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// The reader changed their text size or Bold Text: restyle to match, like Notes.
     @objc private func textSizeChanged() {
         core.styler.bodySize = EditorMetrics.body
-        typingAttributes = core.styler.typingAttributes
+        typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         core.restyle(textStorage, selection: editingSelection, force: true)
     }
 
@@ -1547,6 +1607,7 @@ private struct PlatformEditor: NSViewRepresentable {
     let identifier: String
     let titleLine: Bool
     let followsInitialText: Bool
+    let dateShown: Bool
     let onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -1629,6 +1690,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.observe(textStorage!)
         observeChangeHighlight()
         core.restyle(textStorage!, selection: nil, force: true)
+        typingAttributes = core.typingAttributes(text, at: selectedRange().location)
 
         headerLabel.font = .systemFont(ofSize: 11, weight: .medium)
         headerLabel.textColor = .tertiaryLabelColor
@@ -1907,7 +1969,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage!, selection: editingSelection, force: true)
-        typingAttributes = core.styler.typingAttributes
+        typingAttributes = core.typingAttributes(string, at: selectedRange().location)
         lastReported = string
         remember(string)
         core.onChange(string)
@@ -2029,6 +2091,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             return
         }
         core.restyle(storage, selection: editingSelection, force: false)
+        // On an empty line, the caret is the height of what you'll type there: the title's on the
+        // title's line (Emil, 30 October 2026: a new note's caret was small, then big).
+        if selectedRange().length == 0, core.emptyLineFont(string, at: selectedRange().location) != nil {
+            typingAttributes = core.typingAttributes(string, at: selectedRange().location)
+        }
         controller?.typingChanged(text: string, selection: editingSelection)
         layoutWikiSuggestions()
     }

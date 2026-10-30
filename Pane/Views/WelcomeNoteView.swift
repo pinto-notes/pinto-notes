@@ -334,7 +334,7 @@ struct WelcomeEditorPage: View {
     var body: some View {
         // No bar: the date sits just under the status bar. The note screen puts it a bar lower
         // (WelcomeHandoffPage settles it there when the note opens).
-        MarkdownEditor(initialText: text, header: DateBucket.header(date), controller: controller, identifier: "welcome.editor") { new in
+        MarkdownEditor(initialText: text, header: DateBucket.header(date), controller: controller, identifier: "welcome.editor", dateShown: true) { new in
             // A tick by hand: the only change the read-only editor makes.
             let now = WelcomeNote.ticks(in: new, for: .iPhone)
             if now != ticked { ticked = now }

@@ -322,6 +322,11 @@ import UIKit
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let note = c.mainContext.createNote(in: .all, body: WelcomeNote.body(for: .iPhone, ticked: ticked))
         note.updatedAt = date
+        // As the hand-off opens it: with its date in view (another note opens at its title).
+        let kept = WelcomeNote.ticked
+        WelcomeHandoff.shared.arm(ticked: ticked)
+        WelcomeHandoff.shared.settled(note.id)
+        defer { WelcomeHandoff.shared.done(); WelcomeNote.ticked = kept }
         return try await draw(NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c), dark: dark)
     }
 

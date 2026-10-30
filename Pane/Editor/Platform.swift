@@ -158,12 +158,9 @@ enum DateFold {
     }
 
     /// Captures: `-uitest -showDate` opens notes with the date in view (as if pulled down).
-    #if os(iOS)
-    /// iPhone: the date shows at the top when a note opens, as on the welcome note (Emil, 28 October 2026).
-    static let showOnOpen = true
-    #else
+    /// Otherwise a note opens at its title, and you pull down past the top for the date (Emil,
+    /// 30 October 2026: "by default you only see the title"; on 28 October it showed on open).
     static let showOnOpen = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-showDate")
-    #endif
 
     /// Captures: a line to open scrolled to.
     static let scrollToText: String? = {
