@@ -132,6 +132,12 @@ enum SetupCards {
 
         /// Light words on a dark ground, like the site's `inkOn`.
         var lightInk: Bool { SetupCards.luminance(ground) <= 0.3 }
+
+        /// The cover: an asset, or a small copy of the site's (Pane/Resources/Templates).
+        var image: Image {
+            if let url = Bundle.main.url(forResource: cover, withExtension: "jpg"), let i = NSImage(contentsOf: url) { return Image(nsImage: i) }
+            return Image(cover)
+        }
     }
 
     static let picks: [Pick] = [
@@ -241,7 +247,7 @@ private struct SetupTile<Mark: View>: View {
 
 /// One template on the gallery card: its cover, its name and its line on the cover's own ground,
 /// like the website's cards. It lifts a little under the pointer.
-private struct SetupTemplateCard: View {
+struct SetupTemplateCard: View {
     let pick: SetupCards.Pick
     let action: () -> Void
     @State private var hover = false
@@ -256,7 +262,7 @@ private struct SetupTemplateCard: View {
             ZStack(alignment: .bottomLeading) {
                 Color(rgb: pick.ground)
                 VStack(spacing: 0) {
-                    Image(pick.cover)
+                    pick.image
                         .resizable()
                         .scaledToFill()
                         .frame(width: Self.size.width, height: Self.size.width)

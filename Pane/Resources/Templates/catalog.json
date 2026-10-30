@@ -1,0 +1,232 @@
+[
+ {
+  "slug": "habit-tracker",
+  "title": "Habit tracker",
+  "tagline": "Tick off a few small habits every day.",
+  "description": "A free habit tracker app in a note: tick today in one tap, see streaks and the week, edit habits yourself. Or tell your AI what you did and it logs the day.",
+  "category": "Habits and health",
+  "app": true,
+  "ground": "92a36f",
+  "ask": "Log today: walked, read 30 pages, 6 glasses of water, phone in bed again."
+ },
+ {
+  "slug": "meeting-notes",
+  "title": "Meeting notes",
+  "tagline": "Decisions and action items from every meeting.",
+  "description": "Paste rough meeting notes or a transcript and your AI turns them into decisions and action items in Pinto Notes.",
+  "category": "Work",
+  "app": false,
+  "ground": "ec7751",
+  "ask": "Here are my notes from the pricing sync: …"
+ },
+ {
+  "slug": "daily-standup",
+  "title": "Standup notes",
+  "tagline": "Yesterday, today and blockers, newest first.",
+  "description": "Daily standup notes, newest first. Claude Code writes yesterday from your commits; ChatGPT or Claude from what you tell it.",
+  "category": "Work",
+  "app": false,
+  "ground": "9783ba",
+  "ask": "Write today's standup."
+ },
+ {
+  "slug": "meal-plan",
+  "title": "Meal plan and groceries",
+  "tagline": "This week's dinners and the shopping list.",
+  "description": "A weekly meal plan with the grocery list that goes with it. Your AI plans the dinners and writes the list in Pinto Notes.",
+  "category": "Home and life",
+  "app": false,
+  "ground": "fbb433",
+  "ask": "Plan dinners for this week. We're out on Friday, and no mushrooms."
+ },
+ {
+  "slug": "reading-list",
+  "title": "Reading list",
+  "tagline": "Books to read, reading and finished, rated.",
+  "description": "A reading list with ratings and notes. Tell your AI about a book and it files it; ask it what to read next.",
+  "category": "Learning",
+  "app": false,
+  "ground": "3f5c86",
+  "ask": "Add Piranesi, Maja says it's the best thing she read this year."
+ },
+ {
+  "slug": "mood-energy-log",
+  "title": "Mood and energy log",
+  "tagline": "A short evening check-in that shows patterns.",
+  "description": "An evening mood and energy log. Tell your AI about your day in your own words and it scores and logs it in Pinto Notes.",
+  "category": "Habits and health",
+  "app": false,
+  "ground": "2f7572",
+  "ask": "Today was long but good. Slept 6 hours, two coffees, great lunch with Maja."
+ },
+ {
+  "slug": "job-hunt",
+  "title": "Job hunt",
+  "tagline": "Every application, its stage and what's next.",
+  "description": "A job search pipeline your AI keeps current: every application, its stage and the next step, plus interview prep.",
+  "category": "Work",
+  "app": false,
+  "ground": "69b5e9",
+  "ask": "Save this one: Senior designer at Northwind, …"
+ },
+ {
+  "slug": "trip-plan",
+  "title": "Trip plan",
+  "tagline": "Days, bookings and the packing list in one place.",
+  "description": "A free trip planner in a note: a countdown, a day-by-day itinerary, bookings with paid ticks and a packing list. Edit it yourself, or let your AI fill it in.",
+  "category": "Home and life",
+  "app": true,
+  "ground": "2e5339",
+  "ask": "Lisbon, 4 days in May. I like food, views and walking. Not museums."
+ },
+ {
+  "slug": "study-flashcards",
+  "title": "Study notes and flashcards",
+  "tagline": "Flashcards that come back when you need them.",
+  "description": "A free flashcard maker and study app in a note: paste your notes and your AI makes the cards, then study what's due, a card at a time, in five boxes.",
+  "category": "Learning",
+  "app": true,
+  "ground": "f69261",
+  "ask": "Here are my notes on cell respiration: …"
+ },
+ {
+  "slug": "decision-log",
+  "title": "Decision log",
+  "tagline": "What you chose, what you didn't, and why.",
+  "description": "A decision log your AI keeps: what you chose, what you didn't, and why. Ask it later why you decided something.",
+  "category": "Work",
+  "app": false,
+  "ground": "754024",
+  "ask": "We decided to stay on Postgres instead of moving to a document store."
+ },
+ {
+  "slug": "workout-log",
+  "title": "Workout log",
+  "tagline": "One row per session, and your personal bests.",
+  "description": "A workout log your AI keeps for you. Describe the session after the gym and ChatGPT or Claude logs it in Pinto Notes.",
+  "category": "Habits and health",
+  "app": false,
+  "ground": "5b5f27",
+  "ask": "Legs today: squat 100 kg for 5, then lunges. About 55 minutes, felt hard."
+ },
+ {
+  "slug": "budget-log",
+  "title": "Budget and expenses",
+  "tagline": "What you spend, against a monthly budget.",
+  "description": "A free budget and expense tracker in a note: what's left this month, spending by category, quick add. Or tell your AI what you spent and it logs it.",
+  "category": "Home and life",
+  "app": true,
+  "ground": "5b5651",
+  "ask": "Spent 412 on groceries and 85 on the bus card today."
+ },
+ {
+  "slug": "one-on-one-notes",
+  "title": "1:1 notes",
+  "tagline": "Topics, follow-ups and a record of every 1:1.",
+  "description": "A running 1:1 note. Topics go in during the week, your AI writes up the meeting and keeps the follow-ups in Pinto Notes.",
+  "category": "Work",
+  "app": false,
+  "ground": "2e346d",
+  "ask": "For my next 1:1: ask how the on-call week went."
+ },
+ {
+  "slug": "book-notes",
+  "title": "Book notes",
+  "tagline": "The big idea and the lines worth keeping.",
+  "description": "Book notes your AI organizes: send highlights as you read, and it keeps the quotes, the big idea and what you'll do differently.",
+  "category": "Learning",
+  "app": false,
+  "ground": "b13053",
+  "ask": "Starting Four Thousand Weeks by Oliver Burkeman."
+ },
+ {
+  "slug": "bug-triage",
+  "title": "Bug triage",
+  "tagline": "Every bug in one table, by how much it hurts.",
+  "description": "A bug triage table your AI keeps. Paste a report or an issue and it files it by severity in Pinto Notes.",
+  "category": "Work",
+  "app": false,
+  "ground": "e9a82a",
+  "ask": "Here's a report from a customer: …"
+ },
+ {
+  "slug": "weekly-review",
+  "title": "Weekly review",
+  "tagline": "Five questions every Sunday, written up for you.",
+  "description": "A weekly review your AI runs with you. It asks five questions, then writes the week up in Pinto Notes, newest first.",
+  "category": "Habits and health",
+  "app": false,
+  "ground": "e5837f",
+  "ask": "It's time for my weekly review."
+ },
+ {
+  "slug": "recipe-box",
+  "title": "Recipe box",
+  "tagline": "Your recipes, cleaned up and filed.",
+  "description": "A recipe box your AI files for you: paste a recipe and it becomes a clean sub-note with ingredients as a checklist.",
+  "category": "Home and life",
+  "app": false,
+  "ground": "2b5ba1",
+  "ask": "Save this recipe: …"
+ },
+ {
+  "slug": "content-calendar",
+  "title": "Content calendar",
+  "tagline": "What goes out when, plus a bank of ideas.",
+  "description": "A content calendar with an idea bank. Your AI turns ideas into scheduled posts and keeps the status current in Pinto Notes.",
+  "category": "Work",
+  "app": false,
+  "ground": "7a171f",
+  "ask": "Idea: what we learned from 100 customer calls."
+ },
+ {
+  "slug": "home-maintenance",
+  "title": "Home maintenance",
+  "tagline": "What's due around the house, and when.",
+  "description": "A home maintenance schedule your AI keeps: what's due, when it was last done, and a monthly checklist in Pinto Notes.",
+  "category": "Home and life",
+  "app": false,
+  "ground": "e4ba8b",
+  "ask": "Add: clean the dishwasher filter every month, last done 1 September."
+ },
+ {
+  "slug": "gift-ideas",
+  "title": "Gift ideas",
+  "tagline": "Ideas for everyone, saved when you hear them.",
+  "description": "A gift idea list your AI fills as you go: ideas by person, sizes and likes, and suggestions before the next birthday.",
+  "category": "Home and life",
+  "app": false,
+  "ground": "7cbf91",
+  "ask": "Maja mentioned she wants a good chef's knife."
+ },
+ {
+  "slug": "cornell-notes",
+  "title": "Cornell notes",
+  "tagline": "Your notes, the questions, and a summary.",
+  "description": "Cornell notes your AI sets up for you: your notes on the right, a question for each on the left, and a short summary. Then it quizzes you.",
+  "category": "Learning",
+  "app": false,
+  "ground": "1f4956",
+  "ask": "Here are my notes from today's economics lecture: …"
+ },
+ {
+  "slug": "daily-journal",
+  "title": "Daily journal",
+  "tagline": "Four questions a day, written up for you.",
+  "description": "A daily journal your AI keeps with you. Answer four short questions, or just tell it about your day, and it writes the entry, newest day first.",
+  "category": "Habits and health",
+  "app": false,
+  "ground": "4a213d",
+  "ask": "I want to journal."
+ },
+ {
+  "slug": "grocery-list",
+  "title": "Grocery list",
+  "tagline": "Sorted by aisle, before you get to the shop.",
+  "description": "A grocery list your AI keeps sorted by aisle. Say what you need in one sentence; it files each item and clears what you've ticked.",
+  "category": "Home and life",
+  "app": false,
+  "ground": "c83829",
+  "ask": "We need oat milk, lemons, two cans of chickpeas, bin bags and something for Friday's tacos."
+ }
+]

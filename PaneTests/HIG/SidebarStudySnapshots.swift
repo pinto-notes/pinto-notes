@@ -136,6 +136,46 @@ import Testing
         }
     }
 
+    /// Templates in the sidebar opens every template as a page of the window, and a card opens
+    /// its template with Make with the AI you use.
+    @Test(arguments: [false, true])
+    func templateLibrary(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let mode = dark ? "dark" : "light"
+        let lib = try Self.library()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let catalog = TemplateCatalog.shipped
+        for (name, open) in [("templates-library", nil), ("templates-open", catalog.entries.first { $0.slug == "trip-plan" })] {
+            let view = HStack(spacing: 0) {
+                NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+                    .overlay(alignment: .bottomLeading) { Self.foot }
+                    .frame(width: 259)
+                    .background(Color(nsColor: .windowBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(8)
+                TemplateLibraryView(catalog: catalog, ai: .chatgpt, open: open)
+            }
+            .environment(\.sidebarStudy, SidebarStudy())
+            .environment(\.controlActiveState, .key)
+            .tint(Color(PColor.paneAccent))
+            .modelContainer(lib)
+            try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+        }
+    }
+
+    /// The app carries every template of the website, and the kinds and search narrow them.
+    @Test func theLibraryHasEveryTemplate() {
+        let c = TemplateCatalog.shipped
+        #expect(c.entries.count >= 23)
+        #expect(c.shown(filter: "All", query: "").count == c.entries.count)
+        #expect(c.shown(filter: "Apps", query: "").allSatisfy(\.app))
+        #expect(c.shown(filter: "Work", query: "").allSatisfy { $0.category == "Work" })
+        #expect(c.shown(filter: "All", query: "trip").map(\.slug).contains("trip-plan"))
+        #expect(c.entries.allSatisfy { Bundle.main.url(forResource: "template-cover-\($0.slug)", withExtension: "jpg") != nil })
+        #expect(SetupCards.prompt(c.entries[0].pick).hasPrefix("In Pinto Notes, use my Habit tracker note."))
+    }
+
     /// The study is off in the app until it's picked: no AI section, no mark on the notes.
     @Test func theStudyIsOffByDefault() {
         #expect(EnvironmentValues().sidebarStudy == nil)
