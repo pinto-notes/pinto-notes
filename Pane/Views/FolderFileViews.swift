@@ -119,6 +119,7 @@ struct FileListRow: View {
             #endif
             .swipeActions(edge: .trailing) {
                 Button(file.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: .destructive, action: remove)
+                    .destructiveTint()
             }
     }
 }
@@ -419,9 +420,11 @@ struct FileDetailView: View {
                     #endif
                     Divider()
                     Button("Delete", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { context.trash(file) } }
+                        .destructiveTint()
                 } else {
                     Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(file) } }
                     Button("Delete Forever…", systemImage: "trash", role: .destructive) { confirmForever = true }
+                        .destructiveTint()
                 }
             } label: {
                 Label("More", systemImage: "ellipsis")

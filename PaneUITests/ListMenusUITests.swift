@@ -51,6 +51,25 @@ final class ListMenusUITests: XCTestCase {
         XCTAssertEqual(ys, ys.sorted(), "in this order: \(labels)", file: file, line: line)
     }
 
+    /// How many strongly red pixels the screen has in `rect` (points).
+    private func redPixels(in rect: CGRect) -> Int {
+        guard let cg = XCUIScreen.main.screenshot().image.cgImage else { return 0 }
+        let scale = CGFloat(cg.width) / app.frame.width
+        let px = CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale).integral
+        guard let crop = cg.cropping(to: px) else { return 0 }
+        let w = crop.width, h = crop.height
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &data, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+        ctx.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var n = 0
+        for i in stride(from: 0, to: data.count, by: 4) {
+            let r = Int(data[i]), g = Int(data[i + 1]), b = Int(data[i + 2])
+            if r > 180 && g < 110 && b < 110 { n += 1 }
+        }
+        return n
+    }
+
     private func dismissMenu() {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap()
         Thread.sleep(forTimeInterval: 0.5)
@@ -68,6 +87,10 @@ final class ListMenusUITests: XCTestCase {
         XCTAssertEqual(share.midY, move.midY, accuracy: 4)
         XCTAssertEqual(move.midY, delete.midY, accuracy: 4)
         XCTAssertTrue(share.midX < move.midX && move.midX < delete.midX, "Share, Move, Delete from the left")
+        // Delete's trash can is red like its title, never the label colour (Emil, 30 October 2026).
+        let icon = CGRect(x: delete.minX, y: delete.minY, width: delete.width, height: delete.height * 0.5)
+        XCTAssertGreaterThan(redPixels(in: icon), 40, "Delete's icon is red")
+        XCTAssertLessThan(redPixels(in: CGRect(x: move.minX, y: move.minY, width: move.width, height: move.height * 0.5)), 5, "Move's is not")
         // Groceries is pinned in the demo library.
         assertOrder(["Move", "Unpin Note", "Lock Note", "Duplicate Note"])
         XCTAssertFalse(app.buttons["Select"].exists, "a long-press doesn't start selecting")

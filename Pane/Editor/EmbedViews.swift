@@ -197,6 +197,7 @@ private struct EmbedMenu: View {
         Button("Open", systemImage: "eye", action: open)
         Divider()
         Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
+            .destructiveTint()
     }
 }
 
@@ -237,6 +238,7 @@ private struct LinkCard: View {
         .contextMenu {
             Link(destination: url) { Label("Open Link", systemImage: "safari") }
             Button("Remove Preview", systemImage: "trash", role: .destructive, action: remove)
+                .destructiveTint()
         }
         .task(id: url) { meta = await LinkMeta.fetch(url) }
         .accessibilityIdentifier("link.\(url.host() ?? "")")

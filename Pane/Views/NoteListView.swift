@@ -649,6 +649,7 @@ struct NoteListView: View {
                 .accessibilityIdentifier("row.move")
         case .delete:
             Button("Delete", systemImage: "trash", role: .destructive) { remove(note) }
+                .destructiveTint()
                 .accessibilityIdentifier("row.delete")
         case .pin:
             Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
@@ -804,6 +805,7 @@ struct NoteListView: View {
     @ViewBuilder
     private func deleteButton(_ note: Note) -> some View {
         Button(note.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: .destructive) { remove(note) }
+            .destructiveTint()
     }
 
     @ViewBuilder
@@ -824,6 +826,7 @@ struct NoteListView: View {
                     withAnimation(.snappy) { notes.forEach(context.restore) }
                 }
                 Button("Delete \(notes.count) Notes Forever…", systemImage: "trash", role: .destructive) { remove(ids) }
+                    .destructiveTint()
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
                     ForEach(folders) { f in
@@ -832,6 +835,7 @@ struct NoteListView: View {
                 }
                 Divider()
                 Button("Delete \(notes.count) Notes", systemImage: "trash", role: .destructive) { remove(ids) }
+                    .destructiveTint()
             }
         }
     }
@@ -869,6 +873,7 @@ struct NoteListView: View {
         if file.trashedAt != nil {
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(file) } }
             Button("Delete Forever…", systemImage: "trash", role: .destructive) { remove([file.id]) }
+                .destructiveTint()
         } else {
             Button("Rename…", systemImage: "pencil") {
                 fileNameDraft = FolderFileName.stem(file.filename)
@@ -886,6 +891,7 @@ struct NoteListView: View {
             }
             Divider()
             Button("Delete", systemImage: "trash", role: .destructive) { remove([file.id]) }
+                .destructiveTint()
         }
     }
 
@@ -901,6 +907,7 @@ struct NoteListView: View {
                 }
             }
             Button("Delete \(count) Items Forever…", systemImage: "trash", role: .destructive) { remove(ids) }
+                .destructiveTint()
         } else {
             Menu("Move \(count) Items to", systemImage: "folder") {
                 ForEach(folders) { f in
@@ -909,6 +916,7 @@ struct NoteListView: View {
             }
             Divider()
             Button("Delete \(count) Items", systemImage: "trash", role: .destructive) { remove(ids) }
+                .destructiveTint()
         }
     }
 
@@ -1656,6 +1664,7 @@ private struct ListRow: View, @MainActor Equatable {
             }
             .swipeActions(edge: .trailing) {
                 Button(note.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: .destructive, action: remove)
+                    .destructiveTint()
             }
     }
 }

@@ -52,7 +52,7 @@ struct ShareForm: View {
                     #if os(iOS)
                     .swipeActions { if !p.isMe { Button("Remove", role: .destructive) { remove(p) } } }
                     #endif
-                    .contextMenu { if !p.isMe { Button("Remove from Note", systemImage: "person.badge.minus", role: .destructive) { remove(p) } } }
+                    .contextMenu { if !p.isMe { Button("Remove from Note", systemImage: "person.badge.minus", role: .destructive) { remove(p) }.destructiveTint() } }
                 }
             }
 
