@@ -251,6 +251,11 @@ struct SetupTemplateCard: View {
     let pick: SetupCards.Pick
     /// Wider in the template library, where the cards share the row; the height keeps the shape.
     var width: CGFloat = size.width
+    /// The template library's look: the art alone, its name and line under it in the page's own
+    /// text colours, so every card reads the same (Emil, 2026-10-30: not dark words on some, light on others).
+    var captionBelow = false
+    /// The open one, ringed.
+    var selected = false
     let action: () -> Void
     @State private var hover = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -258,9 +263,47 @@ struct SetupTemplateCard: View {
     static let size = CGSize(width: 164, height: 228)
 
     var body: some View {
+        if captionBelow { below } else { onCover }
+    }
+
+    private var below: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        return Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                ZStack {
+                    Color(rgb: pick.ground)
+                    pick.image.resizable().scaledToFill()
+                }
+                .frame(width: width, height: width * 0.8)
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
+                .overlay {
+                    if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3) }
+                }
+                .shadow(color: .black.opacity(hover ? 0.22 : 0), radius: 12, y: 10)
+                .offset(y: hover && !reduceMotion ? -3 : 0)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pick.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
+                    Text(pick.line).font(.system(size: 12)).foregroundStyle(Color.muted)
+                        .lineLimit(2, reservesSpace: true)
+                }
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, 2)
+            }
+            .frame(width: width, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
+        .accessibilityLabel("\(pick.title). \(pick.line)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("templates.\(pick.slug)")
+    }
+
+    private var onCover: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         let ink = pick.lightInk ? Color(red: 1, green: 0.957, blue: 0.902) : Color(red: 0.165, green: 0.114, blue: 0.063)
-        Button(action: action) {
+        return Button(action: action) {
             ZStack(alignment: .bottomLeading) {
                 Color(rgb: pick.ground)
                 VStack(spacing: 0) {
