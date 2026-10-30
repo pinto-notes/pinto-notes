@@ -109,8 +109,14 @@ struct NotePreviewCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 switch line.kind {
                 case .check(let done):
-                    Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(done ? Color.accentColor : Color.muted)
+                    // As the editor draws them: a grey ring, or the accent disc with a white tick.
+                    if done {
+                        Image(systemName: "checkmark.circle.fill")
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, Color(PColor.paneAccent))
+                    } else {
+                        Image(systemName: "circle").foregroundStyle(Color.muted.opacity(0.6))
+                    }
                 case .bullet:
                     Text("\u{2022}").foregroundStyle(Color.muted)
                 default:

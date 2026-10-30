@@ -43,28 +43,32 @@ final class ListTitleUITests: XCTestCase {
         shot("list")
     }
 
-    /// No Select button, in the bar or in the •••: selecting starts from a row (Emil, 29 October 2026).
-    func testNoSelectButton() {
+    /// No Select button in the bar: Select Notes heads the ••• menu, as in Apple Notes (Emil, 30 October 2026).
+    func testSelectNotesHeadsTheMoreMenu() {
         XCTAssertFalse(app.buttons["Select"].exists, "no Select in the bar")
         app.buttons["list.more"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Add Files…"].firstMatch.waitForExistence(timeout: 3), "the ••• menu is open")
-        XCTAssertFalse(app.buttons["Select"].exists, "no Select in the ••• menu")
+        let select = app.buttons["Select Notes"].firstMatch
+        XCTAssertTrue(select.waitForExistence(timeout: 3), "the ••• menu is open")
+        XCTAssertLessThan(select.frame.minY, app.buttons["Sort By"].firstMatch.frame.minY, "and heads it")
     }
 
-    /// Long-press a note, Select: that note is selected, a tap adds another, Delete takes both.
-    func testLongPressSelectThenDeleteBoth() {
+    private func selectNotes() {
+        app.buttons["list.more"].firstMatch.tap()
+        let select = app.buttons["list.selectNotes"].firstMatch
+        XCTAssertTrue(select.waitForExistence(timeout: 3))
+        select.tap()
+    }
+
+    /// Select Notes, two taps, Delete takes both.
+    func testSelectNotesThenDeleteBoth() {
         let groceries = app.staticTexts["Groceries"].firstMatch
         XCTAssertTrue(groceries.waitForExistence(timeout: 3))
-        groceries.press(forDuration: 1.0)
-        // A menu item carries no identifier: found by its name, the first of the menu.
-        let select = app.buttons["Select"].firstMatch
-        XCTAssertTrue(select.waitForExistence(timeout: 3), "Select is in the long-press menu")
-        XCTAssertEqual(app.buttons.firstMatch.label, "Select", "and heads it")
-        select.tap()
+        selectNotes()
         let delete = app.buttons["list.deleteSelected"].firstMatch
         XCTAssertTrue(delete.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["list.done"].firstMatch.exists, "Done where + was while selecting")
-        XCTAssertTrue(delete.label.contains("1"), "the pressed note is selected: \(delete.label)")
+        XCTAssertTrue(app.buttons["list.done"].firstMatch.exists, "Done where ••• was while selecting")
+        groceries.tap()
+        XCTAssertTrue(delete.label.contains("1"), "a tap selects: \(delete.label)")
         app.staticTexts["Standup notes"].firstMatch.tap()
         XCTAssertTrue(delete.label.contains("2"), "a tap adds the next: \(delete.label)")
         shot("selecting")
@@ -75,10 +79,8 @@ final class ListTitleUITests: XCTestCase {
     }
 
     func testDoneEndsSelecting() {
-        app.staticTexts["Groceries"].firstMatch.press(forDuration: 1.0)
-        let select = app.buttons["Select"].firstMatch
-        XCTAssertTrue(select.waitForExistence(timeout: 3))
-        select.tap()
+        XCTAssertTrue(app.staticTexts["Groceries"].firstMatch.waitForExistence(timeout: 3))
+        selectNotes()
         let done = app.buttons["list.done"].firstMatch
         XCTAssertTrue(done.waitForExistence(timeout: 3))
         done.tap()

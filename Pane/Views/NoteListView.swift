@@ -1614,7 +1614,8 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 .quietSelection()
                 #if os(iOS)
                 // Long-press: the note itself as a tall card, its menu under it (Apple Notes).
-                .contextMenu { menu(note) } preview: { NotePreviewCard(note: note) }
+                // Its icons in the label colour, Delete in red, as in Notes (not the app's amber).
+                .contextMenu { menu(note).tint(.primary) } preview: { NotePreviewCard(note: note) }
                 .listRowBackground(Color(Palette.row))
                 #endif
         }
