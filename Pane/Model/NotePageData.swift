@@ -212,7 +212,7 @@ final class NotePageDataStore {
     }
 
     static var defaultFile: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "Pane/note-page-data.json")
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/note-page-data.json")
     }
 
     func doc(_ id: UUID) -> NotePageData.Doc { NotePageData.decode(docs[id]) }

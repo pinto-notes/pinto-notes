@@ -32,7 +32,7 @@ final class SessionStorage: AuthLocalStorage, @unchecked Sendable {
     }
 
     static let appDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appending(path: "Pane", directoryHint: .isDirectory)
+        .appending(path: AppIdentity.dataFolder, directoryHint: .isDirectory)
 
     private static let appKeychain: SessionKeychain? = {
         #if DEBUG || QA

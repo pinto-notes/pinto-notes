@@ -180,7 +180,7 @@ final class AIEditStore {
 
     static var defaultFile: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appending(path: "Pane/ai-edits.json")
+            .appending(path: "\(AppIdentity.dataFolder)/ai-edits.json")
     }
 
     subscript(id: UUID) -> Entry {

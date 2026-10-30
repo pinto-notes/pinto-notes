@@ -66,6 +66,8 @@ SCHEME=$(identity PANE_URL_SCHEME)
 
 step() { echo "→ $*"; }
 run() { if (( DRY )); then echo "  would run: $*"; else "$@"; fi; }
+# Stop with what to do next: what failed is printed above it by the command itself.
+fail() { echo "\n✗ $1" >&2; shift; for l in "$@"; do echo "  $l" >&2; done; echo "  Running scripts/deploy-backend.sh $REF again is safe once it's fixed." >&2; exit 1; }
 api() {  # api METHOD PATH JSON-FILE
   if (( DRY )); then echo "  would $1 https://api.supabase.com$2 with: $(python3 -c 'import json,sys;print(", ".join(sorted(json.load(open(sys.argv[1])))))' "$3")"; return; fi
   curl -sSf -X "$1" "https://api.supabase.com$2" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
@@ -77,13 +79,22 @@ tmp=$(mktemp -d); trap "rm -rf '$tmp'" EXIT
 echo "Project $URL, app $BUNDLE ($SCHEME://)${SITE:+, site $SITE}"
 
 step "Linking $REF"
-run supabase link --project-ref "$REF"
+run supabase link --project-ref "$REF" || fail "Couldn't link $REF." \
+  "A wrong database password: reset it in the dashboard (Project Settings → Database) and use the new one." \
+  "Unauthorized: the token in .env is wrong or expired; make a new one at supabase.com/dashboard/account/tokens." \
+  "Not found: check the ref, the 20 letters in https://<ref>.supabase.co."
 
 step "Applying the migrations"
-run supabase db push --linked --include-seed=false
+run supabase db push --linked --include-seed=false || fail "A migration didn't apply. The message above names the file." \
+  "If the project already had tables of its own, use a new, empty project." \
+  "Otherwise open an issue at https://github.com/pinto-notes/pinto-notes/issues with the message."
 
 step "Deploying the functions: ${FUNCTIONS[*]}"
-for f in $FUNCTIONS; do run supabase functions deploy "$f" --project-ref "$REF"; done
+# --use-api: bundled by Supabase, so Docker doesn't have to be running.
+for f in $FUNCTIONS; do
+  run supabase functions deploy "$f" --project-ref "$REF" --use-api || fail "The $f function didn't deploy." \
+    "Check your connection and that the project isn't paused (the dashboard says so), then run this again."
+done
 
 step "Setting the functions' secrets"
 SECRETS=.secrets/backend-$REF.env
@@ -103,9 +114,12 @@ MCP_PUBLIC_URL=$MCP
 MCP_ALIAS_URLS=$MCP
 APNS_TOPIC=$BUNDLE
 EOF
-[[ -n $SITE ]] && printf 'CONNECT_PAGE_URL=%s/connect\nTEMPLATE_SITE_URL=%s\n' "$SITE" "$SITE" >> "$tmp/secrets.env")
+if [[ -n $SITE ]]; then printf 'CONNECT_PAGE_URL=%s/connect\nTEMPLATE_SITE_URL=%s\n' "$SITE" "$SITE" >> "$tmp/secrets.env"; fi)
 if (( DRY )); then echo "  would set: $(cut -d= -f1 "$tmp/secrets.env" | tr '\n' ' ')"
-else supabase secrets set --project-ref "$REF" --env-file "$tmp/secrets.env" >/dev/null && echo "  set: $(cut -d= -f1 "$tmp/secrets.env" | tr '\n' ' ')"; fi
+else
+  supabase secrets set --project-ref "$REF" --env-file "$tmp/secrets.env" >/dev/null || fail "The functions' secrets weren't set."
+  echo "  set: $(cut -d= -f1 "$tmp/secrets.env" | tr '\n' ' ')"
+fi
 
 step "Auth settings"
 # The sign-in emails (a 6-digit code; Supabase's own template sends only a link, which the app can't
@@ -132,7 +146,8 @@ PY
 api PATCH "/v1/projects/$REF/config/auth" "$tmp/auth.json" || {
   echo "  The full settings were refused (custom email templates can need your own SMTP server)."
   python3 -c 'import json,sys;c=json.load(open(sys.argv[1]));json.dump({k:v for k,v in c.items() if not k.startswith(("mailer_templates_","mailer_subjects_"))},open(sys.argv[1],"w"))' "$tmp/auth.json"
-  api PATCH "/v1/projects/$REF/config/auth" "$tmp/auth.json"
+  api PATCH "/v1/projects/$REF/config/auth" "$tmp/auth.json" || fail "The auth settings weren't accepted." \
+    "Check that the token in .env belongs to the account that owns the project."
   echo "  Set without the emails. Put {{ .Token }} in Authentication → Emails → Magic link, or the app gets no code."
 }
 
@@ -140,18 +155,19 @@ step "Writing Config/Backend.local.xcconfig"
 if (( DRY )); then
   echo "  would write PANE_SUPABASE_URL=$URL, PANE_SUPABASE_KEY=<the project's anon key>, PANE_MCP_URL=$MCP${SITE:+, PANE_SHARE_URL=$SITE}"
 else
-  ANON=$(supabase projects api-keys --project-ref "$REF" -o json | python3 -c "import sys,json;k=json.JSONDecoder().raw_decode(sys.stdin.read().lstrip())[0];print(next(x['api_key'] for x in k if x.get('name') in ('anon','publishable')))")
+  ANON=$(supabase projects api-keys --project-ref "$REF" -o json 2>/dev/null | python3 -c "import sys,json;k=json.JSONDecoder().raw_decode(sys.stdin.read().lstrip())[0];print(next(x['api_key'] for x in k if x.get('name') in ('anon','publishable')))" 2>/dev/null) || ANON=""
+  [[ -n $ANON ]] || fail "Couldn't read the project's anon key." "Run: supabase projects api-keys --project-ref $REF"
   [[ -f Config/Backend.local.xcconfig ]] && cp Config/Backend.local.xcconfig "Config/Backend.local.xcconfig.before-$REF"
   (umask 077; {
     echo "// Written by scripts/deploy-backend.sh: your Supabase project. Gitignored."
     echo "PANE_SUPABASE_URL = https:/\$()/$REF.supabase.co"
     echo "PANE_SUPABASE_KEY = $ANON"
     echo "PANE_MCP_URL = ${MCP/https:\/\//https:/\$()/}"
-    [[ -n $SITE ]] && echo "PANE_SHARE_URL = ${SITE/https:\/\//https:/\$()/}"
+    if [[ -n $SITE ]]; then echo "PANE_SHARE_URL = ${SITE/https:\/\//https:/\$()/}"; fi
   } > Config/Backend.local.xcconfig)
 fi
 
 echo "→ Done. Rebuild the app; it now syncs with $URL."
-echo "  Sign in with your email: the code comes from Supabase's mailer, which only sends to your"
-echo "  project's team members until you set up SMTP (Authentication → Emails → SMTP settings)."
+echo "  Sign in with your email. Emails (codes, password resets) come from Supabase's mailer, which only"
+echo "  sends to your project's team members until you set up SMTP (Authentication → Emails → SMTP settings)."
 echo "  AI server: $MCP (Claude Code and Codex: Settings → Connect an AI in the app)."

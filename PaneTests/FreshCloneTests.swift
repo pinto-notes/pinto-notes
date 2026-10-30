@@ -1,6 +1,7 @@
 #if os(macOS)
 import Foundation
 import Testing
+@testable import Pane
 
 /// A fresh clone with no secrets and no Apple team builds (docs/MAKE-IT-YOURS.md): who the app is
 /// and how it signs live in Config/Identity.xcconfig, which scripts/make-it-yours.sh overrides with
@@ -31,6 +32,25 @@ import Testing
         #expect(lines.contains("DEVELOPMENT_TEAM ="))
         #expect(lines.contains("DEVELOPMENT_TEAM[sdk=iphoneos*] = $(PANE_IOS_TEAM)"))
         #expect(lines.last == "#include? \"Identity.local.xcconfig\"")
+    }
+
+    /// A Mac build under its own bundle id keeps its library apart from an installed Pinto Notes:
+    /// outside the sandbox both would otherwise open ~/Library/Application Support/Pane.
+    @Test func aBuildOfYourOwnKeepsItsNotesApart() {
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pane") == "Pane")
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pane.beta") == "Pane")
+        #expect(AppIdentity.dataFolder(bundleID: nil) == "Pane")
+        #expect(AppIdentity.dataFolder(bundleID: "com.kim.notes") == "com.kim.notes")
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.panes") == "dev.emilwagman.panes")
+    }
+
+    /// `scripts/setup.sh --local-only` builds with an empty backend address: the app opens on the
+    /// notes, with sync off and no sign-in.
+    @Test func aBuildWithNoBackendAddressRunsWithSyncOff() {
+        #expect(BackendConfig.url(from: "") == nil)
+        #expect(BackendConfig.url(from: nil) == nil)
+        #expect(BackendConfig.url(from: "$(PANE_SUPABASE_URL)") == nil)
+        #expect(BackendConfig.url(from: "http://127.0.0.1:56421")?.port == 56421)
     }
 
     /// A free Apple account (a personal team) can't sign Sign in with Apple, push or associated

@@ -405,7 +405,7 @@ final class NotePageStore {
     }
 
     static var defaultFile: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "Pane/note-pages.json")
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/note-pages.json")
     }
 
     /// Setting a different page (or none) keeps the one it replaces in history.

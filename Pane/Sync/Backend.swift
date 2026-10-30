@@ -8,9 +8,12 @@ import UIKit
 
 /// The Supabase project from the build settings, or nil when the app runs local-only.
 enum BackendConfig {
-    static var url: URL? {
-        guard let s = Bundle.main.object(forInfoDictionaryKey: "PaneSupabaseURL") as? String,
-              s.hasPrefix("http"), let u = URL(string: s) else { return nil }
+    static var url: URL? { url(from: Bundle.main.object(forInfoDictionaryKey: "PaneSupabaseURL") as? String) }
+
+    /// Nil, so the app runs with sync off and notes on this device only, for a build with no
+    /// backend: `PANE_SUPABASE_URL =` (scripts/setup.sh --local-only).
+    static func url(from setting: String?) -> URL? {
+        guard let s = setting, s.hasPrefix("http"), let u = URL(string: s) else { return nil }
         return u
     }
 

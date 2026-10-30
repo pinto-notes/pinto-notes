@@ -43,7 +43,7 @@ struct PaneApp: App {
         if inMemory { UserDefaults.standard.removeObject(forKey: "lastScope") }
         // Performance runs can keep their library on disk, as the app does: `-uitest -perfStore /tmp/probe.store`.
         let perfStore = args.contains("-uitest") ? Capture.argument("-perfStore") : nil
-        let config = perfStore.map { ModelConfiguration(url: URL(fileURLWithPath: $0)) } ?? ModelConfiguration("Pane", isStoredInMemoryOnly: inMemory)
+        let config = perfStore.map { ModelConfiguration(url: URL(fileURLWithPath: $0)) } ?? ModelConfiguration(AppIdentity.dataFolder, isStoredInMemoryOnly: inMemory)
         // Each save keeps its notes' titles and previews (Note.summaryTitle): from the first save on.
         NoteSummaries.install()
         do {
