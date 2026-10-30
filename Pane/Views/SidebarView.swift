@@ -270,6 +270,10 @@ struct SidebarView: View {
     @State private var dropTarget: UUID?
     @State private var deletingFolder: Folder?
     @State private var showSettings = false
+    /// The folder whose Move is open (iPhone): where it goes, picked in a sheet.
+    @State private var movingFolder: Folder?
+    /// The folders screen's Edit (iPhone): rows to reorder, each with its ••• menu.
+    @State private var editingFolders = false
     /// A card at the foot was closed in this window (it's also kept per account, and on the server).
     @State private var cardsClosedHere: Set<SidebarCard> = []
     @State private var sidebarHeight: CGFloat = 0
@@ -352,6 +356,37 @@ struct SidebarView: View {
 
     /// The folders, All Notes and Recently Deleted.
     private func folderList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
+        Group {
+            #if os(iOS)
+            if editingFolders { editList } else { selectList(files) }
+            #else
+            selectList(files)
+            #endif
+        }
+        .listStyle(.sidebar)
+        #if os(iOS)
+        .scrollContentBackground(.hidden)
+        .background(Color(Palette.foldersGround).ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if let card = sidebarCard, card != .mac, !editingFolders {
+                    cardView(card)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
+                OfflineLine(sync: sync)
+            }
+            .animation(.easeOut(duration: 0.25), value: sync?.reach)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
+        #else
+        // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
+        .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
+        #endif
+    }
+
+    /// The folders as you pick one: a tap opens it.
+    private func selectList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
         List(selection: $scope) {
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
@@ -361,7 +396,7 @@ struct SidebarView: View {
                         .accessibilityIdentifier("sidebar.all")
                 }
                 ForEach(roots) { folder in
-                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, dropTarget: dropTarget, targeted: folderTargeted, rename: startRename, newSub: startNewFolder, delete: deleteFolder)
+                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, dropTarget: dropTarget, targeted: folderTargeted, rename: startRename, newSub: startNewFolder, delete: deleteFolder, move: startMove, notesID: roots.first?.id)
                 }
                 // Last in the same list, like Notes, and like Notes only while something is in it.
                 CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed, selection: $scope)
@@ -388,26 +423,6 @@ struct SidebarView: View {
             }
             #endif
         }
-        .listStyle(.sidebar)
-        #if os(iOS)
-        .scrollContentBackground(.hidden)
-        .background(Color(Palette.foldersGround).ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if let card = sidebarCard, card != .mac {
-                    cardView(card)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-                }
-                OfflineLine(sync: sync)
-            }
-            .animation(.easeOut(duration: 0.25), value: sync?.reach)
-        }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
-        #else
-        // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
-        .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
-        #endif
     }
 
     /// The app's name above, the menus, drops and the toolbar.
@@ -451,30 +466,10 @@ struct SidebarView: View {
         #endif
         .toolbar {
             #if os(iOS)
-            // New Folder at the top left, your photo at the right; below, the same search and new
-            // note as in a folder's notes (Emil, 29 October 2026).
-            ToolbarItem(placement: .topBarLeading) {
-                Menu {
-                    Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
-                    ForEach(ImportKind.listed) { kind in
-                        Button(kind.title, systemImage: kind.symbol) { imports?.from(kind) }
-                    }
-                } label: {
-                    Label("New Folder", systemImage: "folder.badge.plus")
-                } primaryAction: { startNewFolder(nil) }
-                // The floating buttons in the label colour, as in the note and the list.
-                .tint(.primary)
-                .accessibilityIdentifier("sidebar.newFolder")
-            }
-            if sizeClass == .compact {
-                SearchComposeBar(newNote: onNewNote, identifier: "sidebar.newNote")
-            } else {
-                // iPad: the notes' list beside this one has the search.
-                ToolbarSpacer(.flexible, placement: .bottomBar)
-                SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
-            }
+            // Your photo at the top left; New Folder and Edit at the right, as Notes has them; below,
+            // the same search and new note as in a folder's notes (Emil, 30 October 2026).
             if let backend, backend.client != nil || Self.capturesAccount {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarLeading) {
                     // Signed in, your photo is the way into Settings (your account comes first there).
                     if Self.signedIn(backend) {
                         let name = AccountName.shown(ProfileStore.shared.name)
@@ -490,10 +485,46 @@ struct SidebarView: View {
                         .task(id: backend.state) { await ProfileStore.shared.bind(backend) }
                     } else {
                         Button("Settings", systemImage: "gearshape") { showSettings = true }
+                            .tint(.primary)
                             .accessibilityIdentifier("sidebar.settings")
                     }
                 }
                 .sharedBackgroundVisibility(.hidden)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
+                    ForEach(ImportKind.listed) { kind in
+                        Button(kind.title, systemImage: kind.symbol) { imports?.from(kind) }
+                    }
+                } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                } primaryAction: { startNewFolder(nil) }
+                // The floating buttons in the label colour, as in the note and the list.
+                .tint(.primary)
+                .accessibilityIdentifier("sidebar.newFolder")
+            }
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            ToolbarItem(placement: .topBarTrailing) {
+                // Edit in words; while editing, a checkmark (Done), as in Notes.
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) { editingFolders.toggle() }
+                } label: {
+                    if editingFolders {
+                        Label("Done", systemImage: "checkmark")
+                    } else {
+                        Text("Edit")
+                    }
+                }
+                .tint(.primary)
+                .accessibilityIdentifier(editingFolders ? "sidebar.done" : "sidebar.edit")
+            }
+            if sizeClass == .compact {
+                SearchComposeBar(newNote: onNewNote, identifier: "sidebar.newNote")
+            } else {
+                // iPad: the notes' list beside this one has the search.
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
             #else
             // Where the sidebar button was, at the sidebar's trailing edge: search every note.
@@ -575,6 +606,11 @@ struct SidebarView: View {
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
         }
+        #if os(iOS)
+        .sheet(item: $movingFolder) { folder in
+            FolderMoveSheet(folder: folder)
+        }
+        #endif
         .confirmationDialog("Delete \u{201C}\(deletingFolder?.name ?? "")\u{201D}?", isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }), titleVisibility: .visible) {
             Button("Delete Folder", role: .destructive) {
                 if let f = deletingFolder { performDelete(f) }
@@ -637,6 +673,98 @@ struct SidebarView: View {
         .transition(.opacity)
     }
 
+    /// A row of the folders screen's Edit: a folder, how many levels in, and whether it stays put
+    /// (the first folder at the top level: Notes, where new notes go).
+    struct EditRow: Identifiable, Equatable {
+        let id: UUID
+        let parent: UUID?
+        let depth: Int
+        let pinned: Bool
+    }
+
+    /// The folders as Edit lists them: each under its parent, a level in, in the sidebar's order.
+    static func editRows(_ roots: [Folder]) -> [EditRow] {
+        var out: [EditRow] = []
+        var seen: Set<UUID> = []
+        func add(_ f: Folder, _ depth: Int) {
+            guard seen.insert(f.id).inserted else { return }
+            out.append(EditRow(id: f.id, parent: depth == 0 ? nil : f.parent?.id, depth: depth, pinned: depth == 0 && out.isEmpty))
+            guard depth < 32 else { return }
+            for child in f.liveChildren { add(child, depth + 1) }
+        }
+        for root in roots { add(root, 0) }
+        return out
+    }
+
+    /// Where a row dragged by its handle lands: its folder, and its place among the folders beside
+    /// it (without itself), for `ModelContext.reorder`. A folder keeps its parent when dragged
+    /// (Move puts it inside another); it goes after the folders beside it that were above where it
+    /// was dropped. Nil for the folder that stays put.
+    nonisolated static func reorderTarget(_ rows: [EditRow], from: IndexSet, to: Int) -> (id: UUID, index: Int)? {
+        guard from.count == 1, let i = from.first, rows.indices.contains(i), !rows[i].pinned else { return nil }
+        let moved = rows[i]
+        let above = rows.indices.filter { $0 != i && $0 < to && rows[$0].parent == moved.parent && rows[$0].depth == moved.depth }
+        return (moved.id, above.count)
+    }
+
+    /// What a folder's long-press menu and its ••• in Edit offer, as in Notes: a row of Move and
+    /// Delete, then Rename (and New Subfolder). Notes has no Move: it stays first. Pinto has no
+    /// folder sharing, so no Share.
+    nonisolated static func folderActions(isNotes: Bool) -> (row: [FolderAction], list: [FolderAction]) {
+        isNotes ? ([], [.rename, .newSubfolder, .delete]) : ([.move, .delete], [.rename, .newSubfolder])
+    }
+
+    /// A folder and every folder inside it: the places Move can't put it.
+    static func subtree(of folder: Folder) -> Set<UUID> {
+        var out: Set<UUID> = [folder.id]
+        var queue = folder.liveChildren
+        while let f = queue.popLast() {
+            guard out.insert(f.id).inserted else { continue }
+            queue += f.liveChildren
+        }
+        return out
+    }
+
+    #if os(iOS)
+    /// Edit, as in Notes: All Notes, Notes and Recently Deleted stay where they are, dimmed, with
+    /// no count; every other folder has its ••• menu and a handle to drag it up or down among the
+    /// folders beside it. Sub-folders sit a level in under theirs; Move puts a folder in another.
+    private var editList: some View {
+        let rows = Self.editRows(roots)
+        let byID = Dictionary(folders.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let trashed = Self.counts(in: context).trashed + files.trashed
+        return List {
+            Section {
+                if folders.count > 1 {
+                    FixedFolderRow(title: "All Notes", icon: "tray.full").accessibilityIdentifier("sidebar.all")
+                }
+                ForEach(rows) { row in
+                    if let folder = byID[row.id] {
+                        Group {
+                            if row.pinned {
+                                FixedFolderRow(title: folder.name, icon: "folder").accessibilityIdentifier("folder.\(folder.name)")
+                            } else {
+                                EditFolderRow(folder: folder, depth: row.depth, isNotes: false, rename: startRename, newSub: startNewFolder, move: startMove, delete: deleteFolder)
+                            }
+                        }
+                        .moveDisabled(row.pinned)
+                        .deleteDisabled(true)
+                    }
+                }
+                .onMove { from, to in
+                    guard let target = Self.reorderTarget(rows, from: from, to: to), let f = byID[target.id] else { return }
+                    withAnimation(.snappy) { context.reorder(f, to: target.index) }
+                }
+                if trashed > 0 {
+                    FixedFolderRow(title: "Recently Deleted", icon: "trash").accessibilityIdentifier("sidebar.trash")
+                }
+            }
+            .listRowBackground(Color(Palette.row))
+        }
+        .environment(\.editMode, .constant(.active))
+    }
+    #endif
+
     /// Keeps the selection on something that exists (see `Scope.settled`).
     private func settleScope() {
         let settled = Scope.settled(scope, liveFolders: folders.map(\.id))
@@ -649,6 +777,7 @@ struct SidebarView: View {
     }
 
     private func startRename(_ f: Folder) { nameDraft = f.name; renaming = f }
+    private func startMove(_ f: Folder) { movingFolder = f }
     private func startNewFolder(_ parent: Folder?) { nameDraft = ""; newFolderParent = .some(parent) }
 
     private func commitName() {
@@ -843,6 +972,10 @@ private struct FolderTree: View {
     let rename: (Folder) -> Void
     let newSub: (Folder) -> Void
     let delete: (Folder) -> Void
+    /// iPhone: Move, from the folder's long-press menu.
+    var move: (Folder) -> Void = { _ in }
+    /// The first folder at the top level (Notes): it has no Move.
+    var notesID: UUID?
     /// How many folders up: the row's content sits that many levels to the right.
     var depth = 0
     @State private var expanded = true
@@ -856,7 +989,7 @@ private struct FolderTree: View {
         } else {
             DisclosureGroup(isExpanded: $expanded) {
                 ForEach(folder.liveChildren) { child in
-                    FolderTree(folder: child, files: files, selection: $selection, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete, depth: depth + 1)
+                    FolderTree(folder: child, files: files, selection: $selection, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete, move: move, notesID: notesID, depth: depth + 1)
                 }
             } label: { label }
         }
@@ -915,7 +1048,17 @@ private struct FolderTree: View {
             }
             return true
         }
+        #if os(iOS)
+        // Notes' menu: the folder's first notes above it, and Move, Delete and Rename.
+        .contextMenu {
+            FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, rename: rename, newSub: newSub, move: move, delete: delete)
+                .tint(.primary)
+        } preview: {
+            FolderPreview(folder: folder)
+        }
+        #else
         .contextMenu { menuItems }
+        #endif
     }
 
     /// The folder's menu: a right-click, or its ••• under the pointer.
@@ -930,7 +1073,227 @@ private struct FolderTree: View {
     }
 }
 
+/// An action on a folder in its menus.
+enum FolderAction: String, CaseIterable, Identifiable {
+    case move, delete, rename, newSubfolder
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .move: "Move"
+        case .delete: "Delete"
+        case .rename: "Rename"
+        case .newSubfolder: "New Subfolder"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .move: "folder"
+        case .delete: "trash"
+        case .rename: "pencil"
+        case .newSubfolder: "folder.badge.plus"
+        }
+    }
+}
+
 #if os(iOS)
+/// A folder's menu on iPhone, long-pressed or from its ••• in Edit: Move and Delete side by side
+/// (Delete in red), then Rename, as in Notes (`SidebarView.folderActions`).
+private struct FolderActionsMenu: View {
+    let folder: Folder
+    let isNotes: Bool
+    let rename: (Folder) -> Void
+    let newSub: (Folder) -> Void
+    let move: (Folder) -> Void
+    let delete: (Folder) -> Void
+
+    var body: some View {
+        let actions = SidebarView.folderActions(isNotes: isNotes)
+        if !actions.row.isEmpty {
+            ControlGroup {
+                ForEach(actions.row) { button($0) }
+            }
+        }
+        ForEach(actions.list) { button($0) }
+    }
+
+    private func button(_ action: FolderAction) -> some View {
+        Button(action.title, systemImage: action.symbol, role: action == .delete ? .destructive : nil) {
+            switch action {
+            case .move: move(folder)
+            case .delete: delete(folder)
+            case .rename: rename(folder)
+            case .newSubfolder: newSub(folder)
+            }
+        }
+        .accessibilityIdentifier("folderMenu.\(action.rawValue)")
+    }
+}
+
+/// All Notes, Notes and Recently Deleted while the folders screen is in Edit: dimmed, with no
+/// count, and they do nothing, as in Notes.
+private struct FixedFolderRow: View {
+    let title: String
+    let icon: String
+
+    var body: some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: icon).font(SidebarStyle.iconFont)
+        }
+        .foregroundStyle(.tertiary)
+        .sidebarRowLabel()
+        .disabled(true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(.isStaticText)
+        .accessibilityValue("Can't be edited")
+    }
+}
+
+/// A folder in Edit: a level in for each folder above it, its ••• menu at the right, before the
+/// list's handle.
+private struct EditFolderRow: View {
+    let folder: Folder
+    let depth: Int
+    let isNotes: Bool
+    let rename: (Folder) -> Void
+    let newSub: (Folder) -> Void
+    let move: (Folder) -> Void
+    let delete: (Folder) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label {
+                Text(folder.name).lineLimit(1)
+            } icon: {
+                SidebarIcon(name: "folder")
+            }
+            .sidebarRowLabel()
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("folder.\(folder.name)")
+            .padding(.leading, CGFloat(depth) * 22)
+            Spacer(minLength: 8)
+            Menu {
+                FolderActionsMenu(folder: folder, isNotes: isNotes, rename: rename, newSub: newSub, move: move, delete: delete)
+            } label: {
+                // The app's accent, as the folder icons; the row keeps its height (the row is the target's height).
+                Image(systemName: "ellipsis.circle")
+                    .font(.title2)
+                    .foregroundStyle(Color(PColor.paneAccent))
+                    .frame(width: 44)
+                    .frame(maxHeight: .infinity)
+                    .contentShape(.rect)
+            }
+            // Its items in the label colour, Delete in red, as in Notes.
+            .tint(.primary)
+            .accessibilityLabel("Folder options")
+            .accessibilityIdentifier("folder.more.\(folder.name)")
+        }
+    }
+}
+
+/// The long-press preview of a folder, as in Notes: its first notes as cards, two by two, and
+/// under them its name and how many notes it holds.
+private struct FolderPreview: View {
+    let folder: Folder
+
+    static let width: CGFloat = 340
+
+    var body: some View {
+        let live = folder.liveNotes
+        let first = live.sorted { $0.isPinned != $1.isPinned ? $0.isPinned : $0.updatedAt > $1.updatedAt }.prefix(4)
+        VStack(alignment: .leading, spacing: 0) {
+            if !first.isEmpty {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
+                    ForEach(Array(first)) { card($0) }
+                }
+                .padding([.horizontal, .top], 8)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(folder.name).font(.title3.weight(.semibold)).lineLimit(1)
+                Text(live.count == 1 ? "1 note" : "\(live.count) notes").foregroundStyle(.secondary)
+            }
+            .padding(16)
+        }
+        .frame(width: Self.width, alignment: .leading)
+        .background(Color(Palette.row))
+    }
+
+    private func card(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(note.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+            if !note.isLocked, note.preview != NoteText.noPreview {
+                Text(note.preview).font(.caption).foregroundStyle(.secondary).lineLimit(6)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 130, maxHeight: 130, alignment: .topLeading)
+        .background(.fill.tertiary, in: .rect(cornerRadius: 10, style: .continuous))
+    }
+}
+
+/// Move, for a folder: the top level or any folder not inside it, each a level in under its own.
+/// Where it is now is ticked.
+private struct FolderMoveSheet: View {
+    let folder: Folder
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let inside = SidebarView.subtree(of: folder)
+        let rows = MoveToPicker.rows(context.allFolders()).filter { !inside.contains($0.id) }
+        NavigationStack {
+            List {
+                Section {
+                    choice("Top Level", symbol: "arrow.up.to.line", depth: 0, current: folder.parent == nil, id: "moveFolder.top") {
+                        context.move(folder, into: nil)
+                    }
+                    ForEach(rows) { row in
+                        choice(row.name, symbol: "folder", depth: row.depth, current: folder.parent?.id == row.id, id: "moveFolder.\(row.name)") {
+                            if let target = context.folder(row.id) { context.move(folder, into: target) }
+                        }
+                    }
+                }
+                .listRowBackground(Color(Palette.row))
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color(Palette.foldersGround).ignoresSafeArea())
+            .navigationTitle("Move \u{201C}\(folder.name)\u{201D}")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", role: .cancel) { dismiss() }
+                        .accessibilityIdentifier("moveFolder.cancel")
+                }
+            }
+        }
+        // Cancel in the label colour, not amber.
+        .tint(.primary)
+        .presentationDetents([.medium, .large])
+    }
+
+    private func choice(_ name: String, symbol: String, depth: Int, current: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.snappy) { action() }
+            dismiss()
+        } label: {
+            HStack {
+                Label { Text(name).foregroundStyle(.primary) } icon: { Image(systemName: symbol).foregroundStyle(Color(PColor.paneAccent)) }
+                    .padding(.leading, CGFloat(depth) * 22)
+                Spacer()
+                if current { Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(.secondary) }
+            }
+            .contentShape(.rect)
+        }
+        .disabled(current)
+        .accessibilityIdentifier(id)
+    }
+}
+
 /// What the folders screen's search finds: every note whose text holds the words, newest first,
 /// each with its folder under it, as in Notes. A tap opens the note in its folder.
 private struct FolderSearchResults: View {

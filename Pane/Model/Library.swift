@@ -238,9 +238,39 @@ extension ModelContext {
             if c.id == folder.id { return }
             cursor = c.parent
         }
+        guard folder.parent?.id != parent?.id else { return }
+        // Last among its new siblings, as a new folder is: keeping its old index could put it
+        // first at the top level, where the first folder is where new notes go (`defaultFolder`).
+        let siblings = allFolders().filter { $0.parent?.id == parent?.id && $0.id != folder.id }
+        folder.sortIndex = (siblings.map(\.sortIndex).max() ?? 0) + 1
         folder.parent = parent
         folder.touch()
         saveOrReport()
+    }
+
+    /// The live folders beside `folder` (its parent's, or the top level), in their order, itself included.
+    func siblings(of folder: Folder) -> [Folder] {
+        allFolders().filter { $0.parent?.id == folder.parent?.id }.sorted { $0.sortIndex < $1.sortIndex }
+    }
+
+    /// Puts `folder` at `index` among its siblings (iPhone's Edit, a row dragged by its handle). At
+    /// the top level the first folder stays first: it is Notes, where new notes go
+    /// (`defaultFolder`), and it can't be moved, as in Notes. The order is the folders'
+    /// `sortIndex`, which syncs; only the folders whose index changes are marked for sync.
+    func reorder(_ folder: Folder, to index: Int) {
+        var row = siblings(of: folder)
+        guard let from = row.firstIndex(where: { $0.id == folder.id }) else { return }
+        let pinned = folder.parent == nil ? 1 : 0
+        guard from >= pinned else { return }
+        row.remove(at: from)
+        row.insert(folder, at: min(max(index, pinned), row.count))
+        var changed = false
+        for (i, f) in row.enumerated() where f.sortIndex != Double(i + 1) {
+            f.sortIndex = Double(i + 1)
+            f.touch()
+            changed = true
+        }
+        if changed { saveOrReport() }
     }
 
     /// Deleting a folder sends its notes and files (and sub-folders') to Recently Deleted, and the

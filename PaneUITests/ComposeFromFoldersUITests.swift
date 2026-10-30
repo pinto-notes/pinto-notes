@@ -101,12 +101,18 @@ final class ComposeFromFoldersUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars["Pinto Notes"].exists)
     }
 
-    /// New Folder at the top left: its name is ready to type, and the folder opens.
-    func testNewFolderAtTheTopLeft() {
+    /// New Folder at the top right, left of Edit, as in Notes (Emil, 30 October 2026): its name is
+    /// ready to type, and the folder opens.
+    func testNewFolderAtTheTopRight() {
         launchFolders()
         let button = app.buttons["sidebar.newFolder"].firstMatch
         XCTAssertTrue(button.isHittable)
-        XCTAssertLessThan(button.frame.midX, screen.midX, "on the left")
+        XCTAssertGreaterThan(button.frame.midX, screen.midX, "on the right")
+        let edit = app.buttons["sidebar.edit"].firstMatch
+        XCTAssertTrue(edit.isHittable)
+        XCTAssertEqual(edit.label, "Edit")
+        XCTAssertLessThan(button.frame.maxX, edit.frame.minX, "Edit is at its right")
+        XCTAssertEqual(button.frame.midY, edit.frame.midY, accuracy: 2, "on one line with Edit")
         XCTAssertLessThan(button.frame.maxY, screen.height * 0.2, "in the top bar")
         XCTAssertEqual(button.label, "New Folder")
         button.tap()
@@ -118,14 +124,15 @@ final class ComposeFromFoldersUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Ideas"].waitForExistence(timeout: 3), "the new folder opens")
     }
 
-    /// Your photo at the top right, at least 36 pt across, on the New Folder button's line; it opens Settings.
-    func testProfileAtTheTopRight() throws {
+    /// Your photo at the top left (Emil, 30 October 2026), at least 36 pt across, on the New Folder
+    /// button's line; it opens Settings.
+    func testProfileAtTheTopLeft() throws {
         launchFolders()
         let profile = app.buttons["sidebar.settings"].firstMatch
         XCTAssertTrue(profile.waitForExistence(timeout: 3))
         XCTAssertTrue(profile.isHittable)
         XCTAssertTrue(profile.label.hasPrefix("Account"), profile.label)
-        XCTAssertGreaterThan(profile.frame.midX, screen.midX, "on the right")
+        XCTAssertLessThan(profile.frame.midX, screen.midX, "on the left")
         XCTAssertGreaterThanOrEqual(profile.frame.width, 43.5, "a finger's target")
         XCTAssertGreaterThanOrEqual(profile.frame.height, 43.5, "a finger's target")
         let newFolder = app.buttons["sidebar.newFolder"].firstMatch
@@ -178,6 +185,7 @@ final class ComposeFromFoldersUITests: XCTestCase {
         shot("folders-xxxl")
         let items: [(String, XCUIElement)] = [
             ("New Folder", app.buttons["sidebar.newFolder"].firstMatch),
+            ("Edit", app.buttons["sidebar.edit"].firstMatch),
             ("Profile", app.buttons["sidebar.settings"].firstMatch),
             ("Search", searchField),
             ("New Note", app.buttons["sidebar.newNote"].firstMatch),

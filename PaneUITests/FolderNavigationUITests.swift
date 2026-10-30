@@ -95,7 +95,7 @@ final class FolderNavigationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Temp"].waitForExistence(timeout: 3))
         back()
         app.cells.containing(.any, identifier: "folder.Temp").firstMatch.press(forDuration: 1.0)
-        app.buttons["Delete Folder…"].firstMatch.tap()
+        app.buttons["folderMenu.delete"].firstMatch.tap()
         XCTAssertFalse(app.cells.containing(.any, identifier: "folder.Temp").firstMatch.waitForExistence(timeout: 1))
         open("folder.Notes", title: "Notes")
     }
