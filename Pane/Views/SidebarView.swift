@@ -361,12 +361,6 @@ struct SidebarView: View {
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
-            if study != nil {
-                Section {
-                    SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates")
-                    SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import")
-                }
-            }
         }
         .listStyle(.sidebar)
         #if os(iOS)
@@ -485,6 +479,17 @@ struct SidebarView: View {
                             .padding(.bottom, 2)
                     }
                     OfflineLine(sync: sync)
+                    // The study (`SidebarStudy`): Templates and Import just above you, with the
+                    // other things that aren't folders.
+                    if study != nil {
+                        VStack(alignment: .leading, spacing: 2) {
+                            SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates")
+                            SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import")
+                        }
+                        .padding(.leading, SidebarStyle.edge(nested: nested))
+                        .padding(.trailing, 10)
+                        .padding(.bottom, 4)
+                    }
                     // The photo starts on the rows' icons' line (the button pads 8 inside its highlight).
                     AccountButton(backend: backend)
                         .padding(.leading, SidebarStyle.edge(nested: nested) - 8)

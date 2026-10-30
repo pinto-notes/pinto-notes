@@ -5,7 +5,7 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// The sidebar study (`SidebarStudy`, 2026-10-30): Templates and Import in the sidebar,
+/// The sidebar study (`SidebarStudy`, 2026-10-30): Templates and Import above your profile,
 /// and the AI's mark on the notes it made, in the real window, light and dark. Offscreen:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/SidebarStudySnapshots`.
 @MainActor @Suite(.serialized) struct SidebarStudySnapshots {
@@ -17,6 +17,7 @@ import Testing
         ZStack(alignment: .topLeading) {
             RootView().allowsHitTesting(false)
             NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+                .environment(Self.backend)
                 .frame(width: 259, height: Self.size.height - 16)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -28,6 +29,13 @@ import Testing
         .tint(Color(PColor.paneAccent))
         .modelContainer(library)
     }
+
+    /// Signed in, so the foot of the sidebar shows you (Templates and Import sit just above).
+    static let backend: Backend = {
+        let b = Backend()
+        b.showSignedInForPreview(email: "sara@example.com")
+        return b
+    }()
 
     /// The demo library with three notes your AIs made, already read (the mark stays after).
     static func library() throws -> ModelContainer {
@@ -49,6 +57,8 @@ import Testing
         let mode = dark ? "dark" : "light"
         let both = SidebarStudy()
         let lib = try Self.library()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") { try await shots(both, lib: lib, mode: mode, dark: dark) }
     }
 

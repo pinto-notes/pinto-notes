@@ -193,10 +193,14 @@ struct SetupCard<Content: View>: View {
             .padding(.top, 26)
             .padding(.bottom, 22)
             .frame(width: SetupCards.width(card))
-            .background(SetupCards.ground, in: shape)
+            // The shadow is the card's shape's alone: on the whole card SwiftUI casts it again under
+            // every tile, word and button inside, a grey smear on the white (2026-10-30).
+            .background {
+                shape.fill(SetupCards.ground)
+                    .shadow(color: .black.opacity(0.16), radius: 25, y: 18)
+                    .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+            }
             .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.16), radius: 25, y: 18)
-            .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
             .animation(reduceMotion ? .easeOut(duration: 0.2) : SetupCards.resize, value: card)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("setup.card")

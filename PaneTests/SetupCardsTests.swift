@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -74,6 +75,18 @@ import Testing
         #expect(SetupCards.page(.chatgpt, pick) != nil)
         #expect(SetupCards.prompt(pick).hasPrefix("In Pinto Notes, "))
         #expect(SetupCards.width(.prompt) <= SetupCards.width(.gallery))
+    }
+
+    /// The card's shadow is its shape's alone. On the whole card SwiftUI cast it again under every
+    /// tile, word and button inside, a grey smear (2026-10-30). A shape drawn on its own doesn't
+    /// show it, only the full card in a window, so this reads the source, like the button rules.
+    @Test func theCardsShadowIsOnItsShapeOnly() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SetupCards.swift"), encoding: .utf8)
+        let card = try #require(source.components(separatedBy: "struct SetupCard<Content: View>").last?.components(separatedBy: "\n}\n").first)
+        let lines = card.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let fill = try #require(lines.firstIndex { $0.hasPrefix("shape.fill(SetupCards.ground)") })
+        #expect(lines.indices.filter { lines[$0].hasPrefix(".shadow(") }.allSatisfy { $0 == fill + 1 || $0 == fill + 2 })
+        #expect(lines.contains { $0.hasPrefix(".shadow(") })
     }
 
     @Test func afterConnectingTheGalleryIsNext() {
