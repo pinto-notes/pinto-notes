@@ -1,7 +1,7 @@
 #if os(iOS)
 import XCTest
 
-/// iPhone: Select mode in the note list, then Delete and Move for the selection.
+/// iPhone: Select Notes in the note list, then Delete for the selection.
 final class MultiSelectUITests: XCTestCase {
     var app: XCUIApplication!
 
@@ -18,13 +18,14 @@ final class MultiSelectUITests: XCTestCase {
     }
 
     func testSelectAndDeleteSeveralNotes() throws {
-        // Long-press a note, Select: it starts selected, a tap adds the next.
+        // Select Notes in the list's ••• menu, as in Notes (a long-press opens the note's menu).
         let groceries = app.staticTexts["Groceries"].firstMatch
         XCTAssertTrue(groceries.waitForExistence(timeout: 5))
-        groceries.press(forDuration: 1.0)
-        let select = app.buttons["Select"].firstMatch
+        app.buttons["list.more"].firstMatch.tap()
+        let select = app.buttons["list.selectNotes"].firstMatch
         XCTAssertTrue(select.waitForExistence(timeout: 3))
         select.tap()
+        groceries.tap()
         app.staticTexts["Standup notes"].firstMatch.tap()
         let delete = app.buttons["list.deleteSelected"]
         XCTAssertTrue(delete.waitForExistence(timeout: 2))

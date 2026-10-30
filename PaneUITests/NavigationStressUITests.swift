@@ -114,16 +114,19 @@ final class NavigationStressUITests: XCTestCase {
 
     func testMultiSelectMoveThenOpenTarget() {
         row("sidebar.all").tap()
-        // Long-press a note, Select: it starts selected, a tap adds the next.
+        // Select Notes in •••, then a tap for each note.
         let groceries = app.staticTexts["Groceries"].firstMatch
         XCTAssertTrue(groceries.waitForExistence(timeout: 3))
-        groceries.press(forDuration: 1.0)
-        let select = app.buttons["Select"].firstMatch
+        app.buttons["list.more"].firstMatch.tap()
+        let select = app.buttons["list.selectNotes"].firstMatch
         XCTAssertTrue(select.waitForExistence(timeout: 3))
         select.tap()
+        groceries.tap()
         app.staticTexts["Standup notes"].firstMatch.tap()
         app.buttons["list.moveSelected"].firstMatch.tap()
-        app.buttons["Ideas"].firstMatch.tap()
+        let ideasTarget = app.buttons["moveTo.folder.Ideas"].firstMatch
+        XCTAssertTrue(ideasTarget.waitForExistence(timeout: 3))
+        ideasTarget.tap()
         backToFolders()
         let ideas = row("folder.Ideas").descendants(matching: .any).matching(identifier: "folder.Ideas").firstMatch
         XCTAssertEqual(ideas.value as? String, "4 notes", "both notes moved")
