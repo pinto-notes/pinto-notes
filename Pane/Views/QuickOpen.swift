@@ -116,7 +116,7 @@ enum QuickOpen {
         for kind in importKinds {
             out.append(CommandItem(action: .importFrom(kind), title: kind.menuTitle, symbol: "square.and.arrow.down", shortcut: nil, keywords: ["import", "bring", kind.sourceName.lowercased()]))
         }
-        out.append(CommandItem(action: .exportNotes, title: "Export All Notes…", symbol: "square.and.arrow.up", shortcut: nil, keywords: ["export", "markdown", "backup", "zip", "download", "obsidian"]))
+        out.append(CommandItem(action: .exportNotes, title: "Export All Notes…", symbol: "square.and.arrow.up", shortcut: nil, keywords: ["export", "markdown", "backup", "zip", "download"]))
         out.append(CommandItem(action: .connectAI, title: "Connect an AI…", symbol: "sparkles", shortcut: nil, keywords: ["ai", "chatgpt", "claude", "codex", "connect"]))
         out.append(CommandItem(action: .settings, title: "Settings…", symbol: "gearshape", shortcut: "⌘,", keywords: ["preferences", "account", "options"]))
         return out

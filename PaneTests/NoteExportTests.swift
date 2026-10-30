@@ -39,6 +39,27 @@ import ZIPFoundation
         _ = n
     }
 
+    /// Settings, File › Export All Notes… and Go to Note share one exporter: it makes the zip,
+    /// asks where it goes, then says what it saved (or nothing, when the save is cancelled).
+    /// It needs no account or sync: the notes on this device are exported.
+    @Test func theExporterSaysWhatItSaved() async throws {
+        let context = ModelContext(try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        context.createNote(in: .folder(context.createFolder(named: "Work").id), body: "Standup\nShipped it.")
+        let e = NoteExporter()
+        await e.export(context, sync: nil)
+        let zip = try #require(e.made?.zip)
+        defer { try? FileManager.default.removeItem(at: zip.deletingLastPathComponent()) }
+        #expect(e.saving && !e.working && e.made?.notes == 1)
+        e.saved(.success(zip))
+        #expect(e.message == "Exported 1 note and 0 files." && !e.failed && e.made == nil)
+
+        await e.export(context, sync: nil)
+        let second = try #require(e.made?.zip)
+        defer { try? FileManager.default.removeItem(at: second.deletingLastPathComponent()) }
+        e.saved(.failure(CocoaError(.userCancelled)))
+        #expect(e.message == nil && !e.failed)
+    }
+
     /// Each file starts with front matter: dates, the tags of its last line (which leaves the
     /// text), what an import kept, and the title when the file's name can't be it.
     @Test func eachFileHasItsFrontMatter() {
