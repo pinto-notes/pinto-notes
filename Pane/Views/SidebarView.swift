@@ -247,6 +247,8 @@ struct SidebarView: View {
     let onNewNote: () -> Void
     /// A note found by the folders screen's search (iPhone): it opens in its folder.
     var onOpenNote: (UUID) -> Void = { _ in }
+    /// New Note from a folder's menu: a note in that folder, open and ready to type.
+    var onNewNoteIn: (UUID) -> Void = { _ in }
 
     @Query(filter: #Predicate<Folder> { $0.deletedAt == nil }, sort: \Folder.sortIndex) private var folders: [Folder]
     /// At most one file: this query is here so the sidebar updates whenever a file kept in a
@@ -325,7 +327,7 @@ struct SidebarView: View {
     }
     /// The title of the alert that asks for a folder's name.
     nonisolated static func nameAlertTitle(renaming: Bool, inside: Bool) -> String {
-        renaming ? "Rename Folder" : inside ? "New Subfolder" : "New Folder"
+        renaming ? "Rename Folder" : "New Folder"
     }
 
     /// Recently Deleted is listed only while it holds something, like Notes.
@@ -394,7 +396,7 @@ struct SidebarView: View {
                         .accessibilityIdentifier("sidebar.all")
                 }
                 ForEach(roots) { folder in
-                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, dropTarget: dropTarget, targeted: folderTargeted, rename: startRename, newSub: startNewFolder, delete: deleteFolder, move: startMove, notesID: roots.first?.id)
+                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, dropTarget: dropTarget, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id)
                 }
                 // Last in the same list, like Notes, and like Notes only while something is in it.
                 CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed, selection: $scope)
@@ -705,11 +707,45 @@ struct SidebarView: View {
         return (moved.id, above.count)
     }
 
-    /// What a folder's long-press menu and its ••• in Edit offer, as in Notes: a row of Move and
-    /// Delete, then Rename (and New Subfolder). Notes has no Move: it stays first. Pinto has no
-    /// folder sharing, so no Share.
-    nonisolated static func folderActions(isNotes: Bool) -> (row: [FolderAction], list: [FolderAction]) {
-        isNotes ? ([], [.rename, .newSubfolder, .delete]) : ([.move, .delete], [.rename, .newSubfolder])
+    /// A folder's menu, the same on the Mac (right-click, or its •••) and on iPhone (long press, or
+    /// its ••• in Edit), in groups split by lines: what to make in it, what to do with it, and
+    /// Delete on its own at the end. Notes, the first folder, has no Move To: it stays first, where
+    /// new notes go. Pinto has no folder sharing, so no Share.
+    nonisolated static func folderMenu(isNotes: Bool) -> [[FolderAction]] {
+        [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move], [.delete]]
+    }
+
+    /// A place Move To lists for a folder: the top level, then every folder in the sidebar's
+    /// order, each a level in under its own. The folder itself and the folders inside it can't
+    /// take it; where it is now is ticked.
+    struct MoveTarget: Identifiable, Equatable {
+        /// Nil for the top level.
+        let folder: UUID?
+        let name: String
+        let depth: Int
+        let enabled: Bool
+        let current: Bool
+        var id: String { folder?.uuidString ?? "top" }
+    }
+
+    static func moveTargets(for folder: Folder, in folders: [Folder]) -> [MoveTarget] {
+        let inside = subtree(of: folder)
+        let top = MoveTarget(folder: nil, name: "Top Level", depth: 0, enabled: true, current: folder.parent == nil)
+        return [top] + MoveToPicker.rows(folders).map {
+            MoveTarget(folder: $0.id, name: $0.name, depth: $0.depth, enabled: !inside.contains($0.id), current: $0.id == folder.parent?.id)
+        }
+    }
+
+    /// What the folder menus' items do here.
+    private var folderMenuActions: FolderMenuActions {
+        FolderMenuActions(
+            newNote: { onNewNoteIn($0.id) },
+            newFolder: startNewFolder,
+            rename: startRename,
+            duplicate: { f in withAnimation(.snappy) { _ = context.duplicate(f) } },
+            moveSheet: startMove,
+            move: { f, target in withAnimation(.snappy) { context.move(f, into: target.flatMap { context.folder($0) }) } },
+            delete: deleteFolder)
     }
 
     /// A folder and every folder inside it: the places Move can't put it.
@@ -742,7 +778,7 @@ struct SidebarView: View {
                             if row.pinned {
                                 FixedFolderRow(title: folder.name, icon: "folder").accessibilityIdentifier("folder.\(folder.name)")
                             } else {
-                                EditFolderRow(folder: folder, depth: row.depth, isNotes: false, rename: startRename, newSub: startNewFolder, move: startMove, delete: deleteFolder)
+                                EditFolderRow(folder: folder, depth: row.depth, isNotes: false, actions: folderMenuActions)
                             }
                         }
                         .moveDisabled(row.pinned)
@@ -967,12 +1003,9 @@ private struct FolderTree: View {
     /// The folder a drag is over, if any.
     let dropTarget: UUID?
     let targeted: (Bool, UUID) -> Void
-    let rename: (Folder) -> Void
-    let newSub: (Folder) -> Void
-    let delete: (Folder) -> Void
-    /// iPhone: Move, from the folder's long-press menu.
-    var move: (Folder) -> Void = { _ in }
-    /// The first folder at the top level (Notes): it has no Move.
+    /// What the folder's menu does.
+    let actions: FolderMenuActions
+    /// The first folder at the top level (Notes): it has no Move To.
     var notesID: UUID?
     /// How many folders up: the row's content sits that many levels to the right.
     var depth = 0
@@ -987,7 +1020,7 @@ private struct FolderTree: View {
         } else {
             DisclosureGroup(isExpanded: $expanded) {
                 ForEach(folder.liveChildren) { child in
-                    FolderTree(folder: child, files: files, selection: $selection, dropTarget: dropTarget, targeted: targeted, rename: rename, newSub: newSub, delete: delete, move: move, notesID: notesID, depth: depth + 1)
+                    FolderTree(folder: child, files: files, selection: $selection, dropTarget: dropTarget, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1)
                 }
             } label: { label }
         }
@@ -1006,7 +1039,7 @@ private struct FolderTree: View {
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         }
-                    } items: { menuItems }
+                    } items: { macMenu }
                 }
             } icon: {
                 SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
@@ -1047,88 +1080,134 @@ private struct FolderTree: View {
             return true
         }
         #if os(iOS)
-        // Notes' menu: the folder's first notes above it, and Move, Delete and Rename.
+        // The folder's first notes above its menu, as in Notes.
         .contextMenu {
-            FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, rename: rename, newSub: newSub, move: move, delete: delete)
-                .tint(.primary)
+            FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, actions: actions)
         } preview: {
             FolderPreview(folder: folder)
         }
         #else
-        .contextMenu { menuItems }
+        .contextMenu { macMenu }
         #endif
     }
 
-    /// The folder's menu: a right-click, or its ••• under the pointer.
-    @ViewBuilder private var menuItems: some View {
-        Button("New Subfolder", systemImage: "folder.badge.plus") { newSub(folder) }
-        Button("Rename", systemImage: "pencil") { rename(folder) }
-        if folder.parent != nil {
-            Button("Move to Top Level", systemImage: "arrow.up.to.line") { context.move(folder, into: nil) }
-        }
-        Divider()
-        Button("Delete Folder…", systemImage: "trash", role: .destructive) { delete(folder) }
+    /// The folder's menu on the Mac: a right-click, or its ••• under the pointer.
+    private var macMenu: some View {
+        FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, actions: actions)
     }
 }
 
-/// An action on a folder in its menus.
+/// An action on a folder in its menus (`SidebarView.folderMenu`).
 enum FolderAction: String, CaseIterable, Identifiable {
-    case move, delete, rename, newSubfolder
+    case newNote, newFolder, rename, duplicate, move, delete
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .move: "Move"
-        case .delete: "Delete"
+        case .newNote: "New Note"
+        case .newFolder: "New Folder"
         case .rename: "Rename"
-        case .newSubfolder: "New Subfolder"
+        case .duplicate: "Duplicate"
+        case .move: "Move To"
+        #if os(macOS)
+        case .delete: "Delete Folder…"
+        #else
+        case .delete: "Delete Folder"
+        #endif
         }
     }
 
     var symbol: String {
         switch self {
+        case .newNote: "square.and.pencil"
+        case .newFolder: "folder.badge.plus"
+        case .rename: "pencil"
+        case .duplicate: "plus.square.on.square"
         case .move: "folder"
         case .delete: "trash"
-        case .rename: "pencil"
-        case .newSubfolder: "folder.badge.plus"
         }
     }
 }
 
-#if os(iOS)
-/// A folder's menu on iPhone, long-pressed or from its ••• in Edit: Move and Delete side by side
-/// (Delete in red), then Rename, as in Notes (`SidebarView.folderActions`).
+/// What a folder's menu items do, given by the sidebar.
+struct FolderMenuActions {
+    var newNote: (Folder) -> Void = { _ in }
+    var newFolder: (Folder) -> Void = { _ in }
+    var rename: (Folder) -> Void = { _ in }
+    var duplicate: (Folder) -> Void = { _ in }
+    /// iPhone: Move To opens a sheet of the folders.
+    var moveSheet: (Folder) -> Void = { _ in }
+    /// Mac: Move To's submenu moves it straight away (nil: the top level).
+    var move: (Folder, UUID?) -> Void = { _, _ in }
+    var delete: (Folder) -> Void = { _ in }
+}
+
+/// A folder's menu, the same items on both platforms (`SidebarView.folderMenu`): New Note and
+/// New Folder; Rename, Duplicate and Move To; then Delete Folder. On the Mac Move To is a submenu
+/// of the folders; on iPhone it opens them in a sheet. Its icons are drawn in the menu's own
+/// colour, as Apple's menus draw them, not in the app's amber (the window's tint, set on the
+/// whole app in PaneApp, would reach them); Delete is red on iPhone.
 private struct FolderActionsMenu: View {
+    @Environment(\.modelContext) private var context
     let folder: Folder
     let isNotes: Bool
-    let rename: (Folder) -> Void
-    let newSub: (Folder) -> Void
-    let move: (Folder) -> Void
-    let delete: (Folder) -> Void
+    let actions: FolderMenuActions
 
     var body: some View {
-        let actions = SidebarView.folderActions(isNotes: isNotes)
-        if !actions.row.isEmpty {
-            ControlGroup {
-                ForEach(actions.row) { button($0) }
+        let groups = SidebarView.folderMenu(isNotes: isNotes)
+        Group {
+            ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+                if i > 0 { Divider() }
+                ForEach(group) { item($0) }
             }
         }
-        ForEach(actions.list) { button($0) }
+        #if os(macOS)
+        .tint(nil)
+        #else
+        .tint(.primary)
+        #endif
+    }
+
+    @ViewBuilder private func item(_ action: FolderAction) -> some View {
+        #if os(macOS)
+        if action == .move {
+            Menu(action.title, systemImage: action.symbol) {
+                ForEach(SidebarView.moveTargets(for: folder, in: context.allFolders())) { t in
+                    // A level in for each folder above it; ticked where the folder is now.
+                    Toggle(String(repeating: "\u{2003}", count: t.depth) + t.name, isOn: Binding(get: { t.current }, set: { _ in
+                        if !t.current { actions.move(folder, t.folder) }
+                    }))
+                    .disabled(!t.enabled)
+                    .accessibilityIdentifier("moveFolder.\(t.name)")
+                    if t.folder == nil { Divider() }
+                }
+            }
+            .accessibilityIdentifier("folderMenu.move")
+        } else {
+            button(action)
+        }
+        #else
+        button(action)
+        #endif
     }
 
     private func button(_ action: FolderAction) -> some View {
         Button(action.title, systemImage: action.symbol, role: action == .delete ? .destructive : nil) {
             switch action {
-            case .move: move(folder)
-            case .delete: delete(folder)
-            case .rename: rename(folder)
-            case .newSubfolder: newSub(folder)
+            case .newNote: actions.newNote(folder)
+            case .newFolder: actions.newFolder(folder)
+            case .rename: actions.rename(folder)
+            case .duplicate: actions.duplicate(folder)
+            case .move: actions.moveSheet(folder)
+            case .delete: actions.delete(folder)
             }
         }
         .accessibilityIdentifier("folderMenu.\(action.rawValue)")
     }
 }
+
+#if os(iOS)
 
 /// All Notes, Notes and Recently Deleted while the folders screen is in Edit: dimmed, with no
 /// count, and they do nothing, as in Notes.
@@ -1158,10 +1237,7 @@ private struct EditFolderRow: View {
     let folder: Folder
     let depth: Int
     let isNotes: Bool
-    let rename: (Folder) -> Void
-    let newSub: (Folder) -> Void
-    let move: (Folder) -> Void
-    let delete: (Folder) -> Void
+    let actions: FolderMenuActions
 
     var body: some View {
         HStack(spacing: 8) {
@@ -1176,7 +1252,7 @@ private struct EditFolderRow: View {
             .padding(.leading, CGFloat(depth) * 22)
             Spacer(minLength: 8)
             Menu {
-                FolderActionsMenu(folder: folder, isNotes: isNotes, rename: rename, newSub: newSub, move: move, delete: delete)
+                FolderActionsMenu(folder: folder, isNotes: isNotes, actions: actions)
             } label: {
                 // The app's accent, as the folder icons; the row keeps its height (the row is the target's height).
                 Image(systemName: "ellipsis.circle")
@@ -1234,25 +1310,23 @@ private struct FolderPreview: View {
     }
 }
 
-/// Move, for a folder: the top level or any folder not inside it, each a level in under its own.
-/// Where it is now is ticked.
+/// Move To, for a folder: the top level or any folder, each a level in under its own
+/// (`SidebarView.moveTargets`). The folder itself and the folders inside it are dimmed; where it
+/// is now is ticked.
 private struct FolderMoveSheet: View {
     let folder: Folder
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let inside = SidebarView.subtree(of: folder)
-        let rows = MoveToPicker.rows(context.allFolders()).filter { !inside.contains($0.id) }
+        let targets = SidebarView.moveTargets(for: folder, in: context.allFolders())
         NavigationStack {
             List {
                 Section {
-                    choice("Top Level", symbol: "arrow.up.to.line", depth: 0, current: folder.parent == nil, id: "moveFolder.top") {
-                        context.move(folder, into: nil)
-                    }
-                    ForEach(rows) { row in
-                        choice(row.name, symbol: "folder", depth: row.depth, current: folder.parent?.id == row.id, id: "moveFolder.\(row.name)") {
-                            if let target = context.folder(row.id) { context.move(folder, into: target) }
+                    ForEach(targets) { t in
+                        choice(t.name, symbol: t.folder == nil ? "arrow.up.to.line" : "folder", depth: t.depth, current: t.current, enabled: t.enabled,
+                               id: t.folder == nil ? "moveFolder.top" : "moveFolder.\(t.name)") {
+                            context.move(folder, into: t.folder.flatMap { context.folder($0) })
                         }
                     }
                 }
@@ -1274,7 +1348,7 @@ private struct FolderMoveSheet: View {
         .presentationDetents([.medium, .large])
     }
 
-    private func choice(_ name: String, symbol: String, depth: Int, current: Bool, id: String, action: @escaping () -> Void) -> some View {
+    private func choice(_ name: String, symbol: String, depth: Int, current: Bool, enabled: Bool, id: String, action: @escaping () -> Void) -> some View {
         Button {
             withAnimation(.snappy) { action() }
             dismiss()
@@ -1285,9 +1359,11 @@ private struct FolderMoveSheet: View {
                 Spacer()
                 if current { Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(.secondary) }
             }
+            // The folder itself and the folders inside it: listed, so the tree reads whole, but dimmed.
+            .opacity(enabled ? 1 : 0.35)
             .contentShape(.rect)
         }
-        .disabled(current)
+        .disabled(current || !enabled)
         .accessibilityIdentifier(id)
     }
 }

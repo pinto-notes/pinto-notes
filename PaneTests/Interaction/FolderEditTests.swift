@@ -97,12 +97,77 @@ import Testing
         #expect(by["Work"]!.parent == nil)
     }
 
-    @Test func theMenusOfferWhatNotesDoesThatPintoHas() {
-        let folder = SidebarView.folderActions(isNotes: false)
-        #expect(folder.row == [.move, .delete])
-        #expect(folder.list == [.rename, .newSubfolder])
-        #expect(folder.row.map(\.title) == ["Move", "Delete"])
-        let notes = SidebarView.folderActions(isNotes: true)
-        #expect(!notes.row.contains(.move) && !notes.list.contains(.move), "Notes stays first")
+    @Test func theMenuIsGroupedNewThenChangesThenDelete() {
+        let groups = SidebarView.folderMenu(isNotes: false)
+        #expect(groups == [[.newNote, .newFolder], [.rename, .duplicate, .move], [.delete]])
+        #if os(macOS)
+        #expect(groups.map { $0.map(\.title) } == [["New Note", "New Folder"], ["Rename", "Duplicate", "Move To"], ["Delete Folder…"]])
+        #else
+        #expect(groups.map { $0.map(\.title) } == [["New Note", "New Folder"], ["Rename", "Duplicate", "Move To"], ["Delete Folder"]])
+        #endif
+        #expect(groups.flatMap { $0 }.map(\.symbol) == ["square.and.pencil", "folder.badge.plus", "pencil", "plus.square.on.square", "folder", "trash"])
+        #expect(!FolderAction.allCases.map(\.title).contains("New Subfolder"))
+        let notes = SidebarView.folderMenu(isNotes: true)
+        #expect(!notes.joined().contains(.move), "Notes stays first")
+        #expect(notes == [[.newNote, .newFolder], [.rename, .duplicate], [.delete]])
+    }
+
+    @Test func newNoteFromAFolderLandsInItAndOpens() throws {
+        let (c, by) = try Self.library()
+        let ctx = c.mainContext
+        let made = RootView.newNote(inFolder: by["Clients"]!.id, context: ctx)
+        let note = try #require(ctx.note(made.note))
+        #expect(note.folder?.id == by["Clients"]!.id)
+        #expect(made.scope == .folder(by["Clients"]!.id), "the folder is selected, so its list shows the new note")
+        #expect(note.body.isEmpty && note.dirty)
+    }
+
+    @Test func duplicateCopiesNotesAndSubfoldersWithNewIDsRightAfterIt() throws {
+        let (c, by) = try Self.library()
+        let ctx = c.mainContext
+        let a = ctx.createNote(in: .folder(by["Work"]!.id), body: "Plan\n\nfirst")
+        a.isPinned = true
+        _ = ctx.createNote(in: .folder(by["Clients"]!.id), body: "Acme\n\ncall")
+        let gone = ctx.createNote(in: .folder(by["Plans"]!.id), body: "Old")
+        ctx.trash(gone)
+        let before = Set(((try? ctx.fetch(FetchDescriptor<Note>())) ?? []).map(\.id))
+        let copy = ctx.duplicate(by["Work"]!)
+        #expect(copy.name == "Work copy")
+        #expect(copy.id != by["Work"]!.id && copy.dirty)
+        #expect(Self.names(ctx, SidebarView.editRows(Self.roots(ctx))) == ["Notes", "Work", "  Clients", "  Plans", "Work copy", "  Clients", "  Plans", "Home", "Travel"])
+        #expect(copy.liveChildren.allSatisfy { $0.dirty && ![by["Clients"]!.id, by["Plans"]!.id].contains($0.id) })
+        let copied = copy.liveNotes
+        #expect(copied.map(\.body) == ["Plan\n\nfirst"] && copied[0].isPinned)
+        #expect(copy.liveChildren.first { $0.name == "Clients" }?.liveNotes.map(\.body) == ["Acme\n\ncall"])
+        #expect(copy.liveChildren.first { $0.name == "Plans" }?.notes.isEmpty == true, "Recently Deleted stays behind")
+        let all = (try? ctx.fetch(FetchDescriptor<Note>())) ?? []
+        let new = all.filter { !before.contains($0.id) }
+        #expect(new.count == 2 && new.allSatisfy(\.dirty), "real copies, new ids, marked for sync")
+        // The originals are untouched.
+        #expect(by["Work"]!.liveNotes.map(\.id) == [a.id] && !by["Home"]!.dirty)
+        // Again: the next name, still right after the original.
+        let again = ctx.duplicate(by["Work"]!)
+        #expect(again.name == "Work copy 2")
+        #expect(Self.roots(ctx).map(\.name) == ["Notes", "Work", "Work copy 2", "Work copy", "Home", "Travel"])
+        // A fresh read of the store has them.
+        #expect(ModelContext(c).allFolders().filter { $0.name == "Work copy" }.count == 1)
+    }
+
+    @Test func moveToListsTheTreeAndNeverTheFolderOrWhatsInIt() throws {
+        let (c, by) = try Self.library()
+        let ctx = c.mainContext
+        let t = SidebarView.moveTargets(for: by["Work"]!, in: ctx.allFolders())
+        #expect(t.map { String(repeating: "  ", count: $0.depth) + $0.name } == ["Top Level", "Notes", "Work", "  Clients", "  Plans", "Home", "Travel"])
+        #expect(t.filter { !$0.enabled }.map(\.name) == ["Work", "Clients", "Plans"])
+        #expect(t.filter(\.current).map(\.name) == ["Top Level"])
+        let inner = SidebarView.moveTargets(for: by["Plans"]!, in: ctx.allFolders())
+        #expect(inner.filter(\.current).map(\.name) == ["Work"])
+        #expect(inner.filter { !$0.enabled }.map(\.name) == ["Plans"])
+        // Into a descendant: refused. Elsewhere: moved, and marked for sync.
+        ctx.move(by["Work"]!, into: by["Clients"])
+        #expect(by["Work"]!.parent == nil)
+        ctx.move(by["Work"]!, into: by["Home"])
+        #expect(by["Work"]!.parent?.id == by["Home"]!.id && by["Work"]!.dirty)
+        #expect(Self.names(ctx, SidebarView.editRows(Self.roots(ctx))) == ["Notes", "Home", "  Work", "    Clients", "    Plans", "Travel"])
     }
 }
