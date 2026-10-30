@@ -32,7 +32,7 @@ struct SidebarAIRow: View {
         Label {
             SidebarRowText(title: ai) { EmptyView() }
         } icon: {
-            AITile(ai: ai, size: 18)
+            AIGlyph(ai: ai, size: 16)
         }
         .sidebarRowLabel()
         .accessibilityElement(children: .ignore)

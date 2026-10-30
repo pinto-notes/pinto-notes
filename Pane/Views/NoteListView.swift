@@ -1587,7 +1587,7 @@ struct NoteRow: View {
                 }
                 // The study (`SidebarStudy`): the AI that made or last changed the note, for good.
                 if study != nil, let made = note.aiEditor, made != AIGlyph.page {
-                    AITile(ai: made, size: 16)
+                    AIGlyph(ai: made, size: 12)
                         .accessibilityLabel(SidebarAIWords.madeBy(made))
                         .accessibilityIdentifier("note.madeBy")
                 }
