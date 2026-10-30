@@ -167,18 +167,69 @@ import Testing
         #expect(Self.contrast(Self.resolved(Palette.disabledButtonLabel, appearance), soft) >= 3)
     }
 
-    /// D, the reading page, is the window that ships: without PINTO_LOOK the app draws it, with its
-    /// calm list (DesignLook.shipped; release builds read nothing else).
-    @Test func theShippedLookIsTheReadingPage() {
-        #expect(DesignLook.shipped == .reading)
+    /// E, D's reading page in plain white and black, is the Mac window that ships: without
+    /// PINTO_LOOK the app draws it, with its calm list (DesignLook.shipped; release builds read
+    /// nothing else).
+    @Test func theShippedLookIsThePlainReadingPage() {
+        #expect(DesignLook.shipped == .plain)
         let env = ProcessInfo.processInfo.environment
         if env["PINTO_LOOK"] == nil && UserDefaults.standard.string(forKey: "PintoLook") == nil {
-            #expect(DesignLook.current == .reading)
+            #expect(DesignLook.current == .plain)
             #expect(DesignLook.isCandidate && DesignLook.calmList && DesignLook.readingPage)
         }
         // Release builds have no switch at all: the look is the shipped one.
         let src = try? String(contentsOf: TestFiles.url("Editor").appendingPathComponent("Palette.swift"), encoding: .utf8)
         #expect(src?.contains("#else\n        return shipped\n        #endif") == true)
+    }
+
+    /// The Mac's shipped look is plain (Emil, 2026-10-29: no cream): the note and the list are white
+    /// in the light and pure black in the dark, the sidebar's glass has no brown laid in it, and the
+    /// cards, chips and hairlines are neutral grey. The selected note still reads on the white list.
+    @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
+    func theShippedMacLookIsPlainWhiteAndBlack(_ appearance: NSAppearance.Name) {
+        let was = DesignLook.current
+        DesignLook.current = DesignLook.shipped
+        defer { DesignLook.current = was }
+        func rgba(_ c: NSColor) -> [Int] {
+            let s = Self.resolved(c, appearance)
+            return [s.redComponent, s.greenComponent, s.blueComponent, s.alphaComponent].map { Int(($0 * 255).rounded()) }
+        }
+        let ground = appearance == .darkAqua ? [0, 0, 0, 255] : [255, 255, 255, 255]
+        #expect(rgba(Palette.page) == ground, "page \(appearance.rawValue)")
+        #expect(rgba(Palette.listGround) == ground, "list \(appearance.rawValue)")
+        #expect(rgba(Palette.sidebarWarmth)[3] == 0, "sidebar warmth \(appearance.rawValue)")
+        for (name, c) in [("card", Palette.card), ("soft", Palette.soft), ("line", Palette.line), ("row selection", Palette.rowSelection)] {
+            let v = rgba(c)
+            #expect(v[0] == v[1] && v[1] == v[2], "\(name) is neutral \(appearance.rawValue): \(v)")
+        }
+        let list = Self.resolved(Palette.listGround, appearance), selection = Self.resolved(Palette.rowSelection, appearance)
+        #expect(Self.contrast(list, selection) >= 1.15, "the selected row reads on the list \(appearance.rawValue)")
+        // The text is plain black and grey, like Apple Notes: no brown left in the ink, the muted
+        // text (and the secondary icons drawn in it), the placeholder, the fields or the sheets.
+        let text: [(String, NSColor)] = [("ink", Palette.ink), ("muted", Palette.muted), ("placeholder", Palette.placeholder),
+                                         ("disabled label", Palette.disabledButtonLabel), ("disabled fill", Palette.disabledButton),
+                                         ("sheet", Palette.sheetGround), ("field", Palette.field), ("field edge", Palette.fieldHairline),
+                                         ("search", Palette.searchFill), ("shadow", Palette.shadow)]
+        for (name, c) in text {
+            let v = rgba(c)
+            #expect(v[0] == v[1] && v[1] == v[2], "\(name) is neutral \(appearance.rawValue): \(v)")
+        }
+        // Near-black on white and near-white on black, and the muted text still reads where it sits.
+        let ink = Self.resolved(Palette.ink, appearance), muted = Self.resolved(Palette.muted, appearance)
+        #expect(Self.contrast(ink, list) >= 12, "ink on the page \(appearance.rawValue)")
+        for (name, ground) in [("page", Palette.page), ("selected row", Palette.rowSelection), ("soft", Palette.soft),
+                               ("card", Palette.card), ("sheet", Palette.sheetGround)] {
+            #expect(Self.contrast(ink, Self.resolved(ground, appearance)) >= 7, "ink on \(name) \(appearance.rawValue)")
+            #expect(Self.contrast(muted, Self.resolved(ground, appearance)) >= 4.5, "muted on \(name) \(appearance.rawValue)")
+        }
+        // Amber stays the accent.
+        let amber = rgba(Palette.amber)
+        #expect(amber[0] > amber[2] + 100, "amber \(appearance.rawValue): \(amber)")
+        // The other looks keep their warmth, for comparison.
+        DesignLook.current = .reading
+        #expect(rgba(Palette.page) != ground && rgba(Palette.sidebarWarmth)[3] > 0)
+        let warmInk = rgba(Palette.ink)
+        #expect(warmInk[0] != warmInk[2], "the reading look's ink stays warm \(appearance.rawValue): \(warmInk)")
     }
 }
 #endif

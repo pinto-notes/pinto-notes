@@ -1637,8 +1637,8 @@
 		615A6B625E7A04B1D9C26297 /* Interaction */ = {
 			isa = PBXGroup;
 			children = (
-				15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */,
 				595E5A8C83080CCBC79192C4 /* AccountRowTests.swift */,
+				15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */,
 				BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */,
 				FF514831FEE33CB560873B07 /* BulletLookTests.swift */,
 				06F885F11369967DA92A32CE /* CaretFixTests.swift */,

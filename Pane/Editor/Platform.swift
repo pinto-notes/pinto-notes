@@ -96,7 +96,7 @@ enum EditorMetrics {
         case .warm: 24
         case .paper: 26
         case .calm: 24
-        case .reading: 28
+        case .reading, .plain: 28
         }
     }
     static let lineSpacing: CGFloat = 1.5

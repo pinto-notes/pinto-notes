@@ -199,12 +199,12 @@ extension Color {
     #else
     static let avatarRing = Color(Palette.pair(0xFFFFFF, 0x272524))
     #endif
-    /// The "+2" circle: solid and quiet.
-    static let avatarMore = Color(Palette.pair(0xECE6DF, 0x3A3632))
-    static let avatarMoreInk = Color(Palette.pair(0x5F4E3E, 0xD8CEC3))
+    /// The "+2" circle: solid and quiet. Neutral in the Mac's plain look.
+    static let avatarMore = Color(Palette.warm(0xECE6DF, 0x3A3632, plain: (0xEBEBEB, 0x3A3A3A)))
+    static let avatarMoreInk = Color(Palette.warm(0x5F4E3E, 0xD8CEC3, plain: (0x5C5C5C, 0xD9D9D9)))
     /// The pencil badge: the app's dark ink in light mode, its cream in dark, solid either way.
-    static let avatarPencil = Color(Palette.pair(0x2A1D10, 0xEDE6DE))
-    static let avatarPencilInk = Color(Palette.pair(0xFFFFFF, 0x2A1D10))
+    static let avatarPencil = Color(Palette.warm(0x2A1D10, 0xEDE6DE, plain: (0x262626, 0xE5E5E5)))
+    static let avatarPencilInk = Color(Palette.warm(0xFFFFFF, 0x2A1D10, plain: (0xFFFFFF, 0x262626)))
     /// "Here now": a solid green.
     static let avatarLive = Color(Palette.pair(0x2FA44F, 0x34B85A))
     /// Initials on your own amber avatar: solid dark brown, readable on both ambers.

@@ -15,9 +15,13 @@ enum Palette {
     static let brown: UInt32 = 0x8A4A1C
 
     // Ink and muted text: the website's warm brown in the light; in the dark, warm greys (the
-    // website's cream and tan read brown on the app's grey window).
-    static let ink = pair(0x2A1D10, 0xF6EFE7)
-    static let muted = pair(0x74604C, 0xBCB0A3)
+    // website's cream and tan read brown on the app's grey window). E (`plain`, the Mac's): neutral,
+    // like Apple Notes. The ink is the system label colour laid on the page (85% black, 85% white),
+    // solid so it reads the same on any surface; the muted text a neutral grey a little darker than
+    // the system's secondary label in the light, which sits under 4:1 on white (5.4:1 on white
+    // here and 4.5:1 on the selected row, 7.4:1 on black).
+    static let ink = warm(0x2A1D10, 0xF6EFE7, plain: (0x262626, 0xD9D9D9))
+    static let muted = warm(0x74604C, 0xBCB0A3, plain: (0x6A6A6A, 0x999999))
 
     /// The deeper amber: accent, links and an AI's tint (AccentColor.colorset holds the same).
     static let amber = pair(0xD96A06, 0xF4AD33)
@@ -26,8 +30,8 @@ enum Palette {
     static let amberButton = pair(0xD96A06, 0xD96A06)
     /// A primary button that can't be pressed yet: a quiet warm grey with muted text, not a faded
     /// amber, so it reads as "not yet" rather than as broken.
-    static let disabledButton = pair(brown, 0.13, 0xFFFFFF, 0.11)
-    static let disabledButtonLabel = pair(0x6A5743, 0xB0A498)
+    static let disabledButton = warm(brown, 0.13, 0xFFFFFF, 0.11, plain: (0x000000, 0.08, 0xFFFFFF, 0.11))
+    static let disabledButtonLabel = warm(0x6A5743, 0xB0A498, plain: (0x6A6A6A, 0x999999))
     /// The black-and-white primary button (`inkProminent`), the colours of Sign in with Apple.
     static let inkButton = pair(0x000000, 0xFFFFFF)
     static let inkButtonLabel = pair(0xFFFFFF, 0x000000)
@@ -42,24 +46,24 @@ enum Palette {
     /// The soft amber fill behind an AI's receipt.
     static let amberSoft = pair(0xFFF1DC, 0x423014)
     /// A solid hairline: card edges and dividers that read the same over any surface.
-    static let line = pair(0xE6DCD2, 0x3A3633)
+    static let line = warm(0xE6DCD2, 0x3A3633, plain: (0xE5E5E5, 0x333333))
 
     /// The fill of secondary buttons and chips (the website's `--soft`): a step into the brown
     /// from every ground it sits on, so it reads as a button without a border.
-    static let soft = pair(0xF2EAE1, 0x36322E)
+    static let soft = warm(0xF2EAE1, 0x36322E, plain: (0xF2F2F2, 0x2C2C2C))
     /// A raised card, popover or toast (the website's `--card`): a step lighter than its ground,
     /// with the shared shadow (`Depth`) instead of a border.
-    static let card = pair(0xFFFEFB, 0x2C2A27)
+    static let card = warm(0xFFFEFB, 0x2C2A27, plain: (0xFFFFFF, 0x1C1C1C))
     /// The tint of the shared shadow's long, soft part: the brown, never grey.
-    static let shadow = pair(0x3C1E05, 0.13, 0x000000, 0.45)
+    static let shadow = warm(0x3C1E05, 0.13, 0x000000, 0.45, plain: (0x000000, 0.12, 0x000000, 0.45))
 
     /// The note itself: nearly white, and nearly native in the dark. Candidate B (`paper`) lays
-    /// a soft cream page instead, like the website's cards.
+    /// a soft cream page instead, like the website's cards. E (`plain`, the Mac's): white and black.
     #if os(iOS)
     static let page = looks(control: (0xFFFEFD, 0x000000), warm: (0xFFFEFD, 0x000000), paper: (0xFFFAF3, 0x000000))
     #else
     static let page = looks(control: (0xFFFEFD, 0x1F1E1D), warm: (0xFFFEFC, 0x22201D), paper: (0xFFFAF2, 0x26231F),
-                            calm: (0xFFFEFC, 0x25231F), reading: (0xFFFAF2, 0x282521))
+                            calm: (0xFFFEFC, 0x25231F), reading: (0xFFFAF2, 0x282521), plain: (0xFFFFFF, 0x000000))
     #endif
 
     #if os(iOS)
@@ -70,32 +74,39 @@ enum Palette {
     static let row = pair(0xFDFCFB, 0x1F1E1D)
     #else
     /// Laid inside the sidebar's glass, so it keeps its vibrancy: about 5.5% toward the brown
-    /// (5% in the dark, where more reads as brown).
-    static let sidebarWarmth = looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.055), paper: (brown, 0.085, brown, 0.06))
+    /// (5% in the dark, where more reads as brown). E (`plain`): none, the native glass.
+    static let sidebarWarmth = looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.055), paper: (brown, 0.085, brown, 0.06),
+                                     plain: (brown, 0, brown, 0))
     /// The notes list: a little warmth, less than the sidebar.
     /// C and D: a clear step below the page, light and dark, so list and note read as two grounds
-    /// without a line between them.
+    /// without a line between them. E (`plain`): the page's white and black, with the split view's
+    /// own divider between list and note, as in Apple Notes.
     static let listGround = looks(control: (0xFCFAF8, 0x252423), warm: (0xFBF8F4, 0x282522), paper: (0xF8F2EA, 0x2A2622),
-                                  calm: (0xF3EEE8, 0x1C1A18), reading: (0xF1EAE0, 0x1C1A18))
+                                  calm: (0xF3EEE8, 0x1C1A18), reading: (0xF1EAE0, 0x1C1A18), plain: (0xFFFFFF, 0x000000))
+    /// The selected note row in C, D and E: the card in C and D (a step lighter than their list);
+    /// in E, whose list is the card's white, a neutral grey a step off the list instead.
+    static let rowSelection = looks(control: (0xFFFEFB, 0x2C2A27), warm: (0xFFFEFB, 0x2C2A27), paper: (0xFFFEFB, 0x2C2A27),
+                                    plain: (0xEBEBEB, 0x262626))
     #endif
 
     // Sign-in.
     /// The email field: white with a warm border on the cream ground, so it reads as a field at a
     /// glance; in the dark, a lighter translucent fill with a border of its own.
-    static let field = pair(0xFFFFFF, 1, 0xFFFAF5, 0.10)
-    static let fieldHairline = pair(brown, 0.30, 0xFFFFFF, 0.22)
+    static let field = warm(0xFFFFFF, 1, 0xFFFAF5, 0.10, plain: (0xFFFFFF, 1, 0xFFFFFF, 0.10))
+    static let fieldHairline = warm(brown, 0.30, 0xFFFFFF, 0.22, plain: (0x000000, 0.22, 0xFFFFFF, 0.22))
     /// A field's placeholder: the muted text, dimmed, still about 4:1 on the field.
-    static let placeholder = pair(0x74604C, 0.85, 0xBCB0A3, 0.80)
+    static let placeholder = warm(0x74604C, 0.85, 0xBCB0A3, 0.80, plain: (0x6A6A6A, 0.85, 0x999999, 0.80))
     /// Settings' search field: a step darker than the sheet's ground and its rows, in the brown,
     /// so it never reads as one of the rows.
-    static let searchFill = pair(brown, 0.10, 0x000000, 0.36)
+    static let searchFill = warm(brown, 0.10, 0x000000, 0.36, plain: (0x000000, 0.06, 0x000000, 0.36))
     /// A switch that is on, in Settings: the brand's brown, so the page keeps at most one orange
     /// control (owner, 2026-10-13).
     static let switchOn = pair(brown, 1, 0xA8774F, 1)
     /// A solid sheet's ground (How did you hear about Amber Notes?): the sign-in screen's cream,
     /// and its warm near-black in the dark.
     /// (The dark one was 0x1B1A1C, a cool grey with a hint of violet: DESIGN.md says warm, never neutral.)
-    static let sheetGround = pair(0xF9F7F4, 0x1D1B19)
+    /// E (`plain`): a neutral step off white, and a near-black under the black window.
+    static let sheetGround = warm(0xF9F7F4, 0x1D1B19, plain: (0xF7F7F7, 0x141414))
     /// The website's low marker under "your AI".
     static let underline = pair(0xF0901A, 0.42, 0xF5A53A, 0.50)
 
@@ -105,23 +116,24 @@ enum Palette {
     // MARK: Building colours
 
     /// A colour that follows the look being tried (`DesignLook`): each look's light and dark hex.
-    /// C and D default to A's and B's values.
+    /// C and D default to A's and B's values, E to D's.
     static func looks(control: (UInt32, UInt32), warm: (UInt32, UInt32), paper: (UInt32, UInt32),
-                      calm: (UInt32, UInt32)? = nil, reading: (UInt32, UInt32)? = nil) -> PColor {
+                      calm: (UInt32, UInt32)? = nil, reading: (UInt32, UInt32)? = nil, plain: (UInt32, UInt32)? = nil) -> PColor {
         func four(_ p: (UInt32, UInt32)) -> (UInt32, CGFloat, UInt32, CGFloat) { (p.0, 1, p.1, 1) }
-        return looks(control: four(control), warm: four(warm), paper: four(paper), calm: calm.map(four), reading: reading.map(four))
+        return looks(control: four(control), warm: four(warm), paper: four(paper), calm: calm.map(four), reading: reading.map(four), plain: plain.map(four))
     }
 
     static func looks(control: (UInt32, CGFloat, UInt32, CGFloat), warm: (UInt32, CGFloat, UInt32, CGFloat),
                       paper: (UInt32, CGFloat, UInt32, CGFloat), calm: (UInt32, CGFloat, UInt32, CGFloat)? = nil,
-                      reading: (UInt32, CGFloat, UInt32, CGFloat)? = nil) -> PColor {
-        let c = calm ?? warm, r = reading ?? paper
+                      reading: (UInt32, CGFloat, UInt32, CGFloat)? = nil, plain: (UInt32, CGFloat, UInt32, CGFloat)? = nil) -> PColor {
+        let c = calm ?? warm, r = reading ?? paper, e = plain ?? r
         let all: [DesignLook: (PColor, PColor)] = [
             .control: (rgb(control.0, control.1), rgb(control.2, control.3)),
             .warm: (rgb(warm.0, warm.1), rgb(warm.2, warm.3)),
             .paper: (rgb(paper.0, paper.1), rgb(paper.2, paper.3)),
             .calm: (rgb(c.0, c.1), rgb(c.2, c.3)),
             .reading: (rgb(r.0, r.1), rgb(r.2, r.3)),
+            .plain: (rgb(e.0, e.1), rgb(e.2, e.3)),
         ]
         #if os(iOS)
         return UIColor { t in let c = all[DesignLook.current]!; return t.userInterfaceStyle == .dark ? c.1 : c.0 }
@@ -137,6 +149,27 @@ enum Palette {
 
     static func pair(_ light: UInt32, _ dark: UInt32) -> PColor { pair(light, 1, dark, 1) }
 
+    /// A warm colour every look shares, but neutral in E (`plain`) on the Mac. The iPhone keeps
+    /// the warm one.
+    static func warm(_ light: UInt32, _ dark: UInt32, plain: (UInt32, UInt32)) -> PColor {
+        #if os(iOS)
+        pair(light, dark)
+        #else
+        looks(control: (light, dark), warm: (light, dark), paper: (light, dark), plain: plain)
+        #endif
+    }
+
+    /// The same, with alphas.
+    static func warm(_ light: UInt32, _ lightAlpha: CGFloat, _ dark: UInt32, _ darkAlpha: CGFloat,
+                     plain: (UInt32, CGFloat, UInt32, CGFloat)) -> PColor {
+        #if os(iOS)
+        pair(light, lightAlpha, dark, darkAlpha)
+        #else
+        looks(control: (light, lightAlpha, dark, darkAlpha), warm: (light, lightAlpha, dark, darkAlpha),
+              paper: (light, lightAlpha, dark, darkAlpha), plain: plain)
+        #endif
+    }
+
     static func pair(_ light: UInt32, _ lightAlpha: CGFloat, _ dark: UInt32, _ darkAlpha: CGFloat) -> PColor {
         let l = rgb(light, lightAlpha), d = rgb(dark, darkAlpha)
         #if os(iOS)
@@ -147,10 +180,11 @@ enum Palette {
     }
 }
 
-/// The main window's look. D (`reading`) ships; the others stay for comparison in debug builds:
-/// the old look (`control`), A (`warm`: warmer neutrals, lighter icons, display title), B (`paper`:
-/// A on a cream page with the website's type voice in the note), C (`calm`: A with the calm list).
-/// A debug build reads `PINTO_LOOK=control|warm|paper|calm|reading` or the `PintoLook` default.
+/// The main window's look. E (`plain`) ships on the Mac, D (`reading`) on iPhone; the others stay for
+/// comparison in debug builds: the old look (`control`), A (`warm`: warmer neutrals, lighter icons,
+/// display title), B (`paper`: A on a cream page with the website's type voice in the note), C
+/// (`calm`: A with the calm list), D (`reading`: C with the reading page on cream).
+/// A debug build reads `PINTO_LOOK=control|warm|paper|calm|reading|plain` or the `PintoLook` default.
 /// Captures set `current` directly.
 enum DesignLook: String, CaseIterable, Sendable {
     case control, warm, paper
@@ -160,19 +194,26 @@ enum DesignLook: String, CaseIterable, Sendable {
     /// D: C with a reading page: a centred column, a display title, lighter checklist rings and
     /// open tables, on B's cream.
     case reading
+    /// E: D in plain white and black: no cream page, no warm list, no brown in the sidebar's glass.
+    case plain
 
     nonisolated(unsafe) static var current: DesignLook = initial
 
     /// Any candidate: the shared parts of all of them.
     static var isCandidate: Bool { current != .control }
     /// C and D: the calm list.
-    static var calmList: Bool { current == .calm || current == .reading }
-    /// D: the reading page.
-    static var readingPage: Bool { current == .reading }
+    static var calmList: Bool { current == .calm || current == .reading || current == .plain }
+    /// D and E: the reading page.
+    static var readingPage: Bool { current == .reading || current == .plain }
 
-    /// What ships: D, the reading page (Emil, 2026-10-13: "get this all out"). A debug build can
-    /// still show any look for comparison.
+    /// What ships: on the Mac E, D's window in plain white and black (Emil, 2026-10-29: no cream);
+    /// on iPhone D, the reading page (Emil, 2026-10-13: "get this all out"), whose grounds were
+    /// already white and black. A debug build can still show any look for comparison.
+    #if os(iOS)
     static let shipped = DesignLook.reading
+    #else
+    static let shipped = DesignLook.plain
+    #endif
 
     private static var initial: DesignLook {
         #if DEBUG

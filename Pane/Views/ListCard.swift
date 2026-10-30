@@ -60,7 +60,7 @@ struct ListCardSurface: ViewModifier {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
                 .shadow(color: .black.opacity(0.06), radius: 0.5, y: 0.5)
-                .shadow(color: Color(Palette.rgb(Palette.brown)).opacity(0.10), radius: 10, y: 4)
+                .shadow(color: Color(Palette.warm(Palette.brown, Palette.brown, plain: (0x000000, 0x000000))).opacity(0.10), radius: 10, y: 4)
         }
         #else
         content
