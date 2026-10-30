@@ -150,7 +150,7 @@ struct TemplateLibraryView: View {
                 if shown.isEmpty {
                     Text(TemplateLibraryWords.none(query)).foregroundStyle(Color.muted).padding(.top, 20)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: gap)], alignment: .leading, spacing: 22) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: gap, alignment: .top)], alignment: .leading, spacing: 22) {
                     ForEach(shown) { e in
                         SetupTemplateCard(pick: e.pick, width: width, captionBelow: true, selected: open == e) {
                             withAnimation(.snappy(duration: 0.28)) { open = e; copied = false }
