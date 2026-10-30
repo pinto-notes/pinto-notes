@@ -107,11 +107,12 @@ import Testing
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
     }
 
-    /// Settings as a page of the window (`SettingsPageStudy`): Connect an AI and Appearance.
+    /// Settings as a big card over the notes (`SettingsPageStudy`), like Templates: Connect an AI and General.
     @Test(arguments: [false, true])
     func settingsPage(dark: Bool) async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let mode = dark ? "dark" : "light"
+        let lib = try Self.library()
         ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
         let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
@@ -122,17 +123,17 @@ import Testing
         let available: Set<SettingsPlace> = [.profile, .ai, .security, .storage, .account, .general, .help]
         func page(_ p: SettingsStudyPage) -> AnyView {
             switch p {
-            case .appearance: AnyView(AppearanceStudyPage())
             case .place(.ai): AnyView(Form { ConnectAISection(client: client, preview: three) }.formStyle(.grouped).scrollContentBackground(.hidden)
                 .environment(ConnectGuideRoute()).environment(\.connectStudy, true))
             case .place(let place): AnyView(settings.place(place))
             }
         }
-        for (name, start) in [("settings-page-ai", SettingsStudyPage.place(.ai)), ("settings-page-appearance", .appearance)] {
-            let view = SettingsPageStudy(available: available, page: page, selected: start)
-                .environment(\.controlActiveState, .key)
-                .tint(Color(PColor.paneAccent))
-            try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+        try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
+            for (name, start) in [("settings-popup-ai", SettingsStudyPage.place(.ai)), ("settings-popup-general", .place(.general))] {
+                let view = window(SidebarStudy(), library: lib, over: SettingsPageStudy(available: available, page: page, selected: start))
+                    .tint(Color(PColor.paneAccent))
+                try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+            }
         }
     }
 
@@ -187,7 +188,7 @@ import Testing
     /// ones that aren't there.
     @Test func theSettingsPageListsEveryPage() {
         let all = SettingsStudyPage.groups(available: [.ai, .security, .storage, .account, .general, .help]).flatMap { $0 }
-        #expect(all.contains(.appearance) && all.contains(.place(.ai)) && all.count == 7)
+        #expect(all.contains(.place(.ai)) && all.count == 6)
         #expect(!SettingsStudyPage.groups(available: [.ai, .general, .help]).flatMap { $0 }.contains(.place(.security)))
     }
 }
