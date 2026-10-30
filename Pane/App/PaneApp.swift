@@ -121,6 +121,9 @@ struct PaneApp: App {
         let historyStore: NoteHistoryStore = args.contains("-demoHistory") ? DemoHistoryStore(context: context)
             : backend.client.map { SupabaseHistoryStore(client: $0) } ?? EmptyHistoryStore()
         NoteHistory.shared = NoteHistory(store: historyStore, context: context, sync: backend.client == nil ? nil : sync)
+        // AI Changes: the server's list, or the demo history's AI edits.
+        AIChangesCenter.shared.store = args.contains("-demoHistory") ? HistoryAIChangesStore(history: historyStore, context: context)
+            : backend.client.map { SupabaseAIChangesStore(client: $0) }
         // Locked notes: the key behind Face ID / Touch ID, except in tests and captures, which
         // also start with no notes password.
         NoteVault.shared = inMemory ? NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)

@@ -12,13 +12,23 @@ extension NSAttributedString.Key {
 }
 
 /// A version of a note, read-only, styled as the editor styles it (checklists, headings,
-/// lists, quotes), with `changed` lines tinted amber.
+/// lists, quotes), with `changed` lines tinted amber. `removed` lines (an AI change's diff) are
+/// struck through in the secondary colour on a soft red: text the change took out, shown where it was.
 struct VersionTextView {
     let text: String
     let changed: [NSRange]
+    var removed: [NSRange] = []
+
+    #if os(macOS)
+    static let removedColor = NSColor.secondaryLabelColor
+    static let removedBand = NSColor.systemRed.withAlphaComponent(0.14)
+    #else
+    static let removedColor = UIColor.secondaryLabel
+    static let removedBand = UIColor.systemRed.withAlphaComponent(0.14)
+    #endif
 
     /// The text styled with nothing being edited, so all markup stays hidden.
-    @MainActor static func style(_ storage: NSTextStorage, changed: [NSRange]) {
+    @MainActor static func style(_ storage: NSTextStorage, changed: [NSRange], removed: [NSRange] = []) {
         let styler = MarkdownStyler()
         styler.apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
         let length = storage.length
@@ -28,12 +38,17 @@ struct VersionTextView {
             let line = (storage.string as NSString).paragraphRange(for: r)
             storage.addAttribute(.paneChanged, value: true, range: line)
         }
+        for r in removed where r.length > 0 && NSMaxRange(r) <= length {
+            // A soft red behind it too, so it never reads as a ticked checklist item (also struck through).
+            storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: removedColor,
+                                   .backgroundColor: removedBand], range: r)
+        }
         storage.endEditing()
     }
 
     final class Coordinator {
         let layoutDelegate = DecoratingLayoutDelegate()
-        var shown: (String, [NSRange])?
+        var shown: (String, [NSRange], [NSRange])?
     }
 }
 
@@ -65,10 +80,10 @@ extension VersionTextView: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView, let storage = view.textStorage else { return }
-        if let shown = context.coordinator.shown, shown.0 == text, shown.1 == changed { return }
-        context.coordinator.shown = (text, changed)
+        if let shown = context.coordinator.shown, shown.0 == text, shown.1 == changed, shown.2 == removed { return }
+        context.coordinator.shown = (text, changed, removed)
         view.string = text
-        Self.style(storage, changed: changed)
+        Self.style(storage, changed: changed, removed: removed)
         view.scroll(.zero)
     }
 }
@@ -89,10 +104,10 @@ extension VersionTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
-        if let shown = context.coordinator.shown, shown.0 == text, shown.1 == changed { return }
-        context.coordinator.shown = (text, changed)
+        if let shown = context.coordinator.shown, shown.0 == text, shown.1 == changed, shown.2 == removed { return }
+        context.coordinator.shown = (text, changed, removed)
         view.text = text
-        Self.style(view.textStorage, changed: changed)
+        Self.style(view.textStorage, changed: changed, removed: removed)
         view.setContentOffset(.zero, animated: false)
     }
 }

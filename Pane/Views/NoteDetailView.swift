@@ -376,7 +376,7 @@ struct NoteDetailView: View {
             let inBar = false
             #endif
             if !inBar {
-                AIReceipt(receipt: receipt) { undo(receipt) }
+                AIReceipt(receipt: receipt, seeAll: AIChangesCenter.shared.store == nil ? nil : { AIChangesCenter.shared.show(ai: receipt.by) }) { undo(receipt) }
                 #if os(macOS)
                 .padding(.bottom, 20)
                 #else
@@ -1163,8 +1163,16 @@ struct NoteDetailView: View {
                     .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             }
         case .ai(let receipt):
-            // Titled for VoiceOver ("Undo ChatGPT's changes"); the bar shows the glyph.
-            Button(receipt.undoLabel, systemImage: "arrow.uturn.backward") { undo(receipt) }
+            // Titled for VoiceOver ("Undo ChatGPT's changes"); the bar shows the glyph. A long
+            // press offers every change that AI made (AI Changes).
+            Menu {
+                Button("See All Changes by \(receipt.by)", systemImage: "clock.arrow.circlepath") { AIChangesCenter.shared.show(ai: receipt.by) }
+                    .disabled(AIChangesCenter.shared.store == nil)
+            } label: {
+                Label(receipt.undoLabel, systemImage: "arrow.uturn.backward")
+            } primaryAction: {
+                undo(receipt)
+            }
                 .tint(.primary)
                 .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
                 .accessibilityIdentifier(NoteAIUndo.identifier)
