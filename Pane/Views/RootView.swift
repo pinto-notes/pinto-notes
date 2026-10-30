@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
+    @Environment(\.behindSetupCard) private var behindSetupCard
     #if os(iOS)
     /// On iPhone a folder is pushed once the first layout is done (see `lifecycle`).
     @State private var scope: Scope?
@@ -340,8 +341,10 @@ struct RootView: View {
                 Group {
                     if shown.count > 1 {
                         MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
-                    } else {
+                    } else if !behindSetupCard {
                         EmptyDetailView()
+                    } else {
+                        Color.clear
                     }
                 }
                 .background(Color.notePage.ignoresSafeArea())

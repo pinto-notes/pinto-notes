@@ -921,22 +921,47 @@ struct AppGate: View {
         Group {
             switch backend.state {
             case .signedOut:
+                #if os(macOS)
+                if SetupCards.on {
+                    // Round 7: the notes window, empty, with one small card on it.
+                    notesBehind { SetupSignInCard(backend: backend) }
+                } else {
+                    WelcomeFlow(backend: backend)
+                        .cardWindow()
+                        .transition(.opacity)
+                }
+                #else
                 WelcomeFlow(backend: backend)
-                    #if os(macOS)
-                    .cardWindow()
-                    #endif
                     .transition(.opacity)
+                #endif
             case .signedIn where keyGateShown:
                 #if os(macOS)
-                // The welcome's window, picture and all, until the notes open: nothing moves or
-                // changes size between signing in and adding this Mac.
-                CardLayout { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
-                    .cardWindow()
-                    .transition(.opacity)
+                if SetupCards.on {
+                    notesBehind {
+                        SetupCard(card: .signIn) { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
+                    }
+                } else {
+                    // The welcome's window, picture and all, until the notes open: nothing moves or
+                    // changes size between signing in and adding this Mac.
+                    CardLayout { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
+                        .cardWindow()
+                        .transition(.opacity)
+                }
                 #else
                 KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context))
                     .transition(.opacity)
                 #endif
+            #if os(macOS)
+            case .signedIn where onboardingShown && SetupCards.on:
+                // Round 7: the notes, filling in behind one card at a time.
+                notesBehind {
+                    if onboarding.step != nil {
+                        SetupCardsFlow(store: onboarding, backend: backend, setup: setup, finish: finishSetupCards)
+                            .environment(backend)
+                            .environment(sync)
+                    }
+                }
+            #endif
             case .signedIn where onboardingShown:
                 // The first-run flow has the whole window, in the welcome's card on the Mac,
                 // until it ends in the notes.
@@ -975,7 +1000,7 @@ struct AppGate: View {
             }
         }
         #if os(macOS)
-        .background(WindowShaper(compact: cardShown || onboardingShown, cardSize: WelcomeFlow.size))
+        .background(WindowShaper(compact: !SetupCards.on && (cardShown || onboardingShown), cardSize: WelcomeFlow.size))
         #endif
         .animation(.easeOut(duration: 0.25), value: backend.state)
         .animation(.easeOut(duration: 0.25), value: onboardingShown)
@@ -1061,6 +1086,36 @@ struct AppGate: View {
         }
         .onAppear { context.drainInbox() }
     }
+
+    #if os(macOS)
+    /// The notes window as it is, not to be used yet, with `card` on it: signed out, adding this
+    /// Mac, and the first run (SetupCards).
+    private func notesBehind(@ViewBuilder card: () -> some View) -> some View {
+        ZStack {
+            RootView()
+                .environment(backend)
+                .environment(sync)
+                .environment(\.networkReach, sync.reach)
+                .environment(setup)
+                .environment(onboarding)
+                .environment(\.behindSetupCard, true)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            card()
+        }
+        .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
+        .transition(.opacity)
+    }
+
+    /// The card flow ended: like `finishOnboarding`, landing where the card said (a template's note).
+    private func finishSetupCards(_ landing: Onboarding.Landing?) {
+        let replay = onboarding.replay
+        if let account = backend.userID { context.settleTrialNote(account: account) }
+        SyncSignal.changed()
+        onboarding.finish(landing: replay ? nil : landing)
+        if !replay { Task { await setup.mark("dismissed") } }
+    }
+    #endif
 
     /// The first-run flow (or the short wait before it) has the window. After the key gate:
     /// a new account adds this device first.

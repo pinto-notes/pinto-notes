@@ -42,6 +42,7 @@ struct NoteListView: View {
     /// Notes waiting for "Delete Forever" to be confirmed.
     @State private var pendingForever: Set<UUID>?
     @Environment(\.importActions) private var imports
+    @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -290,7 +291,7 @@ struct NoteListView: View {
         .scrollContentBackground(.hidden)
         .background(Color(Palette.listGround).ignoresSafeArea())
         .overlay {
-            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading { emptyState }
+            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard { emptyState }
         }
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
