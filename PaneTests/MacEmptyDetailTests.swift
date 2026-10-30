@@ -12,7 +12,7 @@ import Testing
 
     /// The notes list (the split view's middle column).
     static func list(_ w: NSWindow) throws -> NSTableView {
-        try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSTableView.self, in: $0) { $0.numberOfRows > 3 && $0.style != .sourceList && $0.accessibilityLabel() != "Sidebar" } })
+        try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSTableView.self, in: $0) { $0.numberOfRows > 0 && $0.style != .sourceList && $0.accessibilityLabel() != "Sidebar" } })
     }
 
     /// The window as drawn, title bar and toolbar included, at 2x.
@@ -73,22 +73,28 @@ import Testing
         return column.convert(column.bounds, to: nil)
     }
 
-    /// The window's grey title bar over the note column: AppKit's hard pocket, drawn when nothing
-    /// in the column scrolls under the toolbar.
-    static func greyBand(_ w: NSWindow) throws -> Bool {
-        let column = try noteColumn(w)
+    /// Where the window's grey title bar shows: AppKit's hard pocket at the top of the window,
+    /// the title bar's own (a column with nothing scrolling under the toolbar) or a scroll view's
+    /// (a hard edge effect). "list" or "note"; the sidebar's glass covers its own.
+    static func greyBands(_ w: NSWindow) throws -> [String] {
+        let split = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
+        let sidebar = split.arrangedSubviews.count > 2 ? split.arrangedSubviews[0].convert(split.arrangedSubviews[0].bounds, to: nil).maxX : 0
+        let note = try noteColumn(w)
         let top = try #require(w.contentView?.superview)
-        var found = false
+        var found: Set<String> = []
         func look(_ v: NSView) {
-            if !v.isHidden, String(describing: type(of: v)) == "NSHardPocketView" {
+            guard !v.isHidden else { return }
+            if String(describing: type(of: v)) == "NSHardPocketView" {
                 let f = v.convert(v.bounds, to: nil)
-                if f.midX > column.minX, f.midX < column.maxX { found = true }
+                if f.maxY >= top.bounds.height - 1, f.midX > sidebar { found.insert(f.midX > note.minX ? "note" : "list") }
             }
             v.subviews.forEach(look)
         }
         look(top)
-        return found
+        return found.sorted()
     }
+
+    static func greyBand(_ w: NSWindow) throws -> Bool { try greyBands(w).contains("note") }
 
     /// The toolbar's enabled controls over the note column, by their item's label. Only the
     /// menus (Attach, More) are AppKit controls; the plain buttons are drawn by SwiftUI.
@@ -160,6 +166,39 @@ import Testing
                 #expect(try !Self.greyBand(w))
                 if let dir = AppSnapshotTests.dir {
                     try #require(try Self.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-opened-note-\(mode).png"))
+                }
+            }
+        }
+    }
+
+    /// Emil (10-30, Recently Deleted with a note open): the grey band ran across the list and the
+    /// note. Neither column shows it, in any folder, with or without a note.
+    @Test func noColumnShowsTheGreyBand() async throws {
+        let c = try AppSnapshotTests.container()
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>())
+        let groceries = try #require(notes.first { $0.title == "Groceries" })
+        c.mainContext.trash(groceries)
+        try c.mainContext.save()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            for scope in [Scope.trash, .all] {
+                UserDefaults.standard.set(try JSONEncoder().encode(scope), forKey: "lastScope")
+                if scope == .all { UserDefaults.standard.set(try #require(notes.first { $0.title == "Lisbon" }).id.uuidString, forKey: "lastNote") }
+                for dark in [false, true] {
+                    let mode = "\(scope == .trash ? "Recently Deleted" : "All Notes"), \(dark ? "dark" : "light")"
+                    let w = MacWindowChromeTests.window(c, size: Self.size)
+                    w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    defer { w.close() }
+                    await MacWindowChromeTests.settle(w)
+                    #expect(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) } != nil, "\(mode): a note is open")
+                    let withNote = try Self.greyBands(w)
+                    #expect(withNote.isEmpty, "\(mode), a note open: grey band over columns \(withNote)")
+                    if let dir = AppSnapshotTests.dir {
+                        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                        try #require(try Self.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-\(scope == .trash ? "trash" : "all")-note-\(dark ? "dark" : "light").png"))
+                    }
+                    try await Self.deselect(w)
+                    let without = try Self.greyBands(w)
+                    #expect(without.isEmpty, "\(mode), no note: grey band over columns \(without)")
                 }
             }
         }

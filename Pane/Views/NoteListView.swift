@@ -293,6 +293,11 @@ struct NoteListView: View {
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
         .background(Color(Palette.listGround).ignoresSafeArea())
+        #if os(macOS)
+        // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
+        // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        #endif
         .overlay {
             if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading { emptyState }
         }
