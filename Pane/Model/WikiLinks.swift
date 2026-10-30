@@ -220,16 +220,29 @@ struct WikiIndex {
 
     private(set) var entries: [Entry]
     private var byKey: [String: [Int]] = [:]
+    private var byID: [UUID: Int] = [:]
 
     init(_ entries: [Entry]) {
         self.entries = entries
-        for (i, e) in entries.enumerated() { byKey[WikiLinks.key(e.title), default: []].append(i) }
+        reindex()
     }
+
+    private mutating func reindex() {
+        byKey = [:]
+        byID = [:]
+        for (i, e) in entries.enumerated() {
+            byKey[WikiLinks.key(e.title), default: []].append(i)
+            byID[e.id] = i
+        }
+    }
+
+    /// The title the index knows a note by.
+    func title(of id: UUID) -> String? { byID[id].map { entries[$0].title } }
 
     /// Puts in one note's entry as it is now (nil: it isn't live any more). True when that changed
     /// a title, a folder or which notes there are; a newer date alone keeps the index as it was.
     mutating func take(_ entry: Entry?, id: UUID) -> Bool {
-        let i = entries.firstIndex { $0.id == id }
+        let i = byID[id]
         switch (i, entry) {
         case (nil, nil):
             return false
@@ -243,8 +256,7 @@ struct WikiIndex {
         case (nil, let entry?):
             entries.append(entry)
         }
-        byKey = [:]
-        for (i, e) in entries.enumerated() { byKey[WikiLinks.key(e.title), default: []].append(i) }
+        reindex()
         return true
     }
 
@@ -306,7 +318,7 @@ enum WikiDirectory {
 
     /// Where each note that links to others links, by its id: what "Linked from" is worked out
     /// from, instead of every note's text being searched each time a note opens.
-    private static var outgoing: [UUID: OutgoingLinks]?
+    private static var outgoing: LinkGraph?
     private static weak var outgoingContext: ModelContext?
     /// Being read off the main thread (`prepare`), for this context.
     private static weak var reading: ModelContext?
@@ -363,7 +375,7 @@ enum WikiDirectory {
         }
     }
 
-    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]]), announce: Bool = true) {
+    private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: LinkGraph, paths: [UUID: [String]]), announce: Bool = true) {
         guard let context = reading else { return }
         reading = nil
         if cached == nil || cachedContext !== context {
@@ -393,7 +405,7 @@ enum WikiDirectory {
 
     /// The titles and links of every live note, read on `context` (one of its own, off the main
     /// thread, for a large library).
-    nonisolated static func read(using context: ModelContext) -> (entries: [WikiIndex.Entry], outgoing: [UUID: OutgoingLinks], paths: [UUID: [String]]) {
+    nonisolated static func read(using context: ModelContext) -> (entries: [WikiIndex.Entry], outgoing: LinkGraph, paths: [UUID: [String]]) {
         let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
         var byID: [UUID: (name: String, parent: UUID?)] = [:]
         for f in folders { byID[f.id] = (f.name, f.parent?.id) }
@@ -410,7 +422,7 @@ enum WikiDirectory {
         let notes = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
         var entries: [WikiIndex.Entry] = []
         entries.reserveCapacity(notes.count)
-        var outgoing: [UUID: OutgoingLinks] = [:]
+        var outgoing = LinkGraph()
         for n in notes {
             let folders = path(n.folder?.id)
             entries.append(WikiIndex.Entry(id: n.id, title: n.summaryTitle ?? NoteText.head(of: n.body).title, folders: folders, updated: n.updatedAt))
@@ -502,7 +514,7 @@ enum WikiDirectory {
     }
 
     /// The notes that link to others, as last read: nil until they've been (see `didRead`).
-    static func linking(_ context: ModelContext) -> [UUID: OutgoingLinks]? {
+    static func linking(_ context: ModelContext) -> LinkGraph? {
         outgoingContext === context ? outgoing : nil
     }
 
@@ -515,6 +527,23 @@ enum WikiDirectory {
         let contains = q.isEmpty ? [] : entries.filter { e in let k = WikiLinks.key(e.title); return !k.hasPrefix(q) && k.contains(q) }
         var seen = Set<String>()
         return (starts + contains).map(\.title).filter { seen.insert(WikiLinks.key($0)).inserted }.prefix(limit).map { $0 }
+    }
+
+    /// After `[[Note#`: the headings of the note `target` leads to from `note`, those starting
+    /// with what's typed first, then those containing it, in the note's order. None for a locked
+    /// note or a link that leads nowhere.
+    static func headingSuggestions(_ typed: String, target: String, from note: Note, in context: ModelContext, limit: Int = 8) -> [String] {
+        guard let linked = context.resolveWikiLink(target, from: note), !linked.isLocked else { return [] }
+        return headingSuggestions(typed, in: linked.id == note.id ? note.body : linked.body, limit: limit)
+    }
+
+    static func headingSuggestions(_ typed: String, in body: String, limit: Int = 8) -> [String] {
+        let q = WikiLinks.key(typed)
+        var seen = Set<String>()
+        let all = WikiLinks.headings(in: body).filter { seen.insert(WikiLinks.key($0)).inserted }
+        let starts = all.filter { q.isEmpty || WikiLinks.key($0).hasPrefix(q) }
+        let contains = q.isEmpty ? [] : all.filter { let k = WikiLinks.key($0); return !k.hasPrefix(q) && k.contains(q) }
+        return Array((starts + contains).prefix(limit))
     }
 
     /// The index as the editor of `note` sees it. While the index is being read it's empty, and
@@ -569,8 +598,13 @@ extension ModelContext {
     func backlinks(to note: Note) -> [Note] {
         guard let index = WikiDirectory.ready(self), let linking = WikiDirectory.linking(self) else { return [] }
         let id = note.id
+        // Only the notes with a link by this note's title, or a note link to it, can link here.
+        var candidates = linking.linking(note: id)
+        let key = WikiLinks.key(index.title(of: id) ?? note.title)
+        if !key.isEmpty { candidates.formUnion(linking.linking(named: key)) }
         var found: [UUID] = []
-        for (other, links) in linking where other != id {
+        for other in candidates where other != id {
+            guard let links = linking[other] else { continue }
             if links.noteLinks.contains(id) { found.append(other); continue }
             if links.wikiTargets.contains(where: { index.resolve($0, from: links.folders) == id }) { found.append(other) }
         }
@@ -592,7 +626,7 @@ extension ModelContext {
         // Only the notes that link by that name are read, when it's known where notes link.
         let candidates: [Note]
         if let linking = WikiDirectory.linking(self) {
-            let ids = linking.filter { $0.value.wikiTargets.contains { WikiLinks.key(WikiLinks.name(of: $0)) == oldKey } }.map(\.key)
+            let ids = Array(linking.linking(named: oldKey))
             candidates = ids.isEmpty ? [] : (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
         } else {
             candidates = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.contains("[[") }))) ?? []
@@ -622,6 +656,9 @@ struct OutgoingLinks: Equatable, Sendable {
     var wikiTargets: [String]
     var noteLinks: Set<UUID>
     var folders: [String]
+    /// The keys a link here can resolve by: each target's name, and the whole target (a title
+    /// can have a slash in it).
+    var names: Set<String>
 
     nonisolated(unsafe) private static let noteLink = /pane-note:([0-9a-fA-F-]{36})/
 
@@ -637,6 +674,12 @@ struct OutgoingLinks: Equatable, Sendable {
         wikiTargets = wiki
         noteLinks = ids
         self.folders = folders
+        var names = Set<String>()
+        for t in wiki {
+            names.insert(WikiLinks.key(WikiLinks.name(of: t)))
+            names.insert(WikiLinks.key(WikiLinks.stripExtension(t.trimmingCharacters(in: .whitespaces))))
+        }
+        self.names = names
     }
 }
 
