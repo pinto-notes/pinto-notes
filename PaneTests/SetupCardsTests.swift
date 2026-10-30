@@ -143,10 +143,12 @@ import Testing
     /// With a mouse attached the scroll bar takes room from the grid, which then fitted a column
     /// fewer and left a gap (Emil, 2026-10-30): the cards are sized to the measured row.
     @Test func theTemplateGridFillsTheRowBesideAScrollBar() throws {
-        for row in [552.0, 552 - 15, 992, 992 - 15] {
-            let width = TemplateLibraryView.cardWidth(row: row, gap: 16)
-            let count = ((row + 16) / (width + 16)).rounded(.down)
-            #expect(row - (count * width + (count - 1) * 16) < count)
+        let rows: [CGFloat] = [552, 537, 992, 977]
+        for row in rows {
+            let width: CGFloat = TemplateLibraryView.cardWidth(row: row, gap: 16)
+            let count: CGFloat = ((row + 16) / (width + 16)).rounded(.down)
+            let used: CGFloat = count * width + (count - 1) * 16
+            #expect(row - used < count)
         }
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
