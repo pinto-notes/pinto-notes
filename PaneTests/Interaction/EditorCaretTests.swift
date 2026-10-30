@@ -70,6 +70,26 @@ import Testing
         await shot(window, "caret-body-line-\(dark ? "dark" : "light")")
     }
 
+    /// On an empty line between two lines of text, the caret sits where the letter will be drawn:
+    /// the same y before and after it's typed. TextKit counts the empty line's spacing in the line
+    /// and put the caret at its top, 6⅔ pt above the letter (Emil, 30 October 2026).
+    @Test(arguments: [("Weekend\nBody", "Weekend"), ("Weekend\n\nFirst day\nSecond day", "First day")])
+    func anEmptyLinesCaretSitsWhereTheLetterWillBe(text: String, after: String) async throws {
+        let (window, v) = try await make(text)
+        defer { window.isHidden = true }
+        v.becomeFirstResponder()
+        v.selectedRange = NSRange(location: NSMaxRange((text as NSString).range(of: after)), length: 0)
+        await settle()
+        v.insertText("\n")
+        await settle()
+        let empty = caret(v)
+        v.insertText("b")
+        await settle()
+        let typed = caret(v)
+        #expect(abs(empty.minY - typed.minY) < 0.5, "empty line \(empty.minY), after a letter \(typed.minY)")
+        #expect(abs(empty.maxY - typed.maxY) < 0.5, "empty line ends \(empty.maxY), after a letter \(typed.maxY)")
+    }
+
     /// An empty first line above the text is the title's line: typing there makes the title.
     @Test func anEmptyFirstLineHasATitleCaret() async throws {
         let (window, v) = try await make("\nSome text")
@@ -220,6 +240,19 @@ import Testing
         #expect(abs(line - typed) < 0.5, "new line \(line), after a letter \(typed)")
         #expect(after > typed + 8, "title \(after), body \(typed)")
         await h.snapshot("caret-mac-\(dark ? "dark" : "light")")
+    }
+
+    /// On an empty line between two lines, the caret's baseline is the letter's: the bottom of its
+    /// rect (screen coordinates count up from the bottom) is the same before and after typing.
+    @Test func anEmptyLinesCaretSitsWhereTheLetterWillBe() async {
+        let h = await EditorHarness("Weekend\nBody")
+        defer { h.close() }
+        await h.caret(after: "Weekend")
+        await h.press(EditorHarness.returnKey)
+        let empty = h.view.firstRect(forCharacterRange: h.view.selectedRange(), actualRange: nil)
+        await h.type("b")
+        let typed = h.view.firstRect(forCharacterRange: h.view.selectedRange(), actualRange: nil)
+        #expect(abs(empty.minY - typed.minY) < 0.5, "empty line's baseline \(empty.minY), after a letter \(typed.minY)")
     }
 }
 #endif
