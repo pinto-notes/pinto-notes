@@ -1,3 +1,4 @@
+import SwiftData
 #if os(macOS)
 import SwiftUI
 
