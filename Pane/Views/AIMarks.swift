@@ -5,6 +5,8 @@ import SwiftUI
 struct AIGlyph: View {
     let ai: String
     var size: CGFloat = 16
+    /// In a button: the mark takes the button's own label colour, so it reads on any fill.
+    var monochrome = false
 
     /// App Store captures (`-uitest -storeSafe`) show no other company's marks, only a neutral sparkle.
     static let storeSafe = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-storeSafe")
@@ -23,7 +25,7 @@ struct AIGlyph: View {
                 .accessibilityHidden(true)
         } else if let asset = Self.asset(ai) {
             Image(asset).resizable().scaledToFit().frame(width: size, height: size)
-                .foregroundStyle(Self.color(ai))
+                .foregroundStyle(monochrome ? AnyShapeStyle(.foreground) : AnyShapeStyle(Self.color(ai)))
                 .accessibilityHidden(true)
         } else {
             // Any other app: a plain glyph that fits any size (text would be cut short in a small tile).

@@ -218,18 +218,23 @@ struct TemplateLibraryView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
-                    // Words only: ChatGPT's mark takes the text colour, which vanishes on the dark look's white button.
                     // A split button: Make with the AI shown, and an arrow to make it with another
                     // (remembered while the library is open).
                     HStack(spacing: 2) {
-                        Button(TemplateLibraryWords.make(ai)) { make(e, ai) }
+                        Button { make(e, ai) } label: { makeLabel(ai) }
                             .buttonStyle(.amberProminent(.regular, wide: true))
                             .keyboardShortcut(.defaultAction)
                             .accessibilityIdentifier("templates.make")
                         if ais.count > 1 {
                             Menu {
                                 ForEach(ais) { other in
-                                    Button(TemplateLibraryWords.make(other)) { picked = other; make(e, other) }
+                                    Button { picked = other; make(e, other) } label: {
+                                        if let asset = AIGlyph.asset(other.name) {
+                                            Label { Text(TemplateLibraryWords.make(other)) } icon: { Image(asset) }
+                                        } else {
+                                            Text(TemplateLibraryWords.make(other))
+                                        }
+                                    }
                                 }
                             } label: {
                                 Image(systemName: "chevron.down").font(.system(size: 12, weight: .bold))
@@ -261,6 +266,14 @@ struct TemplateLibraryView: View {
                 .clipped()
         } else {
             NotePreview(markdown: e.example)
+        }
+    }
+
+    /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.
+    private func makeLabel(_ ai: SetupCards.AI) -> some View {
+        HStack(spacing: 7) {
+            if ai != .other { AIGlyph(ai: ai.name, size: 15, monochrome: true) }
+            Text(TemplateLibraryWords.make(ai))
         }
     }
 
