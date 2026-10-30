@@ -208,6 +208,48 @@ import Testing
         #expect(font.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true)
         #expect(storage.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor == Palette.muted)
     }
+    /// Emil (10-30): "there is no visible separation between note and notes list" in the dark. A
+    /// one-pixel separator runs between them, from the window's top edge (the toolbar band) to the
+    /// bottom, light and dark: it stands out from the ground on both sides, and is one pixel wide.
+    @Test func aHairlineSeparatesTheListFromTheNote() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            for dark in [false, true] {
+                // Drawn the way the HIG snapshots draw the window's content (no toolbar here: the
+                // line runs into the toolbar band through ignoresSafeArea).
+                let size = CGSize(width: 1469, height: 920)
+                let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height), styleMask: [.borderless], backing: .buffered, defer: false)
+                w.isReleasedWhenClosed = false
+                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let host = NSHostingView(rootView: RootView().modelContainer(c).environment(SetupStore()))
+                host.appearance = w.appearance
+                host.frame = CGRect(origin: .zero, size: size)
+                w.contentView = host
+                defer { w.close() }
+                await Self.settle(w, 12)
+                let split = try #require(Self.find(NSSplitView.self, in: host))
+                let noteView = try #require(split.arrangedSubviews.last)
+                let note = noteView.convert(noteView.bounds, to: host)
+                host.layoutSubtreeIfNeeded()
+                let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+                host.cacheDisplay(in: host.bounds, to: rep)
+                let scale = CGFloat(rep.pixelsWide) / size.width
+                let lineX = Int((note.minX * scale).rounded())
+                for fromTop in [120.0, 500.0, 880.0] {
+                    let y = Int(fromTop * scale)
+                    func lum(_ x: Int) -> CGFloat {
+                        guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return -1 }
+                        return 0.2126 * c.redComponent + 0.7152 * c.greenComponent + 0.0722 * c.blueComponent
+                    }
+                    let line = lum(lineX), left = lum(lineX - 6), right = lum(lineX + 6), next = lum(lineX + 1)
+                    print("PERF hairline \(dark ? "dark" : "light") at \(Int(fromTop)) pt: line \(line) list \(left) note \(right) next pixel \(next) (x \(lineX) of \(rep.pixelsWide))")
+                    #expect(abs(line - right) > 0.03 && abs(line - left) > 0.03, "\(dark ? "dark" : "light"), \(Int(fromTop)) pt down: the line stands out (line \(line), list \(left), note \(right))")
+                    #expect(abs(next - right) < 0.01, "\(dark ? "dark" : "light"), \(Int(fromTop)) pt down: one pixel wide")
+                }
+            }
+        }
+    }
+
     /// The whole window's layout, toolbar included, for review (AMBER_HIG_SHOTS). Drawn off screen
     /// the toolbar's glass comes out as plain shapes without their symbols, and the sidebar blank,
     /// but every item stands where it does in the app.
