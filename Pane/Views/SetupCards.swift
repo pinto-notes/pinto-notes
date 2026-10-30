@@ -249,6 +249,8 @@ private struct SetupTile<Mark: View>: View {
 /// like the website's cards. It lifts a little under the pointer.
 struct SetupTemplateCard: View {
     let pick: SetupCards.Pick
+    /// Wider in the template library, where the cards share the row; the height keeps the shape.
+    var width: CGFloat = size.width
     let action: () -> Void
     @State private var hover = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -265,7 +267,7 @@ struct SetupTemplateCard: View {
                     pick.image
                         .resizable()
                         .scaledToFill()
-                        .frame(width: Self.size.width, height: Self.size.width)
+                        .frame(width: width, height: width)
                         .clipped()
                     Spacer(minLength: 0)
                 }
@@ -284,7 +286,7 @@ struct SetupTemplateCard: View {
                 .padding(.horizontal, 14)
                 .padding(.bottom, 14)
             }
-            .frame(width: Self.size.width, height: Self.size.height)
+            .frame(width: width, height: width * Self.size.height / Self.size.width)
             .clipShape(shape)
             .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
             .shadow(color: .black.opacity(hover ? 0.28 : 0), radius: 14, y: 12)

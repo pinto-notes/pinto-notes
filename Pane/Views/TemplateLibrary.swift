@@ -142,25 +142,36 @@ struct TemplateLibraryView: View {
     }
 
     private var grid: some View {
-        ScrollView {
-            let shown = catalog.shown(filter: filter, query: query)
-            if shown.isEmpty {
-                Text(TemplateLibraryWords.none(query)).foregroundStyle(Color.muted).padding(.top, 20)
-            }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: SetupTemplateCard.size.width, maximum: SetupTemplateCard.size.width), spacing: 16)],
-                      alignment: .leading, spacing: 16) {
-                ForEach(shown) { e in
-                    SetupTemplateCard(pick: e.pick) { withAnimation(.snappy(duration: 0.28)) { open = e; copied = false } }
-                        .overlay {
-                            if open == e {
-                                RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3)
-                            }
-                        }
+        GeometryReader { geo in
+            let gap: CGFloat = 16
+            let row = geo.size.width - 48
+            let width = Self.cardWidth(row: row, gap: gap)
+            ScrollView {
+                let shown = catalog.shown(filter: filter, query: query)
+                if shown.isEmpty {
+                    Text(TemplateLibraryWords.none(query)).foregroundStyle(Color.muted).padding(.top, 20)
                 }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: gap)], alignment: .leading, spacing: gap) {
+                    ForEach(shown) { e in
+                        SetupTemplateCard(pick: e.pick, width: width) { withAnimation(.snappy(duration: 0.28)) { open = e; copied = false } }
+                            .overlay {
+                                if open == e {
+                                    RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3)
+                                }
+                            }
+                    }
+                }
+                .padding(24)
             }
-            .padding(24)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// As many cards of at least the gallery's width as fit, widened to fill the row exactly.
+    static func cardWidth(row: CGFloat, gap: CGFloat) -> CGFloat {
+        let least = SetupTemplateCard.size.width
+        let count = max(1, ((row + gap) / (least + gap)).rounded(.down))
+        return ((row - gap * (count - 1)) / count).rounded(.down)
     }
 
     /// One template as it looks in use, with its name, what to ask, and Make at the foot.

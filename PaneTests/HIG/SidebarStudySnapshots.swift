@@ -171,6 +171,9 @@ import Testing
         #expect(covers.isEmpty)
         #expect(SetupCards.prompt(c.entries[0].pick).hasPrefix("In Pinto Notes, use my Habit tracker note."))
         // In use: every template has its filled-in note, and every app its picture.
+        // The cards fill the row: five across 1000 pt, none narrower than the gallery's.
+        let w = TemplateLibraryView.cardWidth(row: 992, gap: 16)
+        #expect(w >= SetupTemplateCard.size.width && 5 * w + 4 * 16 <= 992 && 5 * w + 4 * 16 > 992 - 5)
         let bare = c.entries.filter { $0.example.isEmpty || ($0.app && $0.appPicture(dark: false) == nil) }.map(\.slug)
         #expect(bare.isEmpty)
     }
