@@ -232,7 +232,7 @@ enum CodeLanguage: Equatable {
 enum CodePalette {
     static func color(_ t: CodeLanguage.Token) -> PColor {
         switch t {
-        case .comment: Palette.pair(0x8A7A6A, 0x8F8478)
+        case .comment: Palette.warm(0x8A7A6A, 0x8F8478, plain: (0x767676, 0x8C8C8C))
         case .string: Palette.pair(0x2E7D32, 0x8BC48A)
         case .keyword: Palette.pair(0xA85700, 0xF4AD33)
         case .number: Palette.pair(0x6A3FA0, 0xC4A5F0)

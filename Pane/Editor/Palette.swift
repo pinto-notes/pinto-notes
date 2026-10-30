@@ -15,9 +15,13 @@ enum Palette {
     static let brown: UInt32 = 0x8A4A1C
 
     // Ink and muted text: the website's warm brown in the light; in the dark, warm greys (the
-    // website's cream and tan read brown on the app's grey window).
-    static let ink = pair(0x2A1D10, 0xF6EFE7)
-    static let muted = pair(0x74604C, 0xBCB0A3)
+    // website's cream and tan read brown on the app's grey window). E (`plain`, the Mac's): neutral,
+    // like Apple Notes. The ink is the system label colour laid on the page (85% black, 85% white),
+    // solid so it reads the same on any surface; the muted text a neutral grey a little darker than
+    // the system's secondary label in the light, which sits under 4:1 on white (5.4:1 on white
+    // here and 4.5:1 on the selected row, 7.4:1 on black).
+    static let ink = warm(0x2A1D10, 0xF6EFE7, plain: (0x262626, 0xD9D9D9))
+    static let muted = warm(0x74604C, 0xBCB0A3, plain: (0x6A6A6A, 0x999999))
 
     /// The deeper amber: accent, links and an AI's tint (AccentColor.colorset holds the same).
     static let amber = pair(0xD96A06, 0xF4AD33)
@@ -26,8 +30,8 @@ enum Palette {
     static let amberButton = pair(0xD96A06, 0xD96A06)
     /// A primary button that can't be pressed yet: a quiet warm grey with muted text, not a faded
     /// amber, so it reads as "not yet" rather than as broken.
-    static let disabledButton = pair(brown, 0.13, 0xFFFFFF, 0.11)
-    static let disabledButtonLabel = pair(0x6A5743, 0xB0A498)
+    static let disabledButton = warm(brown, 0.13, 0xFFFFFF, 0.11, plain: (0x000000, 0.08, 0xFFFFFF, 0.11))
+    static let disabledButtonLabel = warm(0x6A5743, 0xB0A498, plain: (0x6A6A6A, 0x999999))
     /// The fill of destructive primary buttons (Start fresh), in light and dark alike: a red deep
     /// enough for the same white label.
     static let destructiveButton = pair(0xC62828, 0xC62828)
@@ -48,7 +52,7 @@ enum Palette {
     /// with the shared shadow (`Depth`) instead of a border.
     static let card = warm(0xFFFEFB, 0x2C2A27, plain: (0xFFFFFF, 0x1C1C1C))
     /// The tint of the shared shadow's long, soft part: the brown, never grey.
-    static let shadow = pair(0x3C1E05, 0.13, 0x000000, 0.45)
+    static let shadow = warm(0x3C1E05, 0.13, 0x000000, 0.45, plain: (0x000000, 0.12, 0x000000, 0.45))
 
     /// The note itself: nearly white, and nearly native in the dark. Candidate B (`paper`) lays
     /// a soft cream page instead, like the website's cards. E (`plain`, the Mac's): white and black.
@@ -85,20 +89,21 @@ enum Palette {
     // Sign-in.
     /// The email field: white with a warm border on the cream ground, so it reads as a field at a
     /// glance; in the dark, a lighter translucent fill with a border of its own.
-    static let field = pair(0xFFFFFF, 1, 0xFFFAF5, 0.10)
-    static let fieldHairline = pair(brown, 0.30, 0xFFFFFF, 0.22)
+    static let field = warm(0xFFFFFF, 1, 0xFFFAF5, 0.10, plain: (0xFFFFFF, 1, 0xFFFFFF, 0.10))
+    static let fieldHairline = warm(brown, 0.30, 0xFFFFFF, 0.22, plain: (0x000000, 0.22, 0xFFFFFF, 0.22))
     /// A field's placeholder: the muted text, dimmed, still about 4:1 on the field.
-    static let placeholder = pair(0x74604C, 0.85, 0xBCB0A3, 0.80)
+    static let placeholder = warm(0x74604C, 0.85, 0xBCB0A3, 0.80, plain: (0x6A6A6A, 0.85, 0x999999, 0.80))
     /// Settings' search field: a step darker than the sheet's ground and its rows, in the brown,
     /// so it never reads as one of the rows.
-    static let searchFill = pair(brown, 0.10, 0x000000, 0.36)
+    static let searchFill = warm(brown, 0.10, 0x000000, 0.36, plain: (0x000000, 0.06, 0x000000, 0.36))
     /// A switch that is on, in Settings: the brand's brown, so the page keeps at most one orange
     /// control (owner, 2026-10-13).
     static let switchOn = pair(brown, 1, 0xA8774F, 1)
     /// A solid sheet's ground (How did you hear about Amber Notes?): the sign-in screen's cream,
     /// and its warm near-black in the dark.
     /// (The dark one was 0x1B1A1C, a cool grey with a hint of violet: DESIGN.md says warm, never neutral.)
-    static let sheetGround = pair(0xF9F7F4, 0x1D1B19)
+    /// E (`plain`): a neutral step off white, and a near-black under the black window.
+    static let sheetGround = warm(0xF9F7F4, 0x1D1B19, plain: (0xF7F7F7, 0x141414))
     /// The website's low marker under "your AI".
     static let underline = pair(0xF0901A, 0.42, 0xF5A53A, 0.50)
 
@@ -148,6 +153,17 @@ enum Palette {
         pair(light, dark)
         #else
         looks(control: (light, dark), warm: (light, dark), paper: (light, dark), plain: plain)
+        #endif
+    }
+
+    /// The same, with alphas.
+    static func warm(_ light: UInt32, _ lightAlpha: CGFloat, _ dark: UInt32, _ darkAlpha: CGFloat,
+                     plain: (UInt32, CGFloat, UInt32, CGFloat)) -> PColor {
+        #if os(iOS)
+        pair(light, lightAlpha, dark, darkAlpha)
+        #else
+        looks(control: (light, lightAlpha, dark, darkAlpha), warm: (light, lightAlpha, dark, darkAlpha),
+              paper: (light, lightAlpha, dark, darkAlpha), plain: plain)
         #endif
     }
 

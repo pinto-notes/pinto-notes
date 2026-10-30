@@ -204,9 +204,32 @@ import Testing
         }
         let list = Self.resolved(Palette.listGround, appearance), selection = Self.resolved(Palette.rowSelection, appearance)
         #expect(Self.contrast(list, selection) >= 1.15, "the selected row reads on the list \(appearance.rawValue)")
+        // The text is plain black and grey, like Apple Notes: no brown left in the ink, the muted
+        // text (and the secondary icons drawn in it), the placeholder, the fields or the sheets.
+        let text: [(String, NSColor)] = [("ink", Palette.ink), ("muted", Palette.muted), ("placeholder", Palette.placeholder),
+                                         ("disabled label", Palette.disabledButtonLabel), ("disabled fill", Palette.disabledButton),
+                                         ("sheet", Palette.sheetGround), ("field", Palette.field), ("field edge", Palette.fieldHairline),
+                                         ("search", Palette.searchFill), ("shadow", Palette.shadow)]
+        for (name, c) in text {
+            let v = rgba(c)
+            #expect(v[0] == v[1] && v[1] == v[2], "\(name) is neutral \(appearance.rawValue): \(v)")
+        }
+        // Near-black on white and near-white on black, and the muted text still reads where it sits.
+        let ink = Self.resolved(Palette.ink, appearance), muted = Self.resolved(Palette.muted, appearance)
+        #expect(Self.contrast(ink, list) >= 12, "ink on the page \(appearance.rawValue)")
+        for (name, ground) in [("page", Palette.page), ("selected row", Palette.rowSelection), ("soft", Palette.soft),
+                               ("card", Palette.card), ("sheet", Palette.sheetGround)] {
+            #expect(Self.contrast(ink, Self.resolved(ground, appearance)) >= 7, "ink on \(name) \(appearance.rawValue)")
+            #expect(Self.contrast(muted, Self.resolved(ground, appearance)) >= 4.5, "muted on \(name) \(appearance.rawValue)")
+        }
+        // Amber stays the accent.
+        let amber = rgba(Palette.amber)
+        #expect(amber[0] > amber[2] + 100, "amber \(appearance.rawValue): \(amber)")
         // The other looks keep their warmth, for comparison.
         DesignLook.current = .reading
         #expect(rgba(Palette.page) != ground && rgba(Palette.sidebarWarmth)[3] > 0)
+        let warmInk = rgba(Palette.ink)
+        #expect(warmInk[0] != warmInk[2], "the reading look's ink stays warm \(appearance.rawValue): \(warmInk)")
     }
 }
 #endif

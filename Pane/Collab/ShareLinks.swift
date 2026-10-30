@@ -281,7 +281,7 @@ struct TemplateCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.notePage, in: .rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color(Palette.pair(0xE7DCCF, 0x3A342E)), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color(Palette.warm(0xE7DCCF, 0x3A342E, plain: (0xE5E5E5, 0x333333))), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Preview: \(template.title), shared by \(maker)")
     }
