@@ -71,9 +71,10 @@ struct WelcomeNoteView: View {
             if wayIn {
                 wayInBlock
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { wayInHeight = $0 }
-                    // Rises like the keyboard; no fade.
-                    .transition(.move(edge: .bottom))
                     .modifier(AboveKeyboard())
+                    // Springs up from the foot; with Reduce Motion it fades in. Outermost: under
+                    // AboveKeyboard it was lost, and the way in came up with SwiftUI's own fade.
+                    .transition(WayInMotion.motion(reduceMotion: reduceMotion).transition)
             }
         }
             .sensoryFeedback(.impact(weight: .light), trigger: landed)
@@ -203,7 +204,8 @@ struct WelcomeNoteView: View {
     // MARK: The writing
 
     private func play() async {
-        if finished || reduceMotion { finish(animated: false); return }
+        if finished { finish(animated: false); return }
+        if reduceMotion { finish(); return }
         do {
             try await pause(500)
             try await type(WelcomeNote.title.count, into: .title, every: 75, text: WelcomeNote.title)
@@ -237,11 +239,32 @@ struct WelcomeNoteView: View {
         ai = nil
         done = true
         if animated {
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.75)) { wayIn = true }
+            withAnimation(WayInMotion.motion(reduceMotion: reduceMotion).animation) { wayIn = true }
         } else {
             wayIn = true
         }
         Self.wayInShown += 1
+    }
+
+    /// How the way in comes up: on a spring from the foot of the page, or with Reduce Motion a fade.
+    enum WayInMotion: Equatable {
+        case spring, fade
+
+        static func motion(reduceMotion: Bool) -> WayInMotion { reduceMotion ? .fade : .spring }
+
+        var animation: Animation {
+            switch self {
+            case .spring: .spring(response: 0.42, dampingFraction: 0.75)
+            case .fade: .easeOut(duration: 0.25)
+            }
+        }
+
+        var transition: AnyTransition {
+            switch self {
+            case .spring: .move(edge: .bottom)
+            case .fade: .opacity
+            }
+        }
     }
 
     /// How fast the note writes itself (tests play it through at a hundredth of the time), and how
