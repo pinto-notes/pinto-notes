@@ -343,7 +343,7 @@ import Testing
 
     /// What each AI does with a prompt that arrives by link, said as it is.
     @Test func afterAskingSaysWhatTheAIDoes() {
-        #expect(TryIt.afterAsking("ChatGPT").hasPrefix("ChatGPT has the message."))
+        #expect(TryIt.afterAsking("ChatGPT").hasPrefix("Press send in ChatGPT."))
         #expect(TryIt.afterAsking("Claude").hasPrefix("Press send in Claude, under its caution note."))
         #expect(TryIt.afterAsking(nil).hasPrefix("Paste it into your AI"))
         // Codex added on the step before: Try it pastes into Codex, by name.

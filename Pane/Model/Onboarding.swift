@@ -306,9 +306,9 @@ final class OnboardingStore {
 /// The flow's last step: one click hands the prompt to the AI, the To-do note is on the screen,
 /// and the step ends by itself when the AI's line arrives.
 ///
-/// What a link can do, as checked in a browser on 2026-10-11: `chatgpt.com/?q=` sends the prompt
-/// at once (seen signed out); `claude.ai/new?q=` puts it in the box under a caution note and
-/// waits for send (signed in). Whether either company's Mac or iPhone app takes the text from
+/// What a link can do: `chatgpt.com/?q=` and `claude.ai/new?q=` both put the prompt in the box
+/// and wait for send (Emil, signed in, 2026-10-30; ChatGPT sent it at once on 2026-10-11, signed
+/// out), Claude under a caution note. Whether either company's Mac or iPhone app takes the text from
 /// the link was not tested, so the prompt is always copied as well. Claude Code, Codex and other
 /// MCP apps have no such link: the prompt is shown to paste.
 enum TryIt {
@@ -354,7 +354,7 @@ enum TryIt {
     /// One calm line after the prompt was handed over.
     static func afterAsking(_ ai: String?, pasteInto: String? = nil) -> String {
         switch ai {
-        case "ChatGPT": "ChatGPT has the message. Its line appears here when it is done."
+        case "ChatGPT": "Press send in ChatGPT. Its line appears here when it is done."
         case "Claude": "Press send in Claude, under its caution note. Its line appears here when it is done."
         default: "Paste it into \(pasteInto ?? "your AI") and send it. Its line appears here when it is done."
         }
