@@ -834,6 +834,9 @@ struct ConnectChoices: View {
 
     @State private var connections: [Connection] = []
     @State private var removing: Connection?
+    /// The connection whose recent changes are open (AI Changes, filtered to it).
+    @State private var changesFor: Connection?
+    @Environment(\.dismiss) private var dismissHost
     @State private var error: String?
     @State private var center = ConnectCenter.shared
     @State private var run = ConnectRun()
@@ -906,6 +909,12 @@ struct ConnectChoices: View {
         }
         .onDisappear { run.stop() }
         .sheet(item: $onMac) { ConnectOnMacSheet(ai: $0) }
+        .sheet(item: $changesFor) { c in
+            if let store = AIChangesCenter.shared.store, let history = NoteHistory.shared {
+                // Open Note closes Settings too, so the note is what you see.
+                AIChangesSheet(store: store, history: history, filter: c.name, connected: active.map(\.name), opened: { dismissHost() })
+            }
+        }
         // Asks again when a sheet over it closes and when back online.
         .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
         .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
@@ -1179,12 +1188,22 @@ struct ConnectChoices: View {
             // The mark comes from where the approval went, never from the name.
             ConnectionTile(connection: c, size: 26)
             VStack(alignment: .leading, spacing: 2) {
-                Text(c.title).font(Metrics.rowTitle).foregroundStyle(Color.ink)
-                Text(Self.detail(c)).font(.caption).foregroundStyle(Color.muted).monospacedDigit()
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(c.title).font(Metrics.rowTitle).foregroundStyle(Color.ink)
+                    Text(Self.detail(c)).font(.caption).foregroundStyle(Color.muted).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // The name and details read as one; the buttons stay their own for VoiceOver.
+                .accessibilityElement(children: .combine)
+                if AIChangesCenter.shared.store != nil {
+                    Button("Recent changes") { changesFor = c }
+                        .buttonStyle(.hoverLink)
+                        .font(.caption)
+                        .foregroundStyle(.tint)
+                        .accessibilityLabel("Recent changes by \(c.title)")
+                        .accessibilityIdentifier("connect.recentChanges")
+                }
             }
-            // The name and details read as one; Disconnect stays its own button for VoiceOver.
-            .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
             Button("Disconnect…") { removing = c }
                 .buttonStyle(.quiet)

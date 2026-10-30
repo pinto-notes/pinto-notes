@@ -256,6 +256,7 @@ struct RootView: View {
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
             .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openPlace(place) }
+            .modifier(AIChangesPresenter())
             #if os(iOS)
             .alert("Import on your Mac", isPresented: $importOnMac) {
                 Button("OK") {}
@@ -661,6 +662,12 @@ struct PaneCommands: Commands {
         CommandGroup(after: .saveItem) {
             Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
+        }
+        // View › AI Changes: everything an AI changed, across all notes.
+        CommandGroup(after: .sidebar) {
+            Button("\(AIChangeCopy.title)\u{2026}") { AIChangesCenter.shared.show() }
+                .keyboardShortcut("a", modifiers: [.command, .option])
+                .disabled(AIChangesCenter.shared.store == nil)
         }
         CommandGroup(after: .help) {
             // The website's changes page: release notes are never shown in the app by themselves.

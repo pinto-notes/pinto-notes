@@ -201,7 +201,11 @@ protocol NoteHistoryStore: AnyObject {
 @MainActor
 final class SupabaseHistoryStore: NoteHistoryStore {
     let client: SupabaseClient
-    private var bodies: [Int64: String] = [:]
+    /// Opened texts, by note and version: one store serves every note (NoteHistory.shared), and
+    /// version numbers repeat across notes.
+    private var bodies: [String: String] = [:]
+
+    nonisolated static func cacheKey(_ note: UUID, _ version: Int64) -> String { "\(note.uuidString)/\(version)" }
 
     init(client: SupabaseClient) { self.client = client }
 
@@ -271,13 +275,13 @@ final class SupabaseHistoryStore: NoteHistoryStore {
     }
 
     func body(of note: UUID, version: Int64) async throws -> String {
-        if let b = bodies[version] { return b }
+        if let b = bodies[Self.cacheKey(note, version)] { return b }
         struct Row: Decodable { var body_ct: String?; var head_ct: String?; var locked_body: String? }
         let rows: [Row] = try await client.from("note_revisions").select("body_ct,head_ct,locked_body")
             .eq("note_id", value: note).eq("version", value: Int(version)).limit(1).execute().value
         guard let row = rows.first else { throw HistoryError.gone }
         let b = try Self.open(row.body_ct, head: row.head_ct, locked: row.locked_body != nil, note: note)
-        bodies[version] = b
+        bodies[Self.cacheKey(note, version)] = b
         return b
     }
 

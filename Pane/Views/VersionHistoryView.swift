@@ -19,6 +19,9 @@ final class VersionHistoryModel {
     private(set) var previewFailed: String?
     private(set) var restoring = false
     var restoreError: String?
+    /// Compare with…: the other version, and what differs from it to the selected one.
+    private(set) var compareWith: Int64?
+    private(set) var comparison: EditDiff?
 
     let note: Note
     let history: NoteHistory
@@ -56,6 +59,8 @@ final class VersionHistoryModel {
         previewText = nil
         previewFailed = nil
         changed = []
+        comparison = nil
+        if compareWith == id { compareWith = nil }
         guard let entry = selected else { return }
         do {
             let text = try await history.body(of: note, entry.version)
@@ -63,10 +68,51 @@ final class VersionHistoryModel {
             previewText = text
             changed = entry.version.isCurrent ? [] : HistoryDiff.changedLines(in: text, comparedTo: note.body)
             sameAsNow = entry.version.isCurrent || HistoryDiff.sameText(text, note.body)
+            await compareAgain()
         } catch {
             guard selection == id else { return }
             previewFailed = HistoryError.from(error).localizedDescription
         }
+    }
+
+    /// The other versions the selected one can be compared with.
+    var comparable: [HistoryEntry] { entries.filter { $0.id != selection } }
+    var compared: HistoryEntry? { entries.first { $0.id == compareWith } }
+
+    /// Compares the selected version with `other` (nil: stops comparing): the preview then shows
+    /// what changed from `other` to the selected one, lines added tinted, lines taken out struck through.
+    func compare(with other: Int64?) async {
+        compareWith = other == selection ? nil : other
+        comparison = nil
+        await compareAgain()
+    }
+
+    private func compareAgain() async {
+        guard let other = compared, let text = previewText, let id = selection else { return }
+        do {
+            let base = try await history.body(of: note, other.version)
+            guard selection == id, compareWith == other.id else { return }
+            // Older to newer reads as what happened, whichever was picked first.
+            let older = other.version.version < (selected?.version.version ?? 0)
+            comparison = older ? EditDiff.between(base, text) : EditDiff.between(text, base)
+        } catch {
+            guard selection == id else { return }
+            previewFailed = HistoryError.from(error).localizedDescription
+        }
+    }
+
+    /// "+3 −1 lines from Today at 14:02 to Today at 15:10."
+    var comparisonSummary: String? {
+        guard let comparison, let other = compared, let mine = selected else { return nil }
+        let (from, to) = other.version.version < mine.version.version ? (other, mine) : (mine, other)
+        func name(_ e: HistoryEntry) -> String { e.version.isCurrent ? "the current version" : Self.heading(e.version) }
+        let lines = comparison.plus + comparison.minus == 0 ? "Same text" : AIChangeCopy.lines(comparison)
+        return "\(lines) from \(name(from)) to \(name(to))."
+    }
+
+    /// "Today at 14:02 · ChatGPT", in the Compare with… menu.
+    static func menuTitle(_ e: HistoryEntry) -> String {
+        e.version.isCurrent ? "Current version" : "\(heading(e.version)) · \(byline(e))"
     }
 
     /// Restores the selected version. True when it's done and the history can close.
@@ -264,7 +310,10 @@ struct VersionPreview: View {
 
     var body: some View {
         Group {
-            if let text = model.previewText {
+            if let diff = model.comparison {
+                VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
+                    .accessibilityIdentifier("history.comparison")
+            } else if let text = model.previewText {
                 VersionTextView(text: text, changed: model.changed)
                     .accessibilityIdentifier("history.preview")
             } else if let failed = model.previewFailed {
@@ -277,6 +326,39 @@ struct VersionPreview: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.notePage)
+    }
+}
+
+/// Compare with…: pick another version to see what changed between the two.
+struct CompareMenu: View {
+    let model: VersionHistoryModel
+
+    var body: some View {
+        Menu {
+            if model.compareWith != nil {
+                Button("Stop Comparing", systemImage: "xmark") { Task { await model.compare(with: nil) } }
+                Divider()
+            }
+            ForEach(model.comparable) { e in
+                Button {
+                    Task { await model.compare(with: e.id) }
+                } label: {
+                    if e.id == model.compareWith { Label(VersionHistoryModel.menuTitle(e), systemImage: "checkmark") } else { Text(VersionHistoryModel.menuTitle(e)) }
+                }
+            }
+        } label: {
+            #if os(macOS)
+            Text(model.compareWith == nil ? "Compare with\u{2026}" : "Comparing")
+            #else
+            Label("Compare with\u{2026}", systemImage: "arrow.left.arrow.right")
+            #endif
+        }
+        #if os(macOS)
+        .menuStyle(.button)
+        .fixedSize()
+        #endif
+        .disabled(model.comparable.isEmpty || model.previewText == nil)
+        .accessibilityIdentifier("history.compare")
     }
 }
 
@@ -370,11 +452,20 @@ struct MacVersionHistory: View {
     private var detail: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let entry = model.selected {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(entry.version.isCurrent ? "Current version" : VersionHistoryModel.heading(entry.version))
-                        .font(.system(size: 13, weight: .semibold))
-                    ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent, same: model.sameAsNow)
-                        .font(.system(size: 11))
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(entry.version.isCurrent ? "Current version" : VersionHistoryModel.heading(entry.version))
+                            .font(.system(size: 13, weight: .semibold))
+                        if let summary = model.comparisonSummary {
+                            Text(summary).foregroundStyle(.secondary).font(.system(size: 11))
+                                .accessibilityIdentifier("history.comparisonSummary")
+                        } else {
+                            ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent, same: model.sameAsNow)
+                                .font(.system(size: 11))
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    CompareMenu(model: model)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -486,7 +577,13 @@ struct PhoneVersionPreview: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-                ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent, same: model.sameAsNow)
+                Group {
+                    if let summary = model.comparisonSummary {
+                        Text(summary).foregroundStyle(.secondary)
+                    } else {
+                        ChangeLegend(count: model.changed.count, isCurrent: entry.version.isCurrent, same: model.sameAsNow)
+                    }
+                }
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
@@ -498,6 +595,7 @@ struct PhoneVersionPreview: View {
         .background(Color.notePage.ignoresSafeArea())
         .navigationTitle(model.selected.map { $0.version.isCurrent ? "Current Version" : VersionHistoryModel.heading($0.version) } ?? "")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .primaryAction) { CompareMenu(model: model) } }
         .safeAreaInset(edge: .bottom) {
             if model.selected?.version.isCurrent == false {
                 Button {

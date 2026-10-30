@@ -111,6 +111,8 @@ struct AIReceipt: View {
     let receipt: AIEdit.Receipt
     /// Smaller, for the navigation bar over a note's app.
     var compact = false
+    /// See all changes: AI Changes, for every change this AI made. Only for an edit of the text.
+    var seeAll: (() -> Void)? = nil
     let undo: () -> Void
 
     /// Rises in from the bottom edge; with Reduce Motion it only fades.
@@ -137,6 +139,15 @@ struct AIReceipt: View {
                 .foregroundStyle(Color.amberInk)
                 .contentShape(.rect)
                 .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
+            }
+            if let seeAll, receipt.kind == .edit, !compact {
+                Divider().frame(height: 14)
+                Button("See all changes", action: seeAll)
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: Self.text, weight: .semibold))
+                    .foregroundStyle(Color.amberInk)
+                    .contentShape(.rect)
+                    .accessibilityIdentifier("receipt.seeAll")
             }
         }
         .padding(.horizontal, compact ? 11 : 14)
