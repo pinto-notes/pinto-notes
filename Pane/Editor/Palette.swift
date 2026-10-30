@@ -24,6 +24,18 @@ enum Palette {
     /// The fill of amber primary buttons, in light and dark alike: the deeper amber, so their
     /// white label stays readable (the dark-mode amber is too light under white).
     static let amberButton = pair(0xD96A06, 0xD96A06)
+    /// The primary button: the deeper amber with a white label in the light; in the dark, white
+    /// with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons white or black,
+    /// never amber). Under the pointer a touch lighter in the light, a touch greyer in the dark.
+    static let primaryButton = pair(0xD96A06, 0xFFFFFF)
+    static let primaryButtonLabel = pair(0xFFFFFF, 0x000000)
+    static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
+    /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
+    /// when pressed: a lean toward amber in the light, toward white in the dark.
+    static let buttonHover = pair(0xD96A06, 0.12, 0xFFFFFF, 0.08)
+    static let buttonPressed = pair(0xD96A06, 0.2, 0xFFFFFF, 0.14)
+    static let quietPressed = pair(0xD96A06, 0.14, 0xFFFFFF, 0.10)
+    static let choiceHover = pair(0xD96A06, 0.07, 0xFFFFFF, 0.06)
     /// A primary button that can't be pressed yet: a quiet warm grey with muted text, not a faded
     /// amber, so it reads as "not yet" rather than as broken.
     static let disabledButton = pair(brown, 0.13, 0xFFFFFF, 0.11)
@@ -36,8 +48,9 @@ enum Palette {
     static let amberFaded = pair(0xE69E5D, 0xAA7B2B)
     /// Amber as text beside an AI's mark: dark enough to read on white.
     static let amberInk = pair(0xA85700, 0xF4AD33)
-    /// The soft amber fill behind an AI's receipt.
-    static let amberSoft = pair(0xFFF1DC, 0x423014)
+    /// The soft amber fill behind an AI's receipt, a lit choice and a selected suggestion. In the
+    /// dark a neutral grey a step above the cards, never a brown-amber (dark mode is pure black).
+    static let amberSoft = pair(0xFFF1DC, 0x3A3A3A)
     /// A solid hairline: card edges and dividers that read the same over any surface.
     static let line = pair(0xE6DCD2, 0x3A3633)
 

@@ -73,19 +73,48 @@ import Testing
         #expect(size(row(true)).height == SignInView.Row.height)
     }
 
-    /// The destructive primary (Start fresh) carries the same white label.
+    /// The destructive primary (Start fresh) carries a white label in both appearances.
     @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
     func destructiveLabelReads(_ appearance: NSAppearance.Name) {
         let fill = Self.resolved(AmberProminentButtonStyle.destructiveFill, appearance)
-        let ratio = Self.contrast(fill, Self.resolved(AmberProminentButtonStyle.label, appearance))
+        let ratio = Self.contrast(fill, Self.resolved(AmberProminentButtonStyle.destructiveLabel, appearance))
         #expect(ratio >= 4.5, "\(appearance.rawValue): \(ratio)")
         print("CONTRAST destructive button \(appearance.rawValue): \(String(format: "%.2f", ratio)):1")
     }
 
-    @Test func fillIsTheSameInBothAppearances() {
-        let light = Self.resolved(AmberProminentButtonStyle.fill, .aqua), dark = Self.resolved(AmberProminentButtonStyle.fill, .darkAqua)
-        #expect(light == dark)
-        #expect(light == Self.resolved(Palette.amber, .aqua), "the light-mode amber")
+    /// The light keeps the amber primary with its white label; the dark is pure black, so its
+    /// primary is white with a black label, never amber (Emil, 2026-10-28).
+    @Test func thePrimaryIsAmberInTheLightAndWhiteInTheDark() {
+        func rgb(_ c: NSColor, _ a: NSAppearance.Name) -> [Int] {
+            let s = Self.resolved(c, a)
+            return [s.redComponent, s.greenComponent, s.blueComponent, s.alphaComponent].map { Int(($0 * 255).rounded()) }
+        }
+        #expect(rgb(AmberProminentButtonStyle.fill, .aqua) == rgb(Palette.amber, .aqua), "the light-mode amber")
+        #expect(rgb(AmberProminentButtonStyle.label, .aqua) == [255, 255, 255, 255])
+        #expect(rgb(AmberProminentButtonStyle.fill, .darkAqua) == [255, 255, 255, 255], "white in the dark")
+        #expect(rgb(AmberProminentButtonStyle.label, .darkAqua) == [0, 0, 0, 255], "black text in the dark")
+        // Hover, pressed and selected fills in the dark are neutral: no amber left in them.
+        for (name, c) in [("primary hover", Palette.primaryButtonHover), ("hover", Palette.buttonHover), ("pressed", Palette.buttonPressed),
+                          ("quiet pressed", Palette.quietPressed), ("choice hover", Palette.choiceHover), ("selected", Palette.amberSoft)] {
+            let v = rgb(c, .darkAqua)
+            #expect(v[0] == v[1] && v[1] == v[2], "\(name) is neutral in the dark: \(v)")
+        }
+        // A lit choice still reads against the card it replaces.
+        #expect(Self.contrast(Self.resolved(Palette.amberSoft, .darkAqua), Self.resolved(Palette.card, .darkAqua)) >= 1.1)
+        // The light is unchanged: the amber hovers and the soft amber.
+        #expect(rgb(Palette.buttonHover, .aqua)[0] == rgb(Palette.amber, .aqua)[0])
+        #expect(rgb(Palette.amberSoft, .aqua) == [0xFF, 0xF1, 0xDC, 255])
+        // The ticks, links and the icon keep their amber.
+        let tick = rgb(Palette.amberButton, .darkAqua), accent = rgb(Palette.amber, .darkAqua)
+        #expect(tick[0] > tick[2] + 100 && accent[0] > accent[2] + 100)
+    }
+
+    /// No button style reaches for the amber directly: its hovers and presses go through the
+    /// Palette, which turns them neutral in the dark.
+    @Test func noButtonStyleHardCodesAmber() throws {
+        let src = try String(contentsOf: TestFiles.url("Views").appendingPathComponent("DesignSystem.swift"), encoding: .utf8)
+        #expect(!src.contains("Color(Palette.amber).opacity"), "use Palette.buttonHover and friends")
+        #expect(!src.contains("static let fill = Palette.amberButton"))
     }
     // MARK: The design system (docs/DESIGN.md)
 

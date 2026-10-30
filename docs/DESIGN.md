@@ -28,7 +28,7 @@ The website's and the app's colours come from the same family. Names differ by p
 | Soft fill (secondary buttons, chips) | `--soft` | `Palette.soft` (new) |
 | Hairline | `--line` | `Palette.line` |
 | Raised card | `--card` | `Palette.card` (new) |
-| Primary button | `--cta-bg` / `--cta-ink` | `Palette.amberButton` / white |
+| Primary button | `--cta-bg` / `--cta-ink` | `Palette.primaryButton` / `primaryButtonLabel`: amber and white in light, white and black in dark |
 
 - **One orange thing per view.** The accent marks the single thing to do, the current selection or an AI's work. If two things on screen are orange, one of them is wrong.
 - **Dark mode is warm, never neutral grey.** Lean 2–3% toward the brown on the app's surfaces. The website can go fully brown (`#2e180a`); the app stays a warm grey beside other Mac apps.
@@ -65,7 +65,7 @@ Three kinds, everywhere. Nothing else.
 
 | Kind | Fill | Label | Use |
 |---|---|---|---|
-| **Primary** | Solid: amber in the app, ink on the website | White / cream, bold | The one thing to do. At most one per view. |
+| **Primary** | Solid: amber in the app (white in dark mode), ink on the website | White / cream, bold (black in dark mode) | The one thing to do. At most one per view. |
 | **Secondary** | `soft` fill | Ink, semibold | Every other button with a shape. |
 | **Quiet** | None until hover | Muted, turns ink on hover | Cancel, Back, Skip, icon buttons in a toolbar row. |
 
