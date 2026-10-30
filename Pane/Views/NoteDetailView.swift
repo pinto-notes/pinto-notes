@@ -9,6 +9,8 @@ struct NoteDetailView: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmingPurge = false
+    /// Typing or clicking into a note in Recently Deleted (Mac): Notes' "can't be edited" prompt.
+    @State private var askingRecover = false
     @State private var importing = false
     /// Dev: an app built outside (scripts/build-app.ts), from a file, into this note.
     @State private var importingApp = false
@@ -464,12 +466,12 @@ struct NoteDetailView: View {
                 NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, onChange: save)
                     #if os(macOS)
                     // Like Notes: the text runs under the see-through toolbar, which fades it at the
-                    // edge (AppKit insets the text by the toolbar's height). Not under a banner.
-                    .ignoresSafeArea(.container, edges: note.trashedAt == nil ? .top : [])
+                    // edge (AppKit insets the text by the toolbar's height).
+                    .ignoresSafeArea(.container, edges: .top)
                     // The soft edge: text passing under the toolbar fades into the page's ground, so
                     // the buttons stay readable over it.
                     .overlay(alignment: .top) {
-                        if note.trashedAt == nil && !Self.captureWithoutToolbar {
+                        if !Self.captureWithoutToolbar {
                             LinearGradient(stops: [.init(color: Color.notePage, location: 0), .init(color: Color.notePage.opacity(0.85), location: 0.55),
                                                    .init(color: Color.notePage.opacity(0), location: 1)],
                                            startPoint: .top, endPoint: .bottom)
@@ -895,10 +897,21 @@ struct NoteDetailView: View {
             .background(Color.notePage.ignoresSafeArea())
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
+                    // On the Mac a deleted note shows like any other, read-only; typing or clicking
+                    // into it asks to recover it, like Notes (Emil, 10-30).
+                    #if os(iOS)
                     if note.trashedAt != nil { trashBanner }
+                    #endif
                 }
             }
             .onChange(of: note.trashedAt, initial: true) { _, at in controller.readOnly = at != nil }
+            .alert(Self.recoverTitle, isPresented: $askingRecover) {
+                Button("Cancel", role: .cancel) {}
+                Button("Recover") { recoverFromPrompt() }
+                    .keyboardShortcut(.defaultAction)
+            } message: {
+                Text(Self.recoverMessage)
+            }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
             } message: {
@@ -920,27 +933,28 @@ struct NoteDetailView: View {
     #if os(macOS)
     private var toolbarParts: NoteToolbarParts {
         NoteToolbarParts(
-            // A note with an app is just the app: no writing tools.
-            writing: notePage != nil ? nil : AnyView(Group {
-                FormatButton(controller: controller).disabled(hidden || trashed)
+            // A note with an app is just the app: no writing tools. Nor in Recently Deleted, like Notes.
+            writing: notePage != nil || trashed ? nil : AnyView(Group {
+                FormatButton(controller: controller).disabled(hidden)
                 Button("Checklist", systemImage: "checklist", action: controller.checklist)
                     .help("Checklist (⇧⌘L)")
-                    .disabled(hidden || trashed)
+                    .disabled(hidden)
                 // In a table it's the table's menu, like Notes.
                 if let menu = controller.currentTableMenu {
                     Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
                         .help("Table")
-                        .disabled(hidden || trashed)
+                        .disabled(hidden)
                 } else {
                     Button("Table", systemImage: "tablecells", action: controller.insertTable)
                         .help("Table (⌥⌘T)")
-                        .disabled(hidden || trashed)
+                        .disabled(hidden)
                 }
-                attachMenu.disabled(trashed)
+                attachMenu
             }),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
-                shareMenu
+                if !trashed { shareMenu }
                 moreMenu
             }))
     }
@@ -1089,6 +1103,7 @@ struct NoteDetailView: View {
         controller.download = { a in await sync?.download(a) ?? false }
         controller.attach = { importing = true }
         controller.attachChoices = { choosingAttachment = true }
+        controller.askToRecover = { askingRecover = true }
         controller.addFiles = { urls in note.isLocked ? [] : context.addAttachments(urls) }
         controller.addData = { data, name, type in
             guard !note.isLocked, let a = try? FileStore.importData(data, filename: name, type: type) else { return nil }
@@ -1099,8 +1114,25 @@ struct NoteDetailView: View {
         }
     }
 
+    #if os(iOS)
     private var trashBanner: some View {
         TrashBanner { withAnimation(.snappy) { context.restore(note) } }
+    }
+    #endif
+
+    static let recoverTitle = "Recently deleted notes can't be edited."
+    static let recoverMessage = "To edit this note, you'll need to recover it."
+
+    /// Recover from the prompt: back to its folder (or Notes if that's gone), still open, and
+    /// ready to type in.
+    private func recoverFromPrompt() { Self.recover(note, in: context, editor: controller) }
+
+    static func recover(_ note: Note, in context: ModelContext, editor: EditorController) {
+        withAnimation(.snappy) { context.restore(note) }
+        // Out of Recently Deleted, the window shows it where it now lives (RootView.reveal).
+        NoteOpener.shared.request = note.id
+        editor.readOnly = false
+        editor.target?.focusEditor()
     }
 
     #if os(iOS)

@@ -288,6 +288,7 @@
 		5619E67CFC231B9156BA0844 /* three.js in Resources */ = {isa = PBXBuildFile; fileRef = DECBA8160361EDF621DEF177 /* three.js */; };
 		563A6EA348703923FFB358FD /* VersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CC0B378983D3F5A7E49012 /* VersionHistoryView.swift */; };
 		57A24F50398460ECCDD303A5 /* BigLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */; };
+		57B8FDE4492157F887ACE478 /* RecentlyDeletedEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A62566429BC49CB9B473A39 /* RecentlyDeletedEditTests.swift */; };
 		582627587918D7195B435F61 /* ListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C246BB0AA36AD5C69E3BB96 /* ListEditingTests.swift */; };
 		585C653A4AED30554E5D1C32 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6ECF7DA4BD18007EE9AD20 /* RootView.swift */; };
 		585D2CBCF9AD74FA4716A003 /* guide-obsidian-reveal.png in Resources */ = {isa = PBXBuildFile; fileRef = C48FDD0CD9435FF308CB4B27 /* guide-obsidian-reveal.png */; };
@@ -1022,6 +1023,7 @@
 		67FFA212DC37DF44CA3F7B21 /* OfflineHTMLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineHTMLTests.swift; sourceTree = "<group>"; };
 		68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectGuide.swift; sourceTree = "<group>"; };
 		6A6208FEEA0F5F12A1F9C829 /* chart.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = chart.js; sourceTree = "<group>"; };
+		6A62566429BC49CB9B473A39 /* RecentlyDeletedEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentlyDeletedEditTests.swift; sourceTree = "<group>"; };
 		6A6D10F3E12E2AC9A510F204 /* SignOutRemoveUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignOutRemoveUITests.swift; sourceTree = "<group>"; };
 		6A9EC2E111AD0E4ED32EBE6A /* MacLookSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLookSnapshots.swift; sourceTree = "<group>"; };
 		6ACA8D5B7797EDE74894433D /* DeleteAccountTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccountTests.swift; sourceTree = "<group>"; };
@@ -1683,6 +1685,7 @@
 				B0B083D4A28559AE1C6D170D /* OnboardingTransitionTests.swift */,
 				451925FBA71291F8A2590004 /* PDFZoomTests.swift */,
 				CAF5A2304A5BABB7DC001106 /* QuickOpenTests.swift */,
+				6A62566429BC49CB9B473A39 /* RecentlyDeletedEditTests.swift */,
 				C54E235CF14CAA3C539D3B21 /* RestoreVersionTests.swift */,
 				BAC7D1ED7E22C1612C2680B3 /* SaveTests.swift */,
 				17A49ECF5C2416ECB7428670 /* StressTests.swift */,
@@ -2654,6 +2657,7 @@
 				77150E16C095CB1A108E5FB2 /* ProfileTests.swift in Sources */,
 				659C0A1B0B3D3988A8A1F210 /* PushTests.swift in Sources */,
 				ACDA2465A02180B8619A90F7 /* QuickOpenTests.swift in Sources */,
+				57B8FDE4492157F887ACE478 /* RecentlyDeletedEditTests.swift in Sources */,
 				D99238A4F1F1EE32EDA155B3 /* RecentlyDeletedTests.swift in Sources */,
 				5AF15A3A0749477F50178E87 /* RestoreVersionTests.swift in Sources */,
 				7F6BFCC3E30CB53BB780058D /* RichTextTests.swift in Sources */,
