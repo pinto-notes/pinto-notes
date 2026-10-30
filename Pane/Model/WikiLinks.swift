@@ -671,11 +671,15 @@ struct OutgoingLinks: Equatable, Sendable {
             for m in body.matches(of: Self.noteLink) { if let id = UUID(uuidString: String(m.1)) { ids.insert(id) } }
         }
         guard !wiki.isEmpty || !ids.isEmpty else { return nil }
-        wikiTargets = wiki
-        noteLinks = ids
+        self.init(wikiTargets: wiki, noteLinks: ids, folders: folders)
+    }
+
+    init(wikiTargets: [String], noteLinks: Set<UUID>, folders: [String]) {
+        self.wikiTargets = wikiTargets
+        self.noteLinks = noteLinks
         self.folders = folders
         var names = Set<String>()
-        for t in wiki {
+        for t in wikiTargets {
             names.insert(WikiLinks.key(WikiLinks.name(of: t)))
             names.insert(WikiLinks.key(WikiLinks.stripExtension(t.trimmingCharacters(in: .whitespaces))))
         }
