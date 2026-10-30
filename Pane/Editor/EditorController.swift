@@ -350,6 +350,7 @@ final class EditorController {
     private func clearWikiSuggestions() {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
+        if wikiHeadings { wikiHeadings = false }
     }
     // MARK: Tables
 

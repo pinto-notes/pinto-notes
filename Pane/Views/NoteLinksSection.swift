@@ -200,7 +200,7 @@ struct NoteLinksSection: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Open \(n.title)")
             .accessibilityIdentifier("noteLinks.note.\(n.title)")
-            ForEach(n.lines) { line in
+            ForEach(Array(n.lines.enumerated()), id: \.element.id) { i, line in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Button { model.open(n.id, line.location) } label: {
                         Text(Self.marked(line, link: !mention))
@@ -215,6 +215,7 @@ struct NoteLinksSection: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(line.text)
                     .accessibilityHint("Opens \(n.title) here")
+                    .accessibilityIdentifier("noteLinks.line.\(n.title).\(i)")
                     if mention {
                         Button("Link") {
                             guard let l = model.link(line, in: n) else { return }

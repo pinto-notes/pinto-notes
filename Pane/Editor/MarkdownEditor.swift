@@ -2096,8 +2096,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.onChange(string)
         controller?.typingChanged(text: string, selection: editingSelection)
         layoutWikiSuggestions()
-        // A line more or less moves the foot even when the view keeps its height.
-        placeFoot()
+        // A line more or less moves the foot even when the view keeps its height, once it's laid out.
+        DispatchQueue.main.async { [weak self] in self?.placeFoot() }
     }
 
     /// The last body we reported or received, to tell outside edits from our own.
