@@ -80,6 +80,10 @@ struct RootView: View {
             // A template or shared note to add, from a link.
             .noteSourceHandler()
             .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
+            #if os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
+            .overlay { if let ais = templateAIs { templates(ais) } }
+            #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
@@ -93,6 +97,35 @@ struct RootView: View {
             .alert("Launch alert", isPresented: $launchAlert) { Button("OK", role: .cancel) {} }
             #endif
     }
+
+    #if os(macOS)
+    /// Templates over the notes, with the AIs to make them with (nil: closed).
+    @State private var templateAIs: [SetupCards.AI]?
+    @Environment(\.openURL) private var openURLForTemplates
+
+    private func openTemplates() {
+        Task {
+            var rows: [Connection] = []
+            if let client = backendForConnect?.client {
+                rows = (try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value) ?? []
+            }
+            withAnimation(.snappy(duration: 0.2)) { templateAIs = TemplateMaking.ais(rows) }
+        }
+    }
+
+    private func templates(_ ais: [SetupCards.AI]) -> some View {
+        TemplateLibraryView(ais: ais, make: { e, ai in
+            Task {
+                let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, open: { openURLForTemplates($0) })
+                // Another AI: Copied shows on the panel a moment before it closes.
+                if !ai.asks { try? await Task.sleep(for: .seconds(0.9)) }
+                withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
+                if let note { selection = [note] }
+            }
+        }, close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
+        .transition(.opacity)
+    }
+    #endif
 
     private var split: some View {
         NavigationSplitView(columnVisibility: $visibility) {

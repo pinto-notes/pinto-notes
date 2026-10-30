@@ -62,6 +62,36 @@ enum TemplateLibraryWords {
     static func none(_ q: String) -> String { "No templates match \u{201C}\(q)\u{201D}" }
 }
 
+/// Making a template from the library: your AIs to offer, and what Make does.
+enum TemplateMaking {
+    /// Your connected AIs, the one used last first, as the library offers them: ChatGPT and
+    /// Claude open with the ask; any other (Codex CLI, Claude Code, another app) gets it to paste.
+    static func ais(_ connections: [Connection]) -> [SetupCards.AI] {
+        var ais: [SetupCards.AI] = []
+        for c in MakeAnApp.choices(connections, chosen: nil) {
+            let ai: SetupCards.AI = switch c.name { case "ChatGPT": .chatgpt; case "Claude": .claude; default: .other }
+            if !ais.contains(ai) { ais.append(ai) }
+        }
+        return ais.isEmpty ? [.other] : ais
+    }
+
+    /// The template's note is added (as the setup gallery and the website add it), the ask goes on
+    /// the clipboard, and ChatGPT or Claude opens with it. Returns the new note, to open.
+    @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?, open: (URL) -> Void) async -> UUID? {
+        let model = NoteSourceModel(link: NoteSourceLink(kind: .template, slug: e.slug), source: WebNoteSource(), ledger: NoteSourceLedger(account: account))
+        await model.load(context: context)
+        model.add(context: context, again: true)
+        var note: UUID?
+        if case .added(_, let id, _) = model.phase {
+            note = id
+            SyncSignal.changed()
+        }
+        ConnectClipboard.set(SetupCards.prompt(e.pick))
+        if let page = SetupCards.page(ai, e.pick) { open(page) }
+        return note
+    }
+}
+
 /// Every template, in a big card over the notes (a quick visit, like Settings: Esc goes back).
 /// A template opens on the right as it looks in use: the note your AI filled in, or the app.
 struct TemplateLibraryView: View {
@@ -207,7 +237,10 @@ struct TemplateLibraryView: View {
             .clipped()
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(e.title).font(.system(size: 20, weight: .heavy)).tracking(-0.2).foregroundStyle(Color.ink)
+                    // A note shows its own title at its top; an app's picture may not.
+                    if e.app {
+                        Text(e.title).font(.system(size: 20, weight: .heavy)).tracking(-0.2).foregroundStyle(Color.ink)
+                    }
                     Text(e.description).font(.system(size: 12.5)).foregroundStyle(Color.muted)
                         .lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 }
@@ -226,14 +259,14 @@ struct TemplateLibraryView: View {
                     // A split button: Make with the AI shown, and an arrow to make it with another
                     // (remembered while the library is open).
                     HStack(spacing: 1) {
-                        Button { make(e, ai) } label: { makeLabel(ai) }
+                        Button { if !ai.asks { copy(e) }; make(e, ai) } label: { makeLabel(ai) }
                             .buttonStyle(ais.count > 1 ? .amberProminent(.regular, wide: true, joined: .leading) : .amberProminent(.regular, wide: true))
                             .keyboardShortcut(.defaultAction)
                             .accessibilityIdentifier("templates.make")
                         if ais.count > 1 {
                             Menu {
                                 ForEach(ais) { other in
-                                    Button { picked = other; make(e, other) } label: {
+                                    Button { picked = other; if !other.asks { copy(e) }; make(e, other) } label: {
                                         if let mark = AIGlyph.menuImage(other.name, dark: scheme == .dark) {
                                             Label { Text(TemplateLibraryWords.make(other)) } icon: { mark }
                                         } else {

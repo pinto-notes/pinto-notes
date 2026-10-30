@@ -155,6 +155,36 @@ import Testing
         #expect(src.contains(".onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { row = $0 }"))
     }
 
+    /// The open note already shows its title at its top, so the panel says it once (2026-10-30).
+    @Test func aNoteTemplateSaysItsNameOnce() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
+        #expect(src.contains("if e.app {\n                        Text(e.title)"))
+    }
+
+    /// The library offers your AIs, the one used last first, each kind once; any AI without a chat
+    /// link (Codex CLI, Claude Code) is "another AI", and with none connected Make copies the ask.
+    @Test func theLibraryOffersYourAIsLastUsedFirst() {
+        func c(_ name: String, used: TimeInterval?, host: String? = nil, kind: String = "oauth") -> Connection {
+            Connection(id: UUID(), name: name, kind: kind, created_at: .now.addingTimeInterval(-86_400), last_used_at: used.map { .now.addingTimeInterval(-$0) }, revoked_at: nil, redirect_host: host)
+        }
+        #expect(TemplateMaking.ais([c("ChatGPT", used: 600, host: "chatgpt.com"), c("Claude", used: 60, host: "claude.ai")]) == [.claude, .chatgpt])
+        #expect(TemplateMaking.ais([c("Claude", used: 60, host: "claude.ai"), c("Claude", used: 900, host: "claude.ai")]) == [.claude])
+        #expect(TemplateMaking.ais([]) == [.other])
+    }
+
+    /// Templates opens in the app on the Mac: the sidebar's row and card, and the setup gallery's link.
+    @Test func templatesOpenInTheApp() throws {
+        let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
+        for file in ["SidebarAIs.swift", "SidebarCards.swift", "SetupCards.swift"] {
+            let src = try String(contentsOf: views.appending(path: file), encoding: .utf8)
+            #expect(src.contains("post(name: .paneTemplates"), "\(file)")
+        }
+        #expect(TemplatesCard.opensWeb == false)
+        let root = try String(contentsOf: views.appending(path: "RootView.swift"), encoding: .utf8)
+        #expect(root.contains("publisher(for: .paneTemplates)") && root.contains("TemplateLibraryView(ais: ais"))
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)

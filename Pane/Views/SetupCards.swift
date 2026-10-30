@@ -600,7 +600,15 @@ struct SetupCardsFlow: View {
                 }
             }
             HStack {
-                Button(SetupCards.allTemplates) { openURL(TemplatesPromo.url) }
+                Button(SetupCards.allTemplates) {
+                    #if os(macOS)
+                    // Setup is done; every template opens over the notes.
+                    finish(.newNote)
+                    NotificationCenter.default.post(name: .paneTemplates, object: nil)
+                    #else
+                    openURL(TemplatesPromo.url)
+                    #endif
+                }
                     .buttonStyle(.hoverLink)
                     .font(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(.tint)

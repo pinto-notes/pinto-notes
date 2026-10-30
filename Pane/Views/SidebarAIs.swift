@@ -52,7 +52,7 @@ struct SidebarStudyRows: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates") {
-                openURL(TemplatesPromo.url)
+                NotificationCenter.default.post(name: .paneTemplates, object: nil)
             }
             SidebarActionRow(title: SidebarAIWords.connect, symbol: "sparkles", id: "sidebar.connectAI") {
                 NotificationCenter.default.post(name: .paneConnectAI, object: nil)

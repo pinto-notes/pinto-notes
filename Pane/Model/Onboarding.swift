@@ -422,6 +422,8 @@ extension Notification.Name {
     static let paneReplayOnboarding = Notification.Name("pane.replayOnboarding")
     /// Connect an AI: the File menu, the list's menu on iPhone and iPad, the sidebar's card.
     static let paneConnectAI = Notification.Name("pane.connectAI")
+    /// Templates: every template, over the notes (the sidebar's row and card, the setup gallery).
+    static let paneTemplates = Notification.Name("pane.templates")
 }
 
 /// The note the Try it step has an AI write in. It has a title no imported note will have (an
