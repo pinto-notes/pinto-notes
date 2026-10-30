@@ -66,7 +66,7 @@ import Testing
     /// by link (the lead's check in a browser, 2026-10-11): ChatGPT sends it, Claude waits for send
     /// under a caution note. It never claims one click for Claude.
     @Test func theWaitingLineSaysWhatEachAIReallyDoes() {
-        #expect(MakeAppSheet.afterHandOver("ChatGPT").hasPrefix("ChatGPT has the message."))
+        #expect(MakeAppSheet.afterHandOver("ChatGPT").hasPrefix("Press send in ChatGPT."))
         #expect(MakeAppSheet.afterHandOver("Claude").contains("Press send in Claude") && MakeAppSheet.afterHandOver("Claude").contains("caution note"))
         #expect(MakeAppSheet.afterHandOver("Codex").hasPrefix("Paste the words into Codex"))
         #expect(MakeAppSheet.patience == .seconds(180), "about three minutes before it says what to check")

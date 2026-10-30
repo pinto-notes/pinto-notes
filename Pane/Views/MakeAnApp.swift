@@ -313,12 +313,12 @@ struct MakeAppSheet: View {
         }
     }
 
-    /// What the person does in the AI after the click, as it really is (checked 2026-10-11 on the
-    /// web, signed in to Claude, signed out of ChatGPT): ChatGPT sends a prompt that arrives by
-    /// link at once; Claude puts it in the box under a caution note and waits for send.
+    /// What the person does in the AI after the click, as it really is (Emil, signed in to both,
+    /// 2026-10-30): both put a prompt that arrives by link in the box and wait for send, Claude
+    /// under a caution note.
     static func afterHandOver(_ ai: String) -> String {
         switch ai {
-        case "ChatGPT": "ChatGPT has the message. This closes when the app is here."
+        case "ChatGPT": "Press send in ChatGPT. This closes when the app is here."
         case "Claude": "Press send in Claude, under its caution note. This closes when the app is here."
         default: "Paste the words into \(ai) and send them. This closes when the app is here."
         }

@@ -42,6 +42,7 @@ struct NoteListView: View {
     /// Notes waiting for "Delete Forever" to be confirmed.
     @State private var pendingForever: Set<UUID>?
     @Environment(\.importActions) private var imports
+    @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -290,7 +291,7 @@ struct NoteListView: View {
         .scrollContentBackground(.hidden)
         .background(Color(Palette.listGround).ignoresSafeArea())
         .overlay {
-            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading { emptyState }
+            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard { emptyState }
         }
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
@@ -1558,6 +1559,7 @@ struct NoteRow: View {
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
+    @Environment(\.sidebarStudy) private var study
 
     /// Whether the row has its third line, the note's folder.
     private var folderLine: Bool { showFolder && note.folder != nil }
@@ -1582,6 +1584,12 @@ struct NoteRow: View {
                 if app {
                     AppMarkView(size: RowMetrics.markSize)
                         .accessibilityIdentifier("note.app")
+                }
+                // The study (`SidebarStudy`): the AI that made or last changed the note, for good.
+                if study != nil, let made = note.aiEditor, made != AIGlyph.page {
+                    AIGlyph(ai: made, size: 12)
+                        .accessibilityLabel(SidebarAIWords.madeBy(made))
+                        .accessibilityIdentifier("note.madeBy")
                 }
             }
             // An AI changed this note and you haven't opened it since, like Mail's unread dot.

@@ -531,6 +531,9 @@ struct NotePageView: View {
     var onFocus: (Bool) -> Void = { _ in }
     /// What Amber's own things cover at the bottom of the app (see NotePageSandbox.setInsets).
     var insetBottom: CGFloat = 0
+    /// A preview's own data (the template library), in place of the note's stored data. It keeps
+    /// no picture of itself.
+    var preview: NotePageData.Doc?
     @State private var sandbox: NotePageSandbox?
     @State private var failed: String?
     @State private var ready = false
@@ -578,16 +581,16 @@ struct NotePageView: View {
                     NotePageTiming.shown(noteID, "interactive")
                     withAnimation(.easeOut(duration: 0.15)) { ready = true }
                     // The picture for next time, once the page has settled.
-                    Task { @MainActor in
+                    if preview == nil { Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(400))
                         NotePageSnapshots.shared.take(s.webView, noteID, html: html, dark: scheme == .dark, variant: snapshotVariant)
-                    }
+                    } }
                 }
                 s.onFailure = onFailure
                 s.onFocus = onFocus
                 s.onData = onData
                 s.files = files
-                s.load(html: html, body: text, data: NotePageDataStore.shared.doc(noteID), restore: restore)
+                s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)
                 sandbox = s
                 // An app that hasn't drawn after 8 seconds didn't open (a module that never loads, an
                 // endless loop): the same as a script error.
@@ -602,10 +605,10 @@ struct NotePageView: View {
                 failed = error.localizedDescription
             }
         }
-        .onChange(of: text) { _, now in sandbox?.push(body: now, data: NotePageDataStore.shared.doc(noteID)) }
+        .onChange(of: text) { _, now in sandbox?.push(body: now, data: preview ?? NotePageDataStore.shared.doc(noteID)) }
         .onChange(of: insetBottom) { _, now in sandbox?.setInsets(bottom: now) }
         .onChange(of: ready) { _, now in if now, insetBottom > 0 { sandbox?.setInsets(bottom: insetBottom) } }
-        .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, _ in sandbox?.push(body: text, data: NotePageDataStore.shared.doc(noteID)) }
+        .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, _ in if preview == nil { sandbox?.push(body: text, data: NotePageDataStore.shared.doc(noteID)) } }
     }
 
     /// "Claude updated this app · Switch", while you're in the middle of something.

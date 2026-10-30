@@ -30,10 +30,12 @@ struct SignInView: View {
     enum Way { case apple, google }
 
     /// The words above the form: the card's own (icon, title and promise, centred), or a title
-    /// and a line from the welcome flow, which sets the form beside its picture.
+    /// and a line from the welcome flow, which sets the form beside its picture, or just the icon
+    /// and one short title, centred, for the first run's card over the notes window (SetupCards).
     enum Heading: Equatable {
         case card
         case beside(title: String, line: String)
+        case short(String)
     }
 
     /// `error`: captures only, the screen as it looks after a failed try.
@@ -68,8 +70,8 @@ struct SignInView: View {
 
     var body: some View {
         Group {
-            if case .beside = heading {
-                // The welcome flow places it.
+            if heading != .card {
+                // The welcome flow, or the setup card, places it.
                 card
             } else {
                 cardScreen
@@ -103,8 +105,13 @@ struct SignInView: View {
         #endif
     }
 
+    private var shortHeading: Bool {
+        if case .short = shownHeading { return true }
+        return false
+    }
+
     private var card: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: shortHeading ? 20 : 24) {
             switch shownHeading {
             case .card:
                 VStack(spacing: 14) {
@@ -133,6 +140,17 @@ struct SignInView: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            case .short(let title):
+                VStack(spacing: 12) {
+                    AppMark(size: 44)
+                    Text(title)
+                        .font(.system(size: 19, weight: .bold))
+                        .tracking(-0.2)
+                        .foregroundStyle(Color.ink)
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("signin.title")
+                }
             }
 
             VStack(spacing: 12) {
@@ -171,15 +189,19 @@ struct SignInView: View {
                     emailSection
                 }
 
-                // Always there, a line high when empty, so an error coming or going moves nothing.
-                Text(error ?? " ")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .opacity(error == nil ? 0 : 1)
-                    .accessibilityHidden(error == nil)
-                    .accessibilityIdentifier(error == nil ? "" : "signin.error")
+                // Always there, a line high when empty, so an error coming or going moves nothing. On
+                // a setup card (the short heading) the card grows for an error instead: no blank
+                // line above the small print.
+                if error != nil || !shortHeading {
+                    Text(error ?? " ")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .opacity(error == nil ? 0 : 1)
+                        .accessibilityHidden(error == nil)
+                        .accessibilityIdentifier(error == nil ? "" : "signin.error")
+                }
             }
 
             ConsentFooter()

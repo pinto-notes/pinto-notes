@@ -259,6 +259,7 @@ struct SidebarView: View {
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(\.dynamicTypeSize) private var templatesTypeSize
     @Environment(\.importActions) private var imports
+    @Environment(\.sidebarStudy) private var study
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
 
@@ -355,10 +356,7 @@ struct SidebarView: View {
                     .tag(Scope.trash)
                     .accessibilityIdentifier("sidebar.trash")
             } header: {
-                Text("Folders")
-                    #if os(macOS)
-                    .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
-                    #endif
+                heading("Folders")
             }
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
@@ -384,6 +382,13 @@ struct SidebarView: View {
         // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
         .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
         #endif
+    }
+
+    private func heading(_ title: String) -> some View {
+        Text(title)
+            #if os(macOS)
+            .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+            #endif
     }
 
     /// The app's name above, the menus, drops and the toolbar.
@@ -474,6 +479,14 @@ struct SidebarView: View {
                             .padding(.bottom, 2)
                     }
                     OfflineLine(sync: sync)
+                    // The study (`SidebarStudy`): Connect an AI, Templates and Import just above you,
+                    // the things that aren't folders.
+                    if study != nil {
+                        SidebarStudyRows(imports: imports)
+                            .padding(.leading, SidebarStyle.edge(nested: nested))
+                            .padding(.trailing, 10)
+                            .padding(.bottom, 4)
+                    }
                     // The photo starts on the rows' icons' line (the button pads 8 inside its highlight).
                     AccountButton(backend: backend)
                         .padding(.leading, SidebarStyle.edge(nested: nested) - 8)

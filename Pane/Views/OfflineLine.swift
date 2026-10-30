@@ -30,6 +30,8 @@ extension EnvironmentValues {
     /// Whether the server can be reached, for the controls that need it (set by the app's root and
     /// by Settings, which is its own window on the Mac).
     @Entry var networkReach: SyncEngine.Reach = .online
+    /// The app sits behind a setup card: its empty placeholders stay hidden so only the card speaks.
+    @Entry var behindSetupCard = false
 }
 
 /// A calm line while sync can't reach the server: in the Mac sidebar under the folders, and in a
