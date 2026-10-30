@@ -35,10 +35,7 @@ import Testing
     /// own signed-in shots are blank too, 2026-10-30).
     static var foot: some View {
         VStack(alignment: .leading, spacing: 4) {
-            VStack(alignment: .leading, spacing: 0) {
-                SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates")
-                SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import")
-            }
+            SidebarStudyRows()
             .padding(.leading, SidebarStyle.edge(nested: true))
             .padding(.bottom, 4)
             AccountButton(backend: backend)
