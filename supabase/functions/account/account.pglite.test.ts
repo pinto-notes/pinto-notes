@@ -40,6 +40,9 @@ async function seed(pg: PGlite, me: string) {
   const sub = await sealed.folder(pg, a, "Clients/2026", folder);
   const note = await sealed.note(pg, a, "Acme kickoff\n\nAgenda", { folder: sub });
   await sealed.edit(pg, a, note, "Acme kickoff\n\nAgenda\n- budget", { "pane.source": "mcp", "pane.client": "Claude" });
+  // The AI moving it records an AI change (note_ai_events, 20261030153000_ai_changes.sql).
+  await asUser(pg, me, `update public.notes set folder_id = $2 where id = $1`, [note, folder], { "pane.source": "mcp", "pane.client": "Claude" });
+  await asUser(pg, me, `update public.notes set folder_id = $2 where id = $1`, [note, sub], sealed.APP); // and you moving it back
   const trashed = await sealed.note(pg, a, "Old list");
   await app(pg, me, `update public.notes set trashed_at = now() where id = $1`, [trashed]);
   const locked = await sealed.lockedNote(pg, a, lockKey, "Bank");
