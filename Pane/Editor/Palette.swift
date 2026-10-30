@@ -24,11 +24,12 @@ enum Palette {
     /// The fill of amber primary buttons, in light and dark alike: the deeper amber, so their
     /// white label stays readable (the dark-mode amber is too light under white).
     static let amberButton = pair(0xD96A06, 0xD96A06)
-    /// The primary button: the deeper amber with a white label in the light; in the dark, white
-    /// with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons white or black,
-    /// never amber). Under the pointer a touch lighter in the light, a touch greyer in the dark.
-    static let primaryButton = pair(0xD96A06, 0xFFFFFF)
-    static let primaryButtonLabel = pair(0xFFFFFF, 0x000000)
+    /// The primary button: the deeper amber with a white label in the light; in the dark the ink
+    /// button, white with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons
+    /// white or black, never amber). Under the pointer a touch lighter in the light, a touch greyer
+    /// in the dark.
+    static let primaryButton = byAppearance(light: amberButton, dark: inkButton)
+    static let primaryButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
     static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
@@ -40,6 +41,9 @@ enum Palette {
     /// amber, so it reads as "not yet" rather than as broken.
     static let disabledButton = pair(brown, 0.13, 0xFFFFFF, 0.11)
     static let disabledButtonLabel = pair(0x6A5743, 0xB0A498)
+    /// The black-and-white primary button (`inkProminent`), the colours of Sign in with Apple.
+    static let inkButton = pair(0x000000, 0xFFFFFF)
+    static let inkButtonLabel = pair(0xFFFFFF, 0x000000)
     /// The fill of destructive primary buttons (Start fresh), in light and dark alike: a red deep
     /// enough for the same white label.
     static let destructiveButton = pair(0xC62828, 0xC62828)
@@ -146,6 +150,15 @@ enum Palette {
     }
 
     static func pair(_ light: UInt32, _ dark: UInt32) -> PColor { pair(light, 1, dark, 1) }
+
+    /// One colour in the light and another in the dark.
+    static func byAppearance(light: PColor, dark: PColor) -> PColor {
+        #if os(iOS)
+        UIColor { $0.userInterfaceStyle == .dark ? dark.resolvedColor(with: $0) : light.resolvedColor(with: $0) }
+        #else
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light }
+        #endif
+    }
 
     static func pair(_ light: UInt32, _ lightAlpha: CGFloat, _ dark: UInt32, _ darkAlpha: CGFloat) -> PColor {
         let l = rgb(light, lightAlpha), d = rgb(dark, darkAlpha)

@@ -93,6 +93,9 @@ import Testing
         #expect(rgb(AmberProminentButtonStyle.label, .aqua) == [255, 255, 255, 255])
         #expect(rgb(AmberProminentButtonStyle.fill, .darkAqua) == [255, 255, 255, 255], "white in the dark")
         #expect(rgb(AmberProminentButtonStyle.label, .darkAqua) == [0, 0, 0, 255], "black text in the dark")
+        // In the dark the amber primary is the ink button (`inkProminent`), not a second white.
+        #expect(rgb(AmberProminentButtonStyle.fill, .darkAqua) == rgb(Palette.inkButton, .darkAqua))
+        #expect(rgb(AmberProminentButtonStyle.label, .darkAqua) == rgb(Palette.inkButtonLabel, .darkAqua))
         // Hover, pressed and selected fills in the dark are neutral: no amber left in them.
         for (name, c) in [("primary hover", Palette.primaryButtonHover), ("hover", Palette.buttonHover), ("pressed", Palette.buttonPressed),
                           ("quiet pressed", Palette.quietPressed), ("choice hover", Palette.choiceHover), ("selected", Palette.amberSoft)] {
