@@ -5,7 +5,7 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// The sidebar study (`SidebarStudy`, 2026-10-30): your AIs in the sidebar, Templates and Import,
+/// The sidebar study (`SidebarStudy`, 2026-10-30): Templates and Import in the sidebar,
 /// and the AI's mark on the notes it made, in the real window, light and dark. Offscreen:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/SidebarStudySnapshots`.
 @MainActor @Suite(.serialized) struct SidebarStudySnapshots {
@@ -47,15 +47,13 @@ import Testing
     func study(dark: Bool) async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let mode = dark ? "dark" : "light"
-        let both = SidebarStudy(ais: ["ChatGPT", "Claude"])
+        let both = SidebarStudy()
         let lib = try Self.library()
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") { try await shots(both, lib: lib, mode: mode, dark: dark) }
     }
 
     private func shots(_ both: SidebarStudy, lib: ModelContainer, mode: String, dark: Bool) async throws {
-        try await AppSnapshotTests.shoot(window(both, library: lib), name: "study-A-ais-first-\(mode)", size: Self.size, dark: dark, wait: 1.0)
-        try await AppSnapshotTests.shoot(window(SidebarStudy(ais: ["ChatGPT", "Claude"], aisFirst: false), library: lib), name: "study-B-ais-under-\(mode)", size: Self.size, dark: dark, wait: 1.0)
-        try await AppSnapshotTests.shoot(window(SidebarStudy(ais: ["ChatGPT"]), library: lib), name: "study-A-one-ai-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+        try await AppSnapshotTests.shoot(window(both, library: lib), name: "study-marks-\(mode)", size: Self.size, dark: dark, wait: 1.0)
         // Templates in the sidebar opens the same gallery as the last setup card.
         let gallery = SetupCardsFlow(store: OnboardingStore(defaults: TestDefaults()), backend: Backend(), preview: .init(card: .gallery), finish: { _ in })
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)

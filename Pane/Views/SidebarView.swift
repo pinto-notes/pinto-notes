@@ -341,7 +341,6 @@ struct SidebarView: View {
     /// The folders, All Notes and Recently Deleted.
     private func folderList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
         List(selection: $scope) {
-            if let study, study.aisFirst { aiSection(study) }
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
                 if folders.count > 1 {
@@ -362,8 +361,7 @@ struct SidebarView: View {
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
-            if let study {
-                if !study.aisFirst { aiSection(study) }
+            if study != nil {
                 Section {
                     SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates")
                     SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import")
@@ -397,16 +395,6 @@ struct SidebarView: View {
             #if os(macOS)
             .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
             #endif
-    }
-
-    /// The study's AIs (`SidebarStudy`): each one ready, and a row to connect another.
-    private func aiSection(_ study: SidebarStudy) -> some View {
-        Section {
-            ForEach(study.ais, id: \.self) { SidebarAIRow(ai: $0) }
-            SidebarActionRow(title: SidebarAIWords.connectAnother, symbol: "plus", id: "sidebar.connectAnother")
-        } header: {
-            heading(SidebarAIWords.heading)
-        }
     }
 
     /// The app's name above, the menus, drops and the toolbar.
