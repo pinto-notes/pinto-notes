@@ -93,10 +93,10 @@ enum Palette {
                                      plain: (brown, 0, brown, 0))
     /// The notes list: a little warmth, less than the sidebar.
     /// C and D: a clear step below the page, light and dark, so list and note read as two grounds
-    /// without a line between them. E (`plain`): the page's white and black, with the split view's
-    /// own divider between list and note, as in Apple Notes.
+    /// without a line between them. E (`plain`): the page's white, and in the dark a neutral step off
+    /// the note's black (#0D0D0D, Emil's pick 10-30), with the split view's own divider between them.
     static let listGround = looks(control: (0xFCFAF8, 0x252423), warm: (0xFBF8F4, 0x282522), paper: (0xF8F2EA, 0x2A2622),
-                                  calm: (0xF3EEE8, 0x1C1A18), reading: (0xF1EAE0, 0x1C1A18), plain: (0xFFFFFF, 0x000000))
+                                  calm: (0xF3EEE8, 0x1C1A18), reading: (0xF1EAE0, 0x1C1A18), plain: (0xFFFFFF, 0x0D0D0D))
     /// The selected note row in C, D and E: the card in C and D (a step lighter than their list);
     /// in E, whose list is the card's white, a neutral grey a step off the list instead.
     static let rowSelection = looks(control: (0xFFFEFB, 0x2C2A27), warm: (0xFFFEFB, 0x2C2A27), paper: (0xFFFEFB, 0x2C2A27),

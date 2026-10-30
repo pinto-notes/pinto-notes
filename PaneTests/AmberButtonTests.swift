@@ -228,7 +228,9 @@ import Testing
         }
         let ground = appearance == .darkAqua ? [0, 0, 0, 255] : [255, 255, 255, 255]
         #expect(rgba(Palette.page) == ground, "page \(appearance.rawValue)")
-        #expect(rgba(Palette.listGround) == ground, "list \(appearance.rawValue)")
+        // The list is the page's white; in the dark a neutral step off black, so list and note read apart.
+        let listGround = appearance == .darkAqua ? [13, 13, 13, 255] : [255, 255, 255, 255]
+        #expect(rgba(Palette.listGround) == listGround, "list \(appearance.rawValue)")
         #expect(rgba(Palette.sidebarWarmth)[3] == 0, "sidebar warmth \(appearance.rawValue)")
         for (name, c) in [("card", Palette.card), ("soft", Palette.soft), ("line", Palette.line), ("row selection", Palette.rowSelection)] {
             let v = rgba(c)
