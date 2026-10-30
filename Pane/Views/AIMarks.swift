@@ -24,7 +24,7 @@ struct AIGlyph: View {
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
         } else if let asset = Self.asset(ai) {
-            Image(asset).resizable().scaledToFit().frame(width: size, height: size)
+            Image(asset).renderingMode(.template).resizable().scaledToFit().frame(width: size, height: size)
                 .foregroundStyle(monochrome ? AnyShapeStyle(.foreground) : AnyShapeStyle(Self.color(ai)))
                 .accessibilityHidden(true)
         } else {
