@@ -1,66 +1,115 @@
 # Make Pinto Notes yours
 
-Pinto Notes is MIT licensed. You can clone it, build your own copy, run it against your own backend and change anything, by hand or with an AI coding agent. This page takes you from a fresh clone to your own app.
+Pinto Notes is MIT licensed. You can clone it, build your own copy, run it against your own backend and change anything, by hand or with an AI coding agent. This page takes you from nothing to your own app on your Mac in one command, then shows how to make it yours.
 
-You don't need a paid Apple developer account. Without one you get the Mac app and the iPhone app in the Simulator. With a free Apple account you can also put it on your iPhone.
+You don't need a paid Apple developer account. Without one you get the Mac app and the iPhone app in the Simulator. With a free Apple account you can put it on your iPhone too.
 
-## 1. Clone and build
+## What you need
 
-You need macOS 26 with Xcode 26, [Homebrew](https://brew.sh), and Docker Desktop (for the local backend).
+| | Why | How long |
+|---|---|---|
+| A Mac with macOS 26 | The app is built for macOS 26 and iOS 26 | |
+| Xcode 26 | Builds the app. Install it from the App Store, then open it once so it installs its parts | 20 to 40 minutes, about 15 GB |
+| [Homebrew](https://brew.sh) | Installs XcodeGen and the Supabase CLI for you | a few minutes |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop) (optional) | Runs the local backend, so you can sign in and sync on this Mac. Without it, notes stay on this Mac | a few minutes |
+
+Once those are there, the rest takes 5 to 20 minutes, most of it downloads.
+
+## 1. Build it
+
+Open Terminal and run:
 
 ```sh
-brew install xcodegen supabase/tap/supabase deno pnpm
 git clone https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
-supabase start      # the local backend: Postgres, Auth, Storage and Functions, on ports 56420–56429
-xcodegen generate   # makes Pane.xcodeproj from project.yml
-open Pane.xcodeproj # run the "Pane" scheme on "My Mac" or an iPhone simulator
+scripts/setup.sh
 ```
 
-The clone is about 400 MB. The first `supabase start` downloads its Docker images, which takes a few minutes; later starts take seconds. The first build takes 3 to 10 minutes.
+The clone is about 400 MB (1 to 3 minutes). `scripts/setup.sh` checks your Mac, installs what's missing with Homebrew, gives your build its own name and bundle id, starts the local backend and builds the Mac app. When it works, the end looks like this:
 
-Out of the box the app talks to the local backend, so nothing you do touches anyone's real notes. Sign in with your email. The code doesn't go to a real inbox: open the local mail viewer at http://127.0.0.1:56424 and copy it from there. Sign in with Apple and Google aren't set up in your build; Apple needs a paid Apple account.
+```
+✓ Xcode 26.4.1
+✓ XcodeGen 2.46.0, Supabase CLI 2.75.0
+✓ Your app is My Pinto Notes (local.kim.notes). To rename it: scripts/make-it-yours.sh --name "…" --bundle-id com.you.notes
+→ Starting the local backend (the first time downloads about 3 GB of Docker images: 5 to 15 minutes)
+✓ The local backend is running
+✓ Made Pane.xcodeproj
+→ Building the Mac app (3 to 10 minutes the first time, under a minute after that)
+✓ Built in 113 s: /Users/kim/pinto-notes/build/app/Build/Products/Debug/Pane.app
 
-From the command line, if Xcode isn't your selected developer directory (`xcode-select -p` says `CommandLineTools`), put `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` in front of `xcodebuild`, or run `sudo xcode-select -s /Applications/Xcode.app` once.
-
-```sh
-# The Mac app, signed to run on this Mac only (no Apple account)
-xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' build
-
-# The iPhone app for the Simulator (no Apple account)
-xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'generic/platform=iOS Simulator' ARCHS=arm64 build
+Done in 9 min. Open your app:
+  open "/Users/kim/pinto-notes/build/app/Build/Products/Debug/Pane.app"
 ```
 
-### Run the tests
+Copy the `open` line it prints and run it, or run `scripts/setup.sh --open` to build and open in one go. The file is called Pane.app (the project's working name); the app calls itself My Pinto Notes until you rename it.
 
-```sh
-scripts/qa-test.sh --smoke                    # a first check: the few tests every change runs, a few minutes
-scripts/qa-test.sh PaneTests/ShareAskTests    # one suite
-scripts/qa-test.sh                            # every unit and interaction test: 20 to 30 minutes
-```
+No Docker? Run `scripts/setup.sh --local-only` instead. The app then has no backend: no sign-in, no sync, and your notes stay on this Mac. You can add a backend later.
 
-The interaction tests drive the real editor in an offscreen window, so they never move your mouse or take focus. A few timing tests can fail on a busy Mac; they report how slow something was, and they don't mean your change broke anything. The server's tests are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+When a step fails, `scripts/setup.sh` stops and says what to do. Do that and run it again; each step that's already done is skipped.
+
+### What you see the first time
+
+**With the local backend** (plain `scripts/setup.sh`):
+
+1. A welcome window: "The notes app your AI can use." Press **Get started**.
+2. **Sign in or sign up.** Type any email address (it doesn't have to be real) and press **Continue**.
+3. Make a password of 12 characters or more. Nothing is really emailed. If the app asks for a code, open the local mail viewer at http://127.0.0.1:56424 and copy it from there.
+4. A short setup: your name, bringing notes over, connecting an AI. Skip any of it.
+5. Your notes: a Notes folder with "Welcome to Pinto Notes" and a sample Habit tracker note. Press Command-N for a new note.
+
+Sign in with Apple and Sign in with Google show on that screen but aren't set up in your build: use email.
+
+**With `--local-only`:** the app opens straight on your notes, with the same two notes. Settings says "Sync is off. This build keeps notes on this device only."
+
+Either way your notes are saved as you type and are there when you open the app again. They live in `~/Library/Application Support/<your bundle id>`, apart from any Pinto Notes you have installed.
+
+### If something goes wrong
+
+| You see | What to do |
+|---|---|
+| `xcode-select: error: tool 'xcodebuild' requires Xcode` | Run `scripts/setup.sh`, which finds Xcode for you. For your own `xcodebuild` commands, run `sudo xcode-select -s /Applications/Xcode.app` once. |
+| `✗ Docker isn't running.` | Open Docker Desktop, wait until it says the engine is running, and run `scripts/setup.sh` again. |
+| `✗ Something else is using a port the backend needs` | Another Supabase project is running. Run `supabase stop` in its folder, then `scripts/setup.sh` again. |
+| `✗ The build failed` with `Could not resolve package dependencies` | A download failed. Check your connection and run `scripts/setup.sh` again. |
+| The app says "Can't reach the server. Check your connection." | The local backend isn't running (Docker was quit, or the Mac restarted). Open Docker Desktop and run `scripts/setup.sh` again. |
+| "Sign in with Apple" or "Google" does nothing or fails | Expected in your build. Use email. |
+
+Anything else: open an issue at [github.com/pinto-notes/pinto-notes/issues](https://github.com/pinto-notes/pinto-notes/issues) with the command and what it printed.
 
 ## 2. Give it your name
 
-One command sets your bundle id, app name and Apple team:
+`scripts/setup.sh` called your build "My Pinto Notes". To pick your own name and bundle id:
 
 ```sh
-# No Apple account: the Mac app and the Simulator
 scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes
+scripts/setup.sh
+```
 
-# A free Apple account: also your own iPhone (installs last 7 days)
+A bundle id is your reversed domain or name plus the app, like `com.kim.notes`. The script writes `Config/Identity.local.xcconfig`, which git ignores, so pulling updates never conflicts with it. `--show` prints what's set and `--reset` goes back to upstream's (don't run that build next to an installed Pinto Notes: they'd share settings).
+
+A new bundle id is a new app to macOS: it starts with an empty library and asks you to sign in again.
+
+## 3. Put it on your iPhone
+
+The iPhone app runs in the Simulator with no account. Open the project with `open Pane.xcodeproj`, pick an iPhone simulator at the top of the window, and press Run (Command-R). From Terminal:
+
+```sh
+xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'generic/platform=iOS Simulator' ARCHS=arm64 build
+```
+
+To put it on your own phone you need an Apple account in Xcode (Xcode, Settings, Accounts, then the + button) and its team id (shown there, 10 letters and digits). Then:
+
+```sh
+# A free Apple account: installs last 7 days, then reinstall
 scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --personal-team ABCDE12345
 
-# A paid Apple Developer Program team: everything upstream has
+# A paid Apple Developer Program team: a year per install
 scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --team ABCDE12345
 ```
 
-Your team id is in Xcode, Settings, Accounts (sign in with your Apple ID first), or at [developer.apple.com/account](https://developer.apple.com/account) under Membership.
+Plug the phone in, unlock it, pick it at the top of the Xcode window and press Run. The first time, the phone asks you to trust your developer certificate: Settings, General, VPN & Device Management.
 
-The script writes `Config/Identity.local.xcconfig`, which git ignores, and regenerates the project. It sets the bundle id, the share extension's id, the app group, the URL scheme (`kimnotes://` for `com.kim.notes`) and the team. `--show` prints what's set and `--reset` goes back to upstream's.
-
-What each kind of account gets:
+The phone can't reach the backend on your Mac (127.0.0.1 is the phone itself), so for a phone that syncs, run your own backend (step 4).
 
 | | No account | Free account | Paid team |
 |---|---|---|---|
@@ -71,30 +120,36 @@ What each kind of account gets:
 | Sign in with Apple | No | No | Yes |
 | Push when an AI asks to connect | No | No | Yes, once your APNs key is in the functions' secrets (`APNS_KEY_P8`, `APNS_KEY_ID`, `APNS_TEAM_ID`) |
 
-To put it on your phone, plug it in and pick it as the run destination in Xcode, or run `PHONE="Kim's iPhone" scripts/install-phone.sh`. The Mac app is always signed to run locally, whatever you choose. With a paid team you can sign it too, for Sign in with Apple on the Mac: see how `scripts/install-mac.sh` builds it.
+## 4. Run your own backend
 
-## 3. Run your own backend
+The local backend lives on your Mac. To use your app every day, on your phone too, give it a backend of its own: one free [Supabase](https://supabase.com) project. This takes about 10 minutes.
 
-The local backend is for building and testing. To use your app every day, on more than one device, give it a backend of its own: one free [Supabase](https://supabase.com) project.
+1. Make a project at [supabase.com/dashboard](https://supabase.com/dashboard) (New project). Write down the database password you choose. The project's ref is the 20 letters in its address, `https://<ref>.supabase.co` (Project Settings, General).
+2. Make a personal access token at [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) and put it in a file called `.env` in the `pinto-notes` folder (git ignores it):
 
-1. Create a project at [supabase.com](https://supabase.com). Note its ref, the 20 letters in `https://<ref>.supabase.co`.
-2. Make a personal access token at [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) and put it in `.env` (gitignored) as `SUPABASE_ACCESS_TOKEN=sbp_…`.
-3. See what will happen, then do it:
+   ```sh
+   echo 'SUPABASE_ACCESS_TOKEN=sbp_your_token_here' > .env
+   ```
+
+3. See what will happen, then do it. `brew install deno` first if you don't have it (the sign-in emails are written with it).
 
    ```sh
    scripts/deploy-backend.sh <ref> --dry-run
    scripts/deploy-backend.sh <ref>
+   scripts/setup.sh
    ```
 
-It applies the migrations, deploys the functions, sets their secrets, sets up email sign-in with a 6-digit code, and writes `Config/Backend.local.xcconfig` so your builds sync with the project. It asks for the database password you chose when you made the project. Run it again after you pull new migrations or functions; it keeps its secrets in `.secrets/backend-<ref>.env`. Never delete that file: it holds the secret that seals each account's key copy, and without it signing in on a new device can't open the notes.
+`deploy-backend.sh` asks for the database password, applies the migrations, deploys the functions and their secrets, sets up email sign-in, and writes `Config/Backend.local.xcconfig` so your builds use the project. `scripts/setup.sh` then rebuilds the app against it. Each step that fails says what to do; running it again is safe.
 
-Supabase's own mailer only sends to your project's team members, and only a few emails an hour. That's enough for you. For anyone else, add an SMTP server in the dashboard (Authentication, Emails, SMTP settings).
+It keeps the secrets it makes in `.secrets/backend-<ref>.env`. Never delete that file: it holds the secret that seals each account's key copy, and without it signing in on a new device can't open the notes.
 
-Share links and connecting ChatGPT or Claude need the website, `web/`. Deploy it to any Next.js host, such as Vercel, with `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_APP_SCHEME` (your URL scheme, like `kimnotes`) set, then run `scripts/deploy-backend.sh <ref> --site https://your-site` again. Claude Code and Codex don't need the site: in the app, open Settings, Connect an AI, and copy the command.
+Supabase's own mailer only sends to your project's team members, a few emails an hour. That's enough for you. For anyone else, add an SMTP server in the dashboard (Authentication, Emails, SMTP settings).
+
+Share links and connecting ChatGPT or Claude need the website, `web/`. Deploy it to any Next.js host, such as Vercel, with `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_APP_SCHEME` (your URL scheme: `scripts/make-it-yours.sh --show` prints it) set, then run `scripts/deploy-backend.sh <ref> --site https://your-site` again. Claude Code and Codex don't need the site: in the app, open Settings, Connect an AI, and copy the command.
 
 Your builds send no telemetry: the key is empty in every build that isn't Pinto Notes' own release.
 
-## 4. Change it
+## 5. Change it
 
 The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and target names say "Pane", the app's working name. The [README](../README.md#how-its-built) maps the parts. The places people change first:
 
@@ -105,11 +160,14 @@ The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and targe
 | The iPhone bar above the keyboard | `Pane/Editor/FormatBar.swift` |
 | The Mac's format menu and toolbar | `Pane/Views/FormatPopover.swift`, the `.toolbar` in `Pane/Views/RootView.swift` and `Pane/Views/NoteDetailView.swift`, glyphs in `Pane/Views/ToolbarGlyph.swift` |
 | The app's name | `scripts/make-it-yours.sh --name` for the name under the icon; the words inside the app are in the views (search for "Pinto Notes") |
+| The first notes in a new library | `Seed.ensureLibrary` and the welcome text in `Pane/App/PaneApp.swift` |
 | The icon | `Pane/Resources/AppIcon.icon` (open it in Icon Composer, which comes with Xcode 26), `Assets.xcassets/AppIcon.appiconset` for older systems, `Mark` and `MenuBarIcon` for the mark inside the app |
 | The AI server's tools | `supabase/functions/mcp/files_tools.ts`, deployed with `supabase functions deploy mcp --project-ref <ref>` |
 | The sign-in emails | `scripts/auth-emails.ts`, then `deno run -A scripts/auth-emails.ts write` |
 
-The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding agent how this codebase works and how to test a change, so Claude Code and Codex can work on it from the first prompt. Some prompts that work well here:
+After a change, run `scripts/setup.sh` again (under a minute) and reopen the app, or press Run in Xcode.
+
+The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding agent how this codebase works and how to test a change, so Claude Code and Codex can work on it from the first prompt. Start one in the `pinto-notes` folder (`claude` or `codex`) and try:
 
 1. "Change the accent colour from amber to a deep green, in light and dark mode. Start in Pane/Editor/Palette.swift and the AccentColor asset, follow docs/DESIGN.md, and run scripts/qa-test.sh PaneTests/AmberButtonTests when you're done."
 2. "Add a button to the iPhone keyboard bar (Pane/Editor/FormatBar.swift) that inserts today's date as a heading. Match the bar's other buttons, and add a test in PaneTests/Interaction like the ones there."
@@ -119,26 +177,47 @@ The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding a
 
 Ask for one change at a time and run the tests the agent names. A small change you understand is easier to carry forward than a big one.
 
-## 5. Keep pulling updates
+## 6. Run the tests
+
+```sh
+scripts/qa-test.sh --smoke                    # what CI runs for every change: about 40 tests, 3 to 5 minutes
+scripts/qa-test.sh PaneTests/ShareAskTests    # one suite
+scripts/qa-test.sh                            # every unit and interaction test: 20 to 30 minutes
+```
+
+Each prints `** TEST SUCCEEDED **` at the end when everything passed, or the failing tests with `✘`. The interaction tests drive the real editor in an offscreen window, so they never move your mouse or take focus. Some tests time things, and on a busy Mac they can fail by being slow; that isn't your change. The server's tests are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## 7. Keep pulling updates
 
 New versions ship most days. To bring them into your copy:
 
 ```sh
 git remote add upstream https://github.com/pinto-notes/pinto-notes.git   # once
-git fetch upstream
-git merge upstream/main
-xcodegen generate
-scripts/deploy-backend.sh <ref>   # when the update has new migrations or functions
+git pull upstream main
+scripts/setup.sh
+scripts/deploy-backend.sh <ref>   # if you run your own backend: applies new migrations and functions
 ```
 
 Fewer conflicts, in order of how much they help:
 
 - **Keep your settings out of tracked files.** Your identity is in `Config/Identity.local.xcconfig` and your backend in `Config/Backend.local.xcconfig`. Both are gitignored, so an update never touches them.
 - **Add files rather than editing big ones.** A new view, a new `extension` in its own file, or a new test file never conflicts. Upstream changes the large files (the editor, the note list) often.
-- **Let the project file regenerate.** `Pane.xcodeproj` is generated from `project.yml`. If it conflicts, take upstream's (`git checkout --theirs Pane.xcodeproj`) and run `xcodegen generate`.
+- **Let the project file regenerate.** `Pane.xcodeproj` is generated from `project.yml`. If it conflicts, take upstream's (`git checkout --theirs Pane.xcodeproj`) and run `scripts/setup.sh`.
 - **Add migrations, never edit them.** Put database changes in a new file in `supabase/migrations` with a timestamp newer than every other one. Upstream's migrations then apply cleanly after yours.
 - **Merge often.** A week of upstream is an easy merge; three months is a hard one.
 
-## Something didn't work
+## What setup.sh does, by hand
 
-If a step here fails on a fresh clone, that's a bug in this page or the scripts. Open an issue at [github.com/pinto-notes/pinto-notes](https://github.com/pinto-notes/pinto-notes/issues) with the command and what it printed. Every night CI builds a fresh clone with no secrets and no Apple team (`scripts/ci/fresh-clone-build.sh`), so most breaks are caught before you see them.
+If you'd rather run each step yourself:
+
+```sh
+brew install xcodegen supabase/tap/supabase
+scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes
+supabase start          # needs Docker; skip it for a build with no backend (see below)
+xcodegen generate       # makes Pane.xcodeproj from project.yml
+open Pane.xcodeproj     # and press Run, or:
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' -derivedDataPath build/app build
+```
+
+A build with no backend has `PANE_SUPABASE_URL =` (empty) in `Config/Backend.local.xcconfig`. Every night CI builds a fresh clone with no secrets and no Apple team through `scripts/setup.sh --local-only` (`scripts/ci/fresh-clone-build.sh`), so this path stays working.

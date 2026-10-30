@@ -146,12 +146,9 @@ Folder and target names still say "Pane", the app's working name. The Xcode proj
 You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local Supabase stack). A fresh clone runs entirely on your machine.
 
 ```sh
-brew install xcodegen supabase/tap/supabase deno pnpm
-
 git clone https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
-supabase start            # local Postgres, Auth, Storage and Functions on ports 56420–56429
-xcodegen generate
+scripts/setup.sh          # installs XcodeGen and the Supabase CLI, starts the local stack, builds the Mac app
 open Pane.xcodeproj       # run the "Pane" scheme on "My Mac" or an iPhone simulator
 ```
 
@@ -188,16 +185,15 @@ Everything the app needs runs on one Supabase project:
 
 ## Make it yours
 
-Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed.
+Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed: you need macOS 26, Xcode 26, Homebrew and, for sign-in and sync, Docker Desktop.
 
 ```sh
-git clone https://github.com/pinto-notes/pinto-notes.git && cd pinto-notes
-supabase start && xcodegen generate
-scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes   # your name and bundle id
-scripts/deploy-backend.sh <your-supabase-ref>                             # your own backend, when you want one
+git clone https://github.com/pinto-notes/pinto-notes.git
+cd pinto-notes
+scripts/setup.sh --open
 ```
 
-[docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md) has the rest: building with or without an Apple account, running your own backend, where the colours, toolbar, name and icon live, prompts that work for coding agents, and pulling updates with few conflicts.
+`scripts/setup.sh` checks your Mac, starts a local backend, builds the Mac app under a name and bundle id of its own, and opens it: 5 to 20 minutes the first time, most of it downloads. Without Docker, `scripts/setup.sh --local-only --open` builds an app that keeps notes on this Mac. [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md) has the rest: what you see the first time, your own name and icon, your iPhone, your own backend, where the colours and toolbar live, prompts for coding agents, and pulling updates with few conflicts.
 
 ## License
 

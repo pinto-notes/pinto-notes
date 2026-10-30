@@ -135,7 +135,8 @@ fi
 APP=$ROOT/build/app/Build/Products/Debug/Pane.app
 ok "Built in $(( SECONDS - b )) s: $APP"
 
-print -- "\nDone in $(( (SECONDS - START + 30) / 60 )) min. Open your app:\n  open \"$APP\""
+took=$(( SECONDS - START )); (( took < 90 )) && took="$took s" || took="$(( (took + 30) / 60 )) min"
+print -- "\nDone in $took. Open your app:\n  open \"$APP\""
 if (( LOCAL )); then
   print -- "Your notes stay on this Mac. To sync with your own backend later: docs/MAKE-IT-YOURS.md, step 3."
 else

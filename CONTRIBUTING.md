@@ -32,13 +32,12 @@ Good ideas become issues, credited to you, and you're first in line to build it 
 You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local backend). No Apple developer account.
 
 ```sh
-brew install xcodegen supabase/tap/supabase deno pnpm
 git clone https://github.com/pinto-notes/pinto-notes.git && cd pinto-notes
-supabase start          # local Postgres, Auth, Storage and Functions (needs Docker)
-xcodegen generate       # makes Pane.xcodeproj from project.yml
+scripts/setup.sh        # checks your Mac, starts the local backend (Docker), builds the Mac app
+brew install deno pnpm  # for the server's and the website's tests
 ```
 
-The app talks to the local stack by default. Nothing you do here touches anyone's real notes. Sign in with your email; the code is in the local mail viewer at http://127.0.0.1:56424. To build your own copy under your own name, see [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md).
+The app talks to the local stack by default. Nothing you do here touches anyone's real notes. Sign in with any email address and a password; if the app asks for a code, it's in the local mail viewer at http://127.0.0.1:56424. To build your own copy under your own name, see [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md).
 
 ## The Mac and iPhone app
 
