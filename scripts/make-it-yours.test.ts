@@ -81,6 +81,14 @@ Deno.test({ name: "deploy-backend --dry-run deploys every function the app needs
   assert(!(await exists(`${dir}/Config/Backend.local.xcconfig`)));
 } });
 
+Deno.test({ name: "deploy-backend --dry-run works before make-it-yours, with upstream's identity", ignore: !onMac, fn: async () => {
+  const dir = await copy();
+  const r = await run(dir, "deploy-backend.sh", "abcdefghijklmnopqrst", "--dry-run");
+  assertEquals(r.code, 0, r.text);
+  assertStringIncludes(r.text, "dev.emilwagman.pane (ambernotes://)");
+  assertStringIncludes(r.text, "→ Done.");
+} });
+
 Deno.test({ name: "deploy-backend refuses production and a malformed ref", ignore: !onMac, fn: async () => {
   const dir = await copy();
   const prod = await run(dir, "deploy-backend.sh", "rodegaeruhyybqilrnpn", "--dry-run");

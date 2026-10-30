@@ -57,7 +57,7 @@ FUNCTIONS=(mcp account account-status share-files key)
 
 # Who the app is, from Config/Identity.local.xcconfig (scripts/make-it-yours.sh) or upstream's.
 identity() {
-  local v; v=$(sed -n "s/^$1 = //p" Config/Identity.local.xcconfig 2>/dev/null | tail -1)
+  local v; v=$(sed -n "s/^$1 = //p" Config/Identity.local.xcconfig 2>/dev/null | tail -1) || v=""
   [[ -n $v ]] || v=$(sed -n "s/^$1 = //p" Config/Identity.xcconfig | tail -1)
   print -r -- "$v"
 }
