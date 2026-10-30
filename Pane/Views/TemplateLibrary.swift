@@ -135,18 +135,18 @@ struct TemplateLibraryView: View {
                     }
                     .padding(.top, 4)
                     Spacer(minLength: 8)
-                    HStack(spacing: 8) {
+                    VStack(spacing: 8) {
                         Button { make(e) } label: {
                             HStack(spacing: 7) {
                                 if ai != .other { AIGlyph(ai: ai.name, size: 14) }
                                 Text(TemplateLibraryWords.make(ai))
                             }
                         }
-                        .buttonStyle(.amberProminent(.regular))
+                        .buttonStyle(.amberProminent(.regular, wide: true))
                         .keyboardShortcut(.defaultAction)
                         .accessibilityIdentifier("templates.make")
                         Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
-                            .buttonStyle(.secondary(.regular))
+                            .buttonStyle(.quiet(.regular))
                             .accessibilityIdentifier("templates.copy")
                     }
                 }
