@@ -1526,10 +1526,23 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     override func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-        if g is UITapGestureRecognizer, g.view === self, g.delegate === self {
-            return checkboxLine(for: g.location(in: self)) != nil
-        }
+        if g is UITapGestureRecognizer, g.view === self, g.delegate === self { return takesTap(at: g.location(in: self)) }
         return super.gestureRecognizerShouldBegin(g)
+    }
+
+    /// Whether the checkbox tap takes a tap at `p`: on a circle; in Recently Deleted, any tap but
+    /// one on a link, which asks to recover the note (tap(at:)), like Notes. A long press still
+    /// selects there, to copy.
+    func takesTap(at p: CGPoint) -> Bool {
+        if controller?.readOnly == true { return !onLink(at: p) }
+        return checkboxLine(for: p) != nil
+    }
+
+    /// Whether a point of this view is on a link's text.
+    private func onLink(at p: CGPoint) -> Bool {
+        guard let pos = closestPosition(to: p) else { return false }
+        let i = offset(from: beginningOfDocument, to: pos)
+        return i < textStorage.length && textStorage.attribute(.link, at: i, effectiveRange: nil) != nil
     }
 
     private func checkboxLine(for p: CGPoint) -> Int? {
@@ -1544,7 +1557,12 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: editingSelection, force: true)
     }
 
-    @objc private func handleTap(_ g: UITapGestureRecognizer) { tapCheckbox(at: g.location(in: self)) }
+    @objc private func handleTap(_ g: UITapGestureRecognizer) { tap(at: g.location(in: self)) }
+
+    func tap(at point: CGPoint) {
+        if controller?.readOnly == true { controller?.askToRecover(); return }
+        tapCheckbox(at: point)
+    }
 
     /// Where a checkbox's circle is, in the view, for the line starting at `line` (tests).
     func checkboxCenter(line: Int) -> CGPoint? {

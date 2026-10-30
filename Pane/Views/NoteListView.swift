@@ -485,7 +485,7 @@ struct NoteListView: View {
             } else {
                 // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
                 // holds no new notes: the note it made went elsewhere.
-                SearchComposeBar(newNote: onNewNote, disabled: scope == .trash, tip: true)
+                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true)
             }
             #else
             // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count

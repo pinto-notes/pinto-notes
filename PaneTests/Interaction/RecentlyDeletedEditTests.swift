@@ -144,7 +144,7 @@ import Testing
     }
 
     @Test func recoverGoesToNotesWhenItsFolderIsGone() throws {
-        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext
         let trip = ctx.createFolder(named: "Trip")
         let note = ctx.createNote(in: .folder(trip.id), body: "Packing")
@@ -154,6 +154,63 @@ import Testing
         NoteOpener.shared.request = nil
         #expect(note.trashedAt == nil)
         #expect(note.folder != nil && note.folder?.id != trip.id && note.folder?.deletedAt == nil)
+    }
+
+    // MARK: Files
+
+    /// A text file in a folder, written to the file store (removed by the caller).
+    static func textFile(_ c: ModelContainer, _ text: String = "Flights Friday 07:40\nHotel near Alfama\n") throws -> Pane.Attachment {
+        let folder = c.mainContext.createFolder(named: "Trips")
+        let src = FileManager.default.temporaryDirectory.appending(path: "Lisbon plan.txt")
+        try Data(text.utf8).write(to: src)
+        return try #require(c.mainContext.addFiles([src], to: folder).first)
+    }
+
+    @Test func changingADeletedFileAsksToRecoverAndChangesNothing() {
+        var asked = 0
+        let deleted = CodeTextView(text: .constant("Plan"), language: .plain, editable: false, askToRecover: { asked += 1 }).makeCoordinator()
+        let tv = NSTextView(frame: CGRect(x: 0, y: 0, width: 300, height: 200))
+        tv.string = "Plan"
+        tv.isEditable = true
+        tv.delegate = deleted
+        tv.setSelectedRange(NSRange(location: 4, length: 0))
+        tv.insertText("s", replacementRange: tv.selectedRange())
+        tv.deleteBackward(nil)
+        #expect(tv.string == "Plan", "nothing typed or deleted lands")
+        #expect(asked == 2, "each try asks to recover")
+        // A file that isn't deleted takes the change.
+        let live = CodeTextView(text: .constant("Plan"), language: .plain, editable: true).makeCoordinator()
+        tv.delegate = live
+        tv.insertText("s", replacementRange: tv.selectedRange())
+        #expect(tv.string == "Plans")
+        #expect(asked == 2)
+    }
+
+    @Test func aDeletedFileHasNoNewNoteOrShare() async throws {
+        let c = try AppSnapshotTests.container()
+        let file = try Self.textFile(c)
+        defer { FileStore.remove(file) }
+        for trashed in [false, true] {
+            if trashed { c.mainContext.trash(file) }
+            let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1000, height: 700),
+                             styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+            w.isReleasedWhenClosed = false
+            w.contentViewController = NSHostingController(rootView: NavigationStack { FileDetailView(file: file, onNewNote: {}) }.modelContainer(c))
+            w.setContentSize(CGSize(width: 1000, height: 700))
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w)
+            let labels = (w.toolbar?.items ?? []).map(\.label)
+            print("file toolbar (\(trashed ? "deleted" : "live")): \(labels)")
+            if trashed {
+                #expect(!labels.contains("New Note") && !labels.contains("Share"), "no New Note or Share for a deleted file")
+            } else {
+                #expect(labels.contains("New Note") && labels.contains("Share"))
+            }
+            #expect(labels.contains("More"), "More keeps Recover and Delete Forever")
+        }
+        #expect(file.trashedAt != nil)
+        c.mainContext.restore(file)
+        #expect(file.trashedAt == nil && file.folderID != nil)
     }
 
     // MARK: Captures (AMBER_HIG_SHOTS)
@@ -184,6 +241,13 @@ import Testing
             let out = dir.appending(path: "mac-recently-deleted-note-\(dark ? "dark" : "light").png")
             try? FileManager.default.removeItem(at: out)
             try FileManager.default.copyItem(at: URL(fileURLWithPath: shot), to: out)
+            // A deleted text file: no banner, the text as it is.
+            let fc = try AppSnapshotTests.container()
+            let file = try Self.textFile(fc)
+            defer { FileStore.remove(file) }
+            fc.mainContext.trash(file)
+            try await AppSnapshotTests.shoot(CodeFileView(file: file, url: FileStore.url(for: file.id, filename: file.filename)).modelContainer(fc),
+                                             name: "mac-recently-deleted-file-\(dark ? "dark" : "light")", size: CGSize(width: 900, height: 500), dark: dark)
             // The prompt, as AppKit lays it out (never run, never on screen).
             let alert = NSAlert()
             alert.messageText = NoteDetailView.recoverTitle
@@ -196,7 +260,63 @@ import Testing
             let arep = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
             view.cacheDisplay(in: view.bounds, to: arep)
             try #require(arep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-recently-deleted-prompt-\(dark ? "dark" : "light").png"))
+            let fileAlert = NSAlert()
+            fileAlert.messageText = CodeFileView.recoverTitle
+            fileAlert.informativeText = CodeFileView.recoverMessage
+            fileAlert.addButton(withTitle: "Recover")
+            fileAlert.addButton(withTitle: "Cancel")
+            fileAlert.window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            fileAlert.layout()
+            let fview = try #require(fileAlert.window.contentView)
+            let frep = try #require(fview.bitmapImageRepForCachingDisplay(in: fview.bounds))
+            fview.cacheDisplay(in: fview.bounds, to: frep)
+            try #require(frep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-recently-deleted-file-prompt-\(dark ? "dark" : "light").png"))
         }
+    }
+}
+#endif
+
+#if os(iOS)
+import UIKit
+import Testing
+@testable import Pane
+
+/// The iPhone's deleted note, the Notes way (Emil, 10-30): a tap asks to recover it and ticks
+/// nothing; a long press still selects. Once recovered, taps tick again and never ask.
+@MainActor @Suite(.serialized) struct RecentlyDeletedPhoneTests {
+    @Test func tappingADeletedNoteAsksToRecoverAndTicksNothing() async throws {
+        let text = "Plan\n- [ ] Milk\nSome text to tap on"
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 393, height: 852))
+        let controller = EditorController()
+        let view = PaneTextView(frame: window.bounds)
+        view.configure(text: text, header: "")
+        view.controller = controller
+        controller.target = view
+        window.addSubview(view)
+        window.isHidden = false
+        defer { window.isHidden = true }
+        var asked = 0
+        controller.askToRecover = { asked += 1 }
+        controller.readOnly = true
+        view.isEditable = false
+        view.layoutIfNeeded()
+        if let tlm = view.textLayoutManager, let tcm = tlm.textContentManager { tlm.ensureLayout(for: tcm.documentRange) }
+        try await Task.sleep(for: .milliseconds(100))
+        let circle = try #require(view.checkboxCenter(line: (text as NSString).range(of: "- [ ]").location))
+        let words = CGPoint(x: circle.x + 60, y: circle.y + 60)
+        #expect(view.takesTap(at: words), "any tap in a deleted note is the one that asks")
+        #expect(view.takesTap(at: circle))
+        view.tap(at: words)
+        view.tap(at: circle)
+        #expect(asked == 2, "each tap asks to recover")
+        #expect(view.text == text, "the tick doesn't land")
+        // Recovered: a tap in the words is the text view's again, and the circle ticks.
+        controller.readOnly = false
+        view.isEditable = true
+        #expect(!view.takesTap(at: words))
+        view.tap(at: circle)
+        #expect(view.text.contains("- [x] Milk"))
+        #expect(asked == 2)
     }
 }
 #endif

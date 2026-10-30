@@ -9,7 +9,7 @@ struct NoteDetailView: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmingPurge = false
-    /// Typing or clicking into a note in Recently Deleted (Mac): Notes' "can't be edited" prompt.
+    /// Typing, clicking or tapping into a note in Recently Deleted: Notes' "can't be edited" prompt.
     @State private var askingRecover = false
     @State private var importing = false
     /// Dev: an app built outside (scripts/build-app.ts), from a file, into this note.
@@ -895,15 +895,8 @@ struct NoteDetailView: View {
         return content
             .ignoresSafeArea(.container, edges: .bottom)
             .background(Color.notePage.ignoresSafeArea())
-            .safeAreaInset(edge: .top, spacing: 0) {
-                VStack(spacing: 0) {
-                    // On the Mac a deleted note shows like any other, read-only; typing or clicking
-                    // into it asks to recover it, like Notes (Emil, 10-30).
-                    #if os(iOS)
-                    if note.trashedAt != nil { trashBanner }
-                    #endif
-                }
-            }
+            // A deleted note shows like any other, read-only, with no banner; typing, clicking or
+            // tapping into it asks to recover it, like Notes (Emil, 10-30).
             .onChange(of: note.trashedAt, initial: true) { _, at in controller.readOnly = at != nil }
             .alert(Self.recoverTitle, isPresented: $askingRecover) {
                 Button("Cancel", role: .cancel) {}
@@ -1114,12 +1107,6 @@ struct NoteDetailView: View {
         }
     }
 
-    #if os(iOS)
-    private var trashBanner: some View {
-        TrashBanner { withAnimation(.snappy) { context.restore(note) } }
-    }
-    #endif
-
     static let recoverTitle = "Recently deleted notes can't be edited."
     static let recoverMessage = "To edit this note, you'll need to recover it."
 
@@ -1164,9 +1151,9 @@ struct NoteDetailView: View {
         }
         // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
         ToolbarItemGroup(placement: .primaryAction) {
-            if !note.isLocked {
+            // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
+            if !note.isLocked, !trashed {
                 Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
-                    .disabled(trashed)
                     .tint(.primary)
                     .accessibilityIdentifier("editor.share")
             }
@@ -1547,34 +1534,6 @@ struct NoteToolbarStage<Pane: View>: View {
     }
 }
 #endif
-
-/// A quiet notice on the app's warm tint, clearly apart from the page, with the app's own primary
-/// button (2026-10-12: glass over the page blended in, and its yellow Recover glared).
-struct TrashBanner: View {
-    var recover: () -> Void
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        HStack(spacing: 12) {
-            Image(systemName: "trash").foregroundStyle(Color.muted)
-            Text("This note is in Recently Deleted.")
-                .font(.callout)
-                .foregroundStyle(Color.ink)
-            Spacer(minLength: 8)
-            Button("Recover", action: recover)
-                .buttonStyle(.amberProminent)
-                .fixedSize()
-                .accessibilityIdentifier("editor.bannerRecover")
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Color.amberSoft, in: shape)
-        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
-        .padding(12)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("editor.trashBanner")
-    }
-}
 
 /// A link that named a heading (`[[Budget#October]]`, `pinto:Budget#October`): the note it opens
 /// scrolls there once its text is on screen. Kept only for the next note that opens.

@@ -78,8 +78,8 @@ struct NewAppTip: Tip {
 /// search field, and New Note at the right, as in Notes and Mail.
 struct SearchComposeBar: ToolbarContent {
     let newNote: () -> Void
-    /// Recently Deleted holds no new notes.
-    var disabled = false
+    /// Recently Deleted holds no new notes: no New Note there, like Notes.
+    var hidesCompose = false
     /// New App's one-off tip, shown on one of the two buttons only.
     var tip = false
     var identifier = "list.newNote"
@@ -92,7 +92,9 @@ struct SearchComposeBar: ToolbarContent {
         } else {
             ToolbarSpacer(.fixed, placement: .bottomBar)
         }
-        Compose(newNote: newNote, disabled: disabled, tip: tip, identifier: identifier)
+        if !hidesCompose {
+            Compose(newNote: newNote, tip: tip, identifier: identifier)
+        }
     }
 
     /// New Note alone (iPad's folders, where the list beside them has the search). Holding it
