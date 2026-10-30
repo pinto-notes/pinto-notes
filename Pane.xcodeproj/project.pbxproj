@@ -716,6 +716,7 @@
 		ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */; };
 		EE41FCC568A1B667F8C3BDEB /* ChecklistSortTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFCA13DCB9435718E4F5BF8C /* ChecklistSortTests.swift */; };
 		EE7853D46B5E9CF04434468B /* KeyGateCardSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E30239F17A47DADC020482B /* KeyGateCardSnapshotTests.swift */; };
+		EEB15458B34B4C85EC6C9EDE /* MacEmptyDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C3858D7115D915A84DF1F9 /* MacEmptyDetailTests.swift */; };
 		EEE5D6310D591DDA45514520 /* AllowSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43324C7785F4C59035DABD60 /* AllowSheetTests.swift */; };
 		EF5FA3E4964C257EA768A12D /* SidebarCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */; };
 		F0E7D0F93F1EC84D87C81F82 /* WikiLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA346A4AC288B31B07A05AB /* WikiLinks.swift */; };
@@ -1040,6 +1041,7 @@
 		7445A08E777B5138830E17A8 /* DesignLookSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignLookSnapshots.swift; sourceTree = "<group>"; };
 		746937C9DAE4700BDCEE8FCF /* LargeLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeLibraryTests.swift; sourceTree = "<group>"; };
 		74B99DE5320A61F5F5F0A9B8 /* NotePageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageData.swift; sourceTree = "<group>"; };
+		74C3858D7115D915A84DF1F9 /* MacEmptyDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacEmptyDetailTests.swift; sourceTree = "<group>"; };
 		75759167CE7F0B24B4814F25 /* keycopy-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "keycopy-vectors.json"; sourceTree = "<group>"; };
 		7693F09926468E8130148F1D /* ImportSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSources.swift; sourceTree = "<group>"; };
 		76C98109111422D10C0858EF /* ImportGuideFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGuideFlow.swift; sourceTree = "<group>"; };
@@ -1799,6 +1801,7 @@
 				4C9713C82676B677E851130A /* LiveSyncTests.swift */,
 				1CCE08B150E9FDB699FB27B1 /* LocalUpkeepTests.swift */,
 				DD2C6D6DA42D4F544B0E7737 /* LockLeakProbeTests.swift */,
+				74C3858D7115D915A84DF1F9 /* MacEmptyDetailTests.swift */,
 				8821FF7177AED2473C69A324 /* MacWindowChromeTests.swift */,
 				4D6AFD59C2E29B4792751A11 /* MakeAppSheetTests.swift */,
 				8ECD0B12EBDDFDF91722F337 /* MarkdownImportTests.swift */,
@@ -2611,6 +2614,7 @@
 				6ECD30112C54E00E2746A529 /* LiveViewerTests.swift in Sources */,
 				7ECADA0C2388363A6D3D3178 /* LocalUpkeepTests.swift in Sources */,
 				7B1E97DC2CD6F2716187E790 /* LockLeakProbeTests.swift in Sources */,
+				EEB15458B34B4C85EC6C9EDE /* MacEmptyDetailTests.swift in Sources */,
 				99D089BCC3EFA6AEA578D1EB /* MacFirstSnapshots.swift in Sources */,
 				26EE93D54AFBE6911882492D /* MacLookSnapshots.swift in Sources */,
 				E4B766562642AAD7347C61F1 /* MacStoreShots.swift in Sources */,
