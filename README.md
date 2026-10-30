@@ -146,11 +146,13 @@ Folder and target names still say "Pane", the app's working name. The Xcode proj
 You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local Supabase stack). A fresh clone runs entirely on your machine.
 
 ```sh
-git clone https://github.com/pinto-notes/pinto-notes.git
+git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
 scripts/setup.sh          # installs XcodeGen and the Supabase CLI, starts the local stack, builds the Mac app
 open Pane.xcodeproj       # run the "Pane" scheme on "My Mac" or an iPhone simulator
 ```
+
+`scripts/setup.sh` finds Xcode on its own. For your own `xcodebuild` commands, either run `sudo xcode-select -s /Applications/Xcode.app` once or put `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` in front of them; otherwise they fail with `tool 'xcodebuild' requires Xcode`. The built app is `build/ddqa/Build/Products/Debug/Pane.app`, the same build `scripts/qa-test.sh` uses.
 
 The app talks to the local stack through `Config/Backend.xcconfig`, which carries Supabase's standard local-only development key. To point your builds at a real project, create `Config/Backend.local.xcconfig` (gitignored) with your own `PANE_SUPABASE_URL`, `PANE_SUPABASE_KEY` and `PANE_SHARE_URL`.
 
@@ -188,7 +190,7 @@ Everything the app needs runs on one Supabase project:
 Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed: you need macOS 26, Xcode 26, Homebrew and, for sign-in and sync, Docker Desktop.
 
 ```sh
-git clone https://github.com/pinto-notes/pinto-notes.git
+git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
 scripts/setup.sh --open
 ```

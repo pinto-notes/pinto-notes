@@ -23,11 +23,50 @@ enum Palette {
     static let ink = warm(0x2A1D10, 0xF6EFE7, plain: (0x262626, 0xD9D9D9))
     static let muted = warm(0x74604C, 0xBCB0A3, plain: (0x6A6A6A, 0x999999))
 
-    /// The deeper amber: accent, links and an AI's tint (AccentColor.colorset holds the same).
-    static let amber = pair(0xD96A06, 0xF4AD33)
+    /// The accent, in one place: amber. To recolour the app, set this to
+    /// `Accent(light: 0x…, dark: 0x…)` and give the AccentColor asset the same two colours
+    /// (docs/MAKE-IT-YOURS.md). Everything below that leans toward amber follows it.
+    static let accent = Accent.amber
+
+    /// The accent's shades. `light` fills the primary buttons under a white label, so it stays
+    /// deep enough for 3:1 against white; `dark` is the accent on black (ticks, links, an AI's tint).
+    struct Accent {
+        let light: UInt32, dark: UInt32
+        /// A wiki link to a note that doesn't exist yet: the accent faded toward the page.
+        let faded: (UInt32, UInt32)
+        /// The accent as text beside an AI's mark: dark enough to read on white.
+        let ink: (UInt32, UInt32)
+        /// The soft fill behind an AI's receipt, a lit choice and a selected suggestion (light mode).
+        let soft: UInt32
+
+        /// Amber, tuned by hand.
+        static let amber = Accent(light: 0xD96A06, dark: 0xF4AD33, faded: (0xE69E5D, 0xAA7B2B),
+                                  ink: (0xA85700, 0xF4AD33), soft: 0xFFF1DC)
+
+        /// Any other accent: the other shades worked out from the two.
+        init(light: UInt32, dark: UInt32) {
+            self.init(light: light, dark: dark, faded: (Self.mix(light, 0xFFFFFF, 0.35), Self.mix(dark, 0x000000, 0.3)),
+                      ink: (Self.mix(light, 0x000000, 0.22), dark), soft: Self.mix(light, 0xFFFFFF, 0.88))
+        }
+
+        private init(light: UInt32, dark: UInt32, faded: (UInt32, UInt32), ink: (UInt32, UInt32), soft: UInt32) {
+            self.light = light; self.dark = dark; self.faded = faded; self.ink = ink; self.soft = soft
+        }
+
+        /// `a` moved `t` of the way toward `b`, channel by channel.
+        static func mix(_ a: UInt32, _ b: UInt32, _ t: Double) -> UInt32 {
+            [16, 8, 0].reduce(0) { sum, shift in
+                let x = Double((a >> shift) & 0xFF), y = Double((b >> shift) & 0xFF)
+                return sum | UInt32((x + (y - x) * t).rounded()) << shift
+            }
+        }
+    }
+
+    /// The accent: links, ticks and an AI's tint (AccentColor.colorset holds the same).
+    static let amber = pair(accent.light, accent.dark)
     /// The fill of amber primary buttons, in light and dark alike: the deeper amber, so their
     /// white label stays readable (the dark-mode amber is too light under white).
-    static let amberButton = pair(0xD96A06, 0xD96A06)
+    static let amberButton = pair(accent.light, accent.light)
     /// The primary button: the deeper amber with a white label in the light; in the dark the ink
     /// button, white with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons
     /// white or black, never amber). Under the pointer a touch lighter in the light, a touch greyer
@@ -37,10 +76,10 @@ enum Palette {
     static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
-    static let buttonHover = pair(0xD96A06, 0.12, 0xFFFFFF, 0.08)
-    static let buttonPressed = pair(0xD96A06, 0.2, 0xFFFFFF, 0.14)
-    static let quietPressed = pair(0xD96A06, 0.14, 0xFFFFFF, 0.10)
-    static let choiceHover = pair(0xD96A06, 0.07, 0xFFFFFF, 0.06)
+    static let buttonHover = pair(accent.light, 0.12, 0xFFFFFF, 0.08)
+    static let buttonPressed = pair(accent.light, 0.2, 0xFFFFFF, 0.14)
+    static let quietPressed = pair(accent.light, 0.14, 0xFFFFFF, 0.10)
+    static let choiceHover = pair(accent.light, 0.07, 0xFFFFFF, 0.06)
     /// A primary button that can't be pressed yet: a quiet warm grey with muted text, not a faded
     /// amber, so it reads as "not yet" rather than as broken.
     static let disabledButton = warm(brown, 0.13, 0xFFFFFF, 0.11, plain: (0x000000, 0.08, 0xFFFFFF, 0.11))
@@ -53,12 +92,12 @@ enum Palette {
     static let destructiveButton = pair(0xC62828, 0xC62828)
     /// A wiki link to a note that doesn't exist yet: the accent, faded toward the page (solid,
     /// so it reads the same over any background).
-    static let amberFaded = pair(0xE69E5D, 0xAA7B2B)
+    static let amberFaded = pair(accent.faded.0, accent.faded.1)
     /// Amber as text beside an AI's mark: dark enough to read on white.
-    static let amberInk = pair(0xA85700, 0xF4AD33)
+    static let amberInk = pair(accent.ink.0, accent.ink.1)
     /// The soft amber fill behind an AI's receipt, a lit choice and a selected suggestion. In the
     /// dark a neutral grey a step above the cards, never a brown-amber (dark mode is pure black).
-    static let amberSoft = pair(0xFFF1DC, 0x3A3A3A)
+    static let amberSoft = pair(accent.soft, 0x3A3A3A)
     /// A solid hairline: card edges and dividers that read the same over any surface.
     static let line = warm(0xE6DCD2, 0x3A3633, plain: (0xE5E5E5, 0x333333))
 
@@ -262,7 +301,7 @@ extension Palette {
         /// A glyph that's off: the label colour on light, ink on dark.
         static func glyph(dark: Bool, highContrast: Bool) -> UInt32 { dark ? 0xF6EFE7 : 0x000000 }
         /// What's on: the primary buttons' amber; deeper with Increase Contrast in light mode.
-        static func on(dark: Bool, highContrast: Bool) -> UInt32 { !dark && highContrast ? 0xA85700 : 0xD96A06 }
+        static func on(dark: Bool, highContrast: Bool) -> UInt32 { !dark && highContrast ? accent.ink.0 : accent.light }
         static let onGlyph: UInt32 = 0xFFFFFF
     }
 }

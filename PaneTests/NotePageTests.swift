@@ -315,13 +315,14 @@ import AppKit
     @Test func everyPageGetsTheAppsThemeAsVariables() async throws {
         #expect(NotePageSandbox.sandboxed("<p>x</p>").contains(#"<link rel="stylesheet" href="amber-lib:///amber-base.css">"#))
         #expect(!NotePageSandbox.sandboxed("<p>x</p>").contains("<style"))
-        #expect(NotePageTheme.tokens.contains("--amber-accent: #D96A06"))
+        let light = String(format: "#%06X", Palette.accent.light), dark = String(format: "#%06X", Palette.accent.dark)
+        #expect(NotePageTheme.tokens.contains("--amber-accent: \(light)"))
         #expect(NotePageTheme.tokens.contains("@media (prefers-color-scheme: dark) { :root { --amber-bg:"))
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
         sandbox.load(html: "<style>p { color: var(--amber-accent-text); border-radius: var(--amber-radius) }</style><p id=p>x</p><script>amber.onChange(() => {})</script>", body: "x")
         try await run(sandbox.webView, until: "document.getElementById('p') !== null && document.readyState === 'complete'")
         let accent = try await sandbox.webView.evaluateJavaScript("getComputedStyle(document.documentElement).getPropertyValue('--amber-accent').trim()") as? String
-        #expect(accent == "#D96A06" || accent == "#F4AD33", "\(accent ?? "nil") in \(NotePageTheme.tokens)")
+        #expect(accent == light || accent == dark, "\(accent ?? "nil") in \(NotePageTheme.tokens)")
         let font = try await sandbox.webView.evaluateJavaScript("getComputedStyle(document.body).fontFamily") as? String
         #expect(font?.contains("system-ui") == true)
     }

@@ -20,9 +20,11 @@
 #   3. deploys the functions the app uses: mcp, account, account-status, share-files, key
 #   4. sets the functions' secrets. The ones it makes up are kept in .secrets/backend-<ref>.env
 #      (gitignored): KEY_COPY_SECRET_1 seals every account's key copy, so it is made once and reused
-#   5. sets the auth settings: email sign-in with a 6-digit code, Sign in with Apple for your bundle
-#      id, your app's URL scheme as a redirect, and the sign-in emails
-#   6. writes Config/Backend.local.xcconfig (gitignored), so your builds sync with this project
+#   5. checks that the clean-up jobs are scheduled (pg_cron, which the migrations turn on)
+#   6. sets the auth settings: email sign-in with a 6-digit code, your app's URL scheme as a
+#      redirect, the sign-in emails, and Sign in with Apple only with a paid team (make-it-yours --team)
+#   7. writes Config/Backend.local.xcconfig (gitignored), so your builds sync with this project, and
+#      prints the settings your site (web/) needs
 # Running it again is safe: each step does the same thing again, and the secrets are kept.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -32,7 +34,7 @@ while (( $# )); do
   case $1 in
     --site) SITE=${2:?--site needs an address}; SITE=${SITE%/}; shift 2 ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; exit 1 ;;
     *) REF=$1; shift ;;
   esac
@@ -56,13 +58,16 @@ MCP="$URL/functions/v1/mcp"
 FUNCTIONS=(mcp account account-status share-files key)
 
 # Who the app is, from Config/Identity.local.xcconfig (scripts/make-it-yours.sh) or upstream's.
-identity() {
-  local v; v=$(sed -n "s/^$1 = //p" Config/Identity.local.xcconfig 2>/dev/null | tail -1) || v=""
-  [[ -n $v ]] || v=$(sed -n "s/^$1 = //p" Config/Identity.xcconfig | tail -1)
-  print -r -- "$v"
+identity() {  # a setting in the local file wins even when it's empty (no team)
+  local f=Config/Identity.local.xcconfig
+  [[ -f $f ]] && grep -q "^$1 =" $f || f=Config/Identity.xcconfig
+  sed -n "s/^$1 = \{0,1\}//p" $f | tail -1
 }
 BUNDLE=$(identity PANE_BUNDLE_ID)
 SCHEME=$(identity PANE_URL_SCHEME)
+# Sign in with Apple needs a paid team's iPhone app; a free account's can't sign it (make-it-yours.sh).
+APPLE=0
+if [[ -n $(identity PANE_IOS_TEAM) && $(identity PANE_IOS_ENTITLEMENTS) != Pane-ios-personal.entitlements ]]; then APPLE=1; fi
 
 step() { echo "→ $*"; }
 run() { if (( DRY )); then echo "  would run: $*"; else "$@"; fi; }
@@ -106,10 +111,16 @@ keep() {  # keep NAME VALUE: made once, then read back from $SECRETS
 }
 keep BACKEND_KEY_COPY_SECRET "$(openssl rand -base64 32)"
 keep BACKEND_STATUS_SALT "$(openssl rand -hex 32)"
+# Your site's proxy vouches for a caller's address with this (set the same value on the site), and
+# rate limits hash addresses with the other.
+keep BACKEND_PROXY_SECRET "$(openssl rand -hex 32)"
+keep BACKEND_RATE_HASH_SECRET "$(openssl rand -hex 32)"
 (umask 077; cat > "$tmp/secrets.env" <<EOF
 KEY_COPY=on
 KEY_COPY_SECRET_1=$BACKEND_KEY_COPY_SECRET
 ACCOUNT_STATUS_SALT=$BACKEND_STATUS_SALT
+MCP_PROXY_SECRET=$BACKEND_PROXY_SECRET
+RATE_HASH_SECRET=$BACKEND_RATE_HASH_SECRET
 MCP_PUBLIC_URL=$MCP
 MCP_ALIAS_URLS=$MCP
 APNS_TOPIC=$BUNDLE
@@ -121,13 +132,31 @@ else
   echo "  set: $(cut -d= -f1 "$tmp/secrets.env" | tr '\n' ' ')"
 fi
 
+step "Checking the clean-up jobs"
+# pg_cron clears expired sign-ins, rate-limit rows and Recently Deleted notes after 30 days. The
+# migrations turn it on and schedule the jobs; this checks they did.
+if (( DRY )); then echo "  would check: select count(*) from cron.job"
+else
+  print -r -- '{"query": "select count(*) as n from cron.job"}' > "$tmp/q.json"
+  jobs=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+    -H "content-type: application/json" --data-binary @"$tmp/q.json" 2>/dev/null | python3 -c 'import json,sys;print(json.load(sys.stdin)[0]["n"])' 2>/dev/null) || jobs=""
+  if [[ $jobs == <-> ]] && (( jobs >= 5 )); then echo "  ✓ $jobs jobs scheduled"
+  else
+    echo "  ! The clean-up jobs aren't scheduled${jobs:+ ($jobs found)}. Without them expired sign-ins, rate-limit rows and"
+    echo "    Recently Deleted notes past 30 days are never cleared. Turn on pg_cron (Database → Extensions), then"
+    echo "    run each cron.schedule(…) line in supabase/migrations in the SQL editor."
+  fi
+fi
+echo "  The welcome and report emails stay off: they need the lifecycle function and two vault secrets"
+echo "  (docs/Technical/lifecycle-emails.md). Nothing else depends on them."
+
 step "Auth settings"
 # The sign-in emails (a 6-digit code; Supabase's own template sends only a link, which the app can't
 # use), then the settings around them. Sign-ups stay on: `disable_signup` would turn email sign-in off.
 if command -v deno >/dev/null; then deno run -A scripts/auth-emails.ts patch > "$tmp/emails.json"; else echo '{}' > "$tmp/emails.json"; fi
-python3 - "$tmp/emails.json" "$tmp/auth.json" "${SITE:-$URL}" "$SCHEME" "$BUNDLE" <<'PY'
+python3 - "$tmp/emails.json" "$tmp/auth.json" "${SITE:-$URL}" "$SCHEME" "$BUNDLE" "$APPLE" <<'PY'
 import json, sys
-emails, out, site, scheme, bundle = sys.argv[1:]
+emails, out, site, scheme, bundle, apple = sys.argv[1:]
 c = json.load(open(emails))
 c.update({
     "site_url": site,
@@ -138,9 +167,9 @@ c.update({
     "mailer_otp_length": 6,
     "mailer_otp_exp": 3600,
     "password_min_length": 12,
-    "external_apple_enabled": True,
-    "external_apple_client_id": bundle,
 })
+if apple == "1":
+    c.update({"external_apple_enabled": True, "external_apple_client_id": bundle})
 json.dump(c, open(out, "w"))
 PY
 api PATCH "/v1/projects/$REF/config/auth" "$tmp/auth.json" || {
@@ -171,3 +200,10 @@ echo "→ Done. Rebuild the app; it now syncs with $URL."
 echo "  Sign in with your email. Emails (codes, password resets) come from Supabase's mailer, which only"
 echo "  sends to your project's team members until you set up SMTP (Authentication → Emails → SMTP settings)."
 echo "  AI server: $MCP (Claude Code and Codex: Settings → Connect an AI in the app)."
+echo "  Your site (web/, for share links and connecting ChatGPT or Claude): deploy it with these settings,"
+echo "  then run this again with --site https://your-site (docs/MAKE-IT-YOURS.md, step 4):"
+echo "    SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL  $URL"
+echo "    SUPABASE_ANON_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY  the PANE_SUPABASE_KEY in Config/Backend.local.xcconfig"
+echo "    MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-$REF.env"
+echo "    NEXT_PUBLIC_APP_SCHEME  $SCHEME"
+echo "    APP_PAGES_ONLY=1 and SITE_NOINDEX=1  only the pages your app uses, kept out of search"

@@ -20,12 +20,12 @@ Once those are there, the rest takes 5 to 20 minutes, most of it downloads.
 Open Terminal and run:
 
 ```sh
-git clone https://github.com/pinto-notes/pinto-notes.git
+git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
 scripts/setup.sh
 ```
 
-The clone is about 400 MB (1 to 3 minutes). `scripts/setup.sh` checks your Mac, installs what's missing with Homebrew, gives your build its own name and bundle id, starts the local backend and builds the Mac app. When it works, the end looks like this:
+The clone takes under a minute and about 300 MB: `--filter=blob:none` skips the old versions of files until you ask for them (a plain `git clone` works too, at about 400 MB and 1 to 3 minutes). `scripts/setup.sh` checks your Mac, installs what's missing with Homebrew, gives your build its own name and bundle id, starts the local backend and builds the Mac app. When it works, the end looks like this:
 
 ```
 ✓ Xcode 26.4.1
@@ -35,13 +35,15 @@ The clone is about 400 MB (1 to 3 minutes). `scripts/setup.sh` checks your Mac, 
 ✓ The local backend is running
 ✓ Made Pane.xcodeproj
 → Building the Mac app (3 to 10 minutes the first time, under a minute after that)
-✓ Built in 113 s: /Users/kim/pinto-notes/build/app/Build/Products/Debug/Pane.app
+✓ Built in 113 s: /Users/kim/pinto-notes/build/ddqa/Build/Products/Debug/Pane.app
 
 Done in 9 min. Open your app:
-  open "/Users/kim/pinto-notes/build/app/Build/Products/Debug/Pane.app"
+  open "/Users/kim/pinto-notes/build/ddqa/Build/Products/Debug/Pane.app"
 ```
 
-Copy the `open` line it prints and run it, or run `scripts/setup.sh --open` to build and open in one go. The file is called Pane.app (the project's working name); the app calls itself My Pinto Notes until you rename it.
+Copy the `open` line it prints and run it, or run `scripts/setup.sh --open` to build and open in one go. Every build in this guide goes to `build/ddqa`, so the tests (step 6) reuse it instead of building the app again.
+
+The file is called Pane.app, the project's working name, and stays that way in your builds: the tests and scripts find the app by that name. The Dock, the menu bar, Finder's Get Info and the app's windows all show your app's name ("My Pinto Notes" until you rename it).
 
 No Docker? Run `scripts/setup.sh --local-only` instead. The app then has no backend: no sign-in, no sync, and your notes stay on this Mac. You can add a backend later.
 
@@ -91,16 +93,19 @@ A new bundle id is a new app to macOS: it starts with an empty library and asks 
 
 ## 3. Put it on your iPhone
 
-The iPhone app runs in the Simulator with no account. Open the project with `open Pane.xcodeproj`, pick an iPhone simulator at the top of the window, and press Run (Command-R). From Terminal:
+The iPhone app runs in the Simulator with no account. Open the project with `open Pane.xcodeproj`, pick an iPhone simulator at the top of the window, and press Run (Command-R). From Terminal (3 to 10 minutes the first time):
 
 ```sh
-xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'generic/platform=iOS Simulator' ARCHS=arm64 build
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Pane.xcodeproj -scheme Pane \
+  -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ddqa ARCHS=arm64 build
 ```
+
+It ends with `** BUILD SUCCEEDED **`, and the app is `build/ddqa/Build/Products/Debug-iphonesimulator/Pane.app`. To run it there, open the Simulator (`open -a Simulator`), then `xcrun simctl install booted build/ddqa/Build/Products/Debug-iphonesimulator/Pane.app` and `xcrun simctl launch booted <your bundle id>`.
 
 To put it on your own phone you need an Apple account in Xcode (Xcode, Settings, Accounts, then the + button) and its team id (shown there, 10 letters and digits). Then:
 
 ```sh
-# A free Apple account: installs last 7 days, then reinstall
+# A free Apple account: installs last 7 days, then reinstall. No Sign in with Apple or push.
 scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --personal-team ABCDE12345
 
 # A paid Apple Developer Program team: a year per install
@@ -131,7 +136,7 @@ The local backend lives on your Mac. To use your app every day, on your phone to
    echo 'SUPABASE_ACCESS_TOKEN=sbp_your_token_here' > .env
    ```
 
-3. See what will happen, then do it. `brew install deno` first if you don't have it (the sign-in emails are written with it).
+3. See what will happen, then do it (about 5 minutes; it asks for the database password once). `brew install deno` first if you don't have it (the sign-in emails are written with it).
 
    ```sh
    scripts/deploy-backend.sh <ref> --dry-run
@@ -139,13 +144,38 @@ The local backend lives on your Mac. To use your app every day, on your phone to
    scripts/setup.sh
    ```
 
-`deploy-backend.sh` asks for the database password, applies the migrations, deploys the functions and their secrets, sets up email sign-in, and writes `Config/Backend.local.xcconfig` so your builds use the project. `scripts/setup.sh` then rebuilds the app against it. Each step that fails says what to do; running it again is safe.
+`deploy-backend.sh` asks for the database password, applies the migrations, deploys the functions and their secrets, checks the clean-up jobs, sets up email sign-in, and writes `Config/Backend.local.xcconfig` so your builds use the project. `scripts/setup.sh` then rebuilds the app against it. Each step that fails says what to do; running it again is safe.
 
-It keeps the secrets it makes in `.secrets/backend-<ref>.env`. Never delete that file: it holds the secret that seals each account's key copy, and without it signing in on a new device can't open the notes.
+It keeps the secrets it makes in `.secrets/backend-<ref>.env`. Never delete that file: it holds the secret that seals each account's key copy, and without it signing in on a new device can't open the notes. The same file has `BACKEND_PROXY_SECRET`, which your site needs (below).
+
+What it sets up, and what it leaves off:
+
+- **Clean-up jobs.** The migrations turn on `pg_cron` and schedule the jobs that clear expired sign-ins, rate-limit rows and notes in Recently Deleted for 30 days. The script checks for them and prints how many are scheduled (or how to fix it). Without them nothing breaks at first, but that data is never cleared.
+- **Welcome and report emails: off.** They need the `lifecycle` function and two secrets in the database's vault ([docs/Technical/lifecycle-emails.md](Technical/lifecycle-emails.md)). Sign-in codes and password resets don't depend on them.
+- **Sign in with Apple: only with a paid team.** With `make-it-yours.sh --team`, it's turned on for your bundle id. With a free account or none, it stays off and the app's button won't work: use email.
 
 Supabase's own mailer only sends to your project's team members, a few emails an hour. That's enough for you. For anyone else, add an SMTP server in the dashboard (Authentication, Emails, SMTP settings).
 
-Share links and connecting ChatGPT or Claude need the website, `web/`. Deploy it to any Next.js host, such as Vercel, with `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_APP_SCHEME` (your URL scheme: `scripts/make-it-yours.sh --show` prints it) set, then run `scripts/deploy-backend.sh <ref> --site https://your-site` again. Claude Code and Codex don't need the site: in the app, open Settings, Connect an AI, and copy the command.
+Share links and connecting ChatGPT or Claude need the website, `web/`. Claude Code and Codex don't: in the app, open Settings, Connect an AI, and copy the command. For the site:
+
+1. Deploy `web/` to any Next.js host, such as Vercel (New project, import your fork, root directory `web`), with these environment variables. `deploy-backend.sh` prints them at the end with your values:
+
+   | Variable | Value |
+   |---|---|
+   | `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
+   | `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the `PANE_SUPABASE_KEY` in `Config/Backend.local.xcconfig` |
+   | `MCP_PROXY_SECRET` | the `BACKEND_PROXY_SECRET` in `.secrets/backend-<ref>.env` |
+   | `NEXT_PUBLIC_APP_SCHEME` | your URL scheme (`scripts/make-it-yours.sh --show` prints it) |
+   | `APP_PAGES_ONLY` | `1`: only the pages your app uses (connecting an AI, password resets, share links, links that open the app). Pinto Notes' home page, blog, changelog and downloads are 404s |
+   | `SITE_NOINDEX` | `1`: keeps the site out of search |
+
+2. Point the backend and the app at it, then rebuild:
+
+   ```sh
+   scripts/deploy-backend.sh <ref> --site https://your-site
+   scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --site https://your-site
+   scripts/setup.sh
+   ```
 
 Your builds send no telemetry: the key is empty in every build that isn't Pinto Notes' own release.
 
@@ -155,7 +185,8 @@ The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and targe
 
 | What | Where |
 |---|---|
-| Colours, light and dark | `Pane/Editor/Palette.swift` (every colour the app draws), `Pane/Resources/Assets.xcassets/AccentColor.colorset` |
+| The accent colour | `Palette.accent` at the top of `Pane/Editor/Palette.swift`: set it to `Accent(light: 0x1E7A4C, dark: 0x5CC48A)` and every button, tick, link and hover follows. Give `Pane/Resources/Assets.xcassets/AccentColor.colorset` the same two colours (a test checks they match) |
+| Other colours, light and dark | the rest of `Pane/Editor/Palette.swift`: every colour the app draws |
 | Buttons, corner radii, shadows, toasts | `Pane/Views/DesignSystem.swift`, with the rules in [docs/DESIGN.md](DESIGN.md) |
 | The iPhone bar above the keyboard | `Pane/Editor/FormatBar.swift` |
 | The Mac's format menu and toolbar | `Pane/Views/FormatPopover.swift`, the `.toolbar` in `Pane/Views/RootView.swift` and `Pane/Views/NoteDetailView.swift`, glyphs in `Pane/Views/ToolbarGlyph.swift` |
@@ -169,7 +200,7 @@ After a change, run `scripts/setup.sh` again (under a minute) and reopen the app
 
 The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding agent how this codebase works and how to test a change, so Claude Code and Codex can work on it from the first prompt. Start one in the `pinto-notes` folder (`claude` or `codex`) and try:
 
-1. "Change the accent colour from amber to a deep green, in light and dark mode. Start in Pane/Editor/Palette.swift and the AccentColor asset, follow docs/DESIGN.md, and run scripts/qa-test.sh PaneTests/AmberButtonTests when you're done."
+1. "Change the accent colour from amber to a deep green, in light and dark mode. Set Palette.accent in Pane/Editor/Palette.swift and the AccentColor asset to match, and run scripts/qa-test.sh PaneTests/AmberButtonTests PaneTests/NotePageTests when you're done."
 2. "Add a button to the iPhone keyboard bar (Pane/Editor/FormatBar.swift) that inserts today's date as a heading. Match the bar's other buttons, and add a test in PaneTests/Interaction like the ones there."
 3. "Rename the app to Kim's Notes in every string a person reads, on the Mac and iPhone. Leave code names like Pane alone. Show me the list of strings before you change them."
 4. "Add a word and character count for the open note to the Mac window's toolbar. Find how the toolbar is built in Pane/Views/RootView.swift first, and test it in the offscreen harness under PaneTests/Harness."
@@ -180,12 +211,12 @@ Ask for one change at a time and run the tests the agent names. A small change y
 ## 6. Run the tests
 
 ```sh
-scripts/qa-test.sh --smoke                    # what CI runs for every change: about 40 tests, 3 to 5 minutes
+scripts/qa-test.sh --smoke                    # what CI runs for every change: 3 to 5 minutes after setup.sh
 scripts/qa-test.sh PaneTests/ShareAskTests    # one suite
 scripts/qa-test.sh                            # every unit and interaction test: 20 to 30 minutes
 ```
 
-Each prints `** TEST SUCCEEDED **` at the end when everything passed, or the failing tests with `✘`. The interaction tests drive the real editor in an offscreen window, so they never move your mouse or take focus. Some tests time things, and on a busy Mac they can fail by being slow; that isn't your change. The server's tests are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+Each ends with two lines, the count and the result, such as `✔ Test run with 412 tests in 38 suites passed after 61.2 seconds.` and `** TEST SUCCEEDED **`. When something fails, the failing tests come first with `✘`, then `** TEST FAILED **`; the full log is in `build/ddqa/last-test.log`. The interaction tests drive the real editor in an offscreen window, so they never move your mouse or take focus. Some tests time things, and on a busy Mac they can fail by being slow; that isn't your change. The server's tests are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## 7. Keep pulling updates
 
@@ -217,7 +248,8 @@ supabase start          # needs Docker; skip it for a build with no backend (see
 xcodegen generate       # makes Pane.xcodeproj from project.yml
 open Pane.xcodeproj     # and press Run, or:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-  xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' -derivedDataPath build/app build
+  xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' -derivedDataPath build/ddqa build
+open build/ddqa/Build/Products/Debug/Pane.app
 ```
 
 A build with no backend has `PANE_SUPABASE_URL =` (empty) in `Config/Backend.local.xcconfig`. Every night CI builds a fresh clone with no secrets and no Apple team through `scripts/setup.sh --local-only` (`scripts/ci/fresh-clone-build.sh`), so this path stays working.

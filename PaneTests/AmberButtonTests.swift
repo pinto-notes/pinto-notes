@@ -104,12 +104,42 @@ import Testing
         }
         // A lit choice still reads against the card it replaces.
         #expect(Self.contrast(Self.resolved(Palette.amberSoft, .darkAqua), Self.resolved(Palette.card, .darkAqua)) >= 1.1)
-        // The light is unchanged: the amber hovers and the soft amber.
-        #expect(rgb(Palette.buttonHover, .aqua)[0] == rgb(Palette.amber, .aqua)[0])
-        #expect(rgb(Palette.amberSoft, .aqua) == [0xFF, 0xF1, 0xDC, 255])
-        // The ticks, links and the icon keep their amber.
+        // The light keeps its accent: the hovers lean toward it and the soft fill is its tint.
+        let lightAccent = rgb(Palette.amber, .aqua)
+        #expect(rgb(Palette.buttonHover, .aqua)[0...2] == lightAccent[0...2])
+        #expect(rgb(Palette.amberSoft, .aqua) == rgb(Palette.rgb(Palette.accent.soft), .aqua))
+        #expect(zip(rgb(Palette.amberSoft, .aqua), lightAccent).allSatisfy { $0 >= $1 }, "the soft fill is a light tint of the accent")
+        // The ticks, links and the icon keep the accent in the dark: a colour, not a grey.
         let tick = rgb(Palette.amberButton, .darkAqua), accent = rgb(Palette.amber, .darkAqua)
-        #expect(tick[0] > tick[2] + 100 && accent[0] > accent[2] + 100)
+        #expect(tick == rgb(Palette.rgb(Palette.accent.light), .aqua) && accent == rgb(Palette.rgb(Palette.accent.dark), .aqua))
+        #expect(Self.chroma(tick) > 60 && Self.chroma(accent) > 60, "tick \(tick), accent \(accent)")
+    }
+
+    /// How far a colour is from grey: its brightest channel less its dimmest.
+    static func chroma(_ v: [Int]) -> Int { v[0...2].max()! - v[0...2].min()! }
+
+    /// The accent's shades still read where they sit, for amber and for an accent worked out
+    /// from two colours (docs/MAKE-IT-YOURS.md's green), so changing `Palette.accent` is safe.
+    @Test(arguments: [("amber", Palette.Accent.amber), ("green", Palette.Accent(light: 0x1E7A4C, dark: 0x5CC48A))])
+    func theAccentsShadesRead(_ name: String, _ accent: Palette.Accent) {
+        let white = Palette.rgb(0xFFFFFF), black = Palette.rgb(0x000000)
+        #expect(Self.contrast(white, Palette.rgb(accent.light)) >= 3, "\(name): a white label on the primary button")
+        #expect(Self.contrast(Palette.rgb(accent.ink.0), white) >= 4.5, "\(name): accent text on white")
+        #expect(Self.contrast(Palette.rgb(accent.ink.1), black) >= 4.5, "\(name): accent text on black")
+        #expect(Self.contrast(Palette.rgb(accent.dark), black) >= 4.5, "\(name): the accent on black")
+        #expect(Self.contrast(Palette.rgb(accent.soft), white) < 1.25, "\(name): the soft fill stays soft")
+        #expect(Self.contrast(Palette.rgb(accent.ink.0), Palette.rgb(accent.soft)) >= 4.5, "\(name): accent text on its soft fill")
+    }
+
+    /// The system's controls take the AccentColor asset; it holds the same two colours as `Palette.accent`.
+    @Test func theAccentColorAssetMatchesThePalette() throws {
+        let asset = try #require(NSColor(named: "AccentColor"))
+        for (appearance, hex) in [(NSAppearance.Name.aqua, Palette.accent.light), (.darkAqua, Palette.accent.dark)] {
+            let a = Self.resolved(asset, appearance), p = Self.resolved(Palette.rgb(hex), appearance)
+            #expect(abs(a.redComponent - p.redComponent) < 0.01 && abs(a.greenComponent - p.greenComponent) < 0.01
+                    && abs(a.blueComponent - p.blueComponent) < 0.01,
+                    "AccentColor.colorset in \(appearance.rawValue) should be #\(String(format: "%06X", hex))")
+        }
     }
 
     /// No button style reaches for the amber directly: its hovers and presses go through the
@@ -256,9 +286,9 @@ import Testing
             #expect(Self.contrast(ink, Self.resolved(ground, appearance)) >= 7, "ink on \(name) \(appearance.rawValue)")
             #expect(Self.contrast(muted, Self.resolved(ground, appearance)) >= 4.5, "muted on \(name) \(appearance.rawValue)")
         }
-        // Amber stays the accent.
+        // The accent stays a colour in every look.
         let amber = rgba(Palette.amber)
-        #expect(amber[0] > amber[2] + 100, "amber \(appearance.rawValue): \(amber)")
+        #expect(Self.chroma(amber) > 60, "accent \(appearance.rawValue): \(amber)")
         // The other looks keep their warmth, for comparison.
         DesignLook.current = .reading
         #expect(rgba(Palette.page) != ground && rgba(Palette.sidebarWarmth)[3] > 0)

@@ -21,6 +21,7 @@ DD=${DD:-build/ddqa}
 log=$(mktemp)
 CONFIG=${CONFIG:-Debug}
 # CONFIG=Release measures optimised code (what people run); testability keeps @testable working.
+# scripts/setup.sh builds the app with these same settings into build/ddqa, so a test run after it reuses that build.
 xcodebuild -project Pane.xcodeproj -scheme Pane -configuration $CONFIG -destination 'platform=macOS' -derivedDataPath $DD \
   ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO ONLY_ACTIVE_ARCH=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) QA' \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
@@ -33,6 +34,12 @@ if kill -0 $pid 2>/dev/null; then
   for h in $(pgrep -f "$PWD/$DD/Build/Products/$CONFIG/Pane.app/Contents/MacOS/Pane"); do kill $h; done
   kill $pid 2>/dev/null
 fi
-wait $pid 2>/dev/null
-grep -A2 -E "PERF|error:|✘|✔ Test run|Test run with|TEST (SUCC|FAIL)|passed after|timeout" "$log" | grep -v "^20[0-9][0-9]-" | grep -vE "✔ (Suite|Test [a-zA-Z]+\(\) passed)" | head -${LINES_OUT:-40}
+wait $pid 2>/dev/null; code=$?
+# What went wrong, capped; then the result, always, whatever came before it.
+summary="Test run with|TEST (SUCC|FAIL)"
+grep -A2 -E "PERF|error:|✘|timeout" "$log" | grep -v "^20[0-9][0-9]-" | grep -vE "^--$|^\s*export |^◇ |✔ (Suite|Test )|^Test (Suite|Case) " \
+  | grep -vE "$summary" | head -${LINES_OUT:-40}
+grep -E "$summary" "$log" | grep -v "^20[0-9][0-9]-" | tail -2
 cp "$log" $DD/last-test.log; rm -f "$log"
+echo "Full log: $DD/last-test.log"
+exit $code

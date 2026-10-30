@@ -41,6 +41,17 @@ Deno.test({ name: "make-it-yours writes the identity file a free account needs",
     assertStringIncludes(local, line + "\n");
   }
   assertStringIncludes(r.text, "xcodegen generate", "says how to regenerate when XcodeGen is missing");
+  // A fork never updates itself to Pinto Notes, and opens no links on Pinto Notes' site.
+  assertStringIncludes(local, "PANE_UPDATE_FEED =\n");
+  assertStringIncludes(local, "PANE_APPLINKS_HOST = \n");
+} });
+
+Deno.test({ name: "make-it-yours --site opens links on your own site", ignore: !onMac, fn: async () => {
+  const dir = await copy();
+  const r = await run(dir, "make-it-yours.sh", "--bundle-id", "com.kim.notes", "--site", "https://notes.kim.dev/");
+  assertEquals(r.code, 0, r.text);
+  assertStringIncludes(await Deno.readTextFile(`${dir}/Config/Identity.local.xcconfig`), "PANE_APPLINKS_HOST = notes.kim.dev\n");
+  assertEquals((await run(dir, "make-it-yours.sh", "--bundle-id", "com.kim.notes", "--site", "notes.kim.dev")).code, 1);
 } });
 
 Deno.test({ name: "make-it-yours with no team signs nothing for an iPhone, and --reset goes back", ignore: !onMac, fn: async () => {
@@ -70,7 +81,11 @@ Deno.test({ name: "deploy-backend --dry-run deploys every function the app needs
     assertStringIncludes(r.text, `supabase functions deploy ${f} --project-ref abcdefghijklmnopqrst`);
   }
   // The key copies are on, and secrets are named, never printed.
-  assertStringIncludes(r.text, "KEY_COPY KEY_COPY_SECRET_1 ACCOUNT_STATUS_SALT");
+  assertStringIncludes(r.text, "KEY_COPY KEY_COPY_SECRET_1 ACCOUNT_STATUS_SALT MCP_PROXY_SECRET RATE_HASH_SECRET");
+  assertStringIncludes(r.text, "select count(*) from cron.job");
+  assertStringIncludes(r.text, "MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-abcdefghijklmnopqrst.env");
+  assertStringIncludes(r.text, "APP_PAGES_ONLY=1");
+  assert(!r.text.includes("external_apple_enabled"), "no Sign in with Apple without a paid team");
   assertStringIncludes(r.text, "CONNECT_PAGE_URL");
   assert(!/KEY_COPY_SECRET_1=/.test(r.text));
   assertStringIncludes(r.text, "com.kim.notes (kimnotes://)");

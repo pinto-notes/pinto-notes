@@ -25,7 +25,8 @@ import SwiftUI
 final class Updater: ObservableObject {
     static let shared = Updater()
 
-    let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    /// Not started in a build of your own (AppIdentity.takesUpdates): no checks, and the menu item is off.
+    let controller = SPUStandardUpdaterController(startingUpdater: AppIdentity.takesUpdates, updaterDelegate: nil, userDriverDelegate: nil)
     @Published private(set) var canCheck = false
 
     /// Set once automatic updates have been switched on for an install (see above).
@@ -34,7 +35,7 @@ final class Updater: ObservableObject {
     private init() {
         controller.updater.publisher(for: \.canCheckForUpdates).assign(to: &$canCheck)
         let defaults = UserDefaults.standard
-        if !defaults.bool(forKey: Self.automaticUpdatesSetKey) {
+        if AppIdentity.takesUpdates, !defaults.bool(forKey: Self.automaticUpdatesSetKey) {
             controller.updater.automaticallyDownloadsUpdates = true
             defaults.set(true, forKey: Self.automaticUpdatesSetKey)
         }

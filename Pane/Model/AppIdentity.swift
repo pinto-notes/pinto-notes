@@ -19,6 +19,14 @@ enum AppIdentity {
         guard let id = bundleID, id != "dev.emilwagman.pane", !id.hasPrefix("dev.emilwagman.pane.") else { return "Pane" }
         return id
     }
+    /// Whether the Mac download takes updates (Updater.swift): only Pinto Notes' own app, with a
+    /// feed. A build under a bundle id of its own never replaces itself with Pinto Notes, even when
+    /// it still has upstream's feed and Sparkle key (scripts/make-it-yours.sh also clears the feed).
+    static let takesUpdates = takesUpdates(bundleID: info("PaneBundleID"), feed: info("SUFeedURL"))
+
+    static func takesUpdates(bundleID: String?, feed: String?) -> Bool {
+        dataFolder(bundleID: bundleID) == "Pane" && feed?.hasPrefix("https://") == true
+    }
     /// The App Group the share extension hands items to the app through.
     static let appGroup = info("PaneAppGroup") ?? "group.dev.emilwagman.pane"
     /// Website hosts whose /open/… links the app handles: ambernotes.app, pintonotes.com (the new

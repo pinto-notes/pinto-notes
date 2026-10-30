@@ -48,7 +48,7 @@ if [[ $WHAT == all || $WHAT == mac ]]; then
   else
     cat "$TMP/setup.log"; echo "✘ scripts/setup.sh --local-only failed on a fresh clone" >&2; failed=1
   fi
-  app=build/app/Build/Products/Debug/Pane.app
+  app=build/ddqa/Build/Products/Debug/Pane.app
   if [[ -d $app ]]; then
     [[ $(codesign -dv "$app" 2>&1) == *Signature=adhoc* ]] || { echo "✘ the Mac app isn't ad-hoc signed" >&2; failed=1; }
     plist=$app/Contents/Info.plist

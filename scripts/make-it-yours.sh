@@ -4,6 +4,7 @@
 #   scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes             # no Apple account
 #   scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --personal-team ABCDE12345
 #   scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --team ABCDE12345
+#   scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --site https://notes.kim.dev
 #   scripts/make-it-yours.sh --show       what this checkout builds as
 #   scripts/make-it-yours.sh --reset      back to upstream's identity
 #
@@ -12,6 +13,8 @@
 #   install lasts 7 days.
 # --team: a paid Apple Developer Program team. Everything the iPhone app has, as upstream.
 # Neither: the Mac app and the iPhone Simulator, which need no account.
+# --site: your own website (web/), whose /open/… links the app should open. Leave it out until you
+#   have one.
 # The Mac app is always ad-hoc signed ("sign to run locally"), so it builds and runs with no account.
 # Your team id is in Xcode → Settings → Accounts, or at developer.apple.com/account (Membership).
 #
@@ -23,9 +26,9 @@ SELF=${0:A}
 cd "$(dirname "$SELF")/.."
 OUT=Config/Identity.local.xcconfig
 
-usage() { sed -n '2,20p' "$SELF" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,23p' "$SELF" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
-name="" bundle="" scheme="" team="" personal=0 show=0 reset=0
+name="" bundle="" scheme="" team="" site="" personal=0 show=0 reset=0
 while (( $# )); do
   case $1 in
     --name) name=${2:?--name needs a value}; shift 2 ;;
@@ -33,6 +36,7 @@ while (( $# )); do
     --url-scheme) scheme=${2:?--url-scheme needs a value}; shift 2 ;;
     --team) team=${2:?--team needs a team id}; shift 2 ;;
     --personal-team) team=${2:?--personal-team needs a team id}; personal=1; shift 2 ;;
+    --site) site=${2:?--site needs an address, like https://notes.kim.dev}; shift 2 ;;
     --show) show=1; shift ;;
     --reset) reset=1; shift ;;
     -h|--help) usage ;;
@@ -57,6 +61,8 @@ fi
 [[ $bundle =~ '^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$' ]] || { echo "A bundle id looks like com.you.notes (letters, digits, hyphens and dots)." >&2; exit 1; }
 [[ $bundle != dev.emilwagman.* ]] || { echo "That's upstream's bundle id. Pick one of your own, such as com.you.notes." >&2; exit 1; }
 [[ -z $team || $team =~ '^[A-Z0-9]{10}$' ]] || { echo "A team id is 10 letters and digits, like ABCDE12345." >&2; exit 1; }
+[[ -z $site || $site =~ '^https://[A-Za-z0-9.-]+/?$' ]] || { echo "A site is an https address with no path, like https://notes.kim.dev" >&2; exit 1; }
+host=${${site#https://}%/}
 [[ -n $name ]] || name="Pinto Notes"
 # The URL scheme the sign-in links and the AI connect page open: by default the bundle id's last two
 # parts, so com.kim.notes opens kimnotes:// (a word like notes:// is likely taken by another app).
@@ -70,6 +76,10 @@ if [[ -z $scheme ]]; then scheme=${(j::)${(@s:.:)bundle}[-2,-1]}; scheme=${${sch
   echo "PANE_URL_SCHEME = $scheme"
   echo "PANE_APP_GROUP = group.$bundle"
   echo "PANE_IOS_TEAM = $team"
+  echo "// Links to your own site only, and no updates from Pinto Notes' feed: your build never"
+  echo "// replaces itself with Pinto Notes."
+  echo "PANE_APPLINKS_HOST = $host"
+  echo "PANE_UPDATE_FEED ="
   if (( personal )); then
     echo "// A free Apple account: no Sign in with Apple, push or associated domains on the iPhone."
     echo "PANE_IOS_ENTITLEMENTS = Pane-ios-personal.entitlements"

@@ -44,6 +44,15 @@ import Testing
         #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.panes") == "dev.emilwagman.panes")
     }
 
+    /// A build of your own never replaces itself with Pinto Notes: the Mac download's updater runs
+    /// only under upstream's bundle id and with a feed (make-it-yours.sh also clears the feed).
+    @Test func onlyPintoNotesItselfTakesUpdates() {
+        let feed = "https://ambernotes.app/updates/appcast.xml"
+        #expect(AppIdentity.takesUpdates(bundleID: "dev.emilwagman.pane", feed: feed))
+        #expect(!AppIdentity.takesUpdates(bundleID: "com.kim.notes", feed: feed))
+        #expect(!AppIdentity.takesUpdates(bundleID: "dev.emilwagman.pane", feed: nil))
+    }
+
     /// `scripts/setup.sh --local-only` builds with an empty backend address: the app opens on the
     /// notes, with sync off and no sign-in.
     @Test func aBuildWithNoBackendAddressRunsWithSyncOff() {

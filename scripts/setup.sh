@@ -8,7 +8,7 @@
 # It checks for Xcode 26, Homebrew and Docker and says what to do when one is missing, installs
 # XcodeGen and the Supabase CLI with Homebrew if they aren't there, gives the app a name and bundle
 # id of its own (scripts/make-it-yours.sh), starts the local backend (supabase start), and builds
-# the Mac app into build/app. Safe to run again: each step that's already done is skipped.
+# the Mac app into build/ddqa, where scripts/qa-test.sh's tests reuse it. Safe to run again: each step that's already done is skipped.
 set -uo pipefail
 SELF=${0:A}
 cd "$(dirname "$SELF")/.."
@@ -126,19 +126,22 @@ mkdir -p build
 LOG=$ROOT/build/setup-build.log
 step "Building the Mac app (3 to 10 minutes the first time, under a minute after that)"
 b=$SECONDS
-if ! xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' -derivedDataPath build/app build > "$LOG" 2>&1; then
+# qa-test.sh's derived data and settings, so the tests build on this instead of building the app again.
+if ! xcodebuild -project Pane.xcodeproj -scheme Pane -configuration Debug -destination 'platform=macOS' -derivedDataPath build/ddqa \
+    ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO ONLY_ACTIVE_ARCH=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) QA' \
+    CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= build > "$LOG" 2>&1; then
   grep -E "error:" "$LOG" | sort -u | head -10 | sed 's/^/  /' >&2
   stop "The build failed (the errors are above, the full log is build/setup-build.log)." \
     "If it says a package couldn't be fetched, check your connection and run scripts/setup.sh again." \
     "Otherwise open an issue at https://github.com/pinto-notes/pinto-notes/issues with the errors."
 fi
-APP=$ROOT/build/app/Build/Products/Debug/Pane.app
+APP=$ROOT/build/ddqa/Build/Products/Debug/Pane.app
 ok "Built in $(( SECONDS - b )) s: $APP"
 
 took=$(( SECONDS - START )); (( took < 90 )) && took="$took s" || took="$(( (took + 30) / 60 )) min"
 print -- "\nDone in $took. Open your app:\n  open \"$APP\""
 if (( LOCAL )); then
-  print -- "Your notes stay on this Mac. To sync with your own backend later: docs/MAKE-IT-YOURS.md, step 3."
+  print -- "Your notes stay on this Mac. To sync with your own backend later: docs/MAKE-IT-YOURS.md, step 4."
 else
   print -- "First run: press Get started, type any email address, press Continue and make a password of 12"
   print -- "characters or more. Nothing is really emailed: if the app asks for a code, it's in the local mail"
