@@ -98,6 +98,9 @@ struct MarkdownStyler {
     /// A note's title (its first plain line).
     static var titleFont: PFont { .systemFont(ofSize: EditorMetrics.title, weight: .heavy) }
 
+    /// A ### heading in the paper and reading looks: a small bold label ("Get started").
+    static var labelFont: PFont { .systemFont(ofSize: EditorMetrics.label, weight: .bold) }
+
     func headingFont(_ level: Int) -> PFont {
         // B (paper): headings in the website's voice, heavy and tight like the title.
         if DesignLook.current == .paper || DesignLook.readingPage {
@@ -120,6 +123,26 @@ struct MarkdownStyler {
         case 3: .systemFont(ofSize: bodySize * 1.1, weight: .semibold)
         default: .systemFont(ofSize: bodySize, weight: .semibold)
         }
+    }
+
+    /// The face a paragraph style gives its line in the note, and its tracking, so the Format
+    /// panel can write each choice exactly as the note will (Title is a `#` line, not the note's
+    /// first-line title). Nil for the controls that aren't paragraph styles.
+    func font(for style: FormatControl) -> PFont? {
+        switch style {
+        case .title: headingFont(1)
+        case .heading: headingFont(2)
+        case .subheading: DesignLook.current == .paper || DesignLook.readingPage ? Self.labelFont : headingFont(3)
+        case .body: bodyFont
+        case .monostyled: monoFont
+        default: nil
+        }
+    }
+
+    func kern(for style: FormatControl) -> CGFloat {
+        guard DesignLook.current == .paper || DesignLook.readingPage, style == .title || style == .heading,
+              let font = font(for: style) else { return 0 }
+        return Palette.tracking(font.pointSize)
     }
 
     func baseParagraph() -> NSMutableParagraphStyle {
@@ -701,7 +724,7 @@ private struct StyleWalker: MarkupWalker {
         if heading.level == 3, DesignLook.current == .paper || DesignLook.readingPage {
             // As on the iPhone: a small bold label in the muted colour ("Get started"), a little
             // apart from what's above it.
-            storage.addAttributes([.font: PFont.systemFont(ofSize: EditorMetrics.label, weight: .bold), .foregroundColor: Palette.muted], range: r)
+            storage.addAttributes([.font: MarkdownStyler.labelFont, .foregroundColor: Palette.muted], range: r)
             let label = styler.baseParagraph()
             label.paragraphSpacingBefore = 8
             label.paragraphSpacing = 4

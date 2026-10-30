@@ -28,11 +28,19 @@ struct FormatPanel: View {
         // The sheet is the system's: iOS 26 lays its keyboard ground, a rounded sheet over the
         // note, behind every input view. A card of our own on it read as a frame in a frame.
         .padding(.horizontal, Self.inset)
-        .padding(.top, 18)
+        // No forehead: the first row sits as far from the top as the pills from the sides, as in
+        // Notes (Emil, 30 October 2026: "format panel has a forehead for some reason").
+        .padding(.top, Self.inset)
         .padding(.bottom, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("format.panel")
     }
+
+    /// The close button's circle, the first row's height; its target reaches past it to 44 pt.
+    static let closeSize: CGFloat = 36
+
+    /// Where the first row was laid out, in the window (tests).
+    static var firstRowFrame: CGRect = .zero
 
     private var header: some View {
         HStack {
@@ -45,16 +53,18 @@ struct FormatPanel: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.formatInk)
-                    .frame(width: 36, height: 36)
+                    .frame(width: Self.closeSize, height: Self.closeSize)
                     .background(Color.formatPill, in: Circle())
-                    .frame(width: 44, height: 44)
+                    .padding(4)
                     .contentShape(Circle())
             }
             .buttonStyle(PressScale())
             .accessibilityLabel("Close")
             .accessibilityIdentifier("format.close")
-            .padding(.trailing, -4)
+            .padding(-4)
         }
+        .frame(height: Self.closeSize)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { Self.firstRowFrame = $0 }
     }
 
     private func styles(_ state: FormatState) -> some View {
@@ -72,31 +82,27 @@ struct FormatPanel: View {
 }
 
 /// A paragraph style, written in its own face; the caret line's one sits in the accent capsule.
-private struct StyleChip: View {
+struct StyleChip: View {
     let style: FormatControl
     let on: Bool
     let enabled: Bool
     let action: () -> Void
 
-    private var font: Font {
-        switch style {
-        case .title: .system(size: 22, weight: .bold)
-        case .heading: .system(size: 18, weight: .bold)
-        case .subheading: .system(size: 16, weight: .semibold)
-        case .monostyled: .system(size: 16, design: .monospaced)
-        default: .system(size: 17)
-        }
-    }
+    /// The note's own face for the style, from the styler, never a copy of its numbers.
+    static func font(_ style: FormatControl) -> UIFont { MarkdownStyler().font(for: style) ?? MarkdownStyler().bodyFont }
 
     var body: some View {
         Button(action: action) {
             Text(style.name)
-                .font(font)
+                .font(Font(Self.font(style)))
+                .tracking(MarkdownStyler().kern(for: style))
                 .lineLimit(1)
                 .fixedSize()
                 .foregroundStyle(on ? Color.formatOnGlyph : enabled ? Color.formatInk : Color.formatOff)
                 .padding(.horizontal, 14)
-                .frame(height: 44)
+                // A Title too tall for the row makes the row taller; it's never shrunk.
+                .padding(.vertical, 4)
+                .frame(minHeight: 44)
                 .background(on ? Color.formatOn : .clear, in: Capsule())
                 .contentShape(Capsule())
         }
@@ -160,6 +166,20 @@ private struct Segment: View {
     }
 }
 
+/// How the panel and the keyboard change places. Normally they trade places on the keyboard's own
+/// curve and timing (the system's keyboard move); with Reduce Motion one fades into the other.
+enum FormatPanelMotion: Equatable {
+    case trade, crossFade
+
+    static func motion(reduceMotion: Bool) -> FormatPanelMotion { reduceMotion ? .crossFade : .trade }
+    static var now: FormatPanelMotion { motion(reduceMotion: UIAccessibility.isReduceMotionEnabled || forceReduceMotion) }
+    /// Captures: `-uitest -reduceMotion` plays the Reduce Motion version.
+    static let forceReduceMotion = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-reduceMotion")
+    static let fadeDuration: CFTimeInterval = 0.25
+    /// Longer than the keyboard's move down and the panel's up.
+    static let holdDuration: TimeInterval = 0.7
+}
+
 /// Hosts the panel as the text view's input view: it takes the keyboard's place, so the caret
 /// and the selection stay in the text while it's up.
 final class FormatPanelHost: UIInputView {
@@ -189,8 +209,20 @@ final class FormatPanelHost: UIInputView {
         return CGSize(width: UIView.noIntrinsicMetric, height: ceil(fitted) + bottom)
     }
 
+    private var fadeIn: TimeInterval?
+
+    /// Reduce Motion: the panel's controls fade in where the keyboard was, once it's there.
+    func fadeInOnArrival(_ duration: TimeInterval) {
+        fadeIn = duration
+        host.view.alpha = 0
+    }
+
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        if window != nil, let fadeIn {
+            self.fadeIn = nil
+            UIView.animate(withDuration: fadeIn, delay: 0, options: [.beginFromCurrentState]) { self.host.view.alpha = 1 }
+        }
         invalidateIntrinsicContentSize()
     }
 

@@ -1050,7 +1050,54 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             inputView = nil
             if let keyboardBar { inputAccessoryView = keyboardBar }
         }
-        if isFirstResponder { reloadInputViews() } else if shown { becomeFirstResponder() }
+        guard isFirstResponder else { if shown { becomeFirstResponder() }; return }
+        let motion = FormatPanelMotion.now
+        lastFormatMotion = motion
+        switch motion {
+        case .trade:
+            // Swapped in place, UIKit cuts from one to the other (Emil, 30 October 2026: "it just
+            // insta disappears"). Handed down and up again in one go, the system plays its own
+            // keyboard move: the keyboard goes down on its curve as the panel comes up on the
+            // same one, and back. The text keeps its caret and stays where it is meanwhile.
+            holdOffset()
+            swappingInput = true
+            resignFirstResponder()
+            DispatchQueue.main.async {
+                self.becomeFirstResponder()
+                self.swappingInput = false
+            }
+        case .crossFade:
+            // Nothing slides. Opening, the panel fades in where the keyboard was (the keys are
+            // drawn by the system, out of reach); closing, a picture of it fades out over the
+            // keyboard as it comes back.
+            let leaving = shown ? nil : formatPanel.flatMap { panel in
+                panel.window.map { (panel.snapshotView(afterScreenUpdates: false), panel.convert(panel.bounds, to: $0), $0) }
+            }
+            if shown { formatPanel?.fadeInOnArrival(FormatPanelMotion.fadeDuration) }
+            reloadInputViews()
+            if let (snapshot, frame, window) = leaving, let snapshot {
+                snapshot.frame = frame
+                window.addSubview(snapshot)
+                UIView.animate(withDuration: FormatPanelMotion.fadeDuration) { snapshot.alpha = 0 } completion: { _ in snapshot.removeFromSuperview() }
+            }
+        }
+    }
+
+    /// How the last open or close of the panel moved (tests).
+    private(set) var lastFormatMotion: FormatPanelMotion?
+    /// Between handing the keyboard down and taking it back for the panel: editing hasn't ended.
+    private var swappingInput = false
+    /// Where the text stays while the keyboard and the panel trade places: the room below changes
+    /// twice, and the text view followed it, showing the folded date for a moment.
+    private var heldOffset: CGPoint?
+
+    private func holdOffset() {
+        heldOffset = contentOffset
+        DispatchQueue.main.asyncAfter(deadline: .now() + FormatPanelMotion.holdDuration) { [weak self] in self?.heldOffset = nil }
+    }
+
+    override var contentOffset: CGPoint {
+        didSet { if let heldOffset, contentOffset != heldOffset { contentOffset = heldOffset } }
     }
 
     /// Whether the panel is in the keyboard's place now (tests).
@@ -1316,12 +1363,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         controller?.typingChanged(text: text, selection: editingSelection)
     }
 
-    private var editingSelection: NSRange? { isFirstResponder ? selectedRange : nil }
+    private var editingSelection: NSRange? { isFirstResponder || swappingInput ? selectedRange : nil }
 
     func setWiki(_ wiki: WikiScope?) { core.setWiki(wiki, storage: textStorage, selection: editingSelection) }
     func setImages(_ tick: Int) { core.setImages(tick, storage: textStorage, selection: editingSelection) }
 
     func textViewDidBeginEditing(_ textView: UITextView) {
+        if swappingInput { return }
         controller?.isEditing = true
         // The keyboard is back in the text: no table is waiting for it any more.
         core.gridFocus = nil
@@ -1330,6 +1378,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
+        if swappingInput { return }
         // Swiped away or left: next time the keyboard comes, not the panel.
         controller?.closeFormatPanel(keyboard: false)
         controller?.isEditing = false

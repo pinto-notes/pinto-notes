@@ -34,6 +34,16 @@ final class WelcomeEmailUITests: XCTestCase {
         return app
     }
 
+    /// Played to its end, the way in comes up on its spring (scripts record it).
+    func testTheWayInComesUp() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uitest", "-captureSignedOut", "-mockEmailAuth"]
+        app.launch()
+        XCTAssertTrue(app.buttons["welcome.email"].waitForExistence(timeout: 20), "the way in")
+        Thread.sleep(forTimeInterval: 1.5)
+        shot("way-in")
+    }
+
     func hasFocus(_ e: XCUIElement) -> Bool { (e.value(forKey: "hasKeyboardFocus") as? Bool) == true }
 
     func testUseEmailIsAFieldInPlaceThenTheCode() throws {

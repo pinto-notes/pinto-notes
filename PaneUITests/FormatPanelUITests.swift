@@ -11,6 +11,8 @@ final class FormatPanelUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["-uitest", "-demo", "-open", "-new"]
+        // Captures of the Reduce Motion version: TEST_RUNNER_REDUCE_MOTION=1.
+        if ProcessInfo.processInfo.environment["REDUCE_MOTION"] == "1" { app.launchArguments.append("-reduceMotion") }
         app.launch()
     }
 
@@ -24,6 +26,31 @@ final class FormatPanelUITests: XCTestCase {
     func pause(_ s: Double = 0.8) { Thread.sleep(forTimeInterval: s) }
 
     func isOn(_ label: String) -> Bool { app.buttons[label].firstMatch.isSelected }
+
+    func mark(_ name: String) {
+        let dir = ProcessInfo.processInfo.environment["PANE_SHOTS"] ?? "/tmp/pane-shots"
+        try? "\(Date().timeIntervalSince1970)".write(toFile: "\(dir)/mark-\(name).txt", atomically: true, encoding: .utf8)
+    }
+
+    /// Open and close, for a recording of the panel and the keyboard trading places
+    /// (scripts record the simulator around it; the marks time the taps).
+    func testOpenAndClose() throws {
+        let editor = app.textViews["editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        if app.keyboards.count == 0 { editor.tap() }
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.typeText("Weekend in Lisbon\nTrams, tiles and pastries")
+        pause(1.5)
+        mark("open")
+        app.buttons["editor.format"].tap()
+        pause(2)
+        mark("close")
+        XCTAssertTrue(app.descendants(matching: .any)["format.panel"].firstMatch.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.keyboards.count, 0)
+        app.buttons["format.close"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "closing brings the keyboard back")
+        pause(2)
+    }
 
     func testFormatPanel() throws {
         let editor = app.textViews["editor"]
