@@ -66,6 +66,44 @@ import Testing
         #expect(today(morning.addingTimeInterval(7300)).made)
     }
 
+    /// Obsidian names daily notes 2026-10-30; imported, they were made on other days.
+    @Test func anImportedNoteNamedByTodaysDateIsTodaysNote() throws {
+        let daily = context.createFolder(named: "Daily")
+        let old = context.createNote(in: .folder(daily.id), body: "2026-10-30\n\nFrom Obsidian")
+        old.createdAt = morning.addingTimeInterval(-40 * 86400)
+        let yesterday = context.createNote(in: .folder(daily.id), body: "2026-10-29\n")
+        yesterday.createdAt = morning.addingTimeInterval(-86400)
+        try context.save()
+        let found = today(morning)
+        #expect(!found.made && found.note.id == old.id, "ISO title in Daily")
+        // The long form too.
+        old.body = "30 October 2026\nrenamed by hand"
+        try context.save()
+        #expect(today(morning).note.id == old.id)
+    }
+
+    @Test func aDateNamedNoteInAnImportedJournalFolderCounts() throws {
+        let journal = context.createFolder(named: "Journal")
+        let a = context.createNote(in: .folder(journal.id), body: "2026-10-28\n")
+        let b = context.createNote(in: .folder(journal.id), body: "2026-10-30\n")
+        for n in [a, b] { n.createdAt = morning.addingTimeInterval(-90 * 86400) }
+        // A note named by today's date among notes that aren't dates isn't today's note.
+        let work = context.createFolder(named: "Work")
+        let stray = context.createNote(in: .folder(work.id), body: "2026-10-30\n")
+        context.createNote(in: .folder(work.id), body: "Q4 plan\n")
+        stray.createdAt = morning.addingTimeInterval(-86400)
+        try context.save()
+        let found = today(morning)
+        #expect(!found.made && found.note.id == b.id)
+        #expect(DailyNotes.isDateTitle("30 October 2026", locale: locale, calendar: calendar))
+        #expect(!DailyNotes.isDateTitle("Q4 plan", locale: locale, calendar: calendar))
+        // Without it, a new note in Daily, titled the long way.
+        context.trash(b)
+        try context.save()
+        let made = today(morning)
+        #expect(made.made && made.note.title == "30 October 2026" && made.note.folder?.name == "Daily")
+    }
+
     @Test func aDailyFolderAlreadyThereIsUsed() {
         // An imported Obsidian vault keeps its folders inside one; a lower-case one counts too.
         let vault = context.createFolder(named: "Vault")
@@ -128,6 +166,10 @@ import Testing
         context.createNote(in: .folder(context.createFolder(named: "Work").id), body: "Not a template")
         try? context.save()
         #expect(context.allFolders().filter { $0.name == "Templates" }.count == 1)
+        // The folder's first note says what it's for, once, and isn't a template.
+        let about = first.folder?.liveNotes.filter { $0.title == DailyNotes.aboutTemplatesTitle } ?? []
+        #expect(about.count == 1)
+        #expect(about.first?.body.contains("Notes in this folder are templates.") == true)
         // By name; one that starts with {{title}} goes by the line under it.
         #expect(context.noteTemplates().map(\.name) == ["Attendees:", "Weekly review"])
         #expect(DailyNotes.name(of: "{{title}}") == "Untitled Template")

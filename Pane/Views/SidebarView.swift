@@ -527,6 +527,9 @@ struct SidebarView: View {
             #else
             // Where the sidebar button was, at the sidebar's trailing edge: search every note.
             ToolbarSpacer(.flexible)
+            // Today's note in one press (DailyNotes), left of the sidebar's other button.
+            ToolbarItem { TodayButton(identifier: "sidebar.today") }
+            ToolbarSpacer(.fixed)
             ToolbarItem {
                 Button("Search", systemImage: "magnifyingglass") {
                     NotificationCenter.default.post(name: .paneSearchNotes, object: nil)

@@ -54,10 +54,14 @@ final class DailyNotesUITests: XCTestCase {
         editor.typeText("Meeting\nOn {{date}}\nWith ")
         backToFolders()
         XCTAssertTrue(app.staticTexts["Templates"].firstMatch.waitForExistence(timeout: 3), "a Templates folder")
+        // Its row lines up with the other top folders' rows, folder icon and all.
+        XCTAssertEqual(app.staticTexts["Templates"].firstMatch.frame.minX, app.staticTexts["Ideas"].firstMatch.frame.minX, accuracy: 1)
+        XCTAssertTrue(app.cells.containing(.any, identifier: "folder.Templates").images.firstMatch.exists, "the Templates row has its folder icon")
 
         // The menu lists it, and a note made from it has the date filled in.
         hold()
         XCTAssertTrue(app.buttons["Meeting"].firstMatch.waitForExistence(timeout: 3), "the template is in the menu")
+        XCTAssertFalse(app.buttons["About templates"].exists, "the folder's explainer isn't a template")
         shot("daily-menu-templates")
         app.buttons["Meeting"].firstMatch.tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
@@ -65,16 +69,27 @@ final class DailyNotesUITests: XCTestCase {
         XCTAssertTrue((editor.value as? String ?? "").contains("On \(today)"), "{{date}} is filled in: \(editor.value ?? "")")
         backToFolders()
 
-        // Today's note, in Daily, titled with the date.
-        hold()
-        app.buttons["Today\u{2019}s Note"].firstMatch.tap()
+        // Today's note in one press: the calendar beside New Note. In Daily, titled with the date.
+        let calendar = app.buttons["sidebar.today"].firstMatch
+        XCTAssertTrue(calendar.exists, "the calendar button is in the bottom bar")
+        XCTAssertEqual(calendar.label, "Today\u{2019}s note")
+        XCTAssertEqual(calendar.frame.midY, compose.frame.midY, accuracy: 4, "beside New Note")
+        shot("daily-folders-calendar")
+        calendar.tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         XCTAssertTrue((editor.value as? String ?? "").hasPrefix(today), "titled with the date: \(editor.value ?? "")")
         editor.typeText("Slept well")
         shot("daily-today-note")
         backToFolders()
 
-        // Again: the same note, not a second one.
+        // The Templates folder explains itself.
+        app.cells.containing(.any, identifier: "folder.Templates").firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["About templates"].firstMatch.waitForExistence(timeout: 3), "the folder's first note says what it's for")
+        XCTAssertTrue(app.buttons["list.today"].firstMatch.exists, "a folder's notes have the calendar too")
+        shot("daily-templates-folder")
+        backToFolders()
+
+        // Again, from the menu: the same note, not a second one.
         hold()
         app.buttons["Today\u{2019}s Note"].firstMatch.tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))

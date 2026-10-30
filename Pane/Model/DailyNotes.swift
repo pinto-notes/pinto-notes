@@ -19,6 +19,29 @@ enum DailyNotes {
     /// The template today's note is made from, when there is one.
     static let dailyTemplateName = "Daily"
 
+    /// The note New Template… leaves in a new Templates folder. It is not a template itself.
+    static let aboutTemplatesTitle = "About templates"
+    static let aboutTemplates = """
+    \(aboutTemplatesTitle)
+
+    Notes in this folder are templates. Pick one from the new-note menu to start a note from it. {{date}} becomes today's date, {{time}} the time.
+    """
+
+    /// Today's date as a note can be named by it: ISO, as Obsidian names daily notes, and long form.
+    static func todaysTitles(_ now: Date, locale: Locale = .autoupdatingCurrent, calendar: Calendar = .current) -> [String] {
+        let d = calendar.dateComponents([.year, .month, .day], from: now)
+        let iso = String(format: "%04d-%02d-%02d", d.year ?? 0, d.month ?? 0, d.day ?? 0)
+        return [iso, title(for: now, locale: locale, calendar: calendar)]
+    }
+
+    /// Whether a title is a date, the way daily notes are named: 2026-10-30, or 30 October 2026.
+    static func isDateTitle(_ t: String, locale: Locale = .autoupdatingCurrent, calendar: Calendar = .current) -> Bool {
+        if t.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil { return true }
+        var style = Date.FormatStyle(date: .long, time: .omitted, locale: locale, calendar: calendar)
+        style.timeZone = calendar.timeZone
+        return (try? style.parse(t)) != nil
+    }
+
     /// The title of the note for `day`: the date, long form, in the person's language.
     static func title(for day: Date, locale: Locale = .autoupdatingCurrent, calendar: Calendar = .current) -> String {
         var style = Date.FormatStyle(date: .long, time: .omitted, locale: locale, calendar: calendar)
@@ -84,15 +107,30 @@ extension ModelContext {
     }
 
     /// Today's note, if it was made: the first note made today in the Daily folder.
-    func todaysNote(now: Date = .now, calendar: Calendar = .current) -> Note? {
-        guard let daily = namedFolder(DailyNotes.folderName) else { return nil }
-        return daily.liveNotes.filter { calendar.isDate($0.createdAt, inSameDayAs: now) }.min { $0.createdAt < $1.createdAt }
+    ///
+    /// Notes brought from Obsidian are named by their date ("2026-10-30") and were made on another
+    /// day: one titled with today's date, ISO or long form, is today's note too, in Daily or in
+    /// an imported folder whose notes are all named by dates.
+    func todaysNote(now: Date = .now, locale: Locale = .autoupdatingCurrent, calendar: Calendar = .current) -> Note? {
+        let daily = namedFolder(DailyNotes.folderName)
+        if let made = daily?.liveNotes.filter({ calendar.isDate($0.createdAt, inSameDayAs: now) }).min(by: { $0.createdAt < $1.createdAt }) { return made }
+        let titles = DailyNotes.todaysTitles(now, locale: locale, calendar: calendar)
+        let iso = titles[0], long = titles[1]
+        let byTitle = #Predicate<Note> { $0.summaryTitle == iso || $0.summaryTitle == long }
+        let fetched: [Note] = (try? fetch(FetchDescriptor<Note>(predicate: byTitle))) ?? []
+        let named = fetched.filter { $0.trashedAt == nil && $0.deletedAt == nil && !$0.isLocked && titles.contains($0.title) }
+            .sorted { $0.createdAt < $1.createdAt }
+        if let daily, let inDaily = named.first(where: { $0.folder?.id == daily.id }) { return inDaily }
+        return named.first { note in
+            guard let folder = note.folder else { return false }
+            return folder.liveNotes.allSatisfy { DailyNotes.isDateTitle($0.title, locale: locale, calendar: calendar) }
+        }
     }
 
     /// Today's note, made now if it wasn't yet: in the Daily folder (made too, the first time),
     /// from the Daily template when there is one. `made` says which.
     func openTodaysNote(now: Date = .now, locale: Locale = .autoupdatingCurrent, calendar: Calendar = .current) -> (note: Note, made: Bool) {
-        if let note = todaysNote(now: now, calendar: calendar) { return (note, false) }
+        if let note = todaysNote(now: now, locale: locale, calendar: calendar) { return (note, false) }
         // New notes in All Notes go to the first folder: that stays Notes, not Daily.
         _ = defaultFolder()
         let daily = namedFolder(DailyNotes.folderName) ?? createFolder(named: DailyNotes.folderName)
@@ -110,7 +148,7 @@ extension ModelContext {
     /// Every template: the notes in the Templates folder, by name. Locked ones keep their text to themselves.
     func noteTemplates() -> [TemplateItem] {
         guard let folder = namedFolder(DailyNotes.templatesFolderName) else { return [] }
-        return folder.liveNotes.filter { !$0.isLocked }
+        return folder.liveNotes.filter { !$0.isLocked && $0.title != DailyNotes.aboutTemplatesTitle }
             .map { TemplateItem(id: $0.id, name: DailyNotes.name(of: $0.body)) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
@@ -123,9 +161,18 @@ extension ModelContext {
     }
 
     /// New Template…: an empty note in the Templates folder, made the first time.
+    /// The first time, the folder is made with a note that says what it's for.
     func createTemplate() -> Note {
         _ = defaultFolder()
-        let folder = namedFolder(DailyNotes.templatesFolderName) ?? createFolder(named: DailyNotes.templatesFolderName)
+        let folder: Folder
+        if let there = namedFolder(DailyNotes.templatesFolderName) {
+            folder = there
+        } else {
+            folder = createFolder(named: DailyNotes.templatesFolderName)
+            let about = createNote(in: .folder(folder.id), body: DailyNotes.aboutTemplates)
+            about.createdAt = .now.addingTimeInterval(-1)
+            about.updatedAt = about.createdAt
+        }
         return createNote(in: .folder(folder.id))
     }
 }

@@ -31,6 +31,22 @@ struct ComposeButton<Label: View>: View {
     }
 }
 
+/// Today's note in one press, beside New Note on the iPhone and at the top of the Mac sidebar,
+/// like Obsidian's calendar button in its ribbon.
+struct TodayButton: View {
+    var identifier = "list.today"
+    @Environment(\.noteMakers) private var makers
+
+    var body: some View {
+        Button { makers?.today() } label: { Label("Today\u{2019}s note", systemImage: "calendar") }
+            #if os(macOS)
+            .help("Today\u{2019}s note (⌘T)")
+            #endif
+            .disabled(makers == nil)
+            .accessibilityIdentifier(identifier)
+    }
+}
+
 /// The templates, then New Template…, for the compose button's menu and File › New from Template.
 struct TemplateMenuItems: View {
     let makers: NoteMakers?
@@ -131,6 +147,11 @@ struct SearchComposeBar: ToolbarContent {
         var identifier = "list.newNote"
 
         var body: some ToolbarContent {
+            ToolbarItem(placement: .bottomBar) {
+                TodayButton(identifier: identifier.replacingOccurrences(of: "newNote", with: "today"))
+                    .tint(.primary)
+            }
+            ToolbarSpacer(.fixed, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
                 ComposeButton(newNote: newNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
                     .tint(.primary)
