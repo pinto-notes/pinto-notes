@@ -57,13 +57,17 @@ command -v brew >/dev/null || [[ -x /opt/homebrew/bin/brew ]] || stop "Homebrew 
   "Install it from https://brew.sh (one command, a few minutes), then run scripts/setup.sh again."
 command -v brew >/dev/null || eval "$(/opt/homebrew/bin/brew shellenv)"
 need=()
+# A backend of your own (scripts/deploy-backend.sh wrote Config/Backend.local.xcconfig): no Docker,
+# no local backend.
+DEPLOYED=0
+if [[ -f Config/Backend.local.xcconfig ]] && grep -q "^// Written by scripts/deploy-backend.sh" Config/Backend.local.xcconfig; then DEPLOYED=1; fi
 command -v xcodegen >/dev/null || need+=(xcodegen)
-(( LOCAL )) || command -v supabase >/dev/null || need+=(supabase/tap/supabase)
+(( LOCAL || DEPLOYED )) || command -v supabase >/dev/null || need+=(supabase/tap/supabase)
 if (( ${#need} )); then
   step "Installing ${need[*]} with Homebrew (a minute or two)"
   brew install "${need[@]}" >/dev/null || stop "brew install ${need[*]} failed." "Run it yourself to see why, then run scripts/setup.sh again."
 fi
-ok "XcodeGen $(xcodegen --version 2>/dev/null | awk '{print $NF}')$( (( LOCAL )) || print -n ", Supabase CLI $(supabase --version 2>/dev/null | head -1)")"
+ok "XcodeGen $(xcodegen --version 2>/dev/null | awk '{print $NF}')$( (( LOCAL || DEPLOYED )) || print -n ", Supabase CLI $(supabase --version 2>/dev/null | head -1)")"
 
 # 3. Who the app is. Never upstream's bundle id: a build under it would share the installed Pinto
 # Notes' settings and Keychain items on this Mac.
@@ -80,11 +84,15 @@ fi
 MARK="// Written by scripts/setup.sh --local-only"
 if (( LOCAL )); then
   if [[ -f Config/Backend.local.xcconfig ]] && ! grep -qF "$MARK" Config/Backend.local.xcconfig; then
-    stop "Config/Backend.local.xcconfig points this checkout at a backend already (scripts/deploy-backend.sh wrote it)." \
-      "To build without one, move that file away first."
+    stop "Config/Backend.local.xcconfig points this checkout at your own backend (scripts/deploy-backend.sh wrote it)." \
+      "Plain scripts/setup.sh builds against it, with no Docker. To build without a backend anyway:" \
+      "  mv Config/Backend.local.xcconfig Config/Backend.local.xcconfig.off && scripts/setup.sh --local-only"
   fi
   printf '%s: no backend, notes stay on this device. Delete this file to use one again.\nPANE_SUPABASE_URL =\n' "$MARK" > Config/Backend.local.xcconfig
   ok "No backend: notes stay on this Mac, and there's no sign-in"
+elif (( DEPLOYED )); then
+  backend=$(sed -n 's|^PANE_SUPABASE_URL = https:/\$()/|https://|p' Config/Backend.local.xcconfig)
+  ok "Using your backend ${backend:-from Config/Backend.local.xcconfig}"
 else
   [[ -f Config/Backend.local.xcconfig ]] && grep -qF "$MARK" Config/Backend.local.xcconfig && rm Config/Backend.local.xcconfig
   command -v docker >/dev/null || stop "Docker isn't installed. The local backend runs in it." \
@@ -140,7 +148,10 @@ ok "Built in $(( SECONDS - b )) s: $APP"
 
 took=$(( SECONDS - START )); (( took < 90 )) && took="$took s" || took="$(( (took + 30) / 60 )) min"
 print -- "\nDone in $took. Open your app:\n  open \"$APP\""
-if (( LOCAL )); then
+if (( DEPLOYED )); then
+  print -- "First run: press Get started, then sign up with your email and a password of 12 characters or more."
+  print -- "Codes and password resets come from your project's mailer (docs/MAKE-IT-YOURS.md, step 4)."
+elif (( LOCAL )); then
   print -- "Your notes stay on this Mac. To sync with your own backend later: docs/MAKE-IT-YOURS.md, step 4."
 else
   print -- "First run: press Get started, type any email address, press Continue and make a password of 12"

@@ -25,7 +25,7 @@ cd pinto-notes
 scripts/setup.sh
 ```
 
-The clone takes under a minute and about 300 MB: `--filter=blob:none` skips the old versions of files until you ask for them (a plain `git clone` works too, at about 400 MB and 1 to 3 minutes). `scripts/setup.sh` checks your Mac, installs what's missing with Homebrew, gives your build its own name and bundle id, starts the local backend and builds the Mac app. When it works, the end looks like this:
+The clone is about 300 MB. It takes 1 to 6 minutes, depending on your connection: `--filter=blob:none` downloads the files of the newest version only, and fetches older ones when git needs them (switching branches, for example, fetches more). A plain `git clone` works too, at about 400 MB.
 
 ```
 ✓ Xcode 26.4.1
@@ -41,7 +41,7 @@ Done in 9 min. Open your app:
   open "/Users/kim/pinto-notes/build/ddqa/Build/Products/Debug/Pane.app"
 ```
 
-Copy the `open` line it prints and run it, or run `scripts/setup.sh --open` to build and open in one go. Every build in this guide goes to `build/ddqa`, so the tests (step 6) reuse it instead of building the app again.
+Copy the `open` line it prints and run it. Every build in this guide goes to `build/ddqa`, so the tests (step 6) reuse it instead of building the app again.
 
 The file is called Pane.app, the project's working name, and stays that way in your builds: the tests and scripts find the app by that name. The Dock, the menu bar, Finder's Get Info and the app's windows all show your app's name ("My Pinto Notes" until you rename it).
 
@@ -87,7 +87,7 @@ scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes
 scripts/setup.sh
 ```
 
-A bundle id is your reversed domain or name plus the app, like `com.kim.notes`. The script writes `Config/Identity.local.xcconfig`, which git ignores, so pulling updates never conflicts with it. `--show` prints what's set and `--reset` goes back to upstream's (don't run that build next to an installed Pinto Notes: they'd share settings).
+A bundle id is your reversed domain or name plus the app, like `com.kim.notes`. The script writes `Config/Identity.local.xcconfig`, which git ignores, so pulling updates never conflicts with it. Run it again later with only what you want to change, such as `scripts/make-it-yours.sh --name "Kim's Journal"`; everything else stays as it is. `--show` prints what's set and `--reset` goes back to upstream's (don't run that build next to an installed Pinto Notes: they'd share settings).
 
 A new bundle id is a new app to macOS: it starts with an empty library and asks you to sign in again.
 
@@ -144,9 +144,11 @@ The local backend lives on your Mac. To use your app every day, on your phone to
    scripts/setup.sh
    ```
 
+   The end of `deploy-backend.sh` reads `Back up this file now: …/.secrets/backend-<ref>.env`. From now on `scripts/setup.sh` builds against your project and needs no Docker: it prints `✓ Using your backend https://<ref>.supabase.co`.
+
 `deploy-backend.sh` asks for the database password, applies the migrations, deploys the functions and their secrets, checks the clean-up jobs, sets up email sign-in, and writes `Config/Backend.local.xcconfig` so your builds use the project. `scripts/setup.sh` then rebuilds the app against it. Each step that fails says what to do; running it again is safe.
 
-It keeps the secrets it makes in `.secrets/backend-<ref>.env`. Never delete that file: it holds the secret that seals each account's key copy, and without it signing in on a new device can't open the notes. The same file has `BACKEND_PROXY_SECRET`, which your site needs (below).
+It keeps the secrets it makes in `.secrets/backend-<ref>.env`. Back it up (a password manager is a good place) and never delete it: it holds the secret that seals each account's key copy, and without it signing in on a new device can't open the notes. The same file has `BACKEND_PROXY_SECRET`, which your site needs (below).
 
 What it sets up, and what it leaves off:
 
@@ -165,7 +167,7 @@ Share links and connecting ChatGPT or Claude need the website, `web/`. Claude Co
    | `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
    | `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the `PANE_SUPABASE_KEY` in `Config/Backend.local.xcconfig` |
    | `MCP_PROXY_SECRET` | the `BACKEND_PROXY_SECRET` in `.secrets/backend-<ref>.env` |
-   | `NEXT_PUBLIC_APP_SCHEME` | your URL scheme (`scripts/make-it-yours.sh --show` prints it) |
+   | `NEXT_PUBLIC_APP_SCHEME` | your URL scheme (`scripts/make-it-yours.sh --show` prints it). If it's missing or not lowercase letters, digits and hyphens, the site falls back to Pinto Notes' `ambernotes` and its links open the wrong app |
    | `APP_PAGES_ONLY` | `1`: only the pages your app uses (connecting an AI, password resets, share links, links that open the app). Pinto Notes' home page, blog, changelog and downloads are 404s |
    | `SITE_NOINDEX` | `1`: keeps the site out of search |
 
@@ -173,9 +175,11 @@ Share links and connecting ChatGPT or Claude need the website, `web/`. Claude Co
 
    ```sh
    scripts/deploy-backend.sh <ref> --site https://your-site
-   scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes --site https://your-site
+   scripts/make-it-yours.sh --site https://your-site
    scripts/setup.sh
    ```
+
+3. Connect ChatGPT or Claude: add a custom connector with the address `https://<ref>.supabase.co/functions/v1/mcp` (`deploy-backend.sh` prints it). Not `mcp.pintonotes.com`: that one is Pinto Notes' own server. Signing in to connect opens your site's `/connect` page.
 
 Your builds send no telemetry: the key is empty in every build that isn't Pinto Notes' own release.
 
@@ -185,7 +189,7 @@ The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and targe
 
 | What | Where |
 |---|---|
-| The accent colour | `Palette.accent` at the top of `Pane/Editor/Palette.swift`: set it to `Accent(light: 0x1E7A4C, dark: 0x5CC48A)` and every button, tick, link and hover follows. Give `Pane/Resources/Assets.xcassets/AccentColor.colorset` the same two colours (a test checks they match) |
+| The accent colour | `scripts/set-accent.sh 1E7A4C 5CC48A` (light mode, then dark mode). It sets `Palette.accent` in `Pane/Editor/Palette.swift`, which every button, tick, link and hover follows, and the AccentColor asset the system's controls use. `scripts/set-accent.sh amber` puts Pinto Notes' back |
 | Other colours, light and dark | the rest of `Pane/Editor/Palette.swift`: every colour the app draws |
 | Buttons, corner radii, shadows, toasts | `Pane/Views/DesignSystem.swift`, with the rules in [docs/DESIGN.md](DESIGN.md) |
 | The iPhone bar above the keyboard | `Pane/Editor/FormatBar.swift` |
@@ -200,7 +204,7 @@ After a change, run `scripts/setup.sh` again (under a minute) and reopen the app
 
 The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding agent how this codebase works and how to test a change, so Claude Code and Codex can work on it from the first prompt. Start one in the `pinto-notes` folder (`claude` or `codex`) and try:
 
-1. "Change the accent colour from amber to a deep green, in light and dark mode. Set Palette.accent in Pane/Editor/Palette.swift and the AccentColor asset to match, and run scripts/qa-test.sh PaneTests/AmberButtonTests PaneTests/NotePageTests when you're done."
+1. "Make the accent colour a deep green in light and dark mode with scripts/set-accent.sh, pick shades that pass the contrast checks, and run scripts/qa-test.sh PaneTests/AmberButtonTests PaneTests/NotePageTests."
 2. "Add a button to the iPhone keyboard bar (Pane/Editor/FormatBar.swift) that inserts today's date as a heading. Match the bar's other buttons, and add a test in PaneTests/Interaction like the ones there."
 3. "Rename the app to Kim's Notes in every string a person reads, on the Mac and iPhone. Leave code names like Pane alone. Show me the list of strings before you change them."
 4. "Add a word and character count for the open note to the Mac window's toolbar. Find how the toolbar is built in Pane/Views/RootView.swift first, and test it in the offscreen harness under PaneTests/Harness."
@@ -211,7 +215,7 @@ Ask for one change at a time and run the tests the agent names. A small change y
 ## 6. Run the tests
 
 ```sh
-scripts/qa-test.sh --smoke                    # what CI runs for every change: 3 to 5 minutes after setup.sh
+scripts/qa-test.sh --smoke                    # what CI runs for every change: about a minute after setup.sh
 scripts/qa-test.sh PaneTests/ShareAskTests    # one suite
 scripts/qa-test.sh                            # every unit and interaction test: 20 to 30 minutes
 ```

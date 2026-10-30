@@ -161,7 +161,7 @@ The Mac app and the iPhone Simulator build with no Apple account. For your own b
 **Tests**
 
 ```sh
-scripts/qa-test.sh --smoke                           # a first check, a few minutes
+scripts/qa-test.sh --smoke                           # a first check, about a minute after setup.sh
 scripts/qa-test.sh                                   # every Mac unit and interaction test, 20 to 30 minutes
 scripts/prepush.sh --tests                           # before a push: compiles what ships, runs the suites you touched
 deno test --allow-all supabase/functions/mcp/notes.test.ts
@@ -192,10 +192,10 @@ Clone it, build your own copy and change it however you like, by hand or with Cl
 ```sh
 git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
-scripts/setup.sh --open
+scripts/setup.sh
 ```
 
-`scripts/setup.sh` checks your Mac, starts a local backend, builds the Mac app under a name and bundle id of its own, and opens it: 5 to 20 minutes the first time, most of it downloads. Without Docker, `scripts/setup.sh --local-only --open` builds an app that keeps notes on this Mac. [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md) has the rest: what you see the first time, your own name and icon, your iPhone, your own backend, where the colours and toolbar live, prompts for coding agents, and pulling updates with few conflicts.
+`scripts/setup.sh` checks your Mac, starts a local backend, builds the Mac app under a name and bundle id of its own, and prints the `open` line for it: 5 to 20 minutes the first time, most of it downloads. Without Docker, `scripts/setup.sh --local-only` builds an app that keeps notes on this Mac. [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md) has the rest: what you see the first time, your own name and icon, your iPhone, your own backend, where the colours and toolbar live, prompts for coding agents, and pulling updates with few conflicts.
 
 ## License
 

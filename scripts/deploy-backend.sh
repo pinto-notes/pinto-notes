@@ -21,8 +21,9 @@
 #   4. sets the functions' secrets. The ones it makes up are kept in .secrets/backend-<ref>.env
 #      (gitignored): KEY_COPY_SECRET_1 seals every account's key copy, so it is made once and reused
 #   5. checks that the clean-up jobs are scheduled (pg_cron, which the migrations turn on)
-#   6. sets the auth settings: email sign-in with a 6-digit code, your app's URL scheme as a
-#      redirect, the sign-in emails, and Sign in with Apple only with a paid team (make-it-yours --team)
+#   6. sets the auth settings: sign-in with an email and a password of 12 or more characters, your
+#      app's URL scheme as a redirect, the account emails (password resets; a 6-digit code where the
+#      app asks for one), and Sign in with Apple only with a paid team (make-it-yours --team)
 #   7. writes Config/Backend.local.xcconfig (gitignored), so your builds sync with this project, and
 #      prints the settings your site (web/) needs
 # Running it again is safe: each step does the same thing again, and the secrets are kept.
@@ -34,7 +35,7 @@ while (( $# )); do
   case $1 in
     --site) SITE=${2:?--site needs an address}; SITE=${SITE%/}; shift 2 ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; exit 1 ;;
     *) REF=$1; shift ;;
   esac
@@ -197,9 +198,12 @@ else
 fi
 
 echo "→ Done. Rebuild the app; it now syncs with $URL."
-echo "  Sign in with your email. Emails (codes, password resets) come from Supabase's mailer, which only"
+echo "  Sign up in the app with your email and a password of 12 or more characters. Emails (password"
+echo "  resets, and a code where the app asks for one) come from Supabase's mailer, which only"
 echo "  sends to your project's team members until you set up SMTP (Authentication → Emails → SMTP settings)."
-echo "  AI server: $MCP (Claude Code and Codex: Settings → Connect an AI in the app)."
+echo "  AI server: $MCP"
+echo "    Claude Code and Codex: Settings → Connect an AI in the app, and copy the command."
+echo "    ChatGPT and Claude, once your site is up: add a connector with this address, $MCP"
 echo "  Your site (web/, for share links and connecting ChatGPT or Claude): deploy it with these settings,"
 echo "  then run this again with --site https://your-site (docs/MAKE-IT-YOURS.md, step 4):"
 echo "    SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL  $URL"
@@ -207,3 +211,8 @@ echo "    SUPABASE_ANON_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY  the PANE_SUPABASE
 echo "    MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-$REF.env"
 echo "    NEXT_PUBLIC_APP_SCHEME  $SCHEME"
 echo "    APP_PAGES_ONLY=1 and SITE_NOINDEX=1  only the pages your app uses, kept out of search"
+if (( ! DRY )); then
+  echo ""
+  echo "Back up this file now: $PWD/$SECRETS"
+  echo "  It holds the secret that seals every account's key copy. Lose it and no new device can open the notes."
+fi

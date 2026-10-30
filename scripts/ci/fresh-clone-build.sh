@@ -65,5 +65,15 @@ if [[ $WHAT == all || $WHAT == simulator ]]; then
   build simulator 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=NO || failed=1
   id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$TMP/dd-simulator/Build/Products/Debug-iphonesimulator/Pane.app/Info.plist" 2>/dev/null)
   [[ $id == org.example.freshnotes ]] || { echo "✘ make-it-yours.sh's bundle id didn't reach the app (${id:-no app})" >&2; failed=1; }
+  # Upstream's team never reaches a build of your own, with no team or a free account's.
+  for team in "" "--personal-team ABCDE12345"; do
+    if [[ -n $team ]]; then scripts/make-it-yours.sh ${=team} >/dev/null; else scripts/make-it-yours.sh --no-team >/dev/null; fi
+    for sdk in macosx iphoneos iphonesimulator; do
+      if [[ $(xcodebuild -project Pane.xcodeproj -target Pane -sdk $sdk -configuration Release -showBuildSettings 2>/dev/null) == *4UM3XVUN9Y* ]]; then
+        echo "✘ upstream's team (4UM3XVUN9Y) is in the $sdk build settings ${team:-with no team}" >&2; failed=1
+      fi
+    done
+  done
+  (( failed )) || echo "✔ no upstream team in a build with no team or a free account's"
 fi
 exit $failed

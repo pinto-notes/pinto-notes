@@ -11,8 +11,11 @@ const onMac = Deno.build.os === "darwin";
 
 async function copy() {
   const dir = await Deno.makeTempDir();
-  for (const d of ["scripts", "Config"]) await Deno.mkdir(`${dir}/${d}`);
-  for (const f of ["scripts/make-it-yours.sh", "scripts/deploy-backend.sh", "Config/Identity.xcconfig"]) {
+  for (const d of ["scripts", "Config", "Pane/Editor", "Pane/Resources/Assets.xcassets/AccentColor.colorset"]) {
+    await Deno.mkdir(`${dir}/${d}`, { recursive: true });
+  }
+  for (const f of ["scripts/make-it-yours.sh", "scripts/deploy-backend.sh", "scripts/set-accent.sh", "Config/Identity.xcconfig",
+    "Pane/Editor/Palette.swift", "Pane/Resources/Assets.xcassets/AccentColor.colorset/Contents.json"]) {
     await Deno.copyFile(`${root}${f}`, `${dir}/${f}`);
     await Deno.chmod(`${dir}/${f}`, 0o755);
   }
@@ -64,6 +67,42 @@ Deno.test({ name: "make-it-yours with no team signs nothing for an iPhone, and -
   assert(!(await exists(`${dir}/Config/Identity.local.xcconfig`)));
 } });
 
+Deno.test({ name: "make-it-yours run again changes only what's passed", ignore: !onMac, fn: async () => {
+  const dir = await copy();
+  await run(dir, "make-it-yours.sh", "--name", "Kim's Notes", "--bundle-id", "com.kim.notes", "--personal-team", "ABCDE12345");
+  const r = await run(dir, "make-it-yours.sh", "--site", "https://notes.kim.dev");
+  assertEquals(r.code, 0, r.text);
+  const local = await Deno.readTextFile(`${dir}/Config/Identity.local.xcconfig`);
+  for (const line of ["PANE_DISPLAY_NAME = Kim's Notes", "PANE_BUNDLE_ID = com.kim.notes", "PANE_URL_SCHEME = kimnotes",
+    "PANE_IOS_TEAM = ABCDE12345", "PANE_IOS_ENTITLEMENTS = Pane-ios-personal.entitlements", "PANE_APPLINKS_HOST = notes.kim.dev"]) {
+    assertStringIncludes(local, line + "\n");
+  }
+  // A paid team replaces the free one; --no-team clears it; a new bundle id gets its own scheme.
+  await run(dir, "make-it-yours.sh", "--team", "FGHIJ67890");
+  assert(!(await Deno.readTextFile(`${dir}/Config/Identity.local.xcconfig`)).includes("PANE_IOS_ENTITLEMENTS"));
+  await run(dir, "make-it-yours.sh", "--no-team", "--bundle-id", "org.example.pad");
+  const last = await Deno.readTextFile(`${dir}/Config/Identity.local.xcconfig`);
+  for (const line of ["PANE_IOS_TEAM = ", "PANE_URL_SCHEME = examplepad", "PANE_DISPLAY_NAME = Kim's Notes", "PANE_APPLINKS_HOST = notes.kim.dev"]) {
+    assertStringIncludes(last, line + "\n");
+  }
+  // The site's rule for a URL scheme (web/lib/app-scheme.ts): no + or . in it.
+  assertEquals((await run(dir, "make-it-yours.sh", "--url-scheme", "kim.notes")).code, 1);
+} });
+
+Deno.test({ name: "set-accent writes the palette and the asset together, and amber puts both back", ignore: !onMac, fn: async () => {
+  const dir = await copy();
+  const palette = `${dir}/Pane/Editor/Palette.swift`, asset = `${dir}/Pane/Resources/Assets.xcassets/AccentColor.colorset/Contents.json`;
+  const before = [await Deno.readTextFile(palette), await Deno.readTextFile(asset)];
+  assertEquals((await run(dir, "set-accent.sh", "#1e7a4c", "5CC48A")).code, 0);
+  assertStringIncludes(await Deno.readTextFile(palette), "    static let accent = Accent(light: 0x1E7A4C, dark: 0x5CC48A)\n");
+  const colors = JSON.parse(await Deno.readTextFile(asset)).colors.map((c: { color: { components: Record<string, string> } }) =>
+    ["red", "green", "blue"].map((k) => c.color.components[k].slice(2)).join(""));
+  assertEquals(colors, ["1E7A4C", "5CC48A"]);
+  assertEquals((await run(dir, "set-accent.sh", "green")).code, 1);
+  assertEquals((await run(dir, "set-accent.sh", "amber")).code, 0);
+  assertEquals([await Deno.readTextFile(palette), await Deno.readTextFile(asset)], before);
+} });
+
 Deno.test({ name: "make-it-yours refuses upstream's bundle id and a malformed team", ignore: !onMac, fn: async () => {
   const dir = await copy();
   assertEquals((await run(dir, "make-it-yours.sh", "--bundle-id", "dev.emilwagman.pane")).code, 1);
@@ -85,6 +124,7 @@ Deno.test({ name: "deploy-backend --dry-run deploys every function the app needs
   assertStringIncludes(r.text, "select count(*) from cron.job");
   assertStringIncludes(r.text, "MCP_PROXY_SECRET  the BACKEND_PROXY_SECRET in .secrets/backend-abcdefghijklmnopqrst.env");
   assertStringIncludes(r.text, "APP_PAGES_ONLY=1");
+  assertStringIncludes(r.text, "add a connector with this address, https://abcdefghijklmnopqrst.supabase.co/functions/v1/mcp");
   assert(!r.text.includes("external_apple_enabled"), "no Sign in with Apple without a paid team");
   assertStringIncludes(r.text, "CONNECT_PAGE_URL");
   assert(!/KEY_COPY_SECRET_1=/.test(r.text));

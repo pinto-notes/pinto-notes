@@ -3,9 +3,22 @@
 #   scripts/qa-test.sh [PaneTests/SuiteName[/testName] ...]
 #   scripts/qa-test.sh --smoke     the tests CI runs for every change (smoke-tests.txt, always-tests.txt), a first check
 #   scripts/qa-test.sh             every unit and interaction test: 20 to 30 minutes
+#   scripts/qa-test.sh --summarize LOG   what a run prints, from its log (scripts/qa-test.test.ts)
 # The test host runs without a window or Dock icon (see PaneApp.isUnitTestHost).
 set -uo pipefail
 cd "$(dirname "$0")/.."
+
+# What went wrong, capped; then the two result lines, always. Logged lines with a timestamp (WebKit's
+# "Connection to 'pboard' server had an error:" and the like) are left out before anything is matched,
+# and so are the lines they continue on, so a passing run prints only its result.
+summarize() {
+  local summary="Test run with|TEST (SUCC|FAIL)"
+  grep -v "^20[0-9][0-9]-" "$1" | grep -A2 -E "PERF|(^|: )error: |✘|timeout" \
+    | grep -vE "^--$|^\s*export |^◇ |✔ (Suite|Test )|^Test (Suite|Case) |$summary|^\s+\"XPC|^}$|^Invalidation reason" \
+    | head -${LINES_OUT:-40}
+  grep -v "^20[0-9][0-9]-" "$1" | grep -E "$summary" | tail -2
+}
+if [[ ${1:-} == --summarize ]]; then summarize "$2"; exit 0; fi
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 only=()
 if [[ ${1:-} == --smoke ]]; then
@@ -35,11 +48,7 @@ if kill -0 $pid 2>/dev/null; then
   kill $pid 2>/dev/null
 fi
 wait $pid 2>/dev/null; code=$?
-# What went wrong, capped; then the result, always, whatever came before it.
-summary="Test run with|TEST (SUCC|FAIL)"
-grep -A2 -E "PERF|error:|✘|timeout" "$log" | grep -v "^20[0-9][0-9]-" | grep -vE "^--$|^\s*export |^◇ |✔ (Suite|Test )|^Test (Suite|Case) " \
-  | grep -vE "$summary" | head -${LINES_OUT:-40}
-grep -E "$summary" "$log" | grep -v "^20[0-9][0-9]-" | tail -2
+summarize "$log"
 cp "$log" $DD/last-test.log; rm -f "$log"
 echo "Full log: $DD/last-test.log"
 exit $code

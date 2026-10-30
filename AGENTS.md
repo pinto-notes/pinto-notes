@@ -2,6 +2,8 @@
 
 Rules for coding agents (and people) changing this repo. The README explains the architecture and how to build and test.
 
+**If this is your fork** (docs/MAKE-IT-YOURS.md): the rules about pushing, handing over branches, merging, CI, releases and the App Store are how upstream Pinto Notes ships, and you can ignore them. The rest still helps: Apple Notes as the reference, a test with every fix, and no secrets or production data in tests.
+
 - **Apple Notes is the behaviour reference.** Copy what Notes does for editing, lists, checklists, tables, selection and navigation. Follow Apple's Human Interface Guidelines for layout, type, colour, controls and accessibility, in light and dark mode.
 - **Every fix gets a regression test.** Editor and UI behaviour goes in the offscreen harness under `PaneTests/Harness` and `PaneTests/Interaction`; run `scripts/qa-test.sh`. Server changes get Deno tests; end-to-end tests run against the local stack only (`supabase start`, then `scripts/mcp-e2e.sh`).
 - **Check what you changed, then ship.** Size the check to the change: `scripts/prepush.sh` compiles what you touched (the iPhone app only when its code changed); add `--tests` to run the touched test files and the whole-app suites (button style, telemetry page, old name). A one-line UI change needs nothing more. Releases don't wait for CI: CI runs after a push to `dev` and reports; a red run is fixed the same day, and a failure the local check could have caught becomes a test the local check runs.
