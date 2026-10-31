@@ -1767,78 +1767,87 @@ struct NoteRow: View {
         let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: calm ? 5 : 8))
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
         let app = NoteAppMark.has(note)
-        return VStack(alignment: .leading, spacing: RowMetrics.spacing) {
-            HStack(spacing: 5) {
-                Text(title)
-                    .font(RowMetrics.title)
-                    .tracking(DesignLook.isCandidate ? -0.15 : 0)
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(large ? 3 : 1)
-                if app {
-                    AppMarkView(size: RowMetrics.markSize)
-                        .accessibilityIdentifier("note.app")
-                }
-                // The study (`SidebarStudy`): the AI that made or last changed the note, for good.
-                if study != nil, let made = note.aiEditor, made != AIGlyph.page {
-                    AIGlyph(ai: made, size: 12)
-                        .accessibilityLabel(SidebarAIWords.madeBy(made))
-                        .accessibilityIdentifier("note.madeBy")
-                }
-            }
-            // An AI changed this note and you haven't opened it since, like Mail's unread dot.
-            .overlay(alignment: .leading) {
-                if ai != nil {
-                    Circle().fill(.tint).frame(width: 8, height: 8)
-                        .offset(x: RowMetrics.dotOffset)
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-            detail {
-                HStack(spacing: 4) {
-                    if shared {
-                        Image(systemName: "link")
-                            .imageScale(.small)
-                            .foregroundStyle(Color.muted)
-                            .accessibilityHidden(true)
-                            .accessibilityIdentifier("note.shared")
+        let picture = Self.picture(of: note)
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: RowMetrics.spacing) {
+                HStack(spacing: 5) {
+                    Text(title)
+                        .font(RowMetrics.title)
+                        .tracking(DesignLook.isCandidate ? -0.15 : 0)
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(large ? 3 : 1)
+                    if app {
+                        AppMarkView(size: RowMetrics.markSize)
+                            .accessibilityIdentifier("note.app")
                     }
-                    Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.ink.opacity(0.85))
+                    // The study (`SidebarStudy`): the AI that made or last changed the note, for good.
+                    if study != nil, let made = note.aiEditor, made != AIGlyph.page {
+                        AIGlyph(ai: made, size: 12)
+                            .accessibilityLabel(SidebarAIWords.madeBy(made))
+                            .accessibilityIdentifier("note.madeBy")
+                    }
                 }
-                // C and D: "date · preview", one quiet line under the title.
-                if calm { Text("·").foregroundStyle(Color.muted).accessibilityHidden(true) }
-                if note.isLocked {
-                    // Like Notes: the title and a lock, nothing of the text.
-                    Label("Locked", systemImage: "lock.fill")
-                        .labelStyle(LockedRowLabel())
-                        .foregroundStyle(Color.muted)
-                        .lineLimit(1)
-                } else if let ai {
+                // An AI changed this note and you haven't opened it since, like Mail's unread dot.
+                .overlay(alignment: .leading) {
+                    if ai != nil {
+                        Circle().fill(.tint).frame(width: 8, height: 8)
+                            .offset(x: RowMetrics.dotOffset)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                detail {
                     HStack(spacing: 4) {
-                        AIGlyph(ai: ai, size: 11)
-                        Text(AIEdit.listLine(note, by: ai))
+                        if shared {
+                            Image(systemName: "link")
+                                .imageScale(.small)
+                                .foregroundStyle(Color.muted)
+                                .accessibilityHidden(true)
+                                .accessibilityIdentifier("note.shared")
+                        }
+                        Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
+                            .monospacedDigit()
+                            .foregroundStyle(Color.ink.opacity(0.85))
                     }
-                    .foregroundStyle(Color.amberInk)
-                    .lineLimit(1)
-                } else {
-                    Text(snippet)
-                        .foregroundStyle(Color.muted)
-                        .lineLimit(large ? 2 : 1)
+                    // C and D: "date · preview", one quiet line under the title.
+                    if calm { Text("·").foregroundStyle(Color.muted).accessibilityHidden(true) }
+                    if note.isLocked {
+                        // Like Notes: the title and a lock, nothing of the text.
+                        Label("Locked", systemImage: "lock.fill")
+                            .labelStyle(LockedRowLabel())
+                            .foregroundStyle(Color.muted)
+                            .lineLimit(1)
+                    } else if let ai {
+                        HStack(spacing: 4) {
+                            AIGlyph(ai: ai, size: 11)
+                            Text(AIEdit.listLine(note, by: ai))
+                        }
+                        .foregroundStyle(Color.amberInk)
+                        .lineLimit(1)
+                    } else {
+                        Text(snippet)
+                            .foregroundStyle(Color.muted)
+                            .lineLimit(large ? 2 : 1)
+                    }
+                }
+                .font(RowMetrics.detail)
+                if folderLine, let f = note.folder {
+                    HStack(spacing: DesignLook.calmList ? 4 : 5) {
+                        // The candidates draw it lighter and smaller than the name (DESIGN.md, Icons).
+                        Image(systemName: "folder")
+                            .imageScale(DesignLook.isCandidate ? .small : .medium)
+                            .opacity(DesignLook.isCandidate ? 0.75 : 1)
+                        Text(f.name)
+                    }
+                    // C and D: a size smaller again, a quiet tag under the row.
+                    .font(DesignLook.calmList ? RowMetrics.folder : RowMetrics.detail)
+                    .foregroundStyle(Color.muted)
                 }
             }
-            .font(RowMetrics.detail)
-            if folderLine, let f = note.folder {
-                HStack(spacing: DesignLook.calmList ? 4 : 5) {
-                    // The candidates draw it lighter and smaller than the name (DESIGN.md, Icons).
-                    Image(systemName: "folder")
-                        .imageScale(DesignLook.isCandidate ? .small : .medium)
-                        .opacity(DesignLook.isCandidate ? 0.75 : 1)
-                    Text(f.name)
-                }
-                // C and D: a size smaller again, a quiet tag under the row.
-                .font(DesignLook.calmList ? RowMetrics.folder : RowMetrics.detail)
-                .foregroundStyle(Color.muted)
+            // The note's first picture at the row's end, as Notes shows it.
+            if let picture {
+                Spacer(minLength: 0)
+                FileThumbnail(file: picture, side: RowMetrics.thumbnail, iconWhileLoading: false)
+                    .accessibilityIdentifier("note.thumbnail")
             }
         }
         .padding(.top, RowMetrics.top(folderLine: folderLine) + RowMetrics.calmAir)
@@ -1857,6 +1866,14 @@ struct NoteRow: View {
                 configuration.title
             }
         }
+    }
+
+    /// The note's first picture, when it's on this device: one on the server only shows once the
+    /// note is opened and fetches it. None for a locked note.
+    static func picture(of note: Note) -> Attachment? {
+        guard !note.isLocked, let id = note.firstImageID, let file = note.modelContext?.attachment(id),
+              file.deletedAt == nil, file.isImage, FileStore.exists(file) else { return nil }
+        return file
     }
 
     /// With a search, show the matching line instead of the preview.

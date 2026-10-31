@@ -196,6 +196,8 @@ enum FileCopy {
 struct FileThumbnail: View {
     let file: Attachment
     let side: CGFloat
+    /// A note's picture shows a quiet tile while it loads, not the kind's icon.
+    var iconWhileLoading = true
     @Environment(\.displayScale) private var scale
     @State private var image: CGImage?
 
@@ -205,6 +207,8 @@ struct FileThumbnail: View {
                 Image(decorative: image, scale: scale)
                     .resizable()
                     .scaledToFill()
+            } else if !iconWhileLoading {
+                Color.ink.opacity(0.06)
             } else {
                 RoundedRectangle(cornerRadius: side * 0.22, style: .continuous)
                     .fill(file.tint.opacity(0.16))

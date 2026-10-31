@@ -58,6 +58,25 @@ private final class SummaryFixtureToken {}
         }
     }
 
+    /// The row's thumbnail is the note's first picture, kept with the summary: a file chip isn't
+    /// a picture, a locked note shows none, and a note without one keeps "" (worked out, none).
+    @Test func aSaveKeepsTheFirstPicture() throws {
+        let (c, _) = try onDisk()
+        let ctx = c.mainContext
+        let a = UUID(), b = UUID(), chip = UUID()
+        let n = ctx.createNote(in: .all, body: "Trip\n\n[plan.pdf](pane-file:\(chip.uuidString))\n![one.png](pane-file:\(a.uuidString))\n![two.png](pane-file:\(b.uuidString))\n")
+        let plain = ctx.createNote(in: .all, body: "Groceries\n\noat milk")
+        try ctx.save()
+        #expect(n.summaryImage == a.uuidString && n.firstImageID == a)
+        #expect(plain.summaryImage == "" && plain.firstImageID == nil)
+        // Unsaved: read from the text.
+        n.body = "Trip\n\n![two.png](pane-file:\(b.uuidString))"
+        #expect(n.firstImageID == b)
+        try ctx.save()
+        #expect(n.summaryImage == b.uuidString)
+        #expect(NoteText.firstImageID(in: "[plan.pdf](pane-file:\(chip.uuidString))") == nil, "a file chip isn't a picture")
+    }
+
     /// A library from 1.2 (made by 1.2's code, PaneTests/Fixtures/library-1.2.store) opens with
     /// every note as it was; its notes have no saved summary yet, read the same titles from their
     /// text, and get one from `fill`, after which nothing is left to fill.
@@ -87,6 +106,7 @@ private final class SummaryFixtureToken {}
         let reread = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(url: url))
         let filled = try reread.mainContext.fetch(FetchDescriptor<Note>())
         #expect(filled.allSatisfy { $0.summaryTitle != nil && $0.summaryTitle == $0.title })
+        #expect(filled.allSatisfy { $0.summaryImage == "" }, "every note's picture worked out: none in 1.2's notes")
         let trip = try #require(filled.first { $0.id.uuidString.hasPrefix("2") })
         #expect(trip.summaryPreview == NoteText.head(of: trip.body).preview && trip.summaryPreview?.hasSuffix("10 km") == true, "a table's latest row")
     }
