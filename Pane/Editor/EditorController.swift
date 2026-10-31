@@ -290,6 +290,10 @@ final class EditorController {
     var wikiChoice = 0
     /// Titles for what's typed (set by the note screen).
     @ObservationIgnored var suggestTitles: (String) -> [String] = { _ in [] }
+    /// After `[[Note#`: that note's headings for what's typed after the `#` (set by the note screen).
+    @ObservationIgnored var suggestHeadings: (_ target: String, _ typed: String) -> [String] = { _, _ in [] }
+    /// The suggestions are headings of a note, not titles.
+    private(set) var wikiHeadings = false
     /// Where the typed part of the link is.
     @ObservationIgnored private(set) var wikiQuery: NSRange?
     /// A link whose suggestions were put away (Escape): not offered again while typing it.
@@ -299,16 +303,31 @@ final class EditorController {
     func typingChanged(text: String, selection: NSRange?) {
         // The panel follows the caret: bold on, Heading lit, as it moves.
         if formatPanelShown { refreshFormat() }
-        guard let sel = selection, sel.length == 0, let q = WikiLinks.typingQuery(in: text, caret: sel.location) else {
+        guard let sel = selection, sel.length == 0 else {
+            wikiDismissed = nil
+            clearWikiSuggestions()
+            return
+        }
+        let q: NSRange
+        let offered: () -> [String]
+        if let t = WikiLinks.typingQuery(in: text, caret: sel.location) {
+            q = t
+            offered = { self.suggestTitles((text as NSString).substring(with: t)) }
+        } else if let h = WikiLinks.typingHeading(in: text, caret: sel.location) {
+            q = h.query
+            offered = { self.suggestHeadings(h.target, (text as NSString).substring(with: h.query)) }
+        } else {
             wikiDismissed = nil
             clearWikiSuggestions()
             return
         }
         guard q.location != wikiDismissed else { clearWikiSuggestions(); return }
+        let headings = q.location > 0 && (text as NSString).character(at: q.location - 1) == 0x23
         wikiQuery = q
-        let titles = suggestTitles((text as NSString).substring(with: q))
-        if titles != wikiSuggestions {
+        let titles = offered()
+        if titles != wikiSuggestions || headings != wikiHeadings {
             wikiSuggestions = titles
+            wikiHeadings = headings
             wikiChoice = 0
         }
     }
@@ -333,6 +352,7 @@ final class EditorController {
     private func clearWikiSuggestions() {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
+        if wikiHeadings { wikiHeadings = false }
     }
     // MARK: Tables
 

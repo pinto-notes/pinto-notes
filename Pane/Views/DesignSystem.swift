@@ -571,3 +571,24 @@ struct Toast: View {
         .accessibilityAddTraits(.updatesFrequently)
     }
 }
+
+/// Link and Undo: small, solid, black on white or white on black, never amber.
+struct LinkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: NoteLinksSection.small, weight: .semibold))
+            .foregroundStyle(Color(Palette.inkButtonLabel))
+            .padding(.horizontal, 12)
+            #if os(macOS)
+            .frame(minHeight: 22)
+            #else
+            .frame(minHeight: 30)
+            #endif
+            .background(Color(Palette.inkButton).opacity(configuration.isPressed ? 0.75 : 1), in: .capsule)
+            #if os(iOS)
+            // 44 pt to tap, as drawn smaller.
+            .padding(.vertical, 7)
+            #endif
+            .contentShape(.rect)
+    }
+}

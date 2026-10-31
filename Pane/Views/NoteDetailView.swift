@@ -72,7 +72,9 @@ struct NoteDetailView: View {
     /// The title when the note opened; renaming it points wiki links at the new title on leaving.
     @State private var titleAtOpen: String?
     /// Notes that link here.
-    @State private var backlinks: [Note] = []
+    @State private var backlinks: [UUID] = []
+    /// The foot of the note: what links here, with its lines, and what mentions it.
+    @State private var links = NoteLinks()
     /// The wiki index's generation when they were last looked for.
     @State private var linksGeneration = -1
     /// Note pages (prototype): Page or Text, when the note has a page.
@@ -463,7 +465,7 @@ struct NoteDetailView: View {
             ZStack {
                 // A shared note's editor takes merged text from its session (CollabWiring), not from
                 // the note's mirrored body, which can lag a keystroke behind and undo it.
-                NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, onChange: save)
+                NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, foot: trashed ? nil : links, onChange: save)
                     #if os(macOS)
                     // Like Notes: the text runs under the see-through toolbar, which fades it at the
                     // edge (AppKit insets the text by the toolbar's height).
@@ -705,6 +707,7 @@ struct NoteDetailView: View {
     private func noteOpened() async {
         titleAtOpen = note.body.isEmpty || note.isLocked ? nil : note.title
         refreshLinks()
+        links.findMentions(note, context: context)
         receipt = nil
         shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
         // A note with an app is the app: what its text held goes into the app's data once.
@@ -779,13 +782,6 @@ struct NoteDetailView: View {
                 }
             }
             #endif
-        case .linkedFrom:
-            Menu("Linked from", systemImage: "link") {
-                ForEach(backlinks, id: \.id) { n in
-                    Button(n.title) { onOpenNote(n.id, false) }
-                }
-            }
-            .accessibilityIdentifier("editor.backlinks")
         case .share:
             Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
         case .history:
@@ -1003,7 +999,8 @@ struct NoteDetailView: View {
     /// Colours for the editor's wiki links and the "Linked from" list, from the library as it is now.
     private func refreshLinks() {
         controller.wiki = WikiDirectory.scope(for: note, in: context)
-        backlinks = note.isLocked ? [] : context.backlinks(to: note)
+        backlinks = note.isLocked ? [] : context.backlinkIDs(to: note)
+        links.refresh(backlinks, note: note, context: context)
         linksGeneration = WikiDirectory.generation
     }
 
@@ -1013,9 +1010,16 @@ struct NoteDetailView: View {
     private func refreshLinks(after saved: Notification) {
         let link = "pane-note:\(note.id.uuidString.lowercased())"
         let mayLink: (Note) -> Bool = { other in
-            other.id != note.id && (backlinks.contains { $0.id == other.id } || other.body.contains("[[") || other.body.contains(link))
+            other.id != note.id && (backlinks.contains(other.id) || other.body.contains("[[") || other.body.contains(link))
         }
-        guard WikiDirectory.generation == linksGeneration, let changes = context.savedNotes(saved), !changes.notes.contains(where: mayLink) else {
+        let changes = context.savedNotes(saved)
+        // Another note's text changed (it may mention this one now), or this one's title did.
+        if changes?.notes.contains(where: { $0.id != note.id }) ?? true {
+            links.findMentions(note, context: context, delay: .seconds(1))
+        } else {
+            links.findMentions(note, context: context, delay: .seconds(0.8), force: false)
+        }
+        guard WikiDirectory.generation == linksGeneration, let changes, !changes.notes.contains(where: mayLink) else {
             refreshLinks()
             return
         }
@@ -1054,6 +1058,10 @@ struct NoteDetailView: View {
     /// A link asked for a heading in this note: the text scrolls to it. A note showing its app
     /// opens on the app.
     private func landOnHeading() {
+        if !showingPage, let at = LinkLanding.shared.takeLocation(note.id) {
+            controller.reveal(at)
+            return
+        }
         guard let heading = LinkLanding.shared.take(note.id), !showingPage,
               let text = vault.text(of: note), let at = WikiLinks.headingLocation(heading, in: text) else { return }
         controller.reveal(at)
@@ -1095,6 +1103,13 @@ struct NoteDetailView: View {
         controller.openNote = { id in onOpenNote(id, false) }
         controller.openWiki = { target in followWikiLink(target) }
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
+        controller.suggestHeadings = { [note] target, typed in WikiDirectory.headingSuggestions(typed, target: target, from: note, in: context) }
+        links.open = { [saver] id, location in
+            // What was just typed here counts in the next note's "Linked from".
+            saver.flush()
+            LinkLanding.shared.request(id, location: location)
+            onOpenNote(id, false)
+        }
         controller.download = { a in await sync?.download(a) ?? false }
         controller.attach = { importing = true }
         controller.attachChoices = { choosingAttachment = true }
@@ -1266,7 +1281,7 @@ struct NoteDetailView: View {
     private var moreMenu: some View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
-                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, linkedFrom: !backlinks.isEmpty)
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -1324,9 +1339,9 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, linkedFrom, share, history, recover, delete }
+    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, recover, delete }
 
-    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, linkedFrom: Bool,
+    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool,
                        phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
@@ -1339,8 +1354,8 @@ enum NoteMoreMenu {
         if appsEnabled, !hasApp, !locked, !trashed { about.append(.makeApp) }
         if hasApp { about.append(.appInfo) }
         if dev, appsEnabled, !locked, !trashed { about.append(.devImportApp) }
+        // What links here is at the foot of the note (NoteLinksSection), not in this menu.
         var rest: [Item] = [.moveTo]
-        if linkedFrom { rest.append(.linkedFrom) }
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked { rest.append(.history) }
         rest.append(.delete)
@@ -1355,6 +1370,7 @@ private struct NoteEditorText: View {
     let controller: EditorController
     let autofocus: Bool
     let followsInitialText: Bool
+    let foot: NoteLinks?
     let onChange: (String) -> Void
 
     var body: some View {
@@ -1366,7 +1382,7 @@ private struct NoteEditorText: View {
             // The note the welcome becomes opens as the welcome showed it, date and all.
             let handoff = WelcomeHandoff.shared.opening == note.id
             MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                           followsInitialText: followsInitialText, dateShown: handoff, onChange: onChange)
+                           followsInitialText: followsInitialText, dateShown: handoff, foot: foot, onChange: onChange)
         }
     }
 }
@@ -1578,15 +1594,24 @@ private struct Unseen: ViewModifier {
 @MainActor
 final class LinkLanding {
     static let shared = LinkLanding()
-    private var pending: (id: UUID, heading: String)?
+    private var pending: (id: UUID, heading: String?, location: Int?)?
 
-    func request(_ id: UUID, heading: String) { pending = (id, heading) }
+    func request(_ id: UUID, heading: String) { pending = (id, heading, nil) }
+    /// A line of "Linked from" was opened: the note scrolls to the link on it.
+    func request(_ id: UUID, location: Int) { pending = (id, nil, location) }
 
     /// The heading asked for in note `id`, once.
     func take(_ id: UUID) -> String? {
-        guard let p = pending, p.id == id else { return nil }
+        guard let p = pending, p.id == id, let heading = p.heading else { return nil }
         pending = nil
-        return p.heading
+        return heading
+    }
+
+    /// The place in its text asked for in note `id`, once.
+    func takeLocation(_ id: UUID) -> Int? {
+        guard let p = pending, p.id == id, let location = p.location else { return nil }
+        pending = nil
+        return location
     }
 }
 

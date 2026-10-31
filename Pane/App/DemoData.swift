@@ -76,6 +76,14 @@ enum DemoData {
             n.createdAt = n.updatedAt
             n.isPinned = pinned
         }
+        // Captures of a note's links (`-demoLinks`): two notes link to Lisbon, one twice; Trip
+        // documents already mentions it without a link.
+        if ProcessInfo.processInfo.arguments.contains("-demoLinks") {
+            let weekend = context.createNote(in: .folder(travel.id), body: "Weekend plans\n\n- [ ] Flights for [[Lisbon]] on Thursday\n- [ ] Ask Sara about [[Lisbon#Food|where to eat]]")
+            weekend.updatedAt = .now.addingTimeInterval(-2 * 3600)
+            let packing = context.createNote(in: .folder(travel.id), body: "Packing list\n\nRain jacket and good shoes for **[[Lisbon]]**, the hills are real.")
+            packing.updatedAt = .now.addingTimeInterval(-26 * 3600)
+        }
         // Captures of files kept in a folder (`-demoFiles`): a "To read" folder of papers, a photo
         // and a spreadsheet next to a note.
         if ProcessInfo.processInfo.arguments.contains("-demoFiles") { loadFolderFiles(into: context) }
