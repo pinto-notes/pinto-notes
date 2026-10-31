@@ -153,10 +153,11 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                // No sidebar button (Emil, 10-29); search is in the list. View › Hide Sidebar (⌃⌘S)
-                // and the split view's own collapse in a narrow window still hide it.
+                // No sidebar button (Emil, 10-29). View › Hide Sidebar (⌃⌘S) and the split view's
+                // own collapse in a narrow window still hide it. At its narrowest it still has room
+                // for New Folder, Today and Search beside the window's buttons (10-31).
                 .toolbar(removing: .sidebarToggle)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 260, max: 360)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)

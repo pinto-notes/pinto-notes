@@ -37,7 +37,7 @@ struct NoteListView: View {
     @State private var searching = false
     /// Counts the requests to put the keys in the field (each press of Search or ⌘F).
     @State private var searchFocus = 0
-    /// The list header's width beside the window's buttons, for its title (titleLead).
+    /// The list header's width beside the window's buttons, for its title (titleRoom).
     @State private var listWidth: CGFloat = 330
     #endif
     /// "Add Files to …": the picker, and a file being renamed.
@@ -373,6 +373,16 @@ struct NoteListView: View {
             searching = true
             searchFocus += 1
         }
+        // The sidebar's Search button: opens the field, or closes it when it's open.
+        .onReceive(NotificationCenter.default.publisher(for: .paneToggleSearch)) { _ in
+            if searching {
+                search = ""
+                searching = false
+            } else {
+                searching = true
+                searchFocus += 1
+            }
+        }
         #endif
         .navigationTitle(title)
         #if os(iOS)
@@ -536,28 +546,10 @@ struct NoteListView: View {
                     }
                     // A long name ends in "…" before it gets near the buttons.
                     .frame(maxWidth: Self.titleRoom(listWidth: listWidth))
-                    // Two buttons on the right, one on the left: room on the name's left puts it in
-                    // the column's middle rather than between the buttons, while there is room.
-                    .padding(.leading, Self.titleLead(listWidth: listWidth))
                 }
                 .sharedBackgroundVisibility(.hidden)
                 ToolbarSpacer(.flexible)
             }
-            // Search over the field it opens (Emil's pick A, 10-30; it was at the sidebar's top).
-            ToolbarItem {
-                Button("Search", systemImage: "magnifyingglass") {
-                    if searching {
-                        search = ""
-                        searching = false
-                    } else {
-                        NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
-                    }
-                }
-                .tint(.primary)
-                .help("Search (⌘F)")
-                .accessibilityIdentifier("list.searchButton")
-            }
-            ToolbarSpacer(.fixed)
             // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in Recently
             // Deleted, which holds no new notes, like Notes.
             if scope != .trash {
@@ -623,29 +615,23 @@ struct NoteListView: View {
     static let titleWidth: CGFloat = 170
 
     #if os(macOS)
-    /// The window's close, minimise and zoom buttons and, with the sidebar hidden, its Today
-    /// button beside them, from the window's left edge.
-    static let windowButtons: CGFloat = 141
+    /// The window's close, minimise and zoom buttons and, with the sidebar hidden, its New
+    /// Folder, Today and Search beside them, from the window's left edge (they end at 217 pt).
+    static let windowButtons: CGFloat = 227
 
     /// The list header's width: the column's, less what the window's buttons cover of it.
     static func headerWidth(column: CGFloat, minX: CGFloat) -> CGFloat {
         minX < windowButtons ? column - windowButtons : column
     }
 
-    /// Room in the list's header between More and Search for the name and its lead: the column
-    /// less the three buttons, their margins and the spacers' least widths.
-    private static func headerRoom(listWidth: CGFloat) -> CGFloat { max(0, listWidth - 156) }
-    /// The empty room before the name: Search and the gap after it, so the name centres in the
-    /// column; less in a narrow list, where the name needs the room more.
-    static func titleLead(listWidth: CGFloat) -> CGFloat {
-        let full: CGFloat = 54, least: CGFloat = 100
-        return min(full, max(0, headerRoom(listWidth: listWidth) - least))
-    }
+    /// Room in the list's header between More and New Note for the name: the column less the
+    /// two buttons, their margins and the spacers' least widths.
+    private static func headerRoom(listWidth: CGFloat) -> CGFloat { max(0, listWidth - 112) }
     /// The most room the name takes before it ends in "…".
     /// None when less than 40 pt is left (the sidebar hidden beside a narrow list): the buttons
     /// keep their places inside the column.
     static func titleRoom(listWidth: CGFloat) -> CGFloat {
-        let room = min(titleWidth, headerRoom(listWidth: listWidth) - titleLead(listWidth: listWidth))
+        let room = min(titleWidth, headerRoom(listWidth: listWidth))
         return room < 40 ? 0 : room
     }
     #endif
@@ -1901,6 +1887,8 @@ extension Notification.Name {
     /// Opens the notes search at the top of the list (the list's Search button, ⌘F). From Go to
     /// Note (⌘O), `object` is the text to search for.
     static let paneSearchNotes = Notification.Name("pane.searchNotes")
+    /// The Mac sidebar's Search button: open the list's search field, or close it if open.
+    static let paneToggleSearch = Notification.Name("pane.toggleSearch")
 }
 
 /// The list's search field: the system's search field, so it looks and behaves like Mail's and

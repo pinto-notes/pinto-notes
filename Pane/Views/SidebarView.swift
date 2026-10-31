@@ -528,11 +528,25 @@ struct SidebarView: View {
                 SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
             #else
+            // Mac: the sidebar's three buttons at its trailing edge, in one group (Emil, 31 October
+            // 2026). Least used first, so Search, the most used, sits nearest the list, where its
+            // field opens. With the sidebar hidden they stay beside the window's buttons.
             ToolbarSpacer(.flexible)
-            // Today's note in one press (DailyNotes), at the sidebar's trailing edge.
+            ToolbarItem {
+                Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
+                    .help("New Folder (\u{21E7}\u{2318}N)")
+                    .accessibilityIdentifier("sidebar.newFolder")
+            }
+            // Today's note in one press (DailyNotes).
             ToolbarItem { TodayButton(identifier: "sidebar.today") }
+            ToolbarItem {
+                Button("Search", systemImage: "magnifyingglass") {
+                    NotificationCenter.default.post(name: .paneToggleSearch, object: nil)
+                }
+                .help("Search (\u{2318}F)")
+                .accessibilityIdentifier("sidebar.search")
+            }
             #endif
-            // Mac: search is in the notes list's header, over the field it opens (Emil, 10-30).
         }
     }
 
