@@ -105,7 +105,7 @@ import Testing
                 #expect(!items.contains { $0.label == label }, "\(label) is hidden in Recently Deleted")
             }
             #expect(items.contains { $0.label == "More" && $0.column == 2 }, "the note's More stays, with Recover")
-            #expect(NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: true, hasApp: false, appsEnabled: true, linkedFrom: false)
+            #expect(NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: true, hasApp: false, appsEnabled: true)
                     == [[.recover, .delete]])
         }
     }
