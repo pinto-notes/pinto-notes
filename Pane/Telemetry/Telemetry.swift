@@ -456,7 +456,7 @@ final class MemoryTelemetryQueue: TelemetryQueueStore, @unchecked Sendable {
 /// it's at most a couple of hundred short lines.
 struct FileTelemetryQueue: TelemetryQueueStore {
     var url: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appending(path: "Pane", directoryHint: .isDirectory).appending(path: "telemetry-queue.jsonl")
+        .appending(path: AppIdentity.dataFolder, directoryHint: .isDirectory).appending(path: "telemetry-queue.jsonl")
 
     func load() -> [Data] {
         guard let data = try? Data(contentsOf: url) else { return [] }

@@ -27,26 +27,26 @@ Good ideas become issues, credited to you, and you're first in line to build it 
 - Help when you're stuck. Ask in the issue or the pull request; there are no silly questions about a codebase you've never seen.
 - Credit. Everyone with a merged pull request is listed under [Thanks](README.md#thanks) in the README and named in the release notes of the version that ships their work. Community templates show "by @you" on the website.
 
-## Set up (about 10 minutes)
+## Set up (about 15 minutes, most of it downloads)
 
-You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local backend).
+You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local backend). No Apple developer account.
 
 ```sh
-brew install xcodegen supabase/tap/supabase deno pnpm
 git clone https://github.com/pinto-notes/pinto-notes.git && cd pinto-notes
-supabase start          # local Postgres, Auth, Storage and Functions (needs Docker)
-xcodegen generate       # makes Pane.xcodeproj from project.yml
+scripts/setup.sh        # checks your Mac, starts the local backend (Docker), builds the Mac app
+brew install deno pnpm  # for the server's and the website's tests
 ```
 
-The app talks to the local stack by default. Nothing you do here touches anyone's real notes.
+The app talks to the local stack by default. Nothing you do here touches anyone's real notes. Sign in with any email address and a password; if the app asks for a code, it's in the local mail viewer at http://127.0.0.1:56424. To build your own copy under your own name, see [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md).
 
 ## The Mac and iPhone app
 
 Open `Pane.xcodeproj` and run the `Pane` scheme on "My Mac" or an iPhone simulator. From the command line:
 
 ```sh
-scripts/qa-test.sh                                   # Mac unit and interaction tests
+scripts/qa-test.sh --smoke                           # a first check, a few minutes
 scripts/qa-test.sh PaneTests/ShareAskTests           # one suite
+scripts/qa-test.sh                                   # every Mac unit and interaction test, 20 to 30 minutes
 
 # iPhone build check (CI doesn't build for a device, so run this before you open a PR)
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Pane.xcodeproj \

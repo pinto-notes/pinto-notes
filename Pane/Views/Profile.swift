@@ -46,7 +46,7 @@ final class ProfileStore {
 
     init(defaults: UserDefaults = .standard, folder: URL? = nil) {
         self.defaults = defaults
-        self.folder = folder ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "Pane/Profile", directoryHint: .isDirectory)
+        self.folder = folder ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/Profile", directoryHint: .isDirectory)
     }
 
     // MARK: Account

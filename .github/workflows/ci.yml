@@ -305,6 +305,30 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Every night on dev, and by hand: what a stranger gets from GitHub builds. The committed tree, no
+  # secrets, no Config/*.local.xcconfig, no Apple team, plain xcodebuild for the Mac and the
+  # Simulator, through scripts/make-it-yours.sh (docs/MAKE-IT-YOURS.md). Reports only, like the
+  # nightly tests; it adds nothing to a push or a release.
+  fresh-clone:
+    name: Nightly, a fresh clone builds with no secrets (macOS, reports only)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+      - name: Select the newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+      - name: Tools
+        run: brew install xcodegen deno
+      - name: Build like a stranger
+        run: scripts/ci/fresh-clone-build.sh
+
   server:
     name: Server (Deno)
     if: github.event_name == 'push' || github.event_name == 'pull_request'

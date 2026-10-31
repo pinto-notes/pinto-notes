@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- For an iPhone build signed with a free Apple account (a personal team): Pane-ios.entitlements
+	     without Sign in with Apple, push and associated domains, which a free account can't sign.
+	     Email sign-in, sync, the share extension and the encryption key work as before. Chosen by
+	     scripts/make-it-yours.sh --personal-team (docs/MAKE-IT-YOURS.md). -->
+	<key>com.apple.security.application-groups</key>
+	<array><string>$(PANE_APP_GROUP)</string></array>
+	<key>keychain-access-groups</key>
+	<array><string>$(AppIdentifierPrefix)$(PANE_BUNDLE_ID)</string></array>
+</dict>
+</plist>

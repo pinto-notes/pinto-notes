@@ -75,7 +75,7 @@ final class Attachment {
 enum FileStore {
     static var root: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appending(path: ProcessInfo.processInfo.arguments.contains("-uitest") ? "Pane-test/Files" : "Pane/Files", directoryHint: .isDirectory)
+            .appending(path: ProcessInfo.processInfo.arguments.contains("-uitest") ? "Pane-test/Files" : "\(AppIdentity.dataFolder)/Files", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }

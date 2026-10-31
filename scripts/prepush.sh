@@ -105,7 +105,11 @@ compile() { # <name> <what> <xcodebuild arguments...>
   fi
 }
 # What this branch changes against dev, with what isn't committed yet.
-base=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
+# Against origin/dev, upstream's integration branch; a fork without one compares with its default
+# branch (origin/HEAD, else origin/main), and only then with HEAD.
+upstream=origin/dev
+git rev-parse -q --verify origin/dev >/dev/null || upstream=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)
+base=$(git merge-base HEAD "$upstream" 2>/dev/null || echo HEAD)
 changed=(${(f)"$( { git diff --name-only "$base"; git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )"})
 # The tree this check is about: HEAD's files with the working tree's changes on top.
 cp "$(git rev-parse --path-format=absolute --git-path index)" "$DD/index"

@@ -45,6 +45,8 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 	</dict>
+	<key>PaneAccent</key>
+	<string>$(PANE_ACCENT)</string>
 	<key>PaneAppGroup</key>
 	<string>$(PANE_APP_GROUP)</string>
 </dict>

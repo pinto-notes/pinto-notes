@@ -118,7 +118,7 @@ enum NotePageLibraries {
     private static var cacheDir: URL {
         let base = PaneApp.isUnitTestHost || ProcessInfo.processInfo.arguments.contains("-uitest")
             ? FileManager.default.temporaryDirectory.appending(path: "amber-libs-test", directoryHint: .isDirectory)
-            : FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "Pane/AppLibraries", directoryHint: .isDirectory)
+            : FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/AppLibraries", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base
     }

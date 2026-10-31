@@ -23,29 +23,18 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.6.0
+# Who the app is (bundle id, name, URL scheme, app group) and how it signs: Config/Identity.xcconfig,
+# which Config/Identity.local.xcconfig overrides (scripts/make-it-yours.sh writes it).
+configFiles:
+  Debug: Config/Identity.xcconfig
+  Release: Config/Identity.xcconfig
 settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "1.2"
     CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: ""
-    CODE_SIGN_STYLE: Manual
-    CODE_SIGN_IDENTITY: "-"
-    # iPhone builds sign with Emil's paid team (a year per install, app groups, TestFlight).
-    # The Mac app stays ad-hoc for now.
-    "DEVELOPMENT_TEAM[sdk=iphoneos*]": 4UM3XVUN9Y
-    "CODE_SIGN_STYLE[sdk=iphoneos*]": Automatic
-    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": Apple Development
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
-    # Who the app is. Config/Beta.xcconfig switches all of these for "Amber Notes Beta", the build
-    # that talks to the staging backend (docs/Technical/staging.md) and sits next to the real app.
-    PANE_BUNDLE_ID: dev.emilwagman.pane
-    PANE_DISPLAY_NAME: Pinto Notes
-    PANE_URL_SCHEME: ambernotes
-    PANE_APP_GROUP: group.dev.emilwagman.pane
-    PANE_APPLINKS_HOST: ambernotes.app
-    PANE_UPDATE_FEED: https://ambernotes.app/updates/appcast.xml
 targets:
   Pane:
     type: application
@@ -111,6 +100,8 @@ targets:
         PaneURLScheme: $(PANE_URL_SCHEME)
         PaneBundleID: $(PANE_BUNDLE_ID)
         PaneAppGroup: $(PANE_APP_GROUP)
+        # A build's own accent (scripts/set-accent.sh); empty is amber (Palette.accent).
+        PaneAccent: $(PANE_ACCENT)
         PanePostHogKey: $(PANE_POSTHOG_KEY)
         PanePostHogHost: $(PANE_POSTHOG_HOST)
         NSAppTransportSecurity:
@@ -143,6 +134,9 @@ targets:
     settings:
       base: &appSettings
         PRODUCT_BUNDLE_IDENTIFIER: $(PANE_BUNDLE_ID)
+        # Config/Identity.xcconfig's signing: without this the iOS preset XcodeGen gives a two-platform
+        # target ("iPhone Developer") would win on the Mac too, and a plain build there would ask for a team.
+        CODE_SIGN_IDENTITY: $(inherited)
         # The app's file name. Dev and test builds are Pane.app; scripts/testflight.sh sets
         # PANE_PRODUCT_NAME="Pinto Notes" so the shipped Mac app installs as Pinto Notes.app.
         PANE_PRODUCT_NAME: Pane
@@ -152,14 +146,15 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # AccentColor, or the gitignored AccentColorLocal scripts/set-accent.sh writes.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: $(PANE_ACCENT_ASSET)
         ENABLE_HARDENED_RUNTIME: YES
         # Ad-hoc builds use Pane-mac.entitlements; scripts/install-mac.sh passes
         # PANE_MAC_ENTITLEMENTS=Pane-mac-signed.entitlements for the team-signed app, and
         # scripts/testflight.sh passes Pane-mac-appstore.entitlements (sandboxed) for TestFlight.
         PANE_MAC_ENTITLEMENTS: Pane-mac.entitlements
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": Pane/Resources/$(PANE_MAC_ENTITLEMENTS)
-        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": Pane/Resources/Pane-ios.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": Pane/Resources/$(PANE_IOS_ENTITLEMENTS)
   # The Mac download (Developer ID, notarized, a DMG): the same app plus Sparkle for updates.
   # Built only by scripts/release-mac.sh; the App Store/TestFlight build is the Pane target.
   PaneDirect:
@@ -219,6 +214,7 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         PaneAppGroup: $(PANE_APP_GROUP)
+        PaneAccent: $(PANE_ACCENT)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -308,6 +304,11 @@ targets:
         buildPhase: resources
       # The project, for OnboardingArtTests (the pictures stay out of the share extension).
       - path: project.yml
+        buildPhase: resources
+      # Who the app is and how it signs, for FreshCloneTests (a clone with no Apple team builds).
+      - path: Config/Identity.xcconfig
+        buildPhase: resources
+      - path: Pane/Resources/Pane-ios-personal.entitlements
         buildPhase: resources
       # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md

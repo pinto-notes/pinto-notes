@@ -146,23 +146,23 @@ Folder and target names still say "Pane", the app's working name. The Xcode proj
 You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local Supabase stack). A fresh clone runs entirely on your machine.
 
 ```sh
-brew install xcodegen supabase/tap/supabase deno pnpm
-
-git clone https://github.com/pinto-notes/pinto-notes.git
+git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
-supabase start            # local Postgres, Auth, Storage and Functions on ports 56420–56429
-xcodegen generate
+scripts/setup.sh          # installs XcodeGen and the Supabase CLI, starts the local stack, builds the Mac app
 open Pane.xcodeproj       # run the "Pane" scheme on "My Mac" or an iPhone simulator
 ```
 
+`scripts/setup.sh` finds Xcode on its own. For your own `xcodebuild` commands, either run `sudo xcode-select -s /Applications/Xcode.app` once or put `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` in front of them; otherwise they fail with `tool 'xcodebuild' requires Xcode`. The built app is `build/ddqa/Build/Products/Debug/Pane.app`, the same build `scripts/qa-test.sh` uses.
+
 The app talks to the local stack through `Config/Backend.xcconfig`, which carries Supabase's standard local-only development key. To point your builds at a real project, create `Config/Backend.local.xcconfig` (gitignored) with your own `PANE_SUPABASE_URL`, `PANE_SUPABASE_KEY` and `PANE_SHARE_URL`.
 
-Running on a physical device needs your own Apple team. Change `DEVELOPMENT_TEAM` in `project.yml`, and the bundle ids if you like.
+The Mac app and the iPhone Simulator build with no Apple account. For your own bundle id, name and team (a free Apple account puts it on your iPhone), run `scripts/make-it-yours.sh`: see [Make it yours](#make-it-yours).
 
 **Tests**
 
 ```sh
-scripts/qa-test.sh                                   # Mac unit and interaction tests
+scripts/qa-test.sh --smoke                           # a first check, about a minute after setup.sh
+scripts/qa-test.sh                                   # every Mac unit and interaction test, 20 to 30 minutes
 scripts/prepush.sh --tests                           # before a push: compiles what ships, runs the suites you touched
 deno test --allow-all supabase/functions/mcp/notes.test.ts
 scripts/mcp-e2e.sh                                   # MCP end-to-end, against the local stack
@@ -180,10 +180,22 @@ The interaction tests drive the real editor in an offscreen window, so they neve
 Everything the app needs runs on one Supabase project:
 
 1. Create a project at [supabase.com](https://supabase.com) and put a personal access token in `.env` as `SUPABASE_ACCESS_TOKEN=sbp_…`.
-2. Run `scripts/deploy-backend.sh <project-ref>`. It links the project, applies the migrations, deploys the functions, pushes the auth settings, and writes `Config/Backend.local.xcconfig`.
-3. For share links, deploy `web/` to any Next.js host and set `PANE_SHARE_URL` to it.
+2. Run `scripts/deploy-backend.sh <project-ref> --dry-run` to see the steps, then without `--dry-run`. It links the project, applies the migrations, deploys the functions and their secrets, sets up email sign-in with a code, and writes `Config/Backend.local.xcconfig`.
+3. For share links and connecting ChatGPT or Claude, deploy `web/` to any Next.js host and run the script again with `--site https://your-site`.
 
 </details>
+
+## Make it yours
+
+Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed: you need macOS 26, Xcode 26, Homebrew and, for sign-in and sync, Docker Desktop.
+
+```sh
+git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
+cd pinto-notes
+scripts/setup.sh
+```
+
+`scripts/setup.sh` checks your Mac, starts a local backend, builds the Mac app under a name and bundle id of its own, and prints the `open` line for it: 5 to 20 minutes the first time, most of it downloads. Without Docker, `scripts/setup.sh --local-only` builds an app that keeps notes on this Mac. [docs/MAKE-IT-YOURS.md](docs/MAKE-IT-YOURS.md) has the rest: what you see the first time, your own name and icon, your iPhone, your own backend, where the colours and toolbar live, prompts for coding agents, and pulling updates with few conflicts.
 
 ## License
 
