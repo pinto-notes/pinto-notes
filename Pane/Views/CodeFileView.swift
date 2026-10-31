@@ -147,6 +147,14 @@ enum CodeLanguage: Equatable {
         }
     }
 
+    /// A code block's language, as written after its fence (```swift, ```py, ```bash).
+    init(fence: String) {
+        let name = fence.trimmingCharacters(in: .whitespaces).lowercased()
+        let aliases = ["javascript": "js", "typescript": "ts", "python": "py", "bash": "sh", "zsh": "sh", "shell": "sh",
+                       "rust": "rs", "golang": "go", "kotlin": "kt", "objc": "m", "c++": "cpp", "objective-c": "m"]
+        self.init(filename: "x." + (aliases[name] ?? name))
+    }
+
     var label: String {
         switch self {
         case .html: "HTML"

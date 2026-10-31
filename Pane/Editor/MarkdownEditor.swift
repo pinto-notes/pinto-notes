@@ -670,7 +670,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     let core = EditorCore()
     weak var controller: EditorController?
     private let headerLabel = UILabel()
-    private let readableWidth: CGFloat = 680
 
     private var cardHosts: [String: UIHostingController<AnyView>] = [:]
 
@@ -738,7 +737,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let side = max(20, (bounds.width - readableWidth) / 2)
+        // The whole width, as on the Mac: no reading column (Emil, 31 October 2026).
+        let side: CGFloat = 20
         let hasDate = !(headerLabel.text ?? "").isEmpty
         let foot = footHeight
         let inset = UIEdgeInsets(top: hasDate ? 44 : 14, left: side, bottom: 120 + (controller?.bottomReserve ?? 0) + (foot > 0 ? EditorFoot.gap + foot : 0), right: side)
@@ -1781,17 +1781,22 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     let core = EditorCore()
     weak var controller: EditorController?
     private let headerLabel = NSTextField(labelWithString: "")
-    private let readableWidth: CGFloat = 720
-    /// D's reading column.
-    static let readingColumn: CGFloat = 680
-    /// The date's top, under the toolbar, and the text's top under it (or without a date).
+    /// The date's top, and the text's top under it (or without a date). The date is centred above
+    /// the title and out of view: a note opens at its title, and the date shows when you scroll up
+    /// past it, as on the iPhone (DateFold; Emil, 31 October 2026).
     static let dateTop: CGFloat = 10
-    static let textTop: CGFloat = 40
+    static let textTop: CGFloat = 44
     static let bareTop: CGFloat = 16
+    /// How far a note opens scrolled: the date out of view, the title where it is without one.
+    static var fold: CGFloat { textTop - bareTop }
+    /// Folded once for the note it shows.
+    private var folded = false
+    private var hasDate: Bool { !headerLabel.stringValue.isEmpty }
 
-    /// The text's margin on each side in a page `width` wide (the note's toolbar lines up with it).
+    /// The text's margin on each side (the note's toolbar lines up with it). The text uses the
+    /// window's whole width, as in Notes: no reading column (Emil, 31 October 2026: "remove it").
     static func textSide(width: CGFloat) -> CGFloat {
-        DesignLook.readingPage ? max(32, (width - readingColumn) / 2) : 20
+        DesignLook.readingPage ? 32 : 20
     }
 
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
@@ -1818,6 +1823,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         textContainer?.widthTracksTextView = true
         textContainer?.lineFragmentPadding = 0
         typingAttributes = core.styler.typingAttributes
+        folded = false
         string = text
         lastReported = text
         remember(text)
@@ -1854,13 +1860,21 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func setFrameSize(_ newSize: NSSize) {
+        // A short note still scrolls past its date: never shorter than the view plus the fold.
+        var newSize = newSize
+        if DesignLook.readingPage, hasDate, let scroll = enclosingScrollView {
+            let view = scroll.contentView.bounds.height - scroll.contentInsets.top - scroll.contentInsets.bottom
+            newSize.height = max(newSize.height, view + Self.fold)
+        }
         super.setFrameSize(newSize)
-        // Like Notes on the Mac: a slim margin and text that uses the full width. D (the reading
-        // page) sets the text in a centred column about 680 pt wide. The date sits just under the
-        // toolbar, at the text's left edge, and the title close under it (Emil's draft, 10-29:
-        // the date was 36 pt down, "the content of the note is placed weirdly far down").
+        // Like Notes on the Mac: a slim margin and text that uses the full width. The date sits
+        // centred above the title, folded out of view until you scroll up (see `fold`).
         setInsets(width: newSize.width)
         placeFoot()
+        if !folded, DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil, (enclosingScrollView?.contentView.bounds.height ?? 0) > 0 {
+            folded = true
+            DispatchQueue.main.async { [weak self] in self?.foldDate() }
+        }
         // Straight to their new places: while the width changes (the sidebar sliding, the window
         // being resized) the cards follow the text instead of gliding after it.
         DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false) }
@@ -1873,8 +1887,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             let side = Self.textSide(width: width)
             let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + footExtra / 2)
             if textContainerInset != inset { textContainerInset = inset }
-            headerLabel.alignment = .left
-            headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: min(Self.readingColumn, width - side * 2), height: 16)
+            headerLabel.alignment = .center
+            headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: max(0, width - side * 2), height: 16)
         } else {
             let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + footExtra / 2)
             if textContainerInset != inset { textContainerInset = inset }
@@ -1997,6 +2011,34 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     func focusEditor() { window?.makeFirstResponder(self) }
+
+    /// The date fades as the note scrolls past it, so none of it shows under the toolbar.
+    private func fadeDate() {
+        guard DesignLook.readingPage, let scroll = enclosingScrollView else { return }
+        let past = scroll.contentView.bounds.origin.y + scroll.contentInsets.top
+        let alpha = min(1, max(0, 1 - past / (Self.fold * 0.8)))
+        if abs(headerLabel.alphaValue - alpha) > 0.01 { headerLabel.alphaValue = alpha }
+    }
+    private var watchingScroll = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard !watchingScroll, let clip = enclosingScrollView?.contentView else { return }
+        watchingScroll = true
+        clip.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fadeDate() }
+        }
+    }
+
+    /// Opens the note at its title, the date just above, out of view.
+    private func foldDate() {
+        guard let scroll = enclosingScrollView else { return }
+        let clip = scroll.contentView
+        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: -scroll.contentInsets.top + Self.fold))
+        scroll.reflectScrolledClipView(clip)
+        fadeDate()
+    }
 
     /// Scrolls the line at `location` to the top (a link to a heading), focus left as it is.
     func reveal(_ location: Int) {

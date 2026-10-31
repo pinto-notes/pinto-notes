@@ -20,11 +20,15 @@ final class LineDecoration: NSObject {
         case dash
         case checkbox(checked: Bool)
         case quote
-        case code(first: Bool, last: Bool)
+        /// A code block's line. Its first carries the block's language, shown as a grey label.
+        case code(first: Bool, last: Bool, label: String? = nil)
         case rule
         case table(header: Bool, first: Bool, last: Bool, columns: [CGFloat], width: CGFloat)
     }
     let kind: Kind
+    /// A bullet's radius and a dash's width, as drawn (DecoratedLayoutFragment).
+    static var bulletRadius: CGFloat { EditorMetrics.body * 0.19 }
+    static var dashWidth: CGFloat { EditorMetrics.body * 0.5 }
     /// Where the marker is centered, from the fragment's leading edge.
     let markerX: CGFloat
     init(_ kind: Kind, markerX: CGFloat = 0) {
@@ -95,15 +99,17 @@ struct MarkdownStyler {
     /// Height of a line folded away under a table's grid.
     static let foldedLine: CGFloat = 1
 
-    /// A note's title (its first plain line).
-    static var titleFont: PFont { .systemFont(ofSize: EditorMetrics.title, weight: .heavy) }
+    /// A note's title (its first plain line): bold, as in Notes. Not heavy, and not tightened
+    /// (Emil, 31 October 2026: "they are too bold").
+    static var titleFont: PFont { .systemFont(ofSize: EditorMetrics.title, weight: .bold) }
 
     /// A ### heading in the paper and reading looks: a small bold label ("Get started").
     static var labelFont: PFont { .systemFont(ofSize: EditorMetrics.label, weight: .bold) }
 
     func headingFont(_ level: Int) -> PFont {
-        // B (paper): headings in the website's voice, heavy and tight like the title.
-        if DesignLook.current == .paper || DesignLook.readingPage {
+        // B (paper): headings in the website's voice, heavy and tight. The shipped looks use
+        // Notes' weights: bold title and heading, semibold subheading (Emil, 31 October 2026).
+        if DesignLook.current == .paper {
             switch level {
             case 1: return .systemFont(ofSize: EditorMetrics.title * 0.85, weight: .heavy)
             case 2: return .systemFont(ofSize: bodySize * 1.3, weight: .heavy)
@@ -132,7 +138,7 @@ struct MarkdownStyler {
         switch style {
         case .title: headingFont(1)
         case .heading: headingFont(2)
-        case .subheading: DesignLook.current == .paper || DesignLook.readingPage ? Self.labelFont : headingFont(3)
+        case .subheading: DesignLook.current == .paper ? Self.labelFont : headingFont(3)
         case .body: bodyFont
         case .monostyled: monoFont
         default: nil
@@ -140,7 +146,7 @@ struct MarkdownStyler {
     }
 
     func kern(for style: FormatControl) -> CGFloat {
-        guard DesignLook.current == .paper || DesignLook.readingPage, style == .title || style == .heading,
+        guard DesignLook.current == .paper, style == .title || style == .heading,
               let font = font(for: style) else { return 0 }
         return Palette.tracking(font.pointSize)
     }
@@ -217,17 +223,29 @@ struct MarkdownStyler {
                 let prev = lineRange.location == 0 ? false : codeLines.contains(ns.lineRange(for: NSRange(location: lineRange.location - 1, length: 0)).location)
                 let nextStart = NSMaxRange(enclosing)
                 let next = nextStart < ns.length && codeLines.contains(nextStart)
-                storage.addAttribute(.paneLine, value: LineDecoration(.code(first: !prev, last: !next)), range: enclosing)
+                // A block, not markup (Emil, 31 October 2026): the fences are the block's padding,
+                // shown as they are only while the caret is on them; the opening one's language is
+                // a grey label at the block's top right.
+                let raw = fence && isActive(lineRange)
+                let language = fence && !prev ? String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces) : ""
+                let label = fence && !prev && !raw && !language.isEmpty ? language : nil
+                storage.addAttribute(.paneLine, value: LineDecoration(.code(first: !prev, last: !next, label: label)), range: enclosing)
                 let p = baseParagraph()
                 p.lineSpacing = 2
                 p.paragraphSpacing = 0
-                p.firstLineHeadIndent = 12
-                p.headIndent = 12
-                p.tailIndent = -12
-                storage.addAttribute(.paragraphStyle, value: p, range: enclosing)
-                if fence {
+                p.firstLineHeadIndent = Self.codePad
+                p.headIndent = Self.codePad
+                p.tailIndent = -Self.codePad
+                if fence && !raw {
+                    storage.addAttributes(hidden, range: lineRange)
+                    let h: CGFloat = label != nil ? 26 : Self.codePad
+                    p.lineSpacing = 0
+                    p.minimumLineHeight = h
+                    p.maximumLineHeight = h
+                } else if fence {
                     storage.addAttributes([.foregroundColor: PColor.paneTertiary, .font: monoFont], range: lineRange)
                 }
+                storage.addAttribute(.paragraphStyle, value: p, range: enclosing)
                 sawTitle = true
                 return
             }
@@ -245,7 +263,7 @@ struct MarkdownStyler {
                 let plain = !trimmed.hasPrefix("#") && !trimmed.hasPrefix(">") && !trimmed.hasPrefix("<") && ListPrefix(line: line) == nil
                 if firstLineIsTitle && plain {
                     // The website's display type: heavy and tight.
-                    storage.addAttributes([.font: Self.titleFont, .kern: Palette.tracking(EditorMetrics.title)], range: lineRange)
+                    storage.addAttribute(.font, value: Self.titleFont, range: lineRange)
                     let p = baseParagraph()
                     #if os(iOS)
                     // The welcome note's room under the title.
@@ -572,6 +590,14 @@ struct MarkdownStyler {
         return a
     }
 
+    /// Where every list marker ends, from the list's indent: a number's dot, a bullet's or a
+    /// dash's right edge. The text starts a gap after it, at the gutter.
+    static var markerGap: CGFloat { EditorMetrics.body * 0.45 }
+    static var markerEnd: CGFloat { EditorMetrics.gutter - markerGap }
+
+    /// A code block's padding: inside its sides, and its hidden fences' height.
+    static let codePad: CGFloat = 14
+
     private func styleList(_ list: ListPrefix, lineRange: NSRange, enclosing: NSRange, storage: NSTextStorage) {
         let level = CGFloat(list.level)
         let lead = level * EditorMetrics.nestStep
@@ -587,16 +613,23 @@ struct MarkdownStyler {
             let numberFont = PFont.monospacedDigitSystemFont(ofSize: bodySize, weight: .regular)
             storage.addAttributes([.foregroundColor: PColor.paneSecondary, .font: numberFont], range: number)
             let measured = (list.marker as NSString).size(withAttributes: [.font: numberFont]).width
+            // Right-aligned on the markers' edge, like the bullets and dashes: the dots line up
+            // with them and with each other (Notes). A long number pushes its text along.
+            let pad = max(0, Self.markerEnd - measured)
+            p.firstLineHeadIndent = pad
             let spaceRange = NSRange(location: number.upperBound, length: prefix.upperBound - number.upperBound)
-            storage.addAttributes(hiddenKerned(to: max(EditorMetrics.gutter - measured, 6), length: spaceRange.length), range: spaceRange)
-            p.headIndent = lead + max(EditorMetrics.gutter, measured + 6)
+            let after = max(EditorMetrics.gutter - pad - measured, Self.markerGap)
+            storage.addAttributes(hiddenKerned(to: after, length: spaceRange.length), range: spaceRange)
+            p.headIndent = lead + pad + measured + after
         } else {
             // Checklists follow Notes' geometry: the circle starts at the text margin, the text
             // sits a fixed gap after it, and items are spaced a little wider than plain lines.
             let isCheck = list.checkbox != nil
             let width = lead + (isCheck ? EditorMetrics.checkSize + EditorMetrics.checkGap : EditorMetrics.gutter)
             storage.addAttributes(hiddenKerned(to: width, length: prefix.length), range: prefix)
-            let markerX = isCheck ? lead + EditorMetrics.checkSize / 2 : lead + EditorMetrics.gutter * 0.4
+            // A bullet or dash ends on the markers' edge, where a number's dot does.
+            let half = list.marker == "-" ? LineDecoration.dashWidth / 2 : LineDecoration.bulletRadius
+            let markerX = isCheck ? lead + EditorMetrics.checkSize / 2 : lead + Self.markerEnd - half
             if isCheck {
                 let line = bodyFont.ascender - bodyFont.descender + bodyFont.leading
                 p.paragraphSpacing = max(0, EditorMetrics.checkPitch - line - p.lineSpacing)
@@ -704,14 +737,14 @@ private struct StyleWalker: MarkupWalker {
     mutating func visitHeading(_ heading: Heading) {
         guard let r = map.range(heading.range), safe(r) else { return descendInto(heading) }
         storage.addAttribute(.font, value: styler.headingFont(heading.level), range: r)
-        if DesignLook.current == .paper || DesignLook.readingPage, heading.level <= 2 {
+        if DesignLook.current == .paper, heading.level <= 2 {
             storage.addAttribute(.kern, value: Palette.tracking(styler.headingFont(heading.level).pointSize), range: r)
         }
         let p = styler.baseParagraph()
         p.paragraphSpacingBefore = heading.level <= 2 ? 4 : 2
         p.paragraphSpacing = 2
         #if os(iOS)
-        if heading.level == 3, DesignLook.current == .paper || DesignLook.readingPage {
+        if heading.level == 3, DesignLook.current == .paper {
             // A label, in the muted colour, a little apart from what's above it.
             storage.addAttribute(.foregroundColor, value: Palette.muted, range: r)
             p.minimumLineHeight = EditorMetrics.label
@@ -721,7 +754,7 @@ private struct StyleWalker: MarkupWalker {
         #endif
         storage.addAttribute(.paragraphStyle, value: p, range: ns.paragraphRange(for: r))
         #if os(macOS)
-        if heading.level == 3, DesignLook.current == .paper || DesignLook.readingPage {
+        if heading.level == 3, DesignLook.current == .paper {
             // As on the iPhone: a small bold label in the muted colour ("Get started"), a little
             // apart from what's above it.
             storage.addAttributes([.font: MarkdownStyler.labelFont, .foregroundColor: Palette.muted], range: r)
@@ -796,6 +829,16 @@ private struct StyleWalker: MarkupWalker {
     mutating func visitCodeBlock(_ block: CodeBlock) {
         guard let r = map.range(block.range), safe(r) else { return }
         storage.addAttributes([.font: styler.monoFont, .foregroundColor: PColor.paneLabel], range: r)
+        // Coloured by its language, as code files are (CodeLanguage, CodePalette).
+        if let language = block.language.map(CodeLanguage.init(fence:)), language != .plain {
+            let first = ns.lineRange(for: NSRange(location: r.location, length: 0))
+            let body = NSRange(location: NSMaxRange(first), length: max(0, NSMaxRange(r) - NSMaxRange(first)))
+            if body.length > 0, body.length < 100_000 {
+                for (token, t) in language.tokens(in: ns.substring(with: body)) {
+                    storage.addAttribute(.foregroundColor, value: CodePalette.color(token), range: NSRange(location: body.location + t.location, length: t.length))
+                }
+            }
+        }
         var starts = IndexSet()
         ns.enumerateSubstrings(in: ns.lineRange(for: r), options: [.byParagraphs, .substringNotRequired]) { _, line, _, _ in
             starts.insert(line.location)

@@ -111,6 +111,20 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     /// Notes' checklist circle: a light grey hairline ring, or a filled accent disc with a white tick.
+    /// Draws text into the fragment's (flipped) context.
+    static func draw(_ text: NSAttributedString, at point: CGPoint, in ctx: CGContext) {
+        #if os(macOS)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
+        text.draw(at: point)
+        NSGraphicsContext.restoreGraphicsState()
+        #else
+        UIGraphicsPushContext(ctx)
+        text.draw(at: point)
+        UIGraphicsPopContext()
+        #endif
+    }
+
     static func drawCheckbox(checked: Bool, in rect: CGRect, ctx: CGContext) {
         if checked {
             ctx.setFillColor(PColor.paneAccent.cgColor)
@@ -164,14 +178,14 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         switch d.kind {
         case .bullet:
             // Solid dots in the text colour, like Notes.
-            let r: CGFloat = EditorMetrics.body * 0.19
+            let r = LineDecoration.bulletRadius
             let c = CGPoint(x: o.x + d.markerX, y: o.y + bulletMidY)
             ctx.setFillColor(PColor.paneLabel.cgColor)
             ctx.fillEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
 
         case .dash:
             // Notes' dashed list: an en dash in the text colour, on the lowercase middle.
-            let w = EditorMetrics.body * 0.5, t = max(1, EditorMetrics.body * 0.075)
+            let w = LineDecoration.dashWidth, t = max(1, EditorMetrics.body * 0.075)
             let c = CGPoint(x: o.x + d.markerX, y: o.y + bulletMidY)
             ctx.setFillColor(PColor.paneLabel.cgColor)
             ctx.fill(CGRect(x: c.x - w / 2, y: c.y - t / 2, width: w, height: t))
@@ -185,8 +199,17 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             ctx.addPath(CGPath(roundedRect: bar, cornerWidth: 1.5, cornerHeight: 1.5, transform: nil))
             ctx.fillPath()
 
-        case .code(let first, let last):
+        case .code(let first, let last, let label):
             panel(ctx, o: o, h: h, first: first, last: last, fill: PColor.paneFill, radius: 10, stroke: nil)
+            if let label, first {
+                // The language, small and grey, at the block's top right.
+                let attrs: [NSAttributedString.Key: Any] = [.font: PFont.systemFont(ofSize: EditorMetrics.body * 0.82, weight: .medium),
+                                                            .foregroundColor: PColor.paneSecondary]
+                let text = NSAttributedString(string: label, attributes: attrs)
+                let size = text.size()
+                let at = CGPoint(x: o.x - layoutFragmentFrame.minX + containerWidth - MarkdownStyler.codePad - size.width, y: o.y + 2 + (h - 2 - size.height) / 2)
+                Self.draw(text, at: at, in: ctx)
+            }
 
         case .table(let header, let first, let last, let columns, let width):
             let w = min(width, containerWidth)
@@ -219,7 +242,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     private func panel(_ ctx: CGContext, o: CGPoint, h: CGFloat, first: Bool, last: Bool, fill: PColor, radius: CGFloat, stroke: PColor?) {
         let top: CGFloat = first ? 2 : 0
         let bottom: CGFloat = last ? 2 : 0
-        let rect = CGRect(x: o.x, y: o.y + top, width: containerWidth, height: h - top - bottom)
+        // From the column's edge, not the paragraph's indent (a code line's padding).
+        let rect = CGRect(x: o.x - layoutFragmentFrame.minX, y: o.y + top, width: containerWidth, height: h - top - bottom)
         ctx.addPath(roundedPath(rect, top: first ? radius : 0, bottom: last ? radius : 0))
         ctx.setFillColor(fill.cgColor)
         ctx.fillPath()

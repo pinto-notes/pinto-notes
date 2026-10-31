@@ -287,9 +287,10 @@ import Testing
         return NSApp.sendAction(action, to: m.target, from: m)
     }
 
-    /// Emil (10-29): "the content of the note is placed weirdly far down." His draft: the date just
-    /// under the toolbar at the text's left edge and the title close under it, with the sidebar
-    /// shown or hidden.
+    /// Emil (10-29): "the content of the note is placed weirdly far down." And 10-31: the date
+    /// "should appear on scroll up", "at the very centre of the note". A note opens at its title,
+    /// close under the toolbar, the date folded away above it; scrolled to the top, the date shows
+    /// centred over the text, just under the toolbar, the title close under it. Sidebar shown or hidden.
     @Test func theNoteStartsJustUnderTheToolbar() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
@@ -302,38 +303,63 @@ import Testing
                     await Self.settle(w, 8)
                 }
                 let editor = try #require(w.contentView.flatMap { Self.find(PaneTextView.self, in: $0) })
+                let scroll = try #require(editor.enclosingScrollView)
                 let date = try #require(Self.find(NSTextField.self, in: editor) { $0.accessibilityIdentifier() == "editor.date" })
                 // Window coordinates run up from the bottom: the toolbar's bottom edge is the top of the content layout rect.
                 let toolbarBottom = w.contentLayoutRect.maxY
+                func titleTop() -> CGFloat {
+                    let firstLine = editor.firstRect(forCharacterRange: NSRange(location: 0, length: 1), actualRange: nil)
+                    return w.convertFromScreen(firstLine).maxY
+                }
+                if sidebar {
+                    // As it opens: folded, the title close under the toolbar, the date not seen.
+                    let gap = toolbarBottom - titleTop()
+                    print("PERF note opens: title \(Int(gap)) pt under the toolbar, date alpha \(date.alphaValue)")
+                    #expect(gap >= 6 && gap <= 22, "the title sits \(gap) pt under the toolbar")
+                    #expect(date.alphaValue < 0.05, "the date is folded away: alpha \(date.alphaValue)")
+                }
+                // Scrolled to the very top: the date in view.
+                scroll.contentView.scroll(to: NSPoint(x: 0, y: -scroll.contentInsets.top))
+                scroll.reflectScrolledClipView(scroll.contentView)
+                await Self.settle(w, 2)
                 let dateFrame = date.convert(date.bounds, to: nil)
                 let dateGap = toolbarBottom - dateFrame.maxY
-                let firstLine = editor.firstRect(forCharacterRange: NSRange(location: 0, length: 1), actualRange: nil)
-                let lineTop = w.convertFromScreen(firstLine).maxY
-                let titleGap = dateFrame.minY - lineTop
+                let titleGap = dateFrame.minY - titleTop()
                 let page = editor.convert(editor.bounds, to: nil)
                 print("PERF note top (sidebar \(sidebar ? "shown" : "hidden")): date \(Int(dateGap)) pt under the toolbar, title \(Int(titleGap)) pt under the date, page \(NSStringFromRect(page))")
+                #expect(date.alphaValue > 0.95, "scrolled up, the date shows")
                 #expect(dateGap >= 6 && dateGap <= 14, "the date sits \(dateGap) pt under the toolbar (Notes: about 10)")
-                #expect(titleGap >= 0 && titleGap <= 16, "the title sits \(titleGap) pt under the date")
-                // Emil's draft: at the text's left edge, like the title under it.
-                #expect(abs(dateFrame.minX - (page.minX + PaneTextView.textSide(width: page.width))) <= 1, "the date starts where the text does")
+                #expect(titleGap >= 0 && titleGap <= 20, "the title sits \(titleGap) pt under the date")
+                #expect(abs(dateFrame.midX - page.midX) <= 1, "the date is centred over the note")
+                #expect(date.alignment == .center)
             }
         }
     }
 
-    /// "Get started" (###) is the small bold muted label on the Mac too, as on the iPhone.
-    @Test func aSubheadingIsASmallMutedLabel() {
-        guard DesignLook.readingPage else { return }
-        let text = "Welcome\n\n### Get started\nOne thing"
+    /// Headings in Notes' weights (Emil, 10-31: "they are too bold"): the title and a heading bold,
+    /// not heavy and not tightened; a subheading a semibold heading in the text's colour.
+    @Test func headingsAreNotesWeights() {
+        let text = "Welcome\n\n# Big\n## Heading\n### Get started\nOne thing"
         let storage = NSTextStorage(string: text)
         var styler = MarkdownStyler()
         styler.firstLineIsTitle = true
         styler.apply(to: storage, active: NSRange(location: 0, length: 0))
-        let at = (text as NSString).range(of: "Get started").location
-        let font = storage.attribute(.font, at: at, effectiveRange: nil) as? NSFont
-        #expect(font?.pointSize == EditorMetrics.label)
-        #expect(font.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true)
-        #expect(storage.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor == Palette.muted)
+        func at(_ s: String) -> Int { (text as NSString).range(of: s).location }
+        func weight(_ s: String) -> CGFloat {
+            let font = storage.attribute(.font, at: at(s), effectiveRange: nil) as? NSFont
+            let traits = font?.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any]
+            return (traits?[.weight] as? CGFloat) ?? -1
+        }
+        func kern(_ s: String) -> CGFloat { (storage.attribute(.kern, at: at(s), effectiveRange: nil) as? CGFloat) ?? 0 }
+        for s in ["Welcome", "Big", "Heading"] {
+            #expect(abs(weight(s) - NSFont.Weight.bold.rawValue) < 0.01, "\(s) is bold: \(weight(s))")
+            #expect(kern(s) == 0, "\(s) keeps its letter spacing")
+        }
+        #expect(abs(weight("Get started") - NSFont.Weight.semibold.rawValue) < 0.01, "a subheading is semibold: \(weight("Get started"))")
+        #expect(((storage.attribute(.font, at: at("Get started"), effectiveRange: nil) as? NSFont)?.pointSize ?? 0) > EditorMetrics.body, "bigger than the text")
+        #expect(storage.attribute(.foregroundColor, at: at("Get started"), effectiveRange: nil) as? NSColor != Palette.muted, "not a muted label")
     }
+
     /// Emil (10-30): "there is no visible separation between note and notes list" in the dark. A
     /// one-pixel separator runs between them, from the window's top edge (the toolbar band) to the
     /// bottom, light and dark: it stands out from the ground on both sides, and is one pixel wide.
