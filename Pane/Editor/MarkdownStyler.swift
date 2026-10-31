@@ -20,7 +20,8 @@ final class LineDecoration: NSObject {
         case dash
         case checkbox(checked: Bool)
         case quote
-        /// A code block's line. Its first carries the block's language, shown as a grey label.
+        /// A code block's line. Its first line of code carries the block's language, a grey label
+        /// floating in the block's top right corner.
         case code(first: Bool, last: Bool, label: String? = nil)
         case rule
         case table(header: Bool, first: Bool, last: Bool, columns: [CGFloat], width: CGFloat)
@@ -214,6 +215,7 @@ struct MarkdownStyler {
         // Line pass: title, lists, checkboxes, quotes, rules, code and table decoration.
         // The title is the note's first non-empty line; a region after it has none.
         var sawTitle = full.location > Self.titleLocation(ns)
+        var codeLabel: String?
         ns.enumerateSubstrings(in: full, options: [.byParagraphs, .substringNotRequired]) { _, lineRange, enclosing, _ in
             let line = ns.substring(with: lineRange)
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -227,8 +229,14 @@ struct MarkdownStyler {
                 // shown as they are only while the caret is on them; the opening one's language is
                 // a grey label at the block's top right.
                 let raw = fence && isActive(lineRange)
-                let language = fence && !prev ? String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces) : ""
-                let label = fence && !prev && !raw && !language.isEmpty ? language : nil
+                if fence && !prev {
+                    let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                    codeLabel = raw || language.isEmpty ? nil : language
+                }
+                // The label floats over the first line of code, so the block has no empty row for it
+                // (Emil, 31 October 2026).
+                let label = fence ? nil : codeLabel
+                if !fence { codeLabel = nil }
                 storage.addAttribute(.paneLine, value: LineDecoration(.code(first: !prev, last: !next, label: label)), range: enclosing)
                 let p = baseParagraph()
                 p.lineSpacing = 2
@@ -238,7 +246,7 @@ struct MarkdownStyler {
                 p.tailIndent = -Self.codePad
                 if fence && !raw {
                     storage.addAttributes(hidden, range: lineRange)
-                    let h: CGFloat = label != nil ? 26 : Self.codePad
+                    let h = Self.codePad
                     p.lineSpacing = 0
                     p.minimumLineHeight = h
                     p.maximumLineHeight = h

@@ -70,7 +70,11 @@ import UIKit
         let close = ns.range(of: "```", options: .backwards).location
         #expect(((s.attribute(.font, at: close, effectiveRange: nil) as? PFont)?.pointSize ?? 99) < 1, "the closing fence is hidden")
         let first = try #require(s.attribute(.paneLine, at: open, effectiveRange: nil) as? LineDecoration)
-        #expect(first.kind == .code(first: true, last: false, label: "swift"), "the label rides on the block's first line: \(first.kind)")
+        #expect(first.kind == .code(first: true, last: false, label: nil), "no row of its own for the label: \(first.kind)")
+        let paragraph = s.attribute(.paragraphStyle, at: open, effectiveRange: nil) as? NSParagraphStyle
+        #expect(paragraph?.maximumLineHeight == MarkdownStyler.codePad, "the opening fence is the block's top padding, as tall as its bottom")
+        let code = try #require(s.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
+        #expect(code.kind == .code(first: false, last: false, label: "swift"), "the label floats over the first line of code: \(code.kind)")
         let keyword = s.attribute(.foregroundColor, at: ns.range(of: "let").location, effectiveRange: nil) as? PColor
         let string = s.attribute(.foregroundColor, at: ns.range(of: "\"Hello\"").location, effectiveRange: nil) as? PColor
         #expect(Self.light(keyword) == Self.light(CodePalette.color(.keyword)), "a keyword is coloured")
@@ -79,8 +83,8 @@ import UIKit
         // The caret on the fence: written out, no label.
         let editing = Self.styled(text, caret: open + 4)
         #expect(((editing.attribute(.font, at: open, effectiveRange: nil) as? PFont)?.pointSize ?? 0) > 5, "the fence shows while the caret is on it")
-        let raw = try #require(editing.attribute(.paneLine, at: open, effectiveRange: nil) as? LineDecoration)
-        #expect(raw.kind == .code(first: true, last: false, label: nil))
+        let raw = try #require(editing.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
+        #expect(raw.kind == .code(first: false, last: false, label: nil), "no label while the fence is written out")
     }
 
     /// A language name after the fence picks the colours, by its usual names.

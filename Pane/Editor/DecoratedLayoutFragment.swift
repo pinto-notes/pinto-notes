@@ -201,13 +201,16 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
         case .code(let first, let last, let label):
             panel(ctx, o: o, h: h, first: first, last: last, fill: PColor.paneFill, radius: 10, stroke: nil)
-            if let label, first {
-                // The language, small and grey, at the block's top right.
+            if let label {
+                // The language, small and grey, floating in the block's top right corner, on the
+                // block's colour so a long first line runs under it.
                 let attrs: [NSAttributedString.Key: Any] = [.font: PFont.systemFont(ofSize: EditorMetrics.body * 0.82, weight: .medium),
                                                             .foregroundColor: PColor.paneSecondary]
                 let text = NSAttributedString(string: label, attributes: attrs)
                 let size = text.size()
-                let at = CGPoint(x: o.x - layoutFragmentFrame.minX + containerWidth - MarkdownStyler.codePad - size.width, y: o.y + 2 + (h - 2 - size.height) / 2)
+                let at = CGPoint(x: o.x - layoutFragmentFrame.minX + containerWidth - MarkdownStyler.codePad - size.width, y: o.y + (h - size.height) / 2)
+                ctx.setFillColor(PColor.paneFill.cgColor)
+                ctx.fill(CGRect(x: at.x - 8, y: o.y, width: size.width + 8 + MarkdownStyler.codePad, height: h))
                 Self.draw(text, at: at, in: ctx)
             }
 
