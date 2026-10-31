@@ -249,7 +249,7 @@ import Testing
     }
 
     /// The Mac's shipped look is plain (Emil, 2026-10-29: no cream): the note and the list are white
-    /// in the light and pure black in the dark, the sidebar's glass has no brown laid in it, and the
+    /// in the light and pure black in the dark, the sidebar's glass has no brown laid in it (a neutral grey in the light), and the
     /// cards, chips and hairlines are neutral grey. The selected note still reads on the white list.
     @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
     func theShippedMacLookIsPlainWhiteAndBlack(_ appearance: NSAppearance.Name) {
@@ -265,7 +265,13 @@ import Testing
         // The list is the page's white; in the dark a neutral step off black, so list and note read apart.
         let listGround = appearance == .darkAqua ? [13, 13, 13, 255] : [255, 255, 255, 255]
         #expect(rgba(Palette.listGround) == listGround, "list \(appearance.rawValue)")
-        #expect(rgba(Palette.sidebarWarmth)[3] == 0, "sidebar warmth \(appearance.rawValue)")
+        // The sidebar: 5% neutral black in light mode, Notes' grey (Emil, 10-31); none in the dark.
+        let warmth = rgba(Palette.sidebarWarmth)
+        if appearance == .darkAqua {
+            #expect(warmth[3] == 0, "sidebar warmth \(appearance.rawValue)")
+        } else {
+            #expect(warmth[0] == 0 && warmth[1] == 0 && warmth[2] == 0 && (12...14).contains(warmth[3]), "sidebar grey: \(warmth)")
+        }
         for (name, c) in [("card", Palette.card), ("soft", Palette.soft), ("line", Palette.line), ("row selection", Palette.rowSelection)] {
             let v = rgba(c)
             #expect(v[0] == v[1] && v[1] == v[2], "\(name) is neutral \(appearance.rawValue): \(v)")

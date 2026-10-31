@@ -135,9 +135,11 @@ enum Palette {
     static let row = pair(0xFDFCFB, 0x1F1E1D)
     #else
     /// Laid inside the sidebar's glass, so it keeps its vibrancy: about 5.5% toward the brown
-    /// (5% in the dark, where more reads as brown). E (`plain`): none, the native glass.
+    /// (5% in the dark, where more reads as brown). E (`plain`): 5% black in light mode, so the
+    /// sidebar is Notes' grey (about #EEEEED) instead of near-white glass; none in the dark, where
+    /// the native glass already reads as its own ground (Emil, 31 October 2026).
     static let sidebarWarmth = looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.055), paper: (brown, 0.085, brown, 0.06),
-                                     plain: (brown, 0, brown, 0))
+                                     plain: (0x000000, 0.05, brown, 0))
     /// The notes list: a little warmth, less than the sidebar.
     /// C and D: a clear step below the page, light and dark, so list and note read as two grounds
     /// without a line between them. E (`plain`): the page's white, and in the dark a neutral step off
