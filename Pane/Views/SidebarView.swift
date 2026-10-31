@@ -424,12 +424,6 @@ struct SidebarView: View {
             }
             #endif
         }
-
-    private func heading(_ title: String) -> some View {
-        Text(title)
-            #if os(macOS)
-            .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
-            #endif
     }
 
     /// The app's name above, the menus, drops and the toolbar.
