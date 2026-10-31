@@ -45,8 +45,9 @@ import Testing
     }
 
     /// Emil (10-29): "inside the note panel we should just have the stuff that is relating to
-    /// the note itself." Search takes the sidebar button's place, compose goes to the list, and
-    /// the note keeps Format, Checklist, Table, Attach, Share and More.
+    /// the note itself." Search and compose go to the list (Emil's pick A, 10-30: search over the
+    /// field it opens), the sidebar has no buttons, and the note keeps Format, Checklist, Table,
+    /// Attach, Share and More.
     @Test func eachColumnHoldsItsOwnControls() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
@@ -57,13 +58,8 @@ import Testing
                 let items = try Self.items(w)
                 print("toolbar at \(Int(size.width)): " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
                 func column(_ label: String) -> [Int] { items.filter { $0.label == label }.map(\.column) }
-                #expect(column("Search") == [0], "search sits in the sidebar")
-                // At the sidebar's trailing edge, where its toggle was (x 225 at a 260 pt sidebar).
-                let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
-                if let search = items.first(where: { $0.label == "Search" }) {
-                    let sidebar = split.arrangedSubviews[0].convert(split.arrangedSubviews[0].bounds, to: nil)
-                    #expect(sidebar.maxX - search.frame.maxX < 30, "search at the sidebar's trailing edge")
-                }
+                #expect(column("Search") == [1], "search sits in the list's header")
+                #expect(!items.contains { $0.column == 0 }, "nothing over the sidebar")
                 #expect(column("Hide Sidebar").isEmpty && column("Show Sidebar").isEmpty, "no sidebar button")
                 #expect(column("New Note") == [1], "compose sits with the list")
                 for label in ["Format", "Checklist", "Table", "Attach", "Share"] {
@@ -72,13 +68,8 @@ import Testing
                 #expect(column("More").sorted() == [1, 2], "a More for the list and one for the note")
                 #expect(!(w.toolbar?.items ?? []).contains { $0 is NSSearchToolbarItem }, "no search field over the note")
 
-                // Emil's draft: the list's round More on the left, its name centred, compose on the right.
-                let more = try #require(items.first { $0.label == "More" && $0.column == 1 })
-                let compose = try #require(items.first { $0.label == "New Note" })
-                let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
-                #expect(more.frame.maxX < title.frame.minX && title.frame.maxX < compose.frame.minX)
-                let between = (more.frame.maxX + compose.frame.minX) / 2
-                #expect(abs(title.frame.midX - between) <= 4, "the name is centred between the buttons")
+                // The list's round More on the left, its name centred, search and compose on the right.
+                try Self.expectListHeader(w, items)
 
                 // The note's groups stand over its text: Format starts at the text's left edge,
                 // More ends at its right edge (the reading column's, in a wide window).
@@ -97,8 +88,54 @@ import Testing
         }
     }
 
-    /// With the sidebar hidden its Search button stays, beside the window buttons, like Notes'
-    /// sidebar button does.
+    /// The list's header: More, the name, then Search and New Note, in that order and not
+    /// overlapping; the name centred in the column (its text, not the item's box).
+    static func expectListHeader(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {
+        let more = try #require(items.first { $0.label == "More" && $0.column == 1 })
+        let search = try #require(items.first { $0.label == "Search" && $0.column == 1 })
+        let compose = try #require(items.first { $0.label == "New Note" })
+        let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
+        #expect(more.frame.maxX < title.frame.minX && title.frame.maxX < search.frame.minX && search.frame.maxX < compose.frame.minX,
+                "More, name, Search, New Note: \(more.frame) \(title.frame) \(search.frame) \(compose.frame)")
+        #expect(abs(search.frame.width - compose.frame.width) <= 1 && abs(search.frame.width - more.frame.width) <= 1, "three circles the same size")
+        let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
+        // The list as seen: the sidebar floats over the column's leading part.
+        var list = split.arrangedSubviews[1].convert(split.arrangedSubviews[1].bounds, to: nil)
+        let sidebar = split.arrangedSubviews[0]
+        if !sidebar.isHidden && sidebar.frame.width > 0 {
+            let edge = sidebar.convert(sidebar.bounds, to: nil).maxX
+            list = CGRect(x: edge, y: list.minY, width: list.maxX - edge, height: list.height)
+        }
+        let header = list.width - max(0, NoteListView.windowButtons - list.minX)
+        // The name's text is the item less its lead.
+        let lead = NoteListView.titleLead(listWidth: header)
+        let t = CGRect(x: title.frame.minX + lead, y: title.frame.minY, width: title.frame.width - lead, height: title.frame.height)
+        print("PERF list header \(Int(list.width)) pt: More \(Int(more.frame.minX - list.minX))-\(Int(more.frame.maxX - list.minX)), name \(Int(t.minX - list.minX))-\(Int(t.maxX - list.minX)), Search \(Int(search.frame.minX - list.minX)), New Note to \(Int(compose.frame.maxX - list.minX))")
+        // Centred while the list has room for it (from about 310 pt).
+        if lead >= 54 { #expect(abs(t.midX - list.midX) <= 6, "the name centred in the list (\(t.midX - list.midX) off)") }
+        #expect(compose.frame.maxX <= list.maxX - 4 && more.frame.minX >= list.minX, "the buttons inside the list column")
+    }
+
+    /// The header at the list's narrowest: nothing overlaps or drops out of the toolbar.
+    @Test func theListHeaderFitsTheNarrowestList() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1180, height: 760))
+            defer { w.close() }
+            await Self.settle(w)
+            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+            let list = split.arrangedSubviews[1].frame
+            split.setPosition(list.minX + 200, ofDividerAt: 1)
+            await Self.settle(w, 8)
+            let items = try Self.items(w)
+            print("toolbar, narrowest list: " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
+            let shown = split.arrangedSubviews[1].frame.maxX - split.arrangedSubviews[0].frame.maxX
+            #expect(shown < 270, "the list at its narrowest (\(shown) pt beside the sidebar)")
+            try Self.expectListHeader(w, items)
+        }
+    }
+
+    /// With the sidebar hidden the list's header keeps its Search button.
     @Test func searchStaysWithTheSidebarHidden() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
@@ -113,11 +150,13 @@ import Testing
             let search = items.filter { $0.label == "Search" }
             #expect(search.count == 1, "one Search button")
             let more = try #require(items.first { $0.label == "More" })
-            #expect(search.first.map { $0.frame.maxX <= more.frame.minX && $0.frame.minX > 70 } == true, "after the window buttons, before the list's More")
+            #expect(search.first.map { $0.frame.minX > more.frame.maxX } == true, "in the list's header, after its More")
+            try Self.expectListHeader(w, items)
         }
     }
 
-    /// Search opens at the top of the list, from the sidebar's button or ⌘F, and Escape closes it.
+    /// Search opens at the top of the list, from the list's Search button or ⌘F, and Escape closes
+    /// it; the button again closes it too.
     /// In the note's text ⌘F finds in the note, as in Notes.
     @Test func searchOpensAtTheTopOfTheList() async throws {
         let c = try AppSnapshotTests.container()
@@ -154,11 +193,40 @@ import Testing
             await Self.settle(w, 3)
             #expect(field() == nil, "Escape closes the search")
 
-            // The sidebar's button.
+            // The notification Go to Note (⌘O) and Edit › Find send.
             NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
             await Self.settle(w, 5)
             #expect(field() != nil)
+            if let editing = w.firstResponder as? NSTextView { editing.doCommand(by: #selector(NSResponder.cancelOperation(_:))) }
+            await Self.settle(w, 3)
+
+            // The list header's button: opens the field with the keys in it, under the button.
+            let button = try #require(Self.toolbarItem(w, "Search"), "a Search button in the list's header")
+            #expect(Self.press(button))
+            await Self.settle(w, 5)
+            let opened = try #require(field(), "the button opens the field")
+            #expect((w.firstResponder as? NSTextView)?.delegate === opened, "the keys go to the field")
+            let b = try #require(button.view).convert(button.view!.bounds, to: nil), o = opened.convert(opened.bounds, to: nil)
+            #expect(b.minY >= o.maxY && b.midX >= o.minX && b.midX <= o.maxX, "the field opens under the button")
+            // Without a focus ring in the app's amber.
+            #expect(opened.focusRingType == .none)
+            // Pressed again, it closes.
+            #expect(Self.press(button))
+            await Self.settle(w, 3)
+            #expect(field() == nil, "the button again closes the field")
         }
+    }
+
+    /// A toolbar item, by its label, while it stands in the window's toolbar.
+    static func toolbarItem(_ w: NSWindow, _ label: String) -> NSToolbarItem? {
+        w.toolbar?.items.first { $0.label == label && $0.view?.window != nil }
+    }
+
+    /// Presses a toolbar item's button the way its overflow menu does: the same action a click
+    /// runs. (A click needs the window on screen; this window never is.)
+    static func press(_ item: NSToolbarItem) -> Bool {
+        guard let m = item.menuFormRepresentation, let action = m.action else { return false }
+        return NSApp.sendAction(action, to: m.target, from: m)
     }
 
     /// Emil (10-29): "the content of the note is placed weirdly far down." His draft: the date just
@@ -245,6 +313,42 @@ import Testing
                     print("PERF hairline \(dark ? "dark" : "light") at \(Int(fromTop)) pt: line \(line) list \(left) note \(right) next pixel \(next) (x \(lineX) of \(rep.pixelsWide))")
                     #expect(abs(line - right) > 0.03 && abs(line - left) > 0.03, "\(dark ? "dark" : "light"), \(Int(fromTop)) pt down: the line stands out (line \(line), list \(left), note \(right))")
                     #expect(abs(next - right) < 0.01, "\(dark ? "dark" : "light"), \(Int(fromTop)) pt down: one pixel wide")
+                }
+            }
+        }
+    }
+
+    /// The list's header with search closed and open, light and dark, for review (AMBER_HIG_SHOTS):
+    /// the list column's top 140 pt. Off screen the glass circles come out without their symbols.
+    @Test func listHeaderShots() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Lisbon") {
+            for dark in [false, true] {
+                let w = Self.window(c, size: CGSize(width: 1469, height: 920))
+                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                defer { w.close() }
+                await Self.settle(w, 15)
+                let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+                let left = split.arrangedSubviews[0].frame.maxX, right = split.arrangedSubviews[1].frame.maxX
+                for open in [false, true] {
+                    if open {
+                        #expect(Self.press(try #require(Self.toolbarItem(w, "Search"))))
+                        await Self.settle(w, 8)
+                    }
+                    let frame = try #require(w.contentView?.superview)
+                    frame.wantsLayer = true
+                    let scale: CGFloat = 2, height: CGFloat = 140
+                    let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int((right - left) * scale), pixelsHigh: Int(height * scale),
+                                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+                    let ctx = try #require(NSGraphicsContext(bitmapImageRep: rep))
+                    // Layers draw from the bottom up: move the window's top strip over the list into the image.
+                    ctx.cgContext.scaleBy(x: scale, y: scale)
+                    ctx.cgContext.translateBy(x: -left, y: -(frame.bounds.height - height))
+                    frame.layer?.render(in: ctx.cgContext)
+                    try #require(rep.representation(using: .png, properties: [:]))
+                        .write(to: dir.appending(path: "mac-list-header-\(open ? "open" : "closed")-\(dark ? "dark" : "light").png"))
                 }
             }
         }

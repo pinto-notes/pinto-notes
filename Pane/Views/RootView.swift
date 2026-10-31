@@ -118,7 +118,7 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                // Search takes the sidebar button's place (Emil, 10-29). View › Hide Sidebar (⌃⌘S)
+                // No sidebar button (Emil, 10-29); search is in the list. View › Hide Sidebar (⌃⌘S)
                 // and the split view's own collapse in a narrow window still hide it.
                 .toolbar(removing: .sidebarToggle)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 260, max: 360)

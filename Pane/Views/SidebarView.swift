@@ -528,17 +528,8 @@ struct SidebarView: View {
                 ToolbarSpacer(.flexible, placement: .bottomBar)
                 SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
-            #else
-            // Where the sidebar button was, at the sidebar's trailing edge: search every note.
-            ToolbarSpacer(.flexible)
-            ToolbarItem {
-                Button("Search", systemImage: "magnifyingglass") {
-                    NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
-                }
-                .help("Search (⌘F)")
-                .accessibilityIdentifier("sidebar.search")
-            }
             #endif
+            // Mac: search is in the notes list's header, over the field it opens (Emil, 10-30).
         }
     }
 
