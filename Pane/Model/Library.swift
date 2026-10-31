@@ -249,6 +249,43 @@ extension ModelContext {
         saveOrReport()
     }
 
+    /// A copy of `folder` right after it, named "<name> copy" ("<name> copy 2" when that's taken):
+    /// its notes and the folders inside it, each a new note or folder with a new id, marked for
+    /// sync as new ones are. The notes keep their dates, so the copy lists them in the same order.
+    /// Files kept in the folder on their own stay with the original (copying them means copying
+    /// their bytes in storage).
+    @discardableResult
+    func duplicate(_ folder: Folder) -> Folder {
+        let row = siblings(of: folder)
+        let taken = Set(row.map { $0.name.lowercased() })
+        var name = "\(folder.name) copy", n = 2
+        while taken.contains(name.lowercased()) { name = "\(folder.name) copy \(n)"; n += 1 }
+        // Halfway to the next folder beside it: right after it, and no other folder changes.
+        let next = row.first { $0.id != folder.id && $0.sortIndex > folder.sortIndex }
+        let index = next.map { (folder.sortIndex + $0.sortIndex) / 2 } ?? folder.sortIndex + 1
+        var seen: Set<UUID> = []
+        func copy(_ f: Folder, name: String, parent: Folder?, sortIndex: Double, depth: Int) -> Folder {
+            let made = Folder(name: name, parent: parent, sortIndex: sortIndex)
+            insert(made)
+            for note in f.liveNotes {
+                let c = Note(body: note.body, folder: made)
+                c.lockedBody = note.lockedBody
+                c.isPinned = note.isPinned
+                c.createdAt = note.createdAt
+                c.updatedAt = note.updatedAt
+                insert(c)
+            }
+            // A loop of folders (a bad sync) can't copy forever.
+            guard depth < 32, seen.insert(f.id).inserted else { return made }
+            for child in f.liveChildren { _ = copy(child, name: child.name, parent: made, sortIndex: child.sortIndex, depth: depth + 1) }
+            return made
+        }
+        let made = copy(folder, name: name, parent: folder.parent, sortIndex: index, depth: 0)
+        saveOrReport()
+        SyncSignal.changed()
+        return made
+    }
+
     /// The live folders beside `folder` (its parent's, or the top level), in their order, itself included.
     func siblings(of folder: Folder) -> [Folder] {
         allFolders().filter { $0.parent?.id == folder.parent?.id }.sorted { $0.sortIndex < $1.sortIndex }

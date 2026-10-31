@@ -161,4 +161,131 @@ private struct FollowingSidebar: View {
             .frame(width: 260, height: 400)
     }
 }
+/// A folder's right-click menu on the Mac, as SwiftUI hands it to AppKit: its items in order, in
+/// groups, with their icons as template images (drawn in the menu's own colour, as Apple's menus
+/// draw them, not in the app's amber), and Move To's folders with where the folder is ticked and
+/// itself dimmed. The menu itself can't be drawn offscreen, so the shot draws the panel from those
+/// items: `AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/FolderMenuShots`.
+@MainActor @Suite(.serialized) struct FolderMenuShots {
+    /// The menu a right-click on `folder`'s row gets, found by asking the sidebar's views for
+    /// their menu at each height (an event made here and handed to them, never posted).
+    static func menu(for folder: String, dark: Bool) async throws -> NSMenu {
+        let c = try AppSnapshotTests.container()
+        let view = NavigationStack { SidebarView(scope: .constant(.all), onNewNote: {}) }
+            .frame(width: 260, height: 400)
+            .modelContainer(c)
+            .tint(Color(PColor.paneAccent))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 260, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        let host = NSHostingView(rootView: view)
+        host.frame = CGRect(x: 0, y: 0, width: 260, height: 400)
+        window.contentView = host
+        defer { window.close() }
+        try? await Task.sleep(for: .seconds(0.6))
+        host.layoutSubtreeIfNeeded()
+        let parent = c.mainContext.allFolders().first { $0.name == folder }?.parent?.name
+        for y in stride(from: 395.0, to: 5, by: -4) {
+            let p = host.convert(CGPoint(x: 80, y: y), to: nil)
+            guard let e = NSEvent.mouseEvent(with: .rightMouseDown, location: p, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+                  let hit = host.hitTest(host.convert(p, from: nil)) else { continue }
+            var v: NSView? = hit
+            while let view = v {
+                if let m = view.menu(for: e), let move = m.items.first(where: { $0.title == "Move To" })?.submenu,
+                   move.items.contains(where: { $0.title.trimmingCharacters(in: .whitespaces) == (parent ?? "Top Level") && $0.state == .on }),
+                   move.items.contains(where: { $0.title.trimmingCharacters(in: .whitespaces) == folder && !$0.isEnabled }) {
+                    return m
+                }
+                v = view.superview
+            }
+        }
+        throw CancellationError()
+    }
+
+    @Test func theMenuIsGroupedWithPlainIconsAndMoveToTicksWhereItIs() async throws {
+        let m = try await Self.menu(for: "Q4 planning", dark: false)
+        #expect(m.items.map { $0.isSeparatorItem ? "-" : $0.title } == ["New Note", "New Folder", "-", "Rename", "Duplicate", "Move To", "-", "Delete Folder…"])
+        #expect(m.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image?.isTemplate == true }, "icons in the menu's colour, not amber")
+        let move = try #require(m.items.first { $0.title == "Move To" }?.submenu).items.filter { !$0.isSeparatorItem }
+        #expect(move.first?.title == "Top Level")
+        #expect(move.filter { $0.state == .on }.map { $0.title.trimmingCharacters(in: .whitespaces) } == ["Work"])
+        #expect(move.filter { !$0.isEnabled }.map { $0.title.trimmingCharacters(in: .whitespaces) } == ["Q4 planning"])
+    }
+
+    @Test(arguments: [false, true])
+    func shot(dark: Bool) async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let m = try await Self.menu(for: "Q4 planning", dark: dark)
+        let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
+        var image: NSImage?
+        appearance.performAsCurrentDrawingAppearance { image = Self.draw(m, dark: dark) }
+        let rep = try #require(image.flatMap { NSBitmapImageRep(data: $0.tiffRepresentation ?? Data()) })
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-folder-menu-\(dark ? "dark" : "light").png"))
+    }
+
+    /// The menu and its Move To submenu beside it, drawn from their items at 2x.
+    static func draw(_ menu: NSMenu, dark: Bool) -> NSImage {
+        let row: CGFloat = 24, sep: CGFloat = 11, pad: CGFloat = 5, width: CGFloat = 220
+        func height(_ m: NSMenu) -> CGFloat { m.items.reduce(pad * 2) { $0 + ($1.isSeparatorItem ? sep : row) } }
+        let sub = menu.items.first { $0.title == "Move To" }?.submenu
+        let size = CGSize(width: 40 + width + (sub == nil ? 0 : width - 8) + 40, height: max(height(menu), (sub.map(height) ?? 0) + 80) + 60)
+        let image = NSImage(size: size)
+        image.lockFocusFlipped(true)
+        (dark ? NSColor(white: 0.12, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
+        CGRect(origin: .zero, size: size).fill()
+        func panel(_ m: NSMenu, at origin: CGPoint) {
+            let rect = CGRect(x: origin.x, y: origin.y, width: width, height: height(m))
+            let shape = NSBezierPath(roundedRect: rect, xRadius: 10, yRadius: 10)
+            NSGraphicsContext.saveGraphicsState()
+            let shadow = NSShadow()
+            shadow.shadowColor = .black.withAlphaComponent(0.3); shadow.shadowBlurRadius = 16; shadow.shadowOffset = CGSize(width: 0, height: -6)
+            shadow.set()
+            (dark ? NSColor(white: 0.17, alpha: 1) : NSColor(white: 0.97, alpha: 1)).setFill()
+            shape.fill()
+            NSGraphicsContext.restoreGraphicsState()
+            NSColor.separatorColor.setStroke(); shape.lineWidth = 0.5; shape.stroke()
+            var y = origin.y + pad
+            for item in m.items {
+                if item.isSeparatorItem {
+                    NSColor.separatorColor.setFill()
+                    CGRect(x: rect.minX + 12, y: y + sep / 2, width: width - 24, height: 1).fill()
+                    y += sep; continue
+                }
+                let r = CGRect(x: rect.minX + pad, y: y, width: width - pad * 2, height: row)
+                let color: NSColor = item.isEnabled ? .labelColor : .tertiaryLabelColor
+                if item.state == .on, let tick = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) {
+                    tint(tick, color).draw(in: CGRect(x: r.minX + 6, y: r.midY - 5, width: 11, height: 10))
+                }
+                if let img = item.image {
+                    let s = img.size, scale = min(16 / max(s.width, 1), 16 / max(s.height, 1), 1)
+                    let d = CGSize(width: s.width * scale, height: s.height * scale)
+                    (img.isTemplate ? tint(img, color) : img).draw(in: CGRect(x: r.minX + 9 + (16 - d.width) / 2, y: r.midY - d.height / 2, width: d.width, height: d.height))
+                }
+                let x = r.minX + (m === menu ? 33 : 22)
+                (item.title as NSString).draw(at: CGPoint(x: x, y: r.minY + 3), withAttributes: [.font: NSFont.menuFont(ofSize: 13), .foregroundColor: color])
+                if item.submenu != nil, let arrow = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) {
+                    tint(arrow, color).draw(in: CGRect(x: r.maxX - 14, y: r.midY - 5, width: 6, height: 10))
+                }
+                y += row
+            }
+        }
+        panel(menu, at: CGPoint(x: 40, y: 30))
+        if let sub {
+            let at = menu.items.prefix { $0.title != "Move To" }.reduce(pad) { $0 + ($1.isSeparatorItem ? sep : row) }
+            panel(sub, at: CGPoint(x: 40 + width - 8, y: 30 + at - pad))
+        }
+        image.unlockFocus()
+        return image
+    }
+
+    private static func tint(_ img: NSImage, _ color: NSColor) -> NSImage {
+        NSImage(size: img.size, flipped: false) { r in
+            img.draw(in: r)
+            color.set()
+            r.fill(using: .sourceAtop)
+            return true
+        }
+    }
+}
 #endif

@@ -112,7 +112,7 @@ struct RootView: View {
         NavigationSplitView(columnVisibility: $visibility) {
             // On the Mac the folders and the list are compared before they're worked out again (see
             // their `==`): the split view hands its columns over again whenever one is hidden or shown.
-            SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound)
+            SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
                 #if os(macOS)
                 .equatable()
                 #endif
@@ -480,6 +480,21 @@ struct RootView: View {
         #endif
         justCreated = note.id
         selectedNote = note.id
+    }
+
+    /// New Note from a folder's menu: a note in that folder, the folder selected and the note open
+    /// with the cursor in it (on iPhone the folder's list opens under it, as for any new note).
+    static func newNote(inFolder id: UUID, context: ModelContext) -> (scope: Scope, note: UUID) {
+        let note = context.createNote(in: .folder(id))
+        return (Scope.opening(note), note.id)
+    }
+
+    private func newNote(inFolder id: UUID) {
+        let made = Self.newNote(inFolder: id, context: context)
+        Telemetry.shared.record(.firstNoteCreated)
+        scope = made.scope
+        justCreated = made.note
+        selectedNote = made.note
     }
 
     /// A note the iPhone folders screen's search found: its folder opens under it, as for a new
