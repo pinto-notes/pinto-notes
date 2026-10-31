@@ -71,6 +71,9 @@ final class Note {
     /// from the text when asked, and filled in once after launch (NoteSummaries.fill).
     var summaryTitle: String?
     var summaryPreview: String?
+    /// The note's first picture, the list row's thumbnail (as Notes shows), as of the last save:
+    /// its file's id, or "" for none. Nil until it's been worked out (NoteSummaries.fill).
+    var summaryImage: String?
     /// Front matter from an imported Markdown file that Pinto has no use for (aliases, a source,
     /// a status…), as written, so exporting the note writes it back; its aliases name the note in
     /// links. Synced sealed with the account's key, like the text (`props_ct`). Nil while the
@@ -114,12 +117,20 @@ final class Note {
         return NoteText.summary(of: self).preview
     }
 
+    /// The first picture the note shows, for its row's thumbnail. None for a locked note.
+    var firstImageID: UUID? {
+        if let image = summaryImage, !hasChanges { return UUID(uuidString: image) }
+        return NoteText.summary(of: self).image
+    }
+
     /// Works the summary out from the text again (NoteSummaries, as the note is saved).
     func summarize() {
         let head = NoteText.head(of: body)
         let title = head.title, preview = head.preview ?? NoteText.noPreview
+        let image = NoteText.firstImageID(in: body)?.uuidString ?? ""
         if summaryTitle != title { summaryTitle = title }
         if summaryPreview != preview { summaryPreview = preview }
+        if summaryImage != image { summaryImage = image }
     }
 }
 
@@ -149,7 +160,7 @@ enum NoteSummaries {
         context.autosaveEnabled = false
         var filled = 0
         while true {
-            var missing = FetchDescriptor<Note>(predicate: #Predicate { $0.summaryTitle == nil })
+            var missing = FetchDescriptor<Note>(predicate: #Predicate { $0.summaryTitle == nil || $0.summaryImage == nil })
             missing.fetchLimit = batch
             guard let notes = try? context.fetch(missing), !notes.isEmpty else { break }
             for n in notes { n.summarize() }
@@ -188,21 +199,31 @@ enum SyncSignal {
 
 /// Plain-text helpers shared by the list, search and the AI tools.
 enum NoteText {
-    private struct Summary { var body: String; var title: String; var preview: String }
+    private struct Summary { var body: String; var title: String; var preview: String; var image: UUID? }
     nonisolated(unsafe) private static var summaries: [UUID: Summary] = [:]
 
     /// A note's title and preview, worked out again only when the note's text changes:
     /// the list shows them for every note on every update. Kept by the text itself. Kept by the
     /// note's date and the text's length, a change that arrived by sync with the same date and
     /// the same length left the row showing the text from before.
-    static func summary(of note: Note) -> (title: String, preview: String) {
+    static func summary(of note: Note) -> (title: String, preview: String, image: UUID?) {
         let body = note.body
-        if let s = summaries[note.id], s.body == body { return (s.title, s.preview) }
+        if let s = summaries[note.id], s.body == body { return (s.title, s.preview, s.image) }
         let head = head(of: body)
         let title = head.title
         let preview = head.preview ?? noPreview
-        summaries[note.id] = Summary(body: body, title: title, preview: preview)
-        return (title, preview)
+        let image = firstImageID(in: body)
+        summaries[note.id] = Summary(body: body, title: title, preview: preview, image: image)
+        return (title, preview, image)
+    }
+
+    /// The first picture a note's text shows (`![name](pane-file:<id>)`), or nil. A file chip
+    /// (`[name](pane-file:…)`, no `!`) isn't a picture.
+    static func firstImageID(in body: String) -> UUID? {
+        // Most notes have no file at all: one quick look before the pattern.
+        guard body.contains("](pane-file:") else { return nil }
+        guard let m = body.firstMatch(of: /!\[[^\]\n]*\]\(pane-file:([0-9a-fA-F-]{36})\)/) else { return nil }
+        return UUID(uuidString: String(m.1))
     }
 
     static func title(of body: String) -> String {
