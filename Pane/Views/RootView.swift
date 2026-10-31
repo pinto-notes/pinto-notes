@@ -88,6 +88,9 @@ struct RootView: View {
             // A template or shared note to add, from a link.
             .noteSourceHandler()
             .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
+            // Today's Note, from the calendar button and the menus, in this window (DailyNotes).
+            .environment(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
+            .focusedSceneValue(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
             #if os(macOS)
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
                 quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
@@ -224,6 +227,7 @@ struct RootView: View {
             run: { action in
                 switch action {
                 case .newNote: newNote()
+                case .todaysNote: openTodaysNote()
                 case .newFolder: NotificationCenter.default.post(name: .paneNewFolder, object: nil)
                 case .togglePin: if let id = selectedNote, let n = context.note(id) { context.togglePin(n) }
                 case .move: NotificationCenter.default.post(name: .paneMoveNote, object: nil)
@@ -531,6 +535,22 @@ struct RootView: View {
         selectedNote = made.note
     }
 
+    /// Today's note, made if it isn't yet, open with the cursor in it. The list shows it where
+    /// it is: the folder you're in if it's there, else Daily.
+    private func openTodaysNote() {
+        let (note, made) = context.openTodaysNote()
+        if made { Telemetry.shared.record(.firstNoteCreated) }
+        let shown: Bool
+        switch scope {
+        case .all?: shown = true
+        case .folder(let f)?: shown = note.folder?.id == f
+        default: shown = false
+        }
+        if !shown { scope = Scope.opening(note) }
+        justCreated = note.id
+        selectedNote = note.id
+    }
+
     /// A note the iPhone folders screen's search found: its folder opens under it, as for a new
     /// note, so back leads through the folder to the search.
     private func openFound(_ id: UUID) {
@@ -707,6 +727,7 @@ struct PaneCommands: Commands {
     @FocusedValue(\.importAction) private var importNotes
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
+    @FocusedValue(\.todaysNote) private var todaysNote
 
     var body: some Commands {
         // Settings shows as a sheet on the notes window in front, like WhatsApp's.
@@ -724,6 +745,10 @@ struct PaneCommands: Commands {
                 .disabled(newNote == nil)
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
+            // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.
+            Button("Today\u{2019}s Note") { todaysNote?.open() }
+                .keyboardShortcut("t")
+                .disabled(todaysNote == nil)
             Divider()
             // ⌘K is Add Link, as in Notes. ⌘O is where Open would be, and Obsidian's quick switcher.
             Button("Go to Note…") { NotificationCenter.default.post(name: .paneQuickOpen, object: nil) }

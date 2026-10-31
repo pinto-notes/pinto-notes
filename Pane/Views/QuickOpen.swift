@@ -19,7 +19,7 @@ enum QuickOpen {
 
     /// What a command does. The notes window runs it with its own actions (`Actions`).
     enum Action: Hashable, Sendable {
-        case newNote, newFolder, togglePin, move, importAppleNotes, importFrom(ImportKind), exportNotes, connectAI, settings
+        case newNote, todaysNote, newFolder, togglePin, move, importAppleNotes, importFrom(ImportKind), exportNotes, connectAI, settings
     }
 
     struct CommandItem: Identifiable, Equatable, Sendable {
@@ -106,6 +106,7 @@ enum QuickOpen {
     static func commands(openNote: Bool, pinned: Bool, importKinds: [ImportKind]) -> [CommandItem] {
         var out: [CommandItem] = [
             CommandItem(action: .newNote, title: "New Note", symbol: "square.and.pencil", shortcut: "⌘N", keywords: ["create", "add", "write"]),
+            CommandItem(action: .todaysNote, title: "Today\u{2019}s Note", symbol: "calendar", shortcut: "⌘T", keywords: ["daily", "today", "journal", "date"]),
             CommandItem(action: .newFolder, title: "New Folder", symbol: "folder.badge.plus", shortcut: "⇧⌘N", keywords: ["create", "add"]),
         ]
         if openNote {

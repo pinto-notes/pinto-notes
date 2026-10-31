@@ -2,16 +2,19 @@ import SwiftUI
 import TipKit
 
 /// The compose button. A tap or click makes a new note at once, as it always has. Pressing and
-/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note and New App. New App opens
-/// the sheet where your AI builds an app as a new note (MakeAppSheet, `init(newApp:)`); on the Mac
-/// it is also File › New App.
+/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note, Today's Note (DailyNotes)
+/// and New App. New App opens the sheet where your AI builds an app as a new note
+/// (MakeAppSheet, `init(newApp:)`); on the Mac it is also File › New App.
 struct ComposeButton<Label: View>: View {
     let newNote: () -> Void
     @ViewBuilder let label: () -> Label
+    @Environment(\.todaysNote) private var todaysNote
 
     var body: some View {
         Menu {
             Button("New Note", systemImage: "square.and.pencil", action: newNote)
+            Button("Today\u{2019}s Note", systemImage: "calendar") { todaysNote?.open() }
+                .accessibilityIdentifier("compose.today")
             Button("New App", systemImage: NoteAppMark.symbol) { NewApp.shared.open() }
                 .accessibilityIdentifier("compose.newApp")
         } label: {
@@ -20,6 +23,22 @@ struct ComposeButton<Label: View>: View {
             newNote()
         }
         .menuIndicator(.hidden)
+    }
+}
+
+/// Today's note in one press, beside New Note on the iPhone and at the top of the Mac sidebar,
+/// like Obsidian's calendar button in its ribbon.
+struct TodayButton: View {
+    var identifier = "list.today"
+    @Environment(\.todaysNote) private var todaysNote
+
+    var body: some View {
+        Button { todaysNote?.open() } label: { Label("Today\u{2019}s note", systemImage: "calendar") }
+            #if os(macOS)
+            .help("Today\u{2019}s note (⌘T)")
+            #endif
+            .disabled(todaysNote == nil)
+            .accessibilityIdentifier(identifier)
     }
 }
 
@@ -106,6 +125,11 @@ struct SearchComposeBar: ToolbarContent {
         var identifier = "list.newNote"
 
         var body: some ToolbarContent {
+            ToolbarItem(placement: .bottomBar) {
+                TodayButton(identifier: identifier.replacingOccurrences(of: "newNote", with: "today"))
+                    .tint(.primary)
+            }
+            ToolbarSpacer(.fixed, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
                 ComposeButton(newNote: newNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
                     .tint(.primary)

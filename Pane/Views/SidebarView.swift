@@ -533,6 +533,10 @@ struct SidebarView: View {
                 ToolbarSpacer(.flexible, placement: .bottomBar)
                 SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
+            #else
+            ToolbarSpacer(.flexible)
+            // Today's note in one press (DailyNotes), at the sidebar's trailing edge.
+            ToolbarItem { TodayButton(identifier: "sidebar.today") }
             #endif
             // Mac: search is in the notes list's header, over the field it opens (Emil, 10-30).
         }
