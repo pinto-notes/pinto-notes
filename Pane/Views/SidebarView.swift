@@ -1134,6 +1134,17 @@ enum FolderAction: String, CaseIterable, Identifiable {
     }
 }
 
+/// A folder row is worked out again when what it shows changes: its folder (its name and counts
+/// it reads itself), the files, the selection, the drop. Not for the sidebar's actions, made new
+/// on every pass but doing the same things: as inputs they worked every folder row out again with
+/// each pass (180 rows against 72 for three saves).
+extension FolderTree: @MainActor Equatable {
+    static func == (a: FolderTree, b: FolderTree) -> Bool {
+        a.folder.id == b.folder.id && a.files == b.files && a.selection == b.selection && a.dropTarget == b.dropTarget
+            && a.notesID == b.notesID && a.depth == b.depth
+    }
+}
+
 /// What a folder's menu items do, given by the sidebar.
 struct FolderMenuActions {
     var newNote: (Folder) -> Void = { _ in }

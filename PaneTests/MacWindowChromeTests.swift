@@ -59,7 +59,11 @@ import Testing
                 print("toolbar at \(Int(size.width)): " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
                 func column(_ label: String) -> [Int] { items.filter { $0.label == label }.map(\.column) }
                 #expect(column("Search") == [1], "search sits in the list's header")
-                #expect(!items.contains { $0.column == 0 }, "nothing over the sidebar")
+                // Daily notes: Today, at the sidebar's top (Emil approved the calendar there, 10-30).
+                #expect(items.filter { $0.column == 0 }.map(\.label) == ["Today\u{2019}s note"], "only Today over the sidebar")
+                if let today = items.first(where: { $0.column == 0 }) {
+                    #expect(today.frame.maxY >= w.contentLayoutRect.maxY, "Today sits in the toolbar at the sidebar's top")
+                }
                 #expect(column("Hide Sidebar").isEmpty && column("Show Sidebar").isEmpty, "no sidebar button")
                 #expect(column("New Note") == [1], "compose sits with the list")
                 for label in ["Format", "Checklist", "Table", "Attach", "Share"] {
@@ -94,9 +98,6 @@ import Testing
         let more = try #require(items.first { $0.label == "More" && $0.column == 1 })
         let search = try #require(items.first { $0.label == "Search" && $0.column == 1 })
         let compose = try #require(items.first { $0.label == "New Note" })
-        let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
-        #expect(more.frame.maxX < title.frame.minX && title.frame.maxX < search.frame.minX && search.frame.maxX < compose.frame.minX,
-                "More, name, Search, New Note: \(more.frame) \(title.frame) \(search.frame) \(compose.frame)")
         #expect(abs(search.frame.width - compose.frame.width) <= 1 && abs(search.frame.width - more.frame.width) <= 1, "three circles the same size")
         let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
         // The list as seen: the sidebar floats over the column's leading part.
@@ -106,7 +107,17 @@ import Testing
             let edge = sidebar.convert(sidebar.bounds, to: nil).maxX
             list = CGRect(x: edge, y: list.minY, width: list.maxX - edge, height: list.height)
         }
-        let header = list.width - max(0, NoteListView.windowButtons - list.minX)
+        let header = NoteListView.headerWidth(column: list.width, minX: list.minX)
+        // No name where the buttons leave it under 40 pt (the sidebar hidden beside a narrow list).
+        guard NoteListView.titleRoom(listWidth: header) > 0 else {
+            print("PERF list header \(Int(list.width)) pt, no name: More \(Int(more.frame.minX - list.minX))-\(Int(more.frame.maxX - list.minX)), Search \(Int(search.frame.minX - list.minX)), New Note to \(Int(compose.frame.maxX - list.minX))")
+            #expect(more.frame.maxX < search.frame.minX && search.frame.maxX < compose.frame.minX, "More, Search, New Note")
+            #expect(compose.frame.maxX <= list.maxX - 4 && more.frame.minX >= list.minX, "the buttons inside the list column")
+            return
+        }
+        let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
+        #expect(more.frame.maxX < title.frame.minX && title.frame.maxX < search.frame.minX && search.frame.maxX < compose.frame.minX,
+                "More, name, Search, New Note: \(more.frame) \(title.frame) \(search.frame) \(compose.frame)")
         // The name's text is the item less its lead.
         let lead = NoteListView.titleLead(listWidth: header)
         let t = CGRect(x: title.frame.minX + lead, y: title.frame.minY, width: title.frame.width - lead, height: title.frame.height)

@@ -205,7 +205,9 @@ private struct FollowingSidebar: View {
     @Test func theMenuIsGroupedWithPlainIconsAndMoveToTicksWhereItIs() async throws {
         let m = try await Self.menu(for: "Q4 planning", dark: false)
         #expect(m.items.map { $0.isSeparatorItem ? "-" : $0.title } == ["New Note", "New Folder", "-", "Rename", "Duplicate", "Move To", "-", "Delete Folder…"])
-        #expect(m.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image?.isTemplate == true }, "icons in the menu's colour, not amber")
+        // Delete's trash is red like its title (Emil, 10-30), drawn as it is; the rest take the menu's colour.
+        #expect(m.items.filter { !$0.isSeparatorItem && $0.title != "Delete Folder…" }.allSatisfy { $0.image?.isTemplate == true }, "icons in the menu's colour, not amber")
+        #expect(m.items.first { $0.title == "Delete Folder…" }?.image != nil, "Delete keeps its icon")
         let move = try #require(m.items.first { $0.title == "Move To" }?.submenu).items.filter { !$0.isSeparatorItem }
         #expect(move.first?.title == "Top Level")
         #expect(move.filter { $0.state == .on }.map { $0.title.trimmingCharacters(in: .whitespaces) } == ["Work"])

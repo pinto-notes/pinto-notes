@@ -351,10 +351,12 @@ struct NoteListView: View {
         .searchable(text: $search, prompt: "Search")
         .searchToolbarBehavior(.automatic)
         #else
-        // With the sidebar hidden the window's buttons take the header's first 88 pt.
+        // With the sidebar hidden the window's buttons and the sidebar's Today take the header's
+        // first part. Covered or not, never partly: the list's edge passes through that part on
+        // every frame of a sidebar toggle, and each new width worked the whole list out again.
         .onGeometryChange(for: CGFloat.self) { g in
             let f = g.frame(in: .global)
-            return f.width - max(0, Self.windowButtons - f.minX)
+            return Self.headerWidth(column: f.width, minX: f.minX)
         } action: { listWidth = $0 }
         .safeAreaInset(edge: .top, spacing: 0) {
             if searching {
@@ -523,22 +525,24 @@ struct NoteListView: View {
                 .accessibilityIdentifier("list.more")
             }
             ToolbarSpacer(.flexible)
-            ToolbarItem {
-                VStack(spacing: 0) {
-                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.muted)
-                        .monospacedDigit()
+            if Self.titleRoom(listWidth: listWidth) > 0 {
+                ToolbarItem {
+                    VStack(spacing: 0) {
+                        Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
+                        Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.muted)
+                            .monospacedDigit()
+                    }
+                    // A long name ends in "…" before it gets near the buttons.
+                    .frame(maxWidth: Self.titleRoom(listWidth: listWidth))
+                    // Two buttons on the right, one on the left: room on the name's left puts it in
+                    // the column's middle rather than between the buttons, while there is room.
+                    .padding(.leading, Self.titleLead(listWidth: listWidth))
                 }
-                // A long name ends in "…" before it gets near the buttons.
-                .frame(maxWidth: Self.titleRoom(listWidth: listWidth))
-                // Two buttons on the right, one on the left: room on the name's left puts it in
-                // the column's middle rather than between the buttons, while there is room.
-                .padding(.leading, Self.titleLead(listWidth: listWidth))
+                .sharedBackgroundVisibility(.hidden)
+                ToolbarSpacer(.flexible)
             }
-            .sharedBackgroundVisibility(.hidden)
-            ToolbarSpacer(.flexible)
             // Search over the field it opens (Emil's pick A, 10-30; it was at the sidebar's top).
             ToolbarItem {
                 Button("Search", systemImage: "magnifyingglass") {
@@ -619,8 +623,14 @@ struct NoteListView: View {
     static let titleWidth: CGFloat = 170
 
     #if os(macOS)
-    /// The window's close, minimise and zoom buttons, from the window's left edge.
-    static let windowButtons: CGFloat = 88
+    /// The window's close, minimise and zoom buttons and, with the sidebar hidden, its Today
+    /// button beside them, from the window's left edge.
+    static let windowButtons: CGFloat = 141
+
+    /// The list header's width: the column's, less what the window's buttons cover of it.
+    static func headerWidth(column: CGFloat, minX: CGFloat) -> CGFloat {
+        minX < windowButtons ? column - windowButtons : column
+    }
 
     /// Room in the list's header between More and Search for the name and its lead: the column
     /// less the three buttons, their margins and the spacers' least widths.
@@ -632,8 +642,11 @@ struct NoteListView: View {
         return min(full, max(0, headerRoom(listWidth: listWidth) - least))
     }
     /// The most room the name takes before it ends in "…".
+    /// None when less than 40 pt is left (the sidebar hidden beside a narrow list): the buttons
+    /// keep their places inside the column.
     static func titleRoom(listWidth: CGFloat) -> CGFloat {
-        min(titleWidth, max(40, headerRoom(listWidth: listWidth) - titleLead(listWidth: listWidth)))
+        let room = min(titleWidth, headerRoom(listWidth: listWidth) - titleLead(listWidth: listWidth))
+        return room < 40 ? 0 : room
     }
     #endif
 
