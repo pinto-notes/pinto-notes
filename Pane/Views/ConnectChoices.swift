@@ -769,6 +769,17 @@ enum ConnectCopy {
     static let others = "Other AIs"
     static let trouble = "Having trouble?"
     static let connected = "Connected"
+    static func anotherAccount(_ ai: String) -> String { "Add another \(ai) account" }
+    static let add = "Add"
+    static func added(_ c: Connection) -> String { "added \(c.created_at.formatted(.dateTime.day().month(.abbreviated)))" }
+    /// The library's one line: what it is for, or when you last used it ("2 accounts" when more).
+    static func libraryLine(_ g: ConnectAISection.Guide, accounts: [Connection], working: String?) -> String {
+        if let working { return working }
+        guard !accounts.isEmpty else { return g.line }
+        let last = accounts.compactMap(\.last_used_at).max()
+        let used = last.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Not used yet"
+        return accounts.count > 1 ? "\(accounts.count) accounts \u{00B7} \(used)" : used
+    }
 
     static func waiting(_ g: Guide) -> String {
         switch g {
@@ -849,6 +860,7 @@ struct ConnectChoices: View {
     @Environment(\.networkReach) private var reach
     @Environment(\.openURL) private var openURL
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.connectStudy) private var study
 
     static let why = ConnectCopy.why
 
@@ -863,6 +875,38 @@ struct ConnectChoices: View {
     private var rest: [Guide] { guides.filter { !top.contains($0) } }
 
     var body: some View {
+        Group {
+            if study, !active.isEmpty { yours } else { standard }
+        }
+        .disabled(reach != .online)
+        .onAppear {
+            if previewFound == nil { found = ConnectFinder.found() }
+            if let (g, phase) = previewPhase { run.show(g, phase) }
+            if previewShowsDetails { showsDetails = true }
+            run.connected = { _ in Task { await load() } }
+            run.added = { _ in Task { await load() } }
+            run.asksToFinish = asksToFinish
+        }
+        .onDisappear { run.stop() }
+        .sheet(item: $onMac) { ConnectOnMacSheet(ai: $0) }
+        .sheet(item: $changesFor) { c in
+            if let store = AIChangesCenter.shared.store, let history = NoteHistory.shared {
+                // Open Note closes Settings too, so the note is what you see.
+                AIChangesSheet(store: store, history: history, filter: c.name, connected: active.map(\.name), opened: { dismissHost() })
+            }
+        }
+        // Asks again when a sheet over it closes and when back online.
+        .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
+        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
+        } message: {
+            Text("It loses access to your notes right away.")
+        }
+    }
+
+    /// Before any AI is connected (and outside the study): the AIs on this device big, the rest
+    /// in a quiet list, then what is connected.
+    private var standard: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let ask = center.waiting().first {
                 ConnectWaitingRow(ask: ask)
@@ -898,30 +942,84 @@ struct ConnectChoices: View {
             }
             if listsConnected, !active.isEmpty { connectedList.padding(.top, 8) }
         }
-        .disabled(reach != .online)
-        .onAppear {
-            if previewFound == nil { found = ConnectFinder.found() }
-            if let (g, phase) = previewPhase { run.show(g, phase) }
-            if previewShowsDetails { showsDetails = true }
-            run.connected = { _ in Task { await load() } }
-            run.added = { _ in Task { await load() } }
-            run.asksToFinish = asksToFinish
+    }
+
+    /// The study (`connectStudy`, 2026-10-30), once an AI is connected: a library. One plain
+    /// list of every AI, yours first; each one you have says when it was last used and keeps
+    /// Add another account and Disconnect in its menu, the rest have Add. The line on what is
+    /// sent and to whom under it, word for word.
+    private var yours: some View {
+        let mine = guides.filter { g in active.contains { ConnectRun.owner(of: $0) == g } }
+        let ordered = mine + guides.filter { !mine.contains($0) }
+        return VStack(alignment: .leading, spacing: 0) {
+            if let ask = center.waiting().first {
+                ConnectWaitingRow(ask: ask).padding(.bottom, 8)
+            }
+            ForEach(Array(ordered.enumerated()), id: \.element) { i, g in
+                if i > 0 { Divider().padding(.leading, 38) }
+                libraryRow(g, accounts: active.filter { ConnectRun.owner(of: $0) == g })
+                if run.guide == g { fixButton; addedNote }
+            }
+            if reach != .online {
+                Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted).padding(.top, 8)
+            }
+            if let error, reach == .online {
+                Text(error).font(.footnote).foregroundStyle(.red).padding(.top, 8)
+            }
+            Text(ConnectCopy.why)
+                .font(.footnote)
+                .foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 14)
         }
-        .onDisappear { run.stop() }
-        .sheet(item: $onMac) { ConnectOnMacSheet(ai: $0) }
-        .sheet(item: $changesFor) { c in
-            if let store = AIChangesCenter.shared.store, let history = NoteHistory.shared {
-                // Open Note closes Settings too, so the note is what you see.
-                AIChangesSheet(store: store, history: history, filter: c.name, connected: active.map(\.name), opened: { dismissHost() })
+    }
+
+    /// One AI in the library: its bare mark (no white box: Emil, 2026-10-30), its name, one
+    /// line, and Add or its menu.
+    private func libraryRow(_ g: Guide, accounts: [Connection]) -> some View {
+        HStack(spacing: 10) {
+            AIGlyph(ai: g.title, size: 20).frame(width: 28, height: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(g.shown).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
+                Text(ConnectCopy.libraryLine(g, accounts: accounts, working: run.guide == g && run.phase != nil ? detail(g) : nil))
+                    .font(Metrics.smallDetail).foregroundStyle(Color.muted).monospacedDigit()
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 8)
+            if run.guide == g, run.phase != nil {
+                Accessory(state: state(g), size: Metrics.smallCheck)
+            } else if accounts.isEmpty {
+                Button(ConnectCopy.add) { press(g) }
+                    .buttonStyle(.secondary(.compact))
+                    .accessibilityLabel("Add \(g.shown)")
+                    .accessibilityIdentifier("connect.add.\(g.rawValue)")
+            } else {
+                Menu {
+                    Button(ConnectCopy.anotherAccount(g.shown)) { press(g) }
+                    ForEach(accounts) { c in
+                        Button(accounts.count > 1 ? "Recent changes by the one \(ConnectCopy.added(c))" : "Recent changes") { changesFor = c }
+                    }
+                    Divider()
+                    ForEach(accounts) { c in
+                        Button(accounts.count > 1 ? "Disconnect the one \(ConnectCopy.added(c))\u{2026}" : "Disconnect\u{2026}", role: .destructive) { removing = c }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.muted)
+                        .frame(width: 28, height: 28)
+                        .contentShape(.rect)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel("More for \(g.title)")
+                .accessibilityIdentifier("connect.more.\(g.rawValue)")
             }
         }
-        // Asks again when a sheet over it closes and when back online.
-        .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
-        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
-            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
-        } message: {
-            Text("It loses access to your notes right away.")
-        }
+        .padding(.vertical, 9)
     }
 
     private func header(_ text: String) -> some View {
@@ -1408,6 +1506,7 @@ struct ConnectAISheet: View {
     var preview: [Connection]? = nil
     var previewFound: [ConnectAISection.Guide]? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.connectStudy) private var study
     @State private var anyConnected = false
 
     static let title = "Connect an AI"
@@ -1442,11 +1541,16 @@ struct ConnectAISheet: View {
                         .accessibilityIdentifier("connect.close")
                 }
             }
-            Text(ConnectCopy.why)
-                .font(.system(size: 13))
-                .foregroundStyle(Color.muted)
-                .padding(.top, 6)
-                .padding(.bottom, 16)
+            if study && anyConnected {
+                // The study says it under your AIs, as a footnote.
+                Color.clear.frame(height: 16)
+            } else {
+                Text(ConnectCopy.why)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.muted)
+                    .padding(.top, 6)
+                    .padding(.bottom, 16)
+            }
             choices
             if anyConnected { done.padding(.top, 16) }
         }

@@ -345,7 +345,7 @@ import Testing
 
     /// What each AI does with a prompt that arrives by link, said as it is.
     @Test func afterAskingSaysWhatTheAIDoes() {
-        #expect(TryIt.afterAsking("ChatGPT").hasPrefix("ChatGPT has the message."))
+        #expect(TryIt.afterAsking("ChatGPT").hasPrefix("Press send in ChatGPT."))
         #expect(TryIt.afterAsking("Claude").hasPrefix("Press send in Claude, under its caution note."))
         #expect(TryIt.afterAsking(nil).hasPrefix("Paste it into your AI"))
         // Codex added on the step before: Try it pastes into Codex, by name.
@@ -480,7 +480,8 @@ import Testing
             #expect(!words.hasSuffix("."))
         }
         #expect(ConnectAISection.Guide.claude.line.contains("Claude Code"), "one connection covers both")
-        #expect(ConnectAISection.Guide.codex.line == "ChatGPT for coding")
+        #expect(ConnectAISection.Guide.codex.line == "OpenAI\u{2019}s coding agent, on this Mac")
+        #expect(ConnectAISection.Guide.codex.shown == "Codex CLI" && ConnectAISection.Guide.codex.title == "Codex")
         #expect(ConnectAISection.Guide.incredible.line.contains("Incredible"))
         #expect(ConnectAISheet.title == "Connect an AI", "not just \u{201C}AI\u{201D}")
         #expect(ConnectCopy.trouble == "Having trouble?")

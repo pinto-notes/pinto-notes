@@ -5,6 +5,8 @@ import SwiftUI
 struct AIGlyph: View {
     let ai: String
     var size: CGFloat = 16
+    /// In a button: the mark takes the button's own label colour, so it reads on any fill.
+    var monochrome = false
 
     /// App Store captures (`-uitest -storeSafe`) show no other company's marks, only a neutral sparkle.
     static let storeSafe = ProcessInfo.processInfo.arguments.contains("-uitest") && ProcessInfo.processInfo.arguments.contains("-storeSafe")
@@ -21,6 +23,10 @@ struct AIGlyph: View {
                 .frame(width: size, height: size)
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
+        } else if let asset = Self.asset(ai), monochrome {
+            // No colour of its own: it takes the label colour around it.
+            Image(asset).renderingMode(.template).resizable().scaledToFit().frame(width: size, height: size)
+                .accessibilityHidden(true)
         } else if let asset = Self.asset(ai) {
             Image(asset).resizable().scaledToFit().frame(width: size, height: size)
                 .foregroundStyle(Self.color(ai))
@@ -33,6 +39,24 @@ struct AIGlyph: View {
                 .accessibilityHidden(true)
         }
     }
+
+    #if os(macOS)
+    /// The mark for a Mac menu row, already in its colour: a menu draws a template image dark,
+    /// whatever the menu's own colour, so it gets a finished picture (ChatGPT in the text colour,
+    /// Claude in its orange).
+    @MainActor static func menuImage(_ ai: String, dark: Bool) -> Image? {
+        menuPicture(ai, dark: dark).map { Image(nsImage: $0) }
+    }
+
+    @MainActor static func menuPicture(_ ai: String, dark: Bool) -> NSImage? {
+        guard asset(ai) != nil else { return nil }
+        let renderer = ImageRenderer(content: AIGlyph(ai: ai, size: 16).environment(\.colorScheme, dark ? .dark : .light))
+        renderer.scale = 2
+        guard let image = renderer.nsImage else { return nil }
+        image.isTemplate = false
+        return image
+    }
+    #endif
 
     /// Who made an edit on a note's page.
     static let page = "App"

@@ -192,9 +192,18 @@ struct TemplatesCard: View {
     let onClose: () -> Void
     @Environment(\.openURL) private var openURL
 
+    /// On the Mac the templates open in the app (`TemplateLibraryView`); the iPhone opens the website.
+    #if os(macOS)
+    static let opensWeb = false
+    private func open() { NotificationCenter.default.post(name: .paneTemplates, object: nil) }
+    #else
+    static let opensWeb = true
+    private func open() { openURL(TemplatesPromo.url) }
+    #endif
+
     var body: some View {
         SidebarCardShell(id: "sidebar.templates", title: TemplatesPromo.title, line: TemplatesPromo.line,
-                         button: TemplatesPromo.button, opensWeb: true, action: { openURL(TemplatesPromo.url) }, onClose: onClose) { size in
+                         button: TemplatesPromo.button, opensWeb: Self.opensWeb, action: open, onClose: onClose) { size in
             ForEach(Array(TemplatesPromo.covers.enumerated()), id: \.offset) { i, name in
                 Self.thumb(name, size: size)
                     .rotationEffect(.degrees(Double(i - 1) * 9))
