@@ -581,7 +581,7 @@ private struct PlatformEditor: UIViewRepresentable {
         view.controller = controller
         view.core.resolveAttachment = { [weak controller] id in controller?.resolveAttachment(id) }
         view.inputAccessoryView = FormatBarHost(controller: controller) { [weak view] in view?.resignFirstResponder() }
-        if autofocus { DispatchQueue.main.async { view.takeNewNoteFocus() } }
+        if autofocus { DispatchQueue.main.async { view.becomeFirstResponder() } }
         return view
     }
 
@@ -1063,13 +1063,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func focusEditor() { becomeFirstResponder() }
-
-    /// A note just made takes the keyboard. From a template whose title is left to type (its
-    /// first line is empty), the cursor is in that title, not at the end.
-    func takeNewNoteFocus() {
-        becomeFirstResponder()
-        if text.hasPrefix("\n") { selectedRange = NSRange(location: 0, length: 0) }
-    }
 
     // MARK: The Format panel
 
@@ -1649,7 +1642,7 @@ private struct PlatformEditor: NSViewRepresentable {
         view.core.resolveAttachment = { [weak controller] id in controller?.resolveAttachment(id) }
         controller.target = view
         scroll.documentView = view
-        if autofocus { DispatchQueue.main.async { view.takeNewNoteFocus() } }
+        if autofocus { DispatchQueue.main.async { view.window?.makeFirstResponder(view) } }
         return scroll
     }
 
@@ -1831,13 +1824,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     func focusEditor() { window?.makeFirstResponder(self) }
-
-    /// A note just made takes the keyboard. From a template whose title is left to type (its
-    /// first line is empty), the cursor is in that title, not at the end.
-    func takeNewNoteFocus() {
-        window?.makeFirstResponder(self)
-        if string.hasPrefix("\n") { setSelectedRange(NSRange(location: 0, length: 0)) }
-    }
 
     /// Scrolls the line at `location` to the top (a link to a heading), focus left as it is.
     func reveal(_ location: Int) {

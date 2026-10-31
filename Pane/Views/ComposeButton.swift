@@ -2,26 +2,21 @@ import SwiftUI
 import TipKit
 
 /// The compose button. A tap or click makes a new note at once, as it always has. Pressing and
-/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note, Today's Note, New App and
-/// the templates (DailyNotes). New App opens the sheet where your AI builds an app as a new note
+/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note, Today's Note (DailyNotes)
+/// and New App. New App opens the sheet where your AI builds an app as a new note
 /// (MakeAppSheet, `init(newApp:)`); on the Mac it is also File › New App.
 struct ComposeButton<Label: View>: View {
     let newNote: () -> Void
     @ViewBuilder let label: () -> Label
-    @Environment(\.noteMakers) private var makers
+    @Environment(\.todaysNote) private var todaysNote
 
     var body: some View {
         Menu {
             Button("New Note", systemImage: "square.and.pencil", action: newNote)
-            Button("Today\u{2019}s Note", systemImage: "calendar") { makers?.today() }
+            Button("Today\u{2019}s Note", systemImage: "calendar") { todaysNote?.open() }
                 .accessibilityIdentifier("compose.today")
             Button("New App", systemImage: NoteAppMark.symbol) { NewApp.shared.open() }
                 .accessibilityIdentifier("compose.newApp")
-            #if os(macOS)
-            Menu("New from Template") { TemplateMenuItems(makers: makers) }
-            #else
-            Section("Templates") { TemplateMenuItems(makers: makers) }
-            #endif
         } label: {
             label()
         } primaryAction: {
@@ -35,34 +30,15 @@ struct ComposeButton<Label: View>: View {
 /// like Obsidian's calendar button in its ribbon.
 struct TodayButton: View {
     var identifier = "list.today"
-    @Environment(\.noteMakers) private var makers
+    @Environment(\.todaysNote) private var todaysNote
 
     var body: some View {
-        Button { makers?.today() } label: { Label("Today\u{2019}s note", systemImage: "calendar") }
+        Button { todaysNote?.open() } label: { Label("Today\u{2019}s note", systemImage: "calendar") }
             #if os(macOS)
             .help("Today\u{2019}s note (⌘T)")
             #endif
-            .disabled(makers == nil)
+            .disabled(todaysNote == nil)
             .accessibilityIdentifier(identifier)
-    }
-}
-
-/// The templates, then New Template…, for the compose button's menu and File › New from Template.
-struct TemplateMenuItems: View {
-    let makers: NoteMakers?
-    private var shelf = TemplateShelf.shared
-
-    init(makers: NoteMakers?) { self.makers = makers }
-
-    var body: some View {
-        ForEach(shelf.templates) { t in
-            Button(t.name, systemImage: "doc.text") { makers?.fromTemplate(t.id) }
-        }
-        #if os(macOS)
-        if !shelf.templates.isEmpty { Divider() }
-        #endif
-        Button("New Template\u{2026}", systemImage: "doc.badge.plus") { makers?.newTemplate() }
-            .accessibilityIdentifier("compose.newTemplate")
     }
 }
 

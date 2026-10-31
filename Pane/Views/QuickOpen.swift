@@ -19,7 +19,7 @@ enum QuickOpen {
 
     /// What a command does. The notes window runs it with its own actions (`Actions`).
     enum Action: Hashable, Sendable {
-        case newNote, todaysNote, newFromTemplate(UUID), newTemplate, newFolder, togglePin, move, importAppleNotes, importFrom(ImportKind), connectAI, settings
+        case newNote, todaysNote, newFolder, togglePin, move, importAppleNotes, importFrom(ImportKind), connectAI, settings
     }
 
     struct CommandItem: Identifiable, Equatable, Sendable {
@@ -30,11 +30,7 @@ enum QuickOpen {
         let shortcut: String?
         /// Other words it answers to: "ai" and "chatgpt" find Connect an AI.
         let keywords: [String]
-        /// Two templates can share a name.
-        var id: String {
-            if case .newFromTemplate(let template) = action { return "template.\(template)" }
-            return title
-        }
+        var id: String { title }
     }
 
     enum Row: Identifiable, Equatable, Sendable {
@@ -106,18 +102,13 @@ enum QuickOpen {
         return scored.sorted { $0.1 < $1.1 }.map(\.0)
     }
 
-    /// The commands there are now. Pin and Move need an open note. Each template is a command
-    /// of its own, "New from Template: Meeting", as in Obsidian's palette.
-    static func commands(openNote: Bool, pinned: Bool, importKinds: [ImportKind], templates: [TemplateItem] = []) -> [CommandItem] {
+    /// The commands there are now. Pin and Move need an open note.
+    static func commands(openNote: Bool, pinned: Bool, importKinds: [ImportKind]) -> [CommandItem] {
         var out: [CommandItem] = [
             CommandItem(action: .newNote, title: "New Note", symbol: "square.and.pencil", shortcut: "⌘N", keywords: ["create", "add", "write"]),
             CommandItem(action: .todaysNote, title: "Today\u{2019}s Note", symbol: "calendar", shortcut: "⌘T", keywords: ["daily", "today", "journal", "date"]),
             CommandItem(action: .newFolder, title: "New Folder", symbol: "folder.badge.plus", shortcut: "⇧⌘N", keywords: ["create", "add"]),
         ]
-        for t in templates {
-            out.append(CommandItem(action: .newFromTemplate(t.id), title: "New from Template: \(t.name)", symbol: "doc.text", shortcut: nil, keywords: ["template", t.name.lowercased()]))
-        }
-        out.append(CommandItem(action: .newTemplate, title: "New Template\u{2026}", symbol: "doc.badge.plus", shortcut: nil, keywords: ["template"]))
         if openNote {
             out.append(CommandItem(action: .togglePin, title: pinned ? "Unpin Note" : "Pin Note", symbol: pinned ? "pin.slash" : "pin", shortcut: nil, keywords: ["pin", "unpin", "top"]))
             out.append(CommandItem(action: .move, title: "Move Note…", symbol: "folder", shortcut: nil, keywords: ["folder", "file"]))
