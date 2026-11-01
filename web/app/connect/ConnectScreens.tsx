@@ -293,7 +293,7 @@ export async function askEmailStatus(email: string): Promise<EmailStatus | null>
   }
 }
 
-/// Email first, as the app's sign-in does it (Pane/Views/EmailSignInFlow.swift): one Email field and
+/// Email first, as the app's sign-in does it (PintoNotes/Views/EmailSignInFlow.swift): one Email field and
 /// Continue; the answer decides what comes next. An account with a password: the Password field
 /// opens under the email (still editable; changing it starts over) and the button becomes Sign in.
 /// An account without a password (Apple or Google): the buttons above. No account: the web can't make one, because an

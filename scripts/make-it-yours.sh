@@ -12,7 +12,7 @@
 #   scripts/make-it-yours.sh --reset      back to upstream's identity
 #
 # --personal-team: a free Apple account's team. The iPhone app then signs without Sign in with
-#   Apple, push and associated domains (Pane/Resources/Pane-ios-personal.entitlements), and an
+#   Apple, push and associated domains (PintoNotes/Resources/PintoNotes-ios-personal.entitlements), and an
 #   install lasts 7 days.
 # --team: a paid Apple Developer Program team. Everything the iPhone app has, as upstream.
 # Neither: the Mac app and the iPhone Simulator, which need no account.
@@ -57,7 +57,7 @@ while (( $# )); do
 done
 
 regenerate() {
-  if command -v xcodegen >/dev/null; then xcodegen generate --quiet && echo "Regenerated Pane.xcodeproj."
+  if command -v xcodegen >/dev/null; then xcodegen generate --quiet && echo "Regenerated PintoNotes.xcodeproj."
   else echo "Install XcodeGen (brew install xcodegen), then run: xcodegen generate"; fi
 }
 
@@ -78,7 +78,7 @@ old_bundle=$(was PANE_BUNDLE_ID)
 [[ -n $scheme || $bundle != "$old_bundle" ]] || scheme=$(was PANE_URL_SCHEME)
 if (( noteam )); then team="" personal=0
 elif [[ -z $team ]]; then team=$(was PANE_IOS_TEAM)
-  [[ -n $personal ]] || { [[ $(was PANE_IOS_ENTITLEMENTS) == Pane-ios-personal.entitlements ]] && personal=1 || personal=0; }
+  [[ -n $personal ]] || { [[ $(was PANE_IOS_ENTITLEMENTS) == PintoNotes-ios-personal.entitlements ]] && personal=1 || personal=0; }
 fi
 [[ -n $personal ]] || personal=0
 host=${site:-$(was PANE_APPLINKS_HOST)}
@@ -110,7 +110,7 @@ if [[ -z $scheme ]]; then scheme=${(j::)${(@s:.:)bundle}[-2,-1]}; scheme=${${sch
   echo "PANE_UPDATE_FEED ="
   if (( personal )); then
     echo "// A free Apple account: no Sign in with Apple, push or associated domains on the iPhone."
-    echo "PANE_IOS_ENTITLEMENTS = Pane-ios-personal.entitlements"
+    echo "PANE_IOS_ENTITLEMENTS = PintoNotes-ios-personal.entitlements"
   fi
   if [[ -n $accent ]]; then print -r -- "$accent"; fi
 } > "$OUT"

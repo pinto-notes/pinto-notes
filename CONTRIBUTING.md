@@ -41,16 +41,16 @@ The app talks to the local stack by default. Nothing you do here touches anyone'
 
 ## The Mac and iPhone app
 
-Open `Pane.xcodeproj` and run the `Pane` scheme on "My Mac" or an iPhone simulator. From the command line:
+Open `PintoNotes.xcodeproj` and run the `PintoNotes` scheme on "My Mac" or an iPhone simulator. From the command line:
 
 ```sh
 scripts/qa-test.sh --smoke                           # a first check, a few minutes
-scripts/qa-test.sh PaneTests/ShareAskTests           # one suite
+scripts/qa-test.sh PintoNotesTests/ShareAskTests           # one suite
 scripts/qa-test.sh                                   # every Mac unit and interaction test, 20 to 30 minutes
 
 # iPhone build check (CI doesn't build for a device, so run this before you open a PR)
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Pane.xcodeproj \
-  -scheme Pane -destination 'generic/platform=iOS' -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project PintoNotes.xcodeproj \
+  -scheme PintoNotes -destination 'generic/platform=iOS' -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
 ```
 
 The interaction tests drive the real editor in an offscreen window. They never move your mouse or take focus.
@@ -128,7 +128,7 @@ Not sure your idea fits? Open a [Template idea](https://github.com/pinto-notes/p
 ## Pull requests
 
 - **Apple Notes is the reference.** When you're unsure how something should behave or look, do what Notes does.
-- **Every fix comes with a test** that fails without it. Editor and UI behaviour is tested in the offscreen harness (`PaneTests/Harness`).
+- **Every fix comes with a test** that fails without it. Editor and UI behaviour is tested in the offscreen harness (`PintoNotesTests/Harness`).
 - **Follow Apple's Human Interface Guidelines.** Check light and dark mode, the largest text sizes, and VoiceOver labels for anything you touch.
 - **Copy:** sentence case, short sentences, "you". Buttons start with a verb.
 - **No secrets in the repo.** Keys and credentials live in gitignored files (`.env`, `.secrets/`, `Config/Backend.local.xcconfig`) and in GitHub Secrets. CI scans every push with gitleaks.

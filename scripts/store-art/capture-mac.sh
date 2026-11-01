@@ -14,11 +14,11 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 # The store shows the released app: notes that are apps (a prototype) stay off, as in Release.
 defaults write dev.emilwagman.pane noteApps -bool NO
 # AMBER_DEMO_FRAMES is the switch that allows window-server captures (CI and the test Mac only).
-TEST_RUNNER_AMBER_DEMO_FRAMES="$OUT" TEST_RUNNER_AMBER_STORE_FRAMES="$OUT" xcodebuild -project Pane.xcodeproj -scheme Pane -configuration Debug -destination 'platform=macOS' \
+TEST_RUNNER_AMBER_DEMO_FRAMES="$OUT" TEST_RUNNER_AMBER_STORE_FRAMES="$OUT" xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -configuration Debug -destination 'platform=macOS' \
   -derivedDataPath build/ddqa -testLanguage en -testRegion US \
   ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO ONLY_ACTIVE_ARCH=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) QA' \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
-  test -only-testing:'PaneTests/MacStoreShots/storeFrames()' > "$OUT/test.txt" 2>&1 &
+  test -only-testing:'PintoNotesTests/MacStoreShots/storeFrames()' > "$OUT/test.txt" 2>&1 &
 test_pid=$!
 # Each ready-<scene> lists "role window-number"; answer with shot-<scene> once they're captured.
 while kill -0 $test_pid 2>/dev/null; do

@@ -1,5 +1,5 @@
 // Note pages (prototype): what a page is handed as window.amber.note, and the edits it can ask
-// for, as the app computes them (Pane/Model/NotePage.swift). The server uses it to show an AI
+// for, as the app computes them (PintoNotes/Model/NotePage.swift). The server uses it to show an AI
 // exactly what its page will get (get_note_page); the page evals use it to run pages outside the
 // app. Pure, so it's unit-tested against the same cases as the Swift.
 

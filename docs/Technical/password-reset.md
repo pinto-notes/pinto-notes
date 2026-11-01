@@ -7,9 +7,9 @@ link in the app or on the site, opens it on any device, and chooses a new passwo
 ## What a reset changes, and what it doesn't
 
 **The password wraps nothing.** The account password only signs you in. Nothing is encrypted with it (`docs/Technical/e2ee-design.md`,
-`Pane/Model/E2EE.swift`): the data key lives in the Keychain and iCloud Keychain, the recovery wrap is
+`PintoNotes/Model/E2EE.swift`): the data key lives in the Keychain and iCloud Keychain, the recovery wrap is
 sealed under the recovery key, an AI connection's wrap under its own token, and the one key made from
-a password is the separate notes password for locked notes (`Pane/Model/NoteLock.swift`).
+a password is the separate notes password for locked notes (`PintoNotes/Model/NoteLock.swift`).
 
 A reset changes:
 
@@ -66,7 +66,7 @@ paused every new Apple and Google account for its first 72 hours until the migra
 ## The flow
 
 1. **Ask.** "Forgot password?" sits under the password on the app's sign-in card (iPhone and Mac,
-   `Pane/Views/SignInView.swift`, the steps in `EmailSignInFlow.swift`) and on `/connect`'s password
+   `PintoNotes/Views/SignInView.swift`, the steps in `EmailSignInFlow.swift`) and on `/connect`'s password
    step (a new tab to `/reset-password#email=…`). The app asks Supabase directly
    (`Backend.requestPasswordReset`); the site asks through `web/app/reset-password/request/route.ts`.
    Both send `POST /auth/v1/recover` with only the email: no PKCE challenge and no redirect.
@@ -190,10 +190,10 @@ template path differently from the other templates.
   the Auth calls), `app/reset-password/ResetPassword.test.tsx` (every screen, that loading spends
   nothing), `app/reset-password/request/route.test.ts` (one answer for every Supabase reply, no
   address in logs, same origin only), the CSP and header tests in `middleware.test.ts`.
-- `scripts/qa-test.sh PaneTests/EmailSignInFlowTests`: the app's steps and its request.
+- `scripts/qa-test.sh PintoNotesTests/EmailSignInFlowTests`: the app's steps and its request.
 - `scripts/password-reset-e2e.sh` against the local stack (`supabase start`): ask, the email from the
   local mail catcher, open (with `RESET_SITE` set, in headless Chrome too), Save, the new password
   signs in and the old one doesn't, the link works once, other sessions end, the key, notes and AI
   connection are unchanged.
-- `PaneUITests/PasswordResetUITests` (iPhone simulator, a build pointed at the local stack, a local
+- `PintoNotesUITests/PasswordResetUITests` (iPhone simulator, a build pointed at the local stack, a local
   account in `PANE_RESET_EMAIL`): Forgot password?, Email me a link, the sent message.

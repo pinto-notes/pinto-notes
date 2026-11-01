@@ -20,7 +20,7 @@ xcrun simctl spawn "$SIM" defaults write com.apple.Preferences DidShowContinuous
 
 if [[ "${BUILD:-1}" == 1 ]]; then
   xcodegen generate >/dev/null
-  if ! nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd \
+  if ! nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/dd \
     CODE_SIGNING_ALLOWED=NO build-for-testing > "$OUT/build.log" 2>&1; then
     grep -E "error:" "$OUT/build.log" | sort -u | head -20
     echo "BUILD FAILED"; exit 1
@@ -32,8 +32,8 @@ for t in ${=TESTS:-testWalkthrough}; do
   REC=$!
   sleep 1.5
   TEST_RUNNER_PANE_SHOTS="$OUT/${APPEARANCE:-light}" TEST_RUNNER_TABLE_NOTE="$NOTE" \
-    nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
-    -only-testing:"PaneUITests/TableEditingUITests/$t" > "$OUT/$t.log" 2>&1 || true
+    nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
+    -only-testing:"PintoNotesUITests/TableEditingUITests/$t" > "$OUT/$t.log" 2>&1 || true
   kill -INT $REC; wait $REC 2>/dev/null || true
   grep -E "(passed|failed) \(|error:" "$OUT/$t.log" | head -5
 done

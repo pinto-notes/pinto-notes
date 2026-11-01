@@ -8,11 +8,11 @@ PANE_URL_SCHEME = pintonotes-beta
 PANE_APP_GROUP = group.dev.emilwagman.pane.beta
 PANE_APPLINKS_HOST = amber-notes-staging.vercel.app
 PANE_UPDATE_FEED = https:/$()/amber-notes-staging.vercel.app/updates/appcast.xml
-// The Developer ID build (PaneDirect) is sandboxed with Pane-mac-beta.entitlements (its own
-// container); the TestFlight build (Pane) keeps the App Store entitlements: Sign in with Apple, the
+// The Developer ID build (PintoNotesDirect) is sandboxed with PintoNotes-mac-beta.entitlements (its own
+// container); the TestFlight build (PintoNotes) keeps the App Store entitlements: Sign in with Apple, the
 // keychain group, push. Per target here, because -xcconfig wins over settings on the command line.
-PANE_MAC_ENTITLEMENTS_PaneDirect = Pane-mac-beta.entitlements
-PANE_MAC_ENTITLEMENTS_Pane = Pane-mac-appstore.entitlements
+PANE_MAC_ENTITLEMENTS_PintoNotesDirect = PintoNotes-mac-beta.entitlements
+PANE_MAC_ENTITLEMENTS_PintoNotes = PintoNotes-mac-appstore.entitlements
 PANE_MAC_ENTITLEMENTS = $(PANE_MAC_ENTITLEMENTS_$(TARGET_NAME))
 // The staging project's URL and anon key, the share site and the MCP address: written by
 // scripts/staging.sh, gitignored.

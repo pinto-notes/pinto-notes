@@ -78,7 +78,7 @@ only, and it keeps answering under `/open/` (`web/lib/site-move.ts`). On pintono
 link would open a web page first. Move them once nearly everyone has an app that claims
 `applinks:pintonotes.com`.
 
-| Email | Button | Goes to | In the app (`Pane/Model/AppPlace.swift`) |
+| Email | Button | Goes to | In the app (`PintoNotes/Model/AppPlace.swift`) |
 | --- | --- | --- | --- |
 | stuck | Reply to Emil | `mailto:emil@ambernotes.app` | |
 | import | Import my Apple Notes | `/open/import` | Mac: Import from Apple Notes; iPhone: says to do it on the Mac |

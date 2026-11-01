@@ -48,7 +48,7 @@ ${webkit}✘ Test run with 1 test in 1 suite failed after 4.964 seconds with 1 i
 });
 
 Deno.test("a compile error is shown", async () => {
-  const out = await summarize(`/Users/kim/pinto-notes/Pane/Editor/Palette.swift:27:9: error: cannot find 'accnt' in scope\n** TEST FAILED **\n`);
+  const out = await summarize(`/Users/kim/pinto-notes/PintoNotes/Editor/Palette.swift:27:9: error: cannot find 'accnt' in scope\n** TEST FAILED **\n`);
   assertStringIncludes(out[0], "Palette.swift:27:9: error: cannot find 'accnt' in scope");
 });
 

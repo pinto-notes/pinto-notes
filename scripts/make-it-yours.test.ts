@@ -11,11 +11,11 @@ const onMac = Deno.build.os === "darwin";
 
 async function copy() {
   const dir = await Deno.makeTempDir();
-  for (const d of ["scripts", "Config", "supabase", "Pane/Editor", "Pane/Resources/Assets.xcassets/AccentColor.colorset"]) {
+  for (const d of ["scripts", "Config", "supabase", "PintoNotes/Editor", "PintoNotes/Resources/Assets.xcassets/AccentColor.colorset"]) {
     await Deno.mkdir(`${dir}/${d}`, { recursive: true });
   }
   for (const f of ["scripts/make-it-yours.sh", "scripts/deploy-backend.sh", "scripts/set-accent.sh", "Config/Identity.xcconfig", "supabase/config.toml",
-    "Pane/Editor/Palette.swift", "Pane/Resources/Assets.xcassets/AccentColor.colorset/Contents.json"]) {
+    "PintoNotes/Editor/Palette.swift", "PintoNotes/Resources/Assets.xcassets/AccentColor.colorset/Contents.json"]) {
     await Deno.copyFile(`${root}${f}`, `${dir}/${f}`);
     await Deno.chmod(`${dir}/${f}`, 0o755);
   }
@@ -40,7 +40,7 @@ Deno.test({ name: "make-it-yours writes the identity file a free account needs",
   assertEquals(r.code, 0, r.text);
   const local = await Deno.readTextFile(`${dir}/Config/Identity.local.xcconfig`);
   for (const line of ["PANE_BUNDLE_ID = com.kim.notes", "PANE_DISPLAY_NAME = Kim's Notes", "PANE_URL_SCHEME = kimnotes",
-    "PANE_APP_GROUP = group.com.kim.notes", "PANE_IOS_TEAM = ABCDE12345", "PANE_IOS_ENTITLEMENTS = Pane-ios-personal.entitlements"]) {
+    "PANE_APP_GROUP = group.com.kim.notes", "PANE_IOS_TEAM = ABCDE12345", "PANE_IOS_ENTITLEMENTS = PintoNotes-ios-personal.entitlements"]) {
     assertStringIncludes(local, line + "\n");
   }
   assertStringIncludes(r.text, "xcodegen generate", "says how to regenerate when XcodeGen is missing");
@@ -74,7 +74,7 @@ Deno.test({ name: "make-it-yours run again changes only what's passed", ignore: 
   assertEquals(r.code, 0, r.text);
   const local = await Deno.readTextFile(`${dir}/Config/Identity.local.xcconfig`);
   for (const line of ["PANE_DISPLAY_NAME = Kim's Notes", "PANE_BUNDLE_ID = com.kim.notes", "PANE_URL_SCHEME = kimnotes",
-    "PANE_IOS_TEAM = ABCDE12345", "PANE_IOS_ENTITLEMENTS = Pane-ios-personal.entitlements", "PANE_APPLINKS_HOST = notes.kim.dev"]) {
+    "PANE_IOS_TEAM = ABCDE12345", "PANE_IOS_ENTITLEMENTS = PintoNotes-ios-personal.entitlements", "PANE_APPLINKS_HOST = notes.kim.dev"]) {
     assertStringIncludes(local, line + "\n");
   }
   // A paid team replaces the free one; --no-team clears it; a new bundle id gets its own scheme.
@@ -97,8 +97,8 @@ Deno.test({ name: "make-it-yours run again changes only what's passed", ignore: 
 
 Deno.test({ name: "set-accent keeps your accent out of tracked files, and amber takes it out again", ignore: !onMac, fn: async () => {
   const dir = await copy();
-  const palette = `${dir}/Pane/Editor/Palette.swift`, asset = `${dir}/Pane/Resources/Assets.xcassets/AccentColor.colorset/Contents.json`;
-  const own = `${dir}/Pane/Resources/Assets.xcassets/AccentColorLocal.colorset/Contents.json`, local = `${dir}/Config/Identity.local.xcconfig`;
+  const palette = `${dir}/PintoNotes/Editor/Palette.swift`, asset = `${dir}/PintoNotes/Resources/Assets.xcassets/AccentColor.colorset/Contents.json`;
+  const own = `${dir}/PintoNotes/Resources/Assets.xcassets/AccentColorLocal.colorset/Contents.json`, local = `${dir}/Config/Identity.local.xcconfig`;
   const tracked = async () => [await Deno.readTextFile(palette), await Deno.readTextFile(asset)];
   const before = await tracked();
   assertEquals((await run(dir, "set-accent.sh", "1E7A4C", "5CC48A")).code, 1, "needs make-it-yours first");

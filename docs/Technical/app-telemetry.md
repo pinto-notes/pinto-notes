@@ -2,7 +2,7 @@
 
 What the iPhone and Mac apps report about themselves: errors and crashes, a few product events,
 and performance numbers. This page lists every event and everything an event can carry.
-`PaneTests/TelemetryTests.swift` checks it against the code, so an event or a value that isn't
+`PintoNotesTests/TelemetryTests.swift` checks it against the code, so an event or a value that isn't
 written here fails the tests.
 
 Why it exists: the 1.1.2 Mac download never saved the account's key. A Keychain write failed with
@@ -12,7 +12,7 @@ in the app reported it, and it went unnoticed for more than a week.
 ## Where it goes, and when
 
 - **Destination:** the PostHog project the website uses, in the EU (`https://eu.i.posthog.com`,
-  the `batch/` endpoint). The app has its own small client (`Pane/Telemetry/Telemetry.swift`): no
+  the `batch/` endpoint). The app has its own small client (`PintoNotes/Telemetry/Telemetry.swift`): no
   PostHog SDK, no autocapture, no session replay, no screen recording.
 - **Which builds send:** the released app and Pinto Notes Beta, and only when the build was given
   a project key (`PANE_POSTHOG_KEY` in `Config/Backend.local.xcconfig`; empty in the checked-in
@@ -28,7 +28,7 @@ in the app reported it, and it went unnoticed for more than a week.
   waiting unsent.
 - **No profile:** every event says `$process_person_profile: false`, so PostHog keeps no person
   profile, and `$geoip_disable: true`, so it works out no location from the request.
-- **The queue:** events wait in `Application Support/Pane/telemetry-queue.jsonl`, at most 200;
+- **The queue:** events wait in `Application Support/PintoNotes/telemetry-queue.jsonl`, at most 200;
   more are dropped. They go out in batches of up to 50: two seconds after an error, within a
   minute otherwise, when the app leaves the front, and at the next launch for whatever a crash
   or a missing connection left behind.
@@ -45,7 +45,7 @@ This is enforced by the types, not by care at each call:
 - A value (`TelemetryValue`) is a number, a yes or no, a case of a closed enum (`TelemetryWord`),
   a UUID, or a version number that is only digits and dots (`VersionNumber`). There is no way to
   make one from other text.
-- Errors are mapped to a kind and codes (`Pane/Telemetry/TelemetryFailure.swift`). An error's
+- Errors are mapped to a kind and codes (`PintoNotes/Telemetry/TelemetryFailure.swift`). An error's
   description or message is never read: it can hold a file name or a title.
 - Tests: every string in a batch must be on the list of words below, a UUID, a version number or
   a timestamp (`everyStringInABatchIsOnTheList`), and sample note text pushed through every
@@ -137,7 +137,7 @@ Durations are rounded to 10 ms.
 The privacy policy (`web/content/privacy-policy.md`, "Diagnostics and usage from the apps"), the
 Privacy & Security page and the README describe this for versions after 1.2. The App Store
 privacy label for the first build that sends is in `pinto-internal/appstore/app-privacy-answers.md`, and
-`Pane/Resources/PrivacyInfo.xcprivacy` matches it. The label is changed by hand in App Store
+`PintoNotes/Resources/PrivacyInfo.xcprivacy` matches it. The label is changed by hand in App Store
 Connect before that build is submitted.
 
 ## Deleting what PostHog holds

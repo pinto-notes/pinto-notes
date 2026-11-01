@@ -72,7 +72,7 @@ Deno.test("libraries: bundled names and hashed npm packages pass; anything else 
 });
 
 Deno.test("the bundled list here matches what the app ships", () => {
-  const manifest = JSON.parse(Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/libraries.json", import.meta.url)));
+  const manifest = JSON.parse(Deno.readTextFileSync(new URL("../../../PintoNotes/Resources/AppLibraries/libraries.json", import.meta.url)));
   assertEquals(Object.fromEntries(manifest.libraries.map((l: { name: string; global: string }) => [l.name, l.global])), BUNDLED_LIBS);
 });
 
@@ -90,7 +90,7 @@ Deno.test("hosts: a *.domain pattern covers its servers, never a bare TLD or the
 import { PINTO_BASE_CSS, AMBER_TOKENS } from "./pinto-base.ts";
 
 Deno.test("the AI's copy of amber-base.css is the file the app ships", () => {
-  assertEquals(PINTO_BASE_CSS, Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/amber-base.css", import.meta.url)));
+  assertEquals(PINTO_BASE_CSS, Deno.readTextFileSync(new URL("../../../PintoNotes/Resources/AppLibraries/amber-base.css", import.meta.url)));
   assertEquals(PINTO_BASE_CSS.includes("!important"), false);
   for (const t of ["--amber-field", "--amber-root-font", "--amber-accent"]) assertEquals(AMBER_TOKENS.includes(t), true);
 });
@@ -98,7 +98,7 @@ Deno.test("the AI's copy of amber-base.css is the file the app ships", () => {
 import { PINTO_UI } from "./pinto-ui.ts";
 
 Deno.test("the AI's copy of amber-ui is the kit the app ships", () => {
-  const shipped = JSON.parse(Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/amber-ui.json", import.meta.url)));
+  const shipped = JSON.parse(Deno.readTextFileSync(new URL("../../../PintoNotes/Resources/AppLibraries/amber-ui.json", import.meta.url)));
   assertEquals(PINTO_UI.src, shipped.src);
   assertEquals(PINTO_UI.css, shipped.css);
   for (const c of ["Button", "Sheet", "TabBar", "ListRow", "Toggle", "Slider", "Toast", "EmptyState", "Dialog", "Tabs", "Stat", "Input", "Select", "TextArea", "Card"]) {

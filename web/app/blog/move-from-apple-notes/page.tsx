@@ -7,8 +7,8 @@ import { APP_STORE_LIVE } from "@/lib/site";
 export const dynamic = "force-static";
 export const metadata = postMetadata("move-from-apple-notes");
 
-// Updated on 12 October 2026 for Mac 1.2.6, against Pane/Views/AppleNotesImport.swift and
-// Pane/Model/AppleNotesImporter.swift on main: every note of every folder is listed and picked, folders are always
+// Updated on 12 October 2026 for Mac 1.2.6, against PintoNotes/Views/AppleNotesImport.swift and
+// PintoNotes/Model/AppleNotesImporter.swift on main: every note of every folder is listed and picked, folders are always
 // kept, pictures come along as files, checklists and pins need Full Disk Access (never asked for), locked notes are
 // listed as Locked in Apple Notes, Recently Deleted isn't read, and notes already here are skipped.
 

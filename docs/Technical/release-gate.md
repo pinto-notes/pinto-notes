@@ -29,14 +29,14 @@ Debug build, ad-hoc signed, with no Keychain and no account. This gate measures 
 
 ### The build
 
-`scripts/release-gate/build.sh` builds the ref as the download is built: Release, the `PaneDirect`
+`scripts/release-gate/build.sh` builds the ref as the download is built: Release, the `PintoNotesDirect`
 target, archived and exported with Developer ID (team-signed; not notarized, which changes nothing at
 run time). It uses the Amber Notes Beta identity (`Config/Beta.xcconfig`) so it runs on the staging
 backend, sandboxed, beside the real app without touching its data or Keychain. A ref older than the
 beta identity gets that commit (db66affa) applied first.
 
 The only change to the ref's code is the probe: `scripts/release-gate/GateProbe.swift` is copied into
-`Pane/App`, one line in `PaneApp.init` attaches it, and `AppNetwork.session` becomes a session that
+`PintoNotes/App`, one line in `PintoNotesApp.init` attaches it, and `AppNetwork.session` becomes a session that
 counts requests and bytes. The probe does nothing unless the app is launched with `-gateProbe`. It
 never posts input events: it acts the way the app's own controls do (the sidebar toggle action,
 `NoteOpener`, `insertText` on the editor, selecting a sidebar row).

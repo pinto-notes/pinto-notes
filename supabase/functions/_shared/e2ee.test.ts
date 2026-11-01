@@ -1,5 +1,5 @@
 // The shared formats, checked against the vectors every side tests with (e2ee-vectors.json; the
-// Swift side is PaneTests/E2EETests.swift). Regenerate the file only when a format changes on
+// Swift side is PintoNotesTests/E2EETests.swift). Regenerate the file only when a format changes on
 // purpose: deno run -A supabase/functions/_shared/e2ee.test.ts --write
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import {

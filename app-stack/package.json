@@ -1,7 +1,7 @@
 {
   "name": "amber-app-stack",
   "private": true,
-  "description": "The libraries every note app can import (React through preact/compat, Radix, shadcn's helpers, lucide, recharts, ...), bundled once into Pane/Resources/AppLibraries/stack.json by build.mjs.",
+  "description": "The libraries every note app can import (React through preact/compat, Radix, shadcn's helpers, lucide, recharts, ...), bundled once into PintoNotes/Resources/AppLibraries/stack.json by build.mjs.",
   "type": "module",
   "scripts": {
     "build": "node build.mjs"

@@ -7,7 +7,7 @@ export const dynamic = "force-static";
 export const metadata = postMetadata("notes-in-claude-code-and-codex", { title: "Notes in Claude Code and Codex: one command each" });
 
 // Rewritten by hand on 14 October 2026 to the blog bar and Emil's recipe. Commands match what the Mac app
-// itself runs (Pane/Views/ConnectChoices.swift on dev: server name pinto-notes, claude mcp add --scope user
+// itself runs (PintoNotes/Views/ConnectChoices.swift on dev: server name pinto-notes, claude mcp add --scope user
 // --transport http, codex mcp add --url, then sign in). The old plugin (plugins/amber-notes) still uses the
 // old name and address, so it's left out until it's renamed. Claude Code's own memory: CLAUDE.md and auto
 // memory are files on that computer (code.claude.com docs); Codex reads AGENTS.md.

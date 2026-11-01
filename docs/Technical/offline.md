@@ -1,16 +1,16 @@
 # Offline
 
 Pinto Notes is local-first: notes, folders and files live in SwiftData on the device, edits are
-marked dirty and go up when a sync gets through (`Pane/Sync/SyncEngine.swift`). This page records
+marked dirty and go up when a sync gets through (`PintoNotes/Sync/SyncEngine.swift`). This page records
 what works with no network, how it was checked, and what changed on 2026-10-07 to close the gaps.
 
 ## How it was tested
 
-- **Mac unit tests, network simulated down.** `PaneTests/Network/OfflineTests.swift`,
+- **Mac unit tests, network simulated down.** `PintoNotesTests/Network/OfflineTests.swift`,
   `SyncFaultTests.swift` and `KeyStartupTests.swift` run the sync engine against `StubSupabase`
   behind `NetFault` (`-netOffline`, timeouts, dropped connections, answers lost after the server
   applied a write). `NetworkPath.force(down:)` stands in for the system saying there's no network.
-- **iPhone simulator, local stack.** `PaneUITests/OfflineUITests.swift`, driven by
+- **iPhone simulator, local stack.** `PintoNotesUITests/OfflineUITests.swift`, driven by
   `scripts/offline-ios.sh`, against a local Supabase stack (never production). The app goes
   offline and back while running through the debug toggle in `DebugOffline` (a Darwin
   notification; `-netToggle`), or launches with no network (`-netOffline`). Realtime is

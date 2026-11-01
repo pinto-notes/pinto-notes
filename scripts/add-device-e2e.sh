@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Add a device through the real server functions, on the LOCAL Supabase stack only: two sessions
 # of one account hand the key over, list themselves, and one removes the other
-# (PaneTests/Network/AddDeviceLiveTests.swift). Needs `supabase start` with every migration applied.
+# (PintoNotesTests/Network/AddDeviceLiveTests.swift). Needs `supabase start` with every migration applied.
 # Each run makes two throwaway users and deletes them afterwards.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -25,4 +25,4 @@ cleanup() {
 trap cleanup EXIT
 export TEST_RUNNER_PANE_LOCAL_API="$API_URL" TEST_RUNNER_PANE_LOCAL_ANON="$ANON_KEY" TEST_RUNNER_PANE_LOCAL_PASSWORD="$password"
 export TEST_RUNNER_PANE_LOCAL_EMAIL="add-device-a-$run@pane.local" TEST_RUNNER_PANE_LOCAL_OTHER_EMAIL="add-device-b-$run@pane.local"
-scripts/qa-test.sh PaneTests/AddDeviceLiveTests
+scripts/qa-test.sh PintoNotesTests/AddDeviceLiveTests

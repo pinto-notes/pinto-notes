@@ -23,7 +23,7 @@ xcrun simctl spawn "$SIM" defaults write com.apple.Preferences DidShowContinuous
 
 if [[ "${BUILD:-1}" == 1 ]]; then
   xcodegen generate >/dev/null
-  if ! nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd \
+  if ! nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/dd \
     CODE_SIGNING_ALLOWED=NO build-for-testing > "$OUT/build.log" 2>&1; then
     grep -E "error:" "$OUT/build.log" | sort -u | head -20
     echo "BUILD FAILED"; exit 1
@@ -40,8 +40,8 @@ for t in ${=TESTS:-testStills}; do
     sleep 1.5
   fi
   TEST_RUNNER_PANE_SHOTS="$OUT" TEST_RUNNER_BEST_DIR="$PWD/demo/note-pages/best" TEST_RUNNER_SHOT_PREFIX="${APPEARANCE:-light}-" TEST_RUNNER_ONLY="${ONLY:-}" TEST_RUNNER_INLINE_LIBS="${INLINE_LIBS:-}" \
-    nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
-    -only-testing:"PaneUITests/BestAppsUITests/$t" > "$OUT/$t.log" 2>&1 || true
+    nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
+    -only-testing:"PintoNotesUITests/BestAppsUITests/$t" > "$OUT/$t.log" 2>&1 || true
   if [[ -n "$REC" ]]; then
     python3 -c 'import time; print(time.time())' > "$OUT/$t-${APPEARANCE:-light}-rec-stop.txt"
     kill -INT $REC; wait $REC 2>/dev/null || true

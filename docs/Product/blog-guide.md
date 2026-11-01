@@ -48,7 +48,7 @@ give more than they take.
   - It ends with the post's one call to action (`PostCta`). No pop-ups and no second ask.
 - **Check the facts.**
   - Apple's documentation for Apple features.
-  - `Pane/` for anything Pinto Notes does.
+  - `PintoNotes/` for anything Pinto Notes does.
   - iPhone and Mac only.
   - Nothing about unreleased Pinto Notes features.
   - The iPhone app is "coming soon" until `APP_STORE_LIVE` is on.

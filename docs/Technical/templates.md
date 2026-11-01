@@ -82,7 +82,7 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
 
 ## Use template
 
-- **Mac and iPhone** (`Pane/Model/NoteSource.swift`): the template's note is added as today; then
+- **Mac and iPhone** (`PintoNotes/Model/NoteSource.swift`): the template's note is added as today; then
   the project becomes the note's app (`NotePageStore.setHere`) and the data its data
   (`NotePageDataStore.set`). Both are sealed with the account key and synced like any app.
   Builds from before this read `app` and `preview` only: they get the app without its data.
@@ -102,7 +102,7 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
 - `supabase/functions/mcp/template_apps.pglite.test.ts`: the folder's rules and the round trip.
 - `web/lib/template-apps.test.ts`: the generated files are in step with each folder, and the
   template data names them.
-- `PaneTests/NoteSourceTests.swift`: Use template fetches the app, data and pictures, and adds
+- `PintoNotesTests/NoteSourceTests.swift`: Use template fetches the app, data and pictures, and adds
   all three (the same code on Mac and iPhone); a template without an app adds only its note.
 - `AMBER_PAGE_SCENES=template scripts/note-pages-mac.sh`: Use template on the habit tracker with
   the site's real files, in the Mac app off screen, light and dark.

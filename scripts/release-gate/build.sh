@@ -4,14 +4,14 @@
 #   scripts/release-gate/build.sh <ref> <out dir>
 #
 # Writes into <out dir>:
-#   Amber Notes Beta.app   the Mac Release build (PaneDirect, Developer ID, team-signed), on the
+#   Amber Notes Beta.app   the Mac Release build (PintoNotesDirect, Developer ID, team-signed), on the
 #                          staging backend, with the gate's probe added (GateProbe.swift)
 #   Amber-Notes-Beta.dmg   its DMG, as the download would be (not notarized)
 #   ios/Pane.app           the iPhone Release build, unsigned, for its size
 #   sizes.json             app, DMG and iPhone sizes
 #
-# The probe is the only change to the ref's code: GateProbe.swift goes into Pane/App, one line in
-# PaneApp.init attaches it, and AppNetwork's session counts its requests. A ref older than Amber
+# The probe is the only change to the ref's code: GateProbe.swift goes into PintoNotes/App, one line in
+# PintoNotesApp.init attaches it, and AppNetwork's session counts its requests. A ref older than Amber
 # Notes Beta (Config/Beta.xcconfig, db66affa) gets that commit applied first, so it never shares
 # the real app's bundle id, data or keychain.
 set -euo pipefail
@@ -45,18 +45,34 @@ if [[ ! -f Config/Beta.xcconfig ]]; then
 fi
 cp "$STAGING_CONFIG" Config/Backend.staging.local.xcconfig
 
+# Comparisons can build a release from before the source rename. Keep those checkout names here.
+APP_SOURCE=PintoNotes
+APP_SCHEME=PintoNotes
+DIRECT_SCHEME=PintoNotesDirect
+if [[ -d Pane ]]; then
+  APP_SOURCE=Pane
+  APP_SCHEME=Pane
+  [[ -f Pane.xcodeproj/xcshareddata/xcschemes/PintoNotesDirect.xcscheme ]] || DIRECT_SCHEME=AmberNotesDirect
+fi
+PROJECT="$APP_SOURCE.xcodeproj"
+
 echo "→ Add the probe"
-cp "$ROOT/scripts/release-gate/GateProbe.swift" Pane/App/GateProbe.swift
-python3 - <<'PY'
+cp "$ROOT/scripts/release-gate/GateProbe.swift" "$APP_SOURCE/App/GateProbe.swift"
+python3 - "$APP_SOURCE" <<'PYCODE'
 import re, sys
+source = sys.argv[1]
 def patch(path, old, new):
     s = open(path).read()
     if s.count(old) != 1: sys.exit(f"release gate: '{old.strip()}' should appear once in {path}")
     open(path, "w").write(s.replace(old, new))
-patch("Pane/App/PaneApp.swift", "        _sync = State(initialValue: sync)\n",
+if source == "Pane":
+    probe = f"{source}/App/GateProbe.swift"
+    text = open(probe).read().replace("PintoNotesTextView", "PaneTextView")
+    open(probe, "w").write(text)
+patch(f"{source}/App/{source}App.swift", "        _sync = State(initialValue: sync)\n",
       "        _sync = State(initialValue: sync)\n        #if os(macOS)\n        GateProbe.attach(backend: backend, sync: sync, container: container)\n        #endif\n")
-patch("Pane/Sync/NetFault.swift", "        return .shared\n", "        #if os(macOS)\n        return GateNet.session\n        #else\n        return .shared\n        #endif\n")
-PY
+patch(f"{source}/Sync/NetFault.swift", "        return .shared\n", "        #if os(macOS)\n        return GateNet.session\n        #else\n        return .shared\n        #endif\n")
+PYCODE
 xcodegen generate >/dev/null
 
 # Swift packages from the last build, so a new commit doesn't clone Sparkle and Supabase again.
@@ -68,7 +84,7 @@ fi
 echo "→ Mac Release archive"
 ARCHIVE="$DD/AmberNotes.xcarchive"
 rm -rf "$ARCHIVE" "$DD/export"
-nice -n 10 xcodebuild -project Pane.xcodeproj -scheme PintoNotesDirect -configuration Release \
+nice -n 10 xcodebuild -project "$PROJECT" -scheme "$DIRECT_SCHEME" -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath "$DD" -archivePath "$ARCHIVE" \
   -allowProvisioningUpdates -xcconfig Config/Beta.xcconfig DEVELOPMENT_TEAM=4UM3XVUN9Y CODE_SIGN_STYLE=Automatic \
   CODE_SIGN_IDENTITY="Apple Development" MARKETING_VERSION="gate-${SHA:0:7}" CURRENT_PROJECT_VERSION="$(date -u +%Y%m%d%H%M)" \
@@ -98,7 +114,7 @@ rm -f "$OUT/Amber-Notes-Beta.dmg"
 
 echo "→ iPhone Release build (unsigned, for its size)"
 rm -rf "$OUT/ios"
-if nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -configuration Release -destination 'generic/platform=iOS' \
+if nice -n 10 xcodebuild -project "$PROJECT" -scheme "$APP_SCHEME" -configuration Release -destination 'generic/platform=iOS' \
      -derivedDataPath "$DD-ios" -xcconfig Config/Beta.xcconfig CODE_SIGNING_ALLOWED=NO build > "$OUT/build-ios.log" 2>&1; then
   mkdir -p "$OUT/ios"
   ditto "$(ls -d "$DD-ios"/Build/Products/Release-iphoneos/*.app | head -1)" "$OUT/ios/Pane.app"

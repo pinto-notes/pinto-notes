@@ -104,7 +104,7 @@ type Rung = {
 const after = (f: Facts, now: Date, ms: number) => now.getTime() - f.signed_up_at.getTime() >= ms;
 
 /// The next-step ladder. Each round an account gets the first rung it hasn't done and hasn't been
-/// sent. The app's own setup card (Pane/Views/SetupCard.swift: Bring your notes, Connect your AI,
+/// sent. The app's own setup card (PintoNotes/Views/SetupCard.swift: Bring your notes, Connect your AI,
 /// Try it) is rungs 1 to 4.
 export const LADDER: Rung[] = [
   // 1. Signed in, no note a day later.

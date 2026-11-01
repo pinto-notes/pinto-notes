@@ -29,8 +29,8 @@ PANE_IOS_TEAM = 4UM3XVUN9Y
 DEVELOPMENT_TEAM[sdk=iphoneos*] = $(PANE_IOS_TEAM)
 CODE_SIGN_STYLE[sdk=iphoneos*] = Automatic
 CODE_SIGN_IDENTITY[sdk=iphoneos*] = Apple Development
-// Pane-ios-personal.entitlements is for a free Apple account (a personal team), which can't sign
+// PintoNotes-ios-personal.entitlements is for a free Apple account (a personal team), which can't sign
 // Sign in with Apple, push or associated domains.
-PANE_IOS_ENTITLEMENTS = Pane-ios.entitlements
+PANE_IOS_ENTITLEMENTS = PintoNotes-ios.entitlements
 
 #include? "Identity.local.xcconfig"

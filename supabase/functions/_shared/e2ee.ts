@@ -1,4 +1,4 @@
-// End-to-end encryption: the formats every side shares (the apps in Pane/Model/E2EE.swift and the
+// End-to-end encryption: the formats every side shares (the apps in PintoNotes/Model/E2EE.swift and the
 // MCP server here). See docs/Technical/e2ee-design.md. e2ee-vectors.json pins every format; the
 // Swift and Deno tests both check against it.
 //

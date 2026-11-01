@@ -19,7 +19,7 @@ next to the real one on the same Mac and iPhone.
   bundle id, so the beta never sees the real app's session, data key or note locks.
 - **Its own files on the Mac.** The Mac download isn't sandboxed and keeps `Pane.store` and its files
   in `~/Library/Application Support`. A second unsandboxed copy would open the same store. The beta
-  download is sandboxed (`Pane-mac-beta.entitlements`), so everything it writes is in its own
+  download is sandboxed (`PintoNotes-mac-beta.entitlements`), so everything it writes is in its own
   container. On iPhone every app is sandboxed already.
 - **Its own links.** The staging site is built with `NEXT_PUBLIC_APP_SCHEME=pintonotes-beta` and
   `NEXT_PUBLIC_APP_LINK_ORIGIN`, so its Open in app buttons and connect links open the beta, and its

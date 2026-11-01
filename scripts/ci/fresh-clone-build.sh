@@ -32,7 +32,7 @@ scripts/deploy-backend.sh abcdefghijklmnopqrst --site https://notes.example.org 
 build() {  # build NAME DESTINATION [settings…]
   local name=$1 dest=$2; shift 2
   local log=$TMP/$name.log start=$SECONDS
-  if xcodebuild -project Pane.xcodeproj -scheme Pane -destination "$dest" -derivedDataPath "$TMP/dd-$name" "$@" build >"$log" 2>&1; then
+  if xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "$dest" -derivedDataPath "$TMP/dd-$name" "$@" build >"$log" 2>&1; then
     echo "✔ $name built from a fresh clone in $(( SECONDS - start ))s"
   else
     grep -E "error:" "$log" | sort -u | head -20
@@ -69,7 +69,7 @@ if [[ $WHAT == all || $WHAT == simulator ]]; then
   for team in "" "--personal-team ABCDE12345"; do
     if [[ -n $team ]]; then scripts/make-it-yours.sh ${=team} >/dev/null; else scripts/make-it-yours.sh --no-team >/dev/null; fi
     for sdk in macosx iphoneos iphonesimulator; do
-      if [[ $(xcodebuild -project Pane.xcodeproj -target Pane -sdk $sdk -configuration Release -showBuildSettings 2>/dev/null) == *4UM3XVUN9Y* ]]; then
+      if [[ $(xcodebuild -project PintoNotes.xcodeproj -target PintoNotes -sdk $sdk -configuration Release -showBuildSettings 2>/dev/null) == *4UM3XVUN9Y* ]]; then
         echo "✘ upstream's team (4UM3XVUN9Y) is in the $sdk build settings ${team:-with no team}" >&2; failed=1
       fi
     done

@@ -116,9 +116,9 @@ jobs:
           path: |
             build/DD/SourcePackages
             build/cas
-          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'PintoNotes.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'PintoNotes.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
             app-unit-${{ steps.xcode.outputs.version }}-
       - name: Generate the project
         if: steps.paths.outputs.app == 'true'
@@ -129,7 +129,7 @@ jobs:
           set -o pipefail
           mkdir -p build
           du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
-          xcodebuild build-for-testing -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+          xcodebuild build-for-testing -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' \
             -derivedDataPath build/ci -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS \
             | tee build/ci-build.log | grep -E "error:|\*\* TEST BUILD" || true
           grep -q "\*\* TEST BUILD SUCCEEDED \*\*" build/ci-build.log
@@ -144,7 +144,7 @@ jobs:
           # else's. A push: against where dev was before it (BASE, from "What changed").
           git diff --name-only "$BASE" HEAD > changed.txt
           python3 scripts/ci/select-tests.py changed.txt > only.txt
-          xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+          xcodebuild test-without-building -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' \
             $(tr '\n' ' ' < only.txt) -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
             | scripts/ci/show-tests.sh build/ci-test.log
           # A name that matches no test is not an error to xcodebuild, so count: every single test
@@ -167,7 +167,7 @@ jobs:
           path: |
             build/DD/SourcePackages
             build/cas
-          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'PintoNotes.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
       - name: Keep the test results
         if: failure()
         uses: actions/upload-artifact@v4
@@ -191,9 +191,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     env:
-      # The suites that time things or count bodies (PaneTests/Perf), run after the others.
-      PERF_ONLY: -only-testing:PaneTests/EditorPerfTests -only-testing:PaneTests/AppPerfTests -only-testing:PaneTests/ScanPerfTests -only-testing:PaneTests/WindowUpdateTests -only-testing:PaneTests/NoteOpenTests -only-testing:PaneTests/ListPiecesPerfTests
-      PERF_SKIP: -skip-testing:PaneTests/EditorPerfTests -skip-testing:PaneTests/AppPerfTests -skip-testing:PaneTests/ScanPerfTests -skip-testing:PaneTests/WindowUpdateTests -skip-testing:PaneTests/NoteOpenTests -skip-testing:PaneTests/ListPiecesPerfTests
+      # The suites that time things or count bodies (PintoNotesTests/Perf), run after the others.
+      PERF_ONLY: -only-testing:PintoNotesTests/EditorPerfTests -only-testing:PintoNotesTests/AppPerfTests -only-testing:PintoNotesTests/ScanPerfTests -only-testing:PintoNotesTests/WindowUpdateTests -only-testing:PintoNotesTests/NoteOpenTests -only-testing:PintoNotesTests/ListPiecesPerfTests
+      PERF_SKIP: -skip-testing:PintoNotesTests/EditorPerfTests -skip-testing:PintoNotesTests/AppPerfTests -skip-testing:PintoNotesTests/ScanPerfTests -skip-testing:PintoNotesTests/WindowUpdateTests -skip-testing:PintoNotesTests/NoteOpenTests -skip-testing:PintoNotesTests/ListPiecesPerfTests
       XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
     steps:
       # The schedule runs on the default branch (main): the nightly tests dev, where the work is.
@@ -215,9 +215,9 @@ jobs:
           path: |
             build/DD/SourcePackages
             build/cas
-          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          key: app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'PintoNotes.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'Pane.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            app-unit-${{ steps.xcode.outputs.version }}-${{ hashFiles('project.yml', 'PintoNotes.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
             app-unit-${{ steps.xcode.outputs.version }}-
       - name: Generate the project
         run: brew install xcodegen && xcodegen generate
@@ -226,7 +226,7 @@ jobs:
           set -o pipefail
           mkdir -p build
           du -sh build/cas build/DD/SourcePackages 2>/dev/null || echo "nothing from earlier runs"
-          xcodebuild build-for-testing -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+          xcodebuild build-for-testing -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' \
             -derivedDataPath build/ci -clonedSourcePackagesDirPath build/DD/SourcePackages $XC_FLAGS \
             | tee build/ci-build.log | grep -E "error:|\*\* TEST BUILD" || true
           grep -q "\*\* TEST BUILD SUCCEEDED \*\*" build/ci-build.log
@@ -234,25 +234,25 @@ jobs:
         id: unit
         continue-on-error: true
         env:
-          # Runners are several times slower than a developer's Mac; see PaneTests/Perf/PerfBudget.swift.
+          # Runners are several times slower than a developer's Mac; see PintoNotesTests/Perf/PerfBudget.swift.
           TEST_RUNNER_PANE_PERF_SLACK: "4"
           # Snapshot tests that draw windows (ImageViewerSnapshots) run here only, never on a developer's Mac.
           TEST_RUNNER_PANE_SNAPSHOTS: "1"
         run: |
           set -o pipefail
-          xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
-            -only-testing:PaneTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
+          xcodebuild test-without-building -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' \
+            -only-testing:PintoNotesTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
             | scripts/ci/show-tests.sh build/ci-test.log
           # test-without-building says TEST EXECUTE SUCCEEDED.
       - name: Timing and render-count tests
         id: timing
         continue-on-error: true
         env:
-          # Runners are several times slower than a developer's Mac; see PaneTests/Perf/PerfBudget.swift.
+          # Runners are several times slower than a developer's Mac; see PintoNotesTests/Perf/PerfBudget.swift.
           TEST_RUNNER_PANE_PERF_SLACK: "4"
         run: |
           set -o pipefail
-          xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+          xcodebuild test-without-building -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' \
             $PERF_ONLY -parallel-testing-enabled NO -derivedDataPath build/ci -resultBundlePath build/ci-perf.xcresult $XC_FLAGS \
             | scripts/ci/show-tests.sh build/ci-perf.log
       - name: What the tests said

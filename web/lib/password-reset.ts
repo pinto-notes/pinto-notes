@@ -19,7 +19,7 @@
 /// The same check as the connect page's (lib/connect-flow.ts) and the apps'.
 export const emailLooksValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-/// The same minimum the apps ask for (Pane/Views/EmailSignInFlow.swift) and the project enforces.
+/// The same minimum the apps ask for (PintoNotes/Views/EmailSignInFlow.swift) and the project enforces.
 export const MIN_PASSWORD = 12;
 
 /// What the address gives: a token waiting to be spent, a link Supabase already refused, or nothing.

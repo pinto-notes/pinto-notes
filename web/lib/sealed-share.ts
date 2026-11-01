@@ -1,7 +1,7 @@
 // Sealed links (prototype): `https://ambernotes.app/s/<id>#<secret>`. The note's copy is sealed on
 // the device under a key derived from the secret, which stays in the fragment: browsers never send
 // it, so neither our database nor this site's server can read the copy. The visitor's browser opens
-// it. Pane/Collab/ShareLinks.swift seals; this opens (and seals, for tests and vectors).
+// it. PintoNotes/Collab/ShareLinks.swift seals; this opens (and seals, for tests and vectors).
 //
 //   amb3r.<base64 nonce(12) ‖ ciphertext ‖ tag(16)>
 //   key  HKDF-SHA256(secret, salt "amber-notes/e2ee", info "share <id>")

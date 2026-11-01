@@ -19,7 +19,7 @@ xcrun simctl spawn "$SIM" defaults write com.apple.preferences.sounds keyboard -
 xcrun simctl spawn "$SIM" defaults write com.apple.preferences.sounds lock-sound -bool false 2>/dev/null || true
 
 xcodegen generate >/dev/null
-if ! nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd \
+if ! nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/dd \
   CODE_SIGNING_ALLOWED=NO build-for-testing > "$OUT/build.log" 2>&1; then
   grep -E "error:" "$OUT/build.log" | sort -u | head -20
   echo "BUILD FAILED"; exit 1
@@ -32,9 +32,9 @@ for t in ${=TESTS:-testHabitTracker testBudget testSandbox}; do
   xcrun simctl io "$SIM" recordVideo --codec h264 --force "$OUT/$t.mp4" 2>/dev/null &
   REC=$!
   sleep 1.5
-  TEST_RUNNER_PANE_SHOTS="$OUT" TEST_RUNNER_PAGES_DIR="$PWD/demo/note-pages" xcodebuild -project Pane.xcodeproj -scheme Pane \
+  TEST_RUNNER_PANE_SHOTS="$OUT" TEST_RUNNER_PAGES_DIR="$PWD/demo/note-pages" xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes \
     -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
-    -only-testing:"PaneUITests/NotePagesUITests/$t" > "$OUT/$t.log" 2>&1 || true
+    -only-testing:"PintoNotesUITests/NotePagesUITests/$t" > "$OUT/$t.log" 2>&1 || true
   kill -INT $REC; wait $REC 2>/dev/null || true
   grep -E "error|failed|passed" "$OUT/$t.log" | tail -8
 done

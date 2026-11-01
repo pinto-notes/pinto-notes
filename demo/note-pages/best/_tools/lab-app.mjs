@@ -17,7 +17,7 @@ fs.mkdirSync(out, { recursive: true });
 const built = path.join(dir, "app.json");
 execFileSync("deno", ["run", "-A", "--no-config", "scripts/build-app.ts", "project", path.join(dir, "app"), built], { cwd: repo, stdio: ["ignore", "ignore", "inherit"] });
 const project = JSON.parse(fs.readFileSync(built, "utf8"));
-const LIB = path.join(repo, "Pane/Resources/AppLibraries");
+const LIB = path.join(repo, "PintoNotes/Resources/AppLibraries");
 const MODULES = { preact: "preact.module.js", "preact-hooks": "preact-hooks.module.js", "preact-jsx-runtime": "preact-jsx-runtime.module.js", htm: "htm.module.js", "amber-router": "amber-router.module.js", amber: "amber.module.js" };
 const kit = JSON.parse(fs.readFileSync(path.join(LIB, "amber-ui.json"), "utf8"));
 const map = { imports: { preact: "http://lib.lab/esm/preact.js", "preact/hooks": "http://lib.lab/esm/preact-hooks.js", "preact/jsx-runtime": "http://lib.lab/esm/preact-jsx-runtime.js",

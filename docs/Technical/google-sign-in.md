@@ -27,7 +27,7 @@ Both the app and the website use Supabase's OAuth flow for Google, with PKCE:
    for the website.
 4. The app or page swaps the code and its verifier for a session (`grant_type=pkce`).
 
-The app runs the Google page in `ASWebAuthenticationSession` (`Pane/Sync/WebAuthSession.swift`),
+The app runs the Google page in `ASWebAuthenticationSession` (`PintoNotes/Sync/WebAuthSession.swift`),
 which catches the `pintonotes://` return itself, on iPhone, the Mac App Store build and the Mac
 download alike. It shares Safari's cookies, so someone signed in to Google picks an account
 instead of typing a password; the system first asks whether the app may use that address's host
@@ -104,7 +104,7 @@ the same way it lets Apple.
 
 Drawn to Google's branding guidelines (developers.google.com/identity/branding-guidelines):
 
-- The standard four-colour "G" (`Pane/Resources/Assets.xcassets/GoogleG.imageset`, and inline SVG
+- The standard four-colour "G" (`PintoNotes/Resources/Assets.xcassets/GoogleG.imageset`, and inline SVG
   on the web), never recoloured or stretched; 12 pt between it and the words on iPhone.
 - "Sign in with Google", next to "Sign in with Apple".
 - Light: white fill, `#747775` 1 pt border, `#1F1F1F` text. Dark: `#131314` fill, `#8E918F` border,
@@ -130,12 +130,12 @@ brief for the form. Switching means bundling the font and changing one line in
 
 ## Tests
 
-- `PaneTests/GoogleSignInTests.swift`: Google's query (chooser, hint), the return address, cancel
+- `PintoNotesTests/GoogleSignInTests.swift`: Google's query (chooser, hint), the return address, cancel
   handling, error wording, the same-account rule for Start fresh, the button's colours and logo
   size, and that the Google row folds away with Apple's for a password.
-- `PaneUITests/SignInLayoutUITests.swift`: on iPhone, Google sits directly under Apple at the same
+- `PintoNotesUITests/SignInLayoutUITests.swift`: on iPhone, Google sits directly under Apple at the same
   size, folds away for the password and comes back.
-- `PaneTests/HIG/WelcomeSnapshots.swift`: the Mac sign-in screens with both buttons, light and dark.
+- `PintoNotesTests/HIG/WelcomeSnapshots.swift`: the Mac sign-in screens with both buttons, light and dark.
 - `web/app/connect/ConnectFlow.test.tsx` and `web/lib/connect.test.ts`: the button order, the
   authorize URL, what the page stores, and the error naming Google.
 - Not tested end to end: the real Google round trip needs the provider configured. The linking

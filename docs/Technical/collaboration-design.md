@@ -23,7 +23,7 @@ The sheet, top to bottom (iPhone and Mac):
 
 There is no Reset Link in the UI. Removing someone quietly makes a new note key and a new link (the old link would let them back in). If a link goes further than meant, Off and then on again gives a new link; anyone who already joined through it is listed in People and can be removed. Explanatory text: none, beyond the labels.
 
-**In the app today (2026-10-08):** the app doesn't link Automerge, which was 4.6 MB of each architecture for a prototype no release runs. The Automerge parts live in `Pane/Collab/CollabText.swift`; the app builds them against stand-ins that throw, and the test target links Automerge and builds the same file for real, so `CollabCryptoTests` still run in CI. `-collab` and `scripts/collab-demo.sh` don't work in the app until it's put back: add `- package: Automerge` to the app targets in `project.yml`, add `COLLAB_AUTOMERGE` to their `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, and delete the stand-ins in `CollabText`.
+**In the app today (2026-10-08):** the app doesn't link Automerge, which was 4.6 MB of each architecture for a prototype no release runs. The Automerge parts live in `PintoNotes/Collab/CollabText.swift`; the app builds them against stand-ins that throw, and the test target links Automerge and builds the same file for real, so `CollabCryptoTests` still run in CI. `-collab` and `scripts/collab-demo.sh` don't work in the app until it's put back: add `- package: Automerge` to the app targets in `project.yml`, add `COLLAB_AUTOMERGE` to their `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, and delete the stand-ins in `CollabText`.
 
 ## The short version
 
@@ -55,7 +55,7 @@ A shared note has a note key (NK), 32 random bytes, per **epoch**. Epoch 1 is ma
 - `key_wrap`: NK sealed to the member's identity key, by `wrapped_by` (`amb3k`).
 - `self_wrap`: NK sealed under the member's own data key (`amb2`, context `notekey:<note>:<epoch>`), written when they accept. Their other devices and their AI open this one.
 
-Formats (`Pane/Collab/CollabCrypto.swift`, `supabase/functions/_shared/collab.ts`, pinned to each other by `_shared/collab-vectors.json`):
+Formats (`PintoNotes/Collab/CollabCrypto.swift`, `supabase/functions/_shared/collab.ts`, pinned to each other by `_shared/collab-vectors.json`):
 
 | What | Format |
 |---|---|
@@ -191,7 +191,7 @@ So today the server can read every shared note. That was the deliberate exceptio
 
 `https://ambernotes.app/s/<id>#<secret>`. The id is 16 random bytes and the secret another 16, both base64url, so the link stays about 70 characters.
 
-- The device seals `{title, body, page, data, shared_by, updated_at}` as `amb3r.<b64 nonce ‖ ct ‖ tag>`: AES-256-GCM under HKDF-SHA256(secret, salt `amber-notes/e2ee`, info `share <id>`), AAD `amb3r|<id>` (`web/lib/sealed-share.ts`, `Pane/Collab/ShareLinks.swift`).
+- The device seals `{title, body, page, data, shared_by, updated_at}` as `amb3r.<b64 nonce ‖ ct ‖ tag>`: AES-256-GCM under HKDF-SHA256(secret, salt `amber-notes/e2ee`, info `share <id>`), AAD `amb3r|<id>` (`web/lib/sealed-share.ts`, `PintoNotes/Collab/ShareLinks.swift`).
 - `publish_sealed_link(id, note, ct)` stores it in `sealed_links`; editing the note republishes under the same id and secret, as today's links follow edits. The secret is kept in a synced Keychain item so every one of your devices can republish.
 - The site's server fetches only the sealed copy (`sealed_link(id)`) and sends it with the page. The browser takes the secret from `location.hash` (never sent to any server), opens the copy with WebCrypto and renders it with the same renderer and layout as `/n` pages.
 - Stop Sharing deletes the row: the next visit shows "This note isn't shared anymore". **Make a new link** (rotation) seals under a new id and secret; `publish_sealed_link` deletes the old row in the same statement, so the old address stops at once. Lock, trash and delete stop it as they stop today's links.
@@ -234,7 +234,7 @@ The same frame serves today's `/n` links once their copies include the page (`no
 
 "Share as template" on a note with an app makes `https://ambernotes.app/t/<id>`, a public page that lets anyone start their own copy.
 
-**What goes in** (`SharedTemplate` in `Pane/Collab/ShareLinks.swift`):
+**What goes in** (`SharedTemplate` in `PintoNotes/Collab/ShareLinks.swift`):
 
 - the note's skeleton: its text with every table's rows taken out and checklists unticked;
 - the page (the app), and its widget spec if it has one;

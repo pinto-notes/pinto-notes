@@ -1,5 +1,5 @@
 #!/bin/zsh
-# The server's copy of the key with the app's own code on both sides (PaneTests/Network/
+# The server's copy of the key with the app's own code on both sides (PintoNotesTests/Network/
 # KeyCopyLiveTests.swift): two throwaway accounts, several sessions of each as their devices.
 #
 #   scripts/key-copy-e2e.sh            against the local stack (`supabase start`, every migration,
@@ -44,7 +44,7 @@ cleanup() {
 trap cleanup EXIT INT TERM HUP
 export TEST_RUNNER_PANE_KEYCOPY_API="$API_URL" TEST_RUNNER_PANE_KEYCOPY_ANON="$ANON_KEY" TEST_RUNNER_PANE_KEYCOPY_PASSWORD="$password"
 export TEST_RUNNER_PANE_KEYCOPY_EMAIL="$(at new)" TEST_RUNNER_PANE_KEYCOPY_OLD_EMAIL="$(at old)"
-scripts/qa-test.sh PaneTests/KeyCopyLiveTests
+scripts/qa-test.sh PintoNotesTests/KeyCopyLiveTests
 # Every notice email a fetch made was rendered and logged, and none was sent.
 mails=$(curl -sf "$API_URL/rest/v1/key_copy_events?select=why&what=eq.mailed&user_id=in.($(IFS=,; print -r -- "${ids[*]}"))" "${admin[@]}")
 print -r -- "notice emails: $mails"

@@ -14,7 +14,7 @@
 # ships, and stop on an error (on 2026-10-10 a data-race error showed only in Release).
 #
 # The iPhone app and its tests are compiled (Debug, for the simulator) only when the change touches
-# what they are built from (Pane/ outside the Mac-only files, PaneShare/, PaneTests/, the project,
+# what they are built from (PintoNotes/ outside the Mac-only files, PintoNotesShare/, PintoNotesTests/, the project,
 # Config/: scripts/ci/touches-iphone.py). On 2026-10-13 a test that used Process broke the iPhone
 # test build and nothing caught it. PREPUSH_IPHONE=1 compiles them anyway.
 #
@@ -75,13 +75,13 @@ if (( free < 20 )); then
   exit 1
 fi
 mkdir -p "$CACHE/cas" "$CACHE/packages" "$DD"
-common=(-project Pane.xcodeproj -clonedSourcePackagesDirPath "$CACHE/packages" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= COMPILATION_CACHE_ENABLE_CACHING=YES "COMPILATION_CACHE_CAS_PATH=$CACHE/cas" "COMPILATION_CACHE_LIMIT_SIZE=${CAP_GB}G")
+common=(-project PintoNotes.xcodeproj -clonedSourcePackagesDirPath "$CACHE/packages" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= COMPILATION_CACHE_ENABLE_CACHING=YES "COMPILATION_CACHE_CAS_PATH=$CACHE/cas" "COMPILATION_CACHE_LIMIT_SIZE=${CAP_GB}G")
 # One architecture and no dSYM: this checks that it compiles, it doesn't make the download.
 release=(-configuration Release ONLY_ACTIVE_ARCH=YES DEBUG_INFORMATION_FORMAT=dwarf)
 start=$SECONDS
 command -v xcodegen >/dev/null && xcodegen generate >/dev/null
 # Packages first, once, so the three compiles don't each fetch them.
-xcodebuild -resolvePackageDependencies -project Pane.xcodeproj -clonedSourcePackagesDirPath "$CACHE/packages" > "$DD/resolve.log" 2>&1 || { tail -5 "$DD/resolve.log"; exit 1; }
+xcodebuild -resolvePackageDependencies -project PintoNotes.xcodeproj -clonedSourcePackagesDirPath "$CACHE/packages" > "$DD/resolve.log" 2>&1 || { tail -5 "$DD/resolve.log"; exit 1; }
 
 compile() { # <name> <what> <xcodebuild arguments...>
   local name=$1 what=$2 t=$SECONDS; shift 2
@@ -122,19 +122,19 @@ fi
 
 pids=()
 if [[ ${PREPUSH_RELEASE:-0} == 1 ]]; then
-  compile mac "Mac download, Release (PaneDirect)" build -scheme PintoNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
+  compile mac "Mac download, Release (PintoNotesDirect)" build -scheme PintoNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
   pids+=($!)
-  compile ios "iPhone app, Release" build -scheme Pane "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
+  compile ios "iPhone app, Release" build -scheme PintoNotes "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
   pids+=($!)
 fi
 iphone=$(python3 scripts/ci/touches-iphone.py $changed)
 if [[ ${PREPUSH_IPHONE:-0} == 1 || $iphone == yes* ]]; then
-  compile iostests "iPhone app and tests, Debug (simulator)" build-for-testing -scheme Pane -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DD/iostests" &
+  compile iostests "iPhone app and tests, Debug (simulator)" build-for-testing -scheme PintoNotes -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DD/iostests" &
   pids+=($!)
 else
   print -- "→ iPhone app not compiled: nothing it is built from changed (PREPUSH_IPHONE=1 compiles it anyway)"
 fi
-compile tests "App and tests, Debug (as CI)" build-for-testing -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO &
+compile tests "App and tests, Debug (as CI)" build-for-testing -scheme PintoNotes -destination 'platform=macOS' -derivedDataPath "$DD/tests" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO &
 pids+=($!)
 failed=0
 for pid in $pids; do wait $pid || failed=1; done
@@ -145,8 +145,8 @@ if [[ ${1:-} == --tests ]]; then
   only=(); touched=()
   # scripts/ci/select-tests.py knows which suites a test file holds and their full names: a suite
   # written inside "extension Outer {" is Outer/Suite to xcodebuild, and matches nothing without it.
-  python3 scripts/ci/select-tests.py --suites-of ${(M)changed:#PaneTests/*.swift} | while IFS=$'\t' read -r f suites; do
-    for suite in ${=suites}; do only+=("-only-testing:PaneTests/$suite"); done
+  python3 scripts/ci/select-tests.py --suites-of ${(M)changed:#PintoNotesTests/*.swift} | while IFS=$'\t' read -r f suites; do
+    for suite in ${=suites}; do only+=("-only-testing:PintoNotesTests/$suite"); done
     touched+=("$f:${(j:|:)${(@)${=suites}:t}}")
   done
   # Always: the smoke tests and the suites that check the whole app at once ("every primary button
@@ -155,7 +155,7 @@ if [[ ${1:-} == --tests ]]; then
   always=(${(f)"$(python3 scripts/ci/select-tests.py --always)"})
   only+=($always)
   if (( ${#only} )); then
-    if ! compile run "Tests of the touched test files, the smoke tests and the whole-app suites (${#only})" test-without-building -scheme Pane -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO; then
+    if ! compile run "Tests of the touched test files, the smoke tests and the whole-app suites (${#only})" test-without-building -scheme PintoNotes -destination 'platform=macOS' -derivedDataPath "$DD/tests" -resultBundlePath "$DD/run.xcresult" "${only[@]}" ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO; then
       # A failed test prints no "error:" line, and the exit trap deletes $DD: name the failures
       # from the result bundle and keep a copy of it (2026-10-29: three agents got "FAILED" and nothing else).
       if [[ -d $DD/run.xcresult ]]; then

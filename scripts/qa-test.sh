@@ -1,10 +1,10 @@
 #!/bin/zsh
 # Runs Mac unit tests in the QA derived data, with a hard time limit per run.
-#   scripts/qa-test.sh [PaneTests/SuiteName[/testName] ...]
+#   scripts/qa-test.sh [PintoNotesTests/SuiteName[/testName] ...]
 #   scripts/qa-test.sh --smoke     the tests CI runs for every change (smoke-tests.txt, always-tests.txt), a first check
 #   scripts/qa-test.sh             every unit and interaction test: 20 to 30 minutes
 #   scripts/qa-test.sh --summarize LOG   what a run prints, from its log (scripts/qa-test.test.ts)
-# The test host runs without a window or Dock icon (see PaneApp.isUnitTestHost).
+# The test host runs without a window or Dock icon (see PintoNotesApp.isUnitTestHost).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,14 +33,14 @@ if [[ ${1:-} == --smoke ]]; then
 fi
 for t in "$@"; do only+=(-only-testing:$t); done
 # The whole suite gets the time it needs; a named run keeps the short limit, so a hang shows quickly.
-[[ ${#only[@]} -eq 0 ]] && { only=(-only-testing:PaneTests); LIMIT=${LIMIT:-2400}; }
+[[ ${#only[@]} -eq 0 ]] && { only=(-only-testing:PintoNotesTests); LIMIT=${LIMIT:-2400}; }
 LIMIT=${LIMIT:-240}
 DD=${DD:-build/ddqa}
 log=$(mktemp)
 CONFIG=${CONFIG:-Debug}
 # CONFIG=Release measures optimised code (what people run); testability keeps @testable working.
 # scripts/setup.sh builds the app with these same settings into build/ddqa, so a test run after it reuses that build.
-xcodebuild -project Pane.xcodeproj -scheme Pane -configuration $CONFIG -destination 'platform=macOS' -derivedDataPath $DD \
+xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -configuration $CONFIG -destination 'platform=macOS' -derivedDataPath $DD \
   ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO ONLY_ACTIVE_ARCH=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) QA' \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
   test "${only[@]}" >"$log" 2>&1 &

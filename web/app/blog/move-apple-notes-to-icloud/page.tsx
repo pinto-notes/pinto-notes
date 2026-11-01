@@ -12,7 +12,7 @@ export const metadata = postMetadata("move-apple-notes-to-icloud", { title: "Mov
 // Mac app's own messages (sharing needs iCloud, the IMAP limits, turning off On My Mac) were read from
 // Notes' Localizable.loctable on macOS 26.5, and the settings shown are Notes' own Settings storyboard.
 // Rewritten answer first on 10 October: same facts, no new claims about Apple Notes. Pinto Notes: sign-in and
-// sync between devices are PaneApp.swift and SyncEngine.swift, and the Apple Notes import is
+// sync between devices are PintoNotesApp.swift and SyncEngine.swift, and the Apple Notes import is
 // AppleNotesImport.swift, on main on 10 October.
 
 const FAQ = [

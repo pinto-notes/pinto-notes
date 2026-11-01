@@ -22,7 +22,7 @@ W, H = LAYOUT["window"]
 S = 2
 TITLE = LAYOUT["title_bar"]  # Finder's window bounds include the title bar, so the picture's bottom is cut by this much
 RADIUS = 16
-APP_ICON = os.environ.get("APP_ICON") or os.path.join(REPO, "Pane/Resources/Assets.xcassets/AppIcon.appiconset/icon-mac-512@2x.png")
+APP_ICON = os.environ.get("APP_ICON") or os.path.join(REPO, "PintoNotes/Resources/Assets.xcassets/AppIcon.appiconset/icon-mac-512@2x.png")
 
 
 def font(size, weight):

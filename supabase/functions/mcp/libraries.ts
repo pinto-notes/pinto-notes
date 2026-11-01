@@ -1,5 +1,5 @@
 // Libraries an app can load without carrying them, as the app does it (note-pages-proto,
-// Pane/Resources/AppLibraries/libraries.json and page.ts): the bundled ones by name in
+// PintoNotes/Resources/AppLibraries/libraries.json and page.ts): the bundled ones by name in
 // <meta name="amber-libs" content="chart, d3">, loaded before the page's scripts as globals (or
 // at runtime with await amber.lib("three")), and any other npm package in the same meta as
 // npm:<name>@<x.y.z>[/<file>]#<sha256|sha384|sha512>-<base64>, which the app downloads once from
@@ -23,7 +23,7 @@ export const BUNDLED: { name: string; global: string; version: string; npm: stri
   { name: "preact", global: "preact", version: "10.24.3", npm: "preact@10.24.3/dist/preact.umd.js", what: "components and state for real multi-screen apps (with htm, no build step)", signature: /preactjs|__H:|\.__k\b/ },
   { name: "preact-hooks", global: "preactHooks", version: "10.24.3", npm: "preact@10.24.3/hooks/dist/hooks.umd.js", what: "useState, useEffect, useMemo and the other hooks", signature: /preactHooks/ },
   { name: "htm", global: "htm", version: "3.1.1", npm: "htm@3.1.1/dist/htm.umd.js", what: "JSX-like templates in plain JavaScript: html`<${App} />`", signature: /htm\.umd|\bhtm=function/ },
-  { name: "router", global: "amberRouter", version: "1.0.0", npm: "local:Pane/Resources/AppLibraries/router.js", what: "screens for a Preact app, kept in memory: <Router>, route(), back(), useRoute()", signature: /amberRouter\s*=/ },
+  { name: "router", global: "amberRouter", version: "1.0.0", npm: "local:PintoNotes/Resources/AppLibraries/router.js", what: "screens for a Preact app, kept in memory: <Router>, route(), back(), useRoute()", signature: /amberRouter\s*=/ },
 ];
 
 /** npm:<name>@<x.y.z>[/<file>]#<sha256|sha384|sha512>-<base64>: the app's own rule (page.ts). */

@@ -1,4 +1,4 @@
-// The key copy's formats, against keycopy-vectors.json (the file PaneTests/KeyCopyTests.swift
+// The key copy's formats, against keycopy-vectors.json (the file PintoNotesTests/KeyCopyTests.swift
 // checks too). To write the file again after a deliberate format change:
 //   KEYCOPY_WRITE_VECTORS=1 deno test -A supabase/functions/_shared/keycopy.test.ts
 import { assert, assertEquals, assertNotEquals, assertRejects } from "jsr:@std/assert@1";

@@ -334,7 +334,7 @@ export function leadFor(devices: Devices | null, on: BrowserOn): Lead {
 // MARK: Email first
 
 /// What the site's /connect/account-status says about an email, as the app reads the same function
-/// (Pane/Views/EmailSignInFlow.swift): an account with a password, an account that signs in with
+/// (PintoNotes/Views/EmailSignInFlow.swift): an account with a password, an account that signs in with
 /// Apple, or nobody. Null when it couldn't say.
 export type EmailStatus = "password" | "apple" | "none";
 

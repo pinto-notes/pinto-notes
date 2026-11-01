@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Signing in opens the notes on a new device, in iPhone simulators against the STAGING project
-# (PaneUITests/KeyCopyUITests; docs/Technical/recoverable-key.md). Never production.
+# (PintoNotesUITests/KeyCopyUITests; docs/Technical/recoverable-key.md). Never production.
 #
 #   scripts/key-copy-ios.sh [run]
 #   BEFORE=<a checkout of the build from before> scripts/key-copy-ios.sh [run]
@@ -75,14 +75,14 @@ while IFS= read -r line; do
 done < Config/Backend.staging.local.xcconfig
 build() { # <checkout> <derived data> <a simulator> <name>: the app and its UI tests, on the staging backend
   (cd "$1" && { command -v xcodegen >/dev/null && xcodegen generate >/dev/null; true; } &&
-    nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$3" -derivedDataPath "$2" \
+    nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$3" -derivedDataPath "$2" \
       CODE_SIGNING_ALLOWED=NO "${backend[@]}" build-for-testing > "$OUT/build-$4.log" 2>&1) || { grep -E "error:" "$OUT/build-$4.log" | sort -u | cut -c1-300 | head -20 >&2; return 1; }
   ls "$2"/Build/Products/*.xctestrun | head -1
 }
 step() { # <xctestrun> <simulator> <email> <test> : one test on one simulator
   local name=${4##*/}
   TEST_RUNNER_PANE_EMAIL=$3 TEST_RUNNER_PANE_PASSWORD=$PASSWORD TEST_RUNNER_PANE_SHOTS="$OUT" \
-    nice -n 10 xcodebuild test-without-building -xctestrun "$1" -destination "id=$2" -only-testing:"PaneUITests/$4" -resultBundlePath "$OUT/$name.xcresult" > "$OUT/$name.log" 2>&1 \
+    nice -n 10 xcodebuild test-without-building -xctestrun "$1" -destination "id=$2" -only-testing:"PintoNotesUITests/$4" -resultBundlePath "$OUT/$name.xcresult" > "$OUT/$name.log" 2>&1 \
     && print -- "✓ $name" || { print -- "✗ $name"; grep -E "error:|XCTAssert|failed" "$OUT/$name.log" | head -12; return 1; }
 }
 

@@ -23,7 +23,7 @@ export const metadata = postMetadata("move-apple-notes-to-obsidian-notion-keep",
 // Takeout (support.google.com/keep/answer/6320648 and 10017039) and none for importing; no import menu
 // was found in Keep's help or App Store listing. Not verified: Keep's iPhone share extension (only older
 // third-party guides describe it), so the post doesn't rely on it.
-// Pinto Notes: Pane/Views/AppleNotesImport.swift and Pane/Model/AppleNotesImporter.swift on main:
+// Pinto Notes: PintoNotes/Views/AppleNotesImport.swift and PintoNotes/Model/AppleNotesImporter.swift on main:
 // File, Import from Apple Notes; every folder in Apple Notes' order and nesting; pictures as files;
 // "Locked in Apple Notes"; checklists and pins exactly with Full Disk Access, otherwise checklists as
 // bullet lists; notes already imported are skipped; "Copies the notes you pick. Nothing in Apple Notes

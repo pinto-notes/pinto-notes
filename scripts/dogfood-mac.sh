@@ -8,7 +8,7 @@ RUN="${1:-mac-$(date +%H%M%S)}"
 OUT="$PWD/.shots/$RUN"
 mkdir -p "$OUT"
 xcodegen generate >/dev/null
-if ! xcodebuild -project Pane.xcodeproj -scheme Pane -destination "platform=macOS" -derivedDataPath build/ddmac \
+if ! xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "platform=macOS" -derivedDataPath build/ddmac \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= build-for-testing > "$OUT/build.log" 2>&1; then
   grep -E "error:" "$OUT/build.log" | sort -u | head -20
   echo "BUILD FAILED"; exit 1
@@ -35,8 +35,8 @@ fi
 ) &
 REC=$!
 rm -rf "$OUT/result.xcresult"
-TEST_RUNNER_PANE_SHOTS="$OUT" xcodebuild -resultBundlePath "$OUT/result.xcresult" -project Pane.xcodeproj -scheme Pane -destination "platform=macOS" -derivedDataPath build/ddmac \
-  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= test-without-building -only-testing:"${ONLY:-PaneUITests/MacDogfoodTests}" > "$OUT/test.log" 2>&1 || true
+TEST_RUNNER_PANE_SHOTS="$OUT" xcodebuild -resultBundlePath "$OUT/result.xcresult" -project PintoNotes.xcodeproj -scheme PintoNotes -destination "platform=macOS" -derivedDataPath build/ddmac \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= test-without-building -only-testing:"${ONLY:-PintoNotesUITests/MacDogfoodTests}" > "$OUT/test.log" 2>&1 || true
 grep -E "error:|failed|passed" "$OUT/test.log" | grep -v Connection | tail -8
 wait $REC 2>/dev/null || true
 # Pull the step screenshots out of the result bundle.

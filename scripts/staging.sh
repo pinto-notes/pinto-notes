@@ -273,7 +273,7 @@ json.dump({"query": q}, open(out, "w"))' "$f" "$email" "$days"
 }
 
 # Amber Notes Beta for daily use on this Mac, from the tip of origin/dev, against staging. The same
-# build as the Mac TestFlight beta (target Pane, Config/Beta.xcconfig: sandboxed, App Store
+# build as the Mac TestFlight beta (target PintoNotes, Config/Beta.xcconfig: sandboxed, App Store
 # entitlements) signed with the team's Apple Development certificate and an automatic provisioning
 # profile. Every rebuild has the same bundle id, team and keychain group, so it keeps its container,
 # its keychain items (the session and the account's key) and its device: nothing to sign in or link
@@ -298,7 +298,7 @@ cmd_dev_app() {
   rm -rf "$app"
   echo "→ Building Amber Notes Beta $build from ${ref#origin/} $commit"
   DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} nice -n 10 xcodebuild \
-    -project "$tree/Pane.xcodeproj" -scheme Pane -configuration Release -destination 'platform=macOS' \
+    -project "$tree/PintoNotes.xcodeproj" -scheme PintoNotes -configuration Release -destination 'platform=macOS' \
     -derivedDataPath "$dd" -xcconfig "$tree/Config/Beta.xcconfig" \
     -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
     DEVELOPMENT_TEAM=4UM3XVUN9Y CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \

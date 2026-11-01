@@ -386,13 +386,13 @@ try {
     }
     // Entitlements: what the release builds ask for, against the baseline.
     if (baseline) {
-      const files = (await git("ls-tree", "-r", "--name-only", sha, "--", "Pane/Resources", "PaneShare")).split("\n").filter((f) => f.endsWith(".entitlements"));
-      const changed = (await run("git", ["diff", "--stat", baseline.sha, sha, "--", ...files, "Pane/Resources/Pane-mac-direct.entitlements"], { allowFail: true })).stdout.trim();
+      const files = (await git("ls-tree", "-r", "--name-only", sha, "--", "PintoNotes/Resources", "PintoNotesShare", "Pane/Resources", "PaneShare")).split("\n").filter((f) => f.endsWith(".entitlements"));
+      const changed = (await run("git", ["diff", "--stat", baseline.sha, sha, "--", ...files, "PintoNotes/Resources/PintoNotes-mac-direct.entitlements", "Pane/Resources/Pane-mac-direct.entitlements"], { allowFail: true })).stdout.trim();
       check("security", "security.entitlements", "Entitlements unchanged since the baseline", changed === "", changed ? changed.split("\n").slice(0, -1).map((l) => l.trim()).join("; ") : "unchanged",
         changed ? "A change isn't wrong by itself: review it, then pass it by hand in the release notes." : undefined);
     }
     // Hosts: every host the app, the site and the functions name, against the reviewed list.
-    const hostsOf = async (rev: string) => new Set((await run("git", ["grep", "-hoE", "https?://[a-zA-Z0-9.-]+\\.[a-z]{2,}", rev, "--", "Pane/**.swift", "PaneShare/**.swift", "Pane/Resources/*.plist", "web/app/**.ts", "web/app/**.tsx", "web/lib/**.ts", "web/lib/**.tsx", "web/components/**", "web/next.config.ts", "web/middleware.ts", "supabase/functions/**.ts", ":!*test*"], { allowFail: true })).stdout.split("\n").filter(Boolean).map((u) => u.replace(/^https?:\/\//, "").toLowerCase()));
+    const hostsOf = async (rev: string) => new Set((await run("git", ["grep", "-hoE", "https?://[a-zA-Z0-9.-]+\\.[a-z]{2,}", rev, "--", "Pane/**.swift", "PaneShare/**.swift", "Pane/Resources/*.plist", "PintoNotes/**.swift", "PintoNotesShare/**.swift", "PintoNotes/Resources/*.plist", "web/app/**.ts", "web/app/**.tsx", "web/lib/**.ts", "web/lib/**.tsx", "web/components/**", "web/next.config.ts", "web/middleware.ts", "supabase/functions/**.ts", ":!*test*"], { allowFail: true })).stdout.split("\n").filter(Boolean).map((u) => u.replace(/^https?:\/\//, "").toLowerCase()));
     const allowed = new Set((await Deno.readTextFile(`${ROOT}/scripts/release-gate/hosts.txt`)).split("\n").map((l) => l.replace(/#.*/, "").trim()).filter(Boolean));
     const hosts = await hostsOf(sha);
     const unknown = [...hosts].filter((h) => !allowed.has(h) && !/(^|\.)(example\.(com|org)|localhost)$/.test(h));
@@ -521,7 +521,7 @@ const funcs = await (async () => {
 const sectionNames: Record<string, string> = { perf: "Performance", security: "Security", storage: "Storage", network: "Network" };
 let summaryHead = "";
 let md = `# Release gate: ${label} (${short})\n\n**${verdict}**: ${fails.length} over budget or failed, ${regressions.length} regressions${baseline ? ` against ${baseline.ref} (${baseline.sha.slice(0, 10)})` : ", no baseline"}.\n\n`;
-md += `- Date: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC\n- Build: Release, PaneDirect, Developer ID (team-signed, not notarized), Amber Notes Beta identity on staging, with the gate's probe added (scripts/release-gate/GateProbe.swift)\n`;
+md += `- Date: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC\n- Build: Release, PintoNotesDirect, Developer ID (team-signed, not notarized), Amber Notes Beta identity on staging, with the gate's probe added (scripts/release-gate/GateProbe.swift)\n`;
 if (machine) md += `- Mac: ${HOST} (${machine}), ${runs} measured runs per account, medians\n`;
 md += `- Accounts: staging bench accounts of ${sizes.join(", ")} notes, plus the gate's 3 notes each\n- Server: staging runs what was deployed there, not this ref: ${funcs}\n- Budgets: scripts/release-gate/budgets.json; regression = over 15% worse than the baseline and past the metric's noise floor\n\n`;
 if (fails.length || regressions.length) {

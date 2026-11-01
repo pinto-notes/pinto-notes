@@ -33,7 +33,7 @@ The clone is about 300 MB. It takes 1 to 6 minutes, depending on your connection
 ✓ Your app is My Pinto Notes (local.kim.notes). To rename it: scripts/make-it-yours.sh --name "…" --bundle-id com.you.notes
 → Starting the local backend (the first time downloads about 3 GB of Docker images: 5 to 15 minutes)
 ✓ The local backend is running
-✓ Made Pane.xcodeproj
+✓ Made PintoNotes.xcodeproj
 → Building the Mac app (3 to 10 minutes the first time, under a minute after that)
 ✓ Built in 113 s: /Users/kim/pinto-notes/build/ddqa/Build/Products/Debug/Pane.app
 
@@ -94,10 +94,10 @@ A new bundle id is a new app to macOS: it starts with an empty library and asks 
 
 ## 3. Put it on your iPhone
 
-The iPhone app runs in the Simulator with no account. Open the project with `open Pane.xcodeproj`, pick an iPhone simulator at the top of the window, and press Run (Command-R). From Terminal (3 to 10 minutes the first time):
+The iPhone app runs in the Simulator with no account. Open the project with `open PintoNotes.xcodeproj`, pick an iPhone simulator at the top of the window, and press Run (Command-R). From Terminal (3 to 10 minutes the first time):
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Pane.xcodeproj -scheme Pane \
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes \
   -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ddqa ARCHS=arm64 build
 ```
 
@@ -180,18 +180,18 @@ Your builds send no telemetry: the key is empty in every build that isn't Pinto 
 
 ## 5. Change it
 
-The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and target names say "Pane", the app's working name. The [README](../README.md#how-its-built) maps the parts. The places people change first:
+The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. The source folders, targets and Swift module use `PintoNotes`. The [README](../README.md#how-its-built) maps the parts. The places people change first:
 
 | What | Where |
 |---|---|
 | The accent colour | `scripts/set-accent.sh 1E7A4C 5CC48A` (light mode, then dark mode), then `scripts/setup.sh`. Every button, tick, link and hover follows it (`Palette.accent`), and so do the system's controls. It changes no tracked file: the colours go in `Config/Identity.local.xcconfig` and a gitignored `AccentColorLocal` asset, so pulling never conflicts. `scripts/set-accent.sh amber` puts Pinto Notes' back |
-| Other colours, light and dark | the rest of `Pane/Editor/Palette.swift`: every colour the app draws |
-| Buttons, corner radii, shadows, toasts | `Pane/Views/DesignSystem.swift`, with the rules in [docs/DESIGN.md](DESIGN.md) |
-| The iPhone bar above the keyboard | `Pane/Editor/FormatBar.swift` |
-| The Mac's format menu and toolbar | `Pane/Views/FormatPopover.swift`, the `.toolbar` in `Pane/Views/RootView.swift` and `Pane/Views/NoteDetailView.swift`, glyphs in `Pane/Views/ToolbarGlyph.swift` |
+| Other colours, light and dark | the rest of `PintoNotes/Editor/Palette.swift`: every colour the app draws |
+| Buttons, corner radii, shadows, toasts | `PintoNotes/Views/DesignSystem.swift`, with the rules in [docs/DESIGN.md](DESIGN.md) |
+| The iPhone bar above the keyboard | `PintoNotes/Editor/FormatBar.swift` |
+| The Mac's format menu and toolbar | `PintoNotes/Views/FormatPopover.swift`, the `.toolbar` in `PintoNotes/Views/RootView.swift` and `PintoNotes/Views/NoteDetailView.swift`, glyphs in `PintoNotes/Views/ToolbarGlyph.swift` |
 | The app's name | `scripts/make-it-yours.sh --name` for the name under the icon; the words inside the app are in the views (search for "Pinto Notes") |
-| The first notes in a new library | `Seed.ensureLibrary` and the welcome text in `Pane/App/PaneApp.swift` |
-| The icon | `Pane/Resources/AppIcon.icon` (open it in Icon Composer, which comes with Xcode 26), `Assets.xcassets/AppIcon.appiconset` for older systems, `Mark` and `MenuBarIcon` for the mark inside the app |
+| The first notes in a new library | `Seed.ensureLibrary` and the welcome text in `PintoNotes/App/PintoNotesApp.swift` |
+| The icon | `PintoNotes/Resources/AppIcon.icon` (open it in Icon Composer, which comes with Xcode 26), `Assets.xcassets/AppIcon.appiconset` for older systems, `Mark` and `MenuBarIcon` for the mark inside the app |
 | The AI server's tools | `supabase/functions/mcp/files_tools.ts`, deployed with `supabase functions deploy mcp --project-ref <ref>` |
 | The sign-in emails | `scripts/auth-emails.ts`, then `deno run -A scripts/auth-emails.ts write` |
 
@@ -199,10 +199,10 @@ After a change, run `scripts/setup.sh` again (under a minute) and reopen the app
 
 The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding agent how this codebase works and how to test a change, so Claude Code and Codex can work on it from the first prompt. Start one in the `pinto-notes` folder (`claude` or `codex`) and try:
 
-1. "Make the accent colour a deep green in light and dark mode with scripts/set-accent.sh, pick shades that pass the contrast checks, and run scripts/qa-test.sh PaneTests/PintoButtonTests PaneTests/NotePageTests."
-2. "Add a button to the iPhone keyboard bar (Pane/Editor/FormatBar.swift) that inserts today's date as a heading. Match the bar's other buttons, and add a test in PaneTests/Interaction like the ones there."
-3. "Rename the app to Kim's Notes in every string a person reads, on the Mac and iPhone. Leave code names like Pane alone. Show me the list of strings before you change them."
-4. "Add a word and character count for the open note to the Mac window's toolbar. Find how the toolbar is built in Pane/Views/RootView.swift first, and test it in the offscreen harness under PaneTests/Harness."
+1. "Make the accent colour a deep green in light and dark mode with scripts/set-accent.sh, pick shades that pass the contrast checks, and run scripts/qa-test.sh PintoNotesTests/PintoButtonTests PintoNotesTests/NotePageTests."
+2. "Add a button to the iPhone keyboard bar (PintoNotes/Editor/FormatBar.swift) that inserts today's date as a heading. Match the bar's other buttons, and add a test in PintoNotesTests/Interaction like the ones there."
+3. "Rename the app to Kim's Notes in every string a person reads, on the Mac and iPhone. Leave code names like PintoNotes alone. Show me the list of strings before you change them."
+4. "Add a word and character count for the open note to the Mac window's toolbar. Find how the toolbar is built in PintoNotes/Views/RootView.swift first, and test it in the offscreen harness under PintoNotesTests/Harness."
 5. "Add a tool to the AI server that lists the notes changed in the last 7 days, in supabase/functions/mcp/files_tools.ts, with a Deno test next to the others. Then deploy it to my project with supabase functions deploy mcp."
 
 Ask for one change at a time and run the tests the agent names. A small change you understand is easier to carry forward than a big one.
@@ -211,7 +211,7 @@ Ask for one change at a time and run the tests the agent names. A small change y
 
 ```sh
 scripts/qa-test.sh --smoke                    # what CI runs for every change: about a minute after setup.sh
-scripts/qa-test.sh PaneTests/ShareAskTests    # one suite
+scripts/qa-test.sh PintoNotesTests/ShareAskTests    # one suite
 scripts/qa-test.sh                            # every unit and interaction test: 20 to 30 minutes
 ```
 
@@ -232,7 +232,7 @@ Fewer conflicts, in order of how much they help:
 
 - **Keep your settings out of tracked files.** Your identity is in `Config/Identity.local.xcconfig` and your backend in `Config/Backend.local.xcconfig`. Both are gitignored, so an update never touches them.
 - **Add files rather than editing big ones.** A new view, a new `extension` in its own file, or a new test file never conflicts. Upstream changes the large files (the editor, the note list) often.
-- **Let the project file regenerate.** `Pane.xcodeproj` is generated from `project.yml`. If it conflicts, take upstream's (`git checkout --theirs Pane.xcodeproj`) and run `scripts/setup.sh`.
+- **Let the project file regenerate.** `PintoNotes.xcodeproj` is generated from `project.yml`. If it conflicts, take upstream's (`git checkout --theirs PintoNotes.xcodeproj`) and run `scripts/setup.sh`.
 - **Add migrations, never edit them.** Put database changes in a new file in `supabase/migrations` with a timestamp newer than every other one. Upstream's migrations then apply cleanly after yours.
 - **Merge often.** A week of upstream is an easy merge; three months is a hard one.
 
@@ -244,10 +244,10 @@ If you'd rather run each step yourself:
 brew install xcodegen supabase/tap/supabase
 scripts/make-it-yours.sh --name "Kim's Notes" --bundle-id com.kim.notes
 supabase start          # needs Docker; skip it for a build with no backend (see below)
-xcodegen generate       # makes Pane.xcodeproj from project.yml
-open Pane.xcodeproj     # and press Run, or:
+xcodegen generate       # makes PintoNotes.xcodeproj from project.yml
+open PintoNotes.xcodeproj     # and press Run, or:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-  xcodebuild -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' -derivedDataPath build/ddqa build
+  xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' -derivedDataPath build/ddqa build
 open build/ddqa/Build/Products/Debug/Pane.app
 ```
 

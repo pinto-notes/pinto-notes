@@ -13,7 +13,7 @@ In this order, until about 90 seconds of known test time is planned:
   2. the suites in the test files the change touches, always
   3. suites named after a changed file (Foo.swift -> FooTests)
   4. suites whose test file names a type the changed files declare, quickest first
-Suites that time things (PaneTests/Perf) and the ones in scripts/ci/after-merge-suites.txt (they wait
+Suites that time things (PintoNotesTests/Perf) and the ones in scripts/ci/after-merge-suites.txt (they wait
 on real time by design) are only picked by rule 2. Times come from scripts/ci/suite-times.json, which
 the run on dev rewrites; an unknown suite counts as 5 seconds.
 """
@@ -39,7 +39,7 @@ cost = lambda suite: float(times.get(suite, 5))
 
 decl = re.compile(r"^\s*(?:@[\w.]+(?:\([^)]*\))?\s+)*(?:(?:public|private|fileprivate|final|internal|nonisolated)\s+)*(?:struct|class|enum|actor|protocol)\s+(\w+)", re.M)
 suites_in, text_of, inside = {}, {}, {}
-for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
+for f in glob.glob(os.path.join(root, "PintoNotesTests/**/*.swift"), recursive=True):
     rel = os.path.relpath(f, root)
     text = open(f, errors="replace").read()
     text_of[rel] = text
@@ -61,7 +61,7 @@ for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
         depth += line.count("{") - line.count("}")
 # A type that only holds other suites (NetworkFaults) is not picked as one: that would run them all.
 suites_in = {f: [s for s in ss if s not in inside.values()] for f, ss in suites_in.items()}
-perf = {s for f, ss in suites_in.items() if f.startswith("PaneTests/Perf/") for s in ss}
+perf = {s for f, ss in suites_in.items() if f.startswith("PintoNotesTests/Perf/") for s in ss}
 all_suites = {s for ss in suites_in.values() for s in ss}
 
 path = lambda suite: f"{inside[suite]}/{suite}" if suite in inside else suite
@@ -79,9 +79,9 @@ if sys.argv[1] == "--always":
     # For scripts/prepush.sh: the smoke tests and the whole-app suites, as -only-testing arguments.
     for t in smoke:
         suite, test = t.split("/", 1)
-        print(f"-only-testing:PaneTests/{path(suite)}/{test}")
+        print(f"-only-testing:PintoNotesTests/{path(suite)}/{test}")
     for s in always_suites:
-        print(f"-only-testing:PaneTests/{path(s)}")
+        print(f"-only-testing:PintoNotesTests/{path(s)}")
     sys.exit(0)
 changed = [l.strip() for l in open(sys.argv[1]) if l.strip()]
 
@@ -101,7 +101,7 @@ for s in always_suites:                             # 1 (whole suites)
 for f in changed:                                   # 2
     for s in suites_in.get(f, []):
         take(s, f"its file changed ({f})", always=True)
-sources = [f for f in changed if f.endswith(".swift") and (f.startswith("Pane/") or f.startswith("PaneShare/"))]
+sources = [f for f in changed if f.endswith(".swift") and (f.startswith("PintoNotes/") or f.startswith("PintoNotesShare/"))]
 for f in sources:                                   # 3
     stem = os.path.splitext(os.path.basename(f))[0]
     for s in sorted(all_suites):
@@ -132,9 +132,9 @@ for t in smoke:                                     # 1 (single tests: Suite/tes
     if suite not in all_suites:
         sys.exit(f"error: scripts/ci/smoke-tests.txt names {suite}, and no test file declares it")
     if suite not in why:
-        print(f"-only-testing:PaneTests/{path(suite)}/{test}")
+        print(f"-only-testing:PintoNotesTests/{path(suite)}/{test}")
 for s in chosen:
-    print(f"-only-testing:PaneTests/{path(s)}")
+    print(f"-only-testing:PintoNotesTests/{path(s)}")
 print(f"{len(smoke)} smoke tests; {len(chosen)} suites, about {planned:.0f} s of them planned (limit {BUDGET:.0f} s):", file=sys.stderr)
 for s in chosen:
     print(f"  {s} ({cost(s):.0f} s): {why[s]}", file=sys.stderr)

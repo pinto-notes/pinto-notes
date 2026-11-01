@@ -14,7 +14,7 @@ export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes
 // gets no result and Math Results is greyed out in a table; the same sum under the table gets 505; Table Actions has
 // only Convert to Text; a whole table selected and copied pastes into TextEdit as a table, and Copy as Markdown is
 // greyed out for it. Not tried: Numbers (not on the test Mac), iPhone, dragging rows.
-// Pinto Notes' side: tables in Pane/Editor/TableGrid.swift (no sums, no sort); ChatGPT and Claude read and add rows
+// Pinto Notes' side: tables in PintoNotes/Editor/TableGrid.swift (no sums, no sort); ChatGPT and Claude read and add rows
 // through the MCP tools (read_table, log_table_row in supabase/functions/mcp/tools.ts); the Budget and expenses
 // template's app (web/content/templates/budget-log.app) adds itself up. Its picture is the app on a Mac, from the
 // apps-v2 captures with example data.

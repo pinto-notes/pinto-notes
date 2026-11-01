@@ -4,7 +4,7 @@
 #
 #   scripts/install-mac.sh
 #
-# Development and test builds stay ad-hoc (Pane-mac.entitlements): a restricted
+# Development and test builds stay ad-hoc (PintoNotes-mac.entitlements): a restricted
 # entitlement without a provisioning profile would stop them launching.
 set -euo pipefail
 MAIN="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,10 +20,10 @@ cp "$MAIN/Config/Backend.local.xcconfig" "$CLEAN/Config/"
 
 app=$DD/Build/Products/Release/Pane.app
 rm -rf "$app" # never install a stale build
-xcodebuild -project "$CLEAN/Pane.xcodeproj" -scheme Pane -configuration Release -destination 'platform=macOS' \
+xcodebuild -project "$CLEAN/PintoNotes.xcodeproj" -scheme PintoNotes -configuration Release -destination 'platform=macOS' \
   -derivedDataPath "$DD" -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
   DEVELOPMENT_TEAM=4UM3XVUN9Y CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
-  PROVISIONING_PROFILE_SPECIFIER= PANE_MAC_ENTITLEMENTS=Pane-mac-signed.entitlements \
+  PROVISIONING_PROFILE_SPECIFIER= PANE_MAC_ENTITLEMENTS=PintoNotes-mac-signed.entitlements \
   build | grep -E "error:|\*\* BUILD" || true
 [[ -d $app ]] || { echo "Build failed." >&2; exit 1; }
 

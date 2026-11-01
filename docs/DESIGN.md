@@ -20,7 +20,7 @@ We learn craft from other products (Alcove, Klack, Things, Apple's own apps), bu
 
 The website's and the app's colours come from the same family. Names differ by platform. These are the pairs:
 
-| Role | Website (`web/app/site.css`) | App (`Pane/Editor/Palette.swift`) |
+| Role | Website (`web/app/site.css`) | App (`PintoNotes/Editor/Palette.swift`) |
 |---|---|---|
 | Text | `--ink` | `Palette.ink` |
 | Secondary text | `--muted` | `Palette.muted` |

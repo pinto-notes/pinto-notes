@@ -1,5 +1,5 @@
 // The server's copy of an account's key: its formats (docs/Technical/recoverable-key.md).
-// keycopy-vectors.json pins the two boxes a client makes or opens; PaneTests/KeyCopyTests.swift and
+// keycopy-vectors.json pins the two boxes a client makes or opens; PintoNotesTests/KeyCopyTests.swift and
 // keycopy.test.ts both check against it. Everything here is WebCrypto: P-256 ECDH, HKDF-SHA256 and
 // AES-256-GCM, which every platform a client could run on has.
 //

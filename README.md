@@ -131,14 +131,14 @@ New versions ship most days: [Releases](https://github.com/pinto-notes/pinto-not
 
 | Part | Where | What |
 |---|---|---|
-| App | `Pane/` | SwiftUI for iOS 26 and macOS 26. The editor is TextKit 2 with its own layout fragments for checkboxes, bullets, tables and embeds. SwiftData holds a local copy of everything. |
-| Sync | `Pane/Sync/` | Pushes and pulls through Supabase with version checks, and listens on Supabase Realtime for changes from other devices. |
+| App | `PintoNotes/` | SwiftUI for iOS 26 and macOS 26. The editor is TextKit 2 with its own layout fragments for checkboxes, bullets, tables and embeds. SwiftData holds a local copy of everything. |
+| Sync | `PintoNotes/Sync/` | Pushes and pulls through Supabase with version checks, and listens on Supabase Realtime for changes from other devices. |
 | Backend | `supabase/` | Postgres with row-level security on every table, per-account limits and rate limits in the database, Storage for files, and Edge Functions. |
 | AI server | `supabase/functions/mcp/` | An MCP server (Streamable HTTP) with 12 file-like tools (`files_tools.ts`). Public address `https://mcp.pintonotes.com`, proxied by the site (`web/middleware.ts`); the older `https://mcp.ambernotes.app` is the same server and keeps working. Web clients connect with OAuth 2.1 (PKCE, dynamic client registration). Claude Code and Codex use a revocable header token. Every call runs as the note owner with row-level security. |
 | Site | `web/` | Next.js: pintonotes.com, shared notes (sanitized markdown, strict CSP), the connect pages. |
-| Share extension | `PaneShare/` | Share sheet target on iOS. |
+| Share extension | `PintoNotesShare/` | Share sheet target on iOS. |
 
-Folder and target names still say "Pane", the app's working name. The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+The source folders, targets and Swift module use `PintoNotes`. The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 <details>
 <summary><b>Build from source</b></summary>
@@ -149,7 +149,7 @@ You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local Supabase st
 git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
 cd pinto-notes
 scripts/setup.sh          # installs XcodeGen and the Supabase CLI, starts the local stack, builds the Mac app
-open Pane.xcodeproj       # run the "Pane" scheme on "My Mac" or an iPhone simulator
+open PintoNotes.xcodeproj       # run the "PintoNotes" scheme on "My Mac" or an iPhone simulator
 ```
 
 `scripts/setup.sh` finds Xcode on its own. For your own `xcodebuild` commands, either run `sudo xcode-select -s /Applications/Xcode.app` once or put `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` in front of them; otherwise they fail with `tool 'xcodebuild' requires Xcode`. The built app is `build/ddqa/Build/Products/Debug/Pane.app`, the same build `scripts/qa-test.sh` uses.

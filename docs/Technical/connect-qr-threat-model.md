@@ -64,5 +64,5 @@ If this isn't acceptable, the fallback can go back to typing without touching th
   - "a wrong or old scan secret answers nothing, and without one a device can't allow"
   - "a scan code expires with its request"
   - "signing in on the page for a notification keeps the code working, and the number path"
-- App: `PaneTests/ConnectAITests.swift` `ConnectScanTests` (fragment parsing, the key check, the secret and sealing in the answer).
+- App: `PintoNotesTests/ConnectAITests.swift` `ConnectScanTests` (fragment parsing, the key check, the secret and sealing in the answer).
 - Web: `web/app/connect/ConnectFlow.test.tsx` and `web/lib/*.test.ts`.

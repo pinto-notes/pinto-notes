@@ -75,7 +75,7 @@ const { appsGuide, FILE_APP_INSTRUCTIONS } = await import(new URL("supabase/func
 const stamp = "<!-- Generated from supabase/functions/mcp/page_guide.ts by scripts/page-evals/build-skill.ts. Don't edit. -->";
 await Deno.mkdir(new URL("references/", skill), { recursive: true });
 await write(new URL("references/guide.md", skill), `${stamp}\n${appsGuide()}`);
-// The real default stylesheet, as the app ships it (pinto-base.ts mirrors Pane/Resources/AppLibraries/amber-base.css).
+// The real default stylesheet, as the app ships it (pinto-base.ts mirrors PintoNotes/Resources/AppLibraries/amber-base.css).
 const { PINTO_BASE_CSS } = await import(new URL("supabase/functions/mcp/pinto-base.ts", root).href);
 await write(new URL("references/amber-base.css", skill), PINTO_BASE_CSS);
 

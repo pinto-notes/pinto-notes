@@ -8,13 +8,13 @@
 # It changes no tracked file, so pulling from upstream never conflicts: the colours go in
 # Config/Identity.local.xcconfig (PANE_ACCENT) and the gitignored AccentColorLocal asset.
 # The light colour fills the primary buttons under a white label: keep it deep (3:1 against white
-# or more). The dark one is the accent on black. PaneTests/PintoButtonTests checks both, and that the
-# asset matches: scripts/qa-test.sh PaneTests/PintoButtonTests
+# or more). The dark one is the accent on black. PintoNotesTests/PintoButtonTests checks both, and that the
+# asset matches: scripts/qa-test.sh PintoNotesTests/PintoButtonTests
 set -euo pipefail
 SELF=${0:A}
 cd "$(dirname "$SELF")/.."
 LOCAL=Config/Identity.local.xcconfig
-ASSETS=Pane/Resources/Assets.xcassets
+ASSETS=PintoNotes/Resources/Assets.xcassets
 OWN=$ASSETS/AccentColorLocal.colorset
 
 [[ -f $LOCAL ]] || { echo "Give the app its own name first: scripts/setup.sh (or scripts/make-it-yours.sh)." >&2; exit 1; }
@@ -53,4 +53,4 @@ open(out, "w").write(text)
 PY
   echo "Accent: #$light in light mode, #$dark in dark mode ($LOCAL and $OWN, both gitignored)."
 fi
-echo "Check it: scripts/qa-test.sh PaneTests/PintoButtonTests, then scripts/setup.sh to rebuild."
+echo "Check it: scripts/qa-test.sh PintoNotesTests/PintoButtonTests, then scripts/setup.sh to rebuild."

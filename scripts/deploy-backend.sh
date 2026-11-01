@@ -69,7 +69,7 @@ BUNDLE=$(identity PANE_BUNDLE_ID)
 SCHEME=$(identity PANE_URL_SCHEME)
 # Sign in with Apple needs a paid team's iPhone app; a free account's can't sign it (make-it-yours.sh).
 APPLE=0
-if [[ -n $(identity PANE_IOS_TEAM) && $(identity PANE_IOS_ENTITLEMENTS) != Pane-ios-personal.entitlements ]]; then APPLE=1; fi
+if [[ -n $(identity PANE_IOS_TEAM) && $(identity PANE_IOS_ENTITLEMENTS) != PintoNotes-ios-personal.entitlements ]]; then APPLE=1; fi
 
 step() { echo "→ $*"; }
 run() { if (( DRY )); then echo "  would run: $*"; else "$@"; fi; }

@@ -25,7 +25,7 @@ The requirement it serves: nobody but the person can read their notes, including
 9. The new device polls with its pickup secret (`device_add_pickup`), gets the sealed key, opens it, and uses it only if it's the account's key: its id and verifier match the server's row, and its recovery key opens the account's recovery wrap to the same key. Then it tells the server to drop the sealed copy (`device_add_done`). An answer lost on the way can be asked for again until then.
 10. The new device keeps the key on itself only (a `ThisDeviceOnly` Keychain item), never as an iCloud Keychain item.
 
-Formats: `supabase/functions/_shared/e2ee.ts` and `Pane/Model/AddDevice.swift`, pinned to each other by `e2ee-vectors.json` (`add_device`, `key_device`).
+Formats: `supabase/functions/_shared/e2ee.ts` and `PintoNotes/Model/AddDevice.swift`, pinned to each other by `e2ee-vectors.json` (`add_device`, `key_device`).
 
 ## What is stricter than connecting an AI
 
@@ -112,7 +112,7 @@ The removal is carried out once, even when looking at the list and trying to rem
 
 ## Tests
 
-- Formats, both sides against the shared vectors: `supabase/functions/_shared/e2ee.test.ts`, `PaneTests/AddDeviceTests.swift` (`AddDeviceVectorTests`).
+- Formats, both sides against the shared vectors: `supabase/functions/_shared/e2ee.test.ts`, `PintoNotesTests/AddDeviceTests.swift` (`AddDeviceVectorTests`).
 - Server (PGlite, whole schema): `supabase/functions/mcp/device_add.pglite.test.ts`: same account, single use, expiry, wrong answers, rate limits, the device list.
 - App: `AddDeviceFlowTests` (two devices end to end over a fake server), `KeyDevicesTests`, `KeyStartupTests`.
-- Screens: `PaneTests/HIG/AddDeviceSnapshots.swift`, iPhone and Mac, light and dark, largest text size.
+- Screens: `PintoNotesTests/HIG/AddDeviceSnapshots.swift`, iPhone and Mac, light and dark, largest text size.

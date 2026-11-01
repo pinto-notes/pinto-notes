@@ -1,4 +1,4 @@
-// Obsidian's wiki links on the server, by the app's rules (Pane/Model/WikiLinks.swift): how a link
+// Obsidian's wiki links on the server, by the app's rules (PintoNotes/Model/WikiLinks.swift): how a link
 // is read, which note it resolves to, and how a rename points the links that led to a note at its
 // new title. Pure, so it is unit-tested (wikilinks.test.ts); files_tools.ts does the reading and
 // saving. Ranges are UTF-16 offsets, as in the app's NSString ranges.

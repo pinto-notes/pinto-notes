@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Pinto Notes offline in the iPhone simulator (PaneUITests/OfflineUITests), against a local
+# Pinto Notes offline in the iPhone simulator (PintoNotesUITests/OfflineUITests), against a local
 # Supabase stack, never production. Light, then dark. Screenshots go to .shots/<run>/<appearance>.
 #   API_URL=http://127.0.0.1:56421 SERVICE_KEY=<local secret key> scripts/offline-ios.sh [run]
 # The stack needs every migration (`supabase start` from this checkout). Makes the account
@@ -20,14 +20,14 @@ xcrun simctl boot "$SIM" 2>/dev/null || true
 xcrun simctl bootstatus "$SIM" -b >/dev/null
 xcrun simctl status_bar "$SIM" override --time "9:41" --batteryLevel 100 --cellularBars 4 --wifiBars 3 2>/dev/null || true
 mkdir -p "$OUT"
-xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/ddsim CODE_SIGNING_ALLOWED=NO \
+xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/ddsim CODE_SIGNING_ALLOWED=NO \
   "PANE_SUPABASE_URL=http:/\$()/${API_URL#http://}" build-for-testing > "$OUT/build.log" 2>&1 || { grep error: "$OUT/build.log" | head; exit 1; }
 for look in light dark; do
   mkdir -p "$OUT/$look"
   xcrun simctl ui "$SIM" appearance $look
   TEST_RUNNER_PANE_EMAIL=$EMAIL TEST_RUNNER_PANE_PASSWORD=$PASSWORD TEST_RUNNER_PANE_SHOTS="$OUT/$look" \
-    xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/ddsim CODE_SIGNING_ALLOWED=NO \
-    test-without-building -only-testing:PaneUITests/OfflineUITests > "$OUT/$look/test.log" 2>&1 || true
+    xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$SIM" -derivedDataPath build/ddsim CODE_SIGNING_ALLOWED=NO \
+    test-without-building -only-testing:PintoNotesUITests/OfflineUITests > "$OUT/$look/test.log" 2>&1 || true
   grep -E "error:|Test Case.*(passed|failed)|PERF" "$OUT/$look/test.log"
 done
 xcrun simctl ui "$SIM" appearance light

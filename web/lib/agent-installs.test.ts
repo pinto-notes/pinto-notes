@@ -20,7 +20,7 @@ describe("installs for AI tools", () => {
   });
 
   it("names the server as the app adds it, never by the old name", () => {
-    const swift = readFileSync(new URL("../../Pane/Views/ConnectAI.swift", import.meta.url), "utf8");
+    const swift = readFileSync(new URL("../../PintoNotes/Views/ConnectAI.swift", import.meta.url), "utf8");
     expect(swift).toContain(`static let serverName = "${SERVER_NAME}"`);
     // The plugin and the Gemini extension keep their own name (see the manifests below).
     const own = AGENT_INSTALLS.filter((x) => x.tool !== "Gemini CLI");

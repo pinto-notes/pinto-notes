@@ -17,7 +17,7 @@ const tokens = (s) => s.replace(/\{\{d([+-]\d+)?\}\}/g, (_, n) => shift(+(n || 0
 const read = (f) => (fs.existsSync(path.join(dir, f)) ? tokens(fs.readFileSync(path.join(dir, f), "utf8")) : null);
 const html = fs.readFileSync(path.join(dir, "app.html"), "utf8");
 const body = read("note.md") || "", data = JSON.parse(read("data.json") || '{"values":{},"collections":{}}');
-const LIBDIR = path.resolve(dir, "../../../../Pane/Resources/AppLibraries");
+const LIBDIR = path.resolve(dir, "../../../../PintoNotes/Resources/AppLibraries");
 const man = JSON.parse(fs.readFileSync(path.join(LIBDIR, "libraries.json"), "utf8")).libraries;
 const want = (/<meta[^>]*name=["']amber-libs["'][^>]*content=["']([^"']*)/i.exec(html) || [, ""])[1].split(",").map((x) => x.trim()).filter(Boolean);
 const order = []; const add = (n) => { const m = man.find((l) => l.name === n); if (!m || order.includes(m)) return; (m.needs || (n === "htm" || n === "router" ? ["preact", "preact-hooks"] : n === "preact-hooks" ? ["preact"] : [])).forEach(add); order.push(m); };

@@ -11,8 +11,8 @@ checklist below.
 
 ## The flow
 
-In the apps (Mac and iPhone, `Pane/Views/SignInView.swift`, state in
-`Pane/Views/EmailSignInFlow.swift`):
+In the apps (Mac and iPhone, `PintoNotes/Views/SignInView.swift`, state in
+`PintoNotes/Views/EmailSignInFlow.swift`):
 
 1. "Sign in or sign up", "Enter your email to continue.", Email, Continue (from Get started,
    the welcome's one button). The heading then follows the
@@ -21,7 +21,7 @@ In the apps (Mac and iPhone, `Pane/Views/SignInView.swift`, state in
    has a show/hide eye.
 2. Create account. With confirmation on, `auth.signUp` returns a user and no session
    (`Backend.signUp` returns true), and the screen becomes **Check your email**: the address,
-   the code as six boxes in two groups of three (`Pane/Views/CodeBoxes.swift`: one real text
+   the code as six boxes in two groups of three (`PintoNotes/Views/CodeBoxes.swift`: one real text
    field under the boxes, one-time-code content type, so typing, backspace, paste and iOS's
    suggestion from Mail all work; VoiceOver reads one "Verification code" field), Confirm,
    Resend code and Use a different email. A wrong or expired code shakes the boxes once
@@ -78,7 +78,7 @@ Project `tswcrppnfzorhxhcnjvd`:
 - `scripts/staging.sh auth` copies production's `mailer_` settings, so until production has
   confirmation on, running it turns autoconfirm back on for staging.
 
-End to end on staging: `PaneUITests/EmailConfirmUITests` on the iPhone simulator, with a build
+End to end on staging: `PintoNotesUITests/EmailConfirmUITests` on the iPhone simulator, with a build
 pointed at staging and `PANE_CONFIRM_EMAIL`, `PANE_CONFIRM_PASSWORD` and `PANE_CONFIRM_CODE_FILE`
 passed as `TEST_RUNNER_` variables. Whoever runs it reads the code in the inbox and writes it to
 the file. Screenshots of each screen, Mac and iPhone, light and dark: `pinto-internal/evidence/email-confirm/` (the end-to-end run's own shots show a real address, so they stay out of the repository).
@@ -118,7 +118,7 @@ Nothing below has been done. Each step needs Emil's go.
 
 ## Tests
 
-- `PaneTests/EmailSignInFlowTests`: the code step, six digits only, the resend cooldown,
+- `PintoNotesTests/EmailSignInFlowTests`: the code step, six digits only, the resend cooldown,
   unconfirmed sign-in, Use a different email, the error words, button titles.
 - `supabase/functions/lifecycle/lifecycle.pglite.test.ts`: no welcome or ladder email before
   confirmation; the welcome follows the code; the minute check ignores unconfirmed accounts.
@@ -135,4 +135,4 @@ this account's notes. Link it to open them here."; it doesn't say "another devic
 that lost its key may be the account's only one), and the code
 under the QR code is large (monospaced, title 2, the groups set apart by kerning only, so a
 selection copies exactly the code), with a Copy code button that says Copied
-(`Pane/Views/AddDeviceView.swift`).
+(`PintoNotes/Views/AddDeviceView.swift`).

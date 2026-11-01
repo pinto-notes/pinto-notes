@@ -530,7 +530,7 @@ export function updateChecklistItems(body: string, changes: ChecklistChange[]): 
 }
 
 // MARK: A page's data
-// The app's store (Pane/Model/NotePageData.swift): { values: {...}, collections: { name: [records] } },
+// The app's store (PintoNotes/Model/NotePageData.swift): { values: {...}, collections: { name: [records] } },
 // each record with a string id and created/updated stamps. The shape and size check is page.ts's.
 
 /** RFC 7386 JSON merge patch: objects merge key by key, null removes a key, anything else replaces. */

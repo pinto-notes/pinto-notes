@@ -1,4 +1,4 @@
-// Collaboration (prototype): the formats for shared notes, as in Pane/Collab/CollabCrypto.swift.
+// Collaboration (prototype): the formats for shared notes, as in PintoNotes/Collab/CollabCrypto.swift.
 // See docs/Technical/collaboration-design.md.
 //
 // Each account has an identity key pair (P-256). The private half is the 32-byte scalar, sealed

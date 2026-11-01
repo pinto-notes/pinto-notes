@@ -141,13 +141,13 @@ fi
 
 # 5. The project and the build
 xcodegen generate --quiet || stop "xcodegen generate failed." "Run it yourself to see why."
-ok "Made Pane.xcodeproj"
+ok "Made PintoNotes.xcodeproj"
 mkdir -p build
 LOG=$ROOT/build/setup-build.log
 step "Building the Mac app (3 to 10 minutes the first time, under a minute after that)"
 b=$SECONDS
 # qa-test.sh's derived data and settings, so the tests build on this instead of building the app again.
-if ! xcodebuild -project Pane.xcodeproj -scheme Pane -configuration Debug -destination 'platform=macOS' -derivedDataPath build/ddqa \
+if ! xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -configuration Debug -destination 'platform=macOS' -derivedDataPath build/ddqa \
     ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO ONLY_ACTIVE_ARCH=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) QA' \
     CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= build > "$LOG" 2>&1; then
   grep -E "error:" "$LOG" | sort -u | head -10 | sed 's/^/  /' >&2

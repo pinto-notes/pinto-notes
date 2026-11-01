@@ -6,7 +6,7 @@ them: which callers each one really has, which grants it needs, and a migration 
 Nothing here has been applied, on staging or in production.
 
 How it was checked (2026-10-08): the grants come from `has_function_privilege` on staging, read-only.
-Callers come from `git grep` over `Pane`, `PaneShare`, `web`, `supabase/functions`, `cli` and
+Callers come from `git grep` over `PintoNotes`, `PintoNotesShare`, `web`, `supabase/functions`, `cli` and
 `scripts` on dev (tests set aside), and from the policies in `supabase/migrations`. Both trigger
 functions were also called over the API with the anon key: PostgREST answers `PGRST202`.
 

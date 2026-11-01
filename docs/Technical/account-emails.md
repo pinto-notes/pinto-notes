@@ -13,7 +13,7 @@ turned on. The templates and pages below are proposals.
 
 | Email | What triggers it | Today |
 | --- | --- | --- |
-| Sign-up confirmation | `signUp(email:password:)` in the app (`Pane/Sync/Backend.swift`) | Not sent. The project confirms email addresses automatically (`mailer_autoconfirm: true`), and `supabase/config.toml` says the same (`enable_confirmations = false`). The new account is signed in at once. |
+| Sign-up confirmation | `signUp(email:password:)` in the app (`PintoNotes/Sync/Backend.swift`) | Not sent. The project confirms email addresses automatically (`mailer_autoconfirm: true`), and `supabase/config.toml` says the same (`enable_confirmations = false`). The new account is signed in at once. |
 | Password reset | Nothing | No "Forgot password" in the iPhone app, the Mac app or on `/connect`. Nothing calls `resetPasswordForEmail`. |
 | Email change | Nothing | No screen changes an account's email. |
 | Magic link, code, invite, reauthentication | Nothing | Not used. |
@@ -36,7 +36,7 @@ on a page that doesn't load.
 Neither landing place on the redirect list can take an email link either:
 
 - `pintonotes://auth-callback` is only read by the Mac download's Sign in with Apple window
-  (`Pane/Sync/WebAuthSession.swift`). The app's own URL handlers (`ConnectCenter.receive`,
+  (`PintoNotes/Sync/WebAuthSession.swift`). The app's own URL handlers (`ConnectCenter.receive`,
   `RootView`) drop it, so on iPhone or Mac the app would come forward and do nothing.
 - `/connect` needs a connect request id. Without one it says "This link isn't complete".
 - The site has no page that reads `token_hash`, `type=recovery` or `#access_token`.

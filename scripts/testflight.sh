@@ -8,7 +8,7 @@
 # progress never ships. The build number is a timestamp (yymmddHHMM), set on the
 # command line so git stays clean. Upload auth is the App Store Connect API key in
 # .secrets/ (asc.env with ASC_KEY_ID and ASC_ISSUER_ID, plus AuthKey_<id>.p8).
-# The Mac build is sandboxed (Pane-mac-appstore.entitlements), as TestFlight requires.
+# The Mac build is sandboxed (PintoNotes-mac-appstore.entitlements), as TestFlight requires.
 #
 # CI (GitHub Actions) sets IN_PLACE=1 to build the current checkout instead of the clean one,
 # and passes the key as ASC_KEY_PATH / ASC_KEY_ID / ASC_ISSUER_ID and the version as VERSION.
@@ -76,7 +76,7 @@ ship() {
   local platform=$1 dest=$2; shift 2
   local archive="$OUT/$platform-$BUILD.xcarchive"
   echo "→ $platform build $BUILD: archiving"
-  xcodebuild archive -project "$CLEAN/Pane.xcodeproj" -scheme Pane -configuration Release \
+  xcodebuild archive -project "$CLEAN/PintoNotes.xcodeproj" -scheme PintoNotes -configuration Release \
     -destination "$dest" -archivePath "$archive" -allowProvisioningUpdates "${auth[@]}" "${beta[@]}" \
     DEVELOPMENT_TEAM=$TEAM CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
     PROVISIONING_PROFILE_SPECIFIER= CURRENT_PROJECT_VERSION=$BUILD ${VERSION:+MARKETING_VERSION=$VERSION} "$@" \
@@ -91,7 +91,7 @@ ship() {
 }
 
 # The Mac app installs as "Pinto Notes.app" (dev builds keep the Pane product name), sandboxed.
-macArgs=(PANE_MAC_ENTITLEMENTS=Pane-mac-appstore.entitlements "PANE_PRODUCT_NAME=$NAME")
+macArgs=(PANE_MAC_ENTITLEMENTS=PintoNotes-mac-appstore.entitlements "PANE_PRODUCT_NAME=$NAME")
 
 case $WHICH in
   ios)  ship ios 'generic/platform=iOS' ;;

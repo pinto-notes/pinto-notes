@@ -1,5 +1,5 @@
 // Bundles the libraries a note app can import into one file of ES modules for the app:
-// Pane/Resources/AppLibraries/stack.json = { version, modules: { "<file>": "<js>" }, map: { "<bare name>": "<file>" } }.
+// PintoNotes/Resources/AppLibraries/stack.json = { version, modules: { "<file>": "<js>" }, map: { "<bare name>": "<file>" } }.
 // React is preact/compat: "react", "react-dom", "react-dom/client" and "react/jsx-runtime" all
 // resolve to it, so React libraries (Radix, recharts, sonner, ...) run on one small Preact.
 // Shared code goes into chunks, so every library sees the same Preact and the same Radix internals.
@@ -56,7 +56,7 @@ Object.assign(map, { "react-dom": map["react"], "react/jsx-dev-runtime": map["re
 const versions = Object.fromEntries(Object.keys(pkg.dependencies).map((n) => [n, JSON.parse(readFileSync(`node_modules/${n}/package.json`, "utf8")).version]));
 const licenses = Object.fromEntries(Object.keys(pkg.dependencies).map((n) => [n, JSON.parse(readFileSync(`node_modules/${n}/package.json`, "utf8")).license]));
 const out = JSON.stringify({ version: 1, versions, licenses, map, modules });
-writeFileSync("../Pane/Resources/AppLibraries/stack.json", out);
+writeFileSync("../PintoNotes/Resources/AppLibraries/stack.json", out);
 const total = Object.values(modules).reduce((a, s) => a + Buffer.byteLength(s), 0);
 const sha = createHash("sha384").update(out).digest("base64");
 console.log(`${Object.keys(modules).length} files, ${(total / 1024).toFixed(0)} KB, sha384-${sha.slice(0, 16)}…`);

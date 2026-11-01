@@ -1,4 +1,4 @@
-name: Pane
+name: PintoNotes
 options:
   bundleIdPrefix: dev.emilwagman
   deploymentTarget:
@@ -19,7 +19,7 @@ packages:
   Automerge:
     # 0.7.2 with a public Cursor initializer (Vendor/README.md).
     path: Vendor/automerge-swift
-  # Updates for the Mac download only (target PaneDirect); App Store builds never link it.
+  # Updates for the Mac download only (target PintoNotesDirect); App Store builds never link it.
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.6.0
@@ -36,13 +36,15 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
 targets:
-  Pane:
+  PintoNotes:
+    # Source names change; install and update product names stay fixed.
+    productName: Pane
     type: application
     supportedDestinations: [iOS, macOS]
-    # Pane/Resources/Onboarding.xcassets (the sign-in and first-run pictures) comes in with the
+    # PintoNotes/Resources/Onboarding.xcassets (the sign-in and first-run pictures) comes in with the
     # folder, for the Mac and iPhone apps; the share extension lists its own sources and never it.
     sources: &appSources
-      - Pane
+      - PintoNotes
     configFiles:
       Debug: Config/Backend.xcconfig
       Release: Config/Backend.xcconfig
@@ -50,7 +52,7 @@ targets:
       - package: Markdown
       - package: Supabase
       - package: ZIPFoundation
-      - target: PaneShare
+      - target: PintoNotesShare
         platformFilter: iOS
     # SwiftPM resource bundles (ZIPFoundation's and swift-crypto's privacy manifests, and any
     # added later) arrive in Contents/Resources signed with the archive's Apple Development
@@ -72,7 +74,7 @@ targets:
             echo "Unsigned $b"
           done
     info:
-      path: Pane/Resources/Info.plist
+      path: PintoNotes/Resources/Info.plist
       properties: &appInfo
         CFBundleDisplayName: $(PANE_DISPLAY_NAME)
         CFBundleName: $(PANE_DISPLAY_NAME)
@@ -112,7 +114,7 @@ targets:
         NSPhotoLibraryAddUsageDescription: Pinto Notes saves a picture to your photo library when you choose Save Image in the share sheet.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: dev.emilwagman.pane.item
-            UTTypeDescription: Pane item
+            UTTypeDescription: Pinto Notes item
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification: {}
         # Evernote exports (.enex), which Evernote doesn't declare. Opening one (Files, Finder,
@@ -141,7 +143,7 @@ targets:
         # PANE_PRODUCT_NAME="Pinto Notes" so the shipped Mac app installs as Pinto Notes.app.
         PANE_PRODUCT_NAME: Pane
         PRODUCT_NAME: $(PANE_PRODUCT_NAME)
-        PRODUCT_MODULE_NAME: Pane
+        PRODUCT_MODULE_NAME: PintoNotes
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -149,15 +151,16 @@ targets:
         # AccentColor, or the gitignored AccentColorLocal scripts/set-accent.sh writes.
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: $(PANE_ACCENT_ASSET)
         ENABLE_HARDENED_RUNTIME: YES
-        # Ad-hoc builds use Pane-mac.entitlements; scripts/install-mac.sh passes
-        # PANE_MAC_ENTITLEMENTS=Pane-mac-signed.entitlements for the team-signed app, and
-        # scripts/testflight.sh passes Pane-mac-appstore.entitlements (sandboxed) for TestFlight.
-        PANE_MAC_ENTITLEMENTS: Pane-mac.entitlements
-        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": Pane/Resources/$(PANE_MAC_ENTITLEMENTS)
-        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": Pane/Resources/$(PANE_IOS_ENTITLEMENTS)
+        # Ad-hoc builds use PintoNotes-mac.entitlements; scripts/install-mac.sh passes
+        # PANE_MAC_ENTITLEMENTS=PintoNotes-mac-signed.entitlements for the team-signed app, and
+        # scripts/testflight.sh passes PintoNotes-mac-appstore.entitlements (sandboxed) for TestFlight.
+        PANE_MAC_ENTITLEMENTS: PintoNotes-mac.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": PintoNotes/Resources/$(PANE_MAC_ENTITLEMENTS)
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": PintoNotes/Resources/$(PANE_IOS_ENTITLEMENTS)
   # The Mac download (Developer ID, notarized, a DMG): the same app plus Sparkle for updates.
-  # Built only by scripts/release-mac.sh; the App Store/TestFlight build is the Pane target.
-  PaneDirect:
+  # Built only by scripts/release-mac.sh; the App Store/TestFlight build is the PintoNotes target.
+  PintoNotesDirect:
+    productName: Pinto Notes
     type: application
     platform: macOS
     sources: *appSources
@@ -170,7 +173,7 @@ targets:
       - package: ZIPFoundation
       - package: Sparkle
     info:
-      path: Pane/Resources/Info-Direct.plist
+      path: PintoNotes/Resources/Info-Direct.plist
       properties:
         <<: *appInfo
         SUFeedURL: $(PANE_UPDATE_FEED)
@@ -186,29 +189,30 @@ targets:
       base:
         <<: *appSettings
         PANE_PRODUCT_NAME: Pinto Notes
-        PANE_MAC_ENTITLEMENTS: Pane-mac-direct.entitlements
+        PANE_MAC_ENTITLEMENTS: PintoNotes-mac-direct.entitlements
         # SPARKLE: updates; DIRECT: Sign in with Apple through the web (no entitlement in Developer ID).
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SPARKLE DIRECT
         # Sparkle's EdDSA public key; the private half is in the login Keychain (and .secrets/).
         SPARKLE_PUBLIC_KEY: teSFUYF3dK744mGRKD/3wqWEt7hBH4+J5DINTeFq5r4=
-  PaneShare:
+  PintoNotesShare:
+    productName: PaneShare
     type: app-extension
     platform: iOS
     sources:
-      - PaneShare
-      - Pane/Views/AppMark.swift
-      - Pane/Model/Inbox.swift
-      - Pane/Model/AppIdentity.swift
-      - Pane/Model/SharedItem.swift
-      - Pane/Model/RichTextToMarkdown.swift
-      - Pane/Model/OfflineHTML.swift
-      - Pane/Editor/Platform.swift
-      - Pane/Editor/Palette.swift
-      - Pane/Editor/Theme.swift
-      - path: Pane/Resources/Assets.xcassets
+      - PintoNotesShare
+      - PintoNotes/Views/AppMark.swift
+      - PintoNotes/Model/Inbox.swift
+      - PintoNotes/Model/AppIdentity.swift
+      - PintoNotes/Model/SharedItem.swift
+      - PintoNotes/Model/RichTextToMarkdown.swift
+      - PintoNotes/Model/OfflineHTML.swift
+      - PintoNotes/Editor/Platform.swift
+      - PintoNotes/Editor/Palette.swift
+      - PintoNotes/Editor/Theme.swift
+      - path: PintoNotes/Resources/Assets.xcassets
         buildPhase: resources
     info:
-      path: PaneShare/Info.plist
+      path: PintoNotesShare/Info.plist
       properties:
         CFBundleDisplayName: $(PANE_DISPLAY_NAME)
         CFBundleShortVersionString: $(MARKETING_VERSION)
@@ -229,26 +233,29 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PANE_BUNDLE_ID).share
+        # Keep the installed extension bundle and executable names.
+        PRODUCT_NAME: PaneShare
+        PRODUCT_MODULE_NAME: PintoNotesShare
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: PaneShare/PaneShare.entitlements
+        CODE_SIGN_ENTITLEMENTS: PintoNotesShare/PintoNotesShare.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         SKIP_INSTALL: YES
-  PaneTests:
+  PintoNotesTests:
     type: bundle.unit-test
     supportedDestinations: [iOS, macOS]
     sources:
-      - path: PaneTests
+      - path: PintoNotesTests
         excludes: [Fixtures]
-      - path: PaneTests/Fixtures
+      - path: PintoNotesTests/Fixtures
         excludes: [Markdown, Keep]
         buildPhase: resources
       # Export trees from Obsidian, Notion, Bear, Joplin, Logseq, Simplenote and Standard Notes,
       # copied whole so their folders (and hidden ones) stay as the apps write them.
-      - path: PaneTests/Fixtures/Markdown
+      - path: PintoNotesTests/Fixtures/Markdown
         type: folder
         buildPhase: resources
       # A Google Takeout download with its Keep folder, as Google writes it.
-      - path: PaneTests/Fixtures/Keep
+      - path: PintoNotesTests/Fixtures/Keep
         type: folder
         buildPhase: resources
       # Server files the tests check against, copied into the bundle when it's built (the test
@@ -272,35 +279,35 @@ targets:
       - path: demo/note-pages
         type: folder
         buildPhase: resources
-      - path: Pane/Resources/AppLibraries/amber-base.css
+      - path: PintoNotes/Resources/AppLibraries/amber-base.css
         buildPhase: resources
       - path: supabase/functions/mcp/pinto-base.ts
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
         buildPhase: resources
       # The Mac download's Info.plist, for its update settings (UpdaterTests).
-      - path: Pane/Resources/Info-Direct.plist
+      - path: PintoNotes/Resources/Info-Direct.plist
         buildPhase: resources
-      - path: Pane/Views
+      - path: PintoNotes/Views
         type: folder
         buildPhase: resources
       # The rest of the app's code, for OldNameTests (no string says the old name).
-      - path: Pane/App
+      - path: PintoNotes/App
         type: folder
         buildPhase: resources
-      - path: Pane/Model
+      - path: PintoNotes/Model
         type: folder
         buildPhase: resources
-      - path: Pane/Editor
+      - path: PintoNotes/Editor
         type: folder
         buildPhase: resources
-      - path: Pane/Sync
+      - path: PintoNotes/Sync
         type: folder
         buildPhase: resources
-      - path: Pane/Telemetry
+      - path: PintoNotes/Telemetry
         type: folder
         buildPhase: resources
-      - path: PaneShare
+      - path: PintoNotesShare
         type: folder
         buildPhase: resources
       # The project, for OnboardingArtTests (the pictures stay out of the share extension).
@@ -309,44 +316,46 @@ targets:
       # Who the app is and how it signs, for FreshCloneTests (a clone with no Apple team builds).
       - path: Config/Identity.xcconfig
         buildPhase: resources
-      - path: Pane/Resources/Pane-ios-personal.entitlements
+      - path: PintoNotes/Resources/PintoNotes-ios-personal.entitlements
         buildPhase: resources
       # The design rules, for PintoButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md
         buildPhase: resources
       # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
-      # link it (see Pane/Collab/CollabText.swift).
-      - path: Pane/Collab/CollabText.swift
+      # link it (see PintoNotes/Collab/CollabText.swift).
+      - path: PintoNotes/Collab/CollabText.swift
     dependencies:
-      - target: Pane
+      - target: PintoNotes
       - package: Automerge
     settings:
       base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.emilwagman.PaneTests
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE
         GENERATE_INFOPLIST_FILE: YES
         "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
-  PaneUITests:
+  PintoNotesUITests:
     type: bundle.ui-testing
     supportedDestinations: [iOS, macOS]
-    sources: [PaneUITests]
+    sources: [PintoNotesUITests]
     dependencies:
-      - target: Pane
+      - target: PintoNotes
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        TEST_TARGET_NAME: Pane
+        PRODUCT_BUNDLE_IDENTIFIER: dev.emilwagman.PaneUITests
+        TEST_TARGET_NAME: PintoNotes
         SWIFT_VERSION: "5.0"
         SWIFT_STRICT_CONCURRENCY: minimal
 schemes:
   PintoNotesDirect:
     build:
       targets:
-        PaneDirect: all
+        PintoNotesDirect: all
     archive:
       config: Release
-  Pane:
+  PintoNotes:
     build:
       targets:
-        Pane: all
+        PintoNotes: all
     test:
-      targets: [PaneTests, PaneUITests]
+      targets: [PintoNotesTests, PintoNotesUITests]

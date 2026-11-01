@@ -3,7 +3,7 @@
 // in headless WebKit at the widths and color schemes asked for, and measures it: script errors,
 // overflow, contrast, small or faint text, unlabeled controls, an edit from the app, and probes
 // over changed notes. Used by the render service (server.ts, behind check_app and preview_app) and
-// by the evals. Edits run through page_input.ts, the TypeScript twin of Pane/Model/NotePage.swift.
+// by the evals. Edits run through page_input.ts, the TypeScript twin of PintoNotes/Model/NotePage.swift.
 import { Buffer } from "node:buffer";
 import { webkit, type Browser, type Page } from "npm:playwright-core@1.63.0";
 import { applyPageOp, importedFrom, noteForPage } from "../../supabase/functions/mcp/page_input.ts";
@@ -11,11 +11,11 @@ import { mergePatch } from "../../supabase/functions/mcp/data_ops.ts";
 import { findTables } from "../../supabase/functions/mcp/notes.ts";
 import { PINTO_BASE_CSS } from "../../supabase/functions/mcp/pinto-base.ts";
 
-// Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
+// PintoNotes/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
 const POLICY = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; " +
   "connect-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
 
-// amber-tokens.css as the iPhone app writes it (Pane/Views/NotePageView.swift, NotePageTheme.tokens),
+// amber-tokens.css as the iPhone app writes it (PintoNotes/Views/NotePageView.swift, NotePageTheme.tokens),
 // then amber-base.css, the file the app ships, unless the page opts out with <meta name="amber-base" content="none">.
 const vars = (d: boolean) => [
   ["--amber-bg", d ? "#000000" : "#FFFEFD"], ["--amber-surface", d ? "#1C1B1A" : "#F4F1EE"], ["--amber-fill", d ? "#2C2A28" : "#EBE6E1"],
@@ -66,11 +66,11 @@ function prepare(html: string): { html: string; integrity: Map<string, string> }
   };
 }
 
-// Apps that are projects of files (Pane/Views/NotePageProject.swift): the files at a made-up
+// Apps that are projects of files (PintoNotes/Views/NotePageProject.swift): the files at a made-up
 // origin standing in for amber-app:///, compiled JavaScript at each source path, and the import map
-// of bare names over the ES modules the app ships (Pane/Resources/AppLibraries) at LIB_HOST.
+// of bare names over the ES modules the app ships (PintoNotes/Resources/AppLibraries) at LIB_HOST.
 const APP_HOST = "https://app.amber.invalid/";
-const APP_LIBS = new URL("../../Pane/Resources/AppLibraries/", import.meta.url);
+const APP_LIBS = new URL("../../PintoNotes/Resources/AppLibraries/", import.meta.url);
 const ESM: Record<string, string> = { preact: "preact.module.js", "preact-hooks": "preact-hooks.module.js", "preact-jsx-runtime": "preact-jsx-runtime.module.js",
   htm: "htm.module.js", "amber-router": "amber-router.module.js", amber: "amber.module.js" };
 type Bundled = { name: string; global: string; package: string };
@@ -91,7 +91,7 @@ function importMap(): string {
     htm: `${LIB_HOST}esm/htm.js`, "amber-router": `${LIB_HOST}esm/amber-router.js`, amber: `${LIB_HOST}esm/amber.js`, "amber-ui": `${LIB_HOST}amber-ui/index.js`,
   };
   for (const l of bundledLibs()) if (!["preact", "preact-hooks", "htm", "router"].includes(l.name)) imports[l.package] = `${LIB_HOST}esm/${l.name}.js`;
-  // The React stack the app ships (Pane/Resources/AppLibraries/stack.json), and "@/" for /src/.
+  // The React stack the app ships (PintoNotes/Resources/AppLibraries/stack.json), and "@/" for /src/.
   for (const [name, file] of Object.entries(stack().map)) imports[name] = `${LIB_HOST}stack/${file}`;
   imports["@/"] = `${APP_HOST}src/`;
   // run_app_tests only: Vitest and Testing Library as test-harness.js gives them.
@@ -151,7 +151,7 @@ function moduleFile(path: string): { body: string; type: string } | null {
 async function library(path: string): Promise<Uint8Array | null> {
   const { BUNDLED } = await import("../../supabase/functions/mcp/libraries.ts");
   const bundled = BUNDLED.find((b) => b.name === path);
-  // The app's own copy first (Pane/Resources/AppLibraries), so a render needs no network.
+  // The app's own copy first (PintoNotes/Resources/AppLibraries), so a render needs no network.
   const shipped = bundledLibs().find((l) => l.name === path) as (Bundled & { file?: string }) | undefined;
   if (shipped?.file) { const local = await Deno.readFile(new URL(shipped.file, APP_LIBS)).catch(() => null); if (local) return local; }
   if (bundled?.npm.startsWith("local:")) return await Deno.readFile(new URL(`../../${bundled.npm.slice(6)}`, import.meta.url)).catch(() => null);
@@ -180,7 +180,7 @@ async function sri(bytes: Uint8Array, want: string): Promise<boolean> {
   return got === b64;
 }
 
-// Pane/Views/NotePageView.swift bootstrap(data:store:), with the app's message handlers replaced by
+// PintoNotes/Views/NotePageView.swift bootstrap(data:store:), with the app's message handlers replaced by
 // the harness's. The device, the on-device model and amber.fetch answer { ok: false } here: the
 // evals check pages handle that, not what the device returns.
 const bootstrap = (note: unknown, data: unknown) => `(() => {
@@ -260,7 +260,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     return results.find((r) => r && r.ok === false) || { ok: true };
   };
   // localStorage is the app's own data (values.localStorage), sessionStorage lasts while the app is
-  // open, IndexedDB isn't there: as Pane/Views/NotePageView.swift.
+  // open, IndexedDB isn't there: as PintoNotes/Views/NotePageView.swift.
   const storage = (persist) => {
     let map = Object.assign({}, persist ? ((amber.data.values || {}).localStorage || {}) : {});
     let timer = null;
@@ -331,7 +331,7 @@ function dataLists(doc: DataDoc): { items: Record<string, unknown>[]; with: (ite
   return out;
 }
 
-/** The app's data ops (Pane/Model/NotePageData.swift apply). */
+/** The app's data ops (PintoNotes/Model/NotePageData.swift apply). */
 function applyDataOp(doc: { values: Record<string, unknown>; collections: Record<string, Record<string, unknown>[]> }, m: Record<string, unknown>) {
   const d = JSON.parse(JSON.stringify(doc)) as typeof doc;
   const now = new Date().toISOString();

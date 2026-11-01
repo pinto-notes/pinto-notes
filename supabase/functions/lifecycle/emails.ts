@@ -79,7 +79,7 @@ const TEMPLATES: Template[] = [
 ];
 
 /// Every button goes somewhere specific: into the app through a universal link under /open/
-/// (Pane/Model/AppPlace.swift), with a page at the same address that says how by hand when the app
+/// (PintoNotes/Model/AppPlace.swift), with a page at the same address that says how by hand when the app
 /// isn't on this device (web/app/open/).
 const open = (c: Pick<Context, "site" | "open">, place: string) => `${c.open ?? c.site}/open/${place}`;
 const connectAI = (c: Context) => open(c, "connect-ai");
@@ -89,7 +89,7 @@ const connectAI = (c: Context) => open(c, "connect-ai");
 export const askChatGPT = (text: string) => `https://chatgpt.com/?q=${encodeURIComponent(text)}`;
 export const askClaude = (c: Pick<Context, "site">, id: string) => `${c.site}/copy/${id}`;
 
-/// The app's setup card (Pane/Views/SetupCard.swift), with the first step done.
+/// The app's setup card (PintoNotes/Views/SetupCard.swift), with the first step done.
 const SETUP: Block = { checks: [
   { done: true, text: "Bring your notes" },
   { done: false, text: "Connect your AI" },

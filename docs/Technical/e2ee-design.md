@@ -17,7 +17,7 @@ The requirement: we can't read anyone's notes. Everything a person writes is enc
 
 ## Formats
 
-One module per side, pinned to each other by `supabase/functions/_shared/e2ee-vectors.json`: `supabase/functions/_shared/e2ee.ts` (server, scripts) and `Pane/Model/E2EE.swift` (apps). `PaneTests/E2EETests.swift` and `supabase/functions/_shared/e2ee.test.ts` both check every vector.
+One module per side, pinned to each other by `supabase/functions/_shared/e2ee-vectors.json`: `supabase/functions/_shared/e2ee.ts` (server, scripts) and `PintoNotes/Model/E2EE.swift` (apps). `PintoNotesTests/E2EETests.swift` and `supabase/functions/_shared/e2ee.test.ts` both check every vector.
 
 | What | Format |
 |---|---|
@@ -63,7 +63,7 @@ Guards in the database:
 
 ## Device startup
 
-`KeyStartup.decide` (pure) and `AccountCrypto` (carries it out) in `Pane/Model/E2EE.swift`, tested in `PaneTests/KeyStartupTests.swift` with a fake Keychain and a fake server.
+`KeyStartup.decide` (pure) and `AccountCrypto` (carries it out) in `PintoNotes/Model/E2EE.swift`, tested in `PintoNotesTests/KeyStartupTests.swift` with a fake Keychain and a fake server.
 
 1. DK in the Keychain matches the server's key id and verifier: ready.
 2. The server has no key: make one (DK, recovery key, verifier, wrap) and call `create_account_key`, an insert-if-absent. This is the only place a key is made. The new key stays in a device-only Keychain slot until the server has taken it, so a device that loses the race never overwrites the synced key, and one that crashes mid-way still has the key the server took.

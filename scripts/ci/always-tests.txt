@@ -2,7 +2,7 @@
 # scripts/prepush.sh --tests, whatever the change touches: a file they read can change without any
 # test file changing. One suite per line. On 2026-10-13 two of them were red on dev all night: a
 # new button and a new telemetry value broke them, and no local check had run them.
-PintoButtonTests          # every primary button in Pane/Views uses the amber style
+PintoButtonTests          # every primary button in PintoNotes/Views uses the amber style
 TelemetryPrivacyTests     # docs/Technical/app-telemetry.md lists every value the app can send
 OldNameTests              # no string a person reads says the old name
 FormerSubNotesTests       # nothing in either app makes a sub-note any more (removed 2026-10-28)

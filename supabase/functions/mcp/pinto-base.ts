@@ -1,4 +1,4 @@
-// Generated from Pane/Resources/AppLibraries/amber-base.css (the file the app ships); the tests in
+// Generated from PintoNotes/Resources/AppLibraries/amber-base.css (the file the app ships); the tests in
 // page.test.ts and NotePageTests keep them the same. Shown to the AI as the real stylesheet.
 export const PINTO_BASE_CSS = `/* amber-base.css, version 1 (Pinto Notes). The default stylesheet every note's app gets.
    It is loaded before the app's own styles, inside the cascade layer "amber-base", so any style the

@@ -7,8 +7,8 @@ import SwiftData
 
 // The release gate's probe (scripts/release-gate.sh, docs/Technical/release-gate.md).
 //
-// Not part of the app: the gate copies this file into Pane/App of the checkout it builds, adds one
-// line to PaneApp.init that calls `GateProbe.attach`, and points AppNetwork at `GateNet.session`.
+// Not part of the app: the gate copies this file into PintoNotes/App of the checkout it builds, adds one
+// line to PintoNotesApp.init that calls `GateProbe.attach`, and points AppNetwork at `GateNet.session`.
 // The build is otherwise the Release build people get, team-signed, on the staging backend.
 //
 //   -gateProbe setup     signs in with the account on stdin (JSON: email, password, recovery),
@@ -521,7 +521,7 @@ final class GateProbe: NSObject {
         return first.isHidden ? 0 : first.frame.width
     }
 
-    private var editor: PaneTextView? { window?.contentView.flatMap { Self.find(PaneTextView.self, in: $0) } }
+    private var editor: PintoNotesTextView? { window?.contentView.flatMap { Self.find(PintoNotesTextView.self, in: $0) } }
 
     private var sidebarTable: NSTableView? {
         guard let split = window?.contentView.flatMap({ Self.find(NSSplitView.self, in: $0) }), let first = split.arrangedSubviews.first else { return nil }

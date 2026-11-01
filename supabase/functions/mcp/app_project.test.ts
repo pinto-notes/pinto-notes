@@ -87,7 +87,7 @@ Deno.test("a React + Tailwind project links like Vite: @/ alias, no extensions, 
 });
 
 Deno.test("the stack's bare names match the app's import map", () => {
-  const map = JSON.parse(Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/stack.json", import.meta.url))).map as Record<string, string>;
+  const map = JSON.parse(Deno.readTextFileSync(new URL("../../../PintoNotes/Resources/AppLibraries/stack.json", import.meta.url))).map as Record<string, string>;
   const ours = new Set(STACK_NAMES);
   for (const name of Object.keys(map)) if (!name.startsWith("@radix-ui/") && !/^preact(\/hooks|\/jsx-runtime)?$/.test(name)) assert(ours.has(name), `${name} is in stack.json but not in STACK_NAMES`);
   for (const name of STACK_NAMES) assert(name in map, `${name} isn't in stack.json`);

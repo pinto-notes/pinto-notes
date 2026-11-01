@@ -59,7 +59,7 @@ jobs:
             [[ -z "$suite" || "$suite" == \#* ]] && continue
             only+=(-only-testing:"$suite")
           done < .github/snapshot-suites.txt
-          xcodebuild test -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
+          xcodebuild test -project PintoNotes.xcodeproj -scheme PintoNotes -destination 'platform=macOS' \
             "${only[@]}" -derivedDataPath build/shots-dd \
             ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \

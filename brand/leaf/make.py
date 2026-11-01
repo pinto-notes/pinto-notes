@@ -144,10 +144,10 @@ def brand():
 
 
 def app():
-    dest = out("Pane/Resources/AppIcon.icon")
+    dest = out("PintoNotes/Resources/AppIcon.icon")
     shutil.rmtree(dest, ignore_errors=True)
     shutil.copytree(os.path.join(HERE, "PintoNotes.icon"), dest)
-    cat = "Pane/Resources/Assets.xcassets"
+    cat = "PintoNotes/Resources/Assets.xcassets"
     save(src("AppIcon_1024.png"), f"{cat}/AppIcon.appiconset/icon-ios.png", opaque=True)
     for pt in (16, 32, 128, 256, 512):
         for scale in (1, 2):

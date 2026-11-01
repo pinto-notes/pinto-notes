@@ -1,5 +1,5 @@
 // What a page is handed and the edits it can ask for (page_input.ts), the TypeScript twin of
-// Pane/Model/NotePage.swift that the server and the page evals use.
+// PintoNotes/Model/NotePage.swift that the server and the page evals use.
 //   cd supabase/functions/mcp && deno test -A page_input.test.ts
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
 import { applyPageOp, noteForPage } from "./page_input.ts";

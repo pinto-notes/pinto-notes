@@ -25,7 +25,7 @@ export const isTest = (path: string) => /^\/tests?\/.*\.test\.(tsx|ts|jsx|js)$/.
 export const BARE_IMPORTS = [
   "preact", "preact/hooks", "preact/jsx-runtime", "htm", "amber", "amber-ui", "amber-router",
   "chart.js", "d3", "three", "tone", "dayjs", "marked", "dompurify", "animejs", "canvas-confetti", "topojson-client", "world-atlas",
-  // The React stack (Pane/Resources/AppLibraries/stack.json; app_project.test.ts keeps this in step).
+  // The React stack (PintoNotes/Resources/AppLibraries/stack.json; app_project.test.ts keeps this in step).
   ...STACK_NAMES,
 ];
 

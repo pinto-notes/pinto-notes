@@ -50,8 +50,8 @@ for (let i = 0; i < 240; i++) {
   try { if ((await fetch(`${origin}/__ready`)).ok) break; } catch { /* starting */ }
   await new Promise((r) => setTimeout(r, 250));
 }
-const paneToken = await Deno.readTextFile(`${work}/token.txt`);
-secrets.push(paneToken);
+const pintoToken = await Deno.readTextFile(`${work}/token.txt`);
+secrets.push(pintoToken);
 const settings = async () => (await (await fetch(`${origin}/__app/connections`)).json()) as { id: string; title: string; access: string; revoked: boolean }[];
 const showSettings = async () => {
   const list = (await settings()).filter((c) => !c.revoked);
@@ -202,10 +202,10 @@ const ok = await amber("search 'Lisbon'");
 check(/Travel\/Trip.md/.test(ok.out), "and amber works");
 
 step("CI: AMBER_TOKEN, or amber login --token");
-const env = await amber("status", { env: { AMBER_TOKEN: paneToken }, show: "AMBER_TOKEN=<access token from Settings› Connect an AI> amber status" });
+const env = await amber("status", { env: { AMBER_TOKEN: pintoToken }, show: "AMBER_TOKEN=<access token from Settings› Connect an AI> amber status" });
 check(/AMBER_TOKEN/.test(env.out), "AMBER_TOKEN works without signing in");
 const ci = { XDG_CONFIG_HOME: `${work}/config-ci`, AMBER_KEYCHAIN_SERVICE: `${SERVICE}-ci` };
-const tl = await amber("login --token", { stdin: paneToken, env: ci, show: "amber login --token < token.txt" });
+const tl = await amber("login --token", { stdin: pintoToken, env: ci, show: "amber login --token < token.txt" });
 check(tl.code === 0, "login --token saves a pasted token");
 await amber("logout", { env: ci });
 

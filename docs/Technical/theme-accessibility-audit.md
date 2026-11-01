@@ -1,8 +1,8 @@
 # Theme accessibility audit, 1 November 2026
 
-All six themes (Default, Paper, Sepia, Slate, Forest, High contrast), light and dark, with the theme's own accent and each of the five picker accents (blue, green, purple, red, graphite). Ratios are WCAG 2.2 contrast ratios computed from the hex values in `Pane/Editor/Theme.swift` and `Pane/Editor/Palette.swift`, not from pictures. The shots were used only to see where each pair is drawn.
+All six themes (Default, Paper, Sepia, Slate, Forest, High contrast), light and dark, with the theme's own accent and each of the five picker accents (blue, green, purple, red, graphite). Ratios are WCAG 2.2 contrast ratios computed from the hex values in `PintoNotes/Editor/Theme.swift` and `PintoNotes/Editor/Palette.swift`, not from pictures. The shots were used only to see where each pair is drawn.
 
-`PaneTests/ThemeTests.swift` now checks the whole matrix (`everyThemeReads`, `highContrastIsAAA`), so nothing here needs to be redone by hand. On the old values those tests fail on 32 pairs. On the new values they pass.
+`PintoNotesTests/ThemeTests.swift` now checks the whole matrix (`everyThemeReads`, `highContrastIsAAA`), so nothing here needs to be redone by hand. On the old values those tests fail on 32 pairs. On the new values they pass.
 
 ## What was checked
 
@@ -103,7 +103,7 @@ Simulated with the Machado 2009 matrices at full strength.
 
 ## The picker
 
-Read in the code (`Pane/Views/AppearanceSettings.swift`):
+Read in the code (`PintoNotes/Views/AppearanceSettings.swift`):
 
 - Every theme tile and accent dot is a `Button`, labelled with its name ("Sepia", "Blue", "The theme's own"). The chosen one gets the `isSelected` trait. Each dot has a tooltip on the Mac.
 - On the Mac they are plain buttons, so Full Keyboard Access reaches them with Tab. With the default keyboard setting, Tab skips them, as it does for every plain button on the Mac.

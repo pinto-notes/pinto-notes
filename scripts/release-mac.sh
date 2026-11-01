@@ -7,7 +7,7 @@
 # End the notes with a line thanking this release's contributors by handle ("Thanks to @arnavtambe");
 # docs/RELEASING.md says how to list them.
 #
-# From a clean checkout of main (../AmberNotes-install): archive the PaneDirect target,
+# From a clean checkout of main (../AmberNotes-install): archive the PintoNotesDirect target,
 # export with Developer ID, notarize and staple the app, build the DMG, notarize and staple
 # it, sign it for Sparkle (EdDSA key in the login Keychain), write the appcast and the
 # download page's release.json, deploy the site, and tag the commit.
@@ -88,7 +88,7 @@ COMMIT=$(git -C "$CLEAN" rev-parse --short HEAD)
 # worktree may point at staging or a local stack.
 echo "→ Archive $VERSION ($BUILD) from $COMMIT"
 rm -rf "$DIST" && mkdir -p "$DIST"
-xcodebuild -project "$CLEAN/Pane.xcodeproj" -scheme PintoNotesDirect -configuration Release \
+xcodebuild -project "$CLEAN/PintoNotes.xcodeproj" -scheme PintoNotesDirect -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath "$DD" -archivePath "$DIST/AmberNotes.xcarchive" \
   -allowProvisioningUpdates "${auth[@]}" "${beta[@]}" DEVELOPMENT_TEAM=4UM3XVUN9Y CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
   MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" archive | grep -E ": error: |\*\* ARCHIVE" || true

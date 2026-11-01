@@ -3,7 +3,7 @@
 # it at once. Records each simulator and puts them side by side.
 #   scripts/collab-demo.sh [out dir]          (build first: see the xcodebuild line below)
 # Output: <out>/emil.mp4, <out>/sara.mp4, <out>/side-by-side.mp4, <out>/relay.log
-# Needs Automerge in the app, which it doesn't link for now: see Pane/Collab/CollabText.swift.
+# Needs Automerge in the app, which it doesn't link for now: see PintoNotes/Collab/CollabText.swift.
 set -e
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -32,7 +32,7 @@ done
 
 if [[ -z "$SKIP_BUILD" ]]; then
   xcodegen generate >/dev/null
-  nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$A" -derivedDataPath build/dd \
+  nice -n 10 xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -destination "id=$A" -derivedDataPath build/dd \
     CODE_SIGNING_ALLOWED=NO build > "$OUT/build.log" 2>&1 || { grep -E "error:" "$OUT/build.log" | sort -u | head; exit 1; }
 fi
 APP=$(ls -d build/dd/Build/Products/Debug-iphonesimulator/Pane.app)

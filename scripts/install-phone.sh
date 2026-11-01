@@ -32,7 +32,7 @@ echo "Installing on $device"
 app=$DD/Build/Products/Release-iphoneos/Pane.app
 rm -rf "$app" # never install a stale build
 xcodegen generate >/dev/null
-xcodebuild -project Pane.xcodeproj -scheme Pane -configuration Release \
+xcodebuild -project PintoNotes.xcodeproj -scheme PintoNotes -configuration Release \
   -destination "platform=iOS,id=$udid" -derivedDataPath $DD -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
   build | grep -E "error|BUILD" || true
 

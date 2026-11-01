@@ -1,4 +1,4 @@
-// Wiki links by the app's rules (Pane/Model/WikiLinks.swift, PaneTests/WikiLinksTests.swift).
+// Wiki links by the app's rules (PintoNotes/Model/WikiLinks.swift, PintoNotesTests/WikiLinksTests.swift).
 //   cd supabase/functions/mcp && deno test -A wikilinks.test.ts
 import { assertEquals } from "jsr:@std/assert@1";
 import { followRename, key, linkLines, links, nameOf, retarget, WikiIndex } from "./wikilinks.ts";

@@ -4,10 +4,10 @@ import { describe, expect, it } from "vitest";
 import { COVERS } from "./template-covers";
 import { templates } from "./templates";
 
-/// The Mac app's template viewer reads its own copy of this list (Pane/Resources/Templates, made by
+/// The Mac app's template viewer reads its own copy of this list (PintoNotes/Resources/Templates, made by
 /// scripts/template-catalog.py). A template added here and not there fails until the script runs.
 describe("the app's copy of the templates", () => {
-  const dir = path.join(process.cwd(), "../Pane/Resources/Templates");
+  const dir = path.join(process.cwd(), "../PintoNotes/Resources/Templates");
   const copy = JSON.parse(readFileSync(path.join(dir, "catalog.json"), "utf8")) as { slug: string; title: string; tagline: string; ground: string; ask: string; example: string; app: boolean }[];
 
   it("has every template, in the gallery's order, with its words", () => {

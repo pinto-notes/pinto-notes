@@ -1,17 +1,17 @@
 # Snapshot suites the "snapshots" label runs on a pull request (one per line). Each writes PNGs
 # to $AMBER_HIG_SHOTS offscreen, or has the workflow's watcher capture its window; the run keeps
 # them as an artifact.
-PaneTests/HoverSnapshots
-PaneTests/ChromeSnapshots
-PaneTests/HeardFromSnapshots
-PaneTests/PasswordFieldSnapshots
-PaneTests/KeyGateCardSnapshotTests
+PintoNotesTests/HoverSnapshots
+PintoNotesTests/ChromeSnapshots
+PintoNotesTests/HeardFromSnapshots
+PintoNotesTests/PasswordFieldSnapshots
+PintoNotesTests/KeyGateCardSnapshotTests
 # Window-server captures gated on AMBER_DEMO_FRAMES (#257): never run on a developer's Mac.
-PaneTests/TipSnapshots
-PaneTests/AIEditSnapshots
-PaneTests/MacStoreShots
-PaneTests/WarmGreySnapshots
-PaneTests/TopBarShots
-PaneTests/LinkCardShots
-PaneTests/PictureShots
-PaneTests/TableShots
+PintoNotesTests/TipSnapshots
+PintoNotesTests/AIEditSnapshots
+PintoNotesTests/MacStoreShots
+PintoNotesTests/WarmGreySnapshots
+PintoNotesTests/TopBarShots
+PintoNotesTests/LinkCardShots
+PintoNotesTests/PictureShots
+PintoNotesTests/TableShots
