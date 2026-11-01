@@ -164,8 +164,13 @@ final class EditorController {
         }
     }
 
+    /// The table cell being edited, if one is: editing commands act on it instead of the note.
+    @ObservationIgnored var cell: CellHost?
+    /// What editing commands act on: the cell being edited, or the note.
+    var host: TextHost? { cell ?? target }
+
     func perform(_ make: (String, NSRange) -> TextEdit?) {
-        guard let t = target, !readOnly else { return }
+        guard let t = host, !readOnly else { return }
         if let edit = make(t.currentText, t.currentSelection) { t.apply(edit) }
         if formatPanelShown { refreshFormat() }
     }
@@ -190,19 +195,65 @@ final class EditorController {
         guard formatPanelShown else { return }
         formatPanelShown = false
         target?.formatPanelChanged(shown: false)
-        if keyboard { target?.focusEditor() }
+        // In a cell the cell keeps the keyboard; the note mustn't take it.
+        if keyboard, cell == nil { target?.focusEditor() }
+    }
+
+    // MARK: The Table panel (iPhone)
+
+    /// The table's panel is up in the keyboard's place: its rows and columns, like the Format panel.
+    private(set) var tablePanelShown = false
+
+    func showTablePanel() {
+        guard table != nil, !readOnly else { return }
+        if formatPanelShown { formatPanelShown = false; target?.formatPanelChanged(shown: false) }
+        tablePanelShown = true
+        target?.tablePanelChanged(shown: true)
+    }
+
+    func closeTablePanel() {
+        // Always asks the editor: the panel can still be up after the flag went (a cell's focus
+        // flickering as the panel comes in), and Close has to take it down then too.
+        tablePanelShown = false
+        target?.tablePanelChanged(shown: false)
+    }
+
+    /// One of the Table panel's actions; the panel goes, so you can type in what it made.
+    func runTablePanel(_ item: TableMenu.Item) {
+        closeTablePanel()
+        item.run()
+    }
+
+    /// The Checklist button in a table: the cell's column becomes ticks, or plain text again.
+    /// A markdown cell can't hold a checklist; a Yes/No column is one (its cells tick with a tap).
+    func toggleTickColumn() {
+        guard let t = target, let at = table, !readOnly else { return }
+        let all = GridTable.find(in: t.currentText)
+        guard at.grid < all.count else { return }
+        var g = all[at.grid]
+        let c = at.cell.column
+        var types = (0..<g.columns).map { g.type($0) }
+        types[c] = types[c].isYesNo ? .text : .choice(["Yes", "No"])
+        g.types = types
+        t.apply(TextEdit(range: all[at.grid].range, replacement: g.markdown, caret: -1))
+        // The header stays text: the keyboard goes there, out of a cell that's now a tick.
+        let next = GridCell(row: 0, column: c)
+        table = TableContext(grid: at.grid, cell: next)
+        t.focusGrid(at.grid, cell: next)
     }
 
     func refreshFormat() {
-        guard let t = target else { return }
-        let now = FormatState.at(t.currentText, selection: t.currentSelection)
+        guard let t = host else { return }
+        var now = FormatState.at(t.currentText, selection: t.currentSelection)
+        now.inCell = cell != nil
         if now != format { format = now }
     }
 
     /// One of the panel's controls, on the selection or the caret's line, as Notes does it.
     func apply(_ control: FormatControl) {
-        guard let t = target, !readOnly else { return }
-        let state = FormatState.at(t.currentText, selection: t.currentSelection)
+        guard let t = host, !readOnly else { return }
+        var state = FormatState.at(t.currentText, selection: t.currentSelection)
+        state.inCell = cell != nil
         guard state.isEnabled(control) else { return }
         switch control {
         case .title, .heading, .subheading, .body:
@@ -241,18 +292,22 @@ final class EditorController {
     func underline() { perform { ListEditing.underline(in: $0, selection: $1) } }
     func strikethrough() { perform { ListEditing.wrap(in: $0, selection: $1, with: "~~") } }
     func code() { perform { ListEditing.wrap(in: $0, selection: $1, with: "`") } }
-    func checklist() { perform { ListEditing.toggleChecklist(in: $0, selection: $1) } }
-    func heading(_ level: Int) { perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
+    func checklist() {
+        if cell != nil { toggleTickColumn(); return }
+        perform { ListEditing.toggleChecklist(in: $0, selection: $1) }
+    }
+    func heading(_ level: Int) { guard cell == nil else { return }; perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
 
-    func bulletList() { perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
-    func dashedList() { perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .dashed) } }
-    func numberedList() { perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .numbered) } }
-    func blockQuote() { perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .quote) } }
+    func bulletList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
+    func dashedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .dashed) } }
+    func numberedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .numbered) } }
+    func blockQuote() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .quote) } }
 
     /// With lines selected that have tabs or pipes between words, turns them into a table;
     /// otherwise inserts an empty 2×2 table and puts the keyboard in its first cell.
     func insertTable() {
-        guard let t = target, !readOnly else { return }
+        // No table in a table's cell.
+        guard let t = target, !readOnly, cell == nil else { return }
         if let edit = TableText.edit(in: t.currentText, selection: t.currentSelection) {
             t.apply(edit)
         } else {
@@ -370,7 +425,14 @@ final class EditorController {
 
     /// A cell of a table took the keyboard.
     func tableFocused(grid: Int, cell: GridCell) {
-        if table?.grid != grid || table?.cell != cell { table = TableContext(grid: grid, cell: cell) }
+        if table?.grid != grid || table?.cell != cell {
+            // Another cell: a panel up for the last one goes, and the keyboard is back.
+            if table != nil {
+                if formatPanelShown { formatPanelShown = false; target?.formatPanelChanged(shown: false) }
+                if tablePanelShown { tablePanelShown = false; target?.tablePanelChanged(shown: false) }
+            }
+            table = TableContext(grid: grid, cell: cell)
+        }
         target?.gridFieldFocused()
     }
 
@@ -378,6 +440,8 @@ final class EditorController {
     func leftTable(_ grid: Int? = nil) {
         guard let t = table, grid == nil || t.grid == grid else { return }
         table = nil
+        cell = nil
+        if tablePanelShown { tablePanelShown = false; target?.tablePanelChanged(shown: false) }
     }
 
     /// A row or column handle was tapped: its row or column is picked and its menu shows.
@@ -470,8 +534,37 @@ struct EditorNotice: Equatable, Identifiable {
     var canUndo = false
 }
 
+/// Text the editing commands act on: the note, or the table cell being edited.
 @MainActor
-protocol EditorTarget: AnyObject {
+protocol TextHost: AnyObject {
+    var currentText: String { get }
+    var currentSelection: NSRange { get }
+    func apply(_ edit: TextEdit)
+}
+
+/// The table cell being edited, for the editing commands (bold, a link, the Format panel): its
+/// text, its selection, and a way to change them (set by the table while a cell has the keyboard).
+@MainActor
+final class CellHost: TextHost {
+    let grid: Int
+    let cell: GridCell
+    private let read: () -> String
+    private let selected: () -> NSRange
+    private let write: (TextEdit) -> Void
+    init(grid: Int, cell: GridCell, read: @escaping () -> String, selected: @escaping () -> NSRange, write: @escaping (TextEdit) -> Void) {
+        self.grid = grid
+        self.cell = cell
+        self.read = read
+        self.selected = selected
+        self.write = write
+    }
+    var currentText: String { read() }
+    var currentSelection: NSRange { selected() }
+    func apply(_ edit: TextEdit) { write(edit) }
+}
+
+@MainActor
+protocol EditorTarget: TextHost {
     var currentText: String { get }
     var currentSelection: NSRange { get }
     func apply(_ edit: TextEdit)
@@ -509,9 +602,12 @@ protocol EditorTarget: AnyObject {
     func showTableMenu(_ menu: TableMenu)
     /// The Format panel came up or went (iPhone: it takes the keyboard's place).
     func formatPanelChanged(shown: Bool)
+    /// The Table panel came up or went (iPhone: it takes the cell's keyboard's place).
+    func tablePanelChanged(shown: Bool)
 }
 
 extension EditorTarget {
+    func tablePanelChanged(shown: Bool) {}
     func deleteGrid(_ index: Int) {}
     func undoLastEdit() {}
     func undoStep(redo: Bool) {}

@@ -166,6 +166,82 @@ private struct Segment: View {
     }
 }
 
+/// The table's own panel, in the keyboard's place like Format (Emil, 1 November 2026: "the table
+/// formatting panel should be like the Aa formatting sheet"): "Table" and a close button, then
+/// pills of two: rows, columns, deleting them, and Delete Table. What you add most comes first.
+/// A choice closes the panel, so the keyboard is back for what it made.
+struct TablePanel: View {
+    let controller: EditorController
+
+    var body: some View {
+        let menu = controller.currentTableMenu
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Table")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Color.formatInk)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button { controller.closeTablePanel() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.formatInk)
+                        .frame(width: FormatPanel.closeSize, height: FormatPanel.closeSize)
+                        .background(Color.formatPill, in: Circle())
+                        .padding(4)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(PressScale())
+                .accessibilityLabel("Close")
+                .accessibilityIdentifier("table.close")
+                .padding(-4)
+            }
+            .frame(height: FormatPanel.closeSize)
+            ForEach(Self.rows, id: \.self) { row in
+                HStack(spacing: FormatPanel.gap) {
+                    ForEach(row, id: \.self) { title in
+                        if let item = menu?.item(title) { TablePill(item: item) { controller.runTablePanel(item) } }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, FormatPanel.inset)
+        .padding(.top, FormatPanel.inset)
+        .padding(.bottom, 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("table.panel")
+    }
+
+    static let rows: [[String]] = [
+        ["Add Row Below", "Add Row Above"],
+        ["Add Column After", "Add Column Before"],
+        ["Delete Row", "Delete Column"],
+        ["Delete Table"],
+    ]
+}
+
+/// One of the Table panel's actions: its symbol and its name on a pill, red when it deletes.
+private struct TablePill: View {
+    let item: TableMenu.Item
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: item.systemImage).font(.system(size: 17, weight: .medium))
+                Text(item.title).font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(!item.enabled ? Color.formatOff : item.destructive ? Color.red : Color.formatInk)
+            .frame(maxWidth: .infinity, minHeight: FormatPanel.pillHeight)
+            .background(Color.formatPill, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressScale())
+        .disabled(!item.enabled)
+        .accessibilityLabel(item.title)
+    }
+}
+
 /// How the panel and the keyboard change places. Normally they trade places on the keyboard's own
 /// curve and timing (the system's keyboard move); with Reduce Motion one fades into the other.
 enum FormatPanelMotion: Equatable {
@@ -183,10 +259,11 @@ enum FormatPanelMotion: Equatable {
 /// Hosts the panel as the text view's input view: it takes the keyboard's place, so the caret
 /// and the selection stay in the text while it's up.
 final class FormatPanelHost: UIInputView {
-    private let host: UIHostingController<FormatPanel>
+    private let host: UIHostingController<AnyView>
 
-    init(controller: EditorController) {
-        host = UIHostingController(rootView: FormatPanel(controller: controller))
+    /// `table`: the Table panel instead of Format.
+    init(controller: EditorController, table: Bool = false) {
+        host = UIHostingController(rootView: table ? AnyView(TablePanel(controller: controller)) : AnyView(FormatPanel(controller: controller)))
         super.init(frame: CGRect(x: 0, y: 0, width: 390, height: 300), inputViewStyle: .default)
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
         backgroundColor = .clear

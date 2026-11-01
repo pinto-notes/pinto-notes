@@ -1098,6 +1098,40 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func gridFieldFocused() { giveTableBar(tries: 20) }
 
+    /// The Table panel, in the cell's keyboard's place.
+    private var tablePanel: FormatPanelHost?
+
+    func tablePanelChanged(shown: Bool) {
+        guard let controller else { return }
+        if shown, tablePanel == nil { tablePanel = FormatPanelHost(controller: controller, table: true) }
+        cellPanel(shown ? tablePanel : nil)
+    }
+
+    /// A panel is up in a cell's keyboard's place.
+    private var cellPanelUp = false
+
+    /// Puts `panel` in the place of the cell's keyboard (nil: the keyboard and the table bar back).
+    /// The cell keeps its caret and selection meanwhile, as the note does under Format.
+    private func cellPanel(_ panel: UIView?) {
+        // The field the panel went on is the one it comes off, even if the cell's focus moved
+        // for a moment meanwhile (the panel stayed up with Close doing nothing).
+        let found = gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first
+        if panel == nil, let old = panelField, old !== found {
+            old.inputView = nil
+            old.inputAccessoryView = tableBar
+            old.reloadInputViews()
+        }
+        guard let field = found else { cellPanelUp = false; panelField = nil; return }
+        cellPanelUp = panel != nil
+        panelField = panel == nil ? nil : field
+        field.inputView = panel
+        // An empty bar over the panel: with none, the note's own bar showed there.
+        field.inputAccessoryView = panel == nil ? tableBar : noBar
+        field.reloadInputViews()
+    }
+    private weak var panelField: UITextField?
+    private lazy var noBar = UIView(frame: .zero)
+
     /// The cell's field is made as it takes the keyboard, a turn or more after the table asks for
     /// it: the bar goes on it once it has the keyboard. A row or column added or deleted makes the
     /// field again for the same cell, so the editor asks again then (focusGrid).
@@ -1106,7 +1140,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             guard let self else { return }
             // Keeps looking for the whole second: the old cell's field can still have the keyboard
             // on the first looks, the new one after.
-            if let field = self.gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first,
+            if !self.cellPanelUp, let field = self.gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first,
                field.inputAccessoryView !== self.tableBar {
                 field.inputAccessoryView = self.tableBar
                 field.reloadInputViews()
@@ -1203,6 +1237,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// selection, and the bar above the keyboard goes while it's up. Closed, the keyboard is back.
     func formatPanelChanged(shown: Bool) {
         guard let controller else { return }
+        // In a table cell the panel takes the cell's keyboard's place, not the note's.
+        if controller.cell != nil || cellPanelUp {
+            cellPanel(shown ? (formatPanel ?? { formatPanel = FormatPanelHost(controller: controller); return formatPanel! }()) : nil)
+            return
+        }
         if shown {
             if formatPanel == nil { formatPanel = FormatPanelHost(controller: controller) }
             if inputAccessoryView !== nil { keyboardBar = inputAccessoryView }

@@ -47,19 +47,31 @@ final class TableEditingUITests: XCTestCase {
         let onboarding = app.buttons["Continue"].firstMatch
         if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
 
-        // The Table button over the keyboard is the table's menu.
+        // The Table button over the keyboard opens the Table panel in the keyboard's place.
         let tableMenu = element("editor.tableMenu")
         XCTAssertTrue(tableMenu.waitForExistence(timeout: 5), "the table bar is over the keyboard")
         pause()
         tableMenu.tap()
+        XCTAssertTrue(element("table.panel").waitForExistence(timeout: 3), "the Table panel")
         let delete = app.buttons["Delete Table"].firstMatch
-        XCTAssertTrue(delete.waitForExistence(timeout: 3), "the menu has Delete Table")
+        XCTAssertTrue(delete.waitForExistence(timeout: 3), "the panel has Delete Table")
         for t in ["Add Row Above", "Add Row Below", "Add Column Before", "Add Column After", "Delete Row", "Delete Column"] {
-            XCTAssertTrue(app.buttons[t].firstMatch.exists, "the menu has \(t)")
+            XCTAssertTrue(app.buttons[t].firstMatch.exists, "the panel has \(t)")
         }
         pause()
         shot("table-menu")
-        closeMenu()
+        element("table.close").tap()
+        pause()
+        XCTAssertFalse(element("table.panel").exists, "Close takes the panel down")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3), "the keyboard is back")
+        XCTAssertTrue(element("editor.tableMenu").waitForExistence(timeout: 3), "the table bar is back")
+        // The bar over a panel is nothing: the note's own bar (its Attach button) showed there.
+        element("editor.tableMenu").tap()
+        XCTAssertTrue(element("table.panel").waitForExistence(timeout: 3))
+        XCTAssertFalse(element("editor.attach").exists, "no note bar over the Table panel")
+        element("table.close").tap()
+        pause()
+        XCTAssertFalse(element("table.panel").exists, "Close takes the panel down the second time too")
 
         // A tap at the far edge of the row handle's 44-point target, over the cell's text, picks the row.
         let row = element("grid.handle.row")
@@ -117,6 +129,69 @@ final class TableEditingUITests: XCTestCase {
         XCTAssertEqual(cells(), tables, "Undo brings the table back")
         pause()
         shot("table-restored")
+    }
+
+    /// The writing tools in a table (Emil, 1 November 2026): Format on the cell (bold, no headings),
+    /// the Table panel in the keyboard's place with its rows and columns, and Checklist making the
+    /// column ticks you tap.
+    func testCellTools() throws {
+        XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15), "the note opens")
+        pause(1.5)
+        element("grid.2.1").tap()
+        let onboarding = app.buttons["Continue"].firstMatch
+        if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
+        pause()
+        for id in ["editor.format", "editor.checklist", "editor.link", "editor.tableMenu"] {
+            XCTAssertTrue(element(id).waitForExistence(timeout: 3), "\(id) is over the cell's keyboard")
+        }
+        shot("tools-1-bar")
+
+        // Format: on the cell, only what a cell can hold.
+        element("editor.format").tap()
+        XCTAssertTrue(element("format.panel").waitForExistence(timeout: 3), "the Format panel in the keyboard's place")
+        XCTAssertFalse(element("format.heading").isEnabled, "no headings in a cell")
+        XCTAssertFalse(element("format.bulleted").isEnabled, "no lists in a cell")
+        XCTAssertTrue(element("format.bold").isEnabled)
+        pause()
+        shot("tools-2-format")
+        element("format.bold").tap()
+        pause()
+        XCTAssertTrue(element("format.bold").isSelected, "the word at the caret is bold")
+        element("format.close").tap()
+        XCTAssertTrue(element("editor.tableMenu").waitForExistence(timeout: 3), "the keyboard and the table bar are back")
+
+        // The Table panel: Add Row Below, and the keyboard is in the new row.
+        element("editor.tableMenu").tap()
+        XCTAssertTrue(element("table.panel").waitForExistence(timeout: 3), "the Table panel in the keyboard's place")
+        pause()
+        shot("tools-3-table-panel")
+        app.buttons["Add Row Below"].firstMatch.tap()
+        pause()
+        XCTAssertFalse(element("table.panel").exists, "the panel goes after a choice")
+        app.typeText("Mon")
+        pause()
+        func said(_ e: XCUIElement) -> String { (e.value as? String ?? "") + " " + e.label }
+        XCTAssertTrue(said(element("grid.3.0")).contains("Mon"), "typing goes into the new row: \(said(element("grid.3.0")))")
+
+        // A Paid column of ticks: add a column, name it, Checklist.
+        element("editor.tableMenu").tap()
+        XCTAssertTrue(element("table.panel").waitForExistence(timeout: 3))
+        app.buttons["Add Column After"].firstMatch.tap()
+        pause()
+        app.typeText("Paid")
+        pause(0.5)
+        element("editor.checklist").tap()
+        pause()
+        let tick = element("grid.1.1")
+        XCTAssertTrue(tick.waitForExistence(timeout: 3))
+        XCTAssertTrue(tick.label.lowercased().contains("empty"), "an empty tick: \(tick.label)")
+        tick.tap()
+        pause()
+        XCTAssertTrue(element("grid.1.1").label.contains("Yes"), "ticked with a tap: \(element("grid.1.1").label)")
+        shot("tools-4-ticks")
+        element("editor.done").tap()
+        pause()
+        shot("tools-5-rest")
     }
 
     /// Hide keyboard over a cell puts the keyboard away, like Notes. It moved the caret to the end of

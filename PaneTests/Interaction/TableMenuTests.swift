@@ -216,6 +216,43 @@ import AppKit
         #expect(await h.until { h.gridCount == 2 })
     }
 
+    /// In a cell the editing commands act on the cell (Emil, 1 November 2026: no formatting in a
+    /// table was "a real miss"): Bold wraps the selected words in the cell, Link writes a link
+    /// there, a heading or a list does nothing (a cell can't hold one), and Checklist turns the
+    /// column into ticks, the keyboard moving to its header.
+    @Test func formattingInACell() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await enter(h, row: 1)
+        #expect(await h.until { h.controller.cell != nil }, "the cell is what the commands act on")
+        // Into the second column: "Bold".
+        await h.press(EditorHarness.tab)
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: 1, column: 1) })
+        await h.settle(0.2)
+        CellField.select(NSRange(location: 0, length: 4))
+        #expect(CellField.selection() == NSRange(location: 0, length: 4), "the cell's field says what's selected")
+        h.controller.bold()
+        #expect(await h.until { h.text.contains("| ⌘B | **Bold** |") }, "bold in the cell: \(h.text.debugDescription)")
+        #expect(h.gridCount == 1, "still a table")
+
+        let before = h.text
+        h.controller.heading(2)
+        h.controller.bulletList()
+        await h.settle(0.2)
+        #expect(h.text == before, "no heading or list in a cell")
+        var state = FormatState.at("# Bold", selection: NSRange(location: 2, length: 0))
+        state.inCell = true
+        #expect(state.isOn(.body) && !state.isOn(.title) && !state.isOn(.heading), "a cell's style reads Body, not the note line's")
+        #expect(!state.isEnabled(.heading) && !state.isEnabled(.bulleted) && state.isEnabled(.bold), "the Format panel offers what a cell can hold")
+
+        h.controller.checklist()
+        #expect(await h.until { h.text.contains("Does=choice Yes|No") }, "the column is ticks: \(h.text.debugDescription)")
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: 0, column: 1) }, "the keyboard in its header")
+        #expect(h.gridCount == 1)
+        h.controller.checklist()
+        #expect(await h.until { !h.text.contains("pane-table") }, "and plain again: \(h.text.debugDescription)")
+    }
+
     /// The add bars show while a cell is being edited, a click on one adds a row or a column with
     /// the keyboard in it, and a click in the strips around the table off the bars goes to the text.
     @Test func theAddBarsAddARowAndAColumn() async throws {

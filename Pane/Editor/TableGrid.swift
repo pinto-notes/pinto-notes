@@ -559,7 +559,21 @@ struct TableGridView: View {
             }
             if new == wanted { wanted = nil }
             if let new, new != editing { editing = new }
-            if let new { controller?.tableFocused(grid: table.index, cell: new) }
+            if let new {
+                controller?.tableFocused(grid: table.index, cell: new)
+                // Editing commands (bold, a link, the Format panel) act on this cell now.
+                let binding = cellBinding(new.row, new.column)
+                controller?.cell = CellHost(grid: table.index, cell: new, read: { binding.wrappedValue }, selected: {
+                    CellField.selection() ?? NSRange(location: (binding.wrappedValue as NSString).length, length: 0)
+                }, write: { edit in
+                    let now = binding.wrappedValue as NSString
+                    guard NSMaxRange(edit.range) <= now.length else { return }
+                    binding.wrappedValue = now.replacingCharacters(in: edit.range, with: edit.replacement)
+                    let after = edit.selection ?? NSRange(location: max(edit.caret, 0), length: 0)
+                    // Once the field shows the new text.
+                    DispatchQueue.main.async { CellField.select(after) }
+                })
+            }
             guard caretToEnd else { return }
             caretToEnd = false
             let caret = caretAt
@@ -828,7 +842,7 @@ struct TableGridView: View {
             // Only the cell being edited is a text field; the rest are plain text,
             // which keeps big tables quick to open. A click edits, caret where you clicked.
             let value = r < draft.rows.count && c < draft.rows[r].count ? draft.rows[r][c] : ""
-            Text(value.isEmpty ? " " : value)
+            Text(value.isEmpty ? AttributedString(" ") : CellText.attributed(value))
                 .font(.system(size: EditorMetrics.body))
                 .monospacedDigit()
                 .lineLimit(1)
@@ -987,6 +1001,47 @@ struct TableGridView: View {
         go(GridCell(row: f.row + 1, column: f.column))
     }
 
+}
+
+/// The cell being edited's own text field: its selection, read and set (the editing commands
+/// act on it; see CellHost).
+@MainActor
+enum CellField {
+    #if os(iOS)
+    private static func field() -> UITextField? {
+        func find(_ v: UIView) -> UITextField? {
+            if let f = v as? UITextField, f.isFirstResponder { return f }
+            for s in v.subviews { if let f = find(s) { return f } }
+            return nil
+        }
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        return windows.lazy.compactMap(find).first
+    }
+
+    static func selection() -> NSRange? {
+        guard let f = field(), let r = f.selectedTextRange else { return nil }
+        let start = f.offset(from: f.beginningOfDocument, to: r.start)
+        return NSRange(location: start, length: f.offset(from: r.start, to: r.end))
+    }
+
+    static func select(_ range: NSRange) {
+        guard let f = field(), let a = f.position(from: f.beginningOfDocument, offset: range.location),
+              let b = f.position(from: a, offset: range.length) else { return }
+        f.selectedTextRange = f.textRange(from: a, to: b)
+    }
+    #else
+    private static func editor() -> NSTextView? {
+        let windows = [NSApp.keyWindow].compactMap { $0 } + NSApp.windows
+        return windows.lazy.compactMap { $0.firstResponder as? NSTextView }.first { $0.isFieldEditor }
+    }
+
+    static func selection() -> NSRange? { editor()?.selectedRange() }
+
+    static func select(_ range: NSRange) {
+        guard let e = editor(), NSMaxRange(range) <= (e.string as NSString).length else { return }
+        e.setSelectedRange(range)
+    }
+    #endif
 }
 
 /// Development traces for the QA harness; compiled out of real builds.

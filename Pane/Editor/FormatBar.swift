@@ -36,18 +36,27 @@ struct FormatBar: View {
         }
     }
 
-    /// In a table the Table button is the table's menu: add or delete a row or column, or Delete
-    /// Table, like Notes.
+    /// In a table: Format (bold, italic, underline, strikethrough in the cell), Checklist (the
+    /// column becomes ticks), a link, and the Table button, in the accent with a "more" badge,
+    /// which opens the Table panel (Emil, 1 November 2026: the writing tools were missing in a
+    /// table, and its menu should be a panel like Format).
     private var tableTools: some View {
-        Menu {
-            if let menu = controller.currentTableMenu { TableMenuItems(menu: menu) }
-        } label: {
-            // In a table the Table button is in the accent, with a "more" badge: it's the table's
-            // menu now, not Insert Table (Emil, 1 November 2026).
-            BarIcon(systemName: "tablecells.badge.ellipsis", style: AnyShapeStyle(Color.accentColor))
+        HStack(spacing: 8) {
+            Button(action: controller.showFormatPanel) { BarIcon(systemName: "textformat") }
+                .buttonStyle(PressScale())
+                .accessibilityLabel("Format")
+                .accessibilityIdentifier("editor.format")
+            BarButton("Checklist", "checklist", action: controller.checklist)
+                .accessibilityIdentifier("editor.checklist")
+            BarButton("Link", "link", action: controller.insertLink)
+                .accessibilityIdentifier("editor.link")
+            Button(action: controller.showTablePanel) {
+                BarIcon(systemName: "tablecells.badge.ellipsis", style: AnyShapeStyle(Color.accentColor))
+            }
+            .buttonStyle(PressScale())
+            .accessibilityLabel("Table")
+            .accessibilityIdentifier("editor.tableMenu")
         }
-        .accessibilityLabel("Table")
-        .accessibilityIdentifier("editor.tableMenu")
         .padding(.horizontal, Self.inset * 4)
         .padding(.vertical, Self.inset)
         .glassEffect(.regular.interactive(), in: .capsule)
