@@ -89,10 +89,12 @@ enum Theme: String, CaseIterable, Identifiable, Sendable {
                              selection: Hex(0xDAE3D4, 0x2A342A), ink: Hex(0x1E261F, 0xE2E8E0), muted: Hex(0x55605A, 0xA0AC9F),
                              line: Hex(0xDDE3D9, 0x2A322A), soft: Hex(0xE9EDE6, 0x232A23), card: Hex(0xFFFFFF, 0x1C221C),
                              code: Hex(0xEDF0EA, 0x1F251F), panel: Hex(0xF5F7F3, 0x191E19), accent: Hex(0x2B7A4B, 0x6CC690))
-        case .contrast: Colors(page: Hex(0xFFFFFF, 0x000000), sidebar: Hex(0xEDEDED, 0x121212), list: Hex(0xFFFFFF, 0x000000),
-                               selection: Hex(0xD0D0D0, 0x3A3A3A), ink: Hex(0x000000, 0xFFFFFF), muted: Hex(0x3A3A3A, 0xD0D0D0),
-                               line: Hex(0x8A8A8A, 0x8A8A8A), soft: Hex(0xE6E6E6, 0x262626), card: Hex(0xFFFFFF, 0x1A1A1A),
-                               code: Hex(0xEDEDED, 0x1E1E1E), panel: Hex(0xF7F7F7, 0x0F0F0F), accent: Hex(0x0044B3, 0x7DB9FF))
+        // High contrast: black and white only, solid dividers, no grey text, a yellow highlighter
+        // for the selection, and yellow links on black (Emil, 2026-11-01: "doesn't look any different").
+        case .contrast: Colors(page: Hex(0xFFFFFF, 0x000000), sidebar: Hex(0xFFFFFF, 0x000000), list: Hex(0xFFFFFF, 0x000000),
+                               selection: Hex(0xFFE14D, 0x5C4B00), ink: Hex(0x000000, 0xFFFFFF), muted: Hex(0x1F1F1F, 0xE6E6E6),
+                               line: Hex(0x000000, 0xFFFFFF), soft: Hex(0xEBEBEB, 0x262626), card: Hex(0xFFFFFF, 0x000000),
+                               code: Hex(0xF0F0F0, 0x1C1C1C), panel: Hex(0xFFFFFF, 0x000000), accent: Hex(0x0033A0, 0xFFD60A))
         }
     }
 }
