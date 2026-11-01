@@ -131,7 +131,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             ctx.fillEllipse(in: rect)
             let s = rect.width
             // The tick of SF Symbols' checkmark.circle.fill: short arm, long arm, round caps.
-            ctx.setStrokeColor(PColor.white.cgColor)
+            ctx.setStrokeColor(CheckTick.color.cgColor)
             ctx.setLineWidth(s * 0.1)
             ctx.setLineCap(.round)
             ctx.setLineJoin(.round)

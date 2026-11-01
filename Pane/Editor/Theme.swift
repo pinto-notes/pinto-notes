@@ -38,6 +38,16 @@ enum Theme: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The WCAG 2.2 contrast ratio of two sRGB colours.
+    static func contrast(_ a: UInt32, _ b: UInt32) -> Double {
+        func lum(_ h: UInt32) -> Double {
+            func lin(_ v: UInt32) -> Double { let c = Double(v & 0xFF) / 255; return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+            return 0.2126 * lin(h >> 16) + 0.7152 * lin(h >> 8) + 0.0722 * lin(h)
+        }
+        let (x, y) = (lum(a), lum(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    }
+
     /// One colour in the light and one in the dark.
     struct Hex: Equatable, Sendable {
         let light: UInt32, dark: UInt32
@@ -135,23 +145,52 @@ enum AccentChoice: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// What the colours follow right now: a theme and an accent.
+/// What the colours follow right now: a theme, an accent, and the system's Increase Contrast.
 struct ThemeLook: Hashable, Sendable {
     var theme: Theme
     var accent: AccentChoice
+    /// The system's Increase Contrast (macOS) or Darken Colors (iPhone) is on: a theme's muted
+    /// text takes its ink and its hairlines the muted text's colour, solid. Not stored: the store
+    /// follows the system (`ThemeStore.followSystemContrast`). Default draws as always.
+    var increaseContrast = false
 
     static let standard = ThemeLook(theme: .standard, accent: .theme)
 
     /// Default with the theme's own accent: every colour exactly as it always was.
-    var isStock: Bool { self == .standard }
+    var isStock: Bool { theme == .standard && accent == .theme }
     /// The theme's colours, nil for Default.
     var colors: Theme.Colors? { theme.colors }
 
+    /// The accent that draws: High contrast always uses its own blue and yellow (7:1 on its every
+    /// ground), whatever is stored; the stored choice comes back with another theme.
+    var drawnAccent: AccentChoice { theme == .contrast ? .theme : accent }
+
     /// The accent's shades: the chosen accent, else the theme's, else the build's own.
     var accentShades: Palette.Accent {
-        if let hex = accent.hex ?? theme.colors?.accent { return Palette.Accent(light: hex.light, dark: hex.dark) }
+        if let hex = drawnAccent.hex ?? theme.colors?.accent { return Palette.Accent(light: hex.light, dark: hex.dark) }
         return Palette.buildAccent
     }
+
+    /// The theme's colour for `key` as drawn: with Increase Contrast on, muted text is the ink and
+    /// a hairline the muted text's colour. Nil for Default.
+    func hex(_ key: KeyPath<Theme.Colors, Theme.Hex>) -> Theme.Hex? {
+        guard let c = colors else { return nil }
+        if increaseContrast {
+            if key == \Theme.Colors.muted { return c.ink }
+            if key == \Theme.Colors.line { return c.muted }
+        }
+        return c[keyPath: key]
+    }
+}
+
+/// The tick on a ticked checkbox, over the accent's disc: white on the deep accents of light mode,
+/// near-black on the bright ones of dark mode, where white reads at 1.4 to 2.5:1 (accessibility
+/// audit 2026-11-01, point 2; Emil picked it the same day).
+enum CheckTick {
+    static let light: UInt32 = 0xFFFFFF
+    static let dark: UInt32 = 0x141414
+    /// Drawn by DecoratedLayoutFragment.drawCheckbox and CheckPop, Mac and iPhone.
+    static let color: PColor = Palette.pair(light, dark)
 }
 
 /// The look the app is in, kept per device in UserDefaults. Observable, so a SwiftUI view that
@@ -173,6 +212,32 @@ final class ThemeStore: Observable, @unchecked Sendable {
         self.defaults = defaults
         _look = ThemeLook(theme: defaults.string(forKey: Self.themeKey).flatMap(Theme.init(rawValue:)) ?? .standard,
                           accent: defaults.string(forKey: Self.accentKey).flatMap(AccentChoice.init(rawValue:)) ?? .theme)
+    }
+
+    private var contrastWatch: NSObjectProtocol?
+
+    /// Follows the system's Increase Contrast from now on: reads it, and again each time it
+    /// changes, and every view draws again (`didChange`). The app's root calls it once; `read` and
+    /// `center` are for tests.
+    func followSystemContrast(read: @escaping @Sendable () -> Bool = { EditorMetrics.increasedContrast },
+                              center: NotificationCenter? = nil) {
+        guard lock.withLock({ contrastWatch == nil }) else { return }
+        #if os(iOS)
+        let center = center ?? .default
+        let name = UIAccessibility.darkerSystemColorsStatusDidChangeNotification
+        #else
+        let center = center ?? NSWorkspace.shared.notificationCenter
+        let name = NSWorkspace.accessibilityDisplayOptionsDidChangeNotification
+        #endif
+        let watch = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.setIncreaseContrast(read()) }
+        lock.withLock { contrastWatch = watch }
+        setIncreaseContrast(read())
+    }
+
+    private func setIncreaseContrast(_ on: Bool) {
+        var l = lock.withLock { _look }
+        l.increaseContrast = on
+        set(l, persist: false)
     }
 
     /// The look, read where SwiftUI is watching.
@@ -197,8 +262,11 @@ final class ThemeStore: Observable, @unchecked Sendable {
         set { var l = current; l.accent = newValue; set(l) }
     }
 
-    /// Sets the look, saves it, and (unless `persist` is false, as in captures) tells every view.
+    /// Sets the look, saves it, and tells every view. A saved look keeps the system's Increase
+    /// Contrast; with `persist` false (captures, and the system's setting itself) it is taken whole.
     func set(_ new: ThemeLook, persist: Bool = true) {
+        var new = new
+        if !new.increaseContrast, persist { new.increaseContrast = lock.withLock { _look.increaseContrast } }
         guard new != current else { return }
         registrar.withMutation(of: self, keyPath: \.look) { lock.withLock { _look = new } }
         if persist {
@@ -247,6 +315,6 @@ extension Palette {
 
     /// The theme's colour for `key`, or `stock` for Default.
     static func surface(_ name: String, _ key: KeyPath<Theme.Colors, Theme.Hex> & Sendable, stock: @escaping @Sendable () -> PColor) -> PColor {
-        live(name) { look in look.colors.map { pair($0[keyPath: key].light, $0[keyPath: key].dark) } ?? stock() }
+        live(name) { look in look.hex(key).map { pair($0.light, $0.dark) } ?? stock() }
     }
 }

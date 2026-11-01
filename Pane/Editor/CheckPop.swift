@@ -39,7 +39,7 @@ enum CheckPop {
         path.addLine(to: CGPoint(x: s * 0.44, y: s * 0.66))
         path.addLine(to: CGPoint(x: s * 0.715, y: s * 0.355))
         tick.path = path
-        tick.strokeColor = PColor.white.cgColor
+        tick.strokeColor = CheckTick.color.cgColor
         tick.fillColor = nil
         tick.lineWidth = s * 0.1
         tick.lineCap = .round

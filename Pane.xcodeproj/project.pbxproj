@@ -443,6 +443,7 @@
 		76B80CE97B1BBCAE648D5D04 /* ShareNotePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66516BF38B1483418D07594C /* ShareNotePopover.swift */; };
 		76EEC0F802A3E143BF60CCBE /* Tips.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEF55394E3ADF3DB9CF451B /* Tips.swift */; };
 		77150E16C095CB1A108E5FB2 /* ProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412407ADE0BC387AF7A6D189 /* ProfileTests.swift */; };
+		772C0099F7B9806CC04392D1 /* A11yPicksShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C9D631B8FFC610AD16C920 /* A11yPicksShots.swift */; };
 		775D63D6F1202F5821D528CE /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64B3C5141EE3AF3984622FC /* Palette.swift */; };
 		7787C605AEF964F597ED6307 /* HeardFrom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025496AD1008785E931A6425 /* HeardFrom.swift */; };
 		779FB36891A0E3E0D6EC6260 /* ConnectGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */; };
@@ -1477,6 +1478,7 @@
 		E115B9C0B584FABD12870AB7 /* AttachMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachMenuTests.swift; sourceTree = "<group>"; };
 		E14295A9361AF8E0895DD9D2 /* SharedItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedItemTests.swift; sourceTree = "<group>"; };
 		E1F43E437956C5516C5FDD33 /* template-cover-workout-log.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-workout-log.jpg"; sourceTree = "<group>"; };
+		E2C9D631B8FFC610AD16C920 /* A11yPicksShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = A11yPicksShots.swift; sourceTree = "<group>"; };
 		E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBoxes.swift; sourceTree = "<group>"; };
 		E3290486DF1E77796E513D27 /* OnboardingSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSnapshots.swift; sourceTree = "<group>"; };
 		E32AA38706EFA8DDABA0A198 /* template-cover-job-hunt.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-job-hunt.jpg"; sourceTree = "<group>"; };
@@ -2371,6 +2373,7 @@
 		E13C2899C34E50A7FB76C1CD /* HIG */ = {
 			isa = PBXGroup;
 			children = (
+				E2C9D631B8FFC610AD16C920 /* A11yPicksShots.swift */,
 				2C8C1097F11A537E7117D38F /* AddDeviceSnapshots.swift */,
 				A5FAE4F721C4F09427A7AE53 /* AIChangesSnapshots.swift */,
 				B3C667730E3C8E3C905E7874 /* AIEditSnapshots.swift */,
@@ -2902,6 +2905,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				772C0099F7B9806CC04392D1 /* A11yPicksShots.swift in Sources */,
 				0D7E7D7BE11907499A410728 /* AIChangesLogTests.swift in Sources */,
 				6D446FBF212877EA2DCA65AB /* AIChangesSnapshots.swift in Sources */,
 				0EAF1EF814DB06B298E28565 /* AIChangesTests.swift in Sources */,
