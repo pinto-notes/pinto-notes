@@ -121,9 +121,16 @@ import Testing
         }
         let three = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
                      Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "claude.ai")]
+        // Signed in with everything there: every page in the sidebar.
+        let fixture = try await AppSnapshotTests.settingsFixture()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
         func card(_ start: SettingsPlace, search: String = "") -> SettingsView {
-            let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-card-\(UUID())")!)
-            return SettingsView(backend: Self.backend, sync: nil, connections: three, route: route, start: start, search: search, close: {})
+            var v = fixture
+            v.connections = three
+            v.start = start
+            v.search = search
+            v.close = {}
+            return v
         }
         let shots: [(String, SettingsPlace, String, Theme, Bool)] = [
             ("appearance-default-light", .appearance, "", .standard, false),
