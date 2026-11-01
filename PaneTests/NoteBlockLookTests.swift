@@ -70,7 +70,7 @@ import UIKit
         let close = ns.range(of: "```", options: .backwards).location
         #expect(((s.attribute(.font, at: close, effectiveRange: nil) as? PFont)?.pointSize ?? 99) < 1, "the closing fence is hidden")
         let first = try #require(s.attribute(.paneLine, at: open, effectiveRange: nil) as? LineDecoration)
-        #expect(first.kind == .code(first: true, last: false, label: nil), "no row of its own for the label: \(first.kind)")
+        #expect(first.kind == .code(first: true, last: false, label: nil, open: false), "no row of its own for the label: \(first.kind)")
         let paragraph = s.attribute(.paragraphStyle, at: open, effectiveRange: nil) as? NSParagraphStyle
         #expect(paragraph?.maximumLineHeight == MarkdownStyler.codePad, "the opening fence is the block's top padding, as tall as its bottom")
         let code = try #require(s.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
@@ -85,6 +85,23 @@ import UIKit
         #expect(((editing.attribute(.font, at: open, effectiveRange: nil) as? PFont)?.pointSize ?? 0) > 5, "the fence shows while the caret is on it")
         let raw = try #require(editing.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
         #expect(raw.kind == .code(first: false, last: false, label: nil), "no label while the fence is written out")
+        let fenceLine = try #require(editing.attribute(.paneLine, at: open, effectiveRange: nil) as? LineDecoration)
+        #expect(fenceLine.kind == .code(first: true, last: false, label: nil, open: true), "a written-out fence gets the block's padding past it")
+        // The caret on a line of code: the whole block is being edited, both fences written out.
+        let inside = Self.styled(text, caret: ns.range(of: "greeting").location)
+        #expect(((inside.attribute(.font, at: open, effectiveRange: nil) as? PFont)?.pointSize ?? 0) > 5, "the opening fence shows while the block is edited")
+        #expect(((inside.attribute(.font, at: close, effectiveRange: nil) as? PFont)?.pointSize ?? 0) > 5, "the closing fence shows while the block is edited")
+        let insideCode = try #require(inside.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
+        #expect(insideCode.kind == .code(first: false, last: false, label: nil), "no label while the block is edited: \(insideCode.kind)")
+        let closeLine = try #require(inside.attribute(.paneLine, at: close, effectiveRange: nil) as? LineDecoration)
+        #expect(closeLine.kind == .code(first: false, last: true, label: nil, open: true), "the closing fence sits inside the block: \(closeLine.kind)")
+        // The caret outside again: back at rest.
+        let after = Self.styled(text, caret: ns.range(of: "After").location)
+        #expect(((after.attribute(.font, at: close, effectiveRange: nil) as? PFont)?.pointSize ?? 99) < 1, "at rest when the caret leaves")
+        // Not closed yet: its last line keeps the block's bottom padding.
+        let unclosed = Self.styled("Note\n\n```python\ndef hello():\n    return 1", caret: 4)
+        let last = try #require(Self.decoration(unclosed, at: "return"))
+        #expect(last.kind == .code(first: false, last: true, label: nil, open: true), "\(last.kind)")
     }
 
     /// A language name after the fence picks the colours, by its usual names.

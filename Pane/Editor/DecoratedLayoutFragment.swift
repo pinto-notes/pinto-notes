@@ -199,8 +199,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             ctx.addPath(CGPath(roundedRect: bar, cornerWidth: 1.5, cornerHeight: 1.5, transform: nil))
             ctx.fillPath()
 
-        case .code(let first, let last, let label):
-            panel(ctx, o: o, h: h, first: first, last: last, fill: PColor.paneFill, radius: 10, stroke: nil)
+        case .code(let first, let last, let label, let open):
+            // A line that shows text at the block's edge gets the block's padding drawn past it.
+            panel(ctx, o: o, h: h, first: first, last: last, fill: PColor.paneFill, radius: 10, stroke: nil, outside: open ? 8 : 0)
             if let label {
                 // The language, small and grey, floating in the block's top right corner, on the
                 // block's colour so a long first line runs under it.
@@ -242,9 +243,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     /// A panel that joins with its neighbours: only the block's outer corners are round.
-    private func panel(_ ctx: CGContext, o: CGPoint, h: CGFloat, first: Bool, last: Bool, fill: PColor, radius: CGFloat, stroke: PColor?) {
-        let top: CGFloat = first ? 2 : 0
-        let bottom: CGFloat = last ? 2 : 0
+    private func panel(_ ctx: CGContext, o: CGPoint, h: CGFloat, first: Bool, last: Bool, fill: PColor, radius: CGFloat, stroke: PColor?, outside: CGFloat = 0) {
+        let top: CGFloat = first ? 2 - outside : 0
+        let bottom: CGFloat = last ? 2 - outside : 0
         // From the column's edge, not the paragraph's indent (a code line's padding).
         let rect = CGRect(x: o.x - layoutFragmentFrame.minX, y: o.y + top, width: containerWidth, height: h - top - bottom)
         ctx.addPath(roundedPath(rect, top: first ? radius : 0, bottom: last ? radius : 0))

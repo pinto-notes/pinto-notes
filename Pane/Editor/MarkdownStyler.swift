@@ -22,7 +22,9 @@ final class LineDecoration: NSObject {
         case quote
         /// A code block's line. Its first line of code carries the block's language, a grey label
         /// floating in the block's top right corner.
-        case code(first: Bool, last: Bool, label: String? = nil)
+        /// `open`: an edge line shows text (a fence written out, a block not closed yet), so the
+        /// block's padding is drawn past it.
+        case code(first: Bool, last: Bool, label: String? = nil, open: Bool = false)
         case rule
         case table(header: Bool, first: Bool, last: Bool, columns: [CGFloat], width: CGFloat)
     }
@@ -216,6 +218,9 @@ struct MarkdownStyler {
         // The title is the note's first non-empty line; a region after it has none.
         var sawTitle = full.location > Self.titleLocation(ns)
         var codeLabel: String?
+        // Two states (Emil, 1 November 2026): with the caret anywhere in a block, the whole block
+        // is being edited, so both fences show as written inside it and the label goes away.
+        let editingBlocks = walker.codeRanges.map { ns.lineRange(for: $0) }.filter { isActive($0) }
         ns.enumerateSubstrings(in: full, options: [.byParagraphs, .substringNotRequired]) { _, lineRange, enclosing, _ in
             let line = ns.substring(with: lineRange)
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -225,19 +230,20 @@ struct MarkdownStyler {
                 let prev = lineRange.location == 0 ? false : codeLines.contains(ns.lineRange(for: NSRange(location: lineRange.location - 1, length: 0)).location)
                 let nextStart = NSMaxRange(enclosing)
                 let next = nextStart < ns.length && codeLines.contains(nextStart)
-                // A block, not markup (Emil, 31 October 2026): the fences are the block's padding,
-                // shown as they are only while the caret is on them; the opening one's language is
-                // a grey label at the block's top right.
-                let raw = fence && isActive(lineRange)
+                // A block, not markup (Emil, 31 October 2026): at rest the fences are the block's
+                // padding and the language is a grey label at its top right.
+                let blockEditing = editingBlocks.contains { NSLocationInRange(lineRange.location, $0) }
+                let raw = fence && blockEditing
                 if fence && !prev {
                     let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
-                    codeLabel = raw || language.isEmpty ? nil : language
+                    codeLabel = blockEditing || language.isEmpty ? nil : language
                 }
                 // The label floats over the first line of code, so the block has no empty row for it
                 // (Emil, 31 October 2026).
                 let label = fence ? nil : codeLabel
                 if !fence { codeLabel = nil }
-                storage.addAttribute(.paneLine, value: LineDecoration(.code(first: !prev, last: !next, label: label)), range: enclosing)
+                let open = (raw && (!prev || !next)) || (!fence && !next)
+                storage.addAttribute(.paneLine, value: LineDecoration(.code(first: !prev, last: !next, label: label, open: open)), range: enclosing)
                 let p = baseParagraph()
                 p.lineSpacing = 2
                 p.paragraphSpacing = 0
@@ -251,7 +257,8 @@ struct MarkdownStyler {
                     p.minimumLineHeight = h
                     p.maximumLineHeight = h
                 } else if fence {
-                    storage.addAttributes([.foregroundColor: PColor.paneTertiary, .font: monoFont], range: lineRange)
+                    // Written out while the block is edited, with room from the block's edge.
+                    storage.addAttributes([.foregroundColor: PColor.paneSecondary, .font: monoFont], range: lineRange)
                 }
                 storage.addAttribute(.paragraphStyle, value: p, range: enclosing)
                 sawTitle = true

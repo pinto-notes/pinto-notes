@@ -637,6 +637,7 @@
 		B230EC06D604309A596F9E97 /* SignOutRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC624B54EEA0A47793FC7C74 /* SignOutRemoval.swift */; };
 		B237718862CAC6006FF8A62D /* ShareNotePopoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E504C4AD7BF264A4D52C3FDB /* ShareNotePopoverTests.swift */; };
 		B2744F832B459262A4E6065A /* DestructiveTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B79ECE631EFE9C39379331 /* DestructiveTint.swift */; };
+		B27F4E6472272D310EF1588E /* CodeBlockShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AD36432C3AD464FC4DD430 /* CodeBlockShots.swift */; };
 		B29F2A3CDF3B7AB2C36912B9 /* NotePageProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE7E9207A8F80614C5BB35C /* NotePageProject.swift */; };
 		B2DFA27FEF257034184BF5F2 /* BestAppsMacShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */; };
 		B2ED3B92BF26B120620D6A92 /* NoteLockSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD40DB3A0959421F768D4D34 /* NoteLockSync.swift */; };
@@ -1079,6 +1080,7 @@
 		42D03E7A49F61302F141D7D8 /* ShareAskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareAskView.swift; sourceTree = "<group>"; };
 		4327ACE6BF465D8E84D0D3EB /* OfflineLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineLine.swift; sourceTree = "<group>"; };
 		43324C7785F4C59035DABD60 /* AllowSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllowSheetTests.swift; sourceTree = "<group>"; };
+		43AD36432C3AD464FC4DD430 /* CodeBlockShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBlockShots.swift; sourceTree = "<group>"; };
 		43BB1A12E39450296EF63E97 /* library-1.2.store */ = {isa = PBXFileReference; path = "library-1.2.store"; sourceTree = "<group>"; };
 		449E501D19F7AB860CA38215 /* HeardFromSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeardFromSnapshots.swift; sourceTree = "<group>"; };
 		44B0E260DC82F504A3C85868 /* 20261012120000_feature_use_new_app.sql */ = {isa = PBXFileReference; path = 20261012120000_feature_use_new_app.sql; sourceTree = "<group>"; };
@@ -2335,6 +2337,7 @@
 				BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */,
 				338A90129ABA3668433D376B /* BlogSnapshots.swift */,
 				7EC3B59C9BD747592E9D9EDE /* ChromeSnapshots.swift */,
+				43AD36432C3AD464FC4DD430 /* CodeBlockShots.swift */,
 				1B4A785E0E10C6BB3865280D /* CodeFileSnapshots.swift */,
 				04902FC432C162C34F9F9439 /* CodexConnectSnapshots.swift */,
 				2C13E00C01A59783D2FD1B04 /* CollabMacShots.swift */,
@@ -2891,6 +2894,7 @@
 				EE41FCC568A1B667F8C3BDEB /* ChecklistSortTests.swift in Sources */,
 				1ED67238E953896E78DE1C38 /* ChecklistTickReorderTests.swift in Sources */,
 				63C41ADC2C64BAFF051850CD /* ChromeSnapshots.swift in Sources */,
+				B27F4E6472272D310EF1588E /* CodeBlockShots.swift in Sources */,
 				C47DF4C37D203CD351C84805 /* CodeFileSnapshots.swift in Sources */,
 				456D0112F2C410ACE05EBE35 /* CodexConnectSnapshots.swift in Sources */,
 				0035E9C0C51B49FAF2F34D95 /* CodexConnectTests.swift in Sources */,
