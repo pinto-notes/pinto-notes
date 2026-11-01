@@ -321,6 +321,7 @@ private struct GeneralSettings: View {
     let close: () -> Void
 
     var body: some View {
+        AppearanceSection()
         #if os(macOS)
         MenuBarSection()
         #else

@@ -201,7 +201,7 @@ struct PaneApp: App {
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
-                    .tint(Color(PColor.paneAccent))
+                    .followsTheme()
                     .preferredColorScheme(Self.testScheme)
             }
         }
@@ -263,7 +263,7 @@ private struct MenuBarItem: Scene {
         MenuBarExtra(isInserted: Binding(get: { shown.value && MenuBarSettings.allowed }, set: { if MenuBarSettings.allowed { shown.value = $0 } })) {
             MenuBarPanel(backend: backend, sync: sync)
                 .modelContainer(container)
-                .tint(Color(PColor.paneAccent))
+                .followsTheme()
         } label: {
             Image("MenuBarIcon").accessibilityLabel("Pinto Notes")
         }
