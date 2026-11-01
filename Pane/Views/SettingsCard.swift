@@ -80,6 +80,8 @@ struct SettingsCard: View {
             route.target = nil
         }
         .task(id: backend.state) { await profile.bind(backend) }
+        .onChange(of: shown, initial: true) { _, now in route.page = now }
+        .onDisappear { route.page = nil }
     }
 
     private func open(_ place: SettingsPlace) {

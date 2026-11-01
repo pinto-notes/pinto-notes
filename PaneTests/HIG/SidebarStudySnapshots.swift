@@ -107,32 +107,37 @@ import Testing
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
     }
 
-    /// Settings as a big card over the notes (`SettingsPageStudy`), like Templates: Connect an AI and General.
-    @Test(arguments: [false, true])
-    func settingsPage(dark: Bool) async throws {
+    /// Settings, the card over the notes (SettingsCard): Appearance in Default light and dark and
+    /// in Sepia dark, General, and a search for "theme". Into docs/Evidence/settings-card with
+    /// `TEST_RUNNER_AMBER_HIG_SHOTS=$PWD/docs/Evidence/settings-card scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsCard()'`.
+    @Test func settingsCard() async throws {
         guard AppSnapshotTests.dir != nil else { return }
-        let mode = dark ? "dark" : "light"
         let lib = try Self.library()
         ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
-        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
-        let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
-        let three = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
-                     Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "claude.ai"),
-                     Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 12), last_used_at: .now.addingTimeInterval(-86_400 * 2), revoked_at: nil, redirect_host: "claude.ai")]
-        let settings = SettingsView(backend: Self.backend, sync: nil)
-        let available: Set<SettingsPlace> = [.profile, .ai, .security, .storage, .account, .general, .help]
-        func page(_ p: SettingsStudyPage) -> AnyView {
-            switch p {
-            case .place(.ai): AnyView(Form { ConnectAISection(client: client, preview: three) }.formStyle(.grouped).scrollContentBackground(.hidden)
-                .environment(ConnectGuideRoute()).environment(\.connectStudy, true))
-            case .place(let place): AnyView(settings.place(place))
-            }
+        let kept = ThemeStore.shared.current
+        defer {
+            ProfileStore.shared.showForPreview(name: nil, photo: nil)
+            ThemeStore.shared.set(kept, persist: false)
         }
+        let three = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
+                     Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "claude.ai")]
+        func card(_ start: SettingsPlace, search: String = "") -> SettingsView {
+            let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-card-\(UUID())")!)
+            return SettingsView(backend: Self.backend, sync: nil, connections: three, route: route, start: start, search: search, close: {})
+        }
+        let shots: [(String, SettingsPlace, String, Theme, Bool)] = [
+            ("appearance-default-light", .appearance, "", .standard, false),
+            ("appearance-default-dark", .appearance, "", .standard, true),
+            ("appearance-sepia-dark", .appearance, "", .sepia, true),
+            ("general-light", .general, "", .standard, false),
+            ("search-theme-light", .appearance, "theme", .standard, false),
+            ("ai-light", .ai, "", .standard, false),
+        ]
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
-            for (name, start) in [("settings-popup-ai", SettingsStudyPage.place(.ai)), ("settings-popup-general", .place(.general))] {
-                let view = window(SidebarStudy(), library: lib, over: SettingsPageStudy(available: available, page: page, selected: start))
-                    .tint(Color(PColor.paneAccent))
-                try await AppSnapshotTests.shoot(view, name: "\(name)-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+            for (name, start, search, theme, dark) in shots {
+                ThemeStore.shared.set(ThemeLook(theme: theme, accent: .theme), persist: false)
+                let view = window(SidebarStudy(), library: lib, over: card(start, search: search))
+                try await AppSnapshotTests.shoot(view, name: "mac-settings-card-\(name)", size: Self.size, dark: dark, wait: 1.2)
             }
         }
     }
@@ -184,12 +189,5 @@ import Testing
         #expect(EnvironmentValues().sidebarStudy == nil)
     }
 
-    /// Settings as a page lists every page there is, Appearance among them, and leaves out the
-    /// ones that aren't there.
-    @Test func theSettingsPageListsEveryPage() {
-        let all = SettingsStudyPage.groups(available: [.ai, .security, .storage, .account, .general, .help]).flatMap { $0 }
-        #expect(all.contains(.place(.ai)) && all.count == 6)
-        #expect(!SettingsStudyPage.groups(available: [.ai, .general, .help]).flatMap { $0 }.contains(.place(.security)))
-    }
 }
 #endif

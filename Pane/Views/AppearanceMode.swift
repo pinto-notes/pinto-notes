@@ -128,8 +128,13 @@ private struct FollowsAppearanceMode: ViewModifier {
 
 /// Settings › Appearance: light or dark, the theme and the accent, all for this device.
 struct AppearancePage: View {
+    /// How many are on screen, for tests: Appearance shows on its own page only.
+    @MainActor static var onScreen = 0
+
     var body: some View {
         AppearanceModeSection()
+            .onAppear { Self.onScreen += 1 }
+            .onDisappear { Self.onScreen -= 1 }
         AppearanceSection()
     }
 }
