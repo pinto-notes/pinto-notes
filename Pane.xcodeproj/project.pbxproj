@@ -526,6 +526,7 @@
 		8E8AEB67B0E60D5711DDFB4F /* template-cover-trip-plan.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0DABAF6CFD98DF0089EDCBDD /* template-cover-trip-plan.jpg */; };
 		8E93D457B9F5EB4B4392F461 /* AIChangesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44218A9E5FBE7C82E8F7C95 /* AIChangesView.swift */; };
 		8ECA91B165546874C105D6C5 /* SignOutRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A5487F72AC7A7609DBCEE7B /* SignOutRemovalTests.swift */; };
+		8EF758C521267D10D3FC39BB /* TopBarShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = D683509E3A269D745E8F9C88 /* TopBarShots.swift */; };
 		8F8A11962EC3B8860169C41E /* note-pages in Resources */ = {isa = PBXBuildFile; fileRef = 3C4E1DE16E31E18A753492A3 /* note-pages */; };
 		8FAF731200091329505E1901 /* ConnectOnMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC438BD287857509B0345BE3 /* ConnectOnMac.swift */; };
 		8FBE070B0E927789EA852C24 /* firstopen-apps.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 340C1ACA339E15FD7AEDC2FA /* firstopen-apps.jpg */; };
@@ -1413,6 +1414,7 @@
 		D4A915981CDFABF2781AE4BC /* SignInFunnelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInFunnelTests.swift; sourceTree = "<group>"; };
 		D5DFD991B7F6D9071008215D /* e2ee-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "e2ee-vectors.json"; sourceTree = "<group>"; };
 		D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPlace.swift; sourceTree = "<group>"; };
+		D683509E3A269D745E8F9C88 /* TopBarShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarShots.swift; sourceTree = "<group>"; };
 		D6B2946C2164583F9A89F59B /* NoteLinksSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLinksSection.swift; sourceTree = "<group>"; };
 		D6DE44F0B3F6589C674C8638 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdentity.swift; sourceTree = "<group>"; };
 		D735696D027A23734B8C6C30 /* DogfoodTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogfoodTests.swift; sourceTree = "<group>"; };
@@ -2368,6 +2370,7 @@
 				4588A553F34CCA6E69BAE2FB /* ShareAskSnapshots.swift */,
 				F88653EC494D8836C5B21BB6 /* SidebarStudySnapshots.swift */,
 				0EE6602CD2F6FABCF3AC293A /* TipSnapshots.swift */,
+				D683509E3A269D745E8F9C88 /* TopBarShots.swift */,
 				64816024A9749AC715351868 /* VersionHistorySnapshots.swift */,
 				73D9C8D75A7519F7CA04449D /* WarmGreySnapshots.swift */,
 				35649101F1DCFA7BD1618B78 /* WelcomeSnapshots.swift */,
@@ -3066,6 +3069,7 @@
 				D6D19C4794206013B23CA43F /* TickUndoTests.swift in Sources */,
 				7C1B0C3000BFEBF1AB59758A /* TipSnapshots.swift in Sources */,
 				D74868EC5AD24025CC15A002 /* TipsTests.swift in Sources */,
+				8EF758C521267D10D3FC39BB /* TopBarShots.swift in Sources */,
 				F9056BC1B1B9B2AE0C137E25 /* TwoDeviceLiveSyncTests.swift in Sources */,
 				901131A181463954A80C697B /* TypedTableTests.swift in Sources */,
 				754C0BAE9A8182360E0045EF /* UpdaterTests.swift in Sources */,

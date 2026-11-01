@@ -947,7 +947,8 @@ struct NoteDetailView: View {
             sharing: AnyView(Group {
                 if !trashed { shareMenu }
                 moreMenu
-            }))
+            }),
+            place: (note.folder?.name, note.title))
     }
     #endif
 
@@ -1483,6 +1484,8 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     var people: AnyView?
     /// Share and More.
     var sharing: AnyView
+    /// Where the note is: its folder and title (top bar study, version A).
+    var place: (folder: String?, title: String)? = nil
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
@@ -1540,28 +1543,61 @@ struct NoteToolbarStage<Pane: View>: View {
             .toolbar {
                 if let shown = self.parts {
                     let off = !showsItems
-                    // Only the note's own controls (Emil's draft, 10-29): the writing tools on the
-                    // left, share and more on the right, both over the note's text column. Compose
-                    // sits with the list, search with the sidebar.
-                    let inset = Self.inset(column: width)
-                    if let inset {
-                        ToolbarItem { Color.clear.frame(width: inset, height: 1) }
-                            .sharedBackgroundVisibility(.hidden)
-                    }
-                    if let writing = shown.writing {
-                        ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
+                    switch NoteBarLook.current {
+                    case .location:
+                        // A (study, 11-01): where you are on the left, the note's tools on the right.
+                        if let place = shown.place {
+                            ToolbarItem { NoteBarPlace(folder: place.folder, title: place.title).modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(.hidden)
+                        }
+                        ToolbarSpacer(.flexible)
+                        if let writing = shown.writing {
+                            ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                        }
+                        if let people = shown.people {
+                            ToolbarItem { people.modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                        }
+                        ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
                             .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                    }
-                    ToolbarSpacer(.flexible)
-                    if let people = shown.people {
-                        ToolbarItem { people.modifier(Unseen(off: off)) }
-                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                    }
-                    ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
-                        .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                    if let inset {
-                        ToolbarItem { Color.clear.frame(width: inset, height: 1) }
+                    case .plain:
+                        // B (study, 11-01): one bar across the column, plain icons, no capsules.
+                        if let writing = shown.writing {
+                            ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(.hidden)
+                        }
+                        ToolbarSpacer(.flexible)
+                        if let people = shown.people {
+                            ToolbarItem { people.modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(.hidden)
+                        }
+                        ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
                             .sharedBackgroundVisibility(.hidden)
+                    case .today:
+                        // Only the note's own controls (Emil's draft, 10-29): the writing tools on the
+                        // left, share and more on the right, both over the note's text column. Compose
+                        // sits with the list, search with the sidebar.
+                        let inset = Self.inset(column: width)
+                        if let inset {
+                            ToolbarItem { Color.clear.frame(width: inset, height: 1) }
+                                .sharedBackgroundVisibility(.hidden)
+                        }
+                        if let writing = shown.writing {
+                            ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                        }
+                        ToolbarSpacer(.flexible)
+                        if let people = shown.people {
+                            ToolbarItem { people.modifier(Unseen(off: off)) }
+                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                        }
+                        ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
+                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                        if let inset {
+                            ToolbarItem { Color.clear.frame(width: inset, height: 1) }
+                                .sharedBackgroundVisibility(.hidden)
+                        }
                     }
                 } else {
                     // No note yet: nothing to see, but an item of the column's own; without one the
@@ -1575,6 +1611,39 @@ struct NoteToolbarStage<Pane: View>: View {
 #endif
 
 #if os(macOS)
+/// Top bar study (11-01): which version the note's toolbar shows. `defaults write … noteBarLook A|B|C`.
+enum NoteBarLook {
+    case location, plain, today
+    static var current: NoteBarLook {
+        switch UserDefaults.standard.string(forKey: "noteBarLook") {
+        case "A": .location
+        case "B": .plain
+        default: .today
+        }
+    }
+}
+
+/// Version A's location: the folder, a chevron, the note's title.
+struct NoteBarPlace: View {
+    let folder: String?
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let folder {
+                Text(folder).foregroundStyle(.secondary)
+                Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+            }
+            Text(title.isEmpty ? "New note" : title).fontWeight(.medium)
+        }
+        .font(.system(size: 13))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .frame(maxWidth: 360, alignment: .leading)
+        .padding(.leading, 6)
+    }
+}
+
 /// A toolbar item kept while it has nothing to do: not drawn, not clickable, not read out.
 private struct Unseen: ViewModifier {
     let off: Bool
