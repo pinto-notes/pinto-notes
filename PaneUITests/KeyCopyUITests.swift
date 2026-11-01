@@ -15,6 +15,8 @@ import XCTest
 /// 6. Another device of that account, waiting at the linking screen: it opens by itself once
 ///    step 5 is done.
 ///
+/// Steps 1b, 3 and 4 turn on Advanced protection, which is parked: they skip until it's offered again.
+///
 /// Needs PANE_EMAIL and PANE_PASSWORD (TEST_RUNNER_ prefixed); PANE_SHOTS keeps the screenshots.
 final class KeyCopyUITests: XCTestCase {
     var app: XCUIApplication!
@@ -113,16 +115,23 @@ final class KeyCopyUITests: XCTestCase {
         XCTAssertTrue(text("so signing in opens your notes on a new device").exists)
         XCTAssertFalse(app.buttons["privacy.addDevice"].exists, "nothing to add: a new device signs in")
         shot("1-first-device-security")
-        let strict = app.switches["privacy.strict"].firstMatch
-        for _ in 0..<6 where !(strict.exists && strict.isHittable) { app.swipeUp() }
-        XCTAssertTrue(strict.exists)
-        XCTAssertEqual(strict.value as? String, "0")
-        shot("1-first-device-switch")
+        // Advanced protection is parked (AdvancedProtection.offered is false): an account that
+        // doesn't have it on is never offered the switch.
+        for _ in 0..<6 { app.swipeUp() }
+        XCTAssertFalse(app.switches["privacy.strict"].firstMatch.exists, "Advanced protection isn't offered")
+        shot("1-first-device-no-switch")
+    }
+
+    /// Steps that turn Advanced protection on wait while it's parked. Set AdvancedProtection.offered
+    /// to true and drop this to run them again.
+    private func parked() throws {
+        throw XCTSkip("Advanced protection is parked (AdvancedProtection.offered is false)")
     }
 
     /// On the account's only device, with no recovery key saved: Advanced protection doesn't turn on
     /// until the recovery key has been shown and saved. Then it's turned off again, for the steps after.
     func test1b_AdvancedProtectionShowsTheRecoveryKeyFirst() throws {
+        try parked()
         _ = try credentials()
         app.launchArguments = ["-skipWelcome", "-ownerConfirmed"]
         app.launch()
@@ -180,6 +189,7 @@ final class KeyCopyUITests: XCTestCase {
     }
 
     func test3_AdvancedProtection() throws {
+        try parked()
         _ = try credentials()
         // The simulator has no passcode to confirm the change with (DeviceOwner, debug builds only).
         app.launchArguments = ["-skipWelcome", "-ownerConfirmed"]
@@ -206,6 +216,7 @@ final class KeyCopyUITests: XCTestCase {
     }
 
     func test4_ANewDeviceOfAStrictAccountIsAskedToLink() throws {
+        try parked()
         let (email, password) = try credentials()
         app.launchArguments = ["-signout", "-skipWelcome"]
         app.launch()
