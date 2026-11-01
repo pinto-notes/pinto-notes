@@ -19,6 +19,18 @@ import Testing
         #expect(SettingsCard.first([.general, .appearance, .help]) == .general, "or at General, signed out")
     }
 
+    /// iPhone's Settings rows come in the Mac sidebar's groups and order, less Account and Help
+    /// (they sit under you on iPhone), and the iPhone list draws from them.
+    @Test func iPhoneGroupsMatchTheMac() throws {
+        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases))
+            .map { $0.filter { $0 != .account && $0 != .help } }.filter { !$0.isEmpty }
+        #expect(SettingsTab.phoneGroups.map { $0.map(SettingsPlace.init) } == mac)
+        #expect(Set(SettingsTab.phoneGroups.joined()) == Set(SettingsTab.allCases).subtracting([.account]), "every page but Account (your row) has a row")
+        let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/SettingsView.swift"), encoding: .utf8)
+        #expect(source.contains("ForEach(Array(SettingsTab.phoneGroups.enumerated())"), "the iPhone list is built from phoneGroups")
+    }
+
     @Test func linksIntoSettingsLandOnTheirPage() {
         #expect(SettingsPlace(.account) == .profile, "the account row opens Profile")
         #expect(SettingsPlace(.ai) == .ai)

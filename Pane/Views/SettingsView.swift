@@ -10,6 +10,10 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    /// iPhone's rows, in groups, in the Mac sidebar's order (SettingsPlace.groups) less Account and
+    /// Help, which sit under you on iPhone.
+    static let phoneGroups: [[SettingsTab]] = [[.ai, .general, .appearance], [.security, .storage]]
+
     var title: String {
         switch self {
         case .general: "General"
@@ -198,30 +202,37 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Section {
-                ForEach(tabs.filter { $0 == .ai || $0 == .security }) { row($0) }
-                if tabs.contains(.security), isSignedIn, crypto.isReady, !crypto.serverCopy {
-                    // A new device's screen says Settings › Security › Add a device; here it's one tap.
-                    // With a copy of the key kept by Pinto Notes there's nothing to add: a new device signs in.
-                    Button { addingDevice = true } label: {
-                        Label(AddDeviceCopy.sheetTitle, systemImage: "plus.circle")
-                    }
-                    .accessibilityIdentifier("settings.addDevice")
-                    .disabled(reach != .online)
-                    .sheet(isPresented: $addingDevice) {
-                        AddDeviceSheet(crypto: crypto, server: backend.client.map { SupabaseAddDevice(client: $0) })
-                            .onDisappear { Task { await devices.refresh(crypto) } }
+            // The Mac's order (SettingsPlace.groups); Account and Help sit under you on iPhone.
+            ForEach(Array(SettingsTab.phoneGroups.enumerated()), id: \.offset) { _, group in
+                let shown = group.filter(tabs.contains)
+                if !shown.isEmpty {
+                    Section {
+                        ForEach(shown) { tab in
+                            row(tab)
+                            if tab == .security { addDeviceRow }
+                        }
                     }
                 }
-                if tabs.contains(.storage) { row(.storage) }
-            }
-            Section {
-                row(.general)
-                row(.appearance)
             }
         }
         .formStyle(.grouped)
         .task(id: isSignedIn) { await storage.refresh(backend.client, force: false) }
+    }
+
+    /// A new device's screen says Settings › Security › Add a device; here it's one tap. With a
+    /// copy of the key kept by Pinto Notes there's nothing to add: a new device signs in.
+    @ViewBuilder private var addDeviceRow: some View {
+        if isSignedIn, crypto.isReady, !crypto.serverCopy {
+            Button { addingDevice = true } label: {
+                Label(AddDeviceCopy.sheetTitle, systemImage: "plus.circle")
+            }
+            .accessibilityIdentifier("settings.addDevice")
+            .disabled(reach != .online)
+            .sheet(isPresented: $addingDevice) {
+                AddDeviceSheet(crypto: crypto, server: backend.client.map { SupabaseAddDevice(client: $0) })
+                    .onDisappear { Task { await devices.refresh(crypto) } }
+            }
+        }
     }
 
     private func row(_ tab: SettingsTab) -> some View {
