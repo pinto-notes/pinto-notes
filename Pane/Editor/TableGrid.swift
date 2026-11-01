@@ -169,6 +169,19 @@ extension TypedTable.ColumnType {
     }
 }
 
+/// The reading page's column lines, being compared (Emil, 1 November 2026: "why are there no
+/// vertical lines?"). `rows`: none, as D shipped; `always`: faint ones; `editing`: while a cell has
+/// the keyboard. A debug build reads `-tableLines rows|always|editing`.
+enum TableLines: String, CaseIterable, Sendable {
+    case rows, always, editing
+    nonisolated(unsafe) static var current: TableLines = {
+        #if DEBUG
+        if let s = UserDefaults.standard.string(forKey: "tableLines"), let v = TableLines(rawValue: s) { return v }
+        #endif
+        return .rows
+    }()
+}
+
 /// Which edges of a scrolled table have more columns past them.
 struct GridOverflow: Equatable {
     var leading = false
@@ -266,8 +279,10 @@ extension GridTable {
         }
     }
 
-    /// Does `a` to the row or column of `cell`, and returns where the keyboard goes next: the same
-    /// cell where it now is, or its neighbour when its row or column went.
+    /// Does `a` to the row or column of `cell`, and returns where the keyboard goes next: a new row's
+    /// first cell, a new column's header (you add one to fill it: the caret staying put turned a
+    /// cell's "450" into "450Mon"; Emil, 1 November 2026), or the neighbour of a row or column
+    /// that went.
     @discardableResult
     mutating func perform(_ a: TableAction, at cell: GridCell) -> GridCell {
         let r = min(max(cell.row, 0), rows.count - 1), c = min(max(cell.column, 0), max(columns - 1, 0))
@@ -276,20 +291,20 @@ extension GridTable {
             // Never above the header: the new row goes under it.
             let at = max(r, 1)
             rows.insert(blankRow, at: at)
-            return GridCell(row: at == r ? r + 1 : r, column: c)
+            return GridCell(row: at, column: 0)
         case .addRowBelow:
             rows.insert(blankRow, at: r + 1)
-            return GridCell(row: r, column: c)
+            return GridCell(row: r + 1, column: 0)
         case .deleteRow:
             guard rows.count > 1 else { return GridCell(row: r, column: c) }
             rows.remove(at: r)
             return GridCell(row: min(r, rows.count - 1), column: c)
         case .addColumnBefore:
             insertColumn(at: c)
-            return GridCell(row: r, column: c + 1)
+            return GridCell(row: 0, column: c)
         case .addColumnAfter:
             insertColumn(at: c + 1)
-            return GridCell(row: r, column: c)
+            return GridCell(row: 0, column: c + 1)
         case .deleteColumn:
             guard columns > 1 else { return GridCell(row: r, column: c) }
             removeColumn(at: c)
@@ -627,8 +642,8 @@ struct TableGridView: View {
                         cell(r, c, cols: cols, width: widths[c])
                             .frame(width: widths[c], height: GridMetrics.row)
                             .overlay(alignment: .trailing) {
-                                // D (reading page): rows only, no columns of lines.
-                                if c < cols - 1 && !DesignLook.readingPage { Rectangle().fill(border).frame(width: 1) }
+                                // D (reading page) had rows only, and an empty column had no edge.
+                                if c < cols - 1 && showsColumnLines { Rectangle().fill(border.opacity(DesignLook.readingPage ? 0.6 : 1)).frame(width: 1) }
                             }
                             .accessibilityIdentifier("grid.\(r).\(c)")
                             // VoiceOver: which column you're in, then where in the table.
@@ -837,6 +852,16 @@ struct TableGridView: View {
     /// Grid lines get firmer with Increase Contrast.
     /// The cells' edges: grey, or in the candidates (DesignLook) the warm muted ink, so the grid
     /// sits in the page's warmth instead of on it.
+    /// Column lines: always in the older looks; in the reading page as `TableLines` says.
+    private var showsColumnLines: Bool {
+        guard DesignLook.readingPage else { return true }
+        switch TableLines.current {
+        case .rows: return false
+        case .always: return true
+        case .editing: return focus != nil || wanted != nil
+        }
+    }
+
     private var border: Color {
         DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
     }

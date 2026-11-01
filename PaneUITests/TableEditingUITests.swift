@@ -14,6 +14,7 @@ final class TableEditingUITests: XCTestCase {
         app = XCUIApplication()
         let note = ProcessInfo.processInfo.environment["TABLE_NOTE"] ?? ""
         app.launchArguments = ["-uitest", "-seedNote", note, "-open", "Trip to Lisbon"]
+        if let lines = ProcessInfo.processInfo.environment["TABLE_LINES"], !lines.isEmpty { app.launchArguments += ["-tableLines", lines] }
         app.launch()
     }
 
@@ -123,6 +124,38 @@ final class TableEditingUITests: XCTestCase {
         pause(1.2)
         shot("hide-keyboard-after")
         XCTAssertEqual(app.keyboards.count, 0, "the keyboard is put away")
+    }
+
+    /// Stills of one line style (TABLE_LINES): at rest, a cell being edited, a row added, a new table.
+    func testLines() throws {
+        let style = ProcessInfo.processInfo.environment["TABLE_LINES"] ?? "rows"
+        XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15), "the note opens")
+        pause(2)
+        shot("lines-\(style)-1-rest")
+        element("grid.2.1").tap()
+        let onboarding = app.buttons["Continue"].firstMatch
+        if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
+        pause()
+        shot("lines-\(style)-2-editing")
+        element("editor.tableMenu").tap()
+        XCTAssertTrue(app.buttons["Add Row Below"].firstMatch.waitForExistence(timeout: 3))
+        app.buttons["Add Row Below"].firstMatch.tap()
+        pause()
+        app.typeText("Mon")
+        pause()
+        func said(_ e: XCUIElement) -> String { (e.value as? String ?? "") + " " + e.label }
+        XCTAssertTrue(said(element("grid.3.0")).contains("Mon"), "typing after Add Row Below goes into the new row: \(said(element("grid.3.0")))")
+        XCTAssertFalse(said(element("grid.2.1")).contains("Mon"), "not into the cell you were in")
+        shot("lines-\(style)-3-row-added")
+        element("editor.done").tap()
+        pause()
+        app.textViews["editor"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)).tap()
+        pause()
+        if app.buttons["Table"].firstMatch.waitForExistence(timeout: 3) {
+            app.buttons["Table"].firstMatch.tap()
+            pause()
+            shot("lines-\(style)-4-new-table")
+        }
     }
 
     /// The whole experience for a recording (Emil, 11-01): read, type in a cell, move to the next,

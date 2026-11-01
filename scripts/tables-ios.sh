@@ -28,10 +28,10 @@ if [[ "${BUILD:-1}" == 1 ]]; then
 fi
 
 for t in ${=TESTS:-testWalkthrough}; do
-  xcrun simctl io "$SIM" recordVideo --codec h264 --force "$OUT/$t-${APPEARANCE:-light}.mp4" 2>/dev/null &
+  xcrun simctl io "$SIM" recordVideo --codec h264 --force "$OUT/$t${LINES:+-$LINES}-${APPEARANCE:-light}.mp4" 2>/dev/null &
   REC=$!
   sleep 1.5
-  TEST_RUNNER_PANE_SHOTS="$OUT/${APPEARANCE:-light}" TEST_RUNNER_TABLE_NOTE="$NOTE" \
+  TEST_RUNNER_PANE_SHOTS="$OUT/${APPEARANCE:-light}" TEST_RUNNER_TABLE_NOTE="$NOTE" TEST_RUNNER_TABLE_LINES="${LINES:-}" \
     nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
     -only-testing:"PaneUITests/TableEditingUITests/$t" > "$OUT/$t.log" 2>&1 || true
   kill -INT $REC; wait $REC 2>/dev/null || true

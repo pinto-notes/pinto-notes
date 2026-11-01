@@ -57,13 +57,15 @@ import Testing
 
     @Test func rowAndColumnActions() throws {
         var t = try #require(GridTable.find(in: "| a | b |\n| --- | --- |\n| 1 | 2 |").first)
-        #expect(t.perform(.addRowBelow, at: GridCell(row: 1, column: 0)) == GridCell(row: 1, column: 0))
+        #expect(t.perform(.addRowBelow, at: GridCell(row: 1, column: 1)) == GridCell(row: 2, column: 0), "into the new row")
         #expect(t.rows == [["a", "b"], ["1", "2"], ["", ""]])
         // Above the header, the row goes under it: the header stays the header.
-        #expect(t.perform(.addRowAbove, at: GridCell(row: 0, column: 1)) == GridCell(row: 0, column: 1))
+        #expect(t.perform(.addRowAbove, at: GridCell(row: 0, column: 1)) == GridCell(row: 1, column: 0), "into the new row, under the header")
         #expect(t.rows.first == ["a", "b"] && t.rows.count == 4)
-        #expect(t.perform(.addColumnBefore, at: GridCell(row: 0, column: 0)) == GridCell(row: 0, column: 1))
+        #expect(t.perform(.addColumnBefore, at: GridCell(row: 2, column: 0)) == GridCell(row: 0, column: 0), "into the new column's header")
         #expect(t.rows[0] == ["", "a", "b"])
+        var after = t
+        #expect(after.perform(.addColumnAfter, at: GridCell(row: 1, column: 1)) == GridCell(row: 0, column: 2), "into the new column's header")
         #expect(t.perform(.deleteColumn, at: GridCell(row: 0, column: 0)) == GridCell(row: 0, column: 0))
         #expect(t.rows[0] == ["a", "b"])
         #expect(t.perform(.deleteRow, at: GridCell(row: 3, column: 0)) == GridCell(row: 2, column: 0))
