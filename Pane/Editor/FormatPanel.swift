@@ -167,8 +167,9 @@ private struct Segment: View {
 }
 
 /// The table's own panel, in the keyboard's place like Format (Emil, 1 November 2026: "the table
-/// formatting panel should be like the Aa formatting sheet"): "Table" and a close button, then
-/// pills of two: rows, columns, deleting them, and Delete Table. What you add most comes first.
+/// formatting panel should be like the Aa formatting sheet"): "Table" and a close button, then a
+/// Row pill and a Column pill of glyphs like Format's B I U S (add before, add after, delete), and
+/// Delete Table. More table options go in as more rows of pills, as in Format.
 /// A choice closes the panel, so the keyboard is back for what it made.
 struct TablePanel: View {
     let controller: EditorController
@@ -197,13 +198,11 @@ struct TablePanel: View {
                 .padding(-4)
             }
             .frame(height: FormatPanel.closeSize)
-            ForEach(Self.rows, id: \.self) { row in
-                HStack(spacing: FormatPanel.gap) {
-                    ForEach(row, id: \.self) { title in
-                        if let item = menu?.item(title) { TablePill(item: item) { controller.runTablePanel(item) } }
-                    }
-                }
+            HStack(alignment: .top, spacing: FormatPanel.gap) {
+                TableSegments(name: "Row", actions: [.addRowAbove, .addRowBelow, .deleteRow], menu: menu, run: controller.runTablePanel)
+                TableSegments(name: "Column", actions: [.addColumnBefore, .addColumnAfter, .deleteColumn], menu: menu, run: controller.runTablePanel)
             }
+            deleteTable(menu)
         }
         .padding(.horizontal, FormatPanel.inset)
         .padding(.top, FormatPanel.inset)
@@ -212,39 +211,23 @@ struct TablePanel: View {
         .accessibilityIdentifier("table.panel")
     }
 
-    static let rows: [[String]] = [
-        ["Add Row Below", "Add Row Above"],
-        ["Add Column After", "Add Column Before"],
-        ["Delete Row", "Delete Column"],
-        ["Delete Table"],
-    ]
-}
-
-/// One of the Table panel's actions: its symbol and its name on a pill, red when it deletes.
-private struct TablePill: View {
-    let item: TableMenu.Item
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                if let action = TableAction.allCases.first(where: { $0.title == item.title }) {
-                    TableGlyph(action: action)
-                } else {
-                    Image(systemName: item.systemImage).font(.system(size: 17, weight: .medium)).frame(width: TableGlyph.size.width)
+    /// Delete Table on a pill of its own, the width of the panel.
+    @ViewBuilder
+    private func deleteTable(_ menu: TableMenu?) -> some View {
+        if let item = menu?.item("Delete Table") {
+            Button { controller.runTablePanel(item) } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "trash").font(.system(size: 17, weight: .medium))
+                    Text("Delete Table").font(.system(size: 15, weight: .medium))
                 }
-                Text(item.title).font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75).allowsTightening(true)
+                .foregroundStyle(Color.red)
+                .frame(maxWidth: .infinity, minHeight: FormatPanel.pillHeight)
+                .background(Color.formatPill, in: Capsule())
+                .contentShape(Capsule())
             }
-            .foregroundStyle(!item.enabled ? Color.formatOff : item.destructive ? Color.red : Color.formatInk)
-            // Icons in one line down the panel, so they read as a list.
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: FormatPanel.pillHeight, alignment: .leading)
-            .background(Color.formatPill, in: Capsule())
-            .contentShape(Capsule())
+            .buttonStyle(PressScale())
+            .accessibilityLabel("Delete Table")
         }
-        .buttonStyle(PressScale())
-        .disabled(!item.enabled)
-        .accessibilityLabel(item.title)
     }
 }
 
@@ -326,15 +309,18 @@ extension Color {
 }
 
 /// A small table drawn for a row or column action (Emil, 1 November 2026: arrows and a trash can
-/// said too little). Three rows and three columns; adding fills the band at the edge where the new
-/// row or column goes, deleting fills the middle one. It takes the pill's colour, so deletes are red.
+/// said too little). Three rows and three columns; the band where it happens is filled (at the edge
+/// where a new row or column goes, the middle one for a delete), with a plus or a minus badge in
+/// the corner so adding and deleting never look alike. It takes the button's colour.
 struct TableGlyph: View {
     let action: TableAction
-    static let size = CGSize(width: 20, height: 16)
+    var size = CGSize(width: 20, height: 16)
 
     var body: some View {
         Canvas { ctx, size in
-            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 0.75, dy: 0.75)
+            let r = max(4, size.height * 0.27)
+            // The table leaves the badge's corner free.
+            let rect = CGRect(x: 0.75, y: 0.75, width: size.width - r - 1.5, height: size.height - r - 1.5)
             let w = rect.width / 3, h = rect.height / 3
             let band: CGRect = switch action {
             case .addRowAbove: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: h)
@@ -355,9 +341,56 @@ struct TableGlyph: View {
             }
             ctx.stroke(lines, with: ink, lineWidth: 1)
             ctx.stroke(Path(roundedRect: rect, cornerRadius: 2.5), with: ink, lineWidth: 1.5)
+            // The badge: a disc cut out of the table's corner, a plus or a minus knocked out of it.
+            let c = CGPoint(x: size.width - r, y: size.height - r)
+            var cut = ctx
+            cut.blendMode = .clear
+            cut.fill(Path(ellipseIn: CGRect(x: c.x - r - 1.5, y: c.y - r - 1.5, width: 2 * r + 3, height: 2 * r + 3)), with: .color(.black))
+            ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: ink)
+            var mark = Path()
+            let k = r * 0.55
+            mark.move(to: CGPoint(x: c.x - k, y: c.y)); mark.addLine(to: CGPoint(x: c.x + k, y: c.y))
+            if !action.isDestructive { mark.move(to: CGPoint(x: c.x, y: c.y - k)); mark.addLine(to: CGPoint(x: c.x, y: c.y + k)) }
+            cut.stroke(mark, with: .color(.black), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(width: size.width, height: size.height)
         .accessibilityHidden(true)
+    }
+}
+
+/// One pill of three glyphs, the Format panel's B I U S kind, its name under it (Emil picked it
+/// from four, 1 November 2026: it has room for more table options).
+private struct TableSegments: View {
+    let name: String
+    let actions: [TableAction]
+    let menu: TableMenu?
+    let run: (TableMenu.Item) -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                ForEach(actions, id: \.self) { action in
+                    if let item = menu?.item(action.title) {
+                        Button { run(item) } label: {
+                            TableGlyph(action: action, size: CGSize(width: 26, height: 21))
+                                .foregroundStyle(!item.enabled ? Color.formatOff : item.destructive ? Color.red : Color.formatInk)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(PressScale())
+                        .disabled(!item.enabled)
+                        .accessibilityLabel(item.title)
+                    }
+                }
+            }
+            .padding(4)
+            .frame(height: FormatPanel.pillHeight)
+            .background(Color.formatPill, in: Capsule())
+            Text(name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.formatInk.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 #endif
