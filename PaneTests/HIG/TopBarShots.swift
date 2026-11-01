@@ -42,11 +42,6 @@ import Testing
             }
             try? await Task.sleep(for: .seconds(0.8))
             try await WarmGreySnapshots.shoot(w, "topbar-scrolled-\(mode)", in: dir)
-            // The sidebar hidden: the note's column is wide enough for back and forward.
-            w.makeKey()
-            NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: w)
-            try? await Task.sleep(for: .seconds(1.2))
-            try await WarmGreySnapshots.shoot(w, "topbar-wide-\(mode)", in: dir)
         }
     }
 }

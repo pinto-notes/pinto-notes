@@ -87,6 +87,33 @@ import Testing
         }
     }
 
+    /// There is no sidebar-hidden state (Emil, 11-01): Toggle Sidebar (⌃⌘S) does nothing, and the
+    /// window can't get narrower than the three columns, so it never folds away.
+    @Test func nothingHidesTheSidebar() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 700, height: 600))
+            defer { w.close() }
+            await Self.settle(w)
+            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+            let sidebar = try #require(split.arrangedSubviews.first)
+            #expect(!sidebar.isHidden && !split.isSubviewCollapsed(sidebar) && sidebar.frame.width >= 200,
+                    "asked for 700 pt, the window keeps the sidebar: \(Int(w.frame.width)) pt, sidebar \(Int(sidebar.frame.width))")
+        }
+        // ⌃⌘S, the split view's own Toggle Sidebar, does nothing.
+        let w = Self.window(c, size: CGSize(width: 1180, height: 760))
+        defer { w.close() }
+        await Self.settle(w)
+        let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+        let sidebar = try #require(split.arrangedSubviews.first)
+        let controller = try #require(split.delegate as? NSSplitViewController)
+        #expect(controller.splitViewItems.first?.canCollapse == false, "the sidebar can't collapse")
+        controller.toggleSidebar(nil)
+        await Self.settle(w, 15)
+        #expect(!sidebar.isHidden && !split.isSubviewCollapsed(sidebar) && sidebar.frame.width >= 200,
+                "Toggle Sidebar leaves it: \(Int(sidebar.frame.width)) pt, collapsed \(split.isSubviewCollapsed(sidebar))")
+    }
+
     /// The sidebar's top, left to right: New Folder, Today, Search, all over the sidebar, in the
     /// toolbar, the same size, not overlapping, and clear of the window's buttons.
     static func expectSidebarButtons(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {

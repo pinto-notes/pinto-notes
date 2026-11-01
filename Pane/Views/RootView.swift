@@ -156,10 +156,12 @@ struct RootView: View {
                 #endif
                 .environment(library)
                 #if os(macOS)
-                // No sidebar button (Emil, 10-29). View › Hide Sidebar (⌃⌘S) and the split view's
-                // own collapse in a narrow window still hide it. At its narrowest it still has room
-                // for New Folder, Today and Search beside the window's buttons (10-31).
+                // No sidebar button (Emil, 10-29), and no way to hide it at all (11-01): it can't
+                // collapse (SidebarPin; the split view's own ⌃⌘S does nothing), and the window can't
+                // get narrower than the three columns. At its narrowest it still has room for New
+                // Folder, Today and Search beside the window's buttons (10-31).
                 .toolbar(removing: .sidebarToggle)
+                .background(SidebarPin())
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
                 #else
                 // iPad: room for the title beside the account button.
@@ -889,6 +891,39 @@ struct ColumnHairline: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+}
+#endif
+
+#if os(macOS)
+/// Keeps the notes window's sidebar from collapsing: there is no sidebar-hidden state
+/// (Emil, 11-01). SwiftUI's split view still answers ⌃⌘S (Toggle Sidebar, hidden in its own
+/// menu); with its sidebar item unable to collapse, that does nothing.
+struct SidebarPin: NSViewRepresentable {
+    func makeNSView(context: Context) -> PinView { PinView() }
+    func updateNSView(_ view: PinView, context: Context) { view.pin() }
+
+    final class PinView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            pin()
+            // The split view controller is put together a turn later.
+            DispatchQueue.main.async { [weak self] in self?.pin() }
+        }
+
+        func pin() {
+            guard let content = window?.contentView, let split = Self.split(in: content),
+                  let sidebar = split.splitViewItems.first else { return }
+            if sidebar.canCollapse { sidebar.canCollapse = false }
+            if sidebar.isCollapsed { sidebar.isCollapsed = false }
+        }
+
+        /// SwiftUI's split view controller isn't a child view controller: it's the split view's delegate.
+        static func split(in view: NSView) -> NSSplitViewController? {
+            if let v = view as? NSSplitView, let s = v.delegate as? NSSplitViewController { return s }
+            for sub in view.subviews { if let s = split(in: sub) { return s } }
+            return nil
+        }
     }
 }
 #endif
