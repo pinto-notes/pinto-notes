@@ -1794,6 +1794,11 @@ struct NoteRow: View {
                             .monospacedDigit()
                             .foregroundStyle(Color.ink.opacity(0.85))
                     }
+                    // Never wrapped or cut: the preview gives way first ("10:10 A / M" beside a
+                    // picture, 11-01).
+                    .lineLimit(1)
+                    .fixedSize()
+                    .accessibilityIdentifier("note.date")
                     // C and D: "date · preview", one quiet line under the title.
                     if calm { Text("·").foregroundStyle(Color.muted).accessibilityHidden(true) }
                     if note.isLocked {

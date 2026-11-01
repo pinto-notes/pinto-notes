@@ -90,6 +90,21 @@ import Testing
         #expect(found["plain"]?.count == 0, "nothing in a row without a picture")
     }
 
+    /// Beside a picture, in the list at its narrowest, the time stays on one line ("10:10 A / M",
+    /// 11-01): the row is as tall as in a wide list.
+    @Test func theTimeNeverWraps() throws {
+        let (c, _, cabin, _, cleanUp) = try Self.library()
+        defer { cleanUp() }
+        cabin.updatedAt = Calendar.current.date(bySettingHour: 10, minute: 10, second: 0, of: .now) ?? .now
+        func height(_ width: CGFloat) -> CGFloat {
+            let host = NSHostingView(rootView: NoteRow(note: cabin, showFolder: true).frame(width: width).modelContainer(c))
+            host.layoutSubtreeIfNeeded()
+            return host.fittingSize.height
+        }
+        let wide = height(400), narrow = height(140)
+        #expect(abs(wide - narrow) < 1, "the same height at 140 pt as at 400: \(narrow) vs \(wide)")
+    }
+
     /// Strongly red points (one per point, not pixel) in a view, and where the first starts.
     static func red(in view: NSView) -> (count: Int, minX: CGFloat) {
         guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return (0, .infinity) }
