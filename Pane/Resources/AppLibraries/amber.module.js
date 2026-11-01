@@ -1,4 +1,4 @@
-// amber 1.1.0 (Amber Notes): an app's data as Preact hooks.
+// amber 1.1.0 (Pinto Notes): an app's data as Preact hooks.
 //   import { useStore, useCollection, useSettings, setSummary, batch } from "amber";
 // An app keeps its data as JSON in its own store: encrypted, synced, versioned, with Undo. A note
 // with an app is just the app; its text is only the title and a summary line (setSummary).

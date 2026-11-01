@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 OUT="$PWD/.shots/note-pages"; mkdir -p "$OUT"
-SIM=$(xcrun simctl list devices available | grep "Amber note pages (" | head -1 | grep -oE '[0-9A-F-]{36}')
+SIM=$(xcrun simctl list devices available | grep "Pinto note pages (" | head -1 | grep -oE '[0-9A-F-]{36}')
 xcrun simctl boot "$SIM" 2>/dev/null || true
 for kind in ${=KINDS:-widgets links widgets links}; do
   TEST_RUNNER_WIDGETS=$kind TEST_RUNNER_PANE_SHOTS="$OUT" TEST_RUNNER_PAGES_DIR="$PWD/demo/note-pages" xcodebuild -project Pane.xcodeproj -scheme Pane \

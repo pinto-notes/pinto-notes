@@ -194,7 +194,7 @@ import Testing
         #expect(Backend.googleMessage(for: E(errorDescription: "server_error: Database error")) == "Sign in with Google didn't finish. Try again.")
     }
 
-    /// Google's chooser can pick another Google account, which is another Amber Notes account:
+    /// Google's chooser can pick another Google account, which is another Pinto Notes account:
     /// Start fresh must never run there.
     @Test func startFreshRunsOnlyOnTheAccountThatAskedForIt() {
         let a = UUID(), b = UUID()

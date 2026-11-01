@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The first screen when you're signed out: what Amber Notes is, then the way in. "Get started"
+/// The first screen when you're signed out: what Pinto Notes is, then the way in. "Get started"
 /// leads to sign-in in the same frame, with a way back.
 /// On the Mac it's a wide window split in two, a paper-cut picture (an amber leaf on a stack of
 /// notes, at dusk in dark mode) on the left and the words on the right; on iPhone the picture

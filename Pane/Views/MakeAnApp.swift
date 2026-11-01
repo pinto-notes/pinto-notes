@@ -577,7 +577,7 @@ struct MakeAppSketch: View {
 
 // MARK: App settings
 
-/// App Info: what only Amber Notes can do for a note's app. An app's own settings are the app's
+/// App Info: what only Pinto Notes can do for a note's app. An app's own settings are the app's
 /// (it draws them, and keeps them in its data); this holds the internet (which addresses it may
 /// reach, what it sent, the libraries it downloaded), Previous App and Remove App.
 struct AppInfoSheet: View {

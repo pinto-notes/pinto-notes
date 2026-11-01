@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 // Prints "<id> <x> <y> <w> <h>" of the frontmost on-screen window owned by an app name or a process id.
-let arg = CommandLine.arguments.dropFirst().first ?? "Amber Notes"
+let arg = CommandLine.arguments.dropFirst().first ?? "Pinto Notes"
 let pid = Int32(arg)
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
 for w in list where (w[kCGWindowLayer as String] as? Int) == 0 {

@@ -1,7 +1,7 @@
 #if os(iOS)
 import XCTest
 
-/// "How did you hear about Amber Notes?" over the library: one tap answers, Skip is one tap, and
+/// "How did you hear about Pinto Notes?" over the library: one tap answers, Skip is one tap, and
 /// "Something else" takes a few words first. `-forceHeardFrom` shows it without a server.
 final class HeardFromUITests: XCTestCase {
     var app: XCUIApplication!

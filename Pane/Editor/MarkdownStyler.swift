@@ -372,7 +372,7 @@ struct MarkdownStyler {
 
     private static let underline = try! NSRegularExpression(pattern: #"<u>(.+?)</u>"#, options: [.caseInsensitive])
 
-    /// Markdown has no underline, so Amber Notes uses <u>…</u> (GitHub shows it too).
+    /// Markdown has no underline, so Pinto Notes uses <u>…</u> (GitHub shows it too).
     /// The tags hide like other syntax and the text between them is underlined.
     private func styleUnderlines(_ storage: NSTextStorage, in scope: NSRange, isActive: (NSRange) -> Bool, skip: [NSRange]) {
         for m in Self.underline.matches(in: storage.string, range: scope) {

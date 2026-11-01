@@ -1,6 +1,6 @@
 import Foundation
 
-/// Converts an Evernote note body (ENML, Evernote's XHTML) into Amber Notes markdown, the way
+/// Converts an Evernote note body (ENML, Evernote's XHTML) into Pinto Notes markdown, the way
 /// RichTextToMarkdown converts Apple Notes: headings, bold, italic, underline, strikethrough,
 /// links, nested bulleted and numbered lists, checklists (old `<en-todo>` and Evernote 10's
 /// `--en-todo` lists), tables, code blocks, quotes and rules. Attachments go on lines of their

@@ -30,7 +30,7 @@ import UIKit
                                          redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", claimed_name: nil,
                                          loopback: false, asked: true, started_at: .now.addingTimeInterval(-20),
                                          started_from: "Chrome on Windows", state: "s1", iss: "https://mcp.ambernotes.app")
-    /// An app Amber Notes can't name, by link on this device.
+    /// An app Pinto Notes can't name, by link on this device.
     static let unknown = ConnectRequest(id: UUID(), client_name: "notes-helper.example.com", redirect_host: "notes-helper.example.com",
                                         redirect_uri: "https://notes-helper.example.com/callback", claimed_name: "Notes Helper",
                                         loopback: false)
@@ -114,7 +114,7 @@ import UIKit
     #endif
 
     #if os(macOS)
-    /// The Mac's sheet, opened by the page's Open Amber Notes on this Mac.
+    /// The Mac's sheet, opened by the page's Open Pinto Notes on this Mac.
     @Test(arguments: [false, true])
     func mac(dark: Bool) async throws {
         guard Self.dir != nil else { return }

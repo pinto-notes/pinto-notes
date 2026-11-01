@@ -1,4 +1,4 @@
-// A stand-in for Amber Notes' page bridge, for the lab: the note's tables and checklists, the ops
+// A stand-in for Pinto Notes' page bridge, for the lab: the note's tables and checklists, the ops
 // (batched as one change), the app's own data, and device calls answered with stand-ins.
 (() => {
   const lab = window.__amberLab || {};

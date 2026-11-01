@@ -9,7 +9,7 @@ A folder ending in .app is the note's app, a small React project with its data i
 The default look every app starts with, amber-base.css (the real file; override any rule, or opt out with `<meta name="amber-base" content="none">`):
 
 ```css
-/* amber-base.css, version 1 (Amber Notes). The default stylesheet every note's app gets.
+/* amber-base.css, version 1 (Pinto Notes). The default stylesheet every note's app gets.
    It is loaded before the app's own styles, inside the cascade layer "amber-base", so any style the
    app writes wins over it, whatever its specificity. There is nothing else: no other styles are
    added to an app, and no rule here is marked important.

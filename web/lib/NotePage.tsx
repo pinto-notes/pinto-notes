@@ -21,7 +21,7 @@ function edited(iso: string): string {
 }
 
 /// The one mention of the app on someone's shared note: after the note, never over it.
-function GetAmberNotes() {
+function GetPintoNotes() {
   return (
     <aside className={s.get} aria-label="About Pinto Notes">
       <img src="/mark-256.png" alt="" width={44} height={44} />
@@ -100,7 +100,7 @@ export function NotePage({ slug, note, files, page, sealed = false, editHref = n
         {page}
         <article className="note" dangerouslySetInnerHTML={{ __html: html }} />
         {subnotes}
-        <GetAmberNotes />
+        <GetPintoNotes />
       </main>
       {!sealed && (
         <footer className={s.foot}>

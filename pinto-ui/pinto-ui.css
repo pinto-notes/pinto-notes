@@ -1,4 +1,4 @@
-/* amber-ui.css, version 1 (Amber Notes): the look of the amber-ui components. In the cascade layer
+/* amber-ui.css, version 1 (Pinto Notes): the look of the amber-ui components. In the cascade layer
    "amber-ui", after amber-base: any style the app writes wins. Colours and sizes come from the
    amber-tokens variables, so light and dark follow by themselves. */
 @layer amber-tokens, amber-base, amber-ui;
@@ -115,7 +115,7 @@
     .aui-tabbar__item[aria-current="page"] { background: var(--amber-accent-soft); }
   }
 
-  /* Toast: above the tab bar and Amber's own things. */
+  /* Toast: above the tab bar and Pinto's own things. */
   .aui-toast-host { position: fixed; left: 0; right: 0; bottom: calc(76px + var(--amber-inset-bottom)); display: flex; justify-content: center; pointer-events: none; z-index: 60; }
   .aui-toast { background: var(--amber-text); color: var(--amber-bg); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 0.9rem; }
 

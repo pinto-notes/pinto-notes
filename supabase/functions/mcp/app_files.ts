@@ -25,7 +25,7 @@ const AFTER = "Every write compiles .jsx/.tsx/.ts, checks the whole project and 
 export const fileTools = [
   {
     name: "create_app", title: "Start a note's app",
-    description: "Gives a note an app as a normal Vite + React + TypeScript + Tailwind + shadcn/ui project: package.json, tsconfig.json, index.html, src/main.tsx, src/App.tsx, src/index.css (Tailwind, shadcn's variables set from Amber's colours), src/lib/utils.ts (cn), src/lib/amber.ts (the app's data), src/components/ui/ (shadcn components) and README.md. " +
+    description: "Gives a note an app as a normal Vite + React + TypeScript + Tailwind + shadcn/ui project: package.json, tsconfig.json, index.html, src/main.tsx, src/App.tsx, src/index.css (Tailwind, shadcn's variables set from Pinto's colours), src/lib/utils.ts (cn), src/lib/amber.ts (the app's data), src/components/ui/ (shadcn components) and README.md. " +
       "Then build the app with write_app_file and edit_app_file. A note that already has an app is left alone unless replace is true (the old app stays in its versions).",
     inputSchema: { type: "object", properties: { ...noteRef, replace: { type: "boolean", description: "Replace the note's current app with a fresh project." } } },
     annotations: write,

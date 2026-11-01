@@ -22,7 +22,7 @@ import { toolErrorKind } from "./tool_errors.ts";
 import { challenge, handleOAuth, isOAuthPath, publicBase, resolveAccessToken, subpath } from "./oauth.ts";
 import { SERVER_CARD_PATH, SERVER_INFO, serverCardResponse } from "./card.ts";
 import { APPS_GUIDE_URI, appsGuide, BASE_CSS_URI, GUIDE_URI, PAGE_INSTRUCTIONS, PAGE_PROMPTS, pageGuide } from "./page_guide.ts";
-import { AMBER_BASE_CSS } from "./amber-base.ts";
+import { PINTO_BASE_CSS } from "./pinto-base.ts";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 /** Whether this server's tools build apps: the file tools do (an app is a path, "X.app/"), and so
@@ -313,7 +313,7 @@ const RESOURCES = (set: "files" | "pages") => resources[set] ??= (async () => {
     set === "files"
       ? { uri: APPS_GUIDE_URI, name: "apps-guide", title: "Apps in Pinto Notes", description: "How a note's app runs in Pinto Notes: the project, its data (data.json), the network and the device. Every new app's README.md says the same.", mimeType: "text/markdown", text: appsGuide() }
       : { uri: GUIDE_URI, name: "note-pages-guide", title: "Building note pages", description: "How to build and edit Pinto Notes pages: the window.amber API, data model, design rules and a starter page.", mimeType: "text/markdown", text: await pageGuide() },
-    { uri: BASE_CSS_URI, name: "amber-base-css", title: "amber-base.css", description: "The default stylesheet every note's app gets, before its own styles and in a cascade layer: override any rule, or opt out with <meta name=\"amber-base\" content=\"none\">.", mimeType: "text/css", text: AMBER_BASE_CSS },
+    { uri: BASE_CSS_URI, name: "amber-base-css", title: "amber-base.css", description: "The default stylesheet every note's app gets, before its own styles and in a cascade layer: override any rule, or opt out with <meta name=\"amber-base\" content=\"none\">.", mimeType: "text/css", text: PINTO_BASE_CSS },
     ...Object.entries(APP_EXAMPLES).flatMap(([name, ex]) => Object.entries(ex.files).map(([path, text]) => ({ uri: `amber://examples/${name}${path}`, name: `example-${name}${path.replace(/[/.]/g, "-")}`, title: `Example app ${name}: ${path}`, description: `A file of the ${name} example project.`, mimeType: path.endsWith(".md") ? "text/markdown" : path.endsWith(".css") ? "text/css" : path.endsWith(".html") ? "text/html" : "text/javascript", text: text as string }))),
   ];
 })();

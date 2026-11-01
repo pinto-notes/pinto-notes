@@ -143,7 +143,7 @@ import Testing
                 }
                 let column = try Self.noteColumn(w)
                 let scale = CGFloat(rep.pixelsWide) / w.frame.width
-                let page = AmberButtonTests.resolved(Palette.page, dark ? .darkAqua : .aqua)
+                let page = PintoButtonTests.resolved(Palette.page, dark ? .darkAqua : .aqua)
                 // Across the toolbar's band (where its buttons would be) and below it.
                 var worst: (off: CGFloat, x: CGFloat, y: CGFloat) = (0, 0, 0)
                 for fromTop in [12.0, 26.0, 40.0, 200.0] {

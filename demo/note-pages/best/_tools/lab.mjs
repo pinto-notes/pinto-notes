@@ -1,4 +1,4 @@
-// A quick WebKit check for a note app, outside Amber Notes: a stand-in for the bridge (note ops,
+// A quick WebKit check for a note app, outside Pinto Notes: a stand-in for the bridge (note ops,
 // the app's data, device calls answered with stand-ins), the theme tokens, the bundled libraries.
 // Muted: no sound can play. Reports console errors and anything wider than the window.
 //   node lab.mjs <appdir> [--out dir] [--only phone-light,wide-dark,small-light] [--scenario]

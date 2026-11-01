@@ -69,7 +69,7 @@ struct ListCardSurface: ViewModifier {
 }
 
 #if os(iOS)
-/// iPhone: how to send a note from Apple Notes into Amber Notes.
+/// iPhone: how to send a note from Apple Notes into Pinto Notes.
 struct ShareHowToSheet: View {
     @Environment(\.dismiss) private var dismiss
 

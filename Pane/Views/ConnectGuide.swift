@@ -25,7 +25,7 @@ import UIKit
 /// What connecting one web AI takes, and where.
 struct WebConnectPlan: Equatable {
     let ai: String
-    /// True when the page opens on Amber Notes itself, so there's no address to paste.
+    /// True when the page opens on Pinto Notes itself, so there's no address to paste.
     let prefills: Bool
     let steps: [String]
     /// Who can do it at all.
@@ -39,7 +39,7 @@ struct WebConnectPlan: Equatable {
 
     static func == (a: WebConnectPlan, b: WebConnectPlan) -> Bool { a.ai == b.ai }
 
-    /// The most specific page that exists for adding Amber Notes.
+    /// The most specific page that exists for adding Pinto Notes.
     func setupPage(server: String) -> URL { page(server) }
 
     static func forAI(_ ai: String) -> WebConnectPlan? {
@@ -50,7 +50,7 @@ struct WebConnectPlan: Equatable {
         }
     }
 
-    /// The page shows a code to scan; on a Mac it also opens Amber Notes here.
+    /// The page shows a code to scan; on a Mac it also opens Pinto Notes here.
     #if os(macOS)
     static let allowStep = "Choose Open Pinto Notes on this Mac, or scan the code with your iPhone. Then choose Allow."
     #else
@@ -88,7 +88,7 @@ struct WebConnectPlan: Equatable {
                    button: "Add as Custom Connector",
                    page: installLink))
 
-    /// Amber Notes in Claude's connector directory. Its Connect to Claude button adds it.
+    /// Pinto Notes in Claude's connector directory. Its Connect to Claude button adds it.
     static let directoryListing = URL(string: "https://claude.ai/directory/amber-notes")!
 
     /// Claude's documented install link: the Add custom connector dialog, prefilled. The person still confirms.
@@ -187,7 +187,7 @@ enum ConnectHandoff {
 @Observable
 final class ConnectWatch {
     /// The name an approval on this device carries for this guide: the AI, or nil for an app
-    /// Amber Notes can't vouch for (Incredible).
+    /// Pinto Notes can't vouch for (Incredible).
     let approvedAs: String?
     let since = Date.now.addingTimeInterval(-5)
     private(set) var connected: Connection?
@@ -253,7 +253,7 @@ enum ConnectClipboard {
 // MARK: Incredible
 
 // Incredible (incredible.one) is a desktop app for Mac and Windows. From the release that lists
-// Amber Notes as one of its apps, it's in Apps: search, Connect, sign in. Older versions add it
+// Pinto Notes as one of its apps, it's in Apps: search, Connect, sign in. Older versions add it
 // as an MCP server of your own: Add an MCP server, paste the address, Sign in. Either way the
 // sign-in comes back to 127.0.0.1 on the person's own computer, which can't prove which app is
 // listening, so the consent sheet shows it as an app on this computer, like any other local app.
@@ -267,7 +267,7 @@ enum IncredibleConnect {
     static let bundleID = "one.incredible.new"
     static let site = URL(string: "https://incredible.one")!
 
-    /// Amber Notes as one of Incredible's apps (Incredible's built-in, found by search).
+    /// Pinto Notes as one of Incredible's apps (Incredible's built-in, found by search).
     static let steps = [
         "Open Apps and search for notes, then choose the notes app with the orange leaf.",
         "Choose Connect. Your browser opens Pinto Notes.",
@@ -284,10 +284,10 @@ enum IncredibleConnect {
         #endif
     }
 
-    /// Versions of Incredible from before Amber Notes was one of its apps.
+    /// Versions of Incredible from before Pinto Notes was one of its apps.
     static let olderVersion = "If Pinto Notes isn't in Apps, add it as your own MCP server: choose Add it here at the bottom of Apps (or Add another MCP server), paste the address, choose Continue, then Sign in. After you choose Allow, choose Add server."
 
-    /// What Amber Notes shows when Incredible asks, since it can't name Incredible for sure.
+    /// What Pinto Notes shows when Incredible asks, since it can't name Incredible for sure.
     static let consentNote = "Pinto Notes asks to allow an app on this computer that calls itself \u{201C}incredible\u{201D}. It can't prove which app that is, so only allow it if you just chose Connect. Choose Allow."
 
     /// The newest sign-in that went back to an app on the person's own computer since the guide
@@ -320,7 +320,7 @@ enum IncredibleConnect {
     #endif
 }
 
-/// Connect Incredible: the steps in Incredible, what Amber Notes will ask, the address for older
+/// Connect Incredible: the steps in Incredible, what Pinto Notes will ask, the address for older
 /// versions, then "connected".
 struct IncredibleGuide: View {
     let client: SupabaseClient
@@ -436,7 +436,7 @@ struct IncredibleGuide: View {
         }
     }
 
-    /// Before Amber Notes was one of Incredible's apps: the address, pasted as an MCP server.
+    /// Before Pinto Notes was one of Incredible's apps: the address, pasted as an MCP server.
     private var olderVersionSection: some View {
         Section {
             Text(IncredibleConnect.olderVersion).font(.callout).foregroundStyle(.secondary)
@@ -450,7 +450,7 @@ struct IncredibleGuide: View {
         }
     }
 
-    /// Named the way Settings lists it: Amber Notes can't vouch that the app on this computer is Incredible.
+    /// Named the way Settings lists it: Pinto Notes can't vouch that the app on this computer is Incredible.
     @ViewBuilder
     private var connectedSection: some View {
         Section {

@@ -3,7 +3,7 @@ import AppKit
 import SwiftData
 import SwiftUI
 
-/// Amber Notes in the menu bar: type to capture a note or find one, and your pinned
+/// Pinto Notes in the menu bar: type to capture a note or find one, and your pinned
 /// and latest notes a click away. The same library and sync as the window.
 struct MenuBarPanel: View {
     let backend: Backend

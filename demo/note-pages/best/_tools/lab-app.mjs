@@ -1,6 +1,6 @@
 // The WebKit lab for a note app made of files (a project): compiles it the way the AI tooling does
 // (scripts/build-app.ts), serves its files and the bundled modules over a stand-in origin with the
-// same import map as Amber Notes, with the bridge stand-in (shim.js). Muted. Reports errors and
+// same import map as Pinto Notes, with the bridge stand-in (shim.js). Muted. Reports errors and
 // anything wider than the window, like lab.mjs.
 //   node lab-app.mjs <appdir: holds app/ and data.json> [--out dir] [--only phone-light,...] [--scenario]
 import { webkit } from "playwright";
@@ -34,7 +34,7 @@ const tokens = (s) => s.replace(/\{\{d([+-]\d+)?\}\}/g, (_, n) => shift(+(n || 0
 const data = fs.existsSync(path.join(dir, "data.json")) ? JSON.parse(tokens(fs.readFileSync(path.join(dir, "data.json"), "utf8"))) : { values: {}, collections: {} };
 const shim = fs.readFileSync(new URL("./shim.js", import.meta.url), "utf8");
 const base = fs.existsSync(path.join(LIB, "amber-base.css")) ? fs.readFileSync(path.join(LIB, "amber-base.css"), "utf8") : "";
-// Amber's tokens as the host gives them (amber-tokens.css), light and dark, and the device's text size.
+// Pinto's tokens as the host gives them (amber-tokens.css), light and dark, and the device's text size.
 const theme = (ios) => {
   const L = { bg: "#FFFEFD", surface: "#F4F1EE", fill: "#EBE6E1", text: "#2A1D10", sec: "#74604C", sep: "rgba(138, 74, 28, 0.14)", acc: "#D96A06", accT: "#A85700", soft: "#FFF1DC", on: "#FFFFFF", danger: "#C62828", field: "#9A8673" };
   const Dk = { bg: ios ? "#000000" : "#1F1E1D", surface: ios ? "#1C1B1A" : "#2A2927", fill: ios ? "#2C2A28" : "#34322F", text: "#F6EFE7", sec: "#BCB0A3", sep: "rgba(255, 250, 245, 0.10)", acc: "#F4AD33", accT: "#F4AD33", soft: "#423014", on: "#1F1300", danger: "#FF6B5E", field: "#7A716A" };

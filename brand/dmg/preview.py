@@ -43,12 +43,12 @@ def window(bg_path, apps_icon, dark, white_labels):
         cx, cy = (20 + i * 20) * S, (TITLE / 2) * S
         d.ellipse([cx - 6 * S, cy - 6 * S, cx + 6 * S, cy + 6 * S], fill=c + (255,))
     tf = font(13, 600)
-    tw = d.textlength("Amber Notes", font=tf)
-    d.text(((W * S - tw) / 2, (TITLE / 2) * S), "Amber Notes", font=tf, fill=title_col + (255,), anchor="lm")
+    tw = d.textlength("Pinto Notes", font=tf)
+    d.text(((W * S - tw) / 2, (TITLE / 2) * S), "Pinto Notes", font=tf, fill=title_col + (255,), anchor="lm")
     d.line([(0, TITLE * S - 1), (W * S, TITLE * S - 1)], fill=(0, 0, 0, 60 if dark else 30), width=1)
     size = LAYOUT["icon_size"]
     lf = font(LAYOUT["text_size"], 400)
-    for key, img, name in (("app", Image.open(APP_ICON), "Amber Notes"), ("applications", apps_icon, "Applications")):
+    for key, img, name in (("app", Image.open(APP_ICON), "Pinto Notes"), ("applications", apps_icon, "Applications")):
         cx, cy = LAYOUT[key]
         icon = img.convert("RGBA").resize((size * S, size * S), Image.LANCZOS)
         win.alpha_composite(icon, (int((cx - size / 2) * S), int((cy - size / 2 + TITLE) * S)))

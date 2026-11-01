@@ -9,7 +9,7 @@ enum TestFiles {
     static let bundle = Bundle(for: Token.self)
 
     /// A file or folder at the top of the bundle's resources, by its name there
-    /// ("note-pages", "amber-base.ts", "Views").
+    /// ("note-pages", "pinto-base.ts", "Views").
     static func url(_ name: String) throws -> URL {
         guard let url = bundle.resourceURL?.appending(path: name), FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: name])

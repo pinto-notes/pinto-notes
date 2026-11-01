@@ -457,7 +457,7 @@ final class NotePagesUITests: XCTestCase {
         // A plain tap on compose is still a new note at once.
     }
 
-    /// More › App Info: only what Amber Notes alone does for an app (internet, Previous, Remove).
+    /// More › App Info: only what Pinto Notes alone does for an app (internet, Previous, Remove).
     func testAppInfo() {
         launch(["-open", "October budget", "-seedPage", "October budget=\(pages)/budget.html"])
         mark("info-start")
@@ -819,7 +819,7 @@ final class NotePagesUITests: XCTestCase {
 
     // MARK: First open, from the website
 
-    /// The website's template page in Safari, Use template, Amber Notes adds it, and the first-open
+    /// The website's template page in Safari, Use template, Pinto Notes adds it, and the first-open
     /// moment (FIRST_OPEN=a|b|c; TEMPLATE=evening-tracker or a note template like meal-plan).
     /// Needs the website (web: pnpm dev) and demo/onboarding/site.py on port 5211.
     func testFirstOpenFromWeb() {
@@ -839,7 +839,7 @@ final class NotePagesUITests: XCTestCase {
         let use = safari.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Use template'")).firstMatch
         XCTAssertTrue(use.waitForExistence(timeout: 10))
         use.tap()
-        // Safari asks before it opens the app. On the site's open page, "Open Amber Notes" if the
+        // Safari asks before it opens the app. On the site's open page, "Open Pinto Notes" if the
         // page's own attempt didn't reach Safari's question.
         let open = safari.buttons["Open"].firstMatch
         if !open.waitForExistence(timeout: 5) {

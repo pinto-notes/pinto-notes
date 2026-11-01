@@ -73,7 +73,7 @@ describe("the MCP proxy", () => {
     }
   });
 
-  it("serves the site's own favicon there, the Amber mark", () => {
+  it("serves the site's own favicon there, the Pinto mark", () => {
     const ico = readFileSync(new URL("./app/favicon.ico", import.meta.url));
     // An ICO header: reserved 0, type 1 (icon), at least one image.
     expect([ico.readUInt16LE(0), ico.readUInt16LE(2)]).toEqual([0, 1]);

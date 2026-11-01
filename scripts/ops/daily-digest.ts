@@ -103,7 +103,7 @@ export function findings(d: Digest): string[] {
     out.push(`Connecting an AI: ${c.finished} of ${c.started} tries finished (${c.signed_in} signed in, ${c.approved} approved).`);
   }
   if (c.stuck_without_device > 0) {
-    out.push(`${c.stuck_without_device} signed in to connect an AI on an account with no Amber Notes device and no account key, so nothing could approve it.`);
+    out.push(`${c.stuck_without_device} signed in to connect an AI on an account with no Pinto Notes device and no account key, so nothing could approve it.`);
   }
   const fiveHundreds = d.functions.filter((r) => n(r.status) >= 500);
   if (fiveHundreds.length) {
@@ -140,7 +140,7 @@ export function render(d: Digest): string {
   const f = findings(d);
   const c = d.connect;
   const lines: string[] = [];
-  lines.push(`# Amber Notes: what broke, ${d.end.toISOString().slice(0, 10)}`, "");
+  lines.push(`# Pinto Notes: what broke, ${d.end.toISOString().slice(0, 10)}`, "");
   lines.push(`${when(d.start)} to ${when(d.end)} UTC. Project ${PROJECT}. Counts and error kinds only.`, "");
   lines.push("## Needs a look", "");
   lines.push(...(f.length ? f.map((s) => `- ${s}`) : ["- Nothing the logs can see."]), "");

@@ -56,7 +56,7 @@ final class NoteOpener {
     }
 }
 
-/// Whether Amber Notes shows in the menu bar (Settings → Menu Bar).
+/// Whether Pinto Notes shows in the menu bar (Settings → Menu Bar).
 enum MenuBarSettings {
     static let key = "showInMenuBar"
     /// Test runs never put an icon in your menu bar.

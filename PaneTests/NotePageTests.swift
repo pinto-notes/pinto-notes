@@ -1165,12 +1165,12 @@ import AppKit
     /// The AI sees the real stylesheet: page.ts carries the same text as the file the app ships.
     @Test func theAIGetsTheSameBaseStylesheet() throws {
         let shipped = try TestFiles.text("amber-base.css")
-        let ts = try TestFiles.text("amber-base.ts")
+        let ts = try TestFiles.text("pinto-base.ts")
         #expect(NotePageTheme.base == shipped)
         #expect(ts.contains(shipped))
     }
 
-    /// What Amber covers at the bottom reaches the app as a variable and an event; the app can override it.
+    /// What Pinto covers at the bottom reaches the app as a variable and an event; the app can override it.
     @Test func bottomInsetsReachTheApp() async throws {
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
         sandbox.load(html: """
@@ -1318,7 +1318,7 @@ import AppKit
         try await run(sandbox.webView, until: "document.querySelector('h1') !== null && document.querySelectorAll('svg.lucide').length > 2")
         print("REACT-LOAD \((ContinuousClock.now - start) / .milliseconds(1)) ms")
         #expect(try await sandbox.webView.evaluateJavaScript("document.querySelector('h1').textContent") as? String == "Today")
-        // Tailwind and the tokens: the primary button colour is Amber's accent.
+        // Tailwind and the tokens: the primary button colour is Pinto's accent.
         let bg = try await sandbox.webView.evaluateJavaScript("getComputedStyle(document.querySelector('nav a[aria-current=page]')).color") as? String
         #expect(bg != nil && bg != "rgb(0, 0, 0)", "\(bg ?? "nil")")
         // The Log sheet (Radix Dialog through a portal) opens with its field. Today shows the plan's

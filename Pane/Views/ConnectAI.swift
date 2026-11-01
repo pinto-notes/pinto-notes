@@ -8,7 +8,7 @@ import AppKit
 import UIKit
 #endif
 
-// Connecting an AI to Amber Notes.
+// Connecting an AI to Pinto Notes.
 //
 // ChatGPT and Claude sign in with OAuth: they send the person's browser to the MCP server's
 // /authorize, which opens ambernotes.app/connect?request=<id>. That page hands over to the app,
@@ -675,7 +675,7 @@ final class ConnectCenter: NSObject {
     private(set) var queue: [UUID] = []
     /// Requests in the queue that came by link on this device (not asks).
     private var links: Set<UUID> = []
-    /// What a scanned QR code (or the page's Open Amber Notes on this Mac) carried, by request id.
+    /// What a scanned QR code (or the page's Open Pinto Notes on this Mac) carried, by request id.
     private(set) var scans: [UUID: ConnectScan] = [:]
     /// Asks that have been offered here: each opens the sheet by itself once.
     private var offered: Set<UUID> = []

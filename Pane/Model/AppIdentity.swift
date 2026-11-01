@@ -1,8 +1,8 @@
 import Foundation
 
-/// Which app this is: Amber Notes, or Amber Notes Beta, the build on the staging backend
+/// Which app this is: Pinto Notes, or Amber Notes Beta, the build on the staging backend
 /// (Config/Beta.xcconfig, docs/Technical/staging.md). Read from Info.plist, which the build
-/// settings fill; the defaults are Amber Notes' own.
+/// settings fill; the defaults are Pinto Notes' own.
 enum AppIdentity {
     /// The app's URL scheme: pintonotes, or ambernotes-beta.
     static let scheme = info("PaneURLScheme") ?? "pintonotes"

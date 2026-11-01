@@ -11,12 +11,12 @@ import Testing
 /// so the app's own choice and other suites never see them.
 @MainActor @Suite struct ThemeTests {
     static func hex(_ c: NSColor, _ appearance: NSAppearance.Name) -> UInt32 {
-        let s = AmberButtonTests.resolved(c, appearance)
+        let s = PintoButtonTests.resolved(c, appearance)
         return [s.redComponent, s.greenComponent, s.blueComponent].reduce(0) { $0 << 8 | UInt32(($1 * 255).rounded()) }
     }
 
     static func alpha(_ c: NSColor, _ appearance: NSAppearance.Name) -> CGFloat {
-        AmberButtonTests.resolved(c, appearance).alphaComponent
+        PintoButtonTests.resolved(c, appearance).alphaComponent
     }
 
     static func within(_ look: ThemeLook, _ body: () throws -> Void) rethrows {
@@ -94,7 +94,7 @@ import Testing
     // MARK: The accessibility matrix (docs/Technical/theme-accessibility-audit.md)
 
     /// WCAG 2.2 contrast of two hex colours.
-    static func ratio(_ a: UInt32, _ b: UInt32) -> Double { AmberButtonTests.contrast(Palette.rgb(a), Palette.rgb(b)) }
+    static func ratio(_ a: UInt32, _ b: UInt32) -> Double { PintoButtonTests.contrast(Palette.rgb(a), Palette.rgb(b)) }
 
     /// The sidebar's selected-folder pill (`Hover.selected`, SwiftUI's tertiary fill) over a
     /// theme's solid sidebar: about 4% black in the light and 4% white in the dark, measured from
@@ -225,8 +225,8 @@ import Testing
     @Test func theAccentsReadOnDefault() {
         for choice in AccentChoice.allCases where choice != .theme {
             let a = ThemeLook(theme: .standard, accent: choice).accentShades
-            #expect(AmberButtonTests.contrast(Palette.rgb(a.light), .white) >= 4.5, "\(choice) on white")
-            #expect(AmberButtonTests.contrast(Palette.rgb(a.dark), .black) >= 4.5, "\(choice) on black")
+            #expect(PintoButtonTests.contrast(Palette.rgb(a.light), .white) >= 4.5, "\(choice) on white")
+            #expect(PintoButtonTests.contrast(Palette.rgb(a.dark), .black) >= 4.5, "\(choice) on black")
         }
     }
 

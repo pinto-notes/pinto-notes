@@ -23,7 +23,7 @@ Sign in with Apple sends no email of ours.
 **Where the templates live:** nowhere in the repository. There is no `supabase/templates`
 before this change and no `[auth.email.template.*]` section in `supabase/config.toml`, so the
 project uses Supabase's stock templates ("Confirm your signup", "Reset Password", a plain link,
-no Amber Notes name or mark) unless they were edited by hand in the dashboard. The dashboard's
+no Pinto Notes name or mark) unless they were edited by hand in the dashboard. The dashboard's
 templates, sender address and SMTP setting can't be read from the repository.
 
 **Where a link would land.** The stock templates link to
@@ -81,10 +81,10 @@ table layout, inline styles, no images but the mark, no tracking.
 
 | File | Subject | When |
 | --- | --- | --- |
-| `confirmation.html` | Confirm your email for Amber Notes | Sign-up, once "Confirm email" is on |
-| `recovery.html` | Reset your Amber Notes password | "Forgot password" |
-| `email_change.html` | Confirm your new email for Amber Notes | Changing the sign-in email |
-| `password_changed.html` | Your Amber Notes password was changed | After a password change (security notice, no link) |
+| `confirmation.html` | Confirm your email for Pinto Notes | Sign-up, once "Confirm email" is on |
+| `recovery.html` | Reset your Pinto Notes password | "Forgot password" |
+| `email_change.html` | Confirm your new email for Pinto Notes | Changing the sign-in email |
+| `password_changed.html` | Your Pinto Notes password was changed | After a password change (security notice, no link) |
 
 They are not referenced from `config.toml`, so nothing uses them until someone wires them.
 
@@ -101,8 +101,8 @@ same parts as the other functional pages (`web/lib/ui.tsx`).
 
 | Page | Says | Does |
 | --- | --- | --- |
-| `/account/confirm` | Confirm your email, with the address | One button. Pressing it verifies the token, then: "Your email is confirmed", Open Amber Notes. |
-| `/account/reset` | Choose a new password | Two fields and Save password. Then: "Your password is changed", Open Amber Notes. |
+| `/account/confirm` | Confirm your email, with the address | One button. Pressing it verifies the token, then: "Your email is confirmed", Open Pinto Notes. |
+| `/account/reset` | Choose a new password | Two fields and Save password. Then: "Your password is changed", Open Pinto Notes. |
 | Either, with an old link | This link has expired | Says to ask for a new one from the sign-in screen. |
 
 The same pages work from an iPhone, a Mac and any other browser, because the link is an

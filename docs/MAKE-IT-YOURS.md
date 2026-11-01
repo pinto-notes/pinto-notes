@@ -199,7 +199,7 @@ After a change, run `scripts/setup.sh` again (under a minute) and reopen the app
 
 The repository's [CLAUDE.md](../CLAUDE.md) (and `AGENTS.md`) tell an AI coding agent how this codebase works and how to test a change, so Claude Code and Codex can work on it from the first prompt. Start one in the `pinto-notes` folder (`claude` or `codex`) and try:
 
-1. "Make the accent colour a deep green in light and dark mode with scripts/set-accent.sh, pick shades that pass the contrast checks, and run scripts/qa-test.sh PaneTests/AmberButtonTests PaneTests/NotePageTests."
+1. "Make the accent colour a deep green in light and dark mode with scripts/set-accent.sh, pick shades that pass the contrast checks, and run scripts/qa-test.sh PaneTests/PintoButtonTests PaneTests/NotePageTests."
 2. "Add a button to the iPhone keyboard bar (Pane/Editor/FormatBar.swift) that inserts today's date as a heading. Match the bar's other buttons, and add a test in PaneTests/Interaction like the ones there."
 3. "Rename the app to Kim's Notes in every string a person reads, on the Mac and iPhone. Leave code names like Pane alone. Show me the list of strings before you change them."
 4. "Add a word and character count for the open note to the Mac window's toolbar. Find how the toolbar is built in Pane/Views/RootView.swift first, and test it in the offscreen harness under PaneTests/Harness."

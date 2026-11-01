@@ -14,7 +14,7 @@
 </style></head>
 <body><main id="app"></main>
 <script>
-  // The city is the note's first line after the title; the key is added by Amber Notes.
+  // The city is the note's first line after the title; the key is added by Pinto Notes.
   let state = { loading: true };
   const city = () => (amber.note.markdown.split("\n").slice(1).find((l) => l.trim()) || "Lisbon").replace(/[#*_]/g, "").trim();
   async function load() {

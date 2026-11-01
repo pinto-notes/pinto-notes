@@ -1,4 +1,4 @@
-// amber-router 1.0.0 (Amber Notes, MIT): screens for a Preact app, in memory. A note's app runs on
+// amber-router 1.0.0 (Pinto Notes, MIT): screens for a Preact app, in memory. A note's app runs on
 // a page that can't navigate (not even its #hash), so the route is kept here.
 //   import { Router, Route, Link, route, back, useRoute } from "amber-router";
 //   <Router><List path="/" default /><Item path="/item/:id" /></Router>; links as <a href="#/item/3">.

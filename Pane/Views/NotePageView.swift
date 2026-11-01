@@ -137,7 +137,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     }
 
     /// The note changed (the page's own edit, typing elsewhere, sync, Undo): the page re-renders.
-    /// How much of the app's bottom edge Amber's own things cover (the receipt over an app on the
+    /// How much of the app's bottom edge Pinto's own things cover (the receipt over an app on the
     /// Mac): --amber-inset-bottom, and the amber:insets event.
     func setInsets(bottom: CGFloat) {
         webView.callAsyncJavaScript("window.amber && window.amber._insets(bottom)", arguments: ["bottom": Double(bottom)], in: nil, in: .page) { _ in }
@@ -373,7 +373,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             try { window.webkit.messageHandlers.amberReady.postMessage({ focus: f }); } catch (e) {} };
           addEventListener("focusin", sendFocus, true);
           addEventListener("focusout", () => setTimeout(sendFocus, 0), true);
-          // What Amber's own things cover at the bottom edge, as a variable in the tokens' layer (so the
+          // What Pinto's own things cover at the bottom edge, as a variable in the tokens' layer (so the
           // app can still override it) and an event.
           const insetSheet = new CSSStyleSheet();
           document.adoptedStyleSheets = [...document.adoptedStyleSheets, insetSheet];
@@ -540,7 +540,7 @@ struct NotePageView: View {
     var files: @MainActor (UUID) -> URL? = { _ in nil }
     /// A field in the app has focus, or not.
     var onFocus: (Bool) -> Void = { _ in }
-    /// What Amber's own things cover at the bottom of the app (see NotePageSandbox.setInsets).
+    /// What Pinto's own things cover at the bottom of the app (see NotePageSandbox.setInsets).
     var insetBottom: CGFloat = 0
     /// A preview's own data (the template library), in place of the note's stored data. It keeps
     /// no picture of itself.
@@ -746,7 +746,7 @@ final class NotePageSnapshots {
     }
 }
 
-/// Amber Notes' look, as CSS variables every page gets (see the set_note_page description).
+/// Pinto Notes' look, as CSS variables every page gets (see the set_note_page description).
 enum NotePageTheme {
     #if os(iOS)
     static let surface = (0xF4F1EE, 0x1C1B1A), fill = (0xEBE6E1, 0x2C2A28), radius = (14, 10), size = 17
@@ -805,7 +805,7 @@ enum NotePageTheme {
             ].joined(separator: "; ")
         }
         return """
-        /* amber-tokens.css (Amber Notes): the variables every app can use, for this device, light and dark. */
+        /* amber-tokens.css (Pinto Notes): the variables every app can use, for this device, light and dark. */
         @layer amber-tokens {
           :root { \(vars(dark: false)); --amber-radius: \(radius.0)px; --amber-radius-small: \(radius.1)px;
             --amber-content-max: 1100px; --amber-gutter: clamp(16px, 3.5vw, 40px); --amber-root-font: \(rootFont);

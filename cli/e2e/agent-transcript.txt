@@ -2,10 +2,10 @@
 
 Signed in first with `amber login` (approved through the local consent page). Then:
 
-$ claude -p --allowedTools 'Bash(amber:*)' "My notes app is Amber Notes, and the `amber` command reads and edits my notes (start with `amber help`). Find my note about the Acme kickoff. Under Open questions, the rollout owner has been decided: replace the question about who owns the rollout with a line saying Lee owns the rollout (decided 2026-10-06). Use amber search and amber edit, then read the note back to confirm."
+$ claude -p --allowedTools 'Bash(amber:*)' "My notes app is Pinto Notes, and the `amber` command reads and edits my notes (start with `amber help`). Find my note about the Acme kickoff. Under Open questions, the rollout owner has been decided: replace the question about who owns the rollout with a line saying Lee owns the rollout (decided 2026-10-06). Use amber search and amber edit, then read the note back to confirm."
 
 [agent runs] amber help
-  amber: your Amber Notes from the terminal
+  amber: your Pinto Notes from the terminal
   
   Notes are paths like "Work/Acme.md"; folders end in "/". A note's id works too.
   
@@ -21,7 +21,7 @@ $ claude -p --allowedTools 'Bash(amber:*)' "My notes app is Amber Notes, and the
     amber restore <note> [<version>]   undelete, or bring back a version
     amber pin <note> [--off]
   
-    amber login                        connect: approve in Amber Notes on your iPhone or Mac
+    amber login                        connect: approve in Pinto Notes on your iPhone or Mac
     amber logout                       disconnect this terminal
     amber status                       who and where
   

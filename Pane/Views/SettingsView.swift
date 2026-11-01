@@ -714,7 +714,7 @@ struct SyncStatusLabel: View {
 }
 
 #if os(macOS)
-/// Amber Notes in the menu bar, on by default.
+/// Pinto Notes in the menu bar, on by default.
 private struct MenuBarSection: View {
     @AppStorage(MenuBarSettings.key) private var show = true
 

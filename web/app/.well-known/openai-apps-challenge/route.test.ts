@@ -8,7 +8,7 @@ describe("openai-apps-challenge", () => {
     expect(await res.text()).toBe("k11dzM9GOLGKrm56UKtMrtnzfMMa2vgeoD9qbJ5VaE8");
     expect(challengeToken("mcp.ambernotes.app")).toBe("63ThANIdhp-bJNHKaegib3mD6AXGcWuB4Dvwj-m3eqs");
   });
-  it("keeps the Amber Notes token for any other host", () => {
+  it("keeps the Pinto Notes token for any other host", () => {
     expect(challengeToken("pintonotes.com")).toBe("63ThANIdhp-bJNHKaegib3mD6AXGcWuB4Dvwj-m3eqs");
   });
 });

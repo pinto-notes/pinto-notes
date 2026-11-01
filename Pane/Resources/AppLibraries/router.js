@@ -1,4 +1,4 @@
-/* Amber Notes router 1.0.0: screens for a Preact app, in memory. A note's app runs on a page that
+/* Pinto Notes router 1.0.0: screens for a Preact app, in memory. A note's app runs on a page that
    can't navigate (not even its #hash), so the route is kept here. Needs preact and preact-hooks.
    <Router><List path="/" default /><Item path="/item/:id" /></Router>, links as <a href="#/item/3">,
    route("/add"), back(), useRoute(). */

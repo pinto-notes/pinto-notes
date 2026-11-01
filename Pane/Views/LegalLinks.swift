@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Amber Notes' terms and privacy policy, on the share site.
+/// Pinto Notes' terms and privacy policy, on the share site.
 enum Legal {
     static let terms = URL(string: "https://pintonotes.com/terms")!
     static let privacy = URL(string: "https://pintonotes.com/privacy")!

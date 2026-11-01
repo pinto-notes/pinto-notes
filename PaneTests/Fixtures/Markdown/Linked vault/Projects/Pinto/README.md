@@ -1,5 +1,5 @@
-# Amber Notes import
-Goal: bring this vault into Amber with links kept. Related: [[MCP memory for agents]], [[Obsidian workflow]].
+# Pinto Notes import
+Goal: bring this vault into Pinto with links kept. Related: [[MCP memory for agents]], [[Obsidian workflow]].
 
 ## Tasks
 - [x] Export the vault

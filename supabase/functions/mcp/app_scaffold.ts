@@ -1,5 +1,5 @@
 // The project every new app starts from (create_app): a normal Vite + React + TypeScript + Tailwind +
-// shadcn/ui project, the stack AIs know best, so an AI works on it the way it would anywhere. Amber
+// shadcn/ui project, the stack AIs know best, so an AI works on it the way it would anywhere. Pinto
 // Notes compiles it on save (nothing is installed: package.json is there for orientation) and runs
 // React on preact/compat. shadcn's components, the app shell, index.css and lib/ come from the
 // stack's own starter (app_stack.gen.ts).

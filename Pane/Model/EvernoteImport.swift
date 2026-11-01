@@ -4,7 +4,7 @@ import SwiftData
 import UniformTypeIdentifiers
 
 extension UTType {
-    /// An Evernote export. Evernote doesn't declare one, so Amber Notes does (see project.yml).
+    /// An Evernote export. Evernote doesn't declare one, so Pinto Notes does (see project.yml).
     static let enex = UTType(importedAs: "com.evernote.enex", conformingTo: .xml)
 }
 

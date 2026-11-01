@@ -1,5 +1,5 @@
 // The lifecycle emails, in words and in HTML. Each is a note from Emil, drawn the way the site draws
-// notes (the 404 page, the template pages): a paper-cut picture on top for warmth, then an Amber
+// notes (the 404 page, the template pages): a paper-cut picture on top for warmth, then an Pinto
 // Notes window with the words, and inside it, where one explains something, a real capture of the
 // app for proof (the grocery note with its Undo bar, the apps, the templates, a shared note).
 //

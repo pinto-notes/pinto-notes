@@ -3,7 +3,7 @@
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
-/* shadcn/ui's colours, from Amber Notes' tokens (they switch for dark mode by themselves). */
+/* shadcn/ui's colours, from Pinto Notes' tokens (they switch for dark mode by themselves). */
 :root {
   --radius: 0.75rem;
   --background: var(--amber-bg);

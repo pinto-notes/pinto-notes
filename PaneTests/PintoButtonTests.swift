@@ -5,10 +5,9 @@ import Testing
 @testable import Pane
 
 /// Primary buttons stay readable in both appearances: white on the accent (Palette.accent; amber in
-/// Pinto Notes, your own with scripts/set-accent.sh). The file and test names keep "Amber" because
-/// the button style is `.amberProminent` and CI's test lists name these tests.
+/// Pinto Notes, your own with scripts/set-accent.sh). The button style is `.amberProminent`.
 @MainActor
-@Suite struct AmberButtonTests {
+@Suite struct PintoButtonTests {
     /// WCAG relative luminance of an sRGB colour.
     static func luminance(_ c: NSColor) -> Double {
         let s = c.usingColorSpace(.sRGB)!

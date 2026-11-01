@@ -51,7 +51,7 @@ Deno.test("a connect funnel where nobody finished leads the report", () => {
   const d = digest({ connect: { started: 5, signed_in: 2, approved: 0, finished: 0, stuck_without_device: 2, by_client: [], asks: [] } });
   const f = findings(d);
   assertEquals(f[0], "Connecting an AI: 5 tries, none finished (2 signed in, 0 approved).");
-  assert(f[1].startsWith("2 signed in to connect an AI on an account with no Amber Notes device"));
+  assert(f[1].startsWith("2 signed in to connect an AI on an account with no Pinto Notes device"));
 });
 
 Deno.test("open reports of shared pages lead the report, and say when the 24 hours are over", () => {
@@ -81,4 +81,10 @@ Deno.test("5xx, crashes and tool errors are findings; quiet days say so", () => 
 Deno.test("the report has no dashes Emil would read as AI writing", () => {
   const md = render(digest({ database: [{ severity: "ERROR", message: "a — b", n: 1 }] }));
   assert(!/[–—]/.test(md));
+});
+
+Deno.test("the report uses the current product name", () => {
+  const md = render(digest());
+  assert(md.startsWith("# Pinto Notes: what broke, 2026-10-06"));
+  assert(!md.includes("Amber Notes"));
 });

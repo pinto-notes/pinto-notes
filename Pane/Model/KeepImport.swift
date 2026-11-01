@@ -22,7 +22,7 @@ struct KeepNote: Decodable, Equatable {
     var isTrashed: Bool?
     var createdTimestampUsec: Int64?
     var userEditedTimestampUsec: Int64?
-    /// What Keep has that Takeout writes but Amber Notes doesn't keep.
+    /// What Keep has that Takeout writes but Pinto Notes doesn't keep.
     var reminders: Bool = false
     var drawings: Bool = false
 
@@ -161,7 +161,7 @@ final class KeepImporter {
             parts.append(text)
         }
         if let items = note.listContent, !items.isEmpty {
-            // Keep keeps ticked items under the rest, as Amber Notes does.
+            // Keep keeps ticked items under the rest, as Pinto Notes does.
             let open = items.filter { $0.isChecked != true }, ticked = items.filter { $0.isChecked == true }
             parts.append((open + ticked).compactMap { item -> String? in
                 let t = (item.text ?? "").replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)

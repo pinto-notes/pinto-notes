@@ -12,7 +12,7 @@ import UserNotifications
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
         <dict>
-        \t<key>AppIDName</key><string>Amber Notes</string>
+        \t<key>AppIDName</key><string>Pinto Notes</string>
         \t<key>Entitlements</key>
         \t<dict>
         \t\t<key>application-identifier</key><string>4UM3XVUN9Y.dev.emilwagman.pane</string>

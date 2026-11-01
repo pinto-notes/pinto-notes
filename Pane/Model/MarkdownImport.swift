@@ -524,7 +524,7 @@ struct MarkdownNote: Equatable {
         return note
     }
 
-    /// The Notion properties Amber Notes keeps as dates and tags.
+    /// The Notion properties Pinto Notes keeps as dates and tags.
     static let notionKeys: Set<String> = ["created", "created time", "date created", "last edited time", "last edited", "updated", "tags", "tag"]
 
     // MARK: Front matter
@@ -653,7 +653,7 @@ struct MarkdownNote: Equatable {
     private static let inlineCode = try! NSRegularExpression(pattern: #"(`+)(?:(?!\1).)+?\1"#)
     private static let htmlImage = try! NSRegularExpression(pattern: #"<img\s[^>]*src="([^"]+)"[^>]*>"#, options: .caseInsensitive)
 
-    /// Links and embeds made Amber Notes': a file inside the export becomes an attachment on a line
+    /// Links and embeds made Pinto Notes': a file inside the export becomes an attachment on a line
     /// of its own (`file` returns its markdown); a wiki link or markdown link to another note in
     /// the export becomes a wiki link to the title that note gets (`note` returns it, given the
     /// link's target and whether it was a wiki link). A wiki link to a note that isn't there stays

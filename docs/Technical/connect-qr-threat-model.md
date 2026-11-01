@@ -11,8 +11,8 @@ Written 2026-10-02 for the QR connect flow (branch `app/connect-qr`). It compare
    - a scan secret (16 bytes, new)
 
    It posts `/connect/scan` with the public key, `SHA-256(pickup)` and `SHA-256(scan secret)`. The page has no session, and the server stores the ask without an account.
-3. The page shows a QR code for `https://ambernotes.app/open/connect?request=<id>#s=<scan secret>&k=<SHA-256 of the public key>`. On a Mac it also offers the same link as `pintonotes://connect?...`, labeled "Open Amber Notes on this Mac".
-4. The iPhone camera, or the Mac button, opens Amber Notes with that link. The app:
+3. The page shows a QR code for `https://ambernotes.app/open/connect?request=<id>#s=<scan secret>&k=<SHA-256 of the public key>`. On a Mac it also offers the same link as `pintonotes://connect?...`, labeled "Open Pinto Notes on this Mac".
+4. The iPhone camera, or the Mac button, opens Pinto Notes with that link. The app:
    - reads the request with its own session, which claims the request for its account
    - gets the page's public key from `/connect/request`
    - checks the key's SHA-256 against `k`, and stops if they differ
@@ -42,9 +42,9 @@ There is still a fallback: "Get a notification instead" signs in on the page and
 
 **Someone learns the request id and posts `/connect/scan` with their own key.** The person's QR code still holds the hash of the real page's key, so the device refuses ("This code changed on your computer. Scan it again."). The outcome is denial of service only. A page that reloads replaces the ask again.
 
-**Someone photographs or relays the QR code.** Whoever scans it first with a signed-in Amber Notes approves for their own account, and the code is sealed to the page's key, so only that browser gets it. Relaying the code lets a stranger approve their own notes into your browser's AI session. That doesn't expose your notes. It is the same as handing someone your screen.
+**Someone photographs or relays the QR code.** Whoever scans it first with a signed-in Pinto Notes approves for their own account, and the code is sealed to the page's key, so only that browser gets it. Relaying the code lets a stranger approve their own notes into your browser's AI session. That doesn't expose your notes. It is the same as handing someone your screen.
 
-**Consent phishing.** An attacker starts a real Claude sign-in on their own Claude account and gets the victim to scan the resulting code. Neither flow can tell whose Claude account it is. Both rely on the person only allowing a connection they just started, and on a notice to every device after a connection is made. The sheet names the AI by its return address (Claude's callback is Claude). For any other address it warns that Amber Notes doesn't recognize the app.
+**Consent phishing.** An attacker starts a real Claude sign-in on their own Claude account and gets the victim to scan the resulting code. Neither flow can tell whose Claude account it is. Both rely on the person only allowing a connection they just started, and on a notice to every device after a connection is made. The sheet names the AI by its return address (Claude's callback is Claude). For any other address it warns that Pinto Notes doesn't recognize the app.
 
 **Replay of the scan secret.** It works once: after `/connect/decide` the request is decided, and later calls get "expired". A reloaded page's new secret makes the old one fail. Tests: `oauth.pglite.test.ts`, the "Scanning the page's QR code" section.
 

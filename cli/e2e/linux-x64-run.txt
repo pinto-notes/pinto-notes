@@ -9,10 +9,10 @@ Open this in a browser:
 
   http://127.0.0.1:8787/mcp/authorize?response_type=code&client_id=amb_client_d7efa5aa566024d4a9449866741e8d88&redirect_uri=http%3A%2F%2F127.0.0.1%3A34233%2Fcallback&code_challenge=QFYz1NZsZLHyrfQx96kDhDdvOgmbf1F2CDjmG__B5Js&code_challenge_method=S256&state=s6VeCbQwoemO_g2m2uQs9Q&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A8787%2Fmcp
 
-Approve in Amber Notes. If the browser is on another machine, it ends on a page that won't load:
+Approve in Pinto Notes. If the browser is on another machine, it ends on a page that won't load:
 copy that page's address (it starts with http://127.0.0.1) and paste it here.
 Address: http://127.0.0.1:34233/callback?state=s6VeCbQwoemO_g2m2uQs9Q&iss=http%3A%2F%2F127.0.0.1%3A8787%2Fmcp&code=…
-Connected to Amber Notes (read & edit). Tokens are kept in ~/.config/amber/credentials.json.
+Connected to Pinto Notes (read & edit). Tokens are kept in ~/.config/amber/credentials.json.
 Disconnect any time: amber logout, or Settings › Connect an AI in the app.
 
 600 /root/.config/amber/credentials.json
@@ -97,7 +97,7 @@ exit codes: 0 0 0 0 0
 + grep -c '"version"'
 1
 + amber logout
-Disconnected this terminal from Amber Notes.
+Disconnected this terminal from Pinto Notes.
 + amber list
 amber: Not signed in. Run `amber login`.
 == any token on disk or in the output above?

@@ -1,5 +1,5 @@
 /* The pages that open a place in Pinto Notes (PlaceCard) when the link stays in the browser: one
-   card (lib/ui) in the site's cream theme. It tries the app first; the way to get Amber Notes
+   card (lib/ui) in the site's cream theme. It tries the app first; the way to get Pinto Notes
    appears only if the app didn't open (data-state on .page, set by OpenApp). */
 
 /* The card's three states. Without JavaScript the page stays on "fallback". */

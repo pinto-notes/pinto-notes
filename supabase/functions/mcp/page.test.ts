@@ -87,22 +87,22 @@ Deno.test("hosts: a *.domain pattern covers its servers, never a bare TLD or the
   assertEquals(hostDeclared(d, "covers.openlibrary.org"), true);
 });
 
-import { AMBER_BASE_CSS, AMBER_TOKENS } from "./amber-base.ts";
+import { PINTO_BASE_CSS, AMBER_TOKENS } from "./pinto-base.ts";
 
 Deno.test("the AI's copy of amber-base.css is the file the app ships", () => {
-  assertEquals(AMBER_BASE_CSS, Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/amber-base.css", import.meta.url)));
-  assertEquals(AMBER_BASE_CSS.includes("!important"), false);
+  assertEquals(PINTO_BASE_CSS, Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/amber-base.css", import.meta.url)));
+  assertEquals(PINTO_BASE_CSS.includes("!important"), false);
   for (const t of ["--amber-field", "--amber-root-font", "--amber-accent"]) assertEquals(AMBER_TOKENS.includes(t), true);
 });
 
-import { AMBER_UI } from "./amber-ui.ts";
+import { PINTO_UI } from "./pinto-ui.ts";
 
 Deno.test("the AI's copy of amber-ui is the kit the app ships", () => {
   const shipped = JSON.parse(Deno.readTextFileSync(new URL("../../../Pane/Resources/AppLibraries/amber-ui.json", import.meta.url)));
-  assertEquals(AMBER_UI.src, shipped.src);
-  assertEquals(AMBER_UI.css, shipped.css);
+  assertEquals(PINTO_UI.src, shipped.src);
+  assertEquals(PINTO_UI.css, shipped.css);
   for (const c of ["Button", "Sheet", "TabBar", "ListRow", "Toggle", "Slider", "Toast", "EmptyState", "Dialog", "Tabs", "Stat", "Input", "Select", "TextArea", "Card"]) {
-    assertEquals(Object.values(AMBER_UI.src).some((s) => s.includes(`export function ${c}`)), true, c);
+    assertEquals(Object.values(PINTO_UI.src).some((s) => s.includes(`export function ${c}`)), true, c);
   }
 });
 

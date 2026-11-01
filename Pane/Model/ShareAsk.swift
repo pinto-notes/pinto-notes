@@ -37,7 +37,7 @@ enum ShareAsk {
 
     enum Choice: String, Sendable { case sharedX = "shared_x", sharedLinkedIn = "shared_linkedin", starredGitHub = "starred_github", dismissed }
 
-    /// Amber Notes on GitHub: the repository, a new issue, and how to contribute.
+    /// Pinto Notes on GitHub: the repository, a new issue, and how to contribute.
     static let repository = URL(string: "https://github.com/pinto-notes/pinto-notes")!
     static let newIssue = URL(string: "https://github.com/pinto-notes/pinto-notes/issues/new/choose")!
     static let contributing = URL(string: "https://github.com/pinto-notes/pinto-notes/blob/main/CONTRIBUTING.md")!

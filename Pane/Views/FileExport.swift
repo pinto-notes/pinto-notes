@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Getting a file out of Amber Notes: dragging it to Finder, Mail or the Desktop, Export… (a save
+/// Getting a file out of Pinto Notes: dragging it to Finder, Mail or the Desktop, Export… (a save
 /// panel, Downloads first), Share, and on iPhone Save to Files.
 enum FileOut {
     #if os(macOS)

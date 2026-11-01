@@ -9,7 +9,7 @@ import { webkit, type Browser, type Page } from "npm:playwright-core@1.63.0";
 import { applyPageOp, importedFrom, noteForPage } from "../../supabase/functions/mcp/page_input.ts";
 import { mergePatch } from "../../supabase/functions/mcp/data_ops.ts";
 import { findTables } from "../../supabase/functions/mcp/notes.ts";
-import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
+import { PINTO_BASE_CSS } from "../../supabase/functions/mcp/pinto-base.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
 const POLICY = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; " +
@@ -61,7 +61,7 @@ function prepare(html: string): { html: string; integrity: Map<string, string> }
   const policy = POLICY.replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline' ${LIB_HOST}`);
   return {
     html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
-      `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(html) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + tags.join("") + rest,
+      `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(html) ? "" : `<style id="amber-base">${PINTO_BASE_CSS}</style>`) + tags.join("") + rest,
     integrity,
   };
 }
@@ -107,7 +107,7 @@ function prepareProject(p: AppProject): string {
   const policy = `default-src 'none'; script-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; img-src data: ${APP_HOST}; font-src data: ${APP_HOST}; media-src data: ${APP_HOST}; ` +
     `connect-src ${APP_HOST}; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
   return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
-    `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(rest) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + importMap() + hosts(rest);
+    `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(rest) ? "" : `<style id="amber-base">${PINTO_BASE_CSS}</style>`) + importMap() + hosts(rest);
 }
 
 const MIME: Record<string, string> = { html: "text/html", css: "text/css", js: "text/javascript", mjs: "text/javascript", jsx: "text/javascript", tsx: "text/javascript", ts: "text/javascript", json: "application/json", svg: "image/svg+xml", md: "text/plain", txt: "text/plain" };

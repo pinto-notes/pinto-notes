@@ -33,7 +33,7 @@ enum ImportDestination: Hashable, Sendable {
 struct ImportSummary: Equatable, Sendable {
     var notes = 0
     var attachments = 0
-    /// Already in Amber Notes from an earlier import.
+    /// Already in Pinto Notes from an earlier import.
     var alreadyImported = 0
     /// No title, no text, no files.
     var empty = 0
@@ -51,7 +51,7 @@ struct ImportSummary: Equatable, Sendable {
     var notNotes = 0
     /// Encrypted sections, each marked in its note.
     var encrypted = 0
-    /// What the other app had that Amber Notes doesn't keep ("12 notes had a colour"), one line each.
+    /// What the other app had that Pinto Notes doesn't keep ("12 notes had a colour"), one line each.
     var dropped: [String] = []
     /// Files or folders that couldn't be read, with why.
     var failedFiles: [String] = []

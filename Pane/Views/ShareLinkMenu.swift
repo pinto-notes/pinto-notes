@@ -9,7 +9,7 @@ import UIKit
 import AppKit
 #endif
 
-/// Where share pages live (the Amber Notes site on Vercel), from the build settings.
+/// Where share pages live (the Pinto Notes site on Vercel), from the build settings.
 enum ShareLinkConfig {
     static var baseURL: URL? {
         guard let s = Bundle.main.object(forInfoDictionaryKey: "PaneShareURL") as? String,
@@ -611,7 +611,7 @@ private struct ShareLinkChrome: ViewModifier {
     #endif
 
     /// A shared page says who it's from. Without a name or photo it falls back to your email
-    /// (or "Amber Notes user"), so sharing is the moment to suggest filling them in.
+    /// (or "Pinto Notes user"), so sharing is the moment to suggest filling them in.
     private var profileIncomplete: Bool { profile.name == nil || profile.photo == nil }
 
     private func editProfile() {

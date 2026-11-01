@@ -9,7 +9,7 @@ import Testing
         BundleRename.destination(for: URL(fileURLWithPath: path, isDirectory: true)) { existing.contains($0.path) }?.path
     }
 
-    @Test func anUpdatedAmberNotesMovesToPintoNotesBesideIt() {
+    @Test func anUpdatedLegacyBundleMovesToPintoNotesBesideIt() {
         #expect(Self.destination("/Applications/Amber Notes.app") == "/Applications/Pinto Notes.app")
         #expect(Self.destination("/Users/sara/Applications/Amber Notes.app") == "/Users/sara/Applications/Pinto Notes.app")
     }

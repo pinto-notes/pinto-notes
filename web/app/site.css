@@ -290,7 +290,7 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 
 /* The platform note (app/PlatformNote.tsx). lib/platform.ts marks <html> with the visitor's
    platform before first paint. On Windows, Android or Linux the Mac call to action (.pi-apple)
-   gives way to "Amber Notes is for iPhone and Mac"; on an iPhone the ones marked .pi-not-ios give
+   gives way to "Pinto Notes is for iPhone and Mac"; on an iPhone the ones marked .pi-not-ios give
    way to the iPhone words. Everyone else sees the page as it was sent. */
 .pi, .site-nav a.pi-head { display: none; }
 :root:is([data-platform="windows"], [data-platform="android"], [data-platform="linux"]) .pi-apple,

@@ -305,16 +305,16 @@ import Testing
         let v = "Linked vault"
         #expect(lead("Garden", "Notes") == "\(v)/Projects/Garden/Notes", "same name in two folders: its own folder's")
         #expect(lead("2026-10-03 Notes review", "Notes") == "\(v)/Meetings/2026/Notes")
-        #expect(lead("MCP memory for agents", "README") == "\(v)/Projects/Amber/Amber Notes import", "README next to it")
+        #expect(lead("MCP memory for agents", "README") == "\(v)/Projects/Pinto/Pinto Notes import", "README next to it")
         #expect(lead("Planting calendar", "beds") == "\(v)/Projects/Garden/Garden")
-        #expect(lead("Amber Notes import", "Index") == "\(v)/Projects/Projects", "the Index nearest")
+        #expect(lead("Pinto Notes import", "Index") == "\(v)/Projects/Projects", "the Index nearest")
         #expect(lead("Obsidian workflow", "Planting calendar") == "\(v)/Projects/Garden/Planting calendar", "a relative path")
         #expect(lead("Quick capture", "Inbox") == "\(v)/Inbox", "a .md ending")
         #expect(lead("Home", "PARA") == "\(v)/PARA method", "a front-matter title")
         #expect(lead("Smörgåsbord", "Café list") == "\(v)/Café list")
         let quick = try r.note("Quick capture")
         #expect(quick.body.contains("[[Home|Home page]]") && quick.body.contains("[[Planting calendar|the calendar]]"), "markdown links to notes become wiki links")
-        #expect(try r.note("Amber Notes import").body.contains("Code keeps [[not a link]] as typed."))
+        #expect(try r.note("Pinto Notes import").body.contains("Code keeps [[not a link]] as typed."))
         #expect(r.context.backlinks(to: try r.note("Giulia")).count == 6)
     }
 }

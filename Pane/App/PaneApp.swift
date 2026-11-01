@@ -252,7 +252,7 @@ struct PaneApp: App {
 }
 
 #if os(macOS)
-/// Amber Notes in the menu bar: quick capture, search, pinned and recent notes. A scene of its own,
+/// Pinto Notes in the menu bar: quick capture, search, pinned and recent notes. A scene of its own,
 /// with inputs that don't change: the menu bar item is given its label again whenever its scene is
 /// worked out again, and setting the status item's image asks the windows for another layout pass.
 /// Built inline in PaneApp's body with an @AppStorage binding, it was redone on every update of the

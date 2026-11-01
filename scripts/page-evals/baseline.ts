@@ -1,7 +1,7 @@
 // The unconstrained baseline: the same request given to Claude Code or Codex in a plain empty
 // folder, any framework, free to install packages, run a dev server and look at its work. Then the
 // result is built (if it has a build) and shot in WebKit at 390 and 1440 px, for a contact sheet
-// next to what the same CLI makes through Amber's MCP tools (run.ts).
+// next to what the same CLI makes through Pinto's MCP tools (run.ts).
 //   deno run -A scripts/page-evals/baseline.ts --cli claude|codex [--task workout-tracker-data | --prompt "..."] [--label workout-1] [--out <dir>]
 //   deno run -A scripts/page-evals/baseline.ts --shoot <project dir>     # only build and shoot
 // Subscription CLIs only: API keys are removed from the environment, and a claude session that

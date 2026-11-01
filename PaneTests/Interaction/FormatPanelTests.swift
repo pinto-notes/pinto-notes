@@ -227,12 +227,12 @@ import Testing
         let pill = c(F.pill(dark: look.dark, highContrast: look.highContrast))
         let on = c(F.on(dark: look.dark, highContrast: look.highContrast))
         let glyph = c(F.glyph(dark: look.dark, highContrast: look.highContrast))
-        let selected = AmberButtonTests.contrast(on, pill)
+        let selected = PintoButtonTests.contrast(on, pill)
         #expect(selected >= 3, "selected against unselected: \(selected)")
-        #expect(AmberButtonTests.contrast(c(F.onGlyph), on) >= 3, "the white glyph on amber")
-        #expect(AmberButtonTests.contrast(glyph, pill) >= 4.5, "an unselected glyph on its pill")
+        #expect(PintoButtonTests.contrast(c(F.onGlyph), on) >= 3, "the white glyph on amber")
+        #expect(PintoButtonTests.contrast(glyph, pill) >= 4.5, "an unselected glyph on its pill")
         if look.highContrast {
-            #expect(selected >= AmberButtonTests.contrast(c(F.on(dark: look.dark, highContrast: false)), c(F.pill(dark: look.dark, highContrast: false))),
+            #expect(selected >= PintoButtonTests.contrast(c(F.on(dark: look.dark, highContrast: false)), c(F.pill(dark: look.dark, highContrast: false))),
                     "Increase Contrast never lowers it")
         }
     }

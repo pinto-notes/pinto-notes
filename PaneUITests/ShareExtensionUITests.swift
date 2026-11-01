@@ -1,7 +1,7 @@
 #if os(iOS)
 import XCTest
 
-/// The share extension for real: Safari's share sheet → Amber Notes → Save → the app files it.
+/// The share extension for real: Safari's share sheet → Pinto Notes → Save → the app files it.
 /// Needs a build that carries the app group (sign ad hoc, not CODE_SIGNING_ALLOWED=NO), and a
 /// simulator with network access for the page. Opt-in (AMBER_SHARE_E2E=1): ad-hoc simulator
 /// builds get no App Group container, so Save only succeeds on a provisioned device.
@@ -22,7 +22,7 @@ final class ShareExtensionUITests: XCTestCase {
         _ = safari.webViews.firstMatch.waitForExistence(timeout: 30)
         sleep(3)
 
-        // Share → Amber Notes.
+        // Share → Pinto Notes.
         // iOS 26 Safari keeps Share inside its More (⋯) menu.
         let moreMenu = safari.buttons["MoreMenuButton"]
         if moreMenu.waitForExistence(timeout: 10) { moreMenu.tap() }

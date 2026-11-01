@@ -4,7 +4,7 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// "Enjoying Amber Notes?" as the Mac shows it: a real sheet on a notes window that sits far off
+/// "Enjoying Pinto Notes?" as the Mac shows it: a real sheet on a notes window that sits far off
 /// every screen, captured by `screencapture -l` from the shell so the sheet's material renders.
 /// The test writes `window-<name>` (the sheet's window number) and waits for the shell to write
 /// `shot-<name>`. Nothing appears on the display and nothing takes focus.

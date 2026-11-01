@@ -1,6 +1,6 @@
 // Side by side: what a CLI builds unconstrained (baseline.ts) next to what it builds through
-// Amber's MCP tools (run.ts), each at 390 px light and dark and at 1440 px.
-//   deno run -A scripts/page-evals/compare-sheet.ts out.png "Claude Code, empty folder=<baseline dir>" "Claude via Amber=amber:<round>/<stem>" ...
+// Pinto's MCP tools (run.ts), each at 390 px light and dark and at 1440 px.
+//   deno run -A scripts/page-evals/compare-sheet.ts out.png "Claude Code, empty folder=<baseline dir>" "Claude via Pinto=amber:<round>/<stem>" ...
 // A baseline dir holds shot-390-light.png, shot-390-dark.png and shot-1440-light.png; an amber entry
 // is rendered here from the saved page, note and data, the way the app shows it.
 import { webkit } from "npm:playwright-core@1.63.0";

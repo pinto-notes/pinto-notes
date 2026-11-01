@@ -2,7 +2,7 @@ import SwiftUI
 
 // The design system (docs/DESIGN.md) in code: the radius scale, the three button kinds in their three
 // sizes, the shared shadow and the one toast. Every ButtonStyle in the app lives in this file, and a
-// call site picks a kind and a size, never a height or a radius (AmberButtonTests pins both).
+// call site picks a kind and a size, never a height or a radius (PintoButtonTests pins both).
 
 /// One radius scale everywhere (DESIGN.md, Shape). Concentric corners: an inner shape's radius is
 /// the outer one minus the padding between them.

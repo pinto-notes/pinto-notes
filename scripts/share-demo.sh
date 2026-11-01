@@ -15,7 +15,7 @@ OUT=${OUT:A}
 PORT=56480
 SITE=http://localhost:5230
 
-S=$(xcrun simctl list devices available | grep "Amber collab Emil (" | head -1 | grep -oE '[0-9A-F-]{36}')
+S=$(xcrun simctl list devices available | grep "Pinto collab Emil (" | head -1 | grep -oE '[0-9A-F-]{36}')
 # A fresh boot: a system prompt left from an earlier run would sit over everything.
 xcrun simctl shutdown "$S" 2>/dev/null || true
 xcrun simctl boot "$S" 2>/dev/null || true

@@ -1,6 +1,6 @@
 /* A shared note in the browser (lib/NotePage.tsx). The page is the note, as in the app: the note's
    own paper colours (app/globals.css), a quiet bar, and the site's cream (leaf brown in dark) only in
-   the one mention of Amber Notes after the note. */
+   the one mention of Pinto Notes after the note. */
 
 /* ── "Use this note", at the right of the bar ── */
 .use {

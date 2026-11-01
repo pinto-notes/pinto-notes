@@ -1,7 +1,7 @@
 """dmgbuild, with hdiutil made dependable on this Mac and a background that Finder always finds.
 
 The background picture: dmgbuild records it only as a classic alias, which resolves by volume
-name. With another "Amber Notes" volume mounted (an older download, say), it points at that
+name. With another "Pinto Notes" volume mounted (an older download, say), it points at that
 volume's picture and Finder shows its default window instead. So the alias is pinned to
 /Volumes/<name> as an ejectable disk, and the .DS_Store also gets a Foundation bookmark (pBBk),
 the record Finder writes itself, which finds the volume by its UUID.

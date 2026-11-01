@@ -18,7 +18,7 @@ function useModal(open, onClose) {
 }
 
 // A sheet from the bottom edge (centred on wide windows). It rides above the keyboard and
-// Amber's own things (--amber-inset-bottom); actions stay pinned to its bottom.
+// Pinto's own things (--amber-inset-bottom); actions stay pinned to its bottom.
 export function Sheet({ open, onClose, title, actions, children, class: cls = "" }) {
   const ref = useModal(open, onClose);
   if (!open) return null;

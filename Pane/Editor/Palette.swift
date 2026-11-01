@@ -5,7 +5,7 @@ import UIKit
 import AppKit
 #endif
 
-/// Amber Notes' warm grey: a hint of the icon's brown (#8A4A1C) in the greys themselves, never a
+/// Pinto Notes' warm grey: a hint of the icon's brown (#8A4A1C) in the greys themselves, never a
 /// layer over them. The sidebar takes the most, the list less, and the note page almost none.
 /// On iPhone in dark mode the grounds stay pure black beside the Dynamic Island; only rows warm.
 /// Always grey with a hint of warmth, never brown: dark surfaces lean 2–3% at most.
@@ -184,7 +184,7 @@ enum Palette {
     /// A switch that is on, in Settings: the brand's brown, so the page keeps at most one orange
     /// control (owner, 2026-10-13).
     static let switchOn = pair(brown, 1, 0xA8774F, 1)
-    /// A solid sheet's ground (How did you hear about Amber Notes?): the sign-in screen's cream,
+    /// A solid sheet's ground (How did you hear about Pinto Notes?): the sign-in screen's cream,
     /// and its warm near-black in the dark.
     /// (The dark one was 0x1B1A1C, a cool grey with a hint of violet: DESIGN.md says warm, never neutral.)
     /// E (`plain`): a neutral step off white, and a near-black under the black window.

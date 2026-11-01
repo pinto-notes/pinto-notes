@@ -88,7 +88,7 @@ const paid = !["claude-cli", "codex-cli"].includes(model.provider);
 if (paid && !args["allow-paid"]) throw new Error(`${modelKey} bills per token. Use claude-cli or codex-cli, or pass --allow-paid with explicit approval.`);
 
 // What a chat client tells the model around an MCP server, kept short and neutral.
-const CLIENT_SYSTEM = `You are an AI assistant. The person has connected their Amber Notes app to you with an MCP server, and its tools are available. The person is busy and won't answer questions before you finish: make sensible choices, do the whole task with the tools, then reply briefly with what you did. Today is 2026-10-05.`;
+const CLIENT_SYSTEM = `You are an AI assistant. The person has connected their Pinto Notes app to you with an MCP server, and its tools are available. The person is busy and won't answer questions before you finish: make sensible choices, do the whole task with the tools, then reply briefly with what you did. Today is 2026-10-05.`;
 const variantKey = modelKey + (args.tools === "files" ? "-files" : "") + (args.arm === "screens" ? "-screens" : "") + (args.skill ? "-skill" : "") + (hidden.size ? `-no-${[...hidden].join("-")}` : "");
 const skill = args.skill ? await Deno.readTextFile(new URL("plugins/amber-notes/skills/note-pages/SKILL.md", root)).catch(() => "") : "";
 
@@ -379,7 +379,7 @@ async function openaiSession(system: string, tools: { name: string; description:
 
 // The CLIs see none of the person's own setup: no API keys in their environment (so they use the
 // subscription), a fresh empty working directory, no user or project settings or CLAUDE.md, and
-// only the Amber MCP server.
+// only the Pinto MCP server.
 // Without try_app and run_app_tests (an experiment's control arm), the guide doesn't mention them.
 if (args.hide?.split(",").includes("try_app")) Deno.env.set("AMBER_GUIDE_WITHOUT_TRY", "1");
 const CLI_ENV = (() => { const e = Deno.env.toObject(); for (const k of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "RENDER_SECRET"]) delete e[k]; return e; })();
@@ -524,7 +524,7 @@ async function openrouterSession(system: string, tools: { name: string; descript
     const body = JSON.stringify({ model: model.id, messages: send, tools: defs, usage: { include: true }, reasoning: { effort: "medium" }, max_tokens: 48000 });
     let res!: Response;
     for (let attempt = 0; attempt < 4; attempt++) {
-      res = await fetch("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json", "x-title": "Amber Notes page evals" }, body, signal: AbortSignal.timeout(300_000) })
+      res = await fetch("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json", "x-title": "Pinto Notes page evals" }, body, signal: AbortSignal.timeout(300_000) })
         .catch((e) => new Response(String(e), { status: 599 }));
       if (res.status < 500 && res.status !== 429) break;
       await res.body?.cancel();

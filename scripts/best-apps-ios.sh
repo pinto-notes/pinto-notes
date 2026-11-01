@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 OUT="${1:-$PWD/.shots/best-apps}"
 mkdir -p "$OUT"
-NAME="Amber best apps"
+NAME="Pinto best apps"
 SIM=$(xcrun simctl list devices available | grep "$NAME (" | head -1 | grep -oE '[0-9A-F-]{36}' || true)
 [[ -z "$SIM" ]] && SIM=$(xcrun simctl create "$NAME" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro)
 xcrun simctl boot "$SIM" 2>/dev/null || true

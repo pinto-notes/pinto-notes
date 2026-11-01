@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "How did you hear about Amber Notes?" (see `HeardFrom`): a title, a quiet line, the answers
+/// "How did you hear about Pinto Notes?" (see `HeardFrom`): a title, a quiet line, the answers
 /// as pills sized to their words, and Skip. A pill answers in one tap, fills with amber and the
 /// sheet goes. "Something else" opens a short field for your own words first (optional too).
 /// A solid sheet in the app's own colours, as tall as what it asks: a short sheet on the Mac, and
@@ -200,7 +200,7 @@ struct HeardFromView: View {
 }
 
 extension View {
-    /// "How did you hear about Amber Notes?" over the library, when the store says.
+    /// "How did you hear about Pinto Notes?" over the library, when the store says.
     func heardFromSheet(_ store: HeardFromStore) -> some View {
         modifier(HeardFromSheet(store: store))
     }

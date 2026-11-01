@@ -9,7 +9,7 @@ const load = async (env: Record<string, string>) => {
 describe("the app's links on the staging site", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("default to Amber Notes", async () => {
+  it("default to Pinto Notes", async () => {
     const { scheme, connect } = await load({ NEXT_PUBLIC_APP_SCHEME: "", NEXT_PUBLIC_APP_LINK_ORIGIN: "" });
     expect(scheme.appURL("history")).toBe("pintonotes://history");
     expect(connect.universalLink("ABC")).toBe("https://ambernotes.app/open/connect?request=abc");

@@ -17,8 +17,8 @@ sim() {
   [[ -z "$id" ]] && id=$(xcrun simctl create "$1" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro)
   echo $id
 }
-A=$(sim "Amber collab Emil")
-B=$(sim "Amber collab Sara")
+A=$(sim "Pinto collab Emil")
+B=$(sim "Pinto collab Sara")
 for S in $A $B; do
   xcrun simctl boot "$S" 2>/dev/null || true
   xcrun simctl bootstatus "$S" -b >/dev/null

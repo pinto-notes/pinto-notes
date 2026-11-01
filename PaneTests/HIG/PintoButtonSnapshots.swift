@@ -7,8 +7,8 @@ import Testing
 /// The amber primary button where it's hand-sized: sign-in (ready and busy), the key screens
 /// (welcome, recovery, start fresh), and the button on its own, idle, busy and disabled, light and
 /// dark. Runs only when AMBER_HIG_SHOTS is set:
-/// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/AmberButtonSnapshots`.
-@MainActor @Suite(.serialized) struct AmberButtonSnapshots {
+/// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/PintoButtonSnapshots`.
+@MainActor @Suite(.serialized) struct PintoButtonSnapshots {
     @Test(arguments: [false, true])
     func screens(dark: Bool) async throws {
         guard AppSnapshotTests.dir != nil else { return }

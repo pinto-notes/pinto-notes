@@ -6,7 +6,7 @@ export const CHALLENGE_TOKENS: Record<string, string> = {
   "mcp.pintonotes.com": "k11dzM9GOLGKrm56UKtMrtnzfMMa2vgeoD9qbJ5VaE8",
 };
 
-/** The token for a request's host; the Amber Notes one for any other host, as before. */
+/** The token for a request's host; the Pinto Notes one for any other host, as before. */
 export function challengeToken(host: string | null): string {
   const name = (host ?? "").split(":")[0].toLowerCase();
   return CHALLENGE_TOKENS[name] ?? CHALLENGE_TOKENS["mcp.ambernotes.app"];

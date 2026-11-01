@@ -1,7 +1,7 @@
 #if os(iOS)
 import XCTest
 
-/// Amber Notes on a plane, in the simulator, against a local stack (never production). Run in
+/// Pinto Notes on a plane, in the simulator, against a local stack (never production). Run in
 /// order by scripts/offline-ios.sh, which makes the account and checks the server afterwards:
 ///
 /// 1. Sign in, write a note, go offline with the debug toggle (DebugOffline), write and edit while

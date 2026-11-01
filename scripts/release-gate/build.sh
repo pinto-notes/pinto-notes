@@ -68,7 +68,7 @@ fi
 echo "→ Mac Release archive"
 ARCHIVE="$DD/AmberNotes.xcarchive"
 rm -rf "$ARCHIVE" "$DD/export"
-nice -n 10 xcodebuild -project Pane.xcodeproj -scheme AmberNotesDirect -configuration Release \
+nice -n 10 xcodebuild -project Pane.xcodeproj -scheme PintoNotesDirect -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath "$DD" -archivePath "$ARCHIVE" \
   -allowProvisioningUpdates -xcconfig Config/Beta.xcconfig DEVELOPMENT_TEAM=4UM3XVUN9Y CODE_SIGN_STYLE=Automatic \
   CODE_SIGN_IDENTITY="Apple Development" MARKETING_VERSION="gate-${SHA:0:7}" CURRENT_PROJECT_VERSION="$(date -u +%Y%m%d%H%M)" \

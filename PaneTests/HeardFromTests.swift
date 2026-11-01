@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Pane
 
-/// "How did you hear about Amber Notes?": asked once when the server says, one tap answers or
+/// "How did you hear about Pinto Notes?": asked once when the server says, one tap answers or
 /// skips, and an answer given offline still reaches the server.
 @MainActor
 @Suite struct HeardFromTests {

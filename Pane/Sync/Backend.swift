@@ -415,7 +415,7 @@ final class Backend {
 
     /// Sign in with Google: Google's page in the system's secure browser sheet, through Supabase
     /// (PKCE: the app keeps the verifier, Supabase checks Google's state and nonce), then the
-    /// one-time code is swapped for a session. A new Google account makes a new Amber Notes
+    /// one-time code is swapped for a session. A new Google account makes a new Pinto Notes
     /// account; one whose email already has an account joins it (docs/Technical/google-sign-in.md).
     /// `hint` (an email) puts that Google account first in Google's chooser. Returns the account
     /// that's now signed in.

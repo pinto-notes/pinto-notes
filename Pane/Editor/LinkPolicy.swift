@@ -3,7 +3,7 @@ import Foundation
 /// What clicking a link in a note may do. Notes can be written by anyone the account lets
 /// in (an AI connection, an import, a paste), so a link only ever opens a web page, a mail
 /// or a call, or another note (by id, or by title through a wiki link). file:, smb: (which
-/// hands the Mac's login to a stranger's server), other apps' schemes and Amber Notes' own
+/// hands the Mac's login to a stranger's server), other apps' schemes and Pinto Notes' own
 /// pintonotes: are never opened.
 enum LinkPolicy {
     enum Action: Equatable {

@@ -159,7 +159,7 @@ enum NotePageLibraries {
         return Bundle.main.url(forResource: base, withExtension: ext).flatMap { try? Data(contentsOf: $0) }
     }
 
-    /// amber-ui: the component kit (amber-ui/ in the repository, built by scripts/build-app.ts kit):
+    /// amber-ui: the component kit (pinto-ui/ in the repository, built by scripts/build-app.ts kit):
     /// each component's source, its compiled module and the kit's stylesheet.
     struct Kit: Decodable { var version: String; var src: [String: String]; var compiled: [String: String]; var css: String }
     static let kit: Kit? = resource("amber-ui.json").flatMap { try? JSONDecoder().decode(Kit.self, from: $0) }

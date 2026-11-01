@@ -9,7 +9,7 @@
 
 Sources (from the round 1 "leaf page" icon, layered in Icon Composer):
 - leaf.png: the leaf alone, as drawn. Everything else places it with OFFSET.
-- AmberNotes.icon: the Icon Composer document, the app icon on iOS 26 and macOS 26.
+- PintoNotes.icon: the Icon Composer document, the app icon on iOS 26 and macOS 26.
 - render-1024.png: Apple's own render of it (ictool, iOS Default, converted to sRGB), rounded, with
   the system's lighting. Every "app icon" picture outside the app is cut from it.
 - AppIcon_1024.png: flat and opaque, unmasked, for places that mask it themselves.
@@ -146,7 +146,7 @@ def brand():
 def app():
     dest = out("Pane/Resources/AppIcon.icon")
     shutil.rmtree(dest, ignore_errors=True)
-    shutil.copytree(os.path.join(HERE, "AmberNotes.icon"), dest)
+    shutil.copytree(os.path.join(HERE, "PintoNotes.icon"), dest)
     cat = "Pane/Resources/Assets.xcassets"
     save(src("AppIcon_1024.png"), f"{cat}/AppIcon.appiconset/icon-ios.png", opaque=True)
     for pt in (16, 32, 128, 256, 512):
@@ -178,7 +178,7 @@ def social():
 def sources():
     """Places the leaf by OFFSET in the Icon Composer document, the flat icon and Apple's render."""
     leaf = placed_leaf()
-    leaf.save(os.path.join(HERE, "AmberNotes.icon", "Assets", "leaf.png"), optimize=True)
+    leaf.save(os.path.join(HERE, "PintoNotes.icon", "Assets", "leaf.png"), optimize=True)
     # The flat icon: a soft, squashed cast shadow under the leaf on the amber fill.
     sh = Image.new("L", (1024, 1024), 0)
     sh.paste(leaf.split()[3].resize((1024, 380)).filter(ImageFilter.GaussianBlur(10)), (0, 560))
@@ -189,7 +189,7 @@ def sources():
     flat.convert("RGB").save(os.path.join(HERE, "AppIcon_1024.png"), optimize=True)
     # Apple's render writes Display P3; convert to sRGB so every viewer shows the same amber.
     path = os.path.join(HERE, "render-1024.png")
-    subprocess.run([ICTOOL, os.path.join(HERE, "AmberNotes.icon"), "--export-image", "--output-file", path,
+    subprocess.run([ICTOOL, os.path.join(HERE, "PintoNotes.icon"), "--export-image", "--output-file", path,
                     "--platform", "iOS", "--rendition", "Default", "--width", "1024", "--height", "1024", "--scale", "1"],
                    check=True, capture_output=True)
     im = Image.open(path)

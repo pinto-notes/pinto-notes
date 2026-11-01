@@ -4,7 +4,7 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// "How did you hear about Amber Notes?" as the Mac sheet draws it, light and dark: asking, just
+/// "How did you hear about Pinto Notes?" as the Mac sheet draws it, light and dark: asking, just
 /// after a tap, and typing under "Something else". Runs only when AMBER_HIG_SHOTS is set:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/HeardFromSnapshots`.
 @MainActor @Suite(.serialized) struct HeardFromSnapshots {

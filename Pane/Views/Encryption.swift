@@ -189,7 +189,7 @@ struct KeyGateView: View {
         }
     }
 
-    /// The main way in: a code for a device where Amber Notes already works. The recovery key and
+    /// The main way in: a code for a device where Pinto Notes already works. The recovery key and
     /// the rest are small links under it.
     private var addDevice: some View {
         VStack(spacing: 18) {
@@ -493,7 +493,7 @@ struct KeyGateView: View {
     }
 
     /// Google's chooser can sign in to any Google account, so a different one would sign in to a
-    /// different Amber Notes account: that one is signed out again and nothing is deleted.
+    /// different Pinto Notes account: that one is signed out again and nothing is deleted.
     private func signInWithGoogleAndStartFresh() async throws {
         let before = backend.userID
         let after: UUID?

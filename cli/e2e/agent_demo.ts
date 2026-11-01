@@ -1,6 +1,6 @@
 // An agent using amber: `claude -p`, allowed only `amber …` through Bash, against the local server
 // (local_server.ts). Prints each command the agent ran with its output, then checks the note in
-// Amber. Uses the Claude Code subscription on this machine; no API key.
+// Pinto. Uses the Claude Code subscription on this machine; no API key.
 //
 //   deno run -A e2e/agent_demo.ts > e2e/agent-transcript.txt
 const cli = new URL("..", import.meta.url).pathname;
@@ -30,7 +30,7 @@ const run = async (cmd: string, args: string[], extra: Record<string, string> = 
 
 console.log(`# An agent using amber (${new Date().toISOString().slice(0, 16)}Z)\n`);
 console.log("Signed in first with `amber login` (approved through the local consent page). Then:\n");
-const prompt = "My notes app is Amber Notes, and the `amber` command reads and edits my notes (start with `amber help`). " +
+const prompt = "My notes app is Pinto Notes, and the `amber` command reads and edits my notes (start with `amber help`). " +
   "Find my note about the Acme kickoff. Under Open questions, the rollout owner has been decided: replace the question about who owns the rollout " +
   "with a line saying Lee owns the rollout (decided 2026-10-06). Use amber search and amber edit, then read the note back to confirm.";
 console.log(`$ claude -p --allowedTools 'Bash(amber:*)' "${prompt}"\n`);

@@ -1,5 +1,5 @@
 # Projects
-- [[Projects/Amber/README|Amber Notes import]]
+- [[Projects/Pinto/README|Pinto Notes import]]
 - [[Projects/Garden/README|Garden]]
 - [[Kitchen remodel]]
 - [[Trip to Lisbon]]

@@ -75,9 +75,9 @@ const { appsGuide, FILE_APP_INSTRUCTIONS } = await import(new URL("supabase/func
 const stamp = "<!-- Generated from supabase/functions/mcp/page_guide.ts by scripts/page-evals/build-skill.ts. Don't edit. -->";
 await Deno.mkdir(new URL("references/", skill), { recursive: true });
 await write(new URL("references/guide.md", skill), `${stamp}\n${appsGuide()}`);
-// The real default stylesheet, as the app ships it (amber-base.ts mirrors Pane/Resources/AppLibraries/amber-base.css).
-const { AMBER_BASE_CSS } = await import(new URL("supabase/functions/mcp/amber-base.ts", root).href);
-await write(new URL("references/amber-base.css", skill), AMBER_BASE_CSS);
+// The real default stylesheet, as the app ships it (pinto-base.ts mirrors Pane/Resources/AppLibraries/amber-base.css).
+const { PINTO_BASE_CSS } = await import(new URL("supabase/functions/mcp/pinto-base.ts", root).href);
+await write(new URL("references/amber-base.css", skill), PINTO_BASE_CSS);
 
 // The Claude skill: when to use it, the rules every client gets from the server, and the guide.
 const description = "Build, change, check and fill the apps in Pinto Notes notes (a note's App side: habit trackers, budgets, reading or workout logs, CRMs, trip plans, flashcards, dashboards) through the amber-notes MCP server, and put data into them: rows, records, settings, files. Use when the person asks to make a note an app, change or fix a note's app, add or import data to it, or set up an API key for one.";
@@ -108,6 +108,6 @@ ${FILE_APP_INSTRUCTIONS}
 The default look every app starts with, amber-base.css (the real file; override any rule, or opt out with \`<meta name="amber-base" content="none">\`):
 
 \`\`\`css
-${AMBER_BASE_CSS.trim()}
+${PINTO_BASE_CSS.trim()}
 \`\`\`
 `);

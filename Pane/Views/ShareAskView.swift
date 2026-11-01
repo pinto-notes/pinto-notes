@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Enjoying Amber Notes?" (see `ShareAsk`): the app's mark, two lines, and three buttons
+/// "Enjoying Pinto Notes?" (see `ShareAsk`): the app's mark, two lines, and three buttons
 /// (developers see the open source version: Star on GitHub first).
 /// A short sheet on iPhone, a small sheet on the Mac. Sharing opens the post in the browser and
 /// turns the sheet into a thank-you, which goes by itself a few seconds after you come back.

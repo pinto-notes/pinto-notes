@@ -8,7 +8,7 @@ import Supabase
 import SwiftUI
 import TipKit
 
-/// "Did you know" tips (TipKit) for what Amber Notes does that Apple Notes doesn't.
+/// "Did you know" tips (TipKit) for what Pinto Notes does that Apple Notes doesn't.
 ///
 /// The rules every tip shares:
 /// - at most one tip every 3 days: TipKit's displayFrequency is daily (it has no 3-day setting),
@@ -43,7 +43,7 @@ enum PaneTips {
     @Parameter static var turn: String = ""
     /// The menu bar icon is on (Mac).
     @Parameter static var menuBarShown: Bool = true
-    /// "Enjoying Amber Notes?" is on screen (`ShareAskStore`): no tip beside it.
+    /// "Enjoying Pinto Notes?" is on screen (`ShareAskStore`): no tip beside it.
     @Parameter static var shareAskVisible: Bool = false
     /// Notes that are apps are on (NoteApps.enabled): New App's tip shows only then.
     @Parameter static var appsOn: Bool = false

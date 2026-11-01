@@ -28,7 +28,7 @@ import UniformTypeIdentifiers
             }
         }
         #expect(copied == (try Data(contentsOf: FileStore.url(for: a.id, filename: a.filename))))
-        #expect(FileStore.exists(a), "a drag copies; the file stays in Amber Notes")
+        #expect(FileStore.exists(a), "a drag copies; the file stays in Pinto Notes")
         // Moving it to a folder in the sidebar decodes as before.
         let item: Data = try await withCheckedThrowingContinuation { c in
             _ = p.loadDataRepresentation(forTypeIdentifier: UTType.paneItem.identifier) { d, e in if let d { c.resume(returning: d) } else { c.resume(throwing: e ?? CocoaError(.fileNoSuchFile)) } }

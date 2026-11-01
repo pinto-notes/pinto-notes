@@ -8,7 +8,7 @@ import SwiftUI
 ///   already have Copy. The link itself is never shown.
 /// - "People with the link can edit / view", or the link is off. Off deletes the link; turning it
 ///   on again makes a new one, which is also the way to retire a link that went too far.
-/// - Can view opens a read-only page (no account); Can edit opens the note in Amber Notes and adds
+/// - Can view opens a read-only page (no account); Can edit opens the note in Pinto Notes and adds
 ///   the person to it. Both stay end-to-end encrypted: the key travels in the link's fragment.
 /// - Share as Template is a quiet item at the bottom.
 ///

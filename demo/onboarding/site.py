@@ -33,7 +33,7 @@ def evening_page():
     h = re.sub(r'(<p class="templates_lede__[^"]*"[^>]*>).*?(</p>)', r"\1" + TEMPLATE["description"] + r"\2", h, count=1, flags=re.S)
     h = re.sub(r'(<p class="templates_for__[^"]*"[^>]*>).*?(</p>)', r"\1" + TEMPLATE["audience"] + r"\2", h, count=1, flags=re.S)
     h = h.replace('href="/open/template/habit-tracker"', f'href="pintonotes://template/{SLUG}"')
-    h = h.replace("Use template opens Amber Notes and adds the note.", "Use template opens Amber Notes and adds the app.")
+    h = h.replace("Use template opens Pinto Notes and adds the note.", "Use template opens Pinto Notes and adds the app.")
     # The picture: the app itself instead of the note's slice.
     h = re.sub(r'(<div class="templates_heroStage__[^"]*" style=")[^"]*(">).*?(</figure>)',
                r'\1--ground:#c98a4b\2<img src="/templates/apps/' + SLUG + r'.jpg" alt="The Evening tracker app" style="display:block;width:62%;margin:6% auto;border-radius:28px;box-shadow:0 18px 40px rgba(60,30,5,.25)">',

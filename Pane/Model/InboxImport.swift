@@ -3,7 +3,7 @@ import SwiftData
 
 @MainActor
 extension ModelContext {
-    /// Files everything shared into Amber Notes, in the folder picked in the share sheet: text
+    /// Files everything shared into Pinto Notes, in the folder picked in the share sheet: text
     /// as a note (with its files in it), files alone as files in the folder. Returns the new notes.
     /// Evernote exports aren't filed: they wait in `EvernoteInbox` for the import sheet.
     @discardableResult

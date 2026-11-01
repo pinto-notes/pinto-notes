@@ -29,7 +29,7 @@ Per request only: the `x-region` header, or `?forceFunctionRegion=` where a head
 
 Callers we can't change are the reason the function pins itself: outside `FUNCTION_REGION` it sends the request, unprocessed, to the same function with `x-region` set to the home region, and returns the answer. It passes the caller's address under `MCP_PROXY_SECRET`, so rate limits count the caller and not the relay. A relayed request is never relayed again; it is known by the relay's mark together with the secret, so a caller who sends the mark alone is still sent home. A `forceFunctionRegion` in the query is dropped, by the relay and by the site's proxy, so a caller can't steer where it runs. The site also names the region on its own calls, which saves the hop for most traffic.
 
-When the home region can't be reached: a read (GET, HEAD) is answered where it landed and the log says `relay_failed`. Anything else gets a 502 with "Couldn't reach Amber Notes just now. Try again." Once a write has been sent, home may have run it, and running it again where it landed would do it twice. An answer that comes back from somewhere other than home (the gateway's own error, or another region) is passed on as it is and logged as `relay_failed`, never run again.
+When the home region can't be reached: a read (GET, HEAD) is answered where it landed and the log says `relay_failed`. Anything else gets a 502 with "Couldn't reach Pinto Notes just now. Try again." Once a write has been sent, home may have run it, and running it again where it landed would do it twice. An answer that comes back from somewhere other than home (the gateway's own error, or another region) is passed on as it is and logged as `relay_failed`, never run again.
 
 What this pins: where the request is acted on, where the database is read and where notes are opened in memory. What it can't pin: the path a request takes to get there. Cloudflare and Supabase's gateway receive it near the caller, as before, and the relaying function holds it in memory for the moment it takes to pass it on.
 
@@ -40,7 +40,7 @@ Two instances of the runtime the hosted functions use (`edge-runtime` v1.77.0), 
 | Sent to the `us-east-1` instance | Answer |
 |---|---|
 | `POST /functions/v1/mcp/connect/ask?x=1&forceFunctionRegion=us-east-1` with a body, `x-amber-relay: 1` (no secret) and `accept-encoding: gzip, br, zstd` | 200, readable; handler ran in `eu-central-1` with path `…/connect/ask?x=1`, the same body, the caller's address and not the relay's; home saw the relay's own mark and the runtime's own `accept-encoding`; `x-amber-region: eu-central-1`, `x-amber-relay: us-east-1` |
-| `POST /functions/v1/mcp` with the home instance stopped | 502 `{"error":"Couldn't reach Amber Notes just now. Try again."}`, `retry-after: 2`; the handler did not run; log `{"event":"relay_failed","where":"us-east-1","method":"POST","kind":"TypeError"}` |
+| `POST /functions/v1/mcp` with the home instance stopped | 502 `{"error":"Couldn't reach Pinto Notes just now. Try again."}`, `retry-after: 2`; the handler did not run; log `{"event":"relay_failed","where":"us-east-1","method":"POST","kind":"TypeError"}` |
 | `GET /functions/v1/mcp/.well-known/x` with the home instance stopped | answered in `us-east-1`; log `relay_failed` with `"method":"GET"` |
 
 Not proven before a deploy: that Supabase's gateway accepts a function calling its own address with `x-region`. It is an ordinary request to the gateway, and the header is measured to work from outside.

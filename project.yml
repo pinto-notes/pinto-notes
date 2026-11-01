@@ -268,13 +268,13 @@ targets:
         buildPhase: resources
       # More of the checkout the tests read, for the same reason (TestFiles.swift): the demo note
       # apps (NotePageTests), the AI server's stylesheet and file kinds, and the app's own views
-      # (AmberButtonTests reads which button style each uses).
+      # (PintoButtonTests reads which button style each uses).
       - path: demo/note-pages
         type: folder
         buildPhase: resources
       - path: Pane/Resources/AppLibraries/amber-base.css
         buildPhase: resources
-      - path: supabase/functions/mcp/amber-base.ts
+      - path: supabase/functions/mcp/pinto-base.ts
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
         buildPhase: resources
@@ -311,7 +311,7 @@ targets:
         buildPhase: resources
       - path: Pane/Resources/Pane-ios-personal.entitlements
         buildPhase: resources
-      # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
+      # The design rules, for PintoButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md
         buildPhase: resources
       # Collaboration's Automerge parts, built here against the real Automerge: the app doesn't
@@ -338,7 +338,7 @@ targets:
         SWIFT_VERSION: "5.0"
         SWIFT_STRICT_CONCURRENCY: minimal
 schemes:
-  AmberNotesDirect:
+  PintoNotesDirect:
     build:
       targets:
         PaneDirect: all

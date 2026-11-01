@@ -9,8 +9,8 @@ import UIKit
 /// second line at the accessibility sizes instead of being cut. Pictures when AMBER_HIG_SHOTS is
 /// set, on a simulator:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/AmberButtonDynamicTypeSnapshots CODE_SIGNING_ALLOWED=NO`.
-@MainActor @Suite(.serialized) struct AmberButtonDynamicTypeSnapshots {
+/// -only-testing:PaneTests/PintoButtonDynamicTypeSnapshots CODE_SIGNING_ALLOWED=NO`.
+@MainActor @Suite(.serialized) struct PintoButtonDynamicTypeSnapshots {
     static let row = ButtonSize.big.height
 
     static func buttons(_ size: DynamicTypeSize) -> some View {
@@ -79,7 +79,7 @@ import Testing
 
 /// On the Mac the amber button stays as it is, whatever the text size: its sizes follow the
 /// control size, as the system's buttons do.
-@MainActor @Suite struct AmberButtonDynamicTypeSnapshots {
+@MainActor @Suite struct PintoButtonDynamicTypeSnapshots {
     static func size(_ view: some View, _ type: DynamicTypeSize) -> CGSize {
         NSHostingView(rootView: view.dynamicTypeSize(type).fixedSize()).fittingSize
     }

@@ -12,7 +12,7 @@ typealias FfiPosition = AutomergeUniffi.Position
 public struct Cursor: Equatable, Hashable, Sendable {
     var bytes: [UInt8]
 
-    // Amber Notes: a cursor sent to another device comes back from its bytes (the hex
+    // Pinto Notes: a cursor sent to another device comes back from its bytes (the hex
     // `description`). Upstream has no public way to rebuild one; see Vendor/README.md.
     public init(bytes: [UInt8]) { self.bytes = bytes }
 

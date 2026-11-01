@@ -1,6 +1,6 @@
 import Foundation
 
-/// Things shared into Amber Notes from other apps, waiting for the app to file them.
+/// Things shared into Pinto Notes from other apps, waiting for the app to file them.
 /// The share extension writes items into the shared App Group container; the app
 /// turns each into a note the next time it's active.
 enum Inbox {

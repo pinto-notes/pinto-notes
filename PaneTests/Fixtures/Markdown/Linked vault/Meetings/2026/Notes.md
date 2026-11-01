@@ -1,2 +1,2 @@
 Notes
-Standing agenda for meetings. See [[2026-09-30 Amber sync]].
+Standing agenda for meetings. See [[2026-09-30 Pinto sync]].

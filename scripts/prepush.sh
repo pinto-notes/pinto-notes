@@ -122,7 +122,7 @@ fi
 
 pids=()
 if [[ ${PREPUSH_RELEASE:-0} == 1 ]]; then
-  compile mac "Mac download, Release (PaneDirect)" build -scheme AmberNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
+  compile mac "Mac download, Release (PaneDirect)" build -scheme PintoNotesDirect "${release[@]}" -destination 'generic/platform=macOS' -derivedDataPath "$DD/mac" &
   pids+=($!)
   compile ios "iPhone app, Release" build -scheme Pane "${release[@]}" -destination 'generic/platform=iOS' -derivedDataPath "$DD/ios" &
   pids+=($!)

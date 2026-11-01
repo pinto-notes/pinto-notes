@@ -575,7 +575,7 @@ struct NoteDetailView: View {
         }, set: { if $0 == nil, let m = firstOpen { FirstOpen.shared.start(m) } })
     }
 
-    /// What of the app's bottom edge Amber covers: on the Mac the receipt (its height, its margin and
+    /// What of the app's bottom edge Pinto covers: on the Mac the receipt (its height, its margin and
     /// a gap); on iPhone nothing (the receipt goes in the navigation bar, and the App side has no
     /// bottom toolbar).
     private var pageInsetBottom: CGFloat {

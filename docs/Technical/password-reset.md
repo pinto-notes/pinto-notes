@@ -153,7 +153,7 @@ stock recovery template.
 4. `scripts/auth-email-config.sh > /tmp/auth-email.json`, add the key as `smtp_pass`, and
    `PATCH https://api.supabase.com/v1/projects/rodegaeruhyybqilrnpn/config/auth` with it. That sets
    the site URL, the recovery subject and template, one hour validity, the per-address minute, and
-   SMTP from `hello@ambernotes.app` ("Amber Notes"). (Since the rename the script prints what the
+   SMTP from `hello@ambernotes.app` ("Pinto Notes"). (Since the rename the script prints what the
    emails say, for every template, with the site URL `https://pintonotes.com` and the sender name
    "Pinto Notes"; `scripts/auth-email-config.sh --setup` adds these first-time SMTP settings and
    limits. See `docs/Technical/auth-emails.md`.) It also fixes `smtp_max_frequency` (1 s today,

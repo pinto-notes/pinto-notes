@@ -100,7 +100,7 @@ enum CollabDemo {
         // What the person taps next, handed over by scripts/share-demo.sh as lines in
         // Documents/demo-command.txt: "use <template id>" (Use template on the site) and "stop"
         // (Stop Sharing in the link's sheet). Opening pintonotes:// links from the script makes iOS
-        // ask "Open in Amber Notes?", which nothing here can answer.
+        // ask "Open in Pinto Notes?", which nothing here can answer.
         let file = URL.documentsDirectory.appending(path: "demo-command.txt")
         try? FileManager.default.removeItem(at: file)
         while true {

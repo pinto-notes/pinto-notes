@@ -4,7 +4,7 @@ import Foundation
 
 // Add a device: a signed-in device without the account's key gets it from one that has it
 // (docs/Technical/add-device-threat-model.md). The new device shows a QR code and a typed code;
-// a device with the key reads one of them inside Amber Notes and seals the key to the new
+// a device with the key reads one of them inside Pinto Notes and seals the key to the new
 // device. The formats are in supabase/functions/_shared/e2ee.ts, pinned by e2ee-vectors.json.
 
 extension E2EE {
@@ -238,7 +238,7 @@ protocol AddDeviceServer: Sendable {
 }
 
 enum AddDeviceError: LocalizedError, Equatable {
-    /// Not an Amber Notes add-device code at all (some other QR code).
+    /// Not an Pinto Notes add-device code at all (some other QR code).
     case notACode
     /// The typed code isn't 12 letters and numbers.
     case typo

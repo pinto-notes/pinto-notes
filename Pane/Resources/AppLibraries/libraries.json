@@ -178,7 +178,7 @@
       "package": "amber-notes router",
       "version": "1.0.0",
       "license": "MIT",
-      "source": "Amber Notes (Pane/Resources/AppLibraries/router.js)",
+      "source": "Pinto Notes (Pane/Resources/AppLibraries/router.js)",
       "what": "Screens for a Preact app, kept in memory: <Router>, route(), back(), useRoute()",
       "bytes": 2391,
       "sha384": "ePeYmrwqvYx6DTxEGh8kvDsWyH9LEeQIC3oMaW0IcCYEzSUMhqaRv1TUyLezCVpG",

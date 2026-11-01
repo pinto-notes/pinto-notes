@@ -140,7 +140,7 @@ c["external_apple_client_id"] = f"app.ambernotes.signin,{bundle}"
 for k, v in list(c.items()):
     if k.startswith("mailer_subjects_") and isinstance(v, str) and not v.startswith("[Staging]"):
         c[k] = "[Staging] " + v
-c["smtp_sender_name"] = "Amber Notes Staging"
+c["smtp_sender_name"] = "Pinto Notes Staging"
 json.dump(c, open(out, "w"))
 PY
   api PATCH "/v1/projects/$REF/config/auth" "$body" >/dev/null

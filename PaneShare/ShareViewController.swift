@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// "Save to Amber Notes" from any app's share sheet (Apple Notes, Safari, Files…).
+/// "Save to Pinto Notes" from any app's share sheet (Apple Notes, Safari, Files…).
 final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
