@@ -39,8 +39,13 @@ import UIKit
         window.isHidden = false
         try? await Task.sleep(for: .seconds(wait))
         if scroll > 0, let s = firstScrollView(in: window) {
-            s.setContentOffset(CGPoint(x: 0, y: scroll - s.adjustedContentInset.top), animated: false)
-            try? await Task.sleep(for: .seconds(0.6))
+            // .infinity: to the end of the page. A list measures its rows as they come in, so
+            // it goes again until the end stops moving.
+            for _ in 0..<(scroll.isInfinite ? 4 : 1) {
+                let end = s.contentSize.height + s.adjustedContentInset.bottom - s.bounds.height
+                s.setContentOffset(CGPoint(x: 0, y: scroll.isInfinite ? end : scroll - s.adjustedContentInset.top), animated: false)
+                try? await Task.sleep(for: .seconds(0.6))
+            }
         }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 3

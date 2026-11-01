@@ -7,15 +7,27 @@ import SwiftUI
 ///
 /// - A, status first: a calm header, three one-line controls, the rest behind "How it works".
 /// - B, cards: who can open your notes, losing a device, AI access, locked notes.
-/// - C, who can open your notes: everything that can open them, drawn as tiles. Advanced
-///   protection takes Pinto Notes off the picture.
+/// - C, who can open your notes: everything that can open them, drawn as tiles. Emil picked C.
+///   Advanced protection is retired, so C has no switch. On iPhone the 3-wide grid was cramped;
+///   `securityPhoneStudy` picks one of three phone versions (SecurityPhoneC).
 enum SecurityStudy: String, CaseIterable, Identifiable {
     case a, b, c
     var id: String { rawValue }
 }
 
+/// C on iPhone (2026-11-01, Emil: "not great with that 3 wide grid"). The Mac keeps C's tiles.
+/// - tiles: C as it was, three wide.
+/// - list: A+C. A one-line status, then who can open your notes as a grouped list.
+/// - groups: C with bigger tiles, two wide, in "Your devices" and "Also can open them".
+/// - reasons: a picture of every mark, then one list grouped by why each can open them.
+enum SecurityPhoneStudy: String, CaseIterable, Identifiable {
+    case tiles, list, groups, reasons
+    var id: String { rawValue }
+}
+
 extension EnvironmentValues {
     @Entry var securityStudy: SecurityStudy? = nil
+    @Entry var securityPhoneStudy: SecurityPhoneStudy = .reasons
 }
 
 /// What the page says, read once from the account. Never "end-to-end" unless Advanced protection is on.
@@ -77,6 +89,10 @@ enum SecurityStudyCopy {
     static let noAI = "No AI connected"
     static let devicesTitle = "Devices with your key"
     static let howItWorks = "How it works"
+    static let lockedTitle = "Locked notes"
+    static let lockedLine = "AIs see the title, not what\u{2019}s inside."
+    static let pintoLine = "Keeps a copy to help you back in"
+    static let aiHolds = "Can read notes while connected"
 
     /// "How it works": every fact the page stands on, a title and at most two lines each.
     static func how(advanced: Bool) -> [(symbol: String, title: String, line: String)] {
@@ -89,18 +105,16 @@ enum SecurityStudyCopy {
         } else {
             out += [
                 ("person.badge.key", "We keep a locked copy of your key",
-                 "So signing in opens your notes on a new device."),
+                 "So signing in opens your notes on a new device, and we can help you back in."),
                 ("building.columns", "That means we could open them",
                  "For example under a court order. So could someone who gets into your account."),
-                ("checkmark.shield", "Advanced protection",
-                 "Only your devices hold the key. We can\u{2019}t open your notes, or help you back in."),
             ]
         }
         out += [
-            ("sparkles", "Connected AIs", "While an AI is connected, our server unlocks your notes for its requests."),
+            ("sparkles", "Connected AIs", "Each AI you connect holds its own copy of your key. It can read your notes until you disconnect it."),
             ("key", "Recovery key", advanced ? "Opens your notes if you lose your devices. We can\u{2019}t help you then."
                                              : "Opens your notes without signing in. Optional while we keep a copy."),
-            ("lock.doc", "Locked notes", "Each has its own password; lock one from its \u{2022}\u{2022}\u{2022} menu. Not even a connected AI can read them."),
+            ("lock.doc", "Locked notes", "Each has its own password; lock one from its \u{2022}\u{2022}\u{2022} menu. A connected AI sees the title, not what\u{2019}s inside."),
         ]
         return out
     }
@@ -130,7 +144,12 @@ struct SecurityStudyPage: View {
         switch study {
         case .a: SecurityStatusFirst(facts: facts, howOpen: howOpen)
         case .b: SecurityCards(facts: facts)
-        case .c: SecurityWhoCanOpen(facts: facts)
+        case .c:
+            #if os(iOS)
+            SecurityPhoneC(facts: facts)
+            #else
+            SecurityWhoCanOpen(facts: facts)
+            #endif
         }
     }
 }
@@ -498,30 +517,20 @@ struct SecurityWhoCanOpen: View {
                 }
                 .animation(.snappy(duration: 0.25), value: advanced)
 
-                VStack(spacing: 0) {
-                    AdvancedToggle(on: $advanced) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(KeyCopyWords.strictTitle)
-                            Text("Take Pinto Notes off this list.").font(.callout).foregroundStyle(.secondary)
-                        }
+                HStack(spacing: 10) {
+                    Image(systemName: "lock.fill").foregroundStyle(.secondary).frame(width: 20).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(SecurityStudyCopy.lockedTitle)
+                        Text(SecurityStudyCopy.lockedLine + " Lock one " + SecurityStudyCopy.lockLine.lowercased() + ".")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.vertical, 10)
-                    Divider()
-                    HStack(spacing: 10) {
-                        Image(systemName: "lock.fill").foregroundStyle(.secondary).frame(width: 20).accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Locked notes: only you")
-                            Text("Lock one " + SecurityStudyCopy.lockLine.lowercased() + ".")
-                                .font(.callout).foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.vertical, 10)
-                    .accessibilityElement(children: .combine)
+                    Spacer(minLength: 0)
                 }
+                .padding(.vertical, 10)
                 .padding(.horizontal, 14)
                 .background(Look.fill, in: RoundedRectangle(cornerRadius: Look.radius, style: .continuous))
+                .accessibilityElement(children: .combine)
 
                 HowItWorksLink(advanced: advanced).font(.callout).padding(.horizontal, 4)
             }
@@ -566,3 +575,299 @@ struct SecurityWhoCanOpen: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+// MARK: C on iPhone
+
+#if os(iOS)
+/// One thing that can open your notes: its mark, its name and a short grey line.
+private struct Opener: Identifiable {
+    enum Mark { case symbol(String), app, ai(String) }
+    var id: String { name + detail }
+    let mark: Mark
+    let name: String
+    let detail: String
+
+    static func devices(_ f: SecurityFacts) -> [Opener] {
+        f.holders.filter { $0.name != PrivacyCopy.keychainTitle }.map { Opener(mark: .symbol($0.symbol), name: $0.name, detail: $0.when) }
+    }
+    /// What keeps a copy so you can get back in: iCloud Keychain (if it holds one) and Pinto Notes.
+    static func backIn(_ f: SecurityFacts) -> [Opener] {
+        f.holders.filter { $0.name == PrivacyCopy.keychainTitle }.map { Opener(mark: .symbol($0.symbol), name: $0.name, detail: $0.when) }
+            + [Opener(mark: .app, name: "Pinto Notes", detail: SecurityStudyCopy.pintoLine)]
+    }
+    static func ais(_ f: SecurityFacts) -> [Opener] {
+        f.ais.map { Opener(mark: .ai($0), name: $0, detail: SecurityStudyCopy.aiHolds) }
+    }
+    static func all(_ f: SecurityFacts) -> [Opener] { devices(f) + backIn(f) + ais(f) }
+}
+
+private struct OpenerMark: View {
+    let mark: Opener.Mark
+    var size: CGFloat = 22
+    /// Grows with the text, like Settings' row icons.
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+    var scales = true
+    var body: some View {
+        let size = size * (scales ? min(scale, 1.6) : 1)
+        Group {
+            switch mark {
+            case .symbol(let name): Image(systemName: name).font(.system(size: size)).foregroundStyle(Color.ink)
+            case .app: AppMark(size: size * 1.2)
+            case .ai(let name): VersionAuthorMark(author: .ai(name), size: size)
+            }
+        }
+        .frame(width: size * 1.4, height: size * 1.4)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A list row like Settings › Apple Account's devices: mark, name, a grey line under it.
+private struct OpenerRow: View {
+    let opener: Opener
+    var body: some View {
+        HStack(spacing: 12) {
+            OpenerMark(mark: opener.mark)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(opener.name).foregroundStyle(Color.ink)
+                Text(opener.detail).font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// "Save a recovery key": an add row, in the tint, with the plus where a mark would be.
+private struct RecoveryAddRow: View {
+    let saved: Bool
+    var body: some View {
+        if saved {
+            OpenerRow(opener: Opener(mark: .symbol("key.fill"), name: "Recovery key", detail: "Saved"))
+        } else {
+            Button {} label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill").font(.title2).frame(minWidth: 31, minHeight: 31)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Save a recovery key")
+                        Text("Optional. For when you can\u{2019}t sign in.").font(.subheadline).foregroundStyle(Color.secondary)
+                    }
+                }
+                .padding(.vertical, 2)
+                .contentShape(.rect)
+            }
+            .accessibilityIdentifier("security.recovery")
+        }
+    }
+}
+
+private struct LockedNotesRow: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock.fill").font(.title3).foregroundStyle(.secondary).frame(minWidth: 31, minHeight: 31)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(SecurityStudyCopy.lockedTitle)
+                Text(SecurityStudyCopy.lockedLine + " Lock one " + SecurityStudyCopy.lockLine.lowercased() + ".")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// "How it works" as a list row that opens the sheet.
+private struct HowItWorksRow: View {
+    let advanced: Bool
+    @State private var open = false
+    var body: some View {
+        Button { open = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "info.circle").font(.title3).frame(minWidth: 31, minHeight: 31).accessibilityHidden(true)
+                Text(SecurityStudyCopy.howItWorks)
+                Spacer()
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .contentShape(.rect)
+        }
+        .sheet(isPresented: $open) { HowItWorksSheet(advanced: advanced) }
+        .accessibilityIdentifier("security.howItWorks")
+    }
+}
+
+/// C on iPhone, as `securityPhoneStudy` picks.
+struct SecurityPhoneC: View {
+    let facts: SecurityFacts
+    @Environment(\.securityPhoneStudy) private var study
+
+    var body: some View {
+        switch study {
+        case .tiles: SecurityWhoCanOpen(facts: facts)
+        case .list: list
+        case .groups: SecurityPhoneTiles(facts: facts)
+        case .reasons: reasons
+        }
+    }
+
+    /// 1, A+C: the status in one line, then everything that can open your notes as one list.
+    private var list: some View {
+        Form {
+            Section {
+                HStack(spacing: 12) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Color(PColor.paneAccent), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityHidden(true)
+                    Text(SecurityStudyCopy.status).font(.headline)
+                }
+                .padding(.vertical, 4)
+            }
+            Section("Who can open your notes") {
+                ForEach(Opener.all(facts)) { OpenerRow(opener: $0) }
+                RecoveryAddRow(saved: facts.recoverySaved)
+            }
+            Section {
+                LockedNotesRow()
+                HowItWorksRow(advanced: facts.advanced)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    /// 3, by reason: every mark in a row as the picture, then the same list grouped by why each
+    /// one can open your notes, with the honest line under each group.
+    private var reasons: some View {
+        Form {
+            Section {
+                VStack(spacing: 10) {
+                    MarkStack(openers: Opener.all(facts))
+                    VStack(spacing: 2) {
+                        Text("Who can open your notes").font(.title3.weight(.semibold))
+                        Text(SecurityStudyCopy.status).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            Section {
+                ForEach(Opener.devices(facts)) { OpenerRow(opener: $0) }
+            } header: {
+                Text("Your devices")
+            }
+            Section {
+                ForEach(Opener.backIn(facts)) { OpenerRow(opener: $0) }
+                RecoveryAddRow(saved: facts.recoverySaved)
+            } header: {
+                Text("To help you back in")
+            } footer: {
+                Text("Pinto Notes keeps a copy of your key so signing in opens your notes on a new device. That means Pinto Notes can open them too.")
+            }
+            if !facts.ais.isEmpty {
+                Section {
+                    ForEach(Opener.ais(facts)) { OpenerRow(opener: $0) }
+                } header: {
+                    Text("While connected")
+                } footer: {
+                    Text("Each AI holds its own copy of your key. Disconnect one to take it off this list.")
+                }
+            }
+            Section {
+                LockedNotesRow()
+                HowItWorksRow(advanced: facts.advanced)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+/// Every opener's mark, overlapping, in a small circle each: the picture C drew with tiles.
+private struct MarkStack: View {
+    let openers: [Opener]
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        HStack(spacing: -6) {
+            ForEach(openers) { o in
+                OpenerMark(mark: o.mark, size: 20, scales: false)
+                    .frame(width: 44, height: 44)
+                    .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                    .overlay(Circle().strokeBorder(Color(.secondarySystemGroupedBackground), lineWidth: 2.5))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// 2, C with bigger tiles: two wide (one wide at the largest text sizes), in two groups.
+struct SecurityPhoneTiles: View {
+    let facts: SecurityFacts
+    @Environment(\.dynamicTypeSize) private var type
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: type.isAccessibilitySize ? 1 : 2)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Who can open your notes").font(.title3.weight(.semibold))
+                    Text(SecurityStudyCopy.status).font(.subheadline).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
+
+                group("Your devices", Opener.devices(facts))
+                group("Also can open them", Opener.backIn(facts) + Opener.ais(facts))
+                    .padding(.top, 10)
+
+                VStack(spacing: 0) {
+                    RecoveryAddRow(saved: facts.recoverySaved).buttonStyle(.plain).foregroundStyle(.tint)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .padding(.vertical, 8)
+                    Divider().padding(.leading, 43)
+                    LockedNotesRow()
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .padding(.vertical, 8)
+                    Divider().padding(.leading, 43)
+                    HowItWorksRow(advanced: facts.advanced).buttonStyle(.plain).foregroundStyle(.tint)
+                        .frame(minHeight: 44)
+                        .padding(.vertical, 4)
+                }
+                .padding(.horizontal, 16)
+                .background(Look.fill, in: RoundedRectangle(cornerRadius: Look.radius, style: .continuous))
+                .padding(.top, 20)
+            }
+            .padding(.horizontal, Look.inset)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
+        }
+        .background(Look.ground)
+    }
+
+    private func group(_ title: String, _ openers: [Opener]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.horizontal, 4)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                ForEach(openers) { o in
+                    VStack(alignment: .leading, spacing: 8) {
+                        OpenerMark(mark: o.mark, size: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(o.name).font(.headline).foregroundStyle(Color.ink).lineLimit(2)
+                            Text(o.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, minHeight: 118, maxHeight: .infinity, alignment: .topLeading)
+                    .background(Look.fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+}
+#endif

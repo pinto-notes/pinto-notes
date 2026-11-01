@@ -47,6 +47,10 @@ import UIKit
             #expect(off.localizedCaseInsensitiveContains(fact), "\(fact)")
         }
         #expect(!off.localizedCaseInsensitiveContains("end-to-end"))
+        // Advanced protection is retired: nothing offers it, and locked notes say what an AI sees.
+        #expect(!off.localizedCaseInsensitiveContains("advanced protection"))
+        #expect(off.localizedCaseInsensitiveContains("sees the title"))
+        #expect(SecurityStudyCopy.lockedLine.contains("title"))
     }
 
     #if os(macOS)
@@ -125,6 +129,32 @@ import UIKit
             let view = SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: Self.connections(), route: route)
                 .environment(\.securityStudy, study)
             try await ListLayoutSnapshots.shoot(view, "security-\(name)", dark: false, wait: 1.5)
+        }
+    }
+
+    /// C on iPhone, its three phone versions beside it as it was, light, dark and at a large text
+    /// size, into $AMBER_HIG_SHOTS (docs/Evidence/security-phone).
+    @Test func iPhoneC() async throws {
+        guard ListLayoutSnapshots.dir != nil else { return }
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let crypto = try await Self.defaultAccount()
+        defer { crypto.signedOut() }
+        let devices = AddDeviceSnapshots.devices([AddDeviceSnapshots.added, AddDeviceSnapshots.stale])
+        for phone in SecurityPhoneStudy.allCases {
+            for (look, dark, type) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("large-type", false, .accessibility2)] {
+                for scroll in dark ? [0] as [CGFloat] : [0, .infinity] {
+                    let route = SettingsRoute(defaults: UserDefaults(suiteName: "security-study-\(UUID())")!)
+                    route.open(.security)
+                    let view = SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: Self.connections(), route: route)
+                        .environment(\.securityStudy, .c)
+                        .environment(\.securityPhoneStudy, phone)
+                        .environment(\.dynamicTypeSize, type)
+                    let name = "c-\(phone.rawValue)" + (look == "large-type" ? "-large" : "") + (scroll > 0 ? "-end" : "")
+                    try await ListLayoutSnapshots.shoot(view, name, dark: dark, scroll: scroll, wait: 1.5)
+                }
+            }
         }
     }
     #endif
