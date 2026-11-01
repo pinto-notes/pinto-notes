@@ -2018,12 +2018,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let past = scroll.contentView.bounds.origin.y + scroll.contentInsets.top
         let alpha = min(1, max(0, 1 - past / (Self.fold * 0.8)))
         if abs(headerLabel.alphaValue - alpha) > 0.01 { headerLabel.alphaValue = alpha }
-        // Past the title line: the top bar names the note (Emil, 11-01).
-        let away = past > Self.fold + Self.titleAway
-        if let controller, controller.titleScrolledAway != away { controller.titleScrolledAway = away }
     }
-    /// How far past the fold the title has to scroll before it counts as out of view.
-    static let titleAway: CGFloat = 40
     private var watchingScroll = false
 
     override func viewDidMoveToWindow() {

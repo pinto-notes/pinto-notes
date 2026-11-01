@@ -461,7 +461,7 @@ struct RootView: View {
             // three times as long to show as the next one, 10-30). Without a note it has no items:
             // the list has compose, and Notes shows only the page ground there.
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
-            NoteToolbarStage(showsItems: note != nil, history: historyActions, showsFolder: visibility == .detailOnly) {
+            NoteToolbarStage(showsItems: note != nil, history: historyActions) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }

@@ -5,8 +5,7 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// The note's top bar (Emil picked A, 11-01): the tools on the right; on the left the folder (list hidden only) and
-/// the title once it scrolls away; back and forward in a wide column.
+/// The note's top bar (Emil, 11-01): back and forward on the left, the tools on the right.
 /// Window-server captures, so CI only (snapshots workflow).
 @MainActor @Suite(.serialized) struct TopBarShots {
     static let body = "Lisbon trip\n\nThree days in May. Flights are booked, the hotel is in Alfama.\n\n## To book\n- [ ] Tram 28 tickets\n- [x] Hotel\n- [ ] Dinner at Ramiro\n\n```swift\nlet budget = 600\n```\n\n"

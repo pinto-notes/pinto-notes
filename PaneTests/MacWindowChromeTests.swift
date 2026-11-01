@@ -70,8 +70,8 @@ import Testing
                 // The list's round More on the left, its name centred, search and compose on the right.
                 try Self.expectListHeader(w, items)
 
-                // Where the note is on the left, its tools on the right, ending at the text's right
-                // edge (Emil picked A, 11-01). Back and forward only in a wide column.
+                // Back and forward on the left, the note's tools on the right, ending at the text's
+                // right edge (Emil, 11-01).
                 let editor = try #require(w.contentView.flatMap { Self.find(PaneTextView.self, in: $0) })
                 let page = editor.convert(editor.bounds, to: nil)
                 let side = PaneTextView.textSide(width: page.width)
@@ -79,10 +79,8 @@ import Testing
                 let noteMore = try #require(items.first { $0.label == "More" && $0.column == 2 })
                 #expect(abs(noteMore.frame.maxX - (page.maxX - side)) <= 24, "More ends at the text's right edge")
                 #expect(format.frame.minX > page.midX - 60, "the tools are on the right")
-                let wide = NoteToolbarStage<EmptyView>.showsHistory(column: page.width)
-                #expect(column("Back") == (wide ? [2] : []), "back over the note only in a wide column (\(Int(page.width)) pt)")
-                #expect(column("Forward") == (wide ? [2] : []), "forward too")
-                if wide, let back = items.first(where: { $0.label == "Back" }) {
+                #expect(column("Back") == [2] && column("Forward") == [2], "back and forward over the note, at every width")
+                if let back = items.first(where: { $0.label == "Back" }) {
                     #expect(back.frame.minX < page.minX + side + 24, "back and forward start the bar at the left")
                 }
             }

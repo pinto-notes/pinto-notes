@@ -947,8 +947,7 @@ struct NoteDetailView: View {
             sharing: AnyView(Group {
                 if !trashed { shareMenu }
                 moreMenu
-            }),
-            place: (note.folder?.name, note.title, controller.titleScrolledAway))
+            }))
     }
     #endif
 
@@ -1484,8 +1483,6 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     var people: AnyView?
     /// Share and More.
     var sharing: AnyView
-    /// Where the note is: its folder and title (top bar study, version A).
-    var place: (folder: String?, title: String, titleAway: Bool)? = nil
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
@@ -1516,17 +1513,8 @@ struct NoteToolbarStage<Pane: View>: View {
     var showsItems = true
     /// The notes opened before and after this one (back and forward).
     var history = OpenedNotes.Actions()
-    /// The list is hidden: the bar names the note's folder, which nothing else on screen does.
-    /// With the list showing, the note's row and the sidebar already say it (Emil, 11-01).
-    var showsFolder = false
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
-    /// The column's width, for lining the toolbar up with the note's text.
-    @State private var width: CGFloat = 0
-
-    /// Back and forward take room the bar only has in a wide column.
-    static func showsHistory(column width: CGFloat) -> Bool { width >= historyWidth }
-    static var historyWidth: CGFloat { 560 }
 
     var body: some View {
         let parts = $parts
@@ -1535,45 +1523,25 @@ struct NoteToolbarStage<Pane: View>: View {
             // are: the next pane's are on their way, and without a note they stay unseen.
             pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
         }
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-            // ⌘[ and ⌘] work in a narrow column too, where the buttons aren't shown.
-            .background {
-                if !Self.showsHistory(column: width) {
-                    Group {
-                        Button("Back") { history.back() }.keyboardShortcut("[", modifiers: .command)
-                        Button("Forward") { history.forward() }.keyboardShortcut("]", modifiers: .command)
-                    }
-                    .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true)
-                }
-            }
             .toolbar {
                 if let shown = self.parts {
                     let off = !showsItems
-                    // Where you are on the left, the note's tools on the right (Emil picked A, 11-01).
-                    // Back and forward only where there's room for them, so the bar never feels cramped.
-                    if Self.showsHistory(column: width) {
-                        ToolbarItemGroup {
-                            Group {
-                                Button("Back", systemImage: "chevron.backward") { history.back() }
-                                    .help("Back (⌘[)")
-                                    .keyboardShortcut("[", modifiers: .command)
-                                    .disabled(!history.canGoBack)
-                                Button("Forward", systemImage: "chevron.forward") { history.forward() }
-                                    .help("Forward (⌘])")
-                                    .keyboardShortcut("]", modifiers: .command)
-                                    .disabled(!history.canGoForward)
-                            }
-                            .modifier(Unseen(off: off))
+                    // Back and forward on the left, the note's tools on the right (Emil, 11-01: no
+                    // breadcrumbs; the list already says which note and folder this is).
+                    ToolbarItemGroup {
+                        Group {
+                            Button("Back", systemImage: "chevron.backward") { history.back() }
+                                .help("Back (⌘[)")
+                                .keyboardShortcut("[", modifiers: .command)
+                                .disabled(!history.canGoBack)
+                            Button("Forward", systemImage: "chevron.forward") { history.forward() }
+                                .help("Forward (⌘])")
+                                .keyboardShortcut("]", modifiers: .command)
+                                .disabled(!history.canGoForward)
                         }
-                        .sharedBackgroundVisibility(.hidden)
+                        .modifier(Unseen(off: off))
                     }
-                    if let place = shown.place {
-                        ToolbarItem {
-                            NoteBarPlace(folder: showsFolder ? place.folder ?? "Notes" : nil, title: place.title, showsTitle: place.titleAway)
-                                .modifier(Unseen(off: off))
-                        }
-                        .sharedBackgroundVisibility(.hidden)
-                    }
+                    .sharedBackgroundVisibility(.hidden)
                     ToolbarSpacer(.flexible)
                     if let writing = shown.writing {
                         ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
@@ -1597,35 +1565,6 @@ struct NoteToolbarStage<Pane: View>: View {
 #endif
 
 #if os(macOS)
-/// Where the note is: its folder when the list is hidden, and its title once the title has
-/// scrolled out of view (the big title right below says it already).
-struct NoteBarPlace: View {
-    let folder: String?
-    let title: String
-    let showsTitle: Bool
-
-    var body: some View {
-        HStack(spacing: 5) {
-            if let folder {
-                Text(folder).foregroundStyle(.secondary)
-            }
-            if showsTitle {
-                if folder != nil {
-                    Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
-                }
-                Text(title.isEmpty ? "New note" : title).fontWeight(.medium)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.snappy(duration: 0.2), value: showsTitle)
-        .font(.system(size: 13))
-        .lineLimit(1)
-        .truncationMode(.tail)
-        .frame(maxWidth: 360, alignment: .leading)
-        .padding(.leading, 6)
-    }
-}
-
 /// A toolbar item kept while it has nothing to do: not drawn, not clickable, not read out.
 private struct Unseen: ViewModifier {
     let off: Bool

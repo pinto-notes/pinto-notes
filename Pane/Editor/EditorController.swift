@@ -10,8 +10,6 @@ final class EditorController {
     /// Set by the platform text view while it is on screen.
     @ObservationIgnored weak var target: (any EditorTarget)?
     var isEditing = false
-    /// The note's title has scrolled up out of view: the top bar shows it beside the folder.
-    var titleScrolledAway = false
     /// A note in Recently Deleted: shown, not changed (like Notes). Recover it to edit.
     var readOnly = false
     /// Typing, clicking or tapping into a note in Recently Deleted: the note screen asks to recover it.
