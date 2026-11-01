@@ -43,6 +43,8 @@ enum Hover {
         #if DEBUG
         if tintedSelection { return AnyShapeStyle(.tint.opacity(0.16)) }
         #endif
+        // The amber study's option b: an amber pill under an ink name (A11yStudy).
+        if A11yStudy.defaultAmber == .inkOnFill { return AnyShapeStyle(.tint) }
         return AnyShapeStyle(.fill.tertiary)
     }
     #if DEBUG
@@ -155,12 +157,40 @@ struct HoverRowReader<Content: View>: View {
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
+            .overlay {
+                if selected && card { StudySelectionMark(reach: reach) }
+            }
             #if DEBUG
             .onChange(of: hovering) { HoverProbe.rowChanges += 1 }
             #endif
         #else
         content(false)
         #endif
+    }
+}
+
+/// The selection study's marks on a selected note row (A11yStudy.selection): a 3 pt accent bar on
+/// the leading edge, a 1 pt outline in the muted text's colour, or a stronger fill. Nothing today.
+private struct StudySelectionMark: View {
+    let reach: EdgeInsets
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+        Group {
+            switch A11yStudy.selection {
+            case .fill: EmptyView()
+            case .bar:
+                HStack(spacing: 0) {
+                    UnevenRoundedRectangle(topLeadingRadius: Radius.sm, bottomLeadingRadius: Radius.sm, style: .continuous)
+                        .fill(Color.amberInk).frame(width: 3)
+                    Spacer(minLength: 0)
+                }
+            case .outline: shape.strokeBorder(Color.muted, lineWidth: 1)
+            case .strongerFill: shape.fill(Color.ink.opacity(0.12))
+            }
+        }
+        .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
+        .allowsHitTesting(false)
     }
 }
 

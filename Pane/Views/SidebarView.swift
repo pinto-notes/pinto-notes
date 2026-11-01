@@ -123,7 +123,7 @@ struct SidebarRowText<Trailing: View>: View {
     private var beside: some View {
         HStack {
             #if os(macOS)
-            Text(title).foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            Text(title).foregroundStyle(selected ? (A11yStudy.defaultAmber == .inkOnFill ? AnyShapeStyle(Color.black) : AnyShapeStyle(.tint)) : AnyShapeStyle(.primary))
             #else
             Text(title)
             #endif
@@ -215,7 +215,7 @@ struct SidebarIcon: View {
         Image(systemName: name)
             #if os(macOS)
             .font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
-            .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)
+            .foregroundStyle(selected ? (A11yStudy.defaultAmber == .inkOnFill ? AnyShapeStyle(Color.black) : AnyShapeStyle(.tint)) : active == .inactive ? AnyShapeStyle(.tertiary)
                 : DesignLook.isCandidate ? AnyShapeStyle(Color.muted) : AnyShapeStyle(.primary))
             .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
             #else

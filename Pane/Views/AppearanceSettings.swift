@@ -14,17 +14,24 @@ struct AppearanceSection: View {
             .padding(.vertical, 4)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Theme")
-            LabeledContent("Accent") {
-                HStack(spacing: 8) {
-                    ForEach(AccentChoice.allCases) { choice in
-                        AccentDot(choice: choice, theme: look.theme, selected: look.accent == choice) { ThemeStore.shared.accent = choice }
+            // The High contrast study's option a (A11yStudy): no accent row, the theme keeps its own.
+            if !(A11yStudy.contrastAccent == .hidden && look.theme == .contrast) {
+                LabeledContent("Accent") {
+                    HStack(spacing: 8) {
+                        ForEach(AccentChoice.allCases) { choice in
+                            AccentDot(choice: choice, theme: look.theme, selected: look.accent == choice) { ThemeStore.shared.accent = choice }
+                        }
                     }
                 }
             }
         } header: {
             Text("Appearance")
         } footer: {
-            Text("Follows light and dark mode. Set on each device.")
+            if A11yStudy.contrastAccent == .hidden && look.theme == .contrast {
+                Text("High contrast uses its own blue and yellow. Follows light and dark mode. Set on each device.")
+            } else {
+                Text("Follows light and dark mode. Set on each device.")
+            }
         }
     }
 }
@@ -46,17 +53,27 @@ extension Theme {
 }
 
 extension AccentChoice {
+    /// The dot's colour under the colour-blindness study (A11yStudy.distinctAccents), else nil.
+    func studyHex(_ theme: Theme) -> Theme.Hex? {
+        guard A11yStudy.distinctAccents else { return nil }
+        if self == .purple { return A11yStudy.magenta }
+        if self == .theme, theme == .forest { return A11yStudy.moss }
+        return nil
+    }
+
     /// What VoiceOver and the tooltip say for the accent's dot.
     var spokenName: String { self == .theme ? "The theme's own" : title }
 }
 
 extension Theme.Hex {
     var color: Color { Color(Palette.pair(light, dark)) }
+    /// A tick on this colour: white on the deep light shade, near-black on the bright dark one.
+    var tickInk: Color { Color(Palette.pair(0xFFFFFF, A11yStudy.darkGlyph)) }
 }
 
 /// A small picture of the window in a theme: the sidebar, the page with two lines of text and
 /// a tick in the accent. Selected: a ring in the accent, as in System Settings.
-private struct ThemeTile: View {
+struct ThemeTile: View {
     let theme: Theme
     let selected: Bool
     let pick: () -> Void
@@ -110,11 +127,17 @@ private struct AccentDot: View {
     let pick: () -> Void
 
     var body: some View {
-        let hex = choice.hex ?? theme.preview.accent
+        let hex = choice.studyHex(theme) ?? choice.hex ?? theme.preview.accent
         Button(action: pick) {
             Circle()
                 .fill(hex.color)
                 .frame(width: 16, height: 16)
+                .overlay {
+                    // The colour-blindness study (A11yStudy.swatchTick): the choice shown by a tick too.
+                    if selected && A11yStudy.swatchTick {
+                        Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(hex.tickInk)
+                    }
+                }
                 .padding(3)
                 .overlay(Circle().strokeBorder(selected ? hex.color : .clear, lineWidth: 2))
                 .contentShape(Circle())

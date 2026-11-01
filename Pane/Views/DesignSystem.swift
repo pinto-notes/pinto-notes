@@ -136,7 +136,7 @@ struct AmberProminentButtonStyle: ButtonStyle {
     /// The fills and the label's colour, for the contrast test.
     static var fill: PColor { Palette.primaryButton }
     static let destructiveFill = Palette.destructiveButton
-    static let label = Palette.primaryButtonLabel
+    static var label: PColor { Palette.primaryButtonLabel }
     /// White on the red in both appearances.
     static let destructiveLabel = PColor.white
     static let disabledFill = Palette.disabledButton

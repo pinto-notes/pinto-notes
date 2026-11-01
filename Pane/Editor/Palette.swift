@@ -82,7 +82,10 @@ enum Palette {
     /// white or black, never amber). Under the pointer a touch lighter in the light, a touch greyer
     /// in the dark.
     static var primaryButton: PColor { live("primaryButton") { let a = $0.accentShades; return byAppearance(light: pair(a.light, a.light), dark: pair(0x000000, 0xFFFFFF)) } }
-    static let primaryButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
+    static var primaryButtonLabel: PColor { A11yStudy.defaultAmber == .inkOnFill ? inkOnAmberLabel : stockButtonLabel }
+    private static let stockButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
+    /// The amber study's option b (A11yStudy): a black label on the amber, 6:1.
+    private static let inkOnAmberLabel = byAppearance(light: rgb(0x000000), dark: inkButtonLabel)
     static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
@@ -330,8 +333,12 @@ extension Palette {
         /// A glyph that's off: the label colour on light, ink on dark.
         static func glyph(dark: Bool, highContrast: Bool) -> UInt32 { dark ? 0xF6EFE7 : 0x000000 }
         /// What's on: the primary buttons' amber; deeper with Increase Contrast in light mode.
-        static func on(dark: Bool, highContrast: Bool) -> UInt32 { !dark && highContrast ? accent.ink.0 : accent.light }
-        static let onGlyph: UInt32 = 0xFFFFFF
+        /// The Format study (A11yStudy.formatOn): in dark mode the light accent, under a near-black glyph.
+        static func on(dark: Bool, highContrast: Bool) -> UInt32 {
+            if A11yStudy.formatOn, dark { return accent.dark }
+            return !dark && highContrast ? accent.ink.0 : accent.light
+        }
+        static func onGlyph(dark: Bool, highContrast: Bool) -> UInt32 { A11yStudy.formatOn && dark ? A11yStudy.darkGlyph : 0xFFFFFF }
     }
 }
 

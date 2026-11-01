@@ -237,7 +237,7 @@ extension Color {
     static let formatPill = format(Palette.Format.pill)
     static let formatInk = format(Palette.Format.glyph)
     static let formatOn = format(Palette.Format.on)
-    static let formatOnGlyph = Color(Palette.rgb(Palette.Format.onGlyph))
+    static let formatOnGlyph = format(Palette.Format.onGlyph)
     /// A control that can't act here (indent on a plain line).
     static let formatOff = Color(UIColor { $0.userInterfaceStyle == .dark ? Palette.muted.resolvedColor(with: $0).withAlphaComponent(0.55) : .tertiaryLabel })
 }

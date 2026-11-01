@@ -149,7 +149,14 @@ struct ThemeLook: Hashable, Sendable {
 
     /// The accent's shades: the chosen accent, else the theme's, else the build's own.
     var accentShades: Palette.Accent {
+        if theme == .contrast, accent != .theme, A11yStudy.contrastAccent != .stock {
+            if A11yStudy.contrastAccent == .hidden, let own = theme.colors?.accent { return Palette.Accent(light: own.light, dark: own.dark) }
+            if let hex = A11yStudy.contrastShades[accent] { return Palette.Accent(light: hex.light, dark: hex.dark) }
+        }
+        if A11yStudy.distinctAccents, accent == .purple { return Palette.Accent(light: A11yStudy.magenta.light, dark: A11yStudy.magenta.dark) }
+        if A11yStudy.distinctAccents, theme == .forest, accent == .theme { return Palette.Accent(light: A11yStudy.moss.light, dark: A11yStudy.moss.dark) }
         if let hex = accent.hex ?? theme.colors?.accent { return Palette.Accent(light: hex.light, dark: hex.dark) }
+        if A11yStudy.defaultAmber == .deepText { return Palette.Accent(light: A11yStudy.deepAmber, dark: Palette.buildAccent.dark) }
         return Palette.buildAccent
     }
 }
@@ -247,6 +254,67 @@ extension Palette {
 
     /// The theme's colour for `key`, or `stock` for Default.
     static func surface(_ name: String, _ key: KeyPath<Theme.Colors, Theme.Hex> & Sendable, stock: @escaping @Sendable () -> PColor) -> PColor {
-        live(name) { look in look.colors.map { pair($0[keyPath: key].light, $0[keyPath: key].dark) } ?? stock() }
+        live(name) { look in
+            // The Increase Contrast study: muted text takes the ink, hairlines the muted text's colour.
+            if A11yStudy.increaseContrast, let c = look.colors {
+                if key == \Theme.Colors.muted { return pair(c.ink.light, c.ink.dark) }
+                if key == \Theme.Colors.line { return pair(c.muted.light, c.muted.dark) }
+            }
+            return look.colors.map { pair($0[keyPath: key].light, $0[keyPath: key].dark) } ?? stock()
+        }
     }
+
+    /// Captures only: the colours were built under other study switches (A11yStudy).
+    static func forgetBuiltColours() { liveLock.withLock { built = [:] } }
+}
+
+/// Design study switches for the accessibility before-and-after pictures
+/// (docs/Evidence/a11y-before-after): what each suggested fix would draw, with the app's own views.
+/// All off in the app. Only those captures turn them on, in debug builds, then call
+/// `Palette.forgetBuiltColours()`.
+enum A11yStudy {
+    /// How the selected note row is marked: today's fill, or the fill plus a 3 pt accent bar on the
+    /// leading edge, a 1 pt outline, or a stronger fill.
+    enum Selection: Sendable { case fill, bar, outline, strongerFill }
+    /// Default's amber: as today, a deeper amber for text and links, or ink text on amber fills.
+    enum DefaultAmber: Sendable { case stock, deepText, inkOnFill }
+    /// High contrast with a picked accent: as today, the theme's own (the row hidden), or its own shades.
+    enum ContrastAccent: Sendable { case stock, hidden, shades }
+
+    #if DEBUG
+    nonisolated(unsafe) static var selection = Selection.fill
+    /// A near-black tick on a ticked checkbox in dark mode.
+    nonisolated(unsafe) static var darkTick = false
+    /// The iPhone Format panel's "on" segment in dark mode: the light accent under a near-black glyph.
+    nonisolated(unsafe) static var formatOn = false
+    nonisolated(unsafe) static var defaultAmber = DefaultAmber.stock
+    nonisolated(unsafe) static var contrastAccent = ContrastAccent.stock
+    /// What Increase Contrast would do to a theme: muted text to ink, solid hairlines, the bar.
+    nonisolated(unsafe) static var increaseContrast = false
+    /// Purple moved to magenta and Forest's own accent to moss, so no two look alike.
+    nonisolated(unsafe) static var distinctAccents = false
+    /// A tick on the chosen accent swatch, so the choice doesn't rely on its ring's hue.
+    nonisolated(unsafe) static var swatchTick = false
+    #else
+    static let selection = Selection.fill
+    static let darkTick = false
+    static let formatOn = false
+    static let defaultAmber = DefaultAmber.stock
+    static let contrastAccent = ContrastAccent.stock
+    static let increaseContrast = false
+    static let distinctAccents = false
+    static let swatchTick = false
+    #endif
+
+    /// Default's amber for text and links: 4.5:1 on white and on the selected folder's pill.
+    static let deepAmber: UInt32 = 0xA34E00
+    /// A tick on a light fill in dark mode, and the Format panel's glyph on the light accent.
+    static let darkGlyph: UInt32 = 0x141414
+    static let magenta = Theme.Hex(0x93246F, 0xFF9AD5)
+    static let moss = Theme.Hex(0x4A6A12, 0xB4D16A)
+    /// High contrast's shade of each picker accent: 7:1 on its every ground, its selection included.
+    static let contrastShades: [AccentChoice: Theme.Hex] = [
+        .blue: Theme.Hex(0x003A8C, 0xC2E0FF), .green: Theme.Hex(0x0B4A26, 0xB0EBC4), .purple: Theme.Hex(0x4B2390, 0xE0D6FF),
+        .red: Theme.Hex(0x7D1410, 0xFFCFC9), .graphite: Theme.Hex(0x2E2E2E, 0xDCDCDC),
+    ]
 }

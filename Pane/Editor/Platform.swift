@@ -72,7 +72,7 @@ extension PColor {
     static var paneAccent: PColor {
         Palette.live("paneAccent") { look in
             let a = look.accentShades
-            return (look.isStock ? PColor(named: "AccentColor") : nil) ?? Palette.pair(a.light, a.dark)
+            return (look.isStock && A11yStudy.defaultAmber != .deepText ? PColor(named: "AccentColor") : nil) ?? Palette.pair(a.light, a.dark)
         }
     }
     /// A link to a note that doesn't exist yet.

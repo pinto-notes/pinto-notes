@@ -125,13 +125,19 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         #endif
     }
 
+    /// The tick on a ticked checkbox: white, or (the dark-tick study, A11yStudy) near-black on the
+    /// light accents of dark mode, where white reads at 1.4 to 2.5:1.
+    static var tickColor: PColor {
+        A11yStudy.darkTick ? Palette.pair(0xFFFFFF, A11yStudy.darkGlyph) : PColor.white
+    }
+
     static func drawCheckbox(checked: Bool, in rect: CGRect, ctx: CGContext) {
         if checked {
             ctx.setFillColor(PColor.paneAccent.cgColor)
             ctx.fillEllipse(in: rect)
             let s = rect.width
             // The tick of SF Symbols' checkmark.circle.fill: short arm, long arm, round caps.
-            ctx.setStrokeColor(PColor.white.cgColor)
+            ctx.setStrokeColor(Self.tickColor.cgColor)
             ctx.setLineWidth(s * 0.1)
             ctx.setLineCap(.round)
             ctx.setLineJoin(.round)

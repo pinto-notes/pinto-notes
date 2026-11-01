@@ -229,7 +229,7 @@ import Testing
         let glyph = c(F.glyph(dark: look.dark, highContrast: look.highContrast))
         let selected = AmberButtonTests.contrast(on, pill)
         #expect(selected >= 3, "selected against unselected: \(selected)")
-        #expect(AmberButtonTests.contrast(c(F.onGlyph), on) >= 3, "the white glyph on amber")
+        #expect(AmberButtonTests.contrast(c(F.onGlyph(dark: look.dark, highContrast: look.highContrast)), on) >= 3, "the white glyph on amber")
         #expect(AmberButtonTests.contrast(glyph, pill) >= 4.5, "an unselected glyph on its pill")
         if look.highContrast {
             #expect(selected >= AmberButtonTests.contrast(c(F.on(dark: look.dark, highContrast: false)), c(F.pill(dark: look.dark, highContrast: false))),
