@@ -141,7 +141,9 @@ extension ModelContext {
     /// folder named after the note it was under ("Work/Acme/"), made if there isn't one. The AI
     /// sees the same path as before: a folder and a note with the same name are one place there.
     /// Its text, history, files and links stay as they are; the link in the other note's text
-    /// is an ordinary link to it now. Notes under a note that's gone stay where they are.
+    /// is an ordinary link to it now. Notes under a note that's gone stay where they are, and so
+    /// do notes that would need a new folder past the server's folder limit: the server refuses
+    /// that folder, and the notes waiting on it would never sync.
     /// Returns how many notes moved.
     @discardableResult
     func foldSubNotesIntoFolders() -> Int {
@@ -157,6 +159,7 @@ extension ModelContext {
             return d
         }
         var moved = 0
+        var liveFolders = allFolders().count
         // Live notes first at each depth: one in Recently Deleted goes into a folder only if a live
         // one needed it (whatever order the store gave them in).
         let ordered = subs.sorted { (depthOf($0), $0.trashedAt == nil ? 0 : 1) < (depthOf($1), $1.trashedAt == nil ? 0 : 1) }
@@ -172,10 +175,11 @@ extension ModelContext {
                 continue
             }
             // A note in Recently Deleted needs no new folder: it waits in the one it was in.
-            guard child.trashedAt == nil else { continue }
+            guard child.trashedAt == nil, liveFolders < Folder.serverLimit else { continue }
             let siblings = folders.filter { $0.parent?.id == place?.id }
             let f = Folder(name: name, parent: place, sortIndex: (siblings.map(\.sortIndex).max() ?? 0) + 1)
             insert(f)
+            liveFolders += 1
             child.folder = f
         }
         saveOrReport()

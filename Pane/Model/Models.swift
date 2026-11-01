@@ -4,6 +4,9 @@ import SwiftData
 /// A folder of notes. Folders nest, like Apple Notes.
 @Model
 final class Folder {
+    /// The most live folders an account can have; the server refuses one more ('folders' in
+    /// pane_limit).
+    static let serverLimit = 2000
     @Attribute(.unique) var id: UUID
     var name: String
     var createdAt: Date

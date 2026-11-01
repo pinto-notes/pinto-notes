@@ -91,6 +91,26 @@ import Testing
         #expect(orphan.parentID == nil && orphan.folder?.id == work.id, "under a note that's gone: stays where it is")
     }
 
+    /// Release gate, 2026-11-01: an account with more notes that had sub-notes than room for
+    /// folders. The server refuses the 2,001st folder ('folders'), and every note waiting on a
+    /// refused folder was tried again on every sync (770 refused requests per launch). Past the
+    /// limit they stay where they are, as notes, and sync.
+    @Test func noFolderIsMadePastTheServersFolderLimit() throws {
+        let work = ctx.createFolder(named: "Work")
+        // With Work, room for two more.
+        for i in 0 ..< Folder.serverLimit - 3 { ctx.insert(Folder(name: "F\(i)", sortIndex: Double(i))) }
+        let parents = (0 ..< 4).map { ctx.createNote(in: .folder(work.id), body: "Parent \($0)") }
+        let subs = parents.map { subNote("Under \($0.title)", under: $0) }
+        try ctx.save()
+
+        #expect(ctx.foldSubNotesIntoFolders() == 4)
+        #expect(ctx.allFolders().count == Folder.serverLimit, "two new folders fit, no more")
+        #expect(subs.filter { $0.folder?.parent?.id == work.id && $0.folder?.name.hasPrefix("Parent") == true }.count == 2)
+        #expect(subs.filter { $0.folder?.id == work.id }.count == 2, "the rest stay beside the note they were under")
+        #expect(subs.allSatisfy { $0.parentID == nil && $0.dirty }, "and all of them sync")
+        #expect(ctx.foldSubNotesIntoFolders() == 0)
+    }
+
     // MARK: Every note action works on it
 
     @Test func aFormerSubNoteIsOpenedEditedMovedAndDeletedLikeAnyNote() throws {
