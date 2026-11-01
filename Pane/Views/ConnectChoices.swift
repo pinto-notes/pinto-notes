@@ -1326,7 +1326,7 @@ struct ConnectChoices: View {
             return
         }
         do {
-            connections = try await client.from("mcp_tokens").select().order("created_at", ascending: false).execute().value
+            connections = try await Connection.list(client)
             error = nil
             onLoaded(Set(active.map(\.title)))
         } catch {

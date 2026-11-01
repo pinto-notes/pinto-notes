@@ -63,12 +63,12 @@ import Testing
     @Test func searchFindsEverySettingByItsWords() {
         let all = Set(SettingsPlace.allCases)
         #expect(SettingsIndex.matches("menu bar", available: all).map(\.place) == [.general])
-        #expect(SettingsIndex.matches("recovery", available: all).map(\.place) == [.security])
+        #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.place) == [.security])
         #expect(SettingsIndex.matches("export", available: all).map(\.place) == [.account])
         #expect(SettingsIndex.matches("sign out", available: all).map(\.place) == [.profile])
         #expect(SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.place == .storage })
         #expect(SettingsIndex.matches("", available: all).isEmpty)
-        #expect(SettingsIndex.matches("recovery", available: [.general, .help]).isEmpty, "not on a page that isn't there")
+        #expect(SettingsIndex.matches("recovery", available: [.general, .help], recoveryKey: true).isEmpty, "not on a page that isn't there")
     }
 
     /// Advanced protection is retired (AdvancedProtection): search finds it only for an account
@@ -188,36 +188,30 @@ import Testing
 
     // MARK: Security
 
-    /// Security says what it's for first, in plain words: encrypted, never "end-to-end" unless
-    /// Advanced protection is on. Its buttons are named like Apple's, and locked notes are
-    /// explained before there is a password.
+    /// Security says what it's for first, in plain words: who can open your notes, encrypted, never
+    /// "end-to-end" unless Advanced protection is on. Its buttons are named like Apple's, and locked
+    /// notes say what an AI sees before there is a password.
     @Test func securitySaysPlainlyWhatItIsFor() {
-        for summary in [PrivacyCopy.summary(serverCopy: false), PrivacyCopy.summary(serverCopy: true)] {
-            #expect(summary.hasPrefix("Your notes are encrypted"), "\(summary)")
-            #expect(!summary.localizedCaseInsensitiveContains("end-to-end") && !summary.contains("E2EE"))
-            #expect(summary.contains("AI"), "the one exception is said")
-        }
-        #expect(!PrivacyCopy.summary(serverCopy: true).contains("can\u{2019}t read"), "not claimed while Pinto Notes keeps a copy")
+        #expect(PrivacyCopy.whoCanOpen == "Who can open your notes")
+        #expect(PrivacyCopy.status == "Encrypted on your devices before they sync.")
+        #expect(!PrivacyCopy.status.localizedCaseInsensitiveContains("end-to-end") && !PrivacyCopy.status.contains("E2EE"))
         #expect(!KeyCopyWords.strictFooterOff.contains("end-to-end") && KeyCopyWords.strictFooterOn.contains("end-to-end"))
+        // With a copy kept by Pinto Notes, the page says Pinto Notes can open the notes too.
+        #expect(PrivacyCopy.backInFooterWithCopy.contains("Pinto Notes can open them too"))
         // How an AI opens the notes: its own copy of the key, locked to its token, open in memory
-        // only during a request, never the server's copy.
-        for summary in [PrivacyCopy.summary, PrivacyCopy.summaryWithCopy] {
-            #expect(summary.contains(PrivacyCopy.aiLine), "\(summary)")
-            #expect(!summary.contains("our server unlocks"), "\(summary)")
+        // only during a request, never Pinto Notes' copy.
+        let ai = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Connected AIs" }?.line ?? ""
+        for part in ["its own copy of your key", "token", "in memory only while", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
+            #expect(ai.contains(part), "\(part)")
         }
-        for part in ["its own copy of your key", "token", "in memory only while", "doesn\u{2019}t use our copy"] {
-            #expect(PrivacyCopy.aiLine.contains(part), "\(part)")
-        }
-        // The copy kept by Pinto Notes, in one plain line, on the page itself (not behind a switch).
-        #expect(PrivacyCopy.summaryWithCopy.contains(KeyCopyWords.copyLine) && !PrivacyCopy.summaryWithCopy.contains("locked copy"))
         // Locked notes: an AI sees their titles, not their contents, and keeps what it already read.
         for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo] { #expect(text.contains("title"), "\(text)") }
         #expect(LockedNotesCopy.footer.contains("titles of locked notes, not what\u{2019}s in them") && LockedNotesCopy.footer.contains("stays with that AI"))
-        #expect(PrivacyCopy.keyHeader == "What can open your notes")
+        #expect(LockedNotesCopy.howTo == "An AI can see the title, not what\u{2019}s inside. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu.")
+        #expect(!LockedNotesCopy.howTo.contains("AIs"), "\"AIs\" reads as \"Als\"")
         #expect([PrivacyCopy.showRecovery, PrivacyCopy.hideRecovery, PrivacyCopy.saveRecovery] == ["Show Recovery Key", "Hide Recovery Key", "Save Recovery Key\u{2026}"])
         #expect(LockedNotesCopy.header == "Locked notes")
-        #expect(LockedNotesCopy.howTo.contains("Lock Note"), "names the menu item it's under")
-        for text in [PrivacyCopy.summary, PrivacyCopy.summaryWithCopy, PrivacyCopy.keptInKeychain, LockedNotesCopy.howTo, LockedNotesCopy.footer,
+        for text in [PrivacyCopy.status, PrivacyCopy.backInFooterWithCopy, PrivacyCopy.backInFooterDevicesOnly, PrivacyCopy.aiFooter, LockedNotesCopy.howTo, LockedNotesCopy.footer,
                      HelpCopy.feedbackFooter, HelpCopy.setupGuideFooter, HelpCopy.openSourceFooter, HelpCopy.noMailApp] {
             #expect(!text.contains("\u{2014}") && !text.contains("\u{2013}"), "\(text)")
         }

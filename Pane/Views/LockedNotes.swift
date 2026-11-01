@@ -342,8 +342,8 @@ enum LockedNotesCopy {
     static let footer = "Locked notes open with your notes password until the app goes to the background or a few minutes pass. \(aiLine) If you forget the password, locked notes can\u{2019}t be recovered."
     /// What a connected AI sees of a locked note.
     static let aiLine = "A connected AI sees the titles of locked notes, not what\u{2019}s in them. What an AI already read stays with that AI."
-    /// Before any note is locked: how to lock one, where people look for it.
-    static let howTo = "To lock a note, open it and choose Lock Note from its \u{2022}\u{2022}\u{2022} menu. A locked note needs a password to open. A connected AI sees its title, not what\u{2019}s in it."
+    /// Before any note is locked: what an AI sees of one, and where to lock one (PrivacyCopy.lockedLine).
+    static let howTo = PrivacyCopy.lockedLine
 }
 
 /// Settings: the notes password, once there is one; before that, how to lock a note.
@@ -382,13 +382,77 @@ struct LockedNotesSection: View {
             .sheet(isPresented: $changing) { ChangeNotesPasswordSheet(sync: sync) }
         } else {
             Section {
-                Label(LockedNotesCopy.howTo, systemImage: "lock")
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("settings.lockedNotesHowTo")
-            } header: {
-                Text(LockedNotesCopy.header)
+                LockedNotesHowTo()
             }
         }
     }
 }
+
+/// Before there's a notes password: a lock, "Locked notes", and what an AI sees of one.
+struct LockedNotesHowTo: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "lock.fill")
+                #if os(iOS)
+                .font(.title3).frame(minWidth: 31, minHeight: 31)
+                #else
+                .frame(width: 20)
+                #endif
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LockedNotesCopy.header)
+                Text(LockedNotesCopy.howTo)
+                    #if os(iOS)
+                    .font(.subheadline)
+                    #else
+                    .font(.callout)
+                    #endif
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settings.lockedNotesHowTo")
+    }
+}
+
+#if os(macOS)
+/// Locked notes on the Mac's Security page, a card of its own: how to lock one, then the
+/// password's controls once there is one.
+struct LockedNotesCard: View {
+    let sync: SyncEngine?
+    @State private var changing = false
+    private var vault: NoteVault { .shared }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LockedNotesHowTo()
+            if LockedNotesSection.shown(setUp: vault.isSetUp) == .controls {
+                HStack(spacing: 10) {
+                    Button("Change Password\u{2026}") { changing = true }
+                        .accessibilityIdentifier("settings.changeNotesPassword")
+                    if vault.isUnlocked {
+                        Button("Lock Now") { vault.lockNow() }
+                            .accessibilityIdentifier("settings.lockNow")
+                    }
+                    Spacer(minLength: 8)
+                    if let name = vault.keyStore.biometryName {
+                        Toggle("Use \(name)", isOn: Binding(get: { vault.usesBiometrics }, set: { vault.usesBiometrics = $0 }))
+                            .toggleStyle(.switch)
+                            .tint(Color(Palette.switchOn))
+                            .accessibilityIdentifier("settings.notesBiometrics")
+                    }
+                }
+                .padding(.leading, 32)
+                Text(LockedNotesCopy.footer).font(.callout).foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 32)
+            }
+        }
+        .sheet(isPresented: $changing) { ChangeNotesPasswordSheet(sync: sync) }
+    }
+}
+#endif

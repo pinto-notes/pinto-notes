@@ -20,6 +20,8 @@ struct SettingsCard: View {
     let page: (SettingsPlace) -> AnyView
     /// Advanced protection is on Security (AdvancedProtection.shown), so search finds it.
     var advancedProtection = false
+    /// The recovery key is on Security (RecoveryKeyOffer), so search finds it.
+    var recoveryKey = false
     var route: SettingsRoute = .shared
     /// The page to open on; the first in the sidebar when nil.
     var start: SettingsPlace?
@@ -199,7 +201,7 @@ struct SettingsCard: View {
 
     /// What search finds: each setting by its words, with the page it's on; a click opens the page.
     @ViewBuilder private var results: some View {
-        let found = SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection)
+        let found = SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
         if found.isEmpty {
             Text("No settings match \u{201C}\(query)\u{201D}")
                 .font(.system(size: 12))

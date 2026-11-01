@@ -893,11 +893,11 @@ final class AppSession {
             let days = max(shareAsk.server?.days ?? 0, ShareAsk.localDays().count)
             await heardFrom.refresh(daysOfUse: days, hasNote: hasNote,
                                     otherPrompt: (notices?.shownThisLaunch ?? false) || notices?.current != nil
-                                        || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
+                                        || (AccountCrypto.shared.recoveryKeyChangeNeedsSaying && AccountCrypto.shared.offersRecoveryKey) || PaneTips.all.contains { $0.shouldDisplay })
         }
         // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
         shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
-                          || notices?.current != nil || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
+                          || notices?.current != nil || (AccountCrypto.shared.recoveryKeyChangeNeedsSaying && AccountCrypto.shared.offersRecoveryKey) || PaneTips.all.contains { $0.shouldDisplay })
         await InstallID.report(client)
     }
 
@@ -1418,7 +1418,7 @@ private struct NoticeAlerts: ViewModifier {
             .alert(PrivacyCopy.notSavedTitle, isPresented: keyNotSaved(over: notice)) {
                 Button("OK", role: .cancel) { crypto.keyNotSavedShown() }
             } message: {
-                Text(PrivacyCopy.notSavedMessage)
+                Text(PrivacyCopy.notSavedMessage(recovery: crypto.offersRecoveryKey))
             }
             // An account from before the server kept copies of keys is asked once, before any is made.
             .sheet(isPresented: asksProtection) {
@@ -1435,14 +1435,15 @@ private struct NoticeAlerts: ViewModifier {
     // the type checker over 2 s (compile-time audit, 2026-10-13).
 
     private func recoveryChanged(over notice: AccountNotice?) -> Binding<Bool> {
-        Binding(get: { notice == nil && disconnecting == nil && crypto.recoveryKeyChangeNeedsSaying },
+        // Only for an account offered a recovery key (RecoveryKeyOffer): a standard account's opens by signing in.
+        Binding(get: { notice == nil && disconnecting == nil && crypto.recoveryKeyChangeNeedsSaying && crypto.offersRecoveryKey },
                 set: { (shown: Bool) in if !shown { crypto.recoveryKeyChangeShown() } })
     }
 
     private func keyNotSaved(over notice: AccountNotice?) -> Binding<Bool> {
         Binding(get: {
             let free: Bool = notice == nil && disconnecting == nil
-            return free && !crypto.recoveryKeyChangeNeedsSaying && crypto.keyNotSaved
+            return free && !(crypto.recoveryKeyChangeNeedsSaying && crypto.offersRecoveryKey) && crypto.keyNotSaved
         }, set: { (shown: Bool) in if !shown { crypto.keyNotSavedShown() } })
     }
 
@@ -1456,7 +1457,7 @@ private struct NoticeAlerts: ViewModifier {
 
     /// The notice showing: one, or the AI connections that came together.
     private var noticeAlert: NoticeAlert {
-        NoticeAlert(notices: notices, disconnect: { disconnecting = $0 })
+        NoticeAlert(notices: notices, recoveryKey: crypto.offersRecoveryKey, disconnect: { disconnecting = $0 })
     }
 
     private func confirmDisconnect(over notice: AccountNotice?) -> ConfirmDisconnect {
@@ -1468,12 +1469,14 @@ private struct NoticeAlerts: ViewModifier {
 
 private struct NoticeAlert: ViewModifier {
     let notices: AccountNotices?
+    /// The account is offered a recovery key (RecoveryKeyOffer), so a notice may point to it.
+    var recoveryKey = true
     let disconnect: (AccountNotice) -> Void
 
     func body(content: Content) -> some View {
         let notice = notices?.current
         let group = notices?.group ?? []
-        let text = group.text
+        let text = group.text(recoveryKey: recoveryKey)
         let canDisconnect = group.count == 1 && notice?.kind == .aiConnected && notice?.grant_id != nil
         return content
             .alert(text.title, isPresented: Binding(get: { notice != nil }, set: { if !$0, notices?.current == notice { notices?.dismiss() } }),

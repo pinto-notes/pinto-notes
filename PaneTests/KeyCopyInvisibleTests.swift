@@ -78,7 +78,7 @@ import Testing
         #expect(a.phase == .ready && !a.unverified)
         expectNothingShown(a)
         #expect(KeyCopy.welcomeMessage(recoverable: a.serverCopy) == "Only your devices, and AI connections you approve, can unlock your notes.")
-        #expect(PrivacyCopy.summary(serverCopy: a.serverCopy) == PrivacyCopy.summary && PrivacyCopy.keyFooter(serverCopy: a.serverCopy) == PrivacyCopy.keyFooter)
+        #expect(PrivacyCopy.backInFooter(serverCopy: a.serverCopy) == PrivacyCopy.backInFooterDevicesOnly && a.offersRecoveryKey, "Security as before copies: the recovery key stays")
         // It looked once at the function, was told it isn't there, and stored nothing.
         #expect(Production.requests.filter { $0.contains("/functions/v1/key") } == ["GET /functions/v1/key"])
         // Opened again in a while (Settings, a sync, the foreground): it doesn't ask the function again.

@@ -1582,6 +1582,11 @@ struct Connection: Decodable, Identifiable {
     let redirect_host: String?
 
     var isOAuth: Bool { kind == "oauth" }
+
+    /// The account's connections, newest first, disconnected ones too: Settings › AI and Security read this.
+    static func list(_ client: SupabaseClient) async throws -> [Connection] {
+        try await client.from("mcp_tokens").select().order("created_at", ascending: false).execute().value
+    }
     /// What the list calls it. A sign-in the app can't vouch for is named by where access went,
     /// never by the name the app gave itself (grants from before 2026-09-30 still carry that name).
     var title: String { Self.title(name: name, kind: kind, host: redirect_host) }

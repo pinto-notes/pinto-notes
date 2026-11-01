@@ -75,7 +75,7 @@ enum SettingsIndex {
     static let all: [Entry] = ([
         ("Name", .profile), ("Photo", .profile), ("Signed in with", .profile), ("Sign Out", .profile), ("Remove notes from this Mac", .profile),
         ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connected AIs", .ai), ("App previews", .ai),
-        ("Recovery key", .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
+        (recoveryKey, .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
         ("Locked notes password", .security), ("Touch ID", .security), ("Lock Now", .security),
         ("Storage used", .storage), ("Recently Deleted", .storage), ("Earlier versions", .storage),
         ("Sync", .account), ("Sync Now", .account), ("Sign in with Apple", .account), ("Export notes", .account), ("Delete account", .account),
@@ -89,14 +89,18 @@ enum SettingsIndex {
            Entry(label: "Send feedback", place: .help, also: ["Email", "Contact", "Support", "Help"])]
 
     static let advancedProtection = "Advanced protection"
+    /// Only for an account offered a recovery key (RecoveryKeyOffer): signing in opens a standard account's notes.
+    static let recoveryKey = "Recovery key"
 
     /// The settings whose words, or whose page's name, have what's typed; only on pages that are there.
     /// `advancedProtection`: its switch is on Security (AdvancedProtection.shown); otherwise it isn't found.
-    static func matches(_ query: String, available: Set<SettingsPlace>, advancedProtection: Bool = false) -> [Entry] {
+    /// `recoveryKey`: the same, for the recovery key.
+    static func matches(_ query: String, available: Set<SettingsPlace>, advancedProtection: Bool = false, recoveryKey: Bool = false) -> [Entry] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return [] }
         return all.filter { e in
             available.contains(e.place) && (advancedProtection || e.label != Self.advancedProtection)
+                && (recoveryKey || e.label != Self.recoveryKey)
                 && ([e.label, e.place.title] + e.also).contains { $0.localizedStandardContains(q) }
         }
     }
