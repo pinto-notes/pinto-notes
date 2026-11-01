@@ -241,6 +241,8 @@ struct WikiIndex {
     private var byKey: [String: [Int]] = [:]
     private var byAlias: [String: [Int]] = [:]
     private var byID: [UUID: Int] = [:]
+    /// How many times the lookups were built (one per `take` that changed something).
+    private(set) var builds = 0
 
     init(_ entries: [Entry]) {
         self.entries = entries
@@ -248,6 +250,7 @@ struct WikiIndex {
     }
 
     private mutating func reindex() {
+        builds += 1
         byKey = [:]
         byAlias = [:]
         byID = [:]
@@ -265,24 +268,34 @@ struct WikiIndex {
 
     /// Puts in one note's entry as it is now (nil: it isn't live any more). True when that changed
     /// a title, a folder or which notes there are; a newer date alone keeps the index as it was.
-    mutating func take(_ entry: Entry?, id: UUID) -> Bool {
-        let i = byID[id]
-        switch (i, entry) {
-        case (nil, nil):
-            return false
-        case (let i?, let entry?) where WikiLinks.key(entries[i].title) == WikiLinks.key(entry.title) && entries[i].folders == entry.folders
-                                         && entries[i].aliases == entry.aliases:
-            entries[i] = entry
-            return false
-        case (let i?, let entry?):
-            entries[i] = entry
-        case (let i?, nil):
-            entries.remove(at: i)
-        case (nil, let entry?):
-            entries.append(entry)
+    mutating func take(_ entry: Entry?, id: UUID) -> Bool { take([(entry, id)]) }
+
+    /// Puts in many notes' entries, and builds the lookups again once: a first sync saves thousands
+    /// of notes in one save, and building them after each note took 185 s for 10,000 notes.
+    mutating func take(_ batch: [(entry: Entry?, id: UUID)]) -> Bool {
+        var changed = false
+        var removed: Set<UUID> = []
+        var appended: [UUID: Int] = [:]
+        for (entry, id) in batch {
+            switch (byID[id] ?? appended[id], entry) {
+            case (nil, nil):
+                continue
+            case (let i?, let entry?):
+                let same = !removed.contains(id) && WikiLinks.key(entries[i].title) == WikiLinks.key(entry.title)
+                    && entries[i].folders == entry.folders && entries[i].aliases == entry.aliases
+                entries[i] = entry
+                if !same { removed.remove(id); changed = true }
+            case (_?, nil):
+                if removed.insert(id).inserted { changed = true }
+            case (nil, let entry?):
+                appended[id] = entries.count
+                entries.append(entry)
+                changed = true
+            }
         }
-        reindex()
-        return true
+        if !removed.isEmpty { entries.removeAll { removed.contains($0.id) } }
+        if changed { reindex() }
+        return changed
     }
 
     /// Notes with this title.
@@ -518,12 +531,10 @@ enum WikiDirectory {
             cached = nil
             return
         }
-        var changed = false
-        for n in changes.notes {
+        let changed = index.take(changes.notes.map { n in
             let live = n.deletedAt == nil && n.trashedAt == nil
-            let entry = live ? WikiIndex.Entry(id: n.id, title: n.title, folders: context.folderPath(n.folder), updated: n.updatedAt, aliases: WikiLinks.aliases(inFrontMatter: n.frontMatter)) : nil
-            if index.take(entry, id: n.id) { changed = true }
-        }
+            return (live ? WikiIndex.Entry(id: n.id, title: n.title, folders: context.folderPath(n.folder), updated: n.updatedAt, aliases: WikiLinks.aliases(inFrontMatter: n.frontMatter)) : nil, n.id)
+        })
         cached = index
         if changed { generation += 1 }
     }

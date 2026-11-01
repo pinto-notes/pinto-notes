@@ -6,6 +6,37 @@ import Testing
 /// Obsidian-style wiki links: reading them out of markdown, resolving them by title the way
 /// Obsidian does, following a rename, and an Obsidian vault imported with its links kept.
 @MainActor @Suite(.serialized) struct WikiLinksTests {
+    /// Release gate, 2026-11-01: a first sync of 10,000 notes saves them in one save, and the index
+    /// was built again after each note: 185 s on the main thread. One save builds it once, and
+    /// comes out the same as taking the notes one by one.
+    @Test func aSaveOfManyNotesBuildsTheIndexOnce() {
+        let keep = Self.entry("Keep", [], 1), gone = Self.entry("Gone", [], 2), back = Self.entry("Back", [], 3)
+        var batched = WikiIndex([keep, gone, back])
+        var single = batched
+        let many = (10 ..< 3010).map { Self.entry("Note \($0)", ["F\($0 % 7)"], $0) }
+        let renamed = WikiIndex.Entry(id: keep.id, title: "Kept", folders: [], updated: keep.updated)
+        let batch: [(entry: WikiIndex.Entry?, id: UUID)] = many.map { ($0, $0.id) }
+            + [(renamed, keep.id), (nil, gone.id), (nil, back.id), (back, back.id), (many[0], many[0].id)]
+        let built = batched.builds
+        let didChange = batched.take(batch)
+        #expect(didChange)
+        #expect(batched.builds == built + 1, "built once for the whole save")
+        for (e, id) in batch { _ = single.take(e, id: id) }
+        let batchedIDs: Set<UUID> = Set(batched.entries.map(\.id)), singleIDs: Set<UUID> = Set(single.entries.map(\.id))
+        #expect(batchedIDs == singleIDs, "the same as one by one")
+        #expect(batched.entries.count == 3002, "Kept, Back and 3,000 new; Gone is gone; no note twice")
+        #expect(batched.resolve("Kept") == keep.id && batched.resolve("Keep") == nil && batched.resolve("Gone") == nil)
+        #expect(batched.resolve("Back") == back.id && batched.resolve("Note 2009") == many[1999].id)
+        // Only newer dates: nothing to build.
+        let touched: [(entry: WikiIndex.Entry?, id: UUID)] = batched.entries.map { e in
+            var e = e
+            e.updated = .now
+            return (e, e.id)
+        }
+        let changedAgain = batched.take(touched)
+        #expect(!changedAgain && batched.builds == built + 1)
+    }
+
     // MARK: Reading links
 
     @Test func linksWithFoldersAliasesAndHeadings() {
