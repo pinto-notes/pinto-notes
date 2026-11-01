@@ -139,7 +139,7 @@ struct NotesPasswordSetupSheet: View {
                     Text("Create a password for your locked notes")
                 } footer: {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("One password locks all your notes, on all your devices. A locked note is encrypted on your device before it syncs, so nobody else can read it: not us, and not an AI you've connected. Its title stays visible so you can find it.")
+                        Text("One password locks all your notes, on all your devices. A locked note is encrypted on your device before it syncs, so nobody else can read it, not even us. Its title stays visible so you can find it, to you and to an AI you've connected. What an AI already read stays with that AI.")
                         Text("If you forget this password, your locked notes can't be recovered, not even by us.")
                             .fontWeight(.semibold)
                         Text("Locking a note also removes its earlier versions from version history.")
@@ -339,9 +339,11 @@ struct ChangeNotesPasswordSheet: View {
 /// What Settings › Security says about locked notes.
 enum LockedNotesCopy {
     static let header = "Locked notes"
-    static let footer = "Locked notes open with your notes password until the app goes to the background or a few minutes pass. If you forget the password, locked notes can\u{2019}t be recovered."
+    static let footer = "Locked notes open with your notes password until the app goes to the background or a few minutes pass. \(aiLine) If you forget the password, locked notes can\u{2019}t be recovered."
+    /// What a connected AI sees of a locked note.
+    static let aiLine = "A connected AI sees the titles of locked notes, not what\u{2019}s in them. What an AI already read stays with that AI."
     /// Before any note is locked: how to lock one, where people look for it.
-    static let howTo = "To lock a note, open it and choose Lock Note from its \u{2022}\u{2022}\u{2022} menu. A locked note needs a password to open, and not even an AI you connect can read it."
+    static let howTo = "To lock a note, open it and choose Lock Note from its \u{2022}\u{2022}\u{2022} menu. A locked note needs a password to open. A connected AI sees its title, not what\u{2019}s in it."
 }
 
 /// Settings: the notes password, once there is one; before that, how to lock a note.

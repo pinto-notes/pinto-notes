@@ -611,14 +611,18 @@ import Testing
         typealias W = KeyCopyWords
         #expect(W.strictTitle == "Advanced protection")
         #expect(W.strictSubtitle == "Only your devices hold your key. We can\u{2019}t open your notes, and can\u{2019}t help you back in.")
-        // Off, the default: said candidly, who else could open the notes.
-        for part in ["encrypted on your devices before they sync", "locked copy of your key", "we could open your notes if we had to", "court order", "someone who gets into your account"] {
-            #expect(W.strictFooterOff.contains(part), "\(part)")
-        }
+        // Off, the default: said candidly, in one plain line, who else could open the notes.
+        #expect(W.copyLine == "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means we could open your notes if we had to.")
+        #expect(W.strictFooterOff.contains("encrypted on your devices before they sync") && W.strictFooterOff.contains(W.copyLine))
+        for text in [W.strictFooterOff, W.copyDetail, W.turnOffMessage, W.askMessage] { #expect(!text.contains("locked copy"), "\(text)") }
+        // Turned off, it can't come back: it's retired (AdvancedProtection).
+        #expect(W.turnOffMessage.contains("no longer offered"))
         #expect(!W.strictFooterOff.contains("end-to-end"))
         #expect(W.strictFooterOn.contains("end-to-end encrypted") && W.strictFooterOn.contains("can\u{2019}t help you back in"))
         #expect(W.askTitle == "Signing in now opens your notes" && W.askContinue == "Continue" && W.askStrict == "Keep My Key on My Devices Only")
-        #expect(W.askMessage.contains("court order") && W.askMessage.contains("someone who gets into your account"))
+        #expect(W.askMessage.contains("we could open your notes if we had to"))
+        #expect(!W.askMessage.contains("devices only") && !W.askMessage.contains("Advanced protection"), "the device-only choice is gone")
+        #expect(!W.reauthStrict.contains("turn on Advanced protection"))
         // After a password reset the switch waits, and says until when.
         let until = Date(timeIntervalSince1970: 1_791_970_200)
         #expect(W.error(.strictPaused(until: until)).hasPrefix("You can turn this on from ") && W.error(.strictPaused(until: until)).hasSuffix(", because the password was just reset."))
@@ -629,7 +633,7 @@ import Testing
                    W.needsRecoveryKey, W.saveFirstTitle, W.saveFirstMessage, W.saveFirst, W.copyDetail, W.safeBySignIn, W.askTitle, W.askMessage, W.askStrict, W.heldTitle,
                    W.heldMessage(until: until), W.waitForOther, W.strictPaused(until: until), AccountNotice(id: 1, kind: .keyFetched, created_at: until).text().message]
         for text in all { #expect(!text.contains("\u{2013}") && !text.contains("\u{2014}"), "\(text)") }
-        #expect(AccountNotice(id: 1, kind: .keyFetched, created_at: until).text().message.contains("turn on Advanced protection in Settings"))
+        #expect(!AccountNotice(id: 1, kind: .keyFetched, created_at: until).text().message.contains("Advanced protection"), "it isn't offered")
     }
 }
 
