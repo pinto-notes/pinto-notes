@@ -13,3 +13,4 @@ PaneTests/MacStoreShots
 PaneTests/WarmGreySnapshots
 PaneTests/TopBarShots
 PaneTests/LinkCardShots
+PaneTests/PictureShots

@@ -131,9 +131,11 @@ final class EditorCore {
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
         for e in embeds {
-            // Cards and images share one column width, so their edges line up.
-            var maxW = ImageSizes.maxWidth
+            // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
+            var maxW = CGFloat.infinity
             if case .note(let id, _) = e.kind, NoteWidgets.isApp(id) { maxW = NoteWidgets.maxWidth }
+            // A picture has its own width (ImageSizes): the text's, or less.
+            if case .image = e.kind { maxW = ImageSizes.size(for: e).width }
             guard let f = frame(at: e.range.location, height: e.height, maxWidth: maxW) else { continue }
             let remove = {
                 let ns = target.currentText as NSString
@@ -142,9 +144,11 @@ final class EditorCore {
                 target.apply(TextEdit(range: r, replacement: "", caret: -1))
             }
             // Another style for the link on this line (LinkForms): the line written again.
+            let original = NSMaxRange(e.range) <= (storage.string as NSString).length ? (storage.string as NSString).substring(with: e.range) : nil
             let rewrite = { (line: String) in
+                // Only while the line is still what the view was made from.
                 let ns = target.currentText as NSString
-                guard NSMaxRange(e.range) <= ns.length, LinkForms.parse(ns.substring(with: e.range)) != nil else { return }
+                guard NSMaxRange(e.range) <= ns.length, ns.substring(with: e.range) == original else { return }
                 target.apply(TextEdit(range: e.range, replacement: line, caret: -1))
             }
             out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, remove: remove, rewrite: rewrite)), .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e))))
@@ -196,6 +200,16 @@ final class EditorCore {
     func setImages(_ tick: Int, storage: NSTextStorage, selection: NSRange?) {
         guard imagesTick != tick else { return }
         imagesTick = tick
+        needsFull = true
+        restyle(storage, selection: selection, force: true)
+    }
+
+    /// The text's width or the window's height changed: pictures are sized again (ImageSizes).
+    func setImageBox(width: CGFloat, height: CGFloat, storage: NSTextStorage, selection: NSRange?) {
+        guard width > 0, height > 0, abs(ImageSizes.column - width) > 1 || abs(ImageSizes.viewHeight - height) > 1 else { return }
+        ImageSizes.column = width
+        ImageSizes.viewHeight = height
+        guard structure(of: storage.string).embeds.contains(where: { if case .image = $0.kind { true } else { false } }) else { return }
         needsFull = true
         restyle(storage, selection: selection, force: true)
     }
@@ -751,6 +765,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if textContainerInset != inset { textContainerInset = inset }
         headerLabel.frame = CGRect(x: 0, y: DateFold.labelTop, width: bounds.width, height: DateFold.labelHeight)
         foldDate(hasDate)
+        // Pictures fit the text's width and at most 60% of the screen's height (ImageSizes).
+        core.setImageBox(width: bounds.width - side * 2 - textContainer.lineFragmentPadding * 2, height: bounds.height,
+                         storage: textStorage, selection: editingSelection)
         layoutCards()
         layoutRemoteCarets()
         placeFoot()
@@ -1877,6 +1894,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // centred above the title, folded out of view until you scroll up (see `fold`).
         setInsets(width: newSize.width)
         placeFoot()
+        sizePictures()
         if !folded, DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil, (enclosingScrollView?.contentView.bounds.height ?? 0) > 0 {
             folded = true
             DispatchQueue.main.async { [weak self] in self?.foldDate() }
@@ -1884,6 +1902,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Straight to their new places: while the width changes (the sidebar sliding, the window
         // being resized) the cards follow the text instead of gliding after it.
         DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false) }
+    }
+
+    /// Pictures fit the text's width and at most 60% of the window's height (ImageSizes).
+    private func sizePictures() {
+        guard let container = textContainer else { return }
+        let width = frame.width - textContainerInset.width * 2 - container.lineFragmentPadding * 2
+        let height = enclosingScrollView?.contentView.bounds.height ?? frame.height
+        core.setImageBox(width: width, height: height, storage: textStorage!, selection: editingSelection)
     }
 
     private func setInsets(width: CGFloat) {

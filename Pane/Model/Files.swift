@@ -171,22 +171,87 @@ enum WidgetMetrics {
     static let header: CGFloat = 40
 }
 
+/// How big a picture shows in its note, written after its name: `![Sunset.png|small](pane-file:…)`
+/// (Emil, 11-01). Without one it fits the text's width.
+enum ImageSize: String, CaseIterable {
+    case small, fit, cover
+
+    var title: String {
+        switch self {
+        case .small: "Small"
+        case .fit: "Fit Width"
+        case .cover: "Cover"
+        }
+    }
+}
+
 enum ImageSizes {
     nonisolated(unsafe) static var aspect: [UUID: CGFloat] = [:]
+    /// Its own width in points (pixels at its resolution): a picture is never shown larger.
+    nonisolated(unsafe) static var natural: [UUID: CGFloat] = [:]
+    /// The text's width and the window's height, from the editor (EditorCore.setImageBox).
+    nonisolated(unsafe) static var column: CGFloat = 520
+    nonisolated(unsafe) static var viewHeight: CGFloat = 900
+    /// Cards and note apps line up with this width.
     static let maxWidth: CGFloat = 520
 
-    static func height(for e: LineEmbed) -> CGFloat {
-        guard case .image(let id, _) = e.kind, let a = aspect[id], a > 0 else { return 220 }
-        return min(max(maxWidth / a, 80), 560)
+    /// A picture's label split into its name and its size: "Sunset.png|small".
+    static func label(_ raw: String) -> (name: String, size: ImageSize) {
+        guard let bar = raw.lastIndex(of: "|"), let size = ImageSize(rawValue: String(raw[raw.index(after: bar)...]).lowercased()) else {
+            return (raw, .fit)
+        }
+        return (String(raw[..<bar]), size)
     }
 
-    /// Reads the image's pixel size once and remembers its aspect ratio.
+    /// The label for `name` at `size` (fit needs nothing written).
+    static func label(_ name: String, size: ImageSize) -> String {
+        size == .fit ? name : "\(name)|\(size.rawValue)"
+    }
+
+    /// The picture's size in the note: as wide as the text (never larger than itself) and at most
+    /// 60% of the window's height; small is about a third; a cover is a banner across the text.
+    static func size(for e: LineEmbed) -> CGSize {
+        guard case .image(let id, let raw) = e.kind else { return .zero }
+        let size = label(raw).size
+        let column = max(column, 120)
+        guard let a = aspect[id], a > 0 else { return CGSize(width: min(column, maxWidth), height: 220) }
+        let own = natural[id] ?? .infinity
+        switch size {
+        case .cover:
+            return CGSize(width: column, height: min(max(column / 2.6, 120), viewHeight * 0.45))
+        case .small:
+            let w = min(column * 0.4, 260, own)
+            return CGSize(width: w, height: min(w / a, 260))
+        case .fit:
+            var w = min(column, own)
+            var h = w / a
+            let cap = max(viewHeight * 0.6, 200)
+            if h > cap { h = cap; w = h * a }
+            return CGSize(width: w, height: max(h, 40))
+        }
+    }
+
+    static func height(for e: LineEmbed) -> CGFloat { size(for: e).height }
+
+    /// Reads the image's pixel size once and remembers its aspect ratio and its own width.
     static func learn(_ id: UUID, url: URL) {
         guard aspect[id] == nil, let src = CGImageSourceCreateWithURL(url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
               let w = props[kCGImagePropertyPixelWidth] as? CGFloat, let h = props[kCGImagePropertyPixelHeight] as? CGFloat, h > 0 else { return }
         aspect[id] = w / h
+        // A screenshot is 144 dpi: its pixels are half points. Most photos say 72.
+        let dpi = (props[kCGImagePropertyDPIWidth] as? CGFloat).flatMap { $0 > 0 ? $0 : nil } ?? 72
+        natural[id] = w * 72 / dpi
     }
+
+    /// The picture line `line` with its size set to `size`.
+    static func relabel(_ line: String, to size: ImageSize) -> String? {
+        let ns = line as NSString
+        guard let m = pictureLine.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        let name = label(ns.substring(with: m.range(at: 2))).name
+        return ns.replacingCharacters(in: m.range(at: 2), with: label(name, size: size))
+    }
+    private static let pictureLine = try! NSRegularExpression(pattern: #"^([ \t]*!\[)([^\]]*)(\]\(pane-file:[0-9a-fA-F-]{36}\)[ \t]*)$"#)
 }
 
 /// A single-line embed in a note: a file, an image, a link preview or a note's card.
@@ -220,7 +285,7 @@ struct LineEmbed: Equatable {
     static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "tif", "tiff", "bmp"]
 
     static func isImageName(_ name: String) -> Bool {
-        let ext = (name as NSString).pathExtension.lowercased()
+        let ext = (ImageSizes.label(name).name as NSString).pathExtension.lowercased()
         return ext.isEmpty || imageExtensions.contains(ext)
     }
 

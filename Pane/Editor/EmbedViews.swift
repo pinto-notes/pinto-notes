@@ -16,7 +16,7 @@ struct EmbedView: View {
         case .file(let id, let name):
             FileEmbed(id: id, name: name, card: embed.card, controller: controller, remove: remove, restyle: restyle)
         case .image(let id, let name):
-            ImageEmbed(id: id, name: name, controller: controller, remove: remove)
+            ImageEmbed(id: id, name: name, controller: controller, remove: remove, resize: resize)
         case .link(let url):
             LinkEmbed(url: url, card: embed.card, remove: remove, restyle: restyle)
         case .note(let id, let name):
@@ -24,6 +24,17 @@ struct EmbedView: View {
             NoteAppWidget(id: id, name: name, controller: controller, remove: remove)
         case .wiki(let title):
             NoteCardEmbed(title: title, controller: controller, remove: remove, restyle: restyle)
+        }
+    }
+
+    /// Shows this picture at another size (ImageSizes), written into its line.
+    private var resize: (ImageSize) -> Void {
+        let line = controller?.target.map { ($0.currentText as NSString) }.flatMap { ns in
+            NSMaxRange(embed.range) <= ns.length ? ns.substring(with: embed.range) : nil
+        }
+        let rewrite = self.rewrite
+        return { size in
+            if let line, let new = ImageSizes.relabel(line, to: size) { rewrite(new) }
         }
     }
 
@@ -242,13 +253,15 @@ private struct ImageEmbed: View {
     let name: String
     let controller: EditorController?
     let remove: () -> Void
+    let resize: (ImageSize) -> Void
 
     var body: some View {
         let url = controller?.resolveAttachment(id).map { FileStore.url(for: $0.id, filename: $0.filename) }
+        let (shown, size) = ImageSizes.label(name)
         // Read so the image is drawn when its bytes arrive (fetched as the note opened, or by a tap).
         let _ = controller?.imagesArrived
         Button { controller?.openAttachment(id) } label: {
-            // The image fills the slot without changing its size.
+            // The image fills the slot (a cover is cropped to it).
             Color.clear
                 .overlay {
                     if let url, let image = PlatformImage.load(url) {
@@ -266,10 +279,19 @@ private struct ImageEmbed: View {
             .hoverOverlay(RoundedRectangle(cornerRadius: 14), .hoverDarken)
         }
         .buttonStyle(PressScale())
-        .contextMenu { EmbedMenu(open: { controller?.openAttachment(id) }, remove: remove) }
-        .accessibilityLabel("Image, \((name as NSString).deletingPathExtension)")
+        .contextMenu {
+            Button("Open", systemImage: "eye") { controller?.openAttachment(id) }
+            // Three sizes (Emil, 11-01): small, the text's width, or a banner across it.
+            Picker("Size", systemImage: "arrow.up.left.and.arrow.down.right", selection: Binding(get: { size }, set: { resize($0) })) {
+                ForEach(ImageSize.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            Divider()
+            Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
+                .destructiveTint()
+        }
+        .accessibilityLabel("Image, \((shown as NSString).deletingPathExtension)")
         .accessibilityHint("Opens it in Quick Look")
-        .accessibilityIdentifier("image.\(name)")
+        .accessibilityIdentifier("image.\(shown)")
     }
 }
 
