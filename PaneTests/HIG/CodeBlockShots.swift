@@ -19,6 +19,12 @@ import Testing
     print(greeting)
     ```
 
+    One line:
+
+    ```swift
+    let budget = 600
+    ```
+
     A block without one:
 
     ```

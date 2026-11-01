@@ -23,6 +23,9 @@ struct RootView: View {
     #if os(iOS)
     /// The notes links opened, for Back to the note or app a link was in.
     @State private var trail = LinkTrail()
+    #else
+    /// The notes opened, for Back and Forward over the note.
+    @State private var history = OpenedNotes()
     #endif
     #if os(iOS)
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -357,8 +360,21 @@ struct RootView: View {
         if let new { lastNote = new.uuidString }
         #if os(iOS)
         trail.opened(new)
+        #else
+        history.opened(from: old, to: new)
         #endif
     }
+
+    #if os(macOS)
+    private func isGone(_ id: UUID) -> Bool { context.note(id).map { $0.deletedAt != nil } ?? true }
+
+    /// Back and Forward over the note, like a browser (Emil, 11-01).
+    private var historyActions: OpenedNotes.Actions {
+        OpenedNotes.Actions(canGoBack: history.canGoBack, canGoForward: history.canGoForward,
+                            back: { if let p = history.back(from: selectedNote, gone: isGone) { selectedNote = p } },
+                            forward: { if let n = history.forward(from: selectedNote, gone: isGone) { selectedNote = n } })
+    }
+    #endif
 
     #if os(iOS)
     /// Back after a link: the note or app the link was in.
@@ -445,7 +461,7 @@ struct RootView: View {
             // three times as long to show as the next one, 10-30). Without a note it has no items:
             // the list has compose, and Notes shows only the page ground there.
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
-            NoteToolbarStage(showsItems: note != nil) {
+            NoteToolbarStage(showsItems: note != nil, history: historyActions) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }

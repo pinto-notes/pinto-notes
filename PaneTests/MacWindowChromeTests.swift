@@ -70,19 +70,21 @@ import Testing
                 // The list's round More on the left, its name centred, search and compose on the right.
                 try Self.expectListHeader(w, items)
 
-                // The note's groups stand over its text: Format starts at the text's left edge,
-                // More ends at its right edge (the reading column's, in a wide window).
+                // Where the note is on the left, its tools on the right, ending at the text's right
+                // edge (Emil picked A, 11-01). Back and forward only in a wide column.
                 let editor = try #require(w.contentView.flatMap { Self.find(PaneTextView.self, in: $0) })
                 let page = editor.convert(editor.bounds, to: nil)
                 let side = PaneTextView.textSide(width: page.width)
                 let format = try #require(items.first { $0.label == "Format" })
                 let noteMore = try #require(items.first { $0.label == "More" && $0.column == 2 })
-                print("PERF note toolbar at \(Int(size.width)): text \(Int(page.minX + side))-\(Int(page.maxX - side)), Format from \(Int(format.frame.minX)), More to \(Int(noteMore.frame.maxX))")
-                // In a narrow window the groups keep the toolbar's own place at the column's edges,
-                // a little outside the text's 32 pt margin (a spacer is never narrower than 36 pt).
-                let slack: CGFloat = NoteToolbarStage<EmptyView>.inset(column: page.width) == nil ? 24 : 2
-                #expect(abs(format.frame.minX - (page.minX + side)) <= slack, "Format starts at the text's left edge")
-                #expect(abs(noteMore.frame.maxX - (page.maxX - side)) <= slack, "More ends at the text's right edge")
+                #expect(abs(noteMore.frame.maxX - (page.maxX - side)) <= 24, "More ends at the text's right edge")
+                #expect(format.frame.minX > page.midX - 60, "the tools are on the right")
+                let wide = NoteToolbarStage<EmptyView>.showsHistory(column: page.width)
+                #expect(column("Back") == (wide ? [2] : []), "back over the note only in a wide column (\(Int(page.width)) pt)")
+                #expect(column("Forward") == (wide ? [2] : []), "forward too")
+                if wide, let back = items.first(where: { $0.label == "Back" }) {
+                    #expect(back.frame.minX < page.minX + side + 24, "back and forward start the bar at the left")
+                }
             }
         }
     }

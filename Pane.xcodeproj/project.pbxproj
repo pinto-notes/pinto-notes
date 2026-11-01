@@ -266,6 +266,7 @@
 		3F90A5CB2C5B934BE4067A4F /* FormatPanelLookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21035C8288026E72D5F0D413 /* FormatPanelLookTests.swift */; };
 		3F9FF42570322DB49E9E4E58 /* NoteRowThumbnailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA5F3BAE20D708C7C6261759 /* NoteRowThumbnailTests.swift */; };
 		40610F9FB34B296F25FFB8C2 /* PressSelectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D09D7CB317A7B5F4E6D2550 /* PressSelectTests.swift */; };
+		408CDDB963027B11BE2BA7AF /* OpenedNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3D3BFD53112D5A5C758486 /* OpenedNotesTests.swift */; };
 		4090C3EDDC29BA7E01EAB111 /* Keep in Resources */ = {isa = PBXBuildFile; fileRef = 01C445BFD3C61467F8EF1FCB /* Keep */; };
 		40DDF5DDC2A49131D20E5937 /* FormatBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF04EADC63E3E6A4AD79B4 /* FormatBar.swift */; };
 		418C42CA062EA975E4ED96B1 /* Markdown in Resources */ = {isa = PBXBuildFile; fileRef = A7E99C4058560870AE196760 /* Markdown */; };
@@ -1329,6 +1330,7 @@
 		AAEF55394E3ADF3DB9CF451B /* Tips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tips.swift; sourceTree = "<group>"; };
 		AAFFEBDDE84EB3DB20AA0F63 /* WhatsNew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNew.swift; sourceTree = "<group>"; };
 		AB372EDEDFC65E45ED67E97E /* AmberButtonSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmberButtonSnapshots.swift; sourceTree = "<group>"; };
+		AB3D3BFD53112D5A5C758486 /* OpenedNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenedNotesTests.swift; sourceTree = "<group>"; };
 		ABC3478F7447A0C7508163C2 /* SignInHostUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInHostUITests.swift; sourceTree = "<group>"; };
 		ABEC6B590C6961378AE705FF /* ListCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCard.swift; sourceTree = "<group>"; };
 		AC2974209CC95A34F20C0CD5 /* guide-obsidian-files.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "guide-obsidian-files.png"; sourceTree = "<group>"; };
@@ -2091,6 +2093,7 @@
 				8C45208113CA435AB1CE94DF /* OnboardingFunnelTests.swift */,
 				1D33902EEB0B0BD3BAA155E9 /* OnboardingLayoutTests.swift */,
 				32516C9060D9E7DFB9C6A90E /* OnboardingTests.swift */,
+				AB3D3BFD53112D5A5C758486 /* OpenedNotesTests.swift */,
 				2FE7BB86935ED6B278E0039C /* PasswordFieldTests.swift */,
 				9D09D7CB317A7B5F4E6D2550 /* PressSelectTests.swift */,
 				412407ADE0BC387AF7A6D189 /* ProfileTests.swift */,
@@ -3025,6 +3028,7 @@
 				F19F9E2C8A1625B9C6CD25A9 /* OnboardingSnapshots.swift in Sources */,
 				4E1A82A8822D85264E87D587 /* OnboardingTests.swift in Sources */,
 				36BFFE32941A04613BFE11E1 /* OnboardingTransitionTests.swift in Sources */,
+				408CDDB963027B11BE2BA7AF /* OpenedNotesTests.swift in Sources */,
 				ECAC47179CD26D8146CFD4AC /* PDFZoomTests.swift in Sources */,
 				DB8894708146BC77B7B3FA25 /* PasswordFieldSnapshots.swift in Sources */,
 				8E48ECB8D6700699E9BB1E1C /* PasswordFieldTests.swift in Sources */,

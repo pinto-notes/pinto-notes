@@ -244,8 +244,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
     /// A panel that joins with its neighbours: only the block's outer corners are round.
     private func panel(_ ctx: CGContext, o: CGPoint, h: CGFloat, first: Bool, last: Bool, fill: PColor, radius: CGFloat, stroke: PColor?, outside: CGFloat = 0) {
-        let top: CGFloat = first ? 2 - outside : 0
-        let bottom: CGFloat = last ? 2 - outside : 0
+        // Inner edges reach 1 pt into the next line: each line is its own layer, and two
+        // antialiased edges meeting at a fraction of a pixel left a light seam across the block.
+        let top: CGFloat = first ? 2 - outside : -1
+        let bottom: CGFloat = last ? 2 - outside : -1
         // From the column's edge, not the paragraph's indent (a code line's padding).
         let rect = CGRect(x: o.x - layoutFragmentFrame.minX, y: o.y + top, width: containerWidth, height: h - top - bottom)
         ctx.addPath(roundedPath(rect, top: first ? radius : 0, bottom: last ? radius : 0))

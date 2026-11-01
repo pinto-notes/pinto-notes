@@ -948,7 +948,7 @@ struct NoteDetailView: View {
                 if !trashed { shareMenu }
                 moreMenu
             }),
-            place: (note.folder?.name, note.title))
+            place: (note.folder?.name, note.title, controller.titleScrolledAway))
     }
     #endif
 
@@ -1485,7 +1485,7 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     /// Share and More.
     var sharing: AnyView
     /// Where the note is: its folder and title (top bar study, version A).
-    var place: (folder: String?, title: String)? = nil
+    var place: (folder: String?, title: String, titleAway: Bool)? = nil
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
@@ -1514,23 +1514,16 @@ struct NoteToolbarStage<Pane: View>: View {
     /// out of reach: putting them back for the next note took longer than the note itself
     /// (80 of 150 ms from the empty pane, 10-30).
     var showsItems = true
+    /// The notes opened before and after this one (back and forward).
+    var history = OpenedNotes.Actions()
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     /// The column's width, for lining the toolbar up with the note's text.
     @State private var width: CGFloat = 0
 
-    /// How far in from each side of the column the toolbar's groups stand: the text's own margin,
-    /// less the room the toolbar leaves at its edges anyway. In a wide window the groups stay over
-    /// the reading column instead of out at the window's edges (Emil, 10-29: the Share group felt
-    /// "a bit lonely" at the edge).
-    /// None in a narrow window: the groups' own place at the edges is then about the text's.
-    static func inset(column width: CGFloat) -> CGFloat? {
-        let inset = PaneTextView.textSide(width: width) - edgeRoom
-        return inset >= 36 ? inset : nil
-    }
-    /// What the toolbar leaves between the column's edge and its first group, and between two
-    /// items, measured (MacWindowChromeTests).
-    static var edgeRoom: CGFloat { 18 }
+    /// Back and forward take room the bar only has in a wide column.
+    static func showsHistory(column width: CGFloat) -> Bool { width >= historyWidth }
+    static var historyWidth: CGFloat { 560 }
 
     var body: some View {
         let parts = $parts
@@ -1540,65 +1533,55 @@ struct NoteToolbarStage<Pane: View>: View {
             pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
         }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            // ⌘[ and ⌘] work in a narrow column too, where the buttons aren't shown.
+            .background {
+                if !Self.showsHistory(column: width) {
+                    Group {
+                        Button("Back") { history.back() }.keyboardShortcut("[", modifiers: .command)
+                        Button("Forward") { history.forward() }.keyboardShortcut("]", modifiers: .command)
+                    }
+                    .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true)
+                }
+            }
             .toolbar {
                 if let shown = self.parts {
                     let off = !showsItems
-                    switch NoteBarLook.current {
-                    case .location:
-                        // A (study, 11-01): where you are on the left, the note's tools on the right.
-                        if let place = shown.place {
-                            ToolbarItem { NoteBarPlace(folder: place.folder, title: place.title).modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(.hidden)
+                    // Where you are on the left, the note's tools on the right (Emil picked A, 11-01).
+                    // Back and forward only where there's room for them, so the bar never feels cramped.
+                    if Self.showsHistory(column: width) {
+                        ToolbarItemGroup {
+                            Group {
+                                Button("Back", systemImage: "chevron.backward") { history.back() }
+                                    .help("Back (⌘[)")
+                                    .keyboardShortcut("[", modifiers: .command)
+                                    .disabled(!history.canGoBack)
+                                Button("Forward", systemImage: "chevron.forward") { history.forward() }
+                                    .help("Forward (⌘])")
+                                    .keyboardShortcut("]", modifiers: .command)
+                                    .disabled(!history.canGoForward)
+                            }
+                            .modifier(Unseen(off: off))
                         }
-                        ToolbarSpacer(.flexible)
-                        if let writing = shown.writing {
-                            ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                        }
-                        if let people = shown.people {
-                            ToolbarItem { people.modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                        }
-                        ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
-                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                    case .plain:
-                        // B (study, 11-01): one bar across the column, plain icons, no capsules.
-                        if let writing = shown.writing {
-                            ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(.hidden)
-                        }
-                        ToolbarSpacer(.flexible)
-                        if let people = shown.people {
-                            ToolbarItem { people.modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(.hidden)
-                        }
-                        ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
-                            .sharedBackgroundVisibility(.hidden)
-                    case .today:
-                        // Only the note's own controls (Emil's draft, 10-29): the writing tools on the
-                        // left, share and more on the right, both over the note's text column. Compose
-                        // sits with the list, search with the sidebar.
-                        let inset = Self.inset(column: width)
-                        if let inset {
-                            ToolbarItem { Color.clear.frame(width: inset, height: 1) }
-                                .sharedBackgroundVisibility(.hidden)
-                        }
-                        if let writing = shown.writing {
-                            ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                        }
-                        ToolbarSpacer(.flexible)
-                        if let people = shown.people {
-                            ToolbarItem { people.modifier(Unseen(off: off)) }
-                                .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                        }
-                        ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
-                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                        if let inset {
-                            ToolbarItem { Color.clear.frame(width: inset, height: 1) }
-                                .sharedBackgroundVisibility(.hidden)
-                        }
+                        .sharedBackgroundVisibility(.hidden)
                     }
+                    if let place = shown.place {
+                        ToolbarItem {
+                            NoteBarPlace(folder: place.folder, title: place.title, showsTitle: place.titleAway)
+                                .modifier(Unseen(off: off))
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    }
+                    ToolbarSpacer(.flexible)
+                    if let writing = shown.writing {
+                        ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
+                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                    }
+                    if let people = shown.people {
+                        ToolbarItem { people.modifier(Unseen(off: off)) }
+                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                    }
+                    ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
+                        .sharedBackgroundVisibility(off ? .hidden : .automatic)
                 } else {
                     // No note yet: nothing to see, but an item of the column's own; without one the
                     // list's items spread over the whole window.
@@ -1611,31 +1594,23 @@ struct NoteToolbarStage<Pane: View>: View {
 #endif
 
 #if os(macOS)
-/// Top bar study (11-01): which version the note's toolbar shows. `defaults write … noteBarLook A|B|C`.
-enum NoteBarLook {
-    case location, plain, today
-    static var current: NoteBarLook {
-        switch UserDefaults.standard.string(forKey: "noteBarLook") {
-        case "A": .location
-        case "B": .plain
-        default: .today
-        }
-    }
-}
-
-/// Version A's location: the folder, a chevron, the note's title.
+/// Where the note is: its folder, and its title once the title has scrolled out of view
+/// (the big title right below says it already).
 struct NoteBarPlace: View {
     let folder: String?
     let title: String
+    let showsTitle: Bool
 
     var body: some View {
         HStack(spacing: 5) {
-            if let folder {
-                Text(folder).foregroundStyle(.secondary)
+            Text(folder ?? "Notes").foregroundStyle(.secondary)
+            if showsTitle {
                 Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                Text(title.isEmpty ? "New note" : title).fontWeight(.medium)
+                    .transition(.opacity)
             }
-            Text(title.isEmpty ? "New note" : title).fontWeight(.medium)
         }
+        .animation(.snappy(duration: 0.2), value: showsTitle)
         .font(.system(size: 13))
         .lineLimit(1)
         .truncationMode(.tail)
@@ -1681,6 +1656,59 @@ final class LinkLanding {
         guard let p = pending, p.id == id, let location = p.location else { return nil }
         pending = nil
         return location
+    }
+}
+
+/// The notes you opened, in order, for Back and Forward over the note (Mac), like a browser:
+/// opening a note any way puts the one before on the back list and clears forward.
+struct OpenedNotes: Equatable {
+    private(set) var backList: [UUID] = []
+    private(set) var forwardList: [UUID] = []
+    /// The note Back or Forward is opening right now.
+    private var expected: UUID?
+
+    var canGoBack: Bool { !backList.isEmpty }
+    var canGoForward: Bool { !forwardList.isEmpty }
+
+    /// The open note changed from `old` to `new`.
+    mutating func opened(from old: UUID?, to new: UUID?) {
+        guard let new else { return }
+        if new == expected { expected = nil; return }
+        expected = nil
+        guard let old, old != new else { return }
+        backList.append(old)
+        if backList.count > 100 { backList.removeFirst() }
+        forwardList = []
+    }
+
+    /// Back from `current`: the note to open, skipping any `gone` (deleted since).
+    mutating func back(from current: UUID?, gone: (UUID) -> Bool = { _ in false }) -> UUID? {
+        while let p = backList.popLast() {
+            guard !gone(p) else { continue }
+            if let current { forwardList.append(current) }
+            expected = p
+            return p
+        }
+        return nil
+    }
+
+    /// Forward from `current`.
+    mutating func forward(from current: UUID?, gone: (UUID) -> Bool = { _ in false }) -> UUID? {
+        while let n = forwardList.popLast() {
+            guard !gone(n) else { continue }
+            if let current { backList.append(current) }
+            expected = n
+            return n
+        }
+        return nil
+    }
+
+    /// What the toolbar needs: whether each way is open, and the actions.
+    struct Actions {
+        var canGoBack = false
+        var canGoForward = false
+        var back: () -> Void = {}
+        var forward: () -> Void = {}
     }
 }
 
