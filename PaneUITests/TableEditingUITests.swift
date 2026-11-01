@@ -109,6 +109,22 @@ final class TableEditingUITests: XCTestCase {
         shot("table-restored")
     }
 
+    /// Hide keyboard over a cell puts the keyboard away, like Notes. It moved the caret to the end of
+    /// the note instead and the keyboard stayed (Emil's table walkthrough, 1 November 2026).
+    func testHideKeyboardInATableHidesIt() throws {
+        XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15), "the note opens")
+        pause(1.5)
+        element("grid.2.1").tap()
+        let onboarding = app.buttons["Continue"].firstMatch
+        if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
+        XCTAssertTrue(element("editor.tableMenu").waitForExistence(timeout: 5), "the table bar is over the keyboard")
+        pause()
+        element("editor.done").tap()
+        pause(1.2)
+        shot("hide-keyboard-after")
+        XCTAssertEqual(app.keyboards.count, 0, "the keyboard is put away")
+    }
+
     /// The whole experience for a recording (Emil, 11-01): read, type in a cell, move to the next,
     /// pick a row and add one, scroll a wide table, and make a new table from the bar.
     func testWalkthrough() throws {
@@ -138,12 +154,17 @@ final class TableEditingUITests: XCTestCase {
         shot("walk-4-row-menu")
         app.buttons["Add Row Below"].firstMatch.tap()
         pause()
+        shot("walk-5a-row-added-caret")
+        element("grid.3.0").tap()
+        pause(0.5)
         app.typeText("Mon")
         pause()
         shot("walk-5-row-added")
 
-        // The wide table: swipe its columns along.
-        let wide = element("grid.1.4")
+        // The wide table, keyboard down: swipe its columns along.
+        element("editor.done").tap()
+        pause()
+        let wide = app.descendants(matching: .any).matching(identifier: "grid.1.1").element(boundBy: 1)
         if wide.waitForExistence(timeout: 2) {
             wide.swipeLeft()
             pause()

@@ -66,7 +66,13 @@ final class EditorCore {
         let line = ns.lineRange(for: NSRange(location: min(selection.location, ns.length), length: 0))
         let empty = ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let at = empty ? line.location : NSMaxRange(line)
-        let lead = empty || ns.substring(with: line).hasSuffix("\n") ? "" : "\n"
+        var lead = empty || ns.substring(with: line).hasSuffix("\n") ? "" : "\n"
+        // Straight under a line of text, markdown reads that line as part of the table: it was
+        // drawn bold in the header's fill (Emil's table walkthrough, 1 November 2026). A blank
+        // line keeps it text, here and in any other markdown app.
+        if at > 0, !ns.substring(with: ns.lineRange(for: NSRange(location: at - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lead += "\n"
+        }
         let body = lead + "|  |  |\n| --- | --- |\n|  |  |\n"
         let index = GridTable.find(in: ns.substring(to: at)).count
         // The caret ends up after the table, so the table isn't shown as source.
@@ -823,7 +829,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     /// The welcome before sign-in never takes focus, so no keyboard or keyboard bar comes up.
-    override var canBecomeFirstResponder: Bool { controller?.inert == true ? false : super.canBecomeFirstResponder }
+    override var canBecomeFirstResponder: Bool {
+        controller?.inert == true || puttingKeyboardAway ? false : super.canBecomeFirstResponder
+    }
+    /// Set while Hide keyboard puts a cell's keyboard away: UIKit hands a field's keyboard to its
+    /// nearest ancestor that takes it, and that's this text view, so the keyboard stayed and the
+    /// caret jumped to the end of the note (Emil's table walkthrough, 1 November 2026).
+    private var puttingKeyboardAway = false
 
     func showRemoteCarets(_ carets: [RemoteCaret]) {
         guard carets != remoteCarets else { return }
@@ -1046,8 +1058,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     /// The table toolbar over the keyboard while a cell has it.
-    private lazy var tableBar = FormatBarHost(controller: controller ?? EditorController(), inTable: true) {
+    private lazy var tableBar = FormatBarHost(controller: controller ?? EditorController(), inTable: true) { [weak self] in
+        self?.puttingKeyboardAway = true
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        self?.puttingKeyboardAway = false
     }
 
     func gridFieldFocused() { giveTableBar(tries: 20) }
