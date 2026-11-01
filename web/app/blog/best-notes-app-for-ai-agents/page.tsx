@@ -15,7 +15,7 @@ type Row = { app: string; remote: string; writes: string; undo: string; approval
 // 51596325640339: paid plans, reads and creates notes) and Bear (bear.app/faq/command-line-interface: CLI, Claude
 // Connector and MCP server, built on bearcli on the Mac) re-checked 14 October 2026.
 const ROWS: Row[] = [
-  { app: "Pinto Notes", remote: "Yes, built in", writes: "Line edits, appends, checklist ticks, table rows", undo: "Undo, and every version kept", approval: "OAuth plus Allow in the app; read only or read and edit", read: DEVICES },
+  { app: "Pinto Notes", remote: "Yes, built in", writes: "Line edits, appends, checklist ticks, table rows", undo: "Undo, and every version kept", approval: "OAuth plus Allow in the app", read: DEVICES },
   { app: "Notion", remote: "Yes, official", writes: "Pages, databases, blocks, comments", undo: "Page history (length depends on plan)", approval: "OAuth, with your workspace permissions", read: "Web, desktop, phone" },
   { app: "Evernote", remote: "Yes, official, on paid plans", writes: "Reads and creates notes; no edits", undo: "Note history", approval: "OAuth", read: "Web, desktop, phone" },
   { app: "Obsidian", remote: "No; community plugins on your computer", writes: "Depends on the plugin", undo: "File recovery snapshots on that computer", approval: "Depends on the plugin", read: "Desktop, phone" },
@@ -60,7 +60,7 @@ export default function Page() {
         <li><strong>A remote MCP server.</strong> ChatGPT, Claude and Incredible run their agents in the cloud, so the notes app needs a server on the internet, not only on your Mac. The same server then works from Claude Code and Codex.</li>
         <li><strong>Precise writes.</strong> Changing one line, appending to a log or ticking a checklist item, instead of rewriting the whole note. Less can go wrong, and you can see what changed.</li>
         <li><strong>Undo and history.</strong> Agents make mistakes. You want to see what changed and put the earlier version back.</li>
-        <li><strong>Approval you control.</strong> Sign-in with OAuth, a read-only option, and a way to disconnect one agent without touching the others.</li>
+        <li><strong>Approval you control.</strong> Sign-in with OAuth, an Allow in the app, and a way to disconnect one agent without touching the others.</li>
         <li><strong>Somewhere to read the results.</strong> The point of an agent writing notes is reading them later, usually on your phone.</li>
       </ol>
 

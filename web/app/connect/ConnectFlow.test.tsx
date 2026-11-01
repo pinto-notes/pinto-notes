@@ -385,6 +385,8 @@ describe("the recovery key path", () => {
     await until(() => heading() === "Use your recovery key");
     // Step one is only the sign-in: no key field next to the password.
     expect(container.querySelector("#connect-recovery")).toBeNull();
+    // Most accounts never saved a recovery key: both steps say where to approve instead.
+    expect(container.textContent).toContain("Didn\u2019t save a recovery key? Open Pinto Notes on your iPhone or Mac and approve there.");
     await act(async () => {
       type("#connect-email", "me@example.com");
       type("#connect-password", "test-password-for-a-fake-server");
@@ -396,6 +398,7 @@ describe("the recovery key path", () => {
     expect(container.querySelector("#connect-password")).toBeNull();
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();
     expect(container.textContent).not.toMatch(/read only/i);
+    expect(container.textContent).toContain("Didn\u2019t save a recovery key?");
     await act(async () => type("#connect-recovery", vectors.recovery.typed));
     await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
     await until(() => server.calls.some((c) => c.url === `${MCP}/connect/decide`));

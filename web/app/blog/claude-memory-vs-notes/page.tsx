@@ -143,7 +143,7 @@ export default function Page() {
       <Steps>
         <li>Open <a href={CLAUDE_DIRECTORY_URL} rel="noopener">the Pinto Notes listing</a> on claude.ai or in the Claude desktop app, and choose Connect to Claude.</li>
         <li>Sign in to Pinto Notes on the page that opens.</li>
-        <li>Pinto Notes on your Mac asks whether to allow Claude. Pick Read and Edit or Read Only, and choose Allow.</li>
+        <li>Pinto Notes on your Mac asks whether to allow Claude. Choose Allow.</li>
       </Steps>
       <p>
         Once it&apos;s added, the Claude iPhone app can use it too. On Team and Enterprise an owner may need to allow it first. If your Claude

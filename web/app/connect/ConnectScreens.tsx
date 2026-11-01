@@ -134,6 +134,10 @@ export function MatchNumber({ number }: { number: string }) {
   );
 }
 
+/// Newer apps don't ask standard accounts to save a recovery key (signing in opens their notes), so
+/// most people have none: the recovery key screens say where to approve instead.
+export const NO_RECOVERY_KEY = "Didn\u2019t save a recovery key? Open Pinto Notes on your iPhone or Mac and approve there.";
+
 /// No iPhone or Mac nearby: approve here with the recovery key. Two steps, never one long form:
 /// sign in first (once per visit), then only the key and Allow.
 export function RecoverScreen({ to, signedIn, recoveryKey, onRecoveryKey, onSubmit, onSignIn, other, noDevices = false, appleInstead = APPLE_INSTEAD, ...signIn }: SignInProps & {
@@ -157,6 +161,7 @@ export function RecoverScreen({ to, signedIn, recoveryKey, onRecoveryKey, onSubm
       <>
         <h1 className={styles.title}>Use your recovery key</h1>
         <p className={styles.lede}>Sign in first. Then enter your recovery key to allow <b>{where}</b>.</p>
+        <p className={styles.small}>{NO_RECOVERY_KEY}</p>
         {APPLE_ON_WEB ? <SignIn {...signIn} onSubmit={onSignIn} /> : <EmailFirst {...signIn} onSubmit={onSignIn} />}
         {!APPLE_ON_WEB && <p className={styles.small}>{appleInstead}</p>}
         {back}
@@ -183,6 +188,7 @@ export function RecoverScreen({ to, signedIn, recoveryKey, onRecoveryKey, onSubm
         </button>
         <p className={styles.small}>Your key is used on this page only and never sent to us. Signed in as {signedIn}.</p>
       </form>
+      <p className={styles.small}>{NO_RECOVERY_KEY}</p>
       {back}
     </>
   );

@@ -169,7 +169,7 @@ export default function Page() {
       <ol>
         <li>Add <code>{MCP_URL}</code> as a Custom connector on grok.com, or with the Grok Build command above.</li>
         <li>A page on pintonotes.com opens. Sign in, and it shows a two-digit number.</li>
-        <li>Pinto Notes on your Mac asks whether to allow the app. Type the number, choose Read Only or Read and Edit, then Allow.</li>
+        <li>Pinto Notes on your Mac asks whether to allow the app. Type the number, then choose Allow.</li>
       </ol>
       <Figure shot={SHOTS.consent} caption="The sheet when ChatGPT asks. For Grok, it adds a warning that Pinto Notes doesn't recognize the app." />
       <p>

@@ -68,10 +68,7 @@ So the Mac release of 1.2 turns the QR page on for everyone, iPhone included. Ru
 
 Text outside the app that names a Settings path the app changed. It describes the app people have now, so change it once the new app is public, then delete the item here.
 
-- **Security page and retired Advanced protection (1.3):** the blog still describes the old screens.
-  - `web/app/blog/encrypted-notes-app-for-ai/page.tsx`: "Turn on Advanced protection, in Settings, Security" (new turn-ons are retired) and the recovery key "from Settings, Security" (shown only without a Pinto Notes copy).
-  - `web/app/blog/connect-chatgpt-to-your-notes/page.tsx`: "pick Read and edit or Read only" (one Allow reads and edits since 10-29), and the recovery key "in Settings, Privacy & Security". Change it together with /connect, which still leads with the recovery key.
-  - `web/app/blog/back-up-apple-notes/page.tsx`: check its Export path says Settings, Account.
+Nothing waiting.
 
 ## Backend changes
 

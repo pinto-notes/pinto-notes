@@ -42,14 +42,14 @@ export default function Page() {
         <li>
           The authorization step opens <code>pintonotes.com/connect</code>. The person signs in there (email and password, or Sign in
           with Apple), and the page shows a two-digit number. Pinto Notes on their Mac asks &ldquo;Allow [app] to use your
-          notes?&rdquo; and where access goes; they type the number, choose Read and Edit or Read Only, then Allow. With no device
-          nearby, they can approve on the page with their recovery key.
+          notes?&rdquo; and where access goes; they type the number, then choose Allow. With no device
+          nearby, they can approve on the page with their recovery key, if they saved one.
         </li>
         <li>The client gets an access token (valid for an hour) and a refresh token. The tokens only open this server.</li>
       </ol>
       <p className="label"><strong>Access token (Claude Code, Codex and scripts)</strong></p>
       <p>
-        In Pinto Notes, Settings, Connect an AI, Claude Code or Codex creates a token starting with <code>pane_</code>, read only or read
+        In Pinto Notes, Settings, Connect an AI, Claude Code or Codex creates a token starting with <code>pane_</code> that can read
         and edit. Send it as <code>Authorization: Bearer pane_…</code>. The <a href="/blog/notes-in-claude-code-and-codex">Claude Code
         and Codex guide</a> has the exact setup.
       </p>
@@ -73,8 +73,7 @@ export default function Page() {
         <li>Every edit keeps the previous version. <code>history</code> lists them and <code>restore</code> puts one back.</li>
         <li>In the app, the person sees what an AI changed, with Undo.</li>
         <li>Deleted notes go to Recently Deleted for 30 days and can be brought back with <code>restore</code>.</li>
-        <li>A read-only connection only sees the tools marked reads below.</li>
-      </ul>
+              </ul>
 
       <h2>Tools</h2>
       <PostFigure src="/blog/news/openai-chatgpt-mcp-request-diagram" width={1000} height={480} maxWidth={600}
@@ -101,9 +100,9 @@ export default function Page() {
         A note can also hold an app: a small React project at a path like <code>Work/Habits.app/</code>, with its data in{" "}
         <code>data.json</code>. The same tools read and change it, and <code>see_app</code> shows what it looks like.
       </p>
-      <PostFigure src="/blog/amber-notes-allow-chatgpt-access" width={840} height={700} maxWidth={400}
-        alt="Pinto Notes asking whether ChatGPT may use your notes, with a choice of Read and Edit or Read Only, and Don't Allow and Allow buttons."
-        caption="Read Only gives a connection only the tools marked reads." />
+      <PostFigure src="/blog/amber-notes-allow-chatgpt-access" width={880} height={986} maxWidth={400}
+        alt="Pinto Notes asking whether ChatGPT may use your notes, naming OpenAI as where the notes go, with Allow and Don't Allow buttons."
+        caption="Nothing is shared until you choose Allow." />
       <ul>
         {MCP_TOOLS.map((t) => (
           <li key={t.name}><code>{t.name}</code> ({KIND[t.kind]}). {t.description}</li>
@@ -117,7 +116,7 @@ export default function Page() {
       <h2 id="install">Install in your AI tool</h2>
       <p>
         Each of these adds the address above. The first time the tool connects, your browser opens pintonotes.com/connect: sign in
-        there, then approve on your Mac by typing the number the page shows, and choose Read and Edit or Read Only. You need the free app and an
+        there, then approve on your Mac by typing the number the page shows, and choose Allow. You need the free app and an
         account.
       </p>
       <PostFigure src="/blog/news/anthropic-claude-code-terminal" width={920} height={920} maxWidth={400}

@@ -154,7 +154,7 @@ export default function Page() {
       </p>
       <Figure shot={SHOTS.consent} caption="Whichever AI asks, Pinto Notes shows this sheet. Here it names ChatGPT; for Claude it names Claude." />
       <ul>
-        <li>You approve Claude in Pinto Notes on your Mac, typing the number your browser shows, and choose Read Only, or Read and Edit.</li>
+        <li>You approve Claude in Pinto Notes on your Mac, typing the number your browser shows, and choose Allow.</li>
         <li>Checklists stay checklists: Pinto Notes stores notes as Markdown, and Claude ticks an item without rewriting the note.</li>
         <li>When Claude changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version.</li>
         <li>Pinto Notes is listed in Claude&apos;s connector directory, so there&apos;s no address to paste. If your Claude app doesn&apos;t show the listing, add <code>{MCP_URL}</code> as a custom connector instead; that works on every plan, and the free plan includes one.</li>

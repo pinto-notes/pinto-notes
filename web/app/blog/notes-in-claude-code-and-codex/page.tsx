@@ -14,7 +14,7 @@ export const metadata = postMetadata("notes-in-claude-code-and-codex", { title: 
 
 const FAQ = [
   { q: "Can Claude Code read and write my notes?", a: [
-    "Yes, through an MCP server. Add Pinto Notes with one command, sign in, and Claude Code can search, read, create and edit your notes, or only read them if you choose Read only when you allow it.",
+    "Yes, through an MCP server. Add Pinto Notes with one command, sign in, and Claude Code can search, read, create and edit your notes once you allow it.",
   ] },
   { q: "How do I add a notes MCP server to Codex?", a: [
     `Run codex mcp add pinto-notes --url ${MCP_URL}. Codex opens your browser to sign in, and you allow it in Pinto Notes on your Mac. Codex in Terminal, in your editor and in the ChatGPT app share the same setup.`,
@@ -121,8 +121,7 @@ export default function Page() {
       <p>
         That&apos;s why I built Pinto Notes. It&apos;s a notes app for Mac (iPhone coming soon), as quick as Apple Notes, with the server built in.
         Claude Code writes the standup, you read it on your phone, and Claude can pick it up from there. Every change shows up tinted
-        with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. A read-only connection
-        can&apos;t change anything. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
+        with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
       </p>
       <p>
         The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI? The{" "}
