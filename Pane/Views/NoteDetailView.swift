@@ -1102,6 +1102,10 @@ struct NoteDetailView: View {
         }
         controller.openNote = { id in onOpenNote(id, false) }
         controller.openWiki = { target in followWikiLink(target) }
+        controller.notePreview = { [context] id in
+            guard let n = context.note(id), n.deletedAt == nil, !n.isLocked else { return nil }
+            return (n.preview, n.folder?.name)
+        }
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
         controller.suggestHeadings = { [note] target, typed in WikiDirectory.headingSuggestions(typed, target: target, from: note, in: context) }
         links.open = { [saver] id, location in

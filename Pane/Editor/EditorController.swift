@@ -281,6 +281,8 @@ final class EditorController {
     var wiki: WikiScope?
     /// Follows a wiki link by its target, or offers to make the note (set by the note screen).
     @ObservationIgnored var openWiki: (String) -> Void = { _ in }
+    /// A note's first lines and folder, for its card (`![[Title]]`; set by the note screen).
+    @ObservationIgnored var notePreview: (UUID) -> (preview: String, folder: String?)? = { _ in nil }
 
     // MARK: Typing a wiki link
 

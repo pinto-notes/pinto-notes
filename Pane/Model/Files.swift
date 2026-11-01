@@ -189,22 +189,40 @@ enum ImageSizes {
     }
 }
 
-/// A single-line embed in a note: a file, an image, or a link preview.
+/// A single-line embed in a note: a file, an image, a link preview or a note's card.
+///
+/// Links and files alone on their line show compact, one line with the page's or file's name
+/// (Emil, 11-01). As a card they show a picture and a line more, written so other Markdown apps
+/// still read a link: a web address in angle brackets (`<https://…>`), a file with `!` before it,
+/// a note as `![[Title]]` (Obsidian's embed). A link in a sentence is never either.
 struct LineEmbed: Equatable {
     enum Kind: Equatable {
         case file(UUID, name: String)
         case image(UUID, name: String)
         case link(URL)
+        /// A note that is an app: its live widget.
         case note(UUID, name: String)
+        /// `![[Title]]`: a card for the note the title leads to.
+        case wiki(String)
     }
     var kind: Kind
     /// The line, without its newline.
     var range: NSRange
     var index: Int
+    /// Shown as a card (picture, title, a line more), not compact.
+    var card = false
 
     private static let fileLine = try! NSRegularExpression(pattern: #"^[ \t]*(!?)\[([^\]]*)\]\(pane-file:([0-9a-fA-F-]{36})\)[ \t]*$"#)
     private static let linkLine = try! NSRegularExpression(pattern: #"^[ \t]*<?(https?://[^\s<>]+)>?[ \t]*$"#)
     private static let noteLine = try! NSRegularExpression(pattern: #"^[ \t]*\[([^\]]*)\]\(pane-note:([0-9a-fA-F-]{36})\)[ \t]*$"#)
+    private static let wikiCardLine = try! NSRegularExpression(pattern: #"^[ \t]*!\[\[([^\]\n]+)\]\][ \t]*$"#)
+    /// Names shown as pictures. Any other file written with `!` is a file's card.
+    static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "tif", "tiff", "bmp"]
+
+    static func isImageName(_ name: String) -> Bool {
+        let ext = (name as NSString).pathExtension.lowercased()
+        return ext.isEmpty || imageExtensions.contains(ext)
+    }
 
     static func find(in text: String) -> [LineEmbed] {
         let ns = text as NSString
@@ -226,8 +244,12 @@ struct LineEmbed: Equatable {
         if first == 0x21 || first == 0x5B { // ! [
             if let m = fileLine.firstMatch(in: text, range: r), let id = UUID(uuidString: ns.substring(with: m.range(at: 3))) {
                 let name = ns.substring(with: m.range(at: 2))
-                let image = m.range(at: 1).length > 0
-                return LineEmbed(kind: image ? .image(id, name: name) : .file(id, name: name), range: r, index: index)
+                let bang = m.range(at: 1).length > 0
+                if bang, isImageName(name) { return LineEmbed(kind: .image(id, name: name), range: r, index: index) }
+                return LineEmbed(kind: .file(id, name: name), range: r, index: index, card: bang)
+            }
+            if first == 0x21, let m = wikiCardLine.firstMatch(in: text, range: r) {
+                return LineEmbed(kind: .wiki(ns.substring(with: m.range(at: 1))), range: r, index: index, card: true)
             }
             // A link to a note that is an app is its widget; a link to any other note stays a link.
             if let m = noteLine.firstMatch(in: text, range: r), let id = UUID(uuidString: ns.substring(with: m.range(at: 2))), NoteWidgets.isApp(id) {
@@ -235,26 +257,33 @@ struct LineEmbed: Equatable {
             }
         } else if first == 0x68 || first == 0x3C { // h <
             if let m = linkLine.firstMatch(in: text, range: r), let url = URL(string: ns.substring(with: m.range(at: 1))) {
-                return LineEmbed(kind: .link(url), range: r, index: index)
+                return LineEmbed(kind: .link(url), range: r, index: index, card: first == 0x3C)
             }
         }
         return nil
     }
 
+    /// A compact link or file: one line.
+    static let compactHeight: CGFloat = 34
+    /// A card: a picture and up to three lines.
+    static let cardHeight: CGFloat = 72
+
     var height: CGFloat {
         switch kind {
-        case .file: 60
+        case .file, .link, .wiki: card ? Self.cardHeight : Self.compactHeight
         case .image: ImageSizes.height(for: self)
-        case .link: 76
         case .note(let id, _): NoteWidgets.height(id) ?? 58
         }
     }
 
     var key: String {
-        switch kind {
-        case .file(let id, _), .image(let id, _): "f\(id)"
-        case .link(let u): "l\(index)\(u.absoluteString)"
+        let style = card ? "c" : ""
+        return switch kind {
+        case .file(let id, _): "f\(style)\(id)"
+        case .image(let id, _): "f\(id)"
+        case .link(let u): "l\(style)\(index)\(u.absoluteString)"
         case .note(let id, _): "n\(id)"
+        case .wiki(let t): "w\(index)\(t)"
         }
     }
 }

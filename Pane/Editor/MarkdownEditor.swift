@@ -105,7 +105,7 @@ final class EditorCore {
         func resolved(_ e: LineEmbed) -> Bool {
             switch e.kind {
             case .file(let id, _), .image(let id, _): controller?.resolveAttachment(id) != nil
-            case .link, .note: true
+            case .link, .note, .wiki: true
             }
         }
         var out: [(String, CGRect, AnyView, CardContent)] = []
@@ -141,7 +141,13 @@ final class EditorCore {
                 if NSMaxRange(r) == ns.length, r.location > 0 { r = NSRange(location: r.location - 1, length: r.length + 1) }
                 target.apply(TextEdit(range: r, replacement: "", caret: -1))
             }
-            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, remove: remove)), .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e))))
+            // Another style for the link on this line (LinkForms): the line written again.
+            let rewrite = { (line: String) in
+                let ns = target.currentText as NSString
+                guard NSMaxRange(e.range) <= ns.length, LinkForms.parse(ns.substring(with: e.range)) != nil else { return }
+                target.apply(TextEdit(range: e.range, replacement: line, caret: -1))
+            }
+            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, remove: remove, rewrite: rewrite)), .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e))))
         }
         return out
     }
@@ -2473,6 +2479,42 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func focusGrid(_ index: Int, cell: GridCell) {
         core.gridFocus = GridFocusRequest(grid: index, cell: cell)
         layoutCards()
+    }
+
+    /// Right-click on a line that is only a link: show it compact or as a card (Emil, 11-01).
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event) ?? NSMenu()
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        let ns = string as NSString
+        guard index <= ns.length else { return menu }
+        let line = ns.lineRange(for: NSRange(location: min(index, max(ns.length - 1, 0)), length: 0))
+        var text = NSRange(location: line.location, length: line.length)
+        while text.length > 0, [0x0A, 0x0D].contains(ns.character(at: NSMaxRange(text) - 1)) { text.length -= 1 }
+        let choices = Self.linkStyles(for: ns.substring(with: text))
+        guard !choices.isEmpty else { return menu }
+        var at = 0
+        for c in choices {
+            let item = NSMenuItem(title: c.title, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+            let action = TableMenuAction { [weak self] in
+                guard let self, NSMaxRange(text) <= (self.string as NSString).length else { return }
+                self.apply(TextEdit(range: text, replacement: c.line, caret: -1))
+            }
+            item.target = action
+            item.representedObject = action
+            item.image = NSImage(systemSymbolName: Restyle.symbol(c.style), accessibilityDescription: nil)
+            menu.insertItem(item, at: at)
+            at += 1
+        }
+        menu.insertItem(.separator(), at: at)
+        return menu
+    }
+
+    /// The other styles a link line can take, for the right-click menu: a written link offers
+    /// compact and card (embeds have their own menus).
+    nonisolated static func linkStyles(for line: String) -> [(title: String, style: LinkForms.Style, line: String)] {
+        guard let parsed = LinkForms.parse(line), parsed.style == .link else { return [] }
+        return LinkForms.choices(for: parsed).map { (LinkForms.title($0), $0, LinkForms.write(parsed, as: $0)) }
     }
 
     func showTableMenu(_ menu: TableMenu) {

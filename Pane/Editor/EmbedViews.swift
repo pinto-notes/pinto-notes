@@ -8,74 +8,226 @@ struct EmbedView: View {
     let embed: LineEmbed
     let controller: EditorController?
     let remove: () -> Void
+    /// Writes the line again (a link shown another way, LinkForms).
+    var rewrite: (String) -> Void = { _ in }
 
     var body: some View {
         switch embed.kind {
         case .file(let id, let name):
-            FileChip(id: id, name: name, controller: controller, remove: remove)
+            FileEmbed(id: id, name: name, card: embed.card, controller: controller, remove: remove, restyle: restyle)
         case .image(let id, let name):
             ImageEmbed(id: id, name: name, controller: controller, remove: remove)
         case .link(let url):
-            LinkCard(url: url, remove: remove)
+            LinkEmbed(url: url, card: embed.card, remove: remove, restyle: restyle)
         case .note(let id, let name):
             // Only a note that is an app is an embed (LineEmbed): its live widget.
             NoteAppWidget(id: id, name: name, controller: controller, remove: remove)
+        case .wiki(let title):
+            NoteCardEmbed(title: title, controller: controller, remove: remove, restyle: restyle)
+        }
+    }
+
+    /// The other ways this line can be shown, as menu items.
+    private var restyle: Restyle {
+        let line = controller?.target.map { ($0.currentText as NSString) }.flatMap { ns in
+            NSMaxRange(embed.range) <= ns.length ? ns.substring(with: embed.range) : nil
+        }
+        return Restyle(line: line.flatMap(LinkForms.parse), rewrite: rewrite)
+    }
+}
+
+/// Turning a link line into another style (LinkForms): the menu items and what they write.
+@MainActor
+struct Restyle {
+    let line: LinkForms.Line?
+    let rewrite: (String) -> Void
+
+    @ViewBuilder func items(title: String? = nil) -> some View {
+        if let line {
+            let rewrite = self.rewrite
+            ForEach(LinkForms.choices(for: line), id: \.self) { style in
+                Button(LinkForms.title(style), systemImage: Restyle.symbol(style)) {
+                    rewrite(LinkForms.write(line, as: style, title: title))
+                }
+            }
+        }
+    }
+
+    nonisolated static func symbol(_ style: LinkForms.Style) -> String {
+        switch style {
+        case .link: "link"
+        case .compact: "capsule"
+        case .card: "rectangle.portrait.topthird.inset.filled"
         }
     }
 }
 
-private struct FileChip: View {
-    let id: UUID
-    let name: String
-    let controller: EditorController?
-    let remove: () -> Void
+/// One line: a small picture, the name, where it's from. Barely more than a link (Emil, 11-01).
+struct CompactEmbed<Picture: View, Menu: View>: View {
+    let title: String
+    let source: String
+    let open: () -> Void
+    @ViewBuilder let picture: Picture
+    @ViewBuilder let menu: Menu
 
     var body: some View {
-        let file = controller?.resolveAttachment(id)
-        Button { controller?.openAttachment(id) } label: {
+        Button(action: open) {
+            HStack(spacing: 8) {
+                picture
+                    .frame(width: 22, height: 22)
+                    .clipShape(.rect(cornerRadius: 5, style: .continuous))
+                Text(title)
+                    .font(.system(size: EditorMetrics.body, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(source)
+                    .font(.system(size: EditorMetrics.body * 0.92))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .layoutPriority(-1)
+            }
+            .padding(.leading, 6)
+            .padding(.trailing, 12)
+            .frame(height: LineEmbed.compactHeight)
+            .hoverHighlight(Capsule())
+        }
+        .buttonStyle(PressScale())
+        .background(Color.paneChip, in: .capsule)
+        .contextMenu { menu }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A card: a picture on the left, the name, a line about it, and where it's from (Emil, 11-01).
+struct CardEmbed<Picture: View, Menu: View>: View {
+    let title: String
+    let detail: String?
+    let source: String
+    let sourceSymbol: String
+    let open: () -> Void
+    @ViewBuilder let picture: Picture
+    @ViewBuilder let menu: Menu
+
+    var body: some View {
+        Button(action: open) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(tint(file).opacity(0.16))
-                    Image(systemName: icon(file))
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(tint(file))
-                }
-                .frame(width: 40, height: 40)
+                picture
+                    .frame(width: 52, height: 52)
+                    .clipShape(.rect(cornerRadius: 8, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(file?.filename ?? name)
-                        .font(.system(size: EditorMetrics.body, weight: .medium))
+                    Text(title)
+                        .font(.system(size: EditorMetrics.body, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    Text(file.map { "\($0.kindText) · \($0.sizeText)" } ?? "File not on this device yet")
-                        .font(.system(size: EditorMetrics.body * 0.78))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .lineLimit(1)
+                    if let detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(.system(size: EditorMetrics.body * 0.92))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    HStack(spacing: 4) {
+                        Image(systemName: sourceSymbol).imageScale(.small)
+                        Text(source).lineLimit(1)
+                    }
+                    .font(.system(size: EditorMetrics.body * 0.85))
+                    .foregroundStyle(.tertiary)
                 }
                 Spacer(minLength: 0)
-                if controller?.downloading.contains(id) == true {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                }
             }
-            .padding(.horizontal, 10)
+            .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .hoverHighlight(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(PressScale())
         // Content, not a control: a solid surface (glass is for the navigation layer).
         .background(Color.paneChip, in: .rect(cornerRadius: 12, style: .continuous))
-        .contextMenu { EmbedMenu(open: { controller?.openAttachment(id) }, remove: remove) }
+        .contextMenu { menu }
+    }
+}
+
+/// A glyph on a tinted square, for a card or a compact line with no picture of its own.
+struct EmbedGlyph: View {
+    let symbol: String
+    let tint: Color
+    var body: some View {
+        GeometryReader { g in
+            ZStack {
+                Rectangle().fill(tint.opacity(0.15))
+                Image(systemName: symbol)
+                    .font(.system(size: g.size.width * 0.42, weight: .medium))
+                    .foregroundStyle(tint)
+            }
+        }
+    }
+}
+
+/// A file alone on its line: compact, or a card with its first page (Emil, 11-01).
+private struct FileEmbed: View {
+    let id: UUID
+    let name: String
+    let card: Bool
+    let controller: EditorController?
+    let remove: () -> Void
+    let restyle: Restyle
+
+    var body: some View {
+        let file = controller?.resolveAttachment(id)
+        let open: () -> Void = { controller?.openAttachment(id) }
+        let downloading = controller?.downloading.contains(id) == true
+        let detail = downloading ? "Downloading\u{2026}" : file.map { "\($0.kindText) · \($0.sizeText)" } ?? "Not on this device yet"
+        Group {
+            if card {
+                CardEmbed(title: file?.filename ?? name, detail: detail, source: "File", sourceSymbol: "paperclip", open: open) {
+                    picture(file, page: true)
+                } menu: { menu(open) }
+            } else {
+                CompactEmbed(title: file?.filename ?? name, source: downloading ? "Downloading\u{2026}" : file?.sizeText ?? "", open: open) {
+                    picture(file, page: false)
+                } menu: { menu(open) }
+            }
+        }
         .accessibilityIdentifier("file.\(name)")
     }
 
-    private func icon(_ f: Attachment?) -> String { f?.symbol ?? "doc" }
+    @ViewBuilder private func picture(_ f: Attachment?, page: Bool) -> some View {
+        if page, let f {
+            FileThumbnail(file: f, side: 52)
+        } else {
+            EmbedGlyph(symbol: f?.symbol ?? "doc", tint: f?.tint ?? .secondary)
+        }
+    }
 
-    private func tint(_ f: Attachment?) -> Color { f?.tint ?? .secondary }
+    @ViewBuilder private func menu(_ open: @escaping () -> Void) -> some View {
+        Button("Open", systemImage: "eye", action: open)
+        restyle.items()
+        Divider()
+        Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
+            .destructiveTint()
+    }
+}
+
+/// `![[Title]]`: the note's card. Its first lines and folder, and a click opens it.
+private struct NoteCardEmbed: View {
+    let title: String
+    let controller: EditorController?
+    let remove: () -> Void
+    let restyle: Restyle
+
+    var body: some View {
+        let id = controller?.wiki?.index.resolve(title, from: controller?.wiki?.from ?? [])
+        let about = id.flatMap { controller?.notePreview($0) }
+        CardEmbed(title: title, detail: id == nil ? "No note with this name yet" : about?.preview,
+                  source: about?.folder ?? "Notes", sourceSymbol: "folder", open: { controller?.openWiki(title) }) {
+            EmbedGlyph(symbol: "note.text", tint: Color(PColor.paneAccent))
+        } menu: {
+            Button("Open Note", systemImage: "arrow.up.right") { controller?.openWiki(title) }
+            restyle.items()
+            Divider()
+            Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
+                .destructiveTint()
+        }
+        .accessibilityIdentifier("noteCard.\(title)")
+    }
 }
 
 extension Color {
@@ -201,83 +353,189 @@ private struct EmbedMenu: View {
     }
 }
 
-/// A rich preview for a link on its own line, using the page's title and icon.
-private struct LinkCard: View {
+/// A web address alone on its line: compact (icon, page title, site) or a card with the page's
+/// picture and summary (Emil, 11-01).
+private struct LinkEmbed: View {
     let url: URL
+    let card: Bool
     let remove: () -> Void
+    let restyle: Restyle
     @State private var meta: LinkMeta?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Link(destination: url) {
-            HStack(spacing: 12) {
-                Group {
-                    if let icon = meta?.icon { icon.resizable().scaledToFit().padding(8) }
-                    else { Image(systemName: "globe").font(.system(size: 18)).foregroundStyle(.secondary) }
-                }
-                .frame(width: 44, height: 44)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(meta?.title ?? url.host() ?? url.absoluteString)
-                        .font(.system(size: EditorMetrics.body, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(url.host()?.replacingOccurrences(of: "www.", with: "") ?? url.absoluteString)
-                        .font(.system(size: EditorMetrics.body * 0.78))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
+        let site = url.host()?.replacingOccurrences(of: "www.", with: "") ?? url.absoluteString
+        let title = meta?.title ?? site
+        let open = { openURL(url) }
+        Group {
+            if card {
+                CardEmbed(title: title, detail: meta?.summary, source: site, sourceSymbol: "globe", open: open) {
+                    if let image = meta?.image ?? meta?.icon {
+                        image.resizable().scaledToFill()
+                    } else {
+                        EmbedGlyph(symbol: "globe", tint: .blue)
+                    }
+                } menu: { menu(title: meta?.title) }
+            } else {
+                CompactEmbed(title: title, source: meta?.title == nil ? "" : site, open: open) {
+                    if let icon = meta?.icon {
+                        icon.resizable().scaledToFit().padding(2)
+                    } else {
+                        EmbedGlyph(symbol: "globe", tint: .blue)
+                    }
+                } menu: { menu(title: meta?.title) }
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .hoverHighlight(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .buttonStyle(PressScale())
-        // Content, not a control: a solid surface (glass is for the navigation layer).
-        .background(Color.paneChip, in: .rect(cornerRadius: 12, style: .continuous))
-        .contextMenu {
-            Link(destination: url) { Label("Open Link", systemImage: "safari") }
-            Button("Remove Preview", systemImage: "trash", role: .destructive, action: remove)
-                .destructiveTint()
         }
         .task(id: url) { meta = await LinkMeta.fetch(url) }
         .accessibilityIdentifier("link.\(url.host() ?? "")")
     }
+
+    @ViewBuilder private func menu(title: String?) -> some View {
+        Link(destination: url) { Label("Open Link", systemImage: "safari") }
+        Button("Copy Link", systemImage: "doc.on.doc") { Clipboard.copy(url.absoluteString) }
+        restyle.items(title: title)
+        Divider()
+        Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
+            .destructiveTint()
+    }
 }
 
-/// Title and icon for a URL, cached for the session.
+/// A page's title, summary, icon and picture. Kept for the session and on disk (Caches), so a
+/// note's links show at once the next time and nothing is fetched again for a week.
 struct LinkMeta {
     var title: String?
+    var summary: String?
     var icon: Image?
+    var image: Image?
+
+    private struct Stored: Codable {
+        var title: String?
+        var summary: String?
+        var icon: Data?
+        var image: Data?
+        var fetched: Date
+    }
 
     @MainActor private static var cache: [URL: LinkMeta] = [:]
 
     @MainActor
     static func fetch(_ url: URL) async -> LinkMeta {
         if let hit = cache[url] { return hit }
+        if let stored = load(url), stored.fetched > .now.addingTimeInterval(-7 * 86400) {
+            let m = LinkMeta(stored)
+            cache[url] = m
+            return m
+        }
         let provider = LPMetadataProvider()
         provider.timeout = 8
-        var result = LinkMeta()
+        var stored = Stored(fetched: .now)
         if let m = try? await provider.startFetchingMetadata(for: url) {
-            result.title = m.title
-            if let p = m.iconProvider ?? m.imageProvider {
-                result.icon = await loadImage(p)
-            }
+            stored.title = m.title
+            if let p = m.iconProvider { stored.icon = await data(p) }
+            if let p = m.imageProvider { stored.image = await data(p).flatMap(shrink) }
         }
+        stored.summary = await summary(url)
+        let result = LinkMeta(stored)
         cache[url] = result
+        save(stored, for: url)
         return result
     }
 
+    private init(_ s: Stored) {
+        title = s.title
+        summary = s.summary
+        icon = s.icon.flatMap(Self.image)
+        image = s.image.flatMap(Self.image)
+    }
+
+    /// The page's own one-line description (og:description or description), first 300 KB only.
+    private static func summary(_ url: URL) async -> String? {
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.setValue("bytes=0-300000", forHTTPHeaderField: "Range")
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
+              let html = String(data: data.prefix(300_000), encoding: .utf8) ?? String(data: data.prefix(300_000), encoding: .isoLatin1) else { return nil }
+        return description(in: html)
+    }
+
+    static func description(in html: String) -> String? {
+        for name in ["og:description", "twitter:description", "description"] {
+            let patterns = [
+                #"<meta[^>]+(?:property|name)=["']\#(name)["'][^>]*content=["']([^"']+)["']"#,
+                #"<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']\#(name)["']"#,
+            ]
+            for p in patterns {
+                if let r = html.range(of: p, options: [.regularExpression, .caseInsensitive]) {
+                    let tag = String(html[r])
+                    if let c = tag.range(of: #"content=["']([^"']+)["']"#, options: .regularExpression) {
+                        let value = tag[c].dropFirst(9).dropLast()
+                        let text = String(value).replacingOccurrences(of: "&amp;", with: "&").replacingOccurrences(of: "&#39;", with: "'")
+                            .replacingOccurrences(of: "&quot;", with: "\"").trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !text.isEmpty { return text }
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
     @MainActor
-    private static func loadImage(_ provider: NSItemProvider) async -> Image? {
-        let data: Data? = await withCheckedContinuation { cont in
+    private static func data(_ provider: NSItemProvider) async -> Data? {
+        await withCheckedContinuation { cont in
             _ = provider.loadDataRepresentation(for: .image) { d, _ in cont.resume(returning: d) }
         }
-        guard let data else { return nil }
+    }
+
+    /// A page's picture at card size (a card shows it 52 points square), so the cache stays small.
+    private static func shrink(_ data: Data) -> Data? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(src, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: 320,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+              ] as CFDictionary) else { return nil }
+        let out = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(out, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.8] as CFDictionary)
+        return CGImageDestinationFinalize(dest) ? out as Data : nil
+    }
+
+    private static func image(_ data: Data) -> Image? {
         #if os(iOS)
         return UIImage(data: data).map { Image(uiImage: $0) }
         #else
         return NSImage(data: data).map { Image(nsImage: $0) }
+        #endif
+    }
+
+    private static var folder: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appending(path: "LinkMeta", directoryHint: .isDirectory)
+    }
+
+    private static func file(_ url: URL) -> URL? {
+        let key = url.absoluteString.utf8.reduce(UInt64(1469598103934665603)) { ($0 ^ UInt64($1)) &* 1099511628211 }
+        return folder?.appending(path: String(key, radix: 16) + ".json")
+    }
+
+    private static func load(_ url: URL) -> Stored? {
+        guard let f = file(url), let data = try? Data(contentsOf: f) else { return nil }
+        return try? JSONDecoder().decode(Stored.self, from: data)
+    }
+
+    private static func save(_ s: Stored, for url: URL) {
+        guard let folder, let f = file(url) else { return }
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? JSONEncoder().encode(s).write(to: f)
+    }
+}
+
+/// Puts text on the clipboard.
+enum Clipboard {
+    static func copy(_ text: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = text
+        #else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
         #endif
     }
 }
