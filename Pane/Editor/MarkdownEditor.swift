@@ -51,7 +51,7 @@ final class EditorCore {
     private(set) var slides: [ReorderSlide.Running] = []
     private var lastActiveLine: NSRange?
     /// Each table's handle targets, by its index (see GridHitBox).
-    private(set) var gridBoxes: [Int: GridHitBox] = [:]
+    var gridBoxes: [Int: GridHitBox] = [:]
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
@@ -1010,8 +1010,22 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Into the text first, so the edit goes through the text view's own undo.
         selectedRange = NSRange(location: EditorCore.caretOutside(g.range, in: text), length: 0)
         becomeFirstResponder()
+        dropGrids(from: index)
         apply(edit)
         layoutCards()
+    }
+
+    /// Tables' views are kept by position: with one deleted, the next table took over its view,
+    /// cell with the keyboard and all, and the keyboard jumped into it (Emil's table walkthrough,
+    /// 1 November 2026). The views from `index` on are made anew.
+    private func dropGrids(from index: Int) {
+        for (k, host) in cardHosts {
+            guard k.hasPrefix("g"), let i = Int(k.dropFirst()), i >= index else { continue }
+            (gridHolders[k] ?? host.view).removeFromSuperview()
+            cardHosts[k] = nil
+            gridHolders[k] = nil
+            core.gridBoxes[i] = nil
+        }
     }
 
     func undoLastEdit() {
@@ -2528,9 +2542,23 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         window?.makeFirstResponder(self)
         // One step of Undo, whatever was typed just before.
         breakUndoCoalescing()
+        dropGrids(from: index)
         apply(edit)
         breakUndoCoalescing()
         layoutCards()
+    }
+
+    /// Tables' views are kept by position: with one deleted, the next table took over its view,
+    /// cell with the keyboard and all (Emil's table walkthrough, 1 November 2026). The views from
+    /// `index` on are made anew.
+    private func dropGrids(from index: Int) {
+        for (k, host) in cardHosts {
+            guard k.hasPrefix("g"), let i = Int(k.dropFirst()), i >= index else { continue }
+            host.removeFromSuperview()
+            cardHosts[k] = nil
+            cardContent[k] = nil
+            core.gridBoxes[i] = nil
+        }
     }
 
     func undoLastEdit() {

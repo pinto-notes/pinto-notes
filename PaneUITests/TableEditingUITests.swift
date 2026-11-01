@@ -84,27 +84,34 @@ final class TableEditingUITests: XCTestCase {
         pause()
         shot("column-selected")
 
-        // Add a column after from the column's menu, and delete it again.
+        // Add a column after from the column's menu, and delete it again. Counted: another table
+        // in the note can have a fourth column too (cells are named by row and column only).
+        func fourth() -> Int { app.descendants(matching: .any).matching(identifier: "grid.0.3").count }
+        let before = fourth()
         app.buttons["Add Column After"].firstMatch.tap()
-        XCTAssertTrue(element("grid.0.3").waitForExistence(timeout: 3), "a fourth column")
         pause()
+        XCTAssertEqual(fourth(), before + 1, "a fourth column")
         element("grid.handle.column").tap()
         XCTAssertTrue(app.buttons["Delete Column"].firstMatch.waitForExistence(timeout: 3))
         app.buttons["Delete Column"].firstMatch.tap()
         pause()
-        XCTAssertFalse(element("grid.0.3").exists, "back to three columns")
+        XCTAssertEqual(fourth(), before, "back to three columns")
 
-        // Delete Table: gone at once, a notice with Undo, and Undo brings it back.
+        // Delete Table: gone at once, a notice with Undo, and Undo brings it back. Counted, as above:
+        // the note's other table has a cell of the same name.
+        func cells() -> Int { app.descendants(matching: .any).matching(identifier: "grid.2.1").count }
+        let tables = cells()
         element("editor.tableMenu").tap()
         XCTAssertTrue(app.buttons["Delete Table"].firstMatch.waitForExistence(timeout: 3))
         app.buttons["Delete Table"].firstMatch.tap()
         let undo = element("toast.undo")
         XCTAssertTrue(undo.waitForExistence(timeout: 3), "a notice says the table was deleted, with Undo")
-        XCTAssertFalse(element("grid.2.1").exists, "the table is gone")
+        XCTAssertEqual(cells(), tables - 1, "the table is gone")
         pause(0.4)
         shot("table-deleted")
         undo.tap()
-        XCTAssertTrue(element("grid.2.1").waitForExistence(timeout: 3), "Undo brings the table back")
+        pause()
+        XCTAssertEqual(cells(), tables, "Undo brings the table back")
         pause()
         shot("table-restored")
     }

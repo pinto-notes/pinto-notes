@@ -194,6 +194,27 @@ import AppKit
         #expect(h.gridCount == 1)
     }
 
+    /// With another table after it, Delete Table still leaves the keyboard in the text: the next
+    /// table took over the deleted one's view, cell with the keyboard and all, and the keyboard
+    /// jumped into it (Emil's table walkthrough, 1 November 2026). Undo brings both back.
+    @Test func deletingATableLeavesTheNextOneAlone() async throws {
+        let two = Self.note + "\n\n| Booking | Ref | From |\n| --- | --- | --- |\n| Flight | TP1 | Stockholm |\n| Flat | AF-88 | Fri |\n\nEnd"
+        let h = await EditorHarness(two)
+        defer { h.close() }
+        #expect(await h.until { h.gridCount == 2 })
+        await enter(h, row: 1)
+        try #require(h.controller.currentTableMenu?.item("Delete Table")).run()
+        await h.settle(0.6)
+        #expect(h.gridCount == 1)
+        #expect(h.window.firstResponder === h.view, "the keyboard is back in the text, not in the next table")
+        #expect(!h.gridHasFocus)
+        #expect(h.controller.table == nil)
+        h.controller.undoNotice()
+        await h.settle(0.3)
+        #expect(h.text == two, "Undo brings the table back: \(h.text.debugDescription)")
+        #expect(await h.until { h.gridCount == 2 })
+    }
+
     /// The add bars show while a cell is being edited, a click on one adds a row or a column with
     /// the keyboard in it, and a click in the strips around the table off the bars goes to the text.
     @Test func theAddBarsAddARowAndAColumn() async throws {
