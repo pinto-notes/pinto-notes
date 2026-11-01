@@ -228,11 +228,17 @@ private struct TablePill: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: item.systemImage).font(.system(size: 17, weight: .medium))
-                Text(item.title).font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
+                if let action = TableAction.allCases.first(where: { $0.title == item.title }) {
+                    TableGlyph(action: action)
+                } else {
+                    Image(systemName: item.systemImage).font(.system(size: 17, weight: .medium)).frame(width: TableGlyph.size.width)
+                }
+                Text(item.title).font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75).allowsTightening(true)
             }
             .foregroundStyle(!item.enabled ? Color.formatOff : item.destructive ? Color.red : Color.formatInk)
-            .frame(maxWidth: .infinity, minHeight: FormatPanel.pillHeight)
+            // Icons in one line down the panel, so they read as a list.
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: FormatPanel.pillHeight, alignment: .leading)
             .background(Color.formatPill, in: Capsule())
             .contentShape(Capsule())
         }
@@ -317,5 +323,41 @@ extension Color {
     static let formatOnGlyph = Color(Palette.rgb(Palette.Format.onGlyph))
     /// A control that can't act here (indent on a plain line).
     static let formatOff = Color(UIColor { $0.userInterfaceStyle == .dark ? Palette.muted.resolvedColor(with: $0).withAlphaComponent(0.55) : .tertiaryLabel })
+}
+
+/// A small table drawn for a row or column action (Emil, 1 November 2026: arrows and a trash can
+/// said too little). Three rows and three columns; adding fills the band at the edge where the new
+/// row or column goes, deleting fills the middle one. It takes the pill's colour, so deletes are red.
+struct TableGlyph: View {
+    let action: TableAction
+    static let size = CGSize(width: 20, height: 16)
+
+    var body: some View {
+        Canvas { ctx, size in
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 0.75, dy: 0.75)
+            let w = rect.width / 3, h = rect.height / 3
+            let band: CGRect = switch action {
+            case .addRowAbove: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: h)
+            case .addRowBelow: CGRect(x: rect.minX, y: rect.maxY - h, width: rect.width, height: h)
+            case .deleteRow: CGRect(x: rect.minX, y: rect.minY + h, width: rect.width, height: h)
+            case .addColumnBefore: CGRect(x: rect.minX, y: rect.minY, width: w, height: rect.height)
+            case .addColumnAfter: CGRect(x: rect.maxX - w, y: rect.minY, width: w, height: rect.height)
+            case .deleteColumn: CGRect(x: rect.minX + w, y: rect.minY, width: w, height: rect.height)
+            }
+            let ink = GraphicsContext.Shading.foreground
+            ctx.fill(Path(band), with: ink)
+            var lines = Path()
+            for i in 1...2 {
+                lines.move(to: CGPoint(x: rect.minX + w * CGFloat(i), y: rect.minY))
+                lines.addLine(to: CGPoint(x: rect.minX + w * CGFloat(i), y: rect.maxY))
+                lines.move(to: CGPoint(x: rect.minX, y: rect.minY + h * CGFloat(i)))
+                lines.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + h * CGFloat(i)))
+            }
+            ctx.stroke(lines, with: ink, lineWidth: 1)
+            ctx.stroke(Path(roundedRect: rect, cornerRadius: 2.5), with: ink, lineWidth: 1.5)
+        }
+        .frame(width: Self.size.width, height: Self.size.height)
+        .accessibilityHidden(true)
+    }
 }
 #endif

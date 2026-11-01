@@ -163,11 +163,15 @@ final class TableEditingUITests: XCTestCase {
         // The Table panel: Add Row Below, and the keyboard is in the new row.
         element("editor.tableMenu").tap()
         XCTAssertTrue(element("table.panel").waitForExistence(timeout: 3), "the Table panel in the keyboard's place")
+        let cross = element("grid.cross")
+        XCTAssertTrue(cross.waitForExistence(timeout: 3), "the row and column the panel acts on are marked")
+        XCTAssertEqual(cross.value as? String, "row 2, column 1", "the caret's cell")
         pause()
         shot("tools-3-table-panel")
         app.buttons["Add Row Below"].firstMatch.tap()
         pause()
         XCTAssertFalse(element("table.panel").exists, "the panel goes after a choice")
+        XCTAssertFalse(element("grid.cross").exists, "and the mark with it")
         app.typeText("Mon")
         pause()
         func said(_ e: XCUIElement) -> String { (e.value as? String ?? "") + " " + e.label }

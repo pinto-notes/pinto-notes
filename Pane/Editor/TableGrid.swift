@@ -611,6 +611,7 @@ struct TableGridView: View {
                 // The strip the row handles sit in.
                 Color.clear.frame(width: GridMetrics.handle)
                 grid(widths: widths)
+                    .overlay(alignment: .topLeading) { panelCross(widths: widths) }
                     .overlay(alignment: .topLeading) { pickedTint(widths: widths) }
             }
         }
@@ -707,6 +708,32 @@ struct TableGridView: View {
         guard let f = focus ?? wanted else { return }
         qaTrace("grid pick \(line) from \(f)")
         controller?.pickTableLine(line, grid: table.index, cell: f)
+    }
+
+    /// While the Table panel is up: the row and the column its actions act on, tinted lightly,
+    /// so the cell where they cross reads strongest (Emil, 1 November 2026).
+    private var panelCell: GridCell? {
+        guard controller?.tablePanelShown == true, let t = controller?.table, t.grid == table.index, t.selected == nil else { return nil }
+        return focus ?? wanted ?? t.cell
+    }
+
+    @ViewBuilder
+    private func panelCross(widths: [CGFloat]) -> some View {
+        if let c = panelCell, c.row < draft.rows.count, c.column < widths.count {
+            let tint = Color.accentColor.opacity(0.12)
+            ZStack(alignment: .topLeading) {
+                Rectangle().fill(tint)
+                    .frame(width: widths.reduce(0, +), height: GridMetrics.row)
+                    .offset(y: CGFloat(c.row) * GridMetrics.row)
+                Rectangle().fill(tint)
+                    .frame(width: widths[c.column], height: CGFloat(draft.rows.count) * GridMetrics.row)
+                    .offset(x: widths[..<c.column].reduce(0, +))
+            }
+            .allowsHitTesting(false)
+            .accessibilityElement()
+            .accessibilityIdentifier("grid.cross")
+            .accessibilityValue("row \(c.row), column \(c.column)")
+        }
     }
 
     /// The picked row or column, tinted like selected text.
