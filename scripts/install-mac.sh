@@ -3,18 +3,24 @@
 # clean checkout of main, and installs it to /Applications.
 #
 #   scripts/install-mac.sh
+#   REF=origin/dev scripts/install-mac.sh   # a feel test of another ref
+#
+# Another ref builds in its own clean checkout: AmberNotes-install stays on main,
+# because the site deploys only from there.
 #
 # Development and test builds stay ad-hoc (Pane-mac.entitlements): a restricted
 # entitlement without a provisioning profile would stop them launching.
 set -euo pipefail
 MAIN="$(cd "$(dirname "$0")/.." && pwd)"
+REF=${REF:-main}
 CLEAN="$MAIN/../AmberNotes-install"
+[[ $REF == main ]] || CLEAN="$MAIN/../PintoNotes-install-ref"
 DD="$MAIN/build/ddinstall"
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
-[[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" main
+[[ -d $CLEAN ]] || git -C "$MAIN" worktree add --detach "$CLEAN" "$REF"
 # The clean checkout only ever holds generated changes (xcodegen): drop them.
-git -C "$CLEAN" checkout -q -f --detach main
+git -C "$CLEAN" checkout -q -f --detach "$REF"
 cp "$MAIN/Config/Backend.local.xcconfig" "$CLEAN/Config/"
 (cd "$CLEAN" && xcodegen generate >/dev/null)
 
