@@ -1,5 +1,11 @@
-#if os(macOS)
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
+#if os(macOS)
 
 /// The pages of Settings on the Mac (SettingsCard): you at the top, then a few groups of pages in
 /// its sidebar. Rarely used and technical things sit one level down.
@@ -44,6 +50,7 @@ enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
         case .storage: self = .storage
         case .general: self = .general
         case .appearance: self = .appearance
+        case .help: self = .help
         }
     }
 
@@ -74,10 +81,12 @@ enum SettingsIndex {
         ("Sync", .account), ("Sync Now", .account), ("Sign in with Apple", .account), ("Export notes", .account), ("Delete account", .account),
         ("Light or dark mode", .appearance), ("Theme", .appearance),
         ("Show in menu bar", .general), ("Share diagnostics and usage", .general), ("Keys for apps", .appKeys),
-        ("Show Setup Guide", .help), ("Report an issue", .help), ("Contribute", .help), ("Star on GitHub", .help),
+        ("Show Setup Guide", .help), ("Questions and answers", .help), ("Report an issue", .help), ("Contribute", .help), ("Star on GitHub", .help),
         ("Terms", .help), ("Privacy policy", .help), ("Version", .help),
     ] as [(String, SettingsPlace)]).map { Entry(label: $0.0, place: $0.1) }
-        + [Entry(label: "Accent colour", place: .appearance, also: ["Accent color"])]
+        + [Entry(label: "Accent colour", place: .appearance, also: ["Accent color"]),
+           Entry(label: WhatsNew.title, place: .help, also: ["What's new", "Changelog"]),
+           Entry(label: "Send feedback", place: .help, also: ["Email", "Contact", "Support", "Help"])]
 
     /// The settings whose words, or whose page's name, have what's typed; only on pages that are there.
     static func matches(_ query: String, available: Set<SettingsPlace>) -> [Entry] {
@@ -289,30 +298,164 @@ struct GeneralPage: View {
     }
 }
 
-/// Help and feedback: the setup guide, the project's links, the terms, and the version.
-struct HelpPage: View {
-    var body: some View {
-        Section {
-            Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
-                .accessibilityIdentifier("settings.setupGuide")
-        }
-        Section {
-            ForEach(AboutSection.links, id: \.id) { link in
-                Link(destination: link.url) {
-                    LabeledContent(link.title) { Image(systemName: "arrow.up.right").foregroundStyle(.tertiary) }
-                }
-                .foregroundStyle(.primary)
-                .accessibilityIdentifier(link.id)
-            }
-        } header: {
-            Text("Pinto Notes is open source")
-        }
-        Section {
-            LabeledContent("Version", value: AboutSection.version)
-                .accessibilityIdentifier("settings.version")
-        } footer: {
-            LegalLinksRow()
-        }
+#endif
+
+/// What Help and feedback says and where it leads, in one place.
+enum HelpCopy {
+    /// The address the website's support page and privacy policy give.
+    static let email = "hello@pintonotes.com"
+    /// The website's help page: common questions, and the address (/support shows the same page).
+    static let supportPage = URL(string: "https://pintonotes.com/help")!
+    static let questions = "Questions and answers"
+    static let feedback = "Send feedback"
+    static let feedbackFooter = "Write to \(email) about a problem or an idea. You\u{2019}ll normally hear back within a day or two."
+    static let setupGuideFooter = "Shows the first steps again: your name, bringing your notes and connecting your AI."
+    static let openSource = "Open source on GitHub"
+    static let openSourceFooter = "Pinto Notes is built in the open. Reporting an issue there needs a GitHub account."
+    static let trademarks = "Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners."
+    /// Said under Send feedback when no mail app took the message.
+    static let noMailApp = "No mail app opened, so the address is copied: \(email)."
+
+    /// A message to support with the subject filled in, and the version and system under room to
+    /// write: what's asked first when something goes wrong. Nothing else about the device.
+    static func mail(version: String, system: String) -> URL {
+        var c = URLComponents()
+        c.scheme = "mailto"
+        c.path = email
+        c.queryItems = [
+            URLQueryItem(name: "subject", value: "Pinto Notes feedback"),
+            URLQueryItem(name: "body", value: "\n\n\nPinto Notes \(version), \(system)"),
+        ]
+        return c.url!
+    }
+
+    /// "macOS 26.1" or "iOS 26.1.2".
+    static var system: String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        #if os(macOS)
+        let name = "macOS"
+        #else
+        let name = "iOS"
+        #endif
+        return "\(name) \(v.majorVersion).\(v.minorVersion)" + (v.patchVersion > 0 ? ".\(v.patchVersion)" : "")
     }
 }
-#endif
+
+/// Help and feedback, on the Mac and iPhone: the setup guide, answers and a way to write to us,
+/// the project on GitHub, then what's new, the version and the terms.
+struct HelpPage: View {
+    /// The setup guide plays only for an account (it starts from your name).
+    var signedIn: Bool
+    /// Closes Settings, so the setup guide shows.
+    var close: () -> Void = {}
+    /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
+    var copy: @MainActor (String) -> Void = { HelpPage.toClipboard($0) }
+    @Environment(\.openURL) private var openURL
+    /// Said under Send feedback when no mail app took the message.
+    @State private var noMail = false
+
+    var body: some View {
+        if Self.offersSetupGuide(signedIn: signedIn) {
+            Section {
+                Button("Show Setup Guide") { Self.playSetupGuide(close: close) }
+                .accessibilityIdentifier("settings.setupGuide")
+            } footer: {
+                Text(HelpCopy.setupGuideFooter)
+            }
+        }
+        Section {
+            link(HelpCopy.questions, HelpCopy.supportPage, symbol: "questionmark.circle", id: "settings.support")
+            Button { sendFeedback() } label: {
+                row(HelpCopy.feedback, symbol: "envelope", trailing: "arrow.up.right")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.feedback")
+            if noMail {
+                Label(HelpCopy.noMailApp, systemImage: "doc.on.doc")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.feedbackCopied")
+            }
+        } footer: {
+            Text(HelpCopy.feedbackFooter)
+        }
+        Section {
+            ForEach(AboutSection.links, id: \.id) { l in
+                link(l.title, l.url, symbol: nil, id: l.id)
+            }
+        } header: {
+            Text(HelpCopy.openSource)
+        } footer: {
+            Text(HelpCopy.openSourceFooter)
+        }
+        Section {
+            // What changed in each version, on the website: the app shows no release notes by itself.
+            link(WhatsNew.title, WhatsNew.changelogURL, symbol: nil, id: "settings.whatsNew")
+            LabeledContent("Version") {
+                Text(AboutSection.version).textSelection(.enabled).monospacedDigit()
+            }
+            .accessibilityIdentifier("settings.version")
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                LegalLinksRow()
+                // The import list shows these apps' own icons to name where notes come from.
+                Text(HelpCopy.trademarks)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func link(_ title: String, _ url: URL, symbol: String?, id: String) -> some View {
+        Link(destination: url) { row(title, symbol: symbol, trailing: "arrow.up.right") }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(id)
+    }
+
+    /// A row that leaves the app: its words, and an arrow out at the end.
+    private func row(_ title: String, symbol: String?, trailing: String) -> some View {
+        LabeledContent {
+            Image(systemName: trailing).font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+        } label: {
+            if let symbol { Label(title, systemImage: symbol) } else { Text(title) }
+        }
+        .foregroundStyle(.primary)
+        .contentShape(.rect)
+    }
+
+    private func sendFeedback() {
+        noMail = false
+        openURL(HelpCopy.mail(version: AboutSection.version, system: HelpCopy.system)) { accepted in
+            noMail = Self.mailed(accepted: accepted, copy: copy)
+        }
+    }
+
+    /// Signed out there's no setup guide to play (it starts from your name, and the app only
+    /// plays it for an account), so its button isn't there to do nothing.
+    static func offersSetupGuide(signedIn: Bool) -> Bool { signedIn }
+
+    /// Plays the setup guide and closes Settings, which would otherwise cover it.
+    static func playSetupGuide(close: () -> Void) {
+        NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
+        close()
+    }
+
+    /// After Send feedback: when no mail app took the message, the address is copied, and the
+    /// answer is true, for the line under the button that says so.
+    static func mailed(accepted: Bool, copy: (String) -> Void) -> Bool {
+        guard !accepted else { return false }
+        copy(HelpCopy.email)
+        return true
+    }
+
+    static func toClipboard(_ text: String) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #else
+        UIPasteboard.general.string = text
+        #endif
+    }
+}

@@ -6,13 +6,13 @@ import UniformTypeIdentifiers
 /// The pages of Settings: rows that open a page on iPhone; on the Mac, where links land in the
 /// card's sidebar (SettingsPlace).
 enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
-    case general, appearance, account, ai, security, storage
+    case general, appearance, account, ai, security, storage, help
 
     var id: String { rawValue }
 
-    /// iPhone's rows, in groups, in the Mac sidebar's order (SettingsPlace.groups) less Account and
-    /// Help, which sit under you on iPhone.
-    static let phoneGroups: [[SettingsTab]] = [[.ai, .general, .appearance], [.security, .storage]]
+    /// iPhone's rows, in groups, in the Mac sidebar's order (SettingsPlace.groups) less Account,
+    /// which sits under you on iPhone. Help and feedback is last, alone, as on the Mac.
+    static let phoneGroups: [[SettingsTab]] = [[.ai, .general, .appearance], [.security, .storage], [.help]]
 
     var title: String {
         switch self {
@@ -22,6 +22,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .ai: "AI"
         case .security: PrivacyCopy.title
         case .storage: "Storage"
+        case .help: "Help and feedback"
         }
     }
 
@@ -33,6 +34,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .ai: "sparkles"
         case .security: "lock.shield"
         case .storage: "externaldrive"
+        case .help: "questionmark.circle"
         }
     }
 }
@@ -110,7 +112,7 @@ struct SettingsView: View {
     var tabs: [SettingsTab] {
         SettingsTab.allCases.filter { tab in
             switch tab {
-            case .general, .appearance, .account: true
+            case .general, .appearance, .account, .help: true
             case .ai: isSignedIn && backend.client != nil
             case .security: (isSignedIn && crypto.isReady) || NoteVault.shared.isSetUp
             case .storage: (isSignedIn && backend.client != nil) || demoStorage
@@ -119,12 +121,11 @@ struct SettingsView: View {
     }
 
     #if os(macOS)
-    /// The pages there is something on: those of `tabs`, and Profile, Help and the keys for apps.
+    /// The pages there is something on: those of `tabs`, and Profile and the keys for apps.
     var places: Set<SettingsPlace> {
         var out = Set(tabs.map(SettingsPlace.init))
         // `.account` maps to Profile (where the account row lands); Account is its own page too.
         if isSignedIn { out.insert(.account) } else { out.remove(.profile) }
-        out.insert(.help)
         if NoteApps.enabled { out.insert(.appKeys) }
         return out
     }
@@ -139,7 +140,7 @@ struct SettingsView: View {
         case .account: page(.account)
         case .general: SettingsPage { GeneralPage() }
         case .appearance: SettingsPage { AppearancePage() }
-        case .help: SettingsPage { HelpPage() }
+        case .help: page(.help)
         case .appKeys: SettingsPage { APIKeysSection() }
         }
     }
@@ -152,7 +153,7 @@ struct SettingsView: View {
     func page(_ tab: SettingsTab) -> some View {
         switch tab {
         case .general:
-            SettingsPage { GeneralSettings(signedIn: isSignedIn, close: { dismiss() }) }
+            SettingsPage { GeneralSettings() }
         case .appearance:
             SettingsPage { AppearancePage() }
         case .account:
@@ -181,7 +182,17 @@ struct SettingsView: View {
                     StorageSectionBody(usage: StorageStore.shared.usage)
                 }
             }
+        case .help:
+            SettingsPage { HelpPage(signedIn: isSignedIn, close: closeSettings) }
         }
+    }
+
+    /// Closes Settings: the card over the notes on the Mac, the sheet on iPhone.
+    private func closeSettings() {
+        #if os(macOS)
+        if let close { close(); return }
+        #endif
+        dismiss()
     }
 
     #if os(iOS)
@@ -202,7 +213,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            // The Mac's order (SettingsPlace.groups); Account and Help sit under you on iPhone.
+            // The Mac's order (SettingsPlace.groups); Account sits under you on iPhone.
             ForEach(Array(SettingsTab.phoneGroups.enumerated()), id: \.offset) { _, group in
                 let shown = group.filter(tabs.contains)
                 if !shown.isEmpty {
@@ -259,10 +270,9 @@ private struct SettingsPage<Content: View>: View {
 
     var body: some View {
         Form {
-            #if os(macOS)
-            // Every tab has something that needs the server; iPhone says it on the first screen.
+            // Every page has something that needs the server, so each says it at its top: on
+            // iPhone a page covers the first screen, where it was said before.
             OfflineSection()
-            #endif
             content
         }
             .formStyle(.grouped)
@@ -330,33 +340,16 @@ private struct NoInitialFocus: NSViewRepresentable {
 }
 #endif
 
-/// General: the menu bar item (on iPhone, the setup guide), API keys for apps in notes, the
-/// diagnostics switch, and about.
+/// General: the menu bar item on the Mac, API keys for apps in notes, and the diagnostics
+/// switch. The setup guide, the links and the version are on Help and feedback.
 private struct GeneralSettings: View {
-    let signedIn: Bool
-    let close: () -> Void
-
     var body: some View {
         // Appearance has a page of its own.
         #if os(macOS)
         MenuBarSection()
-        #else
-        if signedIn {
-            // On the Mac this is Help › Show Setup Guide.
-            Section {
-                Button("Show Setup Guide") {
-                    NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
-                    close()
-                }
-                .accessibilityIdentifier("settings.setupGuide")
-            } footer: {
-                Text("Shows the first steps again: your name, bringing your notes and connecting your AI.")
-            }
-        }
         #endif
         if NoteApps.enabled { APIKeysSection() }
         DiagnosticsSection()
-        AboutSection()
     }
 }
 
@@ -738,9 +731,8 @@ private struct MenuBarSection: View {
 }
 #endif
 
-/// About › Open source: three quiet links to the code on GitHub, and the terms and privacy
-/// policy under them. Nothing here ever asks.
-struct AboutSection: View {
+/// What Help and feedback shows about the app: its version, and the project's links on GitHub.
+enum AboutSection {
     /// "1.2 (2610100857)": what to quote when something goes wrong.
     static var version: String { version(short: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
                                           build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) }
@@ -754,61 +746,10 @@ struct AboutSection: View {
         }
     }
 
+    /// Reporting a problem first: it's what someone on Help most likely came for.
     static let links: [(title: String, url: URL, id: String)] = [
-        ("Star on GitHub", ShareAsk.repository, "settings.github"),
         ("Report an issue", ShareAsk.newIssue, "settings.reportIssue"),
         ("Contribute", ShareAsk.contributing, "settings.contribute"),
+        ("Star on GitHub", ShareAsk.repository, "settings.github"),
     ]
-
-    var body: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Open source")
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 6) { links(separated: true) }
-                    VStack(alignment: .leading, spacing: 4) { links(separated: false) }
-                }
-                .font(.footnote)
-                .tint(Color(PColor.paneAccent))
-            }
-            .padding(.vertical, 2)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("settings.openSource")
-            LabeledContent("Version", value: Self.version)
-                .accessibilityIdentifier("settings.version")
-            // What changed in each version, on the website: the app shows no release notes by itself.
-            Link(destination: WhatsNew.changelogURL) {
-                Label(WhatsNew.title, systemImage: "sparkles")
-            }
-            .accessibilityIdentifier("settings.whatsNew")
-        } header: {
-            Text("About")
-        } footer: {
-            VStack(alignment: .leading, spacing: 6) {
-                LegalLinksRow()
-                // The import list shows these apps' own icons to name where notes come from.
-                Text("Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    @ViewBuilder private func links(separated: Bool) -> some View {
-        ForEach(Array(Self.links.enumerated()), id: \.offset) { i, link in
-            if separated && i > 0 {
-                Text("\u{00B7}").foregroundStyle(.tertiary).accessibilityHidden(true)
-            }
-            Link(link.title, destination: link.url)
-                #if os(iOS)
-                // The words are footnote-sized; the target is a finger's height.
-                .frame(minHeight: 44)
-                .contentShape(.rect)
-                #else
-                .frame(minHeight: 24)
-                #endif
-                .accessibilityIdentifier(link.id)
-        }
-    }
 }

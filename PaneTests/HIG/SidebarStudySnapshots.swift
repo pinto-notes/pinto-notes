@@ -149,6 +149,54 @@ import Testing
         }
     }
 
+    /// Settings › Security and Help and feedback (feature/settings-help), in the card over the
+    /// notes and as whole pages, light and dark: Security with Pinto Notes keeping a copy of the
+    /// key (most accounts) and without one, offline, and Help signed in and out. Into
+    /// docs/Evidence/settings-help with `TEST_RUNNER_AMBER_HIG_SHOTS=$PWD/docs/Evidence/settings-help
+    /// scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsHelp()'`.
+    @Test func settingsHelp() async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let lib = try Self.library()
+        let fixture = try await AppSnapshotTests.settingsFixture()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let withCopy = await AddDeviceSnapshots.readyWithCopy()
+        let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
+        var copy = SettingsView(backend: fixture.backend, sync: nil, crypto: withCopy, devices: AddDeviceSnapshots.devices([AddDeviceSnapshots.stale]), route: route)
+        copy.close = {}
+        var signedOut = SettingsView(backend: Backend(), sync: nil, route: route)
+        signedOut.close = {}
+        func card(_ v: SettingsView, _ start: SettingsPlace) -> SettingsView {
+            var v = v
+            v.start = start
+            v.close = {}
+            return v
+        }
+        let cards: [(String, SettingsView, SettingsPlace)] = [
+            ("security-copy", copy, .security), ("security-nocopy", fixture, .security),
+            ("help", fixture, .help), ("help-signedout", signedOut, .help),
+        ]
+        try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
+            for (name, v, start) in cards {
+                for dark in [false, true] {
+                    let view = window(SidebarStudy(), library: lib, over: card(v, start))
+                    try await AppSnapshotTests.shoot(view, name: "mac-\(name)-\(dark ? "dark" : "light")", size: Self.size, dark: dark, wait: 1.2)
+                }
+            }
+        }
+        // Whole pages, as tall as they are, at the card's page width.
+        let pages: [(String, AnyView, Bool, CGFloat)] = [
+            ("security-copy-full", AnyView(copy.page(.security)), false, 1180), ("security-copy-full", AnyView(copy.page(.security)), true, 1180),
+            ("security-nocopy-full", AnyView(fixture.page(.security)), false, 1180),
+            ("security-offline-full", AnyView(copy.page(.security).environment(\.networkReach, .offline)), false, 1180),
+            ("help-full", AnyView(fixture.page(.help)), false, 820), ("help-full", AnyView(fixture.page(.help)), true, 820),
+        ]
+        for (name, page, dark, height) in pages {
+            try await AppSnapshotTests.render(page.frame(width: 600, height: height).tint(Color(PColor.paneAccent)),
+                                              name: "mac-\(name)-\(dark ? "dark" : "light")", dark: dark, wait: 1.0)
+        }
+    }
+
     /// Templates in the sidebar opens every template as a page of the window, and a card opens
     /// its template with Make with the AI you use.
     @Test(arguments: [false, true])

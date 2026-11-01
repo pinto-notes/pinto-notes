@@ -371,11 +371,11 @@ import Testing
     @Test func theOpenSourceLinksGoToGitHub() {
         #expect(ShareAsk.url(for: .starredGitHub)?.absoluteString == "https://github.com/pinto-notes/pinto-notes")
         #expect(ShareAsk.url(for: .dismissed) == nil)
-        #expect(AboutSection.links.map(\.title) == ["Star on GitHub", "Report an issue", "Contribute"])
+        #expect(AboutSection.links.map(\.title) == ["Report an issue", "Contribute", "Star on GitHub"])
         #expect(AboutSection.links.map(\.url.absoluteString) == [
-            "https://github.com/pinto-notes/pinto-notes",
             "https://github.com/pinto-notes/pinto-notes/issues/new/choose",
             "https://github.com/pinto-notes/pinto-notes/blob/main/CONTRIBUTING.md",
+            "https://github.com/pinto-notes/pinto-notes",
         ])
     }
 }
