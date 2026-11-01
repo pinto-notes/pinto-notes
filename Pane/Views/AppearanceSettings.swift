@@ -40,6 +40,16 @@ extension Theme {
     }
 }
 
+extension Theme {
+    /// What VoiceOver says for the theme's tile.
+    var spokenName: String { title }
+}
+
+extension AccentChoice {
+    /// What VoiceOver and the tooltip say for the accent's dot.
+    var spokenName: String { self == .theme ? "The theme's own" : title }
+}
+
 extension Theme.Hex {
     var color: Color { Color(Palette.pair(light, dark)) }
 }
@@ -86,7 +96,7 @@ private struct ThemeTile: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(theme.title)
+        .accessibilityLabel(theme.spokenName)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("settings.theme.\(theme.rawValue)")
     }
@@ -110,8 +120,8 @@ private struct AccentDot: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help(choice == .theme ? "The theme's own" : choice.title)
-        .accessibilityLabel(choice == .theme ? "The theme's own" : choice.title)
+        .help(choice.spokenName)
+        .accessibilityLabel(choice.spokenName)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("settings.accent.\(choice.rawValue)")
     }
