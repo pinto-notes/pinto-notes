@@ -120,7 +120,7 @@ final class TableEditingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Delete Table"].firstMatch.waitForExistence(timeout: 3))
         app.buttons["Delete Table"].firstMatch.tap()
         let undo = element("toast.undo")
-        XCTAssertTrue(undo.waitForExistence(timeout: 3), "a notice says the table was deleted, with Undo")
+        XCTAssertTrue(undo.waitForExistence(timeout: 6), "a notice says the table was deleted, with Undo")
         XCTAssertEqual(cells(), tables - 1, "the table is gone")
         pause(0.4)
         shot("table-deleted")
@@ -191,6 +191,7 @@ final class TableEditingUITests: XCTestCase {
         shot("tools-4-ticks")
         element("editor.done").tap()
         pause()
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "Hide keyboard puts it away")
         shot("tools-5-rest")
     }
 

@@ -939,7 +939,11 @@ struct TableGridView: View {
     /// table silently loses the keyboard and the next arrow key goes nowhere.
     private func land(_ cell: GridCell, tries: Int = 100) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-            guard wanted == cell, focus != cell else { return }
+            guard wanted == cell else { return }
+            // Asked for the cell that already has the keyboard (Checklist in a header): no focus
+            // change comes to clear the ask, and a kept ask pulled the keyboard back after Hide
+            // keyboard.
+            if focus == cell { wanted = nil; return }
             qaTrace("grid land \(cell), focus \(String(describing: focus)), \(tries) tries left")
             focus = cell
             if tries > 0 { land(cell, tries: tries - 1) }
