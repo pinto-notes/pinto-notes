@@ -69,6 +69,19 @@ import Testing
         #expect(SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.place == .storage })
         #expect(SettingsIndex.matches("", available: all).isEmpty)
         #expect(SettingsIndex.matches("recovery", available: [.general, .help]).isEmpty, "not on a page that isn't there")
+    }
+
+    /// Advanced protection is retired (AdvancedProtection): search finds it only for an account
+    /// that has it on, whose Security page shows its switch.
+    @Test func searchFindsAdvancedProtectionOnlyWhenItIsOn() {
+        let all = Set(SettingsPlace.allCases)
+        for word in ["advanced", "Advanced protection", "PROTECTION"] {
+            #expect(SettingsIndex.matches(word, available: all).isEmpty, "\(word): not found while it's off")
+            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.standard)).isEmpty)
+            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.strict)).map(\.label) == ["Advanced protection"],
+                    "\(word): found while it's on")
+        }
+        #expect(SettingsIndex.matches("security", available: all).allSatisfy { $0.label != "Advanced protection" })
         for place in SettingsPlace.allCases {
             #expect(SettingsIndex.all.contains { $0.place == place }, "\(place) has words to find it by")
         }
@@ -186,6 +199,20 @@ import Testing
         }
         #expect(!PrivacyCopy.summary(serverCopy: true).contains("can\u{2019}t read"), "not claimed while Pinto Notes keeps a copy")
         #expect(!KeyCopyWords.strictFooterOff.contains("end-to-end") && KeyCopyWords.strictFooterOn.contains("end-to-end"))
+        // How an AI opens the notes: its own copy of the key, locked to its token, open in memory
+        // only during a request, never the server's copy.
+        for summary in [PrivacyCopy.summary, PrivacyCopy.summaryWithCopy] {
+            #expect(summary.contains(PrivacyCopy.aiLine), "\(summary)")
+            #expect(!summary.contains("our server unlocks"), "\(summary)")
+        }
+        for part in ["its own copy of your key", "token", "in memory only while", "doesn\u{2019}t use our copy"] {
+            #expect(PrivacyCopy.aiLine.contains(part), "\(part)")
+        }
+        // The copy kept by Pinto Notes, in one plain line, on the page itself (not behind a switch).
+        #expect(PrivacyCopy.summaryWithCopy.contains(KeyCopyWords.copyLine) && !PrivacyCopy.summaryWithCopy.contains("locked copy"))
+        // Locked notes: an AI sees their titles, not their contents, and keeps what it already read.
+        for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo] { #expect(text.contains("title"), "\(text)") }
+        #expect(LockedNotesCopy.footer.contains("titles of locked notes, not what\u{2019}s in them") && LockedNotesCopy.footer.contains("stays with that AI"))
         #expect(PrivacyCopy.keyHeader == "What can open your notes")
         #expect([PrivacyCopy.showRecovery, PrivacyCopy.hideRecovery, PrivacyCopy.saveRecovery] == ["Show Recovery Key", "Hide Recovery Key", "Save Recovery Key\u{2026}"])
         #expect(LockedNotesCopy.header == "Locked notes")

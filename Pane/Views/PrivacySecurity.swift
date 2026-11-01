@@ -13,10 +13,11 @@ enum PrivacyCopy {
     static let title = "Security"
     /// What the page is for, first, then the one exception. "Encrypted", never "end-to-end": that's
     /// said only with Advanced protection on (KeyCopyWords.strictFooterOn).
-    static let summary = "Your notes are encrypted on your devices before they sync, and we can\u{2019}t read them. When you connect an AI, our server unlocks your notes for that AI\u{2019}s requests."
-    /// With a copy of the key kept by Pinto Notes (KeyCopy): what's true then. How the copy works
-    /// is on its row and under Advanced protection, not here as well.
-    static let summaryWithCopy = "Your notes are encrypted on your devices before they sync. Signing in opens them on a new device. When you connect an AI, our server unlocks your notes for that AI\u{2019}s requests."
+    static let summary = "Your notes are encrypted on your devices before they sync, and we can\u{2019}t read them. \(aiLine)"
+    /// With a copy of the key kept by Pinto Notes (KeyCopy): what that copy means, in one line.
+    static let summaryWithCopy = "Your notes are encrypted on your devices before they sync. \(KeyCopyWords.copyLine) \(aiLine)"
+    /// How a connected AI opens the notes: with its own copy of the key, not Pinto Notes' copy.
+    static let aiLine = "Each AI you connect holds its own copy of your key, locked to that connection\u{2019}s token. It\u{2019}s unlocked in memory only while that AI\u{2019}s request is handled. It doesn\u{2019}t use our copy."
     static func summary(serverCopy: Bool) -> String { serverCopy ? summaryWithCopy : summary }
     static let recoveryFooter = "A recovery key opens your notes on a new device when none of your other devices is at hand. If every device is gone and you saved no recovery key, your notes are lost. We can\u{2019}t open them either."
     static let recoveryFooterWithCopy = "A recovery key opens your notes without signing in. You don\u{2019}t need one while Pinto Notes keeps a copy of your key."
@@ -142,7 +143,7 @@ struct PrivacySecuritySection: View {
             .accessibilityIdentifier("privacy.learnMore")
         }
         keySection
-        if crypto.protection != nil || crypto.copiesOn { protectionSection }
+        if Self.showsProtection(crypto) { protectionSection }
         Section {
             LabeledContent("Recovery key") {
                 Text(recoveryStatus)
@@ -262,6 +263,10 @@ struct PrivacySecuritySection: View {
     }
 
     // MARK: Advanced protection
+
+    /// Whether the Advanced protection switch is on the page. Retired (AdvancedProtection): only
+    /// for an account that has it on, so it can turn it off.
+    static func showsProtection(_ crypto: AccountCrypto) -> Bool { AdvancedProtection.shown(crypto.protection) }
 
     /// On: only the person's devices hold the key, as before Pinto Notes kept copies. Off: Pinto
     /// Notes keeps a copy, and signing in opens the notes on a new device. An account that hasn't

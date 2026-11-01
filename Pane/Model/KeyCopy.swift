@@ -111,17 +111,33 @@ enum KeyCopyBox {
     }
 }
 
+/// Advanced protection (the key on the person's devices only) was retired on 2026-10-28: Pinto
+/// Notes keeps a copy of every key. The feature is parked, not removed. Only an account that
+/// already has it on sees it, in Settings › Security and its search, so it can turn it off; then it
+/// goes away. Nobody is offered it while it's off.
+enum AdvancedProtection {
+    /// Whether it can be turned on. Off: no switch while it's off, and no "keep my key on my devices
+    /// only" in the question an account from before is asked.
+    static let offered = false
+    /// Whether Settings shows the switch for an account kept this way (nil: it hasn't chosen).
+    static func shown(_ protection: KeyProtection?, offered: Bool = offered) -> Bool {
+        protection == .strict || (offered && protection != nil)
+    }
+}
+
 /// The words about where the key is kept, by the kind of account, in one place.
 enum KeyCopyWords {
     static let strictTitle = "Advanced protection"
     static let strictSubtitle = "Only your devices hold your key. We can\u{2019}t open your notes, and can\u{2019}t help you back in."
-    static let strictFooterOff = "Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. With Advanced protection on, we keep no copy."
+    static let strictFooterOff = "Your notes are encrypted on your devices before they sync. \(copyLine)"
+    /// What the copy kept by Pinto Notes means, said once, plainly.
+    static let copyLine = "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means we could open your notes if we had to."
     static let strictFooterOn = "Your notes are end-to-end encrypted: we can\u{2019}t open them and can\u{2019}t help you back in. A new device is added from one that has your notes, or opened with your recovery key."
     static let turnOnTitle = "Turn on Advanced protection?"
     static let turnOnMessage = "We delete our copy of your key now. After that we can\u{2019}t open your notes, and we can\u{2019}t help you if you lose your devices. A new device has to be added from one that has your notes, or opened with your recovery key."
     static let turnOn = "Turn On Advanced Protection"
     static let turnOffTitle = "Turn off Advanced protection?"
-    static let turnOffMessage = "We keep a locked copy of your key again, so a new device only needs you to sign in. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account."
+    static let turnOffMessage = "\(copyLine) Advanced protection is no longer offered, so you can\u{2019}t turn it on again."
     static let turnOff = "Turn Off Advanced Protection"
     static let needsRecoveryKey = "Save your recovery key first, or add another device. Without one of them your notes could not be opened again."
     static let saveFirstTitle = "Save your recovery key first"
@@ -132,14 +148,15 @@ enum KeyCopyWords {
         return "You can turn this on \(when), because the password was just reset."
     }
     static let copyTitle = "Pinto Notes"
-    static let copyDetail = "Keeps a locked copy of your key, so signing in opens your notes on a new device"
+    static let copyDetail = "Keeps a copy of your key, so signing in opens your notes on a new device"
     static let safeBySignIn = "Signing in opens your notes on a new device."
     static let unavailable = "Can\u{2019}t change this right now. Check your connection and try again."
 
     // The question an account from before is asked, once, before anything is copied.
     static let askTitle = "Signing in now opens your notes"
-    static let askMessage = "Until now only your devices held the key to your notes, and a new device had to be added from one of them. From now on we keep a locked copy of your key, so signing in is enough and you can\u{2019}t lock yourself out.\n\nThat means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. Prefer it the way it was? Keep your key on your devices only. You can change this later in Settings \u{203A} Security \u{203A} Advanced protection."
+    static let askMessage = "Until now only your devices held the key to your notes, and a new device had to be added from one of them. From now on Pinto Notes keeps a copy of your key, so signing in is enough and you can\u{2019}t lock yourself out.\n\nThat means we could open your notes if we had to."
     static let askContinue = "Continue"
+    /// Parked: offered only while AdvancedProtection.offered.
     static let askStrict = "Keep My Key on My Devices Only"
     /// Offered only when the answer couldn't be sent: the question comes back at the next launch.
     static let askNotNow = "Not Now"
@@ -172,7 +189,7 @@ enum KeyCopyWords {
     static var askFetchWasStrict: String { "Advanced protection was on for this account, and it is off now. Signing in can open your notes on this \(InstallID.kind). If you didn\u{2019}t turn it off, don\u{2019}t continue: reset your password and check your devices in Settings \u{203A} Security." }
     static var askFetchOtherKey: String { "This \(InstallID.kind) holds a different key from the one your account uses now. Signing in can open your notes with the account\u{2019}s key. If you didn\u{2019}t start fresh or change anything, don\u{2019}t continue: reset your password." }
     static let askFetch = "Open My Notes"
-    static let reauthStrict = "Sign out and sign in again, then turn on Advanced protection within 10 minutes. That check keeps an old session from removing our copy of your key."
+    static let reauthStrict = "Sign out and sign in again, then try again within 10 minutes. That check keeps an old session from changing how your key is kept."
 
     /// While an account that hasn't a copy yet waits on a second device.
     static let waitForOther = "Or open Pinto Notes on a device that already has your notes. This one opens by itself after that."

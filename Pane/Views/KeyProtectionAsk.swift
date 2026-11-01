@@ -1,12 +1,15 @@
 import SwiftUI
 
 /// Asked once of an account from before Pinto Notes kept copies of keys (KeyCopy), on a device
-/// that has its key, before any copy is made: signing in can open your notes from now on, or your
-/// key stays on your devices only (Advanced protection). Nothing is stored until one is chosen. Laid out like the share
-/// ask: a short sheet on iPhone, a small one on the Mac.
+/// that has its key, before any copy is made: signing in opens your notes from now on. Nothing is
+/// stored until Continue. Keeping the key on your devices only (Advanced protection) is offered
+/// here only while AdvancedProtection.offered. Laid out like the share ask: a short sheet on
+/// iPhone, a small one on the Mac.
 struct KeyProtectionAsk: View {
     let crypto: AccountCrypto
     var devices: KeyDevices = .shared
+    /// Whether "Keep my key on my devices only" is offered (parked: AdvancedProtection).
+    var offersStrict = AdvancedProtection.offered
     @State private var working = false
     @State private var problem: String?
     /// Strict was refused: nothing else can open the notes yet, so a recovery key is saved first.
@@ -46,9 +49,11 @@ struct KeyProtectionAsk: View {
                     button("Back", id: "keyAsk.back") { needsRecoveryKey = false; problem = nil }
                 } else {
                     button(Words.askContinue, id: "keyAsk.continue", prominent: true) { try await crypto.keepCopy() }
-                    button(Words.askStrict, id: "keyAsk.strict") { try await keepOnDevices() }
+                    if Self.answers(offersStrict: offersStrict).contains(.strict) {
+                        button(Words.askStrict, id: "keyAsk.strict") { try await keepOnDevices() }
+                    }
                 }
-                // The two answers are the whole question. Only when one couldn't be sent (offline, the
+                // Continue is the whole question. Only when one couldn't be sent (offline, the
                 // server down) is there a way past it, so nobody is kept from their notes by a sheet.
                 if problem != nil {
                     Button { crypto.askProtectionLater() } label: {
@@ -82,6 +87,11 @@ struct KeyProtectionAsk: View {
                 .onDisappear { if crypto.recoveryKeySaved { run { try await keepOnDevices() } } }
         }
     }
+
+    /// The answers the question offers: Continue, and "Keep my key on my devices only" only while
+    /// Advanced protection is offered.
+    enum Answer { case `continue`, strict }
+    static func answers(offersStrict: Bool) -> [Answer] { offersStrict ? [.continue, .strict] : [.continue] }
 
     private struct SavedKey: Identifiable {
         let key: String
