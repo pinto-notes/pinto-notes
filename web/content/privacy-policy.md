@@ -12,7 +12,7 @@ Last updated: 1 November 2026
 - No ads and no tracking, and we never sell or share your data. Versions of the apps after 1.2 send error and crash reports and a few usage counts to PostHog in the EU, never your notes or anything you write. One switch in Settings turns it off. Version 1.2 and earlier send none of this.
 - The website counts page views and where visitors came from with Vercel Web Analytics, and which links and buttons are clicked, where on a page people click and how far pages are scrolled with PostHog, in the EU. These are counted across all visitors. Neither keeps a profile of you, and neither runs on shared notes or the connect pages. Vercel never uses cookies. PostHog uses none either, unless you choose Accept on the website's cookie banner: then it keeps one cookie for up to a year, so it can recognise your return visits, and records your visits to the website's public pages as session replays: what the pages showed and where the pointer went, never what you type. It also counts Mac downloads as daily totals. None of this touches your notes or your computer.
 - We count how features are used on our own server to improve the app. We never share or sell it.
-- An AI assistant can only read your notes if you connect it and approve it on your iPhone or Mac, or with your recovery key on pintonotes.com. While it works, our server opens the notes it asks for in memory. You can disconnect it at any time.
+- An AI assistant can only read your notes if you connect it and approve it on your iPhone or Mac, or with your recovery key on pintonotes.com if you saved one. While it works, our server opens the notes it asks for in memory. You can disconnect it at any time.
 - In versions of the apps after 1.2.3, a note can hold a small app that your AI makes. To build and check it, our server sends the app's code, and a stand-in for the note with its words and numbers replaced, to a render service we run at Railway. Your real note is never sent there.
 - A note you lock is encrypted a second time with your notes password. Not us and not an AI can read its text.
 - A note you share can be read by anyone with its link, and by us, until you stop sharing.
@@ -51,7 +51,7 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 - Whether your account is standard or has Advanced protection on.
 - A log of each time our copy was stored, fetched by a device or removed, and each time a request for it was refused: when, and the kind of device. We keep it for 12 months.
 - We store a short identifier of the key and a check value that lets your devices confirm they have the right key. Neither can be used to read your notes.
-- Your recovery key is a key you save yourself. We store your notes' key locked with it, so a device can get your key with the recovery key. Our copy of your key, while we keep one, holds the recovery key too. With Advanced protection on, we hold neither.
+- Your recovery key is a key you can save yourself. Signing in already opens your notes, so newer versions of the apps show it in **Settings → Security** only while Advanced protection is on. We store your notes' key locked with it, so a device can get your key with the recovery key. Our copy of your key, while we keep one, holds the recovery key too. With Advanced protection on, we hold neither.
 - Each AI connection you approve gets a copy of your notes' key, locked with a key derived from that connection's access token, which we store only as a hash (see AI connections).
 
 **Your devices**
@@ -185,7 +185,7 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 
 Nothing reaches an AI assistant unless you connect one. When you connect ChatGPT, Claude, Claude Code, Codex or another assistant:
 
-- You approve the connection on your iPhone or Mac and choose **read only** or **read and edit**. When you start from a browser, the page shows a number and your device asks you to tap the same one. With no device nearby, you can approve on pintonotes.com with your recovery key.
+- You approve the connection on your iPhone or Mac and choose **read only** or **read and edit**. When you start from a browser, the page shows a number and your device asks you to tap the same one. With no device nearby, you can approve on pintonotes.com with your recovery key, if you saved one.
 - Approving gives that connection a copy of your notes' key, locked with a key derived from that connection's access token. We keep only a hash of the token; the token itself arrives with each of the assistant's requests. During each request, our server unlocks your whole notes' key in memory, decrypts the notes the assistant asks for, encrypts any change it makes, and forgets the key when the request ends.
 - For those requests, the text the assistant reads or writes, and its access tokens, pass through our hosting providers Vercel and Supabase in readable form on their way. Neither stores your notes.
 - The assistant can read the notes it asks for and, if you allowed editing, change them. Every change it makes keeps the previous version, so you can undo it.
