@@ -110,7 +110,7 @@ final class KeyCopyUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 10)
         openSecurity()
         XCTAssertTrue(app.descendants(matching: .any)["privacy.serverCopy"].firstMatch.waitForExistence(timeout: 15), "Pinto Notes keeps a copy")
-        XCTAssertTrue(text("Signing in opens your notes on a new device").exists)
+        XCTAssertTrue(text("so signing in opens your notes on a new device").exists)
         XCTAssertFalse(app.buttons["privacy.addDevice"].exists, "nothing to add: a new device signs in")
         shot("1-first-device-security")
         let strict = app.switches["privacy.strict"].firstMatch

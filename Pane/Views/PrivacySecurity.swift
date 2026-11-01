@@ -1,4 +1,5 @@
 import LocalAuthentication
+import Supabase
 import SwiftUI
 import UniformTypeIdentifiers
 #if os(iOS)
@@ -11,52 +12,81 @@ import PDFKit
 /// What Settings › Security says, in one place.
 enum PrivacyCopy {
     static let title = "Security"
-    /// What the page is for, first, then the one exception. "Encrypted", never "end-to-end": that's
-    /// said only with Advanced protection on (KeyCopyWords.strictFooterOn).
-    static let summary = "Your notes are encrypted on your devices before they sync, and we can\u{2019}t read them. \(aiLine)"
-    /// With a copy of the key kept by Pinto Notes (KeyCopy): what that copy means, in one line.
-    static let summaryWithCopy = "Your notes are encrypted on your devices before they sync. \(KeyCopyWords.copyLine) \(aiLine)"
-    /// How a connected AI opens the notes: with its own copy of the key, not Pinto Notes' copy.
-    static let aiLine = "Each AI you connect holds its own copy of your key, locked to that connection\u{2019}s token. It\u{2019}s unlocked in memory only while that AI\u{2019}s request is handled. It doesn\u{2019}t use our copy."
-    static func summary(serverCopy: Bool) -> String { serverCopy ? summaryWithCopy : summary }
-    static let recoveryFooter = "A recovery key opens your notes on a new device when none of your other devices is at hand. If every device is gone and you saved no recovery key, your notes are lost. We can\u{2019}t open them either."
-    static let recoveryFooterWithCopy = "A recovery key opens your notes without signing in. You don\u{2019}t need one while Pinto Notes keeps a copy of your key."
-    static func recoveryFooter(serverCopy: Bool) -> String { serverCopy ? recoveryFooterWithCopy : recoveryFooter }
+    /// The page's question and its one-line answer. "Encrypted", never "end-to-end": that's said
+    /// only in "How it works" with Advanced protection on.
+    static let whoCanOpen = "Who can open your notes"
+    static let status = "Encrypted on your devices before they sync."
+    static let devicesHeader = "Your devices"
+    static let backInHeader = "To help you back in"
+    static let aiHeader = "While connected"
+    static let inUseNow = "In use now"
+    /// Pinto Notes' copy of the key: the Mac tile says it short, the iPhone row a little longer.
+    static let pintoNotes = "Pinto Notes"
+    static let pintoTile = "Helps you back in"
+    static let pintoRow = "Keeps a copy of your key"
+    static let aiTile = "While connected"
+    static let aiRow = "Can read your notes while connected"
+    /// Under "To help you back in", with a copy kept by Pinto Notes.
+    static let backInFooterWithCopy = "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means Pinto Notes can open them too."
+    /// Without one (Advanced protection on, or an account that hasn't answered the one-time question).
+    static let backInFooterDevicesOnly = "Only your devices and the AIs you connect can open your notes. If you lose your devices, a recovery key opens them."
+    static func backInFooter(serverCopy: Bool) -> String { serverCopy ? backInFooterWithCopy : backInFooterDevicesOnly }
+    static let aiFooter = "Each AI holds its own copy of your key. Disconnect one to take it off this list."
+    static let recoveryKey = "Recovery key"
+    static let recoverySaved = "Saved"
+    static let recoveryNotSaved = "Not saved"
+    static let saveARecoveryKey = "Save a recovery key"
+    static let saveARecoveryKeyLine = "Opens your notes if you lose your devices."
+    static let lockedTitle = "Locked notes"
+    /// "An AI", not "AIs": in this font "AIs" reads as "Als".
+    static let lockedLine = "An AI can see the title, not what\u{2019}s inside. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu."
+    static let howItWorks = "How it works"
+
+    /// "How it works": every fact the page stands on, a title and a line or two each.
+    /// `keychain`: the key is kept in iCloud Keychain here or on another device (as the page decides
+    /// it). iCloud Keychain is said here only: it's your own Apple Account, not someone who can
+    /// open your notes. `recovery`: the recovery key is offered (RecoveryKeyOffer).
+    static func how(serverCopy: Bool, advanced: Bool, keychain: Bool, recovery: Bool) -> [(symbol: String, title: String, line: String)] {
+        var out: [(String, String, String)] = [
+            ("lock.fill", "Encrypted before they sync", "Your notes are encrypted on your devices, then synced."),
+        ]
+        if serverCopy {
+            out += [
+                ("person.badge.key", "Pinto Notes keeps a copy of your key",
+                 "So signing in opens your notes on a new device, and Pinto Notes can help you back in."),
+                ("building.columns", "That means Pinto Notes could open them",
+                 "For example under a court order. So could someone who gets into your account."),
+            ]
+        } else if advanced {
+            out.append(("key", "Advanced protection is on",
+                        "Pinto Notes keeps no copy of your key, so signing in doesn\u{2019}t open your notes on a new device. Add it from one of your devices, or use your recovery key."))
+        } else {
+            out.append(("key", "Only your devices hold the key",
+                        "A new device is added from one that has your notes, or opened with your recovery key."))
+        }
+        if keychain {
+            out.append(("icloud", "iCloud Keychain",
+                        "Your key also syncs between your own devices through iCloud Keychain, end-to-end encrypted by Apple."))
+        }
+        out.append(("sparkles", "Connected AIs",
+                    "Each AI you connect holds its own copy of your key, locked to that connection\u{2019}s token and unlocked in memory only while its request is handled."
+                    + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "") + " It can read your notes until you disconnect it."))
+        if recovery {
+            out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))
+        }
+        out.append(("lock.doc", "Locked notes", "Each locked note needs your notes password. A connected AI sees the title, not what\u{2019}s inside."))
+        return out
+    }
+
     static let pageTitle = "Pinto Notes recovery key"
     static let pageGuidance = "Keep this somewhere safe. With it, you can open your notes on a new device if you don't have your other devices."
     /// The website's page on what's stored, what's encrypted and what an AI can see.
     static let learnMore = "How your notes are kept private"
     static let learnMoreURL = URL(string: "https://pintonotes.com/privacy-security")!
-    /// The key is what opens the notes: the header says what it does, the rows where it is.
-    static let keyHeader = "What can open your notes"
-    static let keyFooter = "Without one of these, nobody can open your notes, including us. A connected AI can read them while it\u{2019}s connected."
-    static let keyFooterWithCopy = "Any of these opens your notes. A connected AI can read them while it\u{2019}s connected."
-    static func keyFooter(serverCopy: Bool) -> String { serverCopy ? keyFooterWithCopy : keyFooter }
     static let removeNote = " It can sign in again: to keep someone out, change your password."
     static var thisDevice: String { "This \(InstallID.kind)" }
-    static var keptInKeychain: String { "Keeps your key, and can share it with your other devices through iCloud Keychain" }
-    static var keptHere: String { "Keeps your key on this \(InstallID.kind) only" }
-    static let keychainTitle = "iCloud Keychain"
-    static let keychainDetail = "Brings your key to your other iPhone or Mac, if it\u{2019}s on for this Apple Account."
-    static var safeTitle: String { "Safe if you lose this \(InstallID.kind)" }
-    static func safeDetail(_ ways: Int) -> String {
-        switch ways {
-        case 1: "One other way can open your notes."
-        case 2: "Two other ways can open your notes."
-        case 3: "Three other ways can open your notes."
-        default: "\(ways) other ways can open your notes."
-        }
-    }
-    static let unconfirmedTitle = "Can\u{2019}t confirm a backup of your key"
-    static let unconfirmedDetail = "Your key is backed up only if iCloud Keychain is on. Adding a device makes it safe."
-    static let howToCheck = "How to check"
-    #if os(macOS)
-    static let howToCheckDetail = "System Settings \u{203A} [your name] \u{203A} iCloud \u{203A} Passwords & Keychain. Pinto Notes can\u{2019}t see that setting."
-    #else
-    static let howToCheckDetail = "Settings \u{203A} [your name] \u{203A} iCloud \u{203A} Passwords & Keychain. Pinto Notes can\u{2019}t see that setting."
-    #endif
     static var onlyTitle: String { "Only this \(InstallID.kind) can open your notes" }
-    static let onlyDetail = "If you lose it, your notes are lost. We can\u{2019}t open them either. Add another device to be safe."
+    static let onlyDetail = "If you lose it, your notes are lost. Add another device, or save a recovery key."
     static let addDevice = "Add a device\u{2026}"
     static func removeTitle(_ name: String) -> String { "Remove \(name)?" }
     static let removeMessage = "It\u{2019}s signed out and its copy of your notes is erased the next time it\u{2019}s online. Notes on it that haven\u{2019}t synced are erased too. Anything it already showed could have been copied before that."
@@ -64,8 +94,11 @@ enum PrivacyCopy {
     static let removedMessage = "Another of your devices removed it, so its copy of your notes was erased. To open them here again, sign in and add this device."
     static var notConfirmed: String { "This \(InstallID.kind) couldn\u{2019}t confirm it\u{2019}s you, so the recovery key stays hidden. Try again." }
     static var notSavedTitle: String { "Your key couldn\u{2019}t be saved on this \(InstallID.kind)" }
-    static var notSavedMessage: String {
-        "Your notes are open now, but this \(InstallID.kind) will ask for your key again the next time Pinto Notes opens. Save your recovery key first, in Settings \u{203A} Security, or keep another device at hand to add this one."
+    /// `recovery`: the recovery key is offered (RecoveryKeyOffer). Without it, signing in brings the key back.
+    static func notSavedMessage(recovery: Bool) -> String {
+        recovery
+            ? "Your notes are open now, but this \(InstallID.kind) will ask for your key again the next time Pinto Notes opens. Save your recovery key first, in Settings \u{203A} Security, or keep another device at hand to add this one."
+            : "Your notes are open now, but this \(InstallID.kind) will need your key again the next time Pinto Notes opens. Signing in gets it back."
     }
     static let showRecovery = "Show Recovery Key"
     static let hideRecovery = "Hide Recovery Key"
@@ -78,6 +111,122 @@ enum PrivacyCopy {
     static let recoveryChangedAlert = "Your account started fresh on another device, so it has a new recovery key. If you keep one, the new one is in Settings › Security."
     static let exportFooter = "Every note as a Markdown file in its folder, with its files. Your notes are encrypted, so the export is made on this device."
     static let exportFooterLocal = "Every note on this device as a Markdown file in its folder, with its files."
+}
+
+/// The recovery key is for accounts whose key only their own devices hold: Advanced protection
+/// on, or an account that hasn't answered "Signing in now opens your notes" yet. With a copy kept
+/// by Pinto Notes, signing in opens the notes, so nothing asks a standard account to save one.
+/// Gated, not cut: the code stays for those accounts.
+enum RecoveryKeyOffer {
+    static func shown(serverCopy: Bool, protection: KeyProtection?) -> Bool {
+        !serverCopy && protection != .standard
+    }
+}
+
+extension AccountCrypto {
+    /// Whether this account is offered a recovery key (RecoveryKeyOffer).
+    var offersRecoveryKey: Bool { RecoveryKeyOffer.shown(serverCopy: serverCopy, protection: protection) }
+}
+
+/// What Settings › Security shows, read from the account: everything that can open your notes, in
+/// the groups the page draws. Pure, so tests check it without drawing a thing.
+struct SecurityContent: Equatable {
+    struct Opener: Identifiable, Equatable {
+        enum Kind: Equatable { case thisDevice, device(UUID), pintoNotes, ai(UUID) }
+        let kind: Kind
+        let name: String
+        /// The grey line under the name, on iPhone. The Mac's tile says `short`.
+        let detail: String
+        let short: String
+        /// A glyph, or nil for Pinto Notes' mark or an AI's (`ai`).
+        let symbol: String?
+        /// The AI whose mark it shows.
+        var ai: String? = nil
+        var canRemove = false
+        var id: String {
+            switch kind {
+            case .thisDevice: "this"
+            case .device(let id): "device-\(id)"
+            case .pintoNotes: "pinto"
+            case .ai(let id): "ai-\(id)"
+            }
+        }
+    }
+
+    enum Recovery: Equatable { case saved, notSaved }
+
+    let serverCopy: Bool
+    let advanced: Bool
+    let devices: [Opener]
+    /// Pinto Notes, while it keeps a copy of the key.
+    let pintoNotes: Opener?
+    /// The AIs connected now. Never one that was disconnected.
+    let ais: [Opener]
+    /// Nil: no recovery key here (RecoveryKeyOffer).
+    let recovery: Recovery?
+    /// The Advanced protection switch: only for an account that has it on (AdvancedProtection).
+    let showsProtection: Bool
+    /// Add a device…: with a copy kept by Pinto Notes there's nothing to add, a new device signs in.
+    let addsDevices: Bool
+    /// "How it works" says iCloud Keychain.
+    let keychain: Bool
+    /// Nothing else is known to open the notes: said, in orange.
+    let onlyThisDevice: Bool
+
+    var openers: [Opener] { devices + (pintoNotes.map { [$0] } ?? []) + ais }
+    var backInFooter: String { PrivacyCopy.backInFooter(serverCopy: serverCopy) }
+    var how: [(symbol: String, title: String, line: String)] {
+        PrivacyCopy.how(serverCopy: serverCopy, advanced: advanced, keychain: keychain, recovery: recovery != nil)
+    }
+    /// Every word the page shows, for tests.
+    var words: [String] {
+        var out: [String] = [PrivacyCopy.whoCanOpen, PrivacyCopy.status, backInFooter, PrivacyCopy.lockedLine]
+        for o in openers { out += [o.name, o.detail, o.short] }
+        if !ais.isEmpty { out.append(PrivacyCopy.aiFooter) }
+        if recovery != nil { out += [PrivacyCopy.recoveryKey, PrivacyCopy.saveARecoveryKey, PrivacyCopy.saveRecovery, PrivacyCopy.showRecovery] }
+        if showsProtection { out += [KeyCopyWords.strictTitle, KeyCopyWords.strictSubtitle] }
+        for item in how { out += [item.title, item.line] }
+        return out
+    }
+
+    static func == (a: Self, b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
+
+    init(serverCopy: Bool, protection: KeyProtection?, recoverySaved: Bool, backedUp: Bool, others: [KeyDevice],
+         connections: [Connection], platform: String = InstallID.platform, now: Date = .now) {
+        self.serverCopy = serverCopy
+        advanced = protection == .strict
+        let this = Opener(kind: .thisDevice, name: PrivacyCopy.thisDevice, detail: PrivacyCopy.inUseNow, short: PrivacyCopy.inUseNow,
+                          symbol: platform == "macos" ? "laptopcomputer" : "iphone")
+        devices = [this] + others.map { d in
+            let seen = Self.seen(d, now: now)
+            return Opener(kind: .device(d.id), name: d.name, detail: seen, short: seen, symbol: d.symbol, canRemove: d.canRemove)
+        }
+        pintoNotes = serverCopy
+            ? Opener(kind: .pintoNotes, name: PrivacyCopy.pintoNotes, detail: PrivacyCopy.pintoRow, short: PrivacyCopy.pintoTile, symbol: nil)
+            : nil
+        ais = connections.filter { $0.revoked_at == nil }.map { c in
+            Opener(kind: .ai(c.id), name: c.title, detail: PrivacyCopy.aiRow, short: PrivacyCopy.aiTile,
+                   symbol: c.mark == nil ? c.symbol : nil, ai: c.mark)
+        }
+        recovery = RecoveryKeyOffer.shown(serverCopy: serverCopy, protection: protection) ? (recoverySaved ? .saved : .notSaved) : nil
+        showsProtection = AdvancedProtection.shown(protection)
+        addsDevices = !serverCopy
+        keychain = backedUp || others.contains { $0.backedUp && !$0.removing && $0.isRecent(now: now) }
+        onlyThisDevice = !serverCopy && KeyDeviceList.safety(thisBackedUp: backedUp, others: others, recoverySaved: recoverySaved, now: now) == .onlyThisDevice
+    }
+
+    @MainActor init(crypto: AccountCrypto, devices: KeyDevices, connections: [Connection]) {
+        self.init(serverCopy: crypto.serverCopy, protection: crypto.protection, recoverySaved: crypto.recoveryKeySaved,
+                  backedUp: crypto.backedUp, others: devices.others, connections: connections)
+    }
+
+    /// "Seen today", "Seen 18 Sep", "Not seen since 18 Sep", or that it's being removed.
+    static func seen(_ d: KeyDevice, now: Date = .now) -> String {
+        if d.removing { return "Removed" }
+        let day = d.seenAt.formatted(.dateTime.day().month(.abbreviated))
+        if !d.isRecent(now: now) { return "Not seen since \(day)" }
+        return Calendar.current.isDate(d.seenAt, inSameDayAs: now) ? "Seen today" : "Seen \(day)"
+    }
 }
 
 #if os(iOS)
@@ -96,21 +245,29 @@ struct PrivacySecurityView: View {
 }
 #endif
 
-/// The encryption summary, where the key is kept (this device, iCloud Keychain, devices added,
-/// and Add a device), and the recovery key, which is optional: shown behind Face ID or Touch ID
-/// (or the device passcode), and saved by printing, as a PDF or by copying it.
+/// Settings › Security: who can open your notes. On iPhone, sections of the page's form: a picture
+/// of every mark, then your devices, what helps you back in, the AIs while they're connected,
+/// locked notes and "How it works". On the Mac, the same as tiles, on a page of its own. The
+/// recovery key (shown behind Face ID or Touch ID or the passcode, saved by printing, as a PDF or
+/// by copying it) only for accounts whose key only their devices hold (RecoveryKeyOffer).
 struct PrivacySecuritySection: View {
     let crypto: AccountCrypto
     var devices: KeyDevices = .shared
     /// Adding a device talks to the server; nil in previews.
     var addDeviceServer: AddDeviceServer?
+    /// The connected AIs, from the same list as Settings › AI. Nil: none (captures, tests).
+    var client: SupabaseClient?
+    /// Captures: shows these instead of asking the server.
+    var connections: [Connection]?
+    var sync: SyncEngine?
     /// The recovery key while it's shown.
     @State private var shown: String?
     @State private var saving: String?
     @State private var problem: String?
     @State private var adding = false
     @State private var removing: KeyDevice?
-    @State private var showsHowToCheck = false
+    @State private var loaded: [Connection] = []
+    @State private var showsHow = false
     /// Which way the switch is being turned, while its question is up.
     @State private var turning: KeyProtection = .strict
     /// The question is up. Kept apart from `turning`, so the dialog's words and its button don't
@@ -126,68 +283,323 @@ struct PrivacySecuritySection: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.networkReach) private var reach
 
+    private var content: SecurityContent { SecurityContent(crypto: crypto, devices: devices, connections: connections ?? loaded) }
+
     var body: some View {
-        Section {
-            Text(PrivacyCopy.summary(serverCopy: crypto.serverCopy))
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("privacy.summary")
-            // For the few who want the whole story: on the website, out of the way.
-            Link(destination: PrivacyCopy.learnMoreURL) {
-                LabeledContent(PrivacyCopy.learnMore) {
-                    Image(systemName: "arrow.up.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                }
-                .foregroundStyle(.primary)
-                .contentShape(.rect)
+        page
+            .task {
+                await crypto.recheck()
+                await devices.refresh(crypto)
+                await loadConnections()
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("privacy.learnMore")
-        }
-        keySection
-        if Self.showsProtection(crypto) { protectionSection }
-        Section {
-            LabeledContent("Recovery key") {
-                Text(recoveryStatus)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("privacy.recoveryStatus")
-            }
-            if crypto.recoveryKeyChanged {
-                Label(PrivacyCopy.recoveryChanged, systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("privacy.recoveryChanged")
-            }
-            if let shown {
-                Text(shown)
-                    .font(.system(.body, design: .monospaced).weight(.semibold))
-                    .textSelection(.enabled)
-                    .accessibilityIdentifier("privacy.recoveryKey")
-            }
-            #if os(macOS)
-            // Side by side on the Mac, so Security fits its window without scrolling.
-            HStack(spacing: 10) {
-                showOrHide
-                saveButton
-            }
-            #else
-            showOrHide
-            saveButton
+            #if os(iOS)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in shown = nil }
             #endif
+            .onDisappear { shown = nil }
+            .sheet(isPresented: $showsHow) { HowItWorksSheet(content: content) }
+    }
+
+    /// The same list as Settings › AI (ConnectChoices): the account's connections, less those disconnected.
+    private func loadConnections() async {
+        guard connections == nil, let client else { return }
+        if let rows = try? await Connection.list(client) { loaded = rows.filter { $0.revoked_at == nil } }
+    }
+
+    // MARK: iPhone
+
+    #if os(iOS)
+    @ViewBuilder private var page: some View {
+        let c = content
+        Section {
+            VStack(spacing: 10) {
+                SecurityMarkStack(openers: c.openers)
+                VStack(spacing: 2) {
+                    Text(PrivacyCopy.whoCanOpen).font(.title3.weight(.semibold))
+                    Text(PrivacyCopy.status).font(.subheadline).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("privacy.summary")
+                }
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .accessibilityElement(children: .combine)
+            if c.onlyThisDevice { onlyThisDeviceRow }
             if let problem {
                 Text(problem).font(.footnote).foregroundStyle(.red)
             }
-        } footer: {
-            // "Optional" is said once, on the row above.
-            Text(PrivacyCopy.recoveryFooter(serverCopy: crypto.serverCopy))
         }
-        .task {
-            await crypto.recheck()
-            await devices.refresh(crypto)
+        Section {
+            ForEach(c.devices) { o in deviceRow(o) }
+            if c.addsDevices { addDeviceButton }
+        } header: {
+            Text(PrivacyCopy.devicesHeader)
         }
-        #if os(iOS)
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in shown = nil }
-        #endif
-        .onDisappear { shown = nil }
+        if c.pintoNotes != nil || c.recovery != nil {
+            Section {
+                if let p = c.pintoNotes {
+                    SecurityOpenerRow(opener: p).accessibilityIdentifier("privacy.serverCopy")
+                }
+                if let r = c.recovery { recoveryRows(r) }
+            } header: {
+                Text(PrivacyCopy.backInHeader)
+            } footer: {
+                Text(c.backInFooter).accessibilityIdentifier("privacy.backInFooter")
+            }
+        }
+        if !c.ais.isEmpty {
+            Section {
+                ForEach(c.ais) { SecurityOpenerRow(opener: $0) }
+            } header: {
+                Text(PrivacyCopy.aiHeader)
+            } footer: {
+                Text(PrivacyCopy.aiFooter)
+            }
+        }
+        if c.showsProtection { protectionSection }
+        LockedNotesSection(sync: sync)
+        Section {
+            Button { showsHow = true } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "info.circle").font(.title3).frame(minWidth: 31, minHeight: 31).accessibilityHidden(true)
+                    Text(PrivacyCopy.howItWorks)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+                }
+                .contentShape(.rect)
+            }
+            .accessibilityIdentifier("privacy.howItWorks")
+        }
+    }
+
+    private func deviceRow(_ o: SecurityContent.Opener) -> some View {
+        SecurityOpenerRow(opener: o) {
+            if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
+                removeButton(d)
+            }
+        }
+        .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
+    }
+
+    @ViewBuilder private func recoveryRows(_ r: SecurityContent.Recovery) -> some View {
+        if r == .saved {
+            HStack(spacing: 12) {
+                SecurityMark(opener: nil, symbol: "key.horizontal.fill")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(PrivacyCopy.recoveryKey)
+                    Text(PrivacyCopy.recoverySaved).font(.subheadline).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("privacy.recoveryStatus")
+                }
+            }
+            .padding(.vertical, 2)
+            .accessibilityElement(children: .combine)
+        } else {
+            Button { save() } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill").font(.title2).frame(minWidth: 31, minHeight: 31).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(PrivacyCopy.saveARecoveryKey)
+                        Text(PrivacyCopy.saveARecoveryKeyLine).font(.subheadline).foregroundStyle(Color.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 2)
+                .contentShape(.rect)
+            }
+            .accessibilityIdentifier("privacy.saveRecovery")
+            .accessibilityValue(PrivacyCopy.recoveryNotSaved)
+            .modifier(saveSheet)
+        }
+        recoveryExtras
+        showOrHide
+        if r == .saved { saveButton }
+    }
+    #endif
+
+    // MARK: Mac
+
+    #if os(macOS)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 4)
+
+    private var page: some View {
+        let c = content
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if reach != .online {
+                    Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
+                        .foregroundStyle(Color.muted)
+                        .accessibilityIdentifier("settings.offline")
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(PrivacyCopy.whoCanOpen).font(.title3.weight(.semibold))
+                    Text(PrivacyCopy.status).font(.callout).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("privacy.summary")
+                }
+                .padding(.horizontal, 4)
+
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+                    ForEach(c.devices) { o in deviceTile(o) }
+                    if let p = c.pintoNotes { SecurityTile(opener: p).accessibilityIdentifier("privacy.serverCopy") }
+                    ForEach(c.ais) { SecurityTile(opener: $0) }
+                    if c.recovery == .notSaved {
+                        SecurityAddTile(title: PrivacyCopy.recoveryKey, caption: PrivacyCopy.recoveryNotSaved, label: PrivacyCopy.saveARecoveryKey) { save() }
+                            .accessibilityIdentifier("privacy.saveRecovery")
+                            .modifier(saveSheet)
+                    } else if c.recovery == .saved {
+                        SecurityTile(opener: nil, symbol: "key.horizontal.fill", name: PrivacyCopy.recoveryKey, caption: PrivacyCopy.recoverySaved)
+                            .accessibilityIdentifier("privacy.recoveryStatus")
+                    }
+                    if c.addsDevices {
+                        SecurityAddTile(title: "Add a device", caption: "From this Mac", label: PrivacyCopy.addDevice) { adding = true }
+                            .accessibilityIdentifier("privacy.addDevice")
+                            .disabled(reach != .online)
+                            .modifier(addDeviceSheet)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(c.backInFooter + (c.ais.isEmpty ? "" : " " + PrivacyCopy.aiFooter))
+                        .accessibilityIdentifier("privacy.backInFooter")
+                    if c.onlyThisDevice {
+                        Label(PrivacyCopy.onlyTitle + ". " + PrivacyCopy.onlyDetail, systemImage: "exclamationmark.circle.fill")
+                            .foregroundStyle(.orange)
+                            .accessibilityIdentifier("privacy.onlyThisDevice")
+                    }
+                    if let problem { Text(problem).foregroundStyle(.red) }
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+
+                if c.recovery == .saved || shown != nil || crypto.recoveryKeyChanged && c.recovery != nil {
+                    card {
+                        VStack(alignment: .leading, spacing: 10) {
+                            recoveryExtras
+                            HStack(spacing: 10) {
+                                showOrHide
+                                if c.recovery == .saved { saveButton }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                if c.showsProtection {
+                    card {
+                        VStack(alignment: .leading, spacing: 8) {
+                            protectionToggle
+                            if let protectionFooter {
+                                Text(protectionFooter).font(.callout).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .accessibilityIdentifier("privacy.strictFooter")
+                            }
+                        }
+                    }
+                }
+
+                card { LockedNotesCard(sync: sync) }
+
+                Button { showsHow = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle").accessibilityHidden(true)
+                        Text(PrivacyCopy.howItWorks)
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+                    }
+                    .foregroundStyle(.tint)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .font(.callout)
+                .padding(.horizontal, 4)
+                .accessibilityIdentifier("privacy.howItWorks")
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
+        }
+    }
+
+    private func card(@ViewBuilder _ inside: () -> some View) -> some View {
+        inside()
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(SecurityLook.fill, in: RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous))
+    }
+
+    private func deviceTile(_ o: SecurityContent.Opener) -> some View {
+        SecurityTile(opener: o) {
+            if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
+                removeButton(d).buttonStyle(.plain).foregroundStyle(.tint).font(.caption)
+            }
+        }
+        .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
+    }
+    #endif
+
+    // MARK: Both
+
+    #if os(iOS)
+    private var onlyThisDeviceRow: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(PrivacyCopy.onlyTitle)
+                Text(PrivacyCopy.onlyDetail).font(.footnote).foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("privacy.onlyThisDevice")
+    }
+
+    private var addDeviceButton: some View {
+        Button(PrivacyCopy.addDevice) { adding = true }
+            .accessibilityIdentifier("privacy.addDevice")
+            .disabled(reach != .online)
+            .modifier(addDeviceSheet)
+    }
+    #endif
+
+    /// The sheet hangs on its button: on a Section it isn't presented on iPhone.
+    private var addDeviceSheet: SheetOn {
+        SheetOn(isPresented: $adding) {
+            AnyView(AddDeviceSheet(crypto: crypto, server: addDeviceServer)
+                .onDisappear { Task { await devices.refresh(crypto) } })
+        }
+    }
+
+    private func removeButton(_ d: KeyDevice) -> some View {
+        // The question hangs on the button that asked it.
+        Button("Remove\u{2026}", role: .destructive) { removing = d }
+            .accessibilityIdentifier("privacy.removeDevice")
+            .confirmationDialog(PrivacyCopy.removeTitle(d.name),
+                                isPresented: Binding(get: { removing?.id == d.id }, set: { if !$0 { removing = nil } }),
+                                titleVisibility: .visible) {
+                Button("Remove", role: .destructive) { Task { await remove(d) } }
+                    .accessibilityIdentifier("privacy.confirmRemove")
+            } message: {
+                Text(PrivacyCopy.removeMessage + (crypto.serverCopy ? PrivacyCopy.removeNote : ""))
+            }
+    }
+
+    /// The recovery key changed, and the key while it's shown.
+    @ViewBuilder private var recoveryExtras: some View {
+        if crypto.recoveryKeyChanged {
+            Label(PrivacyCopy.recoveryChanged, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("privacy.recoveryChanged")
+        }
+        if let shown {
+            Text(shown)
+                .font(.system(.body, design: .monospaced).weight(.semibold))
+                .textSelection(.enabled)
+                .accessibilityIdentifier("privacy.recoveryKey")
+        }
     }
 
     @ViewBuilder private var showOrHide: some View {
@@ -200,65 +612,23 @@ struct PrivacySecuritySection: View {
         }
     }
 
-    /// The sheet hangs on its button: on a Section it isn't presented on iPhone.
     private var saveButton: some View {
-        Button(PrivacyCopy.saveRecovery) { Task { await reveal(reason: PrivacyCopy.saveReason) { saving = $0 } } }
-            .accessibilityIdentifier("privacy.saveRecovery")
-            .sheet(item: Binding(get: { saving.map(RecoveryKeyItem.init) }, set: { saving = $0?.key })) { item in
-                SaveRecoveryKeySheet(key: item.key) { await markSaved() }
-                    .onDisappear {
-                        guard strictWhenSaved else { return }
-                        strictWhenSaved = false
-                        if crypto.recoveryKeySaved { Task { await change(to: .strict, confirmed: true) } }
-                    }
-            }
+        Button(PrivacyCopy.saveRecovery) { save() }
+            .accessibilityIdentifier("privacy.saveRecoveryAgain")
+            .modifier(saveSheet)
     }
 
-    // MARK: Where your key is kept
+    private func save() { Task { await reveal(reason: PrivacyCopy.saveReason) { saving = $0 } } }
 
-    private var keySection: some View {
-        Section {
-            safety
-            if crypto.serverCopy {
-                keyRow(KeyCopyWords.copyTitle, KeyCopyWords.copyDetail, symbol: "person.badge.key", id: "privacy.serverCopy")
-            }
-            keyRow(PrivacyCopy.thisDevice, crypto.backedUp ? PrivacyCopy.keptInKeychain : PrivacyCopy.keptHere,
-                   symbol: InstallID.platform == "macos" ? "laptopcomputer" : "iphone", id: "privacy.thisDevice")
-            if crypto.backedUp || devices.others.contains(where: { $0.backedUp && !$0.removing && $0.isRecent() }) {
-                keyRow(PrivacyCopy.keychainTitle, PrivacyCopy.keychainDetail, symbol: "icloud", id: "privacy.keychain")
-            }
-            ForEach(devices.others) { d in
-                keyRow(d.name, d.detail(), symbol: d.symbol, id: "privacy.device") {
-                    if d.canRemove {
-                        // The question hangs on the button that asked it.
-                        Button("Remove\u{2026}", role: .destructive) { removing = d }
-                            .accessibilityIdentifier("privacy.removeDevice")
-                            .confirmationDialog(PrivacyCopy.removeTitle(d.name),
-                                                isPresented: Binding(get: { removing?.id == d.id }, set: { if !$0 { removing = nil } }),
-                                                titleVisibility: .visible) {
-                                Button("Remove", role: .destructive) { Task { await remove(d) } }
-                                    .accessibilityIdentifier("privacy.confirmRemove")
-                            } message: {
-                                Text(PrivacyCopy.removeMessage + (crypto.serverCopy ? PrivacyCopy.removeNote : ""))
-                            }
-                    }
-                }
-            }
-            // With a copy kept by Pinto Notes there's nothing to add: a new device signs in.
-            if !crypto.serverCopy {
-                // The sheet hangs on its button: on a Section it isn't presented.
-                Button(PrivacyCopy.addDevice) { adding = true }
-                    .accessibilityIdentifier("privacy.addDevice")
-                    .disabled(reach != .online)
-                    .sheet(isPresented: $adding) {
-                        AddDeviceSheet(crypto: crypto, server: addDeviceServer)
-                            .onDisappear { Task { await devices.refresh(crypto) } }
-                    }
-            }
-        } header: {
-            Text(PrivacyCopy.keyHeader)
-        } footer: {
-            Text(PrivacyCopy.keyFooter(serverCopy: crypto.serverCopy))
+    /// Save a recovery key: on whichever button asked, as the sheet must hang on its button.
+    private var saveSheet: SheetOn {
+        SheetOn(isPresented: Binding(get: { saving != nil }, set: { if !$0 { saving = nil } })) {
+            AnyView(SaveRecoveryKeySheet(key: saving ?? "") { await markSaved() }
+                .onDisappear {
+                    guard strictWhenSaved else { return }
+                    strictWhenSaved = false
+                    if crypto.recoveryKeySaved { Task { await change(to: .strict, confirmed: true) } }
+                })
         }
     }
 
@@ -268,58 +638,72 @@ struct PrivacySecuritySection: View {
     /// for an account that has it on, so it can turn it off.
     static func showsProtection(_ crypto: AccountCrypto) -> Bool { AdvancedProtection.shown(crypto.protection) }
 
-    /// On: only the person's devices hold the key, as before Pinto Notes kept copies. Off: Pinto
-    /// Notes keeps a copy, and signing in opens the notes on a new device. An account that hasn't
-    /// chosen has no copy, so its switch is on. Either way is asked once more before it's done.
-    private var protectionSection: some View {
-        let strict = crypto.protection != .standard
-        return Section {
-            Toggle(isOn: Binding(get: { strict }, set: { turning = $0 ? .strict : .standard; asksTurn = true })) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(KeyCopyWords.strictTitle)
-                    Text(KeyCopyWords.strictSubtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-                // Off and held by a password reset: it can't be turned on yet, and the footer says from when.
-                .disabled(changing || reach != .online || (!strict && (crypto.strictPausedUntil ?? .distantPast) > .now))
-                .accessibilityIdentifier("privacy.strict")
-                #if os(macOS)
-                // Settings' switches are in the brand's brown, as on General.
-                .tint(Color(Palette.switchOn))
-                #endif
-                .confirmationDialog(turning == .strict ? KeyCopyWords.turnOnTitle : KeyCopyWords.turnOffTitle,
-                                    isPresented: $asksTurn, titleVisibility: .visible) {
-                    if turning == .strict {
-                        Button(KeyCopyWords.turnOn, role: .destructive) { Task { await change(to: .strict) } }
-                            .accessibilityIdentifier("privacy.confirmStrict")
-                    } else {
-                        Button(KeyCopyWords.turnOff) { Task { await change(to: .standard) } }
-                            .accessibilityIdentifier("privacy.confirmStandard")
-                    }
-                } message: {
-                    Text(turning == .strict ? KeyCopyWords.turnOnMessage : KeyCopyWords.turnOffMessage)
-                }
-                // Nothing else could open the notes yet: the recovery key is shown and saved
-                // first, and the switch turns on when it has been.
-                .alert(KeyCopyWords.saveFirstTitle, isPresented: $asksToSaveFirst) {
-                    Button(KeyCopyWords.saveFirst) {
-                        Task { await reveal(reason: PrivacyCopy.saveReason) { strictWhenSaved = true; saving = $0 } }
-                    }
-                    .accessibilityIdentifier("privacy.saveFirst")
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text(KeyCopyWords.saveFirstMessage)
-                }
-        } footer: {
-            Text((strict ? KeyCopyWords.strictFooterOn : KeyCopyWords.strictFooterOff) + (strict ? "" : pausedNote.map { "\n\n" + $0 } ?? ""))
-                .accessibilityIdentifier("privacy.strictFooter")
-        }
+    /// Under the switch while it's off (shown then only if it's offered again). On, the switch's
+    /// own line and the page above it say it already.
+    private var protectionFooter: String? {
+        guard crypto.protection == .standard else { return nil }
+        return KeyCopyWords.strictFooterOff + (pausedNote.map { "\n\n" + $0 } ?? "")
     }
 
-    /// `confirmed`: the device's owner was just asked (to show the recovery key), so isn't again.
+    #if os(iOS)
+    private var protectionSection: some View {
+        Section {
+            protectionToggle
+        } footer: {
+            if let protectionFooter { Text(protectionFooter).accessibilityIdentifier("privacy.strictFooter") }
+        }
+    }
+    #endif
+
+    /// On: only the person's devices hold the key. Off: Pinto Notes keeps a copy, and signing in
+    /// opens the notes on a new device. Either way is asked once more before it's done.
+    private var protectionToggle: some View {
+        let strict = crypto.protection != .standard
+        return Toggle(isOn: Binding(get: { strict }, set: { turning = $0 ? .strict : .standard; asksTurn = true })) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(KeyCopyWords.strictTitle)
+                Text(KeyCopyWords.strictSubtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+            // Off and held by a password reset: it can't be turned on yet, and the footer says from when.
+            .disabled(changing || reach != .online || (!strict && (crypto.strictPausedUntil ?? .distantPast) > .now))
+            .accessibilityIdentifier("privacy.strict")
+            #if os(macOS)
+            .toggleStyle(.switch)
+            // Settings' switches are in the brand's brown, as on General.
+            .tint(Color(Palette.switchOn))
+            #endif
+            .confirmationDialog(turning == .strict ? KeyCopyWords.turnOnTitle : KeyCopyWords.turnOffTitle,
+                                isPresented: $asksTurn, titleVisibility: .visible) {
+                if turning == .strict {
+                    Button(KeyCopyWords.turnOn, role: .destructive) { Task { await change(to: .strict) } }
+                        .accessibilityIdentifier("privacy.confirmStrict")
+                } else {
+                    Button(KeyCopyWords.turnOff) { Task { await change(to: .standard) } }
+                        .accessibilityIdentifier("privacy.confirmStandard")
+                }
+            } message: {
+                Text(turning == .strict ? KeyCopyWords.turnOnMessage : KeyCopyWords.turnOffMessage)
+            }
+            // Nothing else could open the notes yet: the recovery key is shown and saved
+            // first, and the switch turns on when it has been.
+            .alert(KeyCopyWords.saveFirstTitle, isPresented: $asksToSaveFirst) {
+                Button(KeyCopyWords.saveFirst) {
+                    Task { await reveal(reason: PrivacyCopy.saveReason) { strictWhenSaved = true; saving = $0 } }
+                }
+                .accessibilityIdentifier("privacy.saveFirst")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(KeyCopyWords.saveFirstMessage)
+            }
+            // The page's recovery key buttons hold the sheet when they're there: one sheet per binding.
+            .modifier(content.recovery == nil ? saveSheet : SheetOn(isPresented: .constant(false)) { AnyView(EmptyView()) })
+    }
+
     /// Under the switch while a password reset holds it: from when it can be turned on. Known from
     /// the key state before anyone tries, or from the server's refusal.
     private var pausedNote: String? {
@@ -327,6 +711,7 @@ struct PrivacySecuritySection: View {
         return strictPausedNote
     }
 
+    /// `confirmed`: the device's owner was just asked (to show the recovery key), so isn't again.
     private func change(to mode: KeyProtection, confirmed: Bool = false) async {
         problem = nil
         if !confirmed {
@@ -351,71 +736,6 @@ struct PrivacySecuritySection: View {
         }
     }
 
-    /// One line on top. Green only on evidence: another device seen lately, or a saved recovery
-    /// key. A key that's only stored for iCloud Keychain gets a plain "can't confirm". A key on
-    /// this device alone gets the warning.
-    @ViewBuilder private var safety: some View {
-        // Before the list has loaded, nothing is claimed either way.
-        if devices.loaded || crypto.recoveryKeySaved || crypto.serverCopy {
-            switch devices.safety(crypto) {
-            case .safe(let n):
-                keyRow(PrivacyCopy.safeTitle, crypto.serverCopy ? KeyCopyWords.safeBySignIn : PrivacyCopy.safeDetail(n),
-                       symbol: "checkmark.circle.fill", tint: .green, id: "privacy.safe")
-            case .unconfirmed:
-                keyRow(PrivacyCopy.unconfirmedTitle, PrivacyCopy.unconfirmedDetail, symbol: "questionmark.circle", id: "privacy.unconfirmed")
-                // Where to look, for those who want to: out of the way until asked for.
-                if showsHowToCheck {
-                    Text(PrivacyCopy.howToCheckDetail)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("privacy.howToCheckDetail")
-                } else {
-                    Button(PrivacyCopy.howToCheck) { showsHowToCheck = true }
-                        .font(.footnote)
-                        .accessibilityIdentifier("privacy.howToCheck")
-                }
-            case .onlyThisDevice:
-                keyRow(PrivacyCopy.onlyTitle, PrivacyCopy.onlyDetail, symbol: "exclamationmark.circle.fill", tint: .orange, id: "privacy.onlyThisDevice")
-            }
-        }
-    }
-
-    /// "Optional" is only said while something else is known to open the notes.
-    private var recoveryStatus: String {
-        if crypto.recoveryKeySaved { return "Saved" }
-        if case .safe = devices.safety(crypto) { return "Optional" }
-        return "Not saved"
-    }
-
-    private func keyRow(_ title: String, _ detail: String, symbol: String, tint: Color = .secondary, id: String) -> some View {
-        keyRow(title, detail, symbol: symbol, tint: tint, id: id) { EmptyView() }
-    }
-
-    private func keyRow(_ title: String, _ detail: String, symbol: String, tint: Color = .secondary, id: String,
-                        @ViewBuilder trailing: () -> some View) -> some View {
-        // At the largest text sizes the glyph sits above the words and the action below them.
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 12))
-        return layout {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(tint)
-                .frame(minWidth: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                Text(detail).font(.footnote).foregroundStyle(.secondary)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityElement(children: .combine)
-            if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
-            trailing()
-        }
-        // A container, so the button in it keeps its own identifier.
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(id)
-    }
-
     private func remove(_ d: KeyDevice) async {
         problem = nil
         guard await DeviceOwner.authenticate(reason: "remove \(d.name)") else { return }
@@ -436,6 +756,220 @@ struct PrivacySecuritySection: View {
 
     private func markSaved() async {
         do { try await crypto.markRecoveryKeySaved() } catch { problem = error.localizedDescription }
+    }
+}
+
+/// A sheet on the view it's put on, built only while it's up.
+struct SheetOn: ViewModifier {
+    @Binding var isPresented: Bool
+    let sheet: () -> AnyView
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $isPresented) { sheet() }
+    }
+}
+
+// MARK: Pieces
+
+enum SecurityLook {
+    #if os(macOS)
+    static let radius: CGFloat = 10
+    static let fill = Color.primary.opacity(0.045)
+    /// Every tile as tall as the tallest can be (a two-line name and Remove…), so a row lines up.
+    static let tileHeight: CGFloat = 120
+    #else
+    static let radius: CGFloat = 18
+    static let fill = Color(.secondarySystemGroupedBackground)
+    #endif
+}
+
+/// A thing that can open your notes, by its mark: a glyph, Pinto Notes' mark or an AI's.
+struct SecurityMark: View {
+    let opener: SecurityContent.Opener?
+    var symbol: String? = nil
+    var size: CGFloat = 22
+    var scales = true
+    /// Grows with the text, like Settings' row icons.
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+
+    var body: some View {
+        let size = size * (scales ? min(scale, 1.6) : 1)
+        Group {
+            if let o = opener, o.kind == .pintoNotes {
+                AppMark(size: size * 1.2)
+            } else if let ai = opener?.ai {
+                VersionAuthorMark(author: .ai(ai), size: size)
+            } else {
+                Image(systemName: opener?.symbol ?? symbol ?? "circle").font(.system(size: size)).foregroundStyle(Color.ink)
+            }
+        }
+        .frame(width: size * 1.4, height: size * 1.4)
+        .accessibilityHidden(true)
+    }
+}
+
+#if os(iOS)
+/// A list row like Settings › Apple Account's devices: mark, name, a grey line under it, and an
+/// action (Remove…) at the end, or under the line at the largest text sizes.
+struct SecurityOpenerRow<Action: View>: View {
+    let opener: SecurityContent.Opener
+    @ViewBuilder var action: Action
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SecurityMark(opener: opener)
+            VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(opener.name).foregroundStyle(Color.ink)
+                    Text(opener.detail).font(.subheadline).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                if typeSize.isAccessibilitySize { action.padding(.top, 4) }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            if !typeSize.isAccessibilitySize {
+                Spacer(minLength: 8)
+                action
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+extension SecurityOpenerRow where Action == EmptyView {
+    init(opener: SecurityContent.Opener) { self.init(opener: opener) { EmptyView() } }
+}
+
+/// Every opener's mark, overlapping, each in a small circle: the picture the Mac draws with tiles.
+struct SecurityMarkStack: View {
+    let openers: [SecurityContent.Opener]
+    /// More than this and the row would run past a phone's width.
+    static let most = 7
+
+    var body: some View {
+        HStack(spacing: -6) {
+            ForEach(openers.prefix(Self.most)) { o in
+                SecurityMark(opener: o, size: 20, scales: false)
+                    .frame(width: 44, height: 44)
+                    .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                    .overlay(Circle().strokeBorder(Color(.secondarySystemGroupedBackground), lineWidth: 2.5))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+#endif
+
+#if os(macOS)
+/// One thing that can open your notes, as a tile: its mark, its name, a short grey line.
+struct SecurityTile<Below: View>: View {
+    let opener: SecurityContent.Opener?
+    var symbol: String? = nil
+    var name: String? = nil
+    var caption: String? = nil
+    @ViewBuilder var below: Below
+
+    var body: some View {
+        VStack(spacing: 4) {
+            SecurityMark(opener: opener, symbol: symbol, size: 20, scales: false).frame(height: 30)
+            Text(name ?? opener?.name ?? "").font(.callout.weight(.medium)).foregroundStyle(Color.ink)
+                .lineLimit(2).multilineTextAlignment(.center)
+            Text(caption ?? opener?.short ?? "").font(.caption).foregroundStyle(.secondary)
+                .lineLimit(2).multilineTextAlignment(.center)
+            below
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: SecurityLook.tileHeight)
+        .background(SecurityLook.fill, in: RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+}
+
+extension SecurityTile where Below == EmptyView {
+    init(opener: SecurityContent.Opener?, symbol: String? = nil, name: String? = nil, caption: String? = nil) {
+        self.init(opener: opener, symbol: symbol, name: name, caption: caption) { EmptyView() }
+    }
+}
+
+/// Something you could add: an outline to fill, in the tint, with a plus.
+struct SecurityAddTile: View {
+    let title: String
+    let caption: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous)
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: "plus").font(.system(size: 18, weight: .medium)).frame(height: 30)
+                Text(title).font(.callout.weight(.medium)).lineLimit(2).multilineTextAlignment(.center)
+                Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .foregroundStyle(.tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: SecurityLook.tileHeight)
+            .overlay(shape.strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3])).foregroundStyle(Color.primary.opacity(0.25)))
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+#endif
+
+/// "How it works": every fact the page stands on, in a sheet, and the website's longer page.
+struct HowItWorksSheet: View {
+    let content: SecurityContent
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(content.how, id: \.title) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: item.symbol)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 22)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                Text(item.line).font(.callout).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 2)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                Section {
+                    Link(destination: PrivacyCopy.learnMoreURL) {
+                        LabeledContent(PrivacyCopy.learnMore) {
+                            Image(systemName: "arrow.up.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                        .foregroundStyle(.primary)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("privacy.learnMore")
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle(PrivacyCopy.howItWorks)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        #if os(macOS)
+        .frame(width: 460, height: 600)
+        #endif
     }
 }
 

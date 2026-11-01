@@ -126,7 +126,7 @@ import UIKit
 
     #if os(macOS)
     static func privacy(_ crypto: AccountCrypto, _ devices: KeyDevices) -> some View {
-        Form { PrivacySecuritySection(crypto: crypto, devices: devices) }.formStyle(.grouped).frame(width: 520)
+        PrivacySecuritySection(crypto: crypto, devices: devices).frame(width: 600)
     }
 
     @Test(arguments: [false, true])

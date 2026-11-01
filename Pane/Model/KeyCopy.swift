@@ -128,7 +128,8 @@ enum AdvancedProtection {
 /// The words about where the key is kept, by the kind of account, in one place.
 enum KeyCopyWords {
     static let strictTitle = "Advanced protection"
-    static let strictSubtitle = "Only your devices hold your key. We can\u{2019}t open your notes, and can\u{2019}t help you back in."
+    /// True with AIs connected too: each holds its own copy (Security's "While connected").
+    static let strictSubtitle = "Pinto Notes keeps no copy of your key, so it can\u{2019}t help you back in."
     static let strictFooterOff = "Your notes are encrypted on your devices before they sync. \(copyLine)"
     /// What the copy kept by Pinto Notes means, said once, plainly.
     static let copyLine = "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means we could open your notes if we had to."

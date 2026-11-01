@@ -29,18 +29,24 @@ import UIKit
     }
 
     /// Draws `view` in a window of the iPhone's size; `scroll` moves its first scroll view down first.
-    static func shoot(_ view: some View, _ name: String, dark: Bool, scroll: CGFloat = 0, wait: Double = 1.0) async throws {
+    /// `scroll: .infinity` goes to the end of the page; `height` makes the window taller than a phone's.
+    static func shoot(_ view: some View, _ name: String, dark: Bool, scroll: CGFloat = 0, wait: Double = 1.0, height: CGFloat? = nil) async throws {
         guard let dir else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(origin: .zero, size: size)
+        window.frame = CGRect(origin: .zero, size: CGSize(width: size.width, height: height ?? size.height))
         window.overrideUserInterfaceStyle = dark ? .dark : .light
         window.rootViewController = UIHostingController(rootView: view.tint(Color(PColor.paneAccent)))
         window.isHidden = false
         try? await Task.sleep(for: .seconds(wait))
         if scroll > 0, let s = firstScrollView(in: window) {
-            s.setContentOffset(CGPoint(x: 0, y: scroll - s.adjustedContentInset.top), animated: false)
-            try? await Task.sleep(for: .seconds(0.6))
+            // .infinity: to the end of the page. A list measures its rows as they come in, so
+            // it goes again until the end stops moving.
+            for _ in 0..<(scroll.isInfinite ? 4 : 1) {
+                let end = s.contentSize.height + s.adjustedContentInset.bottom - s.bounds.height
+                s.setContentOffset(CGPoint(x: 0, y: scroll.isInfinite ? end : scroll - s.adjustedContentInset.top), animated: false)
+                try? await Task.sleep(for: .seconds(0.6))
+            }
         }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 3

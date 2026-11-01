@@ -51,14 +51,15 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
     /// When it happened, always with the day: "1 Oct, 22:35".
     static func when(_ date: Date) -> String { date.formatted(.dateTime.day().month(.abbreviated).hour().minute()) }
 
-    /// The alert's words.
-    func text() -> (title: String, message: String) {
+    /// The alert's words. `recoveryKey`: the account is offered one (RecoveryKeyOffer); a
+    /// standard account's notes open by signing in, so nothing asks it to save one.
+    func text(recoveryKey: Bool = true) -> (title: String, message: String) {
         switch kind {
         case .aiConnected:
             return ("Connected \(name ?? "an AI")", "\(Self.when(created_at)). It can use your notes. If you didn't connect it, disconnect it.")
         case .startedFresh:
             return ("Your notes were deleted and a new key was made on another device",
-                    "Save your new recovery key in Settings \u{203A} Security.")
+                    recoveryKey ? "Save your new recovery key in Settings \u{203A} Security." : "If that wasn\u{2019}t you, change your password.")
         case .wrongNumber:
             return ("Someone who knows your password tried to connect an AI. Change your password.",
                     "The number typed didn't match, so it was declined. Pinto Notes takes no new requests to connect an AI for an hour.")
@@ -76,8 +77,10 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
 
 extension [AccountNotice] {
     /// One alert for these: a notice on its own, or AI connections said together, newest first.
-    var text: (title: String, message: String) {
-        guard count > 1 else { return first?.text() ?? ("", "") }
+    var text: (title: String, message: String) { text(recoveryKey: true) }
+
+    func text(recoveryKey: Bool) -> (title: String, message: String) {
+        guard count > 1 else { return first?.text(recoveryKey: recoveryKey) ?? ("", "") }
         let lines = sorted { $0.created_at > $1.created_at }
             .map { "\($0.name ?? "An AI") \u{00B7} \(AccountNotice.when($0.created_at))" }
         return ("\(count) AIs were connected",

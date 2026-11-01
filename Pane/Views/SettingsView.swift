@@ -66,7 +66,8 @@ struct SettingsView: View {
         #if os(macOS)
         // A big card over the notes, its pages in a sidebar of its own (SettingsCard).
         SettingsCard(backend: backend, available: places, page: { AnyView(place($0)) },
-                     advancedProtection: AdvancedProtection.shown(crypto.protection), route: route, start: start, close: close, search: search)
+                     advancedProtection: AdvancedProtection.shown(crypto.protection),
+                     recoveryKey: crypto.offersRecoveryKey, route: route, start: start, close: close, search: search)
         .environment(\.networkReach, reach)
         // Allowing an AI shows over Settings.
         .consentHost(client: backend.client, active: isSignedIn)
@@ -168,11 +169,16 @@ struct SettingsView: View {
             }
             .connectGuides(client: backend.client)
         case .security:
-            SettingsPage {
-                if isSignedIn, crypto.isReady {
-                    PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) })
-                }
-                LockedNotesSection(sync: sync)
+            if isSignedIn, crypto.isReady {
+                #if os(macOS)
+                // Tiles on the card's own ground: a page of its own, not a form.
+                securityPage
+                #else
+                SettingsPage { securityPage }
+                #endif
+            } else {
+                // Signed out with a notes password: only locked notes.
+                SettingsPage { LockedNotesSection(sync: sync) }
             }
         case .storage:
             SettingsPage {
@@ -186,6 +192,12 @@ struct SettingsView: View {
         case .help:
             SettingsPage { HelpPage(signedIn: isSignedIn, close: closeSettings) }
         }
+    }
+
+    /// Security: who can open your notes, locked notes, how it works (PrivacySecuritySection).
+    private var securityPage: some View {
+        PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) },
+                               client: backend.client, connections: connections, sync: sync)
     }
 
     /// Closes Settings: the card over the notes on the Mac, the sheet on iPhone.

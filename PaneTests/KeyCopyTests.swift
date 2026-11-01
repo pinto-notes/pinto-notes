@@ -610,7 +610,7 @@ import Testing
     @Test func theSwitchIsAdvancedProtectionAndSaysWhatItCosts() {
         typealias W = KeyCopyWords
         #expect(W.strictTitle == "Advanced protection")
-        #expect(W.strictSubtitle == "Only your devices hold your key. We can\u{2019}t open your notes, and can\u{2019}t help you back in.")
+        #expect(W.strictSubtitle == "Pinto Notes keeps no copy of your key, so it can\u{2019}t help you back in.", "true with AIs connected too")
         // Off, the default: said candidly, in one plain line, who else could open the notes.
         #expect(W.copyLine == "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means we could open your notes if we had to.")
         #expect(W.strictFooterOff.contains("encrypted on your devices before they sync") && W.strictFooterOff.contains(W.copyLine))
