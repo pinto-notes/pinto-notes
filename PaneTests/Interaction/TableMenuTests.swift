@@ -57,13 +57,15 @@ import Testing
 
     @Test func rowAndColumnActions() throws {
         var t = try #require(GridTable.find(in: "| a | b |\n| --- | --- |\n| 1 | 2 |").first)
-        #expect(t.perform(.addRowBelow, at: GridCell(row: 1, column: 0)) == GridCell(row: 1, column: 0))
+        #expect(t.perform(.addRowBelow, at: GridCell(row: 1, column: 1)) == GridCell(row: 2, column: 0), "into the new row")
         #expect(t.rows == [["a", "b"], ["1", "2"], ["", ""]])
         // Above the header, the row goes under it: the header stays the header.
-        #expect(t.perform(.addRowAbove, at: GridCell(row: 0, column: 1)) == GridCell(row: 0, column: 1))
+        #expect(t.perform(.addRowAbove, at: GridCell(row: 0, column: 1)) == GridCell(row: 1, column: 0), "into the new row, under the header")
         #expect(t.rows.first == ["a", "b"] && t.rows.count == 4)
-        #expect(t.perform(.addColumnBefore, at: GridCell(row: 0, column: 0)) == GridCell(row: 0, column: 1))
+        #expect(t.perform(.addColumnBefore, at: GridCell(row: 2, column: 0)) == GridCell(row: 0, column: 0), "into the new column's header")
         #expect(t.rows[0] == ["", "a", "b"])
+        var after = t
+        #expect(after.perform(.addColumnAfter, at: GridCell(row: 1, column: 1)) == GridCell(row: 0, column: 2), "into the new column's header")
         #expect(t.perform(.deleteColumn, at: GridCell(row: 0, column: 0)) == GridCell(row: 0, column: 0))
         #expect(t.rows[0] == ["a", "b"])
         #expect(t.perform(.deleteRow, at: GridCell(row: 3, column: 0)) == GridCell(row: 2, column: 0))
@@ -106,7 +108,8 @@ import AppKit
         let menu = try #require(h.controller.currentTableMenu)
         let delete = try #require(menu.item("Delete Table"))
         #expect(delete.destructive && delete.enabled)
-        #expect(menu.items.map(\.title) == ["Add Row Above", "Add Row Below", "Add Column Before", "Add Column After", "Delete Row", "Delete Column", "Delete Table"])
+        #expect(menu.items.map(\.title) == ["Add Row Below", "Add Row Above", "Add Column After", "Add Column Before", "Delete Row", "Delete Column", "Delete Table"],
+                "what you add most comes first, nearest the Table button")
         delete.run()
         await h.settle(0.2)
         #expect(!h.text.contains("| ⌘B"), "the table is gone: \(h.text.debugDescription)")
@@ -136,7 +139,7 @@ import AppKit
         let host = try #require(h.overlays.first)
         let table = try #require(GridTable.find(in: h.text).first)
         let cell = try #require(h.controller.table?.cell)
-        let widths = table.columnWidths(available: host.frame.width - GridMetrics.handle)
+        let widths = table.columnWidths(available: host.frame.width - GridMetrics.handle - GridMetrics.growRight)
         let handles = GridHandles(widths: widths, rows: table.rows.count, cell: cell)
         #expect(handles.grips.count == 2)
         let box = try #require(h.view.core.gridBoxes[0])
@@ -172,6 +175,7 @@ import AppKit
         try #require(h.controller.lastTableMenu?.item("Add Row Below")).run()
         #expect(await h.until { h.text.contains("| ⌘B | Bold |\n|   |   |\n| ⌘⇧L | Checklist |") }, "a blank row under ⌘B: \(h.text.debugDescription)")
         #expect(await h.until { h.gridHasFocus }, "the keyboard stays in the table")
+        #expect(h.controller.table?.cell == GridCell(row: 2, column: 0), "the caret goes to the new row")
         h.controller.pickTableLine(.row(2), grid: 0, cell: GridCell(row: 2, column: 0))
         try #require(h.controller.lastTableMenu?.item("Delete Row")).run()
         #expect(await h.until { h.text == Self.note }, "the blank row is gone: \(h.text.debugDescription)")
@@ -183,12 +187,93 @@ import AppKit
         #expect(await h.until { h.text.contains("| Shortcut |   | Does |") && h.text.contains("| ⌘B |   | Bold |") }, "a blank column after the first: \(h.text.debugDescription)")
         // The toolbar's table menu does the same for the cell with the keyboard.
         let toolbar = try #require(h.controller.currentTableMenu)
-        #expect(h.controller.table?.cell == GridCell(row: 1, column: 0))
+        #expect(h.controller.table?.cell == GridCell(row: 0, column: 1), "the caret goes to the new column's header")
         h.controller.pickTableLine(.column(1), grid: 0, cell: GridCell(row: 1, column: 1))
         try #require(h.controller.lastTableMenu?.item("Delete Column")).run()
         #expect(await h.until { h.text == Self.note }, "the blank column is gone: \(h.text.debugDescription)")
         #expect(toolbar.item("Delete Row")?.enabled == true)
         #expect(h.gridCount == 1)
+    }
+
+    /// With another table after it, Delete Table still leaves the keyboard in the text: the next
+    /// table took over the deleted one's view, cell with the keyboard and all, and the keyboard
+    /// jumped into it (Emil's table walkthrough, 1 November 2026). Undo brings both back.
+    @Test func deletingATableLeavesTheNextOneAlone() async throws {
+        let two = Self.note + "\n\n| Booking | Ref | From |\n| --- | --- | --- |\n| Flight | TP1 | Stockholm |\n| Flat | AF-88 | Fri |\n\nEnd"
+        let h = await EditorHarness(two)
+        defer { h.close() }
+        #expect(await h.until { h.gridCount == 2 })
+        await enter(h, row: 1)
+        try #require(h.controller.currentTableMenu?.item("Delete Table")).run()
+        await h.settle(0.6)
+        #expect(h.gridCount == 1)
+        #expect(h.window.firstResponder === h.view, "the keyboard is back in the text, not in the next table")
+        #expect(!h.gridHasFocus)
+        #expect(h.controller.table == nil)
+        h.controller.undoNotice()
+        await h.settle(0.3)
+        #expect(h.text == two, "Undo brings the table back: \(h.text.debugDescription)")
+        #expect(await h.until { h.gridCount == 2 })
+    }
+
+    /// In a cell the editing commands act on the cell (Emil, 1 November 2026: no formatting in a
+    /// table was "a real miss"): Bold wraps the selected words in the cell, Link writes a link
+    /// there, a heading or a list does nothing (a cell can't hold one), and Checklist turns the
+    /// column into ticks, the keyboard moving to its header.
+    @Test func formattingInACell() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await enter(h, row: 1)
+        #expect(await h.until { h.controller.cell != nil }, "the cell is what the commands act on")
+        // Into the second column: "Bold".
+        await h.press(EditorHarness.tab)
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: 1, column: 1) })
+        await h.settle(0.2)
+        CellField.select(NSRange(location: 0, length: 4))
+        #expect(CellField.selection() == NSRange(location: 0, length: 4), "the cell's field says what's selected")
+        h.controller.bold()
+        #expect(await h.until { h.text.contains("| ⌘B | **Bold** |") }, "bold in the cell: \(h.text.debugDescription)")
+        #expect(h.gridCount == 1, "still a table")
+
+        let before = h.text
+        h.controller.heading(2)
+        h.controller.bulletList()
+        await h.settle(0.2)
+        #expect(h.text == before, "no heading or list in a cell")
+        var state = FormatState.at("# Bold", selection: NSRange(location: 2, length: 0))
+        state.inCell = true
+        #expect(state.isOn(.body) && !state.isOn(.title) && !state.isOn(.heading), "a cell's style reads Body, not the note line's")
+        #expect(!state.isEnabled(.heading) && !state.isEnabled(.bulleted) && state.isEnabled(.bold), "the Format panel offers what a cell can hold")
+
+        h.controller.checklist()
+        #expect(await h.until { h.text.contains("Does=choice Yes|No") }, "the column is ticks: \(h.text.debugDescription)")
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: 0, column: 1) }, "the keyboard in its header")
+        #expect(h.gridCount == 1)
+        h.controller.checklist()
+        #expect(await h.until { !h.text.contains("pane-table") }, "and plain again: \(h.text.debugDescription)")
+    }
+
+    /// The add bars show while a cell is being edited, a click on one adds a row or a column with
+    /// the keyboard in it, and a click in the strips around the table off the bars goes to the text.
+    @Test func theAddBarsAddARowAndAColumn() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        let host = try #require(h.overlays.first as? GridHostingView)
+        let box = try #require(h.view.core.gridBoxes[0])
+        #expect(box.adds.isEmpty, "no bars at rest")
+        // At rest the strip under the table is the text's.
+        let below = NSPoint(x: host.frame.midX, y: host.frame.maxY - 4)
+        #expect(host.hitTest(below) == nil, "a click under the table goes to the text")
+        await enter(h, row: 1)
+        #expect(await h.until { box.adds.count == 2 }, "both bars show while editing: \(box.adds)")
+        let rows = try #require(GridTable.find(in: h.text).first).rows.count
+        try await h.clickAdd(.row, box: box, host: host)
+        #expect(await h.until { GridTable.find(in: h.text).first?.rows.count == rows + 1 }, "a row at the bottom: \(h.text.debugDescription)")
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: rows, column: 0) }, "the keyboard in its first cell")
+        let columns = try #require(GridTable.find(in: h.text).first).columns
+        try await h.clickAdd(.column, box: box, host: host)
+        #expect(await h.until { GridTable.find(in: h.text).first?.columns == columns + 1 }, "a column at the end: \(h.text.debugDescription)")
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: 0, column: columns) }, "the keyboard in its header")
     }
 
     /// The last row and column have no Delete: Delete Table removes a table.
@@ -205,4 +290,17 @@ import AppKit
         #expect(menu.item("Delete Table")?.enabled == true)
     }
 }
+extension EditorHarness {
+    /// A click on the middle of a table's add bar: it must hit-test to the table, not the text
+    /// under it; then what the bar's button calls (an offscreen window takes no clicks).
+    func clickAdd(_ kind: GridAdd, box: GridHitBox, host: GridHostingView) async throws {
+        let r = try #require(box.adds[kind])
+        let local = NSPoint(x: r.midX, y: host.isFlipped ? r.midY : host.bounds.height - r.midY)
+        let hit = try #require(host.hitTest(host.convert(local, to: host.superview)), "the bar takes the click")
+        #expect(hit === host || hit.isDescendant(of: host))
+        controller.addToTable(kind, grid: 0)
+        try? await Task.sleep(for: .milliseconds(300))
+    }
+}
 #endif
+

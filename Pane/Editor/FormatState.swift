@@ -104,9 +104,14 @@ struct FormatState: Equatable, Sendable {
     var inline: Set<Inline> = []
     var canIndent = false
     var canOutdent = false
+    /// In a table cell: only what a cell can hold (bold, italic, underline, strikethrough).
+    var inCell = false
 
     func isOn(_ control: FormatControl) -> Bool {
-        switch control {
+        // A cell's text is body text: its style row shows Body, never the note line's style
+        // (Title showed picked in a cell).
+        if inCell, control.inline == nil { return control == .body }
+        return switch control {
         case .title: !monostyled && paragraph == .title
         case .heading: !monostyled && paragraph == .heading
         case .subheading: !monostyled && paragraph == .subheading
@@ -123,7 +128,9 @@ struct FormatState: Equatable, Sendable {
     }
 
     func isEnabled(_ control: FormatControl) -> Bool {
-        switch control {
+        // A markdown cell holds one line of inline text: no styles, lists, quotes or indents.
+        if inCell { return control.inline != nil }
+        return switch control {
         // Lines nest only as list items: markdown has no indented paragraph.
         case .indent: canIndent
         case .outdent: canOutdent

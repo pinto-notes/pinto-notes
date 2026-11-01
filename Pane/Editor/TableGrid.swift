@@ -202,8 +202,29 @@ struct GridOverflow: Equatable {
 enum GridMetrics {
     /// 32 pt at the default text size, growing with the reader's text size on iPhone: at the
     /// largest sizes the rows kept their 32 pt and the text of one row was drawn over the next.
+    /// On iPhone 44 pt, the HIG's smallest touch target, so a tap lands in the cell you meant
+    /// (Emil, 1 November 2026: "make sure table stuff is easily tappable"; rows were 32 pt).
+    #if os(iOS)
+    static var row: CGFloat { max(44, ceil(EditorMetrics.body * 44 / 17)) }
+    #else
     static var row: CGFloat { max(32, ceil(EditorMetrics.body * 32 / 17)) }
+    #endif
     static let handle: CGFloat = 16
+    /// The strips right of and below a table for its add bars (they show while a cell is being
+    /// edited, over the margin and the space after the table; GridHitBox lets other clicks through).
+    /// On iPhone only the bar below, with a 44-point target under a thin bar: a column bar can't
+    /// have one in the 20-point margin, so columns are added from the menus there.
+    #if os(iOS)
+    static let growRight: CGFloat = 0
+    static let growBelow: CGFloat = 48
+    #else
+    static let growRight: CGFloat = 22
+    static let growBelow: CGFloat = 22
+    #endif
+    /// A row handle's grip, standing (a column's lies down): the width of the handle strip.
+    static let grip = CGSize(width: 16, height: 30)
+    /// How thick an add bar looks; its target is the whole strip.
+    static let bar: CGFloat = 16
     static func height(_ t: GridTable) -> CGFloat { handle + CGFloat(t.rows.count) * row + 2 }
     #if os(iOS)
     /// A row or column handle's touch target: 44 points square (HIG), however small its grip.
@@ -266,8 +287,10 @@ extension GridTable {
         }
     }
 
-    /// Does `a` to the row or column of `cell`, and returns where the keyboard goes next: the same
-    /// cell where it now is, or its neighbour when its row or column went.
+    /// Does `a` to the row or column of `cell`, and returns where the keyboard goes next: a new row's
+    /// first cell, a new column's header (you add one to fill it: the caret staying put turned a
+    /// cell's "450" into "450Mon"; Emil, 1 November 2026), or the neighbour of a row or column
+    /// that went.
     @discardableResult
     mutating func perform(_ a: TableAction, at cell: GridCell) -> GridCell {
         let r = min(max(cell.row, 0), rows.count - 1), c = min(max(cell.column, 0), max(columns - 1, 0))
@@ -276,20 +299,20 @@ extension GridTable {
             // Never above the header: the new row goes under it.
             let at = max(r, 1)
             rows.insert(blankRow, at: at)
-            return GridCell(row: at == r ? r + 1 : r, column: c)
+            return GridCell(row: at, column: 0)
         case .addRowBelow:
             rows.insert(blankRow, at: r + 1)
-            return GridCell(row: r, column: c)
+            return GridCell(row: r + 1, column: 0)
         case .deleteRow:
             guard rows.count > 1 else { return GridCell(row: r, column: c) }
             rows.remove(at: r)
             return GridCell(row: min(r, rows.count - 1), column: c)
         case .addColumnBefore:
             insertColumn(at: c)
-            return GridCell(row: r, column: c + 1)
+            return GridCell(row: 0, column: c)
         case .addColumnAfter:
             insertColumn(at: c + 1)
-            return GridCell(row: r, column: c)
+            return GridCell(row: 0, column: c + 1)
         case .deleteColumn:
             guard columns > 1 else { return GridCell(row: r, column: c) }
             removeColumn(at: c)
@@ -345,6 +368,27 @@ struct GridHandles: Equatable {
 final class GridHitBox {
     static let space = "gridHost"
     var targets: [GridLine: CGRect] = [:]
+    /// The add-a-row and add-a-column bars, while they show (see GridMetrics.growBelow).
+    var adds: [GridAdd: CGRect] = [:]
+
+    /// Whether a click or tap at `p` (host coordinates) is the table's. The bands around the table
+    /// (the reach above, the grow strips right and below) are only where a handle or bar is in
+    /// them; elsewhere the text under them takes it.
+    func takes(_ p: CGPoint, in size: CGSize) -> Bool {
+        guard CGRect(origin: .zero, size: size).contains(p) else { return false }
+        if p.y >= GridMetrics.reach, p.y < size.height - GridMetrics.growBelow, p.x < size.width - GridMetrics.growRight { return true }
+        return targets.values.contains { $0.contains(p) } || adds.values.contains { $0.contains(p) }
+    }
+}
+
+/// The bars that add a row at the bottom or a column at the end: Add Row Below on the last row,
+/// Add Column After on the last column, so the caret lands the same way.
+enum GridAdd: Hashable {
+    case row, column
+    var action: TableAction { self == .row ? .addRowBelow : .addColumnAfter }
+    func from(_ t: GridTable) -> GridCell {
+        self == .row ? GridCell(row: t.rows.count - 1, column: 0) : GridCell(row: 0, column: max(t.columns - 1, 0))
+    }
 }
 
 /// A table's menu as shown: for a handle (`line`), or for the whole table from the toolbar.
@@ -452,9 +496,10 @@ struct TableGridView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let available = geo.size.width - GridMetrics.handle
+            let available = geo.size.width - GridMetrics.handle - GridMetrics.growRight
             let widths = draft.columnWidths(available: available)
             let total = widths.reduce(0, +)
+            ZStack(alignment: .topLeading) {
             ScrollView(.horizontal) {
                 content(widths: widths)
                     .frame(width: GridMetrics.handle + total, alignment: .leading)
@@ -465,6 +510,22 @@ struct TableGridView: View {
             // reads as "scroll for more", not as clipped.
             .onScrollGeometryChange(for: GridOverflow.self) { GridOverflow($0) } action: { _, new in overflow = new }
             .mask { GridOverflow.Fade(overflow: overflow) }
+            .frame(width: geo.size.width - GridMetrics.growRight, height: geo.size.height - GridMetrics.growBelow)
+            if isEditing {
+                let shown = min(total, available)
+                let top = GridMetrics.reach + GridMetrics.handle
+                if GridMetrics.growRight > 0 {
+                    addBar(.column)
+                        .frame(width: GridMetrics.growRight - 4, height: CGFloat(draft.rows.count) * GridMetrics.row)
+                        .padding(.leading, GridMetrics.handle + shown + 4)
+                        .padding(.top, top)
+                }
+                addBar(.row)
+                    .frame(width: shown, height: GridMetrics.growBelow - 4)
+                    .padding(.leading, GridMetrics.handle)
+                    .padding(.top, top + CGFloat(draft.rows.count) * GridMetrics.row + 4)
+            }
+            }
         }
         .coordinateSpace(.named(GridHitBox.space))
         .onChange(of: table) { _, new in
@@ -498,7 +559,21 @@ struct TableGridView: View {
             }
             if new == wanted { wanted = nil }
             if let new, new != editing { editing = new }
-            if let new { controller?.tableFocused(grid: table.index, cell: new) }
+            if let new {
+                controller?.tableFocused(grid: table.index, cell: new)
+                // Editing commands (bold, a link, the Format panel) act on this cell now.
+                let binding = cellBinding(new.row, new.column)
+                controller?.cell = CellHost(grid: table.index, cell: new, read: { binding.wrappedValue }, selected: {
+                    CellField.selection() ?? NSRange(location: (binding.wrappedValue as NSString).length, length: 0)
+                }, write: { edit in
+                    let now = binding.wrappedValue as NSString
+                    guard NSMaxRange(edit.range) <= now.length else { return }
+                    binding.wrappedValue = now.replacingCharacters(in: edit.range, with: edit.replacement)
+                    let after = edit.selection ?? NSRange(location: max(edit.caret, 0), length: 0)
+                    // Once the field shows the new text.
+                    DispatchQueue.main.async { CellField.select(after) }
+                })
+            }
             guard caretToEnd else { return }
             caretToEnd = false
             let caret = caretAt
@@ -536,6 +611,7 @@ struct TableGridView: View {
                 // The strip the row handles sit in.
                 Color.clear.frame(width: GridMetrics.handle)
                 grid(widths: widths)
+                    .overlay(alignment: .topLeading) { panelCross(widths: widths) }
                     .overlay(alignment: .topLeading) { pickedTint(widths: widths) }
             }
         }
@@ -554,6 +630,41 @@ struct TableGridView: View {
 
     private static let contentSpace = "gridContent"
 
+    /// A thin bar with a plus: a click adds a row at the bottom or a column at the end, and the
+    /// keyboard goes to its first cell, like Tab or Return past the last cell.
+    private func addBar(_ kind: GridAdd) -> some View {
+        // Thin to look at, against the table's edge; the whole strip takes the tap.
+        Button { add(kind) } label: {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(.fill.tertiary)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: kind == .column ? GridMetrics.bar : .infinity, maxHeight: kind == .row ? GridMetrics.bar : .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .hoverHighlight(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(GridHitBox.space)) } action: { box?.adds[kind] = $0 }
+        .onDisappear { box?.adds[kind] = nil }
+        .accessibilityLabel(kind == .row ? "Add row" : "Add column")
+        .accessibilityIdentifier(kind == .row ? "grid.add.row" : "grid.add.column")
+    }
+
+    private func add(_ kind: GridAdd) {
+        if let controller {
+            controller.addToTable(kind, grid: table.index)
+        } else {
+            let cell = draft.perform(kind.action, at: kind.from(draft))
+            commit(draft)
+            go(cell)
+        }
+    }
+
     private func grip(_ g: GridHandles.Grip, handles: GridHandles) -> some View {
         let horizontal = if case .column = g.line { true } else { false }
         let picked = self.picked == g.line
@@ -562,12 +673,14 @@ struct TableGridView: View {
         case .column(let c): columnHandleLabel(c)
         }
         return ZStack {
+            // Big and dark enough to be seen (Emil, 1 November 2026: "what about these small
+            // things?"; they were 14 by 24 on the lightest fill).
             Image(systemName: "ellipsis")
                 .rotationEffect(.degrees(horizontal ? 0 : 90))
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(picked ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
-                .frame(width: horizontal ? 28 : 14, height: horizontal ? 14 : 24)
-                .background(picked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill.secondary), in: .capsule)
+                .frame(width: horizontal ? GridMetrics.grip.height : GridMetrics.grip.width, height: horizontal ? GridMetrics.grip.width : GridMetrics.grip.height)
+                .background(picked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill), in: .capsule)
                 .hoverHighlight(Capsule())
                 .position(x: g.center.x - g.hit.minX, y: g.center.y - g.hit.minY)
         }
@@ -595,6 +708,32 @@ struct TableGridView: View {
         guard let f = focus ?? wanted else { return }
         qaTrace("grid pick \(line) from \(f)")
         controller?.pickTableLine(line, grid: table.index, cell: f)
+    }
+
+    /// While the Table panel is up: the row and the column its actions act on, tinted lightly,
+    /// so the cell where they cross reads strongest (Emil, 1 November 2026).
+    private var panelCell: GridCell? {
+        guard controller?.tablePanelShown == true, let t = controller?.table, t.grid == table.index, t.selected == nil else { return nil }
+        return focus ?? wanted ?? t.cell
+    }
+
+    @ViewBuilder
+    private func panelCross(widths: [CGFloat]) -> some View {
+        if let c = panelCell, c.row < draft.rows.count, c.column < widths.count {
+            let tint = Color.accentColor.opacity(0.12)
+            ZStack(alignment: .topLeading) {
+                Rectangle().fill(tint)
+                    .frame(width: widths.reduce(0, +), height: GridMetrics.row)
+                    .offset(y: CGFloat(c.row) * GridMetrics.row)
+                Rectangle().fill(tint)
+                    .frame(width: widths[c.column], height: CGFloat(draft.rows.count) * GridMetrics.row)
+                    .offset(x: widths[..<c.column].reduce(0, +))
+            }
+            .allowsHitTesting(false)
+            .accessibilityElement()
+            .accessibilityIdentifier("grid.cross")
+            .accessibilityValue("row \(c.row), column \(c.column)")
+        }
     }
 
     /// The picked row or column, tinted like selected text.
@@ -627,8 +766,8 @@ struct TableGridView: View {
                         cell(r, c, cols: cols, width: widths[c])
                             .frame(width: widths[c], height: GridMetrics.row)
                             .overlay(alignment: .trailing) {
-                                // D (reading page): rows only, no columns of lines.
-                                if c < cols - 1 && !DesignLook.readingPage { Rectangle().fill(border).frame(width: 1) }
+                                // D (reading page) had rows only, and an empty column had no edge.
+                                if c < cols - 1 && showsColumnLines { Rectangle().fill(border.opacity(DesignLook.readingPage ? 0.6 : 1)).frame(width: 1) }
                             }
                             .accessibilityIdentifier("grid.\(r).\(c)")
                             // VoiceOver: which column you're in, then where in the table.
@@ -730,7 +869,7 @@ struct TableGridView: View {
             // Only the cell being edited is a text field; the rest are plain text,
             // which keeps big tables quick to open. A click edits, caret where you clicked.
             let value = r < draft.rows.count && c < draft.rows[r].count ? draft.rows[r][c] : ""
-            Text(value.isEmpty ? " " : value)
+            Text(value.isEmpty ? AttributedString(" ") : CellText.attributed(value))
                 .font(.system(size: EditorMetrics.body))
                 .monospacedDigit()
                 .lineLimit(1)
@@ -827,7 +966,11 @@ struct TableGridView: View {
     /// table silently loses the keyboard and the next arrow key goes nowhere.
     private func land(_ cell: GridCell, tries: Int = 100) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-            guard wanted == cell, focus != cell else { return }
+            guard wanted == cell else { return }
+            // Asked for the cell that already has the keyboard (Checklist in a header): no focus
+            // change comes to clear the ask, and a kept ask pulled the keyboard back after Hide
+            // keyboard.
+            if focus == cell { wanted = nil; return }
             qaTrace("grid land \(cell), focus \(String(describing: focus)), \(tries) tries left")
             focus = cell
             if tries > 0 { land(cell, tries: tries - 1) }
@@ -837,6 +980,15 @@ struct TableGridView: View {
     /// Grid lines get firmer with Increase Contrast.
     /// The cells' edges: grey, or in the candidates (DesignLook) the warm muted ink, so the grid
     /// sits in the page's warmth instead of on it.
+    /// A cell has the keyboard (or is about to): the table shows its tools.
+    private var isEditing: Bool { focus != nil || wanted != nil }
+
+    /// Column lines: always in the older looks. On the reading page only while a cell is being
+    /// edited: at rest a table reads as part of the page, and in it you see its columns. With rows
+    /// only, a new table's empty column had no edge (Emil, 1 November 2026: "why are there no
+    /// vertical lines?"; round 1 compared rows only, always and while editing).
+    private var showsColumnLines: Bool { !DesignLook.readingPage || isEditing }
+
     private var border: Color {
         DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
     }
@@ -880,6 +1032,47 @@ struct TableGridView: View {
         go(GridCell(row: f.row + 1, column: f.column))
     }
 
+}
+
+/// The cell being edited's own text field: its selection, read and set (the editing commands
+/// act on it; see CellHost).
+@MainActor
+enum CellField {
+    #if os(iOS)
+    private static func field() -> UITextField? {
+        func find(_ v: UIView) -> UITextField? {
+            if let f = v as? UITextField, f.isFirstResponder { return f }
+            for s in v.subviews { if let f = find(s) { return f } }
+            return nil
+        }
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        return windows.lazy.compactMap(find).first
+    }
+
+    static func selection() -> NSRange? {
+        guard let f = field(), let r = f.selectedTextRange else { return nil }
+        let start = f.offset(from: f.beginningOfDocument, to: r.start)
+        return NSRange(location: start, length: f.offset(from: r.start, to: r.end))
+    }
+
+    static func select(_ range: NSRange) {
+        guard let f = field(), let a = f.position(from: f.beginningOfDocument, offset: range.location),
+              let b = f.position(from: a, offset: range.length) else { return }
+        f.selectedTextRange = f.textRange(from: a, to: b)
+    }
+    #else
+    private static func editor() -> NSTextView? {
+        let windows = [NSApp.keyWindow].compactMap { $0 } + NSApp.windows
+        return windows.lazy.compactMap { $0.firstResponder as? NSTextView }.first { $0.isFieldEditor }
+    }
+
+    static func selection() -> NSRange? { editor()?.selectedRange() }
+
+    static func select(_ range: NSRange) {
+        guard let e = editor(), NSMaxRange(range) <= (e.string as NSString).length else { return }
+        e.setSelectedRange(range)
+    }
+    #endif
 }
 
 /// Development traces for the QA harness; compiled out of real builds.

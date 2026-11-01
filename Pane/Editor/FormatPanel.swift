@@ -166,6 +166,71 @@ private struct Segment: View {
     }
 }
 
+/// The table's own panel, in the keyboard's place like Format (Emil, 1 November 2026: "the table
+/// formatting panel should be like the Aa formatting sheet"): "Table" and a close button, then a
+/// Row pill and a Column pill of glyphs like Format's B I U S (add before, add after, delete), and
+/// Delete Table. More table options go in as more rows of pills, as in Format.
+/// A choice closes the panel, so the keyboard is back for what it made.
+struct TablePanel: View {
+    let controller: EditorController
+
+    var body: some View {
+        let menu = controller.currentTableMenu
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Table")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Color.formatInk)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button { controller.closeTablePanel() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.formatInk)
+                        .frame(width: FormatPanel.closeSize, height: FormatPanel.closeSize)
+                        .background(Color.formatPill, in: Circle())
+                        .padding(4)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(PressScale())
+                .accessibilityLabel("Close")
+                .accessibilityIdentifier("table.close")
+                .padding(-4)
+            }
+            .frame(height: FormatPanel.closeSize)
+            HStack(alignment: .top, spacing: FormatPanel.gap) {
+                TableSegments(name: "Row", actions: [.addRowAbove, .addRowBelow, .deleteRow], menu: menu, run: controller.runTablePanel)
+                TableSegments(name: "Column", actions: [.addColumnBefore, .addColumnAfter, .deleteColumn], menu: menu, run: controller.runTablePanel)
+            }
+            deleteTable(menu)
+        }
+        .padding(.horizontal, FormatPanel.inset)
+        .padding(.top, FormatPanel.inset)
+        .padding(.bottom, 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("table.panel")
+    }
+
+    /// Delete Table on a pill of its own, the width of the panel.
+    @ViewBuilder
+    private func deleteTable(_ menu: TableMenu?) -> some View {
+        if let item = menu?.item("Delete Table") {
+            Button { controller.runTablePanel(item) } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "trash").font(.system(size: 17, weight: .medium))
+                    Text("Delete Table").font(.system(size: 15, weight: .medium))
+                }
+                .foregroundStyle(Color.red)
+                .frame(maxWidth: .infinity, minHeight: FormatPanel.pillHeight)
+                .background(Color.formatPill, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(PressScale())
+            .accessibilityLabel("Delete Table")
+        }
+    }
+}
+
 /// How the panel and the keyboard change places. Normally they trade places on the keyboard's own
 /// curve and timing (the system's keyboard move); with Reduce Motion one fades into the other.
 enum FormatPanelMotion: Equatable {
@@ -183,10 +248,11 @@ enum FormatPanelMotion: Equatable {
 /// Hosts the panel as the text view's input view: it takes the keyboard's place, so the caret
 /// and the selection stay in the text while it's up.
 final class FormatPanelHost: UIInputView {
-    private let host: UIHostingController<FormatPanel>
+    private let host: UIHostingController<AnyView>
 
-    init(controller: EditorController) {
-        host = UIHostingController(rootView: FormatPanel(controller: controller))
+    /// `table`: the Table panel instead of Format.
+    init(controller: EditorController, table: Bool = false) {
+        host = UIHostingController(rootView: table ? AnyView(TablePanel(controller: controller)) : AnyView(FormatPanel(controller: controller)))
         super.init(frame: CGRect(x: 0, y: 0, width: 390, height: 300), inputViewStyle: .default)
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
         backgroundColor = .clear
@@ -240,5 +306,91 @@ extension Color {
     static let formatOnGlyph = Color(Palette.rgb(Palette.Format.onGlyph))
     /// A control that can't act here (indent on a plain line).
     static let formatOff = Color(UIColor { $0.userInterfaceStyle == .dark ? Palette.muted.resolvedColor(with: $0).withAlphaComponent(0.55) : .tertiaryLabel })
+}
+
+/// A small table drawn for a row or column action (Emil, 1 November 2026: arrows and a trash can
+/// said too little). Three rows and three columns; the band where it happens is filled (at the edge
+/// where a new row or column goes, the middle one for a delete), with a plus or a minus badge in
+/// the corner so adding and deleting never look alike. It takes the button's colour.
+struct TableGlyph: View {
+    let action: TableAction
+    var size = CGSize(width: 20, height: 16)
+
+    var body: some View {
+        Canvas { ctx, size in
+            let r = max(4, size.height * 0.27)
+            // The table leaves the badge's corner free.
+            let rect = CGRect(x: 0.75, y: 0.75, width: size.width - r - 1.5, height: size.height - r - 1.5)
+            let w = rect.width / 3, h = rect.height / 3
+            let band: CGRect = switch action {
+            case .addRowAbove: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: h)
+            case .addRowBelow: CGRect(x: rect.minX, y: rect.maxY - h, width: rect.width, height: h)
+            case .deleteRow: CGRect(x: rect.minX, y: rect.minY + h, width: rect.width, height: h)
+            case .addColumnBefore: CGRect(x: rect.minX, y: rect.minY, width: w, height: rect.height)
+            case .addColumnAfter: CGRect(x: rect.maxX - w, y: rect.minY, width: w, height: rect.height)
+            case .deleteColumn: CGRect(x: rect.minX + w, y: rect.minY, width: w, height: rect.height)
+            }
+            let ink = GraphicsContext.Shading.foreground
+            ctx.fill(Path(band), with: ink)
+            var lines = Path()
+            for i in 1...2 {
+                lines.move(to: CGPoint(x: rect.minX + w * CGFloat(i), y: rect.minY))
+                lines.addLine(to: CGPoint(x: rect.minX + w * CGFloat(i), y: rect.maxY))
+                lines.move(to: CGPoint(x: rect.minX, y: rect.minY + h * CGFloat(i)))
+                lines.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + h * CGFloat(i)))
+            }
+            ctx.stroke(lines, with: ink, lineWidth: 1)
+            ctx.stroke(Path(roundedRect: rect, cornerRadius: 2.5), with: ink, lineWidth: 1.5)
+            // The badge: a disc cut out of the table's corner, a plus or a minus knocked out of it.
+            let c = CGPoint(x: size.width - r, y: size.height - r)
+            var cut = ctx
+            cut.blendMode = .clear
+            cut.fill(Path(ellipseIn: CGRect(x: c.x - r - 1.5, y: c.y - r - 1.5, width: 2 * r + 3, height: 2 * r + 3)), with: .color(.black))
+            ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: ink)
+            var mark = Path()
+            let k = r * 0.55
+            mark.move(to: CGPoint(x: c.x - k, y: c.y)); mark.addLine(to: CGPoint(x: c.x + k, y: c.y))
+            if !action.isDestructive { mark.move(to: CGPoint(x: c.x, y: c.y - k)); mark.addLine(to: CGPoint(x: c.x, y: c.y + k)) }
+            cut.stroke(mark, with: .color(.black), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+        }
+        .frame(width: size.width, height: size.height)
+        .accessibilityHidden(true)
+    }
+}
+
+/// One pill of three glyphs, the Format panel's B I U S kind, its name under it (Emil picked it
+/// from four, 1 November 2026: it has room for more table options).
+private struct TableSegments: View {
+    let name: String
+    let actions: [TableAction]
+    let menu: TableMenu?
+    let run: (TableMenu.Item) -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                ForEach(actions, id: \.self) { action in
+                    if let item = menu?.item(action.title) {
+                        Button { run(item) } label: {
+                            TableGlyph(action: action, size: CGSize(width: 26, height: 21))
+                                .foregroundStyle(!item.enabled ? Color.formatOff : item.destructive ? Color.red : Color.formatInk)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(PressScale())
+                        .disabled(!item.enabled)
+                        .accessibilityLabel(item.title)
+                    }
+                }
+            }
+            .padding(4)
+            .frame(height: FormatPanel.pillHeight)
+            .background(Color.formatPill, in: Capsule())
+            Text(name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.formatInk.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity)
+    }
 }
 #endif

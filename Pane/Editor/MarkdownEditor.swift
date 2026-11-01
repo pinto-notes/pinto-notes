@@ -51,7 +51,7 @@ final class EditorCore {
     private(set) var slides: [ReorderSlide.Running] = []
     private var lastActiveLine: NSRange?
     /// Each table's handle targets, by its index (see GridHitBox).
-    private(set) var gridBoxes: [Int: GridHitBox] = [:]
+    var gridBoxes: [Int: GridHitBox] = [:]
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
@@ -66,7 +66,13 @@ final class EditorCore {
         let line = ns.lineRange(for: NSRange(location: min(selection.location, ns.length), length: 0))
         let empty = ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let at = empty ? line.location : NSMaxRange(line)
-        let lead = empty || ns.substring(with: line).hasSuffix("\n") ? "" : "\n"
+        var lead = empty || ns.substring(with: line).hasSuffix("\n") ? "" : "\n"
+        // Straight under a line of text, markdown reads that line as part of the table: it was
+        // drawn bold in the header's fill (Emil's table walkthrough, 1 November 2026). A blank
+        // line keeps it text, here and in any other markdown app.
+        if at > 0, !ns.substring(with: ns.lineRange(for: NSRange(location: at - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lead += "\n"
+        }
         let body = lead + "|  |  |\n| --- | --- |\n|  |  |\n"
         let index = GridTable.find(in: ns.substring(to: at)).count
         // The caret ends up after the table, so the table isn't shown as source.
@@ -117,6 +123,9 @@ final class EditorCore {
             // The handle targets' reach over the line above (iPhone; see GridMetrics.reach).
             f.origin.y -= GridMetrics.reach
             f.size.height += GridMetrics.reach
+            // The add bars' strips, right of and below the table (GridMetrics.growRight, growBelow).
+            f.size.width += GridMetrics.growRight
+            f.size.height += GridMetrics.growBelow
             let request = gridFocus?.grid == g.index ? gridFocus : nil
             let isSelected = armedGrid == g.index
             let box = gridBoxes[g.index] ?? GridHitBox()
@@ -633,15 +642,14 @@ private struct PlatformEditor: UIViewRepresentable {
     }
 }
 
-/// Holds a table's view. Its top `GridMetrics.reach` points lie over the line above the table: a
-/// tap there is the table's only on a handle's target, otherwise it goes to the text.
+/// Holds a table's view. Its top `GridMetrics.reach` points lie over the line above the table, and
+/// its add bars' strips over the margin and the space below: a tap there is the table's only on a
+/// handle's target or a bar, otherwise it goes to the text.
 final class GridHolder: UIView {
     var box: GridHitBox?
 
     override func point(inside p: CGPoint, with event: UIEvent?) -> Bool {
-        guard bounds.contains(p) else { return false }
-        if p.y >= GridMetrics.reach { return true }
-        return box?.targets.values.contains { $0.contains(p) } ?? false
+        box?.takes(p, in: bounds.size) ?? bounds.contains(p)
     }
 }
 
@@ -652,7 +660,23 @@ final class GridHolder: UIView {
 @MainActor
 final class TableMenuPresenter {
     private weak var view: UIView?
-    private let button = UIButton(type: .custom)
+    private let button = MenuButton(type: .custom)
+
+    /// Says when its menu has closed.
+    private final class MenuButton: UIButton {
+        var closed: (() -> Void)?
+        override func contextMenuInteraction(_ interaction: UIContextMenuInteraction, willEndFor configuration: UIContextMenuConfiguration,
+                                             animator: (any UIContextMenuInteractionAnimating)?) {
+            super.contextMenuInteraction(interaction, willEndFor: configuration, animator: animator)
+            if let animator { animator.addCompletion { [weak self] in self?.closed?() } } else { closed?() }
+        }
+    }
+
+    /// The menu closed (an item chosen or not).
+    var closed: (() -> Void)? {
+        get { button.closed }
+        set { button.closed = newValue }
+    }
 
     init(view: UIView) {
         self.view = view
@@ -823,7 +847,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     /// The welcome before sign-in never takes focus, so no keyboard or keyboard bar comes up.
-    override var canBecomeFirstResponder: Bool { controller?.inert == true ? false : super.canBecomeFirstResponder }
+    override var canBecomeFirstResponder: Bool {
+        controller?.inert == true || puttingKeyboardAway ? false : super.canBecomeFirstResponder
+    }
+    /// Set while Hide keyboard puts a cell's keyboard away: UIKit hands a field's keyboard to its
+    /// nearest ancestor that takes it, and that's this text view, so the keyboard stayed and the
+    /// caret jumped to the end of the note (Emil's table walkthrough, 1 November 2026).
+    private var puttingKeyboardAway = false
 
     func showRemoteCarets(_ carets: [RemoteCaret]) {
         guard carets != remoteCarets else { return }
@@ -996,8 +1026,22 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Into the text first, so the edit goes through the text view's own undo.
         selectedRange = NSRange(location: EditorCore.caretOutside(g.range, in: text), length: 0)
         becomeFirstResponder()
+        dropGrids(from: index)
         apply(edit)
         layoutCards()
+    }
+
+    /// Tables' views are kept by position: with one deleted, the next table took over its view,
+    /// cell with the keyboard and all, and the keyboard jumped into it (Emil's table walkthrough,
+    /// 1 November 2026). The views from `index` on are made anew.
+    private func dropGrids(from index: Int) {
+        for (k, host) in cardHosts {
+            guard k.hasPrefix("g"), let i = Int(k.dropFirst()), i >= index else { continue }
+            (gridHolders[k] ?? host.view).removeFromSuperview()
+            cardHosts[k] = nil
+            gridHolders[k] = nil
+            core.gridBoxes[i] = nil
+        }
     }
 
     func undoLastEdit() {
@@ -1046,11 +1090,47 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     /// The table toolbar over the keyboard while a cell has it.
-    private lazy var tableBar = FormatBarHost(controller: controller ?? EditorController(), inTable: true) {
+    private lazy var tableBar = FormatBarHost(controller: controller ?? EditorController(), inTable: true) { [weak self] in
+        self?.puttingKeyboardAway = true
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        self?.puttingKeyboardAway = false
     }
 
     func gridFieldFocused() { giveTableBar(tries: 20) }
+
+    /// The Table panel, in the cell's keyboard's place.
+    private var tablePanel: FormatPanelHost?
+
+    func tablePanelChanged(shown: Bool) {
+        guard let controller else { return }
+        if shown, tablePanel == nil { tablePanel = FormatPanelHost(controller: controller, table: true) }
+        cellPanel(shown ? tablePanel : nil)
+    }
+
+    /// A panel is up in a cell's keyboard's place.
+    private var cellPanelUp = false
+
+    /// Puts `panel` in the place of the cell's keyboard (nil: the keyboard and the table bar back).
+    /// The cell keeps its caret and selection meanwhile, as the note does under Format.
+    private func cellPanel(_ panel: UIView?) {
+        // The field the panel went on is the one it comes off, even if the cell's focus moved
+        // for a moment meanwhile (the panel stayed up with Close doing nothing).
+        let found = gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first
+        if panel == nil, let old = panelField, old !== found {
+            old.inputView = nil
+            old.inputAccessoryView = tableBar
+            old.reloadInputViews()
+        }
+        guard let field = found else { cellPanelUp = false; panelField = nil; return }
+        cellPanelUp = panel != nil
+        panelField = panel == nil ? nil : field
+        field.inputView = panel
+        // An empty bar over the panel: with none, the note's own bar showed there.
+        field.inputAccessoryView = panel == nil ? tableBar : noBar
+        field.reloadInputViews()
+    }
+    private weak var panelField: UITextField?
+    private lazy var noBar = UIView(frame: .zero)
 
     /// The cell's field is made as it takes the keyboard, a turn or more after the table asks for
     /// it: the bar goes on it once it has the keyboard. A row or column added or deleted makes the
@@ -1060,7 +1140,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             guard let self else { return }
             // Keeps looking for the whole second: the old cell's field can still have the keyboard
             // on the first looks, the new one after.
-            if let field = self.gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first,
+            if !self.cellPanelUp, let field = self.gridHolders.values.lazy.compactMap({ Self.firstResponder(in: $0) }).first,
                field.inputAccessoryView !== self.tableBar {
                 field.inputAccessoryView = self.tableBar
                 field.reloadInputViews()
@@ -1075,7 +1155,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         return nil
     }
 
-    private lazy var tableMenus = TableMenuPresenter(view: self)
+    private lazy var tableMenus: TableMenuPresenter = {
+        let p = TableMenuPresenter(view: self)
+        // With a handle's menu closed the cell's keyboard came back without the table bar (no
+        // Table button, no Hide keyboard; Emil's table walkthrough, 1 November 2026): put it back.
+        p.closed = { [weak self] in self?.giveTableBar(tries: 20) }
+        return p
+    }()
 
     func showTableMenu(_ menu: TableMenu) {
         guard let line = menu.line, let holder = gridHolders["g\(menu.grid)"], let r = core.gridBoxes[menu.grid]?.targets[line] else { return }
@@ -1151,6 +1237,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// selection, and the bar above the keyboard goes while it's up. Closed, the keyboard is back.
     func formatPanelChanged(shown: Bool) {
         guard let controller else { return }
+        // In a table cell the panel takes the cell's keyboard's place, not the note's.
+        if controller.cell != nil || cellPanelUp {
+            cellPanel(shown ? (formatPanel ?? { formatPanel = FormatPanelHost(controller: controller); return formatPanel! }()) : nil)
+            return
+        }
         if shown {
             if formatPanel == nil { formatPanel = FormatPanelHost(controller: controller) }
             if inputAccessoryView !== nil { keyboardBar = inputAccessoryView }
@@ -1800,6 +1891,19 @@ private struct PlatformEditor: NSViewRepresentable {
     }
 }
 
+/// A table's view on the Mac. Its add bars' strips lie over the margin and the space below the
+/// table: a click there is the table's only on a bar, otherwise it goes to the text.
+final class GridHostingView: NSHostingView<AnyView> {
+    var box: GridHitBox?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        var p = convert(point, from: superview)
+        if !isFlipped { p.y = bounds.height - p.y }
+        if let box, !box.takes(p, in: bounds.size) { return nil }
+        return super.hitTest(point)
+    }
+}
+
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     let core = EditorCore()
     weak var controller: EditorController?
@@ -1995,7 +2099,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         for item in items {
             let host = cardHosts[item.key] ?? {
-                let h = NSHostingView(rootView: item.view)
+                let h: NSHostingView<AnyView>
+                if case .grid(let g, _, _) = item.content {
+                    let grid = GridHostingView(rootView: item.view)
+                    grid.box = core.gridBoxes[g.index]
+                    h = grid
+                } else {
+                    h = NSHostingView(rootView: item.view)
+                }
                 h.sizingOptions = []
                 h.frame = item.frame
                 addSubview(h)
@@ -2492,9 +2603,23 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         window?.makeFirstResponder(self)
         // One step of Undo, whatever was typed just before.
         breakUndoCoalescing()
+        dropGrids(from: index)
         apply(edit)
         breakUndoCoalescing()
         layoutCards()
+    }
+
+    /// Tables' views are kept by position: with one deleted, the next table took over its view,
+    /// cell with the keyboard and all (Emil's table walkthrough, 1 November 2026). The views from
+    /// `index` on are made anew.
+    private func dropGrids(from index: Int) {
+        for (k, host) in cardHosts {
+            guard k.hasPrefix("g"), let i = Int(k.dropFirst()), i >= index else { continue }
+            host.removeFromSuperview()
+            cardHosts[k] = nil
+            cardContent[k] = nil
+            core.gridBoxes[i] = nil
+        }
     }
 
     func undoLastEdit() {
