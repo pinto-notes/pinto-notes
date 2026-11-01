@@ -72,6 +72,9 @@ final class TableEditingUITests: XCTestCase {
         pause()
         shot("row-selected")
         closeMenu()
+        // The table bar is back over the keyboard once the handle's menu has closed.
+        XCTAssertTrue(element("editor.tableMenu").waitForExistence(timeout: 3), "the Table button is back after the row's menu")
+        XCTAssertTrue(element("editor.done").exists, "Hide keyboard is back after the row's menu")
 
         // A tap at the top edge of the column handle's target, over the line above the table, picks the column.
         let column = element("grid.handle.column")
@@ -205,67 +208,56 @@ final class TableEditingUITests: XCTestCase {
         }
     }
 
-    /// The whole experience for a recording (Emil, 11-01): read, type in a cell, move to the next,
-    /// pick a row and add one, scroll a wide table, and make a new table from the bar.
+    /// The whole experience for a recording (Emil, 1 November 2026): read, tap a cell (column
+    /// lines, grips, the add bar and the blue Table button show), type, add a row from the Table
+    /// button, add one from the bar, pick a row by its grip, put the keyboard away.
     func testWalkthrough() throws {
         XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15), "the note opens")
-        pause(2)
-        shot("walk-1-rest")
-        let cell = element("grid.2.1")
-        XCTAssertTrue(cell.waitForExistence(timeout: 5), "the table shows as a grid")
-        cell.tap()
+        pause(2.5)
+        element("grid.2.1").tap()
         let onboarding = app.buttons["Continue"].firstMatch
         if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
-        pause()
+        pause(2)
         app.typeText(" by train")
-        pause()
-        shot("walk-2-typing")
+        pause(1.2)
         element("grid.2.2").tap()
-        pause()
+        pause(0.8)
         app.typeText("0")
-        pause()
-        shot("walk-3-next-cell")
+        pause(1.5)
 
+        // The bar under the table: a row at the bottom.
+        let bar = element("grid.add.row")
+        XCTAssertTrue(bar.waitForExistence(timeout: 3) && bar.isHittable, "the add-row bar is on screen")
+        bar.tap()
+        pause(1)
+        app.typeText("Mon")
+        pause(1.5)
+
+        // The Table button: the table's menu. Add Row Below under Fri.
+        element("grid.1.1").tap()
+        pause(1)
+        element("editor.tableMenu").tap()
+        XCTAssertTrue(app.buttons["Add Row Below"].firstMatch.waitForExistence(timeout: 3))
+        pause(2.5)
+        app.buttons["Add Row Below"].firstMatch.tap()
+        pause(1)
+        app.typeText("Fri")
+        pause(0.6)
+        element("grid.2.1").tap()
+        pause(0.6)
+        app.typeText("Fado night")
+        pause(1.5)
+
+        // A row's grip: the row is picked, its menu shows.
         let row = element("grid.handle.row")
         XCTAssertTrue(row.waitForExistence(timeout: 3))
         row.tap()
-        XCTAssertTrue(app.buttons["Add Row Below"].firstMatch.waitForExistence(timeout: 3))
-        pause()
-        shot("walk-4-row-menu")
-        app.buttons["Add Row Below"].firstMatch.tap()
-        pause()
-        shot("walk-5a-row-added-caret")
-        element("grid.3.0").tap()
-        pause(0.5)
-        app.typeText("Mon")
-        pause()
-        shot("walk-5-row-added")
+        pause(2.5)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        pause(1)
 
-        // The wide table, keyboard down: swipe its columns along.
         element("editor.done").tap()
-        pause()
-        let wide = app.descendants(matching: .any).matching(identifier: "grid.1.1").element(boundBy: 1)
-        if wide.waitForExistence(timeout: 2) {
-            wide.swipeLeft()
-            pause()
-            shot("walk-6-wide-scrolled")
-        }
-
-        // Out of the table, onto the last line, and a new table from the bar's Table button.
-        let editor = app.textViews["editor"]
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)).tap()
-        pause()
-        let insert = app.buttons["Table"].firstMatch
-        if insert.waitForExistence(timeout: 3) {
-            insert.tap()
-            pause()
-            app.typeText("Item")
-            pause()
-            shot("walk-7-new-table")
-        }
-        element("editor.done").tap()
-        pause()
-        shot("walk-8-done")
+        pause(2.5)
     }
 }
 #endif

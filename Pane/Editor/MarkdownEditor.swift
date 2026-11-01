@@ -660,7 +660,23 @@ final class GridHolder: UIView {
 @MainActor
 final class TableMenuPresenter {
     private weak var view: UIView?
-    private let button = UIButton(type: .custom)
+    private let button = MenuButton(type: .custom)
+
+    /// Says when its menu has closed.
+    private final class MenuButton: UIButton {
+        var closed: (() -> Void)?
+        override func contextMenuInteraction(_ interaction: UIContextMenuInteraction, willEndFor configuration: UIContextMenuConfiguration,
+                                             animator: (any UIContextMenuInteractionAnimating)?) {
+            super.contextMenuInteraction(interaction, willEndFor: configuration, animator: animator)
+            if let animator { animator.addCompletion { [weak self] in self?.closed?() } } else { closed?() }
+        }
+    }
+
+    /// The menu closed (an item chosen or not).
+    var closed: (() -> Void)? {
+        get { button.closed }
+        set { button.closed = newValue }
+    }
 
     init(view: UIView) {
         self.view = view
@@ -1105,7 +1121,13 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         return nil
     }
 
-    private lazy var tableMenus = TableMenuPresenter(view: self)
+    private lazy var tableMenus: TableMenuPresenter = {
+        let p = TableMenuPresenter(view: self)
+        // With a handle's menu closed the cell's keyboard came back without the table bar (no
+        // Table button, no Hide keyboard; Emil's table walkthrough, 1 November 2026): put it back.
+        p.closed = { [weak self] in self?.giveTableBar(tries: 20) }
+        return p
+    }()
 
     func showTableMenu(_ menu: TableMenu) {
         guard let line = menu.line, let holder = gridHolders["g\(menu.grid)"], let r = core.gridBoxes[menu.grid]?.targets[line] else { return }
