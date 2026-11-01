@@ -5,7 +5,7 @@
 //   README.txt   what's in the zip
 //
 // Notes are end-to-end encrypted: the server can't read them, so the notes themselves are exported
-// by the app on the device (Settings › Privacy & Security). data.json lists them by id, folder and
+// by the app on the device (Settings › Account). data.json lists them by id, folder and
 // date, without their encrypted text, which nobody but the account's devices can open.
 import { strToU8, zipSync } from "npm:fflate@0.8.3";
 import type { Sql } from "npm:postgres@3.4.5";
@@ -22,7 +22,7 @@ onboarding emails we sent you, and your current sign-ins.
 
 Your notes, folder names, file names and files are encrypted on your devices, so the export of
 your notes is made there and they aren't in this file. To take your notes with you, open
-Pinto Notes and choose Settings > Privacy & Security > Export Your Notes.
+Pinto Notes and choose Settings > Account > Export Your Notes.
 
 Access tokens and passwords are never stored in readable form, so they aren't included.
 

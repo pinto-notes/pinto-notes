@@ -129,7 +129,7 @@ export default function PrivacySecurity() {
 
           <SectionHeading id="your-data">Your data, your choice</SectionHeading>
           <ul>
-            <li><strong>Export:</strong> Settings → Privacy &amp; Security → Export Your Notes makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. For everything else we keep about you, write to us.</li>
+            <li><strong>Export:</strong> Settings → Account → Export Your Notes makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. For everything else we keep about you, write to us.</li>
             <li><strong>Delete:</strong> Settings → Delete Account deletes your account and everything in it from our server at once: notes, files, versions, AI connections, share links and usage counts.</li>
             <li><strong>Deleted notes</strong> stay in Recently Deleted for 30 days, then they&apos;re gone for good.</li>
             <li>

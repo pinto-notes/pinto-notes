@@ -68,11 +68,10 @@ So the Mac release of 1.2 turns the QR page on for everyone, iPhone included. Ru
 
 Text outside the app that names a Settings path the app changed. It describes the app people have now, so change it once the new app is public, then delete the item here.
 
-- **Settings tabs (#255):** the Privacy & Security section is now the Security tab, and Export Your Notes moved to Account.
-  - `web/content/privacy-policy.md` and `docs/privacy-policy.md`, two places: "Settings → Privacy & Security (→ Export Your Notes)" becomes "Settings → Account → Export Your Notes". This is the privacy policy: show Emil, and update its "Last updated" date.
-  - `web/app/privacy-security/page.tsx`, Export: "Settings → Account → Export Your Notes".
-  - `web/app/blog/back-up-apple-notes/page.tsx` (Export: Settings, Account), `web/app/blog/connect-chatgpt-to-your-notes/page.tsx` and `web/app/blog/encrypted-notes-app-for-ai/page.tsx` (recovery key: Settings, Security).
-  - `supabase/functions/account/export.ts`: the README in the data export says "Settings > Privacy & Security > Export Your Notes"; it becomes "Settings > Account > Export Your Notes" (a function deploy).
+- **Security page and retired Advanced protection (1.3):** the blog still describes the old screens.
+  - `web/app/blog/encrypted-notes-app-for-ai/page.tsx`: "Turn on Advanced protection, in Settings, Security" (new turn-ons are retired) and the recovery key "from Settings, Security" (shown only without a Pinto Notes copy).
+  - `web/app/blog/connect-chatgpt-to-your-notes/page.tsx`: "pick Read and edit or Read only" (one Allow reads and edits since 10-29), and the recovery key "in Settings, Privacy & Security". Change it together with /connect, which still leads with the recovery key.
+  - `web/app/blog/back-up-apple-notes/page.tsx`: check its Export path says Settings, Account.
 
 ## Backend changes
 

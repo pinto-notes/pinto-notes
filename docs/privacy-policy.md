@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 29 October 2026
+Last updated: 2 November 2026
 
 ## The short version
 
@@ -17,7 +17,7 @@ Last updated: 29 October 2026
 - A note you lock is encrypted a second time with your notes password. Not us and not an AI can read its text.
 - A note you share can be read by anyone with its link, and by us, until you stop sharing.
 - Your data is stored in the European Union (Frankfurt, Germany).
-- **Settings → Privacy & Security** lets you export your notes, and **Settings → Delete Account** deletes your account and everything in it.
+- **Settings → Account** lets you export your notes, and **Settings → Delete Account** deletes your account and everything in it.
 - We keep as few logs as we can, for as short a time as we can. The section on logs lists every one.
 
 ## Who we are
@@ -277,7 +277,7 @@ Under the GDPR you can:
 - **access** your data and get a copy of it;
 - **correct** it (most of it you can edit directly in the app);
 - **delete** it, in the app with **Delete Account** or by asking us;
-- **take it with you:** **Settings → Privacy & Security → Export Your Notes** makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. Ask us for everything else we keep about you, and we'll send it as JSON;
+- **take it with you:** **Settings → Account → Export Your Notes** makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. Ask us for everything else we keep about you, and we'll send it as JSON;
 - **object** to processing based on legitimate interests, including the feature usage counts and the diagnostics and usage reports (which you can also turn off in Settings), or ask us to **restrict** it.
 
 Write to **hello@pintonotes.com**. We answer within one month. If you think we've handled your data wrongly, you can complain to the Swedish Authority for Privacy Protection (Integritetsskyddsmyndigheten, IMY) at imy.se, or to the data protection authority where you live.
