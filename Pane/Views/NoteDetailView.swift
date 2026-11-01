@@ -1516,6 +1516,9 @@ struct NoteToolbarStage<Pane: View>: View {
     var showsItems = true
     /// The notes opened before and after this one (back and forward).
     var history = OpenedNotes.Actions()
+    /// The list is hidden: the bar names the note's folder, which nothing else on screen does.
+    /// With the list showing, the note's row and the sidebar already say it (Emil, 11-01).
+    var showsFolder = false
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     /// The column's width, for lining the toolbar up with the note's text.
@@ -1566,7 +1569,7 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     if let place = shown.place {
                         ToolbarItem {
-                            NoteBarPlace(folder: place.folder, title: place.title, showsTitle: place.titleAway)
+                            NoteBarPlace(folder: showsFolder ? place.folder ?? "Notes" : nil, title: place.title, showsTitle: place.titleAway)
                                 .modifier(Unseen(off: off))
                         }
                         .sharedBackgroundVisibility(.hidden)
@@ -1594,8 +1597,8 @@ struct NoteToolbarStage<Pane: View>: View {
 #endif
 
 #if os(macOS)
-/// Where the note is: its folder, and its title once the title has scrolled out of view
-/// (the big title right below says it already).
+/// Where the note is: its folder when the list is hidden, and its title once the title has
+/// scrolled out of view (the big title right below says it already).
 struct NoteBarPlace: View {
     let folder: String?
     let title: String
@@ -1603,9 +1606,13 @@ struct NoteBarPlace: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Text(folder ?? "Notes").foregroundStyle(.secondary)
+            if let folder {
+                Text(folder).foregroundStyle(.secondary)
+            }
             if showsTitle {
-                Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                if folder != nil {
+                    Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                }
                 Text(title.isEmpty ? "New note" : title).fontWeight(.medium)
                     .transition(.opacity)
             }
