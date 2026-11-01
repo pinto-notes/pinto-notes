@@ -710,6 +710,7 @@
 		C23E87D238AFF3935F64E24B /* Files.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E39767B1556B484757CE36 /* Files.swift */; };
 		C2A23F349B49F07B95A1E81C /* NoteListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AFF5865DFB1F37542A9EF3A /* NoteListView.swift */; };
 		C2A71FB2F756B5B3973ACB77 /* NoteUndoButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C6DCA985E0C6F7F1691585 /* NoteUndoButtonTests.swift */; };
+		C2B044E8E4973D150CABFA01 /* TableShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE138616AC9DDE47DC5537AD /* TableShots.swift */; };
 		C2BE09056520338EBE726005 /* BundleRename.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C914D1C89C1A28F957DF97 /* BundleRename.swift */; };
 		C31386DEDF93E0340E99476A /* WikiLinkEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE3FF188D09E62B4A68D47F /* WikiLinkEditorTests.swift */; };
 		C38156137BA5E5E7624DC5F0 /* WritingBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 557A4247FD23A754D4334747 /* WritingBarUITests.swift */; };
@@ -1388,6 +1389,7 @@
 		BC21DF51FFD468B83B80F5C1 /* firstopen-meal-plan.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-meal-plan.jpg"; sourceTree = "<group>"; };
 		BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestAppsMacShots.swift; sourceTree = "<group>"; };
 		BDC967E6E0078C8E1DC7378A /* template-cover-recipe-box.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-recipe-box.jpg"; sourceTree = "<group>"; };
+		BE138616AC9DDE47DC5537AD /* TableShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableShots.swift; sourceTree = "<group>"; };
 		BE58FBFB7169CFFC6987E06D /* FirstOpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstOpen.swift; sourceTree = "<group>"; };
 		BE674CEBF2979E842FF6221C /* CheckPop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckPop.swift; sourceTree = "<group>"; };
 		BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigLibraryTests.swift; sourceTree = "<group>"; };
@@ -2406,6 +2408,7 @@
 				CE839D849C3C98587457C8CB /* SetupCardsSnapshots.swift */,
 				4588A553F34CCA6E69BAE2FB /* ShareAskSnapshots.swift */,
 				F88653EC494D8836C5B21BB6 /* SidebarStudySnapshots.swift */,
+				BE138616AC9DDE47DC5537AD /* TableShots.swift */,
 				6C62958182589C86FCC928F1 /* ThemeShots.swift */,
 				0EE6602CD2F6FABCF3AC293A /* TipSnapshots.swift */,
 				D683509E3A269D745E8F9C88 /* TopBarShots.swift */,
@@ -3106,6 +3109,7 @@
 				DB7D3D645DA4467B46FCDC65 /* SyncRefusalTests.swift in Sources */,
 				D48F87E78AFE583C4562AA6C /* TableInteractionTests.swift in Sources */,
 				1B6CC709E9BC31CB1ED80C31 /* TableMenuTests.swift in Sources */,
+				C2B044E8E4973D150CABFA01 /* TableShots.swift in Sources */,
 				E544ACCC00C29CEC85CDF713 /* TelemetryTests.swift in Sources */,
 				23C6E6E629898D6FD305E47E /* TestDefaults.swift in Sources */,
 				9893835B09E30438192674E6 /* TestFiles.swift in Sources */,

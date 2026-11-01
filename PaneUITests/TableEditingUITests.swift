@@ -108,5 +108,63 @@ final class TableEditingUITests: XCTestCase {
         pause()
         shot("table-restored")
     }
+
+    /// The whole experience for a recording (Emil, 11-01): read, type in a cell, move to the next,
+    /// pick a row and add one, scroll a wide table, and make a new table from the bar.
+    func testWalkthrough() throws {
+        XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15), "the note opens")
+        pause(2)
+        shot("walk-1-rest")
+        let cell = element("grid.2.1")
+        XCTAssertTrue(cell.waitForExistence(timeout: 5), "the table shows as a grid")
+        cell.tap()
+        let onboarding = app.buttons["Continue"].firstMatch
+        if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
+        pause()
+        app.typeText(" by train")
+        pause()
+        shot("walk-2-typing")
+        element("grid.2.2").tap()
+        pause()
+        app.typeText("0")
+        pause()
+        shot("walk-3-next-cell")
+
+        let row = element("grid.handle.row")
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        row.tap()
+        XCTAssertTrue(app.buttons["Add Row Below"].firstMatch.waitForExistence(timeout: 3))
+        pause()
+        shot("walk-4-row-menu")
+        app.buttons["Add Row Below"].firstMatch.tap()
+        pause()
+        app.typeText("Mon")
+        pause()
+        shot("walk-5-row-added")
+
+        // The wide table: swipe its columns along.
+        let wide = element("grid.1.4")
+        if wide.waitForExistence(timeout: 2) {
+            wide.swipeLeft()
+            pause()
+            shot("walk-6-wide-scrolled")
+        }
+
+        // Out of the table, onto the last line, and a new table from the bar's Table button.
+        let editor = app.textViews["editor"]
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)).tap()
+        pause()
+        let insert = app.buttons["Table"].firstMatch
+        if insert.waitForExistence(timeout: 3) {
+            insert.tap()
+            pause()
+            app.typeText("Item")
+            pause()
+            shot("walk-7-new-table")
+        }
+        element("editor.done").tap()
+        pause()
+        shot("walk-8-done")
+    }
 }
 #endif

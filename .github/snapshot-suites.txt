@@ -14,3 +14,4 @@ PaneTests/WarmGreySnapshots
 PaneTests/TopBarShots
 PaneTests/LinkCardShots
 PaneTests/PictureShots
+PaneTests/TableShots
