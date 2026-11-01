@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Settings › General › Appearance: the theme and the accent, for this device only. Each theme
-/// follows the system's light or dark appearance.
+/// Settings › Appearance: the theme and the accent, for this device only. Each theme follows the
+/// mode above it (System, Light or Dark).
 struct AppearanceSection: View {
     var body: some View {
         let look = ThemeStore.shared.look
         Section {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 62, maximum: 80), spacing: 10)], alignment: .leading, spacing: 10) {
+            LazyVGrid(columns: AppearanceGrid.columns, alignment: .leading, spacing: 10) {
                 ForEach(Theme.allCases) { theme in
                     ThemeTile(theme: theme, selected: look.theme == theme) { ThemeStore.shared.theme = theme }
                 }
@@ -22,9 +22,9 @@ struct AppearanceSection: View {
                 }
             }
         } header: {
-            Text("Appearance")
+            Text("Theme")
         } footer: {
-            Text("Follows light and dark mode. Set on each device.")
+            Text("Set on each device.")
         }
     }
 }

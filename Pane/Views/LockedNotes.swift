@@ -336,30 +336,57 @@ struct ChangeNotesPasswordSheet: View {
     }
 }
 
-/// Settings: the notes password, once there is one.
+/// What Settings › Security says about locked notes.
+enum LockedNotesCopy {
+    static let header = "Locked notes"
+    static let footer = "Locked notes open with your notes password until the app goes to the background or a few minutes pass. If you forget the password, locked notes can\u{2019}t be recovered."
+    /// Before any note is locked: how to lock one, where people look for it.
+    static let howTo = "To lock a note, open it and choose Lock Note from its \u{2022}\u{2022}\u{2022} menu. A locked note needs a password to open, and not even an AI you connect can read it."
+}
+
+/// Settings: the notes password, once there is one; before that, how to lock a note.
 struct LockedNotesSection: View {
     let sync: SyncEngine?
     @State private var changing = false
     private var vault: NoteVault { .shared }
 
+    /// What the section shows: the password's controls once there is one, before that how to lock a note.
+    enum Shown { case controls, howTo }
+    static func shown(setUp: Bool) -> Shown { setUp ? .controls : .howTo }
+
     var body: some View {
-        if vault.isSetUp {
+        if Self.shown(setUp: vault.isSetUp) == .controls {
             Section {
                 Button("Change Password…") { changing = true }
                     .accessibilityIdentifier("settings.changeNotesPassword")
                 if let name = vault.keyStore.biometryName {
                     Toggle("Use \(name)", isOn: Binding(get: { vault.usesBiometrics }, set: { vault.usesBiometrics = $0 }))
+                        #if os(macOS)
+                        // Settings' switches are in the brand's brown, as on General.
+                        .tint(Color(Palette.switchOn))
+                        #endif
+                        .accessibilityIdentifier("settings.notesBiometrics")
                 }
                 if vault.isUnlocked {
                     Button("Lock Now") { vault.lockNow() }
+                        .accessibilityIdentifier("settings.lockNow")
                 }
             } header: {
-                Text("Locked Notes")
+                Text(LockedNotesCopy.header)
             } footer: {
-                Text("Locked notes open with your notes password until the app goes to the background or a few minutes pass. If you forget the password, locked notes can't be recovered.")
+                Text(LockedNotesCopy.footer)
                     .foregroundStyle(Color.muted)
             }
             .sheet(isPresented: $changing) { ChangeNotesPasswordSheet(sync: sync) }
+        } else {
+            Section {
+                Label(LockedNotesCopy.howTo, systemImage: "lock")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.lockedNotesHowTo")
+            } header: {
+                Text(LockedNotesCopy.header)
+            }
         }
     }
 }

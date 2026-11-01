@@ -10,8 +10,8 @@ enum WhatsNew {
     static let title = "What\u{2019}s New"
 }
 
-/// Which page Settings shows. The Mac keeps its last tab for next time; links, cards and the
-/// storage warning open Settings at a page (the card's "Reconnect your AI" opens AI).
+/// Which page Settings shows. Links, cards and the storage warning open Settings at a page (the
+/// card's "Reconnect your AI" opens AI).
 @MainActor
 @Observable
 final class SettingsRoute {
@@ -24,8 +24,10 @@ final class SettingsRoute {
     /// The page to open once Settings is showing; cleared when it has.
     var target: SettingsTab?
     #if os(macOS)
-    /// Mac: Settings is waiting to show, as a sheet on the notes window in front (NoteListView takes it).
+    /// Mac: Settings is waiting to show, as a card over the notes window in front (SettingsCardHost takes it).
     var presenting = false
+    /// Mac: the page the card shows now; nil while it's closed.
+    var page: SettingsPlace?
     @ObservationIgnored private var asks = 0
     #endif
     /// Counts `open` calls, so the Mac's Settings goes to the page even when it is the remembered one.
@@ -36,7 +38,7 @@ final class SettingsRoute {
         tab = defaults.string(forKey: Self.key).flatMap(SettingsTab.init) ?? .general
     }
 
-    /// Settings at `tab`: it shows (on the Mac, as a sheet on the notes window) and opens the page.
+    /// Settings at `tab`: it shows (on the Mac, as a card over the notes window) and opens the page.
     func open(_ tab: SettingsTab) {
         self.tab = tab
         opened += 1

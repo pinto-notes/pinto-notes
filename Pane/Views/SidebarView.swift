@@ -623,10 +623,10 @@ struct SidebarView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onReceive(NotificationCenter.default.publisher(for: .paneNewFolder)) { _ in startNewFolder(nil) }
         #endif
+        #if os(iOS)
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
         }
-        #if os(iOS)
         .sheet(item: $movingFolder) { folder in
             FolderMoveSheet(folder: folder)
         }

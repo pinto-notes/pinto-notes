@@ -4,18 +4,36 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// Settings on the Mac, like WhatsApp's: few rows on the first page, every setting found by its
-/// words, links landing on their page, and how you sign in said plainly.
+/// Settings on the Mac, a card with its pages in a sidebar: few pages in a few groups, every
+/// setting found by its words, links landing on their page, and how you sign in said plainly.
 @MainActor @Suite(.serialized) struct SettingsHomeTests {
-    @Test func theFirstPageHasFewGroupsAndFewRows() {
+    @Test func theSidebarHasFewGroupsWithAppearanceUnderGeneral() {
         let all = Set(SettingsPlace.allCases)
         let groups = SettingsPlace.groups(available: all)
-        #expect(groups == [[.ai, .security, .storage], [.account, .general], [.help]])
-        // The profile card and these: eight or fewer.
-        #expect(1 + groups.joined().count <= 8)
+        #expect(groups == [[.ai, .general, .appearance], [.security, .storage, .account], [.help]])
+        #expect(!groups.joined().contains(.profile) && !groups.joined().contains(.appKeys), "Profile sits above the groups, Keys for apps under General")
         #expect(groups.last == [.help], "Help and feedback is the last single row")
         // Signed out: only what there is.
-        #expect(SettingsPlace.groups(available: [.general, .help]) == [[.general], [.help]])
+        #expect(SettingsPlace.groups(available: [.general, .appearance, .help]) == [[.general, .appearance], [.help]])
+        #expect(SettingsCard.first(all) == .ai, "Settings opens at Connect an AI")
+        #expect(SettingsCard.first([.general, .appearance, .help]) == .general, "or at General, signed out")
+    }
+
+    /// iPhone's Settings rows come in the Mac sidebar's groups and order, less Account (it sits
+    /// under you on iPhone): Help and feedback is the last group on both. The iPhone list draws
+    /// from them.
+    @Test func iPhoneGroupsMatchTheMac() throws {
+        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases))
+            .map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }
+        #expect(SettingsTab.phoneGroups.map { $0.map(SettingsPlace.init) } == mac)
+        #expect(SettingsTab.phoneGroups.last == [.help], "Help and feedback, alone and last, as on the Mac")
+        #expect(Set(SettingsTab.phoneGroups.joined()) == Set(SettingsTab.allCases).subtracting([.account]), "every page but Account (your row) has a row")
+        let source = try Self.source("Pane/Views/SettingsView.swift")
+        #expect(source.contains("ForEach(Array(SettingsTab.phoneGroups.enumerated())"), "the iPhone list is built from phoneGroups")
+    }
+
+    static func source(_ path: String) throws -> String {
+        try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: path), encoding: .utf8)
     }
 
     @Test func linksIntoSettingsLandOnTheirPage() {
@@ -23,6 +41,22 @@ import Testing
         #expect(SettingsPlace(.ai) == .ai)
         #expect(SettingsPlace(.storage) == .storage)
         #expect(SettingsPlace(.security) == .security)
+        #expect(SettingsPlace(.general) == .general)
+        #expect(SettingsPlace(.appearance) == .appearance)
+        #expect(SettingsPlace(.help) == .help)
+    }
+
+    /// Appearance by any of the words people use for it.
+    @Test func searchFindsAppearance() {
+        let all = Set(SettingsPlace.allCases)
+        for word in ["appearance", "theme", "dark", "light", "dark mode", "colour", "color", "accent", "Theme", "DARK MODE"] {
+            let found = SettingsIndex.matches(word, available: all).map(\.place)
+            #expect(found.contains(.appearance), "\(word) finds Appearance")
+            #expect(Set(found) == [.appearance], "\(word) finds only Appearance: \(found)")
+        }
+        #expect(SettingsIndex.matches("theme", available: [.general, .help]).isEmpty, "not when the page isn't there")
+        #expect(!SettingsIndex.all.contains { $0.place == .general && ["Theme", "Accent colour", "Light or dark mode"].contains($0.label) },
+                "nothing of Appearance is on General any more")
     }
 
     /// Every setting that existed before is in the index, so search finds it, on its page.
@@ -47,14 +81,11 @@ import Testing
         #expect(SignInShown.label(email: "sara@example.com", apple: false, google: false) == "sara@example.com")
     }
 
-    @Test func theSheetIsNeverTallerThanItsWindow() {
-        func window(_ height: CGFloat) -> NSWindow {
-            NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1180, height: height), styleMask: [.borderless], backing: .buffered, defer: true)
-        }
-        #expect(SettingsHome.fitted(nil) == SettingsHome.height)
-        #expect(SettingsHome.fitted(window(760)) == SettingsHome.height)
-        #expect(SettingsHome.fitted(window(560)) == 500)
-        #expect(SettingsHome.fitted(window(300)) == 360, "never so short the page can't be used")
+    @Test func theCardIsNeverBiggerThanItsWindow() {
+        #expect(SettingsCard.size == TemplateLibraryView.size, "the same card as Templates")
+        #expect(SettingsCard.fitted(CGSize(width: 1600, height: 1000)) == SettingsCard.size)
+        #expect(SettingsCard.fitted(CGSize(width: 900, height: 600)) == CGSize(width: 852, height: 552))
+        #expect(SettingsCard.fitted(CGSize(width: 300, height: 200)) == CGSize(width: 600, height: 420), "never so small the page can't be used")
     }
 
     @Test func aLinkOpensItsPageEvenWhenItWasTheLastOne() {
@@ -65,76 +96,119 @@ import Testing
         #expect(route.opened == first + 1)
     }
 
-    /// The first page and two inner pages, light and dark, and the alternative look.
-    @Test(arguments: [false, true])
-    func pictures(dark: Bool) async throws {
-        guard let dir = AppSnapshotTests.dir else { return }
-        let mode = dark ? "dark" : "light"
-        var view = try await AppSnapshotTests.settingsFixture()
-        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
-        for (name, start, tiles) in [("home", nil, false), ("home-alt-tiles", nil, true), ("profile", SettingsPlace.profile, false),
-                                     ("general", .general, false), ("security", .security, false), ("help", .help, false)] as [(String, SettingsPlace?, Bool)] {
-            view.start = start
-            view.tiles = tiles
-            let host = NSHostingView(rootView: view.tint(Color(PColor.paneAccent)).frame(width: SettingsHome.width, height: SettingsHome.height))
-            host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-            let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: SettingsHome.width, height: SettingsHome.height), styleMask: [.borderless], backing: .buffered, defer: false)
-            window.isReleasedWhenClosed = false
-            window.appearance = host.appearance
-            window.contentView = host
-            try? await Task.sleep(for: .seconds(1.2))
-            host.layoutSubtreeIfNeeded()
-            let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-            host.cacheDisplay(in: host.bounds, to: rep)
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-settings2-\(name)-\(mode).png"))
-            window.close()
+    // MARK: Help and feedback
+
+    /// Help and feedback is there signed in and signed out, on both platforms, as a page of its own.
+    @Test func helpIsAlwaysThere() {
+        let signedOut = SettingsView(backend: Backend(), sync: nil)
+        #expect(signedOut.tabs.contains(.help) && signedOut.places.contains(.help))
+        let backend = Backend()
+        backend.showSignedInForPreview(email: "sara@example.com")
+        #expect(SettingsView(backend: backend, sync: nil).tabs.contains(.help))
+        #expect(SettingsTab.help.title == SettingsPlace.help.title && SettingsTab.help.symbol == SettingsPlace.help.symbol)
+    }
+
+    /// Send feedback writes to the address the website gives, with the subject filled in and the
+    /// version and system under room to write. Nothing else about the device.
+    @Test func feedbackGoesToTheSitesAddressWithTheVersion() throws {
+        let url = HelpCopy.mail(version: "1.2.31 (2611011200)", system: "macOS 26.1")
+        let c = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(c.scheme == "mailto" && c.path == "hello@pintonotes.com")
+        let items = Dictionary(uniqueKeysWithValues: (c.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        #expect(items["subject"] == "Pinto Notes feedback")
+        #expect(items["body"] == "\n\n\nPinto Notes 1.2.31 (2611011200), macOS 26.1")
+        #expect(Set(items.keys) == ["subject", "body"])
+        #expect(!url.absoluteString.contains(" "), "spaces are escaped, so every mail app reads it")
+        // The same address the website's help page, privacy policy and support page give.
+        #expect(try Self.source("web/lib/site.ts").contains("SUPPORT_EMAIL = \"\(HelpCopy.email)\""))
+        #expect(try Self.source("web/content/privacy-policy.md").contains(HelpCopy.email))
+        #expect(HelpCopy.system.hasPrefix("macOS ") && HelpCopy.system.split(separator: ".").count >= 2)
+    }
+
+    /// Every link on Help and on Security goes to a page that exists: the website's own, or the
+    /// project on GitHub, over https.
+    @Test func helpsLinksAreRealAndCurrent() throws {
+        let site: [(URL, String)] = [(HelpCopy.supportPage, "help"), (WhatsNew.changelogURL, "changelog"), (Legal.terms, "terms"),
+                                     (Legal.privacy, "privacy"), (PrivacyCopy.learnMoreURL, "privacy-security")]
+        for (url, page) in site {
+            #expect(url.absoluteString == "https://pintonotes.com/\(page)")
+            #expect(FileManager.default.fileExists(atPath: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                .appending(path: "web/app/\(page)/page.tsx").path), "the site has /\(page)")
+        }
+        for link in AboutSection.links {
+            #expect(link.url.absoluteString.hasPrefix("https://github.com/pinto-notes/pinto-notes"), "\(link.title)")
+        }
+        #expect(AboutSection.links.first?.title == "Report an issue", "what someone on Help came for comes first")
+    }
+
+    /// Help by the words people use for it.
+    @Test func searchFindsHelpAndFeedback() {
+        let all = Set(SettingsPlace.allCases)
+        for word in ["feedback", "email", "contact", "support", "what's new", "version", "setup guide", "report"] {
+            #expect(SettingsIndex.matches(word, available: all).contains { $0.place == .help }, "\(word) finds Help and feedback")
         }
     }
 
-    /// Settings as the real sheet on the notes window, home and Profile, light and dark, for
-    /// putting beside WhatsApp's. The snapshots workflow's watcher photographs the window named in
-    /// `window-id` (screencapture -l) for each `ready-<name>`: the sheet on its own, then the notes
-    /// window under it; `<name>-rect` says where the sheet sits on the window, for putting them
-    /// together. On-screen shots only: AMBER_DEMO_FRAMES (CI).
-    @Test func realSheet() async throws {
-        guard let dir = AppSnapshotTests.onScreenDir("AMBER_DEMO_FRAMES") else { return }
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
-        for dark in [false, true] {
-            let c = try AppSnapshotTests.container()
-            let view = try await AppSnapshotTests.settingsFixture()
-            let host = AIEditSnapshots.root(c).sheet(isPresented: .constant(true)) {
-                view.modelContainer(c).tint(Color(PColor.paneAccent))
-            }
-            // Small enough for the CI Mac's 1024 x 768 screen, which would cut a bigger window short.
-            let w = AIEditSnapshots.window(host, size: CGSize(width: 1000, height: 640), dark: dark)
-            defer { w.orderOut(nil); w.close() }
-            var sheet: NSWindow?
-            for _ in 0..<60 where sheet == nil { sheet = w.attachedSheet; if sheet == nil { try? await Task.sleep(for: .milliseconds(100)) } }
-            let s = try #require(sheet)
-            try? await Task.sleep(for: .seconds(2))
-            func capture(_ window: NSWindow, _ name: String) async throws {
-                try "\(window.windowNumber)".write(to: dir.appending(path: "window-id"), atomically: true, encoding: .utf8)
-                try "".write(to: dir.appending(path: "ready-\(name)"), atomically: true, encoding: .utf8)
-                let done = dir.appending(path: "shot-\(name)")
-                for _ in 0..<400 where !FileManager.default.fileExists(atPath: done.path) { try? await Task.sleep(for: .milliseconds(50)) }
-            }
-            func shoot(_ name: String) async throws {
-                let f = s.frame, p = w.frame
-                try "\(f.minX - p.minX) \(p.maxY - f.maxY) \(f.width) \(f.height)".write(to: dir.appending(path: "\(name)-rect"), atomically: true, encoding: .utf8)
-                try await capture(s, "\(name)-sheet")
-                try await capture(w, "\(name)-window")
-            }
-            let look = dark ? "dark" : "light"
-            try await shoot("settings-home-\(look)")
-            view.route.open(.account)
-            try? await Task.sleep(for: .seconds(1.2))
-            try await shoot("settings-profile-\(look)")
-            view.route.open(.general)
-            try? await Task.sleep(for: .seconds(1.2))
-            try await shoot("settings-general-\(look)")
+    /// Signed out there's no setup guide to play (it starts from your name), so the button isn't
+    /// there to do nothing. Signed in it plays and closes Settings, so the guide is seen. Send
+    /// feedback with no mail app copies the address and says so under the button.
+    @Test func helpsButtonsEachDoSomethingVisible() async throws {
+        #expect(!HelpPage.offersSetupGuide(signedIn: false) && HelpPage.offersSetupGuide(signedIn: true))
+        var closed = 0
+        let replays = NotificationCenter.default.notifications(named: .paneReplayOnboarding)
+        let heard = Task { for await _ in replays { return true }; return false }
+        try await Task.sleep(for: .milliseconds(50))
+        HelpPage.playSetupGuide(close: { closed += 1 })
+        #expect(closed == 1, "Settings closes, so the guide shows")
+        #expect(await heard.value, "the guide is asked to play")
+
+        var copied: [String] = []
+        #expect(!HelpPage.mailed(accepted: true, copy: { copied.append($0) }) && copied.isEmpty, "a mail app took it: nothing more")
+        #expect(HelpPage.mailed(accepted: false, copy: { copied.append($0) }), "no mail app: the line under the button shows")
+        #expect(copied == [HelpCopy.email], "and the address is copied")
+        #expect(HelpCopy.noMailApp.contains(HelpCopy.email))
+        // The page uses them, rather than its own copies of the same steps.
+        let src = try Self.source("Pane/Views/SettingsHome.swift")
+        #expect(src.contains("if Self.offersSetupGuide(signedIn: signedIn)") && src.contains("Self.playSetupGuide(close: close)")
+                && src.contains("noMail = Self.mailed(accepted: accepted, copy: copy)"))
+    }
+
+    // MARK: Security
+
+    /// Security says what it's for first, in plain words: encrypted, never "end-to-end" unless
+    /// Advanced protection is on. Its buttons are named like Apple's, and locked notes are
+    /// explained before there is a password.
+    @Test func securitySaysPlainlyWhatItIsFor() {
+        for summary in [PrivacyCopy.summary(serverCopy: false), PrivacyCopy.summary(serverCopy: true)] {
+            #expect(summary.hasPrefix("Your notes are encrypted"), "\(summary)")
+            #expect(!summary.localizedCaseInsensitiveContains("end-to-end") && !summary.contains("E2EE"))
+            #expect(summary.contains("AI"), "the one exception is said")
         }
+        #expect(!PrivacyCopy.summary(serverCopy: true).contains("can\u{2019}t read"), "not claimed while Pinto Notes keeps a copy")
+        #expect(!KeyCopyWords.strictFooterOff.contains("end-to-end") && KeyCopyWords.strictFooterOn.contains("end-to-end"))
+        #expect(PrivacyCopy.keyHeader == "What can open your notes")
+        #expect([PrivacyCopy.showRecovery, PrivacyCopy.hideRecovery, PrivacyCopy.saveRecovery] == ["Show Recovery Key", "Hide Recovery Key", "Save Recovery Key\u{2026}"])
+        #expect(LockedNotesCopy.header == "Locked notes")
+        #expect(LockedNotesCopy.howTo.contains("Lock Note"), "names the menu item it's under")
+        for text in [PrivacyCopy.summary, PrivacyCopy.summaryWithCopy, PrivacyCopy.keptInKeychain, LockedNotesCopy.howTo, LockedNotesCopy.footer,
+                     HelpCopy.feedbackFooter, HelpCopy.setupGuideFooter, HelpCopy.openSourceFooter, HelpCopy.noMailApp] {
+            #expect(!text.contains("\u{2014}") && !text.contains("\u{2013}"), "\(text)")
+        }
+    }
+
+    /// Without a notes password Security says how to lock a note; with one, its controls.
+    @Test func lockedNotesSaysHowBeforeThereIsAPassword() {
+        #expect(LockedNotesSection.shown(setUp: false) == .howTo)
+        #expect(LockedNotesSection.shown(setUp: true) == .controls)
+    }
+
+    /// Every page of Settings says it's offline at its top, on iPhone too: there a page covers the
+    /// first screen, and Security's Add a device and Advanced protection were greyed out unexplained.
+    @Test func everyPageSaysWhenItIsOffline() throws {
+        let src = try Self.source("Pane/Views/SettingsView.swift")
+        let page = try #require(src.range(of: "private struct SettingsPage").map { src[$0.lowerBound...] })
+        let form = String(page.prefix(while: { $0 != "}" }))
+        #expect(form.contains("OfflineSection()") && !form.contains("#if os(macOS)"), "OfflineSection on both platforms")
     }
 }
 #endif

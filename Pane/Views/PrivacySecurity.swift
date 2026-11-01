@@ -11,22 +11,29 @@ import PDFKit
 /// What Settings › Security says, in one place.
 enum PrivacyCopy {
     static let title = "Security"
-    static let summary = "Encrypted on your devices. We can't read your notes. When you connect an AI, our server unlocks your notes for that AI's requests."
-    /// With a copy of the key kept by Pinto Notes (KeyCopy): what's true then.
-    static let summaryWithCopy = "Encrypted on your devices before they sync. Signing in opens your notes on a new device, because Pinto Notes keeps a locked copy of your key. When you connect an AI, our server unlocks your notes for that AI's requests."
+    /// What the page is for, first, then the one exception. "Encrypted", never "end-to-end": that's
+    /// said only with Advanced protection on (KeyCopyWords.strictFooterOn).
+    static let summary = "Your notes are encrypted on your devices before they sync, and we can\u{2019}t read them. When you connect an AI, our server unlocks your notes for that AI\u{2019}s requests."
+    /// With a copy of the key kept by Pinto Notes (KeyCopy): what's true then. How the copy works
+    /// is on its row and under Advanced protection, not here as well.
+    static let summaryWithCopy = "Your notes are encrypted on your devices before they sync. Signing in opens them on a new device. When you connect an AI, our server unlocks your notes for that AI\u{2019}s requests."
     static func summary(serverCopy: Bool) -> String { serverCopy ? summaryWithCopy : summary }
     static let recoveryFooter = "A recovery key opens your notes on a new device when none of your other devices is at hand. If every device is gone and you saved no recovery key, your notes are lost. We can\u{2019}t open them either."
     static let recoveryFooterWithCopy = "A recovery key opens your notes without signing in. You don\u{2019}t need one while Pinto Notes keeps a copy of your key."
     static func recoveryFooter(serverCopy: Bool) -> String { serverCopy ? recoveryFooterWithCopy : recoveryFooter }
     static let pageTitle = "Pinto Notes recovery key"
     static let pageGuidance = "Keep this somewhere safe. With it, you can open your notes on a new device if you don't have your other devices."
-    static let keyHeader = "Where your key is kept"
+    /// The website's page on what's stored, what's encrypted and what an AI can see.
+    static let learnMore = "How your notes are kept private"
+    static let learnMoreURL = URL(string: "https://pintonotes.com/privacy-security")!
+    /// The key is what opens the notes: the header says what it does, the rows where it is.
+    static let keyHeader = "What can open your notes"
     static let keyFooter = "Without one of these, nobody can open your notes, including us. A connected AI can read them while it\u{2019}s connected."
     static let keyFooterWithCopy = "Any of these opens your notes. A connected AI can read them while it\u{2019}s connected."
     static func keyFooter(serverCopy: Bool) -> String { serverCopy ? keyFooterWithCopy : keyFooter }
     static let removeNote = " It can sign in again: to keep someone out, change your password."
     static var thisDevice: String { "This \(InstallID.kind)" }
-    static var keptInKeychain: String { "Keeps your key in its Keychain, where iCloud Keychain can pick it up" }
+    static var keptInKeychain: String { "Keeps your key, and can share it with your other devices through iCloud Keychain" }
     static var keptHere: String { "Keeps your key on this \(InstallID.kind) only" }
     static let keychainTitle = "iCloud Keychain"
     static let keychainDetail = "Brings your key to your other iPhone or Mac, if it\u{2019}s on for this Apple Account."
@@ -59,6 +66,9 @@ enum PrivacyCopy {
     static var notSavedMessage: String {
         "Your notes are open now, but this \(InstallID.kind) will ask for your key again the next time Pinto Notes opens. Save your recovery key first, in Settings \u{203A} Security, or keep another device at hand to add this one."
     }
+    static let showRecovery = "Show Recovery Key"
+    static let hideRecovery = "Hide Recovery Key"
+    static let saveRecovery = "Save Recovery Key\u{2026}"
     static let showReason = "Show your recovery key"
     static let saveReason = "Save your recovery key"
     static let fileName = "Pinto Notes Recovery Key"
@@ -120,6 +130,16 @@ struct PrivacySecuritySection: View {
             Text(PrivacyCopy.summary(serverCopy: crypto.serverCopy))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("privacy.summary")
+            // For the few who want the whole story: on the website, out of the way.
+            Link(destination: PrivacyCopy.learnMoreURL) {
+                LabeledContent(PrivacyCopy.learnMore) {
+                    Image(systemName: "arrow.up.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(.primary)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("privacy.learnMore")
         }
         keySection
         if crypto.protection != nil || crypto.copiesOn { protectionSection }
@@ -156,8 +176,8 @@ struct PrivacySecuritySection: View {
                 Text(problem).font(.footnote).foregroundStyle(.red)
             }
         } footer: {
-            // "Optional" only while something else is known to open the notes.
-            Text((recoveryStatus == "Optional" ? "Optional. " : "") + PrivacyCopy.recoveryFooter(serverCopy: crypto.serverCopy))
+            // "Optional" is said once, on the row above.
+            Text(PrivacyCopy.recoveryFooter(serverCopy: crypto.serverCopy))
         }
         .task {
             await crypto.recheck()
@@ -171,17 +191,17 @@ struct PrivacySecuritySection: View {
 
     @ViewBuilder private var showOrHide: some View {
         if shown != nil {
-            Button("Hide recovery key") { self.shown = nil }
+            Button(PrivacyCopy.hideRecovery) { self.shown = nil }
                 .accessibilityIdentifier("privacy.hideRecovery")
         } else {
-            Button("Show recovery key") { Task { await reveal(reason: PrivacyCopy.showReason) { shown = $0 } } }
+            Button(PrivacyCopy.showRecovery) { Task { await reveal(reason: PrivacyCopy.showReason) { shown = $0 } } }
                 .accessibilityIdentifier("privacy.showRecovery")
         }
     }
 
     /// The sheet hangs on its button: on a Section it isn't presented on iPhone.
     private var saveButton: some View {
-        Button("Save a recovery key…") { Task { await reveal(reason: PrivacyCopy.saveReason) { saving = $0 } } }
+        Button(PrivacyCopy.saveRecovery) { Task { await reveal(reason: PrivacyCopy.saveReason) { saving = $0 } } }
             .accessibilityIdentifier("privacy.saveRecovery")
             .sheet(item: Binding(get: { saving.map(RecoveryKeyItem.init) }, set: { saving = $0?.key })) { item in
                 SaveRecoveryKeySheet(key: item.key) { await markSaved() }

@@ -45,6 +45,18 @@ import UIKit
         return crypto
     }
 
+    /// A new account as most have it now: Pinto Notes keeps a locked copy of the key, so signing
+    /// in opens the notes on a new device (KeyCopy), and Advanced protection is off.
+    static func readyWithCopy() async -> AccountCrypto {
+        let server = KeyCopyTests.Server()
+        let keychain = KeyStartupTests.FakeKeychain(cloud: KeyStartupTests.Cloud())
+        keychain.syncs = true
+        let crypto = AccountCrypto(store: keychain, defaults: UserDefaults(suiteName: "add-device-shots-\(UUID())")!, sleep: { _ in throw CancellationError() })
+        await crypto.attach(account: UUID(), server: server, copies: server)
+        crypto.welcomeShown()
+        return crypto
+    }
+
     static func gate(_ crypto: AccountCrypto, _ screen: KeyGateView.Screen = .auto, _ state: NewDeviceSession.State? = nil) -> KeyGateView {
         KeyGateView(crypto: crypto, backend: Backend(), screen: screen,
                     session: NewDeviceSession(crypto: crypto, server: nil, preview: state ?? .showing(qr: qr, code: code)))

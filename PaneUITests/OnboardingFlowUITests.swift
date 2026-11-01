@@ -308,7 +308,7 @@ final class OnboardingFlowUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["sidebar.connect"].firstMatch.exists, "stays closed")
     }
 
-    /// Settings › Show Setup Guide plays the flow again, and leaving it changes nothing.
+    /// Settings › Help and feedback › Show Setup Guide plays the flow again, and leaving it changes nothing.
     func testE_ReplayFromSettings() throws {
         launch()
         if app.textFields["signin.email"].waitForExistence(timeout: 8) { try signIn() }
@@ -316,7 +316,7 @@ final class OnboardingFlowUITests: XCTestCase {
         // Back to the folder list if a note or a folder is open, then the account button.
         openSettings()
         let guide = app.buttons["settings.setupGuide"]
-        openSettingsPage("General")
+        openSettingsPage("Help and feedback")
         for _ in 0..<6 where !guide.exists { app.swipeUp() }
         XCTAssertTrue(guide.waitForExistence(timeout: 10), "Show Setup Guide")
         guide.tap()

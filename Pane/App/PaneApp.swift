@@ -35,6 +35,12 @@ struct PaneApp: App {
         #else
         Self.styleLargeTitles()
         #endif
+        // Light, dark or the system's (Settings › Appearance), before any window is made, so the
+        // first frame is already in the right mode.
+        AppearanceModeStore.shared.apply()
+        #if os(iOS)
+        AppearanceModeStore.shared.watchWindows()
+        #endif
         // Error reports and usage counts (Telemetry): the released app only, and first, so a failure
         // further down this launch can be reported.
         TelemetryGate.startIfAllowed()
@@ -202,7 +208,7 @@ struct PaneApp: App {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
                     .followsTheme()
-                    .preferredColorScheme(Self.testScheme)
+                    .followsAppearanceMode(pinned: Self.testScheme)
             }
         }
         .modelContainer(container)
@@ -238,7 +244,7 @@ struct PaneApp: App {
         #endif
 
         #if os(macOS)
-        // Settings is a sheet on the notes window (NoteListView), not a window of its own.
+        // Settings is a card over the notes window (RootView), not a window of its own.
 
         MenuBarItem(backend: backend, sync: sync, container: container)
         #endif

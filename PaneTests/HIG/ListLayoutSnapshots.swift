@@ -106,12 +106,53 @@ import UIKit
         }
     }
 
+    /// Security and Help and feedback (feature/settings-help): the first screen with Help as its
+    /// last row, Security with Pinto Notes keeping a copy of the key and without, offline, and
+    /// Help signed in and out.
+    @Test(arguments: [false, true]) func securityAndHelp(dark: Bool) async throws {
+        guard Self.dir != nil else { return }
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let withCopy = await AddDeviceSnapshots.readyWithCopy()
+        let without = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
+        defer { without.signedOut(); withCopy.signedOut() }
+        func settings(_ b: Backend, _ crypto: AccountCrypto, _ others: [KeyDevice], at tab: SettingsTab?) -> SettingsView {
+            let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
+            if let tab { route.open(tab) }
+            return SettingsView(backend: b, sync: nil, crypto: crypto, devices: AddDeviceSnapshots.devices(others), connections: CaptureScreen.connections, route: route)
+        }
+        let copy = settings(backend, withCopy, [AddDeviceSnapshots.stale], at: .security)
+        try await Self.shoot(settings(backend, withCopy, [], at: nil), "settings-root", dark: dark, scroll: 400)
+        try await Self.shoot(copy, "security-copy", dark: dark, wait: 1.5)
+        // A new Settings each time: a link into a page is taken once.
+        try await Self.shoot(settings(backend, withCopy, [AddDeviceSnapshots.stale], at: .security), "security-copy-lower", dark: dark, scroll: 700, wait: 1.5)
+        try await Self.shoot(settings(backend, without, [AddDeviceSnapshots.added, AddDeviceSnapshots.stale], at: .security), "security-nocopy", dark: dark, wait: 1.5)
+        let offline = NavigationStack {
+            copy.page(.security).navigationTitle(SettingsTab.security.title).navigationBarTitleDisplayMode(.inline)
+        }.environment(\.networkReach, .offline)
+        try await Self.shoot(offline, "security-offline", dark: dark, wait: 1.5)
+        try await Self.shoot(settings(backend, withCopy, [], at: .help), "help", dark: dark, wait: 1.5)
+        try await Self.shoot(settings(backend, withCopy, [], at: .help), "help-lower", dark: dark, scroll: 600, wait: 1.5)
+        try await Self.shoot(settings(Backend(), withCopy, [], at: .help), "help-signedout", dark: dark, wait: 1.5)
+    }
+
     @Test(arguments: [false, true]) func signInPassword(dark: Bool) async throws {
         guard Self.dir != nil else { return }
         var flow = EmailSignInFlow(email: "appreview@norditech.se")
         _ = flow.beginCheck()
         flow.finishCheck(.password)
         try await Self.shoot(SignInView(backend: Backend(), flow: flow), "signin-password", dark: dark)
+    }
+    #else
+    /// What the iPhone shots show, checked on the Mac too: Settings' first screen ends with Help
+    /// and feedback, there signed in and out, and it opens by a link like any other page.
+    @Test func iPhoneSettingsEndWithHelp() {
+        #expect(SettingsTab.phoneGroups.last == [.help])
+        #expect(SettingsView(backend: Backend(), sync: nil).tabs.contains(.help))
+        let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
+        route.open(.help)
+        #expect(route.target == .help && route.tab == .help)
     }
     #endif
 }

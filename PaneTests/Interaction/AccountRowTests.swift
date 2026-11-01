@@ -54,6 +54,7 @@ import Testing
 
         private var root: NSView { window.contentView! }
 
+
         /// The columns' widths, left to right.
         var columns: [Int] {
             func splits(_ v: NSView) -> [NSSplitView] { ((v as? NSSplitView).map { [$0] } ?? []) + v.subviews.flatMap(splits) }
@@ -115,11 +116,11 @@ import Testing
     }
 
     /// Opening Settings from the account row leaves the notes window as it was: the same columns,
-    /// the same toolbar. The sheet's `.toolbar(.hidden)` used to hide the window's toolbar (it
-    /// read "visible false" here), and the columns rose under the sheet.
+    /// the same toolbar. (The old sheet's `.toolbar(.hidden)` once hid the window's toolbar.) The
+    /// card shows over the notes at its first page, and links open theirs in it.
     @Test func openingSettingsKeepsTheWindowAsItWas() async throws {
         let host = try await Host()
-        defer { host.close() }
+        defer { host.close(); SettingsRoute.shared.page = nil }
         let columns = host.columns, toolbar = host.toolbar
         #expect(columns.count == 3 && !toolbar.isEmpty)
         let sheets = { NSApp.windows.filter { String(describing: type(of: $0)).contains("Sheet") }.count }
@@ -127,13 +128,31 @@ import Testing
         AccountButton.open()
         await host.settle()
         #expect(!SettingsRoute.shared.presenting, "the notes window took it")
-        #expect(sheets() > before, "Settings is made for the window")
+        #expect(SettingsRoute.shared.page == .ai, "the card shows, at its first page")
+        #expect(sheets() == before, "a card over the notes, not a sheet")
         #expect(host.columns == columns, "the columns keep their widths")
         #expect(host.toolbar == toolbar, "the toolbar keeps its items")
-        // Its inner pages too (Profile, from a link into Settings).
-        SettingsRoute.shared.open(.account)
-        await host.settle()
+        // Links into Settings open their page in the card.
+        for (tab, place) in [(SettingsTab.account, SettingsPlace.profile), (.storage, .storage), (.general, .general), (.appearance, .appearance), (.ai, .ai)] {
+            SettingsRoute.shared.open(tab)
+            await host.settle()
+            #expect(SettingsRoute.shared.page == place, "\(tab) opens \(place)")
+        }
         #expect(host.columns == columns && host.toolbar == toolbar, "an inner page of Settings leaves the window as it was too")
+        // Appearance is its own page, and not part of General any more.
+        SettingsRoute.shared.open(.appearance)
+        await host.settle()
+        #expect(AppearancePage.onScreen == 1, "Appearance's page shows its mode, theme and accent")
+        SettingsRoute.shared.open(.general)
+        await host.settle()
+        #expect(SettingsRoute.shared.page == .general)
+        #expect(AppearancePage.onScreen == 0, "General has no theme, mode or accent any more")
+        let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
+        for (file, start, end) in [("SettingsHome.swift", "struct GeneralPage", "struct HelpPage"), ("SettingsView.swift", "struct GeneralSettings", "struct AccountSettings")] {
+            let src = try String(contentsOf: views.appending(path: file), encoding: .utf8)
+            let general = try #require(src.range(of: start).flatMap { a in src.range(of: end, range: a.upperBound..<src.endIndex).map { src[a.lowerBound..<$0.lowerBound] } })
+            #expect(!general.contains("AppearanceSection") && !general.contains("AppearancePage"), "\(start) leaves Appearance to its own page")
+        }
     }
 
     /// The account row under the pointer in a sidebar-wide strip, light and dark, for looking at.

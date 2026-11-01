@@ -48,7 +48,7 @@ struct AppPlaceTests {
 }
 
 /// Settings' pages: the Mac remembers its last tab, links open theirs, and signed out there are
-/// only General and Account.
+/// only General, Appearance and Account.
 @MainActor struct SettingsTabTests {
     func defaults() -> UserDefaults { UserDefaults(suiteName: "SettingsTabTests.\(UUID().uuidString)")! }
 
@@ -66,19 +66,20 @@ struct AppPlaceTests {
         #expect(route.tab == .ai)
         #expect(route.target == .ai, "the page opens once Settings shows")
         #if os(macOS)
-        #expect(route.presenting, "the Mac shows Settings as a sheet on the notes window")
+        #expect(route.presenting, "the Mac shows Settings as a card over the notes window")
         #endif
     }
 
     @Test func signedOutShowsGeneralAndAccount() {
         let view = SettingsView(backend: Backend(), sync: nil, route: SettingsRoute(defaults: defaults()))
-        #expect(view.tabs.prefix(2) == [.general, .account])
+        #expect(view.tabs.prefix(3) == [.general, .appearance, .account], "Appearance is there signed out too")
         #expect(!view.tabs.contains(.ai) && !view.tabs.contains(.storage))
+        #expect(view.tabs.contains(.help), "Help and feedback is there signed out too")
     }
 
     @Test func signedInShowsAccountAIAndStorage() {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         let view = SettingsView(backend: backend, sync: nil, route: SettingsRoute(defaults: defaults()))
-        #expect(Array(view.tabs.filter { $0 != .security }) == [.general, .account, .ai, .storage])
+        #expect(Array(view.tabs.filter { $0 != .security }) == [.general, .appearance, .account, .ai, .storage, .help], "Help and feedback, signed in or out")
     }
 }
