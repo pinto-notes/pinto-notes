@@ -3,16 +3,17 @@ import Supabase
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The pages of Settings: toolbar tabs on the Mac, as in the system's apps, and rows that open a
-/// page on iPhone.
+/// The pages of Settings: rows that open a page on iPhone; on the Mac, where links land in the
+/// card's sidebar (SettingsPlace).
 enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
-    case general, account, ai, security, storage
+    case general, appearance, account, ai, security, storage
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .general: "General"
+        case .appearance: "Appearance"
         case .account: "Account"
         case .ai: "AI"
         case .security: PrivacyCopy.title
@@ -23,6 +24,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var symbol: String {
         switch self {
         case .general: "gearshape"
+        case .appearance: "circle.lefthalf.filled"
         case .account: "person.crop.circle"
         case .ai: "sparkles"
         case .security: "lock.shield"
@@ -41,9 +43,11 @@ struct SettingsView: View {
     var connections: [Connection]? = nil
     var route: SettingsRoute = .shared
     #if os(macOS)
-    /// Captures: the page to open on, and the alternative look.
+    /// Captures: the page to open on, and a search already typed.
     var start: SettingsPlace? = nil
-    var tiles = false
+    var search = ""
+    /// Over the notes window: closes the card (RootView). Nil: Settings is in a sheet of its own.
+    var close: (() -> Void)? = nil
     #endif
     @Environment(\.dismiss) private var dismiss
     #if os(iOS)
@@ -54,12 +58,12 @@ struct SettingsView: View {
 
     var body: some View {
         #if os(macOS)
-        // Like WhatsApp's: you first, a few groups of rows, each opening its page (SettingsHome).
-        SettingsHome(backend: backend, sync: sync, available: places, page: { AnyView(place($0)) }, route: route, start: start, tiles: tiles)
+        // A big card over the notes, its pages in a sidebar of its own (SettingsCard).
+        SettingsCard(backend: backend, available: places, page: { AnyView(place($0)) }, route: route, start: start, close: close, search: search)
         .environment(\.networkReach, reach)
-        // Settings is a sheet on the notes window: allowing an AI shows over it.
+        // Allowing an AI shows over Settings.
         .consentHost(client: backend.client, active: isSignedIn)
-        .onChange(of: isSignedIn) { was, now in if was && !now { dismiss() } }
+        .onChange(of: isSignedIn) { was, now in if was && !now { if let close { close() } else { dismiss() } } }
         #else
         NavigationStack(path: $path) {
             root
@@ -102,7 +106,7 @@ struct SettingsView: View {
     var tabs: [SettingsTab] {
         SettingsTab.allCases.filter { tab in
             switch tab {
-            case .general, .account: true
+            case .general, .appearance, .account: true
             case .ai: isSignedIn && backend.client != nil
             case .security: (isSignedIn && crypto.isReady) || NoteVault.shared.isSetUp
             case .storage: (isSignedIn && backend.client != nil) || demoStorage
@@ -130,6 +134,7 @@ struct SettingsView: View {
         case .storage: page(.storage)
         case .account: page(.account)
         case .general: SettingsPage { GeneralPage() }
+        case .appearance: SettingsPage { AppearancePage() }
         case .help: SettingsPage { HelpPage() }
         case .appKeys: SettingsPage { APIKeysSection() }
         }
@@ -144,6 +149,8 @@ struct SettingsView: View {
         switch tab {
         case .general:
             SettingsPage { GeneralSettings(signedIn: isSignedIn, close: { dismiss() }) }
+        case .appearance:
+            SettingsPage { AppearancePage() }
         case .account:
             SettingsPage { AccountSettings(backend: backend, sync: sync) }
         case .ai:
@@ -208,7 +215,10 @@ struct SettingsView: View {
                 }
                 if tabs.contains(.storage) { row(.storage) }
             }
-            Section { row(.general) }
+            Section {
+                row(.general)
+                row(.appearance)
+            }
         }
         .formStyle(.grouped)
         .task(id: isSignedIn) { await storage.refresh(backend.client, force: false) }
@@ -246,9 +256,8 @@ private struct SettingsPage<Content: View>: View {
         }
             .formStyle(.grouped)
             #if os(macOS)
-            // On the Settings sheet's own warm ground (SettingsHome).
+            // On the card's own ground (SettingsCard), as wide as the card lets it be.
             .scrollContentBackground(.hidden)
-            .frame(width: SettingsLayout.width)
             .background(NoInitialFocus())
             #endif
     }
@@ -310,10 +319,6 @@ private struct NoInitialFocus: NSViewRepresentable {
 }
 #endif
 
-private enum SettingsLayout {
-    static let width: CGFloat = 460
-}
-
 /// General: the menu bar item (on iPhone, the setup guide), API keys for apps in notes, the
 /// diagnostics switch, and about.
 private struct GeneralSettings: View {
@@ -321,7 +326,7 @@ private struct GeneralSettings: View {
     let close: () -> Void
 
     var body: some View {
-        AppearanceSection()
+        // Appearance has a page of its own.
         #if os(macOS)
         MenuBarSection()
         #else

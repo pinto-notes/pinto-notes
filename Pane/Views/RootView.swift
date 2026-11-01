@@ -102,6 +102,8 @@ struct RootView: View {
             .modifier(ExportAllNotes())
             .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
             .overlay { if let ais = templateAIs { templates(ais) } }
+            // Settings: a card over the notes, like Templates, on the window in front.
+            .settingsCard(backend: backendForConnect, sync: syncForSettings, opening: { templateAIs = nil })
             #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
@@ -131,6 +133,8 @@ struct RootView: View {
             withAnimation(.snappy(duration: 0.2)) { templateAIs = TemplateMaking.ais(rows) }
         }
     }
+
+    @Environment(SyncEngine.self) private var syncForSettings: SyncEngine?
 
     private func templates(_ ais: [SetupCards.AI]) -> some View {
         TemplateLibraryView(ais: ais, make: { e, ai in
