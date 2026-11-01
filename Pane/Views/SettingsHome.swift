@@ -444,6 +444,7 @@ struct GeneralPage: View {
     @AppStorage(Telemetry.consentKey) private var share = true
 
     var body: some View {
+        AppearanceSection()
         Section {
             Toggle("Show in menu bar", isOn: $menuBar)
                 .tint(Color(Palette.switchOn))

@@ -21,8 +21,9 @@ extension PColor {
     static var paneLabel: PColor { Palette.ink }
     static var paneSecondary: PColor { Palette.muted }
     static var paneTertiary: PColor { .tertiaryLabel }
-    static var paneFill: PColor { .secondarySystemBackground }
-    static var panePanel: PColor { UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.975, alpha: 1) } }
+    /// Code (blocks and inline) and a table's header row; a theme sets its own.
+    static var paneFill: PColor { Palette.surface("paneFill", \.code) { .secondarySystemBackground } }
+    static var panePanel: PColor { Palette.surface("panePanel", \.panel) { UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.975, alpha: 1) } } }
     static var paneSeparator: PColor { .separator }
 }
 #else
@@ -48,8 +49,9 @@ extension PColor {
     static var paneLabel: PColor { Palette.ink }
     static var paneSecondary: PColor { Palette.muted }
     static var paneTertiary: PColor { .tertiaryLabelColor }
-    static var paneFill: PColor { NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.19, alpha: 1) : NSColor(white: 0.94, alpha: 1) } }
-    static var panePanel: PColor { NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.15, alpha: 1) : NSColor(white: 0.975, alpha: 1) } }
+    /// Code (blocks and inline) and a table's header row; a theme sets its own.
+    static var paneFill: PColor { Palette.surface("paneFill", \.code) { NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.19, alpha: 1) : NSColor(white: 0.94, alpha: 1) } } }
+    static var panePanel: PColor { Palette.surface("panePanel", \.panel) { NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.15, alpha: 1) : NSColor(white: 0.975, alpha: 1) } } }
     static var paneSeparator: PColor { .separatorColor }
 }
 #endif
@@ -66,7 +68,13 @@ extension PColor {
     }
 
     /// The warm amber accent: deeper in light mode so it still reads on white.
-    static var paneAccent: PColor { PColor(named: "AccentColor") ?? Palette.amber }
+    /// A theme or the accent picker puts its own in place of the asset's.
+    static var paneAccent: PColor {
+        Palette.live("paneAccent") { look in
+            let a = look.accentShades
+            return (look.isStock ? PColor(named: "AccentColor") : nil) ?? Palette.pair(a.light, a.dark)
+        }
+    }
     /// A link to a note that doesn't exist yet.
     static var paneAccentFaded: PColor { Palette.amberFaded }
     /// The note's page, for colours mixed over it by hand.

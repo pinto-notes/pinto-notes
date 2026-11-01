@@ -134,7 +134,7 @@ struct AmberProminentButtonStyle: ButtonStyle {
     }
 
     /// The fills and the label's colour, for the contrast test.
-    static let fill = Palette.primaryButton
+    static var fill: PColor { Palette.primaryButton }
     static let destructiveFill = Palette.destructiveButton
     static let label = Palette.primaryButtonLabel
     /// White on the red in both appearances.
@@ -306,8 +306,8 @@ struct SecondaryButtonStyle: ButtonStyle {
         SecondaryButton(configuration: configuration, size: size, wide: wide)
     }
 
-    static let fill = Palette.soft
-    static let label = Palette.ink
+    static var fill: PColor { Palette.soft }
+    static var label: PColor { Palette.ink }
 }
 
 extension ButtonStyle where Self == SecondaryButtonStyle {

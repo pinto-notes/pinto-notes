@@ -20,17 +20,19 @@ enum Palette {
     // solid so it reads the same on any surface; the muted text a neutral grey a little darker than
     // the system's secondary label in the light, which sits under 4:1 on white (5.4:1 on white
     // here and 4.5:1 on the selected row, 7.4:1 on black).
-    static let ink = warm(0x2A1D10, 0xF6EFE7, plain: (0x262626, 0xD9D9D9))
-    static let muted = warm(0x74604C, 0xBCB0A3, plain: (0x6A6A6A, 0x999999))
+    static var ink: PColor { surface("ink", \.ink) { warm(0x2A1D10, 0xF6EFE7, plain: (0x262626, 0xD9D9D9)) } }
+    static var muted: PColor { surface("muted", \.muted) { warm(0x74604C, 0xBCB0A3, plain: (0x6A6A6A, 0x999999)) } }
 
     /// The accent, in one place: amber, or the build's own (scripts/set-accent.sh puts PANE_ACCENT
     /// in the gitignored Config/Identity.local.xcconfig, and Info.plist carries it here as
     /// PaneAccent, "1E7A4C 5CC48A"). Everything below that leans toward amber follows it.
-    static let accent = Accent(info: Bundle.main.object(forInfoDictionaryKey: "PaneAccent") as? String) ?? .amber
+    static let buildAccent = Accent(info: Bundle.main.object(forInfoDictionaryKey: "PaneAccent") as? String) ?? .amber
+    /// The accent now: the build's, unless a theme or the accent picker sets another (ThemeLook).
+    static var accent: Accent { ThemeStore.shared.look.accentShades }
 
     /// The accent's shades. `light` fills the primary buttons under a white label, so it stays
     /// deep enough for 3:1 against white; `dark` is the accent on black (ticks, links, an AI's tint).
-    struct Accent {
+    struct Accent: Sendable {
         let light: UInt32, dark: UInt32
         /// A wiki link to a note that doesn't exist yet: the accent faded toward the page.
         let faded: (UInt32, UInt32)
@@ -71,23 +73,23 @@ enum Palette {
     }
 
     /// The accent: links, ticks and an AI's tint (AccentColor.colorset holds the same).
-    static let amber = pair(accent.light, accent.dark)
+    static var amber: PColor { live("amber") { let a = $0.accentShades; return pair(a.light, a.dark) } }
     /// The fill of amber primary buttons, in light and dark alike: the deeper amber, so their
     /// white label stays readable (the dark-mode amber is too light under white).
-    static let amberButton = pair(accent.light, accent.light)
+    static var amberButton: PColor { live("amberButton") { let a = $0.accentShades; return pair(a.light, a.light) } }
     /// The primary button: the deeper amber with a white label in the light; in the dark the ink
     /// button, white with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons
     /// white or black, never amber). Under the pointer a touch lighter in the light, a touch greyer
     /// in the dark.
-    static let primaryButton = byAppearance(light: amberButton, dark: inkButton)
+    static var primaryButton: PColor { live("primaryButton") { let a = $0.accentShades; return byAppearance(light: pair(a.light, a.light), dark: pair(0x000000, 0xFFFFFF)) } }
     static let primaryButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
     static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
-    static let buttonHover = pair(accent.light, 0.12, 0xFFFFFF, 0.08)
-    static let buttonPressed = pair(accent.light, 0.2, 0xFFFFFF, 0.14)
-    static let quietPressed = pair(accent.light, 0.14, 0xFFFFFF, 0.10)
-    static let choiceHover = pair(accent.light, 0.07, 0xFFFFFF, 0.06)
+    static var buttonHover: PColor { live("buttonHover") { let a = $0.accentShades; return pair(a.light, 0.12, 0xFFFFFF, 0.08) } }
+    static var buttonPressed: PColor { live("buttonPressed") { let a = $0.accentShades; return pair(a.light, 0.2, 0xFFFFFF, 0.14) } }
+    static var quietPressed: PColor { live("quietPressed") { let a = $0.accentShades; return pair(a.light, 0.14, 0xFFFFFF, 0.10) } }
+    static var choiceHover: PColor { live("choiceHover") { let a = $0.accentShades; return pair(a.light, 0.07, 0xFFFFFF, 0.06) } }
     /// A primary button that can't be pressed yet: a quiet warm grey with muted text, not a faded
     /// amber, so it reads as "not yet" rather than as broken.
     static let disabledButton = warm(brown, 0.13, 0xFFFFFF, 0.11, plain: (0x000000, 0.08, 0xFFFFFF, 0.11))
@@ -100,56 +102,73 @@ enum Palette {
     static let destructiveButton = pair(0xC62828, 0xC62828)
     /// A wiki link to a note that doesn't exist yet: the accent, faded toward the page (solid,
     /// so it reads the same over any background).
-    static let amberFaded = pair(accent.faded.0, accent.faded.1)
+    static var amberFaded: PColor { live("amberFaded") { let a = $0.accentShades; return pair(a.faded.0, a.faded.1) } }
     /// Amber as text beside an AI's mark: dark enough to read on white.
-    static let amberInk = pair(accent.ink.0, accent.ink.1)
+    static var amberInk: PColor { live("amberInk") { let a = $0.accentShades; return pair(a.ink.0, a.ink.1) } }
     /// The soft amber fill behind an AI's receipt, a lit choice and a selected suggestion. In the
     /// dark a neutral grey a step above the cards, never a brown-amber (dark mode is pure black).
-    static let amberSoft = pair(accent.soft, 0x3A3A3A)
+    static var amberSoft: PColor { live("amberSoft") { let a = $0.accentShades; return pair(a.soft, 0x3A3A3A) } }
     /// A solid hairline: card edges and dividers that read the same over any surface.
-    static let line = warm(0xE6DCD2, 0x3A3633, plain: (0xE5E5E5, 0x333333))
+    static var line: PColor { surface("line", \.line) { warm(0xE6DCD2, 0x3A3633, plain: (0xE5E5E5, 0x333333)) } }
 
     /// The fill of secondary buttons and chips (the website's `--soft`): a step into the brown
     /// from every ground it sits on, so it reads as a button without a border.
-    static let soft = warm(0xF2EAE1, 0x36322E, plain: (0xF2F2F2, 0x2C2C2C))
+    static var soft: PColor { surface("soft", \.soft) { warm(0xF2EAE1, 0x36322E, plain: (0xF2F2F2, 0x2C2C2C)) } }
     /// A raised card, popover or toast (the website's `--card`): a step lighter than its ground,
     /// with the shared shadow (`Depth`) instead of a border.
-    static let card = warm(0xFFFEFB, 0x2C2A27, plain: (0xFFFFFF, 0x1C1C1C))
+    static var card: PColor { surface("card", \.card) { warm(0xFFFEFB, 0x2C2A27, plain: (0xFFFFFF, 0x1C1C1C)) } }
     /// The tint of the shared shadow's long, soft part: the brown, never grey.
     static let shadow = warm(0x3C1E05, 0.13, 0x000000, 0.45, plain: (0x000000, 0.12, 0x000000, 0.45))
 
     /// The note itself: nearly white, and nearly native in the dark. Candidate B (`paper`) lays
     /// a soft cream page instead, like the website's cards. E (`plain`, the Mac's): white and black.
     #if os(iOS)
-    static let page = looks(control: (0xFFFEFD, 0x000000), warm: (0xFFFEFD, 0x000000), paper: (0xFFFAF3, 0x000000))
+    static var page: PColor { surface("page", \.page) { looks(control: (0xFFFEFD, 0x000000), warm: (0xFFFEFD, 0x000000), paper: (0xFFFAF3, 0x000000)) } }
     #else
-    static let page = looks(control: (0xFFFEFD, 0x1F1E1D), warm: (0xFFFEFC, 0x22201D), paper: (0xFFFAF2, 0x26231F),
-                            calm: (0xFFFEFC, 0x25231F), reading: (0xFFFAF2, 0x282521), plain: (0xFFFFFF, 0x000000))
+    static var page: PColor {
+        surface("page", \.page) {
+            looks(control: (0xFFFEFD, 0x1F1E1D), warm: (0xFFFEFC, 0x22201D), paper: (0xFFFAF2, 0x26231F),
+                  calm: (0xFFFEFC, 0x25231F), reading: (0xFFFAF2, 0x282521), plain: (0xFFFFFF, 0x000000))
+        }
+    }
     #endif
 
     #if os(iOS)
     /// The folders' ground (the most warmth) and the notes list's (less). Pure black in the dark.
-    static let foldersGround = pair(0xEFEBE9, 0x000000)
-    static let listGround = pair(0xF2F0EE, 0x000000)
+    static var foldersGround: PColor { surface("foldersGround", \.sidebar) { pair(0xEFEBE9, 0x000000) } }
+    static var listGround: PColor { surface("listGround", \.list) { pair(0xF2F0EE, 0x000000) } }
     /// A grouped row on either ground; in the dark the rows are where the warmth shows.
-    static let row = pair(0xFDFCFB, 0x1F1E1D)
+    static var row: PColor { surface("row", \.card) { pair(0xFDFCFB, 0x1F1E1D) } }
     #else
     /// Laid inside the sidebar's glass, so it keeps its vibrancy: about 5.5% toward the brown
     /// (5% in the dark, where more reads as brown). E (`plain`): 5% black in light mode, so the
     /// sidebar is Notes' grey (about #EEEEED) instead of near-white glass; none in the dark, where
     /// the native glass already reads as its own ground (Emil, 31 October 2026).
-    static let sidebarWarmth = looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.055), paper: (brown, 0.085, brown, 0.06),
-                                     plain: (0x000000, 0.05, brown, 0))
+    /// A theme lays its sidebar colour solid instead.
+    static var sidebarWarmth: PColor {
+        surface("sidebarWarmth", \.sidebar) {
+            looks(control: (brown, 0.055, brown, 0.05), warm: (brown, 0.075, brown, 0.055), paper: (brown, 0.085, brown, 0.06),
+                  plain: (0x000000, 0.05, brown, 0))
+        }
+    }
     /// The notes list: a little warmth, less than the sidebar.
     /// C and D: a clear step below the page, light and dark, so list and note read as two grounds
     /// without a line between them. E (`plain`): the page's white, and in the dark a neutral step off
     /// the note's black (#0D0D0D, Emil's pick 10-30), with the split view's own divider between them.
-    static let listGround = looks(control: (0xFCFAF8, 0x252423), warm: (0xFBF8F4, 0x282522), paper: (0xF8F2EA, 0x2A2622),
-                                  calm: (0xF3EEE8, 0x1C1A18), reading: (0xF1EAE0, 0x1C1A18), plain: (0xFFFFFF, 0x0D0D0D))
+    static var listGround: PColor {
+        surface("listGround", \.list) {
+            looks(control: (0xFCFAF8, 0x252423), warm: (0xFBF8F4, 0x282522), paper: (0xF8F2EA, 0x2A2622),
+                  calm: (0xF3EEE8, 0x1C1A18), reading: (0xF1EAE0, 0x1C1A18), plain: (0xFFFFFF, 0x0D0D0D))
+        }
+    }
     /// The selected note row in C, D and E: the card in C and D (a step lighter than their list);
     /// in E, whose list is the card's white, a neutral grey a step off the list instead.
-    static let rowSelection = looks(control: (0xFFFEFB, 0x2C2A27), warm: (0xFFFEFB, 0x2C2A27), paper: (0xFFFEFB, 0x2C2A27),
-                                    plain: (0xEBEBEB, 0x262626))
+    static var rowSelection: PColor {
+        surface("rowSelection", \.selection) {
+            looks(control: (0xFFFEFB, 0x2C2A27), warm: (0xFFFEFB, 0x2C2A27), paper: (0xFFFEFB, 0x2C2A27),
+                  plain: (0xEBEBEB, 0x262626))
+        }
+    }
     #endif
 
     // Sign-in.
@@ -316,16 +335,17 @@ extension Palette {
     }
 }
 
+/// Read in a view's body, these follow the theme (ThemeStore is observable).
 extension Color {
-    static let ink = Color(Palette.ink)
-    static let muted = Color(Palette.muted)
-    static let amberInk = Color(Palette.amberInk)
-    static let amberSoft = Color(Palette.amberSoft)
-    static let line = Color(Palette.line)
-    static let soft = Color(Palette.soft)
-    static let card = Color(Palette.card)
+    static var ink: Color { Color(Palette.ink) }
+    static var muted: Color { Color(Palette.muted) }
+    static var amberInk: Color { Color(Palette.amberInk) }
+    static var amberSoft: Color { Color(Palette.amberSoft) }
+    static var line: Color { Color(Palette.line) }
+    static var soft: Color { Color(Palette.soft) }
+    static var card: Color { Color(Palette.card) }
     /// The note itself sits on a lighter page than the list and sidebar, like Apple Notes.
-    static let notePage = Color(Palette.page)
+    static var notePage: Color { Color(Palette.page) }
 
     init(light: Color, dark: Color) {
         #if os(macOS)
