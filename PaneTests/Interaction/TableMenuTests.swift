@@ -174,6 +174,7 @@ import AppKit
         try #require(h.controller.lastTableMenu?.item("Add Row Below")).run()
         #expect(await h.until { h.text.contains("| ⌘B | Bold |\n|   |   |\n| ⌘⇧L | Checklist |") }, "a blank row under ⌘B: \(h.text.debugDescription)")
         #expect(await h.until { h.gridHasFocus }, "the keyboard stays in the table")
+        #expect(h.controller.table?.cell == GridCell(row: 2, column: 0), "the caret goes to the new row")
         h.controller.pickTableLine(.row(2), grid: 0, cell: GridCell(row: 2, column: 0))
         try #require(h.controller.lastTableMenu?.item("Delete Row")).run()
         #expect(await h.until { h.text == Self.note }, "the blank row is gone: \(h.text.debugDescription)")
@@ -185,7 +186,7 @@ import AppKit
         #expect(await h.until { h.text.contains("| Shortcut |   | Does |") && h.text.contains("| ⌘B |   | Bold |") }, "a blank column after the first: \(h.text.debugDescription)")
         // The toolbar's table menu does the same for the cell with the keyboard.
         let toolbar = try #require(h.controller.currentTableMenu)
-        #expect(h.controller.table?.cell == GridCell(row: 1, column: 0))
+        #expect(h.controller.table?.cell == GridCell(row: 0, column: 1), "the caret goes to the new column's header")
         h.controller.pickTableLine(.column(1), grid: 0, cell: GridCell(row: 1, column: 1))
         try #require(h.controller.lastTableMenu?.item("Delete Column")).run()
         #expect(await h.until { h.text == Self.note }, "the blank column is gone: \(h.text.debugDescription)")
