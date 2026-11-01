@@ -39,11 +39,11 @@ export const FAQ: QA[] = [
   ] },
   { id: "new-device", q: "I have a new iPhone or Mac. How do I get my notes?", a: [
     "Sign in, and your notes open. Nothing else is needed, and there is no wait after a password reset. If the device has been signed in for more than an hour without your notes, it asks you to sign in once more. Every device of yours shows \"A new device opened your notes\", and we email you.",
-    "With Advanced protection on, a new device needs your key first: from iCloud Keychain, from a device that has your notes (Settings → Security → Add a device), or from your recovery key.",
+    "If you still have Advanced protection on (we're retiring it), a new device needs your key first: from iCloud Keychain, from a device that has your notes (Settings → Security → Add a device), or from your recovery key.",
     "If your account is from before signing in could open your notes, the app asks you once which way you want it. Until you answer, a new device is added as with Advanced protection.",
   ] },
   { id: "storage", q: "Where are my notes stored?", a: [
-    "On each device you're signed in on, and, encrypted, on Supabase's servers in Frankfurt, Germany, in the EU. Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. With Advanced protection on, your notes are end-to-end encrypted: we can't open them and can't help you back in. Some details, such as dates, sizes and folder structure, stay readable. The Privacy & Security page lists all of it.",
+    "On each device you're signed in on, and, encrypted, on Supabase's servers in Frankfurt, Germany, in the EU. Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. Some details, such as dates, sizes and folder structure, stay readable. The Privacy & Security page lists all of it.",
   ], more: { href: "/blog/encrypted-notes-app-for-ai", text: "How encryption works with ChatGPT and Claude" } },
   { id: "offline", q: "Does it work offline?", a: [
     "Yes. Your notes are on your device too, so you can read and write without a connection. Your edits stay on the device and sync when you're back online. If the same note changed somewhere else in the meantime, the newer edit wins and the other is kept as a copy, so nothing is lost.",

@@ -18,7 +18,9 @@ const copy = [
 const all = copy.join("\n");
 
 const DEFAULT = "Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account.";
-const STRICT = "With Advanced protection on, your notes are end-to-end encrypted: we can't open them and can't help you back in.";
+// Advanced protection is retired (1 November 2026): only accounts that already had it on keep it.
+const STRICT = "your notes are end-to-end encrypted: we can't open them and can't help you back in.";
+const RETIRED = /retiring Advanced protection|retiring it/;
 
 /// Source text as a reader gets it: entities decoded, JSX line breaks joined.
 const plain = (t: string) => t.replace(/&apos;|&rsquo;/g, "'").replace(/&ldquo;|&rdquo;|&quot;/g, "\"").replace(/[ \t]*\n[ \t]*(?=\S)/g, (m) => (m.includes("\n\n") ? "\n" : " "));
@@ -81,14 +83,15 @@ describe("privacy copy", () => {
   // A standard account: the server keeps a sealed copy of the key, so signing in opens the notes.
   // Advanced protection: no copy, and only then are the notes end-to-end encrypted.
   it("says what the default is and what Advanced protection changes, in the same words everywhere", () => {
-    expect(FACTS[0].text).toBe(`${DEFAULT} ${STRICT}`);
-    expect(HELP.find((q) => q.id === "storage")!.a.join(" ")).toContain(`${DEFAULT} ${STRICT}`);
+    expect(FACTS[0].text).toBe(DEFAULT);
+    expect(HELP.find((q) => q.id === "storage")!.a.join(" ")).toContain(DEFAULT);
+    expect(HELP.map((q) => q.a.join(" ")).join(" ")).toMatch(RETIRED);
     for (const text of [ENCRYPTION.items.map((i) => i.text).join(" "), policy]) {
       expect(text).toContain("We keep a locked copy of your key so that signing in opens your notes on a new device");
       expect(text).toContain("we could open your notes if we had to, for example under a court order, and so could someone who gets into your account");
       expect(text).toContain(STRICT);
+      expect(text).toMatch(RETIRED);
       expect(text).toContain("We hold both the secret and the database");
-      expect(text).toMatch(/a saved recovery key or another device/);
       expect(text).toMatch(/If you lose every device and the recovery key, your notes are lost/);
       expect(text).toMatch(/"Signing in now opens your notes"/);
       expect(text).toMatch(/Until you answer, nothing is copied/);
@@ -96,8 +99,10 @@ describe("privacy copy", () => {
     for (const text of [HOME_PRIVACY.text, SITE_FACTS.join(" ")]) {
       expect(text).toMatch(/keeps? a locked copy of your key/);
       expect(text).toMatch(/could open (them|your notes) if (we|it) had to/);
-      expect(text).toMatch(/Advanced protection/);
+      expect(text).not.toMatch(/Turn on Advanced protection/);
     }
+    // How older versions turn it on stays in the policy only.
+    expect(policy).toMatch(/a saved recovery key or another device/);
     expect(LIMITS.map((i) => i.text).join(" ")).toMatch(/The sealed copy can't be opened with a copy of the database alone\. A recent copy of the database also holds sign-in sessions/);
     expect(WHO_CAN_SEE.map((i) => i.label + " " + i.text).join(" ")).toMatch(/Anyone who can sign in as you, unless Advanced protection is on/);
   });
@@ -145,7 +150,7 @@ describe("privacy copy", () => {
     // can do with a locked note.
     const either = /only an old copy of the database|^It can't read, search or change them\.$/;
     const claims = sentences([...siteText, policy]).filter((t) => claim.test(t));
-    expect(claims.length).toBeGreaterThan(8);
+    expect(claims.length).toBeGreaterThan(5);
     for (const t of claims) if (!either.test(t)) expect(t, t).toMatch(/Advanced protection/);
     // The blog posts: the same, for what they say about Pinto Notes.
     const ours = /\b(we|Pinto Notes) can't (read|open)|(your|Your) notes are (then )?end-to-end encrypted|Pinto Notes end-to-end encrypted/;
