@@ -138,7 +138,7 @@ import AppKit
         let host = try #require(h.overlays.first)
         let table = try #require(GridTable.find(in: h.text).first)
         let cell = try #require(h.controller.table?.cell)
-        let widths = table.columnWidths(available: host.frame.width - GridMetrics.handle)
+        let widths = table.columnWidths(available: host.frame.width - GridMetrics.handle - GridMetrics.grow)
         let handles = GridHandles(widths: widths, rows: table.rows.count, cell: cell)
         #expect(handles.grips.count == 2)
         let box = try #require(h.view.core.gridBoxes[0])
@@ -194,6 +194,29 @@ import AppKit
         #expect(h.gridCount == 1)
     }
 
+    /// The add bars show while a cell is being edited, a click on one adds a row or a column with
+    /// the keyboard in it, and a click in the strips around the table off the bars goes to the text.
+    @Test func theAddBarsAddARowAndAColumn() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        let host = try #require(h.overlays.first as? GridHostingView)
+        let box = try #require(h.view.core.gridBoxes[0])
+        #expect(box.adds.isEmpty, "no bars at rest")
+        // At rest the strip under the table is the text's.
+        let below = NSPoint(x: host.frame.midX, y: host.frame.maxY - 4)
+        #expect(host.hitTest(below) == nil, "a click under the table goes to the text")
+        await enter(h, row: 1)
+        #expect(await h.until { box.adds.count == 2 }, "both bars show while editing: \(box.adds)")
+        let rows = try #require(GridTable.find(in: h.text).first).rows.count
+        try await h.clickAdd(.row, box: box, host: host)
+        #expect(await h.until { GridTable.find(in: h.text).first?.rows.count == rows + 1 }, "a row at the bottom: \(h.text.debugDescription)")
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: rows, column: 0) }, "the keyboard in its first cell")
+        let columns = try #require(GridTable.find(in: h.text).first).columns
+        try await h.clickAdd(.column, box: box, host: host)
+        #expect(await h.until { GridTable.find(in: h.text).first?.columns == columns + 1 }, "a column at the end: \(h.text.debugDescription)")
+        #expect(await h.until { h.controller.table?.cell == GridCell(row: 0, column: columns) }, "the keyboard in its header")
+    }
+
     /// The last row and column have no Delete: Delete Table removes a table.
     @Test func theLastRowAndColumnCantBeDeleted() async throws {
         let h = await EditorHarness("Title\n\n| only |\n| --- |\n\nAfter")
@@ -208,4 +231,17 @@ import AppKit
         #expect(menu.item("Delete Table")?.enabled == true)
     }
 }
+extension EditorHarness {
+    /// A click on the middle of a table's add bar: it must hit-test to the table, not the text
+    /// under it; then what the bar's button calls (an offscreen window takes no clicks).
+    func clickAdd(_ kind: GridAdd, box: GridHitBox, host: GridHostingView) async throws {
+        let r = try #require(box.adds[kind])
+        let local = NSPoint(x: r.midX, y: host.isFlipped ? r.midY : host.bounds.height - r.midY)
+        let hit = try #require(host.hitTest(host.convert(local, to: host.superview)), "the bar takes the click")
+        #expect(hit === host || hit.isDescendant(of: host))
+        controller.addToTable(kind, grid: 0)
+        try? await Task.sleep(for: .milliseconds(300))
+    }
+}
 #endif
+

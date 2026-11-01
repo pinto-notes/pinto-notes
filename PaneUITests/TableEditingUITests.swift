@@ -14,7 +14,6 @@ final class TableEditingUITests: XCTestCase {
         app = XCUIApplication()
         let note = ProcessInfo.processInfo.environment["TABLE_NOTE"] ?? ""
         app.launchArguments = ["-uitest", "-seedNote", note, "-open", "Trip to Lisbon"]
-        if let lines = ProcessInfo.processInfo.environment["TABLE_LINES"], !lines.isEmpty { app.launchArguments += ["-tableLines", lines] }
         app.launch()
     }
 
@@ -126,35 +125,59 @@ final class TableEditingUITests: XCTestCase {
         XCTAssertEqual(app.keyboards.count, 0, "the keyboard is put away")
     }
 
-    /// Stills of one line style (TABLE_LINES): at rest, a cell being edited, a row added, a new table.
-    func testLines() throws {
-        let style = ProcessInfo.processInfo.environment["TABLE_LINES"] ?? "rows"
+    /// Stills (Emil, 1 November 2026): at rest, a cell being edited (column lines and the add bars
+    /// show), a row added from the menu, a row and a column added from the bars, a new table.
+    func testStills() throws {
         XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15), "the note opens")
         pause(2)
-        shot("lines-\(style)-1-rest")
+        XCTAssertFalse(element("grid.add.row").exists, "no add bars at rest")
+        shot("stills-1-rest")
         element("grid.2.1").tap()
         let onboarding = app.buttons["Continue"].firstMatch
         if onboarding.waitForExistence(timeout: 2) { onboarding.tap(); pause(0.6) }
         pause()
-        shot("lines-\(style)-2-editing")
+        shot("stills-2-editing")
+        func said(_ e: XCUIElement) -> String { (e.value as? String ?? "") + " " + e.label }
+
+        // Add Row Below from the table menu: typing goes into the new row.
         element("editor.tableMenu").tap()
         XCTAssertTrue(app.buttons["Add Row Below"].firstMatch.waitForExistence(timeout: 3))
         app.buttons["Add Row Below"].firstMatch.tap()
         pause()
         app.typeText("Mon")
         pause()
-        func said(_ e: XCUIElement) -> String { (e.value as? String ?? "") + " " + e.label }
         XCTAssertTrue(said(element("grid.3.0")).contains("Mon"), "typing after Add Row Below goes into the new row: \(said(element("grid.3.0")))")
         XCTAssertFalse(said(element("grid.2.1")).contains("Mon"), "not into the cell you were in")
-        shot("lines-\(style)-3-row-added")
+        shot("stills-3-row-added")
+
+        // The bar under the table adds a row at the bottom; the one at its right, a column.
+        let addRow = element("grid.add.row")
+        XCTAssertTrue(addRow.waitForExistence(timeout: 3), "the add-row bar shows while editing")
+        addRow.tap()
+        pause()
+        app.typeText("Tue")
+        pause()
+        XCTAssertTrue(said(element("grid.5.0")).contains("Tue"), "a row at the bottom, keyboard in it: \(said(element("grid.5.0")))")
+        let addColumn = element("grid.add.column")
+        XCTAssertTrue(addColumn.waitForExistence(timeout: 3), "the add-column bar shows while editing")
+        addColumn.tap()
+        pause()
+        app.typeText("Paid")
+        pause()
+        XCTAssertTrue(said(element("grid.0.3")).contains("Paid"), "a column at the end, keyboard in its header: \(said(element("grid.0.3")))")
+        shot("stills-4-bars")
+
         element("editor.done").tap()
         pause()
+        XCTAssertEqual(app.keyboards.count, 0, "Hide keyboard puts it away")
+        XCTAssertFalse(element("grid.add.row").exists, "the bars go with the keyboard")
+        shot("stills-5-done")
         app.textViews["editor"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)).tap()
         pause()
         if app.buttons["Table"].firstMatch.waitForExistence(timeout: 3) {
             app.buttons["Table"].firstMatch.tap()
             pause()
-            shot("lines-\(style)-4-new-table")
+            shot("stills-6-new-table")
         }
     }
 

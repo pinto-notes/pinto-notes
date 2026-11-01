@@ -422,6 +422,12 @@ final class EditorController {
         t.focusGrid(grid, cell: next)
     }
 
+    /// A table's add bar: a row at the bottom or a column at the end, keyboard in it.
+    func addToTable(_ kind: GridAdd, grid: Int) {
+        guard let t = target, let g = GridTable.find(in: t.currentText).first(where: { $0.index == grid }) else { return }
+        performTable(kind.action, grid: grid, cell: kind.from(g))
+    }
+
     /// Removes table `grid` from the note, keyboard back in the text where it was. It's one
     /// step of Undo, and a notice says so with an Undo button, like Notes (no question first).
     func deleteTable(grid: Int) {

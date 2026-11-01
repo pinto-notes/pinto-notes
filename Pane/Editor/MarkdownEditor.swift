@@ -123,6 +123,9 @@ final class EditorCore {
             // The handle targets' reach over the line above (iPhone; see GridMetrics.reach).
             f.origin.y -= GridMetrics.reach
             f.size.height += GridMetrics.reach
+            // The add bars' strips, right of and below the table (GridMetrics.grow).
+            f.size.width += GridMetrics.grow
+            f.size.height += GridMetrics.grow
             let request = gridFocus?.grid == g.index ? gridFocus : nil
             let isSelected = armedGrid == g.index
             let box = gridBoxes[g.index] ?? GridHitBox()
@@ -639,15 +642,14 @@ private struct PlatformEditor: UIViewRepresentable {
     }
 }
 
-/// Holds a table's view. Its top `GridMetrics.reach` points lie over the line above the table: a
-/// tap there is the table's only on a handle's target, otherwise it goes to the text.
+/// Holds a table's view. Its top `GridMetrics.reach` points lie over the line above the table, and
+/// its add bars' strips over the margin and the space below: a tap there is the table's only on a
+/// handle's target or a bar, otherwise it goes to the text.
 final class GridHolder: UIView {
     var box: GridHitBox?
 
     override func point(inside p: CGPoint, with event: UIEvent?) -> Bool {
-        guard bounds.contains(p) else { return false }
-        if p.y >= GridMetrics.reach { return true }
-        return box?.targets.values.contains { $0.contains(p) } ?? false
+        box?.takes(p, in: bounds.size) ?? bounds.contains(p)
     }
 }
 
@@ -1814,6 +1816,19 @@ private struct PlatformEditor: NSViewRepresentable {
     }
 }
 
+/// A table's view on the Mac. Its add bars' strips lie over the margin and the space below the
+/// table: a click there is the table's only on a bar, otherwise it goes to the text.
+final class GridHostingView: NSHostingView<AnyView> {
+    var box: GridHitBox?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        var p = convert(point, from: superview)
+        if !isFlipped { p.y = bounds.height - p.y }
+        if let box, !box.takes(p, in: bounds.size) { return nil }
+        return super.hitTest(point)
+    }
+}
+
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     let core = EditorCore()
     weak var controller: EditorController?
@@ -2009,7 +2024,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         for item in items {
             let host = cardHosts[item.key] ?? {
-                let h = NSHostingView(rootView: item.view)
+                let h: NSHostingView<AnyView>
+                if case .grid(let g, _, _) = item.content {
+                    let grid = GridHostingView(rootView: item.view)
+                    grid.box = core.gridBoxes[g.index]
+                    h = grid
+                } else {
+                    h = NSHostingView(rootView: item.view)
+                }
                 h.sizingOptions = []
                 h.frame = item.frame
                 addSubview(h)

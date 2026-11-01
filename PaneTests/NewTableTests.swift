@@ -32,3 +32,20 @@ import UIKit
         #expect(NoteBlockLookTests.decoration(NoteBlockLookTests.styled(after), at: "Packing next.") == nil)
     }
 }
+
+/// Where a table's view takes clicks: its grid, and around it only its handles and add bars.
+@MainActor @Suite struct GridHitBoxTests {
+    @Test func theBandsAroundATableLetClicksThrough() {
+        let box = GridHitBox()
+        let size = CGSize(width: 400, height: GridMetrics.reach + 120 + GridMetrics.grow)
+        #expect(box.takes(CGPoint(x: 100, y: GridMetrics.reach + 40), in: size), "the grid is the table's")
+        #expect(!box.takes(CGPoint(x: 100, y: size.height - 5), in: size), "the strip below goes to the text")
+        #expect(!box.takes(CGPoint(x: size.width - 5, y: 60), in: size), "the strip at the right goes to the text")
+        box.adds[.row] = CGRect(x: 16, y: size.height - 18, width: 300, height: 16)
+        box.adds[.column] = CGRect(x: size.width - 20, y: 30, width: 16, height: 80)
+        #expect(box.takes(CGPoint(x: 100, y: size.height - 10), in: size), "the add-row bar is the table's")
+        #expect(box.takes(CGPoint(x: size.width - 10, y: 60), in: size), "the add-column bar is the table's")
+        #expect(!box.takes(CGPoint(x: 360, y: size.height - 5), in: size), "beside the bar, the text")
+        #expect(!box.takes(CGPoint(x: 500, y: 60), in: size), "outside, never")
+    }
+}

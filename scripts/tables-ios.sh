@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Tables on iPhone: plays TableEditingUITests on its own simulator (no Simulator window), one
-# recording per test.   scripts/tables-ios.sh [out dir]   TESTS="testWalkthrough" APPEARANCE=dark BUILD=0 STYLE=always
+# recording per test.   scripts/tables-ios.sh [out dir]   TESTS="testWalkthrough" APPEARANCE=dark BUILD=0
 # Output: <out>/<test>-<appearance>.mp4, the screenshots the test takes, and logs.
 set -e
 cd "$(dirname "$0")/.."
@@ -28,10 +28,10 @@ if [[ "${BUILD:-1}" == 1 ]]; then
 fi
 
 for t in ${=TESTS:-testWalkthrough}; do
-  xcrun simctl io "$SIM" recordVideo --codec h264 --force "$OUT/$t${STYLE:+-$STYLE}-${APPEARANCE:-light}.mp4" 2>/dev/null &
+  xcrun simctl io "$SIM" recordVideo --codec h264 --force "$OUT/$t-${APPEARANCE:-light}.mp4" 2>/dev/null &
   REC=$!
   sleep 1.5
-  TEST_RUNNER_PANE_SHOTS="$OUT/${APPEARANCE:-light}" TEST_RUNNER_TABLE_NOTE="$NOTE" TEST_RUNNER_TABLE_LINES="${STYLE:-}" \
+  TEST_RUNNER_PANE_SHOTS="$OUT/${APPEARANCE:-light}" TEST_RUNNER_TABLE_NOTE="$NOTE" \
     nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
     -only-testing:"PaneUITests/TableEditingUITests/$t" > "$OUT/$t.log" 2>&1 || true
   kill -INT $REC; wait $REC 2>/dev/null || true

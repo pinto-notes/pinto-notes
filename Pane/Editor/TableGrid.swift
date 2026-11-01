@@ -169,19 +169,6 @@ extension TypedTable.ColumnType {
     }
 }
 
-/// The reading page's column lines, being compared (Emil, 1 November 2026: "why are there no
-/// vertical lines?"). `rows`: none, as D shipped; `always`: faint ones; `editing`: while a cell has
-/// the keyboard. A debug build reads `-tableLines rows|always|editing`.
-enum TableLines: String, CaseIterable, Sendable {
-    case rows, always, editing
-    nonisolated(unsafe) static var current: TableLines = {
-        #if DEBUG
-        if let s = UserDefaults.standard.string(forKey: "tableLines"), let v = TableLines(rawValue: s) { return v }
-        #endif
-        return .rows
-    }()
-}
-
 /// Which edges of a scrolled table have more columns past them.
 struct GridOverflow: Equatable {
     var leading = false
@@ -217,6 +204,9 @@ enum GridMetrics {
     /// largest sizes the rows kept their 32 pt and the text of one row was drawn over the next.
     static var row: CGFloat { max(32, ceil(EditorMetrics.body * 32 / 17)) }
     static let handle: CGFloat = 16
+    /// The strips right of and below a table for its add bars (they show while a cell is being
+    /// edited, over the margin and the space after the table; GridHitBox lets other clicks through).
+    static let grow: CGFloat = 22
     static func height(_ t: GridTable) -> CGFloat { handle + CGFloat(t.rows.count) * row + 2 }
     #if os(iOS)
     /// A row or column handle's touch target: 44 points square (HIG), however small its grip.
@@ -360,6 +350,27 @@ struct GridHandles: Equatable {
 final class GridHitBox {
     static let space = "gridHost"
     var targets: [GridLine: CGRect] = [:]
+    /// The add-a-row and add-a-column bars, while they show (see GridMetrics.grow).
+    var adds: [GridAdd: CGRect] = [:]
+
+    /// Whether a click or tap at `p` (host coordinates) is the table's. The bands around the table
+    /// (the reach above, the grow strips right and below) are only where a handle or bar is in
+    /// them; elsewhere the text under them takes it.
+    func takes(_ p: CGPoint, in size: CGSize) -> Bool {
+        guard CGRect(origin: .zero, size: size).contains(p) else { return false }
+        if p.y >= GridMetrics.reach, p.y < size.height - GridMetrics.grow, p.x < size.width - GridMetrics.grow { return true }
+        return targets.values.contains { $0.contains(p) } || adds.values.contains { $0.contains(p) }
+    }
+}
+
+/// The bars that add a row at the bottom or a column at the end: Add Row Below on the last row,
+/// Add Column After on the last column, so the caret lands the same way.
+enum GridAdd: Hashable {
+    case row, column
+    var action: TableAction { self == .row ? .addRowBelow : .addColumnAfter }
+    func from(_ t: GridTable) -> GridCell {
+        self == .row ? GridCell(row: t.rows.count - 1, column: 0) : GridCell(row: 0, column: max(t.columns - 1, 0))
+    }
 }
 
 /// A table's menu as shown: for a handle (`line`), or for the whole table from the toolbar.
@@ -467,9 +478,10 @@ struct TableGridView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let available = geo.size.width - GridMetrics.handle
+            let available = geo.size.width - GridMetrics.handle - GridMetrics.grow
             let widths = draft.columnWidths(available: available)
             let total = widths.reduce(0, +)
+            ZStack(alignment: .topLeading) {
             ScrollView(.horizontal) {
                 content(widths: widths)
                     .frame(width: GridMetrics.handle + total, alignment: .leading)
@@ -480,6 +492,20 @@ struct TableGridView: View {
             // reads as "scroll for more", not as clipped.
             .onScrollGeometryChange(for: GridOverflow.self) { GridOverflow($0) } action: { _, new in overflow = new }
             .mask { GridOverflow.Fade(overflow: overflow) }
+            .frame(width: geo.size.width - GridMetrics.grow, height: geo.size.height - GridMetrics.grow)
+            if isEditing {
+                let shown = min(total, available)
+                let top = GridMetrics.reach + GridMetrics.handle
+                addBar(.column)
+                    .frame(width: GridMetrics.grow - 6, height: CGFloat(draft.rows.count) * GridMetrics.row)
+                    .padding(.leading, GridMetrics.handle + shown + 4)
+                    .padding(.top, top)
+                addBar(.row)
+                    .frame(width: shown, height: GridMetrics.grow - 6)
+                    .padding(.leading, GridMetrics.handle)
+                    .padding(.top, top + CGFloat(draft.rows.count) * GridMetrics.row + 4)
+            }
+            }
         }
         .coordinateSpace(.named(GridHitBox.space))
         .onChange(of: table) { _, new in
@@ -568,6 +594,38 @@ struct TableGridView: View {
     }
 
     private static let contentSpace = "gridContent"
+
+    /// A thin bar with a plus: a click adds a row at the bottom or a column at the end, and the
+    /// keyboard goes to its first cell, like Tab or Return past the last cell.
+    private func addBar(_ kind: GridAdd) -> some View {
+        Button { add(kind) } label: {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(.fill.tertiary)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .hoverHighlight(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(GridHitBox.space)) } action: { box?.adds[kind] = $0 }
+        .onDisappear { box?.adds[kind] = nil }
+        .accessibilityLabel(kind == .row ? "Add row" : "Add column")
+        .accessibilityIdentifier(kind == .row ? "grid.add.row" : "grid.add.column")
+    }
+
+    private func add(_ kind: GridAdd) {
+        if let controller {
+            controller.addToTable(kind, grid: table.index)
+        } else {
+            let cell = draft.perform(kind.action, at: kind.from(draft))
+            commit(draft)
+            go(cell)
+        }
+    }
 
     private func grip(_ g: GridHandles.Grip, handles: GridHandles) -> some View {
         let horizontal = if case .column = g.line { true } else { false }
@@ -852,15 +910,14 @@ struct TableGridView: View {
     /// Grid lines get firmer with Increase Contrast.
     /// The cells' edges: grey, or in the candidates (DesignLook) the warm muted ink, so the grid
     /// sits in the page's warmth instead of on it.
-    /// Column lines: always in the older looks; in the reading page as `TableLines` says.
-    private var showsColumnLines: Bool {
-        guard DesignLook.readingPage else { return true }
-        switch TableLines.current {
-        case .rows: return false
-        case .always: return true
-        case .editing: return focus != nil || wanted != nil
-        }
-    }
+    /// A cell has the keyboard (or is about to): the table shows its tools.
+    private var isEditing: Bool { focus != nil || wanted != nil }
+
+    /// Column lines: always in the older looks. On the reading page only while a cell is being
+    /// edited: at rest a table reads as part of the page, and in it you see its columns. With rows
+    /// only, a new table's empty column had no edge (Emil, 1 November 2026: "why are there no
+    /// vertical lines?"; round 1 compared rows only, always and while editing).
+    private var showsColumnLines: Bool { !DesignLook.readingPage || isEditing }
 
     private var border: Color {
         DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
