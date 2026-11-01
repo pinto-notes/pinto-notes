@@ -136,7 +136,7 @@ Durations are rounded to 10 ms.
 
 The privacy policy (`web/content/privacy-policy.md`, "Diagnostics and usage from the apps"), the
 Privacy & Security page and the README describe this for versions after 1.2. The App Store
-privacy label for the first build that sends is in `docs/app-privacy-answers.md`, and
+privacy label for the first build that sends is in `pinto-internal/appstore/app-privacy-answers.md`, and
 `Pane/Resources/PrivacyInfo.xcprivacy` matches it. The label is changed by hand in App Store
 Connect before that build is submitted.
 

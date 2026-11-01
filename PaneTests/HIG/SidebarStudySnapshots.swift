@@ -108,8 +108,8 @@ import Testing
     }
 
     /// Settings, the card over the notes (SettingsCard): Appearance in Default light and dark and
-    /// in Sepia dark, General, and a search for "theme". Into docs/Evidence/settings-card with
-    /// `TEST_RUNNER_AMBER_HIG_SHOTS=$PWD/docs/Evidence/settings-card scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsCard()'`.
+    /// in Sepia dark, General, and a search for "theme". Into pinto-internal/evidence/settings-card with
+    /// `TEST_RUNNER_AMBER_HIG_SHOTS=$PINTO_INTERNAL/evidence/settings-card scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsCard()'`.
     @Test func settingsCard() async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let lib = try Self.library()
@@ -152,7 +152,7 @@ import Testing
     /// Settings › Security and Help and feedback (feature/settings-help), in the card over the
     /// notes and as whole pages, light and dark: Security with Pinto Notes keeping a copy of the
     /// key (most accounts) and without one, offline, and Help signed in and out. Into
-    /// docs/Evidence/settings-help with `TEST_RUNNER_AMBER_HIG_SHOTS=$PWD/docs/Evidence/settings-help
+    /// pinto-internal/evidence/settings-help with `TEST_RUNNER_AMBER_HIG_SHOTS=$PINTO_INTERNAL/evidence/settings-help
     /// scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsHelp()'`.
     @Test func settingsHelp() async throws {
         guard AppSnapshotTests.dir != nil else { return }

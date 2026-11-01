@@ -30,7 +30,7 @@ salt=$(cat .secrets/report-salt.txt)
 proxy_secret=$(cat .secrets/mcp-proxy-secret.txt)
 # Website usage with PostHog (web/lib/posthog.ts), production only, from the environment or
 # .secrets/posthog-key.txt. Public: it's in the page. Unset leaves whatever Vercel already has, and
-# without a key in Vercel either the site loads no PostHog. docs/Evidence/website-posthog.md.
+# without a key in Vercel either the site loads no PostHog. pinto-internal/evidence/website-posthog.md.
 posthog_key=${NEXT_PUBLIC_POSTHOG_KEY:-$(cat .secrets/posthog-key.txt 2>/dev/null || true)}
 cd web
 vercel link --yes --project amber-notes --scope "$team" >/dev/null

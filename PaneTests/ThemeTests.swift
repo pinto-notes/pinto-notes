@@ -91,7 +91,7 @@ import Testing
         Self.within(.standard) { #expect(Self.hex(early, .aqua) == 0x262626) }
     }
 
-    // MARK: The accessibility matrix (docs/Evidence/themes/accessibility-audit.md)
+    // MARK: The accessibility matrix (docs/Technical/theme-accessibility-audit.md)
 
     /// WCAG 2.2 contrast of two hex colours.
     static func ratio(_ a: UInt32, _ b: UInt32) -> Double { AmberButtonTests.contrast(Palette.rgb(a), Palette.rgb(b)) }
@@ -230,7 +230,7 @@ import Testing
         }
     }
 
-    // MARK: Emil's picks from the before-and-after study (docs/Evidence/a11y-picks)
+    // MARK: Emil's picks from the before-and-after study (pinto-internal/evidence/a11y-picks)
 
     /// Pick 2: the tick on a ticked checkbox is white in the light and near-black in the dark, as
     /// drawCheckbox draws it, and reads on every accent's disc in both (Default's included).

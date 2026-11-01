@@ -5,7 +5,7 @@
 // runs (two queries). "before" is the pool the functions had (max 3, idle 20 s, no retry); "after"
 // is _shared/db.ts's (the readiness check first, then the same queries).
 // Prints how many requests got an answer and how many were refused a connection (53300).
-// Meant for a throwaway database: see docs/Evidence/db-connections.md for the commands.
+// Meant for a throwaway database: see docs/Technical/db-connections.md for the commands.
 import postgres from "npm:postgres@3.4.5";
 import { isConnectionError, readiness } from "../supabase/functions/_shared/db.ts";
 

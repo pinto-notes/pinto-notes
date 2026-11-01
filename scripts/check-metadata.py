@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Checks the App Store field limits in docs/appstore/metadata.md (or the file given, e.g. metadata-mac.md)."""
-import re, sys
-path = sys.argv[1] if len(sys.argv) > 1 else 'docs/appstore/metadata.md'
+"""Checks the App Store field limits in appstore/metadata.md in the internal repository (or the file given, e.g. metadata-mac.md)."""
+import os, re, sys
+internal = os.environ.get('PINTO_INTERNAL', os.path.expanduser('~/Documents/Development/PintoNotes-internal'))
+path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(internal, 'appstore/metadata.md')
 text = open(path).read()
 mac = '| Name |' not in text  # the Mac page has no name or subtitle of its own
 def field(label):

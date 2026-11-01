@@ -45,7 +45,7 @@ Add File, drops and the share sheet take only these; anything else is refused wi
 
 The HTML Preview runs no script, loads nothing (a content rule blocks every URL, with a `default-src 'none'` policy on top), allows only its own first load, submits no form, keeps nothing (a non-persistent store), and hands a clicked web link to the browser (`LockedHTML` in `CodeFileView.swift`; `PaneTests/HTMLPreviewTests.swift` checks a hostile page against a listener). A text file edited in the app goes up as a new `content_version`, past the server's, so other devices fetch it again; the version it replaces is kept first in `attachment_versions` (bytes copied to `<path>.v<n>`, the newest 10 kept), as the AI's replacements are, so the edit can be undone from history (`made_by` "Pinto Notes").
 
-Every row but iWork was opened on both platforms (screenshots in `docs/Evidence/folder-files/kinds/`). No real iWork file was at hand (the only sample on the machine is a 2011 stub Quick Look refuses), so iWork rests on Quick Look's documented support.
+Every row but iWork was opened on both platforms (screenshots in `pinto-internal/evidence/folder-files/kinds/`). No real iWork file was at hand (the only sample on the machine is a 2011 stub Quick Look refuses), so iWork rests on Quick Look's documented support.
 
 ## Deletion, Recently Deleted, history
 

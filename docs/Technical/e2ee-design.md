@@ -79,7 +79,7 @@ Keychain: service `dev.emilwagman.pane.data-key`, account = user id, value = ver
 
 ## Add a device
 
-The threat model is `docs/Evidence/add-device-threat-model.md`. In short:
+The threat model is `docs/Technical/add-device-threat-model.md`. In short:
 
 1. The new device makes a P-256 key pair, a scan secret (the QR code) and a typed code, files `device_add_request`, and shows both. A code lives 5 minutes and is replaced by itself a few times, then on request.
 2. A device with the key opens Settings › Add a device: the camera inside the app on iPhone, the typed code on a Mac. It finds the request (`device_add_find`, this account's only), checks the new device's public key against the tag, and asks "Add this Mac?" with the device's name. Add needs Face ID, Touch ID or the passcode.

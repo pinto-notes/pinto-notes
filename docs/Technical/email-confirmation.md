@@ -81,7 +81,7 @@ Project `tswcrppnfzorhxhcnjvd`:
 End to end on staging: `PaneUITests/EmailConfirmUITests` on the iPhone simulator, with a build
 pointed at staging and `PANE_CONFIRM_EMAIL`, `PANE_CONFIRM_PASSWORD` and `PANE_CONFIRM_CODE_FILE`
 passed as `TEST_RUNNER_` variables. Whoever runs it reads the code in the inbox and writes it to
-the file. Screenshots of each screen, Mac and iPhone, light and dark: `docs/Evidence/email-confirm/` (the end-to-end run's own shots show a real address, so they stay out of the repository).
+the file. Screenshots of each screen, Mac and iPhone, light and dark: `pinto-internal/evidence/email-confirm/` (the end-to-end run's own shots show a real address, so they stay out of the repository).
 
 ## Production checklist
 

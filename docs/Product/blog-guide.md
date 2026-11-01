@@ -94,7 +94,7 @@ is no dark version to check.
 
 ## What's measured
 
-All of it is in `docs/Evidence/website-posthog.md`.
+All of it is in `pinto-internal/evidence/website-posthog.md`.
 
 - `blog_cta_clicked` (with `slug`, `position` and `action`) for the call to action.
 - `blog_copy_clicked` for a `Keep` copy.

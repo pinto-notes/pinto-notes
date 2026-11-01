@@ -10,7 +10,7 @@ import AppKit
 /// accent, the selection and the code block fill, each in light and dark (the system's appearance
 /// picks one). Default is the app as it always was and stays the default for everyone. Every other
 /// theme is solid colours and holds all its text to 4.5:1 and controls to 3:1, High contrast its
-/// text to 7:1 (ThemeTests; docs/Evidence/themes/accessibility-audit.md).
+/// text to 7:1 (ThemeTests; docs/Technical/theme-accessibility-audit.md).
 /// Chosen per device in Settings › General › Appearance; never synced.
 enum Theme: String, CaseIterable, Identifiable, Sendable {
     case standard = "default"

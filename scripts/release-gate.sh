@@ -1,7 +1,7 @@
 #!/bin/zsh
 # The release gate: performance, security, storage and network of one commit, measured the way people
-# run it: a summary in docs/Evidence/release-gate/<date>-<ref>.md, the full report outside the
-# repository (docs/Technical/release-gate.md).
+# run it: a summary in evidence/release-gate/<date>-<ref>.md in the internal repository ($PINTO_INTERNAL,
+# default ~/Documents/Development/PintoNotes-internal), the full report outside both (docs/Technical/release-gate.md).
 #
 #   scripts/release-gate.sh <candidate ref> [--baseline <last release ref>]
 #       [--sizes 1,2000,10000,20000] [--runs 3] [--only perf,security,storage,network] [--rebuild] [--host fleet-air]

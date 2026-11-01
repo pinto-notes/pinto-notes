@@ -5,7 +5,7 @@
 //
 // Builds the candidate (scripts/release-gate/build.sh), measures it on a real Mac over ssh with the
 // staging bench accounts, checks security, storage and network, and writes
-// docs/Evidence/release-gate/<date>-<ref>.md with a .json of every number beside it. Each line is
+// evidence/release-gate/<date>-<ref>.md in the internal repository with a .json of every number beside it. Each line is
 // pass, fail (over its budget in budgets.json) or regression (over 15% worse than the baseline's
 // report, past the metric's noise floor). The baseline is the newest report for that ref's commit;
 // without one, the baseline ref is run first.
@@ -22,7 +22,8 @@ const runs: number = RESCORE?.runs ?? Number(args.runs);
 const only = new Set(RESCORE ? [] : (args.only ?? "perf,security,storage,network").split(","));
 const HOST = args.host;
 const BUNDLE = "dev.emilwagman.pane.beta";
-const EVIDENCE = `${ROOT}/docs/Evidence/release-gate`;
+// The summaries go to the private internal repository (pinto-notes/pinto-internal), next to this one.
+const EVIDENCE = `${Deno.env.get("PINTO_INTERNAL") ?? `${Deno.env.get("HOME")}/Documents/Development/PintoNotes-internal`}/evidence/release-gate`;
 // The full reports and every number (runs, frames, hang stacks) stay out of the public repository.
 const RAW = Deno.env.get("AMBER_GATE_RAW") ?? `${Deno.env.get("HOME")}/content-tools/projects/amber-proto/release-gate`;
 

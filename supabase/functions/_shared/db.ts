@@ -22,7 +22,7 @@
 // answers", but the Edge runtime (1.76 and 1.77) checks anyway and refuses the pooler as
 // UnknownIssuer. So it's verified or nothing: DB_POOLER_TLS=off turns TLS off without a deploy, for
 // the day the runtime can't verify (a rotated root, a runtime change), and says so in the log.
-// The direct address is used as it is. docs/Evidence/db-connections.md has the measurements.
+// The direct address is used as it is. docs/Technical/db-connections.md has the measurements.
 //
 // Transaction mode gives each transaction, or each statement outside one, whatever connection is
 // free. Nothing here keeps state on a connection between them: settings are set_config(..., true)

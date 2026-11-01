@@ -3,7 +3,7 @@ import CryptoKit
 import Foundation
 
 // Add a device: a signed-in device without the account's key gets it from one that has it
-// (docs/Evidence/add-device-threat-model.md). The new device shows a QR code and a typed code;
+// (docs/Technical/add-device-threat-model.md). The new device shows a QR code and a typed code;
 // a device with the key reads one of them inside Amber Notes and seals the key to the new
 // device. The formats are in supabase/functions/_shared/e2ee.ts, pinned by e2ee-vectors.json.
 

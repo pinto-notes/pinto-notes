@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The directory-review demo account (the App Review account, in production): keep its notes as the
-test prompts in docs/Evidence/directory-submissions.md expect, and check the MCP server as that user.
+test prompts in pinto-internal/evidence/directory-submissions.md expect, and check the MCP server as that user.
 
   scripts/review-account.py seed    add the sample notes that are missing (by title), fix the known ones
   scripts/review-account.py reset   put the sample notes back after reviewers or a check changed them

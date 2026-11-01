@@ -5,7 +5,7 @@
 //   deno run -A scripts/asc.ts setup <build>          beta info, groups, the build in both groups,
 //                                                     beta review submission, public link
 //   deno run -A scripts/asc.ts mac-store [build]      the Mac App Store version page from
-//                                                     docs/appstore/metadata-mac.md and
+//                                                     appstore/metadata-mac.md (internal repository) and
 //                                                     .shots/appstore/mac/*.png; selects the build if
 //                                                     given. Never submits for review.
 //
@@ -205,7 +205,7 @@ async function wait(build: string) {
   throw new Error(`Build ${build} still processing after 45 minutes`);
 }
 
-/** A fenced block after a bold label in docs/appstore/metadata-mac.md. */
+/** A fenced block after a bold label in appstore/metadata-mac.md (internal repository). */
 function macBlock(text: string, label: string) {
   const m = text.match(new RegExp(`\\*\\*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\*\\*[^\\n]*\\n\\n\`\`\`\\n([\\s\\S]*?)\\n\`\`\``));
   if (!m) throw new Error(`metadata-mac.md has no ${label} block`);
@@ -219,10 +219,11 @@ function macAppName(text: string) {
 
 async function macStore(build?: string) {
   // Before anything is asked of App Store Connect: the texts must be the ones for this app's name.
-  const text = await Deno.readTextFile("docs/appstore/metadata-mac.md");
+  const metadataPath = `${Deno.env.get("PINTO_INTERNAL") ?? `${Deno.env.get("HOME")}/Documents/Development/PintoNotes-internal`}/appstore/metadata-mac.md`;
+  const text = await Deno.readTextFile(metadataPath);
   const name = macAppName(text);
   if (name !== "Pinto Notes" || /Amber Notes: Notes & Lists/.test(text)) {
-    throw new Error(`docs/appstore/metadata-mac.md is for "${name || "no app name"}", not Pinto Notes. Nothing was sent. Bring the file up to date first.`);
+    throw new Error(`appstore/metadata-mac.md (internal repository) is for "${name || "no app name"}", not Pinto Notes. Nothing was sent. Bring the file up to date first.`);
   }
   const a = await app();
   const appId = a.id;

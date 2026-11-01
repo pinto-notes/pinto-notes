@@ -7,7 +7,7 @@ it is safe, how much space it takes, and how much it asks of the network.
 scripts/release-gate.sh <candidate ref> [--baseline <last release ref>]
 ```
 
-It writes a short summary to `docs/Evidence/release-gate/<date>-<ref>.md` (verdict, what failed, the
+It writes a short summary to `pinto-internal/evidence/release-gate/<date>-<ref>.md` (verdict, what failed, the
 headline numbers, the worst hang stacks). The full report and every number, run and stack go outside
 the repository, to `~/content-tools/projects/amber-proto/release-gate/` (`AMBER_GATE_RAW` to change it);
 the summary names the file. A baseline is looked up there.
@@ -15,7 +15,7 @@ Each line is **pass**, **fail** (over its budget) or **regression** (more than 1
 baseline's report, and past that metric's noise floor). Any fail or regression fails the gate.
 
 No App Store submission, TestFlight build for users, Mac release or production server deploy goes out
-without a passing report for that commit (`docs/RELEASING.md`). The `amber-release-gate` skill says
+without a passing report for that commit (`docs/RELEASING.md`). The `pinto-release-gate` skill says
 how agents run it.
 
 ## Why it exists
@@ -151,7 +151,7 @@ before the gate when its functions or migrations changed.
 smaller than it is never a regression); `regression: false` turns that rule off for a line.
 
 The first budgets were set on 2026-10-08, measured on fleet-air (MacBook Air M4, macOS 27), from
-dev eb57bb1dc9 (docs/Evidence/release-gate/2026-10-08-dev-eb57bb1dc9.md), with these rules:
+dev eb57bb1dc9 (pinto-internal/evidence/release-gate/2026-10-08-dev-eb57bb1dc9.md), with these rules:
 
 | Metric | Budget | Noise floor |
 |---|---|---|
