@@ -57,3 +57,26 @@ www.visitlisboa.com
 www.w3.org
 purl.org                      # the Dublin Core namespace in the site's RSS feed (web/lib/feed.ts)
 x.com
+posthog.com                   # a docs link in a comment (Telemetry.swift); the app calls eu.i.posthog.com
+takeout.google.com            # the import guide's link to Google Takeout (Keep)
+mail.google.com               # the import guide's Open Gmail link
+bear.app                      # the import guide's Open Bear link
+developer.apple.com           # blog links
+help.evernote.com             # an import help link
+x.ai                          # the AI tracker's links (web/lib/tracker); also matches the CSS class x.ai in Hero.tsx
+docs.x.ai                     # the AI tracker's links
+ankimcp.ai                    # a blog link
+2anki.net                     # a blog link
+openai.com                    # the AI tracker's and blog's links
+learn.chatgpt.com             # the AI tracker's links
+about.fb.com                  # the AI tracker's links
+muse.ai                       # the AI tracker's links
+dev.meta.ai                   # the AI tracker's links
+research.meta.ai              # the AI tracker's links
+gemini.google                 # the AI tracker's links
+workspaceupdates.googleblog.com # the AI tracker's links
+www.perplexity.ai             # the AI tracker's links
+www.anthropic.com             # the AI tracker's links
+blogs.microsoft.com           # the AI tracker's links
+newsroom.spotify.com          # the AI tracker's links
+blog.google                   # the AI tracker's links
