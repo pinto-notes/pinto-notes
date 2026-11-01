@@ -13,7 +13,7 @@ type Row = { app: string; server: string; reach: string; edit: string; open: str
 
 // Checked against each app's own announcement or documentation on 30 September 2026.
 const ROWS: Row[] = [
-  { app: "Pinto Notes", server: "Built in, hosted", reach: "Claude, Claude Code, Codex, Incredible and other MCP apps, from any device; ChatGPT coming soon", edit: "Yes, with approval per app, Undo and version history", open: "Yes (MIT)" },
+  { app: "Pinto Notes", server: "Built in, hosted", reach: "ChatGPT, Claude, Claude Code, Codex, Incredible and other MCP apps, from any device", edit: "Yes, with approval per app, Undo and version history", open: "Yes (MIT)" },
   { app: "Notion", server: "Official, hosted", reach: "Any app that supports remote MCP, from any device", edit: "Yes", open: "No" },
   { app: "Evernote", server: "Official, hosted, paid plans", reach: "Any app that supports remote MCP, from any device", edit: "Read, search and create", open: "No" },
   { app: "Hjarni", server: "Built in, hosted", reach: "ChatGPT, Claude and other MCP apps, from any device", edit: "Yes", open: "No" },

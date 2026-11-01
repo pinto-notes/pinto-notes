@@ -124,12 +124,12 @@ export default function Page() {
         Worth knowing: while a plugin is connected, ChatGPT may share relevant chats and memories with it to help with a request, and
         with Memory on it can use what it finds to make suggestions.
       </p>
-      <AIConnect ais={["claude"]} caption="Claude works in Pinto Notes today, and ChatGPT is coming soon." />
+      <AIConnect caption="ChatGPT and Claude, working in the same notes." />
       <p>
         One thing isn&apos;t in this launch: your notes. OpenAI says Contacts and Reminders aren&apos;t included, and Apple Notes
         isn&apos;t mentioned. Apple Notes has <a href="/blog/apple-notes-api">no API</a> for ChatGPT to use, so if you want it to work with what
         you&apos;ve written down, <a href="/blog/connect-chatgpt-to-your-notes">connect it to a notes app</a> that lets it read and
-        edit them. Pinto Notes, the one I make, works with Claude today and ChatGPT soon.
+        edit them. Pinto Notes, the one I make, works with ChatGPT and Claude.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
           : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}

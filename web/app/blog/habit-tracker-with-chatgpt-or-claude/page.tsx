@@ -99,8 +99,8 @@ export default function Page() {
 
       <h2 id="template">A tracker your AI can update</h2>
       <p>
-        That&apos;s what I built into Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude can read and write once you allow it, with ChatGPT coming soon. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
-        tracking, then <a href="/blog/connect-chatgpt-to-your-notes">connect Claude</a> once.
+        That&apos;s what I built into Pinto Notes, a notes app for Mac (iPhone coming soon) that ChatGPT and Claude can read and write once you allow them. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
+        tracking, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a> once.
       </p>
       <PostFigure src="/blog/pinto/habit-tracker-month-mac-light" width={1280} height={900} maxWidth={640}
         alt="The Month view of the habit tracker on a Mac: a calendar per habit for October with the done days filled in."

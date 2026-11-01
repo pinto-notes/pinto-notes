@@ -17,7 +17,7 @@ export const metadata = postMetadata("gpt-6-astra-use-cases", { title: "GPT-6 As
 
 const FAQ = [
   { q: "What is GPT-6 Astra?", a: [
-    "OpenAI's most capable model, released on 3 September 2026. It's built for long, multi-step work: using apps on your computer, research, documents, slides, spreadsheets and code. In ChatGPT, look for it in Work or Codex.",
+    "OpenAI's most capable model, released on 3 September 2026. It's built for long, multi-step work: using apps on your computer, research, documents, slides, spreadsheets and code. In ChatGPT, look for it in Work or Codex, or in the model picker if your ChatGPT no longer has a Chat or Work toggle (since 28 October for many paid users).",
   ] },
   { q: "Can I use GPT-6 Astra on the free plan?", a: [
     "No. OpenAI rolled it out to Plus, Pro, Business and Enterprise. On Enterprise an admin has to turn it on first. Free and Go users get GPT-6 Luna in the desktop app instead.",
@@ -105,6 +105,8 @@ export default function Page() {
         <li>
           <strong>Open the ChatGPT desktop app and switch to Work</strong>
           Then pick Astra in the model control under the message box. ChatGPT shows presets such as Astra Light and Astra Medium.
+          Since 28 October many paid users have no Chat or Work toggle (<a href="/blog/chatgpt-chat-and-work-merged">what changed</a>); if
+          that&apos;s you, just pick Astra in the model picker.
         </li>
         <li>
           <strong>Install Computer Use</strong>
@@ -205,7 +207,7 @@ export default function Page() {
         ]}
         caption="Research that ends in your notes: the lines ChatGPT added are marked, and you can undo them." />
       <p>
-        That direct connection is what I built Pinto Notes around. It&apos;s a notes app for Mac (iPhone coming soon) that Claude, Claude Code and Codex can read and edit today, with ChatGPT coming soon, over MCP, once you approve each one. With Codex, it&apos;s one line:
+        That direct connection is what I built Pinto Notes around. It&apos;s a notes app for Mac (iPhone coming soon) that ChatGPT, Claude, Claude Code and Codex can read and edit over MCP, once you approve each one. With Codex, it&apos;s one line:
       </p>
       <pre><code>{`codex mcp add pinto-notes --url ${MCP_URL}`}</code></pre>
       <p>

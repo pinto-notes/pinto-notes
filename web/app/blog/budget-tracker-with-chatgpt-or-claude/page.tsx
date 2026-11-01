@@ -104,7 +104,7 @@ export default function Page() {
       <h2 id="template">A budget your AI keeps</h2>
       <p>
         That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for Mac (iPhone coming soon). It&apos;s a
-        note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect Claude</a> once (ChatGPT is coming soon).
+        note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a> once.
       </p>
       <PostFigure src="/blog/pinto/budget-log-expenses-mac-light" width={1280} height={900} maxWidth={640}
         alt="The Expenses list of the budget app on a Mac for October: each expense by day with its category and amount, and a delete button."

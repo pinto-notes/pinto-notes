@@ -143,7 +143,7 @@ export default function Page() {
       </p>
       <p>
         That&apos;s why I make Pinto Notes, a notes app for Mac that your AI can read and edit after you allow it. It works
-        with Claude today and ChatGPT soon, so a new chat picks up the plan from the note, however many chats it takes.
+        with ChatGPT and Claude, so a new chat picks up the plan from the note, however many chats it takes.
         <a href="/blog/claude-memory-vs-notes"> AI memory versus notes</a> explains the difference, and new limits like this
         one go into <a href="/blog/new-ai-features">our tracker of AI changes</a> when OpenAI announces them.
       </p>

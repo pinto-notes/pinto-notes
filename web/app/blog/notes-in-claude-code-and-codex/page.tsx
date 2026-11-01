@@ -117,7 +117,7 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">One notebook for every agent you use</h2>
-      <AIConnect ais={["claude-code", "codex", "claude"]} caption="Claude Code, Codex and Claude, all reading and writing the same notes." />
+      <AIConnect ais={["claude-code", "codex", "claude", "chatgpt"]} caption="Claude Code, Codex, Claude and ChatGPT, all reading and writing the same notes." />
       <p>
         That&apos;s why I built Pinto Notes. It&apos;s a notes app for Mac (iPhone coming soon), as quick as Apple Notes, with the server built in.
         Claude Code writes the standup, you read it on your phone, and Claude can pick it up from there. Every change shows up tinted

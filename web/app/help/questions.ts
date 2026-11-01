@@ -16,7 +16,7 @@ export const FAQ: QA[] = [
     "Claude: Amber Notes is in Claude's connector directory. Open https://claude.ai/directory/amber-notes, choose Connect to Claude, then Allow in Pinto Notes. Do it once, on claude.ai or in the Claude desktop app, and Claude's phone apps can use it too.",
     "ChatGPT: in Pinto Notes, open Settings → Connect an AI, pick ChatGPT and follow the steps, on chatgpt.com, which is where OpenAI documents custom apps.",
     `Adding it yourself, or Claude doesn't show the listing? The address is ${MCP_URL}; in Claude, add it as a custom connector. ${OLD_MCP_URL_STAYS}`,
-    "When ChatGPT or Claude asks for permission, sign in on the page that opens, then approve on your iPhone or Mac: type the number the page shows and choose Allow. No device nearby? Use your recovery key on that page.",
+    "When ChatGPT or Claude asks for permission, sign in on the page that opens, then approve on your iPhone or Mac: type the number the page shows and choose Allow. No device nearby? If you saved a recovery key, you can use it on that page.",
     "Claude Code gets a one-line command with a token of its own, and Codex a few lines for its config file. In Incredible, open Apps, search for notes, choose Connect, then approve it on your iPhone or Mac. On an older version of Incredible, add the address as an MCP server instead. Settings → Connect an AI → Incredible has the steps. Any other app that supports MCP connects with the address and a sign-in too.",
   ], more: { href: "/blog/connect-chatgpt-to-your-notes", text: "How to connect ChatGPT to your notes" } },
   { id: "ai-tools", q: "Can I use Pinto Notes in Gemini CLI or VS Code?", a: [
@@ -39,11 +39,11 @@ export const FAQ: QA[] = [
   ] },
   { id: "new-device", q: "I have a new iPhone or Mac. How do I get my notes?", a: [
     "Sign in, and your notes open. Nothing else is needed, and there is no wait after a password reset. If the device has been signed in for more than an hour without your notes, it asks you to sign in once more. Every device of yours shows \"A new device opened your notes\", and we email you.",
-    "With Advanced protection on, a new device needs your key first: from iCloud Keychain, from a device that has your notes (Settings → Security → Add a device), or from your recovery key.",
+    "If you still have Advanced protection on (we're retiring it), a new device needs your key first: from iCloud Keychain, from a device that has your notes (Settings → Security → Add a device), or from your recovery key.",
     "If your account is from before signing in could open your notes, the app asks you once which way you want it. Until you answer, a new device is added as with Advanced protection.",
   ] },
   { id: "storage", q: "Where are my notes stored?", a: [
-    "On each device you're signed in on, and, encrypted, on Supabase's servers in Frankfurt, Germany, in the EU. Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. With Advanced protection on, your notes are end-to-end encrypted: we can't open them and can't help you back in. Some details, such as dates, sizes and folder structure, stay readable. The Privacy & Security page lists all of it.",
+    "On each device you're signed in on, and, encrypted, on Supabase's servers in Frankfurt, Germany, in the EU. Your notes are encrypted on your devices before they sync. We keep a locked copy of your key so that signing in opens your notes on a new device. That means we could open your notes if we had to, for example under a court order, and so could someone who gets into your account. Some details, such as dates, sizes and folder structure, stay readable. The Privacy & Security page lists all of it.",
   ], more: { href: "/blog/encrypted-notes-app-for-ai", text: "How encryption works with ChatGPT and Claude" } },
   { id: "offline", q: "Does it work offline?", a: [
     "Yes. Your notes are on your device too, so you can read and write without a connection. Your edits stay on the device and sync when you're back online. If the same note changed somewhere else in the meantime, the newer edit wins and the other is kept as a copy, so nothing is lost.",

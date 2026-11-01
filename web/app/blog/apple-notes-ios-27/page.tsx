@@ -116,10 +116,10 @@ export default function Page() {
       </p>
 
       <h2 id="ai">Want ChatGPT or Claude to edit these notes too?</h2>
-      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code, working in the same notes in Pinto Notes." />
+      <AIConnect caption="ChatGPT and Claude, working in the same notes in Pinto Notes." />
       <p>
         Apple Notes still has no way for ChatGPT or Claude to read or edit your notes from the web or your phone. I made Pinto Notes for that: a
-        notes app that works like Apple Notes, which Claude can search and edit once you allow it, with ChatGPT coming soon. It imports your Apple Notes,
+        notes app that works like Apple Notes, which ChatGPT and Claude can search and edit once you allow them. It imports your Apple Notes,
         folders included. The Mac app is out now, and the iPhone app is coming soon.
         See <a href="/blog/connect-chatgpt-to-your-notes">how to connect ChatGPT to your notes</a>.
       </p>

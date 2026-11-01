@@ -144,10 +144,10 @@ export default function Page() {
       <p>
         If that&apos;s you, what you want isn&apos;t a smarter Siri. It&apos;s one notebook every AI you use can work in.
       </p>
-      <AIConnect ais={["claude", "claude-code"]} caption="Claude and Claude Code in one notebook today, ChatGPT soon." />
+      <AIConnect caption="The AIs you already use, in one notebook." />
       <p>
         That&apos;s why I made Pinto Notes. It works like Apple Notes, brings yours over in{" "}
-        <a href="/blog/move-from-apple-notes">one import</a> on a Mac (Apple Notes stays as it was), and lets Claude, Claude Code and Codex search, read and edit your notes once you approve them (ChatGPT is coming soon), with every change tinted and undoable.
+        <a href="/blog/move-from-apple-notes">one import</a> on a Mac (Apple Notes stays as it was), and lets ChatGPT, Claude, Claude Code and Codex search, read and edit your notes once you approve them, with every change tinted and undoable.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
           : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}
