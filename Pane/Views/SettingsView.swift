@@ -166,11 +166,14 @@ struct SettingsView: View {
             }
             .connectGuides(client: backend.client)
         case .security:
-            SettingsPage {
-                if isSignedIn, crypto.isReady {
-                    PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) })
+            // The page's redesign study (SecurityStudy), off in the app.
+            SecurityStudyGate(facts: { SecurityFacts(crypto: crypto, devices: devices, ais: (connections ?? []).map(\.name)) }) {
+                SettingsPage {
+                    if isSignedIn, crypto.isReady {
+                        PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) })
+                    }
+                    LockedNotesSection(sync: sync)
                 }
-                LockedNotesSection(sync: sync)
             }
         case .storage:
             SettingsPage {
