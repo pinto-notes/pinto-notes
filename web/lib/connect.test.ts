@@ -17,7 +17,7 @@ describe("the connect page", () => {
 
   it("opens the app with the universal link, and the app's own scheme as the fallback", () => {
     expect(universalLink(ID.toUpperCase())).toBe(`https://ambernotes.app/open/connect?request=${ID}`);
-    expect(appLink(ID.toUpperCase())).toBe(`ambernotes://connect?request=${ID}`);
+    expect(appLink(ID.toUpperCase())).toBe(`pintonotes://connect?request=${ID}`);
   });
 
   it("names the step in the sign-in heading, not the app", () => {

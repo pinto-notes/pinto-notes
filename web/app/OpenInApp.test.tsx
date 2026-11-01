@@ -16,7 +16,7 @@ import OpenInApp from "./OpenInApp";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const APP = "ambernotes://template/habit-tracker";
+const APP = "pintonotes://template/habit-tracker";
 let host: HTMLDivElement, root: Root;
 const events: unknown[] = [];
 const onEvent = (e: Event) => events.push((e as CustomEvent).detail);

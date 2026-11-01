@@ -204,7 +204,7 @@ What changes compared with today:
 | Server can read the copy | Yes | No |
 | Link previews (iMessage, Slack) | Title and first line | "A shared note · Pinto Notes" only. An owner could choose to publish the title openly; not in v1 |
 | Reports and takedowns | We read the copy and act | A report can include the full link (the reporter has it), so we can read that one copy; without it we can only take the link down blind |
-| "Use this note" | Server hands the copy to the app | The page passes the secret to the app in the fragment of `ambernotes://copy-sealed/<id>#<secret>`; the app fetches and opens the copy itself |
+| "Use this note" | Server hands the copy to the app | The page passes the secret to the app in the fragment of `pintonotes://copy-sealed/<id>#<secret>`; the app fetches and opens the copy itself |
 | The note's page | Not shown | Shown, read only, on the user-content domain |
 | Search engines | Not indexed (noindex) | Not indexed, and nothing to index |
 
@@ -260,7 +260,7 @@ It is kept out of sight, checked on the built site:
 
 Still to do: a screenshot fallback (the app already takes a snapshot of each page, `NotePageSnapshots` on the note-pages branch; it would go up with the template and show while the live preview loads, and in link previews).
 
-**Use template.** The button goes to `/open/shared-template/<id>`, the universal link (as `/open/template/<slug>` works for the gallery today), which opens `ambernotes://shared-template/<id>`. The app fetches the template, adds a fresh note with the sample (or the skeleton) and the page, and opens it. The new page starts with no network; any hosts and keys it declared wait for the new owner to allow them and type their own keys.
+**Use template.** The button goes to `/open/shared-template/<id>`, the universal link (as `/open/template/<slug>` works for the gallery today), which opens `pintonotes://shared-template/<id>`. The app fetches the template, adds a fresh note with the sample (or the skeleton) and the page, and opens it. The new page starts with no network; any hosts and keys it declared wait for the new owner to allow them and type their own keys.
 
 **Stop sharing** deletes the row: the page and the Use template link both say the template isn't shared anymore. Copies people already made are theirs. Sharing again republishes under the same id (the latest note and page); a new id is only made after stopping.
 

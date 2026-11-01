@@ -67,7 +67,7 @@ xcrun simctl io "$S" screenshot "$OUT/template.png" >/dev/null 2>&1
 xcrun simctl openurl "$S" "$TEMPLATE#preview"
 sleep 5
 xcrun simctl io "$S" screenshot "$OUT/template-preview.png" >/dev/null 2>&1
-# Use template. The page's button opens ambernotes://shared-template/<id>, and iOS first asks
+# Use template. The page's button opens pintonotes://shared-template/<id>, and iOS first asks
 # "Open in Pinto Notes?", which nothing here can tap; so the app comes forward and is handed the
 # same id through a file (CollabDemo.share), and fetches the template exactly as the link would.
 ID=${TEMPLATE##*/}

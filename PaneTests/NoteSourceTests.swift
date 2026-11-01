@@ -115,27 +115,27 @@ private final class NoteSourceFixtureToken {}
         let t = NoteSourceLink.parse(URL(string: "https://ambernotes.app/open/template/habit-tracker")!)
         #expect(t == NoteSourceLink(kind: .template, slug: "habit-tracker") && t?.isValid == true)
         #expect(NoteSourceLink.parse(URL(string: "https://www.ambernotes.app/open/template/habit-tracker/")!)?.slug == "habit-tracker")
-        #expect(NoteSourceLink.parse(URL(string: "ambernotes://template/habit-tracker")!) == NoteSourceLink(kind: .template, slug: "habit-tracker"))
+        #expect(NoteSourceLink.parse(URL(string: "pintonotes://template/habit-tracker")!) == NoteSourceLink(kind: .template, slug: "habit-tracker"))
         let c = NoteSourceLink.parse(URL(string: "https://ambernotes.app/open/copy/\(shareSlug)")!)
         #expect(c == NoteSourceLink(kind: .copy, slug: shareSlug) && c?.isValid == true)
-        #expect(NoteSourceLink.parse(URL(string: "ambernotes://copy/\(shareSlug)")!) == NoteSourceLink(kind: .copy, slug: shareSlug))
+        #expect(NoteSourceLink.parse(URL(string: "pintonotes://copy/\(shareSlug)")!) == NoteSourceLink(kind: .copy, slug: shareSlug))
     }
 
     @Test func badSlugsAreTakenButInvalid() {
-        for s in ["https://ambernotes.app/open/template/Habit_Tracker", "ambernotes://template/", "https://ambernotes.app/open/template",
-                  "ambernotes://template/-x", "ambernotes://template/" + String(repeating: "a", count: 65)] {
+        for s in ["https://ambernotes.app/open/template/Habit_Tracker", "pintonotes://template/", "https://ambernotes.app/open/template",
+                  "pintonotes://template/-x", "pintonotes://template/" + String(repeating: "a", count: 65)] {
             let link = NoteSourceLink.parse(URL(string: s)!)
             #expect(link?.kind == .template, "\(s) is a template link")
             #expect(link?.isValid == false, "\(s) has a bad slug")
         }
-        #expect(NoteSourceLink.parse(URL(string: "ambernotes://copy/short")!)?.isValid == false)
-        #expect(NoteSourceLink.parse(URL(string: "ambernotes://copy/\(shareSlug)!")!)?.isValid == false)
+        #expect(NoteSourceLink.parse(URL(string: "pintonotes://copy/short")!)?.isValid == false)
+        #expect(NoteSourceLink.parse(URL(string: "pintonotes://copy/\(shareSlug)!")!)?.isValid == false)
     }
 
     @Test func otherLinksAreLeftAlone() {
         for s in ["https://evil.example/open/template/habit-tracker", "http://ambernotes.app/open/template/habit-tracker",
                   "https://ambernotes.app/templates/habit-tracker", "https://ambernotes.app/open/template/a/b",
-                  "ambernotes://connect?request=6d1f2c9a-1b7e-4c3a-9f0e-2a4b8c1d7e55", "ambernotes://auth-callback",
+                  "pintonotes://connect?request=6d1f2c9a-1b7e-4c3a-9f0e-2a4b8c1d7e55", "pintonotes://auth-callback",
                   "https://ambernotes.app/open/connect?request=6d1f2c9a-1b7e-4c3a-9f0e-2a4b8c1d7e55"] {
             #expect(NoteSourceLink.parse(URL(string: s)!) == nil, "\(s)")
         }
@@ -143,12 +143,12 @@ private final class NoteSourceFixtureToken {}
 
     @Test func connectLinksStillReachTheConsentSheet() {
         let id = UUID()
-        #expect(ConnectLink.requestID(from: URL(string: "ambernotes://connect?request=\(id)")!) == id)
+        #expect(ConnectLink.requestID(from: URL(string: "pintonotes://connect?request=\(id)")!) == id)
         #expect(ConnectLink.requestID(from: URL(string: "https://ambernotes.app/open/connect?request=\(id)")!) == id)
         let center = NoteSourceCenter()
         #expect(!center.receive(URL(string: "https://ambernotes.app/open/connect?request=\(id)")!))
         #expect(center.pending == nil)
-        #expect(center.receive(URL(string: "ambernotes://template/habit-tracker")!))
+        #expect(center.receive(URL(string: "pintonotes://template/habit-tracker")!))
         #expect(center.pending?.slug == "habit-tracker")
     }
 

@@ -17,7 +17,7 @@ import Testing
 
     @Test func everythingElseIsInert() {
         for s in ["file:///Applications/Terminal.app", "smb://attacker.example/share", "javascript:alert(1)",
-                  "ambernotes://connect?request=00000000-0000-0000-0000-000000000000", "x-apple.systempreferences:com.apple.preference.security",
+                  "pintonotes://connect?request=00000000-0000-0000-0000-000000000000", "x-apple.systempreferences:com.apple.preference.security",
                   "data:text/html,<script>alert(1)</script>", "vnc://host", "afp://host/share", "ssh://host", "shortcuts://run-shortcut?name=x"] {
             #expect(LinkPolicy.action(for: URL(string: s)!) == .nothing, "\(s)")
         }

@@ -170,7 +170,7 @@ Deno.test({ name: "deploy-backend --dry-run works before make-it-yours, with ups
   const dir = await copy();
   const r = await run(dir, "deploy-backend.sh", "abcdefghijklmnopqrst", "--dry-run");
   assertEquals(r.code, 0, r.text);
-  assertStringIncludes(r.text, "dev.emilwagman.pane (ambernotes://)");
+  assertStringIncludes(r.text, "dev.emilwagman.pane (pintonotes://)");
   assertStringIncludes(r.text, "→ Done.");
 } });
 

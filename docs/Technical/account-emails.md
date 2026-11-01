@@ -29,13 +29,13 @@ templates, sender address and SMTP setting can't be read from the repository.
 **Where a link would land.** The stock templates link to
 `https://<project>.supabase.co/auth/v1/verify?...`, which then sends the browser to the
 project's Site URL. That was reported as still `http://127.0.0.1:3000` on 2 October 2026 (the
-same value as `supabase/config.toml`), with `ambernotes://auth-callback` and
+same value as `supabase/config.toml`), with `pintonotes://auth-callback` and
 `https://ambernotes.app/connect**` on the redirect list. So a link from an account email ends
 on a page that doesn't load.
 
 Neither landing place on the redirect list can take an email link either:
 
-- `ambernotes://auth-callback` is only read by the Mac download's Sign in with Apple window
+- `pintonotes://auth-callback` is only read by the Mac download's Sign in with Apple window
   (`Pane/Sync/WebAuthSession.swift`). The app's own URL handlers (`ConnectCenter.receive`,
   `RootView`) drop it, so on iPhone or Mac the app would come forward and do nothing.
 - `/connect` needs a connect request id. Without one it says "This link isn't complete".

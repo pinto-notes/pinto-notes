@@ -12,7 +12,7 @@
 //
 // Consent: /authorize sends the browser to the site's /connect page (ambernotes.app/connect?request=<id>),
 // which names the address the AI returns to (/connect/label; no AI's mark before sign-in) and
-// opens Pinto Notes (ambernotes://connect?request=<id>).
+// opens Pinto Notes (pintonotes://connect?request=<id>).
 // Approval happens only in the app, the one place that has the account's data key: it asks
 // /connect/request who is asking, the person picks read-only or read & edit, and it posts the
 // decision to /connect/decide with their session in an Authorization header.
@@ -260,7 +260,7 @@ export function hostClaimsATrustedName(redirectURI: string): boolean {
   const host = new URL(redirectURI).hostname.toLowerCase().replace(/\.$/, "");
   if (LOOPBACK.has(host) || TRUSTED_DOMAINS.some((d) => host === d || host.endsWith("." + d))) return false;
   const flat = host.replace(/[^a-z0-9]/g, "").replace(/0/g, "o").replace(/1/g, "l").replace(/4/g, "a");
-  return ["chatgpt", "openai", "claude", "anthropic", "pintonotes", "ambernotes"].some((w) => flat.includes(w));
+  return ["chatgpt", "openai", "claude", "anthropic", "pintonotes", "pintonotes"].some((w) => flat.includes(w));
 }
 
 /// A registered name made safe to show: no control, format or direction characters, one line, short.

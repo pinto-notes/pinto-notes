@@ -99,7 +99,7 @@ enum CollabDemo {
         NotificationCenter.default.post(name: showShare, object: "template")
         // What the person taps next, handed over by scripts/share-demo.sh as lines in
         // Documents/demo-command.txt: "use <template id>" (Use template on the site) and "stop"
-        // (Stop Sharing in the link's sheet). Opening ambernotes:// links from the script makes iOS
+        // (Stop Sharing in the link's sheet). Opening pintonotes:// links from the script makes iOS
         // ask "Open in Amber Notes?", which nothing here can answer.
         let file = URL.documentsDirectory.appending(path: "demo-command.txt")
         try? FileManager.default.removeItem(at: file)
@@ -204,11 +204,11 @@ struct CollabInviteAlert: ViewModifier {
     func body(content: Content) -> some View {
         if let store {
             content
-            // "Use template" on a shared template's page (ambernotes://shared-template/<id>).
+            // "Use template" on a shared template's page (pintonotes://shared-template/<id>).
             .onOpenURL { url in
                 // A share link (…/s/<id>#<secret>): with Edit on, opening it joins the note.
                 if CollabStore.parseLink(url) != nil { Task { await store.join(url) }; return }
-                guard url.scheme == "ambernotes" else { return }
+                guard url.scheme == "pintonotes" else { return }
                 if url.host == "shared-template", let id = url.pathComponents.dropFirst().first { Task { _ = await store.useTemplate(id) } }
                 // scripts/share-demo.sh: Stop Sharing on the demo note, as its sheet would.
                 if url.host == "demo", url.path == "/stop-link", Capture.argument("-collabScript") == "share", let note = CollabDemo.sharedNote {

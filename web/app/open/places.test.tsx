@@ -12,7 +12,7 @@ describe("the places the onboarding emails open", () => {
     ["history", History, "Version History", null],
   ] as const)("/open/%s tries the app, then says how by hand, with Open in Pinto Notes and the download", (place, Page, step, guide) => {
     const html = renderToStaticMarkup(<Page />);
-    expect(html).toContain(`href="ambernotes://${place}"`);
+    expect(html).toContain(`href="pintonotes://${place}"`);
     expect(html).toContain("Open in Pinto Notes");
     expect(html).toContain('href="/download/mac"');
     expect(html).toContain(step);
@@ -20,7 +20,7 @@ describe("the places the onboarding emails open", () => {
   });
 
   it("only tries the app's own links", () => {
-    for (const ok of ["ambernotes://connect-ai", "ambernotes://import", "ambernotes://history", "ambernotes://template/trip-plan"]) expect(APP_LINK.test(ok)).toBe(true);
-    for (const bad of ["ambernotes://connect-ai/x", "https://ambernotes.app/open/history", "javascript:alert(1)", "ambernotes://settings"]) expect(APP_LINK.test(bad)).toBe(false);
+    for (const ok of ["pintonotes://connect-ai", "pintonotes://import", "pintonotes://history", "pintonotes://template/trip-plan"]) expect(APP_LINK.test(ok)).toBe(true);
+    for (const bad of ["pintonotes://connect-ai/x", "https://ambernotes.app/open/history", "javascript:alert(1)", "pintonotes://settings"]) expect(APP_LINK.test(bad)).toBe(false);
   });
 });

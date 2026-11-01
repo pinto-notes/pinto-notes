@@ -4,8 +4,8 @@ import Foundation
 /// (Config/Beta.xcconfig, docs/Technical/staging.md). Read from Info.plist, which the build
 /// settings fill; the defaults are Amber Notes' own.
 enum AppIdentity {
-    /// The app's URL scheme: ambernotes, or ambernotes-beta.
-    static let scheme = info("PaneURLScheme") ?? "ambernotes"
+    /// The app's URL scheme: pintonotes, or ambernotes-beta.
+    static let scheme = info("PaneURLScheme") ?? "pintonotes"
     /// Keychain service names start with this: dev.emilwagman.pane, or dev.emilwagman.pane.beta, so
     /// Amber Notes Beta never reads or replaces the real app's session, keys or locks.
     static let keychainPrefix = info("PaneBundleID") ?? "dev.emilwagman.pane"

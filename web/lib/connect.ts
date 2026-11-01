@@ -12,7 +12,7 @@
 //    fragment never reaches a server. Your iPhone scans it, checks the page's key against k, and
 //    answers /connect/decide with the scan secret: scanning proves you're there, so no sign-in and
 //    no number. On a Mac, "Open Pinto Notes on this Mac" is the same link in the app's own scheme
-//    (ambernotes://connect?request=<id>#s=…&k=…). When the universal link stays in a browser,
+//    (pintonotes://connect?request=<id>#s=…&k=…). When the universal link stays in a browser,
 //    /open/connect tries that scheme with the fragment kept.
 // 2. "Get a notification instead": you sign in, only so the page knows which account to ask. It
 //    sends /connect/ask the same public key and pickup hash (so the code keeps working), with

@@ -4,7 +4,7 @@
 PANE_BUNDLE_ID = dev.emilwagman.pane.beta
 PANE_DISPLAY_NAME = Pinto Notes Beta
 PANE_PRODUCT_NAME = Amber Notes Beta
-PANE_URL_SCHEME = ambernotes-beta
+PANE_URL_SCHEME = pintonotes-beta
 PANE_APP_GROUP = group.dev.emilwagman.pane.beta
 PANE_APPLINKS_HOST = amber-notes-staging.vercel.app
 PANE_UPDATE_FEED = https:/$()/amber-notes-staging.vercel.app/updates/appcast.xml

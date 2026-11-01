@@ -109,7 +109,7 @@ Deno.test("ChatGPT's search and fetch: results with id, title and url; fetch by 
   const found = await tool(pg, a, "search", { query: "lisbon deposit" });
   const [first] = found.results;
   assertEquals([first.id, first.title], ["Work/Acme.md", "Acme"]);
-  assert(first.url.startsWith("ambernotes://note/"));
+  assert(first.url.startsWith("pintonotes://note/"));
   const doc = await tool(pg, a, "fetch", { id: first.id });
   assertEquals([doc.id, doc.title, doc.url], [first.id, "Acme", first.url]);
   assertStringIncludes(doc.text, "Deposit for the Lisbon office.");

@@ -67,7 +67,7 @@ templates alone. Never `supabase config push`.
 Before applying it, save the same keys from `GET .../config/auth`; sending them back is the way
 back. With `site_url` on pintonotes.com the project's redirect list must hold
 `https://pintonotes.com/connect**` (sign-in on `/connect`, `web/lib/connect.ts`), and keep
-`https://ambernotes.app/connect**` and `ambernotes://auth-callback` for the apps and pages people
+`https://ambernotes.app/connect**` and `pintonotes://auth-callback` for the apps and pages people
 already have. The reset link itself uses no redirect (`docs/Technical/password-reset.md`).
 
 ## Testing

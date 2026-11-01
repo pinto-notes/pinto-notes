@@ -11,14 +11,14 @@ import Testing
 @Suite struct ConnectAITests {
     @Test func readsTheRequestFromAConnectLink() {
         let id = UUID()
-        #expect(ConnectLink.requestID(from: URL(string: "ambernotes://connect?request=\(id.uuidString.lowercased())")!) == id)
-        #expect(ConnectLink.requestID(from: URL(string: "AmberNotes://Connect?request=\(id.uuidString)")!) == id)
+        #expect(ConnectLink.requestID(from: URL(string: "pintonotes://connect?request=\(id.uuidString.lowercased())")!) == id)
+        #expect(ConnectLink.requestID(from: URL(string: "PintoNotes://Connect?request=\(id.uuidString)")!) == id)
     }
 
     @Test func ignoresOtherLinks() {
         let id = UUID()
-        #expect(ConnectLink.requestID(from: URL(string: "ambernotes://connect?request=nope")!) == nil)
-        #expect(ConnectLink.requestID(from: URL(string: "ambernotes://open?request=\(UUID().uuidString)")!) == nil)
+        #expect(ConnectLink.requestID(from: URL(string: "pintonotes://connect?request=nope")!) == nil)
+        #expect(ConnectLink.requestID(from: URL(string: "pintonotes://open?request=\(UUID().uuidString)")!) == nil)
         #expect(ConnectLink.requestID(from: URL(string: "https://connect?request=\(UUID().uuidString)")!) == nil)
         // The site's universal link opens the same request.
         #expect(ConnectLink.requestID(from: URL(string: "https://ambernotes.app/open/connect?request=\(id.uuidString.lowercased())")!) == id)
@@ -331,7 +331,7 @@ import Testing
         ConnectAsk(request_id: id, browser_key: "", started_from: "Chrome on a Mac", created_at: .now, expires_at: .now.addingTimeInterval(600))
     }
 
-    private func link(_ id: UUID) -> URL { URL(string: "ambernotes://connect?request=\(id.uuidString.lowercased())")! }
+    private func link(_ id: UUID) -> URL { URL(string: "pintonotes://connect?request=\(id.uuidString.lowercased())")! }
 
     private func quietCenter() -> ConnectCenter {
         let c = ConnectCenter()
@@ -797,7 +797,7 @@ extension AIEditSnapshots {
 
     @Test func theLinkCarriesTheSecretAndTheKeyHashInItsFragment() throws {
         let secret = "AbCdEfGhIjKlMnOpQrSt_-"
-        for base in ["https://ambernotes.app/open/connect", "ambernotes://connect"] {
+        for base in ["https://ambernotes.app/open/connect", "pintonotes://connect"] {
             let url = try #require(URL(string: "\(base)?request=\(Self.id)#s=\(secret)&k=\(Self.keyHash)"))
             #expect(ConnectLink.requestID(from: url)?.uuidString.lowercased() == Self.id)
             let scan = try #require(ConnectScan(url: url))
@@ -812,7 +812,7 @@ extension AIEditSnapshots {
 
     @MainActor @Test func aScannedLinkIsRememberedForItsRequest() throws {
         let center = ConnectCenter()
-        let url = try #require(URL(string: "ambernotes://connect?request=\(Self.id)#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(Self.keyHash)"))
+        let url = try #require(URL(string: "pintonotes://connect?request=\(Self.id)#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(Self.keyHash)"))
         center.receive(url)
         #expect(center.scans[UUID(uuidString: Self.id)!]?.secret == "AbCdEfGhIjKlMnOpQrSt_-")
         center.clearAsks()
@@ -827,7 +827,7 @@ extension AIEditSnapshots {
                                redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false,
                                asked: true, state: "s1", iss: "https://mcp.ambernotes.app", scan: true)
         let page = P256.KeyAgreement.PrivateKey()
-        let scan = try #require(ConnectScan(url: URL(string: "ambernotes://connect?request=\(Self.id)#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(ConnectScan.base64url(Data(SHA256.hash(data: page.publicKey.x963Representation))))")!))
+        let scan = try #require(ConnectScan(url: URL(string: "pintonotes://connect?request=\(Self.id)#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(ConnectScan.base64url(Data(SHA256.hash(data: page.publicKey.x963Representation))))")!))
         #expect(scan.holds(browserKey: page.publicKey.x963Representation))
         let answered = try await ConnectAPI.answer(r, allow: true, match: nil, scanned: (scan, page.publicKey.x963Representation),
                                                    read: { nil }, code: { ("amb_code_1", String(repeating: "a", count: 64), "amb2.0000000000000000.AAAA") },

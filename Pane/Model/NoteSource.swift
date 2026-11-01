@@ -5,8 +5,8 @@ import SwiftData
 // notes. A template is a note structure from ambernotes.app/templates (with the prompt that has
 // an AI fill it in); a shared page (ambernotes.app/n/<slug>) can be copied the same way.
 //
-//     https://ambernotes.app/open/template/<slug>    ambernotes://template/<slug>
-//     https://ambernotes.app/open/copy/<share slug>  ambernotes://copy/<share slug>
+//     https://ambernotes.app/open/template/<slug>    pintonotes://template/<slug>
+//     https://ambernotes.app/open/copy/<share slug>  pintonotes://copy/<share slug>
 //
 // The site's apple-app-site-association claims /open/*, so the https links open the app.
 
@@ -43,7 +43,7 @@ struct NoteSourceLink: Hashable, Identifiable, Sendable {
         if parts.last == "", parts.count > 1 { parts.removeLast() }
         let route: (kind: String, slug: String)?
         if scheme == Self.scheme {
-            // ambernotes://template/<slug>: the kind is the host.
+            // pintonotes://template/<slug>: the kind is the host.
             route = parts.count <= 1 ? (host, parts.first ?? "") : nil
         } else if scheme == "https", webHosts.contains(host), parts.count == 3, parts[0] == "open" {
             route = (parts[1], parts[2])

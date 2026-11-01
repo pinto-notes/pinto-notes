@@ -9,7 +9,7 @@ next to the real one on the same Mac and iPhone.
 | Supabase | `rodegaeruhyybqilrnpn` | `amber-staging` (ref in `.secrets/staging.env`), same org and region |
 | Site | ambernotes.app (Vercel project `amber-notes`) | https://amber-notes-staging.vercel.app (Vercel project `amber-notes-staging`), kept out of search |
 | MCP server | https://mcp.ambernotes.app | `https://<staging ref>.supabase.co/functions/v1/mcp`, with the file tools like production (`AMBER_MCP_TOOLS=files`; `pages` serves the classic and app tools instead) |
-| App | Pinto Notes, `dev.emilwagman.pane`, `ambernotes://` | Amber Notes Beta, `dev.emilwagman.pane.beta`, `ambernotes-beta://` |
+| App | Pinto Notes, `dev.emilwagman.pane`, `pintonotes://` | Amber Notes Beta, `dev.emilwagman.pane.beta`, `pintonotes-beta://` |
 
 ## What keeps the beta apart from the real app
 
@@ -21,7 +21,7 @@ next to the real one on the same Mac and iPhone.
   in `~/Library/Application Support`. A second unsandboxed copy would open the same store. The beta
   download is sandboxed (`Pane-mac-beta.entitlements`), so everything it writes is in its own
   container. On iPhone every app is sandboxed already.
-- **Its own links.** The staging site is built with `NEXT_PUBLIC_APP_SCHEME=ambernotes-beta` and
+- **Its own links.** The staging site is built with `NEXT_PUBLIC_APP_SCHEME=pintonotes-beta` and
   `NEXT_PUBLIC_APP_LINK_ORIGIN`, so its Open in app buttons and connect links open the beta, and its
   `apple-app-site-association` names the beta app.
 - **No updates from production.** The beta's Sparkle feed is the staging site's, which has no appcast,

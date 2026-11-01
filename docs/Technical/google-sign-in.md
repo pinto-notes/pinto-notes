@@ -23,12 +23,12 @@ Both the app and the website use Supabase's OAuth flow for Google, with PKCE:
    back to `https://<project>.supabase.co/auth/v1/callback`. Supabase checks the state, the ID
    token and its nonce there.
 3. Supabase sends the browser to the `redirect_to` address with a one-time code:
-   `ambernotes://auth-callback?code=...` for the app, `https://ambernotes.app/connect?request=...&code=...`
+   `pintonotes://auth-callback?code=...` for the app, `https://ambernotes.app/connect?request=...&code=...`
    for the website.
 4. The app or page swaps the code and its verifier for a session (`grant_type=pkce`).
 
 The app runs the Google page in `ASWebAuthenticationSession` (`Pane/Sync/WebAuthSession.swift`),
-which catches the `ambernotes://` return itself, on iPhone, the Mac App Store build and the Mac
+which catches the `pintonotes://` return itself, on iPhone, the Mac App Store build and the Mac
 download alike. It shares Safari's cookies, so someone signed in to Google picks an account
 instead of typing a password; the system first asks whether the app may use that address's host
 to sign in.
@@ -121,7 +121,7 @@ brief for the form. Switching means bundling the font and changing one line in
 ## Configuration
 
 - Supabase: Authentication > Providers > Google, with the Web client's id and secret. The redirect
-  list already has `ambernotes://auth-callback` and `https://ambernotes.app/connect**`.
+  list already has `pintonotes://auth-callback` and `https://ambernotes.app/connect**`.
 - `supabase/config.toml` has `[auth.external.google]` off for the local stack. A
   `supabase config push` from that file (`scripts/deploy-backend.sh` runs one) would turn Google off
   on the live project, as it would overwrite other auth settings

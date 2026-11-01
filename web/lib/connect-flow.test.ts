@@ -117,7 +117,7 @@ describe("reading /connect/status", () => {
       expect(statusStep({ state: "denied", redirect: ok }, 0, null), ok).toEqual({ kind: "denied", redirect: ok });
     }
     for (const bad of ["javascript:alert(1)", "data:text/html,x", "http://evil.example/cb", "http://127.0.0.1.evil.example/cb", "http://localhost.evil.example/",
-      "ambernotes://connect", "ftp://example.com/", "https://user:pw@example.com/", "not a url", 42, null]) {
+      "pintonotes://connect", "ftp://example.com/", "https://user:pw@example.com/", "not a url", 42, null]) {
       expect(safeDeniedRedirect(bad), String(bad)).toBeNull();
       expect(statusStep({ state: "denied", redirect: bad }, 0, null), String(bad)).toEqual({ kind: "denied", redirect: null });
     }
@@ -267,7 +267,7 @@ describe("the QR code's secret, key fingerprint and links", () => {
     const u = new URL(link);
     expect(u.search).toBe(`?request=${ID}`);
     expect(u.hash).toBe(`#s=${scan}&k=${fp}`);
-    expect(scanAppLink(ID, scan, fp)).toBe(`ambernotes://connect?request=${ID}#s=${scan}&k=${fp}`);
+    expect(scanAppLink(ID, scan, fp)).toBe(`pintonotes://connect?request=${ID}#s=${scan}&k=${fp}`);
     expect(() => scanLink(ID, "short", fp)).toThrow();
     expect(() => scanLink(ID, scan, fp + "&x=1")).toThrow();
   });

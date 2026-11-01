@@ -17,7 +17,7 @@ import Testing
     }
 
     @Test func itComesBackToTheAppsOwnScheme() {
-        #expect(Backend.webCallback.absoluteString == "ambernotes://auth-callback")
+        #expect(Backend.webCallback.absoluteString == "pintonotes://auth-callback")
     }
 
     // MARK: The host the sign-in opens at (PANE_AUTH_HOST)
@@ -87,7 +87,7 @@ import Testing
             #expect(after.percentEncodedPath == before.percentEncodedPath)
             let query = Dictionary(uniqueKeysWithValues: (after.queryItems ?? []).map { ($0.name, $0.value ?? "") })
             #expect(query["provider"] == provider.rawValue)
-            #expect(query["redirect_to"] == "ambernotes://auth-callback")
+            #expect(query["redirect_to"] == "pintonotes://auth-callback")
             #expect(query["code_challenge_method"] == "s256")
             #expect(query["code_challenge"]?.isEmpty == false)
             #expect(query["login_hint"] == "sara+notes@example.com")
@@ -121,7 +121,7 @@ import Testing
         #expect(Backend.sessionKey(Self.backend) == "sb-abcdefghijklmnopqrst-auth-token")
         _ = try? await client.auth.signInWithOAuth(provider: .google, redirectTo: Backend.webCallback) { url in
             asked.opened = BackendConfig.signInURL(url, backend: Self.backend, host: "auth.example.com")
-            return URL(string: "ambernotes://auth-callback?code=one-time-code")!
+            return URL(string: "pintonotes://auth-callback?code=one-time-code")!
         }
         let opened = try #require(asked.opened)
         #expect(opened.host() == "auth.example.com")

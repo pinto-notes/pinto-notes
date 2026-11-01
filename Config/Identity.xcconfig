@@ -7,7 +7,7 @@
 // them. See docs/MAKE-IT-YOURS.md.
 PANE_BUNDLE_ID = dev.emilwagman.pane
 PANE_DISPLAY_NAME = Pinto Notes
-PANE_URL_SCHEME = ambernotes
+PANE_URL_SCHEME = pintonotes
 PANE_APP_GROUP = group.dev.emilwagman.pane
 // The sites whose /open/… links open the app (associated domains, with a paid team): the old name
 // and the new one. A build of your own has its own site in both (scripts/make-it-yours.sh --site).

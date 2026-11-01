@@ -112,7 +112,7 @@ Deno.test("notes as files: paths only, list, fetch with lines, edit like Edit, w
 
   // No answer above or below carries an id.
   const everything = JSON.stringify([await tool(pg, a, "list"), await tool(pg, a, "list", { pattern: "**" }), await tool(pg, a, "fetch", { id: "Work/Trip.md" }), await tool(pg, a, "search", { query: "packing" })]);
-  for (const row of (await pg.query(`select id from public.notes`)).rows as { id: string }[]) assert(!everything.replace(/ambernotes:\/\/note\/[0-9a-f-]{36}/g, "").includes(row.id), "an id leaked");
+  for (const row of (await pg.query(`select id from public.notes`)).rows as { id: string }[]) assert(!everything.replace(/pintonotes:\/\/note\/[0-9a-f-]{36}/g, "").includes(row.id), "an id leaked");
 });
 
 Deno.test("search like grep and ranked, list like glob, at scale-ish", async () => {

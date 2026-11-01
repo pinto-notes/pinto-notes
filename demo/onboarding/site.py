@@ -32,7 +32,7 @@ def evening_page():
     h = h.replace(">Habit tracker</h1>", ">Evening tracker</h1>")
     h = re.sub(r'(<p class="templates_lede__[^"]*"[^>]*>).*?(</p>)', r"\1" + TEMPLATE["description"] + r"\2", h, count=1, flags=re.S)
     h = re.sub(r'(<p class="templates_for__[^"]*"[^>]*>).*?(</p>)', r"\1" + TEMPLATE["audience"] + r"\2", h, count=1, flags=re.S)
-    h = h.replace('href="/open/template/habit-tracker"', f'href="ambernotes://template/{SLUG}"')
+    h = h.replace('href="/open/template/habit-tracker"', f'href="pintonotes://template/{SLUG}"')
     h = h.replace("Use template opens Amber Notes and adds the note.", "Use template opens Amber Notes and adds the app.")
     # The picture: the app itself instead of the note's slice.
     h = re.sub(r'(<div class="templates_heroStage__[^"]*" style=")[^"]*(">).*?(</figure>)',

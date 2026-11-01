@@ -4,10 +4,10 @@ import Foundation
 // universal link the site's apple-app-site-association claims (/open/*), with a page at the same
 // address for people without the app:
 //
-//     https://ambernotes.app/open/connect-ai   ambernotes://connect-ai   Settings › Connect an AI
-//     https://ambernotes.app/open/import       ambernotes://import       Import from Apple Notes (a Mac;
+//     https://ambernotes.app/open/connect-ai   pintonotes://connect-ai   Settings › Connect an AI
+//     https://ambernotes.app/open/import       pintonotes://import       Import from Apple Notes (a Mac;
 //                                                                        on iPhone, where to do it)
-//     https://ambernotes.app/open/history      ambernotes://history      version history of the note an
+//     https://ambernotes.app/open/history      pintonotes://history      version history of the note an
 //                                                                        AI changed last (or the notes)
 
 // MARK: Pure pieces (tested)

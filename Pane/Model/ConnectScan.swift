@@ -4,7 +4,7 @@ import Foundation
 /// What the connect page's QR code carries besides the request: a one-time scan secret, and the
 /// SHA-256 of the page's public key. ambernotes.app/connect shows
 /// https://ambernotes.app/open/connect?request=<id>#s=<secret>&k=<key hash> (and, on a Mac, the same
-/// as ambernotes://connect?...). The fragment never reaches a server.
+/// as pintonotes://connect?...). The fragment never reaches a server.
 ///
 /// Scanning the code is the person's presence: the device that read it is next to the screen
 /// that shows it. The device checks the page's key from the server against `keyHash` before it

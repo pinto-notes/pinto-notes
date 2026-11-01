@@ -729,7 +729,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const { results, broad } = searchInMemory(query, docs, pg.offset + pg.limit + 1);
       const shown = results.slice(pg.offset, pg.offset + pg.limit);
       return {
-        results: shown.map((r) => ({ id: r.doc.e.path, title: r.doc.e.note.title, url: `ambernotes://note/${r.doc.e.note.id}`, ...(r.doc.e.app ? { app: r.doc.e.path.replace(/\.md$/, ".app/") } : {}), snippet: r.snippet })),
+        results: shown.map((r) => ({ id: r.doc.e.path, title: r.doc.e.note.title, url: `pintonotes://note/${r.doc.e.note.id}`, ...(r.doc.e.app ? { app: r.doc.e.path.replace(/\.md$/, ".app/") } : {}), snippet: r.snippet })),
         ...(results.length > pg.offset + pg.limit ? { more: `More results: offset ${pg.offset + pg.limit}.` } : {}),
         ...(broad ? { no_note_has_every_word: true } : {}), ...searched,
       };
@@ -838,11 +838,11 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (r.kind === "file") return await fetchFile(tx, a, c, r);
     if (r.kind === "dir") {
       const listing = await fileHandlers.list(tx, { path: r.dir }, c);
-      return { id: r.dir || "/", title: r.dir || "Notes", text: JSON.stringify(listing, null, 2), url: "ambernotes://notes", metadata: { type: "folder" } };
+      return { id: r.dir || "/", title: r.dir || "Notes", text: JSON.stringify(listing, null, 2), url: "pintonotes://notes", metadata: { type: "folder" } };
     }
     if (r.kind === "note") {
       const n = await full(tx, c, r.note.id, true);
-      if (n.locked_body) return { id: r.path, title: n.title, text: LOCKED, url: `ambernotes://note/${n.id}`, metadata: { path: r.path, locked: true } };
+      if (n.locked_body) return { id: r.path, title: n.title, text: LOCKED, url: `pintonotes://note/${n.id}`, metadata: { path: r.path, locked: true } };
       const body = await bodyOf(c.v, n);
       const files = await noteFiles(tx, c, P, n, body);
       const shown = numberedLines(present(body, P, files), a.offset, a.limit);
@@ -850,7 +850,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const subs = P.children(dir).filter((e) => e.kind === "note").map((e) => e.path);
       await markRead(tx, c, noteItem(n.id), String(n.version));
       return {
-        id: r.path, title: n.title, text: shown.text, url: `ambernotes://note/${n.id}`,
+        id: r.path, title: n.title, text: shown.text, url: `pintonotes://note/${n.id}`,
         metadata: {
           path: r.path, lines: shown.lines, updated: iso(n.updated_at), today: today(), ...(n.is_pinned ? { pinned: true } : {}),
           ...(n.trashed_at ? { deleted: "In Recently Deleted: restore brings it back." } : {}),
@@ -870,18 +870,18 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const files = (await projectOf(tx, c, r.note.id)).project.files;
       const readme = [files["/docs/README.md"], files["/README.md"]].map((t) => t?.match(/^##\s*Data\s*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/m)?.[1]?.trim()).find(Boolean);
       await markRead(tx, c, dataItem(r.note.id), await hash(c, text));
-      return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `ambernotes://note/${r.note.id}`,
+      return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/data.json`, lines: shown.lines, shape: { values: dataShape(d.values), collections: dataShape(d.collections) }, ...(readme ? { readme_data: readme } : {}), ...(shown.truncated ? { truncated: shown.truncated } : {}),
           about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." } };
     }
     const p = await appProject(tx, c, r.note);
     if (r.kind === "app" && r.dir) {
       const listing = await fileHandlers.list(tx, { path: `${r.base}/${r.dir}` }, c) as { files: { path: string; lines: number }[] };
-      return { id: `${r.base}/${r.dir}`, title: `${r.note.title} (app): ${r.dir}`, text: listing.files.map((f) => `${f.path}  (${f.lines} lines)`).join("\n"), url: `ambernotes://note/${r.note.id}`, metadata: { path: `${r.base}/${r.dir}`, type: "folder" } };
+      return { id: `${r.base}/${r.dir}`, title: `${r.note.title} (app): ${r.dir}`, text: listing.files.map((f) => `${f.path}  (${f.lines} lines)`).join("\n"), url: `pintonotes://note/${r.note.id}`, metadata: { path: `${r.base}/${r.dir}`, type: "folder" } };
     }
     if (r.kind === "app") {
       const { draft } = await projectOf(tx, c, r.note.id);
-      return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${f.lines} lines)`), `${r.base}/data.json`].join("\n"), url: `ambernotes://note/${r.note.id}`,
+      return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${f.lines} lines)`), `${r.base}/data.json`].join("\n"), url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/`, readme: p.files["/README.md"] ?? null, ...(await loadFailure(tx, r.note.id)),
           ...(Object.keys(p.files).length === 1 ? { one_file: `An older app: one HTML document, ${r.base}/index.html, with its CSS and script inline and its data (data.json) through window.amber. Change it with edit and write like any file.` } : {}),
           ...(draft !== null && draft !== undefined ? { held_back: `These files are a version that failed its checks, so the person still has the last one that passed. What failed:\n${draft}` } : {}) } };
@@ -890,7 +890,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (p.files[file] === undefined) throw new ToolError(`No ${r.base}${file}. Its files: list "${r.base}".`);
     const shown = numberedLines(p.files[file], a.offset, a.limit);
     await markRead(tx, c, fileItem(r.note.id, file), await hash(c, p.files[file]));
-    return { id: `${r.base}${file}`, title: file.slice(1), text: shown.text, url: `ambernotes://note/${r.note.id}`, metadata: { path: `${r.base}${file}`, lines: shown.lines, ...(shown.truncated ? { truncated: shown.truncated } : {}) } };
+    return { id: `${r.base}${file}`, title: file.slice(1), text: shown.text, url: `pintonotes://note/${r.note.id}`, metadata: { path: `${r.base}${file}`, lines: shown.lines, ...(shown.truncated ? { truncated: shown.truncated } : {}) } };
   },
 
   async create(tx, a, c) {
@@ -1282,17 +1282,17 @@ async function fetchFile(tx: Tx, a: Args, c: Call, r: Extract<Ref, { kind: "file
   try {
     if (a.raw === true) {
       return new Content([{ type: "text", text: JSON.stringify({ ...head, raw: "The file's bytes are the resource below (base64). Change them with your own tools and write them back with content_base64." }) },
-        { type: "resource", resource: { uri: `ambernotes://file/${encodeURIComponent(r.path)}`, mimeType: kind, blob: toBase64(bytes) } }], head);
+        { type: "resource", resource: { uri: `pintonotes://file/${encodeURIComponent(r.path)}`, mimeType: kind, blob: toBase64(bytes) } }], head);
     }
     if (IMAGE_BLOCKS.has(kind)) return new Content([{ type: "text", text: JSON.stringify(head) }, { type: "image", data: toBase64(bytes), mimeType: kind }], head);
     if (isTextFile(meta.name, meta.type)) {
       const shown = numberedLines(new TextDecoder().decode(bytes), a.offset, a.limit);
-      return { id: r.path, title: meta.name, text: shown.text, url: "ambernotes://notes", metadata: { ...head, lines: shown.lines, editable: "edit and write change it like a note.", ...(shown.truncated ? { truncated: shown.truncated } : {}) } };
+      return { id: r.path, title: meta.name, text: shown.text, url: "pintonotes://notes", metadata: { ...head, lines: shown.lines, editable: "edit and write change it like a note.", ...(shown.truncated ? { truncated: shown.truncated } : {}) } };
     }
     const got = await extract(bytes, meta.name, meta.type);
-    if ("none" in got) return { id: r.path, title: meta.name, text: got.none, url: "ambernotes://notes", metadata: head };
+    if ("none" in got) return { id: r.path, title: meta.name, text: got.none, url: "pintonotes://notes", metadata: head };
     const shown = numberedLines(got.text, a.offset, a.limit);
-    return { id: r.path, title: meta.name, text: shown.text, url: "ambernotes://notes", metadata: { ...head, ...(got.pages ? { pages: got.pages } : {}), lines: shown.lines, text_of: "the file's text, taken out of it; fetch with raw: true for the file itself.", ...(shown.truncated ? { truncated: shown.truncated } : {}) } };
+    return { id: r.path, title: meta.name, text: shown.text, url: "pintonotes://notes", metadata: { ...head, ...(got.pages ? { pages: got.pages } : {}), lines: shown.lines, text_of: "the file's text, taken out of it; fetch with raw: true for the file itself.", ...(shown.truncated ? { truncated: shown.truncated } : {}) } };
   } finally {
     bytes.fill(0);
   }

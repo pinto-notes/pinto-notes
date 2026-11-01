@@ -36,7 +36,7 @@ REGION=eu-central-1
 TEAM=emil-wagman-personal
 WEB_PROJECT=amber-notes-staging
 SITE=https://amber-notes-staging.vercel.app
-SCHEME=ambernotes-beta
+SCHEME=pintonotes-beta
 BETA_BUNDLE=dev.emilwagman.pane.beta
 FUNCTIONS=(mcp account account-status share-files key)
 

@@ -220,7 +220,7 @@ describe("Use template and Use this note in a browser", () => {
     expect(html.match(/href="\/open\/template\/habit-tracker"/g)).toHaveLength(2);
     // Nothing about the attempt is in the page as served: the sheet only appears in the browser.
     expect(html).not.toContain("open-sheet");
-    expect(html).not.toContain("ambernotes://");
+    expect(html).not.toContain("pintonotes://");
   });
 });
 

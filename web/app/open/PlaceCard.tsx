@@ -7,7 +7,7 @@ import s from "./open.module.css";
 /// another device). It tries the app at once; if Pinto Notes doesn't open within about 1.5 s, the
 /// card says how to do it by hand, with Open in Pinto Notes and the downloads.
 export default function PlaceCard({ href, title, lede, steps, links, art }: {
-  /// The app's link for the place, e.g. ambernotes://connect-ai.
+  /// The app's link for the place, e.g. pintonotes://connect-ai.
   href: string;
   /// What the place is, for the fallback heading ("Connect your AI").
   title: string;

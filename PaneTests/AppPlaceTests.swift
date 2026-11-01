@@ -12,17 +12,17 @@ struct AppPlaceTests {
             // The new name's address, alongside the old one.
             ("https://pintonotes.com/open/history", .history),
             ("https://www.pintonotes.com/open/connect-ai", .connectAI),
-            ("ambernotes://connect-ai", .connectAI),
-            ("ambernotes://history", .history),
-            ("ambernotes://import", .importNotes),
+            ("pintonotes://connect-ai", .connectAI),
+            ("pintonotes://history", .history),
+            ("pintonotes://import", .importNotes),
         ]
         for (link, place) in cases { #expect(AppPlace.parse(URL(string: link)!) == place, "\(link)") }
     }
 
     @Test func leavesEverythingElseAlone() {
         for link in ["https://ambernotes.app/open/template/grocery-list", "https://ambernotes.app/open/connect?request=x",
-                     "https://evil.example/open/history", "http://ambernotes.app/open/history", "ambernotes://template/trip-plan",
-                     "ambernotes://history/extra", "https://ambernotes.app/history"] {
+                     "https://evil.example/open/history", "http://ambernotes.app/open/history", "pintonotes://template/trip-plan",
+                     "pintonotes://history/extra", "https://ambernotes.app/history"] {
             #expect(AppPlace.parse(URL(string: link)!) == nil, "\(link)")
         }
     }

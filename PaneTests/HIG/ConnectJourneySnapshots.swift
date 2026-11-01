@@ -17,7 +17,7 @@ import UIKit
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
 
     static let pageKey = P256.KeyAgreement.PrivateKey().publicKey.x963Representation
-    static let scan = ConnectScan(url: URL(string: "ambernotes://connect?request=5a0f6c1e-2b1d-4c36-9e0a-6b6f0c1a2b3c#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(ConnectScan.base64url(Data(SHA256.hash(data: pageKey))))")!)!
+    static let scan = ConnectScan(url: URL(string: "pintonotes://connect?request=5a0f6c1e-2b1d-4c36-9e0a-6b6f0c1a2b3c#s=AbCdEfGhIjKlMnOpQrSt_-&k=\(ConnectScan.base64url(Data(SHA256.hash(data: pageKey))))")!)!
 
     /// Claude in the computer's browser, the page's code scanned with the phone.
     static let scanned = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",

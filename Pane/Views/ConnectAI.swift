@@ -12,7 +12,7 @@ import UIKit
 //
 // ChatGPT and Claude sign in with OAuth: they send the person's browser to the MCP server's
 // /authorize, which opens ambernotes.app/connect?request=<id>. That page hands over to the app,
-// by https://ambernotes.app/open/connect?request=<id> or ambernotes://connect?request=<id>. The
+// by https://ambernotes.app/open/connect?request=<id> or pintonotes://connect?request=<id>. The
 // app (already signed in) shows who's asking, the person allows it (read and edit) with Face ID
 // or Touch ID, and the app sends the browser on to the AI with the result.
 //
@@ -29,7 +29,7 @@ enum ConnectLink {
     static let webHosts = AppIdentity.webHosts
     static let webPath = "/open/connect"
 
-    /// The request id in ambernotes://connect?request=<uuid> or its universal link, if this is one.
+    /// The request id in pintonotes://connect?request=<uuid> or its universal link, if this is one.
     static func requestID(from url: URL) -> UUID? {
         let scheme = url.scheme?.lowercased(), host = url.host?.lowercased() ?? ""
         let custom = scheme == Self.scheme && host == "connect"

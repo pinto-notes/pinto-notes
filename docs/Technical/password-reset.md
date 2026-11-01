@@ -162,7 +162,7 @@ stock recovery template.
 
    Changing `site_url` from `http://127.0.0.1:3000` to `https://ambernotes.app` was checked against
    every sign-in that redirects: the Mac download's Sign in with Apple and Connect Apple ID pass
-   `redirect_to=ambernotes://auth-callback` (`Backend.swift`), and `/connect` passes
+   `redirect_to=pintonotes://auth-callback` (`Backend.swift`), and `/connect` passes
    `redirect_to=https://ambernotes.app/connect?…` (`lib/connect.ts`). Both are on the redirect list, so
    Supabase uses them and never the site URL. The App Store apps sign in with Apple's id token and
    email with a password, with no redirect at all. The site URL is only the fallback for a missing or
@@ -175,7 +175,7 @@ stock recovery template.
    in an email sent before the change still works: `ambernotes.app/reset-password` answers 308 to
    the same path on pintonotes.com, and browsers carry the fragment across a redirect. The
    redirect list must hold `https://pintonotes.com/connect**` (for `/connect`), and keeps
-   `https://ambernotes.app/connect**` and `ambernotes://auth-callback`.
+   `https://ambernotes.app/connect**` and `pintonotes://auth-callback`.
 5. Ask for a reset for a test account on the live site and check it arrives, opens and saves.
 6. Ship the app build with Forgot password?.
 

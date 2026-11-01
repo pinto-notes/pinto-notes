@@ -11,7 +11,7 @@ Written 2026-10-02 for the QR connect flow (branch `app/connect-qr`). It compare
    - a scan secret (16 bytes, new)
 
    It posts `/connect/scan` with the public key, `SHA-256(pickup)` and `SHA-256(scan secret)`. The page has no session, and the server stores the ask without an account.
-3. The page shows a QR code for `https://ambernotes.app/open/connect?request=<id>#s=<scan secret>&k=<SHA-256 of the public key>`. On a Mac it also offers the same link as `ambernotes://connect?...`, labeled "Open Amber Notes on this Mac".
+3. The page shows a QR code for `https://ambernotes.app/open/connect?request=<id>#s=<scan secret>&k=<SHA-256 of the public key>`. On a Mac it also offers the same link as `pintonotes://connect?...`, labeled "Open Amber Notes on this Mac".
 4. The iPhone camera, or the Mac button, opens Amber Notes with that link. The app:
    - reads the request with its own session, which claims the request for its account
    - gets the page's public key from `/connect/request`

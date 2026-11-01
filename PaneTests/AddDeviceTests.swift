@@ -119,7 +119,7 @@ private final class AddDeviceVectorsToken {}
     @Test func theQRTextIsNotALinkAndOnlyAnExactCodeReads() throws {
         let text = try #require(v.add_device.qr.text)
         #expect(text.contains(" "), "spaces: no camera or browser treats it as an address")
-        #expect(ConnectLink.requestID(from: URL(string: "ambernotes://connect?request=\(request)")!) != nil, "the connect link is a link; this isn't")
+        #expect(ConnectLink.requestID(from: URL(string: "pintonotes://connect?request=\(request)")!) != nil, "the connect link is a link; this isn't")
         #expect(URL(string: text)?.scheme == nil || URL(string: text) == nil)
         #expect(E2EE.readAddDeviceQR(text + " ") == nil)
         #expect(E2EE.readAddDeviceQR(text.replacingOccurrences(of: "v1", with: "v2")) == nil)

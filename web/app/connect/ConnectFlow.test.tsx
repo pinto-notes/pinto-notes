@@ -146,7 +146,7 @@ describe("the connect page's QR code", () => {
     await until(() => !!container.querySelector("svg path"));
     const mac = [...container.querySelectorAll("a")].find((a) => a.textContent === "Open Pinto Notes on this Mac");
     const link = decodeQRMarkup(container.innerHTML)!;
-    expect(mac?.getAttribute("href")).toBe(link.replace("https://ambernotes.app/open/connect?", "ambernotes://connect?"));
+    expect(mac?.getAttribute("href")).toBe(link.replace("https://ambernotes.app/open/connect?", "pintonotes://connect?"));
   });
 
   it("has no Mac button elsewhere, and leads with the code", async () => {

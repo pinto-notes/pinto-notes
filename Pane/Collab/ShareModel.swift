@@ -125,7 +125,7 @@ extension CollabStore {
 
     // MARK: Opening a link
 
-    /// A link's id and secret, from `…/s/<id>#<secret>` (or ambernotes://s/<id>#<secret>).
+    /// A link's id and secret, from `…/s/<id>#<secret>` (or pintonotes://s/<id>#<secret>).
     nonisolated static func parseLink(_ url: URL) -> (id: String, secret: Data)? {
         let parts = url.path.split(separator: "/").map(String.init)
         let id: String

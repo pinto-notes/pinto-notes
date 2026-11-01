@@ -119,7 +119,7 @@ private extension Process {
     }
 
     private func link(_ id: UUID, scan: Bool = false) -> URL {
-        URL(string: "ambernotes://connect?request=\(id.uuidString.lowercased())\(scan ? "#s=AbCdEfGhIjKlMnOpQrSt_-&k=AAAA" : "")")!
+        URL(string: "pintonotes://connect?request=\(id.uuidString.lowercased())\(scan ? "#s=AbCdEfGhIjKlMnOpQrSt_-&k=AAAA" : "")")!
     }
 
     @Test func aRequestAnsweredHereNeverOpensASecondSheet() {

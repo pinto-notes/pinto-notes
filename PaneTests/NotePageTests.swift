@@ -759,7 +759,7 @@ import AppKit
         #expect(link("pinto:Acme.md") == .init(target: "Acme.md", heading: nil), "a .md ending resolves as in a [[link]]")
         #expect(link("pinto:Acme|shown") == .init(target: "Acme", heading: nil))
         for no in ["pinto:", "pinto:#Agenda", "pinto:   ", "pinto:[[Acme]]", "pinto:a\nb", "pinto:" + String(repeating: "a", count: 1000),
-                   "https://pintonotes.com/Acme", "file:///etc/hosts", "ambernotes://settings", "javascript:alert(1)", "pane-note:00000000-0000-0000-0000-000000000000", "Acme", ""] {
+                   "https://pintonotes.com/Acme", "file:///etc/hosts", "pintonotes://settings", "javascript:alert(1)", "pane-note:00000000-0000-0000-0000-000000000000", "Acme", ""] {
             #expect(link(no) == nil, "\(no.prefix(40)) is no link to a note")
         }
         #expect(WikiLinks.headingLocation("agenda", in: "Acme\n\nIntro\n## Agenda\n- one") == 12)
@@ -801,7 +801,7 @@ import AppKit
         <a id=missing href="pinto:Someday">Someday</a>
         <a id=web href="https://example.org/">Web</a>
         <a id=file href="file:///etc/hosts">File</a>
-        <a id=scheme href="ambernotes://settings">Settings</a>
+        <a id=scheme href="pintonotes://settings">Settings</a>
         <script>
           window.__tap = (id) => { dispatchEvent(new PointerEvent("pointerdown")); document.getElementById(id).click(); };
           // On its own, before anyone touched it: no.
@@ -837,7 +837,7 @@ import AppKit
         await #expect(throws: NotePage.OpError.self) {
             _ = try await NotePageActions.data(["op": "note.open", "href": "pinto:Acme"], note: dashboard, context: context, sync: nil, open: { _ in Issue.record("opened untapped") })
         }
-        for href in ["https://example.org/", "file:///etc/hosts", "ambernotes://settings", "pinto:"] {
+        for href in ["https://example.org/", "file:///etc/hosts", "pintonotes://settings", "pinto:"] {
             await #expect(throws: NotePage.OpError.self) {
                 _ = try await NotePageActions.data(["op": "note.open", "href": href, "_user": true], note: dashboard, context: context, sync: nil, open: { _ in Issue.record("opened \(href)") })
             }

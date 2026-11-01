@@ -1,4 +1,4 @@
-/// Hands an ambernotes:// link to the browser and calls `done` after `wait` ms with whether the
+/// Hands an pintonotes:// link to the browser and calls `done` after `wait` ms with whether the
 /// browser left for the app (the window lost focus or the page was hidden). Returns a function that
 /// stops listening without calling `done`. Callers check the link first.
 export function tryApp(href: string, wait: number, done: (opened: boolean) => void): () => void {

@@ -4,7 +4,7 @@ import Foundation
 /// in (an AI connection, an import, a paste), so a link only ever opens a web page, a mail
 /// or a call, or another note (by id, or by title through a wiki link). file:, smb: (which
 /// hands the Mac's login to a stranger's server), other apps' schemes and Amber Notes' own
-/// ambernotes: are never opened.
+/// pintonotes: are never opened.
 enum LinkPolicy {
     enum Action: Equatable {
         case open(URL)
