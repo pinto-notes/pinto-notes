@@ -1,7 +1,7 @@
 // The release gate (docs/Technical/release-gate.md): scripts/release-gate.sh runs this.
 //
 //   deno run -A scripts/release-gate/gate.ts <candidate ref> [--baseline <ref>] [--sizes 1,2000,10000,20000]
-//       [--runs 3] [--only perf,security,storage,network] [--rebuild] [--host fleet-air] [--reuse-perf] [--rescore <report.json>]
+//       [--runs 3] [--only perf,security,storage,network] [--rebuild] [--host fleet-air | local] [--reuse-perf] [--rescore <report.json>]
 //
 // Builds the candidate (scripts/release-gate/build.sh), measures it on a real Mac over ssh with the
 // staging bench accounts, checks security, storage and network, and writes
@@ -42,7 +42,15 @@ async function run(cmd: string, argv: string[], opts: { cwd?: string; stdin?: st
   return { ok: out.success, stdout, stderr };
 }
 const git = async (...a: string[]) => (await run("git", a)).stdout.trim();
-const ssh = (command: string, opts: { stdin?: string; allowFail?: boolean } = {}) => run("ssh", [HOST, command], opts);
+/// `--host local` measures on this Mac, with no ssh: only when nobody is using it (the app opens and
+/// the row clicks move the pointer). Commands run from the home folder, as they would over ssh.
+const LOCAL = HOST === "local";
+const HOME = Deno.env.get("HOME")!;
+const remoteShell = (command: string) => LOCAL ? { cmd: "zsh", args: ["-c", command], cwd: HOME } : { cmd: "ssh", args: [HOST, command], cwd: ROOT };
+const ssh = (command: string, opts: { stdin?: string; allowFail?: boolean } = {}) => {
+  const r = remoteShell(command);
+  return run(r.cmd, r.args, { ...opts, cwd: r.cwd });
+};
 const staging = async (...a: string[]) => JSON.parse((await run("deno", ["run", "-A", `${ROOT}/scripts/release-gate/staging.ts`, ...a])).stdout.trim().split("\n").pop()!);
 const log = (s: string) => console.error(s);
 const median = (xs: number[]) => { const s = xs.filter((x) => Number.isFinite(x)).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : NaN; };
@@ -133,7 +141,8 @@ async function probe(mode: "setup" | "measure", size: number): Promise<ProbeResu
   // One ssh session for the whole run, so nothing polls the Mac while it's measured: the launcher
   // passes the probe's lines on as they come.
   const profile = Deno.env.get("AMBER_GATE_PROFILE") && mode === "measure";
-  const proc = new Deno.Command("ssh", { args: [HOST, `${profile ? "GATE_PROFILE=1 " : ""}zsh -s -- ${[out, `${home}/${app}`, stdin || "-", ...launchArgs].map(q).join(" ")}`], stdin: "piped", stdout: "piped", stderr: "null" }).spawn();
+  const launcher = remoteShell(`${profile ? "GATE_PROFILE=1 " : ""}zsh -s -- ${[out, `${home}/${app}`, stdin || "-", ...launchArgs].map(q).join(" ")}`);
+  const proc = new Deno.Command(launcher.cmd, { args: launcher.args, cwd: launcher.cwd, stdin: "piped", stdout: "piped", stderr: "null" }).spawn();
   { const w = proc.stdin.getWriter(); await w.write(new TextEncoder().encode(script)); await w.close(); }
   let pid = "", arrived = false;
   const limit = setTimeout(() => { if (pid) ssh(`kill ${pid}`, { allowFail: true }); }, (mode === "setup" ? 20 : 6) * 60_000);
@@ -238,7 +247,8 @@ if (reused) {
   machine = (await ssh("sysctl -n hw.model; sw_vers -productVersion; sysctl -n machdep.cpu.brand_string")).stdout.trim().split("\n").join(", ");
   await run("ditto", ["-c", "-k", "--keepParent", `${OUT}/Amber Notes Beta.app`, `${OUT}/app.zip`]);
   await ssh(`mkdir -p release-gate/${short} && rm -rf "release-gate/${short}/Amber Notes Beta.app"; rm -f /tmp/release-gate-*(N)`);
-  await run("scp", ["-q", `${OUT}/app.zip`, `${HOST}:release-gate/${short}/app.zip`]);
+  if (LOCAL) await run("cp", [`${OUT}/app.zip`, `${HOME}/release-gate/${short}/app.zip`]);
+  else await run("scp", ["-q", `${OUT}/app.zip`, `${HOST}:release-gate/${short}/app.zip`]);
   await ssh(`cd release-gate/${short} && ditto -x -k app.zip . && rm app.zip && codesign --verify --strict "Amber Notes Beta.app"`);
   const reportsBefore = (await ssh("ls ~/Library/Logs/DiagnosticReports 2>/dev/null", { allowFail: true })).stdout.split("\n");
   for (const size of sizes) {

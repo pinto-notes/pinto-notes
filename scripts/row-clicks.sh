@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Real clicks on the note list of a built app, on the measuring Mac (docs/Technical/release-gate.md, "Clicks"):
 #
-#   scripts/row-clicks.sh <app> [--host fleet-air] [--budget 500] [--median 210]
+#   scripts/row-clicks.sh <app> [--host fleet-air | local] [--budget 500] [--median 210]
 #
 # Copies the app and scripts/release-gate/RowClicks.swift to the Mac, opens the app there with a
 # made-up library kept in memory (`-uitest -demo`: no account, nothing of the Mac's own notes is
@@ -14,7 +14,7 @@
 # again for this run with `codesign --force --deep -s -`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-app=${1:?usage: scripts/row-clicks.sh <app> [--host fleet-air] [--budget 500] [--median 210]}; shift
+app=${1:?usage: scripts/row-clicks.sh <app> [--host fleet-air | local] [--budget 500] [--median 210]}; shift
 host=fleet-air budget=500 median=210
 while (( $# )); do
   case $1 in
@@ -30,9 +30,13 @@ exe=$(defaults read "${app:A}/Contents/Info" CFBundleExecutable)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 ditto -c -k --keepParent "$app" "$tmp/app.zip"
-ssh "$host" 'rm -rf ~/row-clicks && mkdir -p ~/row-clicks'
-scp -q "$tmp/app.zip" scripts/release-gate/RowClicks.swift "${host}:row-clicks/"
-ssh "$host" zsh -s -- "$name" "$exe" "$budget" "$median" <<'REMOTE'
+# --host local: this Mac, no ssh (the terminal running it needs Accessibility to click).
+on() { if [[ $host == local ]]; then (cd ~ && zsh -c "$1"); else ssh "$host" "$1"; fi; }
+on 'rm -rf ~/row-clicks && mkdir -p ~/row-clicks'
+if [[ $host == local ]]; then cp "$tmp/app.zip" scripts/release-gate/RowClicks.swift ~/row-clicks/
+else scp -q "$tmp/app.zip" scripts/release-gate/RowClicks.swift "${host}:row-clicks/"; fi
+remote=(ssh "$host" zsh -s --); [[ $host == local ]] && remote=(zsh -s --)
+"${remote[@]}" "$name" "$exe" "$budget" "$median" <<'REMOTE'
 set -u
 cd ~/row-clicks
 ditto -x -k app.zip . && rm app.zip
