@@ -108,7 +108,8 @@ import AppKit
         let menu = try #require(h.controller.currentTableMenu)
         let delete = try #require(menu.item("Delete Table"))
         #expect(delete.destructive && delete.enabled)
-        #expect(menu.items.map(\.title) == ["Add Row Above", "Add Row Below", "Add Column Before", "Add Column After", "Delete Row", "Delete Column", "Delete Table"])
+        #expect(menu.items.map(\.title) == ["Add Row Below", "Add Row Above", "Add Column After", "Add Column Before", "Delete Row", "Delete Column", "Delete Table"],
+                "what you add most comes first, nearest the Table button")
         delete.run()
         await h.settle(0.2)
         #expect(!h.text.contains("| ⌘B"), "the table is gone: \(h.text.debugDescription)")

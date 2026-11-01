@@ -42,10 +42,10 @@ struct FormatBar: View {
         Menu {
             if let menu = controller.currentTableMenu { TableMenuItems(menu: menu) }
         } label: {
-            BarIcon(systemName: "tablecells")
+            // In a table the Table button is in the accent, with a "more" badge: it's the table's
+            // menu now, not Insert Table (Emil, 1 November 2026).
+            BarIcon(systemName: "tablecells.badge.ellipsis", style: AnyShapeStyle(Color.accentColor))
         }
-        // In the label colour like the bar's other buttons: a menu took the accent (blue).
-        .tint(.primary)
         .accessibilityLabel("Table")
         .accessibilityIdentifier("editor.tableMenu")
         .padding(.horizontal, Self.inset * 4)
@@ -101,10 +101,11 @@ private struct BarButton: View {
 /// the 22pt size on buttons, not smaller on iOS"; they were 17 pt here), in a 44 pt target.
 private struct BarIcon: View {
     let systemName: String
+    var style = AnyShapeStyle(.primary)
     var body: some View {
         Image(systemName: systemName)
             .font(.system(size: 22, weight: .regular))
-            .foregroundStyle(.primary)
+            .foregroundStyle(style)
             .frame(width: 44, height: 44)
             .contentShape(.rect)
     }

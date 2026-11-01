@@ -400,7 +400,8 @@ final class EditorController {
         let sections: [[TableMenu.Item]] = switch line {
         case .row: [[item(.addRowAbove), item(.addRowBelow)], [item(.deleteRow)]]
         case .column: [[item(.addColumnBefore), item(.addColumnAfter)], [item(.deleteColumn)]]
-        case nil: [[item(.addRowAbove), item(.addRowBelow), item(.addColumnBefore), item(.addColumnAfter)],
+        // The Table button's: what you add most first, nearest the button (Row Below, Column After).
+        case nil: [[item(.addRowBelow), item(.addRowAbove), item(.addColumnAfter), item(.addColumnBefore)],
                    [item(.deleteRow), item(.deleteColumn)], [delete]]
         }
         return TableMenu(grid: grid, line: line, sections: sections)

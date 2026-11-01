@@ -221,6 +221,8 @@ enum GridMetrics {
     static let growRight: CGFloat = 22
     static let growBelow: CGFloat = 22
     #endif
+    /// A row handle's grip, standing (a column's lies down): the width of the handle strip.
+    static let grip = CGSize(width: 16, height: 30)
     /// How thick an add bar looks; its target is the whole strip.
     static let bar: CGFloat = 16
     static func height(_ t: GridTable) -> CGFloat { handle + CGFloat(t.rows.count) * row + 2 }
@@ -656,12 +658,14 @@ struct TableGridView: View {
         case .column(let c): columnHandleLabel(c)
         }
         return ZStack {
+            // Big and dark enough to be seen (Emil, 1 November 2026: "what about these small
+            // things?"; they were 14 by 24 on the lightest fill).
             Image(systemName: "ellipsis")
                 .rotationEffect(.degrees(horizontal ? 0 : 90))
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(picked ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
-                .frame(width: horizontal ? 28 : 14, height: horizontal ? 14 : 24)
-                .background(picked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill.secondary), in: .capsule)
+                .frame(width: horizontal ? GridMetrics.grip.height : GridMetrics.grip.width, height: horizontal ? GridMetrics.grip.width : GridMetrics.grip.height)
+                .background(picked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill), in: .capsule)
                 .hoverHighlight(Capsule())
                 .position(x: g.center.x - g.hit.minX, y: g.center.y - g.hit.minY)
         }

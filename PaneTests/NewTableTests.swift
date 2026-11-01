@@ -49,3 +49,11 @@ import UIKit
         #expect(!box.takes(CGPoint(x: 500, y: 60), in: size), "outside, never")
     }
 }
+
+/// A table's handles are big enough to be seen and fit their strip (Emil, 1 November 2026).
+@Suite struct GridGripTests {
+    @Test func gripsAreSeenAndFitTheirStrip() {
+        #expect(GridMetrics.grip.height >= 30 && GridMetrics.grip.width >= 16, "they were 14 by 24")
+        #expect(GridMetrics.grip.width <= GridMetrics.handle, "a row grip stays in the handle strip")
+    }
+}
