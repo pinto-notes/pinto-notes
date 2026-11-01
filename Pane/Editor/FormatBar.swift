@@ -44,6 +44,8 @@ struct FormatBar: View {
         } label: {
             BarIcon(systemName: "tablecells")
         }
+        // In the label colour like the bar's other buttons: a menu took the accent (blue).
+        .tint(.primary)
         .accessibilityLabel("Table")
         .accessibilityIdentifier("editor.tableMenu")
         .padding(.horizontal, Self.inset * 4)

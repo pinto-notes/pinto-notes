@@ -157,17 +157,34 @@ final class TableEditingUITests: XCTestCase {
         XCTAssertFalse(said(element("grid.2.1")).contains("Mon"), "not into the cell you were in")
         shot("stills-3-row-added")
 
-        // The bar under the table adds a row at the bottom; the one at its right, a column.
+        // Everything in a table is at least 44 points to tap (Emil, 1 November 2026: "make sure
+        // table stuff is easily tappable"): cells, handles, and the add-row bar's target.
+        for id in ["grid.0.0", "grid.2.1", "grid.3.2"] {
+            XCTAssertGreaterThanOrEqual(element(id).frame.height, 44, "\(id) is \(element(id).frame.size)")
+            XCTAssertGreaterThanOrEqual(element(id).frame.width, 44, "\(id) is \(element(id).frame.size)")
+        }
         let addRow = element("grid.add.row")
         XCTAssertTrue(addRow.waitForExistence(timeout: 3), "the add-row bar shows while editing")
-        addRow.tap()
+        XCTAssertGreaterThanOrEqual(addRow.frame.height, 44, "the add-row bar's target is \(addRow.frame.size)")
+        XCTAssertFalse(element("grid.add.column").exists, "no column bar in the iPhone's thin margin")
+        // The taller rows put the bar behind the keyboard here: scroll it up, as you would.
+        let text = app.textViews["editor"]
+        text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+            .press(forDuration: 0.05, thenDragTo: text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)))
+        pause()
+        XCTAssertTrue(addRow.isHittable, "the bar is on screen: \(addRow.frame)")
+        // A tap near the bar's lower edge, under the thin bar you see, still adds a row.
+        addRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
         pause()
         app.typeText("Tue")
         pause()
         XCTAssertTrue(said(element("grid.5.0")).contains("Tue"), "a row at the bottom, keyboard in it: \(said(element("grid.5.0")))")
-        let addColumn = element("grid.add.column")
-        XCTAssertTrue(addColumn.waitForExistence(timeout: 3), "the add-column bar shows while editing")
-        addColumn.tap()
+        // Columns from the table menu.
+        element("grid.0.2").tap()
+        pause()
+        element("editor.tableMenu").tap()
+        XCTAssertTrue(app.buttons["Add Column After"].firstMatch.waitForExistence(timeout: 3))
+        app.buttons["Add Column After"].firstMatch.tap()
         pause()
         app.typeText("Paid")
         pause()

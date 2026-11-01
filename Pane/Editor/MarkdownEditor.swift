@@ -123,9 +123,9 @@ final class EditorCore {
             // The handle targets' reach over the line above (iPhone; see GridMetrics.reach).
             f.origin.y -= GridMetrics.reach
             f.size.height += GridMetrics.reach
-            // The add bars' strips, right of and below the table (GridMetrics.grow).
-            f.size.width += GridMetrics.grow
-            f.size.height += GridMetrics.grow
+            // The add bars' strips, right of and below the table (GridMetrics.growRight, growBelow).
+            f.size.width += GridMetrics.growRight
+            f.size.height += GridMetrics.growBelow
             let request = gridFocus?.grid == g.index ? gridFocus : nil
             let isSelected = armedGrid == g.index
             let box = gridBoxes[g.index] ?? GridHitBox()

@@ -202,11 +202,27 @@ struct GridOverflow: Equatable {
 enum GridMetrics {
     /// 32 pt at the default text size, growing with the reader's text size on iPhone: at the
     /// largest sizes the rows kept their 32 pt and the text of one row was drawn over the next.
+    /// On iPhone 44 pt, the HIG's smallest touch target, so a tap lands in the cell you meant
+    /// (Emil, 1 November 2026: "make sure table stuff is easily tappable"; rows were 32 pt).
+    #if os(iOS)
+    static var row: CGFloat { max(44, ceil(EditorMetrics.body * 44 / 17)) }
+    #else
     static var row: CGFloat { max(32, ceil(EditorMetrics.body * 32 / 17)) }
+    #endif
     static let handle: CGFloat = 16
     /// The strips right of and below a table for its add bars (they show while a cell is being
     /// edited, over the margin and the space after the table; GridHitBox lets other clicks through).
-    static let grow: CGFloat = 22
+    /// On iPhone only the bar below, with a 44-point target under a thin bar: a column bar can't
+    /// have one in the 20-point margin, so columns are added from the menus there.
+    #if os(iOS)
+    static let growRight: CGFloat = 0
+    static let growBelow: CGFloat = 48
+    #else
+    static let growRight: CGFloat = 22
+    static let growBelow: CGFloat = 22
+    #endif
+    /// How thick an add bar looks; its target is the whole strip.
+    static let bar: CGFloat = 16
     static func height(_ t: GridTable) -> CGFloat { handle + CGFloat(t.rows.count) * row + 2 }
     #if os(iOS)
     /// A row or column handle's touch target: 44 points square (HIG), however small its grip.
@@ -350,7 +366,7 @@ struct GridHandles: Equatable {
 final class GridHitBox {
     static let space = "gridHost"
     var targets: [GridLine: CGRect] = [:]
-    /// The add-a-row and add-a-column bars, while they show (see GridMetrics.grow).
+    /// The add-a-row and add-a-column bars, while they show (see GridMetrics.growBelow).
     var adds: [GridAdd: CGRect] = [:]
 
     /// Whether a click or tap at `p` (host coordinates) is the table's. The bands around the table
@@ -358,7 +374,7 @@ final class GridHitBox {
     /// them; elsewhere the text under them takes it.
     func takes(_ p: CGPoint, in size: CGSize) -> Bool {
         guard CGRect(origin: .zero, size: size).contains(p) else { return false }
-        if p.y >= GridMetrics.reach, p.y < size.height - GridMetrics.grow, p.x < size.width - GridMetrics.grow { return true }
+        if p.y >= GridMetrics.reach, p.y < size.height - GridMetrics.growBelow, p.x < size.width - GridMetrics.growRight { return true }
         return targets.values.contains { $0.contains(p) } || adds.values.contains { $0.contains(p) }
     }
 }
@@ -478,7 +494,7 @@ struct TableGridView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let available = geo.size.width - GridMetrics.handle - GridMetrics.grow
+            let available = geo.size.width - GridMetrics.handle - GridMetrics.growRight
             let widths = draft.columnWidths(available: available)
             let total = widths.reduce(0, +)
             ZStack(alignment: .topLeading) {
@@ -492,16 +508,18 @@ struct TableGridView: View {
             // reads as "scroll for more", not as clipped.
             .onScrollGeometryChange(for: GridOverflow.self) { GridOverflow($0) } action: { _, new in overflow = new }
             .mask { GridOverflow.Fade(overflow: overflow) }
-            .frame(width: geo.size.width - GridMetrics.grow, height: geo.size.height - GridMetrics.grow)
+            .frame(width: geo.size.width - GridMetrics.growRight, height: geo.size.height - GridMetrics.growBelow)
             if isEditing {
                 let shown = min(total, available)
                 let top = GridMetrics.reach + GridMetrics.handle
-                addBar(.column)
-                    .frame(width: GridMetrics.grow - 6, height: CGFloat(draft.rows.count) * GridMetrics.row)
-                    .padding(.leading, GridMetrics.handle + shown + 4)
-                    .padding(.top, top)
+                if GridMetrics.growRight > 0 {
+                    addBar(.column)
+                        .frame(width: GridMetrics.growRight - 4, height: CGFloat(draft.rows.count) * GridMetrics.row)
+                        .padding(.leading, GridMetrics.handle + shown + 4)
+                        .padding(.top, top)
+                }
                 addBar(.row)
-                    .frame(width: shown, height: GridMetrics.grow - 6)
+                    .frame(width: shown, height: GridMetrics.growBelow - 4)
                     .padding(.leading, GridMetrics.handle)
                     .padding(.top, top + CGFloat(draft.rows.count) * GridMetrics.row + 4)
             }
@@ -598,6 +616,7 @@ struct TableGridView: View {
     /// A thin bar with a plus: a click adds a row at the bottom or a column at the end, and the
     /// keyboard goes to its first cell, like Tab or Return past the last cell.
     private func addBar(_ kind: GridAdd) -> some View {
+        // Thin to look at, against the table's edge; the whole strip takes the tap.
         Button { add(kind) } label: {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(.fill.tertiary)
@@ -606,6 +625,8 @@ struct TableGridView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: kind == .column ? GridMetrics.bar : .infinity, maxHeight: kind == .row ? GridMetrics.bar : .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)

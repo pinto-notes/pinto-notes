@@ -138,7 +138,7 @@ import AppKit
         let host = try #require(h.overlays.first)
         let table = try #require(GridTable.find(in: h.text).first)
         let cell = try #require(h.controller.table?.cell)
-        let widths = table.columnWidths(available: host.frame.width - GridMetrics.handle - GridMetrics.grow)
+        let widths = table.columnWidths(available: host.frame.width - GridMetrics.handle - GridMetrics.growRight)
         let handles = GridHandles(widths: widths, rows: table.rows.count, cell: cell)
         #expect(handles.grips.count == 2)
         let box = try #require(h.view.core.gridBoxes[0])

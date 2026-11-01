@@ -37,7 +37,7 @@ import UIKit
 @MainActor @Suite struct GridHitBoxTests {
     @Test func theBandsAroundATableLetClicksThrough() {
         let box = GridHitBox()
-        let size = CGSize(width: 400, height: GridMetrics.reach + 120 + GridMetrics.grow)
+        let size = CGSize(width: 400, height: GridMetrics.reach + 120 + GridMetrics.growBelow)
         #expect(box.takes(CGPoint(x: 100, y: GridMetrics.reach + 40), in: size), "the grid is the table's")
         #expect(!box.takes(CGPoint(x: 100, y: size.height - 5), in: size), "the strip below goes to the text")
         #expect(!box.takes(CGPoint(x: size.width - 5, y: 60), in: size), "the strip at the right goes to the text")
