@@ -794,6 +794,44 @@ Deno.test("refresh rotation moves the wrap to the new pair and removes the old o
   assertEquals([third.status, third.body.error], [400, "invalid_grant"]);
 });
 
+Deno.test("Gemini keeps one refresh token: each refresh gives a new access token, the same refresh token, and nothing is revoked", async () => {
+  // Google's connected apps send the first refresh token on every refresh and never take a new
+  // one (developers.google.com/connected-apps/mcp/oauth). With rotation, the second refresh
+  // looked like a stolen token and ended the connection after an hour (2 November 2026).
+  const { sql, pg } = await db();
+  const { clientId, verifier, back, me } = await connect(sql, pg, "proxy");
+  const first = (await exchange(sql, "proxy", clientId, back.searchParams.get("code")!, verifier)).body;
+  await sql`update public.oauth_clients set redirect_uris = ${["https://oauth-redirect.googleusercontent.com/r/gemini"]} where id = ${clientId}`;
+  const accesses = new Set<string>([first.access_token]);
+  for (let i = 0; i < 3; i++) {
+    const r = await refresh(sql, first.refresh_token);
+    assertEquals(r.status, 200, JSON.stringify(r.body));
+    assertEquals(r.body.refresh_token, first.refresh_token, "the same refresh token back");
+    assert(!accesses.has(r.body.access_token));
+    accesses.add(r.body.access_token);
+    assert(await opens((await tokenRow(sql, r.body.access_token)).dk_wrap, r.body.access_token, "access", me), "the new access token opens the notes");
+  }
+  const kept = await tokenRow(sql, first.refresh_token);
+  assertEquals(kept.used_at, null);
+  assert(await opens(kept.dk_wrap, first.refresh_token, "refresh", me), "the refresh token keeps its wrap");
+  // Revoking still ends it.
+  await call(sql, request("proxy", "/revoke", {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token: first.refresh_token }),
+  }));
+  assertEquals((await refresh(sql, first.refresh_token)).body.error, "invalid_grant");
+});
+
+Deno.test("only a client that returns to Google's callback alone keeps its refresh token", async () => {
+  const { keepsRefreshToken } = await import("./oauth.ts");
+  assert(keepsRefreshToken(["https://oauth-redirect.googleusercontent.com/r/abc"]));
+  assert(keepsRefreshToken(["https://oauth-redirect-sandbox.googleusercontent.com/r/abc"]));
+  assert(!keepsRefreshToken([]));
+  assert(!keepsRefreshToken([CHATGPT]));
+  assert(!keepsRefreshToken(["https://oauth-redirect.googleusercontent.com/r/abc", "https://evil.example/cb"]), "a client can't hide behind Google's address");
+  assert(!keepsRefreshToken(["https://oauth-redirect.googleusercontent.com.evil.example/r/abc"]));
+  assert(!keepsRefreshToken(["http://oauth-redirect.googleusercontent.com/r/abc"]));
+});
+
 Deno.test("reusing a code or a refresh token revokes the connection, and its wraps go", async () => {
   const { sql, pg } = await db();
   const a = await connect(sql, pg, "proxy");
@@ -839,10 +877,10 @@ Deno.test("/connect/label names the address for the web page, without a session,
   const res = await call(sql, request("proxy", `/connect/label?id=${requestId}`, { headers: { origin: SITE } }));
   assertEquals(res.status, 200);
   // Before anyone signs in there's no telling whose sign-in this is: no mark, the name only as a claim.
-  assertEquals(await res.json(), { client_name: "chatgpt.com", claimed_name: "chatgpt", redirect_host: "chatgpt.com", verified_ai: null });
+  assertEquals(await res.json(), { client_name: "chatgpt.com", claimed_name: "chatgpt", redirect_host: "chatgpt.com", verified_ai: null, allow_here: false });
   const fake = await ask(sql, pg, "Claude", ["https://evil.example/cb"]);
   assertEquals(await (await call(sql, request("proxy", `/connect/label?id=${fake.requestId}`))).json(),
-    { client_name: "evil.example", claimed_name: fake.details.claimed_name, redirect_host: "evil.example", verified_ai: null });
+    { client_name: "evil.example", claimed_name: fake.details.claimed_name, redirect_host: "evil.example", verified_ai: null, allow_here: false });
   assertEquals((await call(sql, request("proxy", `/connect/label?id=${crypto.randomUUID()}`))).status, 404);
   assertEquals((await call(sql, request("proxy", `/connect/label?id=nope`))).status, 404);
   assertEquals((await call(sql, request("proxy", `/connect/label?id=${requestId}`, { method: "POST" }))).status, 405);
