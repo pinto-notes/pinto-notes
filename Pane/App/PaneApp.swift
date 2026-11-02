@@ -544,7 +544,7 @@ struct BehindSetupCard<Card: View>: ViewModifier {
             }
             // At its own height, centred: a card whose content can stretch (the encryption
             // step's) grew to the window's full height (Emil, 2 November 2026).
-            .overlay { card.fixedSize(horizontal: false, vertical: true) }
+            .overlay { card.fixedSize(horizontal: false, vertical: true).background(SetupCardRegion()) }
     }
 }
 
@@ -554,6 +554,27 @@ struct SetupClickSink: NSViewRepresentable {
     static let dim = 0.55
 
     final class Sink: NSView {
+        private var monitor: Any?
+
+        // The split view's columns are AppKit views of their own and could still take a click
+        // over this layer (Emil, 2 November 2026: the list stayed clickable). So the window's
+        // clicks and scrolls are also caught before any view sees them: outside the card and
+        // below the title bar, none reaches the notes.
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]) { [weak self] event in
+                guard let self, let window = self.window, event.window === window else { return event }
+                let card = SetupCardRegion.frame(in: window)
+                guard SetupClickSink.swallows(event.locationInWindow, card: card, contentTop: window.contentLayoutRect.maxY) else { return event }
+                if event.type == .leftMouseDown { window.performDrag(with: event) }
+                return nil
+            }
+        }
+
+
         override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
         override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
         override func rightMouseDown(with event: NSEvent) {}
@@ -564,6 +585,34 @@ struct SetupClickSink: NSViewRepresentable {
 
     func makeNSView(context: Context) -> Sink { Sink() }
     func updateNSView(_ view: Sink, context: Context) {}
+
+    /// A click or scroll at `point` (window coordinates) is kept from the notes: it's below the
+    /// title bar (the window's own buttons work) and not on the card. Nil card: not kept.
+    nonisolated static func swallows(_ point: NSPoint, card: NSRect?, contentTop: CGFloat) -> Bool {
+        // No card found: leave it to the layer, never risk a card that takes no clicks.
+        guard let card, point.y < contentTop else { return false }
+        return !card.contains(point)
+    }
+}
+
+/// Marks where the setup card is, so the click sink lets its clicks through.
+struct SetupCardRegion: NSViewRepresentable {
+    final class Marker: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+    @MainActor private static var markers = NSHashTable<Marker>.weakObjects()
+
+    func makeNSView(context: Context) -> Marker {
+        let m = Marker()
+        Self.markers.add(m)
+        return m
+    }
+    func updateNSView(_ view: Marker, context: Context) {}
+
+    /// The card's frame in `window`'s coordinates, if one is on it.
+    @MainActor static func frame(in window: NSWindow) -> NSRect? {
+        markers.allObjects.first { $0.window === window }.map { $0.convert($0.bounds, to: nil) }
+    }
 }
 
 /// Signed out, the window is just the sign-in card: small, no title bar.

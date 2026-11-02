@@ -158,6 +158,8 @@ enum SetupCards {
     static let comingSoon: Set<String> = []
     /// The brand buttons, top to bottom (Emil, 2 November 2026).
     static let brands: [AI] = [.chatgpt, .claude, .grok]
+    /// The connect card's tiles: the brands, then Other (any other app, by its address).
+    static let connectTiles: [AI] = brands + [.other]
     static let anotherAppLink = "Another app"
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
@@ -283,6 +285,19 @@ struct BrandMark: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+        if ai == .other {
+            Image(systemName: "plus")
+                .font(.system(size: size * 0.45, weight: .semibold))
+                .foregroundStyle(Color.muted)
+                .frame(width: size, height: size)
+                .overlay(shape.strokeBorder(Color.muted.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5])))
+                .accessibilityHidden(true)
+        } else {
+            mark(shape)
+        }
+    }
+
+    private func mark(_ shape: RoundedRectangle) -> some View {
         AIGlyph(ai: ai.mark, size: size * 0.6, monochrome: true)
             .foregroundStyle(SetupCards.brandInk(ai))
             .frame(width: size, height: size)
@@ -845,8 +860,8 @@ struct SetupCardsFlow: View {
         }
     }
 
-    /// The tile picked: one of the three brands (ChatGPT until another is picked).
-    private var brandShown: SetupCards.AI { SetupCards.brands.contains(shownAI) ? shownAI : .chatgpt }
+    /// The tile picked: a brand or Other (ChatGPT until another is picked).
+    private var brandShown: SetupCards.AI { SetupCards.connectTiles.contains(shownAI) ? shownAI : .chatgpt }
 
     /// Like the import card: the brands as tiles, Not now and the amber Connect for the one picked.
     private var connectLikeImport: some View {
@@ -860,9 +875,9 @@ struct SetupCardsFlow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("setup.reads")
             }
-            LazyVGrid(columns: three, spacing: 8) {
-                ForEach(SetupCards.brands) { choice in
-                    SetupTile(title: choice.name, on: brandShown == choice, id: "setup.ai.\(choice.rawValue)", action: { ai = choice }) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: SetupCards.connectTiles.count), spacing: 8) {
+                ForEach(SetupCards.connectTiles) { choice in
+                    SetupTile(title: choice == .other ? "Other" : choice.name, on: brandShown == choice, id: "setup.ai.\(choice.rawValue)", action: { ai = choice }) {
                         BrandMark(ai: choice, size: 30)
                     }
                 }
@@ -871,17 +886,13 @@ struct SetupCardsFlow: View {
                 Button("Not now") { withAnimation { connecting = .set(connected: false) } }
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
-                Button(brandShown.button) { brandPicked(brandShown) }
+                Button(brandShown == .other ? "Connect another app" : brandShown.button) {
+                    if brandShown == .other { rowPicked("Other") } else { brandPicked(brandShown) }
+                }
                     .buttonStyle(.amberProminent(.regular, wide: true))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("setup.connect")
             }
-            Button(SetupCards.anotherAppLink) { rowPicked("Other") }
-                .buttonStyle(.hoverLink)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.muted)
-                .accessibilityLabel("Connect another app")
-                .accessibilityIdentifier("setup.ai.other")
         }
     }
 

@@ -142,6 +142,18 @@ import Testing
         }
     }
 
+    /// Emil, 2 November 2026: the list behind the card still took clicks. The window's clicks are
+    /// caught outside the card, below the title bar; the card and the window's buttons still work.
+    @Test func clicksOutsideTheSetupCardNeverReachTheNotes() {
+        let card = NSRect(x: 300, y: 200, width: 400, height: 300)
+        let top: CGFloat = 700
+        #expect(SetupClickSink.swallows(NSPoint(x: 100, y: 400), card: card, contentTop: top), "the notes list")
+        #expect(SetupClickSink.swallows(NSPoint(x: 900, y: 100), card: card, contentTop: top), "the note")
+        #expect(!SetupClickSink.swallows(NSPoint(x: 500, y: 300), card: card, contentTop: top), "the card itself")
+        #expect(!SetupClickSink.swallows(NSPoint(x: 20, y: 710), card: card, contentTop: top), "the title bar and its buttons")
+        #expect(!SetupClickSink.swallows(NSPoint(x: 500, y: 300), card: nil, contentTop: top), "no card found: never risk a card that takes no clicks")
+    }
+
     @Test func clickingOpensSettingsAtItsFirstPage() {
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-row-\(UUID())")!)
         route.tab = .storage
