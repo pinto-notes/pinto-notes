@@ -63,7 +63,7 @@ export type ConnectLabel = {
   /// The server lets this page answer for accounts whose key it keeps a copy of (BrowserConnect).
   allow_here?: boolean;
   /// With allow_here: the AI whose pinned callback this is, so its mark shows from sign-in on.
-  verified_ai?: "ChatGPT" | "Claude" | null;
+  verified_ai?: "ChatGPT" | "Claude" | "Grok" | null;
 };
 
 /// The sign-in step's heading (ConnectFlowV1). The question with the app's name is the frame's
@@ -93,7 +93,7 @@ export function parseLabel(body: unknown): ConnectLabel | null {
   if (!claimed && !host) return null;
   const label: ConnectLabel = { claimed_name: claimed, redirect_host: host, loopback: host !== null && LOOPBACK.has(host) };
   if (b.allow_here !== true) return label;
-  const ai = b.verified_ai === "ChatGPT" || b.verified_ai === "Claude" ? b.verified_ai : null;
+  const ai = b.verified_ai === "ChatGPT" || b.verified_ai === "Claude" || b.verified_ai === "Grok" ? b.verified_ai : null;
   return { ...label, allow_here: true, verified_ai: ai };
 }
 
@@ -140,7 +140,7 @@ export type ConnectRequest = {
   redirect_uri: string;
   /// The server's view that this is a known AI's pinned callback. Its name and mark show only on
   /// the consent after sign-in (BrowserScreens' ConsentScreen); before sign-in, never as a mark.
-  verified_ai?: "ChatGPT" | "Claude" | null;
+  verified_ai?: "ChatGPT" | "Claude" | "Grok" | null;
   loopback: boolean;
   wants_write: boolean;
   expires_at: string;

@@ -20,18 +20,22 @@ describe("the consent's words", () => {
   it("names the company, word for word as the app's Allow sheet", () => {
     const gpt = consentWords({ verified_ai: "ChatGPT", redirect_host: "chatgpt.com", loopback: false, claimed_name: null, client_name: "ChatGPT" });
     expect(gpt.sharedLead).toBe("Shared with OpenAI.");
-    expect(gpt.sent).toBe("The notes ChatGPT opens, with their text and files, are sent to OpenAI and handled under OpenAI’s privacy policy.");
+    expect(gpt.sent).toBe("The notes ChatGPT opens are sent to OpenAI, under its privacy policy.");
     expect(gpt.lockedLead).toBe("Locked notes stay private.");
     expect(gpt.caution).toBeNull();
     const claude = consentWords({ verified_ai: "Claude", redirect_host: "claude.ai", loopback: false, claimed_name: null, client_name: "Claude" });
     expect(claude.sharedLead).toBe("Shared with Anthropic.");
-    expect(claude.sent).toBe("The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic’s privacy policy.");
+    expect(claude.sent).toBe("The notes Claude opens are sent to Anthropic, under its privacy policy.");
+    const grok = consentWords({ verified_ai: "Grok", redirect_host: "grok.com", loopback: false, claimed_name: null, client_name: "Grok" });
+    expect(grok.title).toBe("Connect Grok to your notes?");
+    expect(grok.caution).toBeNull();
+    expect(grok.sharedLead).toBe("Shared with xAI.");
   });
 
   it("an app Pinto can't name gets the caution and its address, never a name as a title", () => {
     const w = consentWords({ verified_ai: null, redirect_host: "claude.example", loopback: false, claimed_name: "claude", client_name: "claude.example" });
     expect(w.title).toBe("Connect claude.example to your notes?");
-    expect(w.caution?.lead).toBe("Pinto doesn’t recognize this app.");
+    expect(w.caution?.lead).toBe("Pinto doesn’t know this app.");
     expect(w.caution?.detail).toContain("It calls itself Claude.");
     expect(w.sharedLead).toBe("Shared with claude.example.");
   });
@@ -47,7 +51,8 @@ describe("the consent's words", () => {
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT" })?.allow_here).toBeUndefined();
     // Only with allow_here, and only a known AI, does the label carry the mark.
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT", allow_here: true, verified_ai: "ChatGPT" })?.verified_ai).toBe("ChatGPT");
-    expect(parseLabel({ redirect_host: "x.example", claimed_name: "x", allow_here: true, verified_ai: "Grok" })?.verified_ai).toBeNull();
+    expect(parseLabel({ redirect_host: "grok.com", claimed_name: "Grok", allow_here: true, verified_ai: "Grok" })?.verified_ai).toBe("Grok");
+    expect(parseLabel({ redirect_host: "x.example", claimed_name: "x", allow_here: true, verified_ai: "Gemini" })?.verified_ai).toBeNull();
   });
 
   it("says when the request was made, from its expiry, and from which browser", () => {
@@ -166,7 +171,7 @@ describe("connecting on the page alone", () => {
 
     // What, who by company, and that it asks first: all on screen before Allow.
     const text = container.textContent!;
-    expect(text).toContain("Shared with OpenAI. The notes ChatGPT opens, with their text and files, are sent to OpenAI and handled under OpenAI’s privacy policy.");
+    expect(text).toContain("Shared with OpenAI. The notes ChatGPT opens are sent to OpenAI, under its privacy policy.");
     expect(text).toContain("Locked notes stay private.");
     // No access choice: connecting is read and edit, with one Allow.
     expect(text).not.toContain("Read only");
@@ -263,7 +268,7 @@ describe("the frame's pair", () => {
   it("shows the AI's mark only for a verified AI; an app Pinto can't name gets the plain glyph; done puts a tick between", () => {
     const el = document.createElement("div");
     const r = createRoot(el);
-    for (const [ai, expected] of [["Claude", "Claude"], ["ChatGPT", "ChatGPT"], [null, "none"]] as const) {
+    for (const [ai, expected] of [["Claude", "Claude"], ["ChatGPT", "ChatGPT"], ["Grok", "Grok"], [null, "none"]] as const) {
       act(() => r.render(<BrowserFrame ai={ai}><p>step</p></BrowserFrame>));
       expect(el.querySelector("[data-testid=connect-mark]")!.getAttribute("data-ai")).toBe(expected);
       expect(el.querySelector("[data-testid=connect-done]")).toBeNull();
