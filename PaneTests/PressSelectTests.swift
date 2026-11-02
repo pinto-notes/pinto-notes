@@ -61,15 +61,40 @@ import Testing
         rows.unselectable = [2]
         PressSelect.press(press(window, flags: .command), on: table, row: 3)
         PressSelect.press(press(window, flags: .shift), on: table, row: 3)
-        PressSelect.press(press(window, clicks: 2), on: table, row: 3)
         PressSelect.press(press(window), on: table, row: 2)
-        #expect(table.selectedRowIndexes == [0], "⌘, ⇧, a double click and a heading select nothing on the press")
+        #expect(table.selectedRowIndexes == [0], "⌘, ⇧ and a heading select nothing on the press")
         #expect(DetailHold.shared.held == nil)
         // A row of a multi-selection: the press may drag them all.
         table.selectRowIndexes([1, 3], byExtendingSelection: false)
         PressSelect.press(press(window), on: table, row: 3)
         #expect(table.selectedRowIndexes == [1, 3])
         PressSelect.lifted()
+    }
+
+    /// A lift taken by a menu or a drag's own event loop never reaches PressSelect: the pane still
+    /// lets go once the button is up (in a test, the mouse's button is up).
+    @Test func thePaneLetsGoWhenTheButtonIsUpEvenWithoutTheLift() async throws {
+        let (table, _, window) = list()
+        PressSelect.press(press(window), on: table, row: 2)
+        #expect(DetailHold.shared.held != nil)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(DetailHold.shared.held == nil, "the note opens though the lift never came")
+        PressSelect.lifted()
+    }
+
+    /// Two quick clicks on two notes: the system counts the second as a double click, and the
+    /// list selects nothing for it. The press still selects the note it lands on.
+    @Test func aQuickSecondClickOnAnotherNoteSelectsIt() async throws {
+        let (table, _, window) = list()
+        PressSelect.press(press(window, clicks: 2), on: table, row: 4)
+        #expect(table.selectedRowIndexes == [4])
+        PressSelect.lifted()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(DetailHold.shared.held == nil)
+        // A double click on the open note's row changes nothing.
+        PressSelect.press(press(window, clicks: 2), on: table, row: 4)
+        #expect(DetailHold.shared.held == nil)
+        #expect(table.selectedRowIndexes == [4])
     }
 
     @Test func theSidebarIsLeftAlone() {

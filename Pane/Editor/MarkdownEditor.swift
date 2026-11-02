@@ -1766,7 +1766,7 @@ private struct PlatformEditor: NSViewRepresentable {
     let onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSScrollView()
+        let scroll = NoteScrollView()
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
@@ -1800,6 +1800,21 @@ private struct PlatformEditor: NSViewRepresentable {
     }
 }
 
+/// The note's scroll view. Its tiling (a new size, the toolbar's inset arriving) is part of the
+/// layout pass before a frame is drawn, so the note folds its date there (PaneTextView.foldDate).
+final class NoteScrollView: NSScrollView {
+    override func tile() {
+        super.tile()
+        (documentView as? PaneTextView)?.foldDate()
+    }
+
+    /// Scrolled by hand: the fold is the reader's now, and the inset no longer moves it.
+    override func scrollWheel(with event: NSEvent) {
+        (documentView as? PaneTextView)?.foldedAt = nil
+        super.scrollWheel(with: event)
+    }
+}
+
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     let core = EditorCore()
     weak var controller: EditorController?
@@ -1812,8 +1827,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     static let bareTop: CGFloat = 16
     /// How far a note opens scrolled: the date out of view, the title where it is without one.
     static var fold: CGFloat { textTop - bareTop }
-    /// Folded once for the note it shows.
-    private var folded = false
+    /// The note has been drawn once: from then on the fold only follows the toolbar's inset.
+    private var drawn = false
+    /// Where the fold put the text, while nobody has scrolled it since (NoteScrollView).
+    var foldedAt: CGFloat?
     private var hasDate: Bool { !headerLabel.stringValue.isEmpty }
 
     /// The text's margin on each side (the note's toolbar lines up with it). The text uses the
@@ -1846,7 +1863,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         textContainer?.widthTracksTextView = true
         textContainer?.lineFragmentPadding = 0
         typingAttributes = core.styler.typingAttributes
-        folded = false
+        drawn = false
+        foldedAt = nil
         string = text
         lastReported = text
         remember(text)
@@ -1882,6 +1900,28 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if headerLabel.stringValue != s { headerLabel.stringValue = s }
     }
 
+    #if DEBUG || QA
+    /// Tests: how far the note was scrolled under the toolbar, and how much of the date showed,
+    /// when the window first drew it.
+    private(set) var firstDrawn: (top: CGFloat, date: CGFloat)?
+    #endif
+
+    override func viewWillDraw() {
+        // The last word before the first frame: whatever moved the text while the window was
+        // being put together (the toolbar's inset arriving, the scroll view keeping its place),
+        // the note is drawn folded.
+        if !drawn, window != nil, (enclosingScrollView?.contentView.bounds.height ?? 0) > 0 {
+            foldDate()
+            drawn = true
+        }
+        super.viewWillDraw()
+        #if DEBUG || QA
+        if firstDrawn == nil, let scroll = enclosingScrollView {
+            firstDrawn = (scroll.contentView.bounds.origin.y + scroll.contentInsets.top, headerLabel.alphaValue)
+        }
+        #endif
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         // A short note still scrolls past its date: never shorter than the view plus the fold.
         var newSize = newSize
@@ -1895,10 +1935,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         setInsets(width: newSize.width)
         placeFoot()
         sizePictures()
-        if !folded, DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil, (enclosingScrollView?.contentView.bounds.height ?? 0) > 0 {
-            folded = true
-            DispatchQueue.main.async { [weak self] in self?.foldDate() }
-        }
+        foldDate()
         // Straight to their new places: while the width changes (the sidebar sliding, the window
         // being resized) the cards follow the text instead of gliding after it.
         DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false) }
@@ -2055,6 +2092,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        foldDate()
         guard !watchingScroll, let clip = enclosingScrollView?.contentView else { return }
         watchingScroll = true
         clip.postsBoundsChangedNotifications = true
@@ -2063,12 +2101,26 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
     }
 
-    /// Opens the note at its title, the date just above, out of view.
-    private func foldDate() {
-        guard let scroll = enclosingScrollView else { return }
+    /// Opens the note at its title, the date just above, out of view, before the note is first
+    /// drawn: set wherever the window's layout reaches the note (its size, its window, the scroll
+    /// view's tiling) and checked once more as it is about to draw (viewWillDraw). Once drawn,
+    /// the fold only follows a change of the toolbar's inset, and only while nobody has scrolled.
+    /// It was a scroll a turn after the note was laid out: each note was drawn once with its date,
+    /// then jumped up, and clicking from note to note flickered (Emil, 11-02).
+    func foldDate() {
+        guard DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil,
+              let scroll = enclosingScrollView, scroll.contentView.bounds.height > 0 else { return }
         let clip = scroll.contentView
-        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: -scroll.contentInsets.top + Self.fold))
+        let target = -scroll.contentInsets.top + Self.fold
+        if abs(clip.bounds.origin.y - target) < 0.5 { foldedAt = clip.bounds.origin.y; return }
+        // Once drawn, only a fold nobody has scrolled away from moves with the inset.
+        if drawn { guard let at = foldedAt, abs(clip.bounds.origin.y - at) < 0.5 else { return } }
+        // Room to scroll that far, for a short note (setFrameSize keeps it).
+        let view = clip.bounds.height - scroll.contentInsets.top - scroll.contentInsets.bottom
+        if frame.height < view + Self.fold { setFrameSize(NSSize(width: frame.width, height: view + Self.fold)) }
+        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: target))
         scroll.reflectScrolledClipView(clip)
+        foldedAt = clip.bounds.origin.y
         fadeDate()
     }
 

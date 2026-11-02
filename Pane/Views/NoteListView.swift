@@ -1202,9 +1202,12 @@ struct ShowsSelectedRow: ViewModifier {
         content
             .background(TableFinder(probe: finder))
             .onAppear {
-                guard let selected, let at = row(selected), at >= Self.firstRows else { return }
+                let at = selected.flatMap(row)
                 // A turn later: the rows are there by then.
-                DispatchQueue.main.async { finder.center(row: at) }
+                DispatchQueue.main.async {
+                    finder.keepHeadingsInPlace()
+                    if let at, at >= Self.firstRows { finder.center(row: at) }
+                }
             }
     }
 
@@ -1212,7 +1215,7 @@ struct ShowsSelectedRow: ViewModifier {
         let probe: Probe
 
         func makeNSView(context: Context) -> Probe { probe }
-        func updateNSView(_ view: Probe, context: Context) {}
+        func updateNSView(_ view: Probe, context: Context) { view.keepHeadingsInPlace() }
 
         final class Probe: NSView {
             private weak var table: NSTableView?
@@ -1234,12 +1237,33 @@ struct ShowsSelectedRow: ViewModifier {
                 return found
             }
 
-            /// Centres `row` in the table, if it has that row.
+            /// The date headings scroll with the notes instead of staying pinned at the top.
+            ///
+            /// A pinned heading has no ground of its own: it sat over the top of the first note
+            /// on screen, the note showing through it, and took every click there. A click on the
+            /// upper half of the top row selected nothing whenever the list was scrolled at all
+            /// (Emil, 11-02: "clicking a note sometimes doesn't open it").
+            func keepHeadingsInPlace() {
+                guard let table = find(), table.floatsGroupRows else { return }
+                table.floatsGroupRows = false
+            }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                DispatchQueue.main.async { [weak self] in self?.keepHeadingsInPlace() }
+            }
+
+            /// Centres `row` in what shows of the table, if it has that row. The list's top is at
+            /// minus its top inset (under the toolbar): a list scrolled to 0 hid its first row and
+            /// a half under the toolbar.
             func center(row: Int) {
                 guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
                 let clip = scroll.contentView
                 let rect = table.rect(ofRow: row)
-                let y = max(0, min(rect.midY - clip.bounds.height / 2, table.bounds.height - clip.bounds.height))
+                let insets = scroll.contentInsets
+                let top = -insets.top
+                let bottom = max(top, table.bounds.height - clip.bounds.height + insets.bottom)
+                let y = min(max(top, rect.midY - (clip.bounds.height + insets.top - insets.bottom) / 2), bottom)
                 clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
                 scroll.reflectScrolledClipView(clip)
             }

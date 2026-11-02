@@ -14,9 +14,11 @@ import QuartzCore
 /// with the list's work already done. A press that becomes a drag puts the selection back as it
 /// was, so a note dragged into the open note's text finds that note still open.
 ///
-/// Only a plain single press on a row that isn't selected yet: ⌘ and ⇧ clicks, double clicks and a
-/// press on a row of a multi-selection (it may start dragging them all) are left to the list. Not
-/// the sidebar: a folder's press stays a click.
+/// Only a plain press on a row that isn't selected yet: ⌘ and ⇧ clicks and a press on a row of a
+/// multi-selection (it may start dragging them all) are left to the list. A quick second click on
+/// another note counts as a double click (clickCount 2), and the list selects nothing for those:
+/// it is still a press on a note that isn't open, so it selects here. Not the sidebar: a folder's
+/// press stays a click.
 @MainActor
 enum PressSelect {
     /// The press that selected a row, and the rows selected before it.
@@ -25,7 +27,7 @@ enum PressSelect {
     /// The press on a row, before the list sees it. `table` and `row`: where it landed.
     static func press(_ event: NSEvent, on table: NSTableView, row: Int) {
         if pressed != nil { lifted() }
-        guard event.clickCount == 1,
+        guard event.clickCount >= 1,
               event.modifierFlags.intersection([.command, .shift, .control, .option]).isEmpty,
               !isSidebar(table), !table.selectedRowIndexes.contains(row),
               let window = event.window, accepts(table, row: row) else { return }
@@ -91,6 +93,16 @@ final class DetailHold {
     func hold() {
         timer?.invalidate()
         held = current
+        // The lift doesn't always reach PressSelect: a menu or a drag that starts from the press
+        // runs its own event loop and takes it, and the pane stayed on the old note until the next
+        // click. So the pane also lets go once the button is up, whoever took the lift.
+        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                if NSEvent.pressedMouseButtons & 1 == 0 { DetailHold.shared.release() }
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     func release() {
