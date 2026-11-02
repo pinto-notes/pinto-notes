@@ -233,8 +233,8 @@ struct AppleNotesImportView: View {
     /// The notes one by one. The sheet opens on folders and their counts: picking is the
     /// exception, so it's one quiet press away instead of the first thing seen.
     @State private var choosingNotes = false
-    /// Choose notes: the folder whose notes show on the right.
-    @State private var focusFolder: [String]?
+    /// Choose notes: the folders opened to show their notes. All start closed.
+    @State private var expanded: Set<[String]> = []
     /// The picks from before Choose notes, which starts with none: Back puts them back.
     @State private var pickedBefore: Set<String>?
     /// An import ran (the import funnel's `cancelled` is for a sheet closed before one did).
@@ -528,16 +528,16 @@ struct AppleNotesImportView: View {
         return rows
     }
 
-    /// Choose notes is a wider sheet, laid out as Apple Notes is: the folders on the left, the open
-    /// folder's notes on the right, in the system's own lists, a tick on every folder and note.
-    /// Nothing is picked on arrival (Emil, 2 November 2026: a long list in a small card, picked
-    /// already, "really strange").
+    /// Choose notes is a wider sheet with one tree, as a sync app's "choose folders" or Mail's
+    /// Import Mailboxes: each folder with ▸ to open it in place and a checkbox to bring it, its notes
+    /// under it with checkboxes of their own, in the system's list. Nothing is picked on arrival.
+    /// (Emil, 2 November 2026: two panes, a highlight to look and a tick to pick, were unclear.)
     static let pickerSize = CGSize(width: 820, height: 620)
 
     private func startChoosing() {
         pickedBefore = picked
         picked = []
-        focusFolder = chooseTree.first?.path
+        expanded = []
         choosingNotes = true
     }
 
@@ -571,26 +571,29 @@ struct AppleNotesImportView: View {
                     .accessibilityIdentifier("import.close")
             }
             .padding(.top, 18)
-            HStack(spacing: 0) {
-                // Not the list's own selection: its accent fill under grey text didn't read (Emil,
-                // 2 November 2026). The open folder gets a soft fill, its text stays ink.
-                List {
-                    ForEach(chooseTree, id: \.path) { node in
-                        folderPickRow(node)
-                            .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+            Group {
+                if chooseTree.isEmpty {
+                    Text("No notes match \u{201C}\(query)\u{201D}.")
+                        .font(.system(size: 13)).foregroundStyle(Color.muted)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(chooseTree, id: \.path) { node in
+                            if isOpen(node.path.dropLast()) {
+                                folderTreeRow(node).modifier(TreeRowLook())
+                                if isOpen(node.path) {
+                                    ForEach(notesIn(node.path)) { note in
+                                        noteTreeRow(note, depth: node.depth + 1).modifier(TreeRowLook())
+                                    }
+                                }
+                            }
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.sidebar)
-                .scrollContentBackground(.hidden)
-                .frame(width: 260)
-                .background(Color(Palette.sheetGround).opacity(0.5))
-                .disabled(!query.isEmpty)
-                .opacity(query.isEmpty ? 1 : 0.5)
-                Rectangle().fill(Color.line).frame(width: 1)
-                notesColumn
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(Palette.page), in: shape)
             .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
             .clipShape(shape)
@@ -610,97 +613,117 @@ struct AppleNotesImportView: View {
         }
     }
 
-    /// The notes on the right: the open folder's, or every match while searching.
-    private var rightNotes: [AppleNote] {
-        if !query.isEmpty { return shown }
-        guard let focusFolder = focusFolder ?? chooseTree.first?.path else { return [] }
-        let own = notesIn(focusFolder)
-        return own.isEmpty ? notesUnder(focusFolder) : own
+    /// Open: the top level always; a folder once opened, and every folder while searching.
+    private func isOpen<P: Collection<String>>(_ path: P) -> Bool {
+        path.isEmpty || !query.isEmpty || expanded.contains(Array(path))
+            // Captures: the first folder open, to show its notes.
+            || (Self.demoPage == .choosing && Array(path) == chooseTree.first?.path)
     }
 
-    private var notesColumn: some View {
-        let items = rightNotes
-        let pickable = items.filter { !$0.locked }
-        let count = pickable.filter { picked.contains($0.id) }.count
-        let state = Self.folderPick(picked: count, pickable: pickable.count)
-        return VStack(spacing: 0) {
-            HStack {
-                Text(query.isEmpty ? ((focusFolder ?? chooseTree.first?.path)?.last ?? "") : "Matches for \u{201C}\(query)\u{201D}")
-                    .font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                Spacer()
-                Button(state == .all ? "Deselect All" : "Select All") {
-                    let ids = pickable.map(\.id)
-                    if state == .all { picked.subtract(ids) } else { picked.formUnion(ids) }
-                }
-                .buttonStyle(.hoverLink)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.muted)
-                .disabled(pickable.isEmpty)
-                .accessibilityIdentifier("import.selectAll")
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 38)
-            Rectangle().fill(Color.line).frame(height: 1)
-            if items.isEmpty {
-                Text(query.isEmpty ? "No notes in this folder." : "No notes match.")
-                    .font(.system(size: 13)).foregroundStyle(Color.muted)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List {
-                    ForEach(items) { note in
-                        row(note, inset: 8)
-                            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
-                            .listRowSeparator(.hidden)
-                    }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-            }
+    /// The checkbox for all, some or none: the Mac's own square marks.
+    static func checkbox(_ state: FolderPick) -> String {
+        switch state {
+        case .all: "checkmark.square.fill"
+        case .some: "minus.square.fill"
+        case .none: "square"
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// A folder on the left: its tick picks or clears every note in it and inside it.
-    private func folderPickRow(_ node: TreeRow) -> some View {
-        let open = query.isEmpty && (focusFolder ?? chooseTree.first?.path) == node.path
+    /// How far in each level of the tree sits.
+    static let treeStep: CGFloat = 20
+
+    private func checkboxImage(_ state: FolderPick) -> some View {
+        Image(systemName: Self.checkbox(state))
+            .font(.system(size: 15))
+            .foregroundStyle(state == .none ? AnyShapeStyle(Color.muted) : AnyShapeStyle(.tint))
+            .frame(width: 18, height: 18)
+            .contentTransition(.symbolEffect(.replace))
+    }
+
+    /// A folder: ▸ opens it in place, the checkbox brings all of it, the rest of the row opens it.
+    private func folderTreeRow(_ node: TreeRow) -> some View {
         let under = notesUnder(node.path).filter { !$0.locked }
         let count = under.filter { picked.contains($0.id) }.count
         let state = Self.folderPick(picked: count, pickable: under.count)
+        let open = isOpen(node.path)
+        let toggleOpen = {
+            withAnimation(.easeOut(duration: 0.18)) {
+                if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) }
+            }
+        }
         return HStack(spacing: 8) {
+            Button(action: toggleOpen) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
+                    .rotationEffect(.degrees(open ? 90 : 0))
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(.quietIcon(padding: 2))
+            .disabled(!query.isEmpty)
+            .accessibilityLabel(open ? "Close \(node.name)" : "Open \(node.name)")
             Button {
                 let ids = under.map(\.id)
                 if state == .all { picked.subtract(ids) } else { picked.formUnion(ids) }
-            } label: {
-                Image(systemName: state == .all ? "checkmark.circle.fill" : state == .some ? "minus.circle.fill" : "circle")
-                    .font(.system(size: 15))
-                    .foregroundStyle(state == .none ? AnyShapeStyle(Color.muted.opacity(0.6)) : AnyShapeStyle(.tint))
-                    .contentTransition(.symbolEffect(.replace))
-            }
+            } label: { checkboxImage(state) }
             .buttonStyle(.quietIcon(padding: 2))
             .disabled(under.isEmpty)
-            .accessibilityLabel(state == .all ? "Clear \(node.name)" : "Pick all of \(node.name)")
-            Button { focusFolder = node.path } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(Color.muted)
-                    Text(node.name).font(.system(size: 13, weight: open ? .semibold : .regular)).foregroundStyle(Color.ink).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(count == 0 ? notesUnder(node.path).count.formatted(.number.locale(locale)) : "\(count.formatted(.number.locale(locale)))/\(notesUnder(node.path).count.formatted(.number.locale(locale)))")
-                        .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
+            .accessibilityLabel(node.name)
+            .accessibilityValue(state == .all ? "Included" : state == .some ? "Partly included" : "Not included")
+            Button(action: toggleOpen) {
+                HStack(spacing: 7) {
+                    Image(systemName: "folder").font(.system(size: 13)).foregroundStyle(Color.muted)
+                    Text(node.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.ink).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(Self.folderLine(coming: count, of: notesUnder(node.path).count, locale: locale))
+                        .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
                 }
-                .frame(maxWidth: .infinity, minHeight: 30)
+                .frame(maxWidth: .infinity, minHeight: 32)
                 .contentShape(.rect)
                 .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityAddTraits(open ? .isSelected : [])
+            .disabled(!query.isEmpty)
         }
-        .padding(.leading, 6 + CGFloat(node.depth) * 14)
-        .padding(.trailing, 8)
-        .background(open ? Color.primary.opacity(Self.openFolderFill) : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.leading, CGFloat(node.depth) * Self.treeStep)
     }
 
-    /// The open folder's fill on the left: soft, so its ink text reads in light and dark.
-    static let openFolderFill = 0.08
+    /// A note under its folder: the whole row ticks it.
+    private func noteTreeRow(_ note: AppleNote, depth: Int) -> some View {
+        let on = picked.contains(note.id)
+        let already = AppleNotesListing.isHere(note, keys: existing)
+        return Button {
+            if on { picked.remove(note.id) } else { picked.insert(note.id) }
+        } label: {
+            HStack(spacing: 9) {
+                if note.locked {
+                    Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Color.muted).frame(width: 18, height: 18)
+                } else {
+                    checkboxImage(on ? .all : .none)
+                }
+                Text(note.name).font(.system(size: 13)).foregroundStyle(Color.ink).lineLimit(1)
+                    .opacity(note.locked ? 0.55 : 1)
+                if note.locked || already {
+                    Text(note.locked ? "Locked in Apple Notes" : "Already imported")
+                        .font(.system(size: 11)).foregroundStyle(Color.muted)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(Color.line.opacity(0.6), in: .capsule)
+                }
+                Spacer(minLength: 8)
+                Text(DateBucket.rowDate(note.modified)).font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+            }
+            .padding(.leading, 6)
+            .padding(.trailing, 4)
+            .frame(maxWidth: .infinity, minHeight: 30)
+            .contentShape(.rect)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(note.locked)
+        // One step in: the note's checkbox sits under its folder's icon, as in an outline.
+        .padding(.leading, CGFloat(depth - 1) * Self.treeStep + 48)
+        .accessibilityLabel(note.locked ? "\(note.name), locked in Apple Notes" : already ? "\(note.name), already imported" : note.name)
+        .accessibilityValue(on ? "Included" : "Not included")
+    }
 
     /// Choose notes' folders as a tree, from the notes shown (a search narrows it).
     private var chooseTree: [TreeRow] {
@@ -1220,3 +1243,13 @@ struct ImportDoneLine: View {
     }
 }
 #endif
+
+/// A row of Choose notes' tree: tight, no separator, its own hover instead of the list's.
+private struct TreeRowLook: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listRowInsets(EdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 12))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+}
