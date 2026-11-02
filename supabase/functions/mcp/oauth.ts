@@ -233,6 +233,16 @@ export const KNOWN_CALLBACKS: Record<string, "ChatGPT" | "Claude"> = {
 /// fallback): https://developers.openai.com/apps-sdk/build/auth
 const CHATGPT_CONNECTOR_CALLBACK = /^https:\/\/chatgpt\.com\/connector\/oauth\/[A-Za-z0-9_-]{1,128}$/;
 
+/// Gemini's sign-in returns here (developers.google.com/connected-apps/mcp/oauth). Google asks
+/// servers not to rotate refresh tokens: it keeps the first one and sends it on every refresh.
+const GOOGLE_CONNECTED_APPS_CALLBACK = /^https:\/\/oauth-redirect(?:-sandbox)?\.googleusercontent\.com\//;
+
+/// Whether this client keeps one refresh token for the life of the connection (Gemini) instead
+/// of getting a new one on each refresh. Only Google can receive a sign-in at its callback, so
+/// another app can't claim this to escape rotation.
+export const keepsRefreshToken = (redirectURIs: string[]): boolean =>
+  redirectURIs.length > 0 && redirectURIs.every((u) => GOOGLE_CONNECTED_APPS_CALLBACK.test(u));
+
 export const verifiedAI = (redirectURI: string): "ChatGPT" | "Claude" | null =>
   KNOWN_CALLBACKS[redirectURI] ?? (CHATGPT_CONNECTOR_CALLBACK.test(redirectURI) ? "ChatGPT" : null);
 
@@ -260,7 +270,7 @@ export function hostClaimsATrustedName(redirectURI: string): boolean {
   const host = new URL(redirectURI).hostname.toLowerCase().replace(/\.$/, "");
   if (LOOPBACK.has(host) || TRUSTED_DOMAINS.some((d) => host === d || host.endsWith("." + d))) return false;
   const flat = host.replace(/[^a-z0-9]/g, "").replace(/0/g, "o").replace(/1/g, "l").replace(/4/g, "a");
-  return ["chatgpt", "openai", "claude", "anthropic", "pintonotes", "pintonotes"].some((w) => flat.includes(w));
+  return ["chatgpt", "openai", "claude", "anthropic", "pintonotes", "ambernotes"].some((w) => flat.includes(w));
 }
 
 /// A registered name made safe to show: no control, format or direction characters, one line, short.
@@ -1025,6 +1035,21 @@ async function issue(sql: Sql, grantId: string, resource: string, dataKey: Uint8
   };
 }
 
+/// A new access token only, beside a refresh token that stays (`keepsRefreshToken`).
+async function issueAccess(sql: Sql, grantId: string, resource: string, dataKey: Uint8Array<ArrayBuffer>, userId: string, refresh: string) {
+  const access = randomToken("amb_at_");
+  const accessWrap = await wrap(dataKey, await tokenKey(access, "access"), "access", userId);
+  await sql`insert into public.oauth_tokens (token_hash, grant_id, kind, resource, expires_at, dk_wrap) values
+    (${await sha256Hex(access)}, ${grantId}, 'access', ${resource}, now() + make_interval(secs => ${ACCESS_TTL}), ${accessWrap})`;
+  return {
+    access_token: access,
+    token_type: "Bearer",
+    expires_in: ACCESS_TTL,
+    refresh_token: refresh,
+    scope: SCOPES.join(" "),
+  };
+}
+
 /// The data key from a wrap, or null when there's none or it doesn't open with this secret.
 async function openWrap(wrapped: string | null, secret: string, purpose: "code" | "refresh", userId: string) {
   if (!wrapped) return null;
@@ -1094,6 +1119,21 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
       return oauthError("invalid_grant", "This refresh token was already used. Connect again.");
     }
     if (t.expired) return oauthError("invalid_grant", "The connection expired. Connect again.");
+    const [client] = await sql<{ redirect_uris: string[] }[]>`select redirect_uris from public.oauth_clients where id = ${t.client_id}`;
+    if (client && keepsRefreshToken(client.redirect_uris)) {
+      // Gemini: the same refresh token stays, with its wrap; a new access token, and the refresh
+      // token's life starts again, as with a rotated one.
+      const [row] = await sql<{ dk_wrap: string | null }[]>`
+        update public.oauth_tokens set expires_at = now() + make_interval(days => ${REFRESH_TTL_DAYS})
+        where token_hash = ${hash} and used_at is null returning dk_wrap`;
+      const kept = row && await openWrap(row.dk_wrap, p.refresh_token, "refresh", t.user_id);
+      if (!kept) return oauthError("invalid_grant", "Connect again.");
+      try {
+        return json(await issueAccess(sql, t.grant_id, t.resource, kept, t.user_id, p.refresh_token));
+      } finally {
+        kept.fill(0);
+      }
+    }
     // Used once: the old token's wrap goes in the same statement that spends it.
     const [claimed] = await sql<{ dk_wrap: string | null }[]>`
       with old as (select token_hash, dk_wrap from public.oauth_tokens where token_hash = ${hash} and used_at is null for update)
