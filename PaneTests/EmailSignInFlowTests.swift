@@ -303,4 +303,11 @@ import Testing
         #expect(!SignInView.existingLine.contains("@"))
         #expect(!SignInView.existingLine.isEmpty)
     }
+
+    /// The setup card asks a new email to create an account, not to sign in.
+    @Test func theCardsHeadingFollowsANewEmail() {
+        #expect(SignInView.shortTitle("Sign in to Pinto.", step: .create) == "Create your Pinto account.")
+        #expect(SignInView.shortTitle("Sign in to Pinto.", step: .signIn(fallback: false)) == "Sign in to Pinto.")
+        #expect(SignInView.shortTitle("Sign in to Pinto.", step: .email) == "Sign in to Pinto.")
+    }
 }

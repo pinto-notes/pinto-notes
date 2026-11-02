@@ -226,6 +226,7 @@ struct SignInView: View {
     /// email" replaces it while the code is asked for, in both layouts.
     private var shownHeading: Heading {
         if flow.step == .confirm { return .beside(title: Self.confirmTitle, line: Self.confirmLine) }
+        if case .short(let title) = heading { return .short(Self.shortTitle(title, step: flow.step)) }
         guard case .beside = heading else { return heading }
         switch flow.step {
         // The address is in the row under it already, so the line never repeats it.
@@ -234,6 +235,12 @@ struct SignInView: View {
         case .create: return .beside(title: Self.newTitle, line: Self.newLine)
         default: return heading
         }
+    }
+
+    /// The setup card's one-line heading: "Create your Pinto account." once the email turns out
+    /// to be new, so the card doesn't ask a new person to sign in (Emil, 2 November 2026).
+    static func shortTitle(_ title: String, step: EmailSignInFlow.Step) -> String {
+        step == .create ? "Create your Pinto account." : title
     }
 
     static let passwordRuleText = "At least \(EmailSignInFlow.minimumPassword) characters"
