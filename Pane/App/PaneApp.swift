@@ -150,7 +150,13 @@ struct PaneApp: App {
         FrameProbe.startFromArguments()
         #endif
         // Note pages: compile the sandbox's rules and start a web view now, not when a page opens.
-        if NoteApps.enabled, !PaneApp.isUnitTestHost, !ProcessInfo.processInfo.arguments.contains("-noPagePrewarm") { NotePageSandbox.prewarm() }
+        if NoteApps.enabled, !PaneApp.isUnitTestHost, !ProcessInfo.processInfo.arguments.contains("-noPagePrewarm") {
+            #if os(iOS)
+            NotePageSandbox.prewarmAfterLaunch()
+            #else
+            NotePageSandbox.prewarm()
+            #endif
+        }
         // Collaboration (prototype): `-collab <name>` against the local relay (scripts/collab-demo.sh).
         if let collab = CollabStore.fromArguments() {
             collab.context = container.mainContext

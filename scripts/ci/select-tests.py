@@ -69,6 +69,11 @@ if sys.argv[1] == "--suites-of":
     # For scripts/prepush.sh: the suites of these test files, one line per file that has any, as
     # <file> <tab> <Suite or Outer/Suite>, ...
     for f in sys.argv[2:]:
+        # A file that is iPhone-only as a whole has no tests in the Mac run the check makes: asked
+        # for, it only failed the check with "no test of it ran" (PhoneRenderTests, 2026-11-02).
+        if text_of.get(f, "").lstrip().startswith("#if os(iOS)"):
+            print(f"→ {f}: iPhone only, not run on the Mac", file=sys.stderr)
+            continue
         if suites_in.get(f):
             print(f + "\t" + " ".join(path(s) for s in suites_in[f]))
     sys.exit(0)

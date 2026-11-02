@@ -1807,7 +1807,7 @@ struct NoteRow: View {
 
     var body: some View {
         #if DEBUG
-        RenderProbe.count("NoteRow", context: note.modelContext)
+        let _ = RenderProbe.count("NoteRow", context: note.modelContext)
         #endif
         let title = note.title
         // Shared by link, by this account (the share's tag verified): a small link, like Notes.
