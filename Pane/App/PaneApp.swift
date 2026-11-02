@@ -1020,7 +1020,8 @@ struct AppGate: View {
     /// "Your notes are encrypted" is still to say, or the key open is another account's. During
     /// one, only when the person has something to do.
     static func gateShown(phase: AccountCrypto.Phase, needsWelcome: Bool, keyIsAccounts: Bool, handingOff: Bool, needsPerson: Bool) -> Bool {
-        let gate = (phase != .ready && phase != .off) || needsWelcome || !keyIsAccounts
+        // "Your notes are encrypted" no longer takes a screen of its own (`welcomesSilently`).
+        let gate = (phase != .ready && phase != .off) || !keyIsAccounts
         return gate && (!handingOff || needsPerson)
     }
 
@@ -1035,10 +1036,11 @@ struct AppGate: View {
         [.waiting, .mismatch, .accountGone].contains(phase) || asksBeforeFetch || needsSignIn
     }
 
-    /// A new account's key, made on this device during a sign-in from the welcome note: "Your
-    /// notes are encrypted" isn't shown (Settings, Privacy says it), only marked as said.
+    /// "Your notes are encrypted" is never a screen of its own, only marked as said once the key
+    /// is open: it told a person something they hadn't asked about, in words that raised more
+    /// questions than they answered (Emil, 2 November 2026). Settings › Security says it.
     static func welcomesSilently(handingOff: Bool, phase: AccountCrypto.Phase, needsWelcome: Bool, arrivedHow: KeyHow?) -> Bool {
-        handingOff && phase == .ready && needsWelcome && arrivedHow == .made
+        phase == .ready && needsWelcome
     }
 
     /// The window is the card from the welcome until the notes open.

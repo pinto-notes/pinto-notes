@@ -422,8 +422,9 @@ import UIKit
         #expect(h.phase == .waiting, "the hand-off isn't left: the note will open")
         // "Your notes are encrypted" is marked as said, for a key made here only.
         #expect(AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .made))
-        #expect(!AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .signIn), "a key fetched for an account from before")
-        #expect(!AppGate.welcomesSilently(handingOff: false, phase: .ready, needsWelcome: true, arrivedHow: .made), "no hand-off, the screen says it")
+        #expect(AppGate.welcomesSilently(handingOff: true, phase: .ready, needsWelcome: true, arrivedHow: .signIn), "a key fetched for an account from before: no screen either")
+        #expect(AppGate.welcomesSilently(handingOff: false, phase: .ready, needsWelcome: true, arrivedHow: .made), "no hand-off: no screen either (Emil, 2 November 2026)")
+        #expect(!AppGate.welcomesSilently(handingOff: false, phase: .checking, needsWelcome: true, arrivedHow: nil), "only once the key is open")
     }
 
     @Test func anAccountThatNeedsItsRecoveryKeyGetsTheGateAndTheNoteStepsAside() {
@@ -444,7 +445,7 @@ import UIKit
     /// Without a hand-off the gate is what it was.
     @Test func withoutAHandOffTheGateIsUnchanged() {
         #expect(AppGate.gateShown(phase: .checking, needsWelcome: false, keyIsAccounts: true, handingOff: false, needsPerson: false))
-        #expect(AppGate.gateShown(phase: .ready, needsWelcome: true, keyIsAccounts: true, handingOff: false, needsPerson: false))
+        #expect(!AppGate.gateShown(phase: .ready, needsWelcome: true, keyIsAccounts: true, handingOff: false, needsPerson: false), "the welcome takes no screen")
         #expect(!AppGate.gateShown(phase: .ready, needsWelcome: false, keyIsAccounts: true, handingOff: false, needsPerson: false))
         #expect(AppGate.gateShown(phase: .ready, needsWelcome: false, keyIsAccounts: false, handingOff: false, needsPerson: false))
     }
