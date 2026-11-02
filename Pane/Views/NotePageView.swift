@@ -70,6 +70,14 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         }
     }
 
+    /// At launch on iPhone: the rules compile now (off the main thread, in WebKit), and the spare
+    /// web view starts once launch and navigation have been quiet for two seconds. Made at once, its
+    /// web content process started on the main thread in the middle of the first frames.
+    static func prewarmAfterLaunch() {
+        Task { @MainActor in _ = try? await prepare() }
+        scheduleSpare()
+    }
+
     static func navigationOccurred() {
         if respareTask != nil { scheduleSpare() }
     }

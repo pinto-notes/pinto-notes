@@ -13,6 +13,9 @@ struct FormatBar: View {
     static let inset: CGFloat = 2
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("FormatBar")
+        #endif
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
                 if inTable { tableTools } else if controller.wikiSuggestions.isEmpty { tools } else {

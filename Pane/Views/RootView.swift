@@ -52,6 +52,8 @@ struct RootView: View {
     @State private var refusal: FileRefusal?
     /// Connect an AI, from the File menu, the list's menu or the card at the foot of the sidebar.
     @State private var connectingAI = false
+    /// The import actions handed to the folders and the list: one box for the window's life (ImportActions).
+    @State private var importBox = ImportActions.Box()
     #if os(macOS)
     /// Go to Note… (⌘O): the notes as they were when it opened, while it shows.
     @State private var quickOpen: [QuickOpen.NoteItem]?
@@ -150,14 +152,22 @@ struct RootView: View {
     }
     #endif
 
+    /// The same value on every pass. The closures only set this window's state, so the ones from
+    /// any pass do what new ones would; they're put in the box again, which nothing observes.
+    private var importActions: ImportActions {
+        importBox.appleNotes = { showImport = true }
+        importBox.from = { kind in importFiles = []; importing = kind }
+        return ImportActions(box: importBox)
+    }
+
     private var split: some View {
         NavigationSplitView(columnVisibility: $visibility) {
-            // On the Mac the folders and the list are compared before they're worked out again (see
-            // their `==`): the split view hands its columns over again whenever one is hidden or shown.
+            // The folders and the list are compared before they're worked out again (see their `==`):
+            // on the Mac the split view hands its columns over again whenever one is hidden or shown,
+            // and on iPhone every pass of this view (each note opened or closed) worked out the
+            // folders under the stack and the list again (ios-render-audit-2026-11-02.md).
             SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
-                #if os(macOS)
                 .equatable()
-                #endif
                 .environment(library)
                 #if os(macOS)
                 // No sidebar button (Emil, 10-29), and no way to hide it at all (11-01): it can't
@@ -173,9 +183,7 @@ struct RootView: View {
                 #endif
         } content: {
             NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote)
-                #if os(macOS)
                 .equatable()
-                #endif
                 .environment(library)
                 #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
@@ -196,8 +204,7 @@ struct RootView: View {
                 #endif
         }
         .environment(editor)
-        .environment(\.importActions, ImportActions(appleNotes: { showImport = true },
-                                                     from: { kind in importFiles = []; importing = kind }))
+        .environment(\.importActions, importActions)
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
@@ -365,10 +372,11 @@ struct RootView: View {
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
         if let new { lastNote = new.uuidString }
+        // A spare web view waiting to start waits on: starting one lands in the next open or Back.
+        NotePageSandbox.navigationOccurred()
         #if os(iOS)
         trail.opened(new)
         #else
-        NotePageSandbox.navigationOccurred()
         history.opened(from: old, to: new)
         #endif
     }
@@ -704,10 +712,31 @@ struct EmptyDetailView: View {
 /// pass does what a new one would. As closures they counted as changed on every pass of RootView,
 /// and every view that reads them (the sidebar and the note list) was worked out again on each
 /// note open, seven times per open (NoteOpenProfile, 2026-11-02).
+///
+/// Being Equatable wasn't enough: the environment compares a new value with the old one bit by bit,
+/// and two closures made on two passes never match, so the folders and the note list still read
+/// `importActions` as changed on every pass of RootView (iPhone, 2026-11-02: both worked out again
+/// on every note opened, ios-render-audit-2026-11-02.md). The closures now live in one box the
+/// window keeps, and the value handed down is only that box: the same bits on every pass.
 struct ImportActions: Equatable {
-    var appleNotes: () -> Void
-    var from: (ImportKind) -> Void
-    static func == (a: ImportActions, b: ImportActions) -> Bool { true }
+    @MainActor final class Box {
+        var appleNotes: () -> Void = {}
+        var from: (ImportKind) -> Void = { _ in }
+    }
+    let box: Box
+    @MainActor var appleNotes: () -> Void { box.appleNotes }
+    @MainActor var from: (ImportKind) -> Void { box.from }
+
+    init(box: Box) { self.box = box }
+
+    @MainActor init(appleNotes: @escaping () -> Void, from: @escaping (ImportKind) -> Void) {
+        let box = Box()
+        box.appleNotes = appleNotes
+        box.from = from
+        self.box = box
+    }
+
+    static func == (a: ImportActions, b: ImportActions) -> Bool { a.box === b.box }
 }
 
 extension EnvironmentValues {
