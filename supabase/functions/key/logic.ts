@@ -85,7 +85,7 @@ export function switchedOn(env: Env): Secrets | null {
   return secrets(env);
 }
 
-type KeyRow = { key_id: string; verifier: string; recovery_wrap: string };
+export type KeyRow = { key_id: string; verifier: string; recovery_wrap: string };
 
 async function event(sql: Sql, uid: string, what: "stored", platform: string | null) {
   await sql`insert into public.key_copy_events (user_id, what, platform) values (${uid}, ${what}, ${platform})`;
@@ -103,7 +103,7 @@ async function refused(sql: Sql, uid: string, platform: string | null, why: stri
 
 /** Whether these bytes are the account's key: its id, its verifier, and its recovery key opens
  *  the account's recovery wrap to the same data key. */
-async function isAccountsKey(k: KeyMaterial, row: KeyRow, uid: string): Promise<boolean> {
+export async function isAccountsKey(k: KeyMaterial, row: KeyRow, uid: string): Promise<boolean> {
   if (!sameHex(await verifierOf(k.dataKey, uid), row.verifier)) return false;
   try {
     const opened = await unwrap(row.recovery_wrap, await recoveryKEK(k.recovery, uid), "recovery", uid);

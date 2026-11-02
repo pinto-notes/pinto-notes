@@ -25,9 +25,13 @@ describe("the page theme", () => {
     expect(themeFor("/report/abc")).toBeNull();
   });
 
-  it("gives /open/connect the cream of /connect, whose card it shows", () => {
-    expect(themeFor("/open/connect")).toBe("cream");
-    expect(themeFor("/connect")).toBe("cream");
+  it("gives /connect and /open/connect the connect theme: cream in light, pure black in dark", () => {
+    for (const p of ["/connect", "/connect/preview", "/open/connect"]) expect(themeFor(p), p).toBe("connect");
+    expect(themeFor("/connected")).toBe("cream");
+    // The dark half is site.css's, under the system's dark mode, so it follows a change live.
+    const css = readFileSync(join(__dirname, "../app/site.css"), "utf8");
+    const dark = css.slice(css.indexOf("@media (prefers-color-scheme: dark) {\n  html[data-theme=\"connect\"]"));
+    expect(dark).toMatch(/^@media[^}]*--bg: #000000;[^}]*--cta-bg: #ffffff; --cta-ink: #000000;/);
   });
 
   it("treats an address the site doesn't have as a site page, so its 404 has the header and footer", () => {

@@ -388,3 +388,99 @@
 
 /* The paper-cut picture on the request panel: cropped to the knot in the middle, with the card's corners. */
 .sideArt { height: auto; aspect-ratio: 1672 / 941; object-fit: cover; border-radius: 20px; }
+
+/* ───── Connecting on the web page alone (BrowserScreens.tsx) ───── */
+
+/* The emailed code: six digits, spaced, in the page's own figures. */
+.field input.otp { font-size: 24px; font-weight: 650; letter-spacing: 0.32em; font-variant-numeric: tabular-nums; text-align: center; padding-left: calc(14px + 0.32em); }
+
+/* What is shared and what isn't: plain rows with a glyph, never folded away. */
+.facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; width: 100%; text-align: left; }
+.facts li { display: flex; align-items: flex-start; gap: 12px; }
+.facts p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; text-wrap: pretty; }
+.facts b { color: var(--ink); font-weight: 650; }
+.factGlyph { flex: none; margin-top: 1px; color: var(--muted); }
+
+.signedAs { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; }
+.signedAs b { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.page[data-layout="panel"] .signedAs { text-align: left; }
+.page[data-layout="panel"] .warn { text-align: left; }
+
+/* ── Dark, on the connect theme (site.css): pure black ground, neutral greys, the leaf theme's
+   light-on-dark pictures. The same overrides as leaf's, under the system's dark mode. ── */
+@media (prefers-color-scheme: dark) {
+  :global([data-theme="connect"]) .page {
+    --field: #000000; --field-line: rgba(255, 255, 255, 0.26); --danger: #ff8a80; --apple-bg: #fff; --apple-ink: #000;
+  }
+  :global([data-theme="connect"]) .art, :global([data-theme="connect"]) .page[data-layout="panel"] .side {
+    --a-body: #e8e8ea; --a-screen: #2c2c2c; --a-paper: #f5f5f7; --a-bar: rgba(0, 0, 0, 0.42); --a-bar-soft: rgba(0, 0, 0, 0.2);
+    --a-shadow: rgba(0, 0, 0, 0.5);
+  }
+  :global([data-theme="connect"]) .macApp { color: #f5f5f7; }
+  :global([data-theme="connect"]) .card, :global([data-theme="connect"]) .page[data-layout="panel"] .shell { box-shadow: 0 0 0 1px var(--line); }
+  :global([data-theme="connect"]) .primary { box-shadow: none; }
+  :global([data-theme="connect"]) .warn { background: color-mix(in srgb, var(--amber) 22%, transparent); }
+}
+
+/* ───── Connecting on the web alone (BrowserFrame): one page whose content changes in place ─────
+   No card, no side panel, no picture: the pair, the title, the step, in one column of about 400 px
+   on a plain white page, pure black in dark (Emil, 29 October 2026). Amber is the small accent
+   only; the filled button is black in light and white in dark. */
+.flowShell {
+  --bg: #ffffff; --ink: #1d1d1f; --muted: #6e6e73; --soft: #f2f2f4; --line: rgba(0, 0, 0, 0.1);
+  --amber: #f0901a; --link: #b86e00; --card: #ffffff; --cta-bg: #000000; --cta-ink: #ffffff;
+  --field: #ffffff; --field-line: rgba(0, 0, 0, 0.18); --danger: #c4291c; --apple-bg: #000; --apple-ink: #fff;
+  background: var(--bg); color: var(--ink); color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  .flowShell {
+    --bg: #000000; --ink: #f5f5f7; --muted: #a1a1a6; --soft: #1c1c1e; --line: rgba(255, 255, 255, 0.14);
+    --amber: #f5a53a; --link: #f5ad33; --card: #000000; --cta-bg: #ffffff; --cta-ink: #000000;
+    --field: #000000; --field-line: rgba(255, 255, 255, 0.24); --danger: #ff8a80; --apple-bg: #fff; --apple-ink: #000;
+    color-scheme: dark;
+  }
+}
+.flow {
+  flex: 1; width: min(400px, 100% - 32px); margin: 0 auto; box-sizing: border-box; padding: clamp(32px, 11vh, 112px) 0 24px;
+  display: grid; align-content: start; gap: 16px; text-align: left;
+}
+.flow .title { margin: 4px 0 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.012em; text-align: left; }
+.flow .lede { margin: -6px 0 4px; font-size: 15px; line-height: 1.45; text-align: left; }
+.flow .requested { margin: -8px 0 0; font-size: 14px; }
+.flow .status { justify-content: flex-start; margin: 0; font-size: 15px; }
+.flow .form { gap: 12px; }
+.flow .field input { min-height: 44px; border-radius: 10px; }
+.flow .primary, .flow .secondary, .flow .apple, .flow .google { min-height: 44px; border-radius: 10px; font-size: 15px; font-weight: 600; box-shadow: none; }
+.flow .primary { background: var(--cta-bg); color: var(--cta-ink); }
+.flow .secondary, .flow .google { background: var(--soft); color: var(--ink); }
+@media (hover: hover) {
+  .flow .primary:not(:disabled):hover { background: color-mix(in srgb, var(--cta-bg) 84%, var(--muted)); }
+  .flow .secondary:not(:disabled):hover, .flow .google:not(:disabled):hover { background: color-mix(in srgb, var(--soft) 88%, var(--ink)); }
+}
+.flow .primary:disabled, .flow .secondary:disabled, .flow .google:disabled { background: var(--soft); color: var(--muted); }
+.flow .or { font-size: 13px; }
+.flow .signedAs { margin-top: 2px; text-align: left; }
+.flow .warn { font-size: 14px; }
+
+/* The pair: the AI's tile, the link, Pinto's icon. Small, on every step. */
+.pair { display: flex; align-items: center; gap: 8px; }
+.pairTile {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; box-sizing: border-box;
+  background: #fff; color: #6b6b6b; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.pairDots { color: var(--muted); font-size: 16px; letter-spacing: 0.04em; line-height: 1; }
+.pairIcon { width: 36px; height: 36px; border-radius: 9px; }
+.pairDone { display: grid; place-items: center; }
+.pairDone circle { fill: var(--amber); }
+.pairDone path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.flow .facts { gap: 10px; }
+.flow .facts p { font-size: 14px; }
+.flow .factGlyph { width: 16px; height: 16px; margin-top: 2px; }
+.flow .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
+
+.flowFoot { margin: 0; padding: 20px 16px 28px; text-align: center; color: var(--muted); font-size: 13px; }
+.flowFoot a { color: var(--muted); text-decoration: none; }
+@media (hover: hover) { .flowFoot a:hover { color: var(--ink); } }
+.requested { color: var(--muted); line-height: 1.45; }

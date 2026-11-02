@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ConnectLabel } from "@/lib/connect";
+import { BrowserFrame } from "../BrowserScreens";
 import ConnectCard from "../ConnectCard";
 import Preview from "./Preview";
 import styles from "../connect.module.css";
@@ -16,6 +17,7 @@ export const metadata: Metadata = { title: "Dev: connect preview", robots: { ind
 /// a website, and an app with no name.
 const APPS: Record<string, ConnectLabel> = {
   claude: { claimed_name: "Claude", redirect_host: "claude.ai", loopback: false },
+  chatgpt: { claimed_name: "ChatGPT", redirect_host: "chatgpt.com", loopback: false },
   codex: { claimed_name: "codex", redirect_host: "127.0.0.1", loopback: true },
   fake: { claimed_name: "claude", redirect_host: "127.0.0.1", loopback: true },
   web: { claimed_name: "notebot", redirect_host: "notebot.example", loopback: false },
@@ -30,6 +32,11 @@ export default async function ConnectPreview({ searchParams }: { searchParams: P
   // For the device screens: &number=1 shows the number, &action=compare
   // is the 1.2 wording, &both=1 gives the account the other device too. &theme=leaf shows the card on
   // the site's dark theme, which /connect itself never uses. &app= picks who is asking (APPS).
+  // The screens of connecting on the web alone sit in their own frame (BrowserFrame), not the card.
+  if (s.startsWith("web")) {
+    const ai = s === "webConsentUnknown" ? null : s === "webConsentClaude" ? "Claude" : "ChatGPT";
+    return <BrowserFrame ai={ai} done={s === "webConnected"}><Preview state={s} number={null} action="type" both={false} /></BrowserFrame>;
+  }
   const card = (
     <ConnectCard request label={APPS[app ?? ""] ?? APPS.claude}>
       <Preview
