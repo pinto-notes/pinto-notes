@@ -52,9 +52,14 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         }
     }
 
-    /// The spare sandbox if there is one, else a new one; another spare starts behind it.
+    /// How long after a spare is taken the next one starts. Starting one launches a web content
+    /// process on the main thread (registering the Mac's fonts with it): about 18 ms, which landed
+    /// in the open of the app note that took the spare, or of the note clicked next (2026-11-02).
+    static let respareDelay: Duration = .seconds(2)
+
+    /// The spare sandbox if there is one, else a new one; another spare starts a little later.
     static func make() async throws -> NotePageSandbox {
-        defer { prewarm() }
+        defer { Task { @MainActor in try? await Task.sleep(for: respareDelay); prewarm() } }
         if let s = spare { spare = nil; return s }
         return NotePageSandbox(rules: try await prepare())
     }
@@ -724,23 +729,51 @@ final class NotePageSnapshots {
         return i
     }
 
+    /// Pictures taken (for tests).
+    private(set) var taken = 0
+    /// Pictures being taken: asked twice before the first is in, the page is taken once.
+    private var taking: Set<String> = []
+
+    /// Whether there is a picture of this very page already, in memory or on disk.
+    func has(_ id: UUID, html: String, dark: Bool, variant: String = "full") -> Bool {
+        let k = key(id, html, dark, variant)
+        return images[k] != nil || taking.contains(k) || FileManager.default.fileExists(atPath: dir.appending(path: k + ".png").path)
+    }
+
+    /// Takes the page's picture, unless this very page has one. The PNG is made and written off the
+    /// main thread: on it, every open of an app note made a full-size PNG 400 ms after the page was
+    /// ready, in the middle of the next click (2026-11-02).
     func take(_ web: WKWebView, _ id: UUID, html: String, dark: Bool, variant: String = "full") {
         let k = key(id, html, dark, variant)
+        guard !has(id, html: html, dark: dark, variant: variant) else { return }
+        taken += 1
+        taking.insert(k)
         let config = WKSnapshotConfiguration()
         config.afterScreenUpdates = false
         web.takeSnapshot(with: config) { [weak self] image, _ in
-            guard let self, let image else { return }
+            guard let self else { return }
             Task { @MainActor in
+                self.taking.remove(k)
+                guard let image else { return }
                 self.images[k] = image
                 self.latest["\(id.uuidString)-\(dark)-\(variant)"] = image
                 #if os(iOS)
-                let png = image.pngData()
+                nonisolated(unsafe) let picture = image
                 #else
-                let png = image.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:]) }
+                guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+                nonisolated(unsafe) let picture = cg
                 #endif
-                guard let png else { return }
-                try? FileManager.default.createDirectory(at: self.dir, withIntermediateDirectories: true)
-                try? png.write(to: self.dir.appending(path: k + ".png"), options: .atomic)
+                let file = self.dir.appending(path: k + ".png"), dir = self.dir
+                Task.detached(priority: .utility) {
+                    #if os(iOS)
+                    let png = picture.pngData()
+                    #else
+                    let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
+                    #endif
+                    guard let png else { return }
+                    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    try? png.write(to: file, options: .atomic)
+                }
             }
         }
     }
