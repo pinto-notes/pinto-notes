@@ -660,5 +660,15 @@ import Testing
         #expect(source.contains("CardCloseButton"), "the sheet closes with the cards' ×")
         #expect(source.contains("finished = summary"), "a whole import ends on the success page")
     }
+
+    /// Folders inside folders show as a tree, by their own names (Emil, 2 November 2026).
+    @Test func subfoldersShowAsATree() {
+        let rows = AppleNotesImportView.folderTree([
+            (["Recipes"], 2, 2), (["Recipes", "Italian"], 3, 3), (["Work", "Clients", "Acme"], 1, 1), (["Notes"], 4, 5),
+        ])
+        #expect(rows.map(\.name) == ["Recipes", "Italian", "Work", "Clients", "Acme", "Notes"])
+        #expect(rows.map(\.depth) == [0, 1, 0, 1, 2, 0])
+        #expect(rows.map(\.total) == [2, 3, nil, nil, 1, 5], "a folder of folders has no count")
+    }
 }
 #endif

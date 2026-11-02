@@ -423,6 +423,10 @@ struct AppleNotesImportView: View {
     /// The folders in a card, as the other guides show the folder they found.
     private var folderCard: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        // The card only once there are folders to put in it: reading, or a problem, is said on the
+        // sheet itself in the same room, so nothing moves when the folders arrive (Emil, 2 November
+        // 2026: an empty box with a spinner in it "looks shit").
+        let carded = !loading && failure == nil
         return Group {
             if loading {
                 VStack(spacing: 10) {
@@ -454,18 +458,27 @@ struct AppleNotesImportView: View {
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 6)
                         }
-                        ForEach(Array(groups.enumerated()), id: \.element.0) { i, group in
-                            let (folder, items) = group
-                            let coming = items.filter { picked.contains($0.id) }.count
-                            if i > 0 { Rectangle().fill(Color.line).frame(height: 1).padding(.leading, 50) }
+                        // As a tree, as Apple Notes' own sidebar shows it: a folder inside another
+                        // sits under it, indented, by its own name (Emil, 2 November 2026: "Recipes ›
+                        // Italian" rows looked bad).
+                        let rows = Self.folderTree(groups.map { (folder, items) in
+                            (path: items.first.map(listing.destination(of:)) ?? [folder],
+                             coming: items.filter { picked.contains($0.id) }.count, total: items.count)
+                        })
+                        ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                            let indent = CGFloat(row.depth) * Self.treeIndent
+                            if i > 0 { Rectangle().fill(Color.line).frame(height: 1).padding(.leading, 50 + indent) }
                             HStack(spacing: 12) {
                                 Image(systemName: "folder").font(.system(size: 15)).foregroundStyle(Color.muted).frame(width: 20)
-                                Text(folder).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                Text(row.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
                                 Spacer(minLength: 8)
-                                Text(Self.folderLine(coming: coming, of: items.count, locale: locale))
-                                    .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+                                if let total = row.total {
+                                    Text(Self.folderLine(coming: row.coming, of: total, locale: locale))
+                                        .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+                                }
                             }
-                            .padding(.horizontal, 18)
+                            .padding(.leading, 18 + indent)
+                            .padding(.trailing, 18)
                             .frame(height: 40)
                             .accessibilityElement(children: .combine)
                         }
@@ -478,9 +491,40 @@ struct AppleNotesImportView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: Self.folderCardHeight)
-        .background(Color(Palette.page), in: shape)
-        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .background(carded ? Color(Palette.page) : .clear, in: shape)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: carded ? 1 : 0))
         .clipShape(shape)
+        .animation(.easeOut(duration: 0.2), value: carded)
+    }
+
+    /// How far a folder inside another sits in, per level.
+    static let treeIndent: CGFloat = 22
+
+    struct TreeRow: Equatable {
+        var name: String
+        var depth: Int
+        var coming: Int
+        /// Nil for a folder that holds only folders: it has no count of its own.
+        var total: Int?
+    }
+
+    /// The folders as a tree, in the order given (Apple Notes' own): each folder by its own name,
+    /// one level in per folder above it, and a folder that holds only folders put in above them.
+    static func folderTree(_ folders: [(path: [String], coming: Int, total: Int)]) -> [TreeRow] {
+        var rows: [TreeRow] = []
+        var shown = Set<[String]>()
+        for f in folders where !f.path.isEmpty {
+            for depth in 0..<(f.path.count - 1) {
+                let above = Array(f.path[...depth])
+                if shown.insert(above).inserted { rows.append(TreeRow(name: above.last!, depth: depth, coming: 0, total: nil)) }
+            }
+            if shown.insert(f.path).inserted {
+                rows.append(TreeRow(name: f.path.last!, depth: f.path.count - 1, coming: f.coming, total: f.total))
+            } else if let i = rows.firstIndex(where: { $0.depth == f.path.count - 1 && $0.name == f.path.last! && $0.total == nil }) {
+                rows[i].coming = f.coming; rows[i].total = f.total
+            }
+        }
+        return rows
     }
 
     /// Five folders without scrolling; more scroll inside the card.
