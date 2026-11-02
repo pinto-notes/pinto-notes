@@ -257,7 +257,7 @@ struct MakeAppSheet: View {
                             Text("Use another AI").font(Metrics.hint).foregroundStyle(Color.muted)
                         }
                         .menuStyle(.button)
-                        .buttonStyle(.plain)
+                        .buttonStyle(.hoverText)
                         .menuIndicator(.hidden)
                         .fixedSize()
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -376,7 +376,7 @@ struct MakeAppSheet: View {
                             .overlay(Capsule().strokeBorder(Color.line, lineWidth: 1))
                             .contentShape(.capsule)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tile(radius: Metrics.chip / 2))
                     .accessibilityIdentifier("newApp.example.\(e.name)")
                 }
             }

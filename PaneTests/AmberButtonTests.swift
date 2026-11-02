@@ -216,6 +216,73 @@ import Testing
         #expect(adHoc.isEmpty, "a button's size comes from ButtonSize, not the call site: \(adHoc)")
     }
 
+    /// Buttons that draw no hover of their own and still look different under the pointer, or never
+    /// show on the Mac, though the scan below can't tell. Keyed "file Type.member"; one reason each.
+    static let hoverAllowed: [String: String] = [
+        "Views/ShareNotePopover.swift ShareNotePopover.copyRows": "the label is rowLabel, which has .hoverHighlight",
+        "Views/ShareNotePopover.swift ShareNotePopover.row": "the label is rowLabel, which has .hoverHighlight",
+        "Views/SidebarCards.swift SidebarCardShell.body": "the label it wraps has .hoverOverlay, set a few lines up",
+        "Views/ConnectChoices.swift Accessory.pressable": "ConnectChoices' pressable: both callers' labels have .choiceCard",
+        // Leave the close × alone (lead, 2 November 2026): one shared solid close style replaces them all.
+        "Views/SidebarCards.swift MacCard.body": "close ×: shared .closeCircle style (lead); and iPhone only",
+        "Views/SettingsCard.swift SettingsCard.header": "close ×: shared .closeCircle style (lead)",
+        "Views/MakeAnApp.swift MakeAppSheet.close": "close ×: shared .closeCircle style (lead)",
+        "Views/ImportGuide.swift Action.topBar": "close ×: shared .closeCircle style (lead)",
+        "Views/ImportGuide.swift ImportNoticePage.page": "close ×: shared .closeCircle style (lead)",
+        "Views/ConnectWebGuide.swift ConnectWebGuideSheet.topBar": "close ×: shared .closeCircle style (lead)",
+    ]
+
+    /// Every clickable thing on the Mac looks different under the pointer (Emil, 2 November 2026:
+    /// "ALL clickable things need hover states"). The plain style, PressScale and CardPress draw no
+    /// hover, so each use needs a hover look in its own expression (in the label or on the button:
+    /// .hoverHighlight, .hoverRow, .hoverOverlay, .choiceCard, HoverTracking, .onHover), or sits in
+    /// iPhone-only code, or is on `hoverAllowed` with its reason. Otherwise pick .tile(radius:),
+    /// .quietIcon, .hoverText or .hoverLink.
+    @Test func everyMacButtonShowsItsHover() throws {
+        let style = try Regex(#"\.buttonStyle\((\.plain|PressScale\(\)|CardPress\(\))\)"#)
+        let member = try Regex(#"^\s*(?:@\w+\s+|private\s+|fileprivate\s+|static\s+|override\s+)*(?:func|var)\s+(\w+)"#)
+        let type = try Regex(#"^\s*(?:@\w+\s+|private\s+|fileprivate\s+|public\s+|final\s+)*(?:struct|class|enum|extension)\s+(\w+)"#)
+        let cues = [".hoverHighlight(", ".hoverRow(", ".hoverOverlay(", ".choiceCard(", "HoverTracking(", ".onHover", "HoverRowReader"]
+        func indent(_ s: Substring) -> Int { s.prefix { $0 == " " }.count }
+        func trimmed(_ s: Substring) -> Substring { s.drop { $0 == " " } }
+        func continues(_ s: Substring) -> Bool { let t = trimmed(s); return t.isEmpty || t.hasPrefix(".") || t.hasPrefix("#") || t.hasPrefix("//") }
+        var seen = 0, used: Set<String> = [], missing: [String] = []
+        for (name, text) in try Self.appSources() where name != "Views/DesignSystem.swift" {
+            let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+            // Which side of each #if the line is on: "ios", "mac" or "other".
+            var stack: [String] = []
+            for (i, line) in lines.enumerated() {
+                let t = trimmed(line)
+                if t.hasPrefix("#if") { stack.append(t.contains("os(iOS)") && !t.contains("macOS") ? "ios" : t.contains("os(macOS)") ? "mac" : "other"); continue }
+                if t.hasPrefix("#elseif") { stack[stack.count - 1] = "other"; continue }
+                if t.hasPrefix("#else") { stack[stack.count - 1] = ["ios": "mac", "mac": "ios"][stack.last!] ?? "other"; continue }
+                if t.hasPrefix("#endif") { stack.removeLast(); continue }
+                guard !t.hasPrefix("//"), line.contains(style) else { continue }
+                seen += 1
+                if stack.contains("ios") { continue }
+                // The expression: back to the line that starts it, on through its modifiers.
+                let n = indent(line)
+                var start = i
+                if t.hasPrefix(".") {
+                    start = i - 1
+                    while start > 0, indent(lines[start]) > n || (indent(lines[start]) == n && (continues(lines[start]) || trimmed(lines[start]).hasPrefix("}"))) { start -= 1 }
+                }
+                var end = i
+                while end + 1 < lines.count, indent(lines[end + 1]) > n || (indent(lines[end + 1]) == n && continues(lines[end + 1])) { end += 1 }
+                let expression = lines[start...end].joined(separator: "\n")
+                if cues.contains(where: { expression.contains($0) }) { continue }
+                let owner = lines[...i].last { $0.contains(member) }.flatMap { try? member.firstMatch(in: String($0))?.output[1].substring } ?? "?"
+                let kind = lines[...i].last { $0.contains(type) }.flatMap { try? type.firstMatch(in: String($0))?.output[1].substring } ?? "?"
+                let key = "\(name) \(kind).\(owner)"
+                if Self.hoverAllowed[key] != nil { used.insert(key); continue }
+                missing.append("\(key) line \(i + 1)")
+            }
+        }
+        #expect(seen > 60, "the scan found \(seen) plain buttons")
+        #expect(missing.isEmpty, "no hover on the Mac; use .tile(radius:), .quietIcon, .hoverText, .hoverLink or a hover row:\n\(missing.joined(separator: "\n"))")
+        #expect(used == Set(Self.hoverAllowed.keys), "allowed but no longer needed: \(Set(Self.hoverAllowed.keys).subtracting(used).sorted())")
+    }
+
     /// The sizes and radii in code are DESIGN.md's: heights 50, 40 and 28, radii from the scale.
     @Test func theSizesAreTheDesignRules() throws {
         let rules = try String(contentsOf: TestFiles.url("DESIGN.md"), encoding: .utf8)

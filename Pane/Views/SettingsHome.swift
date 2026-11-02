@@ -217,6 +217,7 @@ struct ProfilePage: View {
                 .font(.system(size: SettingsRows.text))
                 .padding(.vertical, SettingsRows.padding)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .hoverRow()
         } header: {
             Color.clear.frame(height: 22).accessibilityHidden(true)
         }
@@ -251,7 +252,7 @@ struct ProfilePage: View {
                 }
             }
             .menuStyle(.button)
-            .buttonStyle(.plain)
+            .buttonStyle(.hoverText)
             .menuIndicator(.hidden)
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(.tint)
@@ -300,6 +301,7 @@ struct GeneralPage: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .hoverRow()
                 .accessibilityIdentifier("settings.appKeys")
             }
         }
@@ -377,6 +379,7 @@ struct HelpPage: View {
                 row(HelpCopy.feedback, symbol: "envelope", trailing: "arrow.up.right")
             }
             .buttonStyle(.plain)
+            .hoverRow()
             .accessibilityIdentifier("settings.feedback")
             if noMail {
                 Label(HelpCopy.noMailApp, systemImage: "doc.on.doc")
@@ -419,6 +422,7 @@ struct HelpPage: View {
     private func link(_ title: String, _ url: URL, symbol: String?, id: String) -> some View {
         Link(destination: url) { row(title, symbol: symbol, trailing: "arrow.up.right") }
             .buttonStyle(.plain)
+            .hoverRow()
             .accessibilityIdentifier(id)
     }
 

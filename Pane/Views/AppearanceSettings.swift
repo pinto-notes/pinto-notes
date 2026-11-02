@@ -162,7 +162,7 @@ private struct ThemeTile: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tile(radius: 9))
         .accessibilityLabel(theme.spokenName)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("settings.theme.\(theme.rawValue)")
@@ -197,7 +197,7 @@ struct AccentDot: View {
                 .frame(width: style.target, height: style.target)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tile(radius: style.target / 2))
         .help(choice.spokenName)
         .accessibilityLabel(choice.spokenName)
         .accessibilityAddTraits(selected ? .isSelected : [])

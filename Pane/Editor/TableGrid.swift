@@ -927,6 +927,7 @@ struct TableGridView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
+            .hoverHighlight(Rectangle())
             .contentShape(.rect)
         }
         .buttonStyle(.plain)

@@ -1012,7 +1012,7 @@ struct ConnectChoices: View {
                         .contentShape(.rect)
                 }
                 .menuStyle(.button)
-                .buttonStyle(.plain)
+                .buttonStyle(.quietIcon)
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .accessibilityLabel("More for \(g.title)")

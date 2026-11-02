@@ -124,6 +124,7 @@ struct MoveToPicker: View {
             .padding(.leading, 8 + CGFloat(row.depth) * Metrics.indent)
             .padding(.trailing, 8)
             .frame(maxWidth: .infinity, minHeight: Metrics.row, maxHeight: Metrics.row, alignment: .leading)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .background(chosen ? AnyShapeStyle(.fill.tertiary) : AnyShapeStyle(.clear), in: .rect(cornerRadius: 6, style: .continuous))
             .contentShape(.rect)
         }

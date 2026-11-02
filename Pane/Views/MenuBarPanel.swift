@@ -153,6 +153,7 @@ struct MenuBarPanel: View {
             }
             .padding(.horizontal, 8)
             .frame(height: 32)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .background(rowFill(highlighted), in: .rect(cornerRadius: 6))
             .contentShape(.rect)
         }
@@ -211,6 +212,7 @@ struct MenuBarPanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .background(rowFill(highlighted), in: .rect(cornerRadius: 6))
             .contentShape(.rect)
         }

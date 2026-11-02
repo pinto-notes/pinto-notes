@@ -195,7 +195,7 @@ private struct ModeTile: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tile(radius: 9))
         .accessibilityLabel(mode.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("settings.mode.\(mode.rawValue)")

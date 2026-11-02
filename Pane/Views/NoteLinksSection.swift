@@ -181,7 +181,7 @@ struct NoteLinksSection: View {
             .frame(minHeight: Self.target)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hoverText)
         .accessibilityAddTraits(.isHeader)
         .accessibilityValue(shown.wrappedValue ? "Expanded" : "Collapsed")
         .accessibilityIdentifier(id)
@@ -197,7 +197,7 @@ struct NoteLinksSection: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hoverText)
             .accessibilityLabel("Open \(n.title)")
             .accessibilityIdentifier("noteLinks.note.\(n.title)")
             ForEach(Array(n.lines.enumerated()), id: \.element.id) { i, line in
@@ -212,7 +212,7 @@ struct NoteLinksSection: View {
                             .padding(.vertical, 2)
                             .contentShape(.rect)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverText)
                     .accessibilityLabel(line.text)
                     .accessibilityHint("Opens \(n.title) here")
                     .accessibilityIdentifier("noteLinks.line.\(n.title).\(i)")
@@ -258,7 +258,7 @@ struct NoteLinksSection: View {
         Button(title, action: action)
             .font(.system(size: Self.small, weight: .medium))
             .foregroundStyle(Color(PColor.paneAccent))
-            .buttonStyle(.plain)
+            .buttonStyle(.hoverText)
             .frame(minHeight: Self.target)
             .accessibilityIdentifier(id)
     }

@@ -167,6 +167,7 @@ struct StorageWarningRow: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            .hoverRow()
             .help("Open Storage Settings")
             .accessibilityElement(children: .combine)
             .accessibilityHint(open == nil ? "" : "Opens Storage in Settings")
