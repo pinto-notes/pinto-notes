@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Home as Page } from "./_home/Home";
 import { latestVersion } from "@/lib/changelog";
 import { pageMetadata } from "@/lib/site";
-import { JsonLd, app, incredible, maker, organization, website } from "@/lib/structured-data";
+import { JsonLd, app, homePage, incredible, maker, organization, website } from "@/lib/structured-data";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pinto Notes: one notes app for every AI you use",
@@ -17,7 +17,7 @@ export const metadata: Metadata = pageMetadata({
 export default function Home() {
   return (
     <>
-      <JsonLd graph={[app(latestVersion()), organization, maker, incredible, website]} />
+      <JsonLd graph={[app(latestVersion()), homePage, organization, maker, incredible, website]} />
       <Page />
     </>
   );

@@ -281,6 +281,23 @@ describe("the rename from Amber Notes", () => {
   });
 });
 
+describe("the site's own images", () => {
+  it("may be indexed, so Google shows the favicon and the hero as the thumbnail; shared notes stay private", async () => {
+    const noindex = (await nextConfig.headers!()).find((h) => h.headers.some((x) => x.key === "X-Robots-Tag" && h.source.startsWith("/((?!")))!;
+    const re = new RegExp(`^${noindex.source}$`);
+    for (const path of ["/favicon.ico", "/icon.png", "/icon-48.png", "/icon-96.png", "/apple-icon.png", "/mark.png", "/opengraph-image", "/search-thumbnail.jpg", "/home-v5/hero/phone-shoulder.webp", "/demo/lisbon/lisbon-1-faded.webp", "/art/x.webp", "/apple-notes.webp", "/hero-groceries.jpg", "/icon-192.png"]) {
+      expect(re.test(path), path).toBe(false);
+    }
+    // Next reads `source` with path-to-regexp, which refuses capturing groups: the build fails, not this test, without this line.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { pathToRegexp } = require("next/dist/compiled/path-to-regexp");
+    expect(() => pathToRegexp(noindex.source)).not.toThrow();
+    for (const path of ["/n/abc", "/n/abc/photo.png", "/s/abc/a.jpg", "/t/abc/a.webp", "/report/abc", "/report/abc/shot.png", "/api/x.png", "/iconic", "/favicon.ico/x"]) {
+      expect(re.test(path), path).toBe(true);
+    }
+  });
+});
+
 describe("the blog's feed", () => {
   it("lists every published post, newest first, at its address on pintonotes.com", () => {
     const xml = feedXml();
