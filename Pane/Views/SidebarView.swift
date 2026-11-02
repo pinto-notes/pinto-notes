@@ -59,9 +59,10 @@ struct AccountButton: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, Self.inset)
-            .frame(height: 42)
-            .hoverHighlight(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .frame(height: Self.avatar)
+            // A folder row's pill: the same fill, corners and reach (`Hover.sidebarReach`), so the
+            // photo starts on the folder icons' line and the highlight lines up with theirs.
+            .sidebarFootPill("sidebar.account")
         }
         .buttonStyle(.plain)
         .help("Settings")
@@ -195,6 +196,8 @@ enum SidebarStyle {
         let content = rowContent(nested: nested), reach = Hover.sidebarReach()
         return (content.leading - reach.leading, content.trailing - reach.trailing)
     }
+    /// A folder row's pill is 30.5 pt tall in a 32 pt row: a hairline between neighbours.
+    static let pillGap: CGFloat = 1.5
     #else
     static let icon = TintShapeStyle.tint
     static let iconFont = Font.body
@@ -633,16 +636,7 @@ struct SidebarView: View {
                             .padding(.bottom, 2)
                     }
                     OfflineLine(sync: sync)
-                    // Templates, Connect an AI and Import just above you, the things that aren't
-                    // folders. Shown to everyone, not only in the study's shots (Emil, 2 November 2026).
-                    SidebarStudyRows(imports: imports)
-                        .padding(.leading, SidebarStyle.edge(nested: nested))
-                        .padding(.trailing, 10)
-                        .padding(.bottom, 4)
-                    // Its highlight where a folder row's pill is, the photo on the rows' icons' line.
-                    AccountButton(backend: backend)
-                        .padding(.leading, SidebarStyle.rowPill(nested: nested).leading)
-                        .padding(.trailing, SidebarStyle.rowPill(nested: nested).trailing)
+                    SidebarFoot(backend: backend, nested: nested, rows: true, imports: imports)
                 }
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)

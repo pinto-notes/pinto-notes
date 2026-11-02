@@ -15,7 +15,7 @@ import Testing
         let window: NSWindow
         let container: ModelContainer
 
-        init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false) async throws {
+        init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false, rows: Bool = false) async throws {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             let ctx = container.mainContext
             if !foldersLater {
@@ -33,6 +33,7 @@ import Testing
                 .environment(backend)
                 .environment(SyncEngine(backend: backend, context: ctx))
                 .environment(SetupStore(progress: SetupProgress(connected: true, dismissed: true)))
+                .environment(\.sidebarStudy, rows ? SidebarStudy() : nil)
             // `behindCard`: as the first run shows it, under a setup card (AppGate.notesBehind).
             let view = Group {
                 if behindCard {
@@ -218,6 +219,39 @@ import Testing
         #expect(sheets() == 0, "no sheet")
     }
 
+    /// Measured in the real window, not worked out: the account's highlight as far in on the left as
+    /// a folder row's pill and about as far in on the right, and Templates, Connect an AI and Import
+    /// with their pills (so their icons and names) where a folder row's are. Came back once
+    /// (2026-11-02): the shots' own copy of the foot kept the old padding.
+    @Test(arguments: [false, true])
+    func theFootLinesUpWithTheFolderRowsInTheWindow(nested: Bool) async throws {
+        HoverProbe.enabled = true
+        FootProbe.frames = [:]
+        defer { HoverProbe.enabled = false; HoverProbe.reset(); FootProbe.frames = [:] }
+        let host = try await Host(nested: nested, rows: true)
+        defer { host.close() }
+        let (sidebar, cell) = try host.sidebarAndNotesRow()
+        let reach = Hover.sidebarReach()
+        // The foot spans the sidebar; its pills are measured from the foot's edges, in its space.
+        let foot = try #require(FootProbe.frames["sidebar.foot"], "the foot is in the window: \(FootProbe.frames)")
+        let account = try #require(FootProbe.frames["sidebar.account"], "the account row is in the window")
+        #expect(abs(foot.width - sidebar.width) < 0.5, "the foot is the sidebar's width: \(foot.width) against \(sidebar.width)")
+        let row = cell.offsetBy(dx: foot.minX - sidebar.minX, dy: 0)
+        let pill = (leading: cell.minX - reach.leading - sidebar.minX, trailing: sidebar.maxX - (cell.maxX + reach.trailing))
+        let left = account.minX - foot.minX, right = foot.maxX - account.maxX
+        #expect(abs(left - pill.leading) < 0.5 && abs(right - pill.trailing) < 0.5,
+                "the account's highlight is \(left) and \(right) pt in; a folder row's pill \(pill)")
+        #expect(abs(left - right) <= 5, "about as far in on the left (\(left)) as on the right (\(right))")
+        #expect(abs(account.minX + reach.leading - row.minX) < 0.5, "the photo starts where the folder icon does")
+        #expect(abs(account.height - (AccountButton.avatar + reach.top + reach.bottom)) < 0.5, "a folder pill's reach around the photo: \(account.height)")
+        for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
+            let r = try #require(FootProbe.frames[id], "\(id) is in the window")
+            #expect(abs(r.minX - account.minX) < 0.5 && abs(r.maxX - account.maxX) < 0.5, "\(id)'s pill \(r) spans the account's \(account)")
+            #expect(abs(r.minX + reach.leading - row.minX) < 0.5, "\(id)'s icon starts where the folder icon does: \(r.minX + reach.leading) against \(row.minX)")
+            #expect(abs(r.height - (32 - SidebarStyle.pillGap)) < 0.5, "\(id) is a folder pill's height: \(r.height)")
+        }
+    }
+
     @Test func clickingOpensSettingsAtItsFirstPage() {
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-row-\(UUID())")!)
         route.tab = .storage
@@ -270,23 +304,24 @@ import Testing
         }
     }
 
-    /// The account row under the pointer in a sidebar-wide strip, light and dark, for looking at.
+    /// The foot (the study's rows and the account) at rest and under the pointer in a sidebar-wide
+    /// strip, light and dark, for looking at.
     @Test(arguments: [false, true])
     func pictures(dark: Bool) async throws {
         guard let dir = AppSnapshotTests.dir else { return }
+        _ = dir
         let backend = Backend()
         backend.showSignedInForPreview(email: "sara@example.com")
         ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
-        let pill = SidebarStyle.rowPill(nested: false)
-        let row = AccountButton(backend: backend)
-            .padding(.leading, pill.leading)
-            .padding(.trailing, pill.trailing)
-            .frame(width: 230)
-            .padding(.vertical, 8)
-            .environment(\.hoverPreview, ["*"])
-            .tint(Color(PColor.paneAccent))
-        try await AppSnapshotTests.render(row, name: "mac-account-row-hover-\(dark ? "dark" : "light")", dark: dark)
+        for (name, hover) in [("rest", Set<String>()), ("hover", ["*"])] {
+            let foot = SidebarFoot(backend: backend, nested: false, rows: true)
+                .frame(width: 260)
+                .padding(.vertical, 8)
+                .environment(\.hoverPreview, hover)
+                .tint(Color(PColor.paneAccent))
+            try await AppSnapshotTests.render(foot, name: "mac-account-row-\(name)-\(dark ? "dark" : "light")", dark: dark)
+        }
     }
 }
 #endif

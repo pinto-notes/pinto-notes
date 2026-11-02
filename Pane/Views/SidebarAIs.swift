@@ -19,7 +19,10 @@ enum SidebarAIWords {
     static func madeBy(_ ai: String) -> String { "Made by \(ai)" }
 }
 
-/// A quiet row that does one thing: connect an AI, browse templates, import.
+#if os(macOS)
+/// A quiet row that does one thing: connect an AI, browse templates, import. Laid out like a
+/// folder row: its icon and name on the folder rows' lines, a folder row's height, and the same
+/// pill under the pointer (`sidebarFootPill`).
 struct SidebarActionRow: View {
     let title: String
     let symbol: String
@@ -34,9 +37,8 @@ struct SidebarActionRow: View {
                 SidebarIcon(name: symbol)
             }
             .sidebarRowLabel()
-            // A folder row's height, so the two read as rows, not a caption.
-            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-            .contentShape(.rect)
+            .frame(height: SidebarFoot.rowContentHeight)
+            .sidebarFootPill(id)
         }
         .buttonStyle(.plain)
         .hoverRow(id, reach: Hover.sidebarReach())
@@ -48,10 +50,9 @@ struct SidebarActionRow: View {
 /// sheet lists the connected ones and connects more), and importing more notes.
 struct SidebarStudyRows: View {
     var imports: ImportActions?
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
             SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates") {
                 NotificationCenter.default.post(name: .paneTemplates, object: nil)
             }
@@ -63,5 +64,71 @@ struct SidebarStudyRows: View {
                 NotificationCenter.default.post(name: .paneImportNotes, object: nil)
             }
         }
+    }
+}
+
+/// The foot of the Mac sidebar: the study's rows (when on), then you. One view for the app and
+/// its captures, so the two can't drift apart (2026-10-30 a capture's own copy of the foot kept
+/// the padding from before the account row was lined up, and the shots showed it off again).
+/// Every item's pill sits where a top-level folder row's does (`SidebarStyle.rowPill`), so the
+/// icons, the photo and the names start on the folder rows' lines.
+struct SidebarFoot: View {
+    let backend: Backend
+    /// Some folder has sub-folders: the list moves its rows right for the arrows' column.
+    var nested = false
+    var rows = false
+    var imports: ImportActions?
+
+    /// A folder row's content inside its 30.5 pt pill.
+    static var rowContentHeight: CGFloat {
+        let reach = Hover.sidebarReach()
+        return 32 - SidebarStyle.pillGap - reach.top - reach.bottom
+    }
+
+    var body: some View {
+        let pill = SidebarStyle.rowPill(nested: nested)
+        VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
+            if rows { SidebarStudyRows(imports: imports) }
+            AccountButton(backend: backend)
+        }
+        .padding(.leading, pill.leading)
+        .padding(.trailing, pill.trailing)
+        #if DEBUG
+        .footProbe("sidebar.foot")
+        #endif
+    }
+}
+#endif
+
+#if DEBUG
+/// Tests: where the foot and its pills were laid out (in the sidebar's own space), while
+/// `HoverProbe` is on. An offscreen window has no accessibility tree to read them from.
+@MainActor
+enum FootProbe {
+    static var frames: [String: CGRect] = [:]
+}
+
+extension View {
+    func footProbe(_ id: String) -> some View {
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            if HoverProbe.enabled { FootProbe.frames[id] = frame }
+        }
+    }
+}
+#endif
+
+extension View {
+    /// A sidebar foot item (Templates, Connect an AI, Import, the account) under the pointer: a
+    /// folder row's pill, the same fill, corners and reach around the content (`HoverRowReader`
+    /// with `Hover.sidebarReach`). The whole pill takes the pointer and the click.
+    func sidebarFootPill(_ id: String) -> some View {
+        let r = Hover.sidebarReach()
+        let pill = padding(EdgeInsets(top: r.top, leading: r.leading, bottom: r.bottom, trailing: r.trailing))
+            .hoverRow(id, reach: EdgeInsets())
+        #if DEBUG
+        return pill.footProbe(id)
+        #else
+        return pill
+        #endif
     }
 }
