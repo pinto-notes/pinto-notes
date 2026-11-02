@@ -690,6 +690,9 @@ import Testing
         #expect(source.contains("@State private var expanded: Set<[String]> = []"), "folders start closed")
         #expect(AppleNotesImportView.checkbox(.all) == "checkmark.square.fill" && AppleNotesImportView.checkbox(.some) == "minus.square.fill"
                 && AppleNotesImportView.checkbox(.none) == "square", "the Mac's square checkboxes, a dash for some")
+        #expect(AppleNotesImportView.treeInset >= 8, "room above the first folder in the card")
+        let noteRow = try #require(source.range(of: "private func noteTreeRow"))
+        #expect(!source[noteRow.lowerBound...].prefix(2200).contains("Text(DateBucket.rowDate"), "only folders say something at the right edge")
         #expect(source.contains("SoftSearchField(text: $query"), "the app's own soft search field")
         #expect(source.contains("CardBackButton { leaveChoosing() }"), "Back beside the title")
         #expect(!source.contains(".hoverHighlight(Rectangle())"), "rows hover as rounded pills")

@@ -591,6 +591,8 @@ struct AppleNotesImportView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    // Room above the first folder and below the last, inside the card (Emil, 2 November 2026).
+                    .contentMargins(.vertical, Self.treeInset, for: .scrollContent)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -628,6 +630,9 @@ struct AppleNotesImportView: View {
         case .none: "square"
         }
     }
+
+    /// The room inside the tree's card above its first row and below its last.
+    static let treeInset: CGFloat = 10
 
     /// How far in each level of the tree sits.
     static let treeStep: CGFloat = 20
@@ -708,8 +713,9 @@ struct AppleNotesImportView: View {
                         .padding(.horizontal, 7).padding(.vertical, 2)
                         .background(Color.line.opacity(0.6), in: .capsule)
                 }
+                // No date on the right: only folders say something there, their count, so the
+                // right edge reads one way (Emil, 2 November 2026: "right side is kinda confusing").
                 Spacer(minLength: 8)
-                Text(DateBucket.rowDate(note.modified)).font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
             }
             .padding(.leading, 6)
             .padding(.trailing, 4)
@@ -723,6 +729,7 @@ struct AppleNotesImportView: View {
         .padding(.leading, CGFloat(depth - 1) * Self.treeStep + 48)
         .accessibilityLabel(note.locked ? "\(note.name), locked in Apple Notes" : already ? "\(note.name), already imported" : note.name)
         .accessibilityValue(on ? "Included" : "Not included")
+        .help(DateBucket.rowDate(note.modified))
     }
 
     /// Choose notes' folders as a tree, from the notes shown (a search narrows it).
