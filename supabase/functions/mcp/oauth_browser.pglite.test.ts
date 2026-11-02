@@ -199,7 +199,6 @@ browserTest("Allow on the page connects: the code works once, the key reaches th
   assertEquals(tokens.body.scope, "notes:read notes:write");
   const grant = await resolveAccessToken(sql, tokens.body.access_token, new Request(FUNCTION));
   assertEquals(grant?.user_id, me.id);
-  assertEquals(grant?.can_write, true);
   assertEquals(await unwrap(grant!.dk_wrap!, await tokenKey(tokens.body.access_token, "access"), "access", me.id), me.dk);
   // Spent: the wrap went with it, and a second exchange cuts the connection off.
   const [after] = (await pg.query<{ code_wrap: string | null }>(`select code_wrap from public.oauth_requests where id = $1`, [id])).rows;
@@ -213,13 +212,14 @@ browserTest("Allow on the page connects: the code works once, the key reaches th
   assertEquals(events, [{ what: "connected", platform: "web" }]);
 });
 
-browserTest("Allow connects read and edit, whatever an older page sends; only a read-only request connects read-only", async () => {
+browserTest("Allow connects read and edit, whatever an older page sends or the app asks for", async () => {
+  // No read-only connections (Emil, 29 and 30 October 2026).
   const { pg, sql } = await db();
   const me = await account(pg);
   const chosen = await start(sql);
   assertEquals((await allow(sql, chosen.id, session(me.id), { write: false })).body.can_write, true);
   const asked = await start(sql, "notes:read");
-  assertEquals((await allow(sql, asked.id, session(me.id), { write: true })).body.can_write, false);
+  assertEquals((await allow(sql, asked.id, session(me.id), { write: true })).body.can_write, true);
 });
 
 browserTest("only the page's own origin, with a session, may allow", async () => {
