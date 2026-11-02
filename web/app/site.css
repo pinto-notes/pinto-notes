@@ -17,6 +17,22 @@ html[data-theme="leaf"] {
   --amber: #f5a53a; --link: #f7b865; --mark: rgba(245, 165, 58, 0.32); --card: #3a2010;
   --wordmark: rgba(255, 200, 130, 0.06); --cta-bg: #fbeedd; --cta-ink: #2e180a; color-scheme: dark;
 }
+/* The connect pages (/connect, /open/connect): the cream in light; in dark, pure black with neutral
+   greys and white and black buttons, as the app is (docs/DESIGN.md, 29 October 2026). */
+html[data-theme="connect"] {
+  --bg: #fff4e6; --ink: #2a1d10; --muted: #74604c; --soft: #f7e5cc; --line: rgba(80, 45, 10, 0.12);
+  --amber: #f0901a; --link: #a85700; --mark: rgba(240, 144, 26, 0.35); --card: #fffaf3;
+  --wordmark: rgba(120, 70, 20, 0.07); --cta-bg: #2a1d10; --cta-ink: #fff4e6; color-scheme: light dark;
+  --field: #ffffff; --danger: #b3261e; --shade: 60, 30, 5;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="connect"] {
+    --bg: #000000; --ink: #f5f5f7; --muted: #a1a1a6; --soft: #2c2c2c; --line: rgba(255, 255, 255, 0.14);
+    --amber: #f5a53a; --link: #f5ad33; --mark: rgba(245, 165, 58, 0.32); --card: #1c1c1c;
+    --wordmark: rgba(255, 255, 255, 0.05); --cta-bg: #ffffff; --cta-ink: #000000;
+    --field: #000000; --danger: #ff8a80; --shade: 0, 0, 0;
+  }
+}
 /* Pages with no fixed theme (shared notes and the report form) follow the visitor's system: the
    same cream in light and the same leaf brown in dark, so they are the same product as the site. */
 html:not([data-theme]) {

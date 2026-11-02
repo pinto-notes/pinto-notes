@@ -103,10 +103,11 @@ const config: NextConfig = {
         // .json data isn't. So is every image of the site's own (icons, the share image, pictures), or
         // Google shows no favicon and picks a thumbnail from what's left; pictures in shared notes, reports and the API stay out. Blog posts carry their own robots meta
         // (drafts say noindex). A new page for search is added here too.
-        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|templates(?!/[^/]+\\.json$)|connect$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$|opengraph-image$|(?!n/|s/|t/|report/|api/)[^?]*\\.(?:png|jpe?g|webp|gif|svg|ico)$).+)",
+        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|templates(?!/[^/]+\\.json$)|connect$|connect/start$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$|opengraph-image$|(?!n/|s/|t/|report/|api/)[^?]*\\.(?:png|jpe?g|webp|gif|svg|ico)$).+)",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, ...security],
       },
       { source: "/connect", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },
+      { source: "/connect/start", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },
       { source: "/reset-password", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },
       { source: "/open/connect", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },
       // Apple's servers fetch this for the app's universal links (https://ambernotes.app/open/…):
