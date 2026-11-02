@@ -673,5 +673,19 @@ import Testing
         #expect(rows.map(\.depth) == [0, 1, 0, 1, 2, 0])
         #expect(rows.map(\.total) == [2, 3, nil, nil, 1, 5], "a folder of folders has no count")
     }
+
+    /// A folder's tick in Choose notes: full when all its notes are picked, a dash for some, empty
+    /// for none (Emil, 2 November 2026: tick whole folders, folders start closed).
+    @Test func aFolderTickShowsHowMuchIsPicked() throws {
+        #expect(AppleNotesImportView.folderPick(picked: 3, pickable: 3) == .all)
+        #expect(AppleNotesImportView.folderPick(picked: 1, pickable: 3) == .some)
+        #expect(AppleNotesImportView.folderPick(picked: 0, pickable: 3) == .none)
+        #expect(AppleNotesImportView.folderPick(picked: 0, pickable: 0) == .none)
+        #expect(AppleNotesImportView.folderTree([(["Recipes", "Italian"], 1, 1)]).map(\.path) == [["Recipes"], ["Recipes", "Italian"]])
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/AppleNotesImport.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        #expect(source.contains("@State private var expanded: Set<[String]> = []"), "folders start closed")
+        #expect(source.contains("ListSearchField(text: $query"), "the system search field, as the note list")
+    }
 }
 #endif

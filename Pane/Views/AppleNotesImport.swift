@@ -233,6 +233,8 @@ struct AppleNotesImportView: View {
     /// The notes one by one. The sheet opens on folders and their counts: picking is the
     /// exception, so it's one quiet press away instead of the first thing seen.
     @State private var choosingNotes = false
+    /// Choose notes: the folders opened to show their notes. All start closed (Emil, 2 November 2026).
+    @State private var expanded: Set<[String]> = []
     /// An import ran (the import funnel's `cancelled` is for a sheet closed before one did).
     @State private var imported = false
     /// The import came through whole: the success page, as the other guides end.
@@ -494,6 +496,7 @@ struct AppleNotesImportView: View {
     static let treeIndent: CGFloat = 22
 
     struct TreeRow: Equatable {
+        var path: [String] = []
         var name: String
         var depth: Int
         var coming: Int
@@ -509,11 +512,11 @@ struct AppleNotesImportView: View {
         for f in folders where !f.path.isEmpty {
             for depth in 0..<(f.path.count - 1) {
                 let above = Array(f.path[...depth])
-                if shown.insert(above).inserted { rows.append(TreeRow(name: above.last!, depth: depth, coming: 0, total: nil)) }
+                if shown.insert(above).inserted { rows.append(TreeRow(path: above, name: above.last!, depth: depth, coming: 0, total: nil)) }
             }
             if shown.insert(f.path).inserted {
-                rows.append(TreeRow(name: f.path.last!, depth: f.path.count - 1, coming: f.coming, total: f.total))
-            } else if let i = rows.firstIndex(where: { $0.depth == f.path.count - 1 && $0.name == f.path.last! && $0.total == nil }) {
+                rows.append(TreeRow(path: f.path, name: f.path.last!, depth: f.path.count - 1, coming: f.coming, total: f.total))
+            } else if let i = rows.firstIndex(where: { $0.path == f.path && $0.total == nil }) {
                 rows[i].coming = f.coming; rows[i].total = f.total
             }
         }
@@ -534,17 +537,10 @@ struct AppleNotesImportView: View {
                 .padding(.top, 6)
                 .accessibilityIdentifier("import.count")
             HStack(spacing: 14) {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(Color.muted)
-                    TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(Color(Palette.placeholder)))
-                        .textFieldStyle(.plain)
-                        .focusEffectDisabled()
-                        .focused($searchFocused)
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 30)
-                .background(Color(Palette.field), in: .rect(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(searchFocused ? Color.accentColor.opacity(0.7) : Color(Palette.fieldHairline), lineWidth: searchFocused ? 1.5 : 1))
+                // The system's search field, as the note list has (Emil, 2 November 2026: the one
+                // drawn here looked unlike every other search).
+                ListSearchField(text: $query, focus: 0, close: {})
+                    .frame(height: 28)
                 Button(all ? "Deselect All" : "Select All") {
                     let ids = pickable.map(\.id)
                     if all { picked.subtract(ids) } else { picked.formUnion(ids) }
@@ -564,12 +560,13 @@ struct AppleNotesImportView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                            ForEach(groups, id: \.0) { folder, items in
-                                Section {
-                                    ForEach(items) { note in row(note, inset: 16) }
-                                } header: {
-                                    if groups.count > 1 { folderHeader(folder, count: items.count, inset: 16, ground: Color(Palette.page)) }
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(chooseTree, id: \.path) { node in
+                                if isOpen(node.path.dropLast()) {
+                                    folderChoice(node)
+                                    if isOpen(node.path) {
+                                        ForEach(notesIn(node.path)) { note in row(note, inset: 16 + CGFloat(node.depth + 1) * Self.treeIndent) }
+                                    }
                                 }
                             }
                         }
@@ -624,6 +621,84 @@ struct AppleNotesImportView: View {
                 .accessibilityIdentifier("import.permissionLine")
             Spacer(minLength: 0)
         }
+    }
+
+    /// Choose notes' folders as a tree, from the notes shown (a search narrows it).
+    private var chooseTree: [TreeRow] {
+        Self.folderTree(groups.map { (folder, items) in
+            (path: items.first.map(listing.destination(of:)) ?? [folder], coming: 0, total: items.count)
+        })
+    }
+
+    /// The shown notes filed right in this folder.
+    private func notesIn(_ path: [String]) -> [AppleNote] {
+        groups.first { $0.1.first.map(listing.destination(of:)) == path }?.1 ?? []
+    }
+
+    /// The shown notes in this folder and every folder inside it.
+    private func notesUnder(_ path: [String]) -> [AppleNote] {
+        groups.filter { g in g.1.first.map { listing.destination(of: $0).starts(with: path) } ?? false }.flatMap(\.1)
+    }
+
+    /// Open: the top level always; a folder when it's been opened, and every folder while searching.
+    private func isOpen<P: Collection<String>>(_ path: P) -> Bool {
+        path.isEmpty || !query.isEmpty || expanded.contains(Array(path))
+    }
+
+    /// Whether a folder's notes are all, some or none of them picked.
+    enum FolderPick: Equatable { case all, some, none }
+    static func folderPick(picked: Int, pickable: Int) -> FolderPick {
+        pickable == 0 || picked == 0 ? .none : picked >= pickable ? .all : .some
+    }
+
+    /// A folder in Choose notes: its tick picks or clears every note in it and inside it; the rest of
+    /// the row opens or closes it.
+    private func folderChoice(_ node: TreeRow) -> some View {
+        let under = notesUnder(node.path).filter { !$0.locked }
+        let count = under.filter { picked.contains($0.id) }.count
+        let state = Self.folderPick(picked: count, pickable: under.count)
+        let open = isOpen(node.path)
+        return HStack(spacing: 12) {
+            Button {
+                let ids = under.map(\.id)
+                if state == .all { picked.subtract(ids) } else { picked.formUnion(ids) }
+            } label: {
+                Image(systemName: state == .all ? "checkmark.circle.fill" : state == .some ? "minus.circle.fill" : "circle")
+                    .font(.system(size: 17))
+                    .frame(width: 20, height: 20)
+                    .foregroundStyle(state == .none ? AnyShapeStyle(Color.muted.opacity(0.6)) : AnyShapeStyle(.tint))
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.quietIcon(padding: 3))
+            .disabled(under.isEmpty)
+            .accessibilityLabel(state == .all ? "Clear \(node.name)" : "Pick all of \(node.name)")
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "folder").font(.system(size: 13)).foregroundStyle(Color.muted)
+                    Text(node.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(Self.folderLine(coming: count, of: notesUnder(node.path).count, locale: locale))
+                        .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
+                        .rotationEffect(.degrees(open ? 90 : 0))
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(.rect)
+                .hoverHighlight(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!query.isEmpty)
+            .accessibilityLabel(node.name)
+            .accessibilityValue(open ? "Open" : "Closed")
+        }
+        .padding(.leading, 13 + CGFloat(node.depth) * Self.treeIndent)
+        .padding(.trailing, 16)
+        .frame(height: 40)
     }
 
     /// Five folders without scrolling; more scroll inside the card.
