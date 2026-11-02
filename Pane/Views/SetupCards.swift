@@ -429,9 +429,11 @@ struct SetupCardsFlow: View {
             .task(id: store.step) { await skipName() }
             .sheet(isPresented: $importingAppleNotes, onDismiss: importClosed) {
                 AppleNotesImportView(onImported: { ids in notesBrought(ids.count) })
+                    .environment(\.importDoneTitle, ImportGuideSheet.setupDoneTitle)
             }
             .sheet(item: $importing, onDismiss: { EvernoteInbox.clear(); importClosed() }) { kind in
                 ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
+                    .environment(\.importDoneTitle, ImportGuideSheet.setupDoneTitle)
             }
             .connectGuides(client: backend.client)
             .onAppear {
@@ -679,14 +681,13 @@ struct SetupCardsFlow: View {
         moveOnAfterImport = true
     }
 
-    /// The import's sheet closed: after one that brought notes, the count shows a moment, then on.
+    /// The import's sheet closed: after one that brought notes, straight on to the next card. Its
+    /// own last page already said how many came over; a pause here showed the "Bringing your notes"
+    /// card again for a moment (Emil, 2 November 2026).
     private func importClosed() {
         guard moveOnAfterImport else { return }
         moveOnAfterImport = false
-        Task {
-            try? await Task.sleep(for: .seconds(1.2))
-            if store.step == .bring { store.advance(connected: false) }
-        }
+        if store.step == .bring { store.advance(connected: false) }
     }
 
     private func startConnect() {

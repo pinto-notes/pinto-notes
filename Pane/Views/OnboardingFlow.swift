@@ -98,12 +98,14 @@ struct OnboardingFlow: View {
             #if os(macOS)
             .sheet(isPresented: $importingAppleNotes, onDismiss: importClosed) {
                 AppleNotesImportView(onImported: { ids in notesBrought(ids.count) })
+                    .environment(\.importDoneTitle, ImportGuideSheet.setupDoneTitle)
             }
             #else
             .sheet(isPresented: $appleNotesOnMac) { AppleNotesOnMacSheet() }
             #endif
             .sheet(item: $importing, onDismiss: { EvernoteInbox.clear(); importClosed() }) { kind in
                 ImportFlow(kind: kind) { ids in notesBrought(ids.count) }
+                    .environment(\.importDoneTitle, ImportGuideSheet.setupDoneTitle)
             }
             .connectGuides(client: backend.client)
             .blurDemoCue { cue in

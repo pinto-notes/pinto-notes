@@ -177,6 +177,7 @@ struct RootView: View {
                 .toolbar(removing: .sidebarToggle)
                 .background(SidebarPin())
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+                .modifier(BehindCardColumn(on: behindSetupCard))
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -187,6 +188,7 @@ struct RootView: View {
                 .environment(library)
                 #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
+                .modifier(BehindCardColumn(on: behindSetupCard))
                 #else
                 // Large text needs the room more here than in the note beside it.
                 .navigationSplitViewColumnWidth(min: typeSize.isAccessibilitySize ? 340 : 260, ideal: typeSize.isAccessibilitySize ? 380 : 310, max: 420)
@@ -200,6 +202,7 @@ struct RootView: View {
                 #if os(macOS)
                 // Room for the note's toolbar; a narrow window drops the sidebar instead, like Notes.
                 .navigationSplitViewColumnWidth(min: 520, ideal: 760)
+                .modifier(BehindCardColumn(on: behindSetupCard))
                 .overlay(alignment: .leading) { ColumnHairline() }
                 #endif
         }
@@ -984,6 +987,23 @@ struct SidebarPin: NSViewRepresentable {
             for sub in view.subviews { if let s = split(in: sub) { return s } }
             return nil
         }
+    }
+}
+#endif
+
+#if os(macOS)
+/// A column of the notes behind a setup card: dimmed, and it takes no clicks (Emil, 2 November 2026).
+/// Per column, not on the split view: `.allowsHitTesting(false)` there takes the sidebar's room for
+/// the toolbar, and a clear SwiftUI layer over the split view doesn't stop clicks reaching the
+/// columns' AppKit lists.
+struct BehindCardColumn: ViewModifier {
+    let on: Bool
+    static let dim = 0.4
+
+    func body(content: Content) -> some View {
+        content
+            .allowsHitTesting(!on)
+            .opacity(on ? Self.dim : 1)
     }
 }
 #endif

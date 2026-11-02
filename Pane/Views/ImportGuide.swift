@@ -294,6 +294,7 @@ struct ImportGuideSheet: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.importDoneTitle) private var importDoneTitle
 
     /// Which page this is, apart from its state (a hovered drop area or a count going up is the
     /// same page).
@@ -576,12 +577,15 @@ struct ImportGuideSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 400)
             Spacer(minLength: 0)
-            primary("Show My Notes")
+            primary(importDoneTitle)
             quiet(" ").hidden()
         }
         .padding(.horizontal, 40)
         .padding(.bottom, Self.compact ? 12 : 26)
     }
+
+    /// The last button of an import during setup: the flow goes on to the next card, not to the notes.
+    static let setupDoneTitle = "Continue"
 
     /// "36 notes from Google Keep are here", "1 note from Google Keep is here".
     static func successTitle(_ n: Int, from name: String) -> String {

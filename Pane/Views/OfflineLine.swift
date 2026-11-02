@@ -32,6 +32,9 @@ extension EnvironmentValues {
     @Entry var networkReach: SyncEngine.Reach = .online
     /// The app sits behind a setup card: its empty placeholders stay hidden so only the card speaks.
     @Entry var behindSetupCard = false
+    /// The last button of an import: Show My Notes in the app, Continue during setup, where the
+    /// flow goes on to the next card rather than to the notes (Emil, 2 November 2026).
+    @Entry var importDoneTitle = "Show My Notes"
 }
 
 /// A calm line while sync can't reach the server: in the Mac sidebar under the folders, and in a

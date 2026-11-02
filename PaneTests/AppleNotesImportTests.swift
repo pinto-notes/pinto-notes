@@ -706,5 +706,27 @@ import Testing
         #expect(source.contains("CardBackButton { leaveChoosing() }"), "Back beside the title")
         #expect(!source.contains(".hoverHighlight(Rectangle())"), "rows hover as rounded pills")
     }
+
+    /// Emil, 2 November 2026: during setup the import's last button said Show My Notes, closed, showed
+    /// the "Bringing in your notes" card again for a moment, then the AI card. It says Continue there
+    /// and goes straight on; and the notes behind the card take no clicks and are dimmed.
+    @Test func setupImportsEndInContinueOverDimmedNotes() throws {
+        let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
+        func read(_ name: String) throws -> String { try String(contentsOf: views.appending(path: name), encoding: .utf8) }
+        #expect(ImportGuideSheet.setupDoneTitle == "Continue")
+        #expect(EnvironmentValues().importDoneTitle == "Show My Notes", "outside setup it opens the notes")
+        for file in ["SetupCards.swift", "OnboardingFlow.swift"] {
+            let source = try read(file)
+            #expect(source.components(separatedBy: ".environment(\\.importDoneTitle, ImportGuideSheet.setupDoneTitle)").count - 1 == 2, "both import sheets in \(file) say Continue")
+        }
+        let setup = try read("SetupCards.swift")
+        let closed = setup.components(separatedBy: "private func importClosed()").last ?? ""
+        #expect(!String(closed.prefix(300)).contains("Task.sleep"), "no pause on the Bringing card after an import")
+        #expect(!(try read("AppleNotesImport.swift")).contains("Text(\"Show My Notes\")"))
+        #expect(!(try read("ImportGuide.swift")).contains("primary(\"Show My Notes\")"))
+        let root = try read("RootView.swift")
+        #expect(root.components(separatedBy: ".modifier(BehindCardColumn(on: behindSetupCard))").count - 1 == 3, "all three columns")
+        #expect(BehindCardColumn.dim < 0.6, "the notes behind a card look disabled")
+    }
 }
 #endif

@@ -207,6 +207,7 @@ struct AppleNotesImportView: View {
     var onSummary: (AppleNotesImportSummary) -> Void = { _ in }
     /// Called with the new notes' ids once the import is done.
     var onImported: ([UUID]) -> Void = { _ in }
+    @Environment(\.importDoneTitle) private var importDoneTitle
 
     @Environment(\.locale) private var locale
     @State private var listing = AppleNotesListing()
@@ -831,7 +832,7 @@ struct AppleNotesImportView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 400)
             Spacer(minLength: 0)
-            Button { dismiss() } label: { Text("Show My Notes").frame(maxWidth: .infinity) }
+            Button { dismiss() } label: { Text(importDoneTitle).frame(maxWidth: .infinity) }
                 .buttonStyle(.amberProminent(.regular, wide: true))
                 .keyboardShortcut(.defaultAction)
                 .frame(maxWidth: 320)
