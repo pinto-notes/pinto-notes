@@ -578,6 +578,9 @@ struct AppleNotesImportView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
+                        // Room above the first folder (Emil, 2 November 2026). A clear row, because
+                        // .contentMargins doesn't reach a List's table view on macOS.
+                        Self.treeEdge
                         ForEach(chooseTree, id: \.path) { node in
                             if isOpen(node.path.dropLast()) {
                                 folderTreeRow(node).modifier(TreeRowLook())
@@ -588,11 +591,10 @@ struct AppleNotesImportView: View {
                                 }
                             }
                         }
+                        Self.treeEdge
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    // Room above the first folder and below the last, inside the card (Emil, 2 November 2026).
-                    .contentMargins(.vertical, Self.treeInset, for: .scrollContent)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -632,7 +634,12 @@ struct AppleNotesImportView: View {
     }
 
     /// The room inside the tree's card above its first row and below its last.
-    static let treeInset: CGFloat = 16
+    static let treeInset: CGFloat = 12
+    /// The clear row above the first folder and below the last.
+    static var treeEdge: some View {
+        Color.clear.frame(height: treeInset).accessibilityHidden(true)
+            .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
+    }
 
     /// How far in each level of the tree sits.
     static let treeStep: CGFloat = 20

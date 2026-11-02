@@ -690,7 +690,10 @@ import Testing
         #expect(source.contains("@State private var expanded: Set<[String]> = []"), "folders start closed")
         #expect(AppleNotesImportView.checkbox(.all) == "checkmark.square.fill" && AppleNotesImportView.checkbox(.some) == "minus.square.fill"
                 && AppleNotesImportView.checkbox(.none) == "square", "the Mac's square checkboxes, a dash for some")
-        #expect(AppleNotesImportView.treeInset >= 14, "room above the first folder in the card")
+        #expect(AppleNotesImportView.treeInset >= 10, "room above the first folder in the card")
+        // .contentMargins does nothing on a macOS List, so the room is a clear row at both ends.
+        #expect(source.components(separatedBy: "Self.treeEdge").count - 1 == 2, "a clear row above the first folder and below the last")
+        #expect(!source.contains(".contentMargins(.vertical, Self.treeInset"), "contentMargins doesn't reach a List on macOS")
         let en = Locale(identifier: "en_US")
         #expect(AppleNotesImportView.treeCount(picked: 0, of: 9, locale: en) == "9 notes", "nothing picked yet isn't \"0 of 9\"")
         #expect(AppleNotesImportView.treeCount(picked: 3, of: 9, locale: en) == "3 of 9 notes")
