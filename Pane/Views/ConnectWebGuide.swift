@@ -94,7 +94,8 @@ struct ConnectWebGuide {
     /// Design study, 2 November 2026: the page behind Other on the Connect your AI card. The
     /// address up front (any MCP app needs it), real marks, no Claude row (Claude has its own).
     enum OtherLook: String, CaseIterable { case current, addressFirst, appsFirst, steps }
-    nonisolated(unsafe) static var otherLook: OtherLook = .current
+    /// Emil picked the steps (2 November 2026).
+    nonisolated(unsafe) static var otherLook: OtherLook = .steps
     static let otherAppTitle = "Connect another app"
     static let otherAppLine = "Any app that supports MCP can use Pinto Notes."
     static let pasteWhere = "Paste it where your app adds an MCP server or connector."

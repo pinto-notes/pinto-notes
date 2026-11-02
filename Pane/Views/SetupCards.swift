@@ -73,7 +73,7 @@ enum SetupCards {
     // MARK: Your AI
 
     enum AI: String, CaseIterable, Identifiable {
-        case chatgpt, claude, other
+        case chatgpt, claude, codex, other
         var id: String { rawValue }
 
         /// The name in sentences ("Finish in ChatGPT.") and on its tile.
@@ -81,6 +81,7 @@ enum SetupCards {
             switch self {
             case .chatgpt: "ChatGPT"
             case .claude: "Claude"
+            case .codex: "Codex"
             case .other: "your AI"
             }
         }
@@ -100,13 +101,17 @@ enum SetupCards {
             switch self {
             case .chatgpt: .chatgpt
             case .claude: .claude
+            case .codex: .codex
             case .other: .other
             }
         }
 
-        /// ChatGPT and Claude open from a link with the ask in them (`TryIt.page`). Another AI
-        /// gets the gallery too, and the ask to copy.
-        var asks: Bool { self != .other }
+        /// ChatGPT and Claude open from a link with the ask in them (`TryIt.page`). Codex and
+        /// another AI get the gallery too, and the ask to copy.
+        var asks: Bool { self == .chatgpt || self == .claude }
+
+        /// The old card's three tiles: Codex came with the brand buttons' row (2 November 2026).
+        static let tiles: [AI] = [.chatgpt, .claude, .other]
     }
 
     static let connectTitle = "Connect your AI."
@@ -115,12 +120,13 @@ enum SetupCards {
     /// known brands, let's leverage") and the Another AI tile. Each new look connects in one click,
     /// says what the AI can do under the title, and moves other apps to a quiet line.
     enum ConnectLook: String, CaseIterable { case current, brandTiles, bareMarks, brandButtons }
-    nonisolated(unsafe) static var connectLook: ConnectLook = .current
+    /// Emil picked the brand buttons with a row under them (2 November 2026).
+    nonisolated(unsafe) static var connectLook: ConnectLook = .brandButtons
     /// With the brand buttons: how the other AIs show (Emil, 2 November 2026: "a More option").
     /// `sheet` opens the Connect AI list from Settings, `expand` opens the list in the card,
     /// `chips` shows them as small buttons under the two.
     enum MoreLook: String, CaseIterable { case sheet, expand, chips, row }
-    nonisolated(unsafe) static var moreLook: MoreLook = .sheet
+    nonisolated(unsafe) static var moreLook: MoreLook = .row
     static let moreTitle = "More AIs"
 
     /// The other AIs, as named on their own sites. Never Mistral (Emil, 2 November 2026).
@@ -139,10 +145,9 @@ enum SetupCards {
     ]
     static let anotherApp = OtherAI(name: "Another app", line: "Copy the address into it")
     /// The row under the two (Emil, 2 November 2026): Claude Code comes with Claude, and Cursor and
-    /// VS Code are for coders, behind Other.
-    static let rowAIs: [OtherAI] = [
-        .init(name: "Gemini", line: ""), .init(name: "Grok", line: ""), .init(name: "Codex", line: ""), .init(name: "Other", line: ""),
-    ]
+    /// VS Code are for coders, behind Other. Grok and Gemini join once a real connection works
+    /// (Gemini also needs refresh tokens that don't rotate); never Mistral.
+    static let rowAIs: [OtherAI] = [.init(name: "Codex", line: ""), .init(name: "Other", line: "")]
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
 
@@ -442,6 +447,7 @@ struct SetupCardsFlow: View {
     @State private var prompting: (pick: SetupCards.Pick, landing: Onboarding.Landing)?
     @State private var copied = false
     @State private var allAIs = false
+    @State private var otherPage = false
     @State private var showingMore = false
     @State private var run = ConnectRun()
     @Environment(\.openURL) private var openURL
@@ -649,6 +655,20 @@ struct SetupCardsFlow: View {
         .sheet(isPresented: $allAIs) {
             if let client = backend.client { ConnectAISheet(client: client) }
         }
+        .sheet(isPresented: $otherPage) {
+            if let client = backend.client { ConnectWebGuideSheet(ai: .other, client: client) }
+        }
+    }
+
+    /// A pick in the row: Codex is added on this Mac; Other waits for any app while its page
+    /// (the address and the steps) is open over the card.
+    private func rowPicked(_ name: String) {
+        switch name {
+        case "Codex": connect(.codex)
+        default:
+            connect(.other)
+            otherPage = true
+        }
     }
 
     private var notNowLink: some View {
@@ -715,16 +735,19 @@ struct SetupCardsFlow: View {
             VStack(spacing: 14) {
                 HStack(spacing: 8) {
                     ForEach(SetupCards.rowAIs) { other in
-                        Button { connect(.other) } label: {
+                        Button { rowPicked(other.name) } label: {
                             HStack(spacing: 7) {
                                 AIGlyph(ai: other.name, size: 15)
                                 Text(other.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
                             }
-                            .frame(maxWidth: .infinity, minHeight: 34)
+                            .padding(.horizontal, 16)
+                            .frame(minWidth: 96, minHeight: 34)
                             .background(SetupCards.soft, in: Capsule())
                             .contentShape(Capsule())
                         }
                         .buttonStyle(.tile(radius: 17))
+                        .accessibilityLabel(other.name == "Other" ? "Other apps" : "Connect \(other.name)")
+                        .accessibilityIdentifier("setup.ai.\(other.name.lowercased())")
                     }
                 }
                 notNowLink
@@ -762,7 +785,7 @@ struct SetupCardsFlow: View {
         VStack(spacing: 16) {
             title(SetupCards.connectTitle)
             LazyVGrid(columns: three, spacing: 8) {
-                ForEach(SetupCards.AI.allCases) { choice in
+                ForEach(SetupCards.AI.tiles) { choice in
                     SetupTile(title: choice.tile, on: shownAI == choice, id: "setup.ai.\(choice.rawValue)", action: { ai = choice }) {
                         AITile(ai: choice.mark, size: 30)
                     }

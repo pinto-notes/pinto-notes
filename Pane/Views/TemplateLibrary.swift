@@ -68,7 +68,7 @@ struct TemplateCatalog {
 enum TemplateLibraryWords {
     static let title = "Templates"
     static let line = "Notes your AI fills in and keeps up to date."
-    static func make(_ ai: SetupCards.AI) -> String { ai == .other ? "Add the note" : "Make with \(ai.name)" }
+    static func make(_ ai: SetupCards.AI) -> String { ai.asks ? "Make with \(ai.name)" : "Add the note" }
     static let another = "Make with another AI"
     static let copy = "Copy prompt"
     static let copied = "Copied"

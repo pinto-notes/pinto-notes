@@ -35,14 +35,14 @@ import Testing
         let full = try AppSnapshotTests.container()
         let backend = Backend()
         let store = OnboardingStore(defaults: TestDefaults())
-        defer { SetupCards.connectLook = .current }
+        defer { SetupCards.connectLook = .brandButtons }
         for look in SetupCards.ConnectLook.allCases {
             SetupCards.connectLook = look
             try await shot(SetupCardsFlow(store: store, backend: backend, preview: .init(card: .connect), finish: { _ in }), "4-connect-\(look.rawValue)", library: full, dark: dark)
         }
         // With the brand buttons, the three ways to the other AIs.
         SetupCards.connectLook = .brandButtons
-        defer { SetupCards.moreLook = .sheet }
+        defer { SetupCards.moreLook = .row }
         for more in SetupCards.MoreLook.allCases {
             SetupCards.moreLook = more
             try await shot(SetupCardsFlow(store: store, backend: backend, preview: .init(card: .connect, more: more == .expand), finish: { _ in }), "4-more-\(more.rawValue)", library: full, dark: dark)

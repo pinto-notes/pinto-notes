@@ -30,7 +30,7 @@ import Testing
     /// Emil 10-30: ChatGPT, Claude or another AI side by side; what follows names the pick, and
     /// the card keeps App Review's line about what the AI can do.
     @Test func connectNamesThePickedAI() {
-        #expect(SetupCards.AI.allCases.map(\.tile) == ["ChatGPT", "Claude", "Another AI"])
+        #expect(SetupCards.AI.tiles.map(\.tile) == ["ChatGPT", "Claude", "Another AI"])
         #expect(SetupCards.AI.claude.button == "Connect Claude")
         #expect(SetupCards.finishTitle(.claude) == "Finish in Claude.")
         #expect(SetupCards.connectedTitle(.other) == "Your AI is connected.")
@@ -207,5 +207,24 @@ import Testing
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)
     }
+
+    /// Emil, 2 November 2026: Connect your AI is two brand buttons, one click each, with a row
+    /// under them; Other opens the address and its steps. Claude Code comes with Claude, Cursor and
+    /// VS Code sit behind Other, Grok and Gemini wait for a real connection, never Mistral.
+    @Test func connectIsTwoBrandButtonsAndARow() throws {
+        #expect(SetupCards.connectLook == .brandButtons)
+        #expect(SetupCards.moreLook == .row)
+        #expect(ConnectWebGuide.otherLook == .steps)
+        let row = SetupCards.rowAIs.map(\.name)
+        #expect(row == ["Codex", "Other"])
+        for never in ["Claude Code", "Cursor", "VS Code", "Mistral", "Le Chat"] { #expect(!row.contains(never)) }
+        #expect(SetupCards.AI.codex.guide == .codex && !SetupCards.AI.codex.asks, "Codex is added on this Mac; its ask is copied")
+        #expect(SetupCards.connectReads.contains("read and edit") && SetupCards.connectReads.contains("Disconnect anytime"), "App Review: what it can do, before any AI")
+        #expect(AIGlyph.asset("Codex") != nil && AIGlyph.asset("Grok") != nil && AIGlyph.asset("Gemini") != nil)
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/SetupCards.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        #expect(source.contains("ConnectWebGuideSheet(ai: .other, client: client)"), "Other opens its page over the card")
+    }
+
 }
 #endif

@@ -45,7 +45,7 @@ import UIKit
     /// The Other page study (Emil, 2 November 2026).
     @Test func otherLooks() async throws {
         guard let dir = Self.dir else { return }
-        defer { ConnectWebGuide.otherLook = .current }
+        defer { ConnectWebGuide.otherLook = .steps }
         let apps = ConnectWebGuide.App.allCases
         for look in ConnectWebGuide.OtherLook.allCases {
             ConnectWebGuide.otherLook = look
