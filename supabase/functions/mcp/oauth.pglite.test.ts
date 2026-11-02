@@ -432,6 +432,13 @@ Deno.test("a client calling itself Claude without Claude's callback is shown by 
   const real = await ask(sql, pg, "Claude", ["https://claude.ai/api/mcp/auth_callback"]);
   assertEquals(real.details.client_name, "Claude");
   assertEquals(real.details.verified_ai, "Claude");
+  // Grok, returning to its own connectors callback, is named and marked as Grok.
+  const grok = await ask(sql, pg, "Pinto Notes", ["https://grok.com/connectors-oauth-exchange-code/"]);
+  assertEquals(grok.details.verified_ai, "Grok");
+  // Calling yourself Grok elsewhere gets you nothing.
+  const fakeGrok = await ask(sql, pg, "Grok", ["https://evil.example/cb"]);
+  assertEquals(fakeGrok.details.verified_ai, null);
+  assertEquals(fakeGrok.details.client_name, "evil.example");
   // A trusted name hidden with direction characters is caught too.
   const hidden = await ask(sql, pg, "Chat\u200BGPT\u202E", ["https://evil.example/cb"]);
   assertEquals(hidden.details.client_name, "evil.example");
@@ -510,12 +517,12 @@ Deno.test("F1: DCR refuses a known AI's name for a client whose redirect isn't t
 Deno.test("a return address may not borrow ChatGPT's, Claude's or Pinto Notes' name on another domain", async () => {
   for (const u of ["https://claude.ai.attacker.example/cb", "https://chatgpt.com.attacker.example/connector/oauth/a", "https://c1aude-ai.example/cb",
     "https://login-0penai.example/cb", "https://anthropic.example.net/cb", "https://pinto-notes.example/cb", "https://ambernotes.app.example/cb",
-    "https://xclaude.ai/cb"]) {
+    "https://xclaude.ai/cb", "https://grok.com.attacker.example/cb", "https://gr0k-login.example/cb"]) {
     assert(hostClaimsATrustedName(u), u);
   }
   // Their own domains, loopback, and names that only share a few letters stay as they were.
   for (const u of [...Object.keys(KNOWN_CALLBACKS), "https://chatgpt.com/connector/oauth/abc_123", "https://chat.openai.com/aip/x/oauth/callback",
-    "https://console.anthropic.com/cb", "https://CLAUDE.AI./cb", "https://pintonotes.com/cb", "http://localhost:53682/callback", "http://127.0.0.1/cb",
+    "https://console.anthropic.com/cb", "https://CLAUDE.AI./cb", "https://accounts.x.ai/cb", "https://pintonotes.com/cb", "http://localhost:53682/callback", "http://127.0.0.1/cb",
     "https://example.com/claude/cb", "https://example.com/cb?from=chatgpt", "https://cursor.example/cb", "https://amber.example/cb", "https://pinto.example/cb"]) {
     assert(!hostClaimsATrustedName(u), u);
   }
