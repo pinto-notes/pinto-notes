@@ -1241,7 +1241,9 @@ struct AppGate: View {
             .disabled(true)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            .overlay { card() }
+            // At its own height, centred: a card whose content can stretch (the encryption
+            // step's) grew to the window's full height (Emil, 2 November 2026).
+            .overlay { card().fixedSize(horizontal: false, vertical: true) }
         .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
         .transition(.opacity)
     }

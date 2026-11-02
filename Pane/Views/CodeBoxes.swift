@@ -73,6 +73,9 @@ struct CodeBoxes: View {
     static let boxHeight: CGFloat = 56
     #endif
 
+    /// The caret shows in the active box until a digit fills it.
+    static func showsCaret(active: Bool, digit: Character?) -> Bool { active && digit == nil }
+
     /// One box: the field's white with a warm hairline, the amber ring on the next one to fill.
     private func box(_ i: Int, _ digit: Character?, active: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: SignInView.Row.radius, style: .continuous)
@@ -83,6 +86,19 @@ struct CodeBoxes: View {
             .frame(height: Self.boxHeight)
             .background(Color(Palette.field), in: shape)
             .overlay(shape.strokeBorder(active ? ring : Color(Palette.fieldHairline), lineWidth: active ? 2 : 1))
+            // A blinking caret in the box the next digit goes to, as in a text field, so it's
+            // clear you can type or paste (Emil, 2 November 2026).
+            .overlay {
+                if Self.showsCaret(active: active, digit: digit) {
+                    TimelineView(.periodic(from: .now, by: 0.53)) { context in
+                        Capsule()
+                            .fill(ring)
+                            .frame(width: 2, height: Self.boxHeight * 0.5)
+                            .opacity(Int(context.date.timeIntervalSinceReferenceDate / 0.53) % 2 == 0 ? 1 : 0)
+                    }
+                    .accessibilityHidden(true)
+                }
+            }
             .animation(.easeOut(duration: 0.12), value: active)
             .animation(.snappy(duration: 0.15), value: digit)
     }

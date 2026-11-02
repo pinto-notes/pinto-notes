@@ -317,4 +317,11 @@ import Testing
         #expect(!SignInView.isCard(.card))
         #expect(!SignInView.isCard(.beside(title: "Welcome", line: "")))
     }
+
+    /// The box the next digit goes in shows a caret; filled or inactive boxes don't.
+    @Test func theNextCodeBoxShowsACaret() {
+        #expect(CodeBoxes.showsCaret(active: true, digit: nil))
+        #expect(!CodeBoxes.showsCaret(active: true, digit: "4"))
+        #expect(!CodeBoxes.showsCaret(active: false, digit: nil))
+    }
 }

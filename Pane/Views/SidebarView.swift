@@ -693,9 +693,19 @@ struct SidebarView: View {
         }
     }
 
+    /// On the Mac the rows above the account (Templates, Connect an AI, Import) do what the cards
+    /// did, so the cards are gone there (Emil, 2 November 2026). iPhone has no rows: it keeps them.
+    static var showsCards: Bool {
+        #if os(macOS)
+        false
+        #else
+        true
+        #endif
+    }
+
     /// The one card above the account: Connect your AI, then Templates (`SidebarCard.pick`).
     private var sidebarCard: SidebarCard? {
-        guard let backend, case .signedIn = backend.state, let account = backend.userID else { return nil }
+        guard Self.showsCards, let backend, case .signedIn = backend.state, let account = backend.userID else { return nil }
         return SidebarCard.here(SidebarCard.pick(account: account, progress: setup?.progress,
                                 connectClosedHere: cardsClosedHere.contains(.connect) || SidebarCard.isClosedHere(.connect, account),
                                 templatesClosedHere: cardsClosedHere.contains(.templates) || SidebarCard.isClosedHere(.templates, account),

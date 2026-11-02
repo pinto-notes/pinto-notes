@@ -117,6 +117,11 @@ import Testing
         #expect(LinkLabel.View().acceptsFirstMouse(for: nil), "a link opens on the first click, the window behind or not")
     }
     #endif
+
+    /// The Mac sidebar's rows replace its cards (Connect your AI, Templates).
+    @Test func theMacSidebarHasRowsNotCards() {
+        #expect(!SidebarView.showsCards)
+    }
 }
 
 #endif

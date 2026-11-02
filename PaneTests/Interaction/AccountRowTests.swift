@@ -15,11 +15,13 @@ import Testing
         let window: NSWindow
         let container: ModelContainer
 
-        init(nested: Bool = false) async throws {
+        init(nested: Bool = false, foldersLater: Bool = false) async throws {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             let ctx = container.mainContext
-            let notes = ctx.createFolder(named: "Notes")
-            for i in 0..<4 { _ = ctx.createNote(in: .folder(notes.id), body: "Note \(i)\n\ntext") }
+            if !foldersLater {
+                let notes = ctx.createFolder(named: "Notes")
+                for i in 0..<4 { _ = ctx.createNote(in: .folder(notes.id), body: "Note \(i)\n\ntext") }
+            }
             if nested {
                 let work = ctx.createFolder(named: "Work")
                 ctx.move(ctx.createFolder(named: "Acme"), into: work)
@@ -101,6 +103,28 @@ import Testing
         #expect(account.leading == pill.leading && account.trailing == pill.trailing, "the account's highlight \(account) against the folder's pill \(pill)")
         #expect(account.leading + AccountButton.inset == row.minX - sidebar.minX, "the photo starts where the folder icon does")
         #expect(abs(account.leading - account.trailing) <= 5, "about as far in on the left as on the right")
+    }
+
+    /// A first sync brings the first folder into an empty sidebar: the rows still start below the
+    /// window's buttons, not up under them (Emil, 2 November 2026, a new account's "Notes").
+    @Test(arguments: [false, true])
+    func theFirstRowIsBelowTheWindowsButtons(foldersLater: Bool) async throws {
+        let host = try await Host(foldersLater: foldersLater)
+        defer { host.close() }
+        if foldersLater {
+            let notes = host.container.mainContext.createFolder(named: "Notes")
+            _ = host.container.mainContext.createNote(in: .folder(notes.id), body: "Hello\n\ntext")
+            try host.container.mainContext.save()
+            await host.settle()
+        }
+        let (_, row) = try host.sidebarAndNotesRow()
+        let buttons = try #require(host.window.standardWindowButton(.closeButton))
+        let below = buttons.convert(buttons.bounds, to: host.window.contentView!)
+        // In flipped terms: the row's top is under the buttons' bottom.
+        let contentHeight = host.window.contentView!.bounds.height
+        let rowTop = host.window.contentView!.isFlipped ? row.minY : contentHeight - row.maxY
+        let buttonsBottom = host.window.contentView!.isFlipped ? below.maxY : contentHeight - below.minY
+        #expect(rowTop >= buttonsBottom, "the first row starts at \(rowTop), the window's buttons end at \(buttonsBottom)")
     }
 
     @Test func clickingOpensSettingsAtItsFirstPage() {
