@@ -119,7 +119,7 @@ enum SetupCards {
     /// With the brand buttons: how the other AIs show (Emil, 2 November 2026: "a More option").
     /// `sheet` opens the Connect AI list from Settings, `expand` opens the list in the card,
     /// `chips` shows them as small buttons under the two.
-    enum MoreLook: String, CaseIterable { case sheet, expand, chips }
+    enum MoreLook: String, CaseIterable { case sheet, expand, chips, row }
     nonisolated(unsafe) static var moreLook: MoreLook = .sheet
     static let moreTitle = "More AIs"
 
@@ -138,6 +138,11 @@ enum SetupCards {
         .init(name: "VS Code", line: "With GitHub Copilot"),
     ]
     static let anotherApp = OtherAI(name: "Another app", line: "Copy the address into it")
+    /// The row under the two (Emil, 2 November 2026): Claude Code comes with Claude, and Cursor and
+    /// VS Code are for coders, behind Other.
+    static let rowAIs: [OtherAI] = [
+        .init(name: "Gemini", line: ""), .init(name: "Grok", line: ""), .init(name: "Codex", line: ""), .init(name: "Other", line: ""),
+    ]
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
 
@@ -705,6 +710,26 @@ struct SetupCardsFlow: View {
                 }
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color.muted)
+            }
+        case .row:
+            VStack(spacing: 14) {
+                HStack(spacing: 8) {
+                    ForEach(SetupCards.rowAIs) { other in
+                        Button { connect(.other) } label: {
+                            HStack(spacing: 7) {
+                                AIGlyph(ai: other.name, size: 15)
+                                Text(other.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 34)
+                            .background(SetupCards.soft, in: Capsule())
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.tile(radius: 17))
+                    }
+                }
+                notNowLink
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.muted)
             }
         case .chips:
             VStack(spacing: 12) {
