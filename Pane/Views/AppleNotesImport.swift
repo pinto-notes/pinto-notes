@@ -632,7 +632,7 @@ struct AppleNotesImportView: View {
     }
 
     /// The room inside the tree's card above its first row and below its last.
-    static let treeInset: CGFloat = 10
+    static let treeInset: CGFloat = 16
 
     /// How far in each level of the tree sits.
     static let treeStep: CGFloat = 20
@@ -656,39 +656,35 @@ struct AppleNotesImportView: View {
                 if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) }
             }
         }
+        // One hover for the whole row, as a note row has: a click anywhere opens the folder, the
+        // checkbox alone picks it (Emil, 2 November 2026: the arrow, the box and the name each lit
+        // up on their own, which felt weird).
         return HStack(spacing: 8) {
-            Button(action: toggleOpen) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
-                    .rotationEffect(.degrees(open ? 90 : 0))
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(.quietIcon(padding: 2))
-            .disabled(!query.isEmpty)
-            .accessibilityLabel(open ? "Close \(node.name)" : "Open \(node.name)")
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
+                .rotationEffect(.degrees(open ? 90 : 0))
+                .frame(width: 16, height: 16)
             Button {
                 let ids = under.map(\.id)
                 if state == .all { picked.subtract(ids) } else { picked.formUnion(ids) }
-            } label: { checkboxImage(state) }
-            .buttonStyle(.quietIcon(padding: 2))
+            } label: { checkboxImage(state).contentShape(.rect) }
+            .buttonStyle(.plain)
             .disabled(under.isEmpty)
             .accessibilityLabel(node.name)
             .accessibilityValue(state == .all ? "Included" : state == .some ? "Partly included" : "Not included")
-            Button(action: toggleOpen) {
-                HStack(spacing: 7) {
-                    Image(systemName: "folder").font(.system(size: 13)).foregroundStyle(Color.muted)
-                    Text(node.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.ink).lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(Self.folderLine(coming: count, of: notesUnder(node.path).count, locale: locale))
-                        .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
-                }
-                .frame(maxWidth: .infinity, minHeight: 32)
-                .contentShape(.rect)
-                .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(!query.isEmpty)
+            Image(systemName: "folder").font(.system(size: 13)).foregroundStyle(Color.muted)
+            Text(node.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.ink).lineLimit(1)
+            Spacer(minLength: 8)
+            Text(Self.treeCount(picked: count, of: notesUnder(node.path).count, locale: locale))
+                .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
         }
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, minHeight: 32)
+        .contentShape(.rect)
+        .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onTapGesture { if query.isEmpty { toggleOpen() } }
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: open ? "Close \(node.name)" : "Open \(node.name)") { toggleOpen() }
         .padding(.leading, CGFloat(node.depth) * Self.treeStep)
     }
 
@@ -958,6 +954,12 @@ struct AppleNotesImportView: View {
                 .padding(.bottom, 8)
             }
         }
+    }
+
+    /// A folder's count in Choose notes: "9 notes" with none or all of them picked (the checkbox
+    /// says which), "3 of 9 notes" for some. "0 of 9" on every folder read like an error.
+    static func treeCount(picked: Int, of total: Int, locale: Locale) -> String {
+        picked == 0 || picked == total ? folderLine(coming: total, of: total, locale: locale) : folderLine(coming: picked, of: total, locale: locale)
     }
 
     /// "18 notes", "2 of 9 notes" (the rest are here already or locked).
