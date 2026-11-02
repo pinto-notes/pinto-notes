@@ -491,6 +491,46 @@ struct CardPress: ButtonStyle {
     }
 }
 
+/// A tile or card that draws its own ground (an import source, a theme, a mode): under the pointer
+/// a light wash over it, pressed a deeper one and a touch smaller. Every clickable thing shows it's
+/// clickable under the pointer (Emil, 2 November 2026: "ALL clickable things need hover states").
+///
+///     Button { … } label: { tile }.buttonStyle(.tile(radius: 12))
+struct TileButtonStyle: ButtonStyle {
+    var radius: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+        TileButton(configuration: configuration, radius: radius)
+    }
+
+    /// The wash over the tile: none at rest, a light one under the pointer, a deeper one pressed.
+    static func wash(hovering: Bool, pressed: Bool) -> Double { pressed ? 0.12 : hovering ? 0.06 : 0 }
+}
+
+extension ButtonStyle where Self == TileButtonStyle {
+    static func tile(radius: CGFloat) -> TileButtonStyle { .init(radius: radius) }
+}
+
+private struct TileButton: View {
+    let configuration: ButtonStyleConfiguration
+    let radius: CGFloat
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.hoverPreview) private var preview
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let on = isEnabled && (hovering || preview.contains("*"))
+        configuration.label
+            .overlay(shape.fill(Color.primary.opacity(TileButtonStyle.wash(hovering: on, pressed: configuration.isPressed))).allowsHitTesting(false))
+            .opacity(isEnabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .modifier(HoverTracking(hovering: $hovering))
+    }
+}
+
 extension View {
     /// A bar of our own icon buttons (the image viewer's): borderless in today's look; in C and D
     /// (DesignLook.calmList) quiet icons, a soft fill under the pointer. Native toolbars stay native.

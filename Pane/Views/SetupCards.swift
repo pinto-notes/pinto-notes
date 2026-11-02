@@ -238,7 +238,7 @@ private struct SetupTile<Mark: View>: View {
             .overlay(shape.strokeBorder(Color.primary, lineWidth: on ? 2 : 0))
             .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tile(radius: 12))
         .accessibilityLabel(title)
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier(id)

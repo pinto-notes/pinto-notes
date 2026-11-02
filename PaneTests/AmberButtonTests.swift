@@ -171,6 +171,18 @@ import Testing
     /// Three kinds of button, everywhere, nothing else (DESIGN.md, Buttons): every ButtonStyle is
     /// in DesignSystem.swift, no view reaches for the system's bordered or glass prominent styles,
     /// and no call site gives a button its own height or corners.
+    /// A tile shows it can be clicked: a wash under the pointer, a deeper one pressed, none at rest
+    /// (Emil, 2 November 2026, the setup card's import tiles had no hover).
+    @Test func aTileWashesUnderThePointer() throws {
+        #expect(TileButtonStyle.wash(hovering: false, pressed: false) == 0)
+        #expect(TileButtonStyle.wash(hovering: true, pressed: false) > 0)
+        #expect(TileButtonStyle.wash(hovering: true, pressed: true) > TileButtonStyle.wash(hovering: true, pressed: false))
+        let setup = try #require(try Self.appSources().first { $0.name == "Views/SetupCards.swift" }).text
+        let tile = try #require(setup.range(of: "private struct SetupTile"))
+        let body = setup[tile.lowerBound...].prefix(1500)
+        #expect(body.contains(".buttonStyle(.tile(") && !body.contains(".buttonStyle(.plain)"), "the import tiles use the tile style")
+    }
+
     @Test func everyButtonStyleLivesInTheDesignSystem() throws {
         let sources = try Self.appSources()
         #expect(sources.count > 100)
