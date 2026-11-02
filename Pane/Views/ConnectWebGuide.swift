@@ -90,6 +90,14 @@ struct ConnectWebGuide {
     // MARK: Another AI
 
     static let otherTitle = "Connect another AI"
+
+    /// Design study, 2 November 2026: the page behind Other on the Connect your AI card. The
+    /// address up front (any MCP app needs it), real marks, no Claude row (Claude has its own).
+    enum OtherLook: String, CaseIterable { case current, addressFirst, appsFirst, steps }
+    nonisolated(unsafe) static var otherLook: OtherLook = .current
+    static let otherAppTitle = "Connect another app"
+    static let otherAppLine = "Any app that supports MCP can use Pinto Notes."
+    static let pasteWhere = "Paste it where your app adds an MCP server or connector."
     static let otherLine = "Choose your app. It opens with Pinto Notes filled in."
     static let copyTheAddress = "Something else? Copy the address"
     static let pasteIt = "Paste it where your app adds a connector."
@@ -571,8 +579,148 @@ struct ConnectWebGuideSheet: View {
         .padding(.bottom, Self.compact ? 12 : 26)
     }
 
+    @ViewBuilder private var other: some View {
+        if ConnectWebGuide.otherLook == .current { otherNow } else { otherStudy }
+    }
+
+    private var oneClickApps: [App] { run.apps.filter { $0 != .claude } }
+
+    private var otherStudy: some View {
+        let look = ConnectWebGuide.otherLook
+        return VStack(spacing: 0) {
+            Text(ConnectWebGuide.otherAppTitle)
+                .font(.display(26))
+                .tracking(Palette.tracking(26))
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, 34)
+                .padding(.bottom, 8)
+            Text(ConnectWebGuide.otherAppLine)
+                .font(.system(size: 15))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 26)
+            switch look {
+            case .appsFirst:
+                VStack(spacing: 8) { ForEach(oneClickApps) { markRow($0) } }
+                sectionLabel("Any other app").padding(.top, 22)
+                addressCard
+            case .steps:
+                VStack(alignment: .leading, spacing: 18) {
+                    step(1, "Copy the address.") { addressCard }
+                    step(2, "Paste it in your app, where it adds an MCP server or connector.") { EmptyView() }
+                    step(3, "Choose Allow when Pinto Notes asks.") { EmptyView() }
+                }
+            default:
+                addressCard
+                Text(ConnectWebGuide.pasteWhere)
+                    .font(.system(size: 13)).foregroundStyle(Color.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                sectionLabel("Or add it in one click").padding(.top, 26)
+                VStack(spacing: 8) { ForEach(oneClickApps) { markRow($0) } }
+            }
+            Spacer(minLength: 8)
+            if look == .steps, !oneClickApps.isEmpty {
+                HStack(spacing: 8) {
+                    Text("Using a code editor?").font(.system(size: 13)).foregroundStyle(Color.muted)
+                    ForEach(oneClickApps) { app in
+                        Button { run.pick(app) } label: {
+                            HStack(spacing: 6) {
+                                AIGlyph(ai: app.title, size: 14)
+                                Text(app.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink)
+                            }
+                            .padding(.horizontal, 12).frame(height: 30)
+                            .background(SetupCards.soft, in: Capsule())
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.tile(radius: 15))
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+            if run.waits { waitingRow(ConnectWebGuide.waiting(.other)) }
+            quiet(ConnectCopy.trouble).opacity(run.copied || run.picked != nil ? 1 : 0)
+        }
+        .padding(.horizontal, 40)
+        .padding(.bottom, 20)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 8)
+    }
+
+    private func step(_ n: Int, _ text: String, @ViewBuilder _ extra: () -> some View) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(n)")
+                .font(.system(size: 12, weight: .bold)).monospacedDigit()
+                .foregroundStyle(Color.ink)
+                .frame(width: 22, height: 22)
+                .background(SetupCards.soft, in: Circle())
+            VStack(alignment: .leading, spacing: 10) {
+                Text(text).font(.system(size: 14, weight: .medium)).foregroundStyle(Color.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                extra()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The address with its own Copy button: the way in for every MCP app.
+    private var addressCard: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return HStack(spacing: 10) {
+            Text(run.server)
+                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color.ink)
+                .textSelection(.enabled)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 8)
+            Button { run.copyAddress() } label: {
+                Label(run.copied ? "Copied" : "Copy", systemImage: run.copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .buttonStyle(.amberProminent(.compact))
+            .accessibilityIdentifier("connect.copy")
+        }
+        .padding(.leading, 16).padding(.trailing, 8)
+        .frame(height: 50)
+        .background(SetupCards.soft, in: shape)
+        .accessibilityIdentifier("connect.address")
+    }
+
+    /// A one-click app with its own mark, no white square.
+    private func markRow(_ app: App) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let lit = run.picked == app
+        return Button { run.pick(app) } label: {
+            HStack(spacing: 12) {
+                AIGlyph(ai: app.title, size: 22).frame(width: 26)
+                Text(app.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
+                Text(lit ? "Waiting\u{2026} Choose Allow when Pinto Notes asks." : "Opens \(app.title) with Pinto Notes filled in")
+                    .font(.system(size: 12)).foregroundStyle(Color.muted).lineLimit(1)
+                Spacer(minLength: 8)
+                Group {
+                    if lit { ProgressView().controlSize(.small) }
+                    else { Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(.tertiary) }
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(SetupCards.soft, in: shape)
+            .contentShape(shape)
+        }
+        .buttonStyle(.tile(radius: 12))
+        .accessibilityIdentifier("connect.app.\(app.rawValue)")
+    }
+
     /// Another AI: the apps that add it in one press, and the address for anything else.
-    private var other: some View {
+    private var otherNow: some View {
         VStack(spacing: 0) {
             // A short window gives up the marks, never the words.
             if shortBy < 40 { marks(Self.compact ? 64 : 60).padding(.top, Self.compact ? 18 : 10).padding(.bottom, 18) }

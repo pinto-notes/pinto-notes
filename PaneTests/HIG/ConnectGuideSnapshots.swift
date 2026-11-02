@@ -42,6 +42,24 @@ import UIKit
     }
 
     #if os(macOS)
+    /// The Other page study (Emil, 2 November 2026).
+    @Test func otherLooks() async throws {
+        guard let dir = Self.dir else { return }
+        defer { ConnectWebGuide.otherLook = .current }
+        let apps = ConnectWebGuide.App.allCases
+        for look in ConnectWebGuide.OtherLook.allCases {
+            ConnectWebGuide.otherLook = look
+            for dark in [false, true] {
+                for (state, copied) in [("0", false), ("1-copied", true)] {
+                    let run = ConnectGuideRun(ai: .other, guide: nil, apps: apps, server: Self.server, stage: .step(0), opened: [], copied: copied, picked: nil)
+                    try await VersionHistorySnapshots.shoot(ConnectWebGuideSheet(run: run, height: 560),
+                                                            to: dir.appending(path: "other-\(look.rawValue)-\(state)-\(dark ? "dark" : "light").png"),
+                                                            size: CGSize(width: 540, height: 560), dark: dark)
+                }
+            }
+        }
+    }
+
     @Test func mac() async throws {
         guard let dir = Self.dir else { return }
         for dark in [false, true] {
