@@ -678,9 +678,14 @@ struct EmptyDetailView: View {
 /// The import actions, for the folders and the note list. They come through the environment, not
 /// the scene's focused values: those change whenever a view that publishes one updates (the open
 /// note does on every save while you type), and each change rebuilt the folders and the list again.
-struct ImportActions {
+/// Equal whatever its closures: they only set the window's own state, so one made on an earlier
+/// pass does what a new one would. As closures they counted as changed on every pass of RootView,
+/// and every view that reads them (the sidebar and the note list) was worked out again on each
+/// note open, seven times per open (NoteOpenProfile, 2026-11-02).
+struct ImportActions: Equatable {
     var appleNotes: () -> Void
     var from: (ImportKind) -> Void
+    static func == (a: ImportActions, b: ImportActions) -> Bool { true }
 }
 
 extension EnvironmentValues {

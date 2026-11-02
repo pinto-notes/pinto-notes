@@ -1645,6 +1645,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("NoteListItem")
+        #endif
         if let note = entry.note(in: context) {
             // Its own equatable view: when one note changes, the others' rows (and their
             // drag and swipe setup) are left alone instead of rebuilt.

@@ -148,6 +148,47 @@ import Testing
         #expect(RenderProbe.counts["NoteListView.foldersByName"] == nil, "no menu was asked for, so no folders were fetched")
     }
 
+    /// A click on a note row works out the sidebar not at all and the list once. The window handed
+    /// its columns fresh closures (ImportActions, TodaysNoteAction) on every pass, which counted as
+    /// a change: each open worked out the sidebar, the list and the note seven times over, and a
+    /// note took 98 ms to open here (Debug) against 40 ms without (NoteOpenProfile, 2026-11-02).
+    @Test(.timeLimit(.minutes(2))) func aClickOnANoteWorksOutNeitherTheSidebarNorTheListAgain() async throws {
+        // The whole window with a title bar and toolbar, never put on screen (NoteOpenTests).
+        let (w, c, _) = try NoteOpenTests.window(notes: 30)
+        _ = c
+        defer { w.close() }
+        func settle() async {
+            for _ in 0..<4 {
+                w.contentView?.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+        }
+        await settle()
+        // The note list's table, as a click selects in it: the rightmost table (not the sidebar).
+        var tables: [NSTableView] = []
+        func walk(_ v: NSView) { if let t = v as? NSTableView { tables.append(t) }; v.subviews.forEach(walk) }
+        walk(try #require(w.contentView))
+        let table = try #require(tables.max { $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX })
+        let rows = (0..<table.numberOfRows).filter { table.rect(ofRow: $0).height >= 40 }
+        try #require(rows.count >= 4)
+        table.selectRowIndexes([rows[0]], byExtendingSelection: false)
+        await settle()
+        RenderProbe.counts = [:]
+        HoverProbe.enabled = true
+        defer { HoverProbe.enabled = false; HoverProbe.reset(); RenderProbe.counts = [:] }
+        for r in rows[1...3] {
+            table.selectRowIndexes([r], byExtendingSelection: false)
+            await settle()
+        }
+        let counts = RenderProbe.counts
+        print("PERF 3 clicks on notes: bodies worked out \(counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+        #expect((counts["NoteDetailView"] ?? 0) >= 3, "the notes did open")
+        #expect(counts["SidebarView"] == nil, "the sidebar isn't worked out for a note open")
+        #expect((counts["NoteListView"] ?? 0) <= 3, "the list once per open at most")
+        #expect((counts["RootView"] ?? 0) <= 6, "the window twice per open at most")
+    }
+
     /// Hiding and showing the sidebar works out none of the columns again: not the folders (every
     /// folder row with them), not the note list. The split view hands its columns over again on
     /// every toggle, and both were worked out each time, mid-animation. They still follow what
