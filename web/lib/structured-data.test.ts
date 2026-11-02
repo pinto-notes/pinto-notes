@@ -2,10 +2,22 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FAQ } from "../app/help/questions";
 import { APP_STORE_LIVE } from "./site";
-import { app, article, breadcrumbs, faqPage, incredible, maker, organization, website } from "./structured-data";
+import { app, article, breadcrumbs, faqPage, homePage, incredible, maker, organization, website } from "./structured-data";
 
 // The rules schema.org and Google's rich result docs set for these types, checked on what the pages emit.
 describe("structured data", () => {
+  it("names the square hero as the home page's main image, a file that exists", () => {
+    const img = homePage.primaryImageOfPage as { url: string; width: number; height: number };
+    expect(img.url).toBe("https://pintonotes.com/search-thumbnail.jpg");
+    expect(img.width).toBe(img.height);
+    expect(homePage.thumbnailUrl).toBe(img.url);
+    expect(readFileSync(new URL("../public/search-thumbnail.jpg", import.meta.url)).length).toBeGreaterThan(10_000);
+  });
+
+  it("never offers read-only AI access, which the app doesn't have", () => {
+    expect(JSON.stringify(app("1.0"))).not.toMatch(/read-only/i);
+  });
+
   it("describes the app as a free productivity app, with iOS only once the App Store listing is live", () => {
     const a = app("1.0");
     expect(a["@type"]).toBe("SoftwareApplication");
