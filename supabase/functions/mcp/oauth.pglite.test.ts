@@ -828,6 +828,22 @@ Deno.test("Gemini keeps one refresh token: each refresh gives a new access token
   assertEquals((await refresh(sql, first.refresh_token)).body.error, "invalid_grant");
 });
 
+Deno.test("a client named in HTTP Basic (Google's account linking) can exchange its code", async () => {
+  const { sql, pg } = await db();
+  const { clientId, verifier, back } = await connect(sql, pg, "proxy");
+  const res = await call(sql, request("proxy", "/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", authorization: `Basic ${btoa(`${encodeURIComponent(clientId)}:`)}` },
+    body: new URLSearchParams({ grant_type: "authorization_code", code: back.searchParams.get("code")!, code_verifier: verifier, redirect_uri: CHATGPT }),
+  }));
+  const body = await res.json();
+  assertEquals(res.status, 200, JSON.stringify(body));
+  assert(body.access_token && body.refresh_token);
+  const { basicClientId } = await import("./oauth.ts");
+  assertEquals(basicClientId(new Request("https://x/token", { headers: { authorization: "Basic !!" } })), null);
+  assertEquals(basicClientId(new Request("https://x/token")), null);
+});
+
 Deno.test("only a client that returns to Google's callback alone keeps its refresh token", async () => {
   const { keepsRefreshToken } = await import("./oauth.ts");
   assert(keepsRefreshToken(["https://oauth-redirect.googleusercontent.com/r/abc"]));

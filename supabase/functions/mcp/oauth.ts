@@ -1352,9 +1352,25 @@ async function revokeGrant(sql: Sql, grantId: string) {
   await sql`delete from public.oauth_tokens where grant_id = ${grantId}`;
 }
 
+/// The client ID in an `Authorization: Basic` header (RFC 6749 2.3.1: form-encoded, then base64).
+export function basicClientId(req: Request): string | null {
+  const m = /^Basic\s+([A-Za-z0-9+/=]+)$/i.exec(req.headers.get("authorization") ?? "");
+  if (!m) return null;
+  try {
+    const raw = atob(m[1]);
+    const id = decodeURIComponent(raw.split(":")[0].replace(/\+/g, " "));
+    return id && id.length <= 200 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 async function token(req: Request, sql: Sql, base: string): Promise<Response> {
   if (await limited(sql, req, "token")) return oauthError("slow_down", "Too many requests. Try again shortly.", 429);
   const p = await formOrJson(req);
+  // Google's account linking (Gemini) may name the client in HTTP Basic instead of the body. The
+  // client is public (no secret), so the header only says which client; PKCE still proves it.
+  if (!p.client_id) { const id = basicClientId(req); if (id) p.client_id = id; }
   if (p.resource && !isThisServer(p.resource, req)) return oauthError("invalid_target", `This server is ${base}.`);
 
   if (p.grant_type === "authorization_code") {
