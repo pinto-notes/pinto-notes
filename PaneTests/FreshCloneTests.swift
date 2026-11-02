@@ -93,6 +93,16 @@ import Testing
     @Test func theSignInDisclosureIsShort() {
         #expect(DiagnosticsCopy.signIn == "Sends error reports and a few counts, never your notes. Turn off in Settings.")
     }
+
+    /// The terms and privacy links in the sign-in sentence are underlined, so they look clickable.
+    @Test func theConsentLinksAreUnderlined() {
+        for sentence in [Legal.consentSentence, Legal.shortConsent] {
+            let links = sentence.runs.filter { $0.link != nil }
+            #expect(links.count == 2)
+            #expect(links.allSatisfy { $0.underlineStyle == .single })
+            #expect(sentence.runs.filter { $0.link == nil }.allSatisfy { $0.underlineStyle == nil })
+        }
+    }
 }
 
 #endif

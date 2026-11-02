@@ -11,7 +11,15 @@ enum Legal {
         var t = AttributedString("Terms of Service"); t.link = terms
         var p = AttributedString("Privacy Policy"); p.link = privacy
         s += t; s += AttributedString(" and "); s += p; s += AttributedString(".")
-        return s
+        return underliningLinks(s)
+    }
+
+    /// Links inside a sentence are underlined, so they read as links before the pointer finds
+    /// them: colour alone didn't (Emil, 2 November 2026).
+    static func underliningLinks(_ text: AttributedString) -> AttributedString {
+        var text = text
+        for run in text.runs where run.link != nil { text[run.range].underlineStyle = .single }
+        return text
     }
 }
 
@@ -23,7 +31,7 @@ extension Legal {
         var t = AttributedString("Terms"); t.link = terms
         var p = AttributedString("Privacy Policy"); p.link = privacy
         s += t; s += AttributedString(" and "); s += p; s += AttributedString(".")
-        return s
+        return underliningLinks(s)
     }
 }
 
