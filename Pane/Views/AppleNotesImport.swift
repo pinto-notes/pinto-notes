@@ -235,6 +235,11 @@ struct AppleNotesImportView: View {
     @State private var choosingNotes = false
     /// An import ran (the import funnel's `cancelled` is for a sheet closed before one did).
     @State private var imported = false
+    /// The import came through whole: the success page, as the other guides end.
+    @State private var finished: AppleNotesImportSummary?
+    /// Captures: the sheet at a given page without importing (`guided`).
+    nonisolated(unsafe) static var demoPage: DemoPage?
+    enum DemoPage { case importing, finished }
 
     private var shown: [AppleNote] {
         query.isEmpty ? notes : notes.filter { n in n.name.localizedStandardContains(query) || listing.destination(of: n).contains { $0.localizedStandardContains(query) } }
@@ -292,15 +297,28 @@ struct AppleNotesImportView: View {
             }
     }
 
+    /// The one-press path looks like the other import guides (Emil, 2 November 2026: "it doesnt
+    /// look as polished"): the × at the top, Apple Notes' icon and a large title, what will come
+    /// in a card, one wide button. Picking notes one by one, and what couldn't be read, keep the
+    /// list with its bar at the foot.
+    private var guided: Bool { !choosingNotes && unread == nil }
+
     private var sheet: some View {
         VStack(spacing: 0) {
-            header
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Rectangle().fill(Color.line).frame(height: 1)
-            footer
+            if guided {
+                topBar
+                guidePage
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                topBar
+                header
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Rectangle().fill(Color.line).frame(height: 1)
+                footer
+            }
         }
-        .frame(width: 540, height: sheetHeight)
+        .frame(width: 540, height: guided ? Self.guideHeight : sheetHeight)
         // Any change of height is one short, even move: never a jump.
         .animation(.easeInOut(duration: 0.22), value: sheetHeight)
         .foregroundStyle(Color.ink)
@@ -322,6 +340,202 @@ struct AppleNotesImportView: View {
             progress = (picked.count / 2, picked.count)
         }
     }
+
+    /// The guides' size, so every import sheet is the same.
+    static let guideHeight: CGFloat = 560
+
+    private var topBar: some View {
+        HStack {
+            if choosingNotes, progress == nil {
+                Button { choosingNotes = false; query = "" } label: { Label("Back", systemImage: "chevron.left") }
+                    .buttonStyle(.quiet)
+                    .padding(.leading, -QuietButtonStyle.inset)
+                    .accessibilityIdentifier("import.back")
+            }
+            Spacer()
+            CardCloseButton { dismiss() }
+                .disabled(progress != nil)
+                .accessibilityIdentifier("import.close")
+        }
+        .frame(height: 30)
+        .padding(.horizontal, 18)
+        .padding(.top, 16)
+    }
+
+    /// Which page of the guide look shows.
+    private var pageKey: Int { finished != nil || Self.demoPage == .finished ? 2 : progress != nil || Self.demoPage == .importing ? 1 : 0 }
+
+    private var guidePage: some View {
+        ZStack {
+            Group {
+                switch pageKey {
+                case 2: successPage
+                case 1: importingPage
+                default: choosePage
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .id(pageKey)
+            .transition(BlurMotion.page)
+        }
+        .animation(BlurMotion.enter, value: pageKey)
+        .padding(.horizontal, 40)
+        .padding(.bottom, 26)
+    }
+
+    /// "Bring your Apple Notes": what will come, folder by folder, and the one button.
+    private var choosePage: some View {
+        VStack(spacing: 0) {
+            ImportSourceIcon(origin: .appleNotes, size: 64)
+                .padding(.bottom, 16)
+            Text("Bring your Apple Notes")
+                .font(.display(26))
+                .tracking(Palette.tracking(26))
+                .multilineTextAlignment(.center)
+            Text(Self.subtitle(notes: loading || failure != nil ? nil : notes.count, folders: groups.count, locale: locale))
+                .font(.system(size: 14))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .accessibilityIdentifier("import.subtitle")
+            folderCard
+                .padding(.top, 20)
+            Spacer(minLength: 12)
+            Button { Task { await runImport() } } label: {
+                Text(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.amberProminent(.regular, wide: true))
+            .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: 320)
+            .disabled(loading || failure != nil || picked.isEmpty)
+            .accessibilityIdentifier("import.start")
+            Button("Choose Notes\u{2026}") { choosingNotes = true }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+                .frame(height: 34)
+                .padding(.top, 6)
+                .disabled(loading || failure != nil || notes.isEmpty)
+                .accessibilityIdentifier("import.chooseNotes")
+        }
+    }
+
+    /// The folders in a card, as the other guides show the folder they found.
+    private var folderCard: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        return Group {
+            if loading {
+                VStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text("Reading Apple Notes\u{2026}").font(.system(size: 13, weight: .medium))
+                    // Said before macOS's own question, which only names the two apps.
+                    Text("If macOS asks whether Pinto Notes may use Notes, choose Allow.")
+                        .font(.footnote).foregroundStyle(Color.muted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 320)
+                        .accessibilityIdentifier("import.permissionLine")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let failure {
+                VStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 24)).foregroundStyle(Color(Palette.amber))
+                    Text("Can't read Apple Notes").font(.system(size: 14, weight: .semibold))
+                    Text(failure).font(.system(size: 12)).foregroundStyle(Color.muted).multilineTextAlignment(.center).frame(maxWidth: 340)
+                    Button("Try Again") { Task { await load() } }.buttonStyle(.secondary(.compact))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(listing.unreadFolders.enumerated()), id: \.offset) { _, folder in
+                            Label("Apple Notes wouldn't list the folder \u{201C}\(folder.folder)\u{201D}. Its notes aren't shown.", systemImage: "exclamationmark.triangle.fill")
+                                .symbolRenderingMode(.multicolor)
+                                .font(.footnote)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 6)
+                        }
+                        ForEach(Array(groups.enumerated()), id: \.element.0) { i, group in
+                            let (folder, items) = group
+                            let coming = items.filter { picked.contains($0.id) }.count
+                            if i > 0 { Rectangle().fill(Color.line).frame(height: 1).padding(.leading, 50) }
+                            HStack(spacing: 12) {
+                                Image(systemName: "folder").font(.system(size: 15)).foregroundStyle(Color.muted).frame(width: 20)
+                                Text(folder).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                Spacer(minLength: 8)
+                                Text(Self.folderLine(coming: coming, of: items.count, locale: locale))
+                                    .font(.system(size: 12)).foregroundStyle(Color.muted).monospacedDigit()
+                            }
+                            .padding(.horizontal, 18)
+                            .frame(height: 40)
+                            .accessibilityElement(children: .combine)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .scrollIndicators(.automatic)
+                .scrollBounceBehavior(.basedOnSize)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.folderCardHeight)
+        .background(Color(Palette.page), in: shape)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .clipShape(shape)
+    }
+
+    /// Five folders without scrolling; more scroll inside the card.
+    static let folderCardHeight: CGFloat = 212
+
+    private var importingPage: some View {
+        let p = progress ?? (picked.count / 2, max(picked.count, 1))
+        return VStack(spacing: 14) {
+            Spacer(minLength: 0)
+            ImportSourceIcon(origin: .appleNotes, size: 64)
+            Text("Bringing in your notes").font(.system(size: 21, weight: .bold)).tracking(-0.3)
+            ProgressView(value: Double(p.done), total: Double(max(p.total, 1)))
+                .frame(maxWidth: 300)
+                .tint(Color(Palette.amber))
+            Text("\(min(p.done + 1, p.total).formatted(.number.locale(locale))) of \(p.total.formatted(.number.locale(locale)))")
+                .font(.system(size: 13)).foregroundStyle(Color.muted).monospacedDigit()
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var successPage: some View {
+        let n = finished?.noteIDs.count ?? picked.count
+        return VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            ZStack(alignment: .bottomTrailing) {
+                ImportSourceIcon(origin: .appleNotes, size: 76)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 28))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color(Palette.amberButton))
+                    .background(Circle().fill(Color(Palette.sheetGround)).padding(-3))
+                    .offset(x: 8, y: 6)
+            }
+            .padding(.bottom, 22)
+            Text(ImportGuideSheet.successTitle(n, from: "Apple Notes"))
+                .font(.display(26))
+                .tracking(Palette.tracking(26))
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 10)
+            Text(Self.successLine)
+                .font(.system(size: 15))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 400)
+            Spacer(minLength: 0)
+            Button { dismiss() } label: { Text("Show My Notes").frame(maxWidth: .infinity) }
+                .buttonStyle(.amberProminent(.regular, wide: true))
+                .keyboardShortcut(.defaultAction)
+                .frame(maxWidth: 320)
+                .accessibilityIdentifier("import.done")
+            Text(" ").frame(height: 34).padding(.top, 6).hidden()
+        }
+    }
+
+    static let successLine = "Your folders came over as they were."
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -353,7 +567,7 @@ struct AppleNotesImportView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
-        .padding(.top, 20)
+        .padding(.top, 8)
         .padding(.bottom, 12)
     }
 
@@ -719,8 +933,8 @@ struct AppleNotesImportView: View {
         onSummary(summary)
         onImported(summary.noteIDs)
         progress = nil
-        // Nothing to explain: back to the notes, where a line says what came over.
-        if summary.notImported.isEmpty && listing.unreadFolders.isEmpty { dismiss() } else { unread = summary }
+        // Nothing to explain: the success page, as the other guides end. Otherwise what couldn't come.
+        if summary.notImported.isEmpty && listing.unreadFolders.isEmpty { choosingNotes = false; finished = summary } else { unread = summary }
     }
 }
 

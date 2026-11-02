@@ -649,5 +649,16 @@ import Testing
         #expect(AppleNotesImporter.place("![a](pane-file:1)", for: "TOKEN", in: "before TOKEN after\nnext") == "before\n![a](pane-file:1)\nafter\nnext")
         #expect(AppleNotesImporter.place("", for: "TOKEN", in: "a\nTOKEN\nb") == "a\nb", "a picture too big to keep leaves no gap")
     }
+
+    /// The Apple Notes sheet looks like the other import guides (Emil, 2 November 2026: "it doesnt
+    /// look as polished"): their size, the shared close ×, and the same success title.
+    @Test func theAppleNotesSheetIsAGuide() throws {
+        #expect(AppleNotesImportView.guideHeight == ImportSheetFit.designed)
+        #expect(ImportGuideSheet.successTitle(12, from: "Apple Notes") == "12 notes from Apple Notes are here")
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/AppleNotesImport.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        #expect(source.contains("CardCloseButton"), "the sheet closes with the cards' ×")
+        #expect(source.contains("finished = summary"), "a whole import ends on the success page")
+    }
 }
 #endif
