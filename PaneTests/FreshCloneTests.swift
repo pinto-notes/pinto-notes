@@ -79,6 +79,12 @@ import Testing
         #expect(AppIdentity.keychainPrefix(bundleID: "dev.emilwagman.pane", devRun: false) == "dev.emilwagman.pane")
         #expect(!AppIdentity.devRun, "tests aren't a dev run")
     }
-}
 
-#endif
+    /// Signed out, the sidebar behind the sign-in card is empty: no "Folders" heading up under
+    /// the window's buttons (Emil, 2 November 2026).
+    @Test func anEmptySidebarHasNoHeading() {
+        #expect(!SidebarView.showsHeading(folders: 0, trashed: 0))
+        #expect(SidebarView.showsHeading(folders: 1, trashed: 0))
+        #expect(SidebarView.showsHeading(folders: 0, trashed: 2))
+    }
+}

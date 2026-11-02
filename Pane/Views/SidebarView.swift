@@ -400,6 +400,9 @@ struct SidebarView: View {
         #endif
     }
 
+    /// Whether the folder list shows its "Folders" heading: only with a row under it.
+    static func showsHeading(folders: Int, trashed: Int) -> Bool { folders > 0 || trashed > 0 }
+
     /// The folders as you pick one: a tap opens it.
     private func selectList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
         List(selection: $scope) {
@@ -420,8 +423,12 @@ struct SidebarView: View {
             } header: {
                 // On iPhone the screen's title says it (Emil, 29 October 2026).
                 #if os(macOS)
-                Text("Folders")
-                    .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+                // Only over rows: an empty list (signed out, behind the sign-in card) puts its
+                // heading at the very top, under the window's buttons (Emil, 2 November 2026).
+                if Self.showsHeading(folders: roots.count, trashed: files.trashed) {
+                    Text("Folders")
+                        .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+                }
                 #endif
             }
             #if os(iOS)

@@ -1232,6 +1232,9 @@ struct AppGate: View {
             .environment(setup)
             .environment(onboarding)
             .environment(\.behindSetupCard, true)
+            // Its top bar's buttons too look and act disabled until you're signed in (Emil,
+            // 2 November 2026): the toolbar takes this from the view that declares it.
+            .disabled(true)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .overlay { card() }
